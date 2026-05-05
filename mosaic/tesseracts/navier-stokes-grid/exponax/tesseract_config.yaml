@@ -1,0 +1,14 @@
+name: exponax_navier_stokes_grid
+version: "0.1.0"
+description: |
+  Differentiable 2D/3D incompressible Navier-Stokes solver using exponax pseudo-spectral methods.
+  2D: streamfunction-vorticity ETDRK stepper with internal velocity<->vorticity conversion.
+  3D: Leray-projected velocity ETDRK stepper.
+  Interface matches jax-cfd and phiflow: velocity input (nx, ny, 1, 2) for 2D,
+  (nx, ny, nz, 3) for 3D on an isotropic periodic domain.
+
+build_config:
+  package_data: []
+  custom_build_steps:
+    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+    - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.6"

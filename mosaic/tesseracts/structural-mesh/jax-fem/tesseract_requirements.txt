@@ -1,0 +1,10 @@
+numpy==2.3.0
+scipy==1.15.2
+meshio==5.3.5
+gmsh==4.13.1
+petsc4py==3.22.4
+fenics-basix==0.9.0
+pyfiglet==1.0.3
+jax[cpu]==0.5.3
+jax-fem==0.0.9
+../../../mosaic_shared

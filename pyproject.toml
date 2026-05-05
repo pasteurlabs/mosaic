@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mosaic-bench"
+version = "0.1.0"
+description = "A benchmark suite for differentiable physics solvers"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "rich>=13.0",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "numpy",
+    "ruff",
+    "pre-commit",
+    "pandas",
+    "matplotlib",
+    "jax[cpu]",
+    "optax",
+    "tesseract-core[runtime]",
+    "tesseract-jax",
+    "psutil",
+]
+
+[project.scripts]
+mosaic = "benchmarks.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["mosaic"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["mosaic/tests"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E501",   # line too long (formatter handles this)
+    "E731",   # lambda assignment — used for local type predicates in abstract_eval boilerplate
+    "E741",   # ambiguous variable name — `I` is conventional for identity matrices in math code
+    "E702",   # multiple statements on one line — common in notebook plot cells
+]
+
+[tool.ruff.lint.per-file-ignores]
+"mosaic/tesseracts/thermal-mesh/fenics-heat/tesseract_api.py" = [
+    "F403",   # star import from dolfin/dolfin_adjoint — required by FEniCS conventions
+    "F405",   # may be from star import — dolfin exports are only available via star import
+]
+"mosaic/tesseracts/navier-stokes-grid/xlb/tesseract_api.py" = [
+    "E402",   # schema classes defined before late runtime imports required by xlb init order
+]
+"mosaic/tesseracts/navier-stokes-grid/phiflow/tesseract_api.py" = [
+    "E402",   # XLA_FLAGS must be set before jax imports; os imported early for build-guard
+]

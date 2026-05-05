@@ -1,0 +1,40 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - docs/index.qmd
+    - docs/results_*.qmd
+
+website:
+  title: Mosaic
+  repo-url: https://github.com/pasteurlabs/mosaic
+  repo-actions: [edit, issue]
+  navbar:
+    left:
+      - text: Overview
+        file: docs/index.qmd
+      - text: Results
+        menu:
+          - text: "Navier\u2013Stokes (2D & 3D)"
+            file: docs/results_ns_grid.qmd
+          - text: Structural Mechanics
+            file: docs/results_structural_mesh.qmd
+          - text: Heat Conduction
+            file: docs/results_thermal_mesh.qmd
+    right:
+      - icon: github
+        href: https://github.com/pasteurlabs/mosaic
+  page-footer:
+    center: "Built with [Quarto](https://quarto.org) · [Mosaic](https://github.com/pasteurlabs/mosaic)"
+
+execute:
+  enabled: false
+
+format:
+  html:
+    theme: flatly
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: wrap
+    highlight-style: github

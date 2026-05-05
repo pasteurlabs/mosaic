@@ -1,0 +1,26 @@
+name: xlb_navier_stokes_grid
+version: "0.1.0"
+description: |
+  Differentiable 2D/3D incompressible Navier-Stokes solver using the Lattice Boltzmann
+  Method (LBM) with BGK collision, backed by XLB + JAX.
+
+  Lattice: D2Q9 for 2D (nz=1, ndim=2), D3Q19 for 3D (ndim=3).
+
+  Operates in lattice units: input velocities should satisfy |u| << 1/sqrt(3) ≈ 0.577
+  for numerical stability (Ma << 1). A practical safe maximum is |u| ≤ 0.1.
+  The relaxation parameter omega = 1/(3*viscosity + 0.5) sets the effective kinematic
+  viscosity. Stability requires viscosity > 0.
+
+  The forward pass uses a pure-JAX implementation (stream → macroscopic → equilibrium
+  → BGK collision) with jax.lax.scan for O(1) compile time. VJP/JVP flow through
+  the entire rollout via JAX autodiff. Both apply() and vjp_jit() run in float64
+  internally (output cast to float32) to avoid float32 quantization noise dominating
+  FD gradient checks at fine ε (omega≈2 at low viscosity).
+
+  Interface: v0 (nx, ny, 1, 2) or (nx, ny, nz, 3) → result same shape.
+
+build_config:
+  package_data: []
+  custom_build_steps:
+    - 'ENV XLA_FLAGS="--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"'
+    - 'ENV XLA_PYTHON_CLIENT_PREALLOCATE=false'

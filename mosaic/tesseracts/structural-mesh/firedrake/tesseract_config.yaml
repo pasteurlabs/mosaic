@@ -1,0 +1,42 @@
+name: firedrake_structural_mesh
+version: "0.1.0"
+description: |
+  Linear elasticity + SIMP topology optimisation via Firedrake + firedrake-adjoint.
+  Differentiable via pyadjoint ReducedFunctional. HEX8 elements, CG1 displacement.
+
+  Solves:
+    -∇·σ(u) = 0    in Ω
+
+  with SIMP stiffness:
+    E(ρ) = E_min + (E_max − E_min) · ρ^p    (E_min = 1e-3·E_max, p = 3)
+    σ = λ tr(ε) I + 2μ ε
+    ε = ½(∇u + ∇u^T)
+
+  Compliance objective:
+    C = ∫_Γ_N f · u dΓ  (= F^T U for linear elasticity)
+
+  The gradient ∂C/∂ρ is computed via the adjoint method using firedrake-adjoint,
+  which records the forward solve on a pyadjoint tape and solves the adjoint
+  problem to obtain element-wise sensitivities.
+
+  Mesh : arbitrary HexMesh (8-node hexahedral elements), supplied by caller.
+         Converted to Firedrake format via meshio GMSH v2 at solve time.
+         Boundary facets are tagged from per-node Dirichlet / Neumann group masks.
+  FE   : CG1 Lagrange vector (linear) for displacement.
+         DG0 piecewise-constant scalar for density.
+  BCs  : per-node Dirichlet displacement groups (dirichlet.mask / dirichlet.values,
+         values=None → zero displacement) and per-node Neumann traction groups
+         (neumann.mask / neumann.values), matching the canonical structural-mesh schema.
+
+  Interface:
+    Inputs : rho (n_cells,), hex_mesh (HexMesh), boundary_conditions (MeshBC)
+    Outputs: compliance (scalar), von_mises_stress (n_cells,), displacement (n_nodes, 3)
+
+build_config:
+  base_image: "firedrakeproject/firedrake:latest"
+  skip_checks: true
+  package_data:
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+  custom_build_steps:
+    - "RUN cp /usr/local/lib/python3.12/dist-packages/__editable__.firedrake-2026.4.0.pth /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/__editable___firedrake_2026_4_0_finder.py /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/a1_coverage.pth /python-env/lib/python3.12/site-packages/ && echo /usr/local/lib/python3.12/dist-packages > /python-env/lib/python3.12/site-packages/firedrake_deps.pth"
+    - "RUN /python-env/bin/pip install /tmp/mosaic_shared meshio scipy"

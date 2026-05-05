@@ -1,0 +1,38 @@
+name: warp_ns_navier_stokes_grid
+version: "0.1.0"
+description: |
+  GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
+
+  2-D: vorticity-streamfunction formulation + Jacobi Poisson + SSP-RK3.
+       Incompressible by construction (vorticity-ψ closure).
+       Obstacle support via volume penalization (cylinder mask).
+       VJP via wp.Tape reverse-mode AD: tape records all RK3 kernel launches,
+       then tape.backward() propagates cotangents to the initial vorticity;
+       the adjoint of the curl operator maps grad_ω₀ → grad_v0.
+
+  3-D: IPCS (incremental pressure correction / Chorin-Temam) scheme:
+         u* = u + dt·(−u·∇u + ν∇²u)          (tentative velocity)
+         ∇²p = ∇·u* / dt                        (pressure Poisson)
+         u^(n+1) = u* − dt·∇p                   (velocity correction)
+       Lid-driven cavity mode via lid_velocity input (top z-face BC).
+       VJP via wp.Tape on the full time loop.
+
+  Jacobi iteration counts:
+    num_iters_poisson    (2-D, default 500)  — adequate for N≤64
+    num_iters_poisson_3d (3-D, default 800)  — adequate for N≤32
+
+  Differentiable inputs: v0, (viscosity and dt return zero gradients; TODO).
+  Outputs: result (same shape as v0), drag (shape (1,) when obstacle present).
+
+  Interface:
+    Inputs : v0 (N,N,1,2 for 2-D or N,N,N,3 for 3-D), viscosity (1,),
+             dt (1,), steps (int), domain_extent (float),
+             boundary_conditions (GridBC), obstacle (GridObstacle|None),
+             lid_velocity (Array[(N,N,2)]|None)
+    Outputs: result (same shape as v0), drag (1,) when obstacle present else None
+
+build_config:
+  package_data:
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+  custom_build_steps:
+    - "RUN /python-env/bin/pip install /tmp/mosaic_shared"

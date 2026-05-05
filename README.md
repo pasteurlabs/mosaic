@@ -1,1 +1,110 @@
-# mosaic
+![logo](logo.png)
+
+# Mosaic: a benchmark suite for differentiable physics solvers
+
+Mosaic is an extensible benchmark framework that measures gradient quality, computational cost, and solver compatibility across differentiable physics solvers. It treats gradient accuracy as a first-class criterion alongside forward accuracy and throughput.
+
+Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container exposing a uniform `apply` / `vjp` interface regardless of language or AD strategy. The benchmark harness calls these containers as native JAX functions via [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), enabling comparison across incompatible AD backends (JAX, PyTorch, Julia Zygote, C++) without shared dependencies.
+
+## Benchmark domains
+
+| ID | Domain | Optimization task | Control dim. | Backends |
+|:---|:-------|:------------------|:-------------|:---------|
+| **H** | Heat transfer | Conductivity inversion | 128 | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem |
+| **S** | Structural mechanics | Compliance minimization (SIMP) | 256 | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl |
+| **F2** | Incompressible fluids (2D) | Inflow optimization for drag min. | 32 | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
+| **F3** | 3D Navier-Stokes | Initial condition recovery | 12k | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+
+## Evaluation protocol
+
+All metrics are computed uniformly across solvers through the Tesseract interface:
+
+- **Setup compatibility.** Whether a solver produces a usable gradient, fails numerically, or is structurally excluded.
+- **Gradient accuracy.** Central finite differences through the Tesseract interface serve as the solver-agnostic reference. Cosine similarity and relative error across multiple random perturbation directions.
+- **Performance.** Forward and VJP wall-clock time, their ratio, and peak memory, measured across multiple problem sizes.
+- **Forward accuracy.** Resolution sweep against a reference solver and adherence to physical laws.
+- **Optimization convergence.** Adam with each solver's gradients for a fixed iteration budget; success is reaching within 1% of the best solution across all solvers.
+
+## Quick start
+
+**Prerequisites:** Python >= 3.10 and Docker.
+
+```bash
+git clone https://github.com/pasteurlabs/mosaic
+cd mosaic
+pip install -e ".[dev]"
+pre-commit install
+```
+
+## Running benchmarks
+
+```bash
+mosaic run-all                                    # all suites, all problems
+mosaic run-all --problems ns-grid,structural-mesh # filter problems
+mosaic run-all --suites forward,gradient          # filter suites
+mosaic run-all --no-build                         # skip container builds
+mosaic run-all --plots-only                       # regenerate plots from existing results
+
+mosaic ics      -p <problem>                      # visualize initial conditions
+mosaic forward  -p <problem>                      # forward accuracy
+mosaic cost     -p <problem>                      # wall-clock scaling
+mosaic gradient -p <problem>                      # gradient quality (FD check, Jacobian SVD)
+mosaic recovery -p <problem>                      # optimization convergence
+
+# Useful flags
+mosaic gradient -p ns-grid -e fd_check --debug          # small problem for quick smoke-test
+mosaic gradient -p ns-grid -e fd_check --ics tgv        # run only specific IC
+mosaic forward  -p ns-grid -s exponax                   # single solver
+mosaic forward  -p ns-grid --gpus 0,1,2                 # multi-GPU parallel
+```
+
+Results land in `mosaic/benchmarks/results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF plots.
+
+## Coverage status
+
+```bash
+mosaic status                             # full per-problem tables
+mosaic status -p ns-grid -f               # single problem with failure reasons
+mosaic status --format md > report.md     # markdown report
+mosaic status --format json > snap.json   # machine-readable snapshot
+```
+
+## Project structure
+
+```
+mosaic/
+  benchmarks/           # evaluation harness
+    cli.py              # command-line interface
+    core/               # runner, config, hardware detection
+    suites/             # forward, gradient, cost, optimization
+    problems/           # per-domain configs (ns-grid, structural-mesh, etc.)
+    plots/              # paper figure generation
+  mosaic_shared/        # shared Tesseract interface schemas
+    problems/           # per-domain input/output schemas
+    utils/              # comparison metrics, plotting utilities
+  tesseracts/           # solver backends
+    navier-stokes-grid/ # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
+    structural-mesh/    # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl
+    thermal-mesh/       # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
+  tests/
+docs/                   # Quarto documentation site
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a new solver backend or benchmark domain.
+
+Contributions are validated automatically: CI runs the full evaluation suite on every pull request, and updated results are published with each release.
+
+## Reproducing paper results
+
+Benchmark results from the paper are available as downloadable artifacts attached to each [tagged release](https://github.com/pasteurlabs/mosaic/releases). To reproduce figures from the paper:
+
+1. Download the release artifacts and extract into `mosaic/benchmarks/results/`
+2. Run `mosaic run-all --plots-only` to regenerate all plots
+
+To re-run benchmarks from scratch, ensure Docker is running and execute `mosaic run-all`. This requires building all solver containers and may take several hours depending on hardware.
+
+## License
+
+Apache 2.0. Individual solver backends retain their upstream licenses, documented per solver in the repository.

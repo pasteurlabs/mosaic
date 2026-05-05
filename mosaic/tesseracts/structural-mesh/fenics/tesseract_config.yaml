@@ -1,0 +1,43 @@
+name: fenics_structural_mesh
+version: "0.1.0"
+description: |
+  Linear elasticity + SIMP topology optimisation using FEniCS/DOLFIN 2019.1.0
+  + dolfin-adjoint. HEX8 hexahedral elements, CG1 displacement, DG0 density.
+  Gradient dC/drho via adjoint method (ReducedFunctional).
+
+  Solves 3-D linear elasticity with SIMP stiffness interpolation:
+    -div(sigma(u)) = 0    in Omega
+    E(rho) = E_min + (E_max - E_min) * rho^penal    (E_min = xmin * E_max)
+
+  Lame parameters:
+    lambda = E(rho) * nu / ((1+nu)(1-2nu))
+    mu     = E(rho) / (2*(1+nu))
+
+  The structural compliance objective:
+    C = F^T U = assemble(action(L, u_sol))
+
+  The gradient dC/drho is computed via the adjoint method using dolfin-adjoint,
+  which records the forward solve on a tape and automatically derives and solves
+  the adjoint elasticity equation to obtain element-wise sensitivities.
+
+  Mesh : arbitrary HexMesh (8-node hexahedral elements), supplied by caller.
+         Converted to FEniCS format via meshio at solve time.
+  FE   : CG1 vector Lagrange for displacement, DG0 for piecewise-constant density.
+  BCs  : per-node Dirichlet displacement groups (dirichlet.mask / dirichlet.values,
+         shape (n_groups, 3)) and per-node Neumann traction groups
+         (neumann.mask / neumann.values, shape (n_groups, 3)).
+
+  Interface:
+    Inputs : rho (n_cells,), hex_mesh (HexMesh), boundary_conditions (MeshBC),
+             E_max (float), nu (float), xmin (float), penal (float)
+    Outputs: compliance (scalar), von_mises_stress (n_cells,),
+             displacement (n_nodes, 3)
+
+build_config:
+  base_image: "condaforge/miniforge3:latest"
+  requirements:
+    provider: conda
+  package_data:
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+  custom_build_steps:
+    - "RUN /python-env/bin/pip install /tmp/mosaic_shared"

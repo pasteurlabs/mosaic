@@ -1,0 +1,26 @@
+name: openfoam_navier_stokes_grid
+version: "0.1.0"
+description: |
+  Incompressible Navier-Stokes on a periodic Cartesian grid via OpenFOAM icoFoam.
+  Accepts the canonical navier-stokes-grid interface (v0, viscosity, dt, steps,
+  domain_extent). Mesh is generated internally with blockMesh (N×N, cyclic x/y,
+  empty z). Forward-only; no VJP/JVP.
+
+build_config:
+  package_data: []
+
+  extra_packages:
+    - wget
+    - software-properties-common
+
+  base_image: "ubuntu:24.04"
+  target_platform: "linux/x86_64"
+
+  custom_build_steps:
+    - USER root
+    - |
+      RUN sh -c "wget -O - https://dl.openfoam.org/gpg.key > /etc/apt/trusted.gpg.d/openfoam.asc" && \
+          add-apt-repository http://dl.openfoam.org/ubuntu && \
+          apt-get update && \
+          apt-get install -y --no-install-recommends openfoam12 && \
+          rm -rf /var/lib/apt/lists/*

@@ -1,0 +1,42 @@
+name: firedrake_heat_thermal_mesh
+version: "0.1.0"
+description: |
+  Differentiable 3-D thermal heat conduction on a hexahedral mesh,
+  using Firedrake + firedrake-adjoint.
+
+  Solves steady-state heat conduction with SIMP conductivity interpolation
+  and optional body heat source:
+    -∇·(k(ρ) ∇T) = f    in Ω
+    k(ρ) = k_min + (k_max − k_min) · ρ^p    (k_min = 1e-3·k_max, p = 3)
+
+  The objective is the thermal compliance (total dissipated power):
+    C = ∮_Γ_N q_n · T dΓ
+
+  The identification error (for inverse problems) is:
+    E = ||T − T_target||²_2
+
+  The gradient ∂C/∂ρ and ∂C/∂f (source gradient) are computed via
+  the adjoint method using firedrake-adjoint's ReducedFunctional.
+
+  Mesh : arbitrary HexMesh (8-node hexahedral elements), supplied by caller.
+         Converted to Firedrake format via meshio GMSH v2 at solve time.
+         Boundary facets are tagged from per-node Dirichlet / Neumann group masks.
+  FE   : P1 Lagrange (linear) for temperature.
+         DG0 piecewise-constant scalar for density and source.
+  BCs  : per-node Dirichlet temperature groups (dirichlet.mask / dirichlet.values)
+         and per-node Neumann heat flux groups (neumann.mask / neumann.values).
+
+  Interface:
+    Inputs : rho (n_cells,), source (n_cells,), target_temperature (n_nodes,),
+             hex_mesh (HexMesh), boundary_conditions (MeshBC), k_max (float), p_exp (float)
+    Outputs: thermal_compliance (scalar), temperature (n_nodes,),
+             identification_error (scalar)
+
+build_config:
+  base_image: "firedrakeproject/firedrake:latest"
+  skip_checks: true
+  package_data:
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+  custom_build_steps:
+    - "RUN cp /usr/local/lib/python3.12/dist-packages/__editable__.firedrake-2026.4.0.pth /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/__editable___firedrake_2026_4_0_finder.py /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/a1_coverage.pth /python-env/lib/python3.12/site-packages/ && echo /usr/local/lib/python3.12/dist-packages > /python-env/lib/python3.12/site-packages/firedrake_deps.pth"
+    - "RUN /python-env/bin/pip install /tmp/mosaic_shared meshio scipy"

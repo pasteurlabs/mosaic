@@ -1,0 +1,20 @@
+name: ins_navier_stokes_grid
+version: "0.1.0"
+description: |
+  Differentiable 2D incompressible Navier-Stokes solver using
+  IncompressibleNavierStokes.jl (Julia) via juliacall.
+
+  Uses an energy-conserving finite-volume discretisation on a staggered
+  Cartesian grid with a spectral Poisson solver for the pressure projection.
+  Time integration is explicit RK4. Fully differentiable through Zygote.jl
+  reverse-mode AD (confirmed in Agdestein & Sanderse, JCP 2024).
+
+  Interface: v0 (nx, ny, 1, 2) -> result (nx, ny, 1, 2).
+  2D only; periodic boundary conditions; isotropic grid (nx == ny).
+
+build_config:
+  custom_build_steps:
+    - "ENV JULIA_PROJECT=/app/julia_env PYTHON_JULIAPKG_PROJECT=/app/julia_env JULIA_DEPOT_PATH=/app/julia_depot JULIA_CPU_TARGET=generic JULIA_EXECUTABLE=/usr/local/bin/julia"
+    - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*"
+    - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
+    - "RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e 'using Pkg; Pkg.add([\"IncompressibleNavierStokes\", \"Zygote\"]); Pkg.precompile()' && chmod -R 777 /app"

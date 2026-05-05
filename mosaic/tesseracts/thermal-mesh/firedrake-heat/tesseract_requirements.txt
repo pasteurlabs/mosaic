@@ -1,0 +1,1 @@
+# mosaic_shared is installed via custom_build_steps after package_data copy

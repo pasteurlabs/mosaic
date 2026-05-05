@@ -1,0 +1,10 @@
+name: jax_cfd_navier_stokes_grid
+version: "0.1.0"
+description: |
+  Tesseract that runs a differentiable 3D Navier Stokes simulation on a 3D grid.
+
+build_config:
+  package_data: []
+  custom_build_steps:
+    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+    - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.6"

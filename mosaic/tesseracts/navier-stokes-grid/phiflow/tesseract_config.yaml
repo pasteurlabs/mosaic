@@ -1,0 +1,19 @@
+name: phiflow_navier_stokes_grid
+version: "0.1.0"
+description: |
+  Tesseract that runs a differentiable 2D incompressible Navier-Stokes simulation using PhiFlow.
+  Uses semi-Lagrangian advection, explicit diffusion, and pressure projection on a periodic domain.
+
+build_config:
+  package_data: []
+  custom_build_steps:
+    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+    - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.5"
+    # ARCH-101: disable GEMM autotuning to prevent CUDA OOM in 3D recovery
+    # experiments on 16 GiB V100 GPUs.  xla_gpu_graph_num_runs_to_instantiate
+    # was attempted but rejected at runtime by phi.jax.flow's stricter XLA flag
+    # parser; xla_gpu_autotune_level=0 is sufficient.
+    # ARCH-113: disable cuBLAS-LT to prevent "Failed to initialize BLAS support"
+    # crash when GPU is busy/unavailable (same fix as xlb container); enables
+    # JAX to fall back to non-LT BLAS path rather than aborting silently.
+    - 'ENV XLA_FLAGS="--xla_gpu_autotune_level=0 --xla_gpu_enable_cublaslt=false"'

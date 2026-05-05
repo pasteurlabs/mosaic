@@ -1,0 +1,39 @@
+name: dealii_heat_thermal_mesh
+version: "0.1.0"
+description: |
+  deal.II Q1 finite element heat conduction with SIMP conductivity.
+
+  Solves steady-state heat conduction on a structured hexahedral mesh:
+    -∇·(k(ρ) ∇T) = 0    in Ω
+    k(ρ) = k_min + (k_max − k_min) · ρ^p    (k_min = 1e-3·k_max, p = 3)
+
+  Objective (thermal compliance):
+    C = ∮_Γ_N q_n · T dΓ
+
+  Gradient ∂C/∂ρ via analytic self-adjoint sensitivity (no adjoint solve needed):
+    dC/dρ_e = dk/dρ_e · ∫_e |∇T|² dΩ
+
+  C++ solver subprocess using deal.II Step-4 Laplace as base.
+  Python writes JSON + rho.npy to tempdir, runs binary, reads numpy outputs.
+
+  Mesh : structured HexMesh (8-node Q1 hexahedral elements, GridGenerator::subdivided_hyper_rectangle).
+  FE   : Q1 (trilinear) for temperature; 1 DOF per node.
+  BCs  : per-node Dirichlet temperature groups and per-node Neumann heat-flux groups.
+
+build_config:
+  # NOTE: the upstream `dealii/dealii:latest` image defaults to USER `dealii`,
+  # so the tesseract template's hardcoded apt-get steps (in both build_stage
+  # and run_stage) fail with EACCES on /var/lib/apt/lists/partial. We use a
+  # locally-built wrapper image that just sets USER root. The wrapper is
+  # built by `mosaic/tesseracts/thermal-mesh/dealii-heat/build_base.sh`
+  # (idempotent, ~1s if dealii/dealii:latest is already pulled).
+  base_image: "dealii-root:latest"
+  extra_packages:
+    - nlohmann-json3-dev
+  package_data:
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["./src", "/opt/dealii_heat/src"]
+    - ["./CMakeLists.txt", "/opt/dealii_heat/CMakeLists.txt"]
+  custom_build_steps:
+    - "RUN pip install /tmp/mosaic_shared"
+    - "RUN cd /opt/dealii_heat && cmake -B build -DCMAKE_BUILD_TYPE=Release . && cmake --build build -j4"

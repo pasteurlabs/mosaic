@@ -1,0 +1,12 @@
+name: fenics-heat-env
+channels:
+  - conda-forge
+dependencies:
+  - python==3.10
+  - numpy
+  - scipy
+  - meshio
+  - fenics==2019.1.0
+  - dolfin-adjoint==2019.1.0
+  - pip
+  - pip:
