@@ -18,10 +18,9 @@ Run directly with::
 
 from __future__ import annotations
 
-import math
 import unittest
 
-from benchmarks.core.status import (
+from mosaic.benchmarks.core.status import (
     ANOMALY,
     EXCL_CATEGORICAL,
     EXCL_INFEASIBLE,
@@ -38,7 +37,6 @@ from benchmarks.core.status import (
     ExperimentRow,
     ProblemStatus,
     cell_color,
-    cell_emoji,
     cell_weight,
     cell_weight_key,
     compute_score,
@@ -86,11 +84,13 @@ class TestScoreExtremes(unittest.TestCase):
 
     def test_tally_score_matches_compute_score(self) -> None:
         """The score surfaced via tally() matches the direct helper."""
-        st = _status_from_cells({
-            "a": Cell(OK),
-            "b": Cell(OK, stale=True),
-            "c": Cell(FAILED),
-        })
+        st = _status_from_cells(
+            {
+                "a": Cell(OK),
+                "b": Cell(OK, stale=True),
+                "c": Cell(FAILED),
+            }
+        )
         t = tally(st)
         direct, _ = compute_score([c for r in st.rows for c in r.cells.values()])
         self.assertAlmostEqual(t["score"], direct)
@@ -348,7 +348,10 @@ class TestWeightColorLadder(unittest.TestCase):
         or the `dim` sentinel; every emoji is one of the expected glyphs."""
         for _key, w in SCORE_WEIGHTS.items():
             color = weight_color(w)
-            self.assertTrue(color == "dim" or _HEX_RE.match(color), f"bad color for w={w}: {color!r}")
+            self.assertTrue(
+                color == "dim" or _HEX_RE.match(color),
+                f"bad color for w={w}: {color!r}",
+            )
             self.assertIn(weight_emoji(w), {"🟢", "🟡", "🟠", "🔴", "—"})
 
 

@@ -86,36 +86,36 @@ EXCL_PERMANENT = {EXCL_CATEGORICAL}
 #   new = (old + 0.5) / 1.5  (fail 0.0, neutral 0.33, ok 1.0)
 SCORE_WEIGHTS: dict[str, float] = {
     # Fresh ok: full credit.
-    "ok":      1.00,
+    "ok": 1.00,
     # Stale ok: last known good, not verified against current source.
-    "ok*":     0.67,
+    "ok*": 0.67,
     # Fresh anomaly: ran, produced data, but out of threshold.
-    "anom":    0.53,
-    "anom*":   0.43,
+    "anom": 0.53,
+    "anom*": 0.43,
     # Not-run / gap / regime-limited / infeasible: neutral (no signal yet).
     "missing": 0.33,
-    "todo":    0.33,  # EXCLUDED + not_implemented
-    "unst":    0.33,  # EXCLUDED + unstable
-    "slow":    0.33,  # EXCLUDED + infeasible
-    "excl":    0.33,  # EXCLUDED + unspecified
+    "todo": 0.33,  # EXCLUDED + not_implemented
+    "unst": 0.33,  # EXCLUDED + unstable
+    "slow": 0.33,  # EXCLUDED + infeasible
+    "excl": 0.33,  # EXCLUDED + unspecified
     # Known upstream bug: broken, but outside our code.
-    "bug":     0.13,  # EXCLUDED + upstream_bug
+    "bug": 0.13,  # EXCLUDED + upstream_bug
     # Stale failure: last known bad, not re-verified.
-    "fail*":   0.17,
+    "fail*": 0.17,
     # Fresh failure: lowest score.
-    "fail":    0.00,
+    "fail": 0.00,
     # "perm" (EXCLUDED + categorical) is excluded from the denominator.
 }
 
 # Map EXCL category → score-weight key for EXCLUDED cells. Categorical
 # exclusions return None and are excluded from both numerator & denominator.
 _EXCL_TO_WEIGHT_KEY: dict[str, str | None] = {
-    EXCL_CATEGORICAL:     None,     # out of denominator
+    EXCL_CATEGORICAL: None,  # out of denominator
     EXCL_NOT_IMPLEMENTED: "todo",
-    EXCL_INFEASIBLE:      "slow",
-    EXCL_UNSTABLE:        "unst",
-    EXCL_UPSTREAM_BUG:    "bug",
-    EXCL_UNSPECIFIED:     "excl",
+    EXCL_INFEASIBLE: "slow",
+    EXCL_UNSTABLE: "unst",
+    EXCL_UPSTREAM_BUG: "bug",
+    EXCL_UNSPECIFIED: "excl",
 }
 
 
@@ -163,9 +163,7 @@ def compute_score(cells: list["Cell"]) -> tuple[float | None, int]:
     return total / n, n
 
 
-def _lookup_check(
-    cfg: ProblemConfig, suite: str, experiment: str
-) -> dict:
+def _lookup_check(cfg: ProblemConfig, suite: str, experiment: str) -> dict:
     """Return the status_checks entry for (suite, experiment), merging suite
     defaults with experiment-specific overrides. Later keys win."""
     checks = getattr(cfg, "status_checks", {}) or {}
@@ -279,7 +277,8 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
             traj = entry.get(_k)
             if isinstance(traj, list) and traj:
                 finite_vals = [
-                    v for v in traj
+                    v
+                    for v in traj
                     if isinstance(v, (int, float))
                     and not (isinstance(v, float) and math.isnan(v))
                     and math.isfinite(v)
@@ -287,8 +286,12 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
                 if not finite_vals:
                     return FAILED, f"'{_k}' trajectory is all non-finite"
                 if len(finite_vals) > 1 and min(finite_vals) == max(finite_vals):
-                    return FAILED, f"'{_k}' trajectory is flat — no loss reduction (broken gradient?)"
+                    return (
+                        FAILED,
+                        f"'{_k}' trajectory is flat — no loss reduction (broken gradient?)",
+                    )
                 break
+
         # Numeric-keyed sweep dict (e.g. lid_cavity by_sweep structure):
         # {float_val: {"losses": [...], "final_loss": float, "initial_loss": float}}.
         # The top-level trajectory keys above won't match (keys are floats), so
@@ -308,30 +311,37 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
             return False
 
         _numeric_subs = [
-            (k, v) for k, v in entry.items()
+            (k, v)
+            for k, v in entry.items()
             if _is_numeric_key(k) and isinstance(v, dict)
         ]
         if _numeric_subs:
             _non_trivial = [
-                (k, v) for k, v in _numeric_subs
+                (k, v)
+                for k, v in _numeric_subs
                 if isinstance(v.get("initial_loss"), (int, float))
                 and math.isfinite(float(v.get("initial_loss", 0)))
                 and float(v.get("initial_loss", 0)) > 0
             ]
             if _non_trivial:
                 _bad = [
-                    (k, v) for k, v in _non_trivial
+                    (k, v)
+                    for k, v in _non_trivial
                     if not (
                         isinstance(v.get("final_loss"), (int, float))
                         and math.isfinite(float(v.get("final_loss", float("nan"))))
                     )
                 ]
                 if len(_bad) == len(_non_trivial):
-                    return FAILED, "all non-trivial sweep values have non-finite final loss"
+                    return (
+                        FAILED,
+                        "all non-trivial sweep values have non-finite final loss",
+                    )
                 for _sk, _sv in _non_trivial:
                     _sub_traj = _sv.get("losses") or []
                     _sub_finite = [
-                        x for x in _sub_traj
+                        x
+                        for x in _sub_traj
                         if isinstance(x, (int, float)) and math.isfinite(x)
                     ]
                     if len(_sub_finite) > 1 and min(_sub_finite) == max(_sub_finite):
@@ -444,7 +454,8 @@ def _classify_from_by_param(
         # Absolute-error check.
         if max_error is not None:
             bad_abs = [
-                (pval, err) for pval, err in solver_errs_by_pval[solver].items()
+                (pval, err)
+                for pval, err in solver_errs_by_pval[solver].items()
                 if err > max_error
             ]
             if bad_abs:
@@ -475,9 +486,7 @@ def _classify_from_by_param(
     return cells
 
 
-def _classify_from_by_N(
-    data: dict, solvers: list[str], key: str
-) -> dict[str, Cell]:
+def _classify_from_by_N(data: dict, solvers: list[str], key: str) -> dict[str, Cell]:
     """Cost-suite layout: ``by_N[solver][N] = {mean, std}`` (or ``by_steps``)."""
     cells: dict[str, Cell] = {}
     top = data.get(key, {})
@@ -508,14 +517,13 @@ def _classify_from_by_solver(
     return cells
 
 
-def _classify_from_per_solver_prefix(
-    data: dict, solvers: list[str]
-) -> dict[str, Cell]:
+def _classify_from_per_solver_prefix(data: dict, solvers: list[str]) -> dict[str, Cell]:
     """jacobian_svd-style layout: top-level ``per_solver_*`` dicts keyed by solver,
     plus a ``solver_names`` list enumerating solvers that were attempted."""
     attempted = set(data.get("solver_names", []) or [])
     per_solver_dicts = [
-        v for k, v in data.items()
+        v
+        for k, v in data.items()
         if k.startswith("per_solver_") and isinstance(v, dict)
     ]
     cells: dict[str, Cell] = {}
@@ -704,7 +712,11 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
             for solver, entry in top.items():
                 if not isinstance(entry, dict):
                     continue
-                sub = entry.get(sweep_k) or entry.get(float(sweep_k) if sweep_k.replace(".", "").lstrip("-").isdigit() else sweep_k)
+                sub = entry.get(sweep_k) or entry.get(
+                    float(sweep_k)
+                    if sweep_k.replace(".", "").lstrip("-").isdigit()
+                    else sweep_k
+                )
                 if not isinstance(sub, dict):
                     continue
                 fl = sub.get("final_loss")
@@ -747,8 +759,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
         # bail on initial<=0, never reaching the non-trivial entries.  Instead,
         # find the worst-case non-trivial trajectory explicitly.
         _numeric_subs = {
-            k: v for k, v in entry.items()
-            if _is_num(k) and isinstance(v, dict)
+            k: v for k, v in entry.items() if _is_num(k) and isinstance(v, dict)
         }
         if _numeric_subs:
             best_init = -1.0
@@ -776,9 +787,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
             )
 
 
-def _refine_differentiability_table(
-    data: dict, cells: dict[str, Cell]
-) -> None:
+def _refine_differentiability_table(data: dict, cells: dict[str, Cell]) -> None:
     """Per-solver status for differentiability_table.
 
     Each solver entry is a dict of field_key → {"status": ..., "rel_error": ...}.
@@ -801,17 +810,18 @@ def _refine_differentiability_table(
         if not isinstance(entry, dict):
             continue
         n_good = sum(
-            1 for v in entry.values()
+            1
+            for v in entry.values()
             if isinstance(v, dict) and v.get("status") in _GOOD
         )
         n_bad = sum(
-            1 for v in entry.values()
-            if isinstance(v, dict) and v.get("status") in _BAD
+            1 for v in entry.values() if isinstance(v, dict) and v.get("status") in _BAD
         )
         if n_bad == 0:
             continue
         bad_fields = [
-            k for k, v in entry.items()
+            k
+            for k, v in entry.items()
             if isinstance(v, dict) and v.get("status") in _BAD
         ]
         reason = f"{n_bad} field(s) failed: {', '.join(bad_fields[:3])}"
@@ -827,8 +837,10 @@ def _find_trajectory(entry: Any) -> list[float] | None:
         return None
     for key in ("errors", "drags", "loss", "losses"):
         val = entry.get(key)
-        if isinstance(val, list) and len(val) >= 2 and all(
-            isinstance(v, (int, float)) for v in val
+        if (
+            isinstance(val, list)
+            and len(val) >= 2
+            and all(isinstance(v, (int, float)) for v in val)
         ):
             return [float(v) for v in val]
     # Nested (e.g. by_sweep[solver][sigma_val][errors]).
@@ -839,9 +851,7 @@ def _find_trajectory(entry: Any) -> list[float] | None:
     return None
 
 
-def _classify_result(
-    data: dict, solvers: list[str], checks: dict
-) -> dict[str, Cell]:
+def _classify_result(data: dict, solvers: list[str], checks: dict) -> dict[str, Cell]:
     """Dispatch to the right classifier based on which top-level key is present."""
     if "by_solver" in data:
         return _classify_from_by_solver(data, solvers, "by_solver")
@@ -897,7 +907,9 @@ def _results_dir(cfg: ProblemConfig) -> Path:
     return Path(__file__).parent.parent / "results" / cfg.name
 
 
-def collect_status(cfg: ProblemConfig, suites: list[str] | None = None) -> ProblemStatus:
+def collect_status(
+    cfg: ProblemConfig, suites: list[str] | None = None
+) -> ProblemStatus:
     """Build a ProblemStatus for one problem by walking its results/ tree."""
     suites = list(suites) if suites else list(SUITES)
     solvers = list(cfg.solvers.keys())
@@ -970,7 +982,9 @@ def collect_status(cfg: ProblemConfig, suites: list[str] | None = None) -> Probl
                     continue
             elif suite_defs and exp_label.split("/")[0] not in suite_defs:
                 continue
-            row = ExperimentRow(suite=suite, experiment=exp_label, result_path=result_path)
+            row = ExperimentRow(
+                suite=suite, experiment=exp_label, result_path=result_path
+            )
             if result_path is None:
                 row.cells = {s: Cell(NOT_RUN) for s in solvers}
             else:
@@ -993,7 +1007,10 @@ def collect_status(cfg: ProblemConfig, suites: list[str] | None = None) -> Probl
                     "source_fd_check",
                 ):
                     _refine_fd_check(data, row.cells, checks)
-                elif suite == "gradient" and exp_label.split("/")[0] == "differentiability_table":
+                elif (
+                    suite == "gradient"
+                    and exp_label.split("/")[0] == "differentiability_table"
+                ):
                     _refine_differentiability_table(data, row.cells)
                 elif suite == "optimization":
                     _refine_recovery(data, row.cells, checks)
@@ -1062,7 +1079,9 @@ def collect_status(cfg: ProblemConfig, suites: list[str] | None = None) -> Probl
                     elif cell.status == ANOMALY and cell.category != "explained":
                         # Status_checks already flagged this as anomaly; mark it
                         # mark as explained anomaly to distinguish from threshold-triggered ones.
-                        row.cells[name] = Cell(ANOMALY, cell.reason, category="explained", stale=cell.stale)
+                        row.cells[name] = Cell(
+                            ANOMALY, cell.reason, category="explained", stale=cell.stale
+                        )
             rows.append(row)
     return ProblemStatus(problem=cfg.name, solvers=solvers, rows=rows)
 
@@ -1082,7 +1101,9 @@ def _build_excluded_cell(value) -> Cell:
             reason = f"[{category}] {reason}".strip()
             category = EXCL_UNSPECIFIED
         return Cell(EXCLUDED, reason, category=category)
-    return Cell(EXCLUDED, str(value) if value is not None else "", category=EXCL_UNSPECIFIED)
+    return Cell(
+        EXCLUDED, str(value) if value is not None else "", category=EXCL_UNSPECIFIED
+    )
 
 
 def _build_explained_anomaly_cell(value) -> Cell:
@@ -1217,12 +1238,13 @@ def tally(st: ProblemStatus) -> dict[str, int]:
     # Denominator: fresh-ok + every other work-to-do bucket + stale-ok.
     counts["total"] = (
         fresh_ok
-        + counts[ANOMALY] + counts[FAILED] + counts[NOT_RUN]
-        + excl_work + stale_ok
+        + counts[ANOMALY]
+        + counts[FAILED]
+        + counts[NOT_RUN]
+        + excl_work
+        + stale_ok
     )
-    counts["pct_ok"] = (
-        100.0 * fresh_ok / counts["total"] if counts["total"] else 0.0
-    )
+    counts["pct_ok"] = 100.0 * fresh_ok / counts["total"] if counts["total"] else 0.0
     score, score_n = compute_score(all_cells)
     counts["score"] = score
     counts["score_n"] = score_n
@@ -1430,13 +1452,17 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
         "| problem | ok | anom | fail | missing | excl (work) | excl (perm) | stale | score |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    t_fresh = t_anom = t_fail = t_miss = t_excl_work = t_excl_perm = t_stale = t_stale_ok = 0
+    t_fresh = t_anom = t_fail = t_miss = t_excl_work = t_excl_perm = t_stale = (
+        t_stale_ok
+    ) = 0
     # Aggregate score as a weighted mean across problems: sum(score·n) / sum(n).
     score_num = 0.0
     score_den = 0
     for st in statuses:
         c = tally(st)
-        t_fresh += c["fresh_ok"]; t_anom += c[ANOMALY]; t_fail += c[FAILED]
+        t_fresh += c["fresh_ok"]
+        t_anom += c[ANOMALY]
+        t_fail += c[FAILED]
         t_miss += c[NOT_RUN]
         t_excl_work += c["excl_work"]
         t_excl_perm += c["excl_perm"]
@@ -1471,12 +1497,16 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
         for problem, label, solver, status, reason in fa:
             glyph = _MD_GLYPHS[status]
             reason_str = f" — {reason}" if reason else ""
-            lines.append(f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}")
+            lines.append(
+                f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}"
+            )
         lines.append("")
 
     # ── per-problem tables (collapsed) ─────────────────────────────────────
     for st in statuses:
-        lines.append(f"<details><summary>{st.problem} — {len(st.rows)} experiment(s)</summary>")
+        lines.append(
+            f"<details><summary>{st.problem} — {len(st.rows)} experiment(s)</summary>"
+        )
         lines.append("")
         header = "| experiment | " + " | ".join(f"`{s}`" for s in st.solvers) + " |"
         sep = "|---|" + "|".join(":---:" for _ in st.solvers) + "|"
@@ -1621,7 +1651,9 @@ def render_diff_markdown(diff: dict) -> str:
 
     def _glyph(status: str, category: str) -> str:
         if status == EXCLUDED:
-            return _MD_EXCL_GLYPHS.get(category or EXCL_UNSPECIFIED, _MD_GLYPHS[EXCLUDED])
+            return _MD_EXCL_GLYPHS.get(
+                category or EXCL_UNSPECIFIED, _MD_GLYPHS[EXCLUDED]
+            )
         return _MD_GLYPHS.get(status, status)
 
     def _fmt_rec(r: dict) -> str:

@@ -14,15 +14,11 @@ from pathlib import Path
 import jax
 import jax.numpy as jnp
 import numpy as np
-# ARCH-11: see recovery.py — JAX-traced closures capture this reference
-# at trace time, so we must import from the watchdog package to get the
-# container-liveness deadline into the call path.
-from benchmarks.core.watchdog import apply_tesseract
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.console import console
-from benchmarks.core.runner import run_with_gpu_pool
-from benchmarks.core.utils import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.console import console
+from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.utils import (
     _diff_solvers,
     experiment_dir,
     extract_runs,
@@ -30,6 +26,11 @@ from benchmarks.core.utils import (
     save_experiment,
     save_gradient_fields_npz,
 )
+
+# ARCH-11: see recovery.py — JAX-traced closures capture this reference
+# at trace time, so we must import from the watchdog package to get the
+# container-liveness deadline into the call path.
+from mosaic.benchmarks.core.watchdog import apply_tesseract
 
 _RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "gradient"
@@ -114,7 +115,9 @@ def run_fd_check(
         gpu_ids = overrides.get("gpu_ids")
         _wall_times: dict[str, float] = {}
 
-        def _fd_work(name: str, t, _run_ic_key=run_ic_key, _run_output_key=run_output_key) -> None:
+        def _fd_work(
+            name: str, t, _run_ic_key=run_ic_key, _run_output_key=run_output_key
+        ) -> None:
             color = cfg.solvers[name].color
             t0 = time.perf_counter()
             try:
@@ -199,7 +202,9 @@ def run_fd_check(
         )
 
         result = {"by_solver": results, "params": run}
-        save_experiment(result, out_dir, cfg=cfg, harness_fn=run_fd_check, wall_time_s=_wall_times)
+        save_experiment(
+            result, out_dir, cfg=cfg, harness_fn=run_fd_check, wall_time_s=_wall_times
+        )
         if n_runs > 1:
             all_results[ic_name] = result
         else:
@@ -214,7 +219,13 @@ _DEFAULT_EPS = [1e0, 1e-1, 1e-2, 1e-3]
 
 
 def _eps_sweep(
-    t, cfg, name, ic, dirs, eps_values, make_inputs_kwargs,
+    t,
+    cfg,
+    name,
+    ic,
+    dirs,
+    eps_values,
+    make_inputs_kwargs,
     ic_key: str | None = None,
     output_key: str | None = None,
 ) -> tuple[dict, jax.Array]:
@@ -339,10 +350,14 @@ def _run_generic_param_sweep(
             ic_per_val: dict = {}
             dirs_per_val: dict = {}
             for _val in sweep_values:
-                _ic_v = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: _val})
+                _ic_v = cfg.make_ic[ic_name](
+                    L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: _val}
+                )
                 _keys_v = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
                 ic_per_val[_val] = _ic_v
-                dirs_per_val[_val] = [_random_direction(_ic_v.shape, _k) for _k in _keys_v]
+                dirs_per_val[_val] = [
+                    _random_direction(_ic_v.shape, _k) for _k in _keys_v
+                ]
             # Use a representative IC (first sweep value) for shape; dirs are per-val.
             ic = ic_per_val[sweep_values[0]]
             dirs = dirs_per_val[sweep_values[0]]
@@ -438,7 +453,13 @@ def _run_generic_param_sweep(
             )
 
         result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
-        save_experiment(result, out_dir, cfg=cfg, harness_fn=_run_generic_param_sweep, wall_time_s=_wall_times)
+        save_experiment(
+            result,
+            out_dir,
+            cfg=cfg,
+            harness_fn=_run_generic_param_sweep,
+            wall_time_s=_wall_times,
+        )
         if n_runs > 1:
             all_results[ic_name] = result
         else:
@@ -471,8 +492,12 @@ def _parse_mem_mib(s: str) -> float | None:
     s = s.strip()
     try:
         for suffix, factor in [
-            ("GiB", 1024.0), ("MiB", 1.0), ("KiB", 1.0 / 1024.0),
-            ("GB", 953.674), ("MB", 0.953674), ("kB", 9.537e-4),
+            ("GiB", 1024.0),
+            ("MiB", 1.0),
+            ("KiB", 1.0 / 1024.0),
+            ("GB", 953.674),
+            ("MB", 0.953674),
+            ("kB", 9.537e-4),
         ]:
             if s.endswith(suffix):
                 return float(s[: -len(suffix)]) * factor
@@ -485,9 +510,15 @@ def _sample_vram_mib(gpu_id: str) -> float | None:
     """Single nvidia-smi query for memory.used on one GPU (MiB)."""
     try:
         r = subprocess.run(
-            ["nvidia-smi", f"--id={gpu_id}", "--query-gpu=memory.used",
-             "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=3,
+            [
+                "nvidia-smi",
+                f"--id={gpu_id}",
+                "--query-gpu=memory.used",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         return float(r.stdout.strip()) if r.returncode == 0 else None
     except Exception:
@@ -525,8 +556,17 @@ def _sample_ram_mib(container_id: str) -> float | None:
     """Single docker stats query for container memory usage (MiB)."""
     try:
         r = subprocess.run(
-            ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", container_id],
-            capture_output=True, text=True, timeout=5,
+            [
+                "docker",
+                "stats",
+                "--no-stream",
+                "--format",
+                "{{.MemUsage}}",
+                container_id,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if r.returncode != 0 or not r.stdout.strip():
             return None
@@ -587,11 +627,24 @@ def _classify_failure(exc_name: str, exc_str: str) -> str:
     """Map an exception to a short failure-type label for horizon_sweep_limits."""
     s = exc_str.lower()
     if exc_name == "ContainerDied":
-        return "container_died"  # Linux OOM-kill or crash; most likely OOM for GPU solvers
-    if "resource_exhausted" in s or "out of memory" in s or "cuda_error_out_of_memory" in s:
+        return (
+            "container_died"  # Linux OOM-kill or crash; most likely OOM for GPU solvers
+        )
+    if (
+        "resource_exhausted" in s
+        or "out of memory" in s
+        or "cuda_error_out_of_memory" in s
+    ):
         return "OOM"
     if (
-        exc_name in ("WatchdogTimeout", "WatchdogError", "TimeoutError", "ReadTimeout", "ConnectTimeout")
+        exc_name
+        in (
+            "WatchdogTimeout",
+            "WatchdogError",
+            "TimeoutError",
+            "ReadTimeout",
+            "ConnectTimeout",
+        )
         or "timeout" in exc_name.lower()
     ):
         return "timeout"
@@ -617,7 +670,9 @@ def run_horizon_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
     return _run_generic_param_sweep(cfg, tags, "horizon_sweep", **overrides)
 
 
-def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_horizon_sweep_limits(
+    cfg: ProblemConfig, tags: dict[str, str], **overrides
+) -> dict:
     """Rollout-length limit sweep: VJP only, per-step failure recording, early stopping.
 
     For each solver, attempts VJP at increasing step counts.  Stops at the first
@@ -700,7 +755,8 @@ def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrid
             # GPU ID is set per-thread by run_with_gpu_pool; container ID is
             # extracted from the Tesseract object.  Both may be None (serial
             # mode or unknown SDK layout), in which case that metric is skipped.
-            from benchmarks.core.runner import _tl as _runner_tl  # thread-local
+            from mosaic.benchmarks.core.runner import _tl as _runner_tl  # thread-local
+
             _gpu_id = getattr(_runner_tl, "gpu_id", None)
             _cid = _container_id_from_tesseract(t)
 
@@ -713,8 +769,13 @@ def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrid
             # (warp_ns Warp kernels, ins_jl Julia/Zygote JIT) before timing starts.
             try:
                 _wu_inputs = cfg.make_inputs(
-                    name, ic,
-                    **{**phys, sweep_key: sweep_values[0], "domain_extent": cfg.domain_extent},
+                    name,
+                    ic,
+                    **{
+                        **phys,
+                        sweep_key: sweep_values[0],
+                        "domain_extent": cfg.domain_extent,
+                    },
                 )
                 _vjp_grad(t, _wu_inputs, _run_output_key, _run_ic_key)
                 console.print(f"  [{color}]{name}[/] warmup ok")
@@ -731,7 +792,9 @@ def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrid
                 poller = _MemoryPoller(_gpu_id, _cid).start()
                 try:
                     base_inputs = cfg.make_inputs(
-                        name, ic, **{**phys, sweep_key: val, "domain_extent": cfg.domain_extent}
+                        name,
+                        ic,
+                        **{**phys, sweep_key: val, "domain_extent": cfg.domain_extent},
                     )
                     g = _vjp_grad(t, base_inputs, _run_output_key, _run_ic_key)
                     if not jnp.all(jnp.isfinite(g)):
@@ -753,11 +816,13 @@ def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrid
                     solver_grads[val] = np.array(g)
                     _vram_str = (
                         f" vram={mem['vram_peak_mib']:.0f}MiB"
-                        if mem.get("vram_peak_mib") is not None else ""
+                        if mem.get("vram_peak_mib") is not None
+                        else ""
                     )
                     _ram_str = (
                         f" ram={mem['ram_peak_mib']:.0f}MiB"
-                        if mem.get("ram_peak_mib") is not None else ""
+                        if mem.get("ram_peak_mib") is not None
+                        else ""
                     )
                     console.print(
                         f"  [{color}]{name}[/] {sweep_key}={val} ok "
@@ -780,7 +845,8 @@ def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrid
                     failed = True
                     _vram_str = (
                         f" vram={mem['vram_peak_mib']:.0f}MiB"
-                        if mem.get("vram_peak_mib") is not None else ""
+                        if mem.get("vram_peak_mib") is not None
+                        else ""
                     )
                     console.print(
                         f"  [{color}]{name}[/] [red]FAIL[/] {sweep_key}={val} "
@@ -829,7 +895,11 @@ def run_horizon_sweep_limits(cfg: ProblemConfig, tags: dict[str, str], **overrid
 
         result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
         save_experiment(
-            result, out_dir, cfg=cfg, harness_fn=run_horizon_sweep_limits, wall_time_s=_wall_times
+            result,
+            out_dir,
+            cfg=cfg,
+            harness_fn=run_horizon_sweep_limits,
+            wall_time_s=_wall_times,
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -929,7 +999,9 @@ def run_jacobian_svd(
                     (row,) = vjp_fn(e_i.reshape(out_arr.shape))
                     J_rows.append(np.array(row).ravel())
                     if (i + 1) % _log_every == 0:
-                        console.print(f"  [{color}]{name}[/] Jacobian {i+1}/{D_out} rows done")
+                        console.print(
+                            f"  [{color}]{name}[/] Jacobian {i + 1}/{D_out} rows done"
+                        )
                 J_mat = np.stack(J_rows)  # (D_out, D_in)
                 jacobians[name] = J_mat
 
@@ -941,7 +1013,9 @@ def run_jacobian_svd(
                 base_inputs_snap[name] = (dict(base_inputs), np.array(base_ic))
                 elapsed = time.perf_counter() - t0
                 _wall_times[name] = elapsed
-                console.print(f"  [{color}]{name}[/] J {J_mat.shape} done in {elapsed:.1f}s")
+                console.print(
+                    f"  [{color}]{name}[/] J {J_mat.shape} done in {elapsed:.1f}s"
+                )
             except Exception as exc:
                 console.print(
                     f"  [{color}]{name}[/] [yellow]SKIP (VJP failed: {exc})[/]"
@@ -1125,7 +1199,13 @@ def run_jacobian_svd(
             "landscape": {"alphas": alphas, "by_solver": landscape_by_solver},
             "params": run,
         }
-        save_experiment(result, out_dir, cfg=cfg, harness_fn=run_jacobian_svd, wall_time_s=_wall_times)
+        save_experiment(
+            result,
+            out_dir,
+            cfg=cfg,
+            harness_fn=run_jacobian_svd,
+            wall_time_s=_wall_times,
+        )
         if n_runs > 1:
             all_results[ic_name] = result
         else:
@@ -1336,7 +1416,14 @@ def run_differentiability_table(
             for field, info in fields.items()
         ]
         result = {"by_solver": results, "params": run}
-        save_experiment(result, out_dir, csv_rows=csv_rows, cfg=cfg, harness_fn=run_differentiability_table, wall_time_s=_wall_times)
+        save_experiment(
+            result,
+            out_dir,
+            csv_rows=csv_rows,
+            cfg=cfg,
+            harness_fn=run_differentiability_table,
+            wall_time_s=_wall_times,
+        )
         if n_runs > 1:
             all_results[ic_name] = result
         else:
@@ -1368,7 +1455,9 @@ _EXPERIMENTS = {
     "fd_check": run_fd_check,
     "source_fd_check": _fd_check_variant("source_fd_check"),
     "param_sweep": run_param_sweep,
-    "source_width_sweep": lambda cfg, tags, **kw: _run_generic_param_sweep(cfg, tags, "source_width_sweep", **kw),
+    "source_width_sweep": lambda cfg, tags, **kw: _run_generic_param_sweep(
+        cfg, tags, "source_width_sweep", **kw
+    ),
     "horizon_sweep": run_horizon_sweep,
     "horizon_sweep_limits": run_horizon_sweep_limits,
     "jacobian_svd": run_jacobian_svd,
@@ -1389,7 +1478,7 @@ _EXPERIMENTS = {
 
 
 def _plot_fns() -> dict:
-    from benchmarks.plots.gradient import (
+    from mosaic.benchmarks.plots.gradient import (
         plot_differentiability_table,
         plot_fd_check,
         plot_horizon_sweep,
@@ -1409,8 +1498,12 @@ def _plot_fns() -> dict:
         "jacobian_svd_steps40": _jsvd_plot("jacobian_svd_steps40"),
         "jacobian_svd_nu01": _jsvd_plot("jacobian_svd_nu01"),
         "differentiability_table": plot_differentiability_table,
-        "source_fd_check": lambda cfg, **kw: plot_fd_check(cfg, exp_key="source_fd_check", **kw),
-        "source_width_sweep": lambda cfg, **kw: plot_param_sweep(cfg, exp_key="source_width_sweep", **kw),
+        "source_fd_check": lambda cfg, **kw: plot_fd_check(
+            cfg, exp_key="source_fd_check", **kw
+        ),
+        "source_width_sweep": lambda cfg, **kw: plot_param_sweep(
+            cfg, exp_key="source_width_sweep", **kw
+        ),
         "jacobian_svd_mu001": _jsvd_plot("jacobian_svd_mu001"),
         "jacobian_svd_n16_mu001": _jsvd_plot("jacobian_svd_n16_mu001"),
         "jacobian_svd_n32_mu001": _jsvd_plot("jacobian_svd_n32_mu001"),
@@ -1429,7 +1522,7 @@ def run_all(
     plots: bool = True,
 ) -> dict[str, dict]:
     """Run gradient experiments and optionally generate plots."""
-    from benchmarks.core.runner import run_suite
+    from mosaic.benchmarks.core.runner import run_suite
 
     return run_suite(
         cfg,

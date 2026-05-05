@@ -10,12 +10,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-import numpy as np
+import matplotlib.pyplot as plt
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
@@ -42,7 +41,8 @@ def generate(out_dir: Path) -> None:
                 if sv not in sweep_data:
                     continue
                 label, color, ls, mk = SOLVER_STYLES.get(
-                    solver, (solver, "#888888", "-", "o"))
+                    solver, (solver, "#888888", "-", "o")
+                )
 
                 losses = sweep_data[sv]["losses"]
                 iters = list(range(len(losses)))
@@ -56,21 +56,27 @@ def generate(out_dir: Path) -> None:
                 ax.set_ylabel("Loss")
 
         handles = [
-            mlines.Line2D([], [],
-                          color=SOLVER_STYLES[s][1],
-                          linestyle=SOLVER_STYLES[s][2],
-                          linewidth=1.6,
-                          label=SOLVER_STYLES[s][0])
-            for s in SOLVER_ORDER if s in present
+            mlines.Line2D(
+                [],
+                [],
+                color=SOLVER_STYLES[s][1],
+                linestyle=SOLVER_STYLES[s][2],
+                linewidth=1.6,
+                label=SOLVER_STYLES[s][0],
+            )
+            for s in SOLVER_ORDER
+            if s in present
         ]
 
-        fig.legend(handles=handles,
-                   loc="lower center",
-                   bbox_to_anchor=(0.5, 0.01),
-                   ncol=3,
-                   fontsize=7.5,
-                   framealpha=0.7,
-                   handlelength=2.0)
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=3,
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
 
         out = out_dir / "lid_cavity_convergence.pdf"
         fig.savefig(out)

@@ -38,11 +38,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from benchmarks.core import status as status_mod
-from benchmarks.core.config import ProblemConfig, SolverSpec
-from benchmarks.core.status import OK, collect_status
-from benchmarks.core.utils import save_experiment
-
+from mosaic.benchmarks.core import status as status_mod
+from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.status import OK, collect_status
+from mosaic.benchmarks.core.utils import save_experiment
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -270,7 +269,9 @@ class HarnessRoundtripTests(_StalenessRoundtripBase):
         self._save_once(fn)
         self._write_fn(src_b)
         cell = self._cell_for_solver()
-        self.assertFalse(cell.stale, "docstring-only edit must not flip the harness hash")
+        self.assertFalse(
+            cell.stale, "docstring-only edit must not flip the harness hash"
+        )
 
     # ── sensitivity: behavioural edit → stale ────────────────────────────────
 
@@ -384,9 +385,7 @@ class TesseractRoundtripTests(_StalenessRoundtripBase):
             "params": {},
             "by_solver": {self.solver: {"error": 0.01, "valid": True}},
         }
-        save_experiment(
-            result, self.exp_dir, cfg=self.cfg, harness_fn=self.harness_fn
-        )
+        save_experiment(result, self.exp_dir, cfg=self.cfg, harness_fn=self.harness_fn)
 
     def _cell(self):
         st = collect_status(self.cfg, suites=["forward"])
@@ -418,6 +417,7 @@ class TesseractRoundtripTests(_StalenessRoundtripBase):
         old_mtime = target.stat().st_mtime
         # bump mtime by 10 seconds
         import os as _os
+
         _os.utime(target, (old_mtime + 10, old_mtime + 10))
         self.assertNotEqual(target.stat().st_mtime, old_mtime)
         cell = self._cell()

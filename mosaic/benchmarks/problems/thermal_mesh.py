@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 
-from benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
-from benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 
 _GYM_DIR = Path(__file__).parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "thermal-mesh"
@@ -19,8 +19,13 @@ _K_MIN_RATIO = 1e-3  # k_min / k_max
 
 _SOLVERS: dict[str, SolverSpec] = {
     "jax_fem": SolverSpec(
-        name="JAX-FEM", backend="jax", family="fem",
-        differentiable=True, ad_strategy="hybrid", uses_gpu=True, internal_dtype="float32",
+        name="JAX-FEM",
+        backend="jax",
+        family="fem",
+        differentiable=True,
+        ad_strategy="hybrid",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="jax-fem",
         color="#4477AA",
         scheme="FEM HEX8 heat conduction (SIMP, adjoint AD)",
@@ -28,8 +33,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         description="JAX-FEM HEX8 heat-conduction solver; automatic differentiation adjoint via JAX.",
     ),
     "fenics_heat": SolverSpec(
-        name="FEniCS", backend="fenics", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="FEniCS",
+        backend="fenics",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="fenics-heat",
         color="#AA3377",
         scheme="FEM P1 heat conduction (SIMP, dolfin-adjoint)",
@@ -41,8 +51,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "dealii_heat": SolverSpec(
-        name="deal.II", backend="dealii", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="deal.II",
+        backend="dealii",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="dealii-heat",
         color="#228833",
         scheme="FEM Q1 heat conduction (SIMP, analytic self-adjoint gradient)",
@@ -65,8 +80,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "firedrake_heat": SolverSpec(
-        name="Firedrake", backend="firedrake", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="Firedrake",
+        backend="firedrake",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="firedrake-heat",
         color="#CCBB44",
         scheme="FEM P1 heat conduction (SIMP, firedrake-adjoint)",
@@ -75,8 +95,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         input_overrides={"k_max": _K_MAX, "p_exp": _P_EXP},
     ),
     "torch_fem_thermal": SolverSpec(
-        name="torch-fem", backend="pytorch", family="fem",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float64",
+        name="torch-fem",
+        backend="pytorch",
+        family="fem",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float64",
         dir="torch-fem",
         color="#EE6677",
         scheme="FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)",
@@ -448,7 +473,9 @@ def _make_inputs(
         target_temperature = _approx_target_temperature(
             rho_gt,
             np.zeros(nx * ny * nz, dtype=np.float32),
-            cells, points, bc.model_dump()
+            cells,
+            points,
+            bc.model_dump(),
         )
     elif target_from_two_gaussians:
         # Source-recovery target: solve with two-Gaussian source at nominal rho.
@@ -860,7 +887,9 @@ CONFIG = ProblemConfig(
         runs=[
             dict(
                 physics=dict(Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0, rho_0=0.5),
-                cost=dict(N_values=[16, 32, 64, 128, 256, 512, 1024, 2048, 4500], n_trials=3),
+                cost=dict(
+                    N_values=[16, 32, 64, 128, 256, 512, 1024, 2048, 4500], n_trials=3
+                ),
             )
         ],
     ),
@@ -971,7 +1000,9 @@ CONFIG = ProblemConfig(
                         ic_field="source",
                     ),
                     fd=dict(eps_values=[1e-1, 1e-2, 1e-3, 1e-4], n_dirs=4),
-                    sweep=dict(key="sigma", values=[0.05, 0.1, 0.2, 0.3, 0.5], ic_sweep=True),
+                    sweep=dict(
+                        key="sigma", values=[0.05, 0.1, 0.2, 0.3, 0.5], ic_sweep=True
+                    ),
                 )
             ],
         ),

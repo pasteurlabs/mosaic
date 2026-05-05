@@ -43,7 +43,6 @@ import subprocess
 import time
 from typing import Any
 
-
 # How long to wait for a `docker inspect` call before giving up. Docker is
 # normally a few-millisecond local socket; anything over a few seconds means
 # the docker daemon itself is unhealthy, and we should not add to the pile

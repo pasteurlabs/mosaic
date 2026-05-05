@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 
-from benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
-from benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 
 _GYM_DIR = Path(__file__).parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "structural-mesh"
@@ -19,8 +19,13 @@ _XMIN = 1e-3  # Void stiffness ratio (E_min / E_max)
 
 _SOLVERS: dict[str, SolverSpec] = {
     "jax_fem": SolverSpec(
-        name="JAX-FEM", backend="jax", family="fem",
-        differentiable=True, ad_strategy="hybrid", uses_gpu=True, internal_dtype="float32",
+        name="JAX-FEM",
+        backend="jax",
+        family="fem",
+        differentiable=True,
+        ad_strategy="hybrid",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="jax-fem",
         color="#4477AA",
         scheme="FEM HEX8 linear elasticity (SIMP, adjoint AD)",
@@ -28,8 +33,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         description="JAX-FEM HEX8 linear-elasticity solver; automatic differentiation adjoint via JAX.",
     ),
     "topopt_jl": SolverSpec(
-        name="TopOpt.jl", backend="julia", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="TopOpt.jl",
+        backend="julia",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="topopt-jl",
         color="#228833",
         scheme="FEM HEX8 linear elasticity (SIMP, analytical adjoint)",
@@ -42,8 +52,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "dealii_structural": SolverSpec(
-        name="deal.II", backend="dealii", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="deal.II",
+        backend="dealii",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="dealii",
         color="#CCBB44",
         scheme="FEM Q1 linear elasticity (SIMP, analytic self-adjoint gradient)",
@@ -61,8 +76,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "fenics_structural": SolverSpec(
-        name="FEniCS", backend="fenics", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="FEniCS",
+        backend="fenics",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="fenics",
         color="#AA3377",
         scheme="FEM CG1 linear elasticity (SIMP, dolfin-adjoint)",
@@ -80,8 +100,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "firedrake_structural": SolverSpec(
-        name="Firedrake", backend="firedrake", family="fem",
-        differentiable=True, ad_strategy="adjoint", uses_gpu=False, internal_dtype="float64",
+        name="Firedrake",
+        backend="firedrake",
+        family="fem",
+        differentiable=True,
+        ad_strategy="adjoint",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="firedrake",
         color="#EE3377",
         scheme="FEM CG1 linear elasticity (SIMP, pyadjoint ReducedFunctional)",
@@ -202,8 +227,16 @@ def _cantilever_bcs(
     if corner_load:
         dy = Ly / ny
         dz = Lz / nz
-        y_cond = (points[:, 1] > Ly - dy - tol) if corner_y_high else (points[:, 1] < dy + tol)
-        z_cond = (points[:, 2] > Lz - dz - tol) if corner_z_high else (points[:, 2] < dz + tol)
+        y_cond = (
+            (points[:, 1] > Ly - dy - tol)
+            if corner_y_high
+            else (points[:, 1] < dy + tol)
+        )
+        z_cond = (
+            (points[:, 2] > Lz - dz - tol)
+            if corner_z_high
+            else (points[:, 2] < dz + tol)
+        )
         corner = (points[:, 0] > Lx - tol) & y_cond & z_cond
         n_mask[corner] = 1
         n_corner = int(corner.sum())
@@ -639,7 +672,10 @@ CONFIG = ProblemConfig(
                 physics=dict(
                     Lx=2.0, Ly=1.0, Lz=1.0, F_total=1.0, rho_0=0.5, corner_load=False
                 ),
-                cost=dict(N_values=[8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200], n_trials=3),
+                cost=dict(
+                    N_values=[8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200],
+                    n_trials=3,
+                ),
             )
         ],
     ),

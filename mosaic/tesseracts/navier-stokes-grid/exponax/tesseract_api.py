@@ -1,11 +1,9 @@
-
 from typing import Any
 
 import equinox as eqx
 import exponax as ex
 import jax
 import jax.numpy as jnp
-
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
@@ -206,7 +204,6 @@ def exponax_fwd(  # mosaic:physics
                 num_spatial_dims=3, **stepper_kwargs
             )
 
-
         def step_fn(carry, _):
             return stepper(carry).astype(carry.dtype), None
 
@@ -259,7 +256,9 @@ _vjp_compiled_cache: dict = {}
 _jvp_compiled_cache: dict = {}
 
 
-def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
+def _build_diff_bundle(
+    inputs: dict, include: tuple[str, ...]
+) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys."""
     bundle: dict = {}
     for k in include:
@@ -275,7 +274,9 @@ def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:  # mosai
     return bundle
 
 
-def _run_forward(inputs: dict, diff_bundle: dict) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt:autodiff
+def _run_forward(
+    inputs: dict, diff_bundle: dict
+) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt:autodiff
     """Run exponax_fwd with diff inputs overridden from diff_bundle."""
     fwd_kwargs = {}
     for k in (
@@ -398,4 +399,3 @@ def vjp_jit(
             g = jnp.atleast_1d(g)
         out[k] = g
     return out
-

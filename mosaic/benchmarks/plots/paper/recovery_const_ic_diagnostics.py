@@ -16,21 +16,31 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, solver_props, make_handle, dedup_handles
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import (
+    RCPARAMS,
+    dedup_handles,
+    make_handle,
+    solver_props,
+)
 
-RESULTS  = Path(__file__).parent.parent.parent / "results"
+RESULTS = Path(__file__).parent.parent.parent / "results"
 BASE_DIR = RESULTS / "ns-3d-grid" / "optimization" / "recovery_constant_ic"
 
 _SOLVER_ORDER = ["exponax", "phiflow", "xlb", "ins_jl", "warp_ns", "pict"]
 
 _PANELS = [
     # (data_key,        x_mode,    label,                                  title)
-    ("errors",          "iter",    r"$\mathcal{L}$",                       "Loss"),
-    ("ic_error_history","snap",    r"IC error $\|\hat{u}_0 - u_0\|$",      "IC error"),
-    ("grad_norms",      "iter",    r"$\|\nabla\mathcal{L}\|$",             "Gradient norm"),
-    ("grad_divs",       "iter",    r"$\|\nabla\cdot\nabla\mathcal{L}\|_\infty$", "Grad divergence"),
-    ("ic_divs",         "iter",    r"$\|\nabla\cdot\hat{u}_0\|_\infty$",   "IC divergence"),
+    ("errors", "iter", r"$\mathcal{L}$", "Loss"),
+    ("ic_error_history", "snap", r"IC error $\|\hat{u}_0 - u_0\|$", "IC error"),
+    ("grad_norms", "iter", r"$\|\nabla\mathcal{L}\|$", "Gradient norm"),
+    (
+        "grad_divs",
+        "iter",
+        r"$\|\nabla\cdot\nabla\mathcal{L}\|_\infty$",
+        "Grad divergence",
+    ),
+    ("ic_divs", "iter", r"$\|\nabla\cdot\hat{u}_0\|_\infty$", "IC divergence"),
 ]
 
 
@@ -48,7 +58,7 @@ def generate(out_dir: Path) -> None:
         print("[recovery_const_ic_diagnostics] no result JSON found, skipping")
         return
 
-    data     = json.loads(json_path.read_text())
+    data = json.loads(json_path.read_text())
     by_sweep = data.get("by_sweep", {})
 
     # Collect all sweep values present
@@ -63,16 +73,17 @@ def generate(out_dir: Path) -> None:
     # Use the first (only) sweep value
     steps = sweep_vals[0]
 
-    # Infer snap_interval from ic_error_history length vs errors length
-    snap_interval = 20  # default; recomputed per solver below
-
     plt.rcParams.update(RCPARAMS)
     fig = plt.figure(figsize=(TEXTWIDTH * 1.5, TEXTWIDTH * 0.60))
-    gs  = fig.add_gridspec(
-        2, 3,
-        left=0.07, right=0.98,
-        bottom=0.20, top=0.87,
-        hspace=0.55, wspace=0.42,
+    gs = fig.add_gridspec(
+        2,
+        3,
+        left=0.07,
+        right=0.98,
+        bottom=0.20,
+        top=0.87,
+        hspace=0.55,
+        wspace=0.42,
     )
 
     axes = [
@@ -117,16 +128,23 @@ def generate(out_dir: Path) -> None:
 
     fig.suptitle(
         f"recovery_constant_ic  (steps={steps}, zero-init, rand_div_free IC)",
-        fontsize=8.5, fontweight="bold", y=0.96,
+        fontsize=8.5,
+        fontweight="bold",
+        y=0.96,
     )
 
     handles = dedup_handles([make_handle(s) for s in _SOLVER_ORDER if s in seen])
     fig.legend(
-        handles=handles, fontsize=6.5,
-        loc="lower center", bbox_to_anchor=(0.5, 0.01),
-        ncol=len(handles), framealpha=0.8,
-        handlelength=2.0, borderpad=0.4,
-        labelspacing=0.25, columnspacing=1.0,
+        handles=handles,
+        fontsize=6.5,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncol=len(handles),
+        framealpha=0.8,
+        handlelength=2.0,
+        borderpad=0.4,
+        labelspacing=0.25,
+        columnspacing=1.0,
     )
 
     out_dir.mkdir(parents=True, exist_ok=True)

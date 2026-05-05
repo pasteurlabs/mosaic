@@ -9,9 +9,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.utils import load_json
-from benchmarks.plots.style import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.utils import load_json
+from mosaic.benchmarks.plots.style import (
     apply_style,
     field_grid,
     fig_shared_legend,
@@ -32,7 +32,9 @@ _SUITE = "gradient"
 # ── G0: finite-difference check ───────────────────────────────────────────────
 
 
-def plot_fd_check(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "fd_check"):
+def plot_fd_check(
+    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "fd_check"
+):
     """Two files: FD error + subspace cosine curves, and gradient magnitude field panels."""
     out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
@@ -320,7 +322,12 @@ def _plot_ucurve_overlay(
 # ── G2a: parameter sweep ─────────────────────────────────────────────────────
 
 
-def plot_param_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "param_sweep"):
+def plot_param_sweep(
+    cfg: ProblemConfig,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "param_sweep",
+):
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
     out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
@@ -337,7 +344,9 @@ def plot_param_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = "", ex
         )
         if subdirs:
             for sub in subdirs:
-                plot_param_sweep(cfg, save=save, suffix=f"{suffix}/{sub.name}", exp_key=exp_key)
+                plot_param_sweep(
+                    cfg, save=save, suffix=f"{suffix}/{sub.name}", exp_key=exp_key
+                )
             return
         else:
             raise FileNotFoundError(str(result_path))
@@ -1138,12 +1147,17 @@ def plot_jacobian_svd_comparison(
     back to the exp_key name.
     """
     if exp_keys is None:
-        exp_keys = ["jacobian_svd", "jacobian_svd_nu01", "jacobian_svd_steps20", "jacobian_svd_steps40"]
+        exp_keys = [
+            "jacobian_svd",
+            "jacobian_svd_nu01",
+            "jacobian_svd_steps20",
+            "jacobian_svd_steps40",
+        ]
 
     # Variant label overrides derived from known naming conventions
     _VARIANT_LABELS = {
-        "jacobian_svd":         "ν=0.001  T=0.5s",
-        "jacobian_svd_nu01":    "ν=0.01   T=0.5s",
+        "jacobian_svd": "ν=0.001  T=0.5s",
+        "jacobian_svd_nu01": "ν=0.01   T=0.5s",
         "jacobian_svd_steps20": "ν=0.001  T=1.0s",
         "jacobian_svd_steps40": "ν=0.001  T=2.0s",
     }
@@ -1180,7 +1194,9 @@ def plot_jacobian_svd_comparison(
     ncols = min(3, n_solvers)
     nrows = math.ceil(n_solvers / ncols)
 
-    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 3.5 * nrows), squeeze=False)
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(5 * ncols, 3.5 * nrows), squeeze=False
+    )
 
     for idx, solver in enumerate(all_solvers):
         ax = axes[idx // ncols][idx % ncols]
@@ -1222,7 +1238,9 @@ def plot_jacobian_svd_comparison(
     for idx in range(n_solvers, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
-    fig.suptitle(f"{cfg.name} — Jacobian SVD: per-solver spectra comparison", fontsize=11)
+    fig.suptitle(
+        f"{cfg.name} — Jacobian SVD: per-solver spectra comparison", fontsize=11
+    )
     fig.tight_layout()
 
     if save:

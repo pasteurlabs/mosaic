@@ -3,6 +3,9 @@ project:
   output-dir: _site
   render:
     - docs/index.qmd
+    - docs/getting-started.qmd
+    - docs/architecture.qmd
+    - docs/solvers.qmd
     - docs/results_*.qmd
 
 website:
@@ -13,6 +16,12 @@ website:
     left:
       - text: Overview
         file: docs/index.qmd
+      - text: Getting Started
+        file: docs/getting-started.qmd
+      - text: Architecture
+        file: docs/architecture.qmd
+      - text: Solver Reference
+        file: docs/solvers.qmd
       - text: Results
         menu:
           - text: "Navier\u2013Stokes (2D & 3D)"

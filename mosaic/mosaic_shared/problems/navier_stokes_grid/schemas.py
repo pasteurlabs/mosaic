@@ -11,10 +11,9 @@ and add their additional fields::
 """
 
 import numpy as np
+from mosaic_shared.types import GridBC, GridObstacle, GridVectorField
 from pydantic import BaseModel, Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
-
-from mosaic_shared.types import GridBC, GridObstacle, GridVectorField
 
 
 def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndarray:
@@ -97,7 +96,6 @@ class InputSchema(BaseModel):
             "Used as the optimisation variable in lid_cavity experiments."
         ),
     )
-
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":

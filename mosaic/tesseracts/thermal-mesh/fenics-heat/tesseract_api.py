@@ -1,4 +1,3 @@
-
 """Thermal topology optimisation on an arbitrary hexahedral mesh.
 
 Uses FEniCS (DOLFIN 2019.1.0) + dolfin-adjoint to solve steady-state heat

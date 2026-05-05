@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import ProblemConfig
 
 
 def _registry() -> dict[str, ProblemConfig]:
-    from benchmarks.problems.navier_stokes_3d_grid import CONFIG as ns_3d_grid
-    from benchmarks.problems.navier_stokes_grid import CONFIG as ns_grid
-    from benchmarks.problems.structural_mesh import CONFIG as structural_mesh
-    from benchmarks.problems.thermal_mesh import CONFIG as thermal_mesh
+    from mosaic.benchmarks.problems.navier_stokes_3d_grid import CONFIG as ns_3d_grid
+    from mosaic.benchmarks.problems.navier_stokes_grid import CONFIG as ns_grid
+    from mosaic.benchmarks.problems.structural_mesh import CONFIG as structural_mesh
+    from mosaic.benchmarks.problems.thermal_mesh import CONFIG as thermal_mesh
 
     return {
         "ns-grid": ns_grid,

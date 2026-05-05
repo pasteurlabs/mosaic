@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
 
 # ── Shared palette & styling for Figure 2 ──────────────────────────────
 CONTROL_COLOR = "#2471a3"  # blue — marks control variables
@@ -116,7 +116,9 @@ def _make_domain1(out_dir: Path) -> None:
         xy=(drag_arrow_x - 0.7, cyl_cy),
         xytext=(drag_arrow_x, cyl_cy),
         arrowprops=dict(
-            arrowstyle="->,head_width=0.08,head_length=0.06", color=OBJECTIVE_COLOR, lw=0.8
+            arrowstyle="->,head_width=0.08,head_length=0.06",
+            color=OBJECTIVE_COLOR,
+            lw=0.8,
         ),
         zorder=6,
     )
@@ -162,7 +164,6 @@ def _make_domain1(out_dir: Path) -> None:
         color=CONTROL_COLOR,
         **font_kw,
     )
-
 
     for y in np.linspace(chan_y0 + 0.25, chan_y1 - 0.25, 5):
         ax.annotate(
@@ -744,7 +745,7 @@ def _make_domain2b_topology(out_dir: Path) -> None:
     fig = plt.figure(figsize=(10, 7), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
 
-    Lx, Ly, Lz = 3.0, 1.0, 1.0
+    _, Ly, Lz = 3.0, 1.0, 1.0
     x_inlet = 0.0
     x_design_start = 0.6
     x_design_end = 2.4
@@ -1047,7 +1048,7 @@ def _make_domain3(out_dir: Path) -> None:
     )
 
     extent = [x0, x0 + W, y0, y0 + H]
-    im = ax.imshow(
+    _im = ax.imshow(
         rho,
         origin="lower",
         extent=extent,
@@ -1106,7 +1107,9 @@ def _make_domain3(out_dir: Path) -> None:
         "",
         xy=(load_x + 0.15, load_y - arrow_len),
         xytext=(load_x + 0.15, load_y + 0.05),
-        arrowprops=dict(arrowstyle="->", color=OBJECTIVE_COLOR, lw=1.0, mutation_scale=6),
+        arrowprops=dict(
+            arrowstyle="->", color=OBJECTIVE_COLOR, lw=1.0, mutation_scale=6
+        ),
     )
     ax.text(
         load_x + 0.45,
@@ -1207,10 +1210,13 @@ def _make_domain4(out_dir: Path) -> None:
 
     ax = ax_l
     ax.set_title(
-        r"Control: $k(x,y)$", fontsize=CTRL_FONTSIZE, fontweight="bold",
-        color=CONTROL_COLOR, pad=4,
+        r"Control: $k(x,y)$",
+        fontsize=CTRL_FONTSIZE,
+        fontweight="bold",
+        color=CONTROL_COLOR,
+        pad=4,
     )
-    im_k = ax.imshow(
+    _im_k = ax.imshow(
         k_field[::-1],
         extent=[0, 1, 0, 1],
         cmap="viridis",
@@ -1319,10 +1325,13 @@ def _make_domain4(out_dir: Path) -> None:
 
     ax = ax_r
     ax.set_title(
-        "Observed\ntemperature field", fontsize=LABEL_FONTSIZE, fontweight="bold",
-        color=PHYS_COLOR, pad=-10,
+        "Observed\ntemperature field",
+        fontsize=LABEL_FONTSIZE,
+        fontweight="bold",
+        color=PHYS_COLOR,
+        pad=-10,
     )
-    im_T = ax.imshow(
+    _im_T = ax.imshow(
         T_obs[::-1],
         extent=[0, 1, 0, 1],
         cmap="coolwarm",
@@ -1358,7 +1367,9 @@ def _make_domain4(out_dir: Path) -> None:
         xytext=(0.00, 0.38),
         xycoords="axes fraction",
         arrowprops=dict(
-            arrowstyle="-|>,head_width=0.14,head_length=0.18", color=OBJECTIVE_COLOR, lw=1
+            arrowstyle="-|>,head_width=0.14,head_length=0.18",
+            color=OBJECTIVE_COLOR,
+            lw=1,
         ),
     )
     ax.text(

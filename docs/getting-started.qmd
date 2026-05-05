@@ -1,0 +1,162 @@
+---
+title: Getting Started
+---
+
+This guide walks through setting up Mosaic, running your first benchmark, and understanding the output.
+
+## Prerequisites
+
+- **Python >= 3.10**
+- **Docker** --- must be running. All solvers execute inside Docker containers.
+- **~20 GB disk space** for building all solver containers (each is 1--4 GB).
+- **RAM**: 16 GB minimum; 32 GB recommended for 3D fluid problems.
+
+### GPU support (optional)
+
+GPU-accelerated solvers (JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, JAX-FEM, torch-fem) require:
+
+- An NVIDIA GPU with CUDA support
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed and configured
+- Docker configured to use the `nvidia` runtime
+
+Test your setup:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
+```
+
+CPU-only solvers (FEniCS, Firedrake, INS.jl, TopOpt.jl, deal.II, OpenFOAM) work without GPU support.
+
+## Installation
+
+```bash
+git clone https://github.com/pasteurlabs/mosaic
+cd mosaic
+pip install -e ".[dev]"
+pre-commit install   # optional: enables lint checks on commit
+```
+
+Verify the installation:
+
+```bash
+mosaic --help
+mosaic status        # shows all problems and solvers (no Docker needed)
+```
+
+## Running a single solver (smoke test)
+
+The fastest way to verify everything works is to build one solver and run a quick forward check:
+
+```bash
+# Build the Exponax solver (small, fast, JAX-only)
+tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+
+# Run a single forward call
+tesseract apply mosaic/tesseracts/navier-stokes-grid/exponax '{}'
+
+# Run the forward accuracy suite for just this solver
+mosaic forward -p ns-3d-grid -s exponax
+```
+
+This builds one container (~2 min), runs a single forward simulation, and produces accuracy plots in `mosaic/benchmarks/results/ns-3d-grid/forward/`.
+
+## Running a benchmark suite
+
+Each suite can target a specific problem and (optionally) a specific solver:
+
+```bash
+# Forward accuracy for all NS-grid solvers
+mosaic forward -p ns-grid
+
+# Gradient quality check for a single solver (quick debug mode)
+mosaic gradient -p ns-grid -e fd_check --debug
+
+# Cost scaling for structural mechanics
+mosaic cost -p structural-mesh
+
+# Full optimization convergence
+mosaic recovery -p thermal-mesh
+```
+
+### Useful flags
+
+| Flag | Effect |
+|:-----|:-------|
+| `-s <solver>` | Run only one solver |
+| `-e <experiment>` | Run only one experiment within a suite |
+| `--ics <name>` | Use a specific initial condition (e.g. `tgv`, `multimode`) |
+| `--debug` | Small problem size for quick iteration |
+| `--no-build` | Skip container builds (use existing images) |
+| `--no-plots` | Skip plot generation |
+| `--plots-only` | Regenerate plots from existing results |
+| `--gpus 0,1,2` | Distribute solvers across multiple GPUs |
+
+## Running everything
+
+```bash
+mosaic run-all                                      # all suites, all problems
+mosaic run-all --problems ns-grid,structural-mesh   # filter problems
+mosaic run-all --suites forward,gradient            # filter suites
+```
+
+::: {.callout-warning}
+`mosaic run-all` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. Consider starting with a single problem (`mosaic run-all --problems thermal-mesh`) to validate your setup.
+:::
+
+## Understanding output
+
+Results are organized by problem and suite:
+
+```
+mosaic/benchmarks/results/
+  ns-grid/
+    forward/
+      baseline/result.json    # per-solver forward errors
+      agreement/result.json   # cross-solver agreement
+      *.png, *.pdf            # generated plots
+    gradient/
+      fd_check/result.json    # FD verification results
+    cost/
+      result.json             # wall-clock scaling data
+    optimization/
+      recovery/result.json    # optimization convergence
+```
+
+Use `mosaic status` to get a summary table of all completed experiments:
+
+```bash
+mosaic status                             # full per-problem tables
+mosaic status -p ns-grid -f               # single problem with failure reasons
+mosaic status --format md > report.md     # export as markdown
+mosaic status --format json > snap.json   # machine-readable snapshot
+```
+
+## Troubleshooting
+
+### Container build failures
+
+If `tesseract build` fails:
+
+1. Check Docker is running: `docker info`
+2. Check disk space: `docker system df`
+3. For GPU solvers, verify the NVIDIA runtime: `docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi`
+4. Try building with verbose output: `tesseract build <path> --verbose`
+5. Inspect the build log for missing system dependencies (common with FEniCS/Firedrake)
+
+### Solver timeouts
+
+Solvers that exceed the HTTP watchdog timeout (1200s default) are killed automatically. This typically happens with:
+
+- CPU-only solvers at large grid sizes
+- Long rollouts on slow solvers
+
+Use `--debug` for a smaller problem size, or run with `-s <solver>` to isolate.
+
+### Memory issues
+
+3D fluid problems at high resolution can exceed available (V)RAM. Symptoms include:
+
+- OOM kills (check `dmesg` or `docker logs`)
+- Silent NaN outputs
+
+Reduce resolution or limit to fewer concurrent solvers via `--gpus`.

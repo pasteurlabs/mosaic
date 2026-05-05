@@ -33,8 +33,10 @@ except ImportError:  # pragma: no cover — CI-only path
 # wedged in futex_wait_queue. Suites import `apply_tesseract` from that
 # package directly so JAX-traced `loss_fn` closures capture the watchdog.
 try:
-    from benchmarks.core.watchdog import apply_tesseract as _apply_tesseract_watchdog
-    from benchmarks.core.watchdog import WatchdogError
+    from mosaic.benchmarks.core.watchdog import WatchdogError
+    from mosaic.benchmarks.core.watchdog import (
+        apply_tesseract as _apply_tesseract_watchdog,
+    )
 except ImportError:  # pragma: no cover — CI-only path, same as above
     _apply_tesseract_watchdog = None  # type: ignore[assignment]
     WatchdogError = None  # type: ignore[assignment]
@@ -115,8 +117,8 @@ def _install_tesseract_http_timeout() -> None:
 
 _install_tesseract_http_timeout()
 
-from .config import ProblemConfig
-from .console import (
+from .config import ProblemConfig  # noqa: E402
+from .console import (  # noqa: E402
     console,
     make_build_progress,
     print_rule,
@@ -290,7 +292,8 @@ def run_suite(
         # Use the full (unfiltered) config for plot generation so all solvers
         # appear in plots even when this run targeted only a subset via --solvers.
         try:
-            from benchmarks.problems import get_config as _get_cfg
+            from mosaic.benchmarks.problems import get_config as _get_cfg
+
             _plot_cfg = _get_cfg(cfg.name)
         except Exception:
             _plot_cfg = cfg
@@ -501,9 +504,7 @@ def _apply_tesseract_with_deadline(t: Tesseract, inputs: dict):
     where the watchdog package failed to import (CI host without tesseract_core).
     """
     if _apply_tesseract_watchdog is not None:
-        return _apply_tesseract_watchdog(
-            t, inputs, timeout=MOSAIC_TESSERACT_TIMEOUT
-        )
+        return _apply_tesseract_watchdog(t, inputs, timeout=MOSAIC_TESSERACT_TIMEOUT)
 
     # Fallback: ThreadPoolExecutor approach for environments without the watchdog.
     with concurrent.futures.ThreadPoolExecutor(

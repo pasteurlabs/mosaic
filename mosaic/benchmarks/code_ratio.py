@@ -224,20 +224,18 @@ def classify_python(
                     # Prefer fine-grained inline section markers; fall back to
                     # the function-level tag if none are present.
                     inline_counts, inline_types = _inline_grad_vars(
-                        lines, node.lineno - 1, node.end_lineno  # type: ignore[attr-defined]
+                        lines,
+                        node.lineno - 1,
+                        node.end_lineno,  # type: ignore[attr-defined]
                     )
                     if inline_counts:
                         for var, cnt in inline_counts.items():
-                            grad_by_variable[var] = (
-                                grad_by_variable.get(var, 0) + cnt
-                            )
+                            grad_by_variable[var] = grad_by_variable.get(var, 0) + cnt
                         for var, t in inline_types.items():
                             grad_variable_type.setdefault(var, t)
                     elif variables:
                         for var in variables:
-                            grad_by_variable[var] = (
-                                grad_by_variable.get(var, 0) + span
-                            )
+                            grad_by_variable[var] = grad_by_variable.get(var, 0) + span
                         if gtype:
                             for var in variables:
                                 grad_variable_type.setdefault(var, gtype)
@@ -247,7 +245,15 @@ def classify_python(
 
     # Blank lines and comments not attached to any node → interface overhead
     interface += total - (imports + interface + solver)
-    return total, imports, interface, solver, solver_by_category, grad_by_variable, grad_variable_type
+    return (
+        total,
+        imports,
+        interface,
+        solver,
+        solver_by_category,
+        grad_by_variable,
+        grad_variable_type,
+    )
 
 
 def _ext_categories(
@@ -324,7 +330,9 @@ def count_external(
     return total, files, by_category, grad_by_variable, grad_variable_type
 
 
-def find_mosaic_shared_jl(api_path: Path, mosaic_shared_root: Path) -> list[tuple[Path, str]]:
+def find_mosaic_shared_jl(
+    api_path: Path, mosaic_shared_root: Path
+) -> list[tuple[Path, str]]:
     """Return [(path, label)] for mosaic_shared Julia files referenced by the tesseract.
 
     Scans the tesseract_api.py source for bare .jl filename strings (e.g.
@@ -439,7 +447,10 @@ def collect(
             if solver_dir.is_dir():
                 results.append(
                     analyse(
-                        problem_dir.name, solver_dir.name, solver_dir, mosaic_shared_root
+                        problem_dir.name,
+                        solver_dir.name,
+                        solver_dir,
+                        mosaic_shared_root,
                     )
                 )
     return results
@@ -581,7 +592,14 @@ def print_rich(results: list[SolverStats]) -> None:
                 )
                 table.add_row(
                     "[dim]  grad vars →[/dim]",
-                    "", "", "", "", "", "", "", "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
                     f"[dim]{var_parts}[/dim]",
                 )
 
@@ -645,9 +663,7 @@ def print_variable_table(results: list[SolverStats]) -> None:
 
     for problem, rows in problems.items():
         # Only render the table if at least one solver has grad attribution.
-        all_vars = sorted(
-            {var for s in rows for var in s.grad_by_variable}
-        )
+        all_vars = sorted({var for s in rows for var in s.grad_by_variable})
         if not all_vars:
             continue
 
@@ -715,7 +731,8 @@ def print_effort_table(results: list[SolverStats]) -> None:
 
         def _real_lines(s: SolverStats) -> int:
             return sum(
-                cnt for var, cnt in s.grad_by_variable.items()
+                cnt
+                for var, cnt in s.grad_by_variable.items()
                 if s.grad_variable_type.get(var) != "zero"
             )
 
@@ -732,7 +749,9 @@ def print_effort_table(results: list[SolverStats]) -> None:
         table.add_column("solver", style="white", no_wrap=True, min_width=20)
         table.add_column("total", justify="right", style="bold", min_width=7)
         for var in all_vars:
-            table.add_column(var, justify="right", no_wrap=True, min_width=max(7, len(var)))
+            table.add_column(
+                var, justify="right", no_wrap=True, min_width=max(7, len(var))
+            )
 
         for s in sorted_rows:
             total = _real_lines(s)
@@ -800,9 +819,9 @@ _VAR_DISPLAY: dict[str, str] = {
 }
 
 _TYPE_LATEX_SYMBOL: dict[str, str] = {
-    "autodiff": r"$\bullet$",   # source-transformation / operator-overloading AD
-    "adjoint": r"$\dagger$",    # tape-based or hand-derived discrete adjoint
-    "analytic": r"$\star$",     # closed-form / analytic sensitivity
+    "autodiff": r"$\bullet$",  # source-transformation / operator-overloading AD
+    "adjoint": r"$\dagger$",  # tape-based or hand-derived discrete adjoint
+    "analytic": r"$\star$",  # closed-form / analytic sensitivity
 }
 
 _DOMAIN_LABEL: dict[str, str] = {
@@ -852,7 +871,11 @@ def _load_diff_failures(results_root: Path) -> set[tuple[str, str, str]]:
     failures: set[tuple[str, str, str]] = set()
     for result_dir, tesseract_problem in _DIFF_PROBLEM_MAP.items():
         csv_path = (
-            results_root / result_dir / "gradient" / "differentiability_table" / "result.csv"
+            results_root
+            / result_dir
+            / "gradient"
+            / "differentiability_table"
+            / "result.csv"
         )
         if not csv_path.exists():
             continue
@@ -887,17 +910,14 @@ def generate_latex_effort_table(
     """
     import math
 
-    diff_failures: set[tuple[str, str, str]] = (
-        _load_diff_failures(results_root) if results_root is not None else set()
-    )
-
     problems: dict[str, list[SolverStats]] = {}
     for s in results:
         problems.setdefault(s.problem, []).append(s)
 
     def _real_lines(s: SolverStats) -> int:
         return sum(
-            cnt for var, cnt in s.grad_by_variable.items()
+            cnt
+            for var, cnt in s.grad_by_variable.items()
             if s.grad_variable_type.get(var) != "zero"
         )
 
@@ -952,8 +972,7 @@ def generate_latex_effort_table(
         col_spec = "@{}l" + "r" * (ncols - 1) + "@{}"
 
         var_headers = " & ".join(
-            r"\textbf{" + _VAR_DISPLAY.get(v, v) + "}"
-            for v in vars_for_group
+            r"\textbf{" + _VAR_DISPLAY.get(v, v) + "}" for v in vars_for_group
         )
 
         # Per-column max for scoring (computed over all rows in this group)
@@ -1068,9 +1087,7 @@ _CSV_CATEGORIES = ["physics", "io", "init", "grad", "util", "unknown"]
 
 def print_csv(results: list[SolverStats]) -> None:
     # Collect all variable names that appear across any solver (stable sort order)
-    all_vars: list[str] = sorted(
-        {var for s in results for var in s.grad_by_variable}
-    )
+    all_vars: list[str] = sorted({var for s in results for var in s.grad_by_variable})
 
     w = csv.writer(sys.stdout)
     w.writerow(

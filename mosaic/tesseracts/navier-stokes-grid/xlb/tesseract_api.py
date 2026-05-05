@@ -1,4 +1,3 @@
-
 import os
 
 # Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
@@ -467,7 +466,7 @@ def xlb_fwd(  # mosaic:physics
     # Apply sub-stepping: use effective dt and total step count
     dt_eff = dt / _sub_k
     steps_eff = steps * _sub_k
-    scale_eff = dt_eff / dx          # u_lb = u_phys * scale_eff
+    scale_eff = dt_eff / dx  # u_lb = u_phys * scale_eff
     nu_lb = viscosity * dt_eff / dx**2
     omega = 1.0 / (3.0 * nu_lb + 0.5)
 
@@ -567,7 +566,9 @@ def xlb_fwd(  # mosaic:physics
         if prof_len != ny_s:
             src_y = jnp.linspace(0, 1, prof_len)
             dst_y = jnp.linspace(0, 1, ny_s)
-            ux_in_lb = jnp.interp(dst_y, src_y, inflow_profile.astype(fdtype)) * scale_eff
+            ux_in_lb = (
+                jnp.interp(dst_y, src_y, inflow_profile.astype(fdtype)) * scale_eff
+            )
         else:
             ux_in_lb = inflow_profile.astype(fdtype) * scale_eff  # (ny,)
 
@@ -746,7 +747,13 @@ def abstract_eval(abstract_inputs):
     }
     raw = abstract_inputs.model_dump()
     obstacle_raw = raw.get("obstacle") or {}
-    has_obstacle = bool((obstacle_raw.get("shape") if isinstance(obstacle_raw, dict) else getattr(obstacle_raw, "shape", None)))
+    _has_obstacle = bool(
+        (
+            obstacle_raw.get("shape")
+            if isinstance(obstacle_raw, dict)
+            else getattr(obstacle_raw, "shape", None)
+        )
+    )
     return out
 
 
@@ -790,7 +797,9 @@ def _scalar_f64(x):  # mosaic:util
     return jnp.asarray(x, dtype=jnp.float64)
 
 
-def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:  # mosaic:grad:v0,viscosity,dt:autodiff
+def _run_forward_f64(
+    inputs: dict, diff_bundle: dict
+) -> tuple:  # mosaic:grad:v0,viscosity,dt:autodiff
     """Run xlb_fwd in float64 with diff inputs overridden from diff_bundle.
 
     Non-diff inputs (steps, boundary_conditions, obstacle, domain_extent) are
@@ -871,7 +880,9 @@ def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:  # mosaic:grad:v
     return result, drag
 
 
-def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
+def _build_diff_bundle(
+    inputs: dict, include: tuple[str, ...]
+) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys.
 
     Only includes paths that are actually present (non-None) in the primal

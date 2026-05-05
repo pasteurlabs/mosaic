@@ -1,4 +1,3 @@
-
 """Thermal topology optimisation on a structured hexahedral mesh via torch-fem.
 
 Uses Meyer-Nils/torch-fem `SolidHeat` (HEX8 Galerkin) with PyTorch autograd

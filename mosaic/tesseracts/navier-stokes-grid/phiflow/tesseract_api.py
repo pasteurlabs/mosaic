@@ -1,4 +1,3 @@
-
 from typing import Any
 
 import equinox as eqx
@@ -210,7 +209,12 @@ def phiflow_fwd(  # mosaic:physics
     # (pressure + viscous), which is correct for PERIODIC since the constant-
     # pressure offset cancels on a closed surface around the cylinder.
     # _resize_arr sees clean (nx, ny) staggered shapes, making it a no-op.
-    if inflow_profile is not None and obstacle is not None and obstacle.get("shape") and ndim == 2:
+    if (
+        inflow_profile is not None
+        and obstacle is not None
+        and obstacle.get("shape")
+        and ndim == 2
+    ):
         raw_ext = extrapolation.PERIODIC
     ext = raw_ext
     obstacle_obj = _make_phiflow_obstacle(obstacle, domain_extent, ndim)
@@ -237,8 +241,10 @@ def phiflow_fwd(  # mosaic:physics
     # component under the current extrapolation.  This is a Python-level shape
     # query (no JAX tracing) so the result is a plain tuple of ints.
     _probe_channel = math.stack(
-        [math.tensor(jnp.zeros(_cell_shape), math.spatial(spatial_str))
-         for _ in range(ndim)],
+        [
+            math.tensor(jnp.zeros(_cell_shape), math.spatial(spatial_str))
+            for _ in range(ndim)
+        ],
         dim=math.channel("vector"),
     )
     _probe_cg = CenteredGrid(_probe_channel, ext, bounds=bounds, **grid_kwargs)
@@ -294,8 +300,10 @@ def phiflow_fwd(  # mosaic:physics
         jnp.stack produces a fixed-shape carry for lax.scan.
         """
         return jnp.stack(
-            [_resize_arr(vel.vector[i].values.native(spatial_str), _cell_shape)
-             for i in range(ndim)],
+            [
+                _resize_arr(vel.vector[i].values.native(spatial_str), _cell_shape)
+                for i in range(ndim)
+            ],
             axis=0,
         )
 
@@ -431,7 +439,9 @@ def phiflow_fwd(  # mosaic:physics
         ux_rans = 0.5 * (rans_faces[0] + jnp.roll(rans_faces[0], 1, axis=0))
         uy_rans = 0.5 * (rans_faces[1] + jnp.roll(rans_faces[1], 1, axis=1))
         velocity_mean = jnp.stack([ux_rans, uy_rans], axis=0)
-        velocity_mean = jnp.moveaxis(velocity_mean, 0, -1)[:, :, None, :]  # (nx, ny, 1, 2)
+        velocity_mean = jnp.moveaxis(velocity_mean, 0, -1)[
+            :, :, None, :
+        ]  # (nx, ny, 1, 2)
 
         # Surface-integral drag from RANS mean pressure + velocity.
         # Time-averaging the per-step CG pressure (collected in-loop) gives the
@@ -501,9 +511,15 @@ def abstract_eval(abstract_inputs):
         "drag": {"shape": (1,), "dtype": "float32"},
     }
     obstacle_raw = raw.get("obstacle") or {}
-    has_obstacle = bool((obstacle_raw.get("shape") if isinstance(obstacle_raw, dict) else getattr(obstacle_raw, "shape", None)))
-    has_inflow = raw.get("inflow_profile") is not None
-    ndim = v0_shape[-1] if v0_shape else 0
+    _has_obstacle = bool(
+        (
+            obstacle_raw.get("shape")
+            if isinstance(obstacle_raw, dict)
+            else getattr(obstacle_raw, "shape", None)
+        )
+    )
+    _has_inflow = raw.get("inflow_profile") is not None
+    _ndim = v0_shape[-1] if v0_shape else 0
     return out
 
 

@@ -59,15 +59,12 @@ from typing import Any
 from . import introspect as _introspect
 from .exceptions import ContainerDied, WatchdogTimeout
 
-
 # Default wall-clock deadline for a single ``apply_tesseract`` call, in
 # seconds. Overridable at call site via the ``timeout=`` kwarg, or
 # globally via ``set_default_timeout`` / the ``MOSAIC_TESSERACT_TIMEOUT``
 # env var at import time. 1200 s (20 min) matches the runner's historical
 # default so behaviour is unchanged on the happy path.
-_DEFAULT_TIMEOUT: float = float(
-    os.environ.get("MOSAIC_TESSERACT_TIMEOUT", "1200")
-)
+_DEFAULT_TIMEOUT: float = float(os.environ.get("MOSAIC_TESSERACT_TIMEOUT", "1200"))
 
 # Default polling interval — how often we check container liveness and
 # wall-clock while waiting for the call to complete. 2 s is a good trade-off:
@@ -198,9 +195,7 @@ def _apply_with_watchdog(
 
         # Check container liveness first — a dead container with a stuck
         # socket is the primary failure mode this watchdog guards against.
-        if container_id is not None and not _introspect.container_running(
-            container_id
-        ):
+        if container_id is not None and not _introspect.container_running(container_id):
             raise ContainerDied(
                 f"tesseract-runtime container {container_id!r} is no "
                 f"longer running; apply_tesseract was wedged on its "

@@ -1,4 +1,3 @@
-
 """Linear elasticity + SIMP topology optimisation on an arbitrary hexahedral mesh.
 
 Uses Firedrake + firedrake-adjoint to solve 3-D linear elasticity with SIMP

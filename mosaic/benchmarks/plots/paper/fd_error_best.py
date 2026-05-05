@@ -13,19 +13,22 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import (
-    RCPARAMS, SOLVER_STYLES, NS_ORDER, STRUCTURAL_ORDER, THERMAL_ORDER,
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import (
+    NS_ORDER,
+    RCPARAMS,
+    STRUCTURAL_ORDER,
+    THERMAL_ORDER,
     solver_props,
 )
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
 DOMAINS = [
-    ("2D NS",      "ns-grid",         NS_ORDER),
-    ("3D NS",      "ns-3d-grid",      NS_ORDER),
+    ("2D NS", "ns-grid", NS_ORDER),
+    ("3D NS", "ns-3d-grid", NS_ORDER),
     ("Structural", "structural-mesh", STRUCTURAL_ORDER),
-    ("Thermal",    "thermal-mesh",    THERMAL_ORDER),
+    ("Thermal", "thermal-mesh", THERMAL_ORDER),
 ]
 
 
@@ -64,10 +67,10 @@ def generate(out_dir: Path) -> None:
             ax.set_visible(False)
             continue
 
-        labels  = [r[0] for r in rows]
-        colors  = [r[1] for r in rows]
-        errors  = [r[2] for r in rows]
-        y       = np.arange(len(rows))
+        labels = [r[0] for r in rows]
+        colors = [r[1] for r in rows]
+        errors = [r[2] for r in rows]
+        y = np.arange(len(rows))
 
         ax.barh(y, errors, color=colors, height=0.6, zorder=3)
         ax.set_xscale("log")

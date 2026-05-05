@@ -22,10 +22,9 @@ InputSchema::
 """
 
 import numpy as np
+from mosaic_shared.types import HexMesh, MeshBC
 from pydantic import BaseModel, Field
 from tesseract_core.runtime import Array, Differentiable, Float32
-
-from mosaic_shared.types import HexMesh, MeshBC
 
 
 class InputSchema(BaseModel):

@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (pre-commit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: pre-commit/action@v3.0.1
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest
+
+  validate-tesseracts:
+    name: Validate tesseract configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate all tesseract_config.yaml files
+        run: |
+          python - <<'PYEOF'
+          import sys, yaml
+          from pathlib import Path
+
+          errors = []
+          configs = sorted(Path("mosaic/tesseracts").rglob("tesseract_config.yaml"))
+          if not configs:
+              print("ERROR: no tesseract_config.yaml files found")
+              sys.exit(1)
+
+          for p in configs:
+              try:
+                  with open(p) as f:
+                      doc = yaml.safe_load(f)
+                  if not isinstance(doc, dict):
+                      errors.append(f"{p}: not a YAML mapping")
+                      continue
+                  if "name" not in doc:
+                      errors.append(f"{p}: missing 'name' field")
+              except Exception as e:
+                  errors.append(f"{p}: {e}")
+
+          print(f"Checked {len(configs)} tesseract configs")
+          if errors:
+              for e in errors:
+                  print(f"  ERROR: {e}", file=sys.stderr)
+              sys.exit(1)
+          print("All valid.")
+          PYEOF
+
+  docs-freshness:
+    name: Check generated docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" pyyaml
+
+      - name: Check solvers.qmd is up to date
+        run: python docs/generate.py --check

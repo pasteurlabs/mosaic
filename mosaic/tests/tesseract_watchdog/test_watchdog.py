@@ -26,11 +26,11 @@ import time
 import unittest
 from unittest import mock
 
-from benchmarks.core.watchdog import (
+from mosaic.benchmarks.core import introspect, watchdog
+from mosaic.benchmarks.core.watchdog import (
     ContainerDied,
     WatchdogTimeout,
 )
-from benchmarks.core import introspect, watchdog
 
 
 class _FakeServeContextTesseract:
@@ -87,9 +87,7 @@ class WatchdogTests(unittest.TestCase):
         def _fake_apply(_t, inputs):
             return {"result": inputs["x"] * 2}
 
-        with mock.patch.object(
-            introspect, "container_running", return_value=True
-        ):
+        with mock.patch.object(introspect, "container_running", return_value=True):
             out = watchdog._apply_with_watchdog(
                 t, {"x": 21}, timeout=10.0, poll=0.5, _apply_fn=_fake_apply
             )
@@ -131,8 +129,7 @@ class WatchdogTests(unittest.TestCase):
         self.assertLess(
             elapsed,
             3.5,
-            f"watchdog took {elapsed:.2f}s to detect container death "
-            f"(expected ~1.5 s)",
+            f"watchdog took {elapsed:.2f}s to detect container death (expected ~1.5 s)",
         )
 
     def test_wall_clock_deadline_raises_watchdog_timeout(self) -> None:
@@ -145,9 +142,7 @@ class WatchdogTests(unittest.TestCase):
         def _blocking_apply(_t, _inputs):
             time.sleep(3600)
 
-        with mock.patch.object(
-            introspect, "container_running", return_value=True
-        ):
+        with mock.patch.object(introspect, "container_running", return_value=True):
             t0 = time.monotonic()
             with self.assertRaises(WatchdogTimeout):
                 watchdog._apply_with_watchdog(
@@ -174,9 +169,7 @@ class WatchdogTests(unittest.TestCase):
         def _blocking_apply(_t, _inputs):
             time.sleep(3600)
 
-        with mock.patch.object(
-            introspect, "container_running", return_value=True
-        ):
+        with mock.patch.object(introspect, "container_running", return_value=True):
             with self.assertRaises(TimeoutError):
                 watchdog._apply_with_watchdog(
                     t,
@@ -221,9 +214,7 @@ class WatchdogTests(unittest.TestCase):
         def _raising_apply(_t, _inputs):
             raise _Custom("boom")
 
-        with mock.patch.object(
-            introspect, "container_running", return_value=True
-        ):
+        with mock.patch.object(introspect, "container_running", return_value=True):
             with self.assertRaises(_Custom):
                 watchdog._apply_with_watchdog(
                     t, {}, timeout=5.0, poll=0.5, _apply_fn=_raising_apply
@@ -281,9 +272,7 @@ class WatchdogTests(unittest.TestCase):
             # Waits forever; test relies on pool.shutdown(wait=False).
             block_event.wait(timeout=30)
 
-        with mock.patch.object(
-            introspect, "container_running", return_value=False
-        ):
+        with mock.patch.object(introspect, "container_running", return_value=False):
             t0 = time.monotonic()
             with self.assertRaises(ContainerDied):
                 watchdog._apply_with_watchdog(

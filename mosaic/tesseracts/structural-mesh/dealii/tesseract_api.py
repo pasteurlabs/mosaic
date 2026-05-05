@@ -1,4 +1,3 @@
-
 """Linear elasticity topology optimisation on a structured hexahedral mesh.
 
 Uses deal.II Q1 finite elements (Step-8 pattern) as a C++ subprocess.

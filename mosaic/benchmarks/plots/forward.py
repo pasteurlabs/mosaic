@@ -8,9 +8,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.utils import load_json
-from benchmarks.plots.style import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.utils import load_json
+from mosaic.benchmarks.plots.style import (
     apply_style,
     field_grid,
     fig_shared_legend,
@@ -59,13 +59,19 @@ def plot_agreement(
     if not fields_path.exists():
         # Multi-IC layout: each IC lands in a subdir; plot each one.
         subdirs = (
-            sorted(p for p in out_dir.iterdir() if p.is_dir() and (p / "fields.npz").exists())
+            sorted(
+                p
+                for p in out_dir.iterdir()
+                if p.is_dir() and (p / "fields.npz").exists()
+            )
             if out_dir.exists()
             else []
         )
         if subdirs:
             for sub in subdirs:
-                plot_agreement(cfg, save=save, suffix=f"{suffix}/{sub.name}", exp_key=exp_key)
+                plot_agreement(
+                    cfg, save=save, suffix=f"{suffix}/{sub.name}", exp_key=exp_key
+                )
             return None
         return None
 
@@ -197,7 +203,9 @@ def plot_agreement(
 
     fig_err = None
     if panels:
-        _ref_desc = "analytic solution" if reference_label == "analytic" else "consensus"
+        _ref_desc = (
+            "analytic solution" if reference_label == "analytic" else "consensus"
+        )
         fig_err = field_grid(
             panels,
             f"{cfg.name} — field error vs {_ref_desc}",
@@ -233,7 +241,9 @@ def plot_agreement(
                     ax_conv.set_xscale("log")
                 except Exception:
                     pass
-        ref_desc = "analytic solution" if reference_label == "analytic" else "solver consensus"
+        ref_desc = (
+            "analytic solution" if reference_label == "analytic" else "solver consensus"
+        )
         ax_conv.set_xlabel(unit_label(sweep_key, cfg.units))
         ax_conv.set_ylabel(f"Relative L₂ error vs {ref_desc}")
         title = (
@@ -245,7 +255,9 @@ def plot_agreement(
         ax_conv.grid(True, alpha=0.3, which="both")
         fig_shared_legend(fig_conv, [ax_conv])
         if save:
-            save_fig(fig_conv, "convergence" if exp_key == "baseline" else "errors", out_dir)
+            save_fig(
+                fig_conv, "convergence" if exp_key == "baseline" else "errors", out_dir
+            )
 
     # ── power spectra (one subplot per sweep value, all solvers overlaid) ─────
     ps_fn = cfg.power_spectrum_fn

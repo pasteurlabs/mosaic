@@ -7,7 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
 
 RCPARAMS = {
     "font.family": "sans-serif",
@@ -43,10 +43,26 @@ def generate(out_dir: Path) -> None:
         ctrl_dims = np.array([10, 20, 50, 100, 500, 1e3, 5e3, 1e4, 5e4, 1e5])
 
         grad_solvers = {
-            "JAX-CFD (source transf.)": {"overhead": 2.5, "color": "#2ecc71", "marker": "o"},
-            "PhiFlow (source transf.)": {"overhead": 3.2, "color": "#3498db", "marker": "s"},
-            "FEniCS (tape-based adj.)": {"overhead": 5.0, "color": "#e74c3c", "marker": "^"},
-            "XLB (source transf.)":     {"overhead": 1.8, "color": "#e67e22", "marker": "D"},
+            "JAX-CFD (source transf.)": {
+                "overhead": 2.5,
+                "color": "#2ecc71",
+                "marker": "o",
+            },
+            "PhiFlow (source transf.)": {
+                "overhead": 3.2,
+                "color": "#3498db",
+                "marker": "s",
+            },
+            "FEniCS (tape-based adj.)": {
+                "overhead": 5.0,
+                "color": "#e74c3c",
+                "marker": "^",
+            },
+            "XLB (source transf.)": {
+                "overhead": 1.8,
+                "color": "#e67e22",
+                "marker": "D",
+            },
         }
 
         # Gradient-free: CMA-ES population size ~ 4 + 3 ln(N)
@@ -56,19 +72,43 @@ def generate(out_dir: Path) -> None:
         # ---------- figure ----------
         fig, ax = plt.subplots(figsize=(TEXTWIDTH, TEXTWIDTH * 0.55), dpi=150)
 
-        ax.loglog(ctrl_dims, cmaes_cost, color="#7f8c8d", linewidth=2.5,
-                  linestyle="--", marker="x", markersize=7, label="CMA-ES (gradient-free)",
-                  zorder=5)
+        ax.loglog(
+            ctrl_dims,
+            cmaes_cost,
+            color="#7f8c8d",
+            linewidth=2.5,
+            linestyle="--",
+            marker="x",
+            markersize=7,
+            label="CMA-ES (gradient-free)",
+            zorder=5,
+        )
 
         for name, s in grad_solvers.items():
             cost = np.full_like(ctrl_dims, 1.0 + s["overhead"])
-            ax.loglog(ctrl_dims, cost, color=s["color"], linewidth=1.8,
-                      marker=s["marker"], markersize=5, alpha=0.85, label=name)
+            ax.loglog(
+                ctrl_dims,
+                cost,
+                color=s["color"],
+                linewidth=1.8,
+                marker=s["marker"],
+                markersize=5,
+                alpha=0.85,
+                label=name,
+            )
 
         # Crossover region
         ax.axvspan(10, 30, alpha=0.08, color="#7f8c8d", zorder=0)
-        ax.text(18, 1.3, "comparable\ncost", ha="center", va="bottom",
-                fontsize=7.5, color="#7f8c8d", fontstyle="italic")
+        ax.text(
+            18,
+            1.3,
+            "comparable\ncost",
+            ha="center",
+            va="bottom",
+            fontsize=7.5,
+            color="#7f8c8d",
+            fontstyle="italic",
+        )
 
         ax.set_xlabel("Control dimension $N$", fontsize=8)
         ax.set_ylabel("Cost per iteration (forward solves)", fontsize=8)
@@ -78,11 +118,26 @@ def generate(out_dir: Path) -> None:
         ax.legend(fontsize=7.5, loc="upper left")
 
         # Watermark
-        ax.text(0.5, 0.5, "PLACEHOLDER", transform=ax.transAxes,
-                ha="center", va="center", fontsize=24, color="#cccccc",
-                fontweight="bold", fontstyle="italic", alpha=0.5, rotation=25)
+        ax.text(
+            0.5,
+            0.5,
+            "PLACEHOLDER",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            fontsize=24,
+            color="#cccccc",
+            fontweight="bold",
+            fontstyle="italic",
+            alpha=0.5,
+            rotation=25,
+        )
 
-        fig.savefig(out_dir / "per_iteration_cost.png", dpi=150, bbox_inches="tight",
-                    facecolor="white")
+        fig.savefig(
+            out_dir / "per_iteration_cost.png",
+            dpi=150,
+            bbox_inches="tight",
+            facecolor="white",
+        )
         plt.close(fig)
         print(f"Saved {out_dir / 'per_iteration_cost.png'}")

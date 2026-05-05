@@ -1,0 +1,161 @@
+name: Release benchmark
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  RESULTS_BRANCH: benchmark-results
+
+jobs:
+  run-gpu:
+    name: Full benchmark (GPU solvers)
+    runs-on: mosaic-runner-gpu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Mosaic
+        run: pip install -e ".[dev]"
+
+      - name: Run GPU solvers
+        run: mosaic run-all --hardware gpu
+        timeout-minutes: 360
+
+      - name: Upload GPU results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-gpu
+          path: mosaic/benchmarks/results/
+
+  run-cpu:
+    name: Full benchmark (CPU solvers)
+    runs-on: mosaic-runner-cpu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Mosaic
+        run: pip install -e ".[dev]"
+
+      - name: Run CPU solvers
+        run: mosaic run-all --hardware cpu
+        timeout-minutes: 360
+
+      - name: Upload CPU results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-cpu
+          path: mosaic/benchmarks/results/
+
+  report:
+    name: Report & publish release
+    needs: [run-gpu, run-cpu]
+    if: always() && (needs.run-gpu.result == 'success' || needs.run-cpu.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Mosaic
+        run: pip install -e ".[dev]"
+
+      - name: Download GPU results
+        uses: actions/download-artifact@v4
+        with:
+          name: results-gpu
+          path: mosaic/benchmarks/results/
+        continue-on-error: true
+
+      - name: Download CPU results
+        uses: actions/download-artifact@v4
+        with:
+          name: results-cpu
+          path: mosaic/benchmarks/results/
+        continue-on-error: true
+
+      - name: Fetch baseline snapshot
+        id: baseline
+        run: |
+          BASELINE_PATH=""
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            if git show "origin/$RESULTS_BRANCH:latest/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
+              BASELINE_PATH="baseline-snapshot.json"
+            fi
+          fi
+          echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Generate snapshots
+        run: |
+          mosaic status --format json > snapshot.json
+          DIFF_FLAG=""
+          if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
+            DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
+          fi
+          mosaic status --format md $DIFF_FLAG > status-report.md
+
+      - name: Package results
+        run: tar czf benchmark-results.tar.gz mosaic/benchmarks/results/ snapshot.json status-report.md
+
+      - name: Attach results to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            benchmark-results.tar.gz \
+            snapshot.json \
+            status-report.md \
+            --clobber
+
+      - name: Publish to results branch
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          SHA="${{ github.sha }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            git checkout "$RESULTS_BRANCH"
+          else
+            git checkout --orphan "$RESULTS_BRANCH"
+            git rm -rf . 2>/dev/null || true
+            echo "# Mosaic Benchmark Results" > README.md
+            echo "" >> README.md
+            echo "Automated benchmark results. Do not edit manually." >> README.md
+            git add README.md
+            git commit -m "Initialize results branch"
+          fi
+
+          DEST="releases/${TAG}"
+          mkdir -p "$DEST"
+          cp snapshot.json "$DEST/"
+          cp status-report.md "$DEST/"
+          cp -r mosaic/benchmarks/results/* "$DEST/" 2>/dev/null || true
+
+          # Update latest with full results (consumed by docs workflow)
+          rm -rf latest
+          mkdir -p latest
+          cp snapshot.json latest/
+          cp status-report.md latest/
+          cp -r mosaic/benchmarks/results/* latest/ 2>/dev/null || true
+
+          git add .
+          git commit -m "Release benchmark results for ${TAG}
+
+          Source commit: ${SHA}"
+
+          git push origin "$RESULTS_BRANCH"

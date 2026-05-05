@@ -188,7 +188,9 @@ _SOLVER_GYM = ROOT / "mosaic"
 if str(_SOLVER_GYM) not in sys.path:
     sys.path.insert(0, str(_SOLVER_GYM))
 
-from benchmarks.problems import get_config as _get_config  # type: ignore  # noqa: E402
+from mosaic.benchmarks.problems import (  # noqa: E402
+    get_config as _get_config,  # type: ignore
+)
 
 
 def _plot_description(problem: str, suite: str, experiment: str) -> str:

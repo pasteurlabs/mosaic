@@ -52,11 +52,11 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.console import console
-from benchmarks.core.hardware import ResourceSampler, get_hardware_info
-from benchmarks.core.runner import run_with_gpu_pool
-from benchmarks.core.utils import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.console import console
+from mosaic.benchmarks.core.hardware import ResourceSampler, get_hardware_info
+from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.utils import (
     _diff_solvers,
     active_solvers,
     experiment_dir,
@@ -75,7 +75,8 @@ _SPATIAL_WALL_S = 1000
 
 
 def _classify_failure_import():
-    from benchmarks.suites.gradient import _classify_failure  # noqa: PLC0415
+    from mosaic.benchmarks.suites.gradient import _classify_failure  # noqa: PLC0415
+
     return _classify_failure
 
 
@@ -152,7 +153,8 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
         console.print(
             f"  [{color}]{name}[/]  {res_key} sweep ({len(N_values)} sizes, {n_trials} trials each)"
         )
-        from benchmarks.core.runner import _tl as _runner_tl
+        from mosaic.benchmarks.core.runner import _tl as _runner_tl
+
         _gpu_id = getattr(_runner_tl, "gpu_id", None)
         _image_tag = getattr(_runner_tl, "image_tag", None)
 
@@ -167,7 +169,9 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
             sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
             try:
                 with sampler:
-                    t.apply(inputs)  # warmup (unreported): absorbs JIT / CUDA / scan-trace cost
+                    t.apply(
+                        inputs
+                    )  # warmup (unreported): absorbs JIT / CUDA / scan-trace cost
                     for i in range(n_trials):
                         t0 = time.perf_counter()
                         t.apply(inputs)
@@ -187,8 +191,13 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
                 console.print(
                     f"  [yellow][WARN][/] {name} {res_key}={res} failed ({_ft}): {str(exc)[:80]}"
                 )
-                by_N[name][res] = {"status": "failed", "failure_type": _ft, **_exc_info(exc), **mem}
-                for remaining in N_values[N_values.index(res) + 1:]:
+                by_N[name][res] = {
+                    "status": "failed",
+                    "failure_type": _ft,
+                    **_exc_info(exc),
+                    **mem,
+                }
+                for remaining in N_values[N_values.index(res) + 1 :]:
                     by_N[name][remaining] = None
                 break
 
@@ -206,7 +215,7 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
                 }
             )
             if _hit_limit:
-                for remaining in N_values[N_values.index(res) + 1:]:
+                for remaining in N_values[N_values.index(res) + 1 :]:
                     by_N[name][remaining] = None
                 break
 
@@ -229,7 +238,14 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
         "spatial_cost",
         suffix="_debug" if overrides.get("debug") else "",
     )
-    save_experiment(result, out_dir, csv_rows=csv_rows, cfg=cfg, harness_fn=run_spatial_cost, wall_time_s=_wall_times)
+    save_experiment(
+        result,
+        out_dir,
+        csv_rows=csv_rows,
+        cfg=cfg,
+        harness_fn=run_spatial_cost,
+        wall_time_s=_wall_times,
+    )
     return result
 
 
@@ -287,7 +303,8 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         console.print(
             f"  [{color}]{name}[/]  steps sweep ({len(steps_values)} counts, {n_trials} trials each)"
         )
-        from benchmarks.core.runner import _tl as _runner_tl
+        from mosaic.benchmarks.core.runner import _tl as _runner_tl
+
         _gpu_id = getattr(_runner_tl, "gpu_id", None)
         _image_tag = getattr(_runner_tl, "image_tag", None)
 
@@ -319,8 +336,13 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 console.print(
                     f"  [yellow][WARN][/] {name} steps={steps} failed ({_ft}): {str(exc)[:80]}"
                 )
-                by_steps[name][steps] = {"status": "failed", "failure_type": _ft, **_exc_info(exc), **mem}
-                for remaining in steps_values[steps_values.index(steps) + 1:]:
+                by_steps[name][steps] = {
+                    "status": "failed",
+                    "failure_type": _ft,
+                    **_exc_info(exc),
+                    **mem,
+                }
+                for remaining in steps_values[steps_values.index(steps) + 1 :]:
                     by_steps[name][remaining] = None
                 break
 
@@ -338,7 +360,7 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 }
             )
             if _hit_limit:
-                for remaining in steps_values[steps_values.index(steps) + 1:]:
+                for remaining in steps_values[steps_values.index(steps) + 1 :]:
                     by_steps[name][remaining] = None
                 break
 
@@ -361,7 +383,14 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         "temporal_cost",
         suffix="_debug" if overrides.get("debug") else "",
     )
-    save_experiment(result, out_dir, csv_rows=csv_rows, cfg=cfg, harness_fn=run_temporal_cost, wall_time_s=_wall_times)
+    save_experiment(
+        result,
+        out_dir,
+        csv_rows=csv_rows,
+        cfg=cfg,
+        harness_fn=run_temporal_cost,
+        wall_time_s=_wall_times,
+    )
     return result
 
 
@@ -390,9 +419,9 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                                or None on failure}},
          "hardware": {...}}
     """
-    from benchmarks.suites.gradient import _vjp_grad  # reuse — no duplication
-    import jax
     import jax.numpy as jnp
+
+    from mosaic.benchmarks.suites.gradient import _vjp_grad  # reuse — no duplication
 
     runs = cfg.cost_defaults
     if not runs:
@@ -440,7 +469,8 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     def _vjp_work(name: str, t) -> None:
         color = cfg.solvers[name].color
         t_solver = time.perf_counter()
-        from benchmarks.core.runner import _tl as _runner_tl
+        from mosaic.benchmarks.core.runner import _tl as _runner_tl
+
         _gpu_id = getattr(_runner_tl, "gpu_id", None)
         _image_tag = getattr(_runner_tl, "image_tag", None)
 
@@ -463,7 +493,9 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
                 try:
                     with sampler:
-                        _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key)  # warmup (unreported)
+                        _vjp_grad(
+                            t, inputs, cfg.output_key, cfg.ic_key
+                        )  # warmup (unreported)
                         for i in range(n_trials):
                             t0 = time.perf_counter()
                             g = _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key)
@@ -484,12 +516,21 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     console.print(
                         f"  [yellow][WARN][/] {name} VJP {res_key}={res} failed ({_ft}): {str(exc)[:80]}"
                     )
-                    by_N[name][res] = {"status": "failed", "failure_type": _ft, **_exc_info(exc), **mem}
-                    for remaining in N_values[N_values.index(res) + 1:]:
+                    by_N[name][res] = {
+                        "status": "failed",
+                        "failure_type": _ft,
+                        **_exc_info(exc),
+                        **mem,
+                    }
+                    for remaining in N_values[N_values.index(res) + 1 :]:
                         by_N[name][remaining] = None
                     break
 
-                grad_norm = float(jnp.linalg.norm(_last_grad)) if _last_grad is not None else None
+                grad_norm = (
+                    float(jnp.linalg.norm(_last_grad))
+                    if _last_grad is not None
+                    else None
+                )
                 by_N[name][res] = {
                     "mean": float(jnp.mean(jnp.array(times))),
                     "std": float(jnp.std(jnp.array(times))) if len(times) > 1 else 0.0,
@@ -508,7 +549,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     }
                 )
                 if _hit_limit:
-                    for remaining in N_values[N_values.index(res) + 1:]:
+                    for remaining in N_values[N_values.index(res) + 1 :]:
                         by_N[name][remaining] = None
                     break
 
@@ -531,7 +572,9 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
                 try:
                     with sampler:
-                        _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key)  # warmup (unreported)
+                        _vjp_grad(
+                            t, inputs, cfg.output_key, cfg.ic_key
+                        )  # warmup (unreported)
                         for i in range(n_trials):
                             t0 = time.perf_counter()
                             g = _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key)
@@ -547,8 +590,13 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     console.print(
                         f"  [yellow][WARN][/] {name} VJP steps={steps} failed ({_ft}): {str(exc)[:80]}"
                     )
-                    by_steps[name][steps] = {"status": "failed", "failure_type": _ft, **_exc_info(exc), **mem}
-                    for remaining in steps_values[steps_values.index(steps) + 1:]:
+                    by_steps[name][steps] = {
+                        "status": "failed",
+                        "failure_type": _ft,
+                        **_exc_info(exc),
+                        **mem,
+                    }
+                    for remaining in steps_values[steps_values.index(steps) + 1 :]:
                         by_steps[name][remaining] = None
                     break
 
@@ -569,7 +617,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     }
                 )
                 if _hit_limit:
-                    for remaining in steps_values[steps_values.index(steps) + 1:]:
+                    for remaining in steps_values[steps_values.index(steps) + 1 :]:
                         by_steps[name][remaining] = None
                     break
 
@@ -587,7 +635,14 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         "vjp_cost",
         suffix="_debug" if overrides.get("debug") else "",
     )
-    save_experiment(result, out_dir, csv_rows=csv_rows, cfg=cfg, harness_fn=run_vjp_cost, wall_time_s=_wall_times)
+    save_experiment(
+        result,
+        out_dir,
+        csv_rows=csv_rows,
+        cfg=cfg,
+        harness_fn=run_vjp_cost,
+        wall_time_s=_wall_times,
+    )
 
     # Save gradient field snapshots (one per solver per N, from last trial)
     any_grads = any(snaps for snaps in grad_snaps_N.values())
@@ -619,7 +674,7 @@ _EXPERIMENTS = {
 
 
 def _plot_fns() -> dict:
-    from benchmarks.plots.cost import plot_cost
+    from mosaic.benchmarks.plots.cost import plot_cost
 
     return {
         "spatial_cost": plot_cost,
@@ -635,12 +690,14 @@ def run_all(
     plots: bool = True,
 ) -> dict[str, dict]:
     """Run cost experiments and optionally generate plots."""
-    from benchmarks.core.runner import run_suite
+    from mosaic.benchmarks.core.runner import run_suite
 
     # Drop temporal_cost for problems that have no time steps (steady-state solvers).
     run = next(iter_runs(cfg.cost_defaults, {}), {})
     has_steps = bool(run.get("cost", {}).get("steps_values"))
-    available = {k: v for k, v in _EXPERIMENTS.items() if k != "temporal_cost" or has_steps}
+    available = {
+        k: v for k, v in _EXPERIMENTS.items() if k != "temporal_cost" or has_steps
+    }
 
     return run_suite(
         cfg,

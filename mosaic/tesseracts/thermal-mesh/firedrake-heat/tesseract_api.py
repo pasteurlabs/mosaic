@@ -1,4 +1,3 @@
-
 """Thermal heat conduction on an arbitrary hexahedral mesh.
 
 Uses Firedrake + firedrake-adjoint to solve steady-state heat conduction with

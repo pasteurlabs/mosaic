@@ -29,11 +29,11 @@ dev = [
 ]
 
 [project.scripts]
-mosaic = "benchmarks.cli:app"
+mosaic = "mosaic.benchmarks.cli:app"
 
 [tool.setuptools.packages.find]
-where = ["mosaic"]
-exclude = ["tests*"]
+where = ["."]
+exclude = ["tests*", "docs*"]
 
 [tool.pytest.ini_options]
 testpaths = ["mosaic/tests"]

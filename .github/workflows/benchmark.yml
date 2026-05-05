@@ -1,0 +1,293 @@
+name: Benchmark
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      problems:
+        description: "Comma-separated problems to run (or 'all')"
+        default: "all"
+      suites:
+        description: "Comma-separated suites to run (or 'all')"
+        default: "all"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: benchmark-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RESULTS_BRANCH: benchmark-results
+
+jobs:
+  # ── Determine what to benchmark ──────────────────────────────────────────
+  plan:
+    name: Plan benchmark run
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      problems: ${{ steps.decide.outputs.problems }}
+      suites: ${{ steps.decide.outputs.suites }}
+      is_main: ${{ steps.decide.outputs.is_main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: decide
+        name: Decide what to run
+        run: |
+          IS_MAIN="false"
+          SHOULD_RUN="false"
+          PROBLEMS="all"
+          SUITES="all"
+
+          # Manual dispatch: always run with provided inputs
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SHOULD_RUN="true"
+            PROBLEMS="${{ github.event.inputs.problems }}"
+            SUITES="${{ github.event.inputs.suites }}"
+          fi
+
+          # Push to main: run for changed domains
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            IS_MAIN="true"
+            SHOULD_RUN="true"
+
+            # Detect changed problem domains from the diff
+            CHANGED_PROBLEMS=""
+            DIFF_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+            for file in $DIFF_FILES; do
+              case "$file" in
+                mosaic/tesseracts/navier-stokes-grid/*|mosaic/benchmarks/problems/navier_stokes_grid.py)
+                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid" ;;
+                mosaic/tesseracts/navier-stokes-3d-grid/*|mosaic/benchmarks/problems/navier_stokes_3d_grid.py)
+                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-3d-grid" ;;
+                mosaic/tesseracts/structural-mesh/*|mosaic/benchmarks/problems/structural_mesh.py)
+                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}structural-mesh" ;;
+                mosaic/tesseracts/thermal-mesh/*|mosaic/benchmarks/problems/thermal_mesh.py)
+                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}thermal-mesh" ;;
+                mosaic/benchmarks/core/*|mosaic/benchmarks/suites/*|mosaic/mosaic_shared/*)
+                  # Core harness change: run everything
+                  CHANGED_PROBLEMS="all"
+                  break ;;
+              esac
+            done
+
+            # Deduplicate
+            if [[ -n "$CHANGED_PROBLEMS" && "$CHANGED_PROBLEMS" != "all" ]]; then
+              PROBLEMS=$(echo "$CHANGED_PROBLEMS" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+            elif [[ "$CHANGED_PROBLEMS" == "all" ]]; then
+              PROBLEMS="all"
+            else
+              # No solver/harness changes — skip benchmark
+              SHOULD_RUN="false"
+            fi
+          fi
+
+          # PR with 'benchmark' label
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            HAS_LABEL=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | grep -c '"benchmark"' || true)
+            if [[ "$HAS_LABEL" -gt 0 ]]; then
+              SHOULD_RUN="true"
+            fi
+          fi
+
+          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+          echo "problems=$PROBLEMS" >> "$GITHUB_OUTPUT"
+          echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
+          echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
+
+          echo "Plan: should_run=$SHOULD_RUN problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN"
+
+  # ── Run GPU solvers ────────────────────────────────────────────────────
+  run-gpu:
+    name: Benchmark (GPU solvers)
+    needs: plan
+    if: needs.plan.outputs.should_run == 'true'
+    runs-on: mosaic-runner-gpu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Mosaic
+        run: pip install -e ".[dev]"
+
+      - name: Run GPU solvers
+        run: |
+          ARGS=""
+          PROBLEMS="${{ needs.plan.outputs.problems }}"
+          SUITES="${{ needs.plan.outputs.suites }}"
+          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
+          if [[ "$SUITES" != "all" ]]; then ARGS="$ARGS --suites $SUITES"; fi
+
+          mosaic run-all $ARGS --hardware gpu
+        timeout-minutes: 240
+
+      - name: Upload GPU results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-gpu
+          path: mosaic/benchmarks/results/
+
+  # ── Run CPU solvers ────────────────────────────────────────────────────
+  run-cpu:
+    name: Benchmark (CPU solvers)
+    needs: plan
+    if: needs.plan.outputs.should_run == 'true'
+    runs-on: mosaic-runner-cpu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Mosaic
+        run: pip install -e ".[dev]"
+
+      - name: Run CPU solvers
+        run: |
+          ARGS=""
+          PROBLEMS="${{ needs.plan.outputs.problems }}"
+          SUITES="${{ needs.plan.outputs.suites }}"
+          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
+          if [[ "$SUITES" != "all" ]]; then ARGS="$ARGS --suites $SUITES"; fi
+
+          mosaic run-all $ARGS --hardware cpu
+        timeout-minutes: 240
+
+      - name: Upload CPU results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-cpu
+          path: mosaic/benchmarks/results/
+
+  # ── Merge results, report, publish ─────────────────────────────────────
+  report:
+    name: Report & publish
+    needs: [plan, run-gpu, run-cpu]
+    if: always() && needs.plan.outputs.should_run == 'true' && (needs.run-gpu.result == 'success' || needs.run-cpu.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Mosaic
+        run: pip install -e ".[dev]"
+
+      - name: Download GPU results
+        uses: actions/download-artifact@v4
+        with:
+          name: results-gpu
+          path: mosaic/benchmarks/results/
+        continue-on-error: true
+
+      - name: Download CPU results
+        uses: actions/download-artifact@v4
+        with:
+          name: results-cpu
+          path: mosaic/benchmarks/results/
+        continue-on-error: true
+
+      - name: Fetch baseline snapshot from results branch
+        id: baseline
+        run: |
+          BASELINE_PATH=""
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            if git show "origin/$RESULTS_BRANCH:latest/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
+              BASELINE_PATH="baseline-snapshot.json"
+              echo "Fetched baseline snapshot"
+            fi
+          fi
+          echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Generate status snapshot (JSON)
+        run: mosaic status --format json > snapshot.json
+
+      - name: Generate status report (markdown)
+        run: |
+          DIFF_FLAG=""
+          if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
+            DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
+          fi
+          mosaic status --format md $DIFF_FLAG > status-report.md
+
+      - name: Upload merged results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: |
+            mosaic/benchmarks/results/
+            snapshot.json
+            status-report.md
+          retention-days: 90
+
+      # ── Post PR comment ────────────────────────────────────────────────
+      - name: Post status comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .github/scripts/post-status-comment.sh \
+            "${{ github.event.pull_request.number }}" \
+            status-report.md
+
+      # ── Publish to results branch (main only) ─────────────────────────
+      - name: Publish results to results branch
+        if: needs.plan.outputs.is_main == 'true'
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:8}"
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            git checkout "$RESULTS_BRANCH"
+          else
+            git checkout --orphan "$RESULTS_BRANCH"
+            git rm -rf . 2>/dev/null || true
+            echo "# Mosaic Benchmark Results" > README.md
+            echo "" >> README.md
+            echo "Automated benchmark results. Do not edit manually." >> README.md
+            git add README.md
+            git commit -m "Initialize results branch"
+          fi
+
+          # Copy results into a timestamped directory
+          DEST="runs/${TIMESTAMP}_${SHORT_SHA}"
+          mkdir -p "$DEST"
+          cp snapshot.json "$DEST/"
+          cp status-report.md "$DEST/"
+          cp -r mosaic/benchmarks/results/* "$DEST/" 2>/dev/null || true
+
+          # Update latest with full results (consumed by docs workflow)
+          rm -rf latest
+          mkdir -p latest
+          cp snapshot.json latest/
+          cp status-report.md latest/
+          cp -r mosaic/benchmarks/results/* latest/ 2>/dev/null || true
+
+          git add .
+          git commit -m "Benchmark results for ${SHORT_SHA}
+
+          Source commit: ${SHA}
+          Problems: ${{ needs.plan.outputs.problems }}
+          Suites: ${{ needs.plan.outputs.suites }}"
+
+          git push origin "$RESULTS_BRANCH"

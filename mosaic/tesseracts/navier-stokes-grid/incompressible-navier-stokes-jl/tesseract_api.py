@@ -1,9 +1,8 @@
-
 from pathlib import Path
 from typing import Any
 
-import mosaic_shared
 import juliacall
+import mosaic_shared
 import numpy as np
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
@@ -186,10 +185,12 @@ def _run(  # mosaic:physics
             int(N),
             float(domain_extent),
         )
-        result_2d = _to_numpy(jl_result[0])    # (N, N, 2)
-        mean_drag_jl = float(jl_result[1])     # scalar: tail-window mean drag
-        mean_vel_2d = _to_numpy(jl_result[2])  # (N, N, 2): tail-window mean velocity (RANS)
-        result_4d = result_2d[:, :, np.newaxis, :]           # (N, N, 1, 2)
+        result_2d = _to_numpy(jl_result[0])  # (N, N, 2)
+        mean_drag_jl = float(jl_result[1])  # scalar: tail-window mean drag
+        mean_vel_2d = _to_numpy(
+            jl_result[2]
+        )  # (N, N, 2): tail-window mean velocity (RANS)
+        result_4d = result_2d[:, :, np.newaxis, :]  # (N, N, 1, 2)
         velocity_mean_4d = mean_vel_2d[:, :, np.newaxis, :]  # (N, N, 1, 2)
         drag = np.array([mean_drag_jl], dtype=np.float32)
         return result_4d, drag, velocity_mean_4d

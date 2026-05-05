@@ -5,8 +5,9 @@ from pathlib import Path
 import jax
 import jax.numpy as jnp
 import numpy as np
-from benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
-from benchmarks.core.utils import l2_error_rel
+
+from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.utils import l2_error_rel
 
 _GYM_DIR = Path(__file__).parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "navier-stokes-grid"
@@ -14,8 +15,13 @@ _LBM_SOLVERS = {"xlb"}
 
 _SOLVERS: dict[str, SolverSpec] = {
     "jax_cfd": SolverSpec(
-        name="jax-cfd", backend="jax", family="projection",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="jax-cfd",
+        backend="jax",
+        family="projection",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="jax-cfd",
         color="#4477AA",
         linestyle="-",
@@ -49,8 +55,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "phiflow": SolverSpec(
-        name="PhiFlow", backend="jax", family="projection",
-        differentiable=True, ad_strategy="hybrid", uses_gpu=True, internal_dtype="float32",
+        name="PhiFlow",
+        backend="jax",
+        family="projection",
+        differentiable=True,
+        ad_strategy="hybrid",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="phiflow",
         color="#EE3333",
         linestyle="--",
@@ -71,8 +82,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "ins_jl": SolverSpec(
-        name="INS.jl", backend="julia", family="projection",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=False, internal_dtype="float64",
+        name="INS.jl",
+        backend="julia",
+        family="projection",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="incompressible-navier-stokes-jl",
         color="#228833",
         linestyle="-.",
@@ -108,8 +124,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "openfoam": SolverSpec(
-        name="OpenFOAM", backend="cpp", family="projection",
-        differentiable=False, ad_strategy=None, uses_gpu=False, internal_dtype="float64",
+        name="OpenFOAM",
+        backend="cpp",
+        family="projection",
+        differentiable=False,
+        ad_strategy=None,
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="openfoam",
         color="#DDAA33",
         linestyle=":",
@@ -134,8 +155,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "pict": SolverSpec(
-        name="PICT", backend="pytorch", family="projection",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="PICT",
+        backend="pytorch",
+        family="projection",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="pict",
         color="#AA44AA",
         linestyle=(0, (5, 1)),
@@ -162,8 +188,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "xlb": SolverSpec(
-        name="XLB", backend="jax", family="lbm",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float64",
+        name="XLB",
+        backend="jax",
+        family="lbm",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float64",
         dir="xlb",
         color="#66CCEE",
         linestyle=(0, (3, 1, 1, 1)),
@@ -219,8 +250,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "warp_ns": SolverSpec(
-        name="Warp-NS", backend="warp", family="fd",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="Warp-NS",
+        backend="warp",
+        family="fd",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="warp-ns",
         color="#EE7733",
         linestyle=(0, (1, 1)),
@@ -449,7 +485,7 @@ def _energy_spectrum(arr: jax.Array, **_) -> dict:
 
 CONFIG = ProblemConfig(
     name="ns-grid",
-    n_to_cells=lambda n: n ** 2,
+    n_to_cells=lambda n: n**2,
     description=(
         "2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as "
         "the primary control parameter. The nonlinear advection term ∇·(u⊗u) transfers "

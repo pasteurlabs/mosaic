@@ -15,11 +15,16 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import (
-    RCPARAMS, SOLVER_STYLES, NS_ORDER, FEM_ORDER,
-    STRUCTURAL_ORDER, THERMAL_ORDER,
-    solver_props, make_handle, dedup_handles,
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import (
+    FEM_ORDER,
+    NS_ORDER,
+    RCPARAMS,
+    STRUCTURAL_ORDER,
+    THERMAL_ORDER,
+    dedup_handles,
+    make_handle,
+    solver_props,
 )
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
@@ -28,8 +33,9 @@ RESULTS = Path(__file__).parent.parent.parent / "results"
 _NS_SIGMA = "0.1"
 
 
-def _plot_ns_recovery(ax, subdir: str, solver_order: list[str], title: str,
-                      seen: set[str]) -> None:
+def _plot_ns_recovery(
+    ax, subdir: str, solver_order: list[str], title: str, seen: set[str]
+) -> None:
     path = RESULTS / subdir / "optimization" / "optimization" / "result.json"
     if not path.exists():
         ax.set_title(title)
@@ -43,13 +49,18 @@ def _plot_ns_recovery(ax, subdir: str, solver_order: list[str], title: str,
         sweep = by_sweep[solver]
         if not sweep:
             continue
-        sigma_key = _NS_SIGMA if _NS_SIGMA in sweep else sorted(sweep.keys())[len(sweep) // 2]
-        errors = sweep[sigma_key].get("errors") or sweep[sigma_key].get("ic_error_history", [])
+        sigma_key = (
+            _NS_SIGMA if _NS_SIGMA in sweep else sorted(sweep.keys())[len(sweep) // 2]
+        )
+        errors = sweep[sigma_key].get("errors") or sweep[sigma_key].get(
+            "ic_error_history", []
+        )
         if not errors:
             continue
         label, color, ls, mk = solver_props(solver)
-        ax.semilogy(range(len(errors)), errors,
-                    color=color, linestyle=ls, linewidth=1.6)
+        ax.semilogy(
+            range(len(errors)), errors, color=color, linestyle=ls, linewidth=1.6
+        )
         seen.add(solver)
 
     ax.set_title(title)
@@ -59,9 +70,15 @@ def _plot_ns_recovery(ax, subdir: str, solver_order: list[str], title: str,
     ax.yaxis.set_minor_locator(mticker.NullLocator())
 
 
-def _plot_fem_recovery(ax, result_path: Path, error_key: str,
-                       solver_order: list[str], title: str, ylabel: str,
-                       seen: set[str]) -> None:
+def _plot_fem_recovery(
+    ax,
+    result_path: Path,
+    error_key: str,
+    solver_order: list[str],
+    title: str,
+    ylabel: str,
+    seen: set[str],
+) -> None:
     if not result_path.exists():
         ax.set_title(title)
         return
@@ -75,8 +92,7 @@ def _plot_fem_recovery(ax, result_path: Path, error_key: str,
         if not vals:
             continue
         label, color, ls, mk = solver_props(solver)
-        ax.semilogy(range(len(vals)), vals,
-                    color=color, linestyle=ls, linewidth=1.6)
+        ax.semilogy(range(len(vals)), vals, color=color, linestyle=ls, linewidth=1.6)
         seen.add(solver)
 
     ax.set_title(title)
@@ -91,14 +107,22 @@ def generate(out_dir: Path) -> None:
         fig, axes = plt.subplots(2, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.80))
         fig.subplots_adjust(hspace=0.50, wspace=0.38, bottom=0.20)
 
-        ns_seen:  set[str] = set()
+        ns_seen: set[str] = set()
         fem_seen: set[str] = set()
 
-        _plot_ns_recovery(axes[0, 0], "ns-grid",    NS_ORDER,  "2D NS — IC recovery",  ns_seen)
-        _plot_ns_recovery(axes[0, 1], "ns-3d-grid", NS_ORDER,  "3D NS — IC recovery",  ns_seen)
+        _plot_ns_recovery(
+            axes[0, 0], "ns-grid", NS_ORDER, "2D NS — IC recovery", ns_seen
+        )
+        _plot_ns_recovery(
+            axes[0, 1], "ns-3d-grid", NS_ORDER, "3D NS — IC recovery", ns_seen
+        )
         _plot_fem_recovery(
             axes[1, 0],
-            RESULTS / "structural-mesh" / "optimization" / "load_recovery" / "result.json",
+            RESULTS
+            / "structural-mesh"
+            / "optimization"
+            / "load_recovery"
+            / "result.json",
             error_key="losses",
             solver_order=STRUCTURAL_ORDER,
             title="Structural — load recovery",
@@ -107,7 +131,11 @@ def generate(out_dir: Path) -> None:
         )
         _plot_fem_recovery(
             axes[1, 1],
-            RESULTS / "thermal-mesh" / "optimization" / "conductivity_recovery" / "result.json",
+            RESULTS
+            / "thermal-mesh"
+            / "optimization"
+            / "conductivity_recovery"
+            / "result.json",
             error_key="errors",
             solver_order=THERMAL_ORDER,
             title="Thermal — conductivity recovery",
@@ -116,19 +144,25 @@ def generate(out_dir: Path) -> None:
         )
 
         ns_handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
-        fem_handles = dedup_handles([make_handle(s) for s in FEM_ORDER if s in fem_seen])
+        fem_handles = dedup_handles(
+            [make_handle(s) for s in FEM_ORDER if s in fem_seen]
+        )
 
         legend_kw = dict(fontsize=7.5, framealpha=0.7, handlelength=2.0)
-        fig.legend(handles=ns_handles,
-                   loc="lower left",
-                   bbox_to_anchor=(0.02, 0.01),
-                   ncol=max(1, len(ns_handles) // 3),
-                   **legend_kw)
-        fig.legend(handles=fem_handles,
-                   loc="lower right",
-                   bbox_to_anchor=(0.98, 0.01),
-                   ncol=max(1, len(fem_handles) // 3),
-                   **legend_kw)
+        fig.legend(
+            handles=ns_handles,
+            loc="lower left",
+            bbox_to_anchor=(0.02, 0.01),
+            ncol=max(1, len(ns_handles) // 3),
+            **legend_kw,
+        )
+        fig.legend(
+            handles=fem_handles,
+            loc="lower right",
+            bbox_to_anchor=(0.98, 0.01),
+            ncol=max(1, len(fem_handles) // 3),
+            **legend_kw,
+        )
 
         out = out_dir / "recovery_convergence.pdf"
         fig.savefig(out)

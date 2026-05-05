@@ -1,4 +1,3 @@
-
 """Linear elasticity topology optimisation on an arbitrary hexahedral mesh.
 
 Uses FEniCS (DOLFIN 2019.1.0) + dolfin-adjoint to solve 3-D linear elasticity

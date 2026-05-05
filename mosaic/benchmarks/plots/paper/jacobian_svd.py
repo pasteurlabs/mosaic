@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 

@@ -19,7 +19,7 @@ import unittest
 from dataclasses import dataclass, field
 from typing import Any
 
-from benchmarks.core.utils import (
+from mosaic.benchmarks.core.utils import (
     active_solvers,
     exclusion_candidate_keys,
     exclusion_lookup,

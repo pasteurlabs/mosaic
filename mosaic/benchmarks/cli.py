@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import dataclasses
-import os
-import re
 import subprocess
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import typer
 
-from benchmarks.core.console import console, print_rule, print_skip, print_warn
-from benchmarks.core.runner import build_all, image_tags_no_build, run_suite
-from benchmarks.problems import PROBLEMS, get_config
+from mosaic.benchmarks.core.console import console, print_rule, print_skip, print_warn
+from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, run_suite
+from mosaic.benchmarks.problems import PROBLEMS, get_config
 
 
 def _all_known_solver_images() -> dict[str, str]:
@@ -200,7 +198,7 @@ def _run_watch_loop(
     from rich.panel import Panel
     from rich.table import Table
 
-    from benchmarks.core.status import (
+    from mosaic.benchmarks.core.status import (
         ANOMALY,
         EXCL_PERMANENT,
         EXCL_UNSPECIFIED,
@@ -419,7 +417,7 @@ def _stacked_bar(segs: list[tuple[int, float]], width: int) -> str:
     Each segment occupies width × count/total chars; colour comes from
     weight_color(weight).  Returns dim dashes when total == 0.
     """
-    from benchmarks.core.status import weight_color as _wc
+    from mosaic.benchmarks.core.status import weight_color as _wc
 
     total = sum(c for c, _ in segs)
     if total <= 0:
@@ -469,20 +467,20 @@ def _suite_components(suite: str, cfg=None) -> tuple[dict, callable]:
     dynamically from the problem config (no fixed module-level dict).
     """
     if suite == "ics":
-        from benchmarks.suites.ics import get_experiments, get_plot_fns
+        from mosaic.benchmarks.suites.ics import get_experiments, get_plot_fns
 
         if cfg is None:
             raise ValueError("cfg is required for the 'ics' suite")
         exps = get_experiments(cfg)
         return exps, lambda: get_plot_fns(cfg)
     elif suite == "forward":
-        from benchmarks.suites.forward import _EXPERIMENTS, _plot_fns
+        from mosaic.benchmarks.suites.forward import _EXPERIMENTS, _plot_fns
     elif suite == "cost":
-        from benchmarks.suites.cost import _EXPERIMENTS, _plot_fns
+        from mosaic.benchmarks.suites.cost import _EXPERIMENTS, _plot_fns
     elif suite == "gradient":
-        from benchmarks.suites.gradient import _EXPERIMENTS, _plot_fns
+        from mosaic.benchmarks.suites.gradient import _EXPERIMENTS, _plot_fns
     elif suite == "optimization":
-        from benchmarks.suites.optimization import _EXPERIMENTS, _plot_fns
+        from mosaic.benchmarks.suites.optimization import _EXPERIMENTS, _plot_fns
     else:
         raise ValueError(f"Unknown suite {suite!r}. Choose from: {_ALL_SUITES}")
     return _EXPERIMENTS, _plot_fns
@@ -507,6 +505,45 @@ def _apply_solver_filter(cfg, solvers_csv: str | None):
         print_warn("no matching solvers after filtering — running all")
         return cfg
     return dataclasses.replace(cfg, solvers=keep)
+
+
+def _filter_hardware(cfg, hardware: str | None):
+    """Filter solvers by hardware target.
+
+    Returns a (possibly filtered) cfg.  ``hardware`` is one of:
+      "cpu"  — keep only ``uses_gpu=False`` solvers
+      "gpu"  — keep only ``uses_gpu=True``  solvers
+      "all"  — keep everything (default)
+      None   — keep everything
+    """
+    if not hardware or hardware.lower() == "all":
+        return cfg
+    if hardware.lower() == "cpu":
+        filtered = {
+            name: spec
+            for name, spec in cfg.solvers.items()
+            if not getattr(spec, "uses_gpu", True)
+        }
+        if not filtered:
+            print_warn(
+                "no CPU-only solvers in this problem — --hardware cpu would run nothing"
+            )
+            return cfg
+        return dataclasses.replace(cfg, solvers=filtered)
+    if hardware.lower() == "gpu":
+        filtered = {
+            name: spec
+            for name, spec in cfg.solvers.items()
+            if getattr(spec, "uses_gpu", True)
+        }
+        if not filtered:
+            print_warn(
+                "no GPU solvers in this problem — --hardware gpu would run nothing"
+            )
+            return cfg
+        return dataclasses.replace(cfg, solvers=filtered)
+    print_warn(f"unknown --hardware value {hardware!r}, ignoring")
+    return cfg
 
 
 def _resolve_gpu_pool(cfg, gpus: str | None):
@@ -542,8 +579,11 @@ def _resolve_cfg_and_tags(
     plots_only: bool = False,
     solvers_csv: str | None = None,
     gpus: str | None = None,
+    hardware: str | None = None,
 ):
     cfg = get_config(problem)
+    # --hardware cpu/gpu filters solvers by target hardware BEFORE build.
+    cfg = _filter_hardware(cfg, hardware)
     # `--gpus none` filters cfg to CPU-only solvers BEFORE build so a
     # CPU-only host never tries to build GPU-tagged tesseracts. Returns
     # the (possibly reset) gpus value via the tuple's third element.
@@ -632,8 +672,12 @@ def forward(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
-        "skip all GPU usage — useful on CPU-only hosts.",
+        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+    ),
+    hardware: str | None = typer.Option(
+        None,
+        "--hardware",
+        help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
     ics: str | None = typer.Option(
         None,
@@ -643,10 +687,15 @@ def forward(
     ),
 ):
     """Run forward benchmarks (agreement, convergence, diagnostics, stability)."""
-    from benchmarks.suites.forward import _EXPERIMENTS, _plot_fns
+    from mosaic.benchmarks.suites.forward import _EXPERIMENTS, _plot_fns
 
     cfg, tags, gpus = _resolve_cfg_and_tags(
-        problem, no_build, plots_only=plots_only, solvers_csv=solvers, gpus=gpus
+        problem,
+        no_build,
+        plots_only=plots_only,
+        solvers_csv=solvers,
+        gpus=gpus,
+        hardware=hardware,
     )
     cfg, tags = _filter_solvers(cfg, tags, solvers)
     to_run = None if experiment == "all" else [experiment]
@@ -718,15 +767,24 @@ def cost(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
-        "skip all GPU usage — useful on CPU-only hosts.",
+        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+    ),
+    hardware: str | None = typer.Option(
+        None,
+        "--hardware",
+        help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
 ):
     """Run cost benchmarks (forward and VJP wall-clock timing)."""
-    from benchmarks.suites.cost import _EXPERIMENTS, _plot_fns
+    from mosaic.benchmarks.suites.cost import _EXPERIMENTS, _plot_fns
 
     cfg, tags, gpus = _resolve_cfg_and_tags(
-        problem, no_build, plots_only=plots_only, solvers_csv=solvers, gpus=gpus
+        problem,
+        no_build,
+        plots_only=plots_only,
+        solvers_csv=solvers,
+        gpus=gpus,
+        hardware=hardware,
     )
     cfg, tags = _filter_solvers(cfg, tags, solvers)
     to_run = None if experiment == "all" else [experiment]
@@ -790,8 +848,12 @@ def gradient(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
-        "skip all GPU usage — useful on CPU-only hosts.",
+        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+    ),
+    hardware: str | None = typer.Option(
+        None,
+        "--hardware",
+        help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
     ics: str | None = typer.Option(
         None,
@@ -801,10 +863,15 @@ def gradient(
     ),
 ):
     """Run gradient evaluation benchmarks (FD verification, parameter sweep, horizon sweep)."""
-    from benchmarks.suites.gradient import _EXPERIMENTS, _plot_fns
+    from mosaic.benchmarks.suites.gradient import _EXPERIMENTS, _plot_fns
 
     cfg, tags, gpus = _resolve_cfg_and_tags(
-        problem, no_build, plots_only=plots_only, solvers_csv=solvers, gpus=gpus
+        problem,
+        no_build,
+        plots_only=plots_only,
+        solvers_csv=solvers,
+        gpus=gpus,
+        hardware=hardware,
     )
     cfg, tags = _filter_solvers(cfg, tags, solvers)
     to_run = None if experiment == "all" else [experiment]
@@ -876,8 +943,12 @@ def optimization(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
-        "skip all GPU usage — useful on CPU-only hosts.",
+        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+    ),
+    hardware: str | None = typer.Option(
+        None,
+        "--hardware",
+        help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
     ics: str | None = typer.Option(
         None,
@@ -887,10 +958,15 @@ def optimization(
     ),
 ):
     """Run optimization benchmarks (IC recovery and parameter optimization via gradient descent)."""
-    from benchmarks.suites.optimization import _EXPERIMENTS, _plot_fns
+    from mosaic.benchmarks.suites.optimization import _EXPERIMENTS, _plot_fns
 
     cfg, tags, gpus = _resolve_cfg_and_tags(
-        problem, no_build, plots_only=plots_only, solvers_csv=solvers, gpus=gpus
+        problem,
+        no_build,
+        plots_only=plots_only,
+        solvers_csv=solvers,
+        gpus=gpus,
+        hardware=hardware,
     )
     cfg, tags = _filter_solvers(cfg, tags, solvers)
     to_run = None if experiment == "all" else [experiment]
@@ -976,8 +1052,12 @@ def run_all(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
-        "skip all GPU usage — useful on CPU-only hosts.",
+        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+    ),
+    hardware: str | None = typer.Option(
+        None,
+        "--hardware",
+        help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
 ):
     """Run every suite across every problem; print a summary table at the end.
@@ -1016,11 +1096,16 @@ def run_all(
         try:
             if _needs_build:
                 cfg, tags, gpus = _resolve_cfg_and_tags(
-                    problem, no_build, solvers_csv=solvers, gpus=gpus
+                    problem,
+                    no_build,
+                    solvers_csv=solvers,
+                    gpus=gpus,
+                    hardware=hardware,
                 )
                 cfg, tags = _filter_solvers(cfg, tags, solvers)
             else:
                 cfg = get_config(problem)
+                cfg = _filter_hardware(cfg, hardware)
                 cfg, gpus = _resolve_gpu_pool(cfg, gpus)
                 if solvers:
                     cfg = _apply_solver_filter(cfg, solvers)
@@ -1112,7 +1197,7 @@ def ics(
     ),
 ):
     """Generate initial-condition visualisations (no solver builds needed)."""
-    from benchmarks.suites.ics import get_experiments, get_plot_fns
+    from mosaic.benchmarks.suites.ics import get_experiments, get_plot_fns
 
     cfg = get_config(problem)
     print_rule("initial conditions")
@@ -1505,7 +1590,7 @@ def status(
     """
     from rich.table import Table
 
-    from benchmarks.core.status import (
+    from mosaic.benchmarks.core.status import (
         ANOMALY,
         EXCL_CATEGORICAL,
         EXCL_INFEASIBLE,
@@ -1615,7 +1700,7 @@ def status(
     # tuple layout: (problem, ok, anom, fail, missing, excl_work, excl_perm, stale, stale_ok, score, score_n)
     per_problem_tally: list[tuple] = []
 
-    from benchmarks.core.status import compute_score, format_score, weight_color
+    from mosaic.benchmarks.core.status import compute_score, format_score, weight_color
 
     for problem in problem_list:
         try:
@@ -1773,7 +1858,7 @@ def status(
             ]
             return _stacked_bar(segs, width)
 
-        from benchmarks.core.status import (
+        from mosaic.benchmarks.core.status import (
             compute_score,
             format_score,
             weight_color,
@@ -1892,7 +1977,13 @@ def cmd_tesseracts(
     whose physics is fetched at image-build time and therefore absent from this
     repo.
     """
-    from benchmarks.code_ratio import collect, print_csv, print_effort_table, print_rich, print_variable_table
+    from mosaic.benchmarks.code_ratio import (
+        collect,
+        print_csv,
+        print_effort_table,
+        print_rich,
+        print_variable_table,
+    )
 
     repo = _repo_root()
     tesseracts_root = repo / "mosaic" / "tesseracts"
@@ -1930,8 +2021,8 @@ def paper_plots(
         "all",
         "--only",
         help="Comma-separated plot names to generate, or 'all'. "
-             "Available: agreement, cost_overview, fd_check, ics, jacobian_svd, "
-             "physical_accuracy, coverage_heatmap.",
+        "Available: agreement, cost_overview, fd_check, ics, jacobian_svd, "
+        "physical_accuracy, coverage_heatmap.",
     ),
 ) -> None:
     """Generate all paper figures used in the Mosaic benchmark paper.
@@ -1939,7 +2030,7 @@ def paper_plots(
     Reads result JSON files from the benchmark results directory and writes
     PDFs (and PNGs for the coverage heatmap) to the output directory.
     """
-    from benchmarks.plots.paper import all_names, get_generate_fn
+    from mosaic.benchmarks.plots.paper import all_names, get_generate_fn
 
     repo = _repo_root()
     target_dir: Path = out_dir if out_dir is not None else repo / "paper" / "figures"

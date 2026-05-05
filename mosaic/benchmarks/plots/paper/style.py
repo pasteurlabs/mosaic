@@ -47,28 +47,38 @@ SOLVER_STYLES: dict[str, tuple] = {
     # Paul Tol Vibrant (7) for main differentiable solvers — distinguishable
     # under all forms of colorblindness and in greyscale (linestyle+marker).
     # label              color       linestyle          marker
-    "jax_cfd":   ("JAX-CFD",  "#0077BB", "-",              "o"),   # Vibrant blue
-    "phiflow":   ("PhiFlow",  "#CC3311", "--",             "s"),   # Vibrant red
-    "ins_jl":    ("INS.jl",   "#009988", "-.",             "^"),   # Vibrant teal
-    "pict":      ("PICT",     "#43A047", ":",              "D"),   # Medium green
-    "xlb":       ("XLB",      "#2171B5", (0, (4, 1)),      "v"),   # Medium blue
-    "warp_ns":   ("Warp-NS",  "#EE7733", (0, (1, 1)),      "P"),   # Vibrant orange
-    "exponax":   ("Exponax",  "#228833", (0, (5, 1)),      "<"),   # Bright green
+    "jax_cfd": ("JAX-CFD", "#0077BB", "-", "o"),  # Vibrant blue
+    "phiflow": ("PhiFlow", "#CC3311", "--", "s"),  # Vibrant red
+    "ins_jl": ("INS.jl", "#009988", "-.", "^"),  # Vibrant teal
+    "pict": ("PICT", "#43A047", ":", "D"),  # Medium green
+    "xlb": ("XLB", "#2171B5", (0, (4, 1)), "v"),  # Medium blue
+    "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),  # Vibrant orange
+    "exponax": ("Exponax", "#228833", (0, (5, 1)), "<"),  # Bright green
     # Reference / excluded solvers — muted tones
-    "fenics_ns": ("FEniCS-NS","#BBBBBB", (0, (3, 1, 1, 1)),"X"),  # grey
-    "openfoam":  ("OpenFOAM", "#DDCC77", "--",             "h"),   # Muted sand
-    "su2":       ("SU2",      "#332288", "-.",             "*"),   # Muted indigo
+    "fenics_ns": ("FEniCS-NS", "#BBBBBB", (0, (3, 1, 1, 1)), "X"),  # grey
+    "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),  # Muted sand
+    "su2": ("SU2", "#332288", "-.", "*"),  # Muted indigo
     # ── FEM / Structural ────────────────────────────────────────────────────
-    "jax_fem":              ("JAX-FEM",  "#0077BB", "-",              "o"),   # blue (JAX family)
-    "topopt_jl":            ("TopOpt.jl","#009988", "--",             "s"),   # Vibrant teal
-    "dealii_structural":    ("deal.II",  "#DDCC77", "-.",             "^"),   # Muted sand
-    "fenics_structural":    ("FEniCS",   "#CC3311", ":",              "D"),   # Vibrant red
-    "firedrake_structural": ("Firedrake","#EE7733", (0, (3, 1)),      "v"),   # Vibrant orange
+    "jax_fem": ("JAX-FEM", "#0077BB", "-", "o"),  # blue (JAX family)
+    "topopt_jl": ("TopOpt.jl", "#009988", "--", "s"),  # Vibrant teal
+    "dealii_structural": ("deal.II", "#DDCC77", "-.", "^"),  # Muted sand
+    "fenics_structural": ("FEniCS", "#CC3311", ":", "D"),  # Vibrant red
+    "firedrake_structural": (
+        "Firedrake",
+        "#EE7733",
+        (0, (3, 1)),
+        "v",
+    ),  # Vibrant orange
     # ── FEM / Thermal ───────────────────────────────────────────────────────
-    "dealii_heat":          ("deal.II",  "#DDCC77", "-.",             "^"),   # Muted sand
-    "fenics_heat":          ("FEniCS",   "#CC3311", ":",              "D"),   # Vibrant red
-    "firedrake_heat":       ("Firedrake","#EE7733", (0, (3, 1)),      "v"),   # Vibrant orange
-    "torch_fem_thermal":    ("TorchFEM", "#EE3377", (0, (5, 1, 1, 1)),"<"),  # Vibrant magenta
+    "dealii_heat": ("deal.II", "#DDCC77", "-.", "^"),  # Muted sand
+    "fenics_heat": ("FEniCS", "#CC3311", ":", "D"),  # Vibrant red
+    "firedrake_heat": ("Firedrake", "#EE7733", (0, (3, 1)), "v"),  # Vibrant orange
+    "torch_fem_thermal": (
+        "TorchFEM",
+        "#EE3377",
+        (0, (5, 1, 1, 1)),
+        "<",
+    ),  # Vibrant magenta
 }
 
 # ---------------------------------------------------------------------------
@@ -76,29 +86,50 @@ SOLVER_STYLES: dict[str, tuple] = {
 # ---------------------------------------------------------------------------
 
 NS_ORDER: list[str] = [
-    "jax_cfd", "phiflow", "ins_jl", "xlb", "pict",
-    "warp_ns", "exponax", "fenics_ns", "openfoam", "su2",
+    "jax_cfd",
+    "phiflow",
+    "ins_jl",
+    "xlb",
+    "pict",
+    "warp_ns",
+    "exponax",
+    "fenics_ns",
+    "openfoam",
+    "su2",
 ]
 
 FEM_ORDER: list[str] = [
-    "jax_fem", "topopt_jl",
-    "dealii_structural", "fenics_structural", "firedrake_structural",
-    "dealii_heat", "fenics_heat", "firedrake_heat", "torch_fem_thermal",
+    "jax_fem",
+    "topopt_jl",
+    "dealii_structural",
+    "fenics_structural",
+    "firedrake_structural",
+    "dealii_heat",
+    "fenics_heat",
+    "firedrake_heat",
+    "torch_fem_thermal",
 ]
 
 STRUCTURAL_ORDER: list[str] = [
-    "jax_fem", "topopt_jl", "dealii_structural", "fenics_structural",
+    "jax_fem",
+    "topopt_jl",
+    "dealii_structural",
+    "fenics_structural",
     "firedrake_structural",
 ]
 
 THERMAL_ORDER: list[str] = [
-    "firedrake_heat", "jax_fem", "fenics_heat", "dealii_heat",
+    "firedrake_heat",
+    "jax_fem",
+    "fenics_heat",
+    "dealii_heat",
     "torch_fem_thermal",
 ]
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def solver_props(name: str) -> tuple:
     """Return (label, color, linestyle, marker) for *name*, with fallback."""
@@ -109,9 +140,14 @@ def make_handle(solver: str) -> mlines.Line2D:
     """Return a legend Line2D proxy for *solver*."""
     label, color, ls, mk = SOLVER_STYLES[solver]
     return mlines.Line2D(
-        [], [],
-        color=color, linestyle=ls, marker=mk,
-        markersize=5, markeredgewidth=0, linewidth=1.6,
+        [],
+        [],
+        color=color,
+        linestyle=ls,
+        marker=mk,
+        markersize=5,
+        markeredgewidth=0,
+        linewidth=1.6,
         label=label,
     )
 

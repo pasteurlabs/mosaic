@@ -7,8 +7,13 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.plots.style import apply_style, imshow_with_cbar, save_fig, vorticity_2d
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.plots.style import (
+    apply_style,
+    imshow_with_cbar,
+    save_fig,
+    vorticity_2d,
+)
 
 apply_style()
 

@@ -69,24 +69,30 @@ mosaic status --format md > report.md     # markdown report
 mosaic status --format json > snap.json   # machine-readable snapshot
 ```
 
+## Documentation
+
+- [Getting Started](docs/getting-started.qmd) — prerequisites, installation, first benchmark
+- [Architecture](docs/architecture.qmd) — Tesseract interface, data structures, evaluation protocol
+- [Solver Reference](docs/solvers.qmd) — per-solver documentation with numerical methods, AD strategies, and known limitations
+
 ## Project structure
 
 ```
 mosaic/
-  benchmarks/           # evaluation harness
+  benchmarks/           # evaluation harness (Python package: mosaic.benchmarks)
     cli.py              # command-line interface
     core/               # runner, config, hardware detection
     suites/             # forward, gradient, cost, optimization
     problems/           # per-domain configs (ns-grid, structural-mesh, etc.)
     plots/              # paper figure generation
-  mosaic_shared/        # shared Tesseract interface schemas
+  mosaic_shared/        # shared Tesseract interface schemas (also pip-installable)
     problems/           # per-domain input/output schemas
     utils/              # comparison metrics, plotting utilities
-  tesseracts/           # solver backends
+  tesseracts/           # solver backends (each is a Tesseract container)
     navier-stokes-grid/ # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
     structural-mesh/    # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl
     thermal-mesh/       # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
-  tests/
+  tests/                # unit tests (run with pytest)
 docs/                   # Quarto documentation site
 ```
 

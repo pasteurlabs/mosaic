@@ -7,9 +7,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.utils import load_json
-from benchmarks.plots.style import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.utils import load_json
+from mosaic.benchmarks.plots.style import (
     apply_style,
     fig_shared_legend,
     save_fig,
@@ -22,10 +22,20 @@ apply_style()
 _RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "cost"
 
-_FAILURE_MARKER = {"OOM": "v", "nan": "X", "error": "D", "timeout": "s",
-                   "container_died": "D"}
-_FAILURE_LABEL  = {"OOM": "OOM (VRAM)", "nan": "NaN gradient", "error": "error",
-                   "timeout": "timeout", "container_died": "error"}
+_FAILURE_MARKER = {
+    "OOM": "v",
+    "nan": "X",
+    "error": "D",
+    "timeout": "s",
+    "container_died": "D",
+}
+_FAILURE_LABEL = {
+    "OOM": "OOM (VRAM)",
+    "nan": "NaN gradient",
+    "error": "error",
+    "timeout": "timeout",
+    "container_died": "error",
+}
 
 
 def _hardware_str(result: dict) -> str:
@@ -56,8 +66,8 @@ def _mem_vals(row: dict, keys: list) -> list[float]:
             out.append(np.nan)
             continue
         vram = v.get("vram_peak_mib") or 0.0
-        ram  = v.get("ram_peak_mib")  or 0.0
-        mem  = vram if vram > 50 else ram
+        ram = v.get("ram_peak_mib") or 0.0
+        mem = vram if vram > 50 else ram
         out.append(float(mem) if mem > 0 else np.nan)
     return out
 
@@ -71,9 +81,16 @@ def _first_failure(row: dict, keys: list) -> tuple[str | None, str | None]:
     return None, None
 
 
-def _draw_failure(ax, x_arr: np.ndarray, keys: list,
-                  fail_k: str, ys: list[float],
-                  color: str, ls: str, ft: str) -> None:
+def _draw_failure(
+    ax,
+    x_arr: np.ndarray,
+    keys: list,
+    fail_k: str,
+    ys: list[float],
+    color: str,
+    ls: str,
+    ft: str,
+) -> None:
     """Connector from last ok point → fail N, then failure marker."""
     fail_i = list(keys).index(fail_k)
     fail_x = float(x_arr[fail_i])
@@ -82,12 +99,26 @@ def _draw_failure(ax, x_arr: np.ndarray, keys: list,
         return
     lx, ly = ok_pairs[-1]
     fm = _FAILURE_MARKER.get(ft, "D")
-    ax.loglog([lx, fail_x], [ly, ly],
-              color=color, linestyle=ls, linewidth=1.0, marker="none", zorder=3)
-    ax.loglog([fail_x], [ly],
-              marker=fm, color=color, markersize=9,
-              markeredgewidth=1.2, markeredgecolor="white",
-              linestyle="none", zorder=6)
+    ax.loglog(
+        [lx, fail_x],
+        [ly, ly],
+        color=color,
+        linestyle=ls,
+        linewidth=1.0,
+        marker="none",
+        zorder=3,
+    )
+    ax.loglog(
+        [fail_x],
+        [ly],
+        marker=fm,
+        color=color,
+        markersize=9,
+        markeredgewidth=1.2,
+        markeredgecolor="white",
+        linestyle="none",
+        zorder=6,
+    )
 
 
 def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
@@ -99,27 +130,27 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """
     suite_dir = _RESULTS_DIR / cfg.name / _SUITE
 
-    spatial_path  = suite_dir / f"spatial_cost{suffix}"  / "result.json"
+    spatial_path = suite_dir / f"spatial_cost{suffix}" / "result.json"
     temporal_path = suite_dir / f"temporal_cost{suffix}" / "result.json"
-    vjp_path      = suite_dir / f"vjp_cost{suffix}"      / "result.json"
+    vjp_path = suite_dir / f"vjp_cost{suffix}" / "result.json"
 
-    has_spatial  = spatial_path.exists()
+    has_spatial = spatial_path.exists()
     has_temporal = temporal_path.exists()
-    has_vjp      = vjp_path.exists()
+    has_vjp = vjp_path.exists()
 
     if not has_spatial and not has_temporal and not has_vjp:
         return None
 
-    spatial_data  = load_json(spatial_path)  if has_spatial  else {}
+    spatial_data = load_json(spatial_path) if has_spatial else {}
     temporal_data = load_json(temporal_path) if has_temporal else {}
-    vjp_data      = load_json(vjp_path)      if has_vjp      else {}
+    vjp_data = load_json(vjp_path) if has_vjp else {}
 
     def _has_inner_data(top: dict) -> bool:
         if not isinstance(top, dict):
             return False
         return any(isinstance(v, dict) and v for v in top.values())
 
-    has_vjp_N     = has_vjp and _has_inner_data(vjp_data.get("by_N", {}))
+    has_vjp_N = has_vjp and _has_inner_data(vjp_data.get("by_N", {}))
     has_vjp_steps = has_vjp and _has_inner_data(vjp_data.get("by_steps", {}))
 
     hw_str = ""
@@ -130,11 +161,11 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
     res_key = cfg.resolution_key
     solvers = list(cfg.solvers)
-    styles  = solver_styles(cfg)
+    styles = solver_styles(cfg)
 
     def _label(name: str) -> str:
         spec = cfg.solvers[name]
-        tag  = "(GPU)" if spec.uses_gpu else "(CPU)"
+        tag = "(GPU)" if spec.uses_gpu else "(CPU)"
         return f"{spec.name} {tag}"
 
     # ── assemble column specs ─────────────────────────────────────────────────
@@ -147,31 +178,56 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
         return []
 
     if has_spatial and _has_inner_data(spatial_data.get("by_N", {})):
-        columns.append(("spatial_N", spatial_data["by_N"], res_key,
-                         "Forward — N scaling",
-                         _first_nonempty_keys(spatial_data["by_N"])))
+        columns.append(
+            (
+                "spatial_N",
+                spatial_data["by_N"],
+                res_key,
+                "Forward — N scaling",
+                _first_nonempty_keys(spatial_data["by_N"]),
+            )
+        )
 
     if has_temporal and _has_inner_data(temporal_data.get("by_steps", {})):
-        columns.append(("temporal_steps", temporal_data["by_steps"], "steps",
-                         "Forward — steps scaling",
-                         _first_nonempty_keys(temporal_data["by_steps"])))
+        columns.append(
+            (
+                "temporal_steps",
+                temporal_data["by_steps"],
+                "steps",
+                "Forward — steps scaling",
+                _first_nonempty_keys(temporal_data["by_steps"]),
+            )
+        )
 
     if has_vjp_N:
-        columns.append(("vjp_N", vjp_data["by_N"], res_key,
-                         "VJP — N scaling",
-                         _first_nonempty_keys(vjp_data["by_N"])))
+        columns.append(
+            (
+                "vjp_N",
+                vjp_data["by_N"],
+                res_key,
+                "VJP — N scaling",
+                _first_nonempty_keys(vjp_data["by_N"]),
+            )
+        )
 
     if has_vjp_steps:
-        columns.append(("vjp_steps", vjp_data["by_steps"], "steps",
-                         "VJP — steps scaling",
-                         _first_nonempty_keys(vjp_data["by_steps"])))
+        columns.append(
+            (
+                "vjp_steps",
+                vjp_data["by_steps"],
+                "steps",
+                "VJP — steps scaling",
+                _first_nonempty_keys(vjp_data["by_steps"]),
+            )
+        )
 
     n_cols = len(columns)
     if n_cols == 0:
         return None
 
     fig, axes_grid = plt.subplots(
-        2, n_cols,
+        2,
+        n_cols,
         figsize=(5 * n_cols, 7),
         squeeze=False,
     )
@@ -183,35 +239,41 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
     for col, (panel_id, by_data, xlabel, title, keys) in enumerate(columns):
         ax_time = axes_grid[0, col]
-        ax_mem  = axes_grid[1, col]
+        ax_mem = axes_grid[1, col]
 
         is_N_panel = panel_id in ("spatial_N", "vjp_N")
         n_vals = np.array([int(k) for k in keys], dtype=float)
         if is_N_panel and cfg.n_to_cells is not None:
-            x_arr  = np.array([cfg.n_to_cells(int(k)) for k in keys], dtype=float)
+            x_arr = np.array([cfg.n_to_cells(int(k)) for k in keys], dtype=float)
             xlabel_disp = "cells"
         else:
-            x_arr  = n_vals
+            x_arr = n_vals
             xlabel_disp = xlabel
 
         col_has_mem = False
 
         for name in solvers:
-            row    = by_data.get(name) or {}
-            style  = styles.get(name, {"color": cfg.solvers[name].color})
-            color  = style.get("color", "black")
-            ls     = style.get("linestyle", "-")
-            kw     = dict(label=_label(name), markersize=5, markeredgewidth=0,
-                          **solver_plot_props(style))
+            row = by_data.get(name) or {}
+            style = styles.get(name, {"color": cfg.solvers[name].color})
+            color = style.get("color", "black")
+            ls = style.get("linestyle", "-")
+            kw = dict(
+                label=_label(name),
+                markersize=5,
+                markeredgewidth=0,
+                **solver_plot_props(style),
+            )
 
-            t_ys   = _time_vals(row, keys)
-            m_ys   = _mem_vals(row, keys)
+            t_ys = _time_vals(row, keys)
+            m_ys = _mem_vals(row, keys)
             fail_k, fail_ft = _first_failure(row, keys)
 
             if any(np.isfinite(v) for v in t_ys):
                 ax_time.loglog(x_arr, t_ys, **kw)
                 if fail_k is not None:
-                    _draw_failure(ax_time, x_arr, keys, fail_k, t_ys, color, ls, fail_ft)
+                    _draw_failure(
+                        ax_time, x_arr, keys, fail_k, t_ys, color, ls, fail_ft
+                    )
                     failure_types_seen.add(fail_ft)
 
             if any(np.isfinite(v) for v in m_ys):
@@ -239,19 +301,32 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     # ── failure legend entries — add as phantom plots so fig_shared_legend collects them
     for ft in ["OOM", "nan", "error", "timeout"]:
         if ft in failure_types_seen:
-            axes_grid[0, 0].plot([], [],
-                                  marker=_FAILURE_MARKER[ft], color="0.4",
-                                  linestyle="none", markersize=7,
-                                  markeredgewidth=1.0, markeredgecolor="white",
-                                  label=_FAILURE_LABEL[ft])
+            axes_grid[0, 0].plot(
+                [],
+                [],
+                marker=_FAILURE_MARKER[ft],
+                color="0.4",
+                linestyle="none",
+                markersize=7,
+                markeredgewidth=1.0,
+                markeredgecolor="white",
+                label=_FAILURE_LABEL[ft],
+            )
 
     # ── legend, title, hardware footnote ─────────────────────────────────────
     fig.suptitle(f"{cfg.name} — cost")
     fig_shared_legend(fig, axes_grid, bottom=0.16)
 
     if hw_str:
-        fig.text(0.5, 0.07, hw_str, ha="center", fontsize=7, color="gray",
-                 transform=fig.transFigure)
+        fig.text(
+            0.5,
+            0.07,
+            hw_str,
+            ha="center",
+            fontsize=7,
+            color="gray",
+            transform=fig.transFigure,
+        )
 
     if save:
         save_fig(fig, f"cost{suffix}", suite_dir)

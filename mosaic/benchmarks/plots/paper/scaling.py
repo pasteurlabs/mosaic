@@ -19,8 +19,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import (
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
     RCPARAMS,
     STRUCTURAL_ORDER,

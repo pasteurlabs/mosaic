@@ -27,8 +27,8 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import blended_transform_factory
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
@@ -419,8 +419,9 @@ def generate(out_dir: Path) -> None:
         ax_gn.set_ylim(_GN_YMIN, _gn_ymax + 0.05)
 
         # ── Legend ────────────────────────────────────────────────────────────
-        _dummy = mlines.Line2D([], [], color="none", linestyle="none",
-                               marker="none", label="")
+        _dummy = mlines.Line2D(
+            [], [], color="none", linestyle="none", marker="none", label=""
+        )
         solver_handles = []
         for s in SOLVER_ORDER:
             if s not in present:
@@ -475,8 +476,9 @@ def generate(out_dir: Path) -> None:
         # matplotlib fills legends column-first: entries 2k and 2k+1 share a column.
         # Pad solver handles to an even count so OOM and NaN (consecutive) land
         # in the same column on different rows → vertically aligned.
-        _dummy = mlines.Line2D([], [], color="none", linestyle="none",
-                               marker="none", label="")
+        _dummy = mlines.Line2D(
+            [], [], color="none", linestyle="none", marker="none", label=""
+        )
         if len(solver_handles) % 2 == 1:
             solver_handles.append(_dummy)
 

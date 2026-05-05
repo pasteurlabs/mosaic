@@ -19,7 +19,9 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.problems.navier_stokes_grid import InputSchema as _CanonicalInputSchema
+from mosaic_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+)
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
@@ -262,7 +264,9 @@ snGradSchemes   { default corrected; }
     (system_dir / "fvSchemes").write_text(content)
 
 
-def _write_fv_solution(system_dir: Path, *, use_pimple: bool = False) -> None:  # mosaic:init
+def _write_fv_solution(
+    system_dir: Path, *, use_pimple: bool = False
+) -> None:  # mosaic:init
     # foamRun -solver incompressibleFluid uses PIMPLE; legacy icoFoam uses PISO.
     # PIMPLE (foamRun incompressibleFluid) also requires a UFinal solver entry
     # because the PIMPLE outer-corrector loop solves for UFinal at the last corrector.

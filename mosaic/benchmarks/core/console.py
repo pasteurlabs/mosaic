@@ -14,7 +14,6 @@ from rich.rule import Rule
 console = Console()
 
 
-
 def make_build_progress() -> Progress:
     """Indeterminate spinner for Docker builds."""
     return Progress(

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import ProblemConfig
 
 _RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "ics"
@@ -26,7 +26,7 @@ def _run_ic(
     params: dict,
 ) -> dict:
     """Generate one IC, save a visualisation plot and params.json."""
-    from benchmarks.plots.ics import plot_ic
+    from mosaic.benchmarks.plots.ics import plot_ic
 
     out_dir = _RESULTS_DIR / cfg.name / _SUITE / ic_name
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -70,7 +70,7 @@ def get_plot_fns(cfg: ProblemConfig) -> dict[str, object]:
             def fn(cfg: ProblemConfig, **_kwargs) -> None:
                 out_dir = _RESULTS_DIR / cfg.name / _SUITE / name
                 ic = cfg.make_ic[name](**p)
-                from benchmarks.plots.ics import plot_ic
+                from mosaic.benchmarks.plots.ics import plot_ic
 
                 plot_ic(cfg, name, ic, out_dir)
 

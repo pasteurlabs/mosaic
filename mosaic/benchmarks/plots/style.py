@@ -12,10 +12,10 @@ from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
 
-from benchmarks.core.console import print_saved
+from mosaic.benchmarks.core.console import print_saved
 
 if TYPE_CHECKING:
-    from benchmarks.core.config import ProblemConfig
+    from mosaic.benchmarks.core.config import ProblemConfig
 
 # ── rcParams ──────────────────────────────────────────────────────────────────
 
@@ -253,7 +253,12 @@ def solver_styles(
             1 for s in specs.values() if (getattr(s, "family", "") or "") == family
         )
         has_explicit_style = getattr(spec, "linestyle", None) is not None
-        if family and n_in_family > 1 and n_distinct_families > 1 and not has_explicit_style:
+        if (
+            family
+            and n_in_family > 1
+            and n_distinct_families > 1
+            and not has_explicit_style
+        ):
             color = palette[idx % len(palette)]
         else:
             color = spec.color
@@ -261,7 +266,8 @@ def solver_styles(
         result[name] = {
             "color": color,
             "label": spec.name,
-            "linestyle": getattr(spec, "linestyle", None) or _LINESTYLES[idx % len(_LINESTYLES)],
+            "linestyle": getattr(spec, "linestyle", None)
+            or _LINESTYLES[idx % len(_LINESTYLES)],
             "marker": getattr(spec, "marker", None) or _MARKERS[idx % len(_MARKERS)],
         }
     return result

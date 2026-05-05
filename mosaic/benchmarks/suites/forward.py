@@ -19,9 +19,9 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np  # kept for np.savez and string arrays (JAX doesn't support these)
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.runner import get_last_apply_error, safe_apply, solver_sweep
-from benchmarks.core.utils import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply, solver_sweep
+from mosaic.benchmarks.core.utils import (
     experiment_dir,
     extract_runs,
     is_valid,
@@ -148,7 +148,13 @@ def run_agreement(
         # formed. cfg.solvers is filtered by cli.py to only the requested solvers,
         # so solver names are parsed from the snapshot keys rather than cfg.solvers.
         _snap_path = out_dir / "fields.npz"
-        _snap_meta_prefixes = ("sweep_values", "solver_names", "ic", "consensus", "x_axis")
+        _snap_meta_prefixes = (
+            "sweep_values",
+            "solver_names",
+            "ic",
+            "consensus",
+            "x_axis",
+        )
         _cached_for_val: dict = {}
         _old_snap_extras: dict = {}  # non-rerun solver arrays from old snapshot → merged into fsnap on save
         if _snap_path.exists():
@@ -158,9 +164,10 @@ def run_agreement(
                         _cached_for_val[_cv] = {}
                         sfx = f"_{_ci}"
                         for _sfile in _snap.files:
-                            if (_sfile.endswith(sfx)
-                                    and not any(_sfile.startswith(p) for p in _snap_meta_prefixes)):
-                                _cn = _sfile[:-len(sfx)]
+                            if _sfile.endswith(sfx) and not any(
+                                _sfile.startswith(p) for p in _snap_meta_prefixes
+                            ):
+                                _cn = _sfile[: -len(sfx)]
                                 _arr_copy = np.asarray(_snap[_sfile])
                                 if _cn not in tags:
                                     _cached_for_val[_cv][_cn] = _arr_copy
@@ -214,10 +221,14 @@ def run_agreement(
                 )
                 # Build a representative inputs dict for dt/steps/domain_extent lookup.
                 _inputs_ref = cfg.make_inputs(
-                    next(iter(cfg.solvers)), _ic_ref,
-                    domain_extent=cfg.domain_extent, **curr_phys
+                    next(iter(cfg.solvers)),
+                    _ic_ref,
+                    domain_extent=cfg.domain_extent,
+                    **curr_phys,
                 )
-                _t_end = float(np.asarray(_inputs_ref["dt"])[0]) * int(_inputs_ref["steps"])
+                _t_end = float(np.asarray(_inputs_ref["dt"])[0]) * int(
+                    _inputs_ref["steps"]
+                )
                 _L = float(_inputs_ref.get("domain_extent", 2 * np.pi))
                 _extra = {
                     k: curr_phys[k]
@@ -251,13 +262,15 @@ def run_agreement(
         # Rebuild solver_names from every {name}_{index} key present after the
         # merge — a partial rerun (--solvers X) would otherwise write a truncated
         # solver_names while old solver field arrays are still in the npz.
-        _all_present_solvers = sorted({
-            k[: k.rfind("_")]
-            for k in fsnap
-            if "_" in k
-            and not any(k.startswith(p) for p in _snap_meta_prefixes)
-            and k[k.rfind("_") + 1:].isdigit()
-        })
+        _all_present_solvers = sorted(
+            {
+                k[: k.rfind("_")]
+                for k in fsnap
+                if "_" in k
+                and not any(k.startswith(p) for p in _snap_meta_prefixes)
+                and k[k.rfind("_") + 1 :].isdigit()
+            }
+        )
         fsnap["solver_names"] = np.array(_all_present_solvers)
         np.savez(out_dir / "fields.npz", **fsnap)
 
@@ -443,7 +456,14 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
             suffix="_debug" if overrides.get("debug") else "",
         )
         result = {"by_param": by_param, "sweep_key": sweep_key, "params": run}
-        save_experiment(result, out_dir, csv_rows=csv_rows, cfg=cfg, harness_fn=run_physical_laws, wall_time_s=_wall_times)
+        save_experiment(
+            result,
+            out_dir,
+            csv_rows=csv_rows,
+            cfg=cfg,
+            harness_fn=run_physical_laws,
+            wall_time_s=_wall_times,
+        )
         if n_runs > 1:
             all_results[run_name] = result
         else:
@@ -477,18 +497,24 @@ _EXPERIMENTS = {
 
 
 def _plot_fns() -> dict:
-    from benchmarks.plots.forward import plot_agreement, plot_physical_laws
+    from mosaic.benchmarks.plots.forward import plot_agreement, plot_physical_laws
 
     return {
         "baseline": lambda cfg, **kw: plot_agreement(cfg, exp_key="baseline", **kw),
         "agreement": plot_agreement,
         "agreement/tgv": plot_agreement,
         "agreement/multimode": plot_agreement,
-        "tgv_nu_sweep": lambda cfg, **kw: plot_agreement(cfg, exp_key="tgv_nu_sweep", **kw),
+        "tgv_nu_sweep": lambda cfg, **kw: plot_agreement(
+            cfg, exp_key="tgv_nu_sweep", **kw
+        ),
         "physical_laws": plot_physical_laws,
         "cylinder": lambda cfg, **kw: plot_agreement(cfg, exp_key="cylinder", **kw),
-        "source_baseline": lambda cfg, **kw: plot_agreement(cfg, exp_key="source_baseline", **kw),
-        "source_linearity": lambda cfg, **kw: plot_agreement(cfg, exp_key="source_linearity", **kw),
+        "source_baseline": lambda cfg, **kw: plot_agreement(
+            cfg, exp_key="source_baseline", **kw
+        ),
+        "source_linearity": lambda cfg, **kw: plot_agreement(
+            cfg, exp_key="source_linearity", **kw
+        ),
     }
 
 
@@ -499,7 +525,7 @@ def run_all(
     plots: bool = True,
 ) -> dict[str, dict]:
     """Run forward experiments and optionally generate plots."""
-    from benchmarks.core.runner import run_suite
+    from mosaic.benchmarks.core.runner import run_suite
 
     return run_suite(
         cfg,

@@ -27,7 +27,7 @@ import hashlib
 import unittest
 from unittest import mock
 
-from benchmarks.core.utils import harness_fn_hash
+from mosaic.benchmarks.core.utils import harness_fn_hash
 
 
 def _dummy_fn():  # noqa: D401 — stand-in target used only for getsource mocking
@@ -36,9 +36,7 @@ def _dummy_fn():  # noqa: D401 — stand-in target used only for getsource mocki
 
 def _hash_for_source(src: str) -> str:
     """Run ``harness_fn_hash`` against *src* via a mocked ``inspect.getsource``."""
-    with mock.patch(
-        "benchmarks.core.utils.inspect.getsource", return_value=src
-    ):
+    with mock.patch("benchmarks.core.utils.inspect.getsource", return_value=src):
         return harness_fn_hash(_dummy_fn)
 
 
@@ -47,12 +45,7 @@ class HarnessFnHashTests(unittest.TestCase):
 
     def test_docstring_only_diff_same_hash(self) -> None:
         """Two function sources differing only in their docstring hash identically."""
-        src_a = (
-            "def run():\n"
-            "    '''Original docstring.'''\n"
-            "    x = 1\n"
-            "    return x\n"
-        )
+        src_a = "def run():\n    '''Original docstring.'''\n    x = 1\n    return x\n"
         src_b = (
             "def run():\n"
             "    '''A completely different docstring that says other things.'''\n"
@@ -63,12 +56,7 @@ class HarnessFnHashTests(unittest.TestCase):
 
     def test_comment_only_diff_same_hash(self) -> None:
         """Comment-only edits must not flip the hash (comments are stripped by ast.parse)."""
-        src_a = (
-            "def run():\n"
-            "    # original comment\n"
-            "    x = 1\n"
-            "    return x\n"
-        )
+        src_a = "def run():\n    # original comment\n    x = 1\n    return x\n"
         src_b = (
             "def run():\n"
             "    # a wholly different comment explaining nothing\n"

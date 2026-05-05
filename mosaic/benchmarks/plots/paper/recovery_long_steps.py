@@ -16,13 +16,18 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, solver_props, make_handle, dedup_handles
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import (
+    RCPARAMS,
+    dedup_handles,
+    make_handle,
+    solver_props,
+)
 
-RESULTS   = Path(__file__).parent.parent.parent / "results"
+RESULTS = Path(__file__).parent.parent.parent / "results"
 _BASE_DIR = RESULTS / "ns-3d-grid" / "optimization" / "recovery_long_steps_v2"
 
-STEPS_VALS    = [5, 10, 20, 40, 80, 160]
+STEPS_VALS = [5, 10, 20, 40, 80, 160]
 _SOLVER_ORDER = ["exponax", "phiflow", "xlb", "ins_jl", "warp_ns", "pict"]
 
 
@@ -44,7 +49,7 @@ def _load(json_path: Path):
         for steps_str, v in by_steps.items():
             key = (solver, int(steps_str))
             ic_err[key] = v.get("final_ic_error_trials", [v["final_ic_error"]])
-            loss[key]   = v.get("final_loss_trials",     [v["final_loss"]])
+            loss[key] = v.get("final_loss_trials", [v["final_loss"]])
     return ic_err, loss
 
 
@@ -60,8 +65,16 @@ def _plot_panel(ax, data, solver_order, steps_vals, seen, log_y=False):
             means.append(float(np.median(vals)))
         if not xs:
             continue
-        ax.plot(xs, means, color=color, linestyle=ls, marker=mk,
-                markersize=4, markeredgewidth=0, linewidth=1.6)
+        ax.plot(
+            xs,
+            means,
+            color=color,
+            linestyle=ls,
+            marker=mk,
+            markersize=4,
+            markeredgewidth=0,
+            linewidth=1.6,
+        )
         seen.add(solver)
 
     ax.set_xscale("log")
@@ -77,7 +90,9 @@ def _plot_panel(ax, data, solver_order, steps_vals, seen, log_y=False):
 def generate(out_dir: Path) -> None:
     json_path = _resolve_json(_BASE_DIR)
     if json_path is None:
-        print("[recovery_long_steps] no result.json or result_partial.json found, skipping")
+        print(
+            "[recovery_long_steps] no result.json or result_partial.json found, skipping"
+        )
         return
     ic_err, loss = _load(json_path)
     if not ic_err:
@@ -86,14 +101,15 @@ def generate(out_dir: Path) -> None:
 
     plt.rcParams.update(RCPARAMS)
     fig, (ax_l, ax_r) = plt.subplots(
-        1, 2,
+        1,
+        2,
         figsize=(TEXTWIDTH, TEXTWIDTH * 0.52),
     )
     fig.subplots_adjust(left=0.10, right=0.98, bottom=0.28, top=0.91, wspace=0.38)
 
     seen: set[str] = set()
     _plot_panel(ax_l, ic_err, _SOLVER_ORDER, STEPS_VALS, seen, log_y=False)
-    _plot_panel(ax_r, loss,   _SOLVER_ORDER, STEPS_VALS, seen, log_y=True)
+    _plot_panel(ax_r, loss, _SOLVER_ORDER, STEPS_VALS, seen, log_y=True)
 
     ax_l.set_ylabel("IC recovery error", fontsize=8)
     ax_l.set_title("IC recovery error", fontweight="bold")
@@ -103,10 +119,18 @@ def generate(out_dir: Path) -> None:
     ax_r.set_title("Final optimisation loss", fontweight="bold")
 
     handles = dedup_handles([make_handle(s) for s in _SOLVER_ORDER if s in seen])
-    fig.legend(handles=handles, fontsize=6.5,
-               loc="lower center", bbox_to_anchor=(0.54, 0.01),
-               ncol=3, framealpha=0.8, handlelength=2.0,
-               borderpad=0.4, labelspacing=0.25, columnspacing=1.0)
+    fig.legend(
+        handles=handles,
+        fontsize=6.5,
+        loc="lower center",
+        bbox_to_anchor=(0.54, 0.01),
+        ncol=3,
+        framealpha=0.8,
+        handlelength=2.0,
+        borderpad=0.4,
+        labelspacing=0.25,
+        columnspacing=1.0,
+    )
 
     for ext in ("pdf", "png"):
         out = out_dir / f"recovery_long_steps.{ext}"

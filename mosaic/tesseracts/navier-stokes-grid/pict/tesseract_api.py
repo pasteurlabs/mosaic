@@ -1,4 +1,3 @@
-
 from typing import Any
 
 import numpy as np
@@ -138,10 +137,12 @@ def _make_arc_block_grid(  # mosaic:init
         # the circle at the y-level of the inner face.
         # We linearly interpolate angles between the two endpoint angles so that
         # the arc spacing matches the rectangular x-spacing.
-        theta0 = math.atan2(y1 - arc_cy if arc_face == "+y" else y0 - arc_cy,
-                            x0 - arc_cx)
-        theta1 = math.atan2(y1 - arc_cy if arc_face == "+y" else y0 - arc_cy,
-                            x1 - arc_cx)
+        theta0 = math.atan2(
+            y1 - arc_cy if arc_face == "+y" else y0 - arc_cy, x0 - arc_cx
+        )
+        theta1 = math.atan2(
+            y1 - arc_cy if arc_face == "+y" else y0 - arc_cy, x1 - arc_cx
+        )
         thetas = torch.linspace(theta0, theta1, nx + 1, dtype=dtype)  # (nx+1,)
         arc_x = arc_cx + arc_r * torch.cos(thetas)  # (nx+1,)
         arc_y = arc_cy + arc_r * torch.sin(thetas)  # (nx+1,)
@@ -166,10 +167,12 @@ def _make_arc_block_grid(  # mosaic:init
 
     else:  # arc_face in ("+x", "-x")
         # Arc face is vertical → ny+1 arc points, one per y-row vertex.
-        theta0 = math.atan2(y0 - arc_cy,
-                            x1 - arc_cx if arc_face == "+x" else x0 - arc_cx)
-        theta1 = math.atan2(y1 - arc_cy,
-                            x1 - arc_cx if arc_face == "+x" else x0 - arc_cx)
+        theta0 = math.atan2(
+            y0 - arc_cy, x1 - arc_cx if arc_face == "+x" else x0 - arc_cx
+        )
+        theta1 = math.atan2(
+            y1 - arc_cy, x1 - arc_cx if arc_face == "+x" else x0 - arc_cx
+        )
         thetas = torch.linspace(theta0, theta1, ny + 1, dtype=dtype)  # (ny+1,)
         arc_x = arc_cx + arc_r * torch.cos(thetas)  # (ny+1,)
         arc_y = arc_cy + arc_r * torch.sin(thetas)  # (ny+1,)
@@ -252,24 +255,36 @@ def _make_corner_block_grid(  # mosaic:init
     # the rectangle corners.
     if arc_corner == "tr":
         # inner corner at top-right → (i=nx, j=ny) = arc point
-        c00 = (x0, y0); c10 = (x1, y0); c01 = (x0, y1); c11 = (arc_px, arc_py)
+        c00 = (x0, y0)
+        c10 = (x1, y0)
+        c01 = (x0, y1)
+        c11 = (arc_px, arc_py)
     elif arc_corner == "tl":
         # inner corner at top-left → (i=0, j=ny) = arc point
-        c00 = (x0, y0); c10 = (x1, y0); c01 = (arc_px, arc_py); c11 = (x1, y1)
+        c00 = (x0, y0)
+        c10 = (x1, y0)
+        c01 = (arc_px, arc_py)
+        c11 = (x1, y1)
     elif arc_corner == "br":
         # inner corner at bottom-right → (i=nx, j=0) = arc point
-        c00 = (x0, y0); c10 = (arc_px, arc_py); c01 = (x0, y1); c11 = (x1, y1)
+        c00 = (x0, y0)
+        c10 = (arc_px, arc_py)
+        c01 = (x0, y1)
+        c11 = (x1, y1)
     else:  # "bl"
         # inner corner at bottom-left → (i=0, j=0) = arc point
-        c00 = (arc_px, arc_py); c10 = (x1, y0); c01 = (x0, y1); c11 = (x1, y1)
+        c00 = (arc_px, arc_py)
+        c10 = (x1, y0)
+        c01 = (x0, y1)
+        c11 = (x1, y1)
 
     # All four edges are straight (linear) between their endpoint corners.
     # The Coons patch with all-straight edges reduces to bilinear interpolation:
     #   P(s,t) = (1-t)(1-s)*c00 + (1-t)*s*c10 + t*(1-s)*c01 + t*s*c11
     s = torch.linspace(0.0, 1.0, nx + 1, dtype=dtype)  # (nx+1,)
     t = torch.linspace(0.0, 1.0, ny + 1, dtype=dtype)  # (ny+1,)
-    t2 = t.unsqueeze(1)   # (ny+1, 1)
-    s2 = s.unsqueeze(0)   # (1, nx+1)
+    t2 = t.unsqueeze(1)  # (ny+1, 1)
+    s2 = s.unsqueeze(0)  # (1, nx+1)
 
     gx = (
         (1 - t2) * (1 - s2) * c00[0]
@@ -1111,7 +1126,12 @@ def _run_pict(  # mosaic:physics
     velocity_history: list[torch.Tensor] = []
 
     prep_fn = None
-    if out_bounds or inflow_setter is not None or drag_assembler is not None or collect_velocity:
+    if (
+        out_bounds
+        or inflow_setter is not None
+        or drag_assembler is not None
+        or collect_velocity
+    ):
 
         def _pre_step(domain, time_step, **_kw):
             # Re-apply inflow BC first (keep inflow_profile_t in autograd graph).
@@ -1167,7 +1187,9 @@ def _run_pict(  # mosaic:physics
     velocity_mean_t = None
     if collect_velocity and velocity_history:
         n_tail = max(1, steps // 2)
-        velocity_mean_t = torch.stack(velocity_history[-n_tail:]).mean(dim=0).to(torch.float32)
+        velocity_mean_t = (
+            torch.stack(velocity_history[-n_tail:]).mean(dim=0).to(torch.float32)
+        )
     return result, drag, domain, velocity_mean_t
 
 
@@ -1222,9 +1244,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
     obstacle = inputs.obstacle.model_dump() if inputs.obstacle is not None else None
     bc = inputs.boundary_conditions
-    y_walls_noslip = (
-        bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
-    )
+    y_walls_noslip = bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
 
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=False)
 
@@ -1251,7 +1271,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         if drag_t is not None
         else np.zeros((1,), dtype=np.float32)
     )
-    velocity_mean_np = (
+    _velocity_mean_np = (
         _pict_to_v0(velocity_mean_t, N, ndim).detach().cpu().numpy()
         if velocity_mean_t is not None
         else None
@@ -1320,9 +1340,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
     )
     obstacle = inputs.obstacle.model_dump() if inputs.obstacle is not None else None
     bc = inputs.boundary_conditions
-    y_walls_noslip = (
-        bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
-    )
+    y_walls_noslip = bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
 
     want_v0 = "v0" in vjp_inputs
     want_lid = "lid_velocity" in vjp_inputs and lid_velocity_np is not None

@@ -11,12 +11,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-import numpy as np
+import matplotlib.pyplot as plt
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
@@ -37,7 +36,8 @@ def generate(out_dir: Path) -> None:
 
         for solver, h_results in data["by_solver"].items():
             label, color, ls, mk = SOLVER_STYLES.get(
-                solver, (solver, "#888888", "-", "o"))
+                solver, (solver, "#888888", "-", "o")
+            )
 
             step_keys = sorted(h_results.keys(), key=int)
             steps = [int(k) for k in step_keys]
@@ -49,15 +49,20 @@ def generate(out_dir: Path) -> None:
             cosines = []
             for k in step_keys:
                 eps_sweep = h_results[k]["eps_sweep"]
-                best_rel = min(float(eps_sweep[e]["rel_error_mean"])
-                               for e in eps_sweep)
-                best_cos = max(float(eps_sweep[e]["cosine_mean"])
-                               for e in eps_sweep)
+                best_rel = min(float(eps_sweep[e]["rel_error_mean"]) for e in eps_sweep)
+                best_cos = max(float(eps_sweep[e]["cosine_mean"]) for e in eps_sweep)
                 rel_errors.append(best_rel)
                 cosines.append(best_cos)
 
-            kw = dict(color=color, linestyle=ls, marker=mk, markersize=4,
-                      markeredgewidth=0, linewidth=1.6, label=label)
+            kw = dict(
+                color=color,
+                linestyle=ls,
+                marker=mk,
+                markersize=4,
+                markeredgewidth=0,
+                linewidth=1.6,
+                label=label,
+            )
 
             ax_gn.semilogy(steps, grad_norms, **kw)
             ax_err.semilogy(steps, rel_errors, **kw)
@@ -79,22 +84,30 @@ def generate(out_dir: Path) -> None:
         ax_cos.ticklabel_format(axis="y", useOffset=False)
 
         handles = [
-            mlines.Line2D([], [],
-                          color=SOLVER_STYLES[s][1],
-                          linestyle=SOLVER_STYLES[s][2],
-                          marker=SOLVER_STYLES[s][3],
-                          markersize=5, markeredgewidth=0, linewidth=1.6,
-                          label=SOLVER_STYLES[s][0])
-            for s in SOLVER_ORDER if s in present
+            mlines.Line2D(
+                [],
+                [],
+                color=SOLVER_STYLES[s][1],
+                linestyle=SOLVER_STYLES[s][2],
+                marker=SOLVER_STYLES[s][3],
+                markersize=5,
+                markeredgewidth=0,
+                linewidth=1.6,
+                label=SOLVER_STYLES[s][0],
+            )
+            for s in SOLVER_ORDER
+            if s in present
         ]
 
-        fig.legend(handles=handles,
-                   loc="lower center",
-                   bbox_to_anchor=(0.5, 0.01),
-                   ncol=3,
-                   fontsize=7.5,
-                   framealpha=0.7,
-                   handlelength=2.0)
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=3,
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
 
         out = out_dir / "horizon_sweep.pdf"
         fig.savefig(out)

@@ -11,11 +11,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
 
 # Full linewidth; per-panel height keeps panels near-square
-_PH2 = (TEXTWIDTH / 2) * 0.85   # height for 2-panel row
-_PH3 = (TEXTWIDTH / 3) * 0.85   # height for 3-panel row
+_PH2 = (TEXTWIDTH / 2) * 0.85  # height for 2-panel row
+_PH3 = (TEXTWIDTH / 3) * 0.85  # height for 3-panel row
 
 RCPARAMS = {
     "font.family": "sans-serif",
@@ -31,12 +31,11 @@ RCPARAMS = {
 # IC field generators
 # ---------------------------------------------------------------------------
 
+
 def _vorticity(u, v, N, L=2 * np.pi):
     kn = np.fft.fftfreq(N, d=L / (2 * np.pi * N))
     KX, KY = np.meshgrid(kn, kn, indexing="ij")
-    return np.real(
-        np.fft.ifft2(1j * KX * np.fft.fft2(v) - 1j * KY * np.fft.fft2(u))
-    )
+    return np.real(np.fft.ifft2(1j * KX * np.fft.fft2(v) - 1j * KY * np.fft.fft2(u)))
 
 
 def _ic_tgv(N=64, L=2 * np.pi):
@@ -93,7 +92,9 @@ def _ic_struct_two_bumps(nx=48, ny=24):
     sigma = 0.12 * min(Lx, Ly)
     rho = np.full((nx, ny), 0.1)
     for cx in [0.35, 0.75]:
-        rho += 0.85 * np.exp(-((X - cx * Lx) ** 2 + (Y - 0.5 * Ly) ** 2) / (2 * sigma ** 2))
+        rho += 0.85 * np.exp(
+            -((X - cx * Lx) ** 2 + (Y - 0.5 * Ly) ** 2) / (2 * sigma**2)
+        )
     return np.clip(rho, 0.05, 0.95)
 
 
@@ -110,7 +111,9 @@ def _ic_thermal_gaussian(nx=48, ny=24, sigma=0.2):
     x = np.linspace(0, Lx, nx)
     y = np.linspace(0, Ly, ny)
     X, Y = np.meshgrid(x, y, indexing="ij")
-    s = np.exp(-((X - 0.5 * Lx) ** 2 + (Y - 0.5 * Ly) ** 2) / (2 * (sigma * min(Lx, Ly)) ** 2))
+    s = np.exp(
+        -((X - 0.5 * Lx) ** 2 + (Y - 0.5 * Ly) ** 2) / (2 * (sigma * min(Lx, Ly)) ** 2)
+    )
     return s / s.max()
 
 
@@ -118,23 +121,38 @@ def _ic_thermal_gaussian(nx=48, ny=24, sigma=0.2):
 # Plotting helpers
 # ---------------------------------------------------------------------------
 
+
 def _imshow_sym(ax, field, cmap="RdBu_r"):
     vmax = float(np.abs(field).max()) or 1.0
-    ax.imshow(field.T, origin="lower", cmap=cmap, vmin=-vmax, vmax=vmax,
-              aspect="equal", interpolation="bilinear")
+    ax.imshow(
+        field.T,
+        origin="lower",
+        cmap=cmap,
+        vmin=-vmax,
+        vmax=vmax,
+        aspect="equal",
+        interpolation="bilinear",
+    )
     ax.axis("off")
 
 
 def _imshow_pos(ax, field, cmap="viridis"):
-    ax.imshow(field.T, origin="lower", cmap=cmap,
-              vmin=field.min(), vmax=field.max(),
-              aspect="equal", interpolation="bilinear")
+    ax.imshow(
+        field.T,
+        origin="lower",
+        cmap=cmap,
+        vmin=field.min(),
+        vmax=field.max(),
+        aspect="equal",
+        interpolation="bilinear",
+    )
     ax.axis("off")
 
 
 # ---------------------------------------------------------------------------
 # generate
 # ---------------------------------------------------------------------------
+
 
 def generate(out_dir: Path) -> None:
     plt.rcParams.update(RCPARAMS)
@@ -167,7 +185,11 @@ def generate(out_dir: Path) -> None:
 
     # Thermal — 2 rows × 2 cols (3 panels + 1 empty)
     labels_thermal = ["Uniform conductivity", "Random conductivity", "Gaussian source"]
-    fields_thermal = [_ic_thermal_uniform(), _ic_thermal_random(), _ic_thermal_gaussian()]
+    fields_thermal = [
+        _ic_thermal_uniform(),
+        _ic_thermal_random(),
+        _ic_thermal_gaussian(),
+    ]
     _PH2r = (TEXTWIDTH / 2) * 0.85
     fig, axes = plt.subplots(2, 2, figsize=(TEXTWIDTH * 0.67, _PH2r * 2))
     fig.subplots_adjust(wspace=0.05, hspace=0.25)

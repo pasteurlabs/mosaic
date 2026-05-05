@@ -20,7 +20,7 @@ mosaic/tesseracts/<domain>/<solver-name>/
 Import the canonical schemas for your domain and subclass if extra fields are needed:
 
 ```python
-from mosaic_shared.problems.<domain> import InputSchema as _Base, OutputSchema
+from mosaic_shared.problems.<domain> import InputSchema as _Base, OutputSchema  # inside container
 from pydantic import Field
 
 class InputSchema(_Base):
@@ -57,7 +57,7 @@ my-solver-package>=1.0
 
 ### 4. Register the solver
 
-Add a `SolverSpec` entry in `mosaic/benchmarks/problems/<domain>.py`:
+Add a `SolverSpec` entry in `mosaic/benchmarks/problems/<domain>.py` (see [Architecture](docs/architecture.qmd) for field documentation):
 
 ```python
 "my-solver": SolverSpec(
@@ -120,7 +120,7 @@ Follow the solver contribution guide above.
 1. Fork the repository and create a feature branch
 2. Make your changes, ensuring `ruff check` and `pytest` pass
 3. Open a pull request with a clear description of what you're adding
-4. CI will build all affected solver containers and run the evaluation suite
+4. CI runs lint, tests, and tesseract config validation on every PR. Full benchmark runs (which require GPU runners) are triggered by adding the `benchmark` label to the PR
 
 ## Solver tuning
 

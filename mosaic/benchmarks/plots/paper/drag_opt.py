@@ -9,12 +9,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
@@ -37,8 +37,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     for solver, sdata in data["by_solver"].items():
         if solver not in SOLVER_ORDER:
             continue
-        label, color, ls, mk = SOLVER_STYLES.get(
-            solver, (solver, "#888888", "-", "o"))
+        label, color, ls, mk = SOLVER_STYLES.get(solver, (solver, "#888888", "-", "o"))
         drags = sdata["drags"]
         if not drags or not drags[0] or np.isnan(drags[0]) or drags[0] == 0:
             continue
@@ -60,17 +59,28 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     y_arr = np.linspace(0, 1, profiles["initial"].shape[0])
 
     # initial profile
-    ax_prof.plot(profiles["initial"], y_arr,
-                 color="#999999", linestyle="--", linewidth=1.4, label="Initial")
+    ax_prof.plot(
+        profiles["initial"],
+        y_arr,
+        color="#999999",
+        linestyle="--",
+        linewidth=1.4,
+        label="Initial",
+    )
 
     for solver in SOLVER_ORDER:
         final_key = f"final_{solver}"
         if final_key not in profiles:
             continue
-        label, color, ls, mk = SOLVER_STYLES.get(
-            solver, (solver, "#888888", "-", "o"))
-        ax_prof.plot(profiles[final_key], y_arr,
-                     color=color, linestyle=ls, linewidth=1.6, label=label)
+        label, color, ls, mk = SOLVER_STYLES.get(solver, (solver, "#888888", "-", "o"))
+        ax_prof.plot(
+            profiles[final_key],
+            y_arr,
+            color=color,
+            linestyle=ls,
+            linewidth=1.6,
+            label=label,
+        )
         present.add(solver)
 
     ax_prof.set_title(f"Optimised inlet profile (Re={re_tag[2:]})")
@@ -78,24 +88,31 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     ax_prof.set_ylabel("$y$")
 
     handles = [
-        mlines.Line2D([], [], color="#999999", linestyle="--", linewidth=1.4,
-                      label="Initial")
+        mlines.Line2D(
+            [], [], color="#999999", linestyle="--", linewidth=1.4, label="Initial"
+        )
     ] + [
-        mlines.Line2D([], [],
-                      color=SOLVER_STYLES[s][1],
-                      linestyle=SOLVER_STYLES[s][2],
-                      linewidth=1.6,
-                      label=SOLVER_STYLES[s][0])
-        for s in SOLVER_ORDER if s in present
+        mlines.Line2D(
+            [],
+            [],
+            color=SOLVER_STYLES[s][1],
+            linestyle=SOLVER_STYLES[s][2],
+            linewidth=1.6,
+            label=SOLVER_STYLES[s][0],
+        )
+        for s in SOLVER_ORDER
+        if s in present
     ]
 
-    fig.legend(handles=handles,
-               loc="lower center",
-               bbox_to_anchor=(0.5, 0.01),
-               ncol=4,
-               fontsize=7.5,
-               framealpha=0.7,
-               handlelength=2.0)
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncol=4,
+        fontsize=7.5,
+        framealpha=0.7,
+        handlelength=2.0,
+    )
 
     out = out_dir / f"drag_opt_{re_tag}.pdf"
     fig.savefig(out)

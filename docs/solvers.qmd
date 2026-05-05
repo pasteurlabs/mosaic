@@ -1,0 +1,462 @@
+---
+title: Solver Reference
+---
+
+> Auto-generated 2026-05-05 21:17 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 3 differentiable fields
+
+Each solver card shows its numerical scheme, AD strategy, known limitations, and Tesseract schema. Click **Inputs / Outputs** on any solver to expand its field tables. The ∂ column marks fields that support automatic differentiation (VJP/JVP).
+
+## Navier–Stokes (Grid)
+
+### Exponax
+
+**Scheme:** spectral ETDRK &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Upstream docs:** [https://fkoehler.site/exponax/](https://fkoehler.site/exponax/)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/exponax`
+
+Integrates the 3D Navier–Stokes equations with an exponential time-differencing Runge–Kutta (ETDRK) spectral scheme, enforcing incompressibility to machine precision by construction. Gradients via JAX source-transformation AD.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `drag` | `Array[(1,), Float32]` | ✓ | Linear drag coefficient |
+| `order` | `int` |  | ETDRK time integration order (0-4) |
+| `kolmogorov_forcing` | `bool` |  | Enable Kolmogorov sinusoidal body forcing for sustained turbulence |
+| `injection_mode` | `int` |  | Wavenumber at which energy is injected (Kolmogorov forcing) |
+| `injection_scale` | `Array[(1,), Float32]` | ✓ | Amplitude of the Kolmogorov body forcing |
+
+**Outputs:** —
+
+:::
+
+### INS.jl
+
+**Scheme:** FD + projection &nbsp;·&nbsp; **Language:** julia &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Upstream docs:** [https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/](https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/incompressible-navier-stokes-jl`
+
+IncompressibleNavierStokes.jl: Julia finite-difference pressure-projection solver. Differentiates through the time loop via Zygote.jl reverse-mode AD. CPU only.
+
+::: {.callout-warning}
+#### Known limitations
+
+- Viscosity gradient uses finite differences (Zygote returns NoTangent for the diffusion operator). FD gradients diverge as rollout length grows.
+- Brinkman penalization incompatible with spectral pressure solve. Excluded from drag optimization.
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+### jax-cfd
+
+**Scheme:** MAC FD + projection &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Upstream docs:** [https://github.com/google/jax-cfd](https://github.com/google/jax-cfd)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/jax-cfd`
+
+JAX-native incompressible flow solver on a staggered MAC grid with finite-difference advection and spectral (FFT) pressure projection. Gradients via JAX source-transformation AD. The spectral pressure solve requires periodic BCs in all spatial directions, so JAX-CFD is included in periodic benchmarks (TGV, multimode agreement) but excluded from the cylinder-wake experiment.
+
+::: {.callout-warning}
+#### Known limitations
+
+- Spectral pressure solve requires periodic boundary conditions. Excluded from channel/cylinder-wake experiments.
+:::
+
+::: {.callout-note}
+#### Excluded experiments
+
+- **forward/cylinder**: tesseract uses periodic FFT pressure solve + IBM volume penalization; channel-BC cylinder flow requires a non-periodic pressure solve that is not wired in this benchmark
+- **recovery/drag_opt**: periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs (same root cause as forward/cylinder)
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `density` | `Array[(1,), Float32]` | ✓ | Density of the fluid |
+| `inner_steps` | `int` |  | Solver sub-iterations per timestep (higher = more accurate pressure solve) |
+
+**Outputs:** —
+
+:::
+
+### OpenFOAM
+
+**Scheme:** icoFoam PISO &nbsp;·&nbsp; **Language:** cpp &nbsp;·&nbsp; **Gradients:** None (forward only) &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Upstream docs:** [https://www.openfoam.com/documentation/overview](https://www.openfoam.com/documentation/overview)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/openfoam`
+
+Runs the icoFoam incompressible PISO solver as a forward-only reference baseline. No reverse-mode AD available. Used as the reference solver for fluid benchmark domains.
+
+::: {.callout-note}
+#### Excluded experiments
+
+- **gradient**: standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract
+- **optimization**: standard icoFoam is non-differentiable forward-only solver
+- **cost/vjp_cost**: standard icoFoam has no VJP to benchmark
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+### PhiFlow
+
+**Scheme:** differential advection + projection &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Upstream docs:** [https://tum-pbs.github.io/PhiFlow/](https://tum-pbs.github.io/PhiFlow/)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/phiflow`
+
+Semi-Lagrangian advection with pressure projection. Supports PyTorch, JAX, and TensorFlow backends, enabling gradient computation through the same simulation code across AD frameworks.
+
+::: {.callout-note}
+#### Excluded experiments
+
+- **cost/temporal_cost**: CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); ARCH-101 fix deployed (xla_gpu_autotune_level=0) — pending re-run to confirm resolved
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+### PICT
+
+**Scheme:** PISO (2nd-order) &nbsp;·&nbsp; **Language:** pytorch &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Upstream docs:** [https://github.com/tum-pbs/PICT](https://github.com/tum-pbs/PICT)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/pict`
+
+GPU-accelerated differentiable incompressible Navier–Stokes solver built on PyTorch with custom CUDA kernels implementing the PISO algorithm. Supports reverse-mode AD through the full time loop and handles multi-block curvilinear grids. The Mosaic Tesseract exposes periodic, lid-driven cavity, inflow/channel, and cylinder-wake modes via an 8-block ring topology.
+
+::: {.callout-warning}
+#### Known limitations
+
+- Viscosity is not differentiable: PISOtorch_diff treats viscosity as a static scalar. Differentiation w.r.t. viscosity would require upstream changes to the C++/CUDA kernels.
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+### Warp-NS
+
+**Scheme:** IPCS (3D), wp.Tape VJP &nbsp;·&nbsp; **Language:** warp &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Upstream docs:** [https://github.com/NVIDIA/warp](https://github.com/NVIDIA/warp)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/warp-ns`
+
+Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels with an FFT-based spectral Poisson solver. Gradients via the wp.Tape kernel-level VJP. Custom solver: the framework provides differentiable kernels but no ready-made incompressible flow solver, so FE assembly and time integration were implemented using Warp primitives. Represents the integration cost when a kernel toolkit provides no built-in solver.
+
+::: {.callout-warning}
+#### Known limitations
+
+- Spectral pressure solve requires periodic boundary conditions. Excluded from channel/cylinder-wake experiments.
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `num_iters_poisson` | `int` |  | Minimum number of Jacobi iterations per 2-D streamfunction Poisson solve. The solver auto-scales to max(this value, min(4*N², 8000)) at runtime, so convergence is maintained across grid sizes N=16..128 without manual tuning.  For N≥128 with production accuracy, a multigrid or FFT Poisson solver is recommended as Jacobi is capped at 8000 iterations. |
+| `num_iters_poisson_3d` | `int` |  | Number of Jacobi iterations per 3-D pressure Poisson solve. 800 iterations is adequate for N≤32; increase for larger grids. |
+
+**Outputs:** —
+
+:::
+
+### XLB
+
+**Scheme:** LBM KBC/BGK D3Q27 &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** Yes
+
+**Upstream docs:** [https://github.com/Autodesk/XLB](https://github.com/Autodesk/XLB)
+
+**Path:** `mosaic/tesseracts/navier-stokes-grid/xlb`
+
+JAX-native lattice Boltzmann solver supporting D2Q9 and D3Q19 stencils on GPU. Gradients via source-transformation AD through the collision-streaming loop. Note: the LBM recovers incompressible Navier–Stokes only to O(Ma²) via Chapman–Enskog expansion, giving an intrinsic compressibility error floor at fine grids.
+
+::: {.callout-warning}
+#### Known limitations
+
+- Intrinsic O(Ma²) compressibility error: the LBM recovers incompressible NS only approximately. At N=128, dt=0.01, Ma ≈ 0.2, giving ~4% error floor.
+- BGK collision instability at low viscosity: relaxation time approaches the stability boundary as viscosity decreases.
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+
+## Structural Mechanics
+
+### deal.II
+
+**Scheme:** FEM Q1 linear elasticity (SIMP, analytic self-adjoint gradient) &nbsp;·&nbsp; **Language:** dealii &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/structural-mesh/dealii`
+
+Solves structural problems with Q1 elements using the industry-grade C++ finite-element library deal.II. Gradients via hand-derived analytical adjoint sensitivities. Used as the reference solver for structural and thermal domains.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `E_max` | `float` |  | Young's modulus of the fully solid material [MPa]. |
+| `nu` | `float` |  | Poisson's ratio. |
+| `xmin` | `float` |  | Void stiffness ratio (E_min = xmin * E_max). |
+| `penal` | `float` |  | SIMP penalisation exponent (E(ρ) = E_min + (E_max−E_min)·ρ^penal). |
+
+**Outputs:** —
+
+:::
+
+### FEniCS
+
+**Scheme:** FEM CG1 linear elasticity (SIMP, dolfin-adjoint) &nbsp;·&nbsp; **Language:** fenics &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/structural-mesh/fenics`
+
+Finite-element solver using P1 elements for structural problems. dolfin-adjoint automates the discrete adjoint by replaying the forward tape.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `E_max` | `float` |  | Young's modulus of the fully solid material. |
+| `nu` | `float` |  | Poisson's ratio. |
+| `xmin` | `float` |  | Void stiffness ratio (E_min = xmin * E_max). |
+| `penal` | `float` |  | SIMP penalisation exponent (E(rho) = E_min + (E_max-E_min)*rho^penal). |
+
+**Outputs:** —
+
+:::
+
+### Firedrake
+
+**Scheme:** FEM CG1 linear elasticity (SIMP, pyadjoint ReducedFunctional) &nbsp;·&nbsp; **Language:** firedrake &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/structural-mesh/firedrake`
+
+Mirrors the FEniCS P1/CG1 formulation for structural problems. Differentiates via firedrake-adjoint, providing an independent tape-based adjoint implementation for cross-validation.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `E_max` | `float` |  | Young's modulus of the fully solid material. |
+| `nu` | `float` |  | Poisson's ratio. |
+| `xmin` | `float` |  | Void stiffness ratio (E_min = xmin * E_max). |
+| `penal` | `float` |  | SIMP penalisation exponent (E(rho) = E_min + (E_max-E_min)*rho^penal). |
+
+**Outputs:** —
+
+:::
+
+### JAX-FEM
+
+**Scheme:** FEM HEX8 linear elasticity (SIMP, adjoint AD) &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Hybrid (analytic rules + AD) &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Path:** `mosaic/tesseracts/structural-mesh/jax-fem`
+
+Solves heat conduction and linear elasticity with trilinear HEX8 finite elements in JAX. Gradients via AD through the assembled system.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+### TopOpt.jl
+
+**Scheme:** FEM HEX8 linear elasticity (SIMP, analytical adjoint) &nbsp;·&nbsp; **Language:** julia &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/structural-mesh/topopt-jl`
+
+SIMP topology optimization for linear elasticity with HEX8 elements in Julia, using analytical adjoint sensitivities.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `E` | `float` |  | Young's modulus of the solid material. |
+| `nu` | `float` |  | Poisson's ratio. |
+| `xmin` | `float` |  | Minimum density (void stiffness) to prevent singular stiffness matrix. |
+
+**Outputs:** —
+
+:::
+
+
+## Heat Conduction
+
+### deal.II
+
+**Scheme:** FEM Q1 heat conduction (SIMP, analytic self-adjoint gradient) &nbsp;·&nbsp; **Language:** dealii &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/thermal-mesh/dealii-heat`
+
+Solves thermal problems with Q1 elements using the industry-grade C++ finite-element library deal.II. Gradients via hand-derived analytical adjoint sensitivities. Used as the reference solver for the thermal domain.
+
+::: {.callout-note}
+#### Excluded experiments
+
+- **recovery/conductivity_recovery**: identification_error_rho_vjp_not_implemented
+:::
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `k_max` | `float` |  | Maximum thermal conductivity (fully solid material). |
+| `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
+
+**Outputs:** —
+
+:::
+
+### FEniCS
+
+**Scheme:** FEM P1 heat conduction (SIMP, dolfin-adjoint) &nbsp;·&nbsp; **Language:** fenics &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/thermal-mesh/fenics-heat`
+
+Finite-element solver using P1 elements for thermal problems. dolfin-adjoint automates the discrete adjoint by replaying the forward tape.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `k_max` | `float` |  | Maximum thermal conductivity (fully solid/conducting material). |
+| `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
+
+**Outputs:** —
+
+:::
+
+### Firedrake
+
+**Scheme:** FEM P1 heat conduction (SIMP, firedrake-adjoint) &nbsp;·&nbsp; **Language:** firedrake &nbsp;·&nbsp; **Gradients:** Discrete adjoint &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** No
+
+**Path:** `mosaic/tesseracts/thermal-mesh/firedrake-heat`
+
+Mirrors the FEniCS P1/CG1 formulation for thermal problems. Differentiates via firedrake-adjoint, providing an independent tape-based adjoint implementation for cross-validation.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `k_max` | `float` |  | Maximum thermal conductivity (fully solid/conducting material). |
+| `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
+
+**Outputs:** —
+
+:::
+
+### JAX-FEM
+
+**Scheme:** FEM HEX8 heat conduction (SIMP, adjoint AD) &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Hybrid (analytic rules + AD) &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+
+**Path:** `mosaic/tesseracts/thermal-mesh/jax-fem`
+
+Solves heat conduction and linear elasticity with trilinear HEX8 finite elements in JAX. Gradients via AD through the assembled system.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs:** —
+
+**Outputs:** —
+
+:::
+
+### torch-fem
+
+**Scheme:** FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint) &nbsp;·&nbsp; **Language:** pytorch &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** Yes
+
+**Path:** `mosaic/tesseracts/thermal-mesh/torch-fem`
+
+Solves heat conduction with linear finite elements in PyTorch. Gradients via torch.autograd through the assembled system.
+
+::: {.callout-note collapse="true"}
+#### Inputs / Outputs
+
+**Inputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `k_max` | `float` |  | Maximum thermal conductivity (fully solid material). |
+| `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
+
+**Outputs:** —
+
+:::
+

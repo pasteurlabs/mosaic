@@ -9,10 +9,10 @@ import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmarks.core.config import ProblemConfig
-from benchmarks.core.console import print_saved
-from benchmarks.core.utils import exclusion_lookup, load_json
-from benchmarks.plots.style import (
+from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.console import print_saved
+from mosaic.benchmarks.core.utils import exclusion_lookup, load_json
+from mosaic.benchmarks.plots.style import (
     apply_style,
     fig_shared_legend,
     imshow_with_cbar,
@@ -22,7 +22,6 @@ from benchmarks.plots.style import (
     subplots_grid,
     vorticity_2d,
 )
-
 
 # ── Evolution-GIF helper ──────────────────────────────────────────────────────
 
@@ -47,6 +46,7 @@ def _save_animation(
     anim.save(gif_path, writer=writer)
     print_saved(str(gif_path))
     plt.close(anim._fig)
+
 
 apply_style()
 
@@ -132,7 +132,6 @@ def plot_recovery(
 
     # Support both new schema (by_sweep/failure_values) and old (by_horizon/failure_horizons)
     by_sweep = data.get("by_sweep") or data.get("by_horizon", {})
-    failure_values = data.get("failure_values") or data.get("failure_horizons", {})
     sweep_key = data.get("sweep_key", "steps")
 
     # Collect ordered sweep values from first solver's keys
@@ -146,7 +145,8 @@ def plot_recovery(
     # for sigma sweeps: compute exact error at rep_val, scale linearly for others.
     _fallback_ic_error_init: dict[float, float] = {}
     _has_ic_error_init = any(
-        (s_results.get(v) or s_results.get(str(v)) or {}).get("ic_error_init") is not None
+        (s_results.get(v) or s_results.get(str(v)) or {}).get("ic_error_init")
+        is not None
         for v in sweep_vals
         for s_results in by_sweep.values()
     )
@@ -157,12 +157,18 @@ def plot_recovery(
             if "ic_true" in _npz and "ic_init" in _npz:
                 _ic_t = _npz["ic_true"].astype(float)
                 _ic_i = _npz["ic_init"].astype(float)
-                _rep_v = float((_npz.get("rep_val") or _npz.get("rep_horizon", np.array([0])))[0])
-                _ic_t_norm = float(np.sqrt(np.mean(_ic_t ** 2)))
+                _rep_v = float(
+                    (_npz.get("rep_val") or _npz.get("rep_horizon", np.array([0])))[0]
+                )
+                _ic_t_norm = float(np.sqrt(np.mean(_ic_t**2)))
                 if _ic_t_norm > 0 and _rep_v > 0:
-                    _rep_err = float(np.sqrt(np.mean((_ic_i - _ic_t) ** 2))) / _ic_t_norm
+                    _rep_err = (
+                        float(np.sqrt(np.mean((_ic_i - _ic_t) ** 2))) / _ic_t_norm
+                    )
                     for _v in sweep_vals:
-                        _fallback_ic_error_init[float(_v)] = _rep_err * float(_v) / _rep_v
+                        _fallback_ic_error_init[float(_v)] = (
+                            _rep_err * float(_v) / _rep_v
+                        )
 
     # ── recovery.png: 2 panels ─────────────────────────────────────────────────
     # Left:  IC recovery improvement vs sweep value (one line per solver)
@@ -178,7 +184,9 @@ def plot_recovery(
             if r is None:
                 continue
             xs_ic.append(float(v))
-            _ic_init_val = r.get("ic_error_init") or _fallback_ic_error_init.get(float(v))
+            _ic_init_val = r.get("ic_error_init") or _fallback_ic_error_init.get(
+                float(v)
+            )
             if _ic_init_val:
                 ys_ic.append((r["final_ic_error"] - _ic_init_val) / _ic_init_val)
             else:
@@ -188,15 +196,21 @@ def plot_recovery(
                 xs_loss.append(float(v))
                 ys_loss.append(min(errors))
         if xs_ic:
-            ax1.plot(xs_ic, ys_ic, label=sty.get("label", name), **solver_plot_props(sty))
+            ax1.plot(
+                xs_ic, ys_ic, label=sty.get("label", name), **solver_plot_props(sty)
+            )
         if xs_loss:
-            ax2.semilogy(xs_loss, ys_loss, label=sty.get("label", name), **solver_plot_props(sty))
+            ax2.semilogy(
+                xs_loss, ys_loss, label=sty.get("label", name), **solver_plot_props(sty)
+            )
 
     ax1.axhline(0, color="gray", ls="--", lw=1, alpha=0.5)
     ax1.axhline(-1, color="gray", ls=":", lw=1, alpha=0.4)
     ax1.set_xlabel(sweep_key)
     ax1.set_ylabel("Normalised Δ IC error  (final − init) / init")
-    ax1.set_title(f"IC recovery improvement vs {sweep_key}\n(−1 = perfect, 0 = no gain)")
+    ax1.set_title(
+        f"IC recovery improvement vs {sweep_key}\n(−1 = perfect, 0 = no gain)"
+    )
     ax1.grid(True, which="both", alpha=0.3)
 
     ax2.set_xlabel(sweep_key)
@@ -280,7 +294,9 @@ def plot_recovery(
         return fig_r
 
     npz = np.load(fields_path)
-    rep_horizon = float((npz.get("rep_val") or npz.get("rep_horizon", np.array([0])))[0])
+    rep_horizon = float(
+        (npz.get("rep_val") or npz.get("rep_horizon", np.array([0])))[0]
+    )
     rep_horizon_str = f"{rep_horizon:g}"
     solver_names = npz["solver_names"].tolist()
     ic_true = npz["ic_true"]
@@ -384,8 +400,14 @@ def plot_recovery(
                     continue
                 v_use = np.abs(arr).max() if v is None else v
                 imshow_with_cbar(
-                    ax, fig_fin, arr.T, origin="lower",
-                    cmap="RdBu_r", vmin=-v_use, vmax=v_use, interpolation="nearest",
+                    ax,
+                    fig_fin,
+                    arr.T,
+                    origin="lower",
+                    cmap="RdBu_r",
+                    vmin=-v_use,
+                    vmax=v_use,
+                    interpolation="nearest",
                 )
                 if j == 0:
                     ax.set_title(title)
@@ -406,19 +428,33 @@ def plot_recovery(
         sweep_vals_arr = npz["sweep_values"]
         f_vis = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
         w_ic_true = f_vis(ic_true)
-        w_final_true = f_vis(npz["final_gt_shared"]) if "final_gt_shared" in npz else None
-        ic_perturbed_all = npz["ic_perturbed_all"] if "ic_perturbed_all" in npz else None
+        w_final_true = (
+            f_vis(npz["final_gt_shared"]) if "final_gt_shared" in npz else None
+        )
+        ic_perturbed_all = (
+            npz["ic_perturbed_all"] if "ic_perturbed_all" in npz else None
+        )
         ncols = 6
         for si, sv in enumerate(sweep_vals_arr):
-            w_ic_pert = f_vis(ic_perturbed_all[si]) if ic_perturbed_all is not None else None
+            w_ic_pert = (
+                f_vis(ic_perturbed_all[si]) if ic_perturbed_all is not None else None
+            )
             fig_sg, axes_sg = plt.subplots(
-                n_solvers, ncols,
+                n_solvers,
+                ncols,
                 figsize=(ncols * 2.6, n_solvers * 2.6),
                 squeeze=False,
             )
             vmax_ic = np.abs(w_ic_true).max() or 1.0
             vmax_fin = np.abs(w_final_true).max() if w_final_true is not None else 1.0
-            col_titles = ["True IC", "Pert. IC", "Rec IC", "True Final", "Pert. Final", "Rec Final"]
+            col_titles = [
+                "True IC",
+                "Pert. IC",
+                "Rec IC",
+                "True Final",
+                "Pert. Final",
+                "Rec Final",
+            ]
             for j, name in enumerate(solver_names):
                 lbl = styles.get(name, {}).get("label", name)
                 all_ic_key = f"ic_rec_all_{j}"
@@ -442,8 +478,14 @@ def plot_recovery(
                         continue
                     v_use = vmax_p if vmax_p else np.abs(arr).max() or 1.0
                     imshow_with_cbar(
-                        ax, fig_sg, arr.T, origin="lower",
-                        cmap="RdBu_r", vmin=-v_use, vmax=v_use, interpolation="nearest",
+                        ax,
+                        fig_sg,
+                        arr.T,
+                        origin="lower",
+                        cmap="RdBu_r",
+                        vmin=-v_use,
+                        vmax=v_use,
+                        interpolation="nearest",
                     )
                     if j == 0:
                         ax.set_title(col_titles[col])
@@ -451,9 +493,7 @@ def plot_recovery(
                         ax.set_ylabel(lbl, fontsize=8)
                     ax.axis("off")
             sv_str = f"{sv:.2g}".rstrip("0").rstrip(".")
-            fig_sg.suptitle(
-                f"{cfg.name} — {sweep_key}={sv_str} · all solvers", y=1.01
-            )
+            fig_sg.suptitle(f"{cfg.name} — {sweep_key}={sv_str} · all solvers", y=1.01)
             fig_sg.tight_layout()
             if save:
                 save_fig(fig_sg, f"recovery_sigma_{sv_str}", out_dir)
@@ -508,12 +548,18 @@ def _render_recovery_evolution_gifs(
         ax.axis("off")
         fig.tight_layout()
 
-        def _update(idx, _im=im, _title=title, _frames=frames_2d,
-                    _label=label, _n=n_frames, _sk=sweep_key, _sv=rep_horizon):
+        def _update(
+            idx,
+            _im=im,
+            _title=title,
+            _frames=frames_2d,
+            _label=label,
+            _n=n_frames,
+            _sk=sweep_key,
+            _sv=rep_horizon,
+        ):
             _im.set_data(_frames[idx].T)
-            _title.set_text(
-                f"{_label} — snapshot {idx + 1} / {_n}  ({_sk}={_sv})"
-            )
+            _title.set_text(f"{_label} — snapshot {idx + 1} / {_n}  ({_sk}={_sv})")
             return _im, _title
 
         anim = manimation.FuncAnimation(
@@ -558,7 +604,9 @@ def plot_recovery_evolution_sidebyside(
         return
 
     n_frames = min(len(f) for f in all_frames)
-    vmax = float(max(np.abs(arr).max() for frames in all_frames for arr in frames)) or 1.0
+    vmax = (
+        float(max(np.abs(arr).max() for frames in all_frames for arr in frames)) or 1.0
+    )
     labels = [styles.get(n, {}).get("label", n) for n in active_names]
 
     n_solvers = len(active_names)
@@ -568,15 +616,20 @@ def plot_recovery_evolution_sidebyside(
     ims = []
     for ax, frames, label in zip(axes, all_frames, labels):
         im = ax.imshow(
-            frames[0].T, origin="lower", cmap="RdBu_r",
-            vmin=-vmax, vmax=vmax, interpolation="nearest",
+            frames[0].T,
+            origin="lower",
+            cmap="RdBu_r",
+            vmin=-vmax,
+            vmax=vmax,
+            interpolation="nearest",
         )
         ax.set_title(label, fontsize=8)
         ax.axis("off")
         ims.append(im)
 
     sup = fig.suptitle(
-        f"{cfg.name} — IC evolution ({sweep_key}={rep_val:.2f}) — 1/{n_frames}", fontsize=9
+        f"{cfg.name} — IC evolution ({sweep_key}={rep_val:.2f}) — 1/{n_frames}",
+        fontsize=9,
     )
     fig.tight_layout()
 
@@ -584,11 +637,13 @@ def plot_recovery_evolution_sidebyside(
         for im, frames in zip(ims, all_frames):
             im.set_data(frames[idx].T)
         sup.set_text(
-            f"{cfg.name} — IC evolution ({sweep_key}={rep_val:.2f}) — {idx+1}/{n_frames}"
+            f"{cfg.name} — IC evolution ({sweep_key}={rep_val:.2f}) — {idx + 1}/{n_frames}"
         )
         return ims + [sup]
 
-    anim = manimation.FuncAnimation(fig, _update, frames=n_frames, interval=250, blit=False)
+    anim = manimation.FuncAnimation(
+        fig, _update, frames=n_frames, interval=250, blit=False
+    )
     if save:
         _save_animation(anim, "recovery_evolution_all", out_dir, fps=4)
 
@@ -606,7 +661,9 @@ def plot_recovery_2panel(
     styles = solver_styles(cfg, differentiable_only=True)
 
     if threshold is None:
-        threshold = data.get("params", {}).get("optim", {}).get("failure_threshold", 0.5)
+        threshold = (
+            data.get("params", {}).get("optim", {}).get("failure_threshold", 0.5)
+        )
 
     by_sweep = data.get("by_sweep") or data.get("by_horizon", {})
     sweep_key = data.get("sweep_key", "steps")
@@ -629,7 +686,9 @@ def plot_recovery_2panel(
             xs.append(float(v))
             ic_errors.append(r["final_ic_error"])
             errors = r.get("errors") or []
-            loss_diffs.append(float(errors[-1] - errors[0]) if len(errors) >= 2 else 0.0)
+            loss_diffs.append(
+                float(errors[-1] - errors[0]) if len(errors) >= 2 else 0.0
+            )
 
         if xs:
             kw = solver_plot_props(sty)
@@ -683,23 +742,28 @@ def plot_recovery_field_grid(
     # Collect per-solver arrays and compute shared vmaxes up front.
     solver_arrays = []
     for j in range(len(solver_names)):
-        w_rec  = f_ic(npz[f"ic_rec_{j}"])    if f"ic_rec_{j}"    in npz else None
-        w_fgt  = f_ic(npz[f"final_gt_{j}"])  if f"final_gt_{j}"  in npz else None
+        w_rec = f_ic(npz[f"ic_rec_{j}"]) if f"ic_rec_{j}" in npz else None
+        w_fgt = f_ic(npz[f"final_gt_{j}"]) if f"final_gt_{j}" in npz else None
         w_frec = f_ic(npz[f"final_rec_{j}"]) if f"final_rec_{j}" in npz else None
         solver_arrays.append((w_rec, w_fgt, w_frec))
 
     n_solvers = len(solver_names)
     ncols = 7
     col_titles = [
-        "True IC", "Perturbed IC",
-        "Recovered IC", "Rec Residual",
-        "True Final", "Rec Final", "Final Residual",
+        "True IC",
+        "Perturbed IC",
+        "Recovered IC",
+        "Rec Residual",
+        "True Final",
+        "Rec Final",
+        "Final Residual",
     ]
 
     cell = 2.2
     label_w = 0.8
     fig, axes = plt.subplots(
-        n_solvers, ncols,
+        n_solvers,
+        ncols,
         figsize=(label_w + ncols * cell, n_solvers * cell),
         squeeze=False,
     )
@@ -724,16 +788,29 @@ def plot_recovery_field_grid(
             if j == 0:
                 ax.set_title(col_titles[col], fontsize=7, pad=2)
             if col == 0:
-                ax.text(-0.12, 0.5, lbl, transform=ax.transAxes,
-                        fontsize=8, ha="right", va="center")
+                ax.text(
+                    -0.12,
+                    0.5,
+                    lbl,
+                    transform=ax.transAxes,
+                    fontsize=8,
+                    ha="right",
+                    va="center",
+                )
             if arr is None:
                 continue
             ax.axis("on")
             v_use = np.abs(arr).max() or 1.0
             cmap = "PuOr_r" if col in (3, 6) else "RdBu_r"
-            im = ax.imshow(arr.T, origin="lower", cmap=cmap,
-                           vmin=-v_use, vmax=v_use, interpolation="nearest",
-                           aspect="equal")
+            im = ax.imshow(
+                arr.T,
+                origin="lower",
+                cmap=cmap,
+                vmin=-v_use,
+                vmax=v_use,
+                interpolation="nearest",
+                aspect="equal",
+            )
             ax.set_xticks([])
             ax.set_yticks([])
             for spine in ax.spines.values():
@@ -1014,7 +1091,9 @@ def plot_recovery_sigma_sweep(cfg: ProblemConfig, save: bool = True, suffix: str
 # ── T1: topology optimisation ─────────────────────────────────────────────────
 
 
-def plot_topopt(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "topopt"):
+def plot_topopt(
+    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "topopt"
+):
     """Two files: compliance + volume fraction convergence; initial + final density fields."""
     out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
@@ -1084,9 +1163,7 @@ def plot_topopt(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key
 
     # ── density evolution GIFs ────────────────────────────────────────────────
     if save:
-        _render_topopt_evolution_gifs(
-            out_dir, npz, solver_names, params_all, styles
-        )
+        _render_topopt_evolution_gifs(out_dir, npz, solver_names, params_all, styles)
 
     # ── 3D voxel plots of final density ──────────────────────────────────────
     if save:
@@ -1266,8 +1343,15 @@ def _render_topopt_evolution_gifs(
         ax.axis("off")
         fig.tight_layout()
 
-        def _update(idx, _im=im, _title=title, _hist=history, _params=params_all,
-                    _label=label, _n=n_frames):
+        def _update(
+            idx,
+            _im=im,
+            _title=title,
+            _hist=history,
+            _params=params_all,
+            _label=label,
+            _n=n_frames,
+        ):
             _im.set_data(_rho_to_2d(_hist[idx], _params))
             _title.set_text(f"{_label} — iter {idx + 1} / {_n}")
             return _im, _title
@@ -1305,7 +1389,11 @@ def plot_source_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""
         errors = res.get("errors", [])
         sty = styles.get(name, {})
         if errors:
-            ax_lc.semilogy(errors, label=sty.get("label", name), **solver_plot_props(sty, marker=False))
+            ax_lc.semilogy(
+                errors,
+                label=sty.get("label", name),
+                **solver_plot_props(sty, marker=False),
+            )
         final_errors.append(float(res.get("final_error", 0.0)))
 
     ax_lc.set_xlabel("Iteration")
@@ -1333,9 +1421,7 @@ def plot_source_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""
             cfg, fields_path, out_dir, names, styles, save=save
         )
         if save:
-            _render_source_recovery_evolution_gifs(
-                fields_path, out_dir, names, styles
-            )
+            _render_source_recovery_evolution_gifs(fields_path, out_dir, names, styles)
     return fig
 
 
@@ -1381,8 +1467,12 @@ def _render_source_recovery_evolution_gifs(
         fig, ax = plt.subplots(figsize=(6, 3.5))
         if source_init is not None:
             ax.plot(
-                xs, source_init,
-                color="black", linestyle="--", linewidth=1.2, label="init",
+                xs,
+                source_init,
+                color="black",
+                linestyle="--",
+                linewidth=1.2,
+                label="init",
             )
         (line,) = ax.plot(xs, hist[0], color=color, linewidth=1.8, label=label)
         ax.set_xlabel("Cell index")
@@ -1392,8 +1482,9 @@ def _render_source_recovery_evolution_gifs(
         ax.legend(fontsize=8, loc="best")
         fig.tight_layout()
 
-        def _update(idx, _line=line, _title=title, _hist=hist, _label=label,
-                    _n=n_frames):
+        def _update(
+            idx, _line=line, _title=title, _hist=hist, _label=label, _n=n_frames
+        ):
             _line.set_ydata(_hist[idx])
             _title.set_text(f"{_label} — snapshot {idx + 1} / {_n}")
             return _line, _title
@@ -1600,7 +1691,9 @@ def _plot_source_recovery_fields(
     )
 
 
-def _source_recovery_grid_dims(cfg: ProblemConfig) -> tuple[int, int, int, float, float]:
+def _source_recovery_grid_dims(
+    cfg: ProblemConfig,
+) -> tuple[int, int, int, float, float]:
     """Return canonical (nx, ny, nz, Lx, Ly) for source_recovery runs.
 
     Reads the first run's ``physics`` from
@@ -1730,14 +1823,14 @@ def _plot_source_recovery_thermal(
     is present (older npz payloads written before ARCH-8).
     """
     # Collect available solver temperature_final keys.
-    final_names = [
-        n for n in solver_names if f"temperature_final_{n}" in npz.files
-    ]
+    final_names = [n for n in solver_names if f"temperature_final_{n}" in npz.files]
     if not final_names:
         return
 
     T_truth = (
-        np.asarray(npz["temperature_truth"]) if "temperature_truth" in npz.files else None
+        np.asarray(npz["temperature_truth"])
+        if "temperature_truth" in npz.files
+        else None
     )
 
     nx, ny, nz, Lx, Ly = _source_recovery_grid_dims(cfg)
@@ -1856,7 +1949,9 @@ def _plot_source_recovery_thermal(
         save_fig(fig, "source_recovery_thermal", out_dir)
 
 
-def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "lid_cavity") -> None:
+def plot_lid_cavity(
+    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "lid_cavity"
+) -> None:
     """Plot lid_cavity results: loss curves per solver and sweep value (U_x_true).
 
     Two panels per figure:
@@ -1884,10 +1979,12 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
     # periodic-only BC). Old runs may have left their data in result.json / NPZ
     # via merge semantics; re-filter here so plots reflect the current config.
     solver_names = [
-        n for n in by_sweep.keys()
+        n
+        for n in by_sweep.keys()
         if not (
             n in cfg.solvers
-            and exclusion_lookup(cfg.solvers[n].exclusions, "recovery", exp_key) is not None
+            and exclusion_lookup(cfg.solvers[n].exclusions, "recovery", exp_key)
+            is not None
         )
     ]
 
@@ -1910,7 +2007,9 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
 
     # ── Loss convergence curves: one panel per non-trivial U_x_true ──────────
     if non_trivial_vals:
-        fig_lc, axes_lc = subplots_grid(len(non_trivial_vals), panel_w=6, panel_h=4, sharey=True)
+        fig_lc, axes_lc = subplots_grid(
+            len(non_trivial_vals), panel_w=6, panel_h=4, sharey=True
+        )
         for ax, v in zip(axes_lc, non_trivial_vals):
             for name in solver_names:
                 s_results = by_sweep[name]
@@ -2019,6 +2118,7 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
             and float(v.get("initial_loss", 0)) > 0
             for v in by_sweep.get(name, {}).values()
         )
+
     fld_solver_names = [n for n in solver_names if _has_nontrivial_data(n)]
 
     # vmax spans init and the largest true lid so the colour scale is
@@ -2044,8 +2144,12 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
     def _show(ax, arr2d, title, *, cmap="RdBu_r", sym_vmax=None):
         half = sym_vmax if sym_vmax is not None else vmax
         im_ = ax.imshow(
-            arr2d.T, origin="lower", cmap=cmap,
-            vmin=-half, vmax=half, interpolation="nearest",
+            arr2d.T,
+            origin="lower",
+            cmap=cmap,
+            vmin=-half,
+            vmax=half,
+            interpolation="nearest",
         )
         ax.set_title(title, fontsize=8)
         ax.axis("off")
@@ -2070,15 +2174,30 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
         ncols = 2 + n_fld_solvers
         nrows = 2
         fig_fld, axes_fld = plt.subplots(
-            nrows, ncols, figsize=(ncols * 3, nrows * 3.5), squeeze=False,
+            nrows,
+            ncols,
+            figsize=(ncols * 3, nrows * 3.5),
+            squeeze=False,
         )
 
         bp = boundary_pad
         true_ux = lid_true[bp or None : (-bp or None), bp or None : (-bp or None), 0]
 
-        true_label = f"True lid u_x\n(A={u_val}, {ic_mode})" if ic_mode else f"True lid u_x\n(U_x={u_val})"
-        init_ux_show = lid_init[bp or None : (-bp or None), bp or None : (-bp or None), 0]
-        _show(axes_fld[0, 0], init_ux_show, f"Init lid u_x\n(A={U_x_ic})" if ic_mode else f"Init lid u_x\n(U_x={U_x_ic})")
+        true_label = (
+            f"True lid u_x\n(A={u_val}, {ic_mode})"
+            if ic_mode
+            else f"True lid u_x\n(U_x={u_val})"
+        )
+        init_ux_show = lid_init[
+            bp or None : (-bp or None), bp or None : (-bp or None), 0
+        ]
+        _show(
+            axes_fld[0, 0],
+            init_ux_show,
+            f"Init lid u_x\n(A={U_x_ic})"
+            if ic_mode
+            else f"Init lid u_x\n(U_x={U_x_ic})",
+        )
         _show(axes_fld[0, 1], true_ux, true_label)
         axes_fld[1, 0].axis("off")
         axes_fld[1, 1].axis("off")
@@ -2089,13 +2208,21 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
             ax_bot = axes_fld[1, j + 2]
             lid_opt = _get_opt_field(name, u_t)
             if lid_opt is not None:
-                arr_ux = lid_opt[bp or None : (-bp or None), bp or None : (-bp or None), 0]
+                arr_ux = lid_opt[
+                    bp or None : (-bp or None), bp or None : (-bp or None), 0
+                ]
                 if np.any(np.isfinite(arr_ux)):
                     _show(ax_top, arr_ux, f"Opt lid u_x\n({label})")
                     resid = arr_ux - true_ux
                     resid_finite = resid[np.isfinite(resid)]
-                    resid_max = float(np.abs(resid_finite).max()) + 1e-8 if resid_finite.size else 1e-8
-                    _show(ax_bot, resid, f"Residual\n({label} − true)", sym_vmax=resid_max)
+                    resid_max = (
+                        float(np.abs(resid_finite).max()) + 1e-8
+                        if resid_finite.size
+                        else 1e-8
+                    )
+                    _show(
+                        ax_bot, resid, f"Residual\n({label} − true)", sym_vmax=resid_max
+                    )
                 else:
                     ax_top.set_title(f"{label}\n(NaN — failed)", fontsize=8)
                     ax_top.axis("off")
@@ -2109,7 +2236,8 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
         fig_fld.suptitle(
             f"{cfg.name} — lid_cavity fields A={u_val}{suptitle_mode} (u_x component)\n"
             "Row 2 = residual (opt − true); ideal recovery → all-zero residuals",
-            y=1.01, fontsize=9,
+            y=1.01,
+            fontsize=9,
         )
         fig_fld.tight_layout()
         if save:
@@ -2117,7 +2245,9 @@ def plot_lid_cavity(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp
 
     if save:
         _render_lid_cavity_evolution_gifs(npz, out_dir, fld_solver_names, styles, vmax)
-        _render_lid_cavity_combined_gifs(npz, out_dir, fld_solver_names, styles, vmax, non_trivial_u)
+        _render_lid_cavity_combined_gifs(
+            npz, out_dir, fld_solver_names, styles, vmax, non_trivial_u
+        )
 
 
 def _render_lid_cavity_evolution_gifs(
@@ -2167,20 +2297,17 @@ def _render_lid_cavity_evolution_gifs(
         fig.colorbar(im, ax=ax, fraction=0.04)
         fig.tight_layout()
 
-        def _update(idx, _im=im, _title=title, _hist=hist, _label=label,
-                    _n=n_frames, _u=u_tag):
+        def _update(
+            idx, _im=im, _title=title, _hist=hist, _label=label, _n=n_frames, _u=u_tag
+        ):
             _im.set_data(_hist[idx, :, :, 0].T)
-            _title.set_text(
-                f"{_label} U_x={_u} — snapshot {idx + 1} / {_n}"
-            )
+            _title.set_text(f"{_label} U_x={_u} — snapshot {idx + 1} / {_n}")
             return _im, _title
 
         anim = manimation.FuncAnimation(
             fig, _update, frames=n_frames, interval=250, blit=False
         )
-        _save_animation(
-            anim, f"lid_cavity_evolution_{sname}_{u_tag}", out_dir, fps=4
-        )
+        _save_animation(anim, f"lid_cavity_evolution_{sname}_{u_tag}", out_dir, fps=4)
 
 
 def _render_lid_cavity_combined_gifs(
@@ -2197,6 +2324,7 @@ def _render_lid_cavity_combined_gifs(
     one column per solver so the optimisation trajectories can be compared in
     one view.  Skips U values where no solver has more than one snapshot.
     """
+
     def _u_tag(u_val) -> str:
         return str(int(u_val)) if float(u_val).is_integer() else f"{u_val:g}"
 
@@ -2228,8 +2356,12 @@ def _render_lid_cavity_combined_gifs(
         ims, titles = [], []
         for ax, hist, label in zip(axes, histories, labels):
             im = ax.imshow(
-                hist[0, :, :, 0].T, origin="lower", cmap="RdBu_r",
-                vmin=-vmax, vmax=vmax, interpolation="nearest",
+                hist[0, :, :, 0].T,
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                interpolation="nearest",
             )
             title = ax.set_title(f"{label}\nstep 1/{n_frames}", fontsize=8)
             ax.axis("off")
@@ -2239,7 +2371,9 @@ def _render_lid_cavity_combined_gifs(
         fig.suptitle(f"Lid-cavity optimisation — U_x_true={u_val}", fontsize=9)
         fig.tight_layout()
 
-        def _update(idx, _ims=ims, _titles=titles, _hists=histories, _labels=labels, _n=n_frames):
+        def _update(
+            idx, _ims=ims, _titles=titles, _hists=histories, _labels=labels, _n=n_frames
+        ):
             artists = []
             for im_, title_, hist_, label_ in zip(_ims, _titles, _hists, _labels):
                 frame_idx = min(idx, hist_.shape[0] - 1)
@@ -2248,11 +2382,15 @@ def _render_lid_cavity_combined_gifs(
                 artists += [im_, title_]
             return artists
 
-        anim = manimation.FuncAnimation(fig, _update, frames=n_frames, interval=250, blit=False)
+        anim = manimation.FuncAnimation(
+            fig, _update, frames=n_frames, interval=250, blit=False
+        )
         _save_animation(anim, f"lid_cavity_evolution_combined_{u_t}", out_dir, fps=4)
 
 
-def plot_drag_opt(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "drag_opt") -> list:
+def plot_drag_opt(
+    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "drag_opt"
+) -> list:
     """Two-panel plot per run: drag convergence curves + optimised inflow profiles.
 
     Also produces a separate figure (drag_opt_fields) showing velocity magnitude
@@ -2366,7 +2504,7 @@ def _vel_magnitude_2d(v: np.ndarray) -> np.ndarray:
         vx, vy = v[:, :, 0, 0], v[:, :, 0, 1]
     else:
         vx, vy = v[:, :, 0], v[:, :, 1]
-    return np.sqrt(vx ** 2 + vy ** 2)
+    return np.sqrt(vx**2 + vy**2)
 
 
 def _vorticity_2d_arr(v: np.ndarray) -> np.ndarray:
@@ -2406,7 +2544,7 @@ def _plot_drag_opt_fields(
     npz = np.load(fields_path)
     by_solver = data.get("by_solver", {})
     solver_names = [k for k in npz.files if k.startswith("flow_final_")]
-    solver_names_clean = [k[len("flow_final_"):] for k in solver_names]
+    solver_names_clean = [k[len("flow_final_") :] for k in solver_names]
 
     if not solver_names:
         return
@@ -2428,13 +2566,17 @@ def _plot_drag_opt_fields(
     else:
         ux_vmax, uy_vmax = 1.0, 0.5
 
-    def _render_row(row_idx: int, label: str, field: np.ndarray, converged: bool | None):
+    def _render_row(
+        row_idx: int, label: str, field: np.ndarray, converged: bool | None
+    ):
         ux, uy = _vel_components_2d(field)
 
-        for col, (arr, cmap, vmin, vmax, col_title) in enumerate([
-            (ux, "RdBu_r", -ux_vmax, ux_vmax, "$u_x$"),
-            (uy, "RdBu_r", -uy_vmax, uy_vmax, "$u_y$"),
-        ]):
+        for col, (arr, cmap, vmin, vmax, col_title) in enumerate(
+            [
+                (ux, "RdBu_r", -ux_vmax, ux_vmax, "$u_x$"),
+                (uy, "RdBu_r", -uy_vmax, uy_vmax, "$u_y$"),
+            ]
+        ):
             ax = axes_fld[row_idx, col]
             imshow_with_cbar(
                 ax,
@@ -2454,7 +2596,9 @@ def _plot_drag_opt_fields(
         # axis("off") hides set_ylabel, so use ax.text in axes coordinates.
         ax0 = axes_fld[row_idx, 0]
         ax0.text(
-            -0.12, 0.5, label,
+            -0.12,
+            0.5,
+            label,
             transform=ax0.transAxes,
             fontsize=8,
             va="center",
@@ -2538,8 +2682,10 @@ def _render_drag_opt_evolution_gifs(
         n_frames = int(hist.shape[0])
 
         extrema = [
-            float(hist.min()), float(hist.max()),
-            float(initial.min()), float(initial.max()),
+            float(hist.min()),
+            float(hist.max()),
+            float(initial.min()),
+            float(initial.max()),
         ]
         xlo, xhi = min(extrema), max(extrema)
         pad = 0.05 * (xhi - xlo + 1e-12)
@@ -2565,12 +2711,18 @@ def _render_drag_opt_evolution_gifs(
         ax.legend(fontsize=8, loc="best")
         fig.tight_layout()
 
-        def _update(idx, _line=line, _title=title, _hist=hist, _label=label,
-                    _n=n_frames, _rn=run_name):
+        def _update(
+            idx,
+            _line=line,
+            _title=title,
+            _hist=hist,
+            _label=label,
+            _n=n_frames,
+            _rn=run_name,
+        ):
             _line.set_xdata(_hist[idx])
             _title.set_text(
-                f"{_label} — snapshot {idx + 1} / {_n}"
-                + (f"  ({_rn})" if _rn else "")
+                f"{_label} — snapshot {idx + 1} / {_n}" + (f"  ({_rn})" if _rn else "")
             )
             return _line, _title
 
@@ -2583,7 +2735,12 @@ def _render_drag_opt_evolution_gifs(
 # ── Conductivity recovery (thermal-mesh) ─────────────────────────────────────
 
 
-def plot_conductivity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "conductivity_recovery"):
+def plot_conductivity_recovery(
+    cfg: ProblemConfig,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "conductivity_recovery",
+):
     """Two outputs: loss curves + final-error bar; recovered conductivity field comparison.
 
     Files written to ``results/<problem>/optimization/conductivity_recovery<suffix>/``:
@@ -2637,9 +2794,13 @@ def plot_conductivity_recovery(cfg: ProblemConfig, save: bool = True, suffix: st
     # ── 2. Conductivity field comparison + evolution GIFs ─────────────────────
     fields_path = out_dir / "rho_fields.npz"
     if fields_path.exists():
-        _plot_conductivity_recovery_fields(cfg, fields_path, out_dir, names, styles, save=save)
+        _plot_conductivity_recovery_fields(
+            cfg, fields_path, out_dir, names, styles, save=save
+        )
         if save:
-            _render_conductivity_recovery_evolution_gifs(fields_path, out_dir, names, styles)
+            _render_conductivity_recovery_evolution_gifs(
+                fields_path, out_dir, names, styles
+            )
 
     return fig_cv
 
@@ -2757,9 +2918,18 @@ def _render_conductivity_recovery_evolution_gifs(
 
         fig, ax = plt.subplots(figsize=(8, 3.5))
         if rho_truth is not None:
-            ax.plot(xs, rho_truth, color="black", linestyle="--", linewidth=1.2, label="truth")
+            ax.plot(
+                xs,
+                rho_truth,
+                color="black",
+                linestyle="--",
+                linewidth=1.2,
+                label="truth",
+            )
         if rho_init is not None:
-            ax.plot(xs, rho_init, color="gray", linestyle=":", linewidth=1.0, label="init")
+            ax.plot(
+                xs, rho_init, color="gray", linestyle=":", linewidth=1.0, label="init"
+            )
         (line,) = ax.plot(xs, hist[0], color=color, linewidth=1.8, label=label)
         ax.set_xlabel("Cell index")
         ax.set_ylabel("Conductivity ρ")
@@ -2769,19 +2939,28 @@ def _render_conductivity_recovery_evolution_gifs(
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
 
-        def _update(idx, _line=line, _title=title, _hist=hist, _label=label, _n=n_frames):
+        def _update(
+            idx, _line=line, _title=title, _hist=hist, _label=label, _n=n_frames
+        ):
             _line.set_ydata(_hist[idx])
             _title.set_text(f"{_label} — snapshot {idx + 1} / {_n}")
             return _line, _title
 
-        anim = manimation.FuncAnimation(fig, _update, frames=n_frames, interval=250, blit=False)
+        anim = manimation.FuncAnimation(
+            fig, _update, frames=n_frames, interval=250, blit=False
+        )
         _save_animation(anim, f"conductivity_recovery_evolution_{name}", out_dir, fps=4)
 
 
 # ── Load recovery (structural-mesh) ──────────────────────────────────────────
 
 
-def plot_load_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "load_recovery"):
+def plot_load_recovery(
+    cfg: ProblemConfig,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "load_recovery",
+):
     """Three outputs: loss curves, density field comparison, per-solver evolution GIFs.
 
     Inspired by ``plot_source_recovery`` but for structural load recovery.
@@ -2807,9 +2986,13 @@ def plot_load_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "", 
     fields_path = out_dir / "load_fields.npz"
     npz_cv = np.load(fields_path) if fields_path.exists() else None
     rho_truth_flat = (
-        np.asarray(npz_cv["rho_truth"]) if npz_cv is not None and "rho_truth" in npz_cv.files else None
+        np.asarray(npz_cv["rho_truth"])
+        if npz_cv is not None and "rho_truth" in npz_cv.files
+        else None
     )
-    rho_truth_norm = float(np.linalg.norm(rho_truth_flat)) if rho_truth_flat is not None else None
+    rho_truth_norm = (
+        float(np.linalg.norm(rho_truth_flat)) if rho_truth_flat is not None else None
+    )
 
     fig_cv, (ax_lc, ax_err, ax_bar) = plt.subplots(1, 3, figsize=(18, 4))
 
@@ -2834,7 +3017,10 @@ def plot_load_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "", 
                     n_snaps = hist.shape[0]
                     # Map snapshot indices to iteration numbers
                     xs = np.linspace(n_iters / n_snaps, n_iters, n_snaps)
-                    errs = np.linalg.norm(hist - rho_truth_flat[None], axis=1) / rho_truth_norm
+                    errs = (
+                        np.linalg.norm(hist - rho_truth_flat[None], axis=1)
+                        / rho_truth_norm
+                    )
                     ax_err.semilogy(xs, errs, label=label, **plot_kw)
 
     ax_lc.set_xlabel("Iteration")
@@ -2865,9 +3051,13 @@ def plot_load_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "", 
 
     # ── 2. Density field comparison ───────────────────────────────────────────
     if fields_path.exists():
-        _plot_load_recovery_density(cfg, fields_path, out_dir, names, styles, physics, save=save)
+        _plot_load_recovery_density(
+            cfg, fields_path, out_dir, names, styles, physics, save=save
+        )
         if save:
-            _render_load_recovery_evolution_gifs(fields_path, out_dir, names, styles, physics)
+            _render_load_recovery_evolution_gifs(
+                fields_path, out_dir, names, styles, physics
+            )
 
     return fig_cv
 
@@ -2893,11 +3083,13 @@ def _plot_load_recovery_density(
 
     rho_init = (
         _rho_to_2d(np.asarray(npz["rho_init"]), physics)
-        if "rho_init" in npz.files else None
+        if "rho_init" in npz.files
+        else None
     )
     rho_truth = (
         _rho_to_2d(np.asarray(npz["rho_truth"]), physics)
-        if "rho_truth" in npz.files else None
+        if "rho_truth" in npz.files
+        else None
     )
     finals: dict[str, np.ndarray] = {}
     for name in solver_names:
@@ -2915,7 +3107,8 @@ def _plot_load_recovery_density(
     n_rows = 1 + (1 if has_truth and finals else 0)
 
     fig, axes = plt.subplots(
-        n_rows, n_cols,
+        n_rows,
+        n_cols,
         figsize=(max(8.0, n_cols * 2.5), n_rows * 2.8),
         squeeze=False,
     )
@@ -2951,10 +3144,7 @@ def _plot_load_recovery_density(
 
     # Row 1: per-solver density error |ρ_final − ρ_truth|
     if has_truth and finals and n_rows > 1:
-        err_max = max(
-            float(np.abs(finals[n] - rho_truth).max())
-            for n in finals
-        )
+        err_max = max(float(np.abs(finals[n] - rho_truth).max()) for n in finals)
         for i, name in enumerate(finals):
             c = i + n_ref
             if c >= n_cols:
@@ -2962,8 +3152,14 @@ def _plot_load_recovery_density(
             ax = axes[1, c]
             ax.set_visible(True)
             err = np.abs(finals[name] - rho_truth)
-            ax.imshow(err, cmap="Reds", vmin=0.0, vmax=max(err_max, 1e-9),
-                      origin="lower", aspect="auto")
+            ax.imshow(
+                err,
+                cmap="Reds",
+                vmin=0.0,
+                vmax=max(err_max, 1e-9),
+                origin="lower",
+                aspect="auto",
+            )
             sty = styles.get(name, {})
             ax.set_title(f"|Δρ| — {sty.get('label', name)}", fontsize=9)
             ax.axis("off")
@@ -3003,31 +3199,40 @@ def _render_load_recovery_evolution_gifs(
         label = sty.get("label", name)
 
         fig, axes = plt.subplots(
-            1, 1 + (1 if rho_truth_flat is not None else 0),
+            1,
+            1 + (1 if rho_truth_flat is not None else 0),
             figsize=(8 if rho_truth_flat is not None else 4, 3),
         )
         if not isinstance(axes, np.ndarray):
             axes = np.array([axes])
 
-        rho_2d_truth = _rho_to_2d(rho_truth_flat, physics) if rho_truth_flat is not None else None
+        rho_2d_truth = (
+            _rho_to_2d(rho_truth_flat, physics) if rho_truth_flat is not None else None
+        )
 
         if rho_2d_truth is not None:
-            axes[0].imshow(rho_2d_truth, cmap="gray_r", vmin=0.0, vmax=1.0,
-                           origin="lower", aspect="auto")
+            axes[0].imshow(
+                rho_2d_truth,
+                cmap="gray_r",
+                vmin=0.0,
+                vmax=1.0,
+                origin="lower",
+                aspect="auto",
+            )
             axes[0].set_title("ρ truth", fontsize=9)
             axes[0].axis("off")
             ax_anim = axes[1]
         else:
             ax_anim = axes[0]
 
-        im = ax_anim.imshow(hist[0], cmap="gray_r", vmin=0.0, vmax=1.0,
-                            origin="lower", aspect="auto")
+        im = ax_anim.imshow(
+            hist[0], cmap="gray_r", vmin=0.0, vmax=1.0, origin="lower", aspect="auto"
+        )
         ax_anim.axis("off")
         title = ax_anim.set_title(f"{label} — iter 1 / {n_frames}", fontsize=9)
         fig.tight_layout()
 
-        def _update(idx, _im=im, _title=title, _hist=hist,
-                    _label=label, _n=n_frames):
+        def _update(idx, _im=im, _title=title, _hist=hist, _label=label, _n=n_frames):
             _im.set_data(_hist[idx])
             _title.set_text(f"{_label} — iter {idx + 1} / {_n}")
             return _im, _title

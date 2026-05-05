@@ -20,10 +20,9 @@ InputSchema::
         xmin: float = Field(default=0.001, description="Minimum (void) stiffness.")
 """
 
+from mosaic_shared.types import HexMesh, MeshBC
 from pydantic import BaseModel, Field
 from tesseract_core.runtime import Array, Differentiable, Float32
-
-from mosaic_shared.types import HexMesh, MeshBC
 
 
 class InputSchema(BaseModel):

@@ -370,7 +370,6 @@ def is_valid(arr) -> bool:
 # ── Misc ──────────────────────────────────────────────────────────────────────
 
 
-
 # Keys consumed by suite runners — never forwarded to make_ic / make_inputs.
 # Used only by run_diagnostics which retains the legacy flat-dict config format.
 SUITE_KEYS: frozenset = frozenset(
@@ -408,7 +407,6 @@ SUITE_KEYS: frozenset = frozenset(
         "k_svd",
     }
 )
-
 
 
 def physics_params(p: dict, extra: frozenset = frozenset()) -> dict:

@@ -6,16 +6,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
-from benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.utils import l2_error_rel
 
 _GYM_DIR = Path(__file__).parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "navier-stokes-grid"
 
 _SOLVERS: dict[str, SolverSpec] = {
     "exponax": SolverSpec(
-        name="Exponax", backend="jax", family="spectral",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="Exponax",
+        backend="jax",
+        family="spectral",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="exponax",
         color="#33AA99",
         linestyle="-",
@@ -34,8 +39,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         exclusions={},
     ),
     "phiflow": SolverSpec(
-        name="PhiFlow", backend="jax", family="projection",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="PhiFlow",
+        backend="jax",
+        family="projection",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="phiflow",
         color="#EE3333",
         linestyle="--",
@@ -66,8 +76,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "xlb": SolverSpec(
-        name="XLB", backend="jax", family="lbm",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float64",
+        name="XLB",
+        backend="jax",
+        family="lbm",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float64",
         dir="xlb",
         color="#66CCEE",
         linestyle="-.",
@@ -88,8 +103,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         explained_anomalies={},
     ),
     "ins_jl": SolverSpec(
-        name="INS.jl", backend="julia", family="projection",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=False, internal_dtype="float64",
+        name="INS.jl",
+        backend="julia",
+        family="projection",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="incompressible-navier-stokes-jl",
         color="#228833",
         linestyle=":",
@@ -116,8 +136,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "warp_ns": SolverSpec(
-        name="Warp-NS", backend="warp", family="fd",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="Warp-NS",
+        backend="warp",
+        family="fd",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="warp-ns",
         color="#EE7733",
         linestyle=(0, (5, 1)),
@@ -133,8 +158,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         exclusions={},
     ),
     "openfoam": SolverSpec(
-        name="OpenFOAM", backend="cpp", family="projection",
-        differentiable=False, ad_strategy=None, uses_gpu=False, internal_dtype="float64",
+        name="OpenFOAM",
+        backend="cpp",
+        family="projection",
+        differentiable=False,
+        ad_strategy=None,
+        uses_gpu=False,
+        internal_dtype="float64",
         dir="openfoam",
         color="#DDAA33",
         linestyle=(0, (3, 1, 1, 1)),
@@ -161,8 +191,13 @@ _SOLVERS: dict[str, SolverSpec] = {
         },
     ),
     "pict": SolverSpec(
-        name="PICT", backend="pytorch", family="projection",
-        differentiable=True, ad_strategy="autodiff", uses_gpu=True, internal_dtype="float32",
+        name="PICT",
+        backend="pytorch",
+        family="projection",
+        differentiable=True,
+        ad_strategy="autodiff",
+        uses_gpu=True,
+        internal_dtype="float32",
         dir="pict",
         color="#AA44AA",
         linestyle=(0, (1, 1)),
@@ -273,9 +308,18 @@ def _rand_div_free_3d(
     envelope = jnp.exp(-0.5 * ((K_abs - k_peak) / k_width) ** 2)
     keys = jax.random.split(key, 6)
     kfac = 2.0 * jnp.pi / L
-    Ax = (jax.random.normal(keys[0], (N, N, N)) + 1j * jax.random.normal(keys[1], (N, N, N))) * envelope
-    Ay = (jax.random.normal(keys[2], (N, N, N)) + 1j * jax.random.normal(keys[3], (N, N, N))) * envelope
-    Az = (jax.random.normal(keys[4], (N, N, N)) + 1j * jax.random.normal(keys[5], (N, N, N))) * envelope
+    Ax = (
+        jax.random.normal(keys[0], (N, N, N))
+        + 1j * jax.random.normal(keys[1], (N, N, N))
+    ) * envelope
+    Ay = (
+        jax.random.normal(keys[2], (N, N, N))
+        + 1j * jax.random.normal(keys[3], (N, N, N))
+    ) * envelope
+    Az = (
+        jax.random.normal(keys[4], (N, N, N))
+        + 1j * jax.random.normal(keys[5], (N, N, N))
+    ) * envelope
     ux_hat = 1j * kfac * (KY * Az - KZ * Ay)
     uy_hat = 1j * kfac * (KZ * Ax - KX * Az)
     uz_hat = 1j * kfac * (KX * Ay - KY * Ax)
@@ -426,7 +470,7 @@ def _energy_spectrum(arr: jax.Array, **_) -> dict:
 
 CONFIG = ProblemConfig(
     name="ns-3d-grid",
-    n_to_cells=lambda n: n ** 3,
+    n_to_cells=lambda n: n**3,
     description=(
         "3D incompressible Navier–Stokes on a triply-periodic domain with viscosity ν as "
         "the primary control parameter. The 3D extension admits helical structures, vortex "
@@ -567,7 +611,6 @@ CONFIG = ProblemConfig(
                 )
             ],
         ),
-
     },
     cost_defaults=dict(
         description="Wall-clock and memory profiling vs grid size N and step count for all 3D solvers.",
@@ -693,7 +736,10 @@ CONFIG = ProblemConfig(
                 dict(
                     ic=dict(name="tgv3d", seed=0),
                     physics=dict(N=20, nu=0.001, dt=0.05),
-                    sweep=dict(key="steps", values=[40, 80, 160, 320, 640, 1280, 2560, 5120, 10240]),
+                    sweep=dict(
+                        key="steps",
+                        values=[40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
+                    ),
                 )
             ],
         ),

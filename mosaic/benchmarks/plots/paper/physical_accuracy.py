@@ -16,32 +16,36 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from benchmarks.plots.paper import TEXTWIDTH
-from benchmarks.plots.paper.style import (
-    RCPARAMS, SOLVER_STYLES, NS_ORDER, FEM_ORDER,
-    solver_props, make_handle, dedup_handles,
+from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.style import (
+    FEM_ORDER,
+    NS_ORDER,
+    RCPARAMS,
+    dedup_handles,
+    make_handle,
+    solver_props,
 )
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
 SWEEPS = [
-    ("vs_N",    True,  True),
-    ("vs_nu",   True,  False),
-    ("vs_steps",False, False),
+    ("vs_N", True, True),
+    ("vs_nu", True, False),
+    ("vs_steps", False, False),
 ]
 METRICS = [
-    ("analytic_error", "Analytic error",  True),
-    ("divergence_rms", "Divergence RMS",  True),
-    ("kinetic_energy", "Kinetic energy",  False),
+    ("analytic_error", "Analytic error", True),
+    ("divergence_rms", "Divergence RMS", True),
+    ("kinetic_energy", "Kinetic energy", False),
 ]
 SWEEP_XLABELS = {
-    "vs_N":     "Elements",
-    "vs_nu":    r"$\nu$",
+    "vs_N": "Elements",
+    "vs_nu": r"$\nu$",
     "vs_steps": "Steps",
 }
 ROW_LABELS = {
-    "vs_N":     "vs N",
-    "vs_nu":    r"vs $\nu$",
+    "vs_N": "vs N",
+    "vs_nu": r"vs $\nu$",
     "vs_steps": "vs steps",
 }
 
@@ -49,21 +53,27 @@ KE0 = 0.25
 
 
 def _n_to_elements(N: int, subdir: str) -> int:
-    if subdir == "ns-grid":    return N ** 2
-    if subdir == "ns-3d-grid": return N ** 3
+    if subdir == "ns-grid":
+        return N**2
+    if subdir == "ns-3d-grid":
+        return N**3
     return N
 
 
-def _set_axis_ticks(ax, vals: list, is_log_x: bool, is_log_y: bool,
-                    is_elements: bool = False):
+def _set_axis_ticks(
+    ax, vals: list, is_log_x: bool, is_log_y: bool, is_elements: bool = False
+):
     tick_x = sorted(set(vals))
     if len(tick_x) > 4:
         idx = np.round(np.linspace(0, len(tick_x) - 1, 4)).astype(int)
         tick_x = [tick_x[i] for i in idx]
     ax.set_xticks(tick_x)
     if is_elements:
-        ax.xaxis.set_major_formatter(mticker.FuncFormatter(
-            lambda x, _: f"{round(x/1000):.0f}k" if x >= 1000 else str(int(x))))
+        ax.xaxis.set_major_formatter(
+            mticker.FuncFormatter(
+                lambda x, _: f"{round(x / 1000):.0f}k" if x >= 1000 else str(int(x))
+            )
+        )
     else:
         ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
         ax.xaxis.get_major_formatter().set_scientific(False)
@@ -84,14 +94,18 @@ def _ke_analytic(sweep_key: str, params: list[str], phys: dict, subdir: str):
     for p in params:
         raw = float(p)
         if sweep_key == "vs_nu":
-            t = steps_fixed * dt; nu = raw
+            t = steps_fixed * dt
+            nu = raw
         elif sweep_key == "vs_steps":
-            t = raw * dt; nu = nu_fixed
+            t = raw * dt
+            nu = nu_fixed
         else:
-            t = steps_fixed * dt; nu = nu_fixed
+            t = steps_fixed * dt
+            nu = nu_fixed
         ke = KE0 * np.exp(-4.0 * nu * t)
-        x = (_n_to_elements(int(p), subdir) if sweep_key == "vs_N" else raw)
-        xs.append(x); ys.append(ke)
+        x = _n_to_elements(int(p), subdir) if sweep_key == "vs_N" else raw
+        xs.append(x)
+        ys.append(ke)
     return xs, ys
 
 
@@ -121,20 +135,33 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
 
             for solver in all_solvers:
                 label, color, ls, mk = solver_props(solver)
-                kw = dict(color=color, linestyle=ls, marker=mk, markersize=4,
-                          markeredgewidth=0, linewidth=1.6)
+                kw = dict(
+                    color=color,
+                    linestyle=ls,
+                    marker=mk,
+                    markersize=4,
+                    markeredgewidth=0,
+                    linewidth=1.6,
+                )
                 xs, ys = [], []
                 for p in params:
                     entry = by_param[p].get(solver)
                     val = entry.get(metric_key) if isinstance(entry, dict) else None
                     if val is not None:
                         raw_x = float(p)
-                        x = (_n_to_elements(int(p), subdir) if use_elements else raw_x)
-                        xs.append(x); ys.append(float(val))
+                        x = _n_to_elements(int(p), subdir) if use_elements else raw_x
+                        xs.append(x)
+                        ys.append(float(val))
                 if xs:
-                    plot_fn = ax.loglog if (log_x and log_y) else (
-                              ax.semilogy if log_y else (
-                              ax.semilogx if log_x else ax.plot))
+                    plot_fn = (
+                        ax.loglog
+                        if (log_x and log_y)
+                        else (
+                            ax.semilogy
+                            if log_y
+                            else (ax.semilogx if log_x else ax.plot)
+                        )
+                    )
                     plot_fn(xs, ys, **kw)
                     x_all.extend(xs)
                     if solver in NS_ORDER:
@@ -144,9 +171,15 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
                 ke_ref = _ke_analytic(sweep_key, params, phys, subdir)
                 if ke_ref is not None:
                     plot_fn = ax.semilogx if log_x else ax.plot
-                    plot_fn(ke_ref[0], ke_ref[1], color="#aaaaaa",
-                            linestyle="--", linewidth=1.2, zorder=0,
-                            label="analytic")
+                    plot_fn(
+                        ke_ref[0],
+                        ke_ref[1],
+                        color="#aaaaaa",
+                        linestyle="--",
+                        linewidth=1.2,
+                        zorder=0,
+                        label="analytic",
+                    )
 
             if row == 0:
                 ax.set_title(metric_label)
@@ -158,13 +191,15 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
             _set_axis_ticks(ax, x_all, log_x, log_y, is_elements=use_elements)
 
     handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
-    fig.legend(handles=handles,
-               loc="lower center",
-               bbox_to_anchor=(0.5, 0.0),
-               ncol=6,
-               fontsize=7.5,
-               framealpha=0.7,
-               handlelength=2.0)
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.0),
+        ncol=6,
+        fontsize=7.5,
+        framealpha=0.7,
+        handlelength=2.0,
+    )
 
     fig.savefig(out_path)
     plt.close(fig)
@@ -174,16 +209,30 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
 def generate(out_dir: Path) -> None:
     plt.rcParams.update(RCPARAMS)
 
-    _plot_ns_domain("ns-grid",    "2D NS — physical accuracy",
-                    out_dir / "appendix_pa_ns2d.pdf")
-    _plot_ns_domain("ns-3d-grid", "3D NS — physical accuracy",
-                    out_dir / "appendix_pa_ns3d.pdf")
+    _plot_ns_domain(
+        "ns-grid", "2D NS — physical accuracy", out_dir / "appendix_pa_ns2d.pdf"
+    )
+    _plot_ns_domain(
+        "ns-3d-grid", "3D NS — physical accuracy", out_dir / "appendix_pa_ns3d.pdf"
+    )
 
     FEM_CONFIGS = [
-        ("structural-mesh", "Structural", "compliance",
-         r"$F_\mathrm{total}$", "Compliance", "appendix_pa_structural.pdf"),
-        ("thermal-mesh",    "Thermal",    "thermal_compliance",
-         r"$Q_\mathrm{total}$", "Thermal compliance", "appendix_pa_thermal.pdf"),
+        (
+            "structural-mesh",
+            "Structural",
+            "compliance",
+            r"$F_\mathrm{total}$",
+            "Compliance",
+            "appendix_pa_structural.pdf",
+        ),
+        (
+            "thermal-mesh",
+            "Thermal",
+            "thermal_compliance",
+            r"$Q_\mathrm{total}$",
+            "Thermal compliance",
+            "appendix_pa_thermal.pdf",
+        ),
     ]
 
     for subdir, title, metric, xlabel, ylabel, out_name in FEM_CONFIGS:
@@ -204,21 +253,40 @@ def generate(out_dir: Path) -> None:
 
         fem_seen: set[str] = set()
 
-        c0 = np.mean([by_param[params[0]][s][metric]
-                      for s in all_solvers if metric in by_param[params[0]].get(s, {})])
+        c0 = np.mean(
+            [
+                by_param[params[0]][s][metric]
+                for s in all_solvers
+                if metric in by_param[params[0]].get(s, {})
+            ]
+        )
         ref_y = float(c0) * (x_vals / x_vals[0]) ** 2
-        ax.loglog(x_vals, ref_y, color="#aaaaaa", linestyle="--",
-                  linewidth=1.0, zorder=0, label="slope 2")
+        ax.loglog(
+            x_vals,
+            ref_y,
+            color="#aaaaaa",
+            linestyle="--",
+            linewidth=1.0,
+            zorder=0,
+            label="slope 2",
+        )
 
         for solver in all_solvers:
             label, color, ls, mk = solver_props(solver)
-            kw = dict(color=color, linestyle=ls, marker=mk, markersize=4,
-                      markeredgewidth=0, linewidth=1.6)
+            kw = dict(
+                color=color,
+                linestyle=ls,
+                marker=mk,
+                markersize=4,
+                markeredgewidth=0,
+                linewidth=1.6,
+            )
             xs, ys = [], []
             for px, p in zip(x_vals, params):
                 val = by_param[p].get(solver, {}).get(metric)
                 if val is not None:
-                    xs.append(px); ys.append(float(val))
+                    xs.append(px)
+                    ys.append(float(val))
             if xs:
                 ax.loglog(xs, ys, **kw)
                 if solver in FEM_ORDER:
@@ -232,8 +300,13 @@ def generate(out_dir: Path) -> None:
         _set_axis_ticks(ax, list(x_vals), True, True)
 
         handles = dedup_handles([make_handle(s) for s in FEM_ORDER if s in fem_seen])
-        ax.legend(handles=handles, loc="upper left", fontsize=7.5,
-                  framealpha=0.7, handlelength=2.0)
+        ax.legend(
+            handles=handles,
+            loc="upper left",
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
 
         out = out_dir / out_name
         fig.savefig(out)

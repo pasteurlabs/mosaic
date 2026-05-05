@@ -1,4 +1,3 @@
-
 """GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
 
 2-D: IPCS primitive-variable projection + spectral FFT Poisson + wp.Tape VJP.
@@ -18,7 +17,9 @@ import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 import warp as wp
-from mosaic_shared.problems.navier_stokes_grid import InputSchema as _CanonicalInputSchema
+from mosaic_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+)
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
@@ -956,7 +957,13 @@ def _jacobi_poisson_2d(  # mosaic:physics
     ]
     src, dst = 0, 1
     for _ in range(num_iters):
-        _wlaunch(jacobi_2d_kernel, dim=(n, n), inputs=[bufs[src], rhs, bufs[dst], scale], block_dim=256, device=device)
+        _wlaunch(
+            jacobi_2d_kernel,
+            dim=(n, n),
+            inputs=[bufs[src], rhs, bufs[dst], scale],
+            block_dim=256,
+            device=device,
+        )
         src, dst = dst, src
     return bufs[src]
 
@@ -975,7 +982,13 @@ def _jacobi_poisson_3d(  # mosaic:physics
     ]
     src, dst = 0, 1
     for _ in range(num_iters):
-        _wlaunch(jacobi_3d_kernel, dim=(n, n, n), inputs=[bufs[src], rhs, bufs[dst], scale], block_dim=256, device=device)
+        _wlaunch(
+            jacobi_3d_kernel,
+            dim=(n, n, n),
+            inputs=[bufs[src], rhs, bufs[dst], scale],
+            block_dim=256,
+            device=device,
+        )
         src, dst = dst, src
     return bufs[src]
 
@@ -1967,9 +1980,8 @@ def _build_laplacian_neumann_2d(
     I_n = scipy.sparse.eye(n, format="csr")
 
     # 2-D Laplacian via Kronecker sum
-    L2d = (
-        scipy.sparse.kron(I_n, L1d, format="csr")
-        + scipy.sparse.kron(L1d, I_n, format="csr")
+    L2d = scipy.sparse.kron(I_n, L1d, format="csr") + scipy.sparse.kron(
+        L1d, I_n, format="csr"
     )
 
     # Pin DOF 0 to remove constant-pressure null space: replace row 0 with [1, 0, ...]
@@ -2014,15 +2026,15 @@ def _build_laplacian_channel_2d(
     L1d_y = scipy.sparse.diags(
         [off_diag, main_diag, off_diag], offsets=[-1, 0, 1], shape=(n, n), format="lil"
     )
-    L1d_y[0, n - 1] = inv_h2   # periodic wrap: j=0 neighbours j=N-1
-    L1d_y[n - 1, 0] = inv_h2   # periodic wrap: j=N-1 neighbours j=0
+    L1d_y[0, n - 1] = inv_h2  # periodic wrap: j=0 neighbours j=N-1
+    L1d_y[n - 1, 0] = inv_h2  # periodic wrap: j=N-1 neighbours j=0
     L1d_y = L1d_y.tocsr()
 
     I_n = scipy.sparse.eye(n, format="csr")
 
     # 2-D Laplacian (DOF d = i*n + j)
     L2d = (
-        scipy.sparse.kron(L1d_x, I_n, format="csr")   # x-direction
+        scipy.sparse.kron(L1d_x, I_n, format="csr")  # x-direction
         + scipy.sparse.kron(I_n, L1d_y, format="csr")  # y-direction
     )
 
@@ -2287,12 +2299,16 @@ def ns2d_solve(  # mosaic:physics
     # Laplacian / advection contributions) and two additional callbacks per step
     # for the divergence and pressure-correction dt contributions.
     nu_wp = wp.array(
-        np.array([viscosity], dtype=np.float32), dtype=wp.float32,
-        requires_grad=True, device=device
+        np.array([viscosity], dtype=np.float32),
+        dtype=wp.float32,
+        requires_grad=True,
+        device=device,
     )
     dt_wp = wp.array(
-        np.array([dt], dtype=np.float32), dtype=wp.float32,
-        requires_grad=True, device=device
+        np.array([dt], dtype=np.float32),
+        dtype=wp.float32,
+        requires_grad=True,
+        device=device,
     )
 
     # Ping-pong velocity buffers (both need grad for backward to flow through them)
@@ -2457,7 +2473,9 @@ def ns2d_solve(  # mosaic:physics
             div_star = div_star_steps[step_i]
             inv_2h_over_dt = inv_2h / dt
             _wlaunch(
-                divergence_2d_channel_kernel if inflow_profile is not None else divergence_2d_kernel,
+                divergence_2d_channel_kernel
+                if inflow_profile is not None
+                else divergence_2d_kernel,
                 dim=(n, n),
                 inputs=[ux_star, uy_star, div_star, inv_2h_over_dt],
                 block_dim=_bd_2d,
@@ -2543,8 +2561,12 @@ def ns2d_solve(  # mosaic:physics
                     - np.concatenate([_p_np_pc[:1], _p_np_pc[:-1]], axis=0)
                 ) * inv_2h
             else:
-                _dpdx_np = (np.roll(_p_np_pc, -1, axis=0) - np.roll(_p_np_pc, 1, axis=0)) * inv_2h
-            _dpdy_np = (np.roll(_p_np_pc, -1, axis=1) - np.roll(_p_np_pc, 1, axis=1)) * inv_2h
+                _dpdx_np = (
+                    np.roll(_p_np_pc, -1, axis=0) - np.roll(_p_np_pc, 1, axis=0)
+                ) * inv_2h
+            _dpdy_np = (
+                np.roll(_p_np_pc, -1, axis=1) - np.roll(_p_np_pc, 1, axis=1)
+            ) * inv_2h
             _vbx_dst_ref = vel_bufs_x[dst]
             _vby_dst_ref = vel_bufs_y[dst]
             _dt_wp_pc = dt_wp
@@ -2559,8 +2581,12 @@ def ns2d_solve(  # mosaic:physics
             ):
                 if _dt_wp is None:
                     return
-                adj_ux_new = _vbx.grad.numpy() if _vbx.grad is not None else np.zeros_like(_dpdx)
-                adj_uy_new = _vby.grad.numpy() if _vby.grad is not None else np.zeros_like(_dpdy)
+                adj_ux_new = (
+                    _vbx.grad.numpy() if _vbx.grad is not None else np.zeros_like(_dpdx)
+                )
+                adj_uy_new = (
+                    _vby.grad.numpy() if _vby.grad is not None else np.zeros_like(_dpdy)
+                )
                 # d(u_new)/d(dt) = -grad_p  →  adj_dt += sum(adj_u_new * (-grad_p))
                 d_adj_dt = float(
                     np.sum(adj_ux_new * (-_dpdx)) + np.sum(adj_uy_new * (-_dpdy))
@@ -2580,11 +2606,14 @@ def ns2d_solve(  # mosaic:physics
 
             tape.record_func(
                 backward=_record_dt_pressure,
-                arrays=[vel_bufs_x[dst], vel_bufs_y[dst]] + ([dt_wp] if dt_wp is not None else []),
+                arrays=[vel_bufs_x[dst], vel_bufs_y[dst]]
+                + ([dt_wp] if dt_wp is not None else []),
             )
 
             _wlaunch(
-                pressure_correct_2d_channel_kernel if inflow_profile is not None else pressure_correct_2d_kernel,
+                pressure_correct_2d_channel_kernel
+                if inflow_profile is not None
+                else pressure_correct_2d_kernel,
                 dim=(n, n),
                 inputs=[
                     ux_star,
@@ -2718,7 +2747,9 @@ def ns2d_solve(  # mosaic:physics
                     )
                 else:
                     # Obstacle-only (no inflow): old differentiable per-step approach.
-                    _drag_buf = wp.zeros(1, dtype=wp.float32, requires_grad=True, device=device)
+                    _drag_buf = wp.zeros(
+                        1, dtype=wp.float32, requires_grad=True, device=device
+                    )
                     _rhs_np_step = div_star_steps[step_i].numpy()
                     _L_drag = _build_laplacian_neumann_2d(n, h)
                     _p_step = _cg_poisson_2d_np(_rhs_np_step, _L_drag)
@@ -2726,7 +2757,14 @@ def ns2d_solve(  # mosaic:physics
                     _wlaunch(
                         compute_drag_kernel,
                         dim=(n, n),
-                        inputs=[_p_wp, vel_bufs_x[src], mask_wp, _drag_buf, inv_2h, viscosity],
+                        inputs=[
+                            _p_wp,
+                            vel_bufs_x[src],
+                            mask_wp,
+                            _drag_buf,
+                            inv_2h,
+                            viscosity,
+                        ],
                         block_dim=_bd_2d,
                         device=device,
                     )
@@ -2741,7 +2779,9 @@ def ns2d_solve(  # mosaic:physics
         if rans_ux_buf is not None:
             _U_mean = float(np.mean(inflow_profile))
             _dy = domain_extent / n
-            rans_drag_buf = wp.zeros(1, dtype=wp.float32, requires_grad=True, device=device)
+            rans_drag_buf = wp.zeros(
+                1, dtype=wp.float32, requires_grad=True, device=device
+            )
             _wlaunch(
                 momentum_deficit_drag_kernel,
                 dim=n,
@@ -2855,7 +2895,11 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     # propagates: rans_drag_buf.grad → momentum_deficit_drag_kernel backward
     # → rans_ux_buf.grad → accumulate_outlet_rans_kernel backward (each tail step)
     # → vel_bufs_x[src].grad at outlet column → IPCS backward → inflow_profile.grad.
-    if rans_drag_buf is not None and cotangent_drag is not None and cotangent_drag != 0.0:
+    if (
+        rans_drag_buf is not None
+        and cotangent_drag is not None
+        and cotangent_drag != 0.0
+    ):
         rans_drag_buf.grad = wp.array(
             [float(cotangent_drag)], dtype=wp.float32, device=device
         )
@@ -3640,9 +3684,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         else None
     )
     bc = inputs.boundary_conditions
-    wall_y_noslip = (
-        bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
-    )
+    wall_y_noslip = bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
     result, drag, velocity_mean_np, _tape, *_ = ns2d_solve(
         v0,
         nu,
@@ -3734,8 +3776,17 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
             bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
         )
         (
-            _result_np, _drag, _, tape, ux_f, uy_f, ux_ic, uy_ic,
-            inflow_wp, nu_wp_2d, dt_wp_2d,
+            _result_np,
+            _drag,
+            _,
+            tape,
+            ux_f,
+            uy_f,
+            ux_ic,
+            uy_ic,
+            inflow_wp,
+            nu_wp_2d,
+            dt_wp_2d,
             rans_drag_buf_2d,
         ) = ns2d_solve(
             v0,
@@ -3808,7 +3859,7 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     is_3d = len(shape) == 4 and shape[2] != 1 and shape[3] == 3
     has_obstacle_2d = d.get("obstacle") is not None and not is_3d
 
-    has_inflow_2d = d.get("inflow_profile") is not None and not is_3d
+    _has_inflow_2d = d.get("inflow_profile") is not None and not is_3d
     out: dict[str, Any] = {
         "result": {"shape": shape, "dtype": "float32"},
         "drag": None,
