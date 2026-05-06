@@ -121,26 +121,6 @@ jobs:
           print("All valid.")
           PYEOF
 
-  docs-freshness:
-    name: Check generated docs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Check solvers.qmd is up to date
-        run: uv run python docs/generate.py --check
-
   smoke-benchmark:
     name: Smoke benchmark
     needs: test

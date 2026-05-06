@@ -3,7 +3,6 @@
 
 Usage:
     python docs/generate.py           # writes docs/solvers.qmd
-    python docs/generate.py --check   # exit 1 if solvers.qmd is stale
 """
 
 from __future__ import annotations
@@ -600,27 +599,11 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
 
 
 def main() -> None:
-    check_mode = "--check" in sys.argv
-
     categories = collect_solvers()
     if not categories:
         sys.exit(f"No solvers found under {TESSERACTS}")
 
     new_qmd = generate_qmd(categories)
-
-    if check_mode:
-        if OUTPUT.exists():
-            # Strip the volatile auto-generated timestamp line before comparing.
-            ts_re = re.compile(r"^> Auto-generated .+$", re.MULTILINE)
-            old = ts_re.sub("", OUTPUT.read_text())
-            new = ts_re.sub("", new_qmd)
-            if old == new:
-                print("docs/solvers.qmd is up to date.")
-                return
-        sys.exit(
-            "docs/solvers.qmd is stale. Run `python docs/generate.py` to regenerate."
-        )
-
     OUTPUT.write_text(new_qmd, encoding="utf-8")
     total = sum(len(v) for v in categories.values())
     print(f"Generated {OUTPUT} ({total} solvers, {len(categories)} categories)")

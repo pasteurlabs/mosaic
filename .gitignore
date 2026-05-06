@@ -27,6 +27,7 @@ Thumbs.db
 # Quarto
 _site/
 .quarto/
+docs/solvers.qmd
 
 # LaTeX
 *.aux
