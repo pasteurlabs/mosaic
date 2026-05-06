@@ -72,6 +72,16 @@ cp production.uv.lock uv.lock && uv sync --frozen
 pip install -r requirements.txt && pip install -e .
 ```
 
+### Continuous benchmarking
+
+After the initial paper release, all results are generated automatically by CI:
+
+- **Every push to `main`** that touches a solver or the harness triggers a benchmark run on dedicated GPU and CPU runners. Results are published to the [`benchmark-results`](https://github.com/pasteurlabs/mosaic/tree/benchmark-results) branch along with a machine-readable snapshot and a diff against the previous baseline.
+- **Tagged releases** (`v*`) run the full suite across all domains and attach `benchmark-results.tar.gz` to the GitHub release — same archive format used in the "regenerate figures" step above.
+- **Pull requests** labelled `benchmark` get a full evaluation run; CI posts a status comparison as a PR comment.
+
+This means published results stay up-to-date as solvers evolve and new backends land, without manual re-runs.
+
 ### Inspect results
 
 ```bash
