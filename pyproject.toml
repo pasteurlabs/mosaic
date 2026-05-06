@@ -11,14 +11,7 @@ license = {text = "Apache-2.0"}
 dependencies = [
     "rich>=13.0",
     "typer>=0.12",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest",
     "numpy",
-    "ruff",
-    "pre-commit",
     "pandas",
     "matplotlib",
     "jax[cpu]",
@@ -26,14 +19,25 @@ dev = [
     "tesseract-core[runtime]",
     "tesseract-jax",
     "psutil",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "pre-commit",
     "mosaic-shared",
 ]
 
 [project.scripts]
 mosaic = "mosaic.benchmarks.cli:app"
 
+[tool.uv.workspace]
+members = ["mosaic/mosaic_shared"]
+
 [tool.uv.sources]
-mosaic-shared = { path = "mosaic/mosaic_shared", editable = true }
+mosaic-shared = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["."]

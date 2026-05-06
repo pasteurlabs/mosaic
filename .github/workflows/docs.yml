@@ -23,6 +23,10 @@ jobs:
         with:
           ref: main
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -30,7 +34,7 @@ jobs:
       - uses: quarto-dev/quarto-actions/setup@v2
 
       - name: Install Python dependencies
-        run: pip install -e ".[dev]" pyyaml
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Fetch benchmark results
         run: |
@@ -56,12 +60,12 @@ jobs:
           fi
 
       - name: Generate solver reference
-        run: python docs/generate.py
+        run: uv run python docs/generate.py
 
       - name: Generate results pages
         run: |
           if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
-            python docs/generate_results.py
+            uv run python docs/generate_results.py
           else
             echo "No benchmark results available — skipping results page generation"
           fi

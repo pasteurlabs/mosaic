@@ -17,15 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
+          enable-cache: true
 
       - name: Install Mosaic
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Run GPU solvers
-        run: mosaic run --hardware gpu
+        run: uv run mosaic run --hardware gpu
         timeout-minutes: 360
 
       - name: Upload GPU results
@@ -40,15 +40,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
+          enable-cache: true
 
       - name: Install Mosaic
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Run CPU solvers
-        run: mosaic run --hardware cpu
+        run: uv run mosaic run --hardware cpu
         timeout-minutes: 360
 
       - name: Upload CPU results
@@ -65,12 +65,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
+          enable-cache: true
 
       - name: Install Mosaic
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Download GPU results
         uses: actions/download-artifact@v4
@@ -99,12 +99,12 @@ jobs:
 
       - name: Generate snapshots
         run: |
-          mosaic status --format json > snapshot.json
+          uv run mosaic status --format json > snapshot.json
           DIFF_FLAG=""
           if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
             DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
           fi
-          mosaic status --format md $DIFF_FLAG > status-report.md
+          uv run mosaic status --format md $DIFF_FLAG > status-report.md
 
       - name: Package results
         run: tar czf benchmark-results.tar.gz mosaic-results/ snapshot.json status-report.md

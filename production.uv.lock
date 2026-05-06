@@ -17,6 +17,12 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[manifest]
+members = [
+    "mosaic-bench",
+    "mosaic-shared",
+]
+
 [[package]]
 name = "absl-py"
 version = "2.4.0"
@@ -1645,44 +1651,46 @@ name = "mosaic-bench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "rich" },
-    { name = "typer" },
-]
-
-[package.optional-dependencies]
-dev = [
     { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "jax", version = "0.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "matplotlib" },
-    { name = "mosaic-shared" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "optax" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pre-commit" },
     { name = "psutil" },
-    { name = "pytest" },
-    { name = "ruff" },
+    { name = "pyyaml" },
+    { name = "rich" },
     { name = "tesseract-core", extra = ["runtime"] },
     { name = "tesseract-jax" },
+    { name = "typer" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mosaic-shared" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "jax", extras = ["cpu"], marker = "extra == 'dev'" },
-    { name = "matplotlib", marker = "extra == 'dev'" },
+    { name = "jax", extras = ["cpu"] },
+    { name = "matplotlib" },
     { name = "mosaic-shared", marker = "extra == 'dev'", editable = "mosaic/mosaic_shared" },
-    { name = "numpy", marker = "extra == 'dev'" },
-    { name = "optax", marker = "extra == 'dev'" },
-    { name = "pandas", marker = "extra == 'dev'" },
+    { name = "numpy" },
+    { name = "optax" },
+    { name = "pandas" },
     { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "psutil", marker = "extra == 'dev'" },
+    { name = "psutil" },
     { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pyyaml" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "tesseract-core", extras = ["runtime"], marker = "extra == 'dev'" },
-    { name = "tesseract-jax", marker = "extra == 'dev'" },
+    { name = "tesseract-core", extras = ["runtime"] },
+    { name = "tesseract-jax" },
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["dev"]

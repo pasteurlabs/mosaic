@@ -31,7 +31,10 @@ Download the result artifacts and regenerate every figure in the paper without r
 
 ```bash
 git clone https://github.com/pasteurlabs/mosaic && cd mosaic
-pip install -e ".[dev]"
+
+# Install (pick one)
+uv sync              # uv (recommended)
+pip install -e .     # pip
 
 # Download the paper's benchmark results
 wget -qO- https://github.com/pasteurlabs/mosaic/releases/download/v1.0.0/benchmark-results.tar.gz \
@@ -51,7 +54,10 @@ Re-run every solver on every benchmark task. Requires Docker and (for GPU solver
 
 ```bash
 git clone https://github.com/pasteurlabs/mosaic && cd mosaic
-pip install -e ".[dev]"
+
+# Install (pick one)
+uv sync              # uv (recommended)
+pip install -e .     # pip
 
 # Build all solver containers and run the full suite
 mosaic run                    # builds containers, runs experiments, generates plots
@@ -170,7 +176,15 @@ Available top-level imports: `PROBLEMS`, `get_config`, `ProblemConfig`, `SolverS
 
 ## Contribute
 
-Mosaic is designed to grow with the community. There are three ways to contribute, roughly ordered by scope.
+Mosaic is designed to grow with the community. Start by installing with the dev extra for linting and tests:
+
+```bash
+uv sync --extra dev        # uv
+pip install -e ".[dev]"    # pip
+pre-commit install
+```
+
+There are three ways to contribute, roughly ordered by scope.
 
 ### Tune an existing solver
 

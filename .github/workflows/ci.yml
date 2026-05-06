@@ -31,18 +31,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
 
       - name: Run tests
-        run: pytest
+        run: uv run pytest
 
       - name: Validate all problem configs
-        run: python -c "from mosaic.benchmarks.problems import PROBLEMS, get_config; [get_config(p).validate() for p in PROBLEMS]; print(f'Validated {len(PROBLEMS)} problem configs')"
+        run: uv run python -c "from mosaic.benchmarks.problems import PROBLEMS, get_config; [get_config(p).validate() for p in PROBLEMS]; print(f'Validated {len(PROBLEMS)} problem configs')"
 
   validate-tesseracts:
     name: Validate tesseract configs
@@ -50,16 +54,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install pyyaml
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Validate all tesseract_config.yaml files
         run: |
-          python - <<'PYEOF'
+          uv run python - <<'PYEOF'
           import sys, yaml
           from pathlib import Path
 
@@ -118,15 +126,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" pyyaml
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Check solvers.qmd is up to date
-        run: python docs/generate.py --check
+        run: uv run python docs/generate.py --check
 
   smoke-benchmark:
     name: Smoke benchmark
@@ -136,18 +148,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
 
       - name: Build Exponax solver
-        run: tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+        run: uv run tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 
       - name: Integration tests (apply + VJP)
-        run: pytest -m integration --timeout=300
+        run: uv run pytest -m integration --timeout=300
 
       - name: Smoke benchmark (forward + gradient, debug size)
-        run: mosaic run -p ns-3d-grid --suites forward,gradient -s exponax --debug
+        run: uv run mosaic run -p ns-3d-grid --suites forward,gradient -s exponax --debug
