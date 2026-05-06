@@ -27,6 +27,9 @@ def generate(out_dir: Path) -> None:
         path = (
             results_dir() / "ns-3d-grid" / "optimization" / "lid_cavity" / "result.json"
         )
+        if not path.exists():
+            print(f"[lid_cavity] {path} not found — skipping")
+            return
         data = json.loads(path.read_text())
         by_sweep = data["by_sweep"]
 

@@ -33,7 +33,7 @@ description: |
     Outputs: compliance (scalar), von_mises_stress (n_cells,), displacement (n_nodes, 3)
 
 build_config:
-  base_image: "firedrakeproject/firedrake:latest"
+  base_image: "firedrakeproject/firedrake:2024.11.0"
   skip_checks: true
   package_data:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]

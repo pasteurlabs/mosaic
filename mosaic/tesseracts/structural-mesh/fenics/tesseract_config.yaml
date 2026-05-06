@@ -34,7 +34,7 @@ description: |
              displacement (n_nodes, 3)
 
 build_config:
-  base_image: "condaforge/miniforge3:latest"
+  base_image: "condaforge/miniforge3:24.11.2-0"
   requirements:
     provider: conda
   package_data:

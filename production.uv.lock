@@ -1654,6 +1654,7 @@ dev = [
     { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "jax", version = "0.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "matplotlib" },
+    { name = "mosaic-shared" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "optax" },
@@ -1671,6 +1672,7 @@ dev = [
 requires-dist = [
     { name = "jax", extras = ["cpu"], marker = "extra == 'dev'" },
     { name = "matplotlib", marker = "extra == 'dev'" },
+    { name = "mosaic-shared", marker = "extra == 'dev'", editable = "mosaic/mosaic_shared" },
     { name = "numpy", marker = "extra == 'dev'" },
     { name = "optax", marker = "extra == 'dev'" },
     { name = "pandas", marker = "extra == 'dev'" },
@@ -1684,6 +1686,21 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "mosaic-shared"
+version = "0.1.0"
+source = { editable = "mosaic/mosaic_shared" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "tesseract-core", extra = ["runtime"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic" },
+    { name = "tesseract-core", extras = ["runtime"] },
+]
 
 [[package]]
 name = "multidict"

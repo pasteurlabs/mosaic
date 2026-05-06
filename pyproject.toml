@@ -26,10 +26,14 @@ dev = [
     "tesseract-core[runtime]",
     "tesseract-jax",
     "psutil",
+    "mosaic-shared",
 ]
 
 [project.scripts]
 mosaic = "mosaic.benchmarks.cli:app"
+
+[tool.uv.sources]
+mosaic-shared = { path = "mosaic/mosaic_shared", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -37,7 +41,10 @@ exclude = ["tests*", "docs*"]
 
 [tool.pytest.ini_options]
 testpaths = ["mosaic/tests"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -m 'not integration'"
+markers = [
+    "integration: requires Docker and a built Tesseract container (deselected by default)",
+]
 
 [tool.ruff]
 line-length = 88

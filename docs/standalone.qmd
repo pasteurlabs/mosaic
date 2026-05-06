@@ -1,0 +1,216 @@
+---
+title: Standalone Usage
+---
+
+Each Tesseract in Mosaic is a self-contained differentiable solver with a standard `apply` / `vjp` interface. You do not need the full benchmark harness to use them. There are two ways to call a Tesseract:
+
+- **Option A: Local (no Docker)** --- call the solver directly via `tesseract-core`; fastest for development but requires the solver's native dependencies.
+- **Option B: Via the Tesseract container** --- reproducible, language-agnostic, and supports `jax.grad` through the container boundary via `tesseract-jax`.
+
+Both options use the same dict-based calling convention, so code written with Option A ports to Option B with minimal changes.
+
+## Prerequisites
+
+```bash
+# Schemas and types for all Mosaic domains (only deps: pydantic + tesseract-core)
+pip install -e mosaic/mosaic_shared
+
+# Option A --- also install the solver's native dependencies
+pip install tesseract-core exponax jax
+
+# Option B --- container path (also enables jax.grad through containers)
+pip install tesseract-core tesseract-jax jax
+```
+
+## Option A: Local usage (no Docker)
+
+This is the quickest path for prototyping. You point `tesseract-core` at the solver's `tesseract_api.py` and call it directly --- no container, no build step.
+
+```python
+import numpy as np
+from tesseract_core import Tesseract
+from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+
+# Create inputs
+ic = make_vortex_ic(N=64, seed=42)
+inputs = {"v0": ic, "viscosity": np.array([0.01], dtype=np.float32), "steps": 50}
+
+# Load the solver locally (no Docker)
+t = Tesseract.from_tesseract_api(
+    "mosaic/tesseracts/navier-stokes-grid/exponax/tesseract_api.py"
+)
+outputs = t.apply(inputs)
+print("Result shape:", outputs["result"].shape)
+```
+
+This uses the same `dict` interface as Option B, so switching to the container path later requires only changing how you create the `Tesseract` object. Note that this path requires the solver's native dependencies (here: `exponax`, `jax`) and will not work for solvers written in other languages (Julia, C++).
+
+## Option B: Via Tesseract container
+
+The container-based path is the canonical way to use Tesseracts. It works for every solver regardless of language, pins all dependencies, and integrates with `jax.grad` through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax).
+
+```bash
+# Build the container (one-time)
+tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+```
+
+```python
+import jax
+import jax.numpy as jnp
+from tesseract_core import Tesseract
+from tesseract_jax import apply_tesseract
+from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+
+ic = make_vortex_ic(N=64, seed=42)
+inputs = {"v0": ic, "viscosity": jnp.array([0.01]), "steps": 50}
+
+with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
+    # Forward pass
+    outputs = apply_tesseract(t, inputs)
+    print("Result shape:", outputs["result"].shape)
+
+    # Differentiate through the solver
+    def loss(v0):
+        out = apply_tesseract(t, {**inputs, "v0": v0})
+        return jnp.mean(out["result"] ** 2)
+
+    grad_v0 = jax.grad(loss)(inputs["v0"])
+    print("Gradient shape:", grad_v0.shape)
+```
+
+The `Tesseract.from_image` context manager starts the container and tears it down when you exit the `with` block. The container adds a small per-call overhead (serialization and IPC, typically a few milliseconds) that is independent of solver complexity and negligible for any realistic simulation.
+
+## Using mesh-based solvers
+
+The thermal and structural mesh domains use hexahedral meshes with associated boundary conditions. Each schema module provides a `make_default_inputs()` helper that builds a minimal valid input dict:
+
+```python
+from tesseract_core import Tesseract
+
+# Thermal: heated block with uniform density
+from mosaic_shared.problems.thermal_mesh import make_default_inputs
+inputs = make_default_inputs(nx=8, ny=4, nz=1)
+
+t = Tesseract.from_tesseract_api(
+    "mosaic/tesseracts/thermal-mesh/jax-fem/tesseract_api.py"
+)
+outputs = t.apply(inputs)
+print("Thermal compliance:", outputs["thermal_compliance"])
+```
+
+```python
+# Structural: cantilever with uniform density
+from mosaic_shared.problems.structural_mesh import make_default_inputs
+inputs = make_default_inputs(nx=8, ny=2, nz=4)
+
+t = Tesseract.from_tesseract_api(
+    "mosaic/tesseracts/structural-mesh/jax-fem/tesseract_api.py"
+)
+outputs = t.apply(inputs)
+print("Compliance:", outputs["compliance"])
+```
+
+You can modify the returned dict before passing it to the solver --- for example, replacing `rho` with your own density field for topology optimisation:
+
+```python
+import numpy as np
+
+inputs = make_default_inputs(nx=16, ny=8, nz=1)
+inputs["rho"] = np.random.uniform(0.2, 0.8, size=16 * 8).astype(np.float32)
+```
+
+## Installing `mosaic_shared` independently
+
+`mosaic_shared` is a standalone pip-installable package. Its only dependencies are `pydantic` and `tesseract-core[runtime]`:
+
+```bash
+pip install -e mosaic/mosaic_shared
+```
+
+This gives you all schema types (`InputSchema`, `OutputSchema`) for every benchmark domain, plus the shared types used across solvers:
+
+- **Grid solvers:** `GridBC`, `GridObstacle`, `GridVectorField`, `GridScalarField`
+- **Mesh solvers:** `MeshBC`, `MeshDirichletBC`, `MeshNeumannBC`, `TriangularMesh`, `HexMesh`, `TetMesh`, `VolumetricMesh`
+- **Utilities:** `make_differentiable` (creates mesh classes with `Differentiable`-annotated fields)
+
+You do not need to install the benchmark harness, any specific solver, or Docker to use these types.
+
+## Solver catalog
+
+The table below lists every Tesseract shipped with Mosaic. **Image name** is what you pass to `Tesseract.from_image()`; **Path** is the source directory under `mosaic/tesseracts/` for `tesseract build` or `Tesseract.from_tesseract_api()`.
+
+### Incompressible fluids (2D and 3D grid)
+
+| Solver | Image name | Path | Backend | AD | GPU | Domains |
+|:-------|:-----------|:-----|:--------|:---|:----|:--------|
+| JAX-CFD | `jax_cfd_navier_stokes_grid` | `navier-stokes-grid/jax-cfd` | jax | autodiff | yes | F2 |
+| Exponax | `exponax_navier_stokes_grid` | `navier-stokes-grid/exponax` | jax | autodiff | yes | F3 |
+| PhiFlow | `phiflow_navier_stokes_grid` | `navier-stokes-grid/phiflow` | jax | hybrid | yes | F2, F3 |
+| XLB | `xlb_navier_stokes_grid` | `navier-stokes-grid/xlb` | jax | autodiff | yes | F2, F3 |
+| PICT | `pict_navier_stokes_grid` | `navier-stokes-grid/pict` | pytorch | autodiff | yes | F2, F3 |
+| Warp-NS | `warp_ns_navier_stokes_grid` | `navier-stokes-grid/warp-ns` | warp | autodiff | yes | F2, F3 |
+| INS.jl | `ins_navier_stokes_grid` | `navier-stokes-grid/incompressible-navier-stokes-jl` | julia | autodiff | no | F2, F3 |
+| OpenFOAM | `openfoam_navier_stokes_grid` | `navier-stokes-grid/openfoam` | cpp | --- | no | F2, F3 |
+
+### Structural mechanics (mesh)
+
+| Solver | Image name | Path | Backend | AD | GPU |
+|:-------|:-----------|:-----|:--------|:---|:----|
+| deal.II | `dealii_structural_mesh` | `structural-mesh/dealii` | dealii | adjoint | no |
+| FEniCS | `fenics_structural_mesh` | `structural-mesh/fenics` | fenics | adjoint | no |
+| Firedrake | `firedrake_structural_mesh` | `structural-mesh/firedrake` | firedrake | adjoint | no |
+| JAX-FEM | `jax_fem_structural_mesh` | `structural-mesh/jax-fem` | jax | hybrid | yes |
+| TopOpt.jl | `topopt_jl_structural_grid` | `structural-mesh/topopt-jl` | julia | adjoint | no |
+
+### Heat transfer (mesh)
+
+| Solver | Image name | Path | Backend | AD | GPU |
+|:-------|:-----------|:-----|:--------|:---|:----|
+| deal.II | `dealii_heat_thermal_mesh` | `thermal-mesh/dealii-heat` | dealii | adjoint | no |
+| FEniCS | `fenics_heat_thermal_mesh` | `thermal-mesh/fenics-heat` | fenics | adjoint | no |
+| Firedrake | `firedrake_heat_thermal_mesh` | `thermal-mesh/firedrake-heat` | firedrake | adjoint | no |
+| JAX-FEM | `jax_fem_thermal_mesh` | `thermal-mesh/jax-fem` | jax | hybrid | yes |
+| torch-fem | `torch_fem_thermal_mesh` | `thermal-mesh/torch-fem` | pytorch | autodiff | yes |
+
+The **AD** column shows the gradient strategy declared in `tesseract_config.yaml`:
+
+| Strategy | Meaning |
+|:---------|:--------|
+| `autodiff` | Native reverse-mode AD traces through the forward pass |
+| `adjoint` | Explicitly formulated adjoint equations |
+| `hybrid` | Analytic gradient rules + autodiff (e.g. implicit function theorem) |
+| `---` | No gradient support (forward-only reference) |
+
+## GPU solvers
+
+Solvers marked **GPU: yes** in the catalog above expect a CUDA device. Pass `gpus=` when creating the container:
+
+```python
+# GPU solver --- pass the device ID(s)
+with Tesseract.from_image("xlb_navier_stokes_grid:latest", gpus=["0"]) as t:
+    outputs = apply_tesseract(t, inputs)
+
+# CPU-only solver --- no gpus argument needed
+with Tesseract.from_image("fenics_structural_mesh:latest") as t:
+    outputs = apply_tesseract(t, inputs)
+```
+
+Most GPU solvers will still run on CPU (without the `gpus` argument) but performance will be significantly worse. Solvers backed by Warp and XLB may fail entirely without a GPU.
+
+## Common gotchas
+
+**Scalars are arrays.** Physics parameters like `viscosity`, `dt`, and `drag` are typed as `Array[(1,), Float32]`, not Python floats. Always pass them as 1-element arrays:
+
+```python
+viscosity = np.array([0.01], dtype=np.float32)   # correct
+viscosity = 0.01                                   # will fail validation
+```
+
+**Shape conventions vary by domain.**
+
+- Navier--Stokes grid: velocity is `(N, N, 1, 2)` for 2D, `(N, N, N, 3)` for 3D. The singleton dimension in 2D represents `nz=1`.
+- Mesh problems: node coordinates are `(n_points, 3)`, cells are `(n_cells, nodes_per_cell)` --- e.g. `(n_cells, 8)` for hexahedral elements, `(n_cells, 4)` for tetrahedra.
+
+**Some solvers compute internally in float64 but return float32.** XLB and FEniCS, among others, promote to double precision inside the solver for numerical stability. Check `internal_dtype` in `tesseract_config.yaml` if you see unexpected precision behavior.
+
+**Julia and FEniCS solvers require containerized usage.** These solvers have complex native dependencies (Julia runtime, PETSc, FEniCS/Firedrake stack) that are impractical to install manually. Use Option B (container) for these.

@@ -10,12 +10,13 @@ import typer
 
 from mosaic.benchmarks.core.console import console, print_rule, print_skip, print_warn
 from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, run_suite
-from mosaic.benchmarks.core.utils import _RESULTS_DIR_ENV
+from mosaic.benchmarks.core.utils import _RESULTS_DIR_ENV, results_dir
 from mosaic.benchmarks.problems import PROBLEMS, get_config
+from mosaic.benchmarks.suites import SUITE_REGISTRY
 
-app = typer.Typer(name="mosaic", rich_markup_mode="rich", add_completion=False)
+app = typer.Typer(name="mosaic", rich_markup_mode="rich")
 
-_ALL_SUITES = ["ics", "forward", "cost", "gradient", "optimization"]
+_ALL_SUITES = list(SUITE_REGISTRY)
 
 
 def _repo_root() -> Path:
@@ -26,27 +27,31 @@ def _repo_root() -> Path:
 def _suite_components(suite: str, cfg=None) -> tuple[dict, callable]:
     """Return (experiments_dict, plot_fns_factory) for the named suite.
 
-    For the 'ics' suite *cfg* is required because experiments are built
-    dynamically from the problem config (no fixed module-level dict).
+    Dynamically imports the suite module from :data:`SUITE_REGISTRY`.
+    Suites that define ``get_experiments(cfg)`` / ``get_plot_fns(cfg)``
+    (dynamic suites like *ics*) require *cfg*; static suites expose
+    ``_EXPERIMENTS`` and ``_plot_fns`` at module level.
     """
-    if suite == "ics":
-        from mosaic.benchmarks.suites.ics import get_experiments, get_plot_fns
+    import importlib
 
+    if suite not in SUITE_REGISTRY:
+        from difflib import get_close_matches
+
+        suggestion = get_close_matches(suite, _ALL_SUITES, n=1, cutoff=0.5)
+        hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
+        raise ValueError(f"Unknown suite {suite!r}. Choose from: {_ALL_SUITES}.{hint}")
+
+    mod = importlib.import_module(SUITE_REGISTRY[suite])
+
+    # Dynamic suites (e.g. ics) define get_experiments / get_plot_fns
+    if hasattr(mod, "get_experiments"):
         if cfg is None:
-            raise ValueError("cfg is required for the 'ics' suite")
-        exps = get_experiments(cfg)
-        return exps, lambda: get_plot_fns(cfg)
-    elif suite == "forward":
-        from mosaic.benchmarks.suites.forward import _EXPERIMENTS, _plot_fns
-    elif suite == "cost":
-        from mosaic.benchmarks.suites.cost import _EXPERIMENTS, _plot_fns
-    elif suite == "gradient":
-        from mosaic.benchmarks.suites.gradient import _EXPERIMENTS, _plot_fns
-    elif suite == "optimization":
-        from mosaic.benchmarks.suites.optimization import _EXPERIMENTS, _plot_fns
-    else:
-        raise ValueError(f"Unknown suite {suite!r}. Choose from: {_ALL_SUITES}")
-    return _EXPERIMENTS, _plot_fns
+            raise ValueError(f"cfg is required for the {suite!r} suite")
+        exps = mod.get_experiments(cfg)
+        return exps, lambda: mod.get_plot_fns(cfg)
+
+    # Static suites define _EXPERIMENTS and _plot_fns at module level
+    return mod._EXPERIMENTS, mod._plot_fns
 
 
 def _apply_solver_filter(cfg, solvers_csv: str | None):
@@ -164,6 +169,7 @@ def _resolve_cfg_and_tags(
     solvers_csv: str | None = None,
     gpus: str | None = None,
     hardware: str | None = None,
+    max_build_workers: int = 2,
 ):
     cfg = get_config(problem)
     # --hardware cpu/gpu filters solvers by target hardware BEFORE build.
@@ -191,7 +197,7 @@ def _resolve_cfg_and_tags(
     if no_build or plots_only:
         return cfg, image_tags_no_build(cfg), gpus
     print_rule("build")
-    tags = build_all(cfg)
+    tags = build_all(cfg, max_workers=max_build_workers)
     return cfg, tags, gpus
 
 
@@ -293,6 +299,14 @@ def run(
         "in the current working directory.  Can also be set via the "
         f"{_RESULTS_DIR_ENV} environment variable.",
     ),
+    jobs: int = typer.Option(
+        2,
+        "--jobs",
+        "-j",
+        help="Max concurrent docker builds (default 2). "
+        "On a fresh worker machine 4-8 is usually faster.",
+        min=1,
+    ),
 ):
     """Run benchmark suites across problems.
 
@@ -324,6 +338,19 @@ def run(
     suite_list = (
         _ALL_SUITES if suites == "all" else [s.strip() for s in suites.split(",")]
     )
+
+    # Validate suite names early — before any builds start.
+    unknown_suites = [s for s in suite_list if s not in SUITE_REGISTRY]
+    if unknown_suites:
+        from difflib import get_close_matches
+
+        for s in unknown_suites:
+            suggestion = get_close_matches(s, _ALL_SUITES, n=1, cutoff=0.5)
+            hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
+            console.print(f"[red]Unknown suite {s!r}.{hint}[/red]")
+        console.print(f"Available suites: {', '.join(_ALL_SUITES)}")
+        raise typer.Exit(1)
+
     to_run = None if experiment == "all" else [experiment]
 
     # status[(problem, suite)] = ("ok" | "partial" | "skip" | "error", detail)
@@ -340,6 +367,7 @@ def run(
                     solvers_csv=solvers,
                     gpus=gpus,
                     hardware=hardware,
+                    max_build_workers=jobs,
                 )
                 cfg, tags = _filter_solvers(cfg, tags, solvers)
             else:
@@ -947,6 +975,52 @@ def status(
         console.print(summary)
 
 
+# ── `mosaic compare` ───────────────────────────────────────────────────────
+
+
+@app.command("compare")
+def compare(
+    before: Path = typer.Argument(
+        ...,
+        help="Path to the 'before' JSON snapshot (from `mosaic status --format json`).",
+    ),
+    after: Path = typer.Argument(
+        ...,
+        help="Path to the 'after' JSON snapshot (from `mosaic status --format json`).",
+    ),
+):
+    """Compare two status snapshots and print a diff.
+
+    Typical workflow:
+
+        mosaic status --format json > before.json\n
+        # … make changes, re-run benchmarks …\n
+        mosaic status --format json > after.json\n
+        mosaic compare before.json after.json
+
+    The output is a Markdown-formatted summary of regressions,
+    improvements, and new/removed rows between the two snapshots.
+    """
+    import json as _json
+
+    for label, path in [("before", before), ("after", after)]:
+        if not path.exists():
+            typer.echo(f"Error: {label} file not found: {path}", err=True)
+            raise typer.Exit(code=1)
+
+    from mosaic.benchmarks.core.status import diff_snapshots, render_diff_markdown
+
+    try:
+        old_snapshot = _json.loads(before.read_text())
+        new_snapshot = _json.loads(after.read_text())
+    except Exception as exc:
+        typer.echo(f"Error reading JSON snapshots: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    diff = diff_snapshots(old_snapshot, new_snapshot)
+    typer.echo(render_diff_markdown(diff))
+
+
 # ── `mosaic tesseracts` ────────────────────────────────────────────────────
 
 
@@ -1014,7 +1088,7 @@ def paper_plots(
         None,
         "--out-dir",
         "-o",
-        help="Output directory for generated figures. Defaults to paper/figures/ at repo root.",
+        help="Output directory for generated figures. Defaults to <results-dir>/figures/.",
     ),
     only: str = typer.Option(
         "all",
@@ -1031,8 +1105,7 @@ def paper_plots(
     """
     from mosaic.benchmarks.plots.paper import all_names, get_generate_fn
 
-    repo = _repo_root()
-    target_dir: Path = out_dir if out_dir is not None else repo / "paper" / "figures"
+    target_dir: Path = out_dir if out_dir is not None else results_dir() / "figures"
     target_dir.mkdir(parents=True, exist_ok=True)
 
     names = all_names() if only == "all" else [n.strip() for n in only.split(",")]
@@ -1061,6 +1134,81 @@ def paper_plots(
         raise typer.Exit(1)
 
 
+@app.command("validate-domain")
+def validate_domain_cmd(
+    problem: str = typer.Argument(help="Problem name to validate (e.g. 'ns-grid')."),
+) -> None:
+    """Validate a registered problem domain's ProblemConfig.
+
+    Checks solver metadata, tesseract directories, suite defaults structure,
+    ad_strategy values, and output_key against the schema module.
+    """
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config(problem)
+    n_checks = 0
+    n_ok = 0
+
+    # 1. ProblemConfig.validate()
+    n_checks += 1
+    try:
+        cfg.validate()
+        console.print("[green]  OK[/green]  ProblemConfig.validate()")
+        n_ok += 1
+    except ValueError as exc:
+        console.print(f"[red]FAIL[/red]  ProblemConfig.validate():\n{exc}")
+
+    # 2. Solver directories exist
+    for key, spec in cfg.solvers.items():
+        n_checks += 1
+        solver_dir = cfg.tesseract_dir / spec.dir
+        if solver_dir.is_dir():
+            console.print(f"[green]  OK[/green]  solver dir: {spec.dir}/")
+            n_ok += 1
+        else:
+            console.print(f"[red]FAIL[/red]  solver dir missing: {solver_dir}")
+
+    # 3. Check output_key against schema module (best-effort)
+    n_checks += 1
+    try:
+        # Try to find the schema module for this domain
+        slug = problem.replace("-", "_")
+        import importlib
+
+        mod = importlib.import_module(f"mosaic.mosaic_shared.problems.{slug}")
+        if hasattr(mod, "OutputSchema"):
+            out_fields = set(mod.OutputSchema.model_fields.keys())
+            if cfg.output_key in out_fields:
+                console.print(
+                    f"[green]  OK[/green]  output_key {cfg.output_key!r} in OutputSchema"
+                )
+                n_ok += 1
+            else:
+                console.print(
+                    f"[red]FAIL[/red]  output_key {cfg.output_key!r} not in "
+                    f"OutputSchema fields: {sorted(out_fields)}"
+                )
+        else:
+            console.print(
+                "  [dim]SKIP[/dim]  output_key schema check (no OutputSchema found)"
+            )
+            n_ok += 1  # not a failure
+    except ImportError:
+        console.print(
+            "  [dim]SKIP[/dim]  output_key schema check (could not import schema module)"
+        )
+        n_ok += 1  # not a failure
+
+    # Summary
+    if n_ok == n_checks:
+        console.print(f"\n[green]All {n_checks} checks passed for {problem!r}.[/green]")
+    else:
+        console.print(
+            f"\n[red]{n_checks - n_ok} of {n_checks} checks failed for {problem!r}.[/red]"
+        )
+        raise typer.Exit(1)
+
+
 @app.command("new-domain")
 def new_domain(
     name: str = typer.Argument(help="Name for the new domain (e.g. 'my-flow')."),
@@ -1083,7 +1231,7 @@ def new_domain(
         f"\nNext steps:\n"
         f"  1. Edit the generated schemas and problem config\n"
         f"  2. Add a solver in mosaic/tesseracts/{name}/\n"
-        f"  3. Register the domain in mosaic/benchmarks/problems/__init__.py\n"
+        f"  3. Run [bold]mosaic validate-domain {name}[/bold] to verify\n"
     )
 
 
@@ -1105,9 +1253,49 @@ def validate_template_cmd(
 
 
 @app.command("templates")
-def list_templates_cmd() -> None:
-    """List available task templates."""
+def list_templates_cmd(
+    show: str | None = typer.Option(
+        None,
+        "--show",
+        help="Show full details for a specific template (suites, physics defaults, ICs).",
+    ),
+) -> None:
+    """List available task templates, or show details for a specific template."""
     from mosaic.templates.scaffold import list_templates, load_template
+
+    if show:
+        tpl = load_template(show)
+        console.print(f"\n[bold]{tpl.name}[/bold]")
+        console.print(f"  {tpl.description.strip()}\n")
+        console.print(f"  [dim]schema:[/dim]  {tpl.schema_module}")
+        console.print(f"  [dim]output_key:[/dim]  {tpl.output_key}")
+        console.print(f"  [dim]ic_key:[/dim]  {tpl.ic_key}")
+        console.print(f"  [dim]resolution_key:[/dim]  {tpl.resolution_key}")
+        if tpl.physics_defaults:
+            console.print("\n  [bold]Physics defaults:[/bold]")
+            for k, v in tpl.physics_defaults.items():
+                console.print(f"    {k}: {v}")
+        if tpl.ic_defaults:
+            console.print("\n  [bold]IC defaults:[/bold]")
+            for k, v in tpl.ic_defaults.items():
+                console.print(f"    {k}: {v}")
+        for suite_name, suite_data in [
+            ("forward", tpl.forward),
+            ("gradient", tpl.gradient),
+            ("cost", tpl.cost),
+            ("optimization", tpl.optimization),
+        ]:
+            if suite_data:
+                console.print(f"\n  [bold]{suite_name}:[/bold]")
+                for exp_name in suite_data:
+                    n_runs = (
+                        len(suite_data[exp_name])
+                        if isinstance(suite_data[exp_name], list)
+                        else 1
+                    )
+                    console.print(f"    {exp_name}  ({n_runs} run(s))")
+        console.print()
+        return
 
     templates = list_templates()
     if not templates:
@@ -1116,6 +1304,7 @@ def list_templates_cmd() -> None:
     for name in templates:
         tpl = load_template(name)
         console.print(f"  [bold]{name}[/bold]  {tpl.description.strip()}")
+    console.print("\n  [dim]Use --show <name> for full details.[/dim]")
 
 
 if __name__ == "__main__":

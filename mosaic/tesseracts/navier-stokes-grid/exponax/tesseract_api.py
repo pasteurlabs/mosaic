@@ -4,6 +4,7 @@ import equinox as eqx
 import exponax as ex
 import jax
 import jax.numpy as jnp
+import numpy as np
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
@@ -16,7 +17,8 @@ from tesseract_core.runtime import Array, Differentiable, Float32
 
 class InputSchema(_CanonicalInputSchema):
     drag: Differentiable[Array[(1,), Float32]] = Field(
-        description="Linear drag coefficient", default=0.0
+        description="Linear drag coefficient",
+        default_factory=lambda: np.array([0.0], dtype=np.float32),
     )
     order: int = Field(description="ETDRK time integration order (0-4)", default=2)
     kolmogorov_forcing: bool = Field(
@@ -29,7 +31,7 @@ class InputSchema(_CanonicalInputSchema):
     )
     injection_scale: Differentiable[Array[(1,), Float32]] = Field(
         description="Amplitude of the Kolmogorov body forcing",
-        default=1.0,
+        default_factory=lambda: np.array([1.0], dtype=np.float32),
     )
 
     @model_validator(mode="after")

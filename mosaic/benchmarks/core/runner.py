@@ -107,6 +107,7 @@ from .config import ProblemConfig  # noqa: E402
 from .console import (  # noqa: E402
     console,
     make_build_progress,
+    make_sweep_progress,
     print_rule,
     print_skip,
     print_warn,
@@ -262,6 +263,12 @@ def run_suite(
     to_run = to_run or list(experiments)
     results: dict[str, dict] = {}
     for name in to_run:
+        if name not in experiments:
+            available = sorted(experiments.keys())
+            print_warn(
+                f"unknown experiment {name!r}. Available for this suite: {available}"
+            )
+            continue
         print_rule(name)
         try:
             results[name] = experiments[name](cfg, tags, **(overrides or {}))
@@ -344,21 +351,53 @@ def solver_sweep(
     raw: dict[str, dict] = {name: {} for name in names}
     wall_times: dict[str, float] = {}
 
-    def _per_solver(name: str, t) -> None:
-        color = cfg.solvers[name].color
-        t0 = time.perf_counter()
-        for cond in conditions:
-            label = label_fn(cond) if label_fn else str(cond)
-            key = key_fn(cond) if key_fn else cond
-            result = fn(name, t, cond)
-            raw[name][key] = result
-            if auto_status and result is None:
-                console.print(f"  {label}  [red]FAIL[/]")
-        elapsed = time.perf_counter() - t0
-        wall_times[name] = elapsed
-        console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
+    n_solvers = len(names)
+    n_conds = len(conditions)
+    n_total = n_solvers * n_conds
 
-    run_with_gpu_pool(names, tags, _per_solver, gpu_ids=gpu_ids)
+    if n_total == 0:
+        return raw, wall_times
+
+    # Print sweep header so users know the grid size before work begins.
+    cond_labels = [label_fn(c) if label_fn else str(c) for c in conditions]
+    console.print(
+        f"  [dim]sweep: {n_solvers} solver(s) x {n_conds} condition(s)"
+        f" = {n_total} calls[/dim]"
+    )
+
+    # _progress_lock guards the Rich Progress bar advance() calls in the
+    # multi-GPU parallel path where _per_solver runs on multiple threads.
+    _progress_lock = threading.Lock()
+
+    with make_sweep_progress(total=n_total) as progress:
+        task = progress.add_task("running sweep...", total=n_total)
+
+        def _per_solver(name: str, t) -> None:
+            color = cfg.solvers[name].color
+            t0 = time.perf_counter()
+            for ci, cond in enumerate(conditions):
+                label = cond_labels[ci]
+                key = key_fn(cond) if key_fn else cond
+                tc = time.perf_counter()
+                result = fn(name, t, cond)
+                dt = time.perf_counter() - tc
+                raw[name][key] = result
+                if auto_status:
+                    if result is None:
+                        console.print(
+                            f"  [{color}]{name:<16}[/] {label:<12} [red]FAIL[/] ({dt:.1f}s)"
+                        )
+                    else:
+                        console.print(
+                            f"  [{color}]{name:<16}[/] {label:<12} [green]ok[/]   ({dt:.1f}s)"
+                        )
+                with _progress_lock:
+                    progress.advance(task)
+            elapsed = time.perf_counter() - t0
+            wall_times[name] = elapsed
+            console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
+
+        run_with_gpu_pool(names, tags, _per_solver, gpu_ids=gpu_ids)
     return raw, wall_times
 
 
@@ -387,40 +426,6 @@ def run_with_gpu_pool(
     _problem_label = _current_problem or "mosaic"
     _NO_HC = ["--no-healthcheck", "--label", f"mosaic-problem={_problem_label}"]
 
-    # num_workers=2 keeps one uvicorn worker free to answer health probes while
-    # the other is blocked in a long JAX/Julia computation.  The Tesseract
-    # serve.py wrapper is `async def` but calls endpoint functions synchronously,
-    # so a single-worker server can't respond to probes during computation.
-    #
-    # EXCEPTION: Julia-backed tesseracts (juliacall/PythonCall) crash in a
-    # worker-restart loop when uvicorn forks a second worker -- juliacall
-    # state isn't fork-safe.  For those we fall back to num_workers=1.
-    # --no-healthcheck is already set above so the probe argument doesn't
-    # apply during benchmark runs.  Supervisor patch 2026-04-16 (cycle 6).
-    def _num_workers_for(tag: str) -> int:
-        t = tag.lower()
-        # Julia-backed tesseracts must use 1 worker (juliacall is not fork-safe).
-        # xlb uses 1 worker: two uvicorn workers JIT-compile the same f64 XLA
-        # graph on the same V100 GPU simultaneously, causing CUDA_ERROR_OUT_OF_MEMORY
-        # and "CUBIN compiled for different GPU".
-        # FEniCS/dolfin_adjoint tesseracts must use 1 worker: DOLFIN's PETSc state
-        # and MPI communicators are not fork-safe; a second uvicorn worker causes
-        # an immediate SIGKILL / ConnectionResetError (observed with fenics_ns_3d).
-        if (
-            "_jl_" in t
-            or t.endswith("_jl")
-            or "topopt_jl" in t
-            or "trixi" in t
-            or "waterlily" in t
-            or "incompressible_navier_stokes_jl" in t
-            or "speedyweather" in t
-            or "ins_navier" in t
-            or t.startswith("xlb_")
-            or "fenics" in t
-        ):
-            return 1
-        return 2
-
     if gpu_ids is None or gpu_ids == []:
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])
         # gpu_ids=[]    → --gpus none/cpu, CPU-only host (gpus=None, no GPU flags)
@@ -428,10 +433,9 @@ def run_with_gpu_pool(
         for name in solver_names:
             _tl.image_tag = tags[name]
             _tl.gpu_id = None  # all GPUs available
-            _nw = _num_workers_for(tags[name])
             try:
                 with Tesseract.from_image(
-                    tags[name], gpus=_gpus, docker_args=_NO_HC, num_workers=_nw
+                    tags[name], gpus=_gpus, docker_args=_NO_HC, num_workers=1
                 ) as t:
                     fn(name, t)
             except Exception as exc:
@@ -449,9 +453,8 @@ def run_with_gpu_pool(
         try:
             _tl.image_tag = tags[name]
             _tl.gpu_id = gid
-            _nw = _num_workers_for(tags[name])
             with Tesseract.from_image(
-                tags[name], gpus=[gid], docker_args=_NO_HC, num_workers=_nw
+                tags[name], gpus=[gid], docker_args=_NO_HC, num_workers=1
             ) as t:
                 fn(name, t)
         except Exception as exc:
@@ -507,6 +510,15 @@ def safe_apply_with_extras(
     """
     try:
         out = _apply_tesseract_with_deadline(t, inputs)
+        if output_key not in out:
+            available = sorted(out.keys())
+            error_msg = (
+                f"output_key {output_key!r} not in solver output. "
+                f"Available keys: {available}"
+            )
+            print_warn(f"apply failed: {error_msg}")
+            _tl.last_apply_error = error_msg
+            return None, {}, {}
         arr = out[output_key]
         if not jnp.all(jnp.isfinite(arr)):
             return None, {}, {}

@@ -55,6 +55,11 @@ def _plot_combined_convergence(out_path: Path) -> None:
     all_order: list[str] = []
 
     for ax, (domain_label, result_path, solver_order) in zip(axes, domains):
+        if not result_path.exists():
+            print(f"[topopt] {result_path} not found — skipping {domain_label}")
+            ax.set_title(f"{domain_label} (no data)")
+            ax.set_visible(False)
+            continue
         data = json.loads(result_path.read_text())
         by_solver = data["by_solver"]
 
