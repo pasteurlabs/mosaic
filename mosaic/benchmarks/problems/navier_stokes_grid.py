@@ -252,25 +252,24 @@ _SOLVERS: dict[str, SolverSpec] = {
         color="#EE7733",
         linestyle=(0, (1, 1)),
         marker="X",
-        scheme="IPCS (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP",
+        scheme="IPCS (2D+3D), periodic spectral FFT Poisson, wp.Tape VJP",
         description=(
-            "NVIDIA Warp NS solver: IPCS primitive-variable projection for both 2D and 3D. "
-            "Pressure solve: spectral FFT Poisson on periodic domains; CG+Neumann sparse Poisson "
-            "when an obstacle or inflow_profile is present (2D only). "
-            "Obstacle via volume penalization (2D only). VJP via wp.Tape. "
-            "Viscosity and dt gradients via central finite differences (2D only). "
-            "Unified 2D/3D IPCS formulation (2026-04-22)."
+            "NVIDIA Warp periodic-only NS solver: IPCS primitive-variable projection "
+            "for both 2D and 3D with spectral FFT pressure Poisson. VJP via wp.Tape; "
+            "viscosity and dt gradients via per-step record_func callbacks accumulated "
+            "analytically from the Laplacian / advection / divergence / pressure-correction "
+            "terms."
         ),
         doc_url="https://github.com/NVIDIA/warp",
         image_tag="warp_ns_navier_stokes_grid:latest",
         exclusions={
             "forward/cylinder": {
                 "category": "categorical",
-                "reason": "FFT spectral Poisson is periodic-only; obstacle channel BCs are method-incompatible",
+                "reason": "warp-ns is periodic-only; obstacle flows are not supported",
             },
             "optimization/drag_opt": {
-                "category": "infeasible",
-                "reason": "wp.Tape does not differentiate through the CG+Neumann obstacle pressure solve; drag gradient is zero, optimizer makes no progress",
+                "category": "categorical",
+                "reason": "warp-ns is periodic-only; obstacle/inflow flows are not supported",
             },
         },
         explained_anomalies={

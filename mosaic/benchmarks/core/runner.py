@@ -519,8 +519,11 @@ def safe_apply_with_extras(
             return None, {}, {}
         extras = {}
         for k in extra_scalar_keys:
-            if k in out:
-                v = float(out[k])
+            if k in out and out[k] is not None:
+                # Tesseracts return scalar outputs as either a Python scalar or a
+                # shape-(1,) array (e.g. drag); flatten so float() never sees a
+                # multi-element array.
+                v = float(jnp.asarray(out[k]).flatten()[0])
                 if jnp.isfinite(v):
                     extras[k] = v
         state = {

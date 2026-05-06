@@ -19,7 +19,12 @@ import jax.numpy as jnp
 import numpy as np  # kept for np.savez and string arrays (JAX doesn't support these)
 
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply, solver_sweep
+from mosaic.benchmarks.core.runner import (
+    get_last_apply_error,
+    safe_apply,
+    safe_apply_with_extras,
+    solver_sweep,
+)
 from mosaic.benchmarks.core.utils import (
     experiment_dir,
     extract_runs,
@@ -89,6 +94,10 @@ def run_agreement(
 
         _apply_errors: dict = {n: {} for n in cfg.solvers}
         _apply_errors_lock = threading.Lock()
+        # Capture drag (force on obstacle) from solvers that produce it. Cylinder
+        # experiments are the only ones that pass an obstacle; for the rest the
+        # extras dict comes back empty and this stays as {}.
+        _drags: dict = {n: {} for n in cfg.solvers}
 
         # Regenerate IC at each sweep value so N-sweeps use the correct IC shape.
         def _apply(name, t, val, _phys=phys, _ic_name=ic_name, _seed=seed):
@@ -101,11 +110,15 @@ def run_agreement(
                 if fine_steps is not None:
                     _p["steps"] = fine_steps
             inputs = cfg.make_inputs(name, _ic, domain_extent=cfg.domain_extent, **_p)
-            result = safe_apply(t, inputs, cfg.output_key)
+            result, extras, _ = safe_apply_with_extras(
+                t, inputs, cfg.output_key, ["drag"]
+            )
             if result is None:
                 err = get_last_apply_error()
                 with _apply_errors_lock:
                     _apply_errors[name][val] = err
+            if "drag" in extras:
+                _drags[name][val] = extras["drag"]
             norm = cfg.solvers[name].normalize_output
             return norm(result) if (norm is not None and result is not None) else result
 
@@ -244,7 +257,15 @@ def run_agreement(
                 fsnap[f"{n}_{i}"] = arr
             by_param[val] = {
                 n: (
-                    {"error": cfg.error_fn(comparable[n], reference), "valid": True}
+                    {
+                        "error": cfg.error_fn(comparable[n], reference),
+                        "valid": True,
+                        **(
+                            {"drag": _drags[n][val]}
+                            if val in _drags.get(n, {})
+                            else {}
+                        ),
+                    }
                     if n in comparable
                     else {
                         "error": _apply_errors.get(n, {}).get(val),

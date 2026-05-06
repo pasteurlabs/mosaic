@@ -173,6 +173,16 @@ def _make_arc_block_grid(  # mosaic:init
         theta1 = math.atan2(
             y1 - arc_cy, x1 - arc_cx if arc_face == "+x" else x0 - arc_cx
         )
+        # For arc_face="+x" the block sits left of the cylinder, so theta0,theta1
+        # straddle ±π and atan2's [-π, π] range makes their direct linspace pass
+        # through θ=0 (the wrong side of the cylinder), which folds the cells
+        # back on themselves and produces a degenerate (orientation 0) grid.
+        # Unwrap so we always take the short arc.
+        if abs(theta1 - theta0) > math.pi:
+            if theta1 > theta0:
+                theta1 -= 2 * math.pi
+            else:
+                theta1 += 2 * math.pi
         thetas = torch.linspace(theta0, theta1, ny + 1, dtype=dtype)  # (ny+1,)
         arc_x = arc_cx + arc_r * torch.cos(thetas)  # (ny+1,)
         arc_y = arc_cy + arc_r * torch.sin(thetas)  # (ny+1,)
@@ -754,32 +764,91 @@ def _make_domain_cylinder(  # mosaic:init
         Btr.setVelocity(v0_pict[:, :, y2:y3, x2:x3].contiguous())
 
     # ------------------------------------------------------------------
-    # assembler closure: reassemble (1,2,N,N) from 8 blocks
+    # assembler closure: resample 8-block body-fitted velocity onto
+    # canonical Cartesian (1, 2, N, N).
     # ------------------------------------------------------------------
     # NOTE: PISOtorch_diff's backward calls ``block.setVelocityGrad(v_grad)``
-    # which requires v_grad to be contiguous.  The backward of ``torch.cat``
-    # returns stride-slices of the upstream cotangent that are not contiguous;
-    # attach a ``register_hook`` to each block velocity that materialises the
-    # incoming gradient before PICT consumes it.
+    # which requires v_grad to be contiguous.  Our gather-from-block tensors
+    # via ``vec[idx]`` returns non-contiguous views; attach a register_hook on
+    # each block velocity so the cotangent flowing back to PICT is materialised
+    # contiguously.
     def _ensure_contiguous_grad(t: torch.Tensor) -> torch.Tensor:
         if t.requires_grad:
             t.register_hook(lambda g: g.contiguous() if g is not None else g)
         return t
 
-    def _assemble(domain: PISOtorch.Domain) -> torch.Tensor:  # noqa: ARG001
-        z_obs = torch.zeros(1, 2, ys[1], xs[1], dtype=dtype, device=_DEVICE)
-        vbl = _ensure_contiguous_grad(Bbl.velocity)
-        vbm = _ensure_contiguous_grad(Bbm.velocity)
-        vbr = _ensure_contiguous_grad(Bbr.velocity)
-        vml = _ensure_contiguous_grad(Bml.velocity)
-        vmr = _ensure_contiguous_grad(Bmr.velocity)
-        vtl = _ensure_contiguous_grad(Btl.velocity)
-        vtm = _ensure_contiguous_grad(Btm.velocity)
-        vtr = _ensure_contiguous_grad(Btr.velocity)
-        row_bot = torch.cat([vbl, vbm, vbr], dim=3)
-        row_mid = torch.cat([vml, z_obs, vmr], dim=3)
-        row_top = torch.cat([vtl, vtm, vtr], dim=3)
-        return torch.cat([row_bot, row_mid, row_top], dim=2)  # (1, 2, N, N)
+    # Geometry-only state (cached): the curved-cell centres and the
+    # Cartesian→curved-cell nearest-neighbour index map are functions of the
+    # vertex grid alone, which is fixed at domain construction.  Computing them
+    # once avoids a 3927×4096 distance matrix per assembler call.
+    _remap_idx: torch.Tensor | None = None
+    _circle_mask: torch.Tensor | None = None
+
+    def _assemble(domain: PISOtorch.Domain) -> torch.Tensor:
+        nonlocal _remap_idx, _circle_mask
+
+        # ---- one-time geometry pass (no_grad: pure mesh-derived index map).
+        if _remap_idx is None:
+            with torch.no_grad():
+                cx_parts: list[torch.Tensor] = []
+                cy_parts: list[torch.Tensor] = []
+                for blockIdx in range(domain.getNumBlocks()):
+                    block = domain.getBlock(blockIdx)
+                    verts = block.vertexCoordinates  # (1, 2, ny+1, nx+1)
+                    gx = verts[0, 0]
+                    gy = verts[0, 1]
+                    # Cell centre = mean of the four cell vertices.
+                    cx_b = 0.25 * (
+                        gx[:-1, :-1] + gx[1:, :-1] + gx[:-1, 1:] + gx[1:, 1:]
+                    )
+                    cy_b = 0.25 * (
+                        gy[:-1, :-1] + gy[1:, :-1] + gy[:-1, 1:] + gy[1:, 1:]
+                    )
+                    cx_parts.append(cx_b.reshape(-1).to(device=_DEVICE, dtype=dtype))
+                    cy_parts.append(cy_b.reshape(-1).to(device=_DEVICE, dtype=dtype))
+                cx_all = torch.cat(cx_parts)  # (M,)
+                cy_all = torch.cat(cy_parts)  # (M,)
+
+                # Canonical Cartesian cell centres at (i+0.5, j+0.5) cell units;
+                # PICT layout has dim2=y, dim3=x → use indexing="ij" on (y, x).
+                coords = torch.arange(N, dtype=dtype, device=_DEVICE) + 0.5
+                YC, XC = torch.meshgrid(coords, coords, indexing="ij")
+                xf = XC.reshape(-1)
+                yf = YC.reshape(-1)
+                d2 = (xf.unsqueeze(1) - cx_all.unsqueeze(0)) ** 2 + (
+                    yf.unsqueeze(1) - cy_all.unsqueeze(0)
+                ) ** 2
+                _remap_idx = d2.argmin(dim=1)  # (N², ) into the per-block flat axis
+
+                # Circular obstacle mask in cell units.
+                _cx_obs = obstacle["center"][0] * N
+                _cy_obs = obstacle["center"][1] * N
+                _r_obs = obstacle["radius"] * N
+                _circle_mask = (
+                    (XC - _cx_obs) ** 2 + (YC - _cy_obs) ** 2
+                ) < _r_obs**2  # (N, N) bool
+
+        # ---- live velocity gather (autograd-tracked).
+        vx_parts: list[torch.Tensor] = []
+        vy_parts: list[torch.Tensor] = []
+        for blockIdx in range(domain.getNumBlocks()):
+            block = domain.getBlock(blockIdx)
+            vel = _ensure_contiguous_grad(block.velocity)  # (1, 2, ny, nx)
+            vx_parts.append(vel[0, 0].reshape(-1))
+            vy_parts.append(vel[0, 1].reshape(-1))
+        vx_all = torch.cat(vx_parts)  # (M,)
+        vy_all = torch.cat(vy_parts)
+
+        # Differentiable nearest-neighbour gather.
+        vx_cart = vx_all[_remap_idx].reshape(N, N)
+        vy_cart = vy_all[_remap_idx].reshape(N, N)
+
+        # Apply circular obstacle mask (zero inside the cylinder).
+        z_scalar = torch.zeros((), dtype=dtype, device=_DEVICE)
+        vx_cart = torch.where(_circle_mask, z_scalar, vx_cart)
+        vy_cart = torch.where(_circle_mask, z_scalar, vy_cart)
+
+        return torch.stack([vx_cart, vy_cart], dim=0).unsqueeze(0).contiguous()
 
     # ------------------------------------------------------------------
     # drag_assembler: differentiable x-direction drag on the cylinder

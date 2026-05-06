@@ -2,16 +2,13 @@
 
 Uses deal.II Q1 finite elements (Step-8 pattern) as a C++ subprocess.
 Python writes JSON + rho.npy to a tempdir, runs the compiled struct_solver
-binary, and reads back compliance.txt (plus gradient.npy for the VJP).
+binary, and reads back compliance.txt.  Forward-only.
 
 SIMP stiffness:
     E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal
 
 Objective:
     C = F^T U  (structural compliance)
-
-Gradient (analytic, self-adjoint):
-    dC/dρ_e = −(1−xmin)·E_max·penal·ρ_e^(penal−1) / E_e · local_compliance_e
 """
 
 import json
@@ -19,7 +16,6 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from mosaic_shared.problems.structural_mesh import (
@@ -28,7 +24,6 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from tesseract_core.runtime import ShapeDType
 
@@ -42,11 +37,11 @@ _DEALII_SOLVER = os.environ.get(
 
 
 # ---------------------------------------------------------------------------
-# Schema (subclass with material parameters)
+# Schema (subclass with material parameters; forward-only — no Differentiable)
 # ---------------------------------------------------------------------------
 
 
-class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
+class InputSchema(_CanonicalInputSchema):
     """Inputs for deal.II structural solver, extended with SIMP material parameters."""
 
     E_max: float = Field(
@@ -67,7 +62,7 @@ class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     )
 
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
+class OutputSchema(_CanonicalOutputSchema):
     pass
 
 
@@ -160,14 +155,9 @@ def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
         json.dump(payload, f)
 
 
-def _run_solver(  # mosaic:physics
-    wd: Path,
-    compute_gradient: bool = False,
-) -> None:
+def _run_solver(wd: Path) -> None:  # mosaic:physics
     """Invoke the deal.II struct_solver binary."""
     cmd = [_DEALII_SOLVER, str(wd / "input.json")]
-    if compute_gradient:
-        cmd.append("--gradient")
     result = subprocess.run(cmd, cwd=str(wd), capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(
@@ -203,50 +193,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
         _write_inputs(inputs, wd)
         _run_solver(wd)
         return _parse_outputs(wd)
-
-
-def vector_jacobian_product(  # mosaic:grad:rho:analytic
-    inputs: InputSchema,
-    vjp_inputs: set[str],
-    vjp_outputs: set[str],
-    cotangent_vector: dict[str, Any],
-) -> dict[str, Any]:
-    """VJP via analytic SIMP sensitivity: dC/drho.
-
-    Runs the forward solve with ``--gradient``; C++ writes ``gradient.npy``
-    (n_active_cells, analytic dC/drho per cell).
-
-    Args:
-        inputs: Validated InputSchema.
-        vjp_inputs: Names of inputs for which gradients are requested.
-        vjp_outputs: Names of outputs whose cotangents are provided.
-        cotangent_vector: Dict of output-name -> cotangent scalar.
-
-    Returns:
-        Dict mapping "rho" -> gradient array matching inputs.rho shape.
-    """
-    assert vjp_inputs <= {"rho"}
-    assert vjp_outputs <= {"compliance"}
-
-    if "rho" not in vjp_inputs:
-        return {}
-
-    cot_c = float(cotangent_vector.get("compliance", 0.0))
-    hm = inputs.hex_mesh
-    n_active = hm.n_faces
-    grad_full = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
-
-    if abs(cot_c) == 0.0:
-        return {"rho": grad_full}
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        wd = Path(tmpdir)
-        _write_inputs(inputs, wd)
-        _run_solver(wd, compute_gradient=True)
-        gradient = np.load(str(wd / "gradient.npy")).astype(np.float32)
-        grad_full[:n_active] = (gradient[:n_active] * cot_c).astype(np.float32)
-
-    return {"rho": grad_full}
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:

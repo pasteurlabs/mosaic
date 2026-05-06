@@ -5,7 +5,7 @@
 // Based on deal.II Step-8 (vector-valued FE for linear elasticity).
 //
 // Usage:
-//   struct_solver input.json [--gradient]
+//   struct_solver input.json
 //
 // Reads:
 //   input.json         — mesh dimensions, material params, BC masks
@@ -13,7 +13,6 @@
 //
 // Writes:
 //   compliance.txt     — structural compliance C = F^T U (single float)
-//   gradient.npy       — analytic dC/drho (float32, n_cells) [--gradient only]
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -171,15 +170,13 @@ groups_to_boundary_ids(const std::vector<int> &mask,
 class StructSolver
 {
 public:
-  StructSolver(const std::string &input_json_path,
-               bool compute_gradient);
+  StructSolver(const std::string &input_json_path);
   void run();
 
 private:
   void setup_system();
   void assemble_system();
   void solve_system();
-  void compute_gradient_field();
   void write_outputs();
 
   // Inputs
@@ -192,7 +189,6 @@ private:
   std::vector<int>                   neumann_mask;
   std::vector<std::vector<double>>   neumann_values;   // (n_groups, 3)
 
-  bool        compute_gradient_;
   std::string output_dir_;
 
   // deal.II objects
@@ -209,16 +205,13 @@ private:
   std::vector<float>  rho;
 
   // Outputs
-  std::vector<double> gradient_vals;
   double              compliance;
 };
 
 // mosaic:io
-StructSolver::StructSolver(const std::string &input_json_path,
-                            bool compute_gradient)
+StructSolver::StructSolver(const std::string &input_json_path)
   : fe(FE_Q<3>(1), 3)
   , dof_handler(triangulation)
-  , compute_gradient_(compute_gradient)
 {
   // Determine output directory
   size_t pos = input_json_path.rfind('/');
@@ -477,95 +470,11 @@ void StructSolver::solve_system()
   compliance = system_rhs_original * solution;
 }
 
-// mosaic:grad:rho:analytic
-void StructSolver::compute_gradient_field()
-{
-  // Analytic SIMP compliance sensitivity:
-  //   dC/drho_e = -(dE_e/drho_e) * u_e^T * K_e_norm * u_e
-  // where K_e_norm is element stiffness with E_e = 1.
-  // Equivalently: dC/drho_e = -(dE_e/drho_e) * local_compliance_e_norm
-  // Sign: negative because more solid -> stiffer -> lower compliance.
-
-  QGauss<3> quad(2);
-  FEValues<3> fev(fe, quad, update_gradients | update_JxW_values);
-
-  const unsigned int dpc = fe.n_dofs_per_cell();
-  const unsigned int nq  = quad.size();
-  unsigned int n_cells = triangulation.n_active_cells();
-  gradient_vals.assign(n_cells, 0.0);
-
-  FullMatrix<double> K_norm(dpc, dpc);
-  Vector<double>     u_e(dpc);
-  std::vector<types::global_dof_index> ldof(dpc);
-
-  // Normalised Lame parameters (E_e = 1)
-  double lam_n = 1.0 * nu / ((1.0 + nu) * (1.0 - 2.0 * nu));
-  double mu_n  = 1.0 / (2.0 * (1.0 + nu));
-
-  unsigned int cell_idx = 0;
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    K_norm = 0;
-    fev.reinit(cell);
-    cell->get_dof_indices(ldof);
-
-    double rho_e = (cell_idx < rho.size())
-                   ? std::max(0.0, std::min(1.0, (double)rho[cell_idx]))
-                   : 0.5;
-    double E_e     = xmin * E_max + (1.0 - xmin) * E_max * std::pow(rho_e, penal);
-    double dE_drho = (1.0 - xmin) * E_max * penal * std::pow(rho_e, penal - 1.0);
-
-    // Normalised element stiffness K_norm (E=1)
-    for (unsigned int q = 0; q < nq; ++q) {
-      double JxW = fev.JxW(q);
-      for (unsigned int i = 0; i < dpc; ++i) {
-        int ci = fe.system_to_component_index(i).first;
-        const Tensor<1,3> &gi = fev.shape_grad_component(i, q, ci);
-        double div_i = gi[ci];
-        for (unsigned int j = 0; j < dpc; ++j) {
-          int cj = fe.system_to_component_index(j).first;
-          const Tensor<1,3> &gj = fev.shape_grad_component(j, q, cj);
-          double div_j = gj[cj];
-          double c = lam_n * div_i * div_j;
-          if (ci == cj) c += mu_n * (gi * gj);
-          c += mu_n * gi[cj] * gj[ci];
-          K_norm(i, j) += c * JxW;
-        }
-      }
-    }
-
-    // Element displacement
-    for (unsigned int i = 0; i < dpc; ++i)
-      u_e(i) = solution(ldof[i]);
-
-    // local_compliance_norm = u_e^T K_norm u_e
-    double lc = 0.0;
-    for (unsigned int i = 0; i < dpc; ++i)
-      for (unsigned int j = 0; j < dpc; ++j)
-        lc += u_e(i) * K_norm(i, j) * u_e(j);
-
-    // dC/drho_e = -(dE/drho) * lc  (lc = u^T K_norm u = u^T K u / E_e)
-    gradient_vals[cell_idx] = -dE_drho * lc;
-    ++cell_idx;
-  }
-}
-
 // mosaic:io
 void StructSolver::write_outputs()
 {
-  // Write compliance.txt
-  {
-    std::ofstream f(output_dir_ + "/compliance.txt");
-    f << std::scientific << std::setprecision(15) << compliance << "\n";
-  }
-
-  // Write gradient.npy
-  if (compute_gradient_) {
-    std::vector<float> grad_f(gradient_vals.size());
-    for (size_t i = 0; i < gradient_vals.size(); ++i)
-      grad_f[i] = (float)gradient_vals[i];
-    cnpy::npy_save(output_dir_ + "/gradient.npy",
-                   grad_f.data(), {grad_f.size()}, "w");
-  }
+  std::ofstream f(output_dir_ + "/compliance.txt");
+  f << std::scientific << std::setprecision(15) << compliance << "\n";
 }
 
 // mosaic:util
@@ -574,8 +483,6 @@ void StructSolver::run()
   setup_system();
   assemble_system();
   solve_system();
-  if (compute_gradient_)
-    compute_gradient_field();
   write_outputs();
 }
 
@@ -589,19 +496,12 @@ int main(int argc, char *argv[])
   Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
   if (argc < 2) {
-    std::cerr << "Usage: struct_solver input.json [--gradient]\n";
+    std::cerr << "Usage: struct_solver input.json\n";
     return 1;
   }
 
-  std::string input_path = argv[1];
-  bool compute_gradient = false;
-  for (int i = 2; i < argc; ++i) {
-    if (std::string(argv[i]) == "--gradient")
-      compute_gradient = true;
-  }
-
   try {
-    StructSolver solver(input_path, compute_gradient);
+    StructSolver solver(argv[1]);
     solver.run();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";

@@ -9,6 +9,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.problems.navier_stokes_grid import drag_jax
 from mosaic_shared.types import make_differentiable
 from phi.jax.flow import (
     Box,
@@ -116,43 +117,8 @@ def _make_obstacle_mask_phiflow(  # mosaic:init
     raise ValueError(f"PhiFlow: unsupported obstacle shape {obstacle['shape']!r}")
 
 
-def _compute_drag_2d(  # mosaic:physics
-    ux: jnp.ndarray,
-    pressure: jnp.ndarray,
-    solid_mask: jnp.ndarray,
-    viscosity: float,
-    dx: float,
-) -> jnp.ndarray:
-    """Compute x-direction drag on obstacle via discrete surface integral.
-
-    Uses the same scheme as the jax-cfd implementation.
-
-    Args:
-        ux:          x-velocity (nx, ny), collocated.
-        pressure:    pressure field (nx, ny).
-        solid_mask:  boolean mask, True = solid, (nx, ny).
-        viscosity:   kinematic viscosity ν.
-        dx:          grid spacing.
-
-    Returns:
-        Shape (1,) float32.
-    """
-    fluid_mask = ~solid_mask
-    solid_right = jnp.roll(solid_mask, -1, axis=0)
-    solid_left = jnp.roll(solid_mask, 1, axis=0)
-    surf_right = fluid_mask & solid_right
-    surf_left = fluid_mask & solid_left
-
-    p_drag = jnp.sum(
-        jnp.where(surf_right, pressure * dx, 0.0)
-        + jnp.where(surf_left, -pressure * dx, 0.0)
-    )
-    visc_drag = jnp.sum(
-        jnp.where(surf_right, -viscosity * ux, 0.0)
-        + jnp.where(surf_left, viscosity * ux, 0.0)
-    )
-    drag = (p_drag + visc_drag).astype(jnp.float32)
-    return jnp.reshape(drag, (1,))
+# Drag is computed via the shared canonical surface integral
+# (mosaic_shared.problems.navier_stokes_grid.drag_jax).
 
 
 def phiflow_fwd(  # mosaic:physics
@@ -402,7 +368,7 @@ def phiflow_fwd(  # mosaic:physics
         # Time-averaging the per-step CG pressure (collected in-loop) gives the
         # correct RANS pressure; constant offset cancels on the closed cylinder surface.
         p_rans = jnp.mean(_p_hist[-n_tail:], axis=0)  # (nx, ny)
-        drag = _compute_drag_2d(ux_rans, p_rans, obs_mask, viscosity, dx)
+        drag = drag_jax(ux_rans, p_rans, obs_mask, viscosity, dx)
 
     return result, drag
 

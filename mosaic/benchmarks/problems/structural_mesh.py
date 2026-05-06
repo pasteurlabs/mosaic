@@ -55,30 +55,23 @@ _SOLVERS: dict[str, SolverSpec] = {
         name="deal.II",
         backend="dealii",
         family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
+        differentiable=False,
         uses_gpu=False,
         internal_dtype="float64",
         dir="dealii",
         color="#CCBB44",
-        scheme="FEM Q1 linear elasticity (SIMP, analytic self-adjoint gradient)",
+        scheme="FEM Q1 linear elasticity (SIMP, forward-only)",
         image_tag="dealii_structural_mesh:latest",
         description=(
             "deal.II Q1 (trilinear hexahedral) FEM linear-elasticity solver via C++ subprocess. "
             "SIMP stiffness E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal. "
-            "UMFPACK direct solver. Gradient ∂C/∂ρ via analytic self-adjoint SIMP sensitivity. "
-            "Reference C++ implementation for cross-framework validation."
+            "UMFPACK direct solver. Forward-only — reference C++ implementation for "
+            "cross-framework validation."
         ),
         input_overrides={
             "E_max": _E_MAX,
             "nu": _NU,
             "xmin": _XMIN,
-        },
-        exclusions={
-            "optimization": {
-                "category": "categorical",
-                "reason": "deal.II self-adjoint SIMP gradient only supports ∂C/∂ρ; volume-fraction projection and optimizer loop not supported in C++ subprocess interface",
-            },
         },
     ),
     "fenics_structural": SolverSpec(
