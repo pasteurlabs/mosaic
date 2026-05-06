@@ -101,10 +101,16 @@ def _node_span(node: ast.AST) -> int:
     return node.end_lineno - node.lineno + 1  # type: ignore[attr-defined]
 
 
-def _extract_tag(lines: list[str], lineno: int) -> tuple[str, list[str], str | None]:
+def _extract_tag(
+    lines: list[str], lineno: int, end_lineno: int | None = None
+) -> tuple[str, list[str], str | None]:
     """Return (category, variables, grad_type) parsed from a tag.
 
     Tag format: # mosaic:<cat>[:<var,...>[:<type>]]
+
+    Scans the closed range [lineno, end_lineno] (1-based) so the tag may live
+    on any line of a multi-line ``def`` / ``class`` signature, not just the
+    keyword line. ``end_lineno`` defaults to ``lineno`` (single-line case).
 
     Examples:
       # mosaic:grad                       → ("grad", [], None)
@@ -112,16 +118,17 @@ def _extract_tag(lines: list[str], lineno: int) -> tuple[str, list[str], str | N
       # mosaic:grad:rho,source            → ("grad", ["rho", "source"], None)
       # mosaic:grad:v0,viscosity:autodiff → ("grad", ["v0", "viscosity"], "autodiff")
     """
-    line = lines[lineno - 1]  # lineno is 1-based
-    m = re.search(r"#\s*mosaic:(\w+)(?::([^\s:]+)(?::(\w+))?)?", line)
-    if m:
-        cat = m.group(1)
-        if cat in VALID_CATEGORIES:
-            vars_raw = m.group(2)
-            type_raw = m.group(3)
-            variables = [v for v in vars_raw.split(",") if v] if vars_raw else []
-            grad_type = type_raw if type_raw in VALID_GRAD_TYPES else None
-            return cat, variables, grad_type
+    end = end_lineno if end_lineno is not None else lineno
+    for i in range(lineno - 1, end):
+        m = re.search(r"#\s*mosaic:(\w+)(?::([^\s:]+)(?::(\w+))?)?", lines[i])
+        if m:
+            cat = m.group(1)
+            if cat in VALID_CATEGORIES:
+                vars_raw = m.group(2)
+                type_raw = m.group(3)
+                variables = [v for v in vars_raw.split(",") if v] if vars_raw else []
+                grad_type = type_raw if type_raw in VALID_GRAD_TYPES else None
+                return cat, variables, grad_type
     return "unknown", [], None
 
 
@@ -205,7 +212,10 @@ def classify_python(
                 interface += span
             else:
                 solver += span
-                cat, variables, gtype = _extract_tag(lines, node.lineno)
+                # The tag may live on any line of a multi-line class header;
+                # bound the scan at the first body element.
+                header_end = node.body[0].lineno - 1 if node.body else node.lineno
+                cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
                 solver_by_category[cat] = solver_by_category.get(cat, 0) + span
                 if cat == "grad" and variables:
                     for var in variables:
@@ -218,7 +228,8 @@ def classify_python(
                 interface += span
             else:
                 solver += span
-                cat, variables, gtype = _extract_tag(lines, node.lineno)
+                header_end = node.body[0].lineno - 1 if node.body else node.lineno
+                cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
                 solver_by_category[cat] = solver_by_category.get(cat, 0) + span
                 if cat == "grad":
                     # Prefer fine-grained inline section markers; fall back to
@@ -554,13 +565,13 @@ def print_rich(results: list[SolverStats]) -> None:
             bar = _category_bar(cat_with_ext, max_bespoke)
 
             def _cat(name: str) -> str:
-                v = cat.get(name, 0)
+                v = cat_with_ext.get(name, 0)
                 return str(v) if v else "[dim]—[/dim]"
 
             table.add_row(
                 s.solver,
                 TIER_LABEL[s.tier],
-                str(s.py_total),
+                str(s.py_total + s.ext_solver),
                 str(s.py_imports + s.py_interface),
                 _cat("init"),
                 _cat("io"),
@@ -813,7 +824,6 @@ _VAR_DISPLAY: dict[str, str] = {
     "viscosity": r"$\nu$",
     "dt": r"$\Delta t$",
     "inflow_profile": r"inflow",
-    "lid_velocity": r"lid",
     "rho": r"$\rho$",
     "source": r"src",
 }

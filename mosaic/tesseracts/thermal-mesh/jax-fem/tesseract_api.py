@@ -14,18 +14,23 @@ from mosaic_shared.problems.thermal_mesh import (
 from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 crt_file_path = os.path.dirname(__file__)
 
 
-class InputSchema(_CanonicalInputSchema):
-    """Inputs for JAX-FEM thermal topology optimisation (canonical interface)."""
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
+    pass
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for JAX-FEM thermal topology optimisation (canonical interface)."""
+class OutputSchema(
+    make_differentiable(
+        _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
+    )
+):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -142,19 +147,6 @@ class HeatConduction(Problem):  # mosaic:physics
             return -src  # shape (vec,) = (1,); contributes -f·v to residual
 
         return _source_fn
-
-    def compute_cell_temperature(self, sol: jnp.ndarray) -> jnp.ndarray:
-        """Compute per-cell average temperature.
-
-        Args:
-            sol: Solution temperature field, shape (n_nodes, 1).
-
-        Returns:
-            Per-cell average temperature, shape (n_cells,).
-        """
-        # Average nodal temperatures over each cell's nodes
-        # sol[self.fe.cells, 0]: (n_cells, n_nodes_per_cell)
-        return jnp.mean(sol[self.fe.cells, 0], axis=1)
 
     def compute_thermal_compliance(self, sol: jnp.ndarray) -> jnp.ndarray:
         """Compute thermal compliance via surface integral.
@@ -285,8 +277,7 @@ def apply_fn(inputs: dict) -> dict:  # mosaic:physics
         inputs: Dictionary containing input parameters and density field.
 
     Returns:
-        Dictionary containing the thermal compliance, temperature, and
-        identification_error of the structure.
+        Dictionary containing the thermal compliance and identification error.
     """
     problem, fwd_pred = setup(
         pts=inputs["hex_mesh"]["points"][: inputs["hex_mesh"]["n_points"]],
@@ -306,7 +297,6 @@ def apply_fn(inputs: dict) -> dict:  # mosaic:physics
     sol_list = fwd_pred((rho, source))
     sol = sol_list[0]
     thermal_compliance = problem.compute_thermal_compliance(sol)
-    temperature = problem.compute_cell_temperature(sol)
 
     target_temperature = jnp.array(inputs.get("target_temperature", jnp.zeros(1)))
     # JAX-FEM's weak form uses the sign convention K·T = -f, so the solved
@@ -314,14 +304,11 @@ def apply_fn(inputs: dict) -> dict:  # mosaic:physics
     # FEniCS/Firedrake/deal.II (which use K·T = +f).  Negate sol[:,0] so that
     # identification_error = sum((-T_jaxfem - T_target)^2) is consistent with
     # the other three solvers' sum((T_nodal - T_target)^2) formulation.
-    # We also use nodal temperatures (n_nodes values) rather than per-cell
-    # averages (n_cells < n_nodes) so the node count matches the target array.
     T_nodal = -sol[:, 0]
     id_error = _compute_identification_error(T_nodal, target_temperature)
 
     return {
         "thermal_compliance": thermal_compliance.astype(jnp.float32),
-        "temperature": temperature.astype(jnp.float32),
         "identification_error": id_error,
     }
 
@@ -343,7 +330,7 @@ def jacobian_vector_product(  # mosaic:grad:rho,source:autodiff
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     assert jvp_inputs <= {"rho", "source"}
-    assert jvp_outputs <= {"thermal_compliance", "temperature", "identification_error"}
+    assert jvp_outputs <= {"thermal_compliance", "identification_error"}
 
     inputs_dict = inputs.model_dump()
     filtered_apply = filter_func(apply_fn, inputs_dict, jvp_outputs)
@@ -372,7 +359,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
         Dictionary containing the vector-Jacobian product for the specified inputs.
     """
     assert vjp_inputs <= {"rho", "source"}
-    assert vjp_outputs <= {"thermal_compliance", "temperature", "identification_error"}
+    assert vjp_outputs <= {"thermal_compliance", "identification_error"}
 
     inputs = inputs.model_dump()
 
@@ -386,11 +373,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
     """Calculate output shape of apply from the shape of its inputs."""
-    d = abstract_inputs.model_dump()
-    faces = d["hex_mesh"]["faces"]
-    n_cells = faces["shape"][0] if isinstance(faces, dict) else len(faces)
     return {
         "thermal_compliance": ShapeDType(shape=(), dtype="float32"),
-        "temperature": ShapeDType(shape=(n_cells,), dtype="float32"),
         "identification_error": ShapeDType(shape=(), dtype="float32"),
     }

@@ -1,9 +1,10 @@
 """Mesh and boundary condition type definitions."""
 
+import types
 from enum import Enum
-from typing import Annotated, Literal, get_args, get_origin
+from typing import Annotated, Literal, Union, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, SkipValidation
+from pydantic import BaseModel, ConfigDict, Field, SkipValidation, create_model
 from tesseract_core.runtime import Array, Differentiable, Float32, Int32
 
 # ---------------------------------------------------------------------------
@@ -241,75 +242,69 @@ class HexMesh(BaseModel):
     n_faces: Int32 = 0
 
 
+def _wrap_differentiable(field_type):
+    """Wrap a field annotation in `Differentiable[...]`, handling Optional and dict."""
+    origin = get_origin(field_type)
+
+    if origin is Annotated:
+        return field_type
+
+    if origin is Union or origin is types.UnionType:
+        args = get_args(field_type)
+        non_none = tuple(a for a in args if a is not type(None))
+        has_none = len(non_none) != len(args)
+        if len(non_none) == 1:
+            inner = non_none[0]
+            inner_origin = get_origin(inner)
+            if inner_origin is dict:
+                k, v = get_args(inner)
+                wrapped = dict[k, Differentiable[v]]
+            else:
+                wrapped = Differentiable[inner]
+            return wrapped | None if has_none else wrapped
+        return field_type
+
+    if origin is dict:
+        key_type, value_type = get_args(field_type)
+        return dict[key_type, Differentiable[value_type]]
+
+    return Differentiable[field_type]
+
+
 def make_differentiable(
     base_class: type[BaseModel],
     differentiable_fields: list[str],
 ) -> type[BaseModel]:
-    """Create a mesh class with specified fields marked as differentiable.
+    """Create a Pydantic subclass with the specified fields wrapped in `Differentiable`.
+
+    Field metadata (defaults, default_factory, descriptions, validators) is
+    preserved by reusing each field's `FieldInfo` from the base class.
 
     Args:
-        base_class: Base mesh class (TriangularMesh or VolumetricMesh)
-        differentiable_fields: List of field names to mark as differentiable
+        base_class: Pydantic BaseModel subclass to extend.
+        differentiable_fields: Field names to wrap in `Differentiable[...]`.
 
     Returns:
-        New Pydantic model class with differentiable fields
+        A new Pydantic model subclass with the requested fields differentiable.
 
     Example:
-        >>> DiffMesh = make_differentiable(TriangularMesh, ["points"])
-        >>> class InputSchema(BaseModel):
-        ...     mesh: DiffMesh
+        >>> DiffOutput = make_differentiable(OutputSchema, ["compliance"])
     """
-    from pydantic_core import PydanticUndefined
+    field_defs: dict[str, tuple] = {}
 
-    new_annotations = {}
-    new_namespace = {}
-
-    # Get field defaults from the base class
     for field_name, field_info in base_class.model_fields.items():
-        if field_info.default is not PydanticUndefined:
-            new_namespace[field_name] = field_info.default
-        elif field_info.default_factory is not None:
-            new_namespace[field_name] = field_info.default_factory
-
-    for field_name, field_type in base_class.__annotations__.items():
-        if field_name not in differentiable_fields:
-            new_annotations[field_name] = field_type
+        field_type = base_class.__annotations__.get(field_name)
+        if field_type is None:
+            # Field is inherited from a parent class — leave it untouched.
             continue
 
-        # Handle Annotated types (e.g. Annotated[dict[str, Array] | None, SkipValidation()])
-        origin = get_origin(field_type)
-        if origin is Annotated:
-            # Can't make Annotated dict fields differentiable - keep as is
-            new_annotations[field_name] = field_type
-            continue
+        if field_name in differentiable_fields:
+            field_type = _wrap_differentiable(field_type)
 
-        # Check if it's Optional (Union with None)
-        if origin is type(None):  # Optional type: T | None
-            args = get_args(field_type)
-            inner_type = args[0]
-            inner_origin = get_origin(inner_type)
+        field_defs[field_name] = (field_type, field_info)
 
-            if inner_origin is dict:
-                # dict[str, Array] | None -> dict[str, Differentiable[Array]] | None
-                key_type, value_type = get_args(inner_type)
-                new_annotations[field_name] = (
-                    dict[key_type, Differentiable[value_type]] | None
-                )
-            else:
-                # Array | None -> Differentiable[Array] | None
-                new_annotations[field_name] = Differentiable[inner_type] | None
-        elif origin is dict:
-            # dict[str, Array] -> dict[str, Differentiable[Array]]
-            key_type, value_type = get_args(field_type)
-            new_annotations[field_name] = dict[key_type, Differentiable[value_type]]
-        else:
-            # Simple case: Array -> Differentiable[Array]
-            new_annotations[field_name] = Differentiable[field_type]
-
-    new_namespace["__annotations__"] = new_annotations
-
-    return type(
+    return create_model(
         f"Differentiable{base_class.__name__}",
-        (base_class,),
-        new_namespace,
+        __base__=base_class,
+        **field_defs,
     )

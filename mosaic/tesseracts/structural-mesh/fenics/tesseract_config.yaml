@@ -30,8 +30,7 @@ description: |
   Interface:
     Inputs : rho (n_cells,), hex_mesh (HexMesh), boundary_conditions (MeshBC),
              E_max (float), nu (float), xmin (float), penal (float)
-    Outputs: compliance (scalar), von_mises_stress (n_cells,),
-             displacement (n_nodes, 3)
+    Outputs: compliance (scalar)
 
 build_config:
   base_image: "condaforge/miniforge3:24.11.2-0"
@@ -42,18 +41,22 @@ build_config:
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
-mosaic:
-  name: "FEniCS"
-  backend: fenics
-  family: fem
-  scheme: "FEM CG1 linear elasticity (SIMP, dolfin-adjoint)"
-  color: "#AA3377"
-  ad_strategy: adjoint
-  differentiable: true
-  uses_gpu: false
-  internal_dtype: float64
-  description: >
-    FEniCS/DOLFIN 2019.1 CG1 FEM linear-elasticity solver with SIMP
-    penalisation. Gradient ∂C/∂ρ via dolfin-adjoint ReducedFunctional. DG0 density
-    field; compliance assembled as action(L, u_sol). Von Mises stress via DG0
-    projection of deviatoric stress norm.
+metadata:
+  mosaic:
+    name: "FEniCS"
+    backend: fenics
+    family: fem
+    scheme: "FEM CG1 linear elasticity (SIMP, dolfin-adjoint)"
+    color: "#AA3377"
+    linestyle: "--"
+    marker: "v"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    description: >
+      FEniCS/DOLFIN 2019.1 CG1 FEM linear-elasticity solver with SIMP
+      penalisation. Gradient ∂C/∂ρ via dolfin-adjoint ReducedFunctional. DG0 density
+      field; compliance assembled as action(L, u_sol). Von Mises stress via DG0
+      projection of deviatoric stress norm.
+    doc_url: "https://fenicsproject.org/"

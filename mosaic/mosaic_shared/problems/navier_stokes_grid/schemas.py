@@ -1,19 +1,28 @@
 """Canonical InputSchema / OutputSchema for navier-stokes-grid tesseracts.
 
-Tesseracts that match this interface exactly can import and use these schemas
-directly.  Tesseracts with solver-specific extras should subclass InputSchema
-and add their additional fields::
+The base schemas carry plain (non-`Differentiable`) array types.  Each solver
+wraps the fields it actually supports gradients on via
+``mosaic_shared.types.make_differentiable``::
 
-    from mosaic_shared.problems.navier_stokes_grid import InputSchema as _Base
+    from mosaic_shared.problems.navier_stokes_grid import (
+        InputSchema as _Base,
+        OutputSchema as _BaseOut,
+    )
+    from mosaic_shared.types import make_differentiable
 
-    class InputSchema(_Base):
-        inner_steps: int = Field(1, description="Pressure solve sub-iterations")
+    InputSchema = make_differentiable(
+        _Base, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+    OutputSchema = make_differentiable(_BaseOut, ["result", "drag"])
+
+Solvers with extra inputs (e.g. ``inner_steps``) should subclass the result of
+``make_differentiable`` and add their additional fields.
 """
 
 import numpy as np
 from mosaic_shared.types import GridBC, GridObstacle, GridVectorField
 from pydantic import BaseModel, Field, model_validator
-from tesseract_core.runtime import Array, Differentiable, Float32
+from tesseract_core.runtime import Array, Float32
 
 
 def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndarray:
@@ -48,18 +57,18 @@ def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndar
 
 
 class InputSchema(BaseModel):
-    v0: Differentiable[GridVectorField] = Field(
+    v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
         description=(
             "Initial velocity field, shape (N, N, 1, 2). "
             "Default: 64×64 divergence-free random vortex field (seed=42)."
         ),
     )
-    viscosity: Differentiable[Array[(1,), Float32]] = Field(
+    viscosity: Array[(1,), Float32] = Field(
         default_factory=lambda: np.array([0.05], dtype=np.float32),
         description="Kinematic viscosity ν.",
     )
-    dt: Differentiable[Array[(1,), Float32]] = Field(
+    dt: Array[(1,), Float32] = Field(
         default_factory=lambda: np.array([0.01], dtype=np.float32),
         description="Timestep size.",
     )
@@ -79,7 +88,7 @@ class InputSchema(BaseModel):
         default=None,
         description="Optional solid obstacle embedded in the domain (no-slip walls).",
     )
-    inflow_profile: Differentiable[Array[(None,), Float32]] | None = Field(
+    inflow_profile: Array[(None,), Float32] | None = Field(
         default=None,
         description=(
             "1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides "
@@ -87,46 +96,28 @@ class InputSchema(BaseModel):
             "Used for inflow-profile optimisation (e.g. cylinder drag minimisation)."
         ),
     )
-    lid_velocity: Differentiable[Array[(None, None, 2), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). "
-            "The two components are the x- and y-tangential velocities on the moving top lid. "
-            "When provided the solver runs in non-periodic cavity mode with no-slip walls. "
-            "Used as the optimisation variable in lid_cavity experiments."
-        ),
-    )
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
         if not self.boundary_conditions.is_fully_periodic:
-            if self.obstacle is None and self.lid_velocity is None:
+            if self.obstacle is None:
                 raise ValueError(
-                    "Non-periodic BCs require either an obstacle or a lid_velocity. "
-                    "Use periodic BCs (the default), add an obstacle, or provide lid_velocity."
+                    "Non-periodic BCs require an obstacle. "
+                    "Use periodic BCs (the default) or add an obstacle."
                 )
         return self
 
 
 class OutputSchema(BaseModel):
-    result: Differentiable[GridVectorField] = Field(
+    result: GridVectorField = Field(
         description="Final velocity field, same shape as v0."
     )
-    drag: Differentiable[Array[(1,), Float32]] | None = Field(
+    drag: Array[(1,), Float32] | None = Field(
         default=None,
         description=(
             "x-direction drag force on the embedded obstacle, shape (1,). "
             "Computed as the surface integral of pressure and viscous stress: "
             "F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. "
             "None when no obstacle is present."
-        ),
-    )
-    velocity_mean: Differentiable[GridVectorField] | None = Field(
-        default=None,
-        description=(
-            "Time-averaged (RANS) velocity field over the last steps // 2 steps of the "
-            "rollout, same shape as result. Computed on solvers feasible for drag "
-            "optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are "
-            "present. None on periodic/lid-cavity paths."
         ),
     )

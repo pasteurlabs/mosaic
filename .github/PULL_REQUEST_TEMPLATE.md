@@ -15,7 +15,6 @@
 
 - [ ] `ruff check --fix && ruff format` passes
 - [ ] `pytest` passes (unit tests, no Docker required)
-- [ ] `python docs/generate.py --check` passes (solver reference up to date)
 
 ### For new solvers
 

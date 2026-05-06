@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import os
 import queue
 import subprocess
@@ -123,25 +124,15 @@ _current_problem: str = ""
 # ── Image management ──────────────────────────────────────────────────────────
 
 
-def _image_exists(image_tag: str) -> bool:
-    """Return True if the Docker image already exists locally."""
-    result = subprocess.run(
-        ["docker", "image", "inspect", image_tag],
-        check=False,
-        capture_output=True,
-    )
-    return result.returncode == 0
-
-
 def build_all(
     cfg: ProblemConfig, tag: str = "latest", max_workers: int = 2
 ) -> dict[str, str]:
     """Build all solver images in parallel. Returns name → image_tag.
 
-    Skips building any image that already exists locally (checked via
-    ``docker image inspect``).  Only images that are genuinely absent are
-    built, so a single failing base image cannot abort the whole command
-    when the other images are already cached.
+    Shells out to the ``tesseract build`` CLI for each solver and lets
+    BuildKit's layer cache decide what to actually re-execute — fully cached
+    builds return in seconds, source-changed solvers rebuild only the affected
+    layers. Per-problem failures are isolated by the caller in ``cli.build``.
 
     max_workers limits concurrent Docker builds to avoid overloading the host
     when multiple benchmark runs execute simultaneously.
@@ -162,12 +153,6 @@ def build_all(
 
     def _build(item):
         name, spec = item
-        expected_tag = _resolve_tag(name, spec)
-        if _image_exists(expected_tag):
-            console.print(
-                f"  [cyan]{name:<16}[/cyan] → {expected_tag}  [dim](cached)[/dim]"
-            )
-            return name, expected_tag
         # Run any adjacent build_base.sh first — lets tesseracts ship a
         # locally-built base-image wrapper (e.g. dealii-root:latest that
         # switches the upstream dealii/dealii image to USER root so the
@@ -189,11 +174,34 @@ def build_all(
                     f"{name}: build_base.sh failed (exit {r.returncode}):\n"
                     f"stdout: {r.stdout[-2000:]}\nstderr: {r.stderr[-2000:]}"
                 )
-        img = tesseract_core.build_tesseract(tesseract_path, tag)
-        # Previously ran `docker system prune -f` after every build. The
-        # churn isn't worth it on hosts with plenty of disk. Use
-        # `mosaic clean` explicitly when cleanup is needed.
-        return name, img.tags[0]
+        t0 = time.monotonic()
+        r = subprocess.run(
+            ["tesseract", "build", "--tag", tag, str(tesseract_path)],
+            capture_output=True,
+            text=True,
+        )
+        elapsed = time.monotonic() - t0
+        if r.returncode != 0:
+            raise RuntimeError(
+                f"{name}: tesseract build failed (exit {r.returncode}):\n"
+                f"stdout: {r.stdout[-2000:]}\nstderr: {r.stderr[-2000:]}"
+            )
+        # tesseract build prints the built images as a JSON array on stdout —
+        # take the last non-empty line so any leading log noise is ignored.
+        last_line = next(
+            (ln for ln in reversed(r.stdout.splitlines()) if ln.strip()), ""
+        )
+        try:
+            built_tags = json.loads(last_line)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"{name}: could not parse tesseract build output: {last_line!r}"
+            ) from exc
+        image_tag = built_tags[0]
+        console.print(
+            f"  [cyan]{name:<16}[/cyan] → {image_tag}  [dim]({elapsed:.1f}s)[/dim]"
+        )
+        return name, image_tag
 
     images: dict[str, str] = {}
     with make_build_progress() as progress:
@@ -524,8 +532,11 @@ def safe_apply_with_extras(
             return None, {}, {}
         extras = {}
         for k in extra_scalar_keys:
-            if k in out:
-                v = float(out[k])
+            if k in out and out[k] is not None:
+                # Tesseracts return scalar outputs as either a Python scalar or a
+                # shape-(1,) array (e.g. drag); flatten so float() never sees a
+                # multi-element array.
+                v = float(jnp.asarray(out[k]).flatten()[0])
                 if jnp.isfinite(v):
                     extras[k] = v
         state = {

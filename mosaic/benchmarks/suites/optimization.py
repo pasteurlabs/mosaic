@@ -1106,12 +1106,40 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         # flow_snaps:      final (optimised) flow per solver.
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
-        # RANS mean-velocity fields per solver (velocity_mean output key).
-        # rans_init_snaps: initial (unoptimised) RANS mean field per solver.
-        # rans_snaps:      final (optimised) RANS mean field per solver.
-        rans_init_snaps: dict = {}
-        rans_snaps: dict = {}
         _wall_times: dict[str, float] = {}
+
+        # Compute the output directory up front so the optimisation loop can
+        # checkpoint partial results into ``result_partial.json``. Without this,
+        # a killed / interrupted long run loses every iteration recorded so far.
+        _dbg_partial = "_debug" if overrides.get("debug") else ""
+        if ic_subdir:
+            _partial_parent = experiment_dir(
+                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg_partial
+            )
+            partial_out_dir = _partial_parent / ic_subdir
+            partial_out_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            partial_out_dir = experiment_dir(
+                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg_partial
+            )
+        _partial_lock = threading.Lock()
+
+        def _write_partial() -> None:
+            """Snapshot the current by_solver dict to result_partial.json.
+
+            Mirrors the recovery_constant_ic harness so an interrupted drag_opt
+            (long PICT runs in particular) preserves per-iteration progress.
+            """
+            if not by_solver:
+                return
+            payload = {
+                "by_solver": by_solver,
+                "run_name": run_name,
+                "U_mean": U_mean,
+                "params": run,
+            }
+            with _partial_lock:
+                save_json(payload, partial_out_dir / "result_partial.json")
 
         def _drag_opt_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1136,9 +1164,6 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 _vel0 = _out0.get("result")
                 if _vel0 is not None:
                     flow_init_snaps[name] = np.array(_vel0)
-                _vm0 = _out0.get("velocity_mean")
-                if _vm0 is not None:
-                    rans_init_snaps[name] = np.array(_vm0)
             except Exception:
                 pass
 
@@ -1199,6 +1224,29 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     best_drag, no_improve = abs(d), 0
                 else:
                     no_improve += 1
+                # Snapshot progress into by_solver so a partial-write captures
+                # whatever's been done, even if the process is killed mid-loop.
+                by_solver[name] = {
+                    "drags": drags,
+                    "flow_rates": flow_rates,
+                    "initial_drag": drags[0] if drags else None,
+                    "final_drag": drags[-1] if drags else None,
+                    "drag_reduction_pct": (
+                        100.0
+                        * (abs(drags[0]) - abs(drags[-1]))
+                        / (abs(drags[0]) + 1e-30)
+                        if len(drags) >= 2
+                        else 0.0
+                    ),
+                    "n_iters": len(drags),
+                    "converged": False,  # finalised after the loop exits
+                    "grad_norms": grad_norms,
+                    "in_progress": True,
+                }
+                # Flush every 10 iterations to bound IO without losing more than
+                # ~10 iters of work on an interrupt.
+                if (i + 1) % 10 == 0:
+                    _write_partial()
                 if no_improve >= patience:
                     break
 
@@ -1220,6 +1268,9 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 "grad_norms": grad_norms,
                 **({"error": "non-finite gradients"} if non_finite_grad else {}),
             }
+            # Final partial flush so a kill between this point and result.json
+            # save still preserves the converged-state record.
+            _write_partial()
             # Capture the final velocity field (no gradient needed — plain call).
             try:
                 _de = phys.get("domain_extent", cfg.domain_extent)
@@ -1233,13 +1284,8 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 _vel = _out_final.get("result")
                 if _vel is not None:
                     flow_snaps[name] = np.array(_vel)
-                _vm = _out_final.get("velocity_mean")
-                if _vm is not None:
-                    rans_snaps[name] = np.array(_vm)
             except Exception:
                 pass  # velocity snapshot is optional; do not abort the run
-            if rans_snaps.get(name) is not None:
-                by_solver[name]["has_rans"] = True
             _wall_times[name] = time.perf_counter() - _t0
 
         # drag_opt requires both inflow_profile support and obstacle drag output.
@@ -1309,7 +1355,7 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         for k, v in profile_histories.items():
             profiles_payload[f"profile_history_{k}"] = v
         np.savez(profiles_path, **profiles_payload)
-        if flow_snaps or flow_init_snaps or rans_snaps or rans_init_snaps:
+        if flow_snaps or flow_init_snaps:
             _npz_fields: dict = {}
             # Merge with any prior entries so a single-solver rerun does not
             # wipe peer solvers' fields — mirrors profiles.npz merge logic.
@@ -1330,13 +1376,6 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
             # Save per-solver final flow (keys flow_final_{name})
             for _sn, _v in flow_snaps.items():
                 _npz_fields[f"flow_final_{_sn}"] = _v
-            # Save per-solver RANS mean-velocity fields (velocity_mean output).
-            for _sn, _v in rans_init_snaps.items():
-                _npz_fields[f"rans_initial_{_sn}"] = _v
-            if rans_init_snaps and "rans_initial" not in _npz_fields:
-                _npz_fields["rans_initial"] = next(iter(rans_init_snaps.values()))
-            for _sn, _v in rans_snaps.items():
-                _npz_fields[f"rans_final_{_sn}"] = _v
             np.savez(_ff_path, **_npz_fields)
         if n_runs > 1:
             all_results[run_name] = result
@@ -1511,8 +1550,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         profile_histories: dict = {}
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
-        rans_init_snaps: dict = {}
-        rans_snaps: dict = {}
         _wall_times: dict[str, float] = {}
 
         def _drag_opt_bfgs_work(name: str, t) -> None:
@@ -1532,9 +1569,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 _vel0 = _out0.get("result")
                 if _vel0 is not None:
                     flow_init_snaps[name] = np.array(_vel0)
-                _vm0 = _out0.get("velocity_mean")
-                if _vm0 is not None:
-                    rans_init_snaps[name] = np.array(_vm0)
             except Exception:
                 pass
 
@@ -1586,9 +1620,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 _vel = _out_f.get("result")
                 if _vel is not None:
                     flow_snaps[name] = np.array(_vel)
-                _vm = _out_f.get("velocity_mean")
-                if _vm is not None:
-                    rans_snaps[name] = np.array(_vm)
             except Exception:
                 final_drag = losses[-1] if losses else float("nan")
 
@@ -1613,8 +1644,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 "converged": len(losses) < max_iters,
                 "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
             }
-            if rans_snaps.get(name) is not None:
-                by_solver[name]["has_rans"] = True
             _wall_times[name] = time.perf_counter() - _t0
 
         _drag_exp = f"drag_opt_bfgs/{run_name}" if run_name else "drag_opt_bfgs"
@@ -1674,7 +1703,7 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         for k, v in profile_histories.items():
             profiles_payload[f"profile_history_{k}"] = v
         np.savez(profiles_path, **profiles_payload)
-        if flow_snaps or flow_init_snaps or rans_snaps or rans_init_snaps:
+        if flow_snaps or flow_init_snaps:
             _npz_fields: dict = {}
             _ff_path = out_dir / "flow_fields.npz"
             if _ff_path.exists():
@@ -1690,12 +1719,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 _npz_fields["flow_initial"] = next(iter(flow_init_snaps.values()))
             for _sn, _v in flow_snaps.items():
                 _npz_fields[f"flow_final_{_sn}"] = _v
-            for _sn, _v in rans_init_snaps.items():
-                _npz_fields[f"rans_initial_{_sn}"] = _v
-            if rans_init_snaps and "rans_initial" not in _npz_fields:
-                _npz_fields["rans_initial"] = next(iter(rans_init_snaps.values()))
-            for _sn, _v in rans_snaps.items():
-                _npz_fields[f"rans_final_{_sn}"] = _v
             np.savez(_ff_path, **_npz_fields)
         if n_runs > 1:
             all_results[run_name] = result
@@ -1775,17 +1798,9 @@ def run_conductivity_recovery(
         by_solver: dict = {}
         rho_snaps: dict = {}
         rho_histories: dict = {}
-        temperature_truths: dict[str, np.ndarray] = {}
-        temperature_finals: dict[str, np.ndarray] = {}
         _wall_times: dict[str, float] = {}
 
         candidate_solvers = _diff_solvers(cfg, "optimization", _exp_key)
-
-        _preferred_refs = ("dealii_heat", "jax_fem")
-        reference_solver = next(
-            (s for s in _preferred_refs if s in candidate_solvers),
-            candidate_solvers[0] if candidate_solvers else None,
-        )
 
         def _conductivity_recovery_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1888,33 +1903,6 @@ def run_conductivity_recovery(
                 if use_lbfgs
                 else grad_norms_adam,
             }
-
-            try:
-                inp_final = cfg.make_inputs(name, rho_opt, **phys)
-                out_final = apply_tesseract(t, inp_final)
-                T_final = out_final.get("temperature")
-                if T_final is not None:
-                    temperature_finals[name] = np.asarray(T_final, dtype=np.float32)
-            except Exception as exc:
-                from mosaic.benchmarks.core.console import print_warn
-
-                print_warn(
-                    f"{name} conductivity_recovery temperature_final forward failed: {exc}"
-                )
-
-            if rho_truth is not None:
-                try:
-                    inp_truth = cfg.make_inputs(name, jnp.asarray(rho_truth), **phys)
-                    out_truth = apply_tesseract(t, inp_truth)
-                    T_truth = out_truth.get("temperature")
-                    if T_truth is not None:
-                        temperature_truths[name] = np.asarray(T_truth, dtype=np.float32)
-                except Exception as exc:
-                    from mosaic.benchmarks.core.console import print_warn
-
-                    print_warn(
-                        f"{name} conductivity_recovery temperature_truth forward failed: {exc}"
-                    )
             _wall_times[name] = time.perf_counter() - _t0
 
         run_with_gpu_pool(
@@ -1939,36 +1927,16 @@ def run_conductivity_recovery(
             try:
                 prior = np.load(existing_path)
                 for key in prior.files:
-                    if (
-                        key.startswith("rho_final_")
-                        or key.startswith("rho_history_")
-                        or key.startswith("temperature_final_")
-                        or key.startswith("temperature_truth_")
-                    ):
+                    if key.startswith("rho_final_") or key.startswith("rho_history_"):
                         npz_payload[key] = prior[key]
                     elif key == "rho_truth" and "rho_truth" not in npz_payload:
                         npz_payload[key] = prior[key]
-                    elif key == "temperature_truth":
-                        npz_payload.setdefault("_prior_temperature_truth", prior[key])
             except Exception:
                 pass
         for sname in solver_names:
             npz_payload[f"rho_final_{sname}"] = rho_snaps[sname]
             if rho_histories[sname]:
                 npz_payload[f"rho_history_{sname}"] = np.asarray(rho_histories[sname])
-            if sname in temperature_finals:
-                npz_payload[f"temperature_final_{sname}"] = temperature_finals[sname]
-            if sname in temperature_truths:
-                npz_payload[f"temperature_truth_{sname}"] = temperature_truths[sname]
-
-        if reference_solver is not None and reference_solver in temperature_truths:
-            npz_payload["temperature_truth"] = temperature_truths[reference_solver]
-        elif temperature_truths:
-            any_name = next(iter(temperature_truths))
-            npz_payload["temperature_truth"] = temperature_truths[any_name]
-        elif "_prior_temperature_truth" in npz_payload:
-            npz_payload["temperature_truth"] = npz_payload["_prior_temperature_truth"]
-        npz_payload.pop("_prior_temperature_truth", None)
 
         np.savez(existing_path, **npz_payload)
 

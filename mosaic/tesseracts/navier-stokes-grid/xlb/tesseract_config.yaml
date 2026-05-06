@@ -24,26 +24,33 @@ build_config:
   custom_build_steps:
     - 'ENV XLA_FLAGS="--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"'
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+    # xlb 0.3.1's operator/stepper/__init__.py unconditionally imports IBMStepper,
+    # which does `from warp.utils import ScopedTimer`. ScopedTimer was moved out of
+    # warp.utils in warp-lang>=1.10, but xlb 0.3.1's metadata pins warp-lang>=1.10,
+    # so any install of xlb 0.3.1 explodes on `import xlb`. We don't use IBMStepper,
+    # so drop that line from the stepper package's __init__.
+    - 'RUN python3 -c "import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_paths()[''purelib'']) / ''xlb/operator/stepper/__init__.py''; p.write_text(''''.join(l for l in p.read_text().splitlines(keepends=True) if ''ibm_stepper'' not in l))"'
 
-mosaic:
-  name: "XLB"
-  backend: jax
-  family: lbm
-  scheme: "LBM BGK/KBC D2Q9"
-  color: "#66CCEE"
-  linestyle: "(0, (3, 1, 1, 1))"
-  marker: "P"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  internal_dtype: float64
-  description: >
-    JAX-accelerated LBM D2Q9 using XLB's BGK (default) / entropic-stabilised
-    KBC (2-D obstacle flows), Stream, QuadraticEquilibrium, and Macroscopic
-    operators (xlb 0.3.1) inside a jax.lax.scan time loop; incompressibility
-    recovered in the low-Mach limit. VJP flows through the full scan unroll in
-    float64 precision and is routed per diff-input key (v0, viscosity, dt,
-    inflow_profile, lid_velocity). Both apply() and vjp_jit() run in float64
-    internally (output cast to float32) to avoid float32 quantization noise at
-    fine ε (omega≈2 at low viscosity). FD cosine ≥0.9999 at ε=1.0.
-  doc_url: "https://github.com/Autodesk/XLB"
+metadata:
+  mosaic:
+    name: "XLB"
+    backend: jax
+    family: lbm
+    scheme: "LBM BGK/KBC D2Q9"
+    color: "#66CCEE"
+    linestyle: "(0, (3, 1, 1, 1))"
+    marker: "P"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float64
+    description: >
+      JAX-accelerated LBM D2Q9 using XLB's BGK (default) / entropic-stabilised
+      KBC (2-D obstacle flows), Stream, QuadraticEquilibrium, and Macroscopic
+      operators (xlb 0.3.1) inside a jax.lax.scan time loop; incompressibility
+      recovered in the low-Mach limit. VJP flows through the full scan unroll in
+      float64 precision and is routed per diff-input key (v0, viscosity, dt,
+      inflow_profile). Both apply() and vjp_jit() run in float64
+      internally (output cast to float32) to avoid float32 quantization noise at
+      fine ε (omega≈2 at low viscosity). FD cosine ≥0.9999 at ε=1.0.
+    doc_url: "https://github.com/Autodesk/XLB"

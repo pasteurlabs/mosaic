@@ -9,16 +9,18 @@ build_config:
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
     - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.6"
 
-mosaic:
-  name: "jax-cfd"
-  backend: jax
-  family: projection
-  scheme: "MAC FD + projection"
-  color: "#4477AA"
-  linestyle: "-"
-  marker: "o"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  description: "Staggered MAC grid with pressure projection and finite-difference advection."
-  doc_url: "https://github.com/google/jax-cfd"
+metadata:
+  mosaic:
+    name: "jax-cfd"
+    backend: jax
+    family: projection
+    scheme: "MAC FD + projection"
+    color: "#4477AA"
+    linestyle: "-"
+    marker: "o"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    description: "Staggered MAC grid with pressure projection and finite-difference advection."
+    doc_url: "https://github.com/google/jax-cfd"

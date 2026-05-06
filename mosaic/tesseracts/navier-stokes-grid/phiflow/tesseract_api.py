@@ -9,6 +9,8 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.problems.navier_stokes_grid import drag_jax
+from mosaic_shared.types import make_differentiable
 from phi.jax.flow import (
     Box,
     CenteredGrid,
@@ -25,7 +27,11 @@ from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+):
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
         supported = {"periodic", "no_slip", "neumann", "dirichlet"}
@@ -38,7 +44,7 @@ class InputSchema(_CanonicalInputSchema):
         return self
 
 
-class OutputSchema(_CanonicalOutputSchema):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
     pass
 
 
@@ -111,43 +117,8 @@ def _make_obstacle_mask_phiflow(  # mosaic:init
     raise ValueError(f"PhiFlow: unsupported obstacle shape {obstacle['shape']!r}")
 
 
-def _compute_drag_2d(  # mosaic:physics
-    ux: jnp.ndarray,
-    pressure: jnp.ndarray,
-    solid_mask: jnp.ndarray,
-    viscosity: float,
-    dx: float,
-) -> jnp.ndarray:
-    """Compute x-direction drag on obstacle via discrete surface integral.
-
-    Uses the same scheme as the jax-cfd implementation.
-
-    Args:
-        ux:          x-velocity (nx, ny), collocated.
-        pressure:    pressure field (nx, ny).
-        solid_mask:  boolean mask, True = solid, (nx, ny).
-        viscosity:   kinematic viscosity ν.
-        dx:          grid spacing.
-
-    Returns:
-        Shape (1,) float32.
-    """
-    fluid_mask = ~solid_mask
-    solid_right = jnp.roll(solid_mask, -1, axis=0)
-    solid_left = jnp.roll(solid_mask, 1, axis=0)
-    surf_right = fluid_mask & solid_right
-    surf_left = fluid_mask & solid_left
-
-    p_drag = jnp.sum(
-        jnp.where(surf_right, pressure * dx, 0.0)
-        + jnp.where(surf_left, -pressure * dx, 0.0)
-    )
-    visc_drag = jnp.sum(
-        jnp.where(surf_right, -viscosity * ux, 0.0)
-        + jnp.where(surf_left, viscosity * ux, 0.0)
-    )
-    drag = (p_drag + visc_drag).astype(jnp.float32)
-    return jnp.reshape(drag, (1,))
+# Drag is computed via the shared canonical surface integral
+# (mosaic_shared.problems.navier_stokes_grid.drag_jax).
 
 
 def phiflow_fwd(  # mosaic:physics
@@ -159,8 +130,7 @@ def phiflow_fwd(  # mosaic:physics
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-    lid_velocity: jnp.ndarray | None = None,
-) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray | None]:
+) -> tuple[jnp.ndarray, jnp.ndarray | None]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
     Uses semi-Lagrangian advection, explicit diffusion, and pressure projection
@@ -175,14 +145,9 @@ def phiflow_fwd(  # mosaic:physics
         domain_extent: Side length of the periodic square/cubic domain (isotropic grid).
         obstacle: Optional obstacle dict.
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
-        lid_velocity: Optional (N, N, 2) lid velocity field for 3-D cavity mode.
-            When provided, the x- and y-velocity on the top z-face are overridden
-            each step.  The normal component u_z is set to zero.  Only active
-            for 3-D runs (ndim=3).
 
     Returns:
-        (result, drag, velocity_mean): result same shape as v0; drag shape (1,) or None;
-        velocity_mean shape (nx, ny, 1, 2) or None (only for obstacle+inflow 2D runs).
+        (result, drag): result same shape as v0; drag shape (1,) or None.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
@@ -307,18 +272,6 @@ def phiflow_fwd(  # mosaic:physics
             axis=0,
         )
 
-    def staggered_to_collocated_ux(vel):
-        """Extract collocated u_x from StaggeredGrid by averaging x-faces."""
-        ux_faces = vel.vector[0].values.native(spatial_str)  # (nx, ny)
-        return 0.5 * (ux_faces + jnp.roll(ux_faces, 1, axis=0))
-
-    def get_pressure(vel):
-        """Run one pressure projection and return the pressure CenteredGrid."""
-        _, p = fluid.make_incompressible(
-            vel, obstacles, solve=math.Solve("CG", 1e-5, 1e-5)
-        )
-        return p.values.native(spatial_str)  # (nx, ny)
-
     if inflow_profile is not None and ndim == 2:
         # Resample inflow_profile to ny if needed
         prof_len = inflow_profile.shape[0]
@@ -344,31 +297,6 @@ def phiflow_fwd(  # mosaic:physics
             new_faces = jnp.stack([ux_f, uy_f], axis=0)
             # Accumulate both faces and pressure for RANS drag computation
             return new_faces, (new_faces, p_arr)
-
-    elif lid_velocity is not None and ndim == 3:
-        # 3-D lid-driven cavity: override the top z-face (k = nz-1) each step.
-        # face_arr shape: (3, nx, ny, nz) for 3-D.
-        # faces[0] = u_x staggered face, faces[1] = u_y, faces[2] = u_z.
-        # lid_velocity shape: (nx, ny, 2) → component 0 = u_x, component 1 = u_y.
-        lid_ux = jnp.asarray(lid_velocity[..., 0])  # (nx, ny)
-        lid_uy = jnp.asarray(lid_velocity[..., 1])  # (nx, ny)
-        _lid_pressure_solve = math.Solve("CG", 1e-5, 1e-5)
-
-        def step(face_arr, _):
-            vel = faces_to_staggered(face_arr)
-            vel = advect.semi_lagrangian(vel, vel, dt)
-            vel = diffuse.explicit(vel, viscosity, dt)
-            vel, _ = fluid.make_incompressible(
-                vel, obstacles, solve=_lid_pressure_solve
-            )
-            faces = staggered_to_faces(vel)  # (3, nx, ny, nz)
-            # Override top z-face (index nz-1 in the z-dimension)
-            top_k = nz - 1
-            ux_f = faces[0].at[:, :, top_k].set(lid_ux)
-            uy_f = faces[1].at[:, :, top_k].set(lid_uy)
-            uz_f = faces[2].at[:, :, top_k].set(0.0)
-            new_faces = jnp.stack([ux_f, uy_f, uz_f], axis=0)
-            return new_faces, None
 
     else:
         # Use explicit CG pressure solver to prevent numerical divergence in 3D
@@ -428,33 +356,26 @@ def phiflow_fwd(  # mosaic:physics
         # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
         result = result[:, :, None, :]
 
-    # --- drag and RANS velocity -------------------------------------------
+    # --- drag from RANS-averaged pressure + velocity ----------------------
     drag = None
-    velocity_mean = None
     if obs_mask is not None and ndim == 2 and inflow_profile is not None:
         # _face_hist shape: (steps, 2, nx, ny); _p_hist shape: (steps, nx, ny).
         # Average over the last 50% of steps to smooth Kármán shedding oscillations.
         n_tail = max(1, steps // 2)
         rans_faces = jnp.mean(_face_hist[-n_tail:], axis=0)  # (2, nx, ny)
         ux_rans = 0.5 * (rans_faces[0] + jnp.roll(rans_faces[0], 1, axis=0))
-        uy_rans = 0.5 * (rans_faces[1] + jnp.roll(rans_faces[1], 1, axis=1))
-        velocity_mean = jnp.stack([ux_rans, uy_rans], axis=0)
-        velocity_mean = jnp.moveaxis(velocity_mean, 0, -1)[
-            :, :, None, :
-        ]  # (nx, ny, 1, 2)
-
         # Surface-integral drag from RANS mean pressure + velocity.
         # Time-averaging the per-step CG pressure (collected in-loop) gives the
         # correct RANS pressure; constant offset cancels on the closed cylinder surface.
         p_rans = jnp.mean(_p_hist[-n_tail:], axis=0)  # (nx, ny)
-        drag = _compute_drag_2d(ux_rans, p_rans, obs_mask, viscosity, dx)
+        drag = drag_jax(ux_rans, p_rans, obs_mask, viscosity, dx)
 
-    return result, drag, velocity_mean
+    return result, drag
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
-    result, drag, _velocity_mean = phiflow_fwd(**inputs)
+    result, drag = phiflow_fwd(**inputs)
     out = dict(result=result)
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out
@@ -475,7 +396,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

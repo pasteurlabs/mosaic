@@ -215,7 +215,7 @@ def scaffold_domain(
         f"from mosaic.benchmarks.core.utils import l2_error_rel\n\n"
         f"_GYM_DIR = Path(__file__).parent.parent.parent\n"
         f'_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "{domain_name}"\n\n\n'
-        f"# Auto-discover solvers from tesseract_config.yaml mosaic: blocks.\n"
+        f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
         f"_SOLVERS = discover_solvers(_TESSERACT_DIR)\n\n"
         f"# Merge domain-specific overrides here, e.g.:\n"
         f'# _SOLVERS["my_solver"].exclusions = {{...}}\n'

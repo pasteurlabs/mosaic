@@ -41,16 +41,20 @@ build_config:
     - "RUN cp /usr/local/lib/python3.12/dist-packages/__editable__.firedrake-2026.4.0.pth /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/__editable___firedrake_2026_4_0_finder.py /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/a1_coverage.pth /python-env/lib/python3.12/site-packages/ && echo /usr/local/lib/python3.12/dist-packages > /python-env/lib/python3.12/site-packages/firedrake_deps.pth"
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared meshio scipy"
 
-mosaic:
-  name: "Firedrake"
-  backend: firedrake
-  family: fem
-  scheme: "FEM P1 heat conduction (SIMP, firedrake-adjoint)"
-  color: "#CCBB44"
-  ad_strategy: adjoint
-  differentiable: true
-  uses_gpu: false
-  internal_dtype: float64
-  description: >
-    Firedrake P1 FEM heat-conduction; firedrake-adjoint for both rho and source
-    gradients.
+metadata:
+  mosaic:
+    name: "Firedrake"
+    backend: firedrake
+    family: fem
+    scheme: "FEM P1 heat conduction (SIMP, firedrake-adjoint)"
+    color: "#CCBB44"
+    linestyle: "(0, (5, 2))"
+    marker: "^"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    description: >
+      Firedrake P1 FEM heat-conduction; firedrake-adjoint for both rho and source
+      gradients.
+    doc_url: "https://www.firedrakeproject.org/"

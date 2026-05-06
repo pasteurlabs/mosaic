@@ -11,11 +11,16 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+):
     drag: Differentiable[Array[(1,), Float32]] = Field(
         description="Linear drag coefficient",
         default_factory=lambda: np.array([0.0], dtype=np.float32),
@@ -36,25 +41,16 @@ class InputSchema(_CanonicalInputSchema):
 
     @model_validator(mode="after")
     def _check_periodic_bcs(self) -> "InputSchema":
-        # Allow non-periodic BCs only when a lid_velocity is supplied (3-D
-        # lid-driven cavity mode). In that case the solver still uses a spectral
-        # periodic stepper internally but applies a relaxation-mask penalty on
-        # the six cavity walls each step (top z-face -> lid_velocity, other
-        # walls -> zero). This is an approximate BC treatment: the FFT basis
-        # cannot exactly represent the non-periodic wall BCs, so expect Gibbs
-        # ringing near walls. The gradient w.r.t. lid_velocity is finite and
-        # flows through the mask operation.
         if not self.boundary_conditions.is_fully_periodic:
-            if self.lid_velocity is None:
-                raise ValueError(
-                    "exponax uses a spectral (FFT) discretisation and only supports "
-                    "periodic boundary conditions. Set all faces to 'periodic' "
-                    "(the default), or provide lid_velocity for cavity penalty mode."
-                )
+            raise ValueError(
+                "exponax uses a spectral (FFT) discretisation and only supports "
+                "periodic boundary conditions. Set all faces to 'periodic' "
+                "(the default)."
+            )
         return self
 
 
-class OutputSchema(_CanonicalOutputSchema):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     pass
 
 
@@ -119,7 +115,6 @@ def exponax_fwd(  # mosaic:physics
     injection_mode: int,
     injection_scale: float,
     boundary_conditions: dict | None = None,
-    lid_velocity: jnp.ndarray | None = None,
     **_kwargs,
 ) -> jnp.ndarray:
     """Run 2D or 3D incompressible Navier-Stokes using exponax.
@@ -260,7 +255,7 @@ _jvp_compiled_cache: dict = {}
 
 def _build_diff_bundle(
     inputs: dict, include: tuple[str, ...]
-) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
+) -> dict:  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys."""
     bundle: dict = {}
     for k in include:
@@ -278,7 +273,7 @@ def _build_diff_bundle(
 
 def _run_forward(
     inputs: dict, diff_bundle: dict
-) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt:autodiff
+) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
     """Run exponax_fwd with diff inputs overridden from diff_bundle."""
     fwd_kwargs = {}
     for k in (
@@ -288,7 +283,6 @@ def _run_forward(
         "order",
         "kolmogorov_forcing",
         "injection_mode",
-        "lid_velocity",
     ):
         if k in inputs:
             fwd_kwargs[k] = inputs[k]
@@ -304,7 +298,7 @@ def _run_forward(
     return exponax_fwd(**fwd_kwargs)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

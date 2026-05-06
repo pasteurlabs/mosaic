@@ -22,12 +22,13 @@ from mosaic_shared.problems.thermal_mesh import (
 from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
     """Inputs for FEniCS heat solver, extended with material parameters."""
 
     k_max: float = Field(
@@ -40,8 +41,12 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for FEniCS heat solver (canonical interface)."""
+class OutputSchema(
+    make_differentiable(
+        _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
+    )
+):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -452,12 +457,11 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
     return OutputSchema(
         thermal_compliance=np.float32(J_val),
-        temperature=T_f32,
         identification_error=id_error,
     )
 
 
-def vector_jacobian_product(  # mosaic:grad:rho,source
+def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -704,19 +708,8 @@ def vector_jacobian_product(  # mosaic:grad:rho,source
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
-    """Shape inference without running the solver.
-
-    Args:
-        abstract_inputs: InputSchema with shape/dtype metadata (no values).
-
-    Returns:
-        Dict mapping output names to ShapeDType descriptors.
-    """
-    d = abstract_inputs.model_dump()
-    points = d["hex_mesh"]["points"]
-    n_nodes = points["shape"][0] if isinstance(points, dict) else len(points)
+    """Shape inference without running the solver."""
     return {
         "thermal_compliance": ShapeDType(shape=(), dtype="float32"),
-        "temperature": ShapeDType(shape=(n_nodes,), dtype="float32"),
         "identification_error": ShapeDType(shape=(), dtype="float32"),
     }

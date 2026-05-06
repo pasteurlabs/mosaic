@@ -13,16 +13,18 @@ build_config:
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
     - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.6"
 
-mosaic:
-  name: "Exponax"
-  backend: jax
-  family: spectral
-  scheme: "spectral ETDRK"
-  color: "#33AA99"
-  linestyle: "-"
-  marker: "o"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  description: "Spectral ETDRK integrator; machine-precision incompressibility by construction."
-  doc_url: "https://fkoehler.site/exponax/"
+metadata:
+  mosaic:
+    name: "Exponax"
+    backend: jax
+    family: spectral
+    scheme: "spectral ETDRK"
+    color: "#33AA99"
+    linestyle: "-"
+    marker: "o"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    description: "Spectral ETDRK integrator; machine-precision incompressibility by construction."
+    doc_url: "https://fkoehler.site/exponax/"

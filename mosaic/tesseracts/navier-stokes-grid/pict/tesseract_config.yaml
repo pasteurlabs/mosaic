@@ -26,9 +26,9 @@ description: |
 
   VJP flows through torch.autograd backprop across the differentiable PISO
   time loop.  PISOtorch_diff tracks VELOCITY, BOUNDARY_VELOCITY, and
-  VISCOSITY gradient chains, so v0, lid_velocity, and inflow_profile all
-  receive non-zero grads when passed as live torch leaves.  viscosity and dt
-  are consumed as Python scalars and their grads remain zero.  After each
+  VISCOSITY gradient chains, so v0 and inflow_profile receive non-zero grads
+  when passed as live torch leaves.  viscosity and dt are consumed as Python
+  scalars and their grads remain zero.  After each
   backward pass opt_domain.Detach() is called to break the cyclic reference
   that would otherwise cause a memory leak.
 
@@ -65,21 +65,23 @@ build_config:
     - "RUN cd /opt/pict/extensions && python3 setup.py install"
     - "RUN echo '/opt/pict' > /python-env/lib/python3.10/site-packages/pict.pth"
 
-mosaic:
-  name: "PICT"
-  backend: pytorch
-  family: projection
-  scheme: "PISO (2nd-order)"
-  color: "#AA44AA"
-  linestyle: "(0, (5, 1))"
-  marker: "v"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  description: >
-    PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch
-    autograd. VJP w.r.t. v0 is fully supported through the differentiable PISO
-    time loop. Gradients w.r.t. viscosity and dt are not available: those
-    parameters are consumed as Python scalars at domain construction / timestep
-    time and have no autograd path; zero gradients are returned for them.
-  doc_url: "https://github.com/tum-pbs/PICT"
+metadata:
+  mosaic:
+    name: "PICT"
+    backend: pytorch
+    family: projection
+    scheme: "PISO (2nd-order)"
+    color: "#AA44AA"
+    linestyle: "(0, (5, 1))"
+    marker: "v"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    description: >
+      PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch
+      autograd. VJP w.r.t. v0 is fully supported through the differentiable PISO
+      time loop. Gradients w.r.t. viscosity and dt are not available: those
+      parameters are consumed as Python scalars at domain construction / timestep
+      time and have no autograd path; zero gradients are returned for them.
+    doc_url: "https://github.com/tum-pbs/PICT"

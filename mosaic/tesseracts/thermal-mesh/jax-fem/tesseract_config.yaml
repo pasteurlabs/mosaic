@@ -19,13 +19,25 @@ build_config:
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
-mosaic:
-  name: "JAX-FEM"
-  backend: jax
-  family: fem
-  scheme: "FEM HEX8 heat conduction (SIMP, adjoint AD)"
-  color: "#4477AA"
-  ad_strategy: hybrid
-  differentiable: true
-  uses_gpu: true
-  description: "JAX-FEM HEX8 heat-conduction solver; automatic differentiation adjoint via JAX."
+metadata:
+  mosaic:
+    name: "JAX-FEM"
+    backend: jax
+    family: fem
+    scheme: "FEM HEX8 heat conduction (SIMP, adjoint AD)"
+    color: "#4477AA"
+    linestyle: "-."
+    marker: "o"
+    ad_strategy: hybrid
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    description: >
+      JAX-FEM HEX8 (8-node hexahedral) steady-state heat-conduction solver. SIMP
+      conductivity k(ρ) = k_min + (k_max − k_min)·ρ^penal on a structured HexMesh
+      with optional volumetric heat source. Outputs thermal compliance C =
+      ∫ T·q dΩ alongside the temperature field. Gradients ∂C/∂ρ and ∂C/∂source
+      via JAX automatic differentiation through the linear FE solve (hybrid
+      adjoint: JAX autodiff with implicit-function-theorem rewrite of the linear
+      system at the solve boundary). GPU-native via JAX/XLA.
+    doc_url: "https://github.com/deepmodeling/jax-fem"

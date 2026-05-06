@@ -13,7 +13,7 @@ description: >
 schema_module: mosaic_shared.problems.thermal_mesh
 
 # Which output field is used for solver-to-solver comparison.
-output_key: temperature
+output_key: thermal_compliance
 
 # Key in the input dict that holds the optimisation variable.
 ic_key: rho

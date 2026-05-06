@@ -14,7 +14,6 @@ description: |
          u* = u + dt·(−u·∇u + ν∇²u)          (tentative velocity)
          ∇²p = ∇·u* / dt                        (pressure Poisson)
          u^(n+1) = u* − dt·∇p                   (velocity correction)
-       Lid-driven cavity mode via lid_velocity input (top z-face BC).
        VJP via wp.Tape on the full time loop.
 
   Jacobi iteration counts:
@@ -27,8 +26,7 @@ description: |
   Interface:
     Inputs : v0 (N,N,1,2 for 2-D or N,N,N,3 for 3-D), viscosity (1,),
              dt (1,), steps (int), domain_extent (float),
-             boundary_conditions (GridBC), obstacle (GridObstacle|None),
-             lid_velocity (Array[(N,N,2)]|None)
+             boundary_conditions (GridBC), obstacle (GridObstacle|None)
     Outputs: result (same shape as v0), drag (1,) when obstacle present else None
 
 build_config:
@@ -37,22 +35,24 @@ build_config:
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
-mosaic:
-  name: "Warp-NS"
-  backend: warp
-  family: fd
-  scheme: "IPCS (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP"
-  color: "#EE7733"
-  linestyle: "(0, (1, 1))"
-  marker: "X"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  description: >
-    NVIDIA Warp NS solver: IPCS primitive-variable projection for both 2D and
-    3D. Pressure solve: spectral FFT Poisson on periodic domains; CG+Neumann
-    sparse Poisson when an obstacle or inflow_profile is present (2D only).
-    Obstacle via volume penalization (2D only). VJP via wp.Tape. Viscosity and dt
-    gradients via central finite differences (2D only). Unified 2D/3D IPCS
-    formulation (2026-04-22).
-  doc_url: "https://github.com/NVIDIA/warp"
+metadata:
+  mosaic:
+    name: "Warp-NS"
+    backend: warp
+    family: fd
+    scheme: "IPCS (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP"
+    color: "#EE7733"
+    linestyle: "(0, (1, 1))"
+    marker: "X"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    description: >
+      NVIDIA Warp NS solver: IPCS primitive-variable projection for both 2D and
+      3D. Pressure solve: spectral FFT Poisson on periodic domains; CG+Neumann
+      sparse Poisson when an obstacle or inflow_profile is present (2D only).
+      Obstacle via volume penalization (2D only). VJP via wp.Tape. Viscosity and dt
+      gradients via central finite differences (2D only). Unified 2D/3D IPCS
+      formulation (2026-04-22).
+    doc_url: "https://github.com/NVIDIA/warp"

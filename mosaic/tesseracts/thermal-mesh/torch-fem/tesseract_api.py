@@ -27,13 +27,14 @@ from mosaic_shared.problems.thermal_mesh import (
 from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from tesseract_core.runtime import ShapeDType
 from torchfem import SolidHeat
 from torchfem.materials import IsotropicConductivity3D
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
     """Inputs for torch-fem thermal solver (canonical + SIMP material params)."""
 
     k_max: float = Field(
@@ -46,8 +47,12 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for torch-fem thermal solver (canonical interface)."""
+class OutputSchema(
+    make_differentiable(
+        _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
+    )
+):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +430,6 @@ def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:  # mosaic:physics
 
     return {
         "thermal_compliance": thermal_compliance,
-        "temperature": T_nodal,
         "identification_error": identification_error,
         "rho_t": rho_t,
         "source_t": source_t,
@@ -438,20 +442,15 @@ def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:  # mosaic:physics
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Forward pass: solve heat conduction and return compliance + temperature.
+    """Forward pass: solve heat conduction and return compliance + identification error.
 
     Uses torch-fem SolidHeat with SIMP-scaled IsotropicConductivity3D material.
-    Returns per-node temperature field (matches FEniCS/dealII/firedrake nodal
-    output; jax-fem uses per-cell averages but identification_error is always
-    computed against nodal T here).
     """
     out = _apply_core(inputs.model_dump(), want_grad=False)
     tc = out["thermal_compliance"].detach().cpu().numpy().astype(np.float32)
-    T = out["temperature"].detach().cpu().numpy().astype(np.float32)
     ide = out["identification_error"].detach().cpu().numpy().astype(np.float32)
     return {
         "thermal_compliance": np.float32(tc),
-        "temperature": T,
         "identification_error": np.float32(ide),
     }
 
@@ -469,7 +468,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
     implements the implicit-function adjoint for the linear FE system.
     """
     assert vjp_inputs <= {"rho", "source"}
-    assert vjp_outputs <= {"thermal_compliance", "temperature", "identification_error"}
+    assert vjp_outputs <= {"thermal_compliance", "identification_error"}
 
     if not vjp_inputs:
         return {}
@@ -486,7 +485,6 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
     loss_terms: list[torch.Tensor] = []
     for key, tensor in (
         ("thermal_compliance", out["thermal_compliance"]),
-        ("temperature", out["temperature"]),
         ("identification_error", out["identification_error"]),
     ):
         if key not in vjp_outputs:
@@ -547,11 +545,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
     """Shape inference without running the solver."""
-    d = abstract_inputs.model_dump()
-    points = d["hex_mesh"]["points"]
-    n_nodes = points["shape"][0] if isinstance(points, dict) else len(points)
     return {
         "thermal_compliance": ShapeDType(shape=(), dtype="float32"),
-        "temperature": ShapeDType(shape=(n_nodes,), dtype="float32"),
         "identification_error": ShapeDType(shape=(), dtype="float32"),
     }

@@ -55,30 +55,23 @@ _SOLVERS: dict[str, SolverSpec] = {
         name="deal.II",
         backend="dealii",
         family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
+        differentiable=False,
         uses_gpu=False,
         internal_dtype="float64",
         dir="dealii",
         color="#CCBB44",
-        scheme="FEM Q1 linear elasticity (SIMP, analytic self-adjoint gradient)",
+        scheme="FEM Q1 linear elasticity (SIMP, forward-only)",
         image_tag="dealii_structural_mesh:latest",
         description=(
             "deal.II Q1 (trilinear hexahedral) FEM linear-elasticity solver via C++ subprocess. "
             "SIMP stiffness E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal. "
-            "UMFPACK direct solver. Gradient ∂C/∂ρ via analytic self-adjoint SIMP sensitivity. "
-            "Reference C++ implementation for cross-framework validation."
+            "UMFPACK direct solver. Forward-only — reference C++ implementation for "
+            "cross-framework validation."
         ),
         input_overrides={
             "E_max": _E_MAX,
             "nu": _NU,
             "xmin": _XMIN,
-        },
-        exclusions={
-            "optimization": {
-                "category": "categorical",
-                "reason": "deal.II self-adjoint SIMP gradient only supports ∂C/∂ρ; volume-fraction projection and optimizer loop not supported in C++ subprocess interface",
-            },
         },
     ),
     "fenics_structural": SolverSpec(
@@ -490,12 +483,6 @@ def _infer_mesh_dims(n_cells: int) -> tuple[int, int, int]:
     return nx, ny, nz
 
 
-def _stress_to_2d(von_mises_stress: np.ndarray, **_) -> np.ndarray:
-    """Extract mid-y cross-section of per-cell von Mises stress → (nz, nx) image."""
-    nx, ny, nz = _infer_mesh_dims(len(von_mises_stress))
-    return von_mises_stress.reshape(nz, ny, nx)[:, ny // 2, :]  # (nz, nx)
-
-
 def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
     """Mid-y cross-section of per-cell density field → (nz, nx) image."""
     nx, ny, nz = _infer_mesh_dims(len(rho))
@@ -508,16 +495,6 @@ def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
 def _get_compliance(compliance: np.ndarray, **_) -> float:
     """Structural compliance C = F^T U (scalar)."""
     return float(compliance)
-
-
-def _max_stress(von_mises_stress: np.ndarray, **_) -> float:
-    """Maximum von Mises stress over all cells."""
-    return float(np.max(von_mises_stress))
-
-
-def _mean_stress(von_mises_stress: np.ndarray, **_) -> float:
-    """Mean von Mises stress over all cells."""
-    return float(np.mean(von_mises_stress))
 
 
 # ── Config instance ───────────────────────────────────────────────────────────

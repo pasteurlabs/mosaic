@@ -1,3 +1,2 @@
 numpy
-scipy
 warp-lang>=1.0.0

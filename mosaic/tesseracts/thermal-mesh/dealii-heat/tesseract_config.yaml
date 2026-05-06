@@ -38,18 +38,22 @@ build_config:
     - "RUN pip install /tmp/mosaic_shared"
     - "RUN cd /opt/dealii_heat && cmake -B build -DCMAKE_BUILD_TYPE=Release . && cmake --build build -j4"
 
-mosaic:
-  name: "deal.II"
-  backend: dealii
-  family: fem
-  scheme: "FEM Q1 heat conduction (SIMP, analytic self-adjoint gradient)"
-  color: "#228833"
-  ad_strategy: adjoint
-  differentiable: true
-  uses_gpu: false
-  internal_dtype: float64
-  description: >
-    deal.II Q1 (trilinear hexahedral) FEM heat-conduction solver via C++
-    subprocess. SIMP conductivity k(ρ) = k_min + (k_max−k_min)·ρ^p. Gradient ∂C/∂ρ
-    via analytic self-adjoint sensitivity (no adjoint solve needed). Reference C++
-    implementation for cross-framework validation.
+metadata:
+  mosaic:
+    name: "deal.II"
+    backend: cpp
+    family: fem
+    scheme: "FEM Q1 heat conduction (SIMP, analytic self-adjoint gradient)"
+    color: "#228833"
+    linestyle: "-"
+    marker: "X"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    description: >
+      deal.II Q1 (trilinear hexahedral) FEM heat-conduction solver via C++
+      subprocess. SIMP conductivity k(ρ) = k_min + (k_max−k_min)·ρ^p. Gradient ∂C/∂ρ
+      via analytic self-adjoint sensitivity (no adjoint solve needed). Reference C++
+      implementation for cross-framework validation.
+    doc_url: "https://www.dealii.org/"

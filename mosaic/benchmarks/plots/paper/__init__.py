@@ -35,7 +35,6 @@ _REGISTRY: dict[str, str] = {
     "ucurves": "benchmarks.plots.paper.ucurves",
     "horizon_sweep_limits": "benchmarks.plots.paper.horizon_sweep_limits",
     "drag_opt": "benchmarks.plots.paper.drag_opt",
-    "lid_cavity": "benchmarks.plots.paper.lid_cavity",
     "topopt": "benchmarks.plots.paper.topopt",
     "optimization": "benchmarks.plots.paper.recovery",
     "recovery_overview": "benchmarks.plots.paper.recovery_overview",

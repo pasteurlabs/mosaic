@@ -25,6 +25,7 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
@@ -34,7 +35,7 @@ from tesseract_core.runtime import ShapeDType
 # ---------------------------------------------------------------------------
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     """Inputs for Firedrake structural solver, extended with material parameters."""
 
     E_max: float = Field(
@@ -55,8 +56,8 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for Firedrake structural solver (canonical interface)."""
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -239,28 +240,6 @@ def _cell_reorder_map(
 
 
 # ---------------------------------------------------------------------------
-# Node reorder map  (Firedrake may renumber nodes on load)
-# ---------------------------------------------------------------------------
-
-
-def _node_reorder_map(pts: np.ndarray, fd_mesh) -> np.ndarray:  # mosaic:util
-    """Build Firedrake-node-index → input-node-index permutation via coordinate matching.
-
-    Args:
-        pts: Input node coordinates, shape (n_nodes, 3).
-        fd_mesh: Firedrake Mesh built from the same data.
-
-    Returns:
-        Array of shape (n_fd_nodes,) where entry j gives the input node index
-        that corresponds to Firedrake node j.
-    """
-    fd_coords = fd_mesh.coordinates.dat.data_ro  # (n_fd_nodes, 3)
-    tree = cKDTree(pts)
-    _, fd_to_input = tree.query(fd_coords)
-    return fd_to_input  # shape (n_fd_nodes,)
-
-
-# ---------------------------------------------------------------------------
 # BC extraction helpers
 # ---------------------------------------------------------------------------
 
@@ -357,10 +336,8 @@ def _solve_elasticity(  # mosaic:physics
         compute_gradient: If True, compute ∂C/∂ρ via firedrake-adjoint.
 
     Returns:
-        Tuple (J_val, u_vals, vm_vals, dJ_drho) where:
+        Tuple (J_val, dJ_drho) where:
             J_val: Scalar compliance value.
-            u_vals: Displacement at input mesh nodes, shape (n_input_nodes, 3).
-            vm_vals: Von Mises stress per input cell, shape (n_input_cells,).
             dJ_drho: Gradient ∂C/∂ρ per input cell, shape (n_input_cells,), or None.
     """
     # Fresh tape for every solve — prevents stale gradient accumulation.
@@ -374,7 +351,6 @@ def _solve_elasticity(  # mosaic:physics
         pts, cells, dirichlet_mask_vals, neumann_mask_vals
     )
     fd_to_input_cells = _cell_reorder_map(pts, cells, mesh)
-    fd_to_input_nodes = _node_reorder_map(pts, mesh)
 
     # ---- Function spaces -------------------------------------------------
     # CG1 vector for displacement (3 DOFs per node); DG0 for density.
@@ -441,30 +417,6 @@ def _solve_elasticity(  # mosaic:physics
         J_form = J_form + inner(traction, u_sol) * ds(tag)
     J = assemble(J_form)
 
-    # ---- Von Mises stress (interpolated to DG0) --------------------------
-    # Compute outside the annotation context so it does not pollute the
-    # adjoint tape; the ReducedFunctional only needs J → rho_fn.
-    s_dev = sigma(u_sol) - (1.0 / 3.0) * tr(sigma(u_sol)) * Identity(3)
-    vm_expr = sqrt(Constant(1.5) * inner(s_dev, s_dev))
-    vm_fn = Function(DG0, name="von_mises")
-    with stop_annotating():
-        vm_fn.interpolate(vm_expr)
-
-    # ---- Extract outputs in input ordering --------------------------------
-    # Displacement: Firedrake CG1 DOF ordering → input node ordering.
-    u_fd = u_sol.dat.data_ro  # (n_fd_nodes, 3)
-    # Build inverse mapping: input_node_index → firedrake_node_index
-    input_to_fd = np.zeros(len(pts), dtype=np.int64)
-    for fd_idx, inp_idx in enumerate(fd_to_input_nodes):
-        input_to_fd[inp_idx] = fd_idx
-    u_vals = u_fd[input_to_fd]  # (n_input_nodes, 3)
-
-    # Von Mises: Firedrake DG0 ordering → input cell ordering.
-    vm_fd = vm_fn.dat.data_ro  # (n_fd_cells,)
-    vm_vals = np.zeros(len(cells))
-    for fd_idx, inp_idx in enumerate(fd_to_input_cells):
-        vm_vals[inp_idx] = vm_fd[fd_idx]
-
     # ---- Gradient via adjoint --------------------------------------------
     dJ_drho = None
     if compute_gradient:
@@ -478,7 +430,7 @@ def _solve_elasticity(  # mosaic:physics
             dJ_input[inp_idx] = dJ_fd[fd_idx]
         dJ_drho = dJ_input
 
-    return float(J), u_vals, vm_vals, dJ_drho
+    return float(J), dJ_drho
 
 
 # ---------------------------------------------------------------------------
@@ -487,14 +439,13 @@ def _solve_elasticity(  # mosaic:physics
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Forward pass: solve linear elasticity and return compliance, von Mises, displacement.
+    """Forward pass: solve linear elasticity and return compliance.
 
     Args:
         inputs: Validated InputSchema containing the density field, mesh, and BCs.
 
     Returns:
-        OutputSchema with compliance (scalar), von_mises_stress (n_cells,),
-        and displacement (n_nodes, 3).
+        OutputSchema with compliance (scalar).
     """
     hm = inputs.hex_mesh
     pts = np.asarray(hm.points[: hm.n_points], dtype=np.float64)
@@ -505,7 +456,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     dm, dv = _extract_dirichlet(bc)
     nm, nv = _extract_neumann(bc)
 
-    J_val, u_vals, vm_vals, _ = _solve_elasticity(
+    J_val, _ = _solve_elasticity(
         rho_values,
         pts,
         cells,
@@ -520,11 +471,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         compute_gradient=False,
     )
 
-    return OutputSchema(
-        compliance=np.float32(J_val),
-        von_mises_stress=vm_vals.astype(np.float32),
-        displacement=u_vals.astype(np.float32),
-    )
+    return OutputSchema(compliance=np.float32(J_val))
 
 
 def vector_jacobian_product(  # mosaic:grad:rho:adjoint
@@ -533,43 +480,29 @@ def vector_jacobian_product(  # mosaic:grad:rho:adjoint
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
-    """VJP via firedrake-adjoint: gradient of compliance and/or displacement objective.
-
-    Re-runs the forward solve with gradient tracking enabled and uses
-    firedrake-adjoint's ReducedFunctional to compute the adjoint sensitivity.
-
-    Supports differentiation through:
-      - rho -> compliance: scalar cotangent, standard SIMP adjoint.
-      - rho -> displacement: array cotangent (n_nodes, 3); implemented by
-        constructing J_disp = inner(cot_fn, u_sol) * dx on the pyadjoint tape,
-        where cot_fn is a CG1 function holding the cotangent values.
-        A nodal correction factor (n_nodes / domain_vol) converts the
-        volume-weighted integral to the DOF-space inner product.
-
-    Both contributions can be active simultaneously.
+    """VJP via firedrake-adjoint: gradient of compliance objective.
 
     Args:
         inputs: Validated InputSchema.
         vjp_inputs: Names of inputs for which gradients are requested.
         vjp_outputs: Names of outputs whose cotangents are provided.
-        cotangent_vector: Dict of output-name -> cotangent scalar/array.
+        cotangent_vector: Dict of output-name -> cotangent scalar.
 
     Returns:
         Dict mapping "rho" -> gradient array of the same shape as inputs.rho.
     """
+    assert vjp_inputs <= {"rho"}
+    assert vjp_outputs <= {"compliance"}
+
     if "rho" not in vjp_inputs:
         return {}
 
     cot_c = float(cotangent_vector.get("compliance", 0.0))
-    cot_disp_raw = cotangent_vector.get("displacement", None)
-    cot_disp = (
-        np.asarray(cot_disp_raw, dtype=np.float64) if cot_disp_raw is not None else None
-    )
-
-    has_compliance = abs(cot_c) > 0.0
-    has_displacement = cot_disp is not None and np.any(cot_disp != 0.0)
-
     hm = inputs.hex_mesh
+    grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
+    if abs(cot_c) == 0.0:
+        return {"rho": grad_rho}
+
     pts = np.asarray(hm.points[: hm.n_points], dtype=np.float64)
     cells = np.asarray(hm.faces[: hm.n_faces], dtype=np.int64)
     rho_values = np.asarray(inputs.rho[: hm.n_faces], dtype=np.float64)
@@ -578,152 +511,25 @@ def vector_jacobian_product(  # mosaic:grad:rho:adjoint
     dm, dv = _extract_dirichlet(bc)
     nm, nv = _extract_neumann(bc)
 
-    # Fresh tape for every solve — prevents stale gradient accumulation.
-    set_working_tape(Tape())
-    continue_annotation()
+    _, dJ_drho = _solve_elasticity(
+        rho_values,
+        pts,
+        cells,
+        dm,
+        dv,
+        nm,
+        nv,
+        E_max=inputs.E_max,
+        nu=inputs.nu,
+        xmin=inputs.xmin,
+        penal=inputs.penal,
+        compute_gradient=True,
+    )
 
-    # ---- Mesh with boundary tags -----------------------------------------
-    mesh, neumann_offset = _build_firedrake_mesh(pts, cells, dm, nm)
-    fd_to_input_cells = _cell_reorder_map(pts, cells, mesh)
-    fd_to_input_nodes = _node_reorder_map(pts, mesh)
-
-    # ---- Function spaces -------------------------------------------------
-    V = VectorFunctionSpace(mesh, "CG", 1)
-    DG0 = FunctionSpace(mesh, "DG", 0)
-
-    # ---- Density field ---------------------------------------------------
-    rho_fn = Function(DG0, name="rho")
-    rho_reordered = np.clip(rho_values[fd_to_input_cells], 0.0, 1.0)
-    rho_fn.dat.data[:] = rho_reordered
-
-    # ---- SIMP stiffness --------------------------------------------------
-    E_min_val = Constant(inputs.xmin * inputs.E_max)
-    E_max_val = Constant(inputs.E_max)
-    E_field = E_min_val + (E_max_val - E_min_val) * rho_fn ** Constant(inputs.penal)
-
-    nu_c = Constant(inputs.nu)
-    lam = E_field * nu_c / ((1 + nu_c) * (1 - 2 * nu_c))
-    mu_c = E_field / (2 * (1 + nu_c))
-
-    # ---- Strain and stress operators -------------------------------------
-    def epsilon(w):
-        return 0.5 * (grad(w) + grad(w).T)
-
-    def sigma(w):
-        return lam * tr(epsilon(w)) * Identity(3) + 2 * mu_c * epsilon(w)
-
-    # ---- Variational form ------------------------------------------------
-    u = TrialFunction(V)
-    v = TestFunction(V)
-
-    a = inner(sigma(u), epsilon(v)) * dx
-
-    # ---- Neumann BCs (surface tractions) ---------------------------------
-    n_neumann_groups = nv.shape[0]
-    L = inner(Constant((0.0, 0.0, 0.0)), v) * dx
-    for k in range(n_neumann_groups):
-        traction = Constant(tuple(float(x) for x in nv[k]))
-        tag = neumann_offset + (k + 1)
-        L = L + inner(traction, v) * ds(tag)
-
-    # ---- Dirichlet BCs ---------------------------------------------------
-    n_dirichlet_groups = dv.shape[0]
-    bcs = []
-    for k in range(n_dirichlet_groups):
-        val = tuple(float(x) for x in dv[k])
-        tag = k + 1
-        bcs.append(DirichletBC(V, Constant(val), tag))
-
-    # ---- Solve -----------------------------------------------------------
-    u_sol = Function(V)
-    solve(a == L, u_sol, bcs)
-
-    # Build combined scalar objective on the tape.
-    J_parts = []
-
-    if has_compliance:
-        # Compliance: C = integral_GammaN f.u dGamma
-        J_compliance_form = inner(Constant((0.0, 0.0, 0.0)), u_sol) * dx
-        for k in range(n_neumann_groups):
-            traction = Constant(tuple(float(x) for x in nv[k]))
-            tag = neumann_offset + (k + 1)
-            J_compliance_form = J_compliance_form + inner(traction, u_sol) * ds(tag)
-        J_compliance = assemble(J_compliance_form)
-        J_parts.append(cot_c * J_compliance)
-
-    if has_displacement:
-        # Build a CG1 vector Function holding the cotangent values in Firedrake ordering.
-        # J_disp = inner(cot_fn, u_sol) * dx with nodal correction factor.
-        n_input_nodes = len(pts)
-        cot_disp_2d = cot_disp.reshape(n_input_nodes, 3)
-
-        # Map cotangent from input node ordering to Firedrake node ordering.
-        # fd_to_input_nodes[fd_idx] = input node index for Firedrake node fd_idx.
-        cot_disp_fd = cot_disp_2d[fd_to_input_nodes]  # (n_fd_nodes, 3)
-
-        cot_fn = Function(V, name="cotangent")
-        with stop_annotating():
-            cot_fn.dat.data[:] = cot_disp_fd
-
-        # Nodal correction: inner(cot_fn, u_sol)*dx is volume-weighted;
-        # n_nodes/domain_vol restores the DOF-space inner product scaling.
-        fd_coords_arr = mesh.coordinates.dat.data_ro
-        domain_vol = float(
-            np.prod(
-                [
-                    fd_coords_arr[:, i].max() - fd_coords_arr[:, i].min()
-                    for i in range(3)
-                ]
-            )
-        )
-        n_fd_nodes = fd_coords_arr.shape[0]
-        nodal_correction = float(n_fd_nodes) / domain_vol
-
-        J_disp = nodal_correction * assemble(inner(cot_fn, u_sol) * dx)
-        J_parts.append(J_disp)
-
-    if not J_parts:
-        # No active cotangents — return zero gradient.
-        grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
-        return {"rho": grad_rho}
-
-    # Combine all parts into a single scalar J for the ReducedFunctional.
-    J_total = J_parts[0]
-    for jp in J_parts[1:]:
-        J_total = J_total + jp
-
-    # Adjoint via firedrake-adjoint ReducedFunctional.
-    Jhat = ReducedFunctional(J_total, Control(rho_fn))
-    dJ_fn = Jhat.derivative()
-    dJ_fd = dJ_fn.dat.data_ro.copy()  # (n_fd_cells,)
-
-    # Map Firedrake DG0 DOF order to input cell order.
-    dJ_input = np.zeros(len(rho_values))
-    for fd_idx, inp_idx in enumerate(fd_to_input_cells):
-        dJ_input[inp_idx] = dJ_fd[fd_idx]
-
-    # Pad gradient back to the full capacity-padded rho length.
-    grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
-    grad_rho[: hm.n_faces] = dJ_input.astype(np.float32)
+    grad_rho[: hm.n_faces] = (cot_c * dJ_drho).astype(np.float32)
     return {"rho": grad_rho}
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
-    """Shape inference without running the solver.
-
-    Args:
-        abstract_inputs: InputSchema with shape/dtype metadata (no values).
-
-    Returns:
-        Dict mapping output names to ShapeDType descriptors.
-    """
-    d = abstract_inputs.model_dump()
-    points = d["hex_mesh"]["points"]
-    faces = d["hex_mesh"]["faces"]
-    n_nodes = points["shape"][0] if isinstance(points, dict) else len(points)
-    n_cells = faces["shape"][0] if isinstance(faces, dict) else len(faces)
-    return {
-        "compliance": ShapeDType(shape=(), dtype="float32"),
-        "von_mises_stress": ShapeDType(shape=(n_cells,), dtype="float32"),
-        "displacement": ShapeDType(shape=(n_nodes, 3), dtype="float32"),
-    }
+    """Shape inference without running the solver."""
+    return {"compliance": ShapeDType(shape=(), dtype="float32")}

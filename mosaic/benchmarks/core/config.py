@@ -83,28 +83,33 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
     """Auto-discover solvers from ``tesseract_config.yaml`` files.
 
     Scans *tesseract_dir* for subdirectories containing a
-    ``tesseract_config.yaml`` with a ``mosaic:`` metadata block and builds a
+    ``tesseract_config.yaml`` with a ``metadata.mosaic:`` block and builds a
     :class:`SolverSpec` for each.  This allows new solver contributions to be
     picked up automatically without editing the problem config Python file.
 
-    The ``mosaic:`` block supports these keys (all optional except ``name``):
+    The block lives under ``metadata:`` because tesseract_core's
+    ``TesseractConfig`` rejects unknown top-level keys (``extra="forbid"``).
+    ``metadata`` is a free-form ``dict[str, Any]`` per upstream's schema.
+
+    Supported keys (all optional except ``name``):
 
     .. code-block:: yaml
 
-        mosaic:
-          name: JAX-FEM             # display name (required)
-          backend: jax              # runtime: jax, pytorch, julia, cpp, …
-          family: fem               # solver family for grouped styling
-          scheme: "FEM HEX8"        # numerical scheme label
-          color: "#4477AA"          # hex colour for plots
-          linestyle: "-"            # matplotlib linestyle
-          marker: "o"               # matplotlib marker
-          ad_strategy: autodiff     # autodiff | adjoint | hybrid | null
-          differentiable: true      # explicit VJP flag
-          uses_gpu: true
-          internal_dtype: float32
-          description: "..."        # one-sentence description
-          doc_url: "https://..."    # upstream docs link
+        metadata:
+          mosaic:
+            name: JAX-FEM             # display name (required)
+            backend: jax              # runtime: jax, pytorch, julia, cpp, …
+            family: fem               # solver family for grouped styling
+            scheme: "FEM HEX8"        # numerical scheme label
+            color: "#4477AA"          # hex colour for plots
+            linestyle: "-"            # matplotlib linestyle
+            marker: "o"               # matplotlib marker
+            ad_strategy: autodiff     # autodiff | adjoint | hybrid | null
+            differentiable: true      # explicit VJP flag
+            uses_gpu: true
+            internal_dtype: float32
+            description: "..."        # one-sentence description
+            doc_url: "https://..."    # upstream docs link
 
     Returns a dict keyed by a normalised solver name (directory name with
     hyphens replaced by underscores).  Problem configs can merge these with
@@ -137,7 +142,8 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
                 stacklevel=2,
             )
             continue
-        meta = doc.get("mosaic")
+        metadata = doc.get("metadata") or {}
+        meta = metadata.get("mosaic") if isinstance(metadata, dict) else None
         if not isinstance(meta, dict):
             # No mosaic: block — not a Mosaic solver, skip silently
             continue

@@ -10,12 +10,15 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(
+    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
+):
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
     )
@@ -49,7 +52,7 @@ class InputSchema(_CanonicalInputSchema):
         return self
 
 
-class OutputSchema(_CanonicalOutputSchema):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     pass
 
 
@@ -206,7 +209,6 @@ def cfd_fwd(  # mosaic:physics
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-    lid_velocity: jnp.ndarray | None = None,
     **_kwargs,
 ) -> tuple[jax.Array, jax.Array | None]:
     """Compute the final velocity field using the semi-implicit Navier-Stokes equations.
@@ -215,14 +217,6 @@ def cfd_fwd(  # mosaic:physics
 
     When ``inflow_profile`` is provided (shape (ny,)), it is applied as a
     spatially-varying Dirichlet u_x BC at the x_lo face (x=0) after every step.
-
-    When ``lid_velocity`` is provided (shape (nx, ny, 2), 3D only), the top
-    z-face (z = nz-1) of u_x and u_y is overridden to the given values after
-    every step.  u_z at the lid is set to zero.  This implements a
-    lid-driven-cavity BC in a fully differentiable way via jax.lax.scan.
-    The boundary_conditions dict for lid mode should have no-slip walls on all
-    four lateral faces (x_lo, x_hi, y_lo, y_hi) and z_lo, with the lid
-    velocity imposed explicitly on z_hi here.
 
     Returns:
         (result, drag): result has same shape as v0.  drag is shape (1,) float32
@@ -332,50 +326,6 @@ def cfd_fwd(  # mosaic:physics
         v_final_stag, _ = jax.lax.scan(step_with_inflow, v_grid, None, length=steps)
         stag_components = [v_final_stag[i].array.data for i in range(ndim)]
         final_v_grid = v_final_stag
-    elif lid_velocity is not None and ndim == 3:
-        # 3D lid-driven cavity: after each NS step, override u_x and u_y at the
-        # top z-face (index nz-1 in the staggered z-axis of u_x and u_y) and
-        # set u_z at z=nz-1 to zero.  All overrides use .at[].set() so they
-        # remain differentiable through jax.lax.scan.
-        #
-        # lid_velocity shape: (nx, ny, 2) — component 0 is u_x, component 1 is u_y.
-        lid_ux = lid_velocity[..., 0]  # (nx, ny)
-        lid_uy = lid_velocity[..., 1]  # (nx, ny)
-
-        nz = spatial_shape[2]
-
-        def step_with_lid(v_stag, _):
-            v_stag = step_fn(v_stag)
-
-            # Override u_x at top z-face (staggered x-velocity: shape (nx, ny, nz))
-            ux_data = v_stag[0].array.data
-            ux_data = ux_data.at[:, :, nz - 1].set(lid_ux)
-            new_ux = cfd.grids.GridVariable(
-                cfd.grids.GridArray(ux_data, grid=grid, offset=v_stag[0].array.offset),
-                bc,
-            )
-
-            # Override u_y at top z-face (staggered y-velocity: shape (nx, ny, nz))
-            uy_data = v_stag[1].array.data
-            uy_data = uy_data.at[:, :, nz - 1].set(lid_uy)
-            new_uy = cfd.grids.GridVariable(
-                cfd.grids.GridArray(uy_data, grid=grid, offset=v_stag[1].array.offset),
-                bc,
-            )
-
-            # Override u_z at top z-face to zero (no normal flow through lid)
-            uz_data = v_stag[2].array.data
-            uz_data = uz_data.at[:, :, nz - 1].set(0.0)
-            new_uz = cfd.grids.GridVariable(
-                cfd.grids.GridArray(uz_data, grid=grid, offset=v_stag[2].array.offset),
-                bc,
-            )
-
-            return (new_ux, new_uy, new_uz), None
-
-        v_final_stag, _ = jax.lax.scan(step_with_lid, v_grid, None, length=steps)
-        stag_components = [v_final_stag[i].array.data for i in range(ndim)]
-        final_v_grid = v_final_stag
     else:
         # IBM volume-penalization for non-inflow path: wrap step_fn so obstacle
         # cells are zeroed after every NS sub-step.
@@ -458,7 +408,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,density:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

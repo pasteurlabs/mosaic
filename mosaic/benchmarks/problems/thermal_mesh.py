@@ -54,33 +54,22 @@ _SOLVERS: dict[str, SolverSpec] = {
         name="deal.II",
         backend="dealii",
         family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
+        differentiable=False,
+        ad_strategy=None,
         uses_gpu=False,
         internal_dtype="float64",
         dir="dealii-heat",
         color="#228833",
-        scheme="FEM Q1 heat conduction (SIMP, analytic self-adjoint gradient)",
+        scheme="FEM Q1 heat conduction (SIMP, forward-only)",
         image_tag="dealii_heat_thermal_mesh:latest",
         description=(
             "deal.II Q1 (trilinear hexahedral) FEM heat-conduction solver via C++ subprocess. "
             "SIMP conductivity k(ρ) = k_min + (k_max−k_min)·ρ^p. "
-            "Gradient ∂C/∂ρ via analytic self-adjoint sensitivity (no adjoint solve needed). "
-            "Reference C++ implementation for cross-framework validation."
+            "Forward-only reference C++ implementation for cross-framework validation."
         ),
         input_overrides={
             "k_max": _K_MAX,
             "p_exp": _P_EXP,
-        },
-        exclusions={
-            # VJP for rho only implements ∂thermal_compliance/∂rho (C++ analytic SIMP sensitivity),
-            # not ∂identification_error/∂rho. The C++ --gradient flag computes the self-adjoint
-            # ∂C/∂rho gradient, not the adjoint for the identification_error objective.
-            "recovery/conductivity_recovery": "identification_error_rho_vjp_not_implemented",
-            "optimization": {
-                "category": "categorical",
-                "reason": "deal.II self-adjoint gradient only supports ∂thermal_compliance/∂ρ; identification_error VJP not implemented in C++ subprocess interface",
-            },
         },
     ),
     "firedrake_heat": SolverSpec(

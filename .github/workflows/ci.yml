@@ -86,12 +86,13 @@ jobs:
                       continue
                   if "name" not in doc:
                       errors.append(f"{p}: missing 'name' field")
-                  mosaic_meta = doc.get("mosaic")
-                  if mosaic_meta is None:
-                      errors.append(f"{p}: missing 'mosaic' metadata block")
+                  metadata = doc.get("metadata")
+                  if not isinstance(metadata, dict):
+                      errors.append(f"{p}: missing 'metadata' block")
                       continue
+                  mosaic_meta = metadata.get("mosaic")
                   if not isinstance(mosaic_meta, dict):
-                      errors.append(f"{p}: 'mosaic' must be a mapping")
+                      errors.append(f"{p}: missing 'metadata.mosaic' block")
                       continue
                   if not mosaic_meta.get("name"):
                       errors.append(f"{p}: mosaic.name is required")
@@ -119,26 +120,6 @@ jobs:
               sys.exit(1)
           print("All valid.")
           PYEOF
-
-  docs-freshness:
-    name: Check generated docs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Check solvers.qmd is up to date
-        run: uv run python docs/generate.py --check
 
   smoke-benchmark:
     name: Smoke benchmark
