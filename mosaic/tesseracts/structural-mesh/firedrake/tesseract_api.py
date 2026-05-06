@@ -25,6 +25,7 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
@@ -34,7 +35,7 @@ from tesseract_core.runtime import ShapeDType
 # ---------------------------------------------------------------------------
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     """Inputs for Firedrake structural solver, extended with material parameters."""
 
     E_max: float = Field(
@@ -55,8 +56,7 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for Firedrake structural solver (canonical interface)."""
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
 
 
 # ---------------------------------------------------------------------------

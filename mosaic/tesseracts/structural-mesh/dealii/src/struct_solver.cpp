@@ -4,19 +4,15 @@
 // Based on deal.II Step-8 (vector-valued FE for linear elasticity).
 //
 // Usage:
-//   struct_solver input.json [--gradient] [--disp-gradient]
+//   struct_solver input.json [--gradient]
 //
 // Reads:
 //   input.json         — mesh dimensions, material params, BC masks
 //   rho.npy            — per-cell SIMP density (float32, n_cells)
-//   cotan_disp.npy     — cotangent displacement (float32, n_nodes*3) [--disp-gradient only]
 //
 // Writes:
-//   displacement.npy   — nodal displacement (float32, n_nodes x 3)
-//   von_mises.npy      — per-cell von Mises stress (float32, n_cells)
 //   compliance.txt     — structural compliance C = F^T U (single float)
 //   gradient.npy       — analytic dC/drho (float32, n_cells) [--gradient only]
-//   disp_gradient.npy  — d(cotan^T u)/drho (float32, n_cells) [--disp-gradient only]
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -175,17 +171,14 @@ class StructSolver
 {
 public:
   StructSolver(const std::string &input_json_path,
-               bool compute_gradient,
-               bool compute_disp_gradient);
+               bool compute_gradient);
   void run();
 
 private:
   void setup_system();
   void assemble_system();
   void solve_system();
-  void compute_von_mises();
   void compute_gradient_field();
-  void compute_disp_gradient_field();
   void write_outputs();
 
   // Inputs
@@ -199,7 +192,6 @@ private:
   std::vector<std::vector<double>>   neumann_values;   // (n_groups, 3)
 
   bool        compute_gradient_;
-  bool        compute_disp_gradient_;
   std::string output_dir_;
 
   // deal.II objects
@@ -212,28 +204,20 @@ private:
   Vector<double>       system_rhs;          // modified by apply_boundary_values
   Vector<double>       system_rhs_original; // before BC modification (for compliance)
 
-  // Factored system for adjoint solve (reuse for disp gradient)
-  SparseDirectUMFPACK direct_;
-  bool                factored_ = false;
-
   // Per-cell density
   std::vector<float>  rho;
 
   // Outputs
-  std::vector<double> von_mises_vals;
   std::vector<double> gradient_vals;
-  std::vector<double> disp_gradient_vals;
   double              compliance;
 };
 
 // mosaic:io
 StructSolver::StructSolver(const std::string &input_json_path,
-                            bool compute_gradient,
-                            bool compute_disp_gradient)
+                            bool compute_gradient)
   : fe(FE_Q<3>(1), 3)
   , dof_handler(triangulation)
   , compute_gradient_(compute_gradient)
-  , compute_disp_gradient_(compute_disp_gradient)
 {
   // Determine output directory
   size_t pos = input_json_path.rfind('/');
@@ -484,81 +468,12 @@ void StructSolver::assemble_system()
 // mosaic:physics
 void StructSolver::solve_system()
 {
-  direct_.initialize(system_matrix);
-  factored_ = true;
-  direct_.vmult(solution, system_rhs);
+  SparseDirectUMFPACK direct;
+  direct.initialize(system_matrix);
+  direct.vmult(solution, system_rhs);
 
   // Compliance C = F^T U  (using the original RHS before BC modification)
   compliance = system_rhs_original * solution;
-}
-
-// mosaic:physics
-void StructSolver::compute_von_mises()
-{
-  // Centroid quadrature (1 point per cell)
-  QMidpoint<3> midpt;
-  FEValues<3> fev(fe, midpt, update_gradients);
-
-  const unsigned int dpc = fe.n_dofs_per_cell();
-  unsigned int n_cells = triangulation.n_active_cells();
-  von_mises_vals.assign(n_cells, 0.0);
-
-  std::vector<types::global_dof_index> ldof(dpc);
-  unsigned int cell_idx = 0;
-
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    fev.reinit(cell);
-    cell->get_dof_indices(ldof);
-
-    double rho_e = (cell_idx < rho.size())
-                   ? std::max(0.0, std::min(1.0, (double)rho[cell_idx]))
-                   : 0.5;
-    double E_e = xmin * E_max + (1.0 - xmin) * E_max * std::pow(rho_e, penal);
-    double lam = E_e * nu / ((1.0 + nu) * (1.0 - 2.0 * nu));
-    double mu  = E_e / (2.0 * (1.0 + nu));
-
-    // Displacement gradient at centroid
-    Tensor<2,3> grad_u;
-    for (unsigned int i = 0; i < dpc; ++i) {
-      int ci = fe.system_to_component_index(i).first;
-      double u_i = solution(ldof[i]);
-      const Tensor<1,3> &g = fev.shape_grad_component(i, 0, ci);
-      for (int d = 0; d < 3; ++d)
-        grad_u[ci][d] += u_i * g[d];
-    }
-
-    // Symmetric strain
-    SymmetricTensor<2,3> eps;
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j <= i; ++j)
-        eps[i][j] = 0.5 * (grad_u[i][j] + grad_u[j][i]);
-
-    double tr_eps = eps[0][0] + eps[1][1] + eps[2][2];
-
-    // Cauchy stress
-    SymmetricTensor<2,3> sigma;
-    for (int i = 0; i < 3; ++i) {
-      sigma[i][i] = lam * tr_eps + 2.0 * mu * eps[i][i];
-      for (int j = 0; j < i; ++j)
-        sigma[i][j] = 2.0 * mu * eps[i][j];
-    }
-
-    // Deviatoric stress
-    double tr_sigma = sigma[0][0] + sigma[1][1] + sigma[2][2];
-    SymmetricTensor<2,3> s = sigma;
-    s[0][0] -= tr_sigma / 3.0;
-    s[1][1] -= tr_sigma / 3.0;
-    s[2][2] -= tr_sigma / 3.0;
-
-    // Von Mises: sqrt(3/2 * s:s)
-    double s2 = 0.0;
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j < 3; ++j)
-        s2 += s[i][j] * s[i][j];
-
-    von_mises_vals[cell_idx] = std::sqrt(1.5 * s2);
-    ++cell_idx;
-  }
 }
 
 // mosaic:grad:rho:analytic
@@ -633,212 +548,9 @@ void StructSolver::compute_gradient_field()
   }
 }
 
-// mosaic:grad:rho:analytic
-void StructSolver::compute_disp_gradient_field()
-{
-  // Displacement VJP: d(cotan^T u) / d(rho_e)
-  //
-  // For the adjoint: K lambda = cotan_disp  (K is symmetric)
-  // Sensitivity:  d(cotan^T u)/d(rho_e) = lambda^T * du/d(rho_e)
-  //             = -lambda^T * K^{-1} * (dK/d(rho_e)) * u
-  //             = -(dE_e/d(rho_e)) * lambda_e^T * K_e_norm * u_e
-  //
-  // This is the same formula as the compliance gradient but with lambda
-  // (adjoint solution) instead of u in the left factor.
-
-  // Load the cotangent displacement from file.
-  std::string cotan_path = output_dir_ + "/cotan_disp.npy";
-  std::vector<float> cotan_flat = load_npy_float32(cotan_path);
-
-  // cotan_flat is stored as (n_nodes, 3) in C order: cotan_flat[node*3+comp].
-  // Build a DOF-space vector in deal.II ordering.
-  // The input node ordering is iz*(ny+1)*(nx+1) + iy*(nx+1) + ix (same as
-  // hex_mesh_node_pts), which matches the deal.II mesh node ordering after
-  // subdivided_hyper_rectangle. We map coordinate -> deal.II DOF using the
-  // same logic as write_outputs (round coordinate to grid index).
-  unsigned int n_dofs = dof_handler.n_dofs();
-  Vector<double> cotan_dofs(n_dofs);
-  cotan_dofs = 0.0;
-
-  double dx_s = (nx > 0) ? Lx / nx : 1.0;
-  double dy_s = (ny > 0) ? Ly / ny : 1.0;
-  double dz_s = (nz > 0) ? Lz / nz : 1.0;
-
-  // Iterate over cells/vertices to map input node cotangent to DOF vector.
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    for (unsigned int v = 0; v < cell->n_vertices(); ++v) {
-      Point<3> vp = cell->vertex(v);
-      int ix = (int)std::round(vp[0] / dx_s);
-      int iy = (int)std::round(vp[1] / dy_s);
-      int iz = (int)std::round(vp[2] / dz_s);
-      ix = std::max(0, std::min(nx, ix));
-      iy = std::max(0, std::min(ny, iy));
-      iz = std::max(0, std::min(nz, iz));
-      unsigned int input_node = (unsigned int)(iz * (ny+1) * (nx+1) + iy * (nx+1) + ix);
-
-      for (unsigned int comp = 0; comp < 3; ++comp) {
-        types::global_dof_index dof_idx = cell->vertex_dof_index(v, comp);
-        if (input_node * 3 + comp < cotan_flat.size())
-          cotan_dofs(dof_idx) = (double)cotan_flat[input_node * 3 + comp];
-      }
-    }
-  }
-
-  // Apply homogeneous Dirichlet BCs to the cotangent RHS (zero out fixed DOFs).
-  // This ensures the adjoint solution satisfies the same essential BCs as the primal.
-  std::vector<Point<3>> node_pts = hex_mesh_node_pts(nx, ny, nz, Lx, Ly, Lz);
-  auto dir_g2bid = groups_to_boundary_ids(dirichlet_mask, node_pts, Lx, Ly, Lz);
-  std::map<types::global_dof_index, double> bvals_adj;
-  for (auto &kv : dir_g2bid) {
-    int g = kv.first;
-    types::boundary_id bid = kv.second;
-    for (int comp = 0; comp < 3; ++comp) {
-      ComponentMask cmask(3, false);
-      cmask.set(comp, true);
-      Functions::ZeroFunction<3> zero_fn(3);
-      VectorTools::interpolate_boundary_values(
-        dof_handler, bid, zero_fn, bvals_adj, cmask);
-    }
-  }
-  for (auto &kv : bvals_adj)
-    cotan_dofs(kv.first) = 0.0;
-
-  // Solve the adjoint equation: K * lambda = cotan_dofs
-  // (K is the BC-modified system matrix; same for primal and adjoint since K is symmetric)
-  Vector<double> lambda(n_dofs);
-  if (factored_) {
-    direct_.vmult(lambda, cotan_dofs);
-  } else {
-    SparseDirectUMFPACK adj_direct;
-    adj_direct.initialize(system_matrix);
-    adj_direct.vmult(lambda, cotan_dofs);
-  }
-
-  // Compute element sensitivities: d(cotan^T u)/d(rho_e) = -(dE_e/drho_e) * lambda_e^T K_e_norm u_e
-  QGauss<3> quad(2);
-  FEValues<3> fev(fe, quad, update_gradients | update_JxW_values);
-
-  const unsigned int dpc = fe.n_dofs_per_cell();
-  const unsigned int nq  = quad.size();
-  unsigned int n_cells = triangulation.n_active_cells();
-  disp_gradient_vals.assign(n_cells, 0.0);
-
-  FullMatrix<double> K_norm(dpc, dpc);
-  Vector<double>     u_e(dpc);
-  Vector<double>     lam_e(dpc);
-  std::vector<types::global_dof_index> ldof(dpc);
-
-  // Normalised Lame parameters (E_e = 1)
-  double lam_n = 1.0 * nu / ((1.0 + nu) * (1.0 - 2.0 * nu));
-  double mu_n  = 1.0 / (2.0 * (1.0 + nu));
-
-  unsigned int cell_idx = 0;
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    K_norm = 0;
-    fev.reinit(cell);
-    cell->get_dof_indices(ldof);
-
-    double rho_e = (cell_idx < rho.size())
-                   ? std::max(0.0, std::min(1.0, (double)rho[cell_idx]))
-                   : 0.5;
-    double dE_drho = (1.0 - xmin) * E_max * penal * std::pow(rho_e, penal - 1.0);
-
-    // Normalised element stiffness K_norm (E=1)
-    for (unsigned int q = 0; q < nq; ++q) {
-      double JxW = fev.JxW(q);
-      for (unsigned int i = 0; i < dpc; ++i) {
-        int ci = fe.system_to_component_index(i).first;
-        const Tensor<1,3> &gi = fev.shape_grad_component(i, q, ci);
-        double div_i = gi[ci];
-        for (unsigned int j = 0; j < dpc; ++j) {
-          int cj = fe.system_to_component_index(j).first;
-          const Tensor<1,3> &gj = fev.shape_grad_component(j, q, cj);
-          double div_j = gj[cj];
-          double c = lam_n * div_i * div_j;
-          if (ci == cj) c += mu_n * (gi * gj);
-          c += mu_n * gi[cj] * gj[ci];
-          K_norm(i, j) += c * JxW;
-        }
-      }
-    }
-
-    // Element primal and adjoint vectors
-    for (unsigned int i = 0; i < dpc; ++i) {
-      u_e(i)   = solution(ldof[i]);
-      lam_e(i) = lambda(ldof[i]);
-    }
-
-    // sensitivity = -(dE/drho) * lambda_e^T * K_norm * u_e
-    double lKu = 0.0;
-    for (unsigned int i = 0; i < dpc; ++i)
-      for (unsigned int j = 0; j < dpc; ++j)
-        lKu += lam_e(i) * K_norm(i, j) * u_e(j);
-
-    disp_gradient_vals[cell_idx] = -dE_drho * lKu;
-    ++cell_idx;
-  }
-}
-
 // mosaic:io
 void StructSolver::write_outputs()
 {
-  // ---------------------------------------------------------------------------
-  // Nodal displacement in input-mesh node order.
-  //
-  // Input mesh (_hex_mesh_arrays): node_id(ix, iy, iz) = iz*(nx+1)*(ny+1)+iy*(nx+1)+ix
-  // deal.II mesh (subdivided_hyper_rectangle): same (z,y,x) lexicographic order.
-  //
-  // Strategy: iterate over all cells, extract per-node displacements, and
-  // accumulate into an output array indexed by (iz, iy, ix).
-  // ---------------------------------------------------------------------------
-
-  // Output grid: (nz+1) x (ny+1) x (nx+1) nodes
-  unsigned int n_nodes = (nx+1) * (ny+1) * (nz+1);
-  std::vector<float> disp_out(n_nodes * 3, 0.0f);
-
-  double dx_s = (nx > 0) ? Lx / nx : 1.0;
-  double dy_s = (ny > 0) ? Ly / ny : 1.0;
-  double dz_s = (nz > 0) ? Lz / nz : 1.0;
-
-  // For each cell, loop over its 8 vertex nodes and scatter displacement.
-  // Iterate over cells to scatter nodal values
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    // Vertex loop: deal.II hex has 8 vertices, indexed 0..7
-    for (unsigned int v = 0; v < cell->n_vertices(); ++v) {
-      Point<3> vp = cell->vertex(v);
-      // Compute output node index from coordinate
-      int ix = (int)std::round(vp[0] / dx_s);
-      int iy = (int)std::round(vp[1] / dy_s);
-      int iz = (int)std::round(vp[2] / dz_s);
-      // Clamp to valid range
-      ix = std::max(0, std::min(nx, ix));
-      iy = std::max(0, std::min(ny, iy));
-      iz = std::max(0, std::min(nz, iz));
-      unsigned int out_idx = (unsigned int)(iz * (ny+1) * (nx+1) + iy * (nx+1) + ix);
-
-      // DOF indices for this vertex: the FESystem assigns 3 DOFs per vertex.
-      // For FESystem(FE_Q(1), 3), vertex_dof_index(v, comp, fe_index=0) gives
-      // the global DOF index for component `comp` at vertex `v`.
-      for (unsigned int comp = 0; comp < 3; ++comp) {
-        types::global_dof_index dof_idx = cell->vertex_dof_index(v, comp);
-        disp_out[out_idx * 3 + comp] = (float)solution(dof_idx);
-      }
-    }
-  }
-
-  // Write displacement.npy
-  cnpy::npy_save(output_dir_ + "/displacement.npy",
-                 disp_out.data(), {n_nodes, 3}, "w");
-
-  // Write von_mises.npy
-  {
-    std::vector<float> vm_f(von_mises_vals.size());
-    for (size_t i = 0; i < von_mises_vals.size(); ++i)
-      vm_f[i] = (float)von_mises_vals[i];
-    cnpy::npy_save(output_dir_ + "/von_mises.npy",
-                   vm_f.data(), {vm_f.size()}, "w");
-  }
-
   // Write compliance.txt
   {
     std::ofstream f(output_dir_ + "/compliance.txt");
@@ -853,15 +565,6 @@ void StructSolver::write_outputs()
     cnpy::npy_save(output_dir_ + "/gradient.npy",
                    grad_f.data(), {grad_f.size()}, "w");
   }
-
-  // Write disp_gradient.npy
-  if (compute_disp_gradient_) {
-    std::vector<float> dg_f(disp_gradient_vals.size());
-    for (size_t i = 0; i < disp_gradient_vals.size(); ++i)
-      dg_f[i] = (float)disp_gradient_vals[i];
-    cnpy::npy_save(output_dir_ + "/disp_gradient.npy",
-                   dg_f.data(), {dg_f.size()}, "w");
-  }
 }
 
 // mosaic:util
@@ -870,11 +573,8 @@ void StructSolver::run()
   setup_system();
   assemble_system();
   solve_system();
-  compute_von_mises();
   if (compute_gradient_)
     compute_gradient_field();
-  if (compute_disp_gradient_)
-    compute_disp_gradient_field();
   write_outputs();
 }
 
@@ -888,22 +588,19 @@ int main(int argc, char *argv[])
   Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
   if (argc < 2) {
-    std::cerr << "Usage: struct_solver input.json [--gradient] [--disp-gradient]\n";
+    std::cerr << "Usage: struct_solver input.json [--gradient]\n";
     return 1;
   }
 
   std::string input_path = argv[1];
   bool compute_gradient = false;
-  bool compute_disp_gradient = false;
   for (int i = 2; i < argc; ++i) {
     if (std::string(argv[i]) == "--gradient")
       compute_gradient = true;
-    if (std::string(argv[i]) == "--disp-gradient")
-      compute_disp_gradient = true;
   }
 
   try {
-    StructSolver solver(input_path, compute_gradient, compute_disp_gradient);
+    StructSolver solver(input_path, compute_gradient);
     solver.run();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";

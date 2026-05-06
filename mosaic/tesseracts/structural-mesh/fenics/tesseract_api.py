@@ -24,12 +24,13 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     """Inputs for FEniCS linear elasticity solver, extended with material parameters."""
 
     E_max: float = Field(
@@ -50,8 +51,7 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for FEniCS linear elasticity solver (canonical interface)."""
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
 
 
 # ---------------------------------------------------------------------------
@@ -216,10 +216,8 @@ def _solve_elasticity(  # mosaic:physics
         compute_gradient: If True, compute dC/drho via dolfin-adjoint.
 
     Returns:
-        Tuple (J_val, vm_input, u_out, dJ_drho) where:
+        Tuple (J_val, dJ_drho) where:
             J_val: Scalar structural compliance.
-            vm_input: Per-cell von Mises stress, shape (n_input_cells,).
-            u_out: Nodal displacement, shape (n_nodes, 3), float32.
             dJ_drho: Gradient dC/drho, shape (n_input_cells,), or None if
                      compute_gradient=False.
     """
@@ -286,32 +284,6 @@ def _solve_elasticity(  # mosaic:physics
     # scalar F^T U.  This keeps the compliance on the dolfin-adjoint tape.
     J = assemble(action(L, u_sol))
 
-    # ---- Von Mises stress (DG0 projection) --------------------------------
-    sigma_sol = lam * tr(eps(u_sol)) * Identity(3) + 2 * mu * eps(u_sol)
-    s_dev = sigma_sol - (1.0 / 3.0) * tr(sigma_sol) * Identity(3)
-    vm_expr = sqrt(3.0 / 2.0 * inner(s_dev, s_dev))
-    vm_fn = project(vm_expr, DG0)
-    vm_vals = vm_fn.vector().get_local().copy()
-
-    # Map FEniCS DG0 cell order back to input cell order.
-    vm_input = np.zeros(len(rho_values))
-    vm_input[fenics_to_input] = vm_vals
-
-    # ---- Displacement at vertices ----------------------------------------
-    # compute_vertex_values returns a flat array: [ux0,...,uxN,uy0,...,uyN,uz0,...,uzN]
-    u_vals = u_sol.compute_vertex_values(mesh)
-    n_verts = mesh.num_vertices()
-    fenics_coords = mesh.coordinates()  # (n_verts, 3)
-
-    # Build a KDTree on input pts and query with FEniCS vertex coordinates
-    # to recover the FEniCS-vertex to input-node permutation.
-    tree = cKDTree(pts)
-    _, fenics_to_input_nodes = tree.query(fenics_coords)
-
-    u_out = np.zeros((len(pts), 3), dtype=np.float32)
-    for d in range(3):
-        u_out[fenics_to_input_nodes, d] = u_vals[d * n_verts : (d + 1) * n_verts]
-
     # ---- Gradient via adjoint --------------------------------------------
     dJ_drho = None
     if compute_gradient:
@@ -324,7 +296,7 @@ def _solve_elasticity(  # mosaic:physics
         dJ_input[fenics_to_input] = dJ_fenics_vec
         dJ_drho = dJ_input
 
-    return float(J), vm_input.astype(np.float32), u_out, dJ_drho
+    return float(J), dJ_drho
 
 
 # ---------------------------------------------------------------------------
@@ -333,15 +305,14 @@ def _solve_elasticity(  # mosaic:physics
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Forward pass: solve linear elasticity and return compliance, von Mises, displacement.
+    """Forward pass: solve linear elasticity and return compliance.
 
     Args:
         inputs: Validated InputSchema containing the density field, mesh,
                 boundary conditions, and material parameters.
 
     Returns:
-        OutputSchema with compliance (scalar), von_mises_stress (n_cells,),
-        and displacement (n_nodes, 3) arrays.
+        OutputSchema with compliance (scalar).
     """
     hm = inputs.hex_mesh
     pts = np.asarray(hm.points[: hm.n_points], dtype=np.float64)
@@ -361,7 +332,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         bc.neumann.values if bc.neumann else np.zeros((0, 3)), dtype=np.float64
     )
 
-    J_val, vm, u_out, _ = _solve_elasticity(
+    J_val, _ = _solve_elasticity(
         rho_values,
         pts,
         cells,
@@ -375,11 +346,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         inputs.penal,
         compute_gradient=False,
     )
-    return OutputSchema(
-        compliance=np.float32(J_val),
-        von_mises_stress=vm,
-        displacement=u_out,
-    )
+    return OutputSchema(compliance=np.float32(J_val))
 
 
 def vector_jacobian_product(  # mosaic:grad:rho:adjoint
@@ -388,43 +355,29 @@ def vector_jacobian_product(  # mosaic:grad:rho:adjoint
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
-    """VJP via dolfin-adjoint: gradient of compliance and/or displacement objective.
-
-    Re-runs the forward solve with gradient tracking enabled and uses
-    dolfin-adjoint's ReducedFunctional to compute the adjoint sensitivity.
-
-    Supports differentiation through:
-      - rho -> compliance: scalar cotangent, standard SIMP adjoint.
-      - rho -> displacement: array cotangent (n_nodes, 3); implemented by
-        constructing J_disp = inner(cot_fn, u_sol) * dx on the dolfin-adjoint
-        tape, where cot_fn is a CG1 function holding the cotangent values.
-        A nodal correction factor (n_nodes / domain_vol) maps the volume-weighted
-        integral to the correct DOF-space inner product.
-
-    Both contributions can be active simultaneously.
+    """VJP via dolfin-adjoint: gradient of compliance objective.
 
     Args:
         inputs: Validated InputSchema.
         vjp_inputs: Names of inputs for which gradients are requested.
         vjp_outputs: Names of outputs whose cotangents are provided.
-        cotangent_vector: Dict of output-name -> cotangent scalar/array.
+        cotangent_vector: Dict of output-name -> cotangent scalar.
 
     Returns:
         Dict mapping "rho" -> gradient array of the same shape as inputs.rho.
     """
+    assert vjp_inputs <= {"rho"}
+    assert vjp_outputs <= {"compliance"}
+
     if "rho" not in vjp_inputs:
         return {}
 
     cot_c = float(cotangent_vector.get("compliance", 0.0))
-    cot_disp_raw = cotangent_vector.get("displacement", None)
-    cot_disp = (
-        np.asarray(cot_disp_raw, dtype=np.float64) if cot_disp_raw is not None else None
-    )
-
-    has_compliance = abs(cot_c) > 0.0
-    has_displacement = cot_disp is not None and np.any(cot_disp != 0.0)
-
     hm = inputs.hex_mesh
+    grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
+    if abs(cot_c) == 0.0:
+        return {"rho": grad_rho}
+
     pts = np.asarray(hm.points[: hm.n_points], dtype=np.float64)
     cells = np.asarray(hm.faces[: hm.n_faces], dtype=np.int64)
     rho_values = np.asarray(inputs.rho[: hm.n_faces], dtype=np.float64)
@@ -442,142 +395,25 @@ def vector_jacobian_product(  # mosaic:grad:rho:adjoint
         bc.neumann.values if bc.neumann else np.zeros((0, 3)), dtype=np.float64
     )
 
-    # Fresh tape for every solve — prevents stale gradient accumulation.
-    set_working_tape(Tape())
+    _, dJ_drho = _solve_elasticity(
+        rho_values,
+        pts,
+        cells,
+        dm,
+        dv,
+        nm,
+        nv,
+        inputs.E_max,
+        inputs.nu,
+        inputs.xmin,
+        inputs.penal,
+        compute_gradient=True,
+    )
 
-    mesh = _build_fenics_mesh(pts, cells)
-    fenics_to_input = _cell_reorder_map(pts, cells, mesh)
-
-    V = VectorFunctionSpace(mesh, "CG", 1)
-    DG0 = FunctionSpace(mesh, "DG", 0)
-
-    rho_fn = Function(DG0, name="rho")
-    rho_vec = np.clip(rho_values[fenics_to_input], 0.0, 1.0)
-    rho_fn.vector()[:] = rho_vec
-
-    E_min_c = Constant(inputs.xmin * inputs.E_max)
-    E = E_min_c + (Constant(inputs.E_max) - E_min_c) * rho_fn**inputs.penal
-
-    nu_c = Constant(inputs.nu)
-    lam = E * nu_c / ((1 + nu_c) * (1 - 2 * nu_c))
-    mu = E / (2 * (1 + nu_c))
-
-    def eps(w):
-        return 0.5 * (grad(w) + grad(w).T)
-
-    def sig(w):
-        return lam * tr(eps(w)) * Identity(3) + 2 * mu * eps(w)
-
-    neumann_facet_markers = _mark_neumann_facets(mesh, nm)
-    ds_N = Measure("ds", domain=mesh, subdomain_data=neumann_facet_markers)
-
-    u, v = TrialFunction(V), TestFunction(V)
-    a = inner(sig(u), eps(v)) * dx
-
-    n_neumann_groups = nv.shape[0]
-    L = dot(Constant((0.0, 0.0, 0.0)), v) * dx
-    for k in range(n_neumann_groups):
-        t_k = Constant(tuple(float(x) for x in nv[k]))
-        L = L + dot(t_k, v) * ds_N(k + 1)
-
-    dirichlet_facet_markers = _mark_neumann_facets(mesh, dm)
-    bcs = []
-    for k in range(dv.shape[0]):
-        u_k = Constant(tuple(float(x) for x in dv[k]))
-        bcs.append(DirichletBC(V, u_k, dirichlet_facet_markers, k + 1))
-
-    u_sol = Function(V)
-    solve(a == L, u_sol, bcs)
-
-    # Build combined scalar objective on the tape.
-    # Start with zero using the compliance form as a template.
-    J_parts = []
-
-    if has_compliance:
-        J_compliance = assemble(action(L, u_sol))
-        J_parts.append(cot_c * J_compliance)
-
-    if has_displacement:
-        # Build a CG1 vector Function holding the cotangent values in FEniCS ordering.
-        # The adjoint objective J_disp = inner(cot_fn, u_sol) * dx corresponds to
-        # the adjoint equation K lambda = M * cot_fn_vec (where M is mass matrix).
-        # A nodal correction factor n_nodes/domain_vol converts the volume-weighted
-        # integral to the equivalent DOF-space inner product.
-        fenics_coords = mesh.coordinates()  # (n_fenics_verts, 3)
-        n_input_nodes = len(pts)
-        cot_disp_2d = cot_disp.reshape(n_input_nodes, 3)
-
-        # FEniCS vertex to input node mapping
-        tree = cKDTree(pts)
-        _, fenics_to_input_nodes = tree.query(fenics_coords)
-
-        n_verts = mesh.num_vertices()
-        cot_disp_fenics = cot_disp_2d[fenics_to_input_nodes]  # (n_verts, 3)
-
-        cot_fn = Function(V)
-        cot_vec = np.zeros(cot_fn.vector().size())
-        # vertex_to_dof_map for FESystem(CG1, 3):
-        # v2d[vi * 3 + comp] = global DOF index for vertex vi, component comp
-        v2d = vertex_to_dof_map(V)
-        for vi in range(n_verts):
-            for comp in range(3):
-                cot_vec[v2d[vi * 3 + comp]] = cot_disp_fenics[vi, comp]
-        cot_fn.vector()[:] = cot_vec
-
-        # Nodal correction: the volume integral inner(cot_fn, u_sol) * dx integrates
-        # over the mesh volume, which is equivalent to applying a mass-matrix weight.
-        # The nodal correction factor (n_nodes / domain_vol) restores the per-DOF
-        # scaling expected by the VJP contract (sum_i cotan_i * u_i).
-        coords = mesh.coordinates()
-        domain_vol = float(
-            np.prod([coords[:, i].max() - coords[:, i].min() for i in range(3)])
-        )
-        nodal_correction = float(n_verts) / domain_vol
-
-        J_disp = nodal_correction * assemble(inner(cot_fn, u_sol) * dx)
-        J_parts.append(J_disp)
-
-    if not J_parts:
-        # No active cotangents — return zero gradient.
-        grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
-        return {"rho": grad_rho}
-
-    # Combine all parts into a single scalar J for the ReducedFunctional.
-    J_total = J_parts[0]
-    for jp in J_parts[1:]:
-        J_total = J_total + jp
-
-    # Adjoint via dolfin-adjoint ReducedFunctional.
-    Jhat = ReducedFunctional(J_total, Control(rho_fn))
-    dJ_fenics = Jhat.derivative()
-    dJ_fenics_vec = dJ_fenics.vector().get_local().copy()
-
-    # Map FEniCS DG0 DOF order to input cell order.
-    dJ_input = np.zeros(len(rho_values))
-    dJ_input[fenics_to_input] = dJ_fenics_vec
-
-    # Pad gradient back to the full capacity-padded rho length.
-    grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
-    grad_rho[: hm.n_faces] = dJ_input.astype(np.float32)
+    grad_rho[: hm.n_faces] = (cot_c * dJ_drho).astype(np.float32)
     return {"rho": grad_rho}
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
-    """Shape inference without running the solver.
-
-    Args:
-        abstract_inputs: InputSchema with shape/dtype metadata (no values).
-
-    Returns:
-        Dict mapping output names to ShapeDType descriptors.
-    """
-    d = abstract_inputs.model_dump()
-    points = d["hex_mesh"]["points"]
-    n_nodes = points["shape"][0] if isinstance(points, dict) else len(points)
-    faces = d["hex_mesh"]["faces"]
-    n_cells = faces["shape"][0] if isinstance(faces, dict) else len(faces)
-    return {
-        "compliance": ShapeDType(shape=(), dtype="float32"),
-        "von_mises_stress": ShapeDType(shape=(n_cells,), dtype="float32"),
-        "displacement": ShapeDType(shape=(n_nodes, 3), dtype="float32"),
-    }
+    """Shape inference without running the solver."""
+    return {"compliance": ShapeDType(shape=(), dtype="float32")}

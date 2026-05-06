@@ -2,8 +2,7 @@
 
 Uses deal.II Q1 finite elements (Step-8 pattern) as a C++ subprocess.
 Python writes JSON + rho.npy to a tempdir, runs the compiled struct_solver
-binary, and reads back displacement.npy, von_mises.npy, compliance.txt
-(plus gradient.npy for the VJP).
+binary, and reads back compliance.txt (plus gradient.npy for the VJP).
 
 SIMP stiffness:
     E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal
@@ -29,6 +28,7 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from tesseract_core.runtime import ShapeDType
 
@@ -46,7 +46,7 @@ _DEALII_SOLVER = os.environ.get(
 # ---------------------------------------------------------------------------
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     """Inputs for deal.II structural solver, extended with SIMP material parameters."""
 
     E_max: float = Field(
@@ -67,8 +67,7 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for deal.II structural solver (canonical interface)."""
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
 
 
 # ---------------------------------------------------------------------------
@@ -163,14 +162,11 @@ def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
 def _run_solver(  # mosaic:physics
     wd: Path,
     compute_gradient: bool = False,
-    compute_disp_gradient: bool = False,
 ) -> None:
     """Invoke the deal.II struct_solver binary."""
     cmd = [_DEALII_SOLVER, str(wd / "input.json")]
     if compute_gradient:
         cmd.append("--gradient")
-    if compute_disp_gradient:
-        cmd.append("--disp-gradient")
     result = subprocess.run(cmd, cwd=str(wd), capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(
@@ -180,25 +176,11 @@ def _run_solver(  # mosaic:physics
         )
 
 
-def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:  # mosaic:io
-    """Read displacement.npy, von_mises.npy and compliance.txt written by the C++ solver."""
-    displacement = np.load(str(wd / "displacement.npy")).astype(np.float32)
-    von_mises = np.load(str(wd / "von_mises.npy")).astype(np.float32)
+def _parse_outputs(wd: Path) -> OutputSchema:  # mosaic:io
+    """Read compliance.txt written by the C++ solver."""
     with open(wd / "compliance.txt") as f:
         compliance = float(f.read().strip())
-
-    # Pad von_mises to the full rho capacity if needed
-    n_rho = len(np.asarray(inputs.rho))
-    if len(von_mises) < n_rho:
-        vm_full = np.zeros(n_rho, dtype=np.float32)
-        vm_full[: len(von_mises)] = von_mises
-        von_mises = vm_full
-
-    return OutputSchema(
-        compliance=np.float32(compliance),
-        von_mises_stress=von_mises,
-        displacement=displacement,
-    )
+    return OutputSchema(compliance=np.float32(compliance))
 
 
 # ---------------------------------------------------------------------------
@@ -207,20 +189,19 @@ def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:  # mosaic:io
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Forward pass: solve linear elasticity and return compliance, von Mises, displacement.
+    """Forward pass: solve linear elasticity and return compliance.
 
     Args:
         inputs: Validated InputSchema with density field, mesh, BCs, material params.
 
     Returns:
-        OutputSchema with compliance (scalar), von_mises_stress (n_cells,),
-        and displacement (n_nodes, 3).
+        OutputSchema with compliance (scalar).
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         wd = Path(tmpdir)
         _write_inputs(inputs, wd)
         _run_solver(wd)
-        return _parse_outputs(inputs, wd)
+        return _parse_outputs(wd)
 
 
 def vector_jacobian_product(  # mosaic:grad:rho:analytic
@@ -229,93 +210,44 @@ def vector_jacobian_product(  # mosaic:grad:rho:analytic
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
-    """VJP via analytic SIMP sensitivity: dC/drho and/or d(cotan^T u)/drho.
+    """VJP via analytic SIMP sensitivity: dC/drho.
 
-    Runs the forward solve and, depending on active cotangents:
-      - compliance: uses ``--gradient`` flag; C++ writes ``gradient.npy``
-        (n_active_cells, analytic dC/drho per cell).
-      - displacement: writes ``cotan_disp.npy`` and uses ``--disp-gradient``
-        flag; C++ solves K lambda = cotan_disp and writes ``disp_gradient.npy``
-        (n_active_cells, analytic d(cotan^T u)/drho per cell).
-
-    Both modes can be active simultaneously; a single forward + factored
-    system is used by the C++ binary.
+    Runs the forward solve with ``--gradient``; C++ writes ``gradient.npy``
+    (n_active_cells, analytic dC/drho per cell).
 
     Args:
         inputs: Validated InputSchema.
         vjp_inputs: Names of inputs for which gradients are requested.
         vjp_outputs: Names of outputs whose cotangents are provided.
-        cotangent_vector: Dict of output-name -> cotangent scalar/array.
+        cotangent_vector: Dict of output-name -> cotangent scalar.
 
     Returns:
         Dict mapping "rho" -> gradient array matching inputs.rho shape.
     """
+    assert vjp_inputs <= {"rho"}
+    assert vjp_outputs <= {"compliance"}
+
     if "rho" not in vjp_inputs:
         return {}
 
     cot_c = float(cotangent_vector.get("compliance", 0.0))
-    cot_disp_raw = cotangent_vector.get("displacement", None)
-    cot_disp = (
-        np.asarray(cot_disp_raw, dtype=np.float32) if cot_disp_raw is not None else None
-    )
-
-    has_compliance = abs(cot_c) > 0.0
-    has_displacement = cot_disp is not None and np.any(cot_disp != 0.0)
-
     hm = inputs.hex_mesh
     n_active = hm.n_faces
     grad_full = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
 
+    if abs(cot_c) == 0.0:
+        return {"rho": grad_full}
+
     with tempfile.TemporaryDirectory() as tmpdir:
         wd = Path(tmpdir)
         _write_inputs(inputs, wd)
-
-        if has_displacement:
-            # Write cotangent displacement in input node ordering as (n_nodes*3,) flat array.
-            # The C++ binary reads cotan_disp.npy as (n_nodes, 3) C-order float32.
-            n_nodes = hm.n_points
-            cot_flat = cot_disp.reshape(-1)[: n_nodes * 3].astype(np.float32)
-            # Pad to full n_nodes*3 if needed
-            if len(cot_flat) < n_nodes * 3:
-                cot_full = np.zeros(n_nodes * 3, dtype=np.float32)
-                cot_full[: len(cot_flat)] = cot_flat
-                cot_flat = cot_full
-            cot_arr = cot_flat.reshape(n_nodes, 3)
-            np.save(str(wd / "cotan_disp.npy"), cot_arr)
-
-        _run_solver(
-            wd,
-            compute_gradient=has_compliance,
-            compute_disp_gradient=has_displacement,
-        )
-
-        if has_compliance:
-            gradient = np.load(str(wd / "gradient.npy")).astype(np.float32)
-            grad_full[:n_active] += (gradient[:n_active] * cot_c).astype(np.float32)
-
-        if has_displacement:
-            disp_grad = np.load(str(wd / "disp_gradient.npy")).astype(np.float32)
-            grad_full[:n_active] += disp_grad[:n_active].astype(np.float32)
+        _run_solver(wd, compute_gradient=True)
+        gradient = np.load(str(wd / "gradient.npy")).astype(np.float32)
+        grad_full[:n_active] = (gradient[:n_active] * cot_c).astype(np.float32)
 
     return {"rho": grad_full}
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
-    """Shape inference without running the solver.
-
-    Args:
-        abstract_inputs: InputSchema with shape/dtype metadata (no values).
-
-    Returns:
-        Dict mapping output names to ShapeDType descriptors.
-    """
-    d = abstract_inputs.model_dump()
-    points = d["hex_mesh"]["points"]
-    n_nodes = points["shape"][0] if isinstance(points, dict) else len(points)
-    faces = d["hex_mesh"]["faces"]
-    n_cells = faces["shape"][0] if isinstance(faces, dict) else len(faces)
-    return {
-        "compliance": ShapeDType(shape=(), dtype="float32"),
-        "von_mises_stress": ShapeDType(shape=(n_cells,), dtype="float32"),
-        "displacement": ShapeDType(shape=(n_nodes, 3), dtype="float32"),
-    }
+    """Shape inference without running the solver."""
+    return {"compliance": ShapeDType(shape=(), dtype="float32")}

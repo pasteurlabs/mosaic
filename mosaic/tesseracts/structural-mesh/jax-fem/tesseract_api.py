@@ -16,6 +16,7 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
@@ -23,12 +24,8 @@ crt_file_path = os.path.dirname(__file__)
 data_dir = os.path.join(crt_file_path, "data")
 
 
-class InputSchema(_CanonicalInputSchema):
-    """Inputs for JAX-FEM topology optimisation (canonical interface)."""
-
-
-class OutputSchema(_CanonicalOutputSchema):
-    """Outputs for JAX-FEM topology optimisation (canonical interface)."""
+InputSchema = make_differentiable(_CanonicalInputSchema, ["rho"])
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
 
 
 #
@@ -98,63 +95,6 @@ class Elasticity(Problem):  # mosaic:physics
         thetas = jnp.repeat(full_params[:, None, :], self.fe.num_quads, axis=1)
         self.full_params = full_params
         self.internal_vars = [thetas]
-
-    def compute_von_mises_stress(
-        self, sol: jnp.ndarray, full_params: jnp.ndarray = None
-    ) -> jnp.ndarray:
-        """Compute per-cell von Mises stress averaged over quadrature points.
-
-        Args:
-            sol: Solution displacement field, shape (n_nodes, 3).
-            full_params: Per-cell density parameters, shape (n_cells, 1). When
-                provided, this is used instead of ``self.full_params`` to avoid
-                reading a stale JAX tracer stored by ``set_params`` during a
-                prior JIT trace (which causes an "unexpected tracer" error when
-                the VJP/JVP outer trace calls this method).
-
-        Returns:
-            Per-cell von Mises stress, shape (n_cells,).
-        """
-        # Use the explicitly-passed full_params when available so that this
-        # method is stateless and safe to call inside JAX-transformed functions.
-        if full_params is None:
-            full_params = self.full_params
-
-        # Nodal displacements at each cell: (n_cells, n_nodes_per_cell, 3)
-        u_cells = sol[self.fe.cells]
-
-        # Displacement gradient at each quad point: (n_cells, n_quads, 3, 3)
-        # u_grad[c,q,i,j] = sum_n shape_grad[c,q,n,j] * u[c,n,i]
-        u_grads = jnp.einsum("cqnj,cni->cqij", self.fe.shape_grads, u_cells)
-
-        # Symmetric strain tensor: (n_cells, n_quads, 3, 3)
-        epsilon = 0.5 * (u_grads + jnp.swapaxes(u_grads, -1, -2))
-
-        # SIMP material properties per cell
-        Emax = 70.0e3
-        Emin = 1e-3 * Emax
-        penal = 3.0
-        nu = 0.3
-        theta = full_params[:, 0]  # (n_cells,)
-        E = Emin + (Emax - Emin) * theta**penal
-        mu = E / (2.0 * (1.0 + nu))
-        lmbda = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
-
-        # Cauchy stress tensor: (n_cells, n_quads, 3, 3)
-        I = jnp.eye(self.dim)
-        trace_eps = jnp.trace(epsilon, axis1=-2, axis2=-1)  # (n_cells, n_quads)
-        sigma = (
-            lmbda[:, None, None, None] * trace_eps[:, :, None, None] * I
-            + 2.0 * mu[:, None, None, None] * epsilon
-        )
-
-        # Deviatoric stress and von Mises criterion
-        trace_sigma = jnp.trace(sigma, axis1=-2, axis2=-1)  # (n_cells, n_quads)
-        s = sigma - (trace_sigma[:, :, None, None] / 3.0) * I
-        von_mises = jnp.sqrt(1.5 * jnp.sum(s * s, axis=(-2, -1)))  # (n_cells, n_quads)
-
-        # Average over quadrature points
-        return jnp.mean(von_mises, axis=1)  # (n_cells,)
 
     def compute_compliance(self, sol: jnp.ndarray) -> jnp.ndarray:
         """Compute structural compliance via surface integral.
@@ -344,22 +284,7 @@ def apply_fn(inputs: dict) -> dict:  # mosaic:physics
     sol = sol_list[0]
     compliance = problem.compute_compliance(sol)
 
-    # Recompute full_params from rho directly rather than reading
-    # problem.full_params.  set_params() stores rho-derived traced values into
-    # problem.full_params as a side effect inside the fwd_pred JIT trace; when
-    # a JAX-transformed caller (jax.vjp / jax.jvp) later reaches this point in
-    # the outer trace it encounters a stale tracer from a different trace level,
-    # triggering "Encountered an unexpected tracer".  By recomputing full_params
-    # here we keep apply_fn stateless and safe under any JAX transformation.
-    full_params = jnp.ones((problem.fe.num_cells, rho.shape[1]))
-    full_params = full_params.at[problem.fe.flex_inds].set(rho)
-    von_mises_stress = problem.compute_von_mises_stress(sol, full_params=full_params)
-
-    return {
-        "compliance": compliance.astype(jnp.float32),
-        "von_mises_stress": von_mises_stress.astype(jnp.float32),
-        "displacement": sol.astype(jnp.float32),
-    }
+    return {"compliance": compliance.astype(jnp.float32)}
 
 
 #
@@ -379,7 +304,7 @@ def jacobian_vector_product(  # mosaic:grad:rho:autodiff
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     assert jvp_inputs <= {"rho"}
-    assert jvp_outputs <= {"compliance", "von_mises_stress", "displacement"}
+    assert jvp_outputs <= {"compliance"}
 
     inputs_dict = inputs.model_dump()
     filtered_apply = filter_func(apply_fn, inputs_dict, jvp_outputs)
@@ -408,7 +333,7 @@ def vector_jacobian_product(  # mosaic:grad:rho:autodiff
         Dictionary containing the vector-Jacobian product for the specified inputs.
     """
     assert vjp_inputs <= {"rho"}
-    assert vjp_outputs <= {"compliance", "von_mises_stress", "displacement"}
+    assert vjp_outputs <= {"compliance"}
 
     inputs = inputs.model_dump()
 
@@ -422,13 +347,4 @@ def vector_jacobian_product(  # mosaic:grad:rho:autodiff
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
     """Calculate output shape of apply from the shape of its inputs."""
-    d = abstract_inputs.model_dump()
-    faces = d["hex_mesh"]["faces"]
-    points = d["hex_mesh"]["points"]
-    n_cells = faces["shape"][0] if isinstance(faces, dict) else len(faces)
-    n_nodes = points["shape"][0] if isinstance(points, dict) else len(points)
-    return {
-        "compliance": ShapeDType(shape=(), dtype="float32"),
-        "von_mises_stress": ShapeDType(shape=(n_cells,), dtype="float32"),
-        "displacement": ShapeDType(shape=(n_nodes, 3), dtype="float32"),
-    }
+    return {"compliance": ShapeDType(shape=(), dtype="float32")}
