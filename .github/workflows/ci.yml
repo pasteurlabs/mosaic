@@ -86,12 +86,13 @@ jobs:
                       continue
                   if "name" not in doc:
                       errors.append(f"{p}: missing 'name' field")
-                  mosaic_meta = doc.get("mosaic")
-                  if mosaic_meta is None:
-                      errors.append(f"{p}: missing 'mosaic' metadata block")
+                  metadata = doc.get("metadata")
+                  if not isinstance(metadata, dict):
+                      errors.append(f"{p}: missing 'metadata' block")
                       continue
+                  mosaic_meta = metadata.get("mosaic")
                   if not isinstance(mosaic_meta, dict):
-                      errors.append(f"{p}: 'mosaic' must be a mapping")
+                      errors.append(f"{p}: missing 'metadata.mosaic' block")
                       continue
                   if not mosaic_meta.get("name"):
                       errors.append(f"{p}: mosaic.name is required")
