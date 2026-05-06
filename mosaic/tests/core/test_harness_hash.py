@@ -36,7 +36,7 @@ def _dummy_fn():  # noqa: D401 — stand-in target used only for getsource mocki
 
 def _hash_for_source(src: str) -> str:
     """Run ``harness_fn_hash`` against *src* via a mocked ``inspect.getsource``."""
-    with mock.patch("benchmarks.core.utils.inspect.getsource", return_value=src):
+    with mock.patch("mosaic.benchmarks.core.utils.inspect.getsource", return_value=src):
         return harness_fn_hash(_dummy_fn)
 
 
@@ -118,7 +118,7 @@ class HarnessFnHashTests(unittest.TestCase):
         return so callers' existing empty-hash guards still fire.
         """
         with mock.patch(
-            "benchmarks.core.utils.inspect.getsource", side_effect=OSError("no source")
+            "mosaic.benchmarks.core.utils.inspect.getsource", side_effect=OSError("no source")
         ):
             self.assertEqual(harness_fn_hash(_dummy_fn), "")
 

@@ -111,7 +111,7 @@ jobs:
     name: Benchmark (GPU solvers)
     needs: plan
     if: needs.plan.outputs.should_run == 'true'
-    runs-on: mosaic-runner-gpu
+    runs-on: mosaic-bench-gpu
     steps:
       - uses: actions/checkout@v4
 
@@ -144,7 +144,7 @@ jobs:
     name: Benchmark (CPU solvers)
     needs: plan
     if: needs.plan.outputs.should_run == 'true'
-    runs-on: mosaic-runner-cpu
+    runs-on: mosaic-bench-cpu
     steps:
       - uses: actions/checkout@v4
 
