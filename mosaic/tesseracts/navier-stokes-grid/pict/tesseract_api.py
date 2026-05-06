@@ -1175,7 +1175,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return {"result": out_np, "drag": drag_np}
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

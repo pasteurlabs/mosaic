@@ -1,9 +1,10 @@
 // heat_solver.cpp
-// deal.II Q1 FEM heat conduction with SIMP conductivity.
+// deal.II Q1 FEM heat conduction with SIMP conductivity.  Forward-only
+// reference implementation; the Python tesseract is forward-only and never
+// requests the gradient.
 //
 // Usage:
-//   heat_solver <input.json>            # forward solve only
-//   heat_solver <input.json> --gradient # forward + analytic gradient dC/dρ
+//   heat_solver <input.json>
 //
 // Inputs (read from input.json):
 //   nx, ny, nz         : structured hex grid counts
@@ -18,7 +19,6 @@
 // Outputs (written to the directory containing input.json):
 //   temperature.npy    : float32 array, length n_nodes, ordered (iz,iy,ix)
 //   compliance.txt     : single scalar C
-//   gradient.npy       : float32 length n_cells, ordered (iz,iy,ix)  [--gradient only]
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -128,7 +128,7 @@ static int face_neumann_group(
 // ---------------------------------------------------------------------------
 // Main solver routine
 // ---------------------------------------------------------------------------
-static void run(const std::string& input_path, bool compute_gradient) {
+static void run(const std::string& input_path) {
 
     // mosaic:io
     // ---- Parse JSON ---------------------------------------------------------
@@ -362,54 +362,6 @@ static void run(const std::string& input_path, bool compute_gradient) {
         fout << std::setprecision(16) << compliance << "\n";
     }
 
-    // mosaic:grad:rho:analytic
-    // ---- Analytic gradient (self-adjoint sensitivity) ----------------------
-    // dC/dρ_e = -dk/dρ_e · ∫_e |∇T|² dΩ
-    //
-    // Sign derivation:
-    //   C = f^T u,  K u = f
-    //   dC/dρ_e = -u^T (dK/dρ_e) u    [adjoint = primal for self-adjoint problem]
-    //   dK/dρ_e = (dk/dρ_e) K_e^unit
-    //   so  dC/dρ_e = -(dk/dρ_e) u^T K_e^unit u
-    //               = -(dk/dρ_e) ∫_e ∇T·∇T dΩ
-    //
-    // For conducting material (ρ > 0): dk/dρ > 0, ∫|∇T|²>0 → dC/dρ < 0
-    // i.e. more material → lower compliance.  This matches FEniCS/fenics-heat.
-    if (compute_gradient) {
-        FEValues<3> fev_g(fe, q_vol, update_gradients | update_JxW_values);
-
-        std::vector<float> grad_py(n_cells_total, 0.0f);
-
-        for (const auto& cell : dof_handler.active_cell_iterators()) {
-            fev_g.reinit(cell);
-            cell->get_dof_indices(local_dof_idx);
-
-            // ∫_e ∇T·∇T dΩ
-            double integral = 0.0;
-            for (unsigned int q = 0; q < nq; ++q) {
-                Tensor<1, 3> gradT;
-                for (unsigned int i = 0; i < dpc; ++i)
-                    gradT += solution(local_dof_idx[i]) * fev_g.shape_grad(i, q);
-                integral += gradT * gradT * fev_g.JxW(q);
-            }
-
-            // Python cell index via centroid
-            const auto ctr = cell->center();
-            int cix = std::max(0, std::min(static_cast<int>(std::floor(ctr[0] / dx)), nx - 1));
-            int ciy = std::max(0, std::min(static_cast<int>(std::floor(ctr[1] / dy)), ny - 1));
-            int ciz = std::max(0, std::min(static_cast<int>(std::floor(ctr[2] / dz)), nz - 1));
-            int py_c = cell_idx(cix, ciy, ciz, nx, ny);
-
-            double rho_e   = std::max(0.0, std::min(1.0, rho[py_c]));
-            double dk_drho = (k_max - k_min) * p_exp *
-                             std::pow(std::max(rho_e, 1e-12), p_exp - 1.0);
-
-            grad_py[py_c] = static_cast<float>(-dk_drho * integral);
-        }
-
-        cnpy::npy_save((wd / "gradient.npy").string(), grad_py.data(),
-                       {static_cast<size_t>(n_cells_total)});
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -418,17 +370,13 @@ static void run(const std::string& input_path, bool compute_gradient) {
 // mosaic:io
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: heat_solver <input.json> [--gradient]\n";
+        std::cerr << "Usage: heat_solver <input.json>\n";
         return 1;
     }
     const std::string input_path = argv[1];
-    bool compute_gradient = false;
-    for (int i = 2; i < argc; ++i)
-        if (std::string(argv[i]) == "--gradient")
-            compute_gradient = true;
 
     try {
-        run(input_path, compute_gradient);
+        run(input_path);
     } catch (const std::exception& e) {
         std::cerr << "heat_solver error: " << e.what() << "\n";
         return 1;

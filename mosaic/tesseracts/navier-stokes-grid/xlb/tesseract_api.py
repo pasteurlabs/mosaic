@@ -612,7 +612,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(d)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -692,7 +692,7 @@ def _scalar_f64(x):  # mosaic:util
 
 def _run_forward_f64(
     inputs: dict, diff_bundle: dict
-) -> tuple:  # mosaic:grad:v0,viscosity,dt:autodiff
+) -> tuple:  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     """Run xlb_fwd in float64 with diff inputs overridden from diff_bundle.
 
     Non-diff inputs (steps, boundary_conditions, obstacle, domain_extent) are
@@ -775,7 +775,7 @@ def _run_forward_f64(
 
 def _build_diff_bundle(
     inputs: dict, include: tuple[str, ...]
-) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
+) -> dict:  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys.
 
     Only includes paths that are actually present (non-None) in the primal

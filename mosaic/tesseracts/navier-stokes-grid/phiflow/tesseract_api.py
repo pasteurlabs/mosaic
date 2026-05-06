@@ -439,7 +439,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

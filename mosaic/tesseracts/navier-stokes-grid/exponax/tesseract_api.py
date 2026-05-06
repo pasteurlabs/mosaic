@@ -254,7 +254,7 @@ _jvp_compiled_cache: dict = {}
 
 def _build_diff_bundle(
     inputs: dict, include: tuple[str, ...]
-) -> dict:  # mosaic:grad:v0,viscosity,dt:autodiff
+) -> dict:  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys."""
     bundle: dict = {}
     for k in include:
@@ -272,7 +272,7 @@ def _build_diff_bundle(
 
 def _run_forward(
     inputs: dict, diff_bundle: dict
-) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt:autodiff
+) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
     """Run exponax_fwd with diff inputs overridden from diff_bundle."""
     fwd_kwargs = {}
     for k in (
@@ -297,7 +297,7 @@ def _run_forward(
     return exponax_fwd(**fwd_kwargs)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

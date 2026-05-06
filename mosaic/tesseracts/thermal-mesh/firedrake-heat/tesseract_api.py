@@ -559,7 +559,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
 
 
-def vector_jacobian_product(  # mosaic:grad:rho,source
+def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
