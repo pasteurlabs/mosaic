@@ -9,6 +9,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from phi.jax.flow import (
     Box,
     CenteredGrid,
@@ -25,7 +26,11 @@ from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+):
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
         supported = {"periodic", "no_slip", "neumann", "dirichlet"}
@@ -38,8 +43,9 @@ class InputSchema(_CanonicalInputSchema):
         return self
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    pass
+OutputSchema = make_differentiable(
+    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
+)
 
 
 def _phiflow_extrapolation(bc_dict: dict, ndim: int):  # mosaic:io
@@ -159,7 +165,6 @@ def phiflow_fwd(  # mosaic:physics
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-    lid_velocity: jnp.ndarray | None = None,
 ) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray | None]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
@@ -175,10 +180,6 @@ def phiflow_fwd(  # mosaic:physics
         domain_extent: Side length of the periodic square/cubic domain (isotropic grid).
         obstacle: Optional obstacle dict.
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
-        lid_velocity: Optional (N, N, 2) lid velocity field for 3-D cavity mode.
-            When provided, the x- and y-velocity on the top z-face are overridden
-            each step.  The normal component u_z is set to zero.  Only active
-            for 3-D runs (ndim=3).
 
     Returns:
         (result, drag, velocity_mean): result same shape as v0; drag shape (1,) or None;
@@ -307,18 +308,6 @@ def phiflow_fwd(  # mosaic:physics
             axis=0,
         )
 
-    def staggered_to_collocated_ux(vel):
-        """Extract collocated u_x from StaggeredGrid by averaging x-faces."""
-        ux_faces = vel.vector[0].values.native(spatial_str)  # (nx, ny)
-        return 0.5 * (ux_faces + jnp.roll(ux_faces, 1, axis=0))
-
-    def get_pressure(vel):
-        """Run one pressure projection and return the pressure CenteredGrid."""
-        _, p = fluid.make_incompressible(
-            vel, obstacles, solve=math.Solve("CG", 1e-5, 1e-5)
-        )
-        return p.values.native(spatial_str)  # (nx, ny)
-
     if inflow_profile is not None and ndim == 2:
         # Resample inflow_profile to ny if needed
         prof_len = inflow_profile.shape[0]
@@ -344,31 +333,6 @@ def phiflow_fwd(  # mosaic:physics
             new_faces = jnp.stack([ux_f, uy_f], axis=0)
             # Accumulate both faces and pressure for RANS drag computation
             return new_faces, (new_faces, p_arr)
-
-    elif lid_velocity is not None and ndim == 3:
-        # 3-D lid-driven cavity: override the top z-face (k = nz-1) each step.
-        # face_arr shape: (3, nx, ny, nz) for 3-D.
-        # faces[0] = u_x staggered face, faces[1] = u_y, faces[2] = u_z.
-        # lid_velocity shape: (nx, ny, 2) → component 0 = u_x, component 1 = u_y.
-        lid_ux = jnp.asarray(lid_velocity[..., 0])  # (nx, ny)
-        lid_uy = jnp.asarray(lid_velocity[..., 1])  # (nx, ny)
-        _lid_pressure_solve = math.Solve("CG", 1e-5, 1e-5)
-
-        def step(face_arr, _):
-            vel = faces_to_staggered(face_arr)
-            vel = advect.semi_lagrangian(vel, vel, dt)
-            vel = diffuse.explicit(vel, viscosity, dt)
-            vel, _ = fluid.make_incompressible(
-                vel, obstacles, solve=_lid_pressure_solve
-            )
-            faces = staggered_to_faces(vel)  # (3, nx, ny, nz)
-            # Override top z-face (index nz-1 in the z-dimension)
-            top_k = nz - 1
-            ux_f = faces[0].at[:, :, top_k].set(lid_ux)
-            uy_f = faces[1].at[:, :, top_k].set(lid_uy)
-            uz_f = faces[2].at[:, :, top_k].set(0.0)
-            new_faces = jnp.stack([ux_f, uy_f, uz_f], axis=0)
-            return new_faces, None
 
     else:
         # Use explicit CG pressure solver to prevent numerical divergence in 3D

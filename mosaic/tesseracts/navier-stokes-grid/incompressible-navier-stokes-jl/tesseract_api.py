@@ -10,14 +10,15 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 
 
-class InputSchema(_CanonicalInputSchema):
-    pass
-
-
-class OutputSchema(_CanonicalOutputSchema):
-    pass
+InputSchema = make_differentiable(
+    _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+)
+OutputSchema = make_differentiable(
+    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
+)
 
 
 # ---------------------------------------------------------------------------

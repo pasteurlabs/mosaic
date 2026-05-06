@@ -23,7 +23,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import BCType
+from mosaic_shared.types import BCType, make_differentiable
 from pydantic import Field
 
 wp.init()
@@ -32,27 +32,6 @@ wp.init()
 # @wp.func helpers — inlined by the Warp JIT compiler into every
 # kernel that calls them, so there is zero Python overhead.
 # ============================================================
-
-
-@wp.func
-def wrap_idx(i: int, n: int) -> int:
-    """Periodic (modulo) index — wraps negative indices correctly.
-
-    Equivalent to (i % n) for non-negative i, and (i + n) % n for negative i.
-    Used for periodic-BC neighbour lookups in every stencil kernel.
-    Warp inlines @wp.func calls at compile time, so there is no call overhead.
-    """
-    return (i + n) % n
-
-
-@wp.func
-def clamp_idx(i: int, lo: int, hi: int) -> int:
-    """Clamp index to [lo, hi] for Neumann (zero-gradient) boundary conditions.
-
-    Used for wall-normal directions in lid-driven cavity kernels where periodic
-    wrapping is wrong — the ghost cell equals the first/last interior cell.
-    """
-    return wp.max(lo, wp.min(i, hi))
 
 
 @wp.func
@@ -115,137 +94,6 @@ def jacobi_2d_kernel(  # mosaic:physics
 # ============================================================
 # 2-D NS kernels (vorticity-streamfunction formulation)
 # ============================================================
-
-
-@wp.kernel
-def curl_to_vorticity_kernel(  # mosaic:physics
-    ux: wp.array2d(dtype=wp.float32),
-    uy: wp.array2d(dtype=wp.float32),
-    omega: wp.array2d(dtype=wp.float32),
-    inv_2h: float,
-):
-    """Compute vorticity ω = ∂v/∂x - ∂u/∂y via central differences."""
-    i, j = wp.tid()
-    n = ux.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    dvdx = (uy[ip1, j] - uy[im1, j]) * inv_2h
-    dudy = (ux[i, jp1] - ux[i, jm1]) * inv_2h
-    omega[i, j] = dvdx - dudy
-
-
-@wp.kernel
-def psi_to_velocity_kernel(  # mosaic:physics
-    psi: wp.array2d(dtype=wp.float32),
-    ux: wp.array2d(dtype=wp.float32),
-    uy: wp.array2d(dtype=wp.float32),
-    inv_2h: float,
-):
-    """Recover velocity from streamfunction: u = ∂ψ/∂y, v = -∂ψ/∂x."""
-    i, j = wp.tid()
-    n = psi.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    ux[i, j] = (psi[i, jp1] - psi[i, jm1]) * inv_2h
-    uy[i, j] = -((psi[ip1, j] - psi[im1, j]) * inv_2h)
-
-
-@wp.kernel
-def vorticity_rhs_kernel(  # mosaic:physics
-    omega: wp.array2d(dtype=wp.float32),
-    ux: wp.array2d(dtype=wp.float32),
-    uy: wp.array2d(dtype=wp.float32),
-    rhs: wp.array2d(dtype=wp.float32),
-    inv_2h: float,
-    inv_h2: float,
-    nu: float,
-):
-    """RHS of the vorticity equation: rhs = -(u·∇)ω + ν∇²ω.
-
-    Advection uses central differences; diffusion is the 5-point Laplacian.
-    """
-    i, j = wp.tid()
-    n = omega.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-
-    # Advection: -(u·∇)ω
-    domega_dx = (omega[ip1, j] - omega[im1, j]) * inv_2h
-    domega_dy = (omega[i, jp1] - omega[i, jm1]) * inv_2h
-    advection = -(ux[i, j] * domega_dx + uy[i, j] * domega_dy)
-
-    # Diffusion: ν∇²ω
-    lap_omega = (
-        omega[im1, j]
-        + omega[ip1, j]
-        + omega[i, jm1]
-        + omega[i, jp1]
-        - 4.0 * omega[i, j]
-    ) * inv_h2
-    diffusion = nu * lap_omega
-
-    rhs[i, j] = advection + diffusion
-
-
-@wp.kernel
-def rk3_stage1_kernel(  # mosaic:physics
-    omega: wp.array2d(dtype=wp.float32),
-    k1: wp.array2d(dtype=wp.float32),
-    omega_s1: wp.array2d(dtype=wp.float32),
-    dt: float,
-):
-    """SSP-RK3 stage 1: ω_s1 = ω + dt·k1."""
-    i, j = wp.tid()
-    omega_s1[i, j] = omega[i, j] + dt * k1[i, j]
-
-
-@wp.kernel
-def rk3_stage2_kernel(  # mosaic:physics
-    omega: wp.array2d(dtype=wp.float32),
-    omega_s1: wp.array2d(dtype=wp.float32),
-    k2: wp.array2d(dtype=wp.float32),
-    omega_s2: wp.array2d(dtype=wp.float32),
-    dt: float,
-):
-    """SSP-RK3 stage 2: ω_s2 = 3/4·ω^n + 1/4·ω_s1 + 1/4·dt·k2.
-
-    Correct Shu-Osher SSP-RK3 formula:
-        u(2) = 0.75·u^n + 0.25·u(1) + 0.25·dt·L(u(1))
-    where u(1) = omega_s1 (stage-1 output) and k2 = L(u(1)).
-    """
-    i, j = wp.tid()
-    omega_s2[i, j] = 0.75 * omega[i, j] + 0.25 * omega_s1[i, j] + 0.25 * dt * k2[i, j]
-
-
-@wp.kernel
-def rk3_combine_kernel(  # mosaic:physics
-    omega: wp.array2d(dtype=wp.float32),
-    k3: wp.array2d(dtype=wp.float32),
-    omega_s2: wp.array2d(dtype=wp.float32),
-    omega_new: wp.array2d(dtype=wp.float32),
-    dt: float,
-):
-    """SSP-RK3 final: ω^(n+1) = 1/3·ω^n + 2/3·(ω_s2 + dt·k3)."""
-    i, j = wp.tid()
-    omega_new[i, j] = (1.0 / 3.0) * omega[i, j] + (2.0 / 3.0) * (
-        omega_s2[i, j] + dt * k3[i, j]
-    )
-
-
-@wp.kernel
-def apply_obstacle_mask_kernel(  # mosaic:physics
-    omega: wp.array2d(dtype=wp.float32),
-    mask: wp.array2d(dtype=wp.float32),
-):
-    """Zero vorticity inside the obstacle: ω *= (1 - mask)."""
-    i, j = wp.tid()
-    omega[i, j] = omega[i, j] * (1.0 - mask[i, j])
 
 
 @wp.kernel
@@ -778,36 +626,6 @@ def pressure_correct_3d_wall_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def _apply_pressure_correction_kernel(  # mosaic:grad:v0:adjoint
-    ux: wp.array3d(dtype=wp.float32),
-    uy: wp.array3d(dtype=wp.float32),
-    uz: wp.array3d(dtype=wp.float32),
-    p: wp.array3d(dtype=wp.float32),
-    dt: float,
-    inv_2h: float,
-):
-    """Subtract dt*grad(p) from (ux, uy, uz) in-place (periodic BCs in all directions).
-
-    Used in the pressure adjoint correction to apply u -= dt*∇q to the
-    cotangent arrays, giving the correct IPCS adjoint for the pressure step.
-    """
-    i, j, k = wp.tid()
-    n = p.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    kp1 = (k + 1) % n
-    km1 = (k - 1 + n) % n
-    dpdx = (p[ip1, j, k] - p[im1, j, k]) * inv_2h
-    dpdy = (p[i, jp1, k] - p[i, jm1, k]) * inv_2h
-    dpdz = (p[i, j, kp1] - p[i, j, km1]) * inv_2h
-    ux[i, j, k] = ux[i, j, k] - dt * dpdx
-    uy[i, j, k] = uy[i, j, k] - dt * dpdy
-    uz[i, j, k] = uz[i, j, k] - dt * dpdz
-
-
-@wp.kernel
 def _apply_pressure_correction_wall_kernel(  # mosaic:grad:v0:adjoint
     ux: wp.array3d(dtype=wp.float32),
     uy: wp.array3d(dtype=wp.float32),
@@ -838,16 +656,6 @@ def _apply_pressure_correction_wall_kernel(  # mosaic:grad:v0:adjoint
 
 
 @wp.kernel
-def _zero_top_slice_kernel(  # mosaic:physics
-    arr: wp.array3d(dtype=wp.float32),
-    top_k: int,
-):
-    """Zero the top z-slice of a 3-D array (used to fix overwrite adjoint)."""
-    i, j = wp.tid()
-    arr[i, j, top_k] = 0.0
-
-
-@wp.kernel
 def _clip_and_sanitize_3d_kernel(  # mosaic:physics
     arr: wp.array3d(dtype=wp.float32),
     clip: float,
@@ -861,67 +669,6 @@ def _clip_and_sanitize_3d_kernel(  # mosaic:physics
     """
     i, j, k = wp.tid()
     arr[i, j, k] = sanitize_float(arr[i, j, k], clip)
-
-
-@wp.kernel
-def _accumulate_top_slice_to_lid_kernel(  # mosaic:physics
-    adj_ux: wp.array3d(dtype=wp.float32),
-    adj_uy: wp.array3d(dtype=wp.float32),
-    adj_lid: wp.array2d(dtype=wp.vec2),
-    top_k: int,
-):
-    """Accumulate top-slice velocity grad into lid-field grad (overwrite adjoint fix).
-
-    Correctly handles the write-after-write adjoint: when the lid BC overwrites
-    ux[i,j,top_k] = lid[i,j][0], the backward should be:
-        adj_lid[i,j][0] += adj_ux[i,j,top_k]
-        adj_ux[i,j,top_k] = 0   (reset — old value has no contribution)
-    This kernel does the accumulate step; _zero_top_slice_kernel does the reset.
-    """
-    i, j = wp.tid()
-    v = adj_lid[i, j]
-    v[0] = v[0] + adj_ux[i, j, top_k]
-    v[1] = v[1] + adj_uy[i, j, top_k]
-    adj_lid[i, j] = v
-
-
-@wp.kernel
-def apply_lid_bc_kernel(  # mosaic:physics
-    ux: wp.array3d(dtype=wp.float32),
-    uy: wp.array3d(dtype=wp.float32),
-    uz: wp.array3d(dtype=wp.float32),
-    lid_vel: float,
-    top_k: int,
-):
-    """Apply uniform scalar lid velocity BC on the top z-face (k = top_k).
-
-    Legacy kernel retained for reference; the spatially-varying field kernel
-    apply_lid_field_bc_kernel is used for the (N, N, 2) lid field interface.
-    """
-    i, j = wp.tid()
-    ux[i, j, top_k] = lid_vel
-    uy[i, j, top_k] = 0.0
-    uz[i, j, top_k] = 0.0
-
-
-@wp.kernel
-def apply_lid_field_bc_kernel(  # mosaic:physics
-    ux: wp.array3d(dtype=wp.float32),
-    uy: wp.array3d(dtype=wp.float32),
-    uz: wp.array3d(dtype=wp.float32),
-    lid_field: wp.array2d(dtype=wp.vec2),
-    top_k: int,
-):
-    """Apply spatially-varying lid velocity BC on the top z-face (k = top_k).
-
-    lid_field has shape (N, N) with vec2 components [u_x, u_y] per cell.
-    The wall-normal component u_z is set to zero (no penetration).
-    """
-    i, j = wp.tid()
-    v = lid_field[i, j]
-    ux[i, j, top_k] = v[0]
-    uy[i, j, top_k] = v[1]
-    uz[i, j, top_k] = 0.0
 
 
 def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
@@ -2976,20 +2723,14 @@ def ns3d_solve(  # mosaic:physics
     steps: int,
     domain_extent: float,
     num_iters_poisson_3d: int,
-    lid_velocity: np.ndarray | None = None,
     device: str = "cpu",
     adjoint_grad_clip: float | None = None,
 ):
     """Run 3-D incompressible NS via IPCS (Chorin-Temam).
 
-    lid_velocity: optional (N, N, 2) float32 array giving the spatially-varying
-        x- and y-velocity on the top z-face (lid-driven cavity mode).  When
-        provided a warp vec2 array is uploaded with requires_grad=True so that
-        tape.backward() fills its .grad attribute for lid_velocity VJPs.
-
     Returns:
         (result_np, tape, ux_final_wp, uy_final_wp, uz_final_wp,
-         ux_ic_wp, uy_ic_wp, uz_ic_wp, lid_wp_or_None)
+         ux_ic_wp, uy_ic_wp, uz_ic_wp)
         The final velocity Warp arrays have requires_grad=True so
         tape.backward() fills their .grad attributes.
     """
@@ -3003,44 +2744,6 @@ def ns3d_solve(  # mosaic:physics
     _bd_2d = 256
     _bd_3d = 256
 
-    # CFL-adaptive dt for lid-driven cavity mode.
-    # The IPCS tentative velocity step uses explicit Euler advection; stability
-    # requires CFL = U_max * dt / dx < ~1.0.  During optimisation the lid field
-    # can reach U_max >> 1 (especially at sweep≥1.0), pushing CFL above the
-    # stability limit and causing NaN at optimizer iteration 2.
-    #
-    # Fix: when lid_velocity is provided, compute U_max from the current lid
-    # field and reduce dt so CFL ≤ cfl_limit.  Scale steps up proportionally
-    # to preserve physical time T = steps * dt.
-    #
-    # Note: this fix does not fire for the lid_cavity benchmark
-    # params (dt=0.01, h=0.0625) since dt_cfl=0.9*0.0625/U_max is always
-    # ≥ 0.01 for U_max ≤ 5.625.  The sweep values (0.5, 1.0, 2.0) all satisfy
-    # this condition so no dt reduction occurs.  The IPCS backward instability
-    # at sweep≥1.0 is resolved by a categorical exclusion in navier_stokes_3d_grid.py.
-    if lid_velocity is not None:
-        _lid_arr = np.asarray(lid_velocity, dtype=np.float32)
-        _U_max = float(np.sqrt(np.sum(_lid_arr**2, axis=-1)).max())
-        _eps = 1e-6
-        _cfl_limit = 0.45
-        _dt_cfl = _cfl_limit * h / (_U_max + _eps)
-        if _dt_cfl < dt:
-            # Reduce dt and increase steps to keep T = steps * dt constant.
-            _T_physical = steps * dt
-            steps = max(1, int(np.ceil(_T_physical / _dt_cfl)))
-            dt = _T_physical / steps
-
-    # Default adjoint clipping: enabled by default in lid-driven cavity mode where
-    # F-NS3D-4 documents IPCS adjoint overflow at steps>=40 in the turbulent
-    # regime.  The element-wise clip is a stability guard; healthy adjoints
-    # (|g|<=clip) are unchanged so gradient direction is preserved.  The default
-    # threshold of 10.0 is close to the healthy xlb/ins_jl per-cell adjoint
-    # magnitudes (norm~57 over 16^3 ≈ 2e-3 RMS) while still well above typical
-    # signal.  Periodic (TGV) mode keeps the clip disabled by default for
-    # exact fd_check cosines.
-    if adjoint_grad_clip is None and lid_velocity is not None:
-        adjoint_grad_clip = 10.0
-
     ux_wp = wp.array(
         v0_np[:, :, :, 0], dtype=wp.float32, requires_grad=True, device=device
     )
@@ -3050,14 +2753,6 @@ def ns3d_solve(  # mosaic:physics
     uz_wp = wp.array(
         v0_np[:, :, :, 2], dtype=wp.float32, requires_grad=True, device=device
     )
-
-    # Upload lid field as differentiable warp vec2 array (when in cavity mode)
-    lid_wp = None
-    if lid_velocity is not None:
-        # (N, N, 2) float32 → warp array with dtype=vec2; warp interprets
-        # the last axis of size 2 as the vec2 components.
-        lid_np = np.asarray(lid_velocity, dtype=np.float32)  # (N, N, 2)
-        lid_wp = wp.array(lid_np, dtype=wp.vec2, requires_grad=True, device=device)
 
     # Working arrays for IPCS stages (2 sets to avoid name rebinding)
     vel_bufs_x = [
@@ -3177,222 +2872,19 @@ def ns3d_solve(  # mosaic:physics
                 tape,
                 device,
             )
-            if lid_wp is not None:
-                _wlaunch(
-                    apply_lid_field_bc_kernel,
-                    dim=(n, n),
-                    inputs=[ux_star, uy_star, uz_star, lid_wp, top_k],
-                    block_dim=_bd_2d,
-                    device=device,
-                )
-                # Fix overwrite adjoint: the lid BC overwrites ux_star/uy_star at
-                # top_k, discarding the previous tentative value.  Warp's auto-adjoint
-                # accumulates adj_ux_star[top_k] → adj_lid_wp but does NOT zero
-                # adj_ux_star[top_k] afterward, causing incorrect gradient propagation
-                # back through tentative_vel on the top face.  We use record_func to
-                # inject the correct "accumulate-then-zero" backward step.
-                _ux_star_ref = ux_star
-                _uy_star_ref = uy_star
-                _uz_star_ref = uz_star
-                _lid_wp_ref = lid_wp
-                _top_k_ref = top_k
-                _n_ref = n
-                _dev_ref = device
-
-                def _fix_overwrite_adjoint_star(
-                    _ux=_ux_star_ref,
-                    _uy=_uy_star_ref,
-                    _uz=_uz_star_ref,
-                    _lid=_lid_wp_ref,
-                    _tk=_top_k_ref,
-                    _n=_n_ref,
-                    _d=_dev_ref,
-                ):
-                    # Accumulate adj_ux_star[top_k] → adj_lid before tentative backward
-                    _wlaunch(
-                        _accumulate_top_slice_to_lid_kernel,
-                        dim=(_n, _n),
-                        inputs=[_ux.grad, _uy.grad, _lid.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    # Zero adj_*_star[top_k] so tentative backward does not see
-                    # spurious gradient at the overwritten face (ux/uy → lid,
-                    # uz → 0 constant — all three must be zeroed)
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_ux.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_uy.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_uz.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-
-            # Adjoint pressure correction: inserted BEFORE _fix_overwrite_adjoint_star
-            # in forward so that during backward it runs AFTER the overwrite fix.
-            # Backward order (LIFO): first _fix_overwrite_adjoint_star zeros top_k,
-            # then _apply_pressure_adjoint runs on the correctly-zeroed adj_u_star.
-            #
-            # pressure_correct_bwd gives adj_u_star = adj_vel_out (incomplete).
-            # The correct IPCS adjoint is adj_u_star = P(adj_vel_out) where
-            # P = I - dt*∇(∇²)⁻¹∇·(·)/dt = I - ∇(∇²)⁻¹∇· is the L² projection.
-            # We apply this correction by running a spectral Poisson solve on the
-            # grad arrays (same structure as the forward pressure step).
-            if lid_wp is not None:
-                _uxs2 = ux_star
-                _uys2 = uy_star
-                _uzs2 = uz_star
-                _dt_r = dt
-                # Use inv_2h (not inv_2h/dt=800) in the adjoint divergence
-                # kernel so the backward only multiplies by 8 instead of 800 per step.
-                # The forward div is also changed to inv_2h (see below), so p is
-                # rescaled by dt — the velocity correction drops the dt factor too.
-                _inv2h_dt_r = (
-                    inv_2h  # was inv_2h / dt = 800; now 8 (100× less amplification)
-                )
-                _inv2h_r = inv_2h
-                _n_p = n
-                _h_p = h
-                _d_p = device
-
-                def _apply_pressure_adjoint(
-                    _ux=_uxs2,
-                    _uy=_uys2,
-                    _uz=_uzs2,
-                    _dt=_dt_r,
-                    _i2hdt=_inv2h_dt_r,
-                    _i2h=_inv2h_r,
-                    _n=_n_p,
-                    _h=_h_p,
-                    _d=_d_p,
-                    _tk=top_k,
-                ):
-                    """Apply IPCS pressure projection to adj_u_star in-place.
-
-                    adj_u_star currently holds adj_vel_out (from pressure_correct_bwd),
-                    with top_k already zeroed by _fix_overwrite_adjoint_star (which ran
-                    first in backward since it was inserted second in forward).
-                    We correct to adj_u_star = P(adj_vel_out) = adj_vel_out - dt*∇q
-                    where q = cg_poisson(div(adj_vel_out)/dt).
-
-                    CG with Neumann BCs is used here because the forward pressure
-                    solve uses _cg_poisson_3d_tape (cavity mode).  The Neumann
-                    Laplacian is symmetric so the adjoint operator is identical.
-
-                    After applying the correction, we re-zero the top_k face because
-                    the pressure gradient ∇q is nonzero at top_k and would otherwise
-                    reintroduce spurious gradient at the overwritten lid face, which
-                    would then incorrectly propagate back through tentative_vel_bwd.
-                    """
-                    if _ux.grad is None or _uy.grad is None or _uz.grad is None:
-                        return
-                    # Compute divergence of adj_vel_out (stored in adj_u_star).
-                    # Use wall kernel (Neumann BCs in z) to match the forward path.
-                    adj_div = wp.zeros((_n, _n, _n), dtype=wp.float32, device=_d)
-                    _wlaunch(
-                        divergence_3d_wall_kernel,
-                        dim=(_n, _n, _n),
-                        inputs=[_ux.grad, _uy.grad, _uz.grad, adj_div, _i2hdt],
-                        block_dim=_bd_3d,
-                        device=_d,
-                    )
-                    # Solve ∇²q = adj_div via CG with Neumann BCs (self-adjoint)
-                    adj_div_np = adj_div.numpy()
-                    _L_adj = _build_laplacian_neumann_3d(_n, _h)
-                    q_adj_np = _cg_poisson_3d_np(adj_div_np, _L_adj)
-                    q_adj = wp.array(q_adj_np, dtype=wp.float32, device=_d)
-                    # Correct: adj_u_star -= ∇q_adj (no dt factor — forward also drops dt).
-                    # Use wall kernel (Neumann BCs in z) to match the forward path.
-                    _wlaunch(
-                        _apply_pressure_correction_wall_kernel,
-                        dim=(_n, _n, _n),
-                        inputs=[_ux.grad, _uy.grad, _uz.grad, q_adj, 1.0, _i2h],
-                        block_dim=_bd_3d,
-                        device=_d,
-                    )
-                    # Re-zero the top_k face: the lid BC overwrote ux_star[top_k],
-                    # so the tentative_vel backward must not see any gradient there.
-                    # The pressure correction ∇q is nonzero at top_k, which would
-                    # re-introduce spurious gradient if not zeroed here.
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_ux.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_uy.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_uz.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-
-                tape.record_func(
-                    backward=_apply_pressure_adjoint,
-                    arrays=[ux_star, uy_star, uz_star],
-                )
-
-                tape.record_func(
-                    backward=_fix_overwrite_adjoint_star,
-                    arrays=[ux_star, uy_star, uz_star, lid_wp],
-                )
-
             # Step 2: pressure Poisson ∇²p = ∇·u*/dt
             # Per-step div_star array ensures each step has an independent gradient.
             div_star = div_star_steps[step_i]
             inv_2h_over_dt = inv_2h / dt
-            if lid_velocity is not None:
-                # Lid-driven cavity: Neumann (zero-gradient) BCs in z (wall-normal).
-                # x and y remain periodic; clamped k-indices prevent periodic wrap-
-                # through at the top/bottom walls, which would corrupt the divergence
-                # field and cause NaN in the CG pressure solver.
-                # Pass inv_2h (=8) instead of inv_2h_over_dt (=800) so the
-                # wp.Tape backward multiplies by 8 per step instead of 800, eliminating
-                # float32 overflow over 60 steps at sweep≥1.0. The Poisson RHS is now
-                # ∇·u* (not ∇·u*/dt), so pressure p is rescaled by dt — the correction
-                # step drops dt accordingly (see _dt_correct below).
-                _wlaunch(
-                    divergence_3d_wall_kernel,
-                    dim=(n, n, n),
-                    inputs=[ux_star, uy_star, uz_star, div_star, inv_2h],
-                    block_dim=_bd_3d,
-                    device=device,
-                )
-                # Non-periodic (lid-driven cavity / channel flow): CG with Neumann BCs.
-                # FFT enforces periodic BCs and is wrong here.
-                p_wp = _cg_poisson_3d_tape(div_star, n, h, tape, device)
-            else:
-                # Periodic (TGV etc.): spectral FFT — exact, fast, self-adjoint.
-                _wlaunch(
-                    divergence_3d_kernel,
-                    dim=(n, n, n),
-                    inputs=[ux_star, uy_star, uz_star, div_star, inv_2h_over_dt],
-                    block_dim=_bd_3d,
-                    device=device,
-                )
-                p_wp = _spectral_poisson_3d_tape(div_star, domain_extent, tape, device)
+            # Periodic (TGV etc.): spectral FFT — exact, fast, self-adjoint.
+            _wlaunch(
+                divergence_3d_kernel,
+                dim=(n, n, n),
+                inputs=[ux_star, uy_star, uz_star, div_star, inv_2h_over_dt],
+                block_dim=_bd_3d,
+                device=device,
+            )
+            p_wp = _spectral_poisson_3d_tape(div_star, domain_extent, tape, device)
 
             # Step 3: velocity correction u^(n+1) = u* - dt·∇p
             #
@@ -3610,7 +3102,11 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
 # ============================================================
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+):
     num_iters_poisson: int = Field(
         default=500,
         description=(
@@ -3630,8 +3126,9 @@ class InputSchema(_CanonicalInputSchema):
     )
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    pass
+OutputSchema = make_differentiable(
+    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
+)
 
 
 # ============================================================

@@ -10,12 +10,17 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
-class InputSchema(_CanonicalInputSchema):
+class InputSchema(
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+):
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
     )
@@ -49,8 +54,9 @@ class InputSchema(_CanonicalInputSchema):
         return self
 
 
-class OutputSchema(_CanonicalOutputSchema):
-    pass
+OutputSchema = make_differentiable(
+    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
+)
 
 
 def _jaxcfd_bc(  # mosaic:io

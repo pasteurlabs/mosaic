@@ -10,15 +10,15 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import BCType
+from mosaic_shared.types import BCType, make_differentiable
 
 
-class InputSchema(_CanonicalInputSchema):
-    pass
-
-
-class OutputSchema(_CanonicalOutputSchema):
-    pass
+InputSchema = make_differentiable(
+    _CanonicalInputSchema, ["v0", "inflow_profile"]
+)
+OutputSchema = make_differentiable(
+    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
+)
 
 
 # ---------------------------------------------------------------------------
@@ -383,52 +383,6 @@ def _make_domain(  # mosaic:init
     # ------------------------------------------------------------------
     grid = _make_vertex_grid(N, ndim, dtype).to(_DEVICE)  # must be on device
     block = domain.CreateBlock(vertexCoordinates=grid, name="Block")
-
-    # ------------------------------------------------------------------
-    # Lid-driven cavity
-    # ------------------------------------------------------------------
-    if lid_velocity_t is not None:
-        block.CloseAllBoundaries()
-
-        # lid_velocity_t shape: (nx, ny, 2) — physical units, possibly autograd leaf
-        # Cast to solver dtype/device and scale to PICT unit-cell coordinates;
-        # these ops keep the autograd chain intact so boundary VJPs flow back
-        # to the original user tensor.
-        lv_t = lid_velocity_t.to(dtype=dtype, device=_DEVICE) * float(
-            phys_scale
-        )  # (nx, ny, 2)
-
-        if ndim == 2:
-            # 2-D lid: apply on "+y" face.  Face tensor shape: (1, 2, 1, nx).
-            # The lid is a 1-cell-thick face; sample the first y-row (index 0).
-            # For the canonical lid_cavity IC every row is identical, so this
-            # is equivalent to picking any y slice.
-            lv_face = lv_t[:, 0, :]  # (nx, 2)
-            lv_face = lv_face.permute(1, 0)  # (2, nx)
-            lv_face = lv_face.unsqueeze(0).unsqueeze(2)  # (1, 2, 1, nx)
-        else:
-            # 3-D lid: apply on "+z" face.  Face tensor shape: (1, 3, 1, ny, nx).
-            # lid_velocity_t carries u_x, u_y components; u_z is set to zero.
-            # Matches the phiflow 3-D cavity reference (top z-face, u_z=0).
-            ux = lv_t[..., 0]  # (nx, ny)
-            uy = lv_t[..., 1]  # (nx, ny)
-            uz = torch.zeros_like(ux)  # (nx, ny)
-            lv_stack = torch.stack([ux, uy, uz], dim=0)  # (3, nx, ny)
-            lv_face = lv_stack.permute(0, 2, 1)  # (3, ny, nx)
-            lv_face = lv_face.unsqueeze(0).unsqueeze(2)  # (1, 3, 1, ny, nx)
-
-        lv_face = lv_face.contiguous()
-        lid_face_name = "+y" if ndim == 2 else "+z"
-        block.CloseBoundary(lid_face_name, lv_face)
-        return (
-            domain,
-            [],
-            None,
-            lambda v: domain.getBlock(0).setVelocity(v),
-            lambda d: d.getBlock(0).velocity,
-            None,  # no drag assembler for lid-driven cavity
-            None,  # no inflow_setter for lid-driven cavity
-        )
 
     # ------------------------------------------------------------------
     # Inflow / channel flow
@@ -988,7 +942,6 @@ def _run_pict(  # mosaic:physics
     ndim: int,
     dtype: torch.dtype,
     differentiable: bool,
-    lid_velocity_t: torch.Tensor | None = None,
     inflow_profile_t: torch.Tensor | None = None,
     phys_scale: float = 1.0,
     obstacle: dict | None = None,
@@ -1006,9 +959,6 @@ def _run_pict(  # mosaic:physics
         ndim: Spatial dimensionality (2 or 3).
         dtype: Torch dtype.
         differentiable: Whether to keep the autograd graph.
-        lid_velocity_t: Optional moving-lid velocity torch tensor in canonical
-            layout ``(nx, ny, 2)``.  Live autograd leaf when set with
-            ``requires_grad=True``; boundary VJPs flow through PISOtorch_diff.
         inflow_profile_t: Optional inflow x-velocity profile torch tensor of
             shape ``(ny,)``.  Live autograd leaf when set with
             ``requires_grad=True``; boundary VJPs flow through PISOtorch_diff.
@@ -1038,7 +988,6 @@ def _run_pict(  # mosaic:physics
         N,
         ndim,
         dtype=dtype,
-        lid_velocity_t=lid_velocity_t,
         inflow_profile_t=inflow_profile_t,
         phys_scale=phys_scale,
         obstacle=obstacle,
@@ -1181,15 +1130,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # Boundary conditions (optional).  Build live torch tensors (no grad in
     # apply) so the same helper functions work in both apply and VJP paths.
     dtype = torch.float32
-    lid_velocity_t = (
-        torch.tensor(
-            np.ascontiguousarray(inputs.lid_velocity, dtype=np.float32),
-            dtype=dtype,
-            device=_DEVICE,
-        )
-        if inputs.lid_velocity is not None
-        else None
-    )
     inflow_profile_t = (
         torch.tensor(
             np.ascontiguousarray(inputs.inflow_profile, dtype=np.float32),
@@ -1214,7 +1154,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
         ndim=ndim,
         dtype=dtype,
         differentiable=False,
-        lid_velocity_t=lid_velocity_t,
         inflow_profile_t=inflow_profile_t,
         phys_scale=phys_scale,
         obstacle=obstacle,
@@ -1236,7 +1175,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return {"result": out_np, "drag": drag_np}
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_profile
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -1244,9 +1183,9 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
 ) -> dict[str, Any]:
     """VJP via torch.autograd through the differentiable PICT PISO time loop.
 
-    Supports gradients w.r.t. ``v0``, ``lid_velocity``, and ``inflow_profile``
-    through the PISO time loop via PISOtorch_diff autograd.  Gradients w.r.t.
-    ``viscosity`` and ``dt`` are returned as zeros (scalar params).
+    Supports gradients w.r.t. ``v0`` and ``inflow_profile`` through the PISO
+    time loop via PISOtorch_diff autograd.  Gradients w.r.t. ``viscosity`` and
+    ``dt`` are returned as zeros (scalar params).
 
     ``drag`` output is differentiable when an obstacle is present: drag is
     computed from the pressure/velocity surface integral on the obstacle faces
@@ -1289,9 +1228,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
     # Boundary conditions (optional).  Build live torch tensors; mark as
     # autograd leaves (requires_grad=True) for any input we need a VJP for so
     # PISOtorch_diff captures the BOUNDARY_VELOCITY gradient chain.
-    lid_velocity_np = (
-        np.asarray(inputs.lid_velocity) if inputs.lid_velocity is not None else None
-    )
     inflow_profile_np = (
         np.asarray(inputs.inflow_profile) if inputs.inflow_profile is not None else None
     )
@@ -1300,14 +1236,13 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
     y_walls_noslip = bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
 
     want_v0 = "v0" in vjp_inputs
-    want_lid = "lid_velocity" in vjp_inputs and lid_velocity_np is not None
     want_inflow = "inflow_profile" in vjp_inputs and inflow_profile_np is not None
 
     # PICT's PISOtorch_diff backend tracks VELOCITY, BOUNDARY_VELOCITY, and
     # VISCOSITY gradients through the PISO time loop.  viscosity and dt are
-    # still passed as Python floats so their grads remain zero, but v0,
-    # lid_velocity, and inflow_profile all flow through torch.autograd when
-    # passed as live tensors with requires_grad=True.
+    # still passed as Python floats so their grads remain zero, but v0 and
+    # inflow_profile flow through torch.autograd when passed as live tensors
+    # with requires_grad=True.
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=want_v0)
 
     def _to_leaf(arr: np.ndarray, grad: bool) -> torch.Tensor:
@@ -1321,9 +1256,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
             t.requires_grad_(True)
         return t
 
-    lid_velocity_t = (
-        _to_leaf(lid_velocity_np, want_lid) if lid_velocity_np is not None else None
-    )
     inflow_profile_t = (
         _to_leaf(inflow_profile_np, want_inflow)
         if inflow_profile_np is not None
@@ -1339,7 +1271,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
         ndim=ndim,
         dtype=dtype,
         differentiable=True,
-        lid_velocity_t=lid_velocity_t,
         inflow_profile_t=inflow_profile_t,
         phys_scale=phys_scale,
         obstacle=obstacle,
@@ -1373,15 +1304,12 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
 
     # Collect all leaf tensors we want gradients for in one backward pass so
     # the autograd graph is only traversed once.
-    # mosaic:grad:v0,lid_velocity,inflow_profile:autodiff
+    # mosaic:grad:v0,inflow_profile:autodiff
     grad_targets: list[torch.Tensor] = []
     grad_keys: list[str] = []
     if want_v0:
         grad_targets.append(v0_t)
         grad_keys.append("v0")
-    if want_lid:
-        grad_targets.append(lid_velocity_t)
-        grad_keys.append("lid_velocity")
     if want_inflow:
         grad_targets.append(inflow_profile_t)
         grad_keys.append("inflow_profile")
@@ -1400,12 +1328,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
                     if g is not None
                     else np.zeros_like(v0_np)
                 )
-            elif key == "lid_velocity":
-                out[key] = (
-                    g.detach().cpu().numpy()
-                    if g is not None
-                    else np.zeros_like(lid_velocity_np)
-                )
             elif key == "inflow_profile":
                 out[key] = (
                     g.detach().cpu().numpy()
@@ -1421,13 +1343,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
         out["dt"] = np.zeros_like(dt_np)
     # Requested gradients for BC inputs that weren't differentiated (e.g. no
     # autograd leaf available) come back as zeros to keep the VJP shape valid.
-    # mosaic:grad:lid_velocity,inflow_profile:autodiff
-    if (
-        "lid_velocity" in vjp_inputs
-        and "lid_velocity" not in out
-        and lid_velocity_np is not None
-    ):
-        out["lid_velocity"] = np.zeros_like(lid_velocity_np)
+    # mosaic:grad:inflow_profile:autodiff
     if (
         "inflow_profile" in vjp_inputs
         and "inflow_profile" not in out
