@@ -21,6 +21,7 @@ def pw(frac: float = 1.0) -> float:
 
 # Registry: name -> generate function (lazy import to avoid mandatory deps)
 _REGISTRY: dict[str, str] = {
+    "agreement": "benchmarks.plots.paper.agreement",
     "cylinder": "benchmarks.plots.paper.cylinder",
     "cost_overview": "benchmarks.plots.paper.cost_overview",
     "fd_check": "benchmarks.plots.paper.fd_check",

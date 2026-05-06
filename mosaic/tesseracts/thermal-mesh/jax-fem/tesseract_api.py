@@ -23,9 +23,13 @@ crt_file_path = os.path.dirname(__file__)
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
     pass
-class OutputSchema(make_differentiable(
-    _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
-)):
+
+
+class OutputSchema(
+    make_differentiable(
+        _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
+    )
+):
     pass
 
 

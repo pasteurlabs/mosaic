@@ -65,9 +65,12 @@ jobs:
             DIFF_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
             for file in $DIFF_FILES; do
               case "$file" in
-                mosaic/tesseracts/navier-stokes-grid/*|mosaic/benchmarks/problems/navier_stokes_grid.py)
+                mosaic/tesseracts/navier-stokes-grid/*)
+                  # Shared tesseract dir — triggers both 2D and 3D NS problems
+                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid,ns-3d-grid" ;;
+                mosaic/benchmarks/problems/navier_stokes_grid.py)
                   CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid" ;;
-                mosaic/tesseracts/navier-stokes-3d-grid/*|mosaic/benchmarks/problems/navier_stokes_3d_grid.py)
+                mosaic/benchmarks/problems/navier_stokes_3d_grid.py)
                   CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-3d-grid" ;;
                 mosaic/tesseracts/structural-mesh/*|mosaic/benchmarks/problems/structural_mesh.py)
                   CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}structural-mesh" ;;
@@ -115,12 +118,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
+          enable-cache: true
 
       - name: Install Mosaic
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Run GPU solvers
         run: |
@@ -130,14 +133,14 @@ jobs:
           if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
           if [[ "$SUITES" != "all" ]]; then ARGS="$ARGS --suites $SUITES"; fi
 
-          mosaic run-all $ARGS --hardware gpu
+          uv run mosaic run $ARGS --hardware gpu
         timeout-minutes: 240
 
       - name: Upload GPU results
         uses: actions/upload-artifact@v4
         with:
           name: results-gpu
-          path: mosaic/benchmarks/results/
+          path: mosaic-results/
 
   # ── Run CPU solvers ────────────────────────────────────────────────────
   run-cpu:
@@ -148,12 +151,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
+          enable-cache: true
 
       - name: Install Mosaic
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Run CPU solvers
         run: |
@@ -163,14 +166,14 @@ jobs:
           if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
           if [[ "$SUITES" != "all" ]]; then ARGS="$ARGS --suites $SUITES"; fi
 
-          mosaic run-all $ARGS --hardware cpu
+          uv run mosaic run $ARGS --hardware cpu
         timeout-minutes: 240
 
       - name: Upload CPU results
         uses: actions/upload-artifact@v4
         with:
           name: results-cpu
-          path: mosaic/benchmarks/results/
+          path: mosaic-results/
 
   # ── Merge results, report, publish ─────────────────────────────────────
   report:
@@ -181,25 +184,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
+          enable-cache: true
 
       - name: Install Mosaic
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Download GPU results
         uses: actions/download-artifact@v4
         with:
           name: results-gpu
-          path: mosaic/benchmarks/results/
+          path: mosaic-results/
         continue-on-error: true
 
       - name: Download CPU results
         uses: actions/download-artifact@v4
         with:
           name: results-cpu
-          path: mosaic/benchmarks/results/
+          path: mosaic-results/
         continue-on-error: true
 
       - name: Fetch baseline snapshot from results branch
@@ -215,7 +218,7 @@ jobs:
           echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Generate status snapshot (JSON)
-        run: mosaic status --format json > snapshot.json
+        run: uv run mosaic status --format json > snapshot.json
 
       - name: Generate status report (markdown)
         run: |
@@ -223,14 +226,14 @@ jobs:
           if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
             DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
           fi
-          mosaic status --format md $DIFF_FLAG > status-report.md
+          uv run mosaic status --format md $DIFF_FLAG > status-report.md
 
       - name: Upload merged results artifact
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results-${{ github.sha }}
           path: |
-            mosaic/benchmarks/results/
+            mosaic-results/
             snapshot.json
             status-report.md
           retention-days: 90
@@ -274,14 +277,14 @@ jobs:
           mkdir -p "$DEST"
           cp snapshot.json "$DEST/"
           cp status-report.md "$DEST/"
-          cp -r mosaic/benchmarks/results/* "$DEST/" 2>/dev/null || true
+          cp -r mosaic-results/* "$DEST/" 2>/dev/null || true
 
           # Update latest with full results (consumed by docs workflow)
           rm -rf latest
           mkdir -p latest
           cp snapshot.json latest/
           cp status-report.md latest/
-          cp -r mosaic/benchmarks/results/* latest/ 2>/dev/null || true
+          cp -r mosaic-results/* latest/ 2>/dev/null || true
 
           git add .
           git commit -m "Benchmark results for ${SHORT_SHA}

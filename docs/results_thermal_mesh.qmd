@@ -1,0 +1,710 @@
+---
+title: Heat Conduction
+---
+
+> Auto-generated 2026-05-06 19:23 UTC &nbsp;·&nbsp; 42 plots
+
+Quasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks y-symmetry and drives topology optimisation toward non-trivial branching structures. Also supports source-identification experiments: recover the volumetric heat source f(x) from temperature observations via the identification_error = ||T − T_target||² objective.
+
+::: {.callout-note title='Boundary conditions'}
+
+Quasi-2D heated slab on domain [0,2]×[0,1] (nz=1 HEX8 layer). Dirichlet: all nodes at x=0 held at T=0 (fixed temperature). Neumann (uniform): uniform heat flux Q_total over the right face (x=2). Neumann (hot-spot): flux concentrated on the central 1/3 stripe in y (Ly/3 ≤ y ≤ 2Ly/3) at the right face, driving non-trivial topology.
+
+:::
+
+## Initial Conditions
+
+Visualisation of each initial condition available for this problem. IC plots are generated without running any solver.
+
+### Gaussian Source
+
+Gaussian heat source centred at (cx·Lx, cy·Ly) = (0.5·Lx, 0.5·Ly) with width σ·min(Lx,Ly). Used as the control field for source-identification experiments (ic_field='source' in physics dict).
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/thermal-mesh/ics/gaussian_source/ic.png){.lightbox}
+
+### Random
+
+Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); breaks spatial symmetry to produce non-trivial per-cell gradient sensitivity maps.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/thermal-mesh/ics/random/ic.png){.lightbox}
+
+### Uniform
+
+Uniform SIMP thermal conductivity density ρ₀ over all hex mesh elements; standard homogeneous starting point for heat-conduction topology optimisation.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/thermal-mesh/ics/uniform/ic.png){.lightbox}
+
+## Forward
+
+Forward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.
+
+### Agreement
+
+Near-void contrast test: thermal compliance vs element density ρ₀ sweeping from near-void (ρ=0.01) to near-solid (ρ=0.95). SIMP p=3 creates orders-of-magnitude conductivity contrast; FV and FEM handle near-void channels differently.
+
+Thermal compliance C vs uniform element density ρ₀ ∈ [0.01, 0.95] at N=16. C ∝ ρ⁻³ due to SIMP (p=3); near-void (ρ→0) divergence between FV harmonic-mean and FEM Galerkin conductivity is the key discriminator. Log scale recommended.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `rho_0` ∈ {0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95}
+
+```json
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "sweep": {
+    "key": "rho_0",
+    "values": [
+      0.05,
+      0.1,
+      0.2,
+      0.4,
+      0.6,
+      0.8,
+      0.95
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/forward/agreement/curves.png){.lightbox}
+![](../mosaic-results/thermal-mesh/forward/agreement/errors.png){.lightbox}
+
+### Baseline
+
+FV vs FEM discretisation divergence: thermal compliance vs mesh resolution N with heterogeneous random density. Non-uniform ρ stresses FV harmonic-mean vs FEM Galerkin conductivity interpolation; phase transition visible at coarse N.
+
+Thermal compliance C vs mesh resolution N (nx=2,3,4,6,8,12,16,24; ny=nx//2; nz=1) with random density ρ~N(0.5,0.3) clipped to [0.05,0.95]. FV solvers diverge from FEM at coarse N due to harmonic-mean vs Galerkin conductivity interpolation; gap closes as O(h) with refinement. N=2–4 is the phase-transition regime.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `N` ∈ {2, 3, 4, 6, 8, 12, 16, 24}
+
+```json
+{
+  "ic": {
+    "name": "random",
+    "seed": 0
+  },
+  "physics": {
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      2,
+      3,
+      4,
+      6,
+      8,
+      12,
+      16,
+      24
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/forward/baseline/curves.png){.lightbox}
+![](../mosaic-results/thermal-mesh/forward/baseline/convergence.png){.lightbox}
+
+### Physical Laws
+
+C ∝ Q² scaling law with hot-spot BC. Uniform flux would be trivially symmetric; hot-spot (central 1/3 stripe) breaks y-symmetry and tests flux-area handling.
+
+Thermal compliance C vs total heat flux Q_total at fixed N=16, ρ₀=0.5, hot_spot=True. For a linear system C ∝ Q² (log-log slope 2.0). Hot-spot BC concentrates flux on central 1/3 stripe in y, breaking symmetry; deviations across solvers reveal errors in Neumann mask handling or compliance integral.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `Q_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
+
+```json
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "N": 16,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "hot_spot": true
+  },
+  "sweep": {
+    "key": "Q_total",
+    "values": [
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/forward/physical_laws/physical_laws.png){.lightbox}
+
+### Source Baseline
+
+Resolution convergence for source identification: temperature field L2 error vs N with a Gaussian source. Uses ic_field='source' so the IC is the heat-source field rather than the density.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `N` ∈ {4, 6, 8, 12, 16, 24}
+
+```json
+{
+  "ic": {
+    "name": "gaussian_source"
+  },
+  "physics": {
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "ic_field": "source"
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      4,
+      6,
+      8,
+      12,
+      16,
+      24
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/forward/source_baseline/curves.png){.lightbox}
+![](../mosaic-results/thermal-mesh/forward/source_baseline/errors.png){.lightbox}
+
+### Source Linearity
+
+Linearity check: T(α·f) = α·T(f). Sweep source amplitude α. For a linear PDE the temperature scales linearly with the source amplitude.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `amplitude` ∈ {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}
+
+```json
+{
+  "ic": {
+    "name": "gaussian_source"
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "ic_field": "source"
+  },
+  "sweep": {
+    "key": "amplitude",
+    "values": [
+      0.1,
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/forward/source_linearity/curves.png){.lightbox}
+![](../mosaic-results/thermal-mesh/forward/source_linearity/errors.png){.lightbox}
+
+## Gradient
+
+Gradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.
+
+### Finite-Difference Check
+
+FD gradient check vs analytic VJP at nominal mesh and heat flux.
+
+U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "random",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 8,
+    "ny": 4,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "fd": {
+    "eps_values": [
+      1.0,
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 6
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/gradient/fd_check/fd_check.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/fd_check/gradient_fields.png){.lightbox}
+
+### Parameter Sweep
+
+Gradient quality vs element density ρ₀ at fixed mesh.
+
+Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `rho_0` ∈ {0.1, 0.2, 0.4, 0.6, 0.8}
+
+```json
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 8,
+    "ny": 4,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "fd": {
+    "eps_values": [
+      1.0,
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 6
+  },
+  "sweep": {
+    "key": "rho_0",
+    "values": [
+      0.1,
+      0.2,
+      0.4,
+      0.6,
+      0.8
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/gradient/param_sweep/error_vs_param.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/param_sweep/param_sweep.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/param_sweep/ucurves.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+
+### Differentiability Table
+
+FD differentiability check for all array inputs and outputs.
+
+Differentiability table: status (ok/fail/not_differentiable) and relative FD error for each (input field, output field) pair. rho is the primary differentiable input; hex_mesh and boundary_conditions are non-differentiable structs.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "random",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 4,
+    "ny": 2,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "fd": {
+    "eps": 0.001,
+    "n_dirs": 1
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/gradient/differentiability_table/differentiability_table.png){.lightbox}
+
+### Jacobian Svd
+
+Jacobian SVD and gradient subspace analysis at nominal mesh.
+
+Singular-value spectrum of the stacked per-solver gradient matrix and pairwise cosine similarity between JAX-FEM and FEniCS gradient directions for the thermal compliance objective. Near-unity cosine confirms consistent adjoint implementations; spectrum reveals dominant sensitivity modes of the density field.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "random",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 8,
+    "ny": 4,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "jacobian": {
+    "n_alphas": 21,
+    "alpha_range": 0.2
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/gradient/jacobian_svd/gradient_fields.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/jacobian_svd/jacobian_svd.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/jacobian_svd/landscape.png){.lightbox}
+
+### Source Fd Check
+
+FD gradient check of d(identification_error)/d(source) at nominal mesh. Uses ic_field='source' and output_key='identification_error'.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "gaussian_source"
+  },
+  "ic_key": "source",
+  "output_key": "identification_error",
+  "physics": {
+    "nx": 8,
+    "ny": 4,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "target_from_two_gaussians": true,
+    "ic_field": "source"
+  },
+  "fd": {
+    "eps_values": [
+      1.0,
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 6
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/gradient/source_fd_check/fd_check.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/source_fd_check/gradient_fields.png){.lightbox}
+
+### Source Width Sweep
+
+Gradient quality vs source localisation σ. Phase transition: FEM/FD disagree as source narrows below element size.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `sigma` ∈ {0.05, 0.1, 0.2, 0.3, 0.5}
+
+```json
+{
+  "ic": {
+    "name": "gaussian_source"
+  },
+  "ic_key": "source",
+  "output_key": "identification_error",
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "rho_0": 0.5,
+    "target_from_two_gaussians": true,
+    "ic_field": "source"
+  },
+  "fd": {
+    "eps_values": [
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 4
+  },
+  "sweep": {
+    "key": "sigma",
+    "values": [
+      0.05,
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "ic_sweep": true
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/gradient/source_width_sweep/error_vs_param.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/source_width_sweep/param_sweep.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/source_width_sweep/ucurves.png){.lightbox}
+![](../mosaic-results/thermal-mesh/gradient/source_width_sweep/best_eps_vs_param.png){.lightbox}
+
+## Optimization
+
+Optimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.
+
+### Conductivity Recovery
+
+Recover a two-Gaussian conductivity field from temperature observations. Optimises rho (SIMP density, clipped to [x_min, 1]) to minimise identification_error = ||T(rho) - T_target||². Target temperature is produced by forward-solving with a two-Gaussian ground-truth conductivity at uniform zero volumetric source (driven by Neumann BC only).
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "Q_total": 1.0,
+    "compliance_key": "identification_error",
+    "penalty_weight": 0.0,
+    "x_min": 0.001,
+    "snap_interval": 20,
+    "target_rho_from_two_gaussians": true
+  },
+  "optim": {
+    "lr": 0.01,
+    "max_iters": 2000,
+    "patience": 200
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_convergence.png){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_evolution_dealii_heat.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_evolution_fenics_heat.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_evolution_firedrake_heat.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_evolution_jax_fem.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_evolution_torch_fem_thermal.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery/conductivity_recovery_fields.png){.lightbox}
+
+### Conductivity Recovery Bfgs
+
+Recover a two-Gaussian conductivity field with L-BFGS. Same setup as conductivity_recovery but using L-BFGS with zoom line search.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "Q_total": 1.0,
+    "compliance_key": "identification_error",
+    "penalty_weight": 0.0,
+    "x_min": 0.001,
+    "snap_interval": 10,
+    "target_rho_from_two_gaussians": true
+  },
+  "optim": {
+    "max_iters": 200,
+    "patience": 30
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_convergence.png){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_evolution_fenics_heat.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_evolution_firedrake_heat.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_evolution_jax_fem.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_evolution_torch_fem_thermal.gif){.lightbox}
+![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_fields.png){.lightbox}
+
+## Cost
+
+Wall-clock cost scaling with problem size N and number of integration steps.
+
+Wall-clock and memory profiling vs mesh size for all solvers.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+**Spatial Cost**
+
+Sweeps N ∈ {16, 32, 64, 128, 256, 512, 1024, 2048, 4500}
+
+```json
+{
+  "physics": {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0,
+    "rho_0": 0.5
+  },
+  "cost": {
+    "N_values": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4500
+    ],
+    "n_trials": 3
+  }
+}
+```
+
+**Vjp Cost**
+
+Sweeps N ∈ {16, 32, 64, 128, 256, 512, 1024, 2048, 4500}
+
+```json
+{
+  "physics": {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0,
+    "rho_0": 0.5
+  },
+  "cost": {
+    "N_values": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4500
+    ],
+    "n_trials": 3
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/thermal-mesh/cost/cost.png){.lightbox}

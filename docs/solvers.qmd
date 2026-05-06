@@ -2,7 +2,7 @@
 title: Solver Reference
 ---
 
-> Auto-generated 2026-05-06 10:31 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 80 differentiable fields
+> Auto-generated 2026-05-06 22:46 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 80 differentiable fields
 
 Each solver card shows its numerical scheme, AD strategy, known limitations, and Tesseract schema. Click **Inputs / Outputs** on any solver to expand its field tables. The ∂ column marks fields that support automatic differentiation (VJP/JVP).
 
@@ -71,6 +71,13 @@ IncompressibleNavierStokes.jl: Julia finite-difference pressure-projection solve
 - Brinkman penalization incompatible with spectral pressure solve. Excluded from drag optimization.
 :::
 
+::: {.callout-note}
+#### Excluded experiments
+
+- **forward/cylinder**: no IBM or volume penalization — the cylinder obstacle cannot be represented in INS.jl; spectral/LU pressure projection is also periodic-only and incompatible with obstacle channel BCs
+- **optimization/drag_opt**: no IBM or volume penalization — the cylinder obstacle cannot be represented; inflow_profile VJP works only in periodic/channel mode without obstacles
+:::
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -120,7 +127,7 @@ JAX-native incompressible flow solver on a staggered MAC grid with finite-differ
 #### Excluded experiments
 
 - **forward/cylinder**: tesseract uses periodic FFT pressure solve + IBM volume penalization; channel-BC cylinder flow requires a non-periodic pressure solve that is not wired in this benchmark
-- **recovery/drag_opt**: periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs (same root cause as forward/cylinder)
+- **optimization/drag_opt**: periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs (same root cause as forward/cylinder)
 :::
 
 ::: {.callout-note collapse="true"}
@@ -201,7 +208,7 @@ Runs the icoFoam incompressible PISO solver as a forward-only reference baseline
 
 ### PhiFlow
 
-**Scheme:** differential advection + projection &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+**Scheme:** semi-Lagrangian + projection &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Hybrid (analytic rules + AD) &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
 
 **Upstream docs:** [https://tum-pbs.github.io/PhiFlow/](https://tum-pbs.github.io/PhiFlow/)
 
@@ -210,12 +217,6 @@ Runs the icoFoam incompressible PISO solver as a forward-only reference baseline
 Semi-Lagrangian advection with pressure projection. Supports PyTorch, JAX, and TensorFlow backends, enabling gradient computation through the same simulation code across AD frameworks.
 
 **Wrapping:** Pure JAX: PhiFlow's JAX backend is selected at import time. The simulation loop runs as a traced JAX function; VJP via ``jax.vjp``.
-
-::: {.callout-note}
-#### Excluded experiments
-
-- **cost/temporal_cost**: CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed — pending re-run to confirm resolved
-:::
 
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
@@ -291,7 +292,7 @@ GPU-accelerated differentiable incompressible Navier–Stokes solver built on Py
 
 ### Warp-NS
 
-**Scheme:** IPCS (3D), wp.Tape VJP &nbsp;·&nbsp; **Language:** warp &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
+**Scheme:** IPCS (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP &nbsp;·&nbsp; **Language:** warp &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float32 &nbsp;·&nbsp; **GPU:** Yes
 
 **Upstream docs:** [https://github.com/NVIDIA/warp](https://github.com/NVIDIA/warp)
 
@@ -305,6 +306,13 @@ Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels with an FFT-ba
 #### Known limitations
 
 - Spectral pressure solve requires periodic boundary conditions. Excluded from channel/cylinder-wake experiments.
+:::
+
+::: {.callout-note}
+#### Excluded experiments
+
+- **forward/cylinder**: FFT spectral Poisson is periodic-only; obstacle channel BCs are method-incompatible
+- **optimization/drag_opt**: wp.Tape does not differentiate through the CG+Neumann obstacle pressure solve; drag gradient is zero, optimizer makes no progress
 :::
 
 ::: {.callout-note collapse="true"}
@@ -338,7 +346,7 @@ Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels with an FFT-ba
 
 ### XLB
 
-**Scheme:** LBM KBC/BGK D3Q27 &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** Yes
+**Scheme:** LBM BGK/KBC D2Q9 &nbsp;·&nbsp; **Language:** jax &nbsp;·&nbsp; **Gradients:** Reverse-mode AD &nbsp;·&nbsp; **Precision:** float64 &nbsp;·&nbsp; **GPU:** Yes
 
 **Upstream docs:** [https://github.com/Autodesk/XLB](https://github.com/Autodesk/XLB)
 
@@ -394,6 +402,12 @@ JAX-native lattice Boltzmann solver supporting D2Q9 and D3Q19 stencils on GPU. G
 Solves structural problems with Q1 elements using the industry-grade C++ finite-element library deal.II. Gradients via hand-derived analytical adjoint sensitivities. Used as the reference solver for structural and thermal domains.
 
 **Wrapping:** C++ subprocess: deal.II solver compiled as a shared library, called via ctypes. VJP via hand-derived analytical adjoint sensitivities in C++.
+
+::: {.callout-note}
+#### Excluded experiments
+
+- **optimization**: deal.II self-adjoint SIMP gradient only supports ∂C/∂ρ; volume-fraction projection and optimizer loop not supported in C++ subprocess interface
+:::
 
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
@@ -572,6 +586,7 @@ Solves thermal problems with Q1 elements using the industry-grade C++ finite-ele
 #### Excluded experiments
 
 - **recovery/conductivity_recovery**: identification_error_rho_vjp_not_implemented
+- **optimization**: deal.II self-adjoint gradient only supports ∂thermal_compliance/∂ρ; identification_error VJP not implemented in C++ subprocess interface
 :::
 
 ::: {.callout-note collapse="true"}

@@ -127,9 +127,9 @@ The CLI exposes four suites, each running a set of experiments:
 
 | Suite | CLI command | Experiments | What it measures |
 |:------|:-----------|:------------|:-----------------|
-| **forward** | `mosaic forward` | `baseline`, `agreement`, `physical_laws` | Forward accuracy vs. reference and analytic solutions |
-| **cost** | `mosaic cost` | `spatial_cost`, `temporal_cost`, `vjp_cost` | Wall-clock scaling with problem size |
-| **gradient** | `mosaic gradient` | `fd_check`, `param_sweep`, `jacobian_svd` | Gradient correctness and conditioning |
-| **optimization** | `mosaic recovery` | domain-specific (e.g. `recovery`, `drag_opt`, `topopt`) | End-to-end optimization convergence |
+| **forward** | `mosaic run --suites forward` | `baseline`, `agreement`, `physical_laws` | Forward accuracy vs. reference and analytic solutions |
+| **cost** | `mosaic run --suites cost` | `spatial_cost`, `temporal_cost`, `vjp_cost` | Wall-clock scaling with problem size |
+| **gradient** | `mosaic run --suites gradient` | `fd_check`, `param_sweep`, `jacobian_svd` | Gradient correctness and conditioning |
+| **optimization** | `mosaic run --suites optimization` | domain-specific (e.g. `recovery`, `drag_opt`, `topopt`) | End-to-end optimization convergence |
 
-Results are saved to `mosaic/benchmarks/results/<problem>/<suite>/` as JSON (metrics), NPZ (arrays), and PNG/PDF (plots).
+Results are saved to `mosaic-results/<problem>/<suite>/` as JSON (metrics), NPZ (arrays), and PNG/PDF (plots).

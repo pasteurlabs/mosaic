@@ -24,6 +24,25 @@ def make_build_progress() -> Progress:
     )
 
 
+def make_sweep_progress(total: int) -> Progress:
+    """Progress bar for parameter sweeps (solver x condition grid).
+
+    Shows a determinate bar with percentage, completed/total count, and elapsed
+    time.  Thread-safe — works correctly when multiple solvers run concurrently
+    in the GPU-pool parallel path.
+    """
+    from rich.progress import BarColumn, MofNCompleteColumn
+
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    )
+
+
 def print_rule(title: str) -> None:
     console.print(Rule(title))
 

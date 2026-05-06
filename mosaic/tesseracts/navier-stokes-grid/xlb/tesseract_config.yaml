@@ -29,7 +29,7 @@ build_config:
     # warp.utils in warp-lang>=1.10, but xlb 0.3.1's metadata pins warp-lang>=1.10,
     # so any install of xlb 0.3.1 explodes on `import xlb`. We don't use IBMStepper,
     # so drop that line from the stepper package's __init__.
-    - "RUN python3 -c \"import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_paths()['purelib']) / 'xlb/operator/stepper/__init__.py'; p.write_text(''.join(l for l in p.read_text().splitlines(keepends=True) if 'ibm_stepper' not in l))\""
+    - 'RUN python3 -c "import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_paths()[''purelib'']) / ''xlb/operator/stepper/__init__.py''; p.write_text(''''.join(l for l in p.read_text().splitlines(keepends=True) if ''ibm_stepper'' not in l))"'
 
 metadata:
   mosaic:

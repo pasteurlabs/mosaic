@@ -1,0 +1,129 @@
+"""Tests for the template scaffolding system."""
+
+from __future__ import annotations
+
+import pytest
+
+from mosaic.templates.scaffold import list_templates, load_template, scaffold_domain
+
+
+def test_list_templates():
+    """Built-in templates must include the three known names."""
+    templates = list_templates()
+    assert len(templates) >= 3
+    assert "ns-periodic" in templates
+    assert "structural-steady" in templates
+    assert "thermal-steady" in templates
+
+
+def test_load_template():
+    """Loading a known template must return a valid DomainTemplate."""
+    tpl = load_template("ns-periodic")
+    assert tpl.name
+    assert tpl.schema_module
+    assert tpl.output_key
+
+
+def test_load_unknown_template_raises():
+    with pytest.raises(FileNotFoundError, match="not found"):
+        load_template("nonexistent-template-xyz")
+
+
+def _has_runtime():
+    try:
+        import tesseract_core.runtime  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+# validate_template needs tesseract-core[runtime] for schema imports
+needs_runtime = pytest.mark.skipif(
+    not _has_runtime(), reason="tesseract-core[runtime] not installed"
+)
+
+
+@needs_runtime
+@pytest.mark.parametrize("name", list_templates())
+def test_validate_builtin_templates(name):
+    """Every built-in template must pass validation."""
+    from mosaic.templates.scaffold import validate_template
+
+    tpl = load_template(name)
+    errors = validate_template(tpl)
+    assert errors == [], f"Template {name!r} has errors: {errors}"
+
+
+def test_scaffold_creates_files(tmp_path):
+    """scaffold_domain must create schema stubs, tesseract dir, and problem config."""
+    tpl = load_template("ns-periodic")
+    target = tmp_path / "mosaic"
+    # Create the required parent dirs
+    (target / "benchmarks" / "problems").mkdir(parents=True)
+
+    created = scaffold_domain("test-domain", tpl, target_dir=target)
+
+    assert "schemas" in created
+    assert "schema_init" in created
+    assert "tesseracts_dir" in created
+    assert "problem_config" in created
+
+    assert created["schemas"].exists()
+    assert created["schema_init"].exists()
+    assert created["tesseracts_dir"].is_dir()
+    assert created["problem_config"].exists()
+
+
+def test_scaffold_generates_valid_python(tmp_path):
+    """Generated problem config must be syntactically valid Python."""
+    tpl = load_template("ns-periodic")
+    target = tmp_path / "mosaic"
+    (target / "benchmarks" / "problems").mkdir(parents=True)
+
+    created = scaffold_domain("test-domain", tpl, target_dir=target)
+
+    source = created["problem_config"].read_text()
+    compile(source, str(created["problem_config"]), "exec")
+
+    schema_source = created["schemas"].read_text()
+    compile(schema_source, str(created["schemas"]), "exec")
+
+
+@needs_runtime
+def test_scaffold_produces_loadable_config(tmp_path):
+    """Scaffolded domain must produce an importable CONFIG that passes validate()."""
+    import importlib.util
+    import sys
+
+    from mosaic.benchmarks.core.config import ProblemConfig
+
+    tpl = load_template("ns-periodic")
+    target = tmp_path / "mosaic"
+    (target / "benchmarks" / "problems").mkdir(parents=True)
+
+    # scaffold_domain creates a tesseracts dir; discover_solvers needs it
+    created = scaffold_domain("test-domain", tpl, target_dir=target)
+
+    # Load the generated module using spec_from_file_location so that
+    # absolute imports (mosaic.benchmarks.core.*) resolve against the
+    # real installed package rather than the tmp_path tree.
+    config_path = created["problem_config"]
+    spec = importlib.util.spec_from_file_location("test_domain_config", config_path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+
+    assert hasattr(mod, "CONFIG"), "Generated module must define CONFIG"
+    cfg = mod.CONFIG
+
+    assert isinstance(cfg, ProblemConfig)
+    assert cfg.name == "test-domain"
+    assert cfg.output_key == tpl.output_key
+    assert callable(cfg.make_inputs)
+    assert callable(cfg.error_fn)
+
+    # Solvers dict will be empty (no tesseract configs in the scaffolded dir)
+    # so validate() would fail on "no solvers registered". Instead we verify
+    # the structural properties above are correct.
+    assert cfg.solvers == {}

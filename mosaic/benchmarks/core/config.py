@@ -121,6 +121,8 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
     if not tesseract_dir.is_dir():
         return solvers
 
+    import warnings
+
     for solver_dir in sorted(tesseract_dir.iterdir()):
         config_path = solver_dir / "tesseract_config.yaml"
         if not config_path.exists():
@@ -129,13 +131,28 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             with open(config_path) as f:
                 doc = yaml.safe_load(f)
         except Exception as exc:
-            log.warning("skipping %s: %s", config_path, exc)
+            warnings.warn(
+                f"Solver discovery: cannot parse {config_path}: {exc}",
+                stacklevel=2,
+            )
             continue
         if not isinstance(doc, dict):
+            warnings.warn(
+                f"Solver discovery: {config_path} is not a YAML mapping — skipping",
+                stacklevel=2,
+            )
             continue
         metadata = doc.get("metadata") or {}
         meta = metadata.get("mosaic") if isinstance(metadata, dict) else None
         if not isinstance(meta, dict):
+            # No mosaic: block — not a Mosaic solver, skip silently
+            continue
+        if not meta.get("name"):
+            warnings.warn(
+                f"Solver discovery: {config_path} has a mosaic: block but no "
+                f"mosaic.name — skipping. Add 'name: \"My Solver\"' to the mosaic: block.",
+                stacklevel=2,
+            )
             continue
         # Build the SolverSpec from the mosaic: block.
         dir_name = solver_dir.name
@@ -153,10 +170,11 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             except Exception:
                 pass
 
+        backend = meta.get("backend", "")
         solvers[solver_key] = SolverSpec(
             dir=dir_name,
             name=meta.get("name", image_name),
-            backend=meta.get("backend", ""),
+            backend=backend,
             family=meta.get("family", ""),
             scheme=meta.get("scheme", ""),
             color=meta.get("color", "#999999"),
@@ -170,6 +188,7 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             doc_url=meta.get("doc_url", ""),
             image_tag=f"{image_name}:latest",
         )
+    log.info("Discovered %d solver(s) in %s", len(solvers), tesseract_dir)
     return solvers
 
 
@@ -331,3 +350,69 @@ class ProblemConfig:
         if isinstance(exp_def, dict):
             return exp_def.get("description", "")
         return ""
+
+    # ── Validation ────────────────────────────────────────────────────────────
+
+    def validate(self) -> None:
+        """Check that the config is well-formed.  Raises on first error."""
+        errors: list[str] = []
+        if not self.name:
+            errors.append("name is empty")
+        if not self.solvers:
+            errors.append("no solvers registered")
+        for key, spec in self.solvers.items():
+            for attr in ("name", "dir", "scheme", "backend", "color"):
+                if not getattr(spec, attr, None):
+                    errors.append(f"solver {key!r}: missing {attr}")
+        if not self.make_ic:
+            errors.append("make_ic is empty (no initial conditions)")
+        for ic_name, ic in self.make_ic.items():
+            if not callable(ic):
+                errors.append(f"make_ic[{ic_name!r}] is not callable")
+        if not callable(self.make_inputs):
+            errors.append("make_inputs is not callable")
+        if not callable(self.error_fn):
+            errors.append("error_fn is not callable")
+        if not self.tesseract_dir.is_dir():
+            errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
+
+        # Validate suite defaults structure: each experiment should be a list of run dicts
+        for suite_attr, suite_label in [
+            ("forward_defaults", "forward_defaults"),
+            ("gradient_defaults", "gradient_defaults"),
+            ("inverse_defaults", "inverse_defaults (optimization)"),
+        ]:
+            defaults = getattr(self, suite_attr)
+            for exp_name, exp_val in defaults.items():
+                # Skip metadata keys (description, plot_description, etc.)
+                if isinstance(exp_val, str):
+                    continue
+                if isinstance(exp_val, dict) and not any(
+                    k in exp_val for k in ("ic", "physics", "sweep", "fd", "optim")
+                ):
+                    # Looks like a metadata dict (e.g. {"description": "...", "plot_description": "..."})
+                    continue
+                if isinstance(exp_val, dict):
+                    errors.append(
+                        f"{suite_label}[{exp_name!r}]: expected a list of run dicts, "
+                        f"got a single dict. Wrap it in a list: [{exp_val!r}]"
+                    )
+                elif not isinstance(exp_val, list):
+                    errors.append(
+                        f"{suite_label}[{exp_name!r}]: expected a list of run dicts, "
+                        f"got {type(exp_val).__name__}"
+                    )
+
+        valid_ad = {"autodiff", "adjoint", "hybrid", None}
+        for key, spec in self.solvers.items():
+            if spec.ad_strategy not in valid_ad:
+                errors.append(
+                    f"solver {key!r}: ad_strategy={spec.ad_strategy!r} "
+                    f"not in {valid_ad}"
+                )
+
+        if errors:
+            raise ValueError(
+                f"ProblemConfig {self.name!r} validation failed:\n"
+                + "\n".join(f"  - {e}" for e in errors)
+            )

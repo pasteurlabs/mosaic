@@ -27,22 +27,26 @@ pip install -e ".[dev]"
 
 ## Evaluation protocol
 
-Suites (`-s`): `forward` (`baseline`, `agreement`, `physical_laws`), `cost` (`spatial_cost`, `temporal_cost`, `vjp_cost`), `gradient` (`fd_check`, `param_sweep`, `jacobian_svd`, `differentiability_table`), `recovery` (`recovery`, `topopt`).
+Suites (`--suites`): `forward` (`baseline`, `agreement`, `physical_laws`), `cost` (`spatial_cost`, `temporal_cost`, `vjp_cost`), `gradient` (`fd_check`, `param_sweep`, `horizon_sweep`, `jacobian_svd`, `differentiability_table`), `optimization` (`topopt`, `drag_opt`, `recovery`).
 
-Results land in `mosaic/benchmarks/results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF plots.
+Results land in `mosaic-results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF plots.
 
 ## Running benchmarks
 
 ```bash
-mosaic run-all                                    # all suites, all problems
-mosaic run-all --problems ns-grid,structural-mesh # filter problems
-mosaic run-all --suites forward,gradient          # filter suites
-mosaic run-all --no-build                         # skip container builds
+mosaic run                                        # all suites, all problems
+mosaic run --problems ns-grid,structural-mesh     # filter problems
+mosaic run --suites forward,gradient              # filter suites
+mosaic run --no-build                             # skip container builds
+mosaic run --plots-only                           # regenerate plots from existing results
 
-mosaic forward  -p <problem> [-e agreement] [--no-build] [--no-plots] [--plots-only]
-mosaic cost     -p <problem>
-mosaic gradient -p <problem>
-mosaic recovery -p <problem>
+mosaic run -p <problem> --suites forward          # forward accuracy
+mosaic run -p <problem> --suites cost             # wall-clock scaling
+mosaic run -p <problem> --suites gradient         # gradient quality
+mosaic run -p <problem> --suites optimization     # optimization convergence
+
+mosaic paper-plots                                # generate all paper figures
+mosaic paper-plots --only scaling,fd_check        # specific figures only
 ```
 
 ## Solver backends

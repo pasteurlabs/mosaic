@@ -609,9 +609,14 @@ def main() -> None:
     new_qmd = generate_qmd(categories)
 
     if check_mode:
-        if OUTPUT.exists() and OUTPUT.read_text() == new_qmd:
-            print("docs/solvers.qmd is up to date.")
-            return
+        if OUTPUT.exists():
+            # Strip the volatile auto-generated timestamp line before comparing.
+            ts_re = re.compile(r"^> Auto-generated .+$", re.MULTILINE)
+            old = ts_re.sub("", OUTPUT.read_text())
+            new = ts_re.sub("", new_qmd)
+            if old == new:
+                print("docs/solvers.qmd is up to date.")
+                return
         sys.exit(
             "docs/solvers.qmd is stale. Run `python docs/generate.py` to regenerate."
         )

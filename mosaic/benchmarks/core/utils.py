@@ -667,6 +667,30 @@ def experiment_dir(
     return d
 
 
+def _environment_metadata() -> dict:
+    """Gather environment metadata for result provenance tracking.
+
+    Imports are deferred to avoid module-level overhead.
+    """
+    import platform as _platform
+    from datetime import datetime, timezone
+
+    version = "unknown"
+    try:
+        from importlib.metadata import version as _pkg_version
+
+        version = _pkg_version("mosaic-bench")
+    except Exception:
+        pass
+
+    return {
+        "python_version": _platform.python_version(),
+        "platform": _platform.platform(),
+        "mosaic_version": version,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def save_experiment(
     result: dict,
     out_dir: Path,
@@ -944,6 +968,10 @@ def save_experiment(
             ):
                 prior = {**existing["wall_time_s"], **prior}
             result["wall_time_s"] = {**prior, **wall_time_s}
+
+        # Environment metadata: set on initial save, preserve on merge.
+        if isinstance(result, dict) and "environment" not in result:
+            result["environment"] = _environment_metadata()
 
         save_json(result, result_path)
         if "params" in result:

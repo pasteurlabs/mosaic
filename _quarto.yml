@@ -4,8 +4,11 @@ project:
   render:
     - docs/index.qmd
     - docs/getting-started.qmd
+    - docs/standalone.qmd
     - docs/architecture.qmd
     - docs/solvers.qmd
+    - docs/tutorial-add-solver.qmd
+    - docs/tutorial-add-domain.qmd
     - docs/results_*.qmd
 
 website:
@@ -18,14 +21,24 @@ website:
         file: docs/index.qmd
       - text: Getting Started
         file: docs/getting-started.qmd
+      - text: Standalone Usage
+        file: docs/standalone.qmd
       - text: Architecture
         file: docs/architecture.qmd
       - text: Solver Reference
         file: docs/solvers.qmd
+      - text: Contributing
+        menu:
+          - text: "Add a Solver (Tutorial)"
+            file: docs/tutorial-add-solver.qmd
+          - text: "Add a Domain (Tutorial)"
+            file: docs/tutorial-add-domain.qmd
       - text: Results
         menu:
-          - text: "Navier\u2013Stokes (2D & 3D)"
+          - text: "Navier\u2013Stokes (2D)"
             file: docs/results_ns_grid.qmd
+          - text: "Navier\u2013Stokes (3D)"
+            file: docs/results_ns_3d_grid.qmd
           - text: Structural Mechanics
             file: docs/results_structural_mesh.qmd
           - text: Heat Conduction

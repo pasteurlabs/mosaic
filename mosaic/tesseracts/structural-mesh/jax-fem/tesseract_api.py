@@ -26,6 +26,8 @@ data_dir = os.path.join(crt_file_path, "data")
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     pass
+
+
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
     pass
 

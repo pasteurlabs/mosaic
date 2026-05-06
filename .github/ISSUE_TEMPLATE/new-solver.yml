@@ -1,0 +1,56 @@
+name: New solver
+description: Propose or discuss adding a new solver backend to an existing domain.
+labels: ["solver"]
+body:
+  - type: input
+    id: domain
+    attributes:
+      label: Benchmark domain
+      description: Which domain does this solver target?
+      placeholder: "e.g. ns-grid, thermal-mesh, structural-mesh"
+    validations:
+      required: true
+  - type: input
+    id: solver
+    attributes:
+      label: Solver name / library
+      placeholder: "e.g. Taichi-CFD, MFEM, ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend / language
+      options:
+        - jax
+        - pytorch
+        - julia
+        - cpp
+        - warp
+        - fenics
+        - firedrake
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: differentiable
+    attributes:
+      label: Provides VJP (reverse-mode gradient)?
+      options:
+        - "yes"
+        - "no"
+        - "not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Brief description of the solver, its numerical scheme, and how it computes gradients (if applicable).
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Links, known limitations, GPU requirements, etc.

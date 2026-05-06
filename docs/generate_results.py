@@ -13,14 +13,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = ROOT / "mosaic" / "benchmarks" / "results"
+RESULTS_DIR = ROOT / "mosaic-results"
 OUTPUT_DIR = Path(__file__).resolve().parent  # docs/
 
-# Relative path from docs/results_*.qmd to mosaic/benchmarks/results/
-_IMG_BASE = "../mosaic/benchmarks/results"
+# Relative path from docs/results_*.qmd to mosaic-results/
+_IMG_BASE = "../mosaic-results"
 
 # Suite traversal order
-_SUITE_ORDER = ["ics", "forward", "gradient", "recovery", "cost"]
+_SUITE_ORDER = ["ics", "forward", "gradient", "optimization", "cost"]
 
 # Experiment traversal order within each suite
 _EXPERIMENT_ORDER = [
@@ -91,7 +91,7 @@ SUITE_LABELS = {
     "ics": "Initial Conditions",
     "forward": "Forward",
     "gradient": "Gradient",
-    "recovery": "Recovery",
+    "optimization": "Optimization",
     "cost": "Cost",
 }
 
@@ -108,9 +108,9 @@ SUITE_DESCRIPTIONS = {
         "Gradient benchmarks: finite-difference checks and gradient quality "
         "(magnitude, direction cosine) across parameter, resolution, and horizon sweeps."
     ),
-    "recovery": (
-        "Inverse-problem benchmarks: gradient-based recovery of initial conditions "
-        "or physical parameters from final-state observations."
+    "optimization": (
+        "Optimization benchmarks: gradient-based recovery of initial conditions "
+        "or physical parameters, topology optimization, and drag minimization."
     ),
     "cost": (
         "Wall-clock cost scaling with problem size N and number of integration steps."

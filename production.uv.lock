@@ -17,6 +17,12 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[manifest]
+members = [
+    "mosaic-bench",
+    "mosaic-shared",
+]
+
 [[package]]
 name = "absl-py"
 version = "2.4.0"
@@ -1385,14 +1391,14 @@ wheels = [
 
 [[package]]
 name = "markdown-it-py"
-version = "4.0.0"
+version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mdurl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/f5/4ec618ed16cc4f8fb3b701563655a69816155e79e24a17b651541804721d/markdown_it_py-4.0.0.tar.gz", hash = "sha256:cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3", size = 73070 }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/5c/f3aedc83549aae71cd52b9e9687fe896e3dc6e966ba20eba04718605d198/markdown_it_py-4.1.0.tar.gz", hash = "sha256:760e3f87b2787c044c5138a5ba107b7c2be26c03b13cc7f8fe42756b65b1df6c", size = 81613 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl", hash = "sha256:87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147", size = 87321 },
+    { url = "https://files.pythonhosted.org/packages/a8/88/802c82060c54bc7dde21eb0033e337838b8181a1323254aa9ec41cbfc3d1/markdown_it_py-4.1.0-py3-none-any.whl", hash = "sha256:d4939a62a2dd0cd9cb80a191a711ba1d39bac8ed5ef9e9966895b0171c01c46d", size = 90955 },
 ]
 
 [[package]]
@@ -1645,12 +1651,6 @@ name = "mosaic-bench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "rich" },
-    { name = "typer" },
-]
-
-[package.optional-dependencies]
-dev = [
     { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "jax", version = "0.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "matplotlib" },
@@ -1659,31 +1659,56 @@ dev = [
     { name = "optax" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pre-commit" },
     { name = "psutil" },
-    { name = "pytest" },
-    { name = "ruff" },
+    { name = "pyyaml" },
+    { name = "rich" },
     { name = "tesseract-core", extra = ["runtime"] },
     { name = "tesseract-jax" },
+    { name = "typer" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mosaic-shared" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "jax", extras = ["cpu"], marker = "extra == 'dev'" },
-    { name = "matplotlib", marker = "extra == 'dev'" },
-    { name = "numpy", marker = "extra == 'dev'" },
-    { name = "optax", marker = "extra == 'dev'" },
-    { name = "pandas", marker = "extra == 'dev'" },
+    { name = "jax", extras = ["cpu"] },
+    { name = "matplotlib" },
+    { name = "mosaic-shared", marker = "extra == 'dev'", editable = "mosaic/mosaic_shared" },
+    { name = "numpy" },
+    { name = "optax" },
+    { name = "pandas" },
     { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "psutil", marker = "extra == 'dev'" },
+    { name = "psutil" },
     { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pyyaml" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "tesseract-core", extras = ["runtime"], marker = "extra == 'dev'" },
-    { name = "tesseract-jax", marker = "extra == 'dev'" },
+    { name = "tesseract-core", extras = ["runtime"] },
+    { name = "tesseract-jax" },
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "mosaic-shared"
+version = "0.1.0"
+source = { editable = "mosaic/mosaic_shared" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "tesseract-core", extra = ["runtime"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic" },
+    { name = "tesseract-core", extras = ["runtime"] },
+]
 
 [[package]]
 name = "multidict"
@@ -3324,7 +3349,7 @@ wheels = [
 
 [[package]]
 name = "tesseract-core"
-version = "1.8.1"
+version = "1.8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
@@ -3340,9 +3365,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/18/a9/889bb2255607975ba844e6bbb138b6b9b330791ccbf4f034a6302e77e6ed/tesseract_core-1.8.1.tar.gz", hash = "sha256:0aef504ae5592d1e29c5d9748b74017fa1aaa1c92efb3fbc13c48a4816cc1b5a", size = 1310736 }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/06/b25fc3bee4fb9ef4cac84bebb639fc21fa9cccfefd492255ee13923abd14/tesseract_core-1.8.2.tar.gz", hash = "sha256:927941230ea8f0e8234d4e81e06155edb60ccc4d9f74f055c1354212f41e2f43", size = 1310798 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/b3/ce3f2c2299a9777cedb1bddb45237d50cab7e8124d2e4cfc1925825c8a1d/tesseract_core-1.8.1-py3-none-any.whl", hash = "sha256:9014788d73447f3d0d3f532918c7f1e04d76c9f64229e05dfb7713c3b5b3fe54", size = 138490 },
+    { url = "https://files.pythonhosted.org/packages/f2/d6/083c03c5ae09d3d8eee573904c1c86be671a7a1c010d6f71be3be22ea62b/tesseract_core-1.8.2-py3-none-any.whl", hash = "sha256:55242d5bf1500a36c782e38c211d31be273f1d332b1dcda0d1c18d386d8f59ff", size = 138535 },
 ]
 
 [package.optional-dependencies]
@@ -3364,16 +3389,16 @@ runtime = [
 
 [[package]]
 name = "tesseract-jax"
-version = "0.2.0"
-source = { registry = "https://pkgs.dev.azure.com/pasteur-labs/d89796ea-4a5b-48aa-9930-4cebcdc9d64a/_packaging/internal/pypi/simple" }
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "jax", version = "0.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "tesseract-core" },
 ]
-sdist = { url = "https://pkgs.dev.azure.com/pasteur-labs/d89796ea-4a5b-48aa-9930-4cebcdc9d64a/_packaging/ccb301cc-5e0c-4a98-abde-e0dd2632af61/pypi/download/tesseract-jax/0.2/tesseract_jax-0.2.0.tar.gz", hash = "sha256:77ab315e658a1b4405bb8dade9f19bee73a072d5b67f8827044a03fbf4475242" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/99/74e978e0878324e5eb3238f3072718757d148c7861e02c7c9334363ba1fb/tesseract_jax-0.3.0.tar.gz", hash = "sha256:991c20bb205df7db14dbdd6ddf1f05e9e7637d2ee593ec2e8b8a76074345e6af", size = 42219 }
 wheels = [
-    { url = "https://pkgs.dev.azure.com/pasteur-labs/d89796ea-4a5b-48aa-9930-4cebcdc9d64a/_packaging/ccb301cc-5e0c-4a98-abde-e0dd2632af61/pypi/download/tesseract-jax/0.2/tesseract_jax-0.2.0-py3-none-any.whl", hash = "sha256:b3aa0c90446453e50af6d199b1f4533311ff601cd53806490fa70b013733fddb" },
+    { url = "https://files.pythonhosted.org/packages/0a/45/2146b322612760795f8543fb41bba4279507b823c41b9c7b11496af6656c/tesseract_jax-0.3.0-py3-none-any.whl", hash = "sha256:1a8825dfec38113bda481dcfdc8345121b5b50e2ca2266ef033e5c7695adbdb3", size = 28398 },
 ]
 
 [[package]]
