@@ -14,7 +14,6 @@ description: |
          u* = u + dt·(−u·∇u + ν∇²u)          (tentative velocity)
          ∇²p = ∇·u* / dt                        (pressure Poisson)
          u^(n+1) = u* − dt·∇p                   (velocity correction)
-       Lid-driven cavity mode via lid_velocity input (top z-face BC).
        VJP via wp.Tape on the full time loop.
 
   Jacobi iteration counts:
@@ -27,8 +26,7 @@ description: |
   Interface:
     Inputs : v0 (N,N,1,2 for 2-D or N,N,N,3 for 3-D), viscosity (1,),
              dt (1,), steps (int), domain_extent (float),
-             boundary_conditions (GridBC), obstacle (GridObstacle|None),
-             lid_velocity (Array[(N,N,2)]|None)
+             boundary_conditions (GridBC), obstacle (GridObstacle|None)
     Outputs: result (same shape as v0), drag (1,) when obstacle present else None
 
 build_config:

@@ -813,7 +813,6 @@ _VAR_DISPLAY: dict[str, str] = {
     "viscosity": r"$\nu$",
     "dt": r"$\Delta t$",
     "inflow_profile": r"inflow",
-    "lid_velocity": r"lid",
     "rho": r"$\rho$",
     "source": r"src",
 }

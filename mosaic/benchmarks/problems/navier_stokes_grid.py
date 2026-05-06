@@ -206,7 +206,7 @@ _SOLVERS: dict[str, SolverSpec] = {
             "operators (xlb 0.3.1) inside a jax.lax.scan time loop; incompressibility "
             "recovered in the low-Mach limit. "
             "VJP flows through the full scan unroll in float64 precision and is routed "
-            "per diff-input key (v0, viscosity, dt, inflow_profile, lid_velocity). "
+            "per diff-input key (v0, viscosity, dt, inflow_profile). "
             "Both apply() and vjp_jit() run in float64 internally (output cast to "
             "float32) to avoid float32 quantization noise at fine ε (omega≈2 at low "
             "viscosity). FD cosine ≥0.9999 at ε=1.0."

@@ -272,7 +272,7 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
                     )
                 break
 
-        # Numeric-keyed sweep dict (e.g. lid_cavity by_sweep structure):
+        # Numeric-keyed sweep dict structure:
         # {float_val: {"losses": [...], "final_loss": float, "initial_loss": float}}.
         # The top-level trajectory keys above won't match (keys are floats), so
         # check each sub-entry explicitly.  If ALL non-trivial sub-entries
@@ -652,8 +652,8 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
     """Flag recovery solvers whose final_error / initial_error exceeds
     ``max_final_ratio``. Walks both ``by_solver`` and ``by_sweep`` layouts.
 
-    Also supports ``peer_final_loss_k`` for numeric-sweep experiments (e.g.
-    lid_cavity): for each sweep value, flag any OK solver whose final_loss is
+    Also supports ``peer_final_loss_k`` for numeric-sweep experiments: for
+    each sweep value, flag any OK solver whose final_loss is
     more than K× the minimum final_loss across all solvers with finite results
     at that value.  Both categorically-excluded and non-excluded solvers are
     used as peers since their loss values represent valid self-consistent
@@ -675,7 +675,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
             return False
 
     # ── peer_final_loss_k check ───────────────────────────────────────────────
-    # Only applies when the data layout is numeric-sweep (lid_cavity-style).
+    # Only applies when the data layout is numeric-sweep.
     if peer_k is not None:
         # Collect all sweep keys present across any solver entry.
         all_sweep_keys: set[str] = set()
@@ -732,11 +732,11 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
     for solver, entry in top.items():
         if solver not in cells or cells[solver].status != OK:
             continue
-        # For numeric-keyed sweep dicts (e.g. lid_cavity {U_val: {losses,...}}),
-        # pick the sub-entry with the highest initial loss (hardest test point).
-        # The trivial U=0.5 case (initial_loss=0) is skipped via initial<=0 below,
-        # but _find_trajectory would return its all-zero trajectory first and then
-        # bail on initial<=0, never reaching the non-trivial entries.  Instead,
+        # For numeric-keyed sweep dicts ({sweep_val: {losses,...}}), pick the
+        # sub-entry with the highest initial loss (hardest test point). Trivial
+        # entries with initial_loss=0 are skipped via initial<=0 below, but
+        # _find_trajectory would return their all-zero trajectory first and
+        # then bail on initial<=0, never reaching the non-trivial entries. Instead,
         # find the worst-case non-trivial trajectory explicitly.
         _numeric_subs = {
             k: v for k, v in entry.items() if _is_num(k) and isinstance(v, dict)

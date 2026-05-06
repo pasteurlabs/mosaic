@@ -58,13 +58,6 @@ _SOLVERS: dict[str, SolverSpec] = {
             # phiflow OOM during cost/temporal_cost steps sweep.
             # "Out of memory while trying to allocate 16.09MiB" during JAX CUDA graph
             # profiling (jit(apply_jit)/while/body/closed_call/reduce_sum).
-            # Same root: 3D domain JAX CUDA graph autotuning exhausts GPU memory.
-            # recovery/recovery and recovery/lid_cavity OOM exclusions removed:
-            # xla_gpu_graph_level=0 disables CUDA graph autotuning; both experiments
-            # now run without OOM.
-            # xla_gpu_autotune_level=0 is deployed in tesseract_config.yaml and
-            # resolved the same OOM for recovery/recovery and recovery/lid_cavity.
-            # Exclusion kept pending a re-run to confirm cost/temporal_cost no longer OOMs.
             "cost/temporal_cost": {
                 "category": "infeasible",
                 "reason": "CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed — pending re-run to confirm resolved",
@@ -115,21 +108,7 @@ _SOLVERS: dict[str, SolverSpec] = {
         doc_url="https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/",
         image_tag="ins_navier_stokes_grid:latest",
         exclusions={},
-        explained_anomalies={
-            "recovery/lid_cavity": {
-                "reason": (
-                    "Jacobian ill-conditioning (κ=2.3e12 from gradient/jacobian_svd) causes "
-                    "VJP quality degradation in 3D lid-driven cavity at sweep≥1.0: fresh run "
-                    "(2026-04-26) sweep=1.0 final_loss=7.55e-6 (1408× phiflow reference "
-                    "5.36e-9); sweep=2.0 final_loss=3.70e-3 (26.3× best peer, threshold 20×). "
-                    "The FD Jacobian is nearly singular due to the 3D lid BC discretisation; "
-                    "VJP noise prevents convergence to the global optimum reached by "
-                    "semi-Lagrangian methods (phiflow). Not fixable without replacing the "
-                    "Zygote.jl reverse-mode AD path or redesigning the 3D lid BC. "
-                    "Confirmed by H17 (graduated to findings F17)."
-                ),
-            },
-        },
+        explained_anomalies={},
     ),
     "warp_ns": SolverSpec(
         name="Warp-NS",
@@ -145,9 +124,7 @@ _SOLVERS: dict[str, SolverSpec] = {
         marker="v",
         scheme="IPCS (3D), wp.Tape VJP",
         description=(
-            "NVIDIA Warp NS solver: 3D IPCS projection. "
-            "VJP via wp.Tape. Supports lid-driven cavity mode with spatially-varying lid BC; "
-            "lid_velocity gradient flows correctly through the full IPCS + pressure-Poisson chain."
+            "NVIDIA Warp NS solver: 3D IPCS projection. VJP via wp.Tape."
         ),
         doc_url="https://github.com/NVIDIA/warp",
         image_tag="warp_ns_navier_stokes_grid:latest",
@@ -209,21 +186,7 @@ _SOLVERS: dict[str, SolverSpec] = {
         doc_url="https://github.com/tum-pbs/PICT",
         image_tag="pict_navier_stokes_grid:latest",
         exclusions={},
-        explained_anomalies={
-            "recovery/lid_cavity": {
-                "reason": (
-                    "PISO accuracy limit at Re≥133 (sweep≥1.0): PISO iterative "
-                    "pressure-correction accumulates splitting error at higher Re than "
-                    "semi-Lagrangian methods. phiflow "
-                    "reaches 5.36e-9 at sweep=1.0 (near-perfect convergence), exposing "
-                    "pict sweep=1.0 final_loss=4.07e-5 (7580× phiflow) and sweep=2.0 "
-                    "final_loss=0.06 (426× best peer 0.000141). sweep=0.5 converges "
-                    "trivially (target=initial, loss=0 for all solvers). "
-                    "Not fixable without changing the PISO corrector count or time-step; "
-                    "adding more corrector steps could reduce the gap but not eliminate it."
-                ),
-            },
-        },
+        explained_anomalies={},
     ),
 }
 
@@ -359,39 +322,14 @@ def _make_inputs(
     steps: int,
     domain_extent: float = 2 * jnp.pi,
     lbm_N_base: int | None = None,
-    cavity_N: int | None = None,
-    num_iters_poisson_3d: int | None = None,
     **_,
 ) -> dict:
     """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
-
-    cavity_N (int):
-        When provided, enables 3-D lid-driven cavity mode.  ic must be shape
-        (N, N, 2) holding the lid velocity field (x- and y-components).  A
-        quiescent v0 of shape (N, N, N, 3) is constructed; lid_velocity=ic is
-        passed as the differentiable optimisation variable.  domain_extent is
-        set to cavity_N (unit-cell spacing dx=1).
 
     For standard 3-D periodic runs ic has shape (N, N, N, 3) and is passed
     directly as v0.
     """
     spec = _SOLVERS[solver_name]
-
-    # Lid-driven cavity mode: ic is the (N, N, 2) lid field
-    if ic.ndim == 3 and ic.shape[-1] == 2:
-        N = ic.shape[0]
-        v0 = jnp.zeros((N, N, N, 3), dtype=jnp.float32)
-        base = dict(
-            v0=v0,
-            viscosity=jnp.array([nu], dtype=jnp.float32),
-            dt=jnp.array([dt], dtype=jnp.float32),
-            steps=steps,
-            domain_extent=1.0,  # unit cavity: physical size = 1, dx = 1/N
-            lid_velocity=ic,  # shape (N, N, 2) — differentiable optimisation variable
-        )
-        if num_iters_poisson_3d is not None:
-            base["num_iters_poisson_3d"] = num_iters_poisson_3d
-        return {**base, **spec.input_overrides}
 
     N = ic.shape[0]
     _dt, _steps = dt, steps

@@ -130,20 +130,17 @@ def _run(  # mosaic:physics
     domain_extent: float,
     obstacle: dict | None = None,
     inflow_profile: np.ndarray | None = None,
-    lid_velocity: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
     """Forward pass.
 
     Returns a 3-tuple (result, drag, velocity_mean).  velocity_mean is only
-    non-None in channel mode (obstacle present, no lid); it is the tail-window
+    non-None in channel mode (obstacle present); it is the tail-window
     mean collocated velocity field (RANS), shape (nx, ny, 1, 2).  All other
     modes return velocity_mean=None.
 
     2-D: v0 (nx, ny, 1, 2) → result (nx, ny, 1, 2)
     3-D: v0 (nx, ny, nz, 3) → result (nx, ny, nz, 3)
-    2-D cavity: lid_velocity (N, 2)   → result (N, N, 2)
-    3-D cavity: lid_velocity (N, N, 2) → result (N, N, N, 3)
-    2-D channel: obstacle provided, lid_velocity=None
+    2-D channel: obstacle provided
                  → result (nx, ny, 1, 2)
                  Inflow at x=0 face: either inflow_profile (shape (N,), ux
                  only; uy=0) when given, else derived from v0[:, 0, 0].
@@ -152,9 +149,9 @@ def _run(  # mosaic:physics
     in a periodic domain has no physical meaning in this solver (periodic
     pressure projection). Raises NotImplementedError.
     """
-    # Channel mode: obstacle present, no lid. Inflow may be either an explicit
+    # Channel mode: obstacle present. Inflow may be either an explicit
     # inflow_profile (drag_opt path) or derived from v0 (re20/re100-style).
-    if obstacle is not None and lid_velocity is None:
+    if obstacle is not None:
         # v0 is (nx, ny, 1, 2) — squeeze z=1 dimension
         v0_2d = np.asarray(v0, dtype=np.float32)[:, :, 0, :]  # (N, N, 2)
         N = v0_2d.shape[0]
@@ -201,36 +198,6 @@ def _run(  # mosaic:physics
             "incompressible-navier-stokes-jl supports inflow_profile only when "
             "combined with an obstacle (channel mode)."
         )
-
-    # Lid-driven cavity mode: lid_velocity provided
-    if lid_velocity is not None:
-        lid = np.asarray(lid_velocity, dtype=np.float32)
-        n_cav = lid.shape[0]
-        if lid.ndim == 2:
-            # 2-D cavity: lid is (N, 2), result will be (N, N, 2)
-            result = _to_numpy(
-                jl.ns_apply_cavity_2d(
-                    _to_julia(lid),
-                    float(viscosity),
-                    float(dt),
-                    int(steps),
-                    int(n_cav),
-                    float(domain_extent),
-                )
-            )  # (N, N, 2)
-        else:
-            # 3-D cavity: lid is (N, N, 2), result will be (N, N, N, 3)
-            result = _to_numpy(
-                jl.ns_apply_cavity(
-                    _to_julia(lid),
-                    float(viscosity),
-                    float(dt),
-                    int(steps),
-                    int(n_cav),
-                    float(domain_extent),
-                )
-            )  # (N, N, N, 3)
-        return result, None, None
 
     nx = v0.shape[0]
     ndim = v0.shape[-1]
@@ -279,24 +246,21 @@ def _vjp(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
     domain_extent: float,
     obstacle: dict | None = None,
     inflow_profile: np.ndarray | None = None,
-    lid_velocity: np.ndarray | None = None,
     cotangent_drag: np.ndarray | None = None,
 ) -> dict:
     """VJP: cotangent w.r.t. result -> gradients w.r.t. v0, viscosity, dt, domain_extent.
 
-    In cavity mode (lid_velocity provided) the gradient w.r.t. lid_velocity is
-    returned instead of v0; v0 is all-zeros (quiescent IC, not differentiated).
-    In channel mode (obstacle present, no lid), when inflow_profile is given,
-    the gradient w.r.t. inflow_profile (shape (N,)) is returned. Otherwise the
+    In channel mode (obstacle present), when inflow_profile is given, the
+    gradient w.r.t. inflow_profile (shape (N,)) is returned. Otherwise the
     gradient w.r.t. the inflow column derived from v0[:, 0, 0, :] is computed.
     """
-    # Channel mode VJP: obstacle present, no lid. Either inflow_profile (drag_opt)
+    # Channel mode VJP: obstacle present. Either inflow_profile (drag_opt)
     # or v0-derived inflow (re20/re100).
     #
     # cotangent is a dict with keys "result" and/or "drag".  We pass both to
     # ns_vjp_channel_2d_drag_window so that Zygote can differentiate through
     # the tail-window mean drag AND the final velocity field in a single pullback.
-    if obstacle is not None and lid_velocity is None:
+    if obstacle is not None:
         v0_2d = np.asarray(v0, dtype=np.float32)[:, :, 0, :]  # (N, N, 2)
         N = v0_2d.shape[0]
         prof_len = None
@@ -377,41 +341,6 @@ def _vjp(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
             out["v0"] = grad_v0[:, :, np.newaxis, :].astype(np.float32)
         return out
 
-    # Lid-driven cavity VJP
-    if lid_velocity is not None:
-        lid = np.asarray(lid_velocity, dtype=np.float32)
-        n_cav = lid.shape[0]
-        if lid.ndim == 2:
-            # 2-D cavity: lid is (N, 2), cotangent is (N, N, 2)
-            result = jl.ns_vjp_cavity_2d(
-                _to_julia(lid),
-                _to_julia(np.asarray(cotangent, dtype=np.float32)),
-                float(viscosity),
-                float(dt),
-                int(steps),
-                int(n_cav),
-                float(domain_extent),
-            )
-            grad_lid = _to_numpy(result[0]).astype(np.float32)  # (N, 2)
-        else:
-            # 3-D cavity: lid is (N, N, 2), cotangent is (N, N, N, 3)
-            result = jl.ns_vjp_cavity(
-                _to_julia(lid),
-                _to_julia(np.asarray(cotangent, dtype=np.float32)),
-                float(viscosity),
-                float(dt),
-                int(steps),
-                int(n_cav),
-                float(domain_extent),
-            )
-            grad_lid = _to_numpy(result[0]).astype(np.float32)  # (N, N, 2)
-        return {
-            "lid_velocity": grad_lid,
-            "viscosity": np.array([float(result[1])], dtype=np.float32),
-            "dt": np.array([float(result[2])], dtype=np.float32),
-            "domain_extent": np.float32(float(result[3])),
-        }
-
     nx = v0.shape[0]
     ndim = v0.shape[-1]
     nz = v0.shape[2]
@@ -477,11 +406,6 @@ def _obstacle_dict_ins(inputs: "InputSchema") -> dict | None:  # mosaic:io
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    lid_vel = (
-        np.asarray(inputs.lid_velocity, dtype=np.float32)
-        if inputs.lid_velocity is not None
-        else None
-    )
     result, drag, velocity_mean = _run(
         np.asarray(inputs.v0),
         float(inputs.viscosity[0]),
@@ -492,7 +416,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
         inflow_profile=np.asarray(inputs.inflow_profile)
         if inputs.inflow_profile is not None
         else None,
-        lid_velocity=lid_vel,
     )
     out = {"result": result.astype(np.float32)}
     if drag is not None:
@@ -538,7 +461,7 @@ def _drag_cotangent_to_result(  # mosaic:grad:v0,viscosity,dt:adjoint
     return ct
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_profile:adjoint
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -550,18 +473,11 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
     obs = _obstacle_dict_ins(inputs)
     v0_arr = np.asarray(inputs.v0)
 
-    # Channel mode (obstacle present, no lid): drag cotangent is passed directly
-    # to ns_vjp_channel_2d_drag_window inside Julia so Zygote differentiates
+    # Channel mode (obstacle present): drag cotangent is passed directly to
+    # ns_vjp_channel_2d_drag_window inside Julia so Zygote differentiates
     # through the tail-window mean drag.  No need to manually map drag_cot to a
     # velocity cotangent via _drag_cotangent_to_result here.
-    lid_vel = (
-        np.asarray(inputs.lid_velocity, dtype=np.float32)
-        if inputs.lid_velocity is not None
-        else None
-    )
-    if obs is not None and lid_vel is None:
-        # Channel mode: pass result cotangent (or zero) and drag cotangent
-        # separately so the Julia VJP handles both.
+    if obs is not None:
         if ct_result is None and ct_drag is None:
             return {}
         ct = (
@@ -583,7 +499,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
             inputs.domain_extent,
             obstacle=obs,
             inflow_profile=inflow_prof,
-            lid_velocity=None,
             cotangent_drag=np.asarray(ct_drag) if ct_drag is not None else None,
         )
         result: dict[str, Any] = {}
@@ -597,23 +512,10 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
                     result[key] = grads[key]
         return result
 
-    # Non-channel modes (cavity, periodic): drag is not used / zero.
-    # Combine result and drag cotangents the old way (drag_cotangent_to_result).
-    if ct_drag is not None and obs is not None:
-        drag_to_result = _drag_cotangent_to_result(
-            np.asarray(ct_drag),
-            v0_arr.shape,
-            obs,
-            float(inputs.viscosity[0]),
-        )
-        if ct_result is not None:
-            ct = np.asarray(ct_result, dtype=np.float32) + drag_to_result
-        else:
-            ct = drag_to_result
-    elif ct_result is not None:
-        ct = np.asarray(ct_result, dtype=np.float32)
-    else:
+    # Periodic mode: drag is not used / zero.
+    if ct_result is None:
         return {}
+    ct = np.asarray(ct_result, dtype=np.float32)
 
     inflow_prof = (
         np.asarray(inputs.inflow_profile) if inputs.inflow_profile is not None else None
@@ -627,46 +529,16 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
         inputs.domain_extent,
         obstacle=obs,
         inflow_profile=inflow_prof,
-        lid_velocity=lid_vel,
     )
     out_grads: dict[str, Any] = {}
-    if lid_vel is not None:
-        # Cavity mode: differentiate w.r.t. lid_velocity (and optionally viscosity/dt)
-        for key in ("lid_velocity", "viscosity", "dt", "domain_extent"):
-            if key in vjp_inputs and key in grads:
-                out_grads[key] = grads[key]
-    else:
-        for key in ("v0", "viscosity", "dt", "domain_extent"):
-            if key in vjp_inputs and key in grads:
-                out_grads[key] = grads[key]
+    for key in ("v0", "viscosity", "dt", "domain_extent"):
+        if key in vjp_inputs and key in grads:
+            out_grads[key] = grads[key]
     return out_grads
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     raw = abstract_inputs.model_dump()
-
-    # Cavity mode: dispatch on lid_velocity ndim
-    #   2-D cavity: lid_velocity (N, 2)     → result (N, N, 2)
-    #   3-D cavity: lid_velocity (N, N, 2)  → result (N, N, N, 3)
-    lid_vel = raw.get("lid_velocity")
-    if lid_vel is not None:
-        if isinstance(lid_vel, dict) and "shape" in lid_vel:
-            lid_shape = lid_vel["shape"]
-        else:
-            lid_shape = np.asarray(lid_vel).shape
-        n_cav = lid_shape[0]
-        if len(lid_shape) == 2:
-            # 2-D cavity: lid (N, 2) → result (N, N, 2)
-            return {
-                "result": {"shape": (n_cav, n_cav, 2), "dtype": "float32"},
-                "drag": {"shape": (1,), "dtype": "float32"},
-            }
-        else:
-            # 3-D cavity: lid (N, N, 2) → result (N, N, N, 3)
-            return {
-                "result": {"shape": (n_cav, n_cav, n_cav, 3), "dtype": "float32"},
-                "drag": {"shape": (1,), "dtype": "float32"},
-            }
 
     v0 = raw["v0"]
     if isinstance(v0, dict) and "shape" in v0 and "dtype" in v0:

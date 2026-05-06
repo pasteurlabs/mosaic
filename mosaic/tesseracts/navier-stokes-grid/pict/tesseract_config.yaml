@@ -26,9 +26,9 @@ description: |
 
   VJP flows through torch.autograd backprop across the differentiable PISO
   time loop.  PISOtorch_diff tracks VELOCITY, BOUNDARY_VELOCITY, and
-  VISCOSITY gradient chains, so v0, lid_velocity, and inflow_profile all
-  receive non-zero grads when passed as live torch leaves.  viscosity and dt
-  are consumed as Python scalars and their grads remain zero.  After each
+  VISCOSITY gradient chains, so v0 and inflow_profile receive non-zero grads
+  when passed as live torch leaves.  viscosity and dt are consumed as Python
+  scalars and their grads remain zero.  After each
   backward pass opt_domain.Detach() is called to break the cyclic reference
   that would otherwise cause a memory leak.
 
