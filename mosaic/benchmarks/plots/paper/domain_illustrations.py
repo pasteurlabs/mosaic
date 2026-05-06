@@ -745,7 +745,7 @@ def _make_domain2b_topology(out_dir: Path) -> None:
     fig = plt.figure(figsize=(10, 7), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
 
-    _, Ly, Lz = 3.0, 1.0, 1.0
+    _Lx, Ly, Lz = 3.0, 1.0, 1.0
     x_inlet = 0.0
     x_design_start = 0.6
     x_design_end = 2.4
@@ -1048,7 +1048,7 @@ def _make_domain3(out_dir: Path) -> None:
     )
 
     extent = [x0, x0 + W, y0, y0 + H]
-    _im = ax.imshow(
+    ax.imshow(
         rho,
         origin="lower",
         extent=extent,
@@ -1216,7 +1216,7 @@ def _make_domain4(out_dir: Path) -> None:
         color=CONTROL_COLOR,
         pad=4,
     )
-    _im_k = ax.imshow(
+    ax.imshow(
         k_field[::-1],
         extent=[0, 1, 0, 1],
         cmap="viridis",
@@ -1331,7 +1331,7 @@ def _make_domain4(out_dir: Path) -> None:
         color=PHYS_COLOR,
         pad=-10,
     )
-    _im_T = ax.imshow(
+    ax.imshow(
         T_obs[::-1],
         extent=[0, 1, 0, 1],
         cmap="coolwarm",

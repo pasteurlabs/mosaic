@@ -40,3 +40,19 @@ build_config:
   custom_build_steps:
     - "RUN cp /usr/local/lib/python3.12/dist-packages/__editable__.firedrake-2026.4.0.pth /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/__editable___firedrake_2026_4_0_finder.py /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/a1_coverage.pth /python-env/lib/python3.12/site-packages/ && echo /usr/local/lib/python3.12/dist-packages > /python-env/lib/python3.12/site-packages/firedrake_deps.pth"
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared meshio scipy"
+
+mosaic:
+  name: "Firedrake"
+  backend: firedrake
+  family: fem
+  scheme: "FEM CG1 linear elasticity (SIMP, pyadjoint ReducedFunctional)"
+  color: "#EE3377"
+  ad_strategy: adjoint
+  differentiable: true
+  uses_gpu: false
+  internal_dtype: float64
+  description: >
+    Firedrake CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient
+    ∂C/∂ρ via firedrake-adjoint (pyadjoint ReducedFunctional). Uses meshio for
+    GMSH conversion of the HexMesh input. Modern Firedrake complement to the
+    FEniCS fenics-structural solver.

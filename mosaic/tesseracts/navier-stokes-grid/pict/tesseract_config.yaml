@@ -64,3 +64,22 @@ build_config:
     - "RUN pip install setuptools wheel"
     - "RUN cd /opt/pict/extensions && python3 setup.py install"
     - "RUN echo '/opt/pict' > /python-env/lib/python3.10/site-packages/pict.pth"
+
+mosaic:
+  name: "PICT"
+  backend: pytorch
+  family: projection
+  scheme: "PISO (2nd-order)"
+  color: "#AA44AA"
+  linestyle: "(0, (5, 1))"
+  marker: "v"
+  ad_strategy: autodiff
+  differentiable: true
+  uses_gpu: true
+  description: >
+    PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch
+    autograd. VJP w.r.t. v0 is fully supported through the differentiable PISO
+    time loop. Gradients w.r.t. viscosity and dt are not available: those
+    parameters are consumed as Python scalars at domain construction / timestep
+    time and have no autograd path; zero gradients are returned for them.
+  doc_url: "https://github.com/tum-pbs/PICT"

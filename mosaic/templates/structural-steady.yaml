@@ -1,0 +1,47 @@
+# Template: Steady-state linear elasticity on a hexahedral mesh (SIMP topology optimisation)
+#
+# Based on the structural-mesh domain. Extend to new geometries by modifying
+# the mesh, boundary conditions, and loading.
+
+name: structural-steady
+description: >
+  Linear elasticity with SIMP topology optimisation on a hexahedral mesh.
+  The solver takes a per-cell density field and returns the displacement field
+  and structural compliance.
+
+schema_module: mosaic_shared.problems.structural_mesh
+output_key: compliance
+ic_key: rho
+domain_extent: 1.0
+resolution_key: N
+
+physics_defaults:
+  N: 8
+  mesh_level: 1
+
+ic_defaults:
+  name: uniform
+  seed: 0
+
+forward:
+  agreement:
+    - ic: { name: uniform, seed: 0 }
+      physics: { N: 8 }
+      sweep: { key: N, values: [4, 8, 12, 16] }
+
+gradient:
+  fd_check:
+    - ic: { name: uniform, seed: 0 }
+      physics: { N: 8 }
+      fd: { eps_values: [1.0, 0.1, 0.01, 0.001], n_dirs: 10 }
+
+cost:
+  cost:
+    n_trials: 3
+    N_values: [4, 8, 12, 16]
+
+optimization:
+  topopt:
+    - ic: { name: uniform, seed: 0 }
+      physics: { N: 8 }
+      optim: { lr: 0.01, steps: 200, patience: 30 }

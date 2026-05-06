@@ -48,6 +48,8 @@ def generate_main(out_dir: Path) -> None:
     all_cos: list[float] = []
 
     for solver, sdata in data["by_solver"].items():
+        if solver in {"fenics_ns", "su2"}:
+            continue
         eps_sweep = sdata["eps_sweep"]
         epsilons = sorted(eps_sweep.keys(), key=float)
         eps_f = [float(e) for e in epsilons]
@@ -82,7 +84,7 @@ def generate_main(out_dir: Path) -> None:
     ax_cos.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
     ax_cos.yaxis.set_minor_locator(mticker.NullLocator())
 
-    present = set(data["by_solver"].keys())
+    present = set(data["by_solver"].keys()) - {"fenics_ns", "su2"}
     handles = dedup_handles(
         [make_handle(s) for s in NS_ORDER if s in present and s in SOLVER_STYLES]
     )
@@ -123,6 +125,8 @@ def generate(out_dir: Path) -> None:
         all_cos: list[float] = []
 
         for solver, sdata in data["by_solver"].items():
+            if solver in {"fenics_ns", "su2"}:
+                continue
             eps_sweep = sdata["eps_sweep"]
             epsilons = sorted(eps_sweep.keys(), key=float)
             eps_f = [float(e) for e in epsilons]

@@ -507,6 +507,33 @@ def _apply_solver_filter(cfg, solvers_csv: str | None):
     return dataclasses.replace(cfg, solvers=keep)
 
 
+def _resolve_gpu_pool(cfg, gpus: str | None):
+    """Translate a `--gpus` string into a (cfg, gpus_csv) pair.
+
+    Special value ``"none"`` (or ``"cpu"``): filter cfg to solvers with
+    ``uses_gpu=False`` and pass ``gpus=None`` so the runner doesn't try to
+    pin containers to a GPU. Used on CPU-only hosts that can't expose any
+    GPU IDs at all.
+
+    Anything else (a real comma-separated list, or None) passes through.
+    """
+    if isinstance(gpus, str) and gpus.lower() in ("none", "cpu", "cpu-only"):
+        cpu_only = {
+            name: spec
+            for name, spec in cfg.solvers.items()
+            if not getattr(spec, "uses_gpu", True)
+        }
+        if not cpu_only:
+            print_warn(
+                "no CPU-only solvers in this problem — --gpus none would run nothing"
+            )
+            return cfg, None
+        # Return sentinel "cpu-only" string so CLI can pass gpu_ids=[] to the runner.
+        # gpu_ids=[] in run_with_gpu_pool means: no GPU flags (CPU-only host).
+        return dataclasses.replace(cfg, solvers=cpu_only), "cpu-only"
+    return cfg, gpus
+
+
 def _filter_hardware(cfg, hardware: str | None):
     """Filter solvers by hardware target.
 
@@ -565,33 +592,6 @@ def _filter_hardware(cfg, hardware: str | None):
         return dataclasses.replace(cfg, solvers=filtered)
     print_warn(f"unknown --hardware value {hardware!r}, ignoring")
     return cfg
-
-
-def _resolve_gpu_pool(cfg, gpus: str | None):
-    """Translate a `--gpus` string into a (cfg, gpus_csv) pair.
-
-    Special value ``"none"`` (or ``"cpu"``): filter cfg to solvers with
-    ``uses_gpu=False`` and pass ``gpus=None`` so the runner doesn't try to
-    pin containers to a GPU. Used on CPU-only hosts that can't expose any
-    GPU IDs at all.
-
-    Anything else (a real comma-separated list, or None) passes through.
-    """
-    if isinstance(gpus, str) and gpus.lower() in ("none", "cpu", "cpu-only"):
-        cpu_only = {
-            name: spec
-            for name, spec in cfg.solvers.items()
-            if not getattr(spec, "uses_gpu", True)
-        }
-        if not cpu_only:
-            print_warn(
-                "no CPU-only solvers in this problem — --gpus none would run nothing"
-            )
-            return cfg, None
-        # Return sentinel "cpu-only" string so CLI can pass gpu_ids=[] to the runner.
-        # gpu_ids=[] in run_with_gpu_pool means: no GPU flags (CPU-only host).
-        return dataclasses.replace(cfg, solvers=cpu_only), "cpu-only"
-    return cfg, gpus
 
 
 def _resolve_cfg_and_tags(
@@ -701,7 +701,8 @@ def forward(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
+        "skip all GPU usage — useful on CPU-only hosts.",
     ),
     hardware: str | None = typer.Option(
         None,
@@ -796,7 +797,8 @@ def cost(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
+        "skip all GPU usage — useful on CPU-only hosts.",
     ),
     hardware: str | None = typer.Option(
         None,
@@ -877,7 +879,8 @@ def gradient(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
+        "skip all GPU usage — useful on CPU-only hosts.",
     ),
     hardware: str | None = typer.Option(
         None,
@@ -972,7 +975,8 @@ def optimization(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
+        "skip all GPU usage — useful on CPU-only hosts.",
     ),
     hardware: str | None = typer.Option(
         None,
@@ -1081,7 +1085,8 @@ def run_all(
         "--gpus",
         help="Comma-separated GPU IDs for parallel dispatch (e.g. 0,1,2). "
         "Each solver container is pinned to one GPU and run in parallel. "
-        "Pass 'none' to skip GPU pinning on a CPU-only host.",
+        "Pass 'none' (or 'cpu') to filter the run to CPU-only solvers and "
+        "skip all GPU usage — useful on CPU-only hosts.",
     ),
     hardware: str | None = typer.Option(
         None,
@@ -2097,6 +2102,63 @@ def paper_plots(
         for n, err in failed:
             console.print(f"  [red]{n}[/red] — {err}")
         raise typer.Exit(1)
+
+
+@app.command("new-domain")
+def new_domain(
+    name: str = typer.Argument(help="Name for the new domain (e.g. 'my-flow')."),
+    from_template: str = typer.Option(
+        ...,
+        "--from-template",
+        "-t",
+        help="Template to scaffold from. Use 'mosaic templates' to list available templates.",
+    ),
+) -> None:
+    """Scaffold a new benchmark domain from a template."""
+    from mosaic.templates.scaffold import load_template, scaffold_domain
+
+    tpl = load_template(from_template)
+    created = scaffold_domain(name, tpl, target_dir=_repo_root() / "mosaic")
+    print_rule(f"scaffolded domain: {name}")
+    for role, path in created.items():
+        console.print(f"  {role}: [green]{path.relative_to(_repo_root())}[/green]")
+    console.print(
+        f"\nNext steps:\n"
+        f"  1. Edit the generated schemas and problem config\n"
+        f"  2. Add a solver in mosaic/tesseracts/{name}/\n"
+        f"  3. Register the domain in mosaic/benchmarks/problems/__init__.py\n"
+    )
+
+
+@app.command("validate-template")
+def validate_template_cmd(
+    template: str = typer.Argument(help="Template name or path to a YAML file."),
+) -> None:
+    """Validate a task template against its schema module."""
+    from mosaic.templates.scaffold import load_template, validate_template
+
+    tpl = load_template(template)
+    errors = validate_template(tpl)
+    if errors:
+        console.print(f"[red]{len(errors)} error(s) in template {tpl.name!r}:[/red]")
+        for err in errors:
+            console.print(f"  [red]- {err}[/red]")
+        raise typer.Exit(1)
+    console.print(f"[green]Template {tpl.name!r} is valid.[/green]")
+
+
+@app.command("templates")
+def list_templates_cmd() -> None:
+    """List available task templates."""
+    from mosaic.templates.scaffold import list_templates, load_template
+
+    templates = list_templates()
+    if not templates:
+        console.print("[dim]No templates found.[/dim]")
+        return
+    for name in templates:
+        tpl = load_template(name)
+        console.print(f"  [bold]{name}[/bold]  {tpl.description.strip()}")
 
 
 if __name__ == "__main__":

@@ -17,4 +17,24 @@ build_config:
     - "ENV JULIA_PROJECT=/app/julia_env PYTHON_JULIAPKG_PROJECT=/app/julia_env JULIA_DEPOT_PATH=/app/julia_depot JULIA_CPU_TARGET=generic JULIA_EXECUTABLE=/usr/local/bin/julia"
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*"
     - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
-    - "RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e 'using Pkg; Pkg.add([\"IncompressibleNavierStokes\", \"Zygote\"]); Pkg.precompile()' && chmod -R 777 /app"
+    - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add(["IncompressibleNavierStokes", "Zygote"]); Pkg.precompile()'' && chmod -R 777 /app'
+
+mosaic:
+  name: "INS.jl"
+  backend: julia
+  family: projection
+  scheme: "FD + projection"
+  color: "#228833"
+  linestyle: "-."
+  marker: "^"
+  ad_strategy: autodiff
+  differentiable: true
+  uses_gpu: false
+  internal_dtype: float64
+  description: >
+    Julia finite-difference solver with pressure projection; CPU-only.
+    Gradients via Zygote.jl reverse-mode AD: v0, viscosity, dt, and the
+    inflow_profile (channel mode) all have valid VJPs through the RK4 loop and
+    spectral pressure projection. domain_extent always returns a zero gradient by
+    design (structural grid parameter).
+  doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"

@@ -17,6 +17,8 @@ from pathlib import Path
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
@@ -105,6 +107,78 @@ def _plot_combined_convergence(out_path: Path) -> None:
     print(f"Saved {out_path}")
 
 
+_THRESH = 0.35
+_ELEV = 22
+_AZIM = 35
+_CLR_FIXED = "#888888"
+_CLR_LOAD = "#FF1744"
+
+
+def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+    """Overlay fixed-face patch and load arrow on a voxel Axes3D.
+
+    Voxel axes are (x=length, y=width, z=height) after transpose.
+    Fixed: x=0 face.  Load: right-face corner, direction from params.
+    """
+    # Fixed face — semi-transparent gray wall at x=0
+    wall = Poly3DCollection(
+        [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
+        alpha=0.55,
+        facecolor=_CLR_FIXED,
+        edgecolor="#333333",
+        linewidth=0.8,
+    )
+    ax.add_collection3d(wall)
+
+    # Load point in voxel coords (first cell of the relevant corner)
+    corner_z_high = ph.get("corner_z_high", False)
+    corner_y_high = ph.get("corner_y_high", False)
+    load_axis = ph.get("load_axis", "z")
+    ly = (ny - 0.5) if corner_y_high else 0.5
+    lz = (nz - 0.5) if corner_z_high else 0.5
+
+    arrow_len = nz * 0.65
+    if load_axis == "y":
+        y_sign = -1 if corner_y_high else 1
+        dx, dy_a, dz_a = 0, y_sign * arrow_len, 0
+    else:
+        z_sign = -1 if corner_z_high else 1
+        dx, dy_a, dz_a = 0, 0, z_sign * arrow_len
+
+    # Arrow originates at the load surface and points in the force direction
+    ox = nx + 0.6 if load_axis != "y" else nx
+    ax.quiver(
+        ox,
+        ly,
+        lz,
+        dx,
+        dy_a,
+        dz_a,
+        color=_CLR_LOAD,
+        linewidth=2.5,
+        arrow_length_ratio=0.28,
+    )
+
+
+def _voxel_facecolors(
+    rho_xyz: np.ndarray,
+    filled: np.ndarray,
+    base_color: str,
+) -> np.ndarray:
+    """Return RGBA facecolor array; empty voxels are fully transparent."""
+    import matplotlib.colors as mcolors
+
+    r, g, b, _ = mcolors.to_rgba(base_color)
+    fc = np.zeros((*rho_xyz.shape, 4))
+    norm = np.where(filled, (rho_xyz - _THRESH) / (1.0 - _THRESH), 0.0)
+    # Lighten low-density voxels slightly toward white
+    fc[..., 0] = r + (1 - r) * (1 - norm) * 0.45
+    fc[..., 1] = g + (1 - g) * (1 - norm) * 0.45
+    fc[..., 2] = b + (1 - b) * (1 - norm) * 0.45
+    fc[..., 3] = filled.astype(float)
+    return fc
+
+
 def _plot_fields(
     domain_label: str,
     fields_path: Path,
@@ -118,89 +192,36 @@ def _plot_fields(
     npz = np.load(fields_path)
     params = json.loads(params_path.read_text())
     ph = params["physics"]
-    nx = ph["nx"]
-    ny = ph["ny"]
-    nz = ph["nz"]
+    nx, ny, nz = ph["nx"], ph["ny"], ph["nz"]
 
     npz_solvers = list(npz["solver_names"])
-    result_path = fields_path.parent / "result.json"
-    all_solvers = (
-        list(json.loads(result_path.read_text())["by_solver"].keys())
-        if result_path.exists()
-        else npz_solvers
-    )
 
-    def _reshape(rho_flat: np.ndarray) -> np.ndarray:
-        """Reshape flat density to 2D by summing along the thinnest axis."""
-        rho_3d = rho_flat.reshape(nz, ny, nx)
-        if ny <= nz and ny <= nx:
-            return rho_3d.sum(axis=1)  # sum over y → (nz, nx)
-        return rho_3d.sum(axis=0)  # sum over z → (ny, nx)
+    n = len(npz_solvers)
+    nrows, ncols = 2, math.ceil(n / 2)
 
-    CMAP = "gray_r"
-    VMIN, VMAX = 0.0, 1.0
+    fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.58))
 
-    n_panels = len(all_solvers)
-    ncols = math.ceil(n_panels / 2)
-    nrows = 2
-    fig, axes_2d = plt.subplots(
-        nrows, ncols, figsize=(TEXTWIDTH * 0.92, TEXTWIDTH * 0.55)
-    )
-    fig.subplots_adjust(right=0.88, wspace=0.08, hspace=0.25)
-    axes = axes_2d.flatten()
-    for ax in axes[n_panels:]:
-        ax.set_visible(False)
+    for i, sname in enumerate(npz_solvers):
+        ax = fig.add_subplot(nrows, ncols, i + 1, projection="3d")
 
-    im = None
-    for panel_i, sname in enumerate(all_solvers):
-        ax = axes[panel_i]
+        rho_flat = npz[f"rho_final_{i}"]
+        # reshape to (nz, ny, nx) then transpose to (nx, ny, nz) = (x, y, z)
+        rho_xyz = rho_flat.reshape(nz, ny, nx).transpose(2, 1, 0)
+        filled = rho_xyz > _THRESH
+
+        _, color, _, _ = SOLVER_STYLES.get(sname, (sname, "#555555", "-", "o"))
+        fc = _voxel_facecolors(rho_xyz, filled, color)
+        # edgecolors matching face keeps grid lines invisible while shade=True works
+        ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)
+        _add_bcs(ax, nx, ny, nz, params["physics"])
+
         label = SOLVER_STYLES.get(sname, (sname,))[0]
-        if sname in npz_solvers:
-            npz_i = npz_solvers.index(sname)
-            rho_final_2d = _reshape(npz[f"rho_final_{npz_i}"])
-            rho_norm = rho_final_2d / (rho_final_2d.max() or 1.0)
-            im = ax.imshow(
-                rho_norm,
-                cmap=CMAP,
-                vmin=VMIN,
-                vmax=VMAX,
-                aspect="auto",
-                interpolation="bilinear",
-            )
-        else:
-            img_path = fields_path.parent / f"topopt_3d_{sname}.png"
-            if img_path.exists():
-                img = plt.imread(str(img_path))
-                im = ax.imshow(
-                    img[:, :, 0] if img.ndim == 3 else img,
-                    cmap=CMAP,
-                    vmin=VMIN,
-                    vmax=VMAX,
-                    aspect="auto",
-                    interpolation="bilinear",
-                )
-            else:
-                ax.text(
-                    0.5,
-                    0.5,
-                    "N/A",
-                    ha="center",
-                    va="center",
-                    transform=ax.transAxes,
-                    fontsize=8,
-                )
-        ax.set_title(label, fontsize=7.5)
-        ax.axis("off")
+        ax.set_title(label, fontsize=7.5, pad=-4)
+        ax.view_init(elev=_ELEV, azim=_AZIM)
+        ax.set_axis_off()
 
-    if im is not None:
-        cbar_ax = fig.add_axes([0.91, 0.15, 0.02, 0.70])
-        cb = fig.colorbar(im, cax=cbar_ax)
-        cb.set_ticks([0, 0.5, 1])
-        cb.set_ticklabels(["0", "0.5", "1"])
-        cb.ax.tick_params(labelsize=7)
-        cb.set_label("Density", fontsize=7.5)
-
-    fig.suptitle(f"{domain_label}", fontsize=8, y=1.01)
+    fig.subplots_adjust(wspace=0.0, hspace=-0.08, top=0.88, bottom=0.0)
+    fig.suptitle(domain_label, fontsize=8, y=0.97)
 
     fig.savefig(out_path)
     plt.close(fig)

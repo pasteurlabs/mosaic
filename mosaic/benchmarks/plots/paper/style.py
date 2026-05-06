@@ -49,15 +49,13 @@ SOLVER_STYLES: dict[str, tuple] = {
     # label              color       linestyle          marker
     "jax_cfd": ("JAX-CFD", "#0077BB", "-", "o"),  # Vibrant blue
     "phiflow": ("PhiFlow", "#CC3311", "--", "s"),  # Vibrant red
-    "ins_jl": ("INS.jl", "#009988", "-.", "^"),  # Vibrant teal
-    "pict": ("PICT", "#43A047", ":", "D"),  # Medium green
-    "xlb": ("XLB", "#2171B5", (0, (4, 1)), "v"),  # Medium blue
+    "ins_jl": ("INS.jl", "#33BBEE", "-.", "^"),  # Vibrant cyan
+    "pict": ("PICT", "#EE3377", ":", "D"),  # Vibrant magenta
+    "xlb": ("XLB", "#009988", (0, (4, 1)), "v"),  # Vibrant teal
     "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),  # Vibrant orange
-    "exponax": ("Exponax", "#228833", (0, (5, 1)), "<"),  # Bright green
+    "exponax": ("Exponax", "#CCBB44", (0, (5, 1)), "<"),  # Muted yellow
     # Reference / excluded solvers — muted tones
-    "fenics_ns": ("FEniCS-NS", "#BBBBBB", (0, (3, 1, 1, 1)), "X"),  # grey
     "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),  # Muted sand
-    "su2": ("SU2", "#332288", "-.", "*"),  # Muted indigo
     # ── FEM / Structural ────────────────────────────────────────────────────
     "jax_fem": ("JAX-FEM", "#0077BB", "-", "o"),  # blue (JAX family)
     "topopt_jl": ("TopOpt.jl", "#009988", "--", "s"),  # Vibrant teal
@@ -75,10 +73,10 @@ SOLVER_STYLES: dict[str, tuple] = {
     "firedrake_heat": ("Firedrake", "#EE7733", (0, (3, 1)), "v"),  # Vibrant orange
     "torch_fem_thermal": (
         "TorchFEM",
-        "#EE3377",
+        "#009988",
         (0, (5, 1, 1, 1)),
         "<",
-    ),  # Vibrant magenta
+    ),  # Vibrant teal
 }
 
 # ---------------------------------------------------------------------------
@@ -93,9 +91,7 @@ NS_ORDER: list[str] = [
     "pict",
     "warp_ns",
     "exponax",
-    "fenics_ns",
     "openfoam",
-    "su2",
 ]
 
 FEM_ORDER: list[str] = [

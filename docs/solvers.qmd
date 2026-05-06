@@ -2,7 +2,7 @@
 title: Solver Reference
 ---
 
-> Auto-generated 2026-05-05 21:17 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 3 differentiable fields
+> Auto-generated 2026-05-06 10:31 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 80 differentiable fields
 
 Each solver card shows its numerical scheme, AD strategy, known limitations, and Tesseract schema. Click **Inputs / Outputs** on any solver to expand its field tables. The ∂ column marks fields that support automatic differentiation (VJP/JVP).
 
@@ -18,6 +18,8 @@ Each solver card shows its numerical scheme, AD strategy, known limitations, and
 
 Integrates the 3D Navier–Stokes equations with an exponential time-differencing Runge–Kutta (ETDRK) spectral scheme, enforcing incompressibility to machine precision by construction. Gradients via JAX source-transformation AD.
 
+**Wrapping:** Pure JAX: Exponax is an Equinox-based JAX library. The solver is called as a traced JAX function; VJP via ``jax.vjp``.
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -25,13 +27,28 @@ Integrates the 3D Navier–Stokes equations with an exponential time-differencin
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
 | `drag` | `Array[(1,), Float32]` | ✓ | Linear drag coefficient |
 | `order` | `int` |  | ETDRK time integration order (0-4) |
 | `kolmogorov_forcing` | `bool` |  | Enable Kolmogorov sinusoidal body forcing for sustained turbulence |
 | `injection_mode` | `int` |  | Wavenumber at which energy is injected (Kolmogorov forcing) |
 | `injection_scale` | `Array[(1,), Float32]` | ✓ | Amplitude of the Kolmogorov body forcing |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -45,6 +62,8 @@ Integrates the 3D Navier–Stokes equations with an exponential time-differencin
 
 IncompressibleNavierStokes.jl: Julia finite-difference pressure-projection solver. Differentiates through the time loop via Zygote.jl reverse-mode AD. CPU only.
 
+**Wrapping:** Julia subprocess: IncompressibleNavierStokes.jl is called via ``juliacall``. VJP via Zygote.jl reverse-mode AD through the time loop.
+
 ::: {.callout-warning}
 #### Known limitations
 
@@ -55,9 +74,27 @@ IncompressibleNavierStokes.jl: Julia finite-difference pressure-projection solve
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -70,6 +107,8 @@ IncompressibleNavierStokes.jl: Julia finite-difference pressure-projection solve
 **Path:** `mosaic/tesseracts/navier-stokes-grid/jax-cfd`
 
 JAX-native incompressible flow solver on a staggered MAC grid with finite-difference advection and spectral (FFT) pressure projection. Gradients via JAX source-transformation AD. The spectral pressure solve requires periodic BCs in all spatial directions, so JAX-CFD is included in periodic benchmarks (TGV, multimode agreement) but excluded from the cylinder-wake experiment.
+
+**Wrapping:** Pure JAX: the solver is called as a traced JAX function inside ``apply``. VJP is obtained by wrapping the forward call with ``jax.vjp``.
 
 ::: {.callout-warning}
 #### Known limitations
@@ -91,10 +130,25 @@ JAX-native incompressible flow solver on a staggered MAC grid with finite-differ
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
 | `density` | `Array[(1,), Float32]` | ✓ | Density of the fluid |
 | `inner_steps` | `int` |  | Solver sub-iterations per timestep (higher = more accurate pressure solve) |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -108,6 +162,8 @@ JAX-native incompressible flow solver on a staggered MAC grid with finite-differ
 
 Runs the icoFoam incompressible PISO solver as a forward-only reference baseline. No reverse-mode AD available. Used as the reference solver for fluid benchmark domains.
 
+**Wrapping:** Subprocess: icoFoam is launched as an external process. Input/output fields are serialized to/from OpenFOAM's file format. Forward only, no VJP.
+
 ::: {.callout-note}
 #### Excluded experiments
 
@@ -119,9 +175,27 @@ Runs the icoFoam incompressible PISO solver as a forward-only reference baseline
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -135,6 +209,8 @@ Runs the icoFoam incompressible PISO solver as a forward-only reference baseline
 
 Semi-Lagrangian advection with pressure projection. Supports PyTorch, JAX, and TensorFlow backends, enabling gradient computation through the same simulation code across AD frameworks.
 
+**Wrapping:** Pure JAX: PhiFlow's JAX backend is selected at import time. The simulation loop runs as a traced JAX function; VJP via ``jax.vjp``.
+
 ::: {.callout-note}
 #### Excluded experiments
 
@@ -144,9 +220,27 @@ Semi-Lagrangian advection with pressure projection. Supports PyTorch, JAX, and T
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -160,6 +254,8 @@ Semi-Lagrangian advection with pressure projection. Supports PyTorch, JAX, and T
 
 GPU-accelerated differentiable incompressible Navier–Stokes solver built on PyTorch with custom CUDA kernels implementing the PISO algorithm. Supports reverse-mode AD through the full time loop and handles multi-block curvilinear grids. The Mosaic Tesseract exposes periodic, lid-driven cavity, inflow/channel, and cylinder-wake modes via an 8-block ring topology.
 
+**Wrapping:** PyTorch + CUDA: PISOtorch C++ extension runs the PISO time loop on GPU. VJP via ``torch.autograd`` backward through the custom CUDA kernels.
+
 ::: {.callout-warning}
 #### Known limitations
 
@@ -169,9 +265,27 @@ GPU-accelerated differentiable incompressible Navier–Stokes solver built on Py
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -184,6 +298,8 @@ GPU-accelerated differentiable incompressible Navier–Stokes solver built on Py
 **Path:** `mosaic/tesseracts/navier-stokes-grid/warp-ns`
 
 Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels with an FFT-based spectral Poisson solver. Gradients via the wp.Tape kernel-level VJP. Custom solver: the framework provides differentiable kernels but no ready-made incompressible flow solver, so FE assembly and time integration were implemented using Warp primitives. Represents the integration cost when a kernel toolkit provides no built-in solver.
+
+**Wrapping:** NVIDIA Warp: custom CUDA kernels implement IPCS projection. VJP via ``wp.Tape`` kernel-level reverse-mode replay.
 
 ::: {.callout-warning}
 #### Known limitations
@@ -198,10 +314,25 @@ Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels with an FFT-ba
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
 | `num_iters_poisson` | `int` |  | Minimum number of Jacobi iterations per 2-D streamfunction Poisson solve. The solver auto-scales to max(this value, min(4*N², 8000)) at runtime, so convergence is maintained across grid sizes N=16..128 without manual tuning.  For N≥128 with production accuracy, a multigrid or FFT Poisson solver is recommended as Jacobi is capped at 8000 iterations. |
 | `num_iters_poisson_3d` | `int` |  | Number of Jacobi iterations per 3-D pressure Poisson solve. 800 iterations is adequate for N≤32; increase for larger grids. |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -215,6 +346,8 @@ Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels with an FFT-ba
 
 JAX-native lattice Boltzmann solver supporting D2Q9 and D3Q19 stencils on GPU. Gradients via source-transformation AD through the collision-streaming loop. Note: the LBM recovers incompressible Navier–Stokes only to O(Ma²) via Chapman–Enskog expansion, giving an intrinsic compressibility error floor at fine grids.
 
+**Wrapping:** Pure JAX: XLB's JAX backend runs the LBM collision-streaming loop. VJP via ``jax.vjp`` through the full loop.
+
 ::: {.callout-warning}
 #### Known limitations
 
@@ -225,9 +358,27 @@ JAX-native lattice Boltzmann solver supporting D2Q9 and D3Q19 stencils on GPU. G
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `v0` | `GridVectorField` | ✓ | Initial velocity field, shape (N, N, 1, 2). Default: 64×64 divergence-free random vortex field (seed=42). |
+| `viscosity` | `Array[(1,), Float32]` | ✓ | Kinematic viscosity ν. |
+| `dt` | `Array[(1,), Float32]` | ✓ | Timestep size. |
+| `steps` | `int` |  | Number of timesteps. Total simulated time = steps × dt. |
+| `domain_extent` | `float` |  | Side length of the square periodic domain. |
+| `boundary_conditions` | `GridBC` |  | Per-face boundary conditions. Default: all periodic. |
+| `obstacle` | `GridObstacle | None` |  | Optional solid obstacle embedded in the domain (no-slip walls). |
+| `inflow_profile` | `Differentiable[Array[(None,), Float32]] | None` |  | 1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. Used for inflow-profile optimisation (e.g. cylinder drag minimisation). |
+| `lid_velocity` | `Differentiable[Array[(None, None, 2), Float32]] | None` |  | Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). The two components are the x- and y-tangential velocities on the moving top lid. When provided the solver runs in non-periodic cavity mode with no-slip walls. Used as the optimisation variable in lid_cavity experiments. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `result` | `GridVectorField` | ✓ | Final velocity field, same shape as v0. |
+| `drag` | `Differentiable[Array[(1,), Float32]] | None` |  | x-direction drag force on the embedded obstacle, shape (1,). Computed as the surface integral of pressure and viscous stress: F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. None when no obstacle is present. |
+| `velocity_mean` | `Differentiable[GridVectorField] | None` |  | Time-averaged (RANS) velocity field over the last steps // 2 steps of the rollout, same shape as result. Computed on solvers feasible for drag optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are present. None on periodic/lid-cavity paths. |
 
 :::
 
@@ -242,6 +393,8 @@ JAX-native lattice Boltzmann solver supporting D2Q9 and D3Q19 stencils on GPU. G
 
 Solves structural problems with Q1 elements using the industry-grade C++ finite-element library deal.II. Gradients via hand-derived analytical adjoint sensitivities. Used as the reference solver for structural and thermal domains.
 
+**Wrapping:** C++ subprocess: deal.II solver compiled as a shared library, called via ctypes. VJP via hand-derived analytical adjoint sensitivities in C++.
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -249,12 +402,21 @@ Solves structural problems with Q1 elements using the industry-grade C++ finite-
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. Values in [0, 1]: 0 = void, 1 = solid. |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe displacement (values shape (n_groups, 3), None → zero); neumann.mask/values prescribe surface traction (values shape (n_groups, 3)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `E_max` | `float` |  | Young's modulus of the fully solid material [MPa]. |
 | `nu` | `float` |  | Poisson's ratio. |
 | `xmin` | `float` |  | Void stiffness ratio (E_min = xmin * E_max). |
 | `penal` | `float` |  | SIMP penalisation exponent (E(ρ) = E_min + (E_max−E_min)·ρ^penal). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `compliance` | `Array[(), Float32]` | ✓ | Structural compliance C = F^T U (scalar). Minimising compliance is equivalent to maximising stiffness. |
+| `von_mises_stress` | `Array[(None,), Float32]` | ✓ | Per-cell von Mises stress at element centroids, shape (n_cells,). |
+| `displacement` | `Array[(None, 3), Float32]` | ✓ | Nodal displacement field, shape (n_nodes, 3). |
 
 :::
 
@@ -266,6 +428,8 @@ Solves structural problems with Q1 elements using the industry-grade C++ finite-
 
 Finite-element solver using P1 elements for structural problems. dolfin-adjoint automates the discrete adjoint by replaying the forward tape.
 
+**Wrapping:** In-process Python: FEniCS/dolfin assembles and solves via PETSc. VJP via dolfin-adjoint tape replay (discrete adjoint).
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -273,12 +437,21 @@ Finite-element solver using P1 elements for structural problems. dolfin-adjoint 
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. Values in [0, 1]: 0 = void, 1 = solid. |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe displacement (values shape (n_groups, 3), None → zero); neumann.mask/values prescribe surface traction (values shape (n_groups, 3)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `E_max` | `float` |  | Young's modulus of the fully solid material. |
 | `nu` | `float` |  | Poisson's ratio. |
 | `xmin` | `float` |  | Void stiffness ratio (E_min = xmin * E_max). |
 | `penal` | `float` |  | SIMP penalisation exponent (E(rho) = E_min + (E_max-E_min)*rho^penal). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `compliance` | `Array[(), Float32]` | ✓ | Structural compliance C = F^T U (scalar). Minimising compliance is equivalent to maximising stiffness. |
+| `von_mises_stress` | `Array[(None,), Float32]` | ✓ | Per-cell von Mises stress at element centroids, shape (n_cells,). |
+| `displacement` | `Array[(None, 3), Float32]` | ✓ | Nodal displacement field, shape (n_nodes, 3). |
 
 :::
 
@@ -290,6 +463,8 @@ Finite-element solver using P1 elements for structural problems. dolfin-adjoint 
 
 Mirrors the FEniCS P1/CG1 formulation for structural problems. Differentiates via firedrake-adjoint, providing an independent tape-based adjoint implementation for cross-validation.
 
+**Wrapping:** In-process Python: Firedrake assembles and solves via PETSc. VJP via firedrake-adjoint/pyadjoint tape replay (discrete adjoint).
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -297,12 +472,21 @@ Mirrors the FEniCS P1/CG1 formulation for structural problems. Differentiates vi
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. Values in [0, 1]: 0 = void, 1 = solid. |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe displacement (values shape (n_groups, 3), None → zero); neumann.mask/values prescribe surface traction (values shape (n_groups, 3)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `E_max` | `float` |  | Young's modulus of the fully solid material. |
 | `nu` | `float` |  | Poisson's ratio. |
 | `xmin` | `float` |  | Void stiffness ratio (E_min = xmin * E_max). |
 | `penal` | `float` |  | SIMP penalisation exponent (E(rho) = E_min + (E_max-E_min)*rho^penal). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `compliance` | `Array[(), Float32]` | ✓ | Structural compliance C = F^T U (scalar). Minimising compliance is equivalent to maximising stiffness. |
+| `von_mises_stress` | `Array[(None,), Float32]` | ✓ | Per-cell von Mises stress at element centroids, shape (n_cells,). |
+| `displacement` | `Array[(None, 3), Float32]` | ✓ | Nodal displacement field, shape (n_nodes, 3). |
 
 :::
 
@@ -314,12 +498,26 @@ Mirrors the FEniCS P1/CG1 formulation for structural problems. Differentiates vi
 
 Solves heat conduction and linear elasticity with trilinear HEX8 finite elements in JAX. Gradients via AD through the assembled system.
 
+**Wrapping:** Pure JAX: JAX-FEM assembles and solves the FE system in JAX. VJP via ``jax.vjp`` through the assembled linear solve.
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. Values in [0, 1]: 0 = void, 1 = solid. |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe displacement (values shape (n_groups, 3), None → zero); neumann.mask/values prescribe surface traction (values shape (n_groups, 3)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `compliance` | `Array[(), Float32]` | ✓ | Structural compliance C = F^T U (scalar). Minimising compliance is equivalent to maximising stiffness. |
+| `von_mises_stress` | `Array[(None,), Float32]` | ✓ | Per-cell von Mises stress at element centroids, shape (n_cells,). |
+| `displacement` | `Array[(None, 3), Float32]` | ✓ | Nodal displacement field, shape (n_nodes, 3). |
 
 :::
 
@@ -331,6 +529,8 @@ Solves heat conduction and linear elasticity with trilinear HEX8 finite elements
 
 SIMP topology optimization for linear elasticity with HEX8 elements in Julia, using analytical adjoint sensitivities.
 
+**Wrapping:** Julia subprocess: the TopOpt solver is called via ``juliacall``. VJP via analytical adjoint sensitivities computed in Julia.
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -338,11 +538,20 @@ SIMP topology optimization for linear elasticity with HEX8 elements in Julia, us
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. Values in [0, 1]: 0 = void, 1 = solid. |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe displacement (values shape (n_groups, 3), None → zero); neumann.mask/values prescribe surface traction (values shape (n_groups, 3)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `E` | `float` |  | Young's modulus of the solid material. |
 | `nu` | `float` |  | Poisson's ratio. |
 | `xmin` | `float` |  | Minimum density (void stiffness) to prevent singular stiffness matrix. |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `compliance` | `Array[(), Float32]` | ✓ | Structural compliance C = F^T U (scalar). Minimising compliance is equivalent to maximising stiffness. |
+| `von_mises_stress` | `Array[(None,), Float32]` | ✓ | Per-cell von Mises stress at element centroids, shape (n_cells,). |
+| `displacement` | `Array[(None, 3), Float32]` | ✓ | Nodal displacement field, shape (n_nodes, 3). |
 
 :::
 
@@ -357,6 +566,8 @@ SIMP topology optimization for linear elasticity with HEX8 elements in Julia, us
 
 Solves thermal problems with Q1 elements using the industry-grade C++ finite-element library deal.II. Gradients via hand-derived analytical adjoint sensitivities. Used as the reference solver for the thermal domain.
 
+**Wrapping:** C++ subprocess: deal.II solver compiled as a shared library, called via ctypes. VJP via hand-derived analytical adjoint sensitivities in C++.
+
 ::: {.callout-note}
 #### Excluded experiments
 
@@ -370,10 +581,21 @@ Solves thermal problems with Q1 elements using the industry-grade C++ finite-ele
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. ρ=1 → fully conducting, ρ=0 → insulating. |
+| `source` | `Array[(None,), Float32]` | ✓ | Per-element volumetric heat source (W/m³), shape (n_cells,). Active slice = source[:hex_mesh.n_faces]. Zero by default (topology-optimisation mode; no body heat source). |
+| `target_temperature` | `Array[(None,), Float32]` |  | Per-node target temperature for the inverse (source-identification) objective, shape (n_nodes,). identification_error = ||T - target_temperature||²_2. Zero by default (not used in topology-optimisation mode). |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe temperature (values shape (n_groups, 1), None → zero); neumann.mask/values prescribe heat flux (values shape (n_groups, 1)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `k_max` | `float` |  | Maximum thermal conductivity (fully solid material). |
 | `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `thermal_compliance` | `Array[(), Float32]` | ✓ | Total thermal compliance C = ∮_Γ_N q_n · T dΓ (scalar). Equals the work done by the Neumann heat flux on the temperature field. |
+| `temperature` | `Array[(None,), Float32]` | ✓ | Temperature field at mesh vertices/cells, shape (n_vertices,). |
+| `identification_error` | `Array[(), Float32]` | ✓ | Source-identification objective: ||T - target_temperature||²_2 (scalar). Computed as sum((T_nodes - target_temperature[:n_nodes])²). Zero when target_temperature is all-zeros (topology-optimisation mode). |
 
 :::
 
@@ -385,6 +607,8 @@ Solves thermal problems with Q1 elements using the industry-grade C++ finite-ele
 
 Finite-element solver using P1 elements for thermal problems. dolfin-adjoint automates the discrete adjoint by replaying the forward tape.
 
+**Wrapping:** In-process Python: FEniCS/dolfin assembles and solves via PETSc. VJP via dolfin-adjoint tape replay (discrete adjoint).
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -392,10 +616,21 @@ Finite-element solver using P1 elements for thermal problems. dolfin-adjoint aut
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. ρ=1 → fully conducting, ρ=0 → insulating. |
+| `source` | `Array[(None,), Float32]` | ✓ | Per-element volumetric heat source (W/m³), shape (n_cells,). Active slice = source[:hex_mesh.n_faces]. Zero by default (topology-optimisation mode; no body heat source). |
+| `target_temperature` | `Array[(None,), Float32]` |  | Per-node target temperature for the inverse (source-identification) objective, shape (n_nodes,). identification_error = ||T - target_temperature||²_2. Zero by default (not used in topology-optimisation mode). |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe temperature (values shape (n_groups, 1), None → zero); neumann.mask/values prescribe heat flux (values shape (n_groups, 1)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `k_max` | `float` |  | Maximum thermal conductivity (fully solid/conducting material). |
 | `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `thermal_compliance` | `Array[(), Float32]` | ✓ | Total thermal compliance C = ∮_Γ_N q_n · T dΓ (scalar). Equals the work done by the Neumann heat flux on the temperature field. |
+| `temperature` | `Array[(None,), Float32]` | ✓ | Temperature field at mesh vertices/cells, shape (n_vertices,). |
+| `identification_error` | `Array[(), Float32]` | ✓ | Source-identification objective: ||T - target_temperature||²_2 (scalar). Computed as sum((T_nodes - target_temperature[:n_nodes])²). Zero when target_temperature is all-zeros (topology-optimisation mode). |
 
 :::
 
@@ -407,6 +642,8 @@ Finite-element solver using P1 elements for thermal problems. dolfin-adjoint aut
 
 Mirrors the FEniCS P1/CG1 formulation for thermal problems. Differentiates via firedrake-adjoint, providing an independent tape-based adjoint implementation for cross-validation.
 
+**Wrapping:** In-process Python: Firedrake assembles and solves via PETSc. VJP via firedrake-adjoint/pyadjoint tape replay (discrete adjoint).
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -414,10 +651,21 @@ Mirrors the FEniCS P1/CG1 formulation for thermal problems. Differentiates via f
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. ρ=1 → fully conducting, ρ=0 → insulating. |
+| `source` | `Array[(None,), Float32]` | ✓ | Per-element volumetric heat source (W/m³), shape (n_cells,). Active slice = source[:hex_mesh.n_faces]. Zero by default (topology-optimisation mode; no body heat source). |
+| `target_temperature` | `Array[(None,), Float32]` |  | Per-node target temperature for the inverse (source-identification) objective, shape (n_nodes,). identification_error = ||T - target_temperature||²_2. Zero by default (not used in topology-optimisation mode). |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe temperature (values shape (n_groups, 1), None → zero); neumann.mask/values prescribe heat flux (values shape (n_groups, 1)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `k_max` | `float` |  | Maximum thermal conductivity (fully solid/conducting material). |
 | `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `thermal_compliance` | `Array[(), Float32]` | ✓ | Total thermal compliance C = ∮_Γ_N q_n · T dΓ (scalar). Equals the work done by the Neumann heat flux on the temperature field. |
+| `temperature` | `Array[(None,), Float32]` | ✓ | Temperature field at mesh vertices/cells, shape (n_vertices,). |
+| `identification_error` | `Array[(), Float32]` | ✓ | Source-identification objective: ||T - target_temperature||²_2 (scalar). Computed as sum((T_nodes - target_temperature[:n_nodes])²). Zero when target_temperature is all-zeros (topology-optimisation mode). |
 
 :::
 
@@ -429,12 +677,28 @@ Mirrors the FEniCS P1/CG1 formulation for thermal problems. Differentiates via f
 
 Solves heat conduction and linear elasticity with trilinear HEX8 finite elements in JAX. Gradients via AD through the assembled system.
 
+**Wrapping:** Pure JAX: JAX-FEM assembles and solves the FE system in JAX. VJP via ``jax.vjp`` through the assembled linear solve.
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
-**Inputs:** —
+**Inputs**
 
-**Outputs:** —
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. ρ=1 → fully conducting, ρ=0 → insulating. |
+| `source` | `Array[(None,), Float32]` | ✓ | Per-element volumetric heat source (W/m³), shape (n_cells,). Active slice = source[:hex_mesh.n_faces]. Zero by default (topology-optimisation mode; no body heat source). |
+| `target_temperature` | `Array[(None,), Float32]` |  | Per-node target temperature for the inverse (source-identification) objective, shape (n_nodes,). identification_error = ||T - target_temperature||²_2. Zero by default (not used in topology-optimisation mode). |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe temperature (values shape (n_groups, 1), None → zero); neumann.mask/values prescribe heat flux (values shape (n_groups, 1)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
+
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `thermal_compliance` | `Array[(), Float32]` | ✓ | Total thermal compliance C = ∮_Γ_N q_n · T dΓ (scalar). Equals the work done by the Neumann heat flux on the temperature field. |
+| `temperature` | `Array[(None,), Float32]` | ✓ | Temperature field at mesh vertices/cells, shape (n_vertices,). |
+| `identification_error` | `Array[(), Float32]` | ✓ | Source-identification objective: ||T - target_temperature||²_2 (scalar). Computed as sum((T_nodes - target_temperature[:n_nodes])²). Zero when target_temperature is all-zeros (topology-optimisation mode). |
 
 :::
 
@@ -446,6 +710,8 @@ Solves heat conduction and linear elasticity with trilinear HEX8 finite elements
 
 Solves heat conduction with linear finite elements in PyTorch. Gradients via torch.autograd through the assembled system.
 
+**Wrapping:** PyTorch: linear FE assembly and solve in pure PyTorch. VJP via ``torch.autograd`` through the assembled system.
+
 ::: {.callout-note collapse="true"}
 #### Inputs / Outputs
 
@@ -453,9 +719,20 @@ Solves heat conduction with linear finite elements in PyTorch. Gradients via tor
 
 | Field | Type | ∂ | Description |
 |-------|------|---|-------------|
+| `rho` | `Array[(None,), Float32]` | ✓ | Per-cell density field, shape (n_max_cells,). Active slice = rho[:hex_mesh.n_faces]. ρ=1 → fully conducting, ρ=0 → insulating. |
+| `source` | `Array[(None,), Float32]` | ✓ | Per-element volumetric heat source (W/m³), shape (n_cells,). Active slice = source[:hex_mesh.n_faces]. Zero by default (topology-optimisation mode; no body heat source). |
+| `target_temperature` | `Array[(None,), Float32]` |  | Per-node target temperature for the inverse (source-identification) objective, shape (n_nodes,). identification_error = ||T - target_temperature||²_2. Zero by default (not used in topology-optimisation mode). |
+| `boundary_conditions` | `MeshBC` |  | Mesh boundary conditions. dirichlet.mask/values prescribe temperature (values shape (n_groups, 1), None → zero); neumann.mask/values prescribe heat flux (values shape (n_groups, 1)). |
+| `hex_mesh` | `HexMesh` |  | Hexahedral mesh (8-node hex elements). n_points / n_faces give the active slice sizes. |
 | `k_max` | `float` |  | Maximum thermal conductivity (fully solid material). |
 | `p_exp` | `float` |  | SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p). |
 
-**Outputs:** —
+**Outputs**
+
+| Field | Type | ∂ | Description |
+|-------|------|---|-------------|
+| `thermal_compliance` | `Array[(), Float32]` | ✓ | Total thermal compliance C = ∮_Γ_N q_n · T dΓ (scalar). Equals the work done by the Neumann heat flux on the temperature field. |
+| `temperature` | `Array[(None,), Float32]` | ✓ | Temperature field at mesh vertices/cells, shape (n_vertices,). |
+| `identification_error` | `Array[(), Float32]` | ✓ | Source-identification objective: ||T - target_temperature||²_2 (scalar). Computed as sum((T_nodes - target_temperature[:n_nodes])²). Zero when target_temperature is all-zeros (topology-optimisation mode). |
 
 :::

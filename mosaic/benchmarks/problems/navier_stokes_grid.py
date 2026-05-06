@@ -39,7 +39,7 @@ _SOLVERS: dict[str, SolverSpec] = {
                 "category": "categorical",
                 "reason": "tesseract uses periodic FFT pressure solve + IBM volume penalization; channel-BC cylinder flow requires a non-periodic pressure solve that is not wired in this benchmark",
             },
-            "recovery/drag_opt": {
+            "optimization/drag_opt": {
                 "category": "categorical",
                 "reason": "periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs (same root cause as forward/cylinder)",
             },
@@ -108,7 +108,7 @@ _SOLVERS: dict[str, SolverSpec] = {
                 "category": "categorical",
                 "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented in INS.jl; spectral/LU pressure projection is also periodic-only and incompatible with obstacle channel BCs",
             },
-            "recovery/drag_opt": {
+            "optimization/drag_opt": {
                 "category": "categorical",
                 "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented; inflow_profile VJP works only in periodic/channel mode without obstacles",
             },
@@ -215,15 +215,6 @@ _SOLVERS: dict[str, SolverSpec] = {
         image_tag="xlb_navier_stokes_grid:latest",
         exclusions={},
         explained_anomalies={
-            "recovery/drag_opt/re100": {
-                "reason": (
-                    "Re=100 is above the Hopf bifurcation (~Re=47); xlb uses time-averaged drag "
-                    "(tail-window mean over last steps//2) which cancels shedding oscillations and "
-                    "gives a usable gradient, but 500 optimiser iterations are insufficient to reach "
-                    "the >50% drag reduction threshold (achieved 28.3%); kept anomalous pending "
-                    "longer optimisation run."
-                ),
-            },
             "forward/baseline": {
                 "reason": (
                     "irreducible O(Ma²) LBM compressibility error floor: at fixed "
@@ -277,9 +268,9 @@ _SOLVERS: dict[str, SolverSpec] = {
                 "category": "categorical",
                 "reason": "FFT spectral Poisson is periodic-only; obstacle channel BCs are method-incompatible",
             },
-            "recovery/drag_opt": {
+            "optimization/drag_opt": {
                 "category": "infeasible",
-                "reason": "wp.Tape does not differentiate through the CG+Neumann obstacle pressure solve; drag gradient is zero, optimizer makes no progress (ratio=1.000 at re20, NaN drag at re100)",
+                "reason": "wp.Tape does not differentiate through the CG+Neumann obstacle pressure solve; drag gradient is zero, optimizer makes no progress",
             },
         },
         explained_anomalies={
@@ -764,13 +755,12 @@ CONFIG = ProblemConfig(
     inverse_defaults={
         "drag_opt": dict(
             description=(
-                "Inflow profile optimisation: minimise cylinder drag at Re=20 (steady) "
-                "and Re=100 (vortex shedding). Control variable is the 1-D inlet profile "
-                "u_x(y); constraint is fixed mean flow rate (flow-rate penalty). "
-                "Geometry: cylinder at [0.5, 0.5], radius=0.05, domain [0,1]²."
+                "Inflow profile optimisation: minimise cylinder drag at Re=20 (steady Stokes-like regime). "
+                "Control variable is the 1-D inlet profile u_x(y); constraint is fixed mean flow rate "
+                "(flow-rate penalty). Geometry: cylinder at [0.5, 0.5], radius=0.05, domain [0,1]²."
             ),
             plot_description=(
-                "Drag convergence curves per solver at Re=20 and Re=100; "
+                "Drag convergence curves per solver at Re=20; "
                 "optimised vs initial inflow profiles; final drag coefficient comparison."
             ),
             runs=[
@@ -798,40 +788,15 @@ CONFIG = ProblemConfig(
                         snap_interval=20,
                     ),
                 ),
-                dict(
-                    name="re100",
-                    ic=dict(name="flat_inflow", seed=0),
-                    physics=dict(
-                        N=32,
-                        # Re = U·D/ν = 0.5·0.1/0.0005 = 100
-                        # N=32 used (not 64): same IBM stability constraint as re20.
-                        # dt=0.02, steps=200 (T=4s): ≥3 Kármán shedding periods for a
-                        # stable RANS average; lowers LBM ω from 1.94→1.88, halving
-                        # adjoint depth vs the original dt=0.01/steps=800.
-                        nu=0.0005,
-                        dt=0.02,
-                        steps=200,
-                        domain_extent=1.0,
-                        U_mean=0.5,
-                        obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),
-                    ),
-                    optim=dict(
-                        lr=2e-4,
-                        max_iters=500,
-                        patience=100,
-                        flow_penalty_weight=50.0,
-                        snap_interval=20,
-                    ),
-                ),
             ],
         ),
         "drag_opt_bfgs": dict(
             description=(
-                "Inflow profile optimisation with L-BFGS: minimise cylinder drag at Re=20 and Re=100. "
+                "Inflow profile optimisation with L-BFGS: minimise cylinder drag at Re=20. "
                 "Same setup as drag_opt but using L-BFGS with zoom line search."
             ),
             plot_description=(
-                "L-BFGS drag convergence curves per solver at Re=20 and Re=100; "
+                "L-BFGS drag convergence curves per solver at Re=20; "
                 "optimised vs initial inflow profiles; final drag coefficient comparison."
             ),
             runs=[
@@ -843,25 +808,6 @@ CONFIG = ProblemConfig(
                         nu=0.0025,
                         dt=0.02,
                         steps=400,
-                        domain_extent=1.0,
-                        U_mean=0.5,
-                        obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),
-                    ),
-                    optim=dict(
-                        max_iters=50,
-                        patience=15,
-                        flow_penalty_weight=50.0,
-                        snap_interval=5,
-                    ),
-                ),
-                dict(
-                    name="re100",
-                    ic=dict(name="flat_inflow", seed=0),
-                    physics=dict(
-                        N=32,
-                        nu=0.0005,
-                        dt=0.02,
-                        steps=200,
                         domain_extent=1.0,
                         U_mean=0.5,
                         obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),

@@ -1,0 +1,62 @@
+# Template: Steady-state thermal conduction on a hexahedral mesh (SIMP topology optimisation)
+#
+# Based on the thermal-mesh domain. Extend to new geometries by modifying the
+# mesh, boundary conditions, and objective function.
+
+name: thermal-steady
+description: >
+  Steady-state heat conduction with SIMP topology optimisation on a hexahedral
+  mesh.  The solver takes a per-cell density field and returns the temperature
+  field and thermal compliance.
+
+# Schema module to import InputSchema / OutputSchema from.
+schema_module: mosaic_shared.problems.thermal_mesh
+
+# Which output field is used for solver-to-solver comparison.
+output_key: temperature
+
+# Key in the input dict that holds the optimisation variable.
+ic_key: rho
+
+# Physical domain
+domain_extent: 1.0
+
+# Default resolution parameter (N controls mesh size).
+resolution_key: N
+
+# Default physics parameters for a minimal smoke test.
+physics_defaults:
+  N: 8
+  mesh_level: 1
+
+# Initial condition: uniform density field.
+ic_defaults:
+  name: uniform
+  seed: 0
+
+# Forward suite defaults
+forward:
+  agreement:
+    - ic: { name: uniform, seed: 0 }
+      physics: { N: 8 }
+      sweep: { key: N, values: [4, 8, 12, 16] }
+
+# Gradient suite defaults
+gradient:
+  fd_check:
+    - ic: { name: uniform, seed: 0 }
+      physics: { N: 8 }
+      fd: { eps_values: [1.0, 0.1, 0.01, 0.001], n_dirs: 10 }
+
+# Cost suite defaults
+cost:
+  cost:
+    n_trials: 3
+    N_values: [4, 8, 12, 16]
+
+# Optimization suite defaults
+optimization:
+  recovery:
+    - ic: { name: uniform, seed: 0 }
+      physics: { N: 8 }
+      optim: { lr: 0.01, steps: 100, patience: 20 }

@@ -20,3 +20,16 @@ build_config:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+
+mosaic:
+  name: "JAX-FEM"
+  backend: jax
+  family: fem
+  scheme: "FEM HEX8 linear elasticity (SIMP, adjoint AD)"
+  color: "#4477AA"
+  ad_strategy: hybrid
+  differentiable: true
+  uses_gpu: true
+  description: >
+    JAX-FEM HEX8 linear-elasticity solver; automatic differentiation adjoint
+    via JAX.

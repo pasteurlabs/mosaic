@@ -82,6 +82,11 @@ def _set_axis_ticks(
     if is_log_y:
         ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.yaxis.set_major_formatter(mticker.LogFormatterMathtext())
+    else:
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=3, prune="both"))
+        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+    ax.tick_params(axis="y", labelsize=7.5)
 
 
 def _ke_analytic(sweep_key: str, params: list[str], phys: dict, subdir: str):
@@ -123,10 +128,11 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
         params = sorted(by_param.keys(), key=float)
         phys = data.get("params", {}).get("physics", {})
 
+        _EXCLUDED = {"fenics_ns", "su2"}
         all_solvers: list[str] = []
         for pdata in by_param.values():
             for s in pdata:
-                if s not in all_solvers:
+                if s not in all_solvers and s not in _EXCLUDED:
                     all_solvers.append(s)
 
         for col, (metric_key, metric_label, log_y) in enumerate(METRICS):

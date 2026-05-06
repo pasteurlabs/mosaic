@@ -41,36 +41,40 @@ def vector_jacobian_product(inputs: InputSchema, output_cotangents: OutputSchema
 
 ### 3. Write the config files
 
-**tesseract_config.yaml:**
+**tesseract_config.yaml** — include a `mosaic:` block so the harness discovers your solver automatically:
+
 ```yaml
 name: my-solver
 version: 0.1.0
 description: >
   Short description of what this solver does and how it computes gradients.
+
+mosaic:
+  name: "My Solver" # display name (required)
+  backend: jax # runtime: jax, pytorch, julia, cpp, warp, fenics, ...
+  family: projection # solver family: projection, lbm, spectral, fd, fem, ...
+  scheme: "MAC FD + projection" # numerical scheme label
+  color: "#1f77b4" # hex colour for plots
+  marker: "o" # matplotlib marker
+  ad_strategy: autodiff # autodiff | adjoint | hybrid | null
+  differentiable: true # explicit VJP flag
+  uses_gpu: true # false for CPU-only solvers
+  description: "One-sentence description for reference tables."
+  doc_url: "https://..." # upstream docs link
 ```
 
 **tesseract_requirements.txt:**
+
 ```
 my-solver-package>=1.0
 ../../../mosaic_shared
 ```
 
-### 4. Register the solver
+The `mosaic:` block is all the harness needs to discover and run your solver. No Python registration step is required for basic operation.
 
-Add a `SolverSpec` entry in `mosaic/benchmarks/problems/<domain>.py` (see [Architecture](docs/architecture.qmd) for field documentation):
+If your solver needs **domain-specific overrides** (experiment exclusions, input overrides, or explained anomalies), add them in the problem config (`mosaic/benchmarks/problems/<domain>.py`). See existing solvers for examples.
 
-```python
-"my-solver": SolverSpec(
-    name="my-solver",
-    backend="jax",           # or "pytorch", "julia", "cpp"
-    ad_strategy="autodiff",  # or "adjoint", "hybrid"
-    color="#1f77b4",
-    has_forward=True,
-    has_vjp=True,
-),
-```
-
-### 5. Build and test
+### 4. Build and test
 
 ```bash
 tesseract build mosaic/tesseracts/<domain>/<solver-name>
@@ -93,7 +97,7 @@ Create `mosaic/mosaic_shared/problems/<domain>/schemas.py` with `InputSchema` an
 
 Create `mosaic/benchmarks/problems/<domain>.py` with a `ProblemConfig` defining:
 
-- `solvers` — dict of `SolverSpec` entries
+- `solvers` — use `discover_solvers(tesseract_dir)` to auto-populate from `tesseract_config.yaml` files, then merge domain-specific overrides (exclusions, input_overrides)
 - `make_ic` — function that generates initial conditions
 - `make_inputs` — function that builds solver inputs from IC and physics parameters
 - `error_fn` — function that computes the objective from solver outputs

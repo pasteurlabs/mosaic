@@ -166,6 +166,78 @@ SOLVER_LIMITATIONS: dict[str, list[str]] = {
     ],
 }
 
+# Per-solver wrapping notes: how the native solver is called from the Tesseract.
+WRAPPING_NOTES: dict[str, str] = {
+    "jax-cfd": (
+        "Pure JAX: the solver is called as a traced JAX function inside ``apply``. "
+        "VJP is obtained by wrapping the forward call with ``jax.vjp``."
+    ),
+    "phiflow": (
+        "Pure JAX: PhiFlow's JAX backend is selected at import time. The simulation "
+        "loop runs as a traced JAX function; VJP via ``jax.vjp``."
+    ),
+    "exponax": (
+        "Pure JAX: Exponax is an Equinox-based JAX library. The solver is called "
+        "as a traced JAX function; VJP via ``jax.vjp``."
+    ),
+    "xlb": (
+        "Pure JAX: XLB's JAX backend runs the LBM collision-streaming loop. "
+        "VJP via ``jax.vjp`` through the full loop."
+    ),
+    "jax-fem": (
+        "Pure JAX: JAX-FEM assembles and solves the FE system in JAX. "
+        "VJP via ``jax.vjp`` through the assembled linear solve."
+    ),
+    "pict": (
+        "PyTorch + CUDA: PISOtorch C++ extension runs the PISO time loop on GPU. "
+        "VJP via ``torch.autograd`` backward through the custom CUDA kernels."
+    ),
+    "warp-ns": (
+        "NVIDIA Warp: custom CUDA kernels implement IPCS projection. "
+        "VJP via ``wp.Tape`` kernel-level reverse-mode replay."
+    ),
+    "incompressible-navier-stokes-jl": (
+        "Julia subprocess: IncompressibleNavierStokes.jl is called via ``juliacall``. "
+        "VJP via Zygote.jl reverse-mode AD through the time loop."
+    ),
+    "topopt-jl": (
+        "Julia subprocess: the TopOpt solver is called via ``juliacall``. "
+        "VJP via analytical adjoint sensitivities computed in Julia."
+    ),
+    "openfoam": (
+        "Subprocess: icoFoam is launched as an external process. Input/output "
+        "fields are serialized to/from OpenFOAM's file format. Forward only, no VJP."
+    ),
+    "fenics": (
+        "In-process Python: FEniCS/dolfin assembles and solves via PETSc. "
+        "VJP via dolfin-adjoint tape replay (discrete adjoint)."
+    ),
+    "fenics-heat": (
+        "In-process Python: FEniCS/dolfin assembles and solves via PETSc. "
+        "VJP via dolfin-adjoint tape replay (discrete adjoint)."
+    ),
+    "firedrake": (
+        "In-process Python: Firedrake assembles and solves via PETSc. "
+        "VJP via firedrake-adjoint/pyadjoint tape replay (discrete adjoint)."
+    ),
+    "firedrake-heat": (
+        "In-process Python: Firedrake assembles and solves via PETSc. "
+        "VJP via firedrake-adjoint/pyadjoint tape replay (discrete adjoint)."
+    ),
+    "dealii": (
+        "C++ subprocess: deal.II solver compiled as a shared library, called via "
+        "ctypes. VJP via hand-derived analytical adjoint sensitivities in C++."
+    ),
+    "dealii-heat": (
+        "C++ subprocess: deal.II solver compiled as a shared library, called via "
+        "ctypes. VJP via hand-derived analytical adjoint sensitivities in C++."
+    ),
+    "torch-fem": (
+        "PyTorch: linear FE assembly and solve in pure PyTorch. "
+        "VJP via ``torch.autograd`` through the assembled system."
+    ),
+}
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SolverSpec loading (optional — gracefully degrades without full install)
@@ -251,7 +323,8 @@ def _parse_type(annotation: str) -> tuple[str, bool]:
     return annotation, False
 
 
-def parse_schema(source: str, class_name: str) -> list[dict]:
+def _parse_fields(source: str, class_name: str) -> list[dict]:
+    """Extract annotated fields from a single class definition."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -279,6 +352,59 @@ def parse_schema(source: str, class_name: str) -> list[dict]:
     return fields
 
 
+# Maps physics directory name → canonical schema module path (underscore form).
+_DOMAIN_TO_MODULE = {
+    "navier-stokes-grid": "navier_stokes_grid",
+    "thermal-mesh": "thermal_mesh",
+    "structural-mesh": "structural_mesh",
+}
+
+# Cache: domain module name → parsed canonical schema source text
+_CANONICAL_CACHE: dict[str, str] = {}
+
+
+def _canonical_schema_source(physics_dir: str) -> str | None:
+    """Return the source text of the canonical schemas.py for a physics domain."""
+    module = _DOMAIN_TO_MODULE.get(physics_dir)
+    if module is None:
+        return None
+    if module not in _CANONICAL_CACHE:
+        schema_path = (
+            ROOT / "mosaic" / "mosaic_shared" / "problems" / module / "schemas.py"
+        )
+        if not schema_path.exists():
+            _CANONICAL_CACHE[module] = ""
+        else:
+            _CANONICAL_CACHE[module] = schema_path.read_text()
+    return _CANONICAL_CACHE[module] or None
+
+
+def parse_schema(source: str, class_name: str, physics_dir: str = "") -> list[dict]:
+    """Parse schema fields, including inherited canonical fields.
+
+    When ``InputSchema`` or ``OutputSchema`` in the solver source inherits from
+    ``_CanonicalInputSchema`` / ``_CanonicalOutputSchema``, the canonical
+    fields are resolved from ``mosaic_shared/problems/<domain>/schemas.py``
+    and prepended so that the full interface is documented.
+    """
+    solver_fields = _parse_fields(source, class_name)
+    solver_names = {f["name"] for f in solver_fields}
+
+    # Resolve canonical parent fields.
+    canonical_source = _canonical_schema_source(physics_dir) if physics_dir else None
+    if canonical_source is None:
+        return solver_fields
+
+    # The canonical module defines InputSchema / OutputSchema directly (not
+    # _CanonicalInputSchema), so parse with the bare class_name.
+    canonical_fields = _parse_fields(canonical_source, class_name)
+
+    # Merge: canonical fields first (skip any overridden by the solver).
+    merged = [f for f in canonical_fields if f["name"] not in solver_names]
+    merged.extend(solver_fields)
+    return merged
+
+
 def load_solver(path: Path) -> dict | None:
     config_path = path / "tesseract_config.yaml"
     api_path = path / "tesseract_api.py"
@@ -297,8 +423,8 @@ def load_solver(path: Path) -> dict | None:
         "physics": physics,
         "backend": backend,
         "category": CATEGORY_LABELS.get(physics, physics),
-        "inputs": parse_schema(source, "InputSchema"),
-        "outputs": parse_schema(source, "OutputSchema"),
+        "inputs": parse_schema(source, "InputSchema", physics),
+        "outputs": parse_schema(source, "OutputSchema", physics),
         "path": f"mosaic/tesseracts/{physics}/{backend}",
         # Enriched fields from SolverSpec
         "display_name": spec["name"] if spec else config.get("name", backend),
@@ -314,6 +440,7 @@ def load_solver(path: Path) -> dict | None:
         "explained_anomalies": spec["explained_anomalies"] if spec else {},
         "narrative": SOLVER_DOCS.get(backend, ""),
         "limitations": SOLVER_LIMITATIONS.get(backend, []),
+        "wrapping": WRAPPING_NOTES.get(backend, ""),
     }
 
 
@@ -389,6 +516,11 @@ def render_solver(solver: dict) -> str:
     # Narrative description (from paper)
     if solver["narrative"]:
         lines.append(solver["narrative"])
+        lines.append("")
+
+    # Wrapping approach
+    if solver.get("wrapping"):
+        lines.append(f"**Wrapping:** {solver['wrapping']}")
         lines.append("")
 
     # Known limitations

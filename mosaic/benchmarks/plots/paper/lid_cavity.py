@@ -38,6 +38,8 @@ def generate(out_dir: Path) -> None:
             ax = axes[col]
 
             for solver, sweep_data in by_sweep.items():
+                if solver in {"fenics_ns", "su2"}:
+                    continue
                 if sv not in sweep_data:
                     continue
                 label, color, ls, mk = SOLVER_STYLES.get(

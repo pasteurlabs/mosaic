@@ -8,12 +8,12 @@ Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesserac
 
 ## Benchmark domains
 
-| ID | Domain | Optimization task | Control dim. | Backends |
-|:---|:-------|:------------------|:-------------|:---------|
-| **H** | Heat transfer | Conductivity inversion | 128 | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem |
-| **S** | Structural mechanics | Compliance minimization (SIMP) | 256 | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl |
-| **F2** | Incompressible fluids (2D) | Inflow optimization for drag min. | 32 | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
-| **F3** | 3D Navier-Stokes | Initial condition recovery | 12k | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+| ID     | Domain                     | Optimization task                 | Control dim. | Backends                                               |
+| :----- | :------------------------- | :-------------------------------- | :----------- | :----------------------------------------------------- |
+| **H**  | Heat transfer              | Conductivity inversion            | 128          | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
+| **S**  | Structural mechanics       | Compliance minimization (SIMP)    | 256          | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
+| **F2** | Incompressible fluids (2D) | Inflow optimization for drag min. | 32           | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
+| **F3** | 3D Navier-Stokes           | Initial condition recovery        | 12k          | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
 
 ## Evaluation protocol
 
@@ -75,19 +75,66 @@ mosaic status --format json > snap.json   # machine-readable snapshot
 - [Architecture](docs/architecture.qmd) — Tesseract interface, data structures, evaluation protocol
 - [Solver Reference](docs/solvers.qmd) — per-solver documentation with numerical methods, AD strategies, and known limitations
 
+## Programmatic API
+
+Mosaic exposes a Python API for running evaluations without the CLI:
+
+```python
+from mosaic import get_config, gradient, PROBLEMS
+
+cfg = get_config("ns-grid")           # ProblemConfig for 2-D Navier-Stokes
+tags = {"exponax": "exponax:latest"}   # solver image tags (after `tesseract build`)
+results = gradient.run_fd_check(cfg, tags)
+```
+
+Available top-level imports: `PROBLEMS`, `get_config`, `ProblemConfig`, `SolverSpec`, `IcSpec`, and the suite modules `forward`, `gradient`, `cost`, `optimization`.
+
+## Extending to new domains
+
+Mosaic ships with task templates — validated starting configurations for common physics patterns. Use them to scaffold a new benchmark domain:
+
+```bash
+mosaic templates                                           # list available templates
+mosaic validate-template ns-periodic                       # check a template
+mosaic new-domain my-flow --from-template ns-periodic      # scaffold a new domain
+```
+
+This generates schema stubs, a problem config with suite defaults, and the tesseract directory. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
+
+### Adding a solver
+
+New solvers are auto-discovered from a `mosaic:` metadata block in `tesseract_config.yaml` — no Python registration step is required:
+
+```yaml
+# mosaic/tesseracts/<domain>/<solver-name>/tesseract_config.yaml
+name: my-solver
+version: 0.1.0
+description: Short description.
+
+mosaic:
+  name: "My Solver"
+  backend: jax
+  scheme: "FEM HEX8"
+  color: "#1f77b4"
+  ad_strategy: autodiff
+  differentiable: true
+  uses_gpu: true
+```
+
 ## Project structure
 
 ```
 mosaic/
   benchmarks/           # evaluation harness (Python package: mosaic.benchmarks)
     cli.py              # command-line interface
-    core/               # runner, config, hardware detection
+    core/               # runner, config, hardware detection, solver auto-discovery
     suites/             # forward, gradient, cost, optimization
     problems/           # per-domain configs (ns-grid, structural-mesh, etc.)
     plots/              # paper figure generation
   mosaic_shared/        # shared Tesseract interface schemas (also pip-installable)
     problems/           # per-domain input/output schemas
     utils/              # comparison metrics, plotting utilities
+  templates/            # task templates for scaffolding new domains
   tesseracts/           # solver backends (each is a Tesseract container)
     navier-stokes-grid/ # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
     structural-mesh/    # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl

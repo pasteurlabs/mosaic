@@ -1,6 +1,11 @@
-"""Generate Figure: Forward agreement errors across all four benchmark domains.
+"""Generate Figure: Cross-solver agreement and baseline convergence for NS domains.
 
-1×4 panel figure with a shared two-group legend below (NS solvers | FEM solvers).
+2 rows (F2 top, F3 bottom) × 3 columns:
+  col 0 — agreement vs ν on periodic/TGV domain (analytic reference)
+  col 1 — F2 only: cylinder flow vs ν (consensus reference); F3: empty
+  col 2 — baseline convergence vs N (analytic reference, 1 step)
+
+Output: appendix_agreement.pdf
 """
 
 from __future__ import annotations
@@ -9,106 +14,152 @@ import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import numpy as np
 
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
-    FEM_ORDER,
     NS_ORDER,
     RCPARAMS,
-    SOLVER_STYLES,
     dedup_handles,
     make_handle,
+    solver_props,
 )
 
 RESULTS = Path(__file__).parent.parent.parent / "results"
 
-DOMAINS = [
-    ("2D NS (TGV)", "ns-grid", "forward/agreement/tgv", r"$\nu$"),
-    ("3D NS", "ns-3d-grid", "forward/agreement", r"$\nu$"),
-    ("Structural", "structural-mesh", "forward/agreement", r"$\rho_0$"),
-    ("Thermal", "thermal-mesh", "forward/agreement", r"$\rho_0$"),
+# (row, col, path, x_label, log_x, title, y_label)
+_CONFIGS = [
+    (
+        0,
+        0,
+        RESULTS / "ns-grid" / "forward" / "tgv_nu_sweep" / "result.json",
+        r"$\nu$",
+        True,
+        "F2 — TGV agreement vs $\\nu$",
+        "TGV analytic error",
+    ),
+    (
+        0,
+        1,
+        RESULTS / "ns-grid" / "forward" / "cylinder" / "result.json",
+        r"$\nu$",
+        True,
+        "F2 — cylinder flow vs $\\nu$",
+        "Consensus error",
+    ),
+    (
+        0,
+        2,
+        RESULTS / "ns-grid" / "forward" / "baseline" / "result.json",
+        "$N$",
+        True,
+        "F2 — convergence vs $N$",
+        "TGV analytic error",
+    ),
+    (
+        1,
+        0,
+        RESULTS / "ns-3d-grid" / "forward" / "agreement" / "result.json",
+        r"$\nu$",
+        True,
+        "F3 — TGV agreement vs $\\nu$",
+        "TGV analytic error",
+    ),
+    (
+        1,
+        2,
+        RESULTS / "ns-3d-grid" / "forward" / "baseline" / "result.json",
+        "$N$",
+        True,
+        "F3 — convergence vs $N$",
+        "TGV analytic error",
+    ),
 ]
 
 
 def generate(out_dir: Path) -> None:
-    plt.rcParams.update(RCPARAMS)
+    with plt.rc_context(RCPARAMS):
+        fig, axes = plt.subplots(
+            2,
+            3,
+            figsize=(TEXTWIDTH, TEXTWIDTH * 0.72),
+            squeeze=False,
+        )
+        fig.subplots_adjust(hspace=0.50, wspace=0.38, bottom=0.20)
 
-    fig, axes = plt.subplots(1, 4, figsize=(TEXTWIDTH, TEXTWIDTH * 0.50), sharey=False)
-    fig.subplots_adjust(bottom=0.34, wspace=0.35)
+        # hide unused panel
+        axes[1][1].set_visible(False)
 
-    ns_seen: set[str] = set()
-    fem_seen: set[str] = set()
+        seen: set[str] = set()
 
-    for col, (domain_label, subdir, exp_path, xlabel) in enumerate(DOMAINS):
-        path = RESULTS / subdir / exp_path / "result.json"
-        with open(path) as f:
-            d = json.load(f)
+        for row, col, path, x_label, log_x, title, y_label in _CONFIGS:
+            ax = axes[row][col]
 
-        by_param = d["by_param"]
-        params = sorted(by_param.keys(), key=float)
-        x_vals = [float(p) for p in params]
-        ax = axes[col]
-
-        all_solvers: list[str] = []
-        for pdata in by_param.values():
-            for s in pdata:
-                if s not in all_solvers:
-                    all_solvers.append(s)
-
-        for solver in all_solvers:
-            style = SOLVER_STYLES.get(solver)
-            if style is None:
+            if not path.exists():
+                ax.set_visible(False)
                 continue
-            label, color, ls, mk = style
 
-            ys, xs_valid = [], []
-            for px, p in zip(x_vals, params):
-                entry = by_param[p].get(solver, {})
-                err = entry.get("error")
-                valid = entry.get("valid", False)
-                if err is not None and valid:
-                    ys.append(float(err))
-                    xs_valid.append(px)
+            data = json.loads(path.read_text())
+            by_param = data["by_param"]
+            params = sorted(by_param.keys(), key=float)
 
-            if ys:
-                ax.semilogy(
-                    xs_valid,
-                    ys,
-                    color=color,
-                    linestyle=ls,
-                    marker=mk,
-                    markersize=4,
-                    markeredgewidth=0,
-                    linewidth=1.6,
-                )
-                if solver in NS_ORDER:
-                    ns_seen.add(solver)
-                if solver in FEM_ORDER:
-                    fem_seen.add(solver)
+            for solver in NS_ORDER:
+                _, color, ls, mk = solver_props(solver)
+                xs, ys = [], []
+                for p in params:
+                    entry = by_param[p].get(solver)
+                    if isinstance(entry, dict):
+                        err = entry.get("error")
+                        if (
+                            err is not None
+                            and isinstance(err, float)
+                            and np.isfinite(err)
+                            and err > 0
+                        ):
+                            xs.append(float(p))
+                            ys.append(err)
+                if xs:
+                    ax.semilogy(
+                        xs,
+                        ys,
+                        color=color,
+                        linestyle=ls,
+                        marker=mk,
+                        markersize=3.5,
+                        markeredgewidth=0,
+                        linewidth=1.5,
+                    )
+                    seen.add(solver)
 
-        ax.set_title(domain_label)
-        ax.set_xlabel(xlabel)
-        if col == 0:
-            ax.set_ylabel("Relative error vs. consensus")
+            ax.set_title(title, fontsize=8)
+            ax.set_xlabel(x_label)
+            ax.set_ylabel(y_label)
+            ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+            ax.yaxis.set_minor_locator(mticker.NullLocator())
+            if log_x:
+                ax.set_xscale("log")
+            ax.xaxis.set_major_locator(mticker.LogLocator(base=10, numticks=5))
+            ax.xaxis.set_minor_locator(mticker.NullLocator())
+            ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
+            ax.tick_params(axis="x", labelsize=7, rotation=30)
 
-    all_handles = dedup_handles(
-        [make_handle(s) for s in NS_ORDER if s in ns_seen]
-        + [make_handle(s) for s in FEM_ORDER if s in fem_seen]
-    )
-    fig.legend(
-        handles=all_handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.01),
-        ncol=5,
-        fontsize=7.5,
-        framealpha=0.7,
-        handlelength=2.0,
-    )
+        handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in seen])
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(len(handles), 5),
+            fontsize=7.5,
+            framealpha=0.9,
+            edgecolor="0.8",
+            handlelength=2.0,
+        )
 
-    out = out_dir / "appendix_agreement.pdf"
-    fig.savefig(out)
-    plt.close(fig)
-    print(f"Saved {out}")
+        out = out_dir / "appendix_agreement.pdf"
+        fig.savefig(out)
+        plt.close(fig)
+        print(f"Saved {out}")
 
 
 if __name__ == "__main__":

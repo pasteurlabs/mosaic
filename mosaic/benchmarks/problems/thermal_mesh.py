@@ -77,6 +77,10 @@ _SOLVERS: dict[str, SolverSpec] = {
             # not ∂identification_error/∂rho. The C++ --gradient flag computes the self-adjoint
             # ∂C/∂rho gradient, not the adjoint for the identification_error objective.
             "recovery/conductivity_recovery": "identification_error_rho_vjp_not_implemented",
+            "optimization": {
+                "category": "categorical",
+                "reason": "deal.II self-adjoint gradient only supports ∂thermal_compliance/∂ρ; identification_error VJP not implemented in C++ subprocess interface",
+            },
         },
     ),
     "firedrake_heat": SolverSpec(

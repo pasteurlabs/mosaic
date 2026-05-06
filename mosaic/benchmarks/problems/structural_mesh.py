@@ -74,6 +74,12 @@ _SOLVERS: dict[str, SolverSpec] = {
             "nu": _NU,
             "xmin": _XMIN,
         },
+        exclusions={
+            "optimization": {
+                "category": "categorical",
+                "reason": "deal.II self-adjoint SIMP gradient only supports ∂C/∂ρ; volume-fraction projection and optimizer loop not supported in C++ subprocess interface",
+            },
+        },
     ),
     "fenics_structural": SolverSpec(
         name="FEniCS",
@@ -842,6 +848,93 @@ CONFIG = ProblemConfig(
                         snap_interval=5,
                     ),
                     optim=dict(max_iters=100, patience=20),
+                )
+            ],
+        ),
+        "topopt_mma": dict(
+            description="SIMP topology optimisation with MMA (nlopt LD_MMA): hard volume fraction constraint.",
+            plot_description=(
+                "SIMP topology optimisation on a 16×2×8 cantilever beam with MMA: minimise compliance "
+                "C = F^T U subject to a hard 50% volume fraction inequality constraint."
+            ),
+            runs=[
+                dict(
+                    ic=dict(name="uniform", seed=0),
+                    physics=dict(
+                        nx=16,
+                        ny=2,
+                        nz=8,
+                        Lx=2.0,
+                        Ly=1.0,
+                        Lz=1.0,
+                        F_total=1.0,
+                        corner_load=True,
+                        v_frac=0.5,
+                        compliance_key="compliance",
+                        x_min=1e-3,
+                        snap_interval=5,
+                    ),
+                    optim=dict(max_iters=200, patience=30),
+                )
+            ],
+        ),
+        "topopt_mma_fine": dict(
+            description=(
+                "SIMP topology optimisation with MMA on a fine 32×4×16 mesh (8× more elements than topopt_mma). "
+                "Tests whether solver cross-solver agreement holds at higher resolution."
+            ),
+            plot_description=(
+                "SIMP topology optimisation on a fine 32×4×16 cantilever beam with MMA: minimise compliance "
+                "C = F^T U subject to a hard 50% volume fraction inequality constraint."
+            ),
+            runs=[
+                dict(
+                    ic=dict(name="uniform", seed=0),
+                    physics=dict(
+                        nx=32,
+                        ny=4,
+                        nz=16,
+                        Lx=2.0,
+                        Ly=1.0,
+                        Lz=1.0,
+                        F_total=1.0,
+                        corner_load=True,
+                        v_frac=0.5,
+                        compliance_key="compliance",
+                        x_min=1e-3,
+                        snap_interval=10,
+                    ),
+                    optim=dict(max_iters=300, patience=40),
+                )
+            ],
+        ),
+        "topopt_mma_finest": dict(
+            description=(
+                "SIMP topology optimisation with MMA on a finest 64×8×32 mesh (64× more elements than topopt_mma, 8× more than topopt_mma_fine). "
+                "Tests cross-solver agreement at near-production resolution."
+            ),
+            plot_description=(
+                "SIMP topology optimisation on a finest 64×8×32 cantilever beam with MMA: minimise compliance "
+                "C = F^T U subject to a hard 50% volume fraction inequality constraint."
+            ),
+            runs=[
+                dict(
+                    ic=dict(name="uniform", seed=0),
+                    physics=dict(
+                        nx=64,
+                        ny=8,
+                        nz=32,
+                        Lx=2.0,
+                        Ly=1.0,
+                        Lz=1.0,
+                        F_total=1.0,
+                        corner_load=True,
+                        v_frac=0.5,
+                        compliance_key="compliance",
+                        x_min=1e-3,
+                        snap_interval=20,
+                    ),
+                    optim=dict(max_iters=400, patience=50),
                 )
             ],
         ),

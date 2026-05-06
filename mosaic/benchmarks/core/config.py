@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -74,6 +77,94 @@ class SolverSpec:
     # These appear as ANOMALY cells (with the documented reason) rather than EXCLUDED,
     # keeping the solver in the score denominator so weaknesses remain visible.
     # Values: plain string reason, or dict with "reason" key.
+
+
+def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
+    """Auto-discover solvers from ``tesseract_config.yaml`` files.
+
+    Scans *tesseract_dir* for subdirectories containing a
+    ``tesseract_config.yaml`` with a ``mosaic:`` metadata block and builds a
+    :class:`SolverSpec` for each.  This allows new solver contributions to be
+    picked up automatically without editing the problem config Python file.
+
+    The ``mosaic:`` block supports these keys (all optional except ``name``):
+
+    .. code-block:: yaml
+
+        mosaic:
+          name: JAX-FEM             # display name (required)
+          backend: jax              # runtime: jax, pytorch, julia, cpp, …
+          family: fem               # solver family for grouped styling
+          scheme: "FEM HEX8"        # numerical scheme label
+          color: "#4477AA"          # hex colour for plots
+          linestyle: "-"            # matplotlib linestyle
+          marker: "o"               # matplotlib marker
+          ad_strategy: autodiff     # autodiff | adjoint | hybrid | null
+          differentiable: true      # explicit VJP flag
+          uses_gpu: true
+          internal_dtype: float32
+          description: "..."        # one-sentence description
+          doc_url: "https://..."    # upstream docs link
+
+    Returns a dict keyed by a normalised solver name (directory name with
+    hyphens replaced by underscores).  Problem configs can merge these with
+    domain-specific overrides (exclusions, input_overrides, …).
+    """
+    import yaml
+
+    solvers: dict[str, SolverSpec] = {}
+    if not tesseract_dir.is_dir():
+        return solvers
+
+    for solver_dir in sorted(tesseract_dir.iterdir()):
+        config_path = solver_dir / "tesseract_config.yaml"
+        if not config_path.exists():
+            continue
+        try:
+            with open(config_path) as f:
+                doc = yaml.safe_load(f)
+        except Exception as exc:
+            log.warning("skipping %s: %s", config_path, exc)
+            continue
+        if not isinstance(doc, dict):
+            continue
+        meta = doc.get("mosaic")
+        if not isinstance(meta, dict):
+            continue
+        # Build the SolverSpec from the mosaic: block.
+        dir_name = solver_dir.name
+        solver_key = dir_name.replace("-", "_")
+        image_name = doc.get("name", dir_name)
+
+        # Parse linestyle — YAML gives a string, but matplotlib also accepts
+        # tuples like (0, (5, 1)).  Try literal_eval for tuple linestyles.
+        ls = meta.get("linestyle")
+        if isinstance(ls, str) and ls.startswith("("):
+            import ast
+
+            try:
+                ls = ast.literal_eval(ls)
+            except Exception:
+                pass
+
+        solvers[solver_key] = SolverSpec(
+            dir=dir_name,
+            name=meta.get("name", image_name),
+            backend=meta.get("backend", ""),
+            family=meta.get("family", ""),
+            scheme=meta.get("scheme", ""),
+            color=meta.get("color", "#999999"),
+            linestyle=ls,
+            marker=meta.get("marker"),
+            ad_strategy=meta.get("ad_strategy"),
+            differentiable=meta.get("differentiable"),
+            uses_gpu=meta.get("uses_gpu", True),
+            internal_dtype=meta.get("internal_dtype", "float32"),
+            description=meta.get("description", ""),
+            doc_url=meta.get("doc_url", ""),
+            image_tag=f"{image_name}:latest",
+        )
+    return solvers
 
 
 @dataclass

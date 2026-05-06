@@ -17,3 +17,19 @@ build_config:
     # crash when GPU is busy/unavailable (same fix as xlb container); enables
     # JAX to fall back to non-LT BLAS path rather than aborting silently.
     - 'ENV XLA_FLAGS="--xla_gpu_autotune_level=0 --xla_gpu_enable_cublaslt=false"'
+
+mosaic:
+  name: "PhiFlow"
+  backend: jax
+  family: projection
+  scheme: "semi-Lagrangian + projection"
+  color: "#EE3333"
+  linestyle: "--"
+  marker: "s"
+  ad_strategy: hybrid
+  differentiable: true
+  uses_gpu: true
+  description: >
+    Semi-Lagrangian advection with pressure projection; unconditionally stable
+    for large dt.
+  doc_url: "https://tum-pbs.github.io/PhiFlow/"

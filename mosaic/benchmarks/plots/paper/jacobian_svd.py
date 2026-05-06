@@ -30,9 +30,7 @@ NS_ORDER_2D = [
     "xlb",
     "pict",
     "warp_ns",
-    "fenics_ns",
     "openfoam",
-    "su2",
 ]
 NS_ORDER_3D = ["exponax", "phiflow", "xlb", "ins_jl", "warp_ns", "pict", "openfoam"]
 
@@ -157,11 +155,12 @@ def _plot_svd_figure(
         print(f"No data found for {subdir}")
         return
 
+    _NS_EXCLUDED = {"fenics_ns", "su2"}
     all_solver_sets = [set(d["per_solver_spectra"].keys()) for _, d in variants]
     solvers = [s for s in solver_order if any(s in ss for ss in all_solver_sets)]
     for ss in all_solver_sets:
         for s in sorted(ss):
-            if s not in solvers:
+            if s not in solvers and s not in _NS_EXCLUDED:
                 solvers.append(s)
 
     n_solvers = len(solvers)
@@ -205,19 +204,22 @@ def _plot_svd_figure(
     print(f"Saved {out_path}")
 
 
-def generate_svd_comparison(out_dir: Path) -> None:
-    """Generate main-paper Jacobian SVD comparison for ns-3d-grid."""
-    experiments = [
-        "jacobian_svd",
-        "jacobian_svd_nu01",
-        "jacobian_svd_steps20",
-        "jacobian_svd_steps40",
-    ]
-    solvers = ["exponax", "phiflow", "xlb", "ins_jl", "warp_ns", "pict"]
+def _svd_comparison(
+    subdir: str,
+    experiments: list[str],
+    solvers: list[str],
+    n_show: int,
+    out_stem: str,
+    out_dir: Path,
+    fig_w_scale: float = 1.15,
+    extra_outputs: list[str] | None = None,
+) -> None:
+    """Shared implementation for SVD comparison figures (2D and 3D)."""
+    _EXCLUDED = {"fenics_ns", "openfoam", "su2"}
 
     variants: list[tuple[str, dict]] = []
     for exp_key in experiments:
-        path = RESULTS / "ns-3d-grid" / "gradient" / exp_key / "result.json"
+        path = RESULTS / subdir / "gradient" / exp_key / "result.json"
         if not path.exists():
             continue
         data = json.loads(path.read_text())
@@ -225,21 +227,21 @@ def generate_svd_comparison(out_dir: Path) -> None:
             variants.append((exp_key, data))
 
     if not variants:
-        print("No data found for ns-3d-grid jacobian_svd comparison")
+        print(f"No data found for {subdir} jacobian_svd")
         return
 
     all_solver_sets = [set(d["per_solver_spectra"].keys()) for _, d in variants]
-    present_solvers = [s for s in solvers if any(s in ss for ss in all_solver_sets)]
-    for ss in all_solver_sets:
-        for s in sorted(ss):
-            if s not in present_solvers:
-                present_solvers.append(s)
+    present_solvers = [
+        s
+        for s in solvers
+        if any(s in ss for ss in all_solver_sets) and s not in _EXCLUDED
+    ]
 
     n_solvers = len(present_solvers)
     ncols = 3
     nrows = math.ceil(n_solvers / ncols)
 
-    fig_w = TEXTWIDTH * 1.15
+    fig_w = TEXTWIDTH * fig_w_scale
     panel_h = fig_w / ncols * 0.4
     fig, axes = plt.subplots(
         nrows,
@@ -251,7 +253,7 @@ def generate_svd_comparison(out_dir: Path) -> None:
     )
     fig.subplots_adjust(hspace=0.45, wspace=0.35, bottom=0.18)
 
-    handles = _svd_panels(fig, axes, variants, present_solvers, n_show=1536)
+    handles = _svd_panels(fig, axes, variants, present_solvers, n_show=n_show)
 
     for row in range(nrows - 1):
         for col in range(ncols):
@@ -261,9 +263,7 @@ def generate_svd_comparison(out_dir: Path) -> None:
     for idx in range(n_solvers, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
-    # Add conditioning annotation on the first panel
-    ax0 = axes[0][0]
-    ax0.annotate(
+    axes[0][0].annotate(
         "steeper $\\downarrow$ = larger $\\kappa$\n(worse conditioning)",
         xy=(0.97, 0.05),
         xycoords="axes fraction",
@@ -286,17 +286,45 @@ def generate_svd_comparison(out_dir: Path) -> None:
         handlelength=2.5,
     )
 
-    for ext in ("pdf", "png"):
-        out = out_dir / f"jacobian_svd_comparison.{ext}"
-        fig.savefig(out, dpi=200 if ext == "png" else None)
-        print(f"Saved {out}")
+    stems = [out_stem] + (extra_outputs or [])
+    for stem in stems:
+        for ext in ("pdf", "png"):
+            out = out_dir / f"{stem}.{ext}"
+            fig.savefig(out, dpi=200 if ext == "png" else None)
+            print(f"Saved {out}")
     plt.close(fig)
-    return fig
+
+
+_EXPERIMENTS = [
+    "jacobian_svd",
+    "jacobian_svd_nu01",
+    "jacobian_svd_steps20",
+    "jacobian_svd_steps40",
+]
 
 
 def generate(out_dir: Path) -> None:
     with plt.rc_context(RCPARAMS):
-        return generate_svd_comparison(out_dir)
+        # 3D NS — main paper figure
+        _svd_comparison(
+            subdir="ns-3d-grid",
+            experiments=_EXPERIMENTS,
+            solvers=["exponax", "phiflow", "xlb", "ins_jl", "warp_ns", "pict"],
+            n_show=1536,
+            out_stem="jacobian_svd_comparison",
+            out_dir=out_dir,
+            fig_w_scale=1.15,
+        )
+        # 2D NS — appendix figure, same style, fenics_ns excluded
+        _svd_comparison(
+            subdir="ns-grid",
+            experiments=_EXPERIMENTS,
+            solvers=["jax_cfd", "phiflow", "ins_jl", "xlb", "pict", "warp_ns"],
+            n_show=128,
+            out_stem="appendix_jacobian_svd_2d",
+            out_dir=out_dir,
+            fig_w_scale=1.0,
+        )
 
 
 if __name__ == "__main__":

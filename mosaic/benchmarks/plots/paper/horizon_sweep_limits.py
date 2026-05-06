@@ -39,7 +39,6 @@ SOLVER_ORDER = [
     "warp_ns",
     "exponax",
     "ins_jl",
-    "fenics_ns_3d",
 ]
 
 _TEMPORAL_COST_PATH = RESULTS / "ns-3d-grid" / "cost" / "temporal_cost" / "result.json"
@@ -55,7 +54,6 @@ _FAILURE_LABEL = {
 }
 _VRAM_LIMIT_MIB = 16_384
 
-_FENICS_3D_STYLE = ("FEniCS-NS 3D", "#AAAAAA", (0, (3, 1, 1, 1)), "*")
 
 # Gradient norm panel: 3-section piecewise y-scale.
 # [_GN_YMIN, _GN_LOWER_BREAK]: compressed (bottom noise floor)
@@ -76,8 +74,6 @@ _JITTER_LOG = 0.04
 
 
 def _solver_style(name: str) -> tuple:
-    if name == "fenics_ns_3d":
-        return _FENICS_3D_STYLE
     return SOLVER_STYLES.get(name, (name, "#888888", "-", "o"))
 
 
@@ -128,9 +124,10 @@ def generate(out_dir: Path) -> None:
 
         failure_types_seen: set[str] = set()
 
+        _EXCLUDED = {"fenics_ns", "fenics_ns_3d", "su2"}
         present = set(by_solver.keys())
         ordered = [s for s in SOLVER_ORDER if s in present] + [
-            s for s in present if s not in SOLVER_ORDER
+            s for s in present if s not in SOLVER_ORDER and s not in _EXCLUDED
         ]
 
         # ── Phase 0: pre-compute OpenFOAM FD estimate ────────────────────────

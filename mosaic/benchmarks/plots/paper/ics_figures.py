@@ -183,21 +183,18 @@ def generate(out_dir: Path) -> None:
     plt.close(fig)
     print(f"Saved {out_dir / 'appendix_ics_structural_mesh.pdf'}")
 
-    # Thermal — 2 rows × 2 cols (3 panels + 1 empty)
+    # Thermal — 1 row × 3 cols
     labels_thermal = ["Uniform conductivity", "Random conductivity", "Gaussian source"]
     fields_thermal = [
         _ic_thermal_uniform(),
         _ic_thermal_random(),
         _ic_thermal_gaussian(),
     ]
-    _PH2r = (TEXTWIDTH / 2) * 0.85
-    fig, axes = plt.subplots(2, 2, figsize=(TEXTWIDTH * 0.67, _PH2r * 2))
-    fig.subplots_adjust(wspace=0.05, hspace=0.25)
-    flat = axes.flatten()
-    for ax, field, lbl in zip(flat, fields_thermal, labels_thermal):
+    fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, _PH3))
+    fig.subplots_adjust(wspace=0.05)
+    for ax, field, lbl in zip(axes, fields_thermal, labels_thermal):
         _imshow_pos(ax, field, cmap="hot")
         ax.set_title(lbl, fontsize=8, pad=3)
-    flat[-1].set_visible(False)
     fig.savefig(out_dir / "appendix_ics_thermal_mesh.pdf")
     plt.close(fig)
     print(f"Saved {out_dir / 'appendix_ics_thermal_mesh.pdf'}")

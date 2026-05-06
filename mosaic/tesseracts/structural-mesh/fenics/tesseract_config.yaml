@@ -41,3 +41,19 @@ build_config:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+
+mosaic:
+  name: "FEniCS"
+  backend: fenics
+  family: fem
+  scheme: "FEM CG1 linear elasticity (SIMP, dolfin-adjoint)"
+  color: "#AA3377"
+  ad_strategy: adjoint
+  differentiable: true
+  uses_gpu: false
+  internal_dtype: float64
+  description: >
+    FEniCS/DOLFIN 2019.1 CG1 FEM linear-elasticity solver with SIMP
+    penalisation. Gradient ∂C/∂ρ via dolfin-adjoint ReducedFunctional. DG0 density
+    field; compliance assembled as action(L, u_sol). Von Mises stress via DG0
+    projection of deviatoric stress norm.

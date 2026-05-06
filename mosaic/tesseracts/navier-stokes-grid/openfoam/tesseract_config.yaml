@@ -24,3 +24,17 @@ build_config:
           apt-get update && \
           apt-get install -y --no-install-recommends openfoam12 && \
           rm -rf /var/lib/apt/lists/*
+
+mosaic:
+  name: "OpenFOAM"
+  backend: cpp
+  family: projection
+  scheme: "icoFoam PISO"
+  color: "#DDAA33"
+  linestyle: ":"
+  marker: "D"
+  differentiable: false
+  uses_gpu: false
+  internal_dtype: float64
+  description: "OpenFOAM icoFoam; forward-only non-differentiable reference baseline."
+  doc_url: "https://www.openfoam.com/documentation/overview"

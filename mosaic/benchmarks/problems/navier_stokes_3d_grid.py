@@ -916,6 +916,34 @@ CONFIG = ProblemConfig(
                 )
             ],
         ),
+        "recovery_constant_ic_proj": dict(
+            description=(
+                "IC recovery with Adam + divergence-free gradient projection (cold start). "
+                "Same as recovery_constant_ic but gradients are projected onto the "
+                "divergence-free subspace before each Adam update."
+            ),
+            plot_description=(
+                "Final IC recovery error from zero-initialised Adam+projection optimisation "
+                "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
+            ),
+            runs=[
+                dict(
+                    ic=dict(name="rand_div_free", seed=0),
+                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
+                    sweep=dict(key="steps", values=[100]),
+                    optim=dict(
+                        ic_init_type="zeros",
+                        lr=1e-3,
+                        max_iters=500,
+                        patience=50,
+                        failure_threshold=2.0,
+                        snap_interval=20,
+                        ic_seeds=[0, 1, 2],
+                        record_diagnostics=True,
+                    ),
+                )
+            ],
+        ),
     },
     extra_plots={
         "gradient": [
