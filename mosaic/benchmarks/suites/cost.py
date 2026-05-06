@@ -47,7 +47,6 @@ from __future__ import annotations
 
 import time
 import traceback
-from pathlib import Path
 
 import jax.numpy as jnp
 import numpy as np
@@ -61,11 +60,11 @@ from mosaic.benchmarks.core.utils import (
     active_solvers,
     experiment_dir,
     iter_runs,
+    results_dir,
     save_experiment,
     save_gradient_fields_npz,
 )
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "cost"
 
 # Maximum wall-clock seconds for a single forward/VJP trial.  If the first
@@ -232,7 +231,7 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
 
     result = {"by_N": by_N, "params": run, "hardware": hardware}
     out_dir = experiment_dir(
-        _RESULTS_DIR,
+        results_dir(),
         cfg.name,
         _SUITE,
         "spatial_cost",
@@ -377,7 +376,7 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 
     result = {"by_steps": by_steps, "params": run, "hardware": hardware}
     out_dir = experiment_dir(
-        _RESULTS_DIR,
+        results_dir(),
         cfg.name,
         _SUITE,
         "temporal_cost",
@@ -629,7 +628,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
     result = {"by_N": by_N, "by_steps": by_steps, "params": run, "hardware": hardware}
     out_dir = experiment_dir(
-        _RESULTS_DIR,
+        results_dir(),
         cfg.name,
         _SUITE,
         "vjp_cost",

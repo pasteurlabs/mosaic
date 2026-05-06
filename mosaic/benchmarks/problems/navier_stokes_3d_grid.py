@@ -51,28 +51,24 @@ _SOLVERS: dict[str, SolverSpec] = {
         linestyle="--",
         marker="s",
         scheme="differential advection + projection",
-        description="Explicit Euler differential advection (ARCH-93: replaced semi-Lagrangian in periodic mode for correct VJP) with CG pressure projection.",
+        description="Explicit Euler differential advection with CG pressure projection.",
         doc_url="https://tum-pbs.github.io/PhiFlow/",
         image_tag="phiflow_navier_stokes_grid:latest",
         exclusions={
-            # ARCH-65 (2026-04-25): phiflow OOM during cost/temporal_cost steps sweep.
+            # phiflow OOM during cost/temporal_cost steps sweep.
             # "Out of memory while trying to allocate 16.09MiB" during JAX CUDA graph
             # profiling (jit(apply_jit)/while/body/closed_call/reduce_sum).
             # Same root: 3D domain JAX CUDA graph autotuning exhausts GPU memory.
-            # NOTE: recovery/recovery and recovery/lid_cavity OOM exclusions (ARCH-57,
-            # ARCH-74) removed by ARCH-101: xla_gpu_graph_level=0 disables CUDA graph
-            # autotuning; both experiments now run without OOM.
-            # ARCH-101 fix (xla_gpu_autotune_level=0) is deployed in tesseract_config.yaml
-            # and resolved the same OOM for recovery/recovery and recovery/lid_cavity.
+            # recovery/recovery and recovery/lid_cavity OOM exclusions removed:
+            # xla_gpu_graph_level=0 disables CUDA graph autotuning; both experiments
+            # now run without OOM.
+            # xla_gpu_autotune_level=0 is deployed in tesseract_config.yaml and
+            # resolved the same OOM for recovery/recovery and recovery/lid_cavity.
             # Exclusion kept pending a re-run to confirm cost/temporal_cost no longer OOMs.
             "cost/temporal_cost": {
                 "category": "infeasible",
-                "reason": "CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); ARCH-101 fix deployed (xla_gpu_autotune_level=0) — pending re-run to confirm resolved",
+                "reason": "CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed — pending re-run to confirm resolved",
             },
-            # ARCH-80 (2026-04-25): phiflow 3D forward/agreement and forward/baseline
-            # returned null (valid=False) due to missing CG pressure solver fix.
-            # ARCH-100 (2026-04-26): container rebuilt with CG pressure fix merged;
-            # both experiments now produce valid results. Exclusions removed.
         },
     ),
     "xlb": SolverSpec(
@@ -218,7 +214,7 @@ _SOLVERS: dict[str, SolverSpec] = {
                 "reason": (
                     "PISO accuracy limit at Re≥133 (sweep≥1.0): PISO iterative "
                     "pressure-correction accumulates splitting error at higher Re than "
-                    "semi-Lagrangian methods. After ARCH-101 phiflow OOM fix, phiflow "
+                    "semi-Lagrangian methods. phiflow "
                     "reaches 5.36e-9 at sweep=1.0 (near-perfect convergence), exposing "
                     "pict sweep=1.0 final_loss=4.07e-5 (7580× phiflow) and sweep=2.0 "
                     "final_loss=0.06 (426× best peer 0.000141). sweep=0.5 converges "
@@ -600,7 +596,7 @@ CONFIG = ProblemConfig(
                     ic=dict(name="tgv3d", seed=0),
                     physics=dict(N=16, dt=0.01, steps=50, lbm_N_base=16),
                     sweep=dict(key="nu", values=[0.001, 0.01, 0.05]),
-                    # ARCH-37 (2026-04-24): ins_jl removed from fine_set.
+                    # ins_jl removed from fine_set.
                     # The ins_jl tesseract container crashes (ContainerDied) when
                     # running the fine-grid reference (steps=250, dt=0.002) on a
                     # 16³ grid — Julia OOM or resource exhaustion mid-computation.
@@ -670,13 +666,13 @@ CONFIG = ProblemConfig(
                 "ins_jl EXCELLENT — cosine~1.0 at ε≥0.001 (cosine=0.9970 at ε=0.0001); "
                 "exponax GOOD — cosine=0.9995 at ε=0.01, degrades at small ε due to FP noise (cosine=0.404 at ε=0.0001); "
                 "warp_ns FAIL — flat cosine~0.973 across ALL ε (systematic gradient direction error, no U-curve). "
-                "phiflow EXCELLENT (ARCH-93 fix) — rel_err~6e-5 at ε=5.0, ~3e-5 at ε=1.0, cosine=1.0000; "
+                "phiflow EXCELLENT — rel_err~6e-5 at ε=5.0, ~3e-5 at ε=1.0, cosine=1.0000; "
                 "root cause of prior flat-plateau bias (rel_err~2e-2) was semi_lagrangian self-advection VJP missing "
                 "cross-terms from backtracking position; fixed by replacing with explicit Euler differential advection "
                 "(vel + dt * advect.differential(vel, vel)) in the periodic step function. "
                 "3D finding: xlb VJP CORRECT in 3D (F-NS3D-2) — contrasts with broken 2D xlb VJP. "
                 "warp_ns systematic scale error confirmed by flat cosine plateau (F-NS3D-3). "
-                "phiflow gradient correct after ARCH-93 fix: rel_err < 1e-4, cosine=1.0000 at both ε values tested."
+                "phiflow gradient correct: rel_err < 1e-4, cosine=1.0000 at both ε values tested."
             ),
             runs=[
                 dict(

@@ -20,6 +20,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
@@ -28,19 +29,21 @@ from mosaic.benchmarks.plots.paper.style import (
     THERMAL_ORDER,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-
 
 def _plot_combined_convergence(out_path: Path) -> None:
     domains = [
         (
             "Structural",
-            RESULTS / "structural-mesh" / "optimization" / "topopt" / "result.json",
+            results_dir()
+            / "structural-mesh"
+            / "optimization"
+            / "topopt"
+            / "result.json",
             STRUCTURAL_ORDER,
         ),
         (
             "Thermal",
-            RESULTS / "thermal-mesh" / "optimization" / "topopt" / "result.json",
+            results_dir() / "thermal-mesh" / "optimization" / "topopt" / "result.json",
             THERMAL_ORDER,
         ),
     ]
@@ -230,14 +233,14 @@ def _plot_fields(
 
 def _plot_conductivity_recovery(out_path: Path) -> None:
     result_path = (
-        RESULTS
+        results_dir()
         / "thermal-mesh"
         / "optimization"
         / "conductivity_recovery"
         / "result.json"
     )
     fields_png = (
-        RESULTS
+        results_dir()
         / "thermal-mesh"
         / "optimization"
         / "conductivity_recovery"
@@ -316,12 +319,12 @@ def generate(out_dir: Path) -> None:
         _plot_conductivity_recovery(out_path=out_dir / "conductivity_recovery.pdf")
         _plot_fields(
             domain_label="Structural",
-            fields_path=RESULTS
+            fields_path=results_dir()
             / "structural-mesh"
             / "optimization"
             / "topopt"
             / "topopt_fields.npz",
-            params_path=RESULTS
+            params_path=results_dir()
             / "structural-mesh"
             / "optimization"
             / "topopt"
@@ -330,12 +333,12 @@ def generate(out_dir: Path) -> None:
         )
         _plot_fields(
             domain_label="Thermal",
-            fields_path=RESULTS
+            fields_path=results_dir()
             / "thermal-mesh"
             / "optimization"
             / "topopt"
             / "topopt_fields.npz",
-            params_path=RESULTS
+            params_path=results_dir()
             / "thermal-mesh"
             / "optimization"
             / "topopt"

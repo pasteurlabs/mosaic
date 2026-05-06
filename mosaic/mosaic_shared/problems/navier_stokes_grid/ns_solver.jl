@@ -743,7 +743,7 @@ end
 # DirichletBC boundaries.  psolver_direct (LU) was previously used but proved
 # ill-conditioned for Brinkman penalization: the post-projection zeroing of
 # velocity inside the obstacle creates divergence that the LU solver amplifies
-# until the field diverges (ARCH-2/ARCH-105).  psolver_transform avoids this
+# until the field diverges.  psolver_transform avoids this
 # by working in frequency space (diagonal system).
 #
 # Gradient path:
@@ -764,7 +764,7 @@ instead of psolver_direct (LU) because the Brinkman volume penalization causes
 a near-singular system for the LU solver: the penalization zeroes velocity
 inside the obstacle after each pressure projection, creating divergence that the
 LU solve amplifies until the field diverges.  The DCT solver is spectrally
-diagonal and avoids this amplification (ARCH-2/ARCH-105).
+diagonal and avoids this amplification.
 
 psolver_transform requirements (verified here):
   - all BCs are PeriodicBC or DirichletBC — satisfied (all DirichletBC).

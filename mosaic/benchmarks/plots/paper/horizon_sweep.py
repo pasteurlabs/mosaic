@@ -18,6 +18,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -27,15 +28,13 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-
 _FAILURE_MARKER = "X"
 _FAILURE_LABEL = "NaN gradient"
 _JITTER_LOG = 0.04
 
 
 def generate(out_dir: Path) -> None:
-    path = RESULTS / "ns-grid" / "gradient" / "horizon_sweep" / "result.json"
+    path = results_dir() / "ns-grid" / "gradient" / "horizon_sweep" / "result.json"
     if not path.exists():
         print(f"[horizon_sweep] {path} not found — skipping")
         return

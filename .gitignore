@@ -39,8 +39,8 @@ _site/
 *.synctex.gz
 *.pdf
 
-# Benchmark results (published as release artifacts)
-mosaic/benchmarks/results/
+# Benchmark results (default output of `mosaic run`)
+mosaic-results/
 
 # Tesseract build artifacts
 *.whl
@@ -48,4 +48,4 @@ mosaic/benchmarks/results/
 # Misc
 .env
 .claude/
-*.lock
+uv.lock

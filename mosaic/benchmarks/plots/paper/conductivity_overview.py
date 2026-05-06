@@ -18,6 +18,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
@@ -27,18 +28,18 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-BASE = RESULTS / "thermal-mesh" / "optimization"
 
-METHODS: dict[str, tuple] = {
-    "adam": ("Adam", "-", BASE / "conductivity_recovery"),
-    "bfgs": ("L-BFGS", "--", BASE / "conductivity_recovery_bfgs"),
-}
+def _methods():
+    base = results_dir() / "thermal-mesh" / "optimization"
+    return {
+        "adam": ("Adam", "-", base / "conductivity_recovery"),
+        "bfgs": ("L-BFGS", "--", base / "conductivity_recovery_bfgs"),
+    }
 
 
 def generate(out_dir: Path) -> None:
     loaded: dict[str, tuple] = {}
-    for key, (*_, path) in METHODS.items():
+    for key, (*_, path) in _methods().items():
         rp = path / "result.json"
         fp = path / "rho_fields.npz"
         if not rp.exists():
@@ -70,7 +71,7 @@ def generate(out_dir: Path) -> None:
         seen_solvers: set[str] = set()
 
         # ── Convergence — all solvers × both methods ──────────────────────
-        for key, (m_label, m_ls, *_) in METHODS.items():
+        for key, (m_label, m_ls, *_) in _methods().items():
             if key not in loaded:
                 continue
             result, _ = loaded[key]

@@ -27,20 +27,6 @@ except ImportError:  # pragma: no cover — CI-only path
     Tesseract = None  # type: ignore[assignment]
     apply_tesseract = None  # type: ignore[assignment]
 
-# Primary deadline enforcement lives in benchmarks.core.watchdog. That
-# package watches docker container liveness (not HTTP socket state) so it
-# fires even when tesseract-runtime has died and the read-side socket is
-# wedged in futex_wait_queue. Suites import `apply_tesseract` from that
-# package directly so JAX-traced `loss_fn` closures capture the watchdog.
-try:
-    from mosaic.benchmarks.core.watchdog import WatchdogError
-    from mosaic.benchmarks.core.watchdog import (
-        apply_tesseract as _apply_tesseract_watchdog,
-    )
-except ImportError:  # pragma: no cover — CI-only path, same as above
-    _apply_tesseract_watchdog = None  # type: ignore[assignment]
-    WatchdogError = None  # type: ignore[assignment]
-
 
 # ── Socket-read timeout ─────────────────────────────────────────────────────────
 #
@@ -496,30 +482,12 @@ def get_last_apply_error() -> str | None:
 
 
 def _apply_tesseract_with_deadline(t: Tesseract, inputs: dict):
-    """Call ``apply_tesseract(t, inputs)`` under a deadline.
+    """Call ``apply_tesseract(t, inputs)``.
 
-    Delegates to ``benchmarks.core.watchdog.apply_tesseract`` which polls
-    docker container status directly and aborts on container death OR wall-clock
-    deadline. The ThreadPoolExecutor fallback below is kept only for environments
-    where the watchdog package failed to import (CI host without tesseract_core).
+    Deadline enforcement is handled by the HTTP timeout monkey-patch
+    installed at module import (``_install_tesseract_http_timeout``).
     """
-    if _apply_tesseract_watchdog is not None:
-        return _apply_tesseract_watchdog(t, inputs, timeout=MOSAIC_TESSERACT_TIMEOUT)
-
-    # Fallback: ThreadPoolExecutor approach for environments without the watchdog.
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="tess-apply"
-    ) as _pool:
-        _future = _pool.submit(apply_tesseract, t, inputs)
-        try:
-            return _future.result(timeout=MOSAIC_TESSERACT_TIMEOUT)
-        except concurrent.futures.TimeoutError as _te:
-            _future.cancel()
-            _pool.shutdown(wait=False)
-            raise TimeoutError(
-                f"apply_tesseract did not return within "
-                f"{MOSAIC_TESSERACT_TIMEOUT:.0f}s (hard Python-level deadline)"
-            ) from _te
+    return apply_tesseract(t, inputs)
 
 
 def safe_apply_with_extras(
@@ -553,30 +521,11 @@ def safe_apply_with_extras(
         }
         return arr, extras, state
     except Exception as exc:
-        # Tesseract-runtime calls are wrapped by the watchdog
-        # (benchmarks.core.watchdog), which observes docker container
-        # liveness and raises ContainerDied / WatchdogTimeout on failure.
-        # Both subclass WatchdogError; WatchdogTimeout also subclasses
-        # TimeoutError so existing handling continues to work. Label each
-        # mode explicitly so the worker log makes the cause obvious.
         _exc_name = type(exc).__name__
-        if _exc_name == "ContainerDied":
+        if isinstance(exc, TimeoutError):
             error_msg = (
-                f"ContainerDied: tesseract-runtime container died mid-call "
-                f"(watchdog detected non-running status within poll window); "
-                f"{exc}"
-            )
-        elif _exc_name in (
-            "WatchdogTimeout",
-            "TimeoutError",
-            "ReadTimeout",
-            "Timeout",
-            "ConnectTimeout",
-        ):
-            error_msg = (
-                f"{_exc_name}: tesseract-runtime did not respond within "
-                f"{MOSAIC_TESSERACT_TIMEOUT:.0f}s (watchdog deadline); "
-                f"{exc}"
+                f"{_exc_name}: tesseract did not respond within "
+                f"{MOSAIC_TESSERACT_TIMEOUT:.0f}s; {exc}"
             )
         else:
             error_msg = f"{_exc_name}: {exc}"

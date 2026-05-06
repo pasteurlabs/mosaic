@@ -11,7 +11,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import print_saved
-from mosaic.benchmarks.core.utils import exclusion_lookup, load_json
+from mosaic.benchmarks.core.utils import exclusion_lookup, load_json, results_dir
 from mosaic.benchmarks.plots.style import (
     apply_style,
     fig_shared_legend,
@@ -50,7 +50,6 @@ def _save_animation(
 
 apply_style()
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "optimization"
 
 
@@ -102,7 +101,7 @@ def plot_recovery(
     ``result.json`` is not found, the function automatically falls back to the
     first available IC subdirectory.
     """
-    base_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    base_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     root_result = base_dir / "result.json"
 
     # Resolve the experiment directory: root-level, explicit IC, or auto-detected.
@@ -575,7 +574,7 @@ def plot_recovery_evolution_sidebyside(
     save: bool = True,
 ) -> None:
     """Single GIF with all solver evolutions displayed side by side."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "recovery_fields.npz"
     if not fields_path.exists():
         return
@@ -656,7 +655,7 @@ def plot_recovery_2panel(
     save: bool = True,
 ):
     """Two-panel figure: IC error vs sweep (left) | loss reduction vs sweep (right)."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=True)
 
@@ -722,7 +721,7 @@ def plot_recovery_field_grid(
     save: bool = True,
 ):
     """n_solvers × 8 grid: True IC | Pert IC | Pert Res | Rec IC | Rec Res | True Final | Rec Final | Final Res."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "recovery_fields.npz"
     if not fields_path.exists():
         return
@@ -833,7 +832,7 @@ def plot_recovery_field_grid(
 
 def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Two files: final IC error bar chart + optimisation loss curves per sweep param."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"param_recovery{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"param_recovery{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=True)
     sweep_key = data.get("sweep_key", "param")
@@ -908,7 +907,7 @@ def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "")
 
 def plot_viscosity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Three files: μ recovery paths, loss curves, and final error bar chart."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"viscosity_recovery{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"viscosity_recovery{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=True)
     solvers = list(data["by_solver"].keys())
@@ -1001,7 +1000,7 @@ def plot_recovery_sigma_sweep(cfg: ProblemConfig, save: bool = True, suffix: str
         horizontal threshold line marks the success/failure boundary.
       - convergence_curves.png: optimisation loss curves at each σ.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"recovery_sigma_sweep{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"recovery_sigma_sweep{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=True)
     sigma_values = sorted(data.get("sigma_values", []), key=float)
@@ -1095,7 +1094,7 @@ def plot_topopt(
     cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "topopt"
 ):
     """Two files: compliance + volume fraction convergence; initial + final density fields."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=False)
     # params is the full run dict {ic, physics, optim, ...}; look for v_frac in
@@ -1372,7 +1371,7 @@ def plot_source_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""
     × space) for any solver that recorded a history.  Solvers missing from the
     npz render as a "no data" placeholder — matches the lid_cavity fallback.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"source_recovery{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"source_recovery{suffix}"
     data = load_json(out_dir / "result.json")
     by_solver = data.get("by_solver", {})
     if not by_solver:
@@ -1511,7 +1510,7 @@ def _plot_source_recovery_fields(
     Solvers whose ``source_final_<name>`` key is missing from the npz are
     skipped silently (no line drawn); the legend still shows the init.
 
-    Middle row (ARCH-8): per-solver ``source_final − source_truth`` error
+    Middle row: per-solver ``source_final − source_truth`` error
     panel (line plot) so ill-posedness is visually obvious.
 
     Bottom row (only if any solver recorded ``source_history_<name>``): one
@@ -1526,7 +1525,7 @@ def _plot_source_recovery_fields(
     source_init = np.asarray(npz["source_init"])
     xs = np.arange(source_init.size)
 
-    # Ground-truth source (ARCH-8): dashed overlay + error subplot baseline.
+    # Ground-truth source: dashed overlay + error subplot baseline.
     source_truth = (
         np.asarray(npz["source_truth"]) if "source_truth" in npz.files else None
     )
@@ -1615,7 +1614,7 @@ def _plot_source_recovery_fields(
     ax_line.set_title(title)
     ax_line.grid(True, alpha=0.3)
 
-    # ── Error row: source_final − source_truth per solver (ARCH-8) ───────────
+    # ── Error row: source_final − source_truth per solver ────────────────────
     if has_truth:
         for j, name in enumerate(solver_names):
             ax = ax_err[j]
@@ -1677,7 +1676,7 @@ def _plot_source_recovery_fields(
     if save:
         save_fig(fig, "source_recovery_fields", out_dir)
 
-    # ── Thermal-field comparison plot (ARCH-8) ───────────────────────────────
+    # ── Thermal-field comparison plot ────────────────────────────────────────
     # New figure: per-solver (truth | final | final−truth) panel triplet.
     # Uses per-cell 2D reshape via cfg.ic_to_2d when shapes match; otherwise
     # falls back to a 1-D line plot.
@@ -1820,7 +1819,7 @@ def _plot_source_recovery_thermal(
     per-node reshape (x innermost) — see ``_reshape_canonical_2d`` and the
     note above ``_gaussian_source`` in ``thermal_mesh.py``.  Silently returns
     when neither ``temperature_truth`` nor any ``temperature_final_*`` key
-    is present (older npz payloads written before ARCH-8).
+    is present (older npz payloads may lack this data).
     """
     # Collect available solver temperature_final keys.
     final_names = [n for n in solver_names if f"temperature_final_{n}" in npz.files]
@@ -1958,7 +1957,7 @@ def plot_lid_cavity(
       - Loss convergence curves (loss vs iteration) for each solver at each U_x_true.
       - Final loss bar chart across U_x_true values per solver.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     if data is None:
         return
@@ -2401,7 +2400,7 @@ def plot_drag_opt(
     Supports both single-run (drag_opt/result.json) and multi-run
     (drag_opt/<name>/result.json) layouts.
     """
-    base_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    base_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     styles = solver_styles(cfg)
     figs = []
 
@@ -2747,7 +2746,7 @@ def plot_conductivity_recovery(
     - ``conductivity_recovery_convergence.{png,pdf}`` — semilogy loss + final-error bar
     - ``conductivity_recovery_fields.{png,pdf}``      — rho_init / rho_truth / rho_final per solver
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     by_solver = data.get("by_solver", {})
     if not by_solver:
@@ -2972,7 +2971,7 @@ def plot_load_recovery(
     - ``load_recovery_density.{png,pdf}``     — ρ field comparison across solvers
     - ``load_recovery_evolution_<solver>.gif`` — density optimisation animation
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     by_solver = data.get("by_solver", {})
     if not by_solver:

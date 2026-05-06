@@ -73,7 +73,7 @@ _SOLVERS: dict[str, SolverSpec] = {
             "p_exp": _P_EXP,
         },
         exclusions={
-            # ARCH-86: VJP for rho only implements ∂thermal_compliance/∂rho (C++ analytic SIMP sensitivity),
+            # VJP for rho only implements ∂thermal_compliance/∂rho (C++ analytic SIMP sensitivity),
             # not ∂identification_error/∂rho. The C++ --gradient flag computes the self-adjoint
             # ∂C/∂rho gradient, not the adjoint for the identification_error objective.
             "recovery/conductivity_recovery": "identification_error_rho_vjp_not_implemented",

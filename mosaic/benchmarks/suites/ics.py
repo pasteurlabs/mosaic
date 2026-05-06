@@ -4,7 +4,7 @@ Unlike the solver suites (forward, gradient, recovery, cost), this suite does
 not invoke any Docker containers — it only calls the IC generator functions
 defined in each ProblemConfig.  This makes it fast and dependency-free.
 
-Results are saved to results/{problem}/ics/{ic_name}/:
+Results are saved to <results>/{problem}/ics/{ic_name}/:
   ic.png / ic.pdf  — 2-D projection of the IC
   params.json      — IC generation kwargs used for the plot
 """
@@ -12,11 +12,10 @@ Results are saved to results/{problem}/ics/{ic_name}/:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.utils import results_dir
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "ics"
 
 
@@ -28,7 +27,7 @@ def _run_ic(
     """Generate one IC, save a visualisation plot and params.json."""
     from mosaic.benchmarks.plots.ics import plot_ic
 
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / ic_name
+    out_dir = results_dir() / cfg.name / _SUITE / ic_name
     out_dir.mkdir(parents=True, exist_ok=True)
 
     ic = cfg.make_ic[ic_name](**params)
@@ -68,7 +67,7 @@ def get_plot_fns(cfg: ProblemConfig) -> dict[str, object]:
 
         def _make(name: str = ic_name, p: dict = params):
             def fn(cfg: ProblemConfig, **_kwargs) -> None:
-                out_dir = _RESULTS_DIR / cfg.name / _SUITE / name
+                out_dir = results_dir() / cfg.name / _SUITE / name
                 ic = cfg.make_ic[name](**p)
                 from mosaic.benchmarks.plots.ics import plot_ic
 

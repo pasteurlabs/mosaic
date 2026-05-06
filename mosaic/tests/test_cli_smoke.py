@@ -28,15 +28,10 @@ def test_top_level_help():
 @pytest.mark.parametrize(
     "subcommand",
     [
-        "run-all",
-        "forward",
-        "cost",
-        "gradient",
-        "optimization",
+        "run",
         "ics",
         "status",
         "build",
-        "clean",
     ],
 )
 def test_subcommand_help(subcommand: str):

@@ -4,13 +4,12 @@ differentiability_table)."""
 from __future__ import annotations
 
 import math
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.utils import load_json
+from mosaic.benchmarks.core.utils import load_json, results_dir
 from mosaic.benchmarks.plots.style import (
     apply_style,
     field_grid,
@@ -25,7 +24,6 @@ from mosaic.benchmarks.plots.style import (
 
 apply_style()
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "gradient"
 
 
@@ -36,7 +34,7 @@ def plot_fd_check(
     cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "fd_check"
 ):
     """Two files: FD error + subspace cosine curves, and gradient magnitude field panels."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -329,7 +327,7 @@ def plot_param_sweep(
     exp_key: str = "param_sweep",
 ):
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
     # When multiple ICs are used, each IC lands in a subdir; plot each one.
     if not result_path.exists():
@@ -436,7 +434,7 @@ def plot_param_sweep(
 
 def plot_resolution_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Summary curves (grad norm + best-ε error + cosine) and U-curve grid vs N."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"resolution_sweep{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"resolution_sweep{suffix}"
     result_path = out_dir / "result.json"
     # When --ics <name> is used the run lands in a subdir; fall back to the
     # first IC subdir that contains a result.json.
@@ -572,7 +570,7 @@ def plot_jacobian_svd(
     - landscape.png: 1-D loss slice along the top singular direction
     - gradient_fields.png: IC and per-solver gradient magnitude panels
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -754,7 +752,7 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     Forward lines are dashed; VJP lines are solid.  Solvers without GPU (CPU-only)
     are shown using their peak_ram_mb instead and labelled accordingly.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"memory_sweep{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"memory_sweep{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -923,7 +921,7 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 def plot_horizon_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid,
     plus gradient field panels."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"horizon_sweep{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"horizon_sweep{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -1041,7 +1039,7 @@ def plot_differentiability_table(
         orange = error (exception during gradient computation)
     Cell text shows the relative error for ok/fail entries.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"differentiability_table{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"differentiability_table{suffix}"
     data = load_json(out_dir / "result.json")
     if data is None:
         return None
@@ -1171,7 +1169,7 @@ def plot_jacobian_svd_comparison(
     # Load available variants
     variants: list[tuple[str, dict]] = []
     for exp_key in exp_keys:
-        result_path = _RESULTS_DIR / cfg.name / _SUITE / exp_key / "result.json"
+        result_path = results_dir() / cfg.name / _SUITE / exp_key / "result.json"
         if not result_path.exists():
             continue
         data = load_json(result_path)
@@ -1244,6 +1242,6 @@ def plot_jacobian_svd_comparison(
     fig.tight_layout()
 
     if save:
-        out_dir = _RESULTS_DIR / cfg.name / _SUITE
+        out_dir = results_dir() / cfg.name / _SUITE
         save_fig(fig, out_name, out_dir)
     return fig

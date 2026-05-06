@@ -5,7 +5,7 @@ Run directly with::
 
     conda run -n gym python -m benchmarks.core.tests.test_exclusions
 
-The root bug these tests guard against (ARCH-20): a solver could RUN in a
+The root bug these tests guard against: a solver could RUN in a
 specific experiment whose status display said it was excluded — because
 ``active_solvers`` only matched the leading suite key (e.g. ``"gradient"``)
 while ``core/status.py`` matched the full ``"suite/experiment"`` key. Both
@@ -156,10 +156,10 @@ class TestExclusionLookup(unittest.TestCase):
 
 
 class TestActiveSolvers(unittest.TestCase):
-    """The scenario ARCH-20 guards against: runtime filter and display agree."""
+    """Verify runtime filter and display agree."""
 
     def test_su2_style_suite_level_gating(self) -> None:
-        # Reproduces the ARCH-18 / ARCH-20 scenario from navier_stokes_grid.py
+        # Reproduces the scenario from navier_stokes_grid.py
         # (su2 "gradient" exclusion). Every gradient experiment must gate.
         cfg = _FakeCfg(
             solvers={
@@ -174,7 +174,7 @@ class TestActiveSolvers(unittest.TestCase):
                 ),
             }
         )
-        # Before ARCH-20: this would INCORRECTLY include su2 because the old
+        # Before the fix: this would INCORRECTLY include su2 because the old
         # code did `spec.exclusions.get("fd_check")`.
         active = active_solvers(cfg, "gradient", "fd_check")
         self.assertEqual(active, ["jax_cfd"])

@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -32,8 +33,6 @@ from mosaic.benchmarks.plots.paper.style import (
     make_handle,
     solver_props,
 )
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 DOMAINS = [
     ("2D NS", "ns-grid", "N"),
@@ -141,7 +140,7 @@ def generate(out_dir: Path) -> None:
     failure_types_seen: set[str] = set()
 
     for col, (domain_label, subdir, _res_key) in enumerate(DOMAINS):
-        cost_dir = RESULTS / subdir / "cost"
+        cost_dir = results_dir() / subdir / "cost"
 
         fwd_path = cost_dir / "spatial_cost" / "result.json"
         vjp_path = cost_dir / "vjp_cost" / "result.json"

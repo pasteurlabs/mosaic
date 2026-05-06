@@ -13,10 +13,9 @@ from pathlib import Path
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 SOLVER_ORDER = ["ins_jl", "exponax", "phiflow", "xlb", "warp_ns", "pict"]
 
@@ -25,7 +24,9 @@ SWEEP_VALS = ["0.5", "1.0", "2.0"]
 
 def generate(out_dir: Path) -> None:
     with plt.rc_context(RCPARAMS):
-        path = RESULTS / "ns-3d-grid" / "optimization" / "lid_cavity" / "result.json"
+        path = (
+            results_dir() / "ns-3d-grid" / "optimization" / "lid_cavity" / "result.json"
+        )
         data = json.loads(path.read_text())
         by_sweep = data["by_sweep"]
 

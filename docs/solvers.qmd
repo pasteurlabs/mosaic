@@ -214,7 +214,7 @@ Semi-Lagrangian advection with pressure projection. Supports PyTorch, JAX, and T
 ::: {.callout-note}
 #### Excluded experiments
 
-- **cost/temporal_cost**: CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); ARCH-101 fix deployed (xla_gpu_autotune_level=0) — pending re-run to confirm resolved
+- **cost/temporal_cost**: CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed — pending re-run to confirm resolved
 :::
 
 ::: {.callout-note collapse="true"}
