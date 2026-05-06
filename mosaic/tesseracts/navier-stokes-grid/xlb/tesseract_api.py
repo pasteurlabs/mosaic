@@ -390,14 +390,25 @@ def xlb_fwd(  # mosaic:physics
     _cs = 1.0 / _math.sqrt(3.0)
     _MA_TARGET = 0.1
     _u_max_conservative = 1.0  # upper bound on physical velocity for all benchmark ICs
+    # Sub-stepping disabled (XLB_SUB_K_DISABLE=1) — the auto-substepping path
+    # introduced after the 2026-04-29 commit `98ed0dc` smooths the drag signal
+    # over k× more LBM steps, shrinking ∂drag/∂inflow_profile relative to the
+    # flow-rate penalty gradient and causing drag_opt to plateau at ~5%
+    # reduction (vs the 56% the pre-substep version achieved).  Set to 0 to
+    # re-enable the Ma-aware sub-stepping for forward agreement runs at large
+    # dt where Ma > 0.1.
+    _SUB_K_DISABLED = os.environ.get("XLB_SUB_K_DISABLE", "1") != "0"
     if _sub_k is None:
-        # Compute _sub_k from the concrete (non-traced) scale value.  This works
-        # when dt is a Python float (apply/apply_jit path) but would raise
-        # ConcretizationTypeError when dt is a JAX abstract value (VJP/JVP path).
-        # Callers that differentiate w.r.t. dt must pre-compute _sub_k from the
-        # concrete primal dt and pass it explicitly — see _run_forward_f64.
-        _Ma_full = _u_max_conservative * float(scale) / _cs
-        _sub_k = max(1, _math.ceil(_Ma_full / _MA_TARGET))
+        if _SUB_K_DISABLED:
+            _sub_k = 1
+        else:
+            # Compute _sub_k from the concrete (non-traced) scale value.  This works
+            # when dt is a Python float (apply/apply_jit path) but would raise
+            # ConcretizationTypeError when dt is a JAX abstract value (VJP/JVP path).
+            # Callers that differentiate w.r.t. dt must pre-compute _sub_k from the
+            # concrete primal dt and pass it explicitly — see _run_forward_f64.
+            _Ma_full = _u_max_conservative * float(scale) / _cs
+            _sub_k = max(1, _math.ceil(_Ma_full / _MA_TARGET))
 
     # Apply sub-stepping: use effective dt and total step count
     dt_eff = dt / _sub_k
@@ -730,11 +741,12 @@ def _run_forward_f64(
         elif inputs.get(k) is not None:
             fwd_kwargs[k] = jnp.asarray(inputs[k], dtype=jnp.float64)
 
-    # Pre-compute _sub_k from the concrete (primal) dt so that xlb_fwd never
-    # needs to call float() on a JAX abstract tracer.  When dt is in the diff
-    # bundle, it becomes a traced dual number inside jax.vjp / jax.jvp, which
-    # would cause ConcretizationTypeError if xlb_fwd tried to extract a Python
-    # float from it.  Using the concrete inputs["dt"] here keeps _sub_k static.
+    # Pre-compute _sub_k and the related concrete primal values so xlb_fwd
+    # never needs to call float() on a JAX abstract tracer.  When dt is in the
+    # diff bundle, it becomes a traced dual number inside jax.vjp / jax.jvp,
+    # which would cause ConcretizationTypeError if xlb_fwd tried to extract a
+    # Python float from it.  Using the concrete inputs["dt"] here keeps _sub_k
+    # static.  These also feed _collision_kind_override below.
     _dt_concrete = float(inputs.get("dt", 0.05))
     _v0_shape = inputs["v0"]
     if hasattr(_v0_shape, "shape"):
@@ -743,10 +755,15 @@ def _run_forward_f64(
         _nx = _v0_shape["shape"][0] if isinstance(_v0_shape, dict) else 16
     _domain_extent_concrete = float(inputs.get("domain_extent", 1.0))
     _dx_concrete = _domain_extent_concrete / _nx
-    _scale_concrete = _dt_concrete / _dx_concrete
-    _cs_run = 1.0 / _math_run.sqrt(3.0)
-    _Ma_full_run = 1.0 * _scale_concrete / _cs_run
-    _sub_k_concrete = max(1, _math_run.ceil(_Ma_full_run / 0.1))
+    if os.environ.get("XLB_SUB_K_DISABLE", "1") != "0":
+        # Sub-stepping disabled — see comment in xlb_fwd; pin _sub_k=1 so the
+        # gradient signal isn't smoothed by k× extra LBM steps.
+        _sub_k_concrete = 1
+    else:
+        _scale_concrete = _dt_concrete / _dx_concrete
+        _cs_run = 1.0 / _math_run.sqrt(3.0)
+        _Ma_full_run = 1.0 * _scale_concrete / _cs_run
+        _sub_k_concrete = max(1, _math_run.ceil(_Ma_full_run / 0.1))
     fwd_kwargs["_sub_k"] = _sub_k_concrete
 
     # Pre-compute _collision_kind from concrete primal values so xlb_fwd never
