@@ -118,7 +118,7 @@ jmespath==1.1.0
     #   botocore
 kiwisolver==1.5.0
     # via matplotlib
-markdown-it-py==4.0.0
+markdown-it-py==4.1.0
     # via rich
 markupsafe==3.0.3
     # via jinja2
@@ -266,11 +266,11 @@ sqlparse==0.5.5
     # via mlflow-skinny
 starlette==1.0.0
     # via fastapi
-tesseract-core==1.8.1
+tesseract-core==1.8.2
     # via
     #   mosaic-bench
     #   tesseract-jax
-tesseract-jax==0.2.0
+tesseract-jax==0.3.0
     # via mosaic-bench
 typer==0.25.1
     # via
