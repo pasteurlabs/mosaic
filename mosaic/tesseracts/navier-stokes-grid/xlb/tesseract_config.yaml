@@ -24,6 +24,12 @@ build_config:
   custom_build_steps:
     - 'ENV XLA_FLAGS="--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"'
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+    # xlb 0.3.1's operator/stepper/__init__.py unconditionally imports IBMStepper,
+    # which does `from warp.utils import ScopedTimer`. ScopedTimer was moved out of
+    # warp.utils in warp-lang>=1.10, but xlb 0.3.1's metadata pins warp-lang>=1.10,
+    # so any install of xlb 0.3.1 explodes on `import xlb`. We don't use IBMStepper,
+    # so drop that line from the stepper package's __init__.
+    - "RUN python3 -c \"import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_paths()['purelib']) / 'xlb/operator/stepper/__init__.py'; p.write_text(''.join(l for l in p.read_text().splitlines(keepends=True) if 'ibm_stepper' not in l))\""
 
 metadata:
   mosaic:
