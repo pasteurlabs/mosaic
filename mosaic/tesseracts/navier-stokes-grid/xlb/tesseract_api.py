@@ -33,9 +33,7 @@ from mosaic_shared.types import make_differentiable
 InputSchema = make_differentiable(
     _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
 )
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result", "drag"])
 
 
 from xlb.compute_backend import ComputeBackend
@@ -361,7 +359,7 @@ def xlb_fwd(  # mosaic:physics
                        especially near omega≈2 where small perturbations amplify rapidly.
 
     Returns:
-        (result, drag, velocity_mean): result same shape as v0; drag shape (1,) or None.
+        (result, drag): result same shape as v0; drag shape (1,) or None.
     """
     import math as _math
 
@@ -503,7 +501,7 @@ def xlb_fwd(  # mosaic:physics
                 if obs_mask is not None
                 else jnp.zeros((1,), dtype=fdtype)
             )
-            return f_next, (drag_step, u_s)
+            return f_next, drag_step
     else:
         _nx_g, _ny_g = spatial[0], spatial[1]
 
@@ -534,9 +532,9 @@ def xlb_fwd(  # mosaic:physics
                 if obs_mask is not None
                 else jnp.zeros((1,), dtype=fdtype)
             )
-            return f_next, (drag_step, u_s)
+            return f_next, drag_step
 
-    f_final, (drag_history, u_history) = jax.lax.scan(body, f0, None, length=steps_eff)
+    f_final, drag_history = jax.lax.scan(body, f0, None, length=steps_eff)
 
     # Extract macroscopic velocity using XLB Macroscopic operator
     rho_f, u_out = xlb_macro(f_final)  # rho: (1, *spatial), u: (d, *spatial)
@@ -558,24 +556,14 @@ def xlb_fwd(  # mosaic:physics
         # (3, nx, ny, nz) → (nx, ny, nz, 3), lattice → physical units
         result = jnp.moveaxis(u_out, 0, -1) / scale_eff
 
-    # Compute RANS velocity: tail-window mean over last steps_eff // 2 internal
-    # steps (same window as drag, captures time-averaged flow around the obstacle).
-    n_tail_v = max(1, steps_eff // 2)
-    u_rans = jnp.mean(u_history[-n_tail_v:], axis=0)  # (ndim, *spatial), lattice units
-    if ndim == 2:
-        velocity_mean = jnp.moveaxis(u_rans, 0, -1)[:, :, None, :] / scale_eff
-    else:
-        velocity_mean = jnp.moveaxis(u_rans, 0, -1) / scale_eff
-
     # Cast back to float32 when running in float64 gradient mode so that outputs
     # always have a consistent dtype regardless of the computation path.
     if _use_f64:
         result = result.astype(jnp.float32)
         if drag is not None:
             drag = drag.astype(jnp.float32)
-        velocity_mean = velocity_mean.astype(jnp.float32)
 
-    return result, drag, velocity_mean
+    return result, drag
 
 
 # ---------------------------------------------------------------------------
@@ -585,7 +573,7 @@ def xlb_fwd(  # mosaic:physics
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
-    result, drag, _velocity_mean = xlb_fwd(**inputs)
+    result, drag = xlb_fwd(**inputs)
     out = dict(result=result)
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out
@@ -769,7 +757,7 @@ def _run_forward_f64(
         _ck = "bgk"
     fwd_kwargs["_collision_kind_override"] = _ck
 
-    result, drag, _velocity_mean = xlb_fwd(_use_f64=True, **fwd_kwargs)
+    result, drag = xlb_fwd(_use_f64=True, **fwd_kwargs)
     return result, drag
 
 

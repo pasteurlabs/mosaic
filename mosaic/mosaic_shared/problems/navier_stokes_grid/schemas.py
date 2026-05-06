@@ -121,12 +121,3 @@ class OutputSchema(BaseModel):
             "None when no obstacle is present."
         ),
     )
-    velocity_mean: GridVectorField | None = Field(
-        default=None,
-        description=(
-            "Time-averaged (RANS) velocity field over the last steps // 2 steps of the "
-            "rollout, same shape as result. Computed on solvers feasible for drag "
-            "optimisation (xlb, phiflow, pict) when an obstacle and inflow profile are "
-            "present. None on periodic paths."
-        ),
-    )

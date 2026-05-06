@@ -16,9 +16,7 @@ from mosaic_shared.types import BCType, make_differentiable
 InputSchema = make_differentiable(
     _CanonicalInputSchema, ["v0", "inflow_profile"]
 )
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result", "drag"])
 
 
 # ---------------------------------------------------------------------------
@@ -945,7 +943,6 @@ def _run_pict(  # mosaic:physics
     inflow_profile_t: torch.Tensor | None = None,
     phys_scale: float = 1.0,
     obstacle: dict | None = None,
-    collect_velocity: bool = False,
     y_walls_noslip: bool = False,
 ) -> tuple[torch.Tensor, PISOtorch.Domain]:
     """Run PICT forward simulation.
@@ -968,12 +965,10 @@ def _run_pict(  # mosaic:physics
             ``"radius"``).  When provided, triggers 8-block ring topology.
 
     Returns:
-        ``(result_tensor, drag_tensor, domain, velocity_mean_tensor)`` where
-        result_tensor is the final velocity in PICT channels-first format,
-        drag_tensor is the x-direction drag on the obstacle in physical units
-        (shape (1,), or None when no obstacle is present), domain is the live
-        domain, and velocity_mean_tensor is the time-averaged velocity over the
-        tail window (or None when ``collect_velocity=False``).
+        ``(result_tensor, drag_tensor, domain)`` where result_tensor is the
+        final velocity in PICT channels-first format, drag_tensor is the
+        x-direction drag on the obstacle in physical units (shape (1,), or None
+        when no obstacle is present), and domain is the live domain.
     """
     (
         domain,
@@ -1029,14 +1024,12 @@ def _run_pict(  # mosaic:physics
     #    through torch.stack + torch.mean is well-defined and chains correctly
     #    with the PISOtorch_diff backward pass.
     drag_history: list[torch.Tensor] = []
-    velocity_history: list[torch.Tensor] = []
 
     prep_fn = None
     if (
         out_bounds
         or inflow_setter is not None
         or drag_assembler is not None
-        or collect_velocity
     ):
 
         def _pre_step(domain, time_step, **_kw):
@@ -1058,8 +1051,6 @@ def _run_pict(  # mosaic:physics
             # are already updated at this point.
             if drag_assembler is not None:
                 drag_history.append(drag_assembler(viscosity_val, phys_scale))
-            if collect_velocity:
-                velocity_history.append(assembler(domain).detach().clone())
 
         prep_fn = {"PRE": _pre_step, "POST": _post_step}
 
@@ -1090,13 +1081,7 @@ def _run_pict(  # mosaic:physics
             drag = drag_assembler(viscosity_val, phys_scale)
     else:
         drag = None
-    velocity_mean_t = None
-    if collect_velocity and velocity_history:
-        n_tail = max(1, steps // 2)
-        velocity_mean_t = (
-            torch.stack(velocity_history[-n_tail:]).mean(dim=0).to(torch.float32)
-        )
-    return result, drag, domain, velocity_mean_t
+    return result, drag, domain
 
 
 # ---------------------------------------------------------------------------
@@ -1145,7 +1130,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=False)
 
-    result_t, drag_t, domain, velocity_mean_t = _run_pict(
+    result_t, drag_t, domain = _run_pict(
         v0_tensor=v0_t,
         viscosity_val=nu_pict,
         dt_val=dt_pict,
@@ -1157,7 +1142,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
         inflow_profile_t=inflow_profile_t,
         phys_scale=phys_scale,
         obstacle=obstacle,
-        collect_velocity=True,
         y_walls_noslip=y_walls_noslip,
     )
 
@@ -1166,11 +1150,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
         drag_t.detach().cpu().numpy()
         if drag_t is not None
         else np.zeros((1,), dtype=np.float32)
-    )
-    _velocity_mean_np = (
-        _pict_to_v0(velocity_mean_t, N, ndim).detach().cpu().numpy()
-        if velocity_mean_t is not None
-        else None
     )
     return {"result": out_np, "drag": drag_np}
 
@@ -1262,7 +1241,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
         else None
     )
 
-    result_t, drag_t, opt_domain, _ = _run_pict(
+    result_t, drag_t, opt_domain = _run_pict(
         v0_tensor=v0_t,
         viscosity_val=nu_pict_val,
         dt_val=dt_pict_val,

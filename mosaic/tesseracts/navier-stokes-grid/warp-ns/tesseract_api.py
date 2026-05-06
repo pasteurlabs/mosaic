@@ -56,42 +56,6 @@ def sanitize_float(v: float, clip: float) -> float:
 
 
 # ============================================================
-# 2-D Jacobi Poisson kernel
-# ============================================================
-
-
-@wp.kernel
-def jacobi_2d_kernel(  # mosaic:physics
-    u: wp.array2d(dtype=wp.float32),
-    rhs: wp.array2d(dtype=wp.float32),
-    u_new: wp.array2d(dtype=wp.float32),
-    scale: float,
-):
-    """One Jacobi step for ∇²u = rhs on a periodic 2-D grid.
-
-    u_new[i,j] = (u[i-1,j] + u[i+1,j] + u[i,j-1] + u[i,j+1]) / 4
-                 + scale * rhs[i,j]
-
-    scale = +h²/4  for streamfunction Poisson: ∇²ψ = -ω  where rhs = omega
-    The vorticity-streamfunction equation is ∇²ψ = −ω.  Substituting into
-    the Jacobi update for ∇²ψ = f with f = −ω:
-        ψ_new = avg(neighbours)/4 + scale * ω
-    Setting scale = +h²/4 gives ψ_new = avg/4 + h²/4·ω, which is the correct
-    Jacobi step for ∇²ψ = -ω.  Using scale = -h²/4 would solve ∇²ψ = +ω,
-    yielding the wrong-sign streamfunction and therefore wrong-sign velocity.
-    """
-    i, j = wp.tid()
-    n = u.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    u_new[i, j] = (
-        0.25 * (u[im1, j] + u[ip1, j] + u[i, jm1] + u[i, jp1]) + scale * rhs[i, j]
-    )
-
-
-# ============================================================
 # 2-D NS kernels (vorticity-streamfunction formulation)
 # ============================================================
 
@@ -159,9 +123,6 @@ def accumulate_outlet_rans_kernel(  # mosaic:physics
     """Accumulate outlet (i=N-1) x-velocity into RANS buffer for momentum-deficit drag.
 
     Replaces per-step compute_drag_kernel for inflow+obstacle runs.
-    Recorded inside wp.Tape so the backward flows: rans_buf.grad → ux[N-1,:].grad
-    → IPCS backward → inflow_profile.grad.  The outlet signal is stronger and
-    more direct than the obstacle-surface viscous term used by compute_drag_kernel.
     """
     j = wp.tid()
     n = ux.shape[0]
@@ -200,9 +161,9 @@ def apply_inflow_bc_2d_kernel(  # mosaic:physics
     ux[0, j] = inflow_profile[j]  — spatially-varying u_x(y)
     uy[0, j] = 0.0                — no transverse inflow
 
-    inflow_profile has shape (N,).  The assignment overwrites the x=0 slice;
-    the backward is handled in Python via tape.record_func (accumulate-then-zero)
-    to preserve gradient correctness for the inflow_profile VJP.
+    inflow_profile has shape (N,).  Forward-only: inflow_profile is not
+    differentiable; the overwrite-adjoint zero on adj_ux/adj_uy at x=0 is
+    handled via tape.record_func to keep v0 gradients correct.
     """
     j = wp.tid()
     ux[0, j] = inflow_profile[j]
@@ -216,20 +177,6 @@ def _zero_inflow_slice_2d_kernel(  # mosaic:physics
     """Zero the x=0 column of a 2-D array (used to reset adjoint after overwrite BC)."""
     j = wp.tid()
     arr[0, j] = 0.0
-
-
-@wp.kernel
-def _accumulate_inflow_slice_to_profile_kernel(  # mosaic:physics
-    adj_ux: wp.array2d(dtype=wp.float32),
-    adj_profile: wp.array(dtype=wp.float32),
-):
-    """Accumulate adj_ux at x=0 column into adj_inflow_profile (overwrite adjoint fix).
-
-    Forward: ux[0, j] = inflow_profile[j]
-    Backward: adj_profile[j] += adj_ux[0, j];  adj_ux[0, j] = 0   (done in separate kernel)
-    """
-    j = wp.tid()
-    wp.atomic_add(adj_profile, j, adj_ux[0, j])
 
 
 @wp.kernel
@@ -508,61 +455,6 @@ def divergence_3d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def divergence_3d_wall_kernel(  # mosaic:physics
-    ux: wp.array3d(dtype=wp.float32),
-    uy: wp.array3d(dtype=wp.float32),
-    uz: wp.array3d(dtype=wp.float32),
-    div: wp.array3d(dtype=wp.float32),
-    inv_2h_over_dt: float,
-):
-    """Compute ∇·u*/dt for pressure Poisson RHS with Neumann (zero-gradient) BCs in z.
-
-    For lid-driven cavity mode: x and y remain periodic (modulo wrapping);
-    z uses clamped indices so ∂p/∂z = 0 at the bottom (k=0) and top (k=n-1)
-    walls, consistent with the no-penetration wall boundary condition.
-    """
-    i, j, k = wp.tid()
-    n = ux.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    kp1 = wp.min(k + 1, n - 1)
-    km1 = wp.max(k - 1, 0)
-    div[i, j, k] = (
-        (ux[ip1, j, k] - ux[im1, j, k])
-        + (uy[i, jp1, k] - uy[i, jm1, k])
-        + (uz[i, j, kp1] - uz[i, j, km1])
-    ) * inv_2h_over_dt
-
-
-@wp.kernel
-def jacobi_3d_kernel(  # mosaic:physics
-    u: wp.array3d(dtype=wp.float32),
-    rhs: wp.array3d(dtype=wp.float32),
-    u_new: wp.array3d(dtype=wp.float32),
-    scale: float,
-):
-    """One Jacobi step for ∇²u = rhs on a periodic 3-D grid."""
-    i, j, k = wp.tid()
-    n = u.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    kp1 = (k + 1) % n
-    km1 = (k - 1 + n) % n
-    u_new[i, j, k] = (
-        u[im1, j, k]
-        + u[ip1, j, k]
-        + u[i, jm1, k]
-        + u[i, jp1, k]
-        + u[i, j, km1]
-        + u[i, j, kp1]
-    ) / 6.0 + scale * rhs[i, j, k]
-
-
-@wp.kernel
 def pressure_correct_3d_kernel(  # mosaic:physics
     ux_star: wp.array3d(dtype=wp.float32),
     uy_star: wp.array3d(dtype=wp.float32),
@@ -592,70 +484,6 @@ def pressure_correct_3d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def pressure_correct_3d_wall_kernel(  # mosaic:physics
-    ux_star: wp.array3d(dtype=wp.float32),
-    uy_star: wp.array3d(dtype=wp.float32),
-    uz_star: wp.array3d(dtype=wp.float32),
-    p: wp.array3d(dtype=wp.float32),
-    ux_new: wp.array3d(dtype=wp.float32),
-    uy_new: wp.array3d(dtype=wp.float32),
-    uz_new: wp.array3d(dtype=wp.float32),
-    dt: float,
-    inv_2h: float,
-):
-    """u^(n+1) = u* - dt·∇p with Neumann (zero-gradient) BCs in z.
-
-    For lid-driven cavity mode: x and y remain periodic; z uses clamped
-    indices so the pressure gradient ∂p/∂z = 0 at the bottom (k=0) and
-    top (k=n-1) walls, consistent with the Neumann pressure BC.
-    """
-    i, j, k = wp.tid()
-    n = p.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    kp1 = wp.min(k + 1, n - 1)
-    km1 = wp.max(k - 1, 0)
-    dpdx = (p[ip1, j, k] - p[im1, j, k]) * inv_2h
-    dpdy = (p[i, jp1, k] - p[i, jm1, k]) * inv_2h
-    dpdz = (p[i, j, kp1] - p[i, j, km1]) * inv_2h
-    ux_new[i, j, k] = ux_star[i, j, k] - dt * dpdx
-    uy_new[i, j, k] = uy_star[i, j, k] - dt * dpdy
-    uz_new[i, j, k] = uz_star[i, j, k] - dt * dpdz
-
-
-@wp.kernel
-def _apply_pressure_correction_wall_kernel(  # mosaic:grad:v0:adjoint
-    ux: wp.array3d(dtype=wp.float32),
-    uy: wp.array3d(dtype=wp.float32),
-    uz: wp.array3d(dtype=wp.float32),
-    p: wp.array3d(dtype=wp.float32),
-    dt: float,
-    inv_2h: float,
-):
-    """Subtract dt*grad(p) from (ux, uy, uz) in-place with Neumann BCs in z.
-
-    For lid-driven cavity adjoint: x and y remain periodic; z uses clamped
-    indices so ∂p/∂z = 0 at the bottom (k=0) and top (k=n-1) walls.
-    """
-    i, j, k = wp.tid()
-    n = p.shape[0]
-    ip1 = (i + 1) % n
-    im1 = (i - 1 + n) % n
-    jp1 = (j + 1) % n
-    jm1 = (j - 1 + n) % n
-    kp1 = wp.min(k + 1, n - 1)
-    km1 = wp.max(k - 1, 0)
-    dpdx = (p[ip1, j, k] - p[im1, j, k]) * inv_2h
-    dpdy = (p[i, jp1, k] - p[i, jm1, k]) * inv_2h
-    dpdz = (p[i, j, kp1] - p[i, j, km1]) * inv_2h
-    ux[i, j, k] = ux[i, j, k] - dt * dpdx
-    uy[i, j, k] = uy[i, j, k] - dt * dpdy
-    uz[i, j, k] = uz[i, j, k] - dt * dpdz
-
-
-@wp.kernel
 def _clip_and_sanitize_3d_kernel(  # mosaic:physics
     arr: wp.array3d(dtype=wp.float32),
     clip: float,
@@ -674,70 +502,6 @@ def _clip_and_sanitize_3d_kernel(  # mosaic:physics
 def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
     """wp.launch wrapper. block_dim must be an int (Warp 1.12 dropped tuple support)."""
     wp.launch(kernel, dim=dim, inputs=inputs, block_dim=block_dim, device=device)
-
-
-# ============================================================
-# Jacobi Poisson solvers
-# ============================================================
-
-
-def _jacobi_poisson_2d(  # mosaic:physics
-    rhs: wp.array,
-    scale: float,
-    num_iters: int,
-    device: str,
-) -> wp.array:
-    """Solve ∇²u = rhs on a periodic 2-D grid via Jacobi iteration.
-
-    Uses index-based ping-pong (src/dst integer swap) so the tape correctly
-    tracks both buffer objects across all launches.
-
-    Note on sign convention: to solve ∇²ψ = -ω, pass rhs=omega and
-    scale = +h²/4.  The Jacobi update is:
-        ψ_new = avg(neighbours)/4 + (h²/4) * ω = avg/4 + h²ω/4
-    which is the correct Jacobi step for ∇²ψ = -ω.
-    """
-    n = rhs.shape[0]
-    bufs = [
-        wp.zeros((n, n), dtype=wp.float32, device=device),
-        wp.zeros((n, n), dtype=wp.float32, device=device),
-    ]
-    src, dst = 0, 1
-    for _ in range(num_iters):
-        _wlaunch(
-            jacobi_2d_kernel,
-            dim=(n, n),
-            inputs=[bufs[src], rhs, bufs[dst], scale],
-            block_dim=256,
-            device=device,
-        )
-        src, dst = dst, src
-    return bufs[src]
-
-
-def _jacobi_poisson_3d(  # mosaic:physics
-    rhs: wp.array,
-    scale: float,
-    num_iters: int,
-    device: str,
-) -> wp.array:
-    """Solve ∇²u = rhs on a periodic 3-D grid via Jacobi iteration."""
-    n = rhs.shape[0]
-    bufs = [
-        wp.zeros((n, n, n), dtype=wp.float32, device=device),
-        wp.zeros((n, n, n), dtype=wp.float32, device=device),
-    ]
-    src, dst = 0, 1
-    for _ in range(num_iters):
-        _wlaunch(
-            jacobi_3d_kernel,
-            dim=(n, n, n),
-            inputs=[bufs[src], rhs, bufs[dst], scale],
-            block_dim=256,
-            device=device,
-        )
-        src, dst = dst, src
-    return bufs[src]
 
 
 def _spectral_poisson_3d_np(
@@ -828,149 +592,6 @@ def _spectral_poisson_3d_tape(  # mosaic:grad:v0:adjoint
 
     tape.record_func(
         backward=_spectral_poisson_3d_backward,
-        arrays=[rhs_wp, p_wp],
-    )
-
-    return p_wp
-
-
-# ============================================================
-# CG Poisson solver (Neumann BCs) — for lid-driven cavity / channel flow
-# ============================================================
-
-
-@functools.lru_cache(maxsize=8)
-def _build_laplacian_neumann_3d(
-    n: int, h: float
-) -> scipy.sparse.csr_matrix:  # mosaic:init
-    """Sparse 3-D Laplacian with homogeneous Neumann (dp/dn=0) BCs on all faces.
-
-    Constructed as the Kronecker sum of three 1-D Neumann Laplacians:
-        L3d = kron(I, kron(I, L1d)) + kron(I, kron(L1d, I)) + kron(kron(L1d, I), I)
-
-    The 1-D Laplacian on n points with spacing h is:
-        Interior row i:   [..., 1, -2, 1, ...] / h²
-        Boundary row 0:   [-1,  1,  0, ...] / h²   (ghost = interior, dp/dn=0)
-        Boundary row n-1: [...,  0, 1, -1] / h²
-
-    DOF 0 (corner cell [0,0,0]) is pinned to zero to remove the null-space
-    (constant-pressure mode): row 0 is replaced by [1, 0, 0, ...] and the caller
-    sets rhs[0]=0.  The resulting matrix is SPD, so CG converges.
-
-    Returns an (n³) × (n³) CSR matrix.
-    """
-    inv_h2 = 1.0 / (h * h)
-
-    # 1-D Neumann Laplacian (n×n)
-    main_diag = -2.0 * inv_h2 * np.ones(n)
-    off_diag = inv_h2 * np.ones(n - 1)
-    L1d = scipy.sparse.diags(
-        [off_diag, main_diag, off_diag], offsets=[-1, 0, 1], shape=(n, n), format="lil"
-    )
-    # Neumann BCs: ghost cell = interior neighbour → row 0 and row n-1 modified
-    L1d[0, 0] = -inv_h2
-    L1d[0, 1] = inv_h2
-    L1d[n - 1, n - 2] = inv_h2
-    L1d[n - 1, n - 1] = -inv_h2
-    L1d = L1d.tocsr()
-
-    I_n = scipy.sparse.eye(n, format="csr")
-
-    # 3-D Laplacian via Kronecker sum
-    L3d = (
-        scipy.sparse.kron(I_n, scipy.sparse.kron(I_n, L1d), format="csr")
-        + scipy.sparse.kron(I_n, scipy.sparse.kron(L1d, I_n), format="csr")
-        + scipy.sparse.kron(scipy.sparse.kron(L1d, I_n), I_n, format="csr")
-    )
-
-    # Pin DOF 0 to remove constant-pressure null space: replace row 0 with [1, 0, ...]
-    L3d = L3d.tolil()
-    L3d[0, :] = 0.0
-    L3d[0, 0] = 1.0
-    return L3d.tocsr()
-
-
-def _cg_poisson_3d_np(
-    rhs_np: np.ndarray, L: scipy.sparse.csr_matrix
-) -> np.ndarray:  # mosaic:physics
-    """Solve L p = rhs using CG (or direct LU for small n).
-
-    rhs shape: (n, n, n).  Returns p of the same shape as float32.
-    DOF 0 is pinned (rhs[0]=0 enforced here to match the pinned row in L).
-    """
-    rhs_flat = rhs_np.ravel().astype(np.float64)
-    # Enforce the pinned DOF 0 (constant-pressure fix)
-    rhs_flat[0] = 0.0
-
-    n3 = rhs_flat.size
-    if n3 <= 4096:
-        # Small system: direct sparse LU is faster and exact
-        p_flat = scipy.sparse.linalg.spsolve(L, rhs_flat)
-    else:
-        p_flat, info = scipy.sparse.linalg.cg(L, rhs_flat, rtol=1e-8, maxiter=3 * n3)
-        if info != 0:
-            # Fall back to direct solve when CG stalls
-            p_flat = scipy.sparse.linalg.spsolve(L, rhs_flat)
-
-    return p_flat.reshape(rhs_np.shape).astype(np.float32)
-
-
-def _cg_poisson_3d_tape(  # mosaic:grad:v0:adjoint
-    rhs_wp: wp.array,
-    n: int,
-    h: float,
-    tape: wp.Tape,
-    device: str,
-) -> wp.array:
-    """Differentiable CG Poisson solve (Neumann BCs) registered on a wp.Tape.
-
-    Mirrors the structure of _spectral_poisson_3d_tape: runs the scipy-based
-    solve outside Warp's kernel system, then registers a record_func backward.
-
-    The backward of  A p = rhs  w.r.t. rhs is:  A adj_rhs = adj_p.
-    Because A (the Neumann Laplacian) is symmetric the backward is the same
-    CG solve — identical to the forward.
-
-    Returns a new wp.array holding p with requires_grad=True.
-    """
-    L = _build_laplacian_neumann_3d(n, h)
-
-    rhs_np = rhs_wp.numpy()
-    p_np = _cg_poisson_3d_np(rhs_np, L)
-    p_wp = wp.array(p_np, dtype=wp.float32, requires_grad=True, device=device)
-
-    _rhs_ref = rhs_wp
-    _p_ref = p_wp
-    _n_ref = n
-    _h_ref = h
-    _dev_ref = device
-
-    def _cg_poisson_3d_backward(
-        _rhs=_rhs_ref, _p=_p_ref, _n=_n_ref, _h=_h_ref, _d=_dev_ref
-    ):
-        """Backward: adj_rhs += CG_solve(adj_p).
-
-        The Neumann Laplacian is symmetric, so the VJP is the same operator.
-        """
-        if _p.grad is None:
-            return
-        adj_p_np = _p.grad.numpy()
-        _L = _build_laplacian_neumann_3d(_n, _h)
-        adj_rhs_np = _cg_poisson_3d_np(adj_p_np, _L)
-        if _rhs.grad is not None:
-            cur = _rhs.grad.numpy()
-            _rhs.grad = wp.array(
-                (cur + adj_rhs_np).astype(np.float32),
-                dtype=wp.float32,
-                device=_d,
-            )
-        else:
-            _rhs.grad = wp.array(
-                adj_rhs_np.astype(np.float32), dtype=wp.float32, device=_d
-            )
-
-    tape.record_func(
-        backward=_cg_poisson_3d_backward,
         arrays=[rhs_wp, p_wp],
     )
 
@@ -1988,23 +1609,20 @@ def ns2d_solve(  # mosaic:physics
 
     inflow_profile: optional shape-(N,) float32 array giving a spatially-varying
         Dirichlet u_x(y) BC applied at x=0 after each sub-step (tentative and
-        pressure-corrected).  Transverse uy at x=0 is pinned to 0.  The profile
-        is uploaded as a differentiable wp.array with requires_grad=True so that
-        tape.backward() fills its .grad attribute.  Periodic FFT Poisson is
-        retained; the Dirichlet override is an explicit post-step BC applied in
-        the same spirit as jax-cfd/phiflow for drag_opt (channel-in-periodic-box).
+        pressure-corrected).  Transverse uy at x=0 is pinned to 0.  Forward-only:
+        the profile is not gradient-tracked.  Periodic FFT Poisson is retained;
+        the Dirichlet override is an explicit post-step BC applied in the same
+        spirit as jax-cfd/phiflow for drag_opt (channel-in-periodic-box).
 
     Returns:
-        (result_np, drag_np_or_None, velocity_mean_np_or_None, tape,
+        (result_np, drag_np_or_None, tape,
          ux_final_wp, uy_final_wp, ux_ic_wp, uy_ic_wp, inflow_wp_or_None,
-         nu_wp, dt_wp)
+         nu_wp, dt_wp, rans_drag_buf)
         The final velocity Warp arrays have requires_grad=True so
         tape.backward() fills their .grad attributes.
         nu_wp and dt_wp are (1,) scalar leaf arrays with requires_grad=True;
         their .grad attributes are filled by tape.backward() via per-step
         record_func callbacks in _tentative_vel_2d_tape and ns2d_solve.
-        velocity_mean_np is the RANS tail-window mean over the last 50% of
-        steps, shape (N, N, 1, 2).  Always non-None when steps > 0.
     """
     n = v0_np.shape[0]
     h = domain_extent / n
@@ -2024,7 +1642,7 @@ def ns2d_solve(  # mosaic:physics
     if obstacle is not None:
         mask_wp = _build_obstacle_mask(n, domain_extent, obstacle, device)
 
-    # Inflow profile (differentiable).  Resample to N if needed.
+    # Inflow profile (forward-only, not differentiable).  Resample to N if needed.
     inflow_wp = None
     if inflow_profile is not None:
         prof_np = np.asarray(inflow_profile, dtype=np.float32).reshape(-1)
@@ -2032,9 +1650,7 @@ def ns2d_solve(  # mosaic:physics
             src = np.linspace(0.0, 1.0, prof_np.shape[0], dtype=np.float32)
             dst = np.linspace(0.0, 1.0, n, dtype=np.float32)
             prof_np = np.interp(dst, src, prof_np).astype(np.float32)
-        inflow_wp = wp.array(
-            prof_np, dtype=wp.float32, requires_grad=True, device=device
-        )
+        inflow_wp = wp.array(prof_np, dtype=wp.float32, device=device)
 
     # Upload IC velocity as tape leaf inputs
     ux_wp = wp.array(ux_np, dtype=wp.float32, requires_grad=True, device=device)
@@ -2082,12 +1698,6 @@ def ns2d_solve(  # mosaic:physics
     # which return a mean over the last 50% of timesteps.
     drag_accum: list = []
 
-    # RANS tail-window velocity accumulators (same 50% tail window as drag).
-    # Computed outside the tape — non-differentiable, purely for RANS output.
-    ux_accum = np.zeros((n, n), dtype=np.float32)
-    uy_accum = np.zeros((n, n), dtype=np.float32)
-    vel_tail_count = 0
-
     # Per-step drag buffers (one per tail-window step, requires_grad=True).
     # Used only for obstacle-only (no inflow) runs; for inflow+obstacle the
     # momentum-deficit RANS approach below replaces this.
@@ -2095,8 +1705,8 @@ def ns2d_solve(  # mosaic:physics
 
     # RANS outlet buffer for momentum-deficit drag (inflow+obstacle only).
     # Allocated here with requires_grad=True so the tape records the accumulation
-    # kernel and backward flows from rans_ux_buf.grad → vel_bufs_x[src].grad at
-    # the outlet column → IPCS backward → inflow_profile.grad.
+    # kernel; the drag cotangent flows back to vel_bufs_x[src].grad at the
+    # outlet column for v0/viscosity/dt gradients.
     rans_ux_buf = None
     rans_drag_buf = None
     _n_tail_total = steps - steps // 2  # number of tail steps (same 50% window)
@@ -2138,7 +1748,9 @@ def ns2d_solve(  # mosaic:physics
                 )
 
             # Inflow Dirichlet BC on tentative velocity (x=0 face).
-            # Same accumulate-then-zero overwrite-adjoint pattern as the 3-D lid BC.
+            # Forward-only: inflow_profile is not differentiable, but the
+            # overwrite-adjoint must still zero adj_ux/adj_uy at x=0 so the
+            # Dirichlet BC does not spuriously propagate cotangents into v0.
             if inflow_wp is not None:
                 _wlaunch(
                     apply_inflow_bc_2d_kernel,
@@ -2149,23 +1761,15 @@ def ns2d_solve(  # mosaic:physics
                 )
                 _ux_s = ux_star
                 _uy_s = uy_star
-                _inflow = inflow_wp
                 _n_r = n
                 _d_r = device
 
                 def _fix_inflow_overwrite_star(
-                    _ux=_ux_s, _uy=_uy_s, _prof=_inflow, _n=_n_r, _d=_d_r
+                    _ux=_ux_s, _uy=_uy_s, _n=_n_r, _d=_d_r
                 ):
-                    # adj_profile += adj_ux[0, :];  adj_ux[0, :] = 0; adj_uy[0, :] = 0
-                    if _ux.grad is None or _prof.grad is None:
+                    # adj_ux[0, :] = 0; adj_uy[0, :] = 0
+                    if _ux.grad is None:
                         return
-                    _wlaunch(
-                        _accumulate_inflow_slice_to_profile_kernel,
-                        dim=_n,
-                        inputs=[_ux.grad, _prof.grad],
-                        block_dim=_bd_1d,
-                        device=_d,
-                    )
                     _wlaunch(
                         _zero_inflow_slice_2d_kernel,
                         dim=_n,
@@ -2184,7 +1788,7 @@ def ns2d_solve(  # mosaic:physics
 
                 tape.record_func(
                     backward=_fix_inflow_overwrite_star,
-                    arrays=[ux_star, uy_star, inflow_wp],
+                    arrays=[ux_star, uy_star],
                 )
 
             # No-slip wall BC at j=0 and j=n-1 (applied after inflow/mask BCs).
@@ -2385,6 +1989,8 @@ def ns2d_solve(  # mosaic:physics
                 )
 
             # Inflow Dirichlet BC after pressure correction (x=0 face).
+            # Forward-only: inflow_profile is not differentiable; we still zero
+            # adj_ux/adj_uy at x=0 to keep the overwrite-adjoint correct for v0.
             if inflow_wp is not None:
                 _wlaunch(
                     apply_inflow_bc_2d_kernel,
@@ -2395,22 +2001,14 @@ def ns2d_solve(  # mosaic:physics
                 )
                 _vx_d = vel_bufs_x[dst]
                 _vy_d = vel_bufs_y[dst]
-                _inflow2 = inflow_wp
                 _n_r2 = n
                 _d_r2 = device
 
                 def _fix_inflow_overwrite_vel(
-                    _vx=_vx_d, _vy=_vy_d, _prof=_inflow2, _n=_n_r2, _d=_d_r2
+                    _vx=_vx_d, _vy=_vy_d, _n=_n_r2, _d=_d_r2
                 ):
-                    if _vx.grad is None or _prof.grad is None:
+                    if _vx.grad is None:
                         return
-                    _wlaunch(
-                        _accumulate_inflow_slice_to_profile_kernel,
-                        dim=_n,
-                        inputs=[_vx.grad, _prof.grad],
-                        block_dim=_bd_1d,
-                        device=_d,
-                    )
                     _wlaunch(
                         _zero_inflow_slice_2d_kernel,
                         dim=_n,
@@ -2429,7 +2027,7 @@ def ns2d_solve(  # mosaic:physics
 
                 tape.record_func(
                     backward=_fix_inflow_overwrite_vel,
-                    arrays=[vel_bufs_x[dst], vel_bufs_y[dst], inflow_wp],
+                    arrays=[vel_bufs_x[dst], vel_bufs_y[dst]],
                 )
 
             # No-slip wall BC at j=0 and j=n-1 on pressure-corrected velocity.
@@ -2465,13 +2063,6 @@ def ns2d_solve(  # mosaic:physics
                 )
 
             src, dst = dst, src
-
-            # Accumulate RANS velocity for tail-window mean (last 50% of steps).
-            # Executed outside the tape — non-differentiable.
-            if step_i >= steps // 2:
-                ux_accum += vel_bufs_x[src].numpy()
-                uy_accum += vel_bufs_y[src].numpy()
-                vel_tail_count += 1
 
             # Drag accumulation for the tail window (last 50% of steps).
             # For inflow+obstacle (drag_opt), accumulate outlet RANS velocity
@@ -2522,7 +2113,7 @@ def ns2d_solve(  # mosaic:physics
         # Recorded inside the with tape: context so tape.backward() propagates
         # cotangent_drag → rans_drag_buf.grad → momentum_deficit_drag_kernel backward
         # → rans_ux_buf.grad → accumulate_outlet_rans_kernel backward (each tail step)
-        # → vel_bufs_x[src].grad at outlet → IPCS backward → inflow_profile.grad.
+        # → vel_bufs_x[src].grad at outlet, contributing to v0/viscosity/dt grads.
         if rans_ux_buf is not None:
             _U_mean = float(np.mean(inflow_profile))
             _dy = domain_extent / n
@@ -2575,18 +2166,9 @@ def ns2d_solve(  # mosaic:physics
             )
             drag_out = drag_buf.numpy()
 
-    # RANS mean velocity over the tail window.
-    velocity_mean_np = None
-    if vel_tail_count > 0:
-        ux_mean = ux_accum / vel_tail_count
-        uy_mean = uy_accum / vel_tail_count
-        # Stack to canonical (nx, ny, 1, 2) shape matching result
-        velocity_mean_np = np.stack([ux_mean, uy_mean], axis=-1)[:, :, np.newaxis, :]
-
     return (
         result,
         drag_out,
-        velocity_mean_np,
         tape,
         vel_bufs_x[src],
         vel_bufs_y[src],
@@ -2609,8 +2191,6 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     device: str,
     nu_wp: "wp.array | None" = None,
     dt_wp: "wp.array | None" = None,
-    inflow_wp: "wp.array | None" = None,
-    inflow_profile_np: np.ndarray | None = None,
     rans_drag_buf: "wp.array | None" = None,
     cotangent_drag: "float | None" = None,
 ) -> dict[str, np.ndarray]:
@@ -2627,8 +2207,6 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
       2. Divergence:         adj_dt += sum(adj_div_star * (-div_star / dt))
       3. Pressure correction: adj_dt += sum(adj_u_new * (-grad_p))
     All three are registered as record_func backward closures in ns2d_solve.
-    inflow_profile gradient comes from tape.backward() via the accumulate-then-zero
-    overwrite-adjoint fix in ns2d_solve.
     """
     # mosaic:grad:v0:adjoint
     ux_final.grad = wp.array(
@@ -2639,9 +2217,8 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     )
 
     # Set cotangent on the RANS momentum-deficit drag buffer so tape.backward()
-    # propagates: rans_drag_buf.grad → momentum_deficit_drag_kernel backward
-    # → rans_ux_buf.grad → accumulate_outlet_rans_kernel backward (each tail step)
-    # → vel_bufs_x[src].grad at outlet column → IPCS backward → inflow_profile.grad.
+    # propagates the drag cotangent through momentum_deficit_drag_kernel backward
+    # into rans_ux_buf.grad.
     if (
         rans_drag_buf is not None
         and cotangent_drag is not None
@@ -2658,35 +2235,6 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
         grad_v0[:, :, 0, 0] = ux_ic.grad.numpy()
     if uy_ic.grad is not None:
         grad_v0[:, :, 0, 1] = uy_ic.grad.numpy()
-
-    # mosaic:grad:inflow_profile:adjoint
-    # Inflow profile gradient (from tape).  Resample back to the caller's length
-    # if we internally resampled to N.
-    grad_inflow_profile: np.ndarray | None = None
-    if inflow_wp is not None:
-        if inflow_wp.grad is not None:
-            g_np = np.asarray(inflow_wp.grad.numpy(), dtype=np.float32)
-            gnorm = float(np.linalg.norm(g_np))
-            if not np.isfinite(gnorm) or gnorm == 0.0:
-                g_np = np.zeros_like(g_np)
-            elif gnorm > 100.0:
-                g_np = g_np * (100.0 / gnorm)
-        else:
-            g_np = np.zeros(int(inflow_wp.shape[0]), dtype=np.float32)
-        # If the user-provided inflow_profile had a different length than N,
-        # resample (linear) the gradient back to the original length.  For a
-        # linear interp forward, the exact adjoint would be a sparse transpose;
-        # linear interp here is an acceptable approximation (matches phiflow /
-        # jax_cfd behaviour when inflow length != N) and, critically, keeps the
-        # shape compatible with optax.  In practice the benchmark uses len==N.
-        if (
-            inflow_profile_np is not None
-            and inflow_profile_np.shape[0] != g_np.shape[0]
-        ):
-            src = np.linspace(0.0, 1.0, g_np.shape[0], dtype=np.float32)
-            dst = np.linspace(0.0, 1.0, inflow_profile_np.shape[0], dtype=np.float32)
-            g_np = np.interp(dst, src, g_np).astype(np.float32)
-        grad_inflow_profile = g_np
 
     # ── Viscosity and dt gradients from tape (record_func closures in ns2d_solve) ──
     # nu_wp.grad and dt_wp.grad are accumulated by the per-step record_func callbacks
@@ -2706,8 +2254,6 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
         "viscosity": grad_nu,
         "dt": grad_dt,
     }
-    if grad_inflow_profile is not None:
-        out["inflow_profile"] = grad_inflow_profile
     return out
 
 
@@ -3004,9 +2550,7 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
 
 
 class InputSchema(
-    make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
-    )
+    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
 ):
     num_iters_poisson: int = Field(
         default=500,
@@ -3027,9 +2571,7 @@ class InputSchema(
     )
 
 
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result"])
 
 
 # ============================================================
@@ -3077,7 +2619,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
     bc = inputs.boundary_conditions
     wall_y_noslip = bc.y_lo.type == BCType.NO_SLIP and bc.y_hi.type == BCType.NO_SLIP
-    result, drag, velocity_mean_np, _tape, *_ = ns2d_solve(
+    result, drag, _tape, *_ = ns2d_solve(
         v0,
         nu,
         dt,
@@ -3095,7 +2637,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(result=result, drag=drag_out)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -3161,13 +2703,12 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoi
         (
             _result_np,
             _drag,
-            _,
             tape,
             ux_f,
             uy_f,
             ux_ic,
             uy_ic,
-            inflow_wp,
+            _inflow_wp,
             nu_wp_2d,
             dt_wp_2d,
             rans_drag_buf_2d,
@@ -3202,8 +2743,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoi
             device,
             nu_wp=nu_wp_2d,
             dt_wp=dt_wp_2d,
-            inflow_wp=inflow_wp,
-            inflow_profile_np=inflow_np,
             rans_drag_buf=rans_drag_buf_2d,
             cotangent_drag=cot_drag,
         )
@@ -3213,12 +2752,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoi
             result["viscosity"] = grads["viscosity"]
         if "dt" in vjp_inputs:
             result["dt"] = grads["dt"]
-        if (
-            "inflow_profile" in vjp_inputs
-            and inputs.inflow_profile is not None
-            and "inflow_profile" in grads
-        ):
-            result["inflow_profile"] = grads["inflow_profile"]
 
     return result
 

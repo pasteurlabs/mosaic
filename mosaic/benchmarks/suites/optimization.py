@@ -1106,11 +1106,6 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         # flow_snaps:      final (optimised) flow per solver.
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
-        # RANS mean-velocity fields per solver (velocity_mean output key).
-        # rans_init_snaps: initial (unoptimised) RANS mean field per solver.
-        # rans_snaps:      final (optimised) RANS mean field per solver.
-        rans_init_snaps: dict = {}
-        rans_snaps: dict = {}
         _wall_times: dict[str, float] = {}
 
         def _drag_opt_work(name: str, t) -> None:
@@ -1136,9 +1131,6 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 _vel0 = _out0.get("result")
                 if _vel0 is not None:
                     flow_init_snaps[name] = np.array(_vel0)
-                _vm0 = _out0.get("velocity_mean")
-                if _vm0 is not None:
-                    rans_init_snaps[name] = np.array(_vm0)
             except Exception:
                 pass
 
@@ -1233,13 +1225,8 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 _vel = _out_final.get("result")
                 if _vel is not None:
                     flow_snaps[name] = np.array(_vel)
-                _vm = _out_final.get("velocity_mean")
-                if _vm is not None:
-                    rans_snaps[name] = np.array(_vm)
             except Exception:
                 pass  # velocity snapshot is optional; do not abort the run
-            if rans_snaps.get(name) is not None:
-                by_solver[name]["has_rans"] = True
             _wall_times[name] = time.perf_counter() - _t0
 
         # drag_opt requires both inflow_profile support and obstacle drag output.
@@ -1309,7 +1296,7 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         for k, v in profile_histories.items():
             profiles_payload[f"profile_history_{k}"] = v
         np.savez(profiles_path, **profiles_payload)
-        if flow_snaps or flow_init_snaps or rans_snaps or rans_init_snaps:
+        if flow_snaps or flow_init_snaps:
             _npz_fields: dict = {}
             # Merge with any prior entries so a single-solver rerun does not
             # wipe peer solvers' fields — mirrors profiles.npz merge logic.
@@ -1330,13 +1317,6 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
             # Save per-solver final flow (keys flow_final_{name})
             for _sn, _v in flow_snaps.items():
                 _npz_fields[f"flow_final_{_sn}"] = _v
-            # Save per-solver RANS mean-velocity fields (velocity_mean output).
-            for _sn, _v in rans_init_snaps.items():
-                _npz_fields[f"rans_initial_{_sn}"] = _v
-            if rans_init_snaps and "rans_initial" not in _npz_fields:
-                _npz_fields["rans_initial"] = next(iter(rans_init_snaps.values()))
-            for _sn, _v in rans_snaps.items():
-                _npz_fields[f"rans_final_{_sn}"] = _v
             np.savez(_ff_path, **_npz_fields)
         if n_runs > 1:
             all_results[run_name] = result
@@ -1511,8 +1491,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         profile_histories: dict = {}
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
-        rans_init_snaps: dict = {}
-        rans_snaps: dict = {}
         _wall_times: dict[str, float] = {}
 
         def _drag_opt_bfgs_work(name: str, t) -> None:
@@ -1532,9 +1510,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 _vel0 = _out0.get("result")
                 if _vel0 is not None:
                     flow_init_snaps[name] = np.array(_vel0)
-                _vm0 = _out0.get("velocity_mean")
-                if _vm0 is not None:
-                    rans_init_snaps[name] = np.array(_vm0)
             except Exception:
                 pass
 
@@ -1586,9 +1561,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 _vel = _out_f.get("result")
                 if _vel is not None:
                     flow_snaps[name] = np.array(_vel)
-                _vm = _out_f.get("velocity_mean")
-                if _vm is not None:
-                    rans_snaps[name] = np.array(_vm)
             except Exception:
                 final_drag = losses[-1] if losses else float("nan")
 
@@ -1613,8 +1585,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 "converged": len(losses) < max_iters,
                 "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
             }
-            if rans_snaps.get(name) is not None:
-                by_solver[name]["has_rans"] = True
             _wall_times[name] = time.perf_counter() - _t0
 
         _drag_exp = f"drag_opt_bfgs/{run_name}" if run_name else "drag_opt_bfgs"
@@ -1674,7 +1644,7 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         for k, v in profile_histories.items():
             profiles_payload[f"profile_history_{k}"] = v
         np.savez(profiles_path, **profiles_payload)
-        if flow_snaps or flow_init_snaps or rans_snaps or rans_init_snaps:
+        if flow_snaps or flow_init_snaps:
             _npz_fields: dict = {}
             _ff_path = out_dir / "flow_fields.npz"
             if _ff_path.exists():
@@ -1690,12 +1660,6 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 _npz_fields["flow_initial"] = next(iter(flow_init_snaps.values()))
             for _sn, _v in flow_snaps.items():
                 _npz_fields[f"flow_final_{_sn}"] = _v
-            for _sn, _v in rans_init_snaps.items():
-                _npz_fields[f"rans_initial_{_sn}"] = _v
-            if rans_init_snaps and "rans_initial" not in _npz_fields:
-                _npz_fields["rans_initial"] = next(iter(rans_init_snaps.values()))
-            for _sn, _v in rans_snaps.items():
-                _npz_fields[f"rans_final_{_sn}"] = _v
             np.savez(_ff_path, **_npz_fields)
         if n_runs > 1:
             all_results[run_name] = result

@@ -14,11 +14,9 @@ from mosaic_shared.types import make_differentiable
 
 
 InputSchema = make_differentiable(
-    _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    _CanonicalInputSchema, ["v0", "viscosity", "dt"]
 )
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result"])
 
 
 # ---------------------------------------------------------------------------
@@ -130,13 +128,11 @@ def _run(  # mosaic:physics
     domain_extent: float,
     obstacle: dict | None = None,
     inflow_profile: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
+) -> tuple[np.ndarray, np.ndarray | None]:
     """Forward pass.
 
-    Returns a 3-tuple (result, drag, velocity_mean).  velocity_mean is only
-    non-None in channel mode (obstacle present); it is the tail-window
-    mean collocated velocity field (RANS), shape (nx, ny, 1, 2).  All other
-    modes return velocity_mean=None.
+    Returns a 2-tuple (result, drag).  drag is non-None only in channel mode
+    (obstacle present).
 
     2-D: v0 (nx, ny, 1, 2) → result (nx, ny, 1, 2)
     3-D: v0 (nx, ny, nz, 3) → result (nx, ny, nz, 3)
@@ -185,13 +181,9 @@ def _run(  # mosaic:physics
         )
         result_2d = _to_numpy(jl_result[0])  # (N, N, 2)
         mean_drag_jl = float(jl_result[1])  # scalar: tail-window mean drag
-        mean_vel_2d = _to_numpy(
-            jl_result[2]
-        )  # (N, N, 2): tail-window mean velocity (RANS)
         result_4d = result_2d[:, :, np.newaxis, :]  # (N, N, 1, 2)
-        velocity_mean_4d = mean_vel_2d[:, :, np.newaxis, :]  # (N, N, 1, 2)
         drag = np.array([mean_drag_jl], dtype=np.float32)
-        return result_4d, drag, velocity_mean_4d
+        return result_4d, drag
 
     if inflow_profile is not None:
         raise NotImplementedError(
@@ -221,7 +213,7 @@ def _run(  # mosaic:physics
         drag = _compute_drag_numpy(
             ux, np.zeros_like(ux), obstacle, viscosity, domain_extent
         )
-        return result_4d, drag, None
+        return result_4d, drag
     else:
         # 3-D path: pass the full (nx, ny, nz, 3) array
         result = _to_numpy(
@@ -234,10 +226,10 @@ def _run(  # mosaic:physics
                 float(domain_extent),
             )
         )  # (nx, ny, nz, 3)
-        return result, None, None
+        return result, None
 
 
-def _vjp(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
+def _vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     v0: np.ndarray,
     cotangent: np.ndarray,
     viscosity: float,
@@ -406,7 +398,7 @@ def _obstacle_dict_ins(inputs: "InputSchema") -> dict | None:  # mosaic:io
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    result, drag, velocity_mean = _run(
+    result, drag = _run(
         np.asarray(inputs.v0),
         float(inputs.viscosity[0]),
         float(inputs.dt[0]),
@@ -461,7 +453,7 @@ def _drag_cotangent_to_result(  # mosaic:grad:v0,viscosity,dt:adjoint
     return ct
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

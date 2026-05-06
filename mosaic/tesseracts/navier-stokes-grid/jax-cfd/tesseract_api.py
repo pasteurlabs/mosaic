@@ -17,9 +17,7 @@ from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_pat
 
 
 class InputSchema(
-    make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
-    )
+    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
 ):
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
@@ -54,9 +52,7 @@ class InputSchema(
         return self
 
 
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result"])
 
 
 def _jaxcfd_bc(  # mosaic:io
@@ -411,7 +407,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile,density:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,density:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

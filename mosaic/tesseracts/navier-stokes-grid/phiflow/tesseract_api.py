@@ -43,9 +43,7 @@ class InputSchema(
         return self
 
 
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result", "drag"])
 
 
 def _phiflow_extrapolation(bc_dict: dict, ndim: int):  # mosaic:io
@@ -165,7 +163,7 @@ def phiflow_fwd(  # mosaic:physics
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray | None]:
+) -> tuple[jnp.ndarray, jnp.ndarray | None]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
     Uses semi-Lagrangian advection, explicit diffusion, and pressure projection
@@ -182,8 +180,7 @@ def phiflow_fwd(  # mosaic:physics
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
 
     Returns:
-        (result, drag, velocity_mean): result same shape as v0; drag shape (1,) or None;
-        velocity_mean shape (nx, ny, 1, 2) or None (only for obstacle+inflow 2D runs).
+        (result, drag): result same shape as v0; drag shape (1,) or None.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
@@ -392,33 +389,26 @@ def phiflow_fwd(  # mosaic:physics
         # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
         result = result[:, :, None, :]
 
-    # --- drag and RANS velocity -------------------------------------------
+    # --- drag from RANS-averaged pressure + velocity ----------------------
     drag = None
-    velocity_mean = None
     if obs_mask is not None and ndim == 2 and inflow_profile is not None:
         # _face_hist shape: (steps, 2, nx, ny); _p_hist shape: (steps, nx, ny).
         # Average over the last 50% of steps to smooth Kármán shedding oscillations.
         n_tail = max(1, steps // 2)
         rans_faces = jnp.mean(_face_hist[-n_tail:], axis=0)  # (2, nx, ny)
         ux_rans = 0.5 * (rans_faces[0] + jnp.roll(rans_faces[0], 1, axis=0))
-        uy_rans = 0.5 * (rans_faces[1] + jnp.roll(rans_faces[1], 1, axis=1))
-        velocity_mean = jnp.stack([ux_rans, uy_rans], axis=0)
-        velocity_mean = jnp.moveaxis(velocity_mean, 0, -1)[
-            :, :, None, :
-        ]  # (nx, ny, 1, 2)
-
         # Surface-integral drag from RANS mean pressure + velocity.
         # Time-averaging the per-step CG pressure (collected in-loop) gives the
         # correct RANS pressure; constant offset cancels on the closed cylinder surface.
         p_rans = jnp.mean(_p_hist[-n_tail:], axis=0)  # (nx, ny)
         drag = _compute_drag_2d(ux_rans, p_rans, obs_mask, viscosity, dx)
 
-    return result, drag, velocity_mean
+    return result, drag
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
-    result, drag, _velocity_mean = phiflow_fwd(**inputs)
+    result, drag = phiflow_fwd(**inputs)
     out = dict(result=result)
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out

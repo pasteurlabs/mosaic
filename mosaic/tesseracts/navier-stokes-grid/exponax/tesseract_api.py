@@ -48,9 +48,7 @@ class InputSchema(
         return self
 
 
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["result", "drag", "velocity_mean"]
-)
+OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result"])
 
 
 # ---------------------------------------------------------------------------
