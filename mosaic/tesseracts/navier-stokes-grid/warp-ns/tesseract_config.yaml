@@ -47,6 +47,7 @@ metadata:
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
+    internal_dtype: float32
     description: >
       NVIDIA Warp NS solver: IPCS primitive-variable projection for both 2D and
       3D. Pressure solve: spectral FFT Poisson on periodic domains; CG+Neumann

@@ -47,10 +47,12 @@ build_config:
 metadata:
   mosaic:
     name: "deal.II"
-    backend: dealii
+    backend: cpp
     family: fem
     scheme: "FEM Q1 linear elasticity (SIMP, analytic self-adjoint gradient)"
     color: "#CCBB44"
+    linestyle: "-"
+    marker: "X"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
@@ -60,3 +62,4 @@ metadata:
       subprocess. SIMP stiffness E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal. UMFPACK
       direct solver. Gradient ∂C/∂ρ via analytic self-adjoint SIMP sensitivity.
       Reference C++ implementation for cross-framework validation.
+    doc_url: "https://www.dealii.org/"

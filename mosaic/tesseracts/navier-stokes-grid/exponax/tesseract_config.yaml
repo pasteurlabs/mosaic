@@ -25,5 +25,6 @@ metadata:
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
+    internal_dtype: float32
     description: "Spectral ETDRK integrator; machine-precision incompressibility by construction."
     doc_url: "https://fkoehler.site/exponax/"

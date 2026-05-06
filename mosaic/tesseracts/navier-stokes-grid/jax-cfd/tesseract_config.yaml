@@ -21,5 +21,6 @@ metadata:
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
+    internal_dtype: float32
     description: "Staggered MAC grid with pressure projection and finite-difference advection."
     doc_url: "https://github.com/google/jax-cfd"

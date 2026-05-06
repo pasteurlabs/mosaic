@@ -1,3 +1,4 @@
+// mosaic:util
 //
 // deal.II linear elasticity solver for SIMP topology optimisation.
 //

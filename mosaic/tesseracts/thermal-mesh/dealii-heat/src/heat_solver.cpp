@@ -1,3 +1,4 @@
+// mosaic:util
 // heat_solver.cpp
 // deal.II Q1 FEM heat conduction with SIMP conductivity.  Forward-only
 // reference implementation; the Python tesseract is forward-only and never

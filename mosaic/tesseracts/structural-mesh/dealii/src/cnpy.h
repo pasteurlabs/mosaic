@@ -1,7 +1,7 @@
+// mosaic:util  (third-party I/O utility — not authored solver code)
 // cnpy — C++ library for reading/writing NumPy .npy and .npz files.
 // MIT License — original by Carl Rogers (https://github.com/rogersce/cnpy).
 // This is a self-contained single-header/implementation split version.
-// mosaic:util  (third-party I/O utility — not authored solver code)
 
 #pragma once
 

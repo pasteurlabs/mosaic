@@ -1,6 +1,6 @@
+# mosaic:util
 using TopOpt
 
-# mosaic:util
 # ---------------------------------------------------------------------------
 # Compatibility patch: Ferrite v0.3.0 + TopOpt v0.11.0 hex element support
 #

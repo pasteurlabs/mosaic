@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import os
 import queue
 import subprocess
@@ -127,9 +128,9 @@ def build_all(
 ) -> dict[str, str]:
     """Build all solver images in parallel. Returns name → image_tag.
 
-    Always invokes ``tesseract_core.build_tesseract`` and lets BuildKit's
-    layer cache decide what to actually re-execute — fully cached builds
-    return in seconds, source-changed solvers rebuild only the affected
+    Shells out to the ``tesseract build`` CLI for each solver and lets
+    BuildKit's layer cache decide what to actually re-execute — fully cached
+    builds return in seconds, source-changed solvers rebuild only the affected
     layers. Per-problem failures are isolated by the caller in ``cli.build``.
 
     max_workers limits concurrent Docker builds to avoid overloading the host
@@ -173,12 +174,33 @@ def build_all(
                     f"stdout: {r.stdout[-2000:]}\nstderr: {r.stderr[-2000:]}"
                 )
         t0 = time.monotonic()
-        img = tesseract_core.build_tesseract(tesseract_path, tag)
-        elapsed = time.monotonic() - t0
-        console.print(
-            f"  [cyan]{name:<16}[/cyan] → {img.tags[0]}  [dim]({elapsed:.1f}s)[/dim]"
+        r = subprocess.run(
+            ["tesseract", "build", "--tag", tag, str(tesseract_path)],
+            capture_output=True,
+            text=True,
         )
-        return name, img.tags[0]
+        elapsed = time.monotonic() - t0
+        if r.returncode != 0:
+            raise RuntimeError(
+                f"{name}: tesseract build failed (exit {r.returncode}):\n"
+                f"stdout: {r.stdout[-2000:]}\nstderr: {r.stderr[-2000:]}"
+            )
+        # tesseract build prints the built images as a JSON array on stdout —
+        # take the last non-empty line so any leading log noise is ignored.
+        last_line = next(
+            (ln for ln in reversed(r.stdout.splitlines()) if ln.strip()), ""
+        )
+        try:
+            built_tags = json.loads(last_line)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"{name}: could not parse tesseract build output: {last_line!r}"
+            ) from exc
+        image_tag = built_tags[0]
+        console.print(
+            f"  [cyan]{name:<16}[/cyan] → {image_tag}  [dim]({elapsed:.1f}s)[/dim]"
+        )
+        return name, image_tag
 
     images: dict[str, str] = {}
     with make_build_progress() as progress:

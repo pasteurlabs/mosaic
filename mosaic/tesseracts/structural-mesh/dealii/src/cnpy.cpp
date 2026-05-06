@@ -1,3 +1,4 @@
+// mosaic:io
 // cnpy — C++ library for reading/writing NumPy .npy files.
 // MIT License — original by Carl Rogers (https://github.com/rogersce/cnpy).
 

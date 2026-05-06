@@ -48,6 +48,8 @@ metadata:
     family: fem
     scheme: "FEM CG1 linear elasticity (SIMP, dolfin-adjoint)"
     color: "#AA3377"
+    linestyle: "--"
+    marker: "v"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
@@ -57,3 +59,4 @@ metadata:
       penalisation. Gradient ∂C/∂ρ via dolfin-adjoint ReducedFunctional. DG0 density
       field; compliance assembled as action(L, u_sol). Von Mises stress via DG0
       projection of deviatoric stress norm.
+    doc_url: "https://fenicsproject.org/"

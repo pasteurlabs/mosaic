@@ -34,6 +34,7 @@ metadata:
     color: "#DDAA33"
     linestyle: ":"
     marker: "D"
+    ad_strategy: null
     differentiable: false
     uses_gpu: false
     internal_dtype: float64

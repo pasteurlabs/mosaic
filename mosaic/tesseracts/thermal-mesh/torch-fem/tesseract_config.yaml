@@ -29,6 +29,8 @@ metadata:
     family: fem
     scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
     color: "#EE6677"
+    linestyle: "(0, (3, 1, 1, 1))"
+    marker: "h"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
@@ -38,3 +40,4 @@ metadata:
       IsotropicConductivity3D SIMP material; PyTorch autograd through the FE solve
       yields rho and source gradients. First PyTorch backend and first GPU-native
       thermal VJP path in thermal-mesh.
+    doc_url: "https://github.com/meyer-nils/torch-fem"

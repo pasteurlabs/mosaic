@@ -1,3 +1,4 @@
+// mosaic:io
 // cnpy — NumPy .npy / .npz I/O for C++
 // Original: https://github.com/rogersce/cnpy  (MIT licence)
 // Vendored and trimmed: only npy_save / npy_load used by heat_solver.

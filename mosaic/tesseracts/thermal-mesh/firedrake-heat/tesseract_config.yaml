@@ -48,6 +48,8 @@ metadata:
     family: fem
     scheme: "FEM P1 heat conduction (SIMP, firedrake-adjoint)"
     color: "#CCBB44"
+    linestyle: "(0, (5, 2))"
+    marker: "^"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
@@ -55,3 +57,4 @@ metadata:
     description: >
       Firedrake P1 FEM heat-conduction; firedrake-adjoint for both rho and source
       gradients.
+    doc_url: "https://www.firedrakeproject.org/"

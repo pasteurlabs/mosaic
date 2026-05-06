@@ -48,6 +48,8 @@ metadata:
     family: fem
     scheme: "FEM CG1 linear elasticity (SIMP, pyadjoint ReducedFunctional)"
     color: "#EE3377"
+    linestyle: "(0, (5, 2))"
+    marker: "^"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
@@ -57,3 +59,4 @@ metadata:
       ∂C/∂ρ via firedrake-adjoint (pyadjoint ReducedFunctional). Uses meshio for
       GMSH conversion of the HexMesh input. Modern Firedrake complement to the
       FEniCS fenics-structural solver.
+    doc_url: "https://www.firedrakeproject.org/"

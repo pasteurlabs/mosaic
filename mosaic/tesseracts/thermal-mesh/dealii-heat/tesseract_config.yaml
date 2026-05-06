@@ -41,10 +41,12 @@ build_config:
 metadata:
   mosaic:
     name: "deal.II"
-    backend: dealii
+    backend: cpp
     family: fem
     scheme: "FEM Q1 heat conduction (SIMP, analytic self-adjoint gradient)"
     color: "#228833"
+    linestyle: "-"
+    marker: "X"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
@@ -54,3 +56,4 @@ metadata:
       subprocess. SIMP conductivity k(ρ) = k_min + (k_max−k_min)·ρ^p. Gradient ∂C/∂ρ
       via analytic self-adjoint sensitivity (no adjoint solve needed). Reference C++
       implementation for cross-framework validation.
+    doc_url: "https://www.dealii.org/"

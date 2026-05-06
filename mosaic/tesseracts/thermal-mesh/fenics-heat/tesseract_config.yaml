@@ -44,6 +44,8 @@ metadata:
     family: fem
     scheme: "FEM P1 heat conduction (SIMP, dolfin-adjoint)"
     color: "#AA3377"
+    linestyle: "--"
+    marker: "v"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
@@ -51,3 +53,4 @@ metadata:
     description: >
       FEniCS P1 FEM heat-conduction solver; dolfin-adjoint tape for both rho and
       source gradients.
+    doc_url: "https://fenicsproject.org/"

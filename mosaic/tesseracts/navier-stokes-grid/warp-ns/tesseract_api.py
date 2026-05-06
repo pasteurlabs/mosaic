@@ -35,7 +35,7 @@ wp.init()
 
 
 @wp.func
-def sanitize_float(v: float, clip: float) -> float:
+def sanitize_float(v: float, clip: float) -> float:  # mosaic:util
     """Replace NaN/Inf with 0 and clamp to [-clip, clip].
 
     Extracted as a @wp.func so it can be reused in multiple kernels without
@@ -499,7 +499,7 @@ def _clip_and_sanitize_3d_kernel(  # mosaic:physics
     arr[i, j, k] = sanitize_float(arr[i, j, k], clip)
 
 
-def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
+def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):  # mosaic:util
     """wp.launch wrapper. block_dim must be an int (Warp 1.12 dropped tuple support)."""
     wp.launch(kernel, dim=dim, inputs=inputs, block_dim=block_dim, device=device)
 
