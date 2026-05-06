@@ -411,7 +411,6 @@ def run_with_gpu_pool(
             or t.endswith("_jl")
             or "topopt_jl" in t
             or "trixi" in t
-            or "waterlily" in t
             or "incompressible_navier_stokes_jl" in t
             or "speedyweather" in t
             or "ins_navier" in t
