@@ -1108,6 +1108,39 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         flow_snaps: dict = {}
         _wall_times: dict[str, float] = {}
 
+        # Compute the output directory up front so the optimisation loop can
+        # checkpoint partial results into ``result_partial.json``. Without this,
+        # a killed / interrupted long run loses every iteration recorded so far.
+        _dbg_partial = "_debug" if overrides.get("debug") else ""
+        if ic_subdir:
+            _partial_parent = experiment_dir(
+                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg_partial
+            )
+            partial_out_dir = _partial_parent / ic_subdir
+            partial_out_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            partial_out_dir = experiment_dir(
+                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg_partial
+            )
+        _partial_lock = threading.Lock()
+
+        def _write_partial() -> None:
+            """Snapshot the current by_solver dict to result_partial.json.
+
+            Mirrors the recovery_constant_ic harness so an interrupted drag_opt
+            (long PICT runs in particular) preserves per-iteration progress.
+            """
+            if not by_solver:
+                return
+            payload = {
+                "by_solver": by_solver,
+                "run_name": run_name,
+                "U_mean": U_mean,
+                "params": run,
+            }
+            with _partial_lock:
+                save_json(payload, partial_out_dir / "result_partial.json")
+
         def _drag_opt_work(name: str, t) -> None:
             _t0 = time.perf_counter()
             profile = profile_init
@@ -1191,6 +1224,27 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     best_drag, no_improve = abs(d), 0
                 else:
                     no_improve += 1
+                # Snapshot progress into by_solver so a partial-write captures
+                # whatever's been done, even if the process is killed mid-loop.
+                by_solver[name] = {
+                    "drags": drags,
+                    "flow_rates": flow_rates,
+                    "initial_drag": drags[0] if drags else None,
+                    "final_drag": drags[-1] if drags else None,
+                    "drag_reduction_pct": (
+                        100.0 * (abs(drags[0]) - abs(drags[-1])) / (abs(drags[0]) + 1e-30)
+                        if len(drags) >= 2
+                        else 0.0
+                    ),
+                    "n_iters": len(drags),
+                    "converged": False,  # finalised after the loop exits
+                    "grad_norms": grad_norms,
+                    "in_progress": True,
+                }
+                # Flush every 10 iterations to bound IO without losing more than
+                # ~10 iters of work on an interrupt.
+                if (i + 1) % 10 == 0:
+                    _write_partial()
                 if no_improve >= patience:
                     break
 
@@ -1212,6 +1266,9 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 "grad_norms": grad_norms,
                 **({"error": "non-finite gradients"} if non_finite_grad else {}),
             }
+            # Final partial flush so a kill between this point and result.json
+            # save still preserves the converged-state record.
+            _write_partial()
             # Capture the final velocity field (no gradient needed — plain call).
             try:
                 _de = phys.get("domain_extent", cfg.domain_extent)
