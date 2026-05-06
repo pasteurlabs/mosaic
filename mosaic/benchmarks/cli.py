@@ -513,10 +513,31 @@ def _filter_hardware(cfg, hardware: str | None):
     Returns a (possibly filtered) cfg.  ``hardware`` is one of:
       "cpu"  — keep only ``uses_gpu=False`` solvers
       "gpu"  — keep only ``uses_gpu=True``  solvers
-      "all"  — keep everything (default)
-      None   — keep everything
+      "all"  — keep everything
+      None   — auto-detect: if no GPU is available, drop GPU solvers
     """
-    if not hardware or hardware.lower() == "all":
+    if hardware and hardware.lower() == "all":
+        return cfg
+    if hardware is None:
+        from mosaic.benchmarks.core.hardware import has_gpu
+
+        if not has_gpu():
+            gpu_solvers = [
+                n for n, s in cfg.solvers.items() if getattr(s, "uses_gpu", True)
+            ]
+            if gpu_solvers:
+                print_warn(
+                    f"no GPU detected — skipping GPU solvers: {', '.join(gpu_solvers)}. "
+                    "Pass --hardware all to override."
+                )
+                cpu_only = {
+                    n: s
+                    for n, s in cfg.solvers.items()
+                    if not getattr(s, "uses_gpu", True)
+                }
+                if cpu_only:
+                    return dataclasses.replace(cfg, solvers=cpu_only)
+                print_warn("no CPU-only solvers either — keeping all solvers")
         return cfg
     if hardware.lower() == "cpu":
         filtered = {
@@ -583,7 +604,15 @@ def _resolve_cfg_and_tags(
 ):
     cfg = get_config(problem)
     # --hardware cpu/gpu filters solvers by target hardware BEFORE build.
+    had_gpu_solvers = any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
     cfg = _filter_hardware(cfg, hardware)
+    no_gpu_solvers_left = not any(
+        getattr(s, "uses_gpu", True) for s in cfg.solvers.values()
+    )
+    # If all GPU solvers were removed (explicit --hardware cpu or auto-detect),
+    # force gpus to "none" so the runner never passes --gpus to Docker.
+    if had_gpu_solvers and no_gpu_solvers_left and not gpus:
+        gpus = "none"
     # `--gpus none` filters cfg to CPU-only solvers BEFORE build so a
     # CPU-only host never tries to build GPU-tagged tesseracts. Returns
     # the (possibly reset) gpus value via the tuple's third element.
@@ -1105,7 +1134,15 @@ def run_all(
                 cfg, tags = _filter_solvers(cfg, tags, solvers)
             else:
                 cfg = get_config(problem)
+                had_gpu = any(
+                    getattr(s, "uses_gpu", True) for s in cfg.solvers.values()
+                )
                 cfg = _filter_hardware(cfg, hardware)
+                no_gpu_left = not any(
+                    getattr(s, "uses_gpu", True) for s in cfg.solvers.values()
+                )
+                if had_gpu and no_gpu_left and not gpus:
+                    gpus = "none"
                 cfg, gpus = _resolve_gpu_pool(cfg, gpus)
                 if solvers:
                     cfg = _apply_solver_filter(cfg, solvers)

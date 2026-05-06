@@ -62,6 +62,20 @@ def get_hardware_info() -> dict:
     return info
 
 
+def has_gpu() -> bool:
+    """Return True if at least one NVIDIA GPU is visible via nvidia-smi."""
+    try:
+        out = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return out.returncode == 0 and bool(out.stdout.strip())
+    except Exception:
+        return False
+
+
 # ── Container helpers ─────────────────────────────────────────────────────────
 
 
