@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 import matplotlib.animation as manimation
@@ -11,7 +10,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import print_saved
-from mosaic.benchmarks.core.utils import exclusion_lookup, load_json, results_dir
+from mosaic.benchmarks.core.utils import load_json, results_dir
 from mosaic.benchmarks.plots.style import (
     apply_style,
     fig_shared_legend,
@@ -1672,7 +1671,6 @@ def _plot_source_recovery_fields(
     fig_shared_legend(fig, [ax_line])
     if save:
         save_fig(fig, "source_recovery_fields", out_dir)
-
 
 
 def plot_drag_opt(

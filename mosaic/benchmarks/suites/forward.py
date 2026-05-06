@@ -261,9 +261,7 @@ def run_agreement(
                         "error": cfg.error_fn(comparable[n], reference),
                         "valid": True,
                         **(
-                            {"drag": _drags[n][val]}
-                            if val in _drags.get(n, {})
-                            else {}
+                            {"drag": _drags[n][val]} if val in _drags.get(n, {}) else {}
                         ),
                     }
                     if n in comparable

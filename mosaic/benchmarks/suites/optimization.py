@@ -1232,7 +1232,9 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     "initial_drag": drags[0] if drags else None,
                     "final_drag": drags[-1] if drags else None,
                     "drag_reduction_pct": (
-                        100.0 * (abs(drags[0]) - abs(drags[-1])) / (abs(drags[0]) + 1e-30)
+                        100.0
+                        * (abs(drags[0]) - abs(drags[-1]))
+                        / (abs(drags[0]) + 1e-30)
                         if len(drags) >= 2
                         else 0.0
                     ),

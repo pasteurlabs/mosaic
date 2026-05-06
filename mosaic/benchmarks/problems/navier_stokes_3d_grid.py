@@ -123,9 +123,7 @@ _SOLVERS: dict[str, SolverSpec] = {
         linestyle=(0, (5, 1)),
         marker="v",
         scheme="IPCS (3D), wp.Tape VJP",
-        description=(
-            "NVIDIA Warp NS solver: 3D IPCS projection. VJP via wp.Tape."
-        ),
+        description=("NVIDIA Warp NS solver: 3D IPCS projection. VJP via wp.Tape."),
         doc_url="https://github.com/NVIDIA/warp",
         image_tag="warp_ns_navier_stokes_grid:latest",
         exclusions={},

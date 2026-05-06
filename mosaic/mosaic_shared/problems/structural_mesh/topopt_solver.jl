@@ -254,4 +254,3 @@ function topopt_vjp(
     comp(x)  # populate comp.grad
     return Float64.(comp.grad .* cotangent)
 end
-

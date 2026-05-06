@@ -214,12 +214,8 @@ def classify_python(
                 solver += span
                 # The tag may live on any line of a multi-line class header;
                 # bound the scan at the first body element.
-                header_end = (
-                    node.body[0].lineno - 1 if node.body else node.lineno
-                )
-                cat, variables, gtype = _extract_tag(
-                    lines, node.lineno, header_end
-                )
+                header_end = node.body[0].lineno - 1 if node.body else node.lineno
+                cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
                 solver_by_category[cat] = solver_by_category.get(cat, 0) + span
                 if cat == "grad" and variables:
                     for var in variables:
@@ -232,12 +228,8 @@ def classify_python(
                 interface += span
             else:
                 solver += span
-                header_end = (
-                    node.body[0].lineno - 1 if node.body else node.lineno
-                )
-                cat, variables, gtype = _extract_tag(
-                    lines, node.lineno, header_end
-                )
+                header_end = node.body[0].lineno - 1 if node.body else node.lineno
+                cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
                 solver_by_category[cat] = solver_by_category.get(cat, 0) + span
                 if cat == "grad":
                     # Prefer fine-grained inline section markers; fall back to

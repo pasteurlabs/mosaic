@@ -30,10 +30,14 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.types import make_differentiable
 
 
-class InputSchema(make_differentiable(
-    _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
-)):
+class InputSchema(
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
+):
     pass
+
+
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
     pass
 
@@ -421,7 +425,7 @@ def xlb_fwd(  # mosaic:physics
     if _collision_kind == "kbc" and (ndim, _use_f64, "kbc") not in _OPS:
         _collision_kind = "bgk"
     ops = _OPS[(ndim, _use_f64, _collision_kind)]
-    fdtype, C, W = ops["fdtype"], ops["C"], ops["W"]
+    fdtype, C, _W = ops["fdtype"], ops["C"], ops["W"]
     xlb_eq, xlb_stream, xlb_macro, xlb_bgk = (
         ops["eq"],
         ops["stream"],

@@ -13,10 +13,10 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.types import BCType, make_differentiable
 
 
-class InputSchema(make_differentiable(
-    _CanonicalInputSchema, ["v0", "inflow_profile"]
-)):
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "inflow_profile"])):
     pass
+
+
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
     pass
 
@@ -1097,11 +1097,7 @@ def _run_pict(  # mosaic:physics
     drag_history: list[torch.Tensor] = []
 
     prep_fn = None
-    if (
-        out_bounds
-        or inflow_setter is not None
-        or drag_assembler is not None
-    ):
+    if out_bounds or inflow_setter is not None or drag_assembler is not None:
 
         def _pre_step(domain, time_step, **_kw):
             # Re-apply inflow BC first (keep inflow_profile_t in autograd graph).
