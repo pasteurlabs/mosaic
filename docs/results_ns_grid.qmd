@@ -1,0 +1,1129 @@
+---
+title: Navier–Stokes (2D)
+---
+
+> Auto-generated 2026-05-06 19:23 UTC &nbsp;·&nbsp; 58 plots
+
+2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as the primary control parameter. The nonlinear advection term ∇·(u⊗u) transfers energy across scales; at low ν the flow develops turbulent cascades and the Lyapunov exponent grows, making long-horizon gradients exponentially sensitive to perturbations.
+
+::: {.callout-note title='Boundary conditions'}
+
+Doubly-periodic square domain [0, 2π]²; incompressibility enforced via pressure projection at each time step. No walls or inflow/outflow boundaries.
+
+:::
+
+## Initial Conditions
+
+Visualisation of each initial condition available for this problem. IC plots are generated without running any solver.
+
+### Flat Inflow
+
+Flat 1-D inlet velocity profile u_x(y) = U, shape (N,). Starting point for inflow-profile drag-optimisation experiments.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/ns-grid/ics/flat_inflow/ic.png){.lightbox}
+
+### Multimode
+
+Incompressible velocity field with energy concentrated in a ring at wavenumber k=2 (σ_k=0.5); supports multi-scale turbulent development.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/ns-grid/ics/multimode/ic.png){.lightbox}
+
+### Tgv
+
+Taylor–Green vortex u=sin(x)cos(y), v=−cos(x)sin(y); has a closed-form analytic solution for viscous decay, enabling solver verification.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/ns-grid/ics/tgv/ic.png){.lightbox}
+
+### Uniform
+
+Uniform rightward flow u=(U, 0) — background flow for cylinder-wake (Kármán vortex street) experiments. Obstacle specified separately via the physics.obstacle field.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+:::
+
+![](../mosaic-results/ns-grid/ics/uniform/ic.png){.lightbox}
+
+## Forward
+
+Forward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.
+
+### Agreement (Multimode)
+
+Inter-solver agreement sweep across viscosity ν (TGV and multimode ICs).
+
+Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `nu` ∈ {0.001, 0.005, 0.01, 0.02, 0.05}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 64,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.001,
+      0.005,
+      0.01,
+      0.02,
+      0.05
+    ]
+  },
+  "fine": {
+    "solvers": [
+      "jax_cfd"
+    ],
+    "dt": 0.01,
+    "steps": 100
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/agreement/multimode/fields.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/agreement/multimode/fields_raw.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/agreement/multimode/errors.png){.lightbox}
+
+### Agreement (Tgv)
+
+Inter-solver agreement sweep across viscosity ν (TGV and multimode ICs).
+
+Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `nu` ∈ {0.001, 0.005, 0.01, 0.02, 0.05}
+
+```json
+{
+  "ic": {
+    "name": "tgv",
+    "seed": 42
+  },
+  "physics": {
+    "N": 64,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.001,
+      0.005,
+      0.01,
+      0.02,
+      0.05
+    ]
+  },
+  "fine": {
+    "solvers": [
+      "jax_cfd"
+    ],
+    "dt": 0.01,
+    "steps": 100
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/agreement/tgv/fields.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/agreement/tgv/fields_raw.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/agreement/tgv/errors.png){.lightbox}
+
+### Baseline
+
+Single time-step agreement across grid resolution N at fixed ν.
+
+Relative error vs N at steps=1; validates single-step forward accuracy across solvers.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `N` ∈ {16, 32, 64, 128}
+
+```json
+{
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "N": 64,
+    "nu": 0.05,
+    "dt": 0.01,
+    "steps": 1,
+    "lbm_N_base": 64
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      16,
+      32,
+      64,
+      128
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/baseline/fields.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/baseline/fields_raw.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/baseline/convergence.png){.lightbox}
+
+### Cylinder
+
+Cylinder-wake (Kármán vortex street) experiment: uniform inflow past a circular cylinder, sweeping Reynolds number Re=U·D/ν where D=2·radius·L.
+
+Vorticity snapshots and kinetic-energy evolution vs time for each solver; phase transition from steady to vortex-shedding regime as Re increases.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `nu` ∈ {0.05, 0.02, 0.01, 0.005}
+
+```json
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "N": 64,
+    "dt": 0.01,
+    "steps": 500,
+    "obstacle": {
+      "shape": "cylinder",
+      "center": [
+        0.5,
+        0.5
+      ],
+      "radius": 0.1
+    }
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.05,
+      0.02,
+      0.01,
+      0.005
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/cylinder/fields.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/cylinder/fields_raw.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/cylinder/errors.png){.lightbox}
+
+### Physical Laws (Vs N)
+
+Physical laws sweeps: diagnostics vs grid resolution N, rollout length (steps), and viscosity ν (TGV IC).
+
+Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `N` ∈ {16, 32, 64, 128}
+
+```json
+{
+  "name": "vs_N",
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "nu": 0.05,
+    "dt": 0.01,
+    "steps": 20
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      16,
+      32,
+      64,
+      128
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/physical_laws/vs_N/physical_laws.png){.lightbox}
+
+### Physical Laws (Vs Nu)
+
+Physical laws sweeps: diagnostics vs grid resolution N, rollout length (steps), and viscosity ν (TGV IC).
+
+Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `nu` ∈ {0.001, 0.005, 0.01, 0.05, 0.1}
+
+```json
+{
+  "name": "vs_nu",
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "dt": 0.01,
+    "steps": 20,
+    "N": 64
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.001,
+      0.005,
+      0.01,
+      0.05,
+      0.1
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/physical_laws/vs_nu/physical_laws.png){.lightbox}
+
+### Physical Laws (Vs Steps)
+
+Physical laws sweeps: diagnostics vs grid resolution N, rollout length (steps), and viscosity ν (TGV IC).
+
+Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `steps` ∈ {5, 10, 20, 50, 100}
+
+```json
+{
+  "name": "vs_steps",
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "nu": 0.05,
+    "dt": 0.01,
+    "N": 64
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      5,
+      10,
+      20,
+      50,
+      100
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/physical_laws/vs_steps/physical_laws.png){.lightbox}
+
+### Tgv Nu Sweep
+
+Dense TGV ν-sweep probing xlb LBM BGK-relaxation ill-conditioning as ν→0. Covers ν ∈ {1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2} — three decades — so a monotonic xlb degradation curve can be distinguished from a single unlucky ν point. Uses the same N=64, dt=0.05, steps=20, jax_cfd fine reference as `agreement/tgv` for comparability.
+
+Relative error vs ν for each solver at fixed TGV IC; xlb errors are flat 0.026-0.031 across all ν (KBC entropic operator removes BGK monotonic degradation at low ν); peer solvers stay ≤ 0.001 across the full range.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `nu` ∈ {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05}
+
+```json
+{
+  "ic": {
+    "name": "tgv",
+    "seed": 42
+  },
+  "physics": {
+    "N": 64,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.0001,
+      0.0005,
+      0.001,
+      0.005,
+      0.01,
+      0.05
+    ]
+  },
+  "fine": {
+    "solvers": [
+      "jax_cfd"
+    ],
+    "dt": 0.01,
+    "steps": 100
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/forward/tgv_nu_sweep/fields.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/tgv_nu_sweep/fields_raw.png){.lightbox}
+![](../mosaic-results/ns-grid/forward/tgv_nu_sweep/errors.png){.lightbox}
+
+## Gradient
+
+Gradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+**Differentiability Table**
+
+```json
+{
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 5
+  },
+  "fd": {
+    "eps": 0.001
+  }
+}
+```
+
+**Fd Check**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "fd": {
+    "eps_values": [
+      5.0,
+      1.0,
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 20
+  }
+}
+```
+
+**Horizon Sweep**
+
+Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.05
+  },
+  "fd": {
+    "eps_values": [
+      1.0,
+      0.1,
+      0.01,
+      0.001
+    ],
+    "n_dirs": 8
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      5,
+      10,
+      20,
+      40,
+      80,
+      160,
+      320
+    ]
+  }
+}
+```
+
+**Jacobian Svd**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 10
+  },
+  "jacobian": {}
+}
+```
+
+**Jacobian Svd Nu01**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 10
+  },
+  "jacobian": {}
+}
+```
+
+**Jacobian Svd Steps20**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "jacobian": {}
+}
+```
+
+**Jacobian Svd Steps40**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 40
+  },
+  "jacobian": {}
+}
+```
+
+**Param Sweep**
+
+Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "dt": 0.05,
+    "steps": 200
+  },
+  "fd": {
+    "eps_values": [
+      5.0,
+      1.0,
+      0.1,
+      0.01,
+      0.001
+    ],
+    "n_dirs": 15
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.05,
+      0.01,
+      0.005,
+      0.001
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.png){.lightbox}
+
+### Finite-Difference Check
+
+FD gradient check vs analytic VJP at nominal physics (N=16, ν=0.001); multimode IC.
+
+U-curves (FD gradient error vs ε) and subspace cosine; validates VJP correctness. LBM solvers (XLB, Lettuce) require ε≥5 (abs_eps≥0.36) to exit their float32 noise floor.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "fd": {
+    "eps_values": [
+      5.0,
+      1.0,
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 20
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/fd_check/fd_check.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png){.lightbox}
+
+### Parameter Sweep
+
+Gradient quality vs viscosity ν (2D multimode IC).
+
+Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "dt": 0.05,
+    "steps": 200
+  },
+  "fd": {
+    "eps_values": [
+      5.0,
+      1.0,
+      0.1,
+      0.01,
+      0.001
+    ],
+    "n_dirs": 15
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.05,
+      0.01,
+      0.005,
+      0.001
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/param_sweep/error_vs_param.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/param_sweep/param_sweep.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/param_sweep/ucurves.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+
+### Horizon Sweep
+
+Gradient quality vs rollout horizon T=steps*dt for 2D multimode IC at Re=1000 (N=16, ν=0.001, dt=0.05). Establishes T* horizon limit for gradient-based optimization.
+
+Gradient norm, FD error, and direction cosine vs rollout horizon T=steps*dt for 2D multimode IC. Key metric: the step count T* at which cosine(ε=0.1) drops below 0.999 — the practical gradient quality limit.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.05
+  },
+  "fd": {
+    "eps_values": [
+      1.0,
+      0.1,
+      0.01,
+      0.001
+    ],
+    "n_dirs": 8
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      5,
+      10,
+      20,
+      40,
+      80,
+      160,
+      320
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/error_vs_steps.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/gradient_fields_ins_jl.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/gradient_fields_jax_cfd.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/gradient_fields_phiflow.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/gradient_fields_pict.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/gradient_fields_warp_ns.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/gradient_fields_xlb.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/ucurves.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/horizon_sweep/best_eps_vs_steps.png){.lightbox}
+
+### Differentiability Table
+
+Differentiability table: FD check for all array inputs (v0, viscosity, dt) and all outputs w.r.t. IC.
+
+Heatmap of differentiability status (ok/fail/not_differentiable) for all (solver, field) pairs.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 5
+  },
+  "fd": {
+    "eps": 0.001
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/differentiability_table/differentiability_table.png){.lightbox}
+
+### Jacobian Svd
+
+Full Jacobian SVD and inter-solver gradient subspace analysis at N=8, ν=0.001, T=0.5s (steps=10).
+
+Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces (2D multimode IC, N=8, ν=0.001, steps=10).
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 10
+  },
+  "jacobian": {}
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/jacobian_svd/gradient_fields.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/jacobian_svd/jacobian_svd.png){.lightbox}
+
+### Jacobian Svd Nu01
+
+Full Jacobian SVD at N=8, more viscous regime ν=0.01 (T=0.5s).
+
+Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.01, steps=10). 10× more viscous than base; expected to reduce condition number.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 10
+  },
+  "jacobian": {}
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_nu01/gradient_fields.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_nu01/jacobian_svd.png){.lightbox}
+
+### Jacobian Svd Steps20
+
+Full Jacobian SVD at N=8, extended rollout steps=20 (T=1s).
+
+Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=20). Extended horizon vs base (steps=10).
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "jacobian": {}
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_steps20/gradient_fields.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_steps20/jacobian_svd.png){.lightbox}
+
+### Jacobian Svd Steps40
+
+Full Jacobian SVD at N=8, extended rollout steps=40 (T=2s).
+
+Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=40). Probes deeper into the chaotic regime.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 40
+  },
+  "jacobian": {}
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_steps40/gradient_fields.png){.lightbox}
+![](../mosaic-results/ns-grid/gradient/jacobian_svd_steps40/jacobian_svd.png){.lightbox}
+
+## Optimization
+
+Optimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.
+
+### Drag Opt (Re20)
+
+Inflow profile optimisation: minimise cylinder drag at Re=20 (steady Stokes-like regime). Control variable is the 1-D inlet profile u_x(y); constraint is fixed mean flow rate (flow-rate penalty). Geometry: cylinder at [0.5, 0.5], radius=0.05, domain [0,1]².
+
+Drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "name": "re20",
+  "ic": {
+    "name": "flat_inflow",
+    "seed": 0
+  },
+  "physics": {
+    "N": 32,
+    "nu": 0.0025,
+    "dt": 0.02,
+    "steps": 400,
+    "domain_extent": 1.0,
+    "U_mean": 0.5,
+    "obstacle": {
+      "shape": "cylinder",
+      "center": [
+        0.5,
+        0.5
+      ],
+      "radius": 0.05
+    }
+  },
+  "optim": {
+    "lr": 0.0005,
+    "max_iters": 500,
+    "patience": 100,
+    "flow_penalty_weight": 50.0,
+    "snap_interval": 20
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt.png){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt_evolution_jax_cfd.gif){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt_evolution_phiflow.gif){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt_evolution_pict.gif){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt_evolution_warp_ns.gif){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt_evolution_xlb.gif){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt/re20/drag_opt_fields.png){.lightbox}
+
+### Drag Opt Bfgs
+
+Inflow profile optimisation with L-BFGS: minimise cylinder drag at Re=20. Same setup as drag_opt but using L-BFGS with zoom line search.
+
+L-BFGS drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+```json
+{
+  "name": "re20",
+  "ic": {
+    "name": "flat_inflow",
+    "seed": 0
+  },
+  "physics": {
+    "N": 32,
+    "nu": 0.0025,
+    "dt": 0.02,
+    "steps": 400,
+    "domain_extent": 1.0,
+    "U_mean": 0.5,
+    "obstacle": {
+      "shape": "cylinder",
+      "center": [
+        0.5,
+        0.5
+      ],
+      "radius": 0.05
+    }
+  },
+  "optim": {
+    "max_iters": 50,
+    "patience": 15,
+    "flow_penalty_weight": 50.0,
+    "snap_interval": 5
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/optimization/drag_opt_bfgs/drag_opt.png){.lightbox}
+![](../mosaic-results/ns-grid/optimization/drag_opt_bfgs/drag_opt_fields.png){.lightbox}
+
+## Cost
+
+Wall-clock cost scaling with problem size N and number of integration steps.
+
+Wall-clock and memory profiling vs grid size N and step count for all solvers.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+**Spatial Cost**
+
+Sweeps N ∈ {64, 128, 192, 256}, steps ∈ {10, 50, 100, 500, 1000}
+
+```json
+{
+  "physics": {
+    "nu": 0.01,
+    "dt": 0.01
+  },
+  "cost": {
+    "N_values": [
+      64,
+      128,
+      192,
+      256
+    ],
+    "steps_values": [
+      10,
+      50,
+      100,
+      500,
+      1000
+    ],
+    "n_trials": 3
+  }
+}
+```
+
+**Temporal Cost**
+
+Sweeps N ∈ {64, 128, 192, 256}, steps ∈ {10, 50, 100, 500, 1000}
+
+```json
+{
+  "physics": {
+    "nu": 0.01,
+    "dt": 0.01
+  },
+  "cost": {
+    "N_values": [
+      64,
+      128,
+      192,
+      256
+    ],
+    "steps_values": [
+      10,
+      50,
+      100,
+      500,
+      1000
+    ],
+    "n_trials": 3
+  }
+}
+```
+
+**Vjp Cost**
+
+Sweeps N ∈ {64, 128, 192, 256}, steps ∈ {10, 50, 100, 500, 1000}
+
+```json
+{
+  "physics": {
+    "nu": 0.01,
+    "dt": 0.01
+  },
+  "cost": {
+    "N_values": [
+      64,
+      128,
+      192,
+      256
+    ],
+    "steps_values": [
+      10,
+      50,
+      100,
+      500,
+      1000
+    ],
+    "n_trials": 3
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/ns-grid/cost/cost.png){.lightbox}

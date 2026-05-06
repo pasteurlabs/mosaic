@@ -51,14 +51,14 @@ The fastest way to verify everything works is to build one solver and run a quic
 # Build the Exponax solver (small, fast, JAX-only)
 tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 
-# Run a single forward call
-tesseract apply mosaic/tesseracts/navier-stokes-grid/exponax '{}'
+# Run a single forward call (uses the built image)
+tesseract run exponax_navier_stokes_grid apply '{}'
 
 # Run the forward accuracy suite for just this solver
-mosaic forward -p ns-3d-grid -s exponax
+mosaic run -p ns-3d-grid --suites forward -s exponax
 ```
 
-This builds one container (~2 min), runs a single forward simulation, and produces accuracy plots in `mosaic/benchmarks/results/ns-3d-grid/forward/`.
+This builds one container (~2 min), runs a single forward simulation, and produces accuracy plots in `mosaic-results/ns-3d-grid/forward/`.
 
 ## Running a benchmark suite
 
@@ -66,16 +66,16 @@ Each suite can target a specific problem and (optionally) a specific solver:
 
 ```bash
 # Forward accuracy for all NS-grid solvers
-mosaic forward -p ns-grid
+mosaic run -p ns-grid --suites forward
 
 # Gradient quality check for a single solver (quick debug mode)
-mosaic gradient -p ns-grid -e fd_check --debug
+mosaic run -p ns-grid --suites gradient -e fd_check --debug
 
 # Cost scaling for structural mechanics
-mosaic cost -p structural-mesh
+mosaic run -p structural-mesh --suites cost
 
 # Full optimization convergence
-mosaic recovery -p thermal-mesh
+mosaic run -p thermal-mesh --suites optimization
 ```
 
 ### Useful flags
@@ -94,13 +94,13 @@ mosaic recovery -p thermal-mesh
 ## Running everything
 
 ```bash
-mosaic run-all                                      # all suites, all problems
-mosaic run-all --problems ns-grid,structural-mesh   # filter problems
-mosaic run-all --suites forward,gradient            # filter suites
+mosaic run                                           # all suites, all problems
+mosaic run --problems ns-grid,structural-mesh        # filter problems
+mosaic run --suites forward,gradient                 # filter suites
 ```
 
 ::: {.callout-warning}
-`mosaic run-all` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. Consider starting with a single problem (`mosaic run-all --problems thermal-mesh`) to validate your setup.
+`mosaic run` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. Consider starting with a single problem (`mosaic run --problems thermal-mesh`) to validate your setup.
 :::
 
 ## Understanding output
@@ -108,7 +108,7 @@ mosaic run-all --suites forward,gradient            # filter suites
 Results are organized by problem and suite:
 
 ```
-mosaic/benchmarks/results/
+mosaic-results/
   ns-grid/
     forward/
       baseline/result.json    # per-solver forward errors

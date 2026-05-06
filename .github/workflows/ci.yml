@@ -31,15 +31,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
 
       - name: Run tests
-        run: pytest
+        run: uv run pytest
+
+      - name: Validate all problem configs
+        run: uv run python -c "from mosaic.benchmarks.problems import PROBLEMS, get_config; [get_config(p).validate() for p in PROBLEMS]; print(f'Validated {len(PROBLEMS)} problem configs')"
 
   validate-tesseracts:
     name: Validate tesseract configs
@@ -47,16 +54,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install pyyaml
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Validate all tesseract_config.yaml files
         run: |
-          python - <<'PYEOF'
+          uv run python - <<'PYEOF'
           import sys, yaml
           from pathlib import Path
 
@@ -75,6 +86,29 @@ jobs:
                       continue
                   if "name" not in doc:
                       errors.append(f"{p}: missing 'name' field")
+                  mosaic_meta = doc.get("mosaic")
+                  if mosaic_meta is None:
+                      errors.append(f"{p}: missing 'mosaic' metadata block")
+                      continue
+                  if not isinstance(mosaic_meta, dict):
+                      errors.append(f"{p}: 'mosaic' must be a mapping")
+                      continue
+                  if not mosaic_meta.get("name"):
+                      errors.append(f"{p}: mosaic.name is required")
+                  if not mosaic_meta.get("backend"):
+                      errors.append(f"{p}: mosaic.backend is required")
+                  ad = mosaic_meta.get("ad_strategy")
+                  if ad is not None and ad not in ("autodiff", "adjoint", "hybrid", "null"):
+                      errors.append(f"{p}: mosaic.ad_strategy={ad!r} not in (autodiff, adjoint, hybrid, null)")
+                  color = mosaic_meta.get("color")
+                  if color is not None:
+                      import re as _re
+                      if not _re.match(r'^#[0-9a-fA-F]{6}$', color):
+                          errors.append(f"{p}: mosaic.color={color!r} is not valid hex (#RRGGBB)")
+                  for bool_field in ("uses_gpu", "differentiable"):
+                      val = mosaic_meta.get(bool_field)
+                      if val is not None and not isinstance(val, bool):
+                          errors.append(f"{p}: mosaic.{bool_field}={val!r} must be a boolean")
               except Exception as e:
                   errors.append(f"{p}: {e}")
 
@@ -92,12 +126,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" pyyaml
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Check solvers.qmd is up to date
-        run: python docs/generate.py --check
+        run: uv run python docs/generate.py --check
+
+  smoke-benchmark:
+    name: Smoke benchmark
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
+
+      - name: Build Exponax solver
+        run: uv run tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+
+      - name: Integration tests (apply + VJP)
+        run: uv run pytest -m integration --timeout=300
+
+      - name: Smoke benchmark (forward + gradient, debug size)
+        run: uv run mosaic run -p ns-3d-grid --suites forward,gradient -s exponax --debug

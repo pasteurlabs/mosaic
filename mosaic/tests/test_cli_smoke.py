@@ -31,7 +31,14 @@ def test_top_level_help():
         "run",
         "ics",
         "status",
+        "compare",
         "build",
+        "paper-plots",
+        "new-domain",
+        "validate-template",
+        "validate-domain",
+        "templates",
+        "tesseracts",
     ],
 )
 def test_subcommand_help(subcommand: str):

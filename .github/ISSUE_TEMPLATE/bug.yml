@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a problem with the benchmark harness, a solver, or results.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Benchmark harness / CLI
+        - Specific solver
+        - Results / reporting
+        - Documentation
+        - CI / builds
+    validations:
+      required: true
+  - type: input
+    id: solver
+    attributes:
+      label: Solver (if applicable)
+      placeholder: "e.g. exponax, jax-cfd, fenics-heat"
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the command you ran and the error output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, Docker version, GPU (if relevant).
+      placeholder: |
+        - OS: Ubuntu 22.04
+        - Python: 3.12
+        - Docker: 24.0.7
+        - GPU: NVIDIA A100
