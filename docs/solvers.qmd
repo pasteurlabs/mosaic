@@ -459,4 +459,3 @@ Solves heat conduction with linear finite elements in PyTorch. Gradients via tor
 **Outputs:** —
 
 :::
-

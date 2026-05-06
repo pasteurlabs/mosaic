@@ -118,7 +118,8 @@ class HarnessFnHashTests(unittest.TestCase):
         return so callers' existing empty-hash guards still fire.
         """
         with mock.patch(
-            "mosaic.benchmarks.core.utils.inspect.getsource", side_effect=OSError("no source")
+            "mosaic.benchmarks.core.utils.inspect.getsource",
+            side_effect=OSError("no source"),
         ):
             self.assertEqual(harness_fn_hash(_dummy_fn), "")
 
