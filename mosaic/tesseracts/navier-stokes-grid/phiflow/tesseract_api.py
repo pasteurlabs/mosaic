@@ -202,7 +202,7 @@ def phiflow_fwd(  # mosaic:physics
 
     dx = domain_extent / nx
     raw_ext = _phiflow_extrapolation(boundary_conditions, ndim)
-    # ARCH-11: For 2D inflow+obstacle runs use PERIODIC so the pressure is
+    # For 2D inflow+obstacle runs use PERIODIC so the pressure is
     # unconstrained at the domain boundary — the periodic wrap-around acts as
     # a virtual channel that allows the manual per-step inflow override to
     # drive realistic flow.  Drag uses a surface integral on the RANS mean
@@ -373,13 +373,13 @@ def phiflow_fwd(  # mosaic:physics
     else:
         # Use explicit CG pressure solver to prevent numerical divergence in 3D
         # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
-        # ARCH-31 (2026-04-24): tightened rel_tol/abs_tol to 1e-10 on the 3D
+        # Tightened rel_tol/abs_tol to 1e-10 on the 3D
         # periodic path to prevent adjoint-side residual bias in fd_check.
         _cg_solve = math.Solve("CG", 1e-10, 1e-10)
 
         def step(face_arr, _):
             vel = faces_to_staggered(face_arr)
-            # ARCH-93 (2026-04-26): use explicit Euler differential advection to
+            # Use explicit Euler differential advection to
             # fix VJP gradient magnitude bias and prevent NaN from semi-Lagrangian
             # interpolation. advect.differential(-u·∇v) is JAX-autodiffable and
             # stable for periodic forward/agreement runs (TGV, multimode, 3D).

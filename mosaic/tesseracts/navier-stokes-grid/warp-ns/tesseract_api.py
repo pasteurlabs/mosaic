@@ -310,7 +310,7 @@ def accumulate_outlet_rans_kernel(  # mosaic:physics
 ):
     """Accumulate outlet (i=N-1) x-velocity into RANS buffer for momentum-deficit drag.
 
-    ARCH-9: replaces per-step compute_drag_kernel for inflow+obstacle runs.
+    Replaces per-step compute_drag_kernel for inflow+obstacle runs.
     Recorded inside wp.Tape so the backward flows: rans_buf.grad → ux[N-1,:].grad
     → IPCS backward → inflow_profile.grad.  The outlet signal is stronger and
     more direct than the obstacle-surface viscous term used by compute_drag_kernel.
@@ -1010,7 +1010,7 @@ def _spectral_poisson_3d_np(
     Using continuous eigenvalues -(2π/L)²k² instead introduces a ~(πk/N)²/3
     relative error per wavenumber (≈1.3% at k=1, N=16), which compounds across
     the VJP chain and causes the flat-plateau ~1.65% gradient magnitude bias
-    seen in the fd_check (ARCH-92).
+    seen in the fd_check.
     """
     n = rhs_np.shape[0]
     _h = domain_extent / n
@@ -1515,7 +1515,7 @@ def _tentative_vel_3d_tape(  # mosaic:grad:v0:adjoint
     Warp's auto-adjoint entirely by doing the forward in numpy (exact same
     arithmetic as the kernel) and registering the analytically-derived
     _tentative_vel_3d_backward_np via tape.record_func.  Eliminates the 3D
-    fd_check ~1.6% rel_err (F-NS3D-3, ARCH-31).
+    fd_check ~1.6% rel_err (F-NS3D-3).
 
     Returns:
         (ux_star_wp, uy_star_wp, uz_star_wp) — fresh wp.arrays with
@@ -2346,7 +2346,7 @@ def ns2d_solve(  # mosaic:physics
     # momentum-deficit RANS approach below replaces this.
     drag_bufs: list = []  # populated inside the loop for tail steps (obstacle-only)
 
-    # ARCH-9: RANS outlet buffer for momentum-deficit drag (inflow+obstacle only).
+    # RANS outlet buffer for momentum-deficit drag (inflow+obstacle only).
     # Allocated here with requires_grad=True so the tape records the accumulation
     # kernel and backward flows from rans_ux_buf.grad → vel_bufs_x[src].grad at
     # the outlet column → IPCS backward → inflow_profile.grad.
@@ -2727,7 +2727,7 @@ def ns2d_solve(  # mosaic:physics
                 vel_tail_count += 1
 
             # Drag accumulation for the tail window (last 50% of steps).
-            # ARCH-9: For inflow+obstacle (drag_opt), accumulate outlet RANS velocity
+            # For inflow+obstacle (drag_opt), accumulate outlet RANS velocity
             # inside the tape via accumulate_outlet_rans_kernel; drag_out comes from
             # rans_drag_buf (momentum-deficit) computed after the loop.
             # For obstacle-only runs, keep the old per-step compute_drag_kernel approach.
@@ -2771,7 +2771,7 @@ def ns2d_solve(  # mosaic:physics
                     drag_bufs.append(_drag_buf)
                     drag_accum.append(_drag_buf.numpy())
 
-        # ARCH-9: Momentum-deficit RANS drag from accumulated outlet velocities.
+        # Momentum-deficit RANS drag from accumulated outlet velocities.
         # Recorded inside the with tape: context so tape.backward() propagates
         # cotangent_drag → rans_drag_buf.grad → momentum_deficit_drag_kernel backward
         # → rans_ux_buf.grad → accumulate_outlet_rans_kernel backward (each tail step)
@@ -2797,7 +2797,7 @@ def ns2d_solve(  # mosaic:physics
 
     # Drag computation (obstacle only): return mean over last 50% of steps,
     # matching the xlb / phiflow convention for drag_opt.
-    # For inflow+obstacle (ARCH-9), use the RANS momentum-deficit value from rans_drag_buf.
+    # For inflow+obstacle, use the RANS momentum-deficit value from rans_drag_buf.
     # For obstacle-only, use compute_drag_kernel mean (drag_accum).
     drag_out = None
     if obstacle is not None:
@@ -2848,7 +2848,7 @@ def ns2d_solve(  # mosaic:physics
         inflow_wp,
         nu_wp,
         dt_wp,
-        rans_drag_buf,  # ARCH-9: replaces drag_bufs for inflow+obstacle VJP
+        rans_drag_buf,
     )
 
 
@@ -2891,7 +2891,7 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
         cotangent_np[:, :, 0, 1].astype(np.float32), dtype=wp.float32, device=device
     )
 
-    # ARCH-9: set cotangent on the RANS momentum-deficit drag buffer so tape.backward()
+    # Set cotangent on the RANS momentum-deficit drag buffer so tape.backward()
     # propagates: rans_drag_buf.grad → momentum_deficit_drag_kernel backward
     # → rans_ux_buf.grad → accumulate_outlet_rans_kernel backward (each tail step)
     # → vel_bufs_x[src].grad at outlet column → IPCS backward → inflow_profile.grad.
@@ -3003,7 +3003,7 @@ def ns3d_solve(  # mosaic:physics
     _bd_2d = 256
     _bd_3d = 256
 
-    # ARCH-109: CFL-adaptive dt for lid-driven cavity mode.
+    # CFL-adaptive dt for lid-driven cavity mode.
     # The IPCS tentative velocity step uses explicit Euler advection; stability
     # requires CFL = U_max * dt / dx < ~1.0.  During optimisation the lid field
     # can reach U_max >> 1 (especially at sweep≥1.0), pushing CFL above the
@@ -3013,7 +3013,7 @@ def ns3d_solve(  # mosaic:physics
     # field and reduce dt so CFL ≤ cfl_limit.  Scale steps up proportionally
     # to preserve physical time T = steps * dt.
     #
-    # Note (ARCH-112): this fix does not fire for the lid_cavity benchmark
+    # Note: this fix does not fire for the lid_cavity benchmark
     # params (dt=0.01, h=0.0625) since dt_cfl=0.9*0.0625/U_max is always
     # ≥ 0.01 for U_max ≤ 5.625.  The sweep values (0.5, 1.0, 2.0) all satisfy
     # this condition so no dt reduction occurs.  The IPCS backward instability
@@ -3074,7 +3074,7 @@ def ns3d_solve(  # mosaic:physics
     ]
     # Per-step divergence arrays so tape.backward() reads the correct rhs for
     # each timestep (Bug 3 fix).  The tentative-velocity star arrays are now
-    # allocated inside _tentative_vel_3d_tape per step (ARCH-31), so they no
+    # allocated inside _tentative_vel_3d_tape per step, so they no
     # longer appear as pre-allocated lists here.
     div_star_steps = [
         wp.zeros((n, n, n), dtype=wp.float32, requires_grad=True, device=device)
@@ -3093,7 +3093,7 @@ def ns3d_solve(  # mosaic:physics
         src, dst = 0, 1
         for step_i in range(steps):
             # Per-step tentative velocity arrays are allocated fresh inside
-            # _tentative_vel_3d_tape below (ARCH-31).  The pre-allocated
+            # _tentative_vel_3d_tape below.  The pre-allocated
             # ux_star_steps / uy_star_steps / uz_star_steps arrays are no
             # longer used by the tentative-velocity step — they only remain
             # allocated as a no-op to keep the outer list comprehension intact
@@ -3149,7 +3149,7 @@ def ns3d_solve(  # mosaic:physics
                     arrays=[vel_bufs_x[src], vel_bufs_y[src], vel_bufs_z[src]],
                 )
 
-            # ARCH-31: _zero_star_grads removed — ux_star/uy_star/uz_star are
+            # _zero_star_grads removed — ux_star/uy_star/uz_star are
             # now fresh wp.arrays allocated per step inside
             # _tentative_vel_3d_tape (returned below), so there are no stale
             # gradients to clear.  The previous pre-allocated buffers held
@@ -3158,7 +3158,7 @@ def ns3d_solve(  # mosaic:physics
 
             # Step 1: tentative velocity u* = u + dt·(-u·∇u + ν∇²u)
             #
-            # ARCH-31: replaced direct _wlaunch(tentative_vel_3d_kernel) with
+            # Replaced direct _wlaunch(tentative_vel_3d_kernel) with
             # this explicit-backward wrapper that mirrors the 2D path.  Warp's
             # auto-adjoint of the kernel has the cross-component Fourier-mode
             # sign bug documented for tentative_vel_2d_kernel; in 3D this
@@ -3256,7 +3256,7 @@ def ns3d_solve(  # mosaic:physics
                 _uys2 = uy_star
                 _uzs2 = uz_star
                 _dt_r = dt
-                # ARCH-112: use inv_2h (not inv_2h/dt=800) in the adjoint divergence
+                # Use inv_2h (not inv_2h/dt=800) in the adjoint divergence
                 # kernel so the backward only multiplies by 8 instead of 800 per step.
                 # The forward div is also changed to inv_2h (see below), so p is
                 # rescaled by dt — the velocity correction drops the dt factor too.
@@ -3367,8 +3367,8 @@ def ns3d_solve(  # mosaic:physics
                 # Lid-driven cavity: Neumann (zero-gradient) BCs in z (wall-normal).
                 # x and y remain periodic; clamped k-indices prevent periodic wrap-
                 # through at the top/bottom walls, which would corrupt the divergence
-                # field and cause NaN in the CG pressure solver (ARCH-102).
-                # ARCH-112: pass inv_2h (=8) instead of inv_2h_over_dt (=800) so the
+                # field and cause NaN in the CG pressure solver.
+                # Pass inv_2h (=8) instead of inv_2h_over_dt (=800) so the
                 # wp.Tape backward multiplies by 8 per step instead of 800, eliminating
                 # float32 overflow over 60 steps at sweep≥1.0. The Poisson RHS is now
                 # ∇·u* (not ∇·u*/dt), so pressure p is rescaled by dt — the correction
@@ -3427,8 +3427,8 @@ def ns3d_solve(  # mosaic:physics
 
             # Step 3: velocity correction u^(n+1) = u* - dt_correct·∇p.
             # Lid-driven cavity uses wall-BC kernel (clamped k-indices in z) so the
-            # pressure gradient is zero at top/bottom walls (Neumann BC, ARCH-102).
-            # ARCH-112: lid-cavity path uses dt_correct=1.0 because the divergence
+            # pressure gradient is zero at top/bottom walls (Neumann BC).
+            # Lid-cavity path uses dt_correct=1.0 because the divergence
             # RHS was scaled by inv_2h (not inv_2h/dt), so p absorbs the dt factor
             # and the correction is u* - ∇p_new = u* - dt*∇p_old (same velocity).
             _pressure_correct_kernel = (

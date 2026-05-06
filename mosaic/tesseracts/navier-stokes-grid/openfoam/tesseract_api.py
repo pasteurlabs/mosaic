@@ -676,7 +676,7 @@ def _write_fv_constraints(system_dir: Path) -> None:  # mosaic:init
     cellSet at every time step by calling ``fvConstraints().constrain(UEqn)`` inside
     the PIMPLE loop.
 
-    Previous ARCH-5 attempt wrote ``constant/fvModels`` with ``type fixedValueConstraint``
+    Previous attempt wrote ``constant/fvModels`` with ``type fixedValueConstraint``
     and flat ``field``/``value`` keys.  Both were wrong:
       1. ``fixedValueConstraint`` is not a registered fvModel type (it is an fvConstraint);
          OF12 throws "Unknown fvModel fixedValueConstraint" and aborts.

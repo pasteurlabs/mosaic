@@ -616,7 +616,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source
             T_sol = Function(V)
             solve(a == L, T_sol, bcs)
 
-            # ---- Nodal correction factor (matches ARCH-25 firedrake fix) --
+            # ---- Nodal correction factor (matches firedrake fix) -----------
             # identification_error = sum((T_nodes - T_target)^2)  (nodal, no area)
             # J_id (dolfin-adjoint) = integral((T-T_t)^2 dΩ)     (area-weighted)
             # Correction: nodal_correction = n_nodes / domain_vol
