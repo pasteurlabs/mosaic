@@ -2,7 +2,7 @@
 title: Solver Reference
 ---
 
-> Auto-generated 2026-05-06 19:29 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 80 differentiable fields
+> Auto-generated 2026-05-06 22:46 UTC &nbsp;·&nbsp; 18 solvers &nbsp;·&nbsp; 3 physics domains &nbsp;·&nbsp; 80 differentiable fields
 
 Each solver card shows its numerical scheme, AD strategy, known limitations, and Tesseract schema. Click **Inputs / Outputs** on any solver to expand its field tables. The ∂ column marks fields that support automatic differentiation (VJP/JVP).
 
