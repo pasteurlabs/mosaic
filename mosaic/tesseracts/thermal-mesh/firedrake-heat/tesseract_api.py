@@ -48,9 +48,10 @@ class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"]))
     )
 
 
-OutputSchema = make_differentiable(
+class OutputSchema(make_differentiable(
     _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
-)
+)):
+    pass
 
 
 # ---------------------------------------------------------------------------

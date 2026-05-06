@@ -103,7 +103,8 @@ class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
     )
 
 
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
+    pass
 
 
 # ---------------------------------------------------------------------------

@@ -37,16 +37,17 @@ build_config:
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
-mosaic:
-  name: "FEniCS"
-  backend: fenics
-  family: fem
-  scheme: "FEM P1 heat conduction (SIMP, dolfin-adjoint)"
-  color: "#AA3377"
-  ad_strategy: adjoint
-  differentiable: true
-  uses_gpu: false
-  internal_dtype: float64
-  description: >
-    FEniCS P1 FEM heat-conduction solver; dolfin-adjoint tape for both rho and
-    source gradients.
+metadata:
+  mosaic:
+    name: "FEniCS"
+    backend: fenics
+    family: fem
+    scheme: "FEM P1 heat conduction (SIMP, dolfin-adjoint)"
+    color: "#AA3377"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    description: >
+      FEniCS P1 FEM heat-conduction solver; dolfin-adjoint tape for both rho and
+      source gradients.

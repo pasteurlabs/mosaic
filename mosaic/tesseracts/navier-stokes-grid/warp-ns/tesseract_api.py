@@ -2571,7 +2571,8 @@ class InputSchema(
     )
 
 
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result"])
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+    pass
 
 
 # ============================================================

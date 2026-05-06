@@ -52,7 +52,8 @@ class InputSchema(
         return self
 
 
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result"])
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+    pass
 
 
 def _jaxcfd_bc(  # mosaic:io

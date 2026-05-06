@@ -13,10 +13,12 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.types import BCType, make_differentiable
 
 
-InputSchema = make_differentiable(
+class InputSchema(make_differentiable(
     _CanonicalInputSchema, ["v0", "inflow_profile"]
-)
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result", "drag"])
+)):
+    pass
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
+    pass
 
 
 # ---------------------------------------------------------------------------

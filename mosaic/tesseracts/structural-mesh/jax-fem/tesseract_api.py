@@ -24,8 +24,10 @@ crt_file_path = os.path.dirname(__file__)
 data_dir = os.path.join(crt_file_path, "data")
 
 
-InputSchema = make_differentiable(_CanonicalInputSchema, ["rho"])
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
+    pass
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
+    pass
 
 
 #

@@ -43,7 +43,8 @@ class InputSchema(
         return self
 
 
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["result", "drag"])
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
+    pass
 
 
 def _phiflow_extrapolation(bc_dict: dict, ndim: int):  # mosaic:io

@@ -36,14 +36,15 @@ build_config:
     - "ENV PYTHON_JULIACALL_SYSIMAGE=/app/julia_sysimage.so"
     - "RUN chmod -R 777 /app"
 
-mosaic:
-  name: "TopOpt.jl"
-  backend: julia
-  family: fem
-  scheme: "FEM HEX8 linear elasticity (SIMP, analytical adjoint)"
-  color: "#228833"
-  ad_strategy: adjoint
-  differentiable: true
-  uses_gpu: false
-  internal_dtype: float64
-  description: "TopOpt.jl HEX8 FEM solver; analytical SIMP adjoint implemented in Julia."
+metadata:
+  mosaic:
+    name: "TopOpt.jl"
+    backend: julia
+    family: fem
+    scheme: "FEM HEX8 linear elasticity (SIMP, analytical adjoint)"
+    color: "#228833"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    description: "TopOpt.jl HEX8 FEM solver; analytical SIMP adjoint implemented in Julia."

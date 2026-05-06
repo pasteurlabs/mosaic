@@ -22,18 +22,19 @@ build_config:
     - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
     - "ENV LD_LIBRARY_PATH=/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"
 
-mosaic:
-  name: "torch-fem"
-  backend: pytorch
-  family: fem
-  scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
-  color: "#EE6677"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  internal_dtype: float64
-  description: >
-    torch-fem (Meyer-Nils) SolidHeat HEX8 heat-conduction solver with
-    IsotropicConductivity3D SIMP material; PyTorch autograd through the FE solve
-    yields rho and source gradients. First PyTorch backend and first GPU-native
-    thermal VJP path in thermal-mesh.
+metadata:
+  mosaic:
+    name: "torch-fem"
+    backend: pytorch
+    family: fem
+    scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
+    color: "#EE6677"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float64
+    description: >
+      torch-fem (Meyer-Nils) SolidHeat HEX8 heat-conduction solver with
+      IsotropicConductivity3D SIMP material; PyTorch autograd through the FE solve
+      yields rho and source gradients. First PyTorch backend and first GPU-native
+      thermal VJP path in thermal-mesh.

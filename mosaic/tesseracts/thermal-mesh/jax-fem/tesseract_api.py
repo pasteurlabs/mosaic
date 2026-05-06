@@ -21,10 +21,12 @@ from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_pat
 crt_file_path = os.path.dirname(__file__)
 
 
-InputSchema = make_differentiable(_CanonicalInputSchema, ["rho", "source"])
-OutputSchema = make_differentiable(
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
+    pass
+class OutputSchema(make_differentiable(
     _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
-)
+)):
+    pass
 
 
 # ---------------------------------------------------------------------------
