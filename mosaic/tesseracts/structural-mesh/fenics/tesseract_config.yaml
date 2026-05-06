@@ -30,8 +30,7 @@ description: |
   Interface:
     Inputs : rho (n_cells,), hex_mesh (HexMesh), boundary_conditions (MeshBC),
              E_max (float), nu (float), xmin (float), penal (float)
-    Outputs: compliance (scalar), von_mises_stress (n_cells,),
-             displacement (n_nodes, 3)
+    Outputs: compliance (scalar)
 
 build_config:
   base_image: "condaforge/miniforge3:latest"

@@ -490,12 +490,6 @@ def _infer_mesh_dims(n_cells: int) -> tuple[int, int, int]:
     return nx, ny, nz
 
 
-def _stress_to_2d(von_mises_stress: np.ndarray, **_) -> np.ndarray:
-    """Extract mid-y cross-section of per-cell von Mises stress → (nz, nx) image."""
-    nx, ny, nz = _infer_mesh_dims(len(von_mises_stress))
-    return von_mises_stress.reshape(nz, ny, nx)[:, ny // 2, :]  # (nz, nx)
-
-
 def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
     """Mid-y cross-section of per-cell density field → (nz, nx) image."""
     nx, ny, nz = _infer_mesh_dims(len(rho))
@@ -508,16 +502,6 @@ def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
 def _get_compliance(compliance: np.ndarray, **_) -> float:
     """Structural compliance C = F^T U (scalar)."""
     return float(compliance)
-
-
-def _max_stress(von_mises_stress: np.ndarray, **_) -> float:
-    """Maximum von Mises stress over all cells."""
-    return float(np.max(von_mises_stress))
-
-
-def _mean_stress(von_mises_stress: np.ndarray, **_) -> float:
-    """Mean von Mises stress over all cells."""
-    return float(np.mean(von_mises_stress))
 
 
 # ── Config instance ───────────────────────────────────────────────────────────

@@ -87,23 +87,14 @@ class InputSchema(BaseModel):
             "Used for inflow-profile optimisation (e.g. cylinder drag minimisation)."
         ),
     )
-    lid_velocity: Differentiable[Array[(None, None, 2), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Lid velocity field for 3-D lid-driven cavity experiments, shape (N, N, 2). "
-            "The two components are the x- and y-tangential velocities on the moving top lid. "
-            "When provided the solver runs in non-periodic cavity mode with no-slip walls. "
-            "Used as the optimisation variable in lid_cavity experiments."
-        ),
-    )
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
         if not self.boundary_conditions.is_fully_periodic:
-            if self.obstacle is None and self.lid_velocity is None:
+            if self.obstacle is None:
                 raise ValueError(
-                    "Non-periodic BCs require either an obstacle or a lid_velocity. "
-                    "Use periodic BCs (the default), add an obstacle, or provide lid_velocity."
+                    "Non-periodic BCs require an obstacle. "
+                    "Use periodic BCs (the default) or add an obstacle."
                 )
         return self
 

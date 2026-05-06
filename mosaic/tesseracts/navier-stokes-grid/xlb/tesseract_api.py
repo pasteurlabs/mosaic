@@ -318,67 +318,6 @@ def _compute_drag_lbm(  # mosaic:physics
     return jnp.reshape(drag, (1,))
 
 
-def _apply_lid_cavity_bc_3d(  # mosaic:physics
-    f: jnp.ndarray,
-    C: jnp.ndarray,
-    W: jnp.ndarray,
-    lid_u_lb: jnp.ndarray,
-    fdtype,
-) -> jnp.ndarray:
-    """Apply lid-driven cavity boundary conditions for a 3-D D3Q27 domain.
-
-    Walls at x=0, x=nx-1, y=0, y=ny-1, z=0 are no-slip (equilibrium with u=0).
-    The top face z=nz-1 is the moving lid: populations set to equilibrium at
-    the spatially-varying velocity lid_u_lb (shape (3, nx, ny)) in lattice units.
-
-    This equilibrium BC is fully differentiable through lid_u_lb via JAX autodiff.
-    The gradient of the output w.r.t. lid_u_lb flows through _feq → f_lid → all
-    subsequent LBM steps and into the macroscopic velocity field.
-
-    Args:
-        f:          Populations, shape (q, nx, ny, nz).
-        C:          Lattice velocities, shape (3, q).
-        W:          Lattice weights, shape (q,).
-        lid_u_lb:   Lid velocity in lattice units, shape (3, nx, ny).
-        fdtype:     JAX float dtype for this computation.
-
-    Returns:
-        Updated populations with BCs applied, shape (q, nx, ny, nz).
-    """
-    q, nx, ny, nz = f.shape
-    rho_wall = jnp.ones((1, nx, ny, 1), dtype=fdtype)
-
-    # No-slip walls: equilibrium at zero velocity
-    u_zero_3d = jnp.zeros((3, nx, ny, 1), dtype=fdtype)
-    feq_zero = _feq(C, W, rho_wall, u_zero_3d)  # (q, nx, ny, 1)
-
-    # Apply no-slip on z=0 (bottom face)
-    f = f.at[:, :, :, 0].set(feq_zero[:, :, :, 0])
-
-    # Apply no-slip on x=0 and x=nx-1 faces
-    rho_wall_xface = jnp.ones((1, 1, ny, nz), dtype=fdtype)
-    u_zero_xface = jnp.zeros((3, 1, ny, nz), dtype=fdtype)
-    feq_x = _feq(C, W, rho_wall_xface, u_zero_xface)  # (q, 1, ny, nz)
-    f = f.at[:, 0, :, :].set(feq_x[:, 0, :, :])
-    f = f.at[:, nx - 1, :, :].set(feq_x[:, 0, :, :])
-
-    # Apply no-slip on y=0 and y=ny-1 faces
-    rho_wall_yface = jnp.ones((1, nx, 1, nz), dtype=fdtype)
-    u_zero_yface = jnp.zeros((3, nx, 1, nz), dtype=fdtype)
-    feq_y = _feq(C, W, rho_wall_yface, u_zero_yface)  # (q, nx, 1, nz)
-    f = f.at[:, :, 0, :].set(feq_y[:, :, 0, :])
-    f = f.at[:, :, ny - 1, :].set(feq_y[:, :, 0, :])
-
-    # Moving lid on z=nz-1: equilibrium at lid velocity (differentiable)
-    # lid_u_lb has shape (3, nx, ny); expand to (3, nx, ny, 1) for _feq
-    lid_u_exp = lid_u_lb[:, :, :, None]  # (3, nx, ny, 1)
-    rho_lid = jnp.ones((1, nx, ny, 1), dtype=fdtype)
-    feq_lid = _feq(C, W, rho_lid, lid_u_exp)  # (q, nx, ny, 1)
-    f = f.at[:, :, :, nz - 1].set(feq_lid[:, :, :, 0])
-
-    return f
-
-
 def xlb_fwd(  # mosaic:physics
     v0: jnp.ndarray,
     viscosity: float,
@@ -388,7 +327,6 @@ def xlb_fwd(  # mosaic:physics
     boundary_conditions: dict | None = None,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-    lid_velocity: jnp.ndarray | None = None,
     _use_f64: bool = False,
     _sub_k: int | None = None,
     _collision_kind_override: str | None = None,
@@ -409,11 +347,6 @@ def xlb_fwd(  # mosaic:physics
     the lattice Ma by factor k, cutting the O(Ma²) floor by k².  The external
     interface (dt, steps, outputs) is unchanged.
 
-    When lid_velocity is provided (shape (N, N, 2)), the solver runs in 3-D
-    lid-driven cavity mode: the top face (z=nz-1) has equilibrium BC at the
-    spatially-varying lid velocity; all other faces are no-slip (equilibrium at
-    u=0). The gradient w.r.t. lid_velocity flows through jax.lax.scan.
-
     Args:
         v0:            Initial velocity in physical units, shape (nx, ny, 1, 2) or (nx, ny, nz, 3).
         viscosity:     Physical kinematic viscosity.
@@ -421,8 +354,6 @@ def xlb_fwd(  # mosaic:physics
         steps:         Number of LBM timesteps.
         domain_extent: Side length of the isotropic domain.
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x=0 each step.
-        lid_velocity:  Optional (N, N, 2) lid velocity field for 3-D cavity mode.
-                       Gradient flows through this input via JAX autodiff.
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
@@ -509,44 +440,6 @@ def xlb_fwd(  # mosaic:physics
 
     # Initialise populations from equilibrium at rho=1 using XLB operator
     f0 = xlb_eq(rho0, u0)
-
-    # ── Lid-driven cavity mode (3-D only) ────────────────────────────────────
-    if lid_velocity is not None and ndim == 3:
-        # Convert (N, N, 2) lid field from physical to lattice units.
-        # Append zero z-component: (N, N, 2) → (N, N, 3) → (3, N, N)
-        lid_np = jnp.asarray(lid_velocity, dtype=fdtype)  # (nx, ny, 2)
-        nx_s, ny_s = spatial[0], spatial[1]
-        lid_uz = jnp.zeros((nx_s, ny_s, 1), dtype=fdtype)
-        lid_xyz = jnp.concatenate([lid_np, lid_uz], axis=-1)  # (nx, ny, 3)
-        lid_u_lb = jnp.moveaxis(lid_xyz, -1, 0) * scale_eff  # (3, nx, ny)
-
-        # Apply initial BCs to f0
-        f0 = _apply_lid_cavity_bc_3d(f0, C, W, lid_u_lb, fdtype)
-
-        def body(f, _):
-            # Stream using XLB Stream operator
-            f_s = xlb_stream(f)
-            # Compute macroscopic quantities
-            rho_s, u_s = xlb_macro(f_s)
-            # Compute equilibrium using XLB QuadraticEquilibrium
-            feq = xlb_eq(rho_s, u_s)
-            # BGK collision using XLB BGK operator
-            f = xlb_bgk(f_s, feq, rho_s, u_s, omega)
-            # Apply lid-driven cavity BCs
-            f = _apply_lid_cavity_bc_3d(f, C, W, lid_u_lb, fdtype)
-            return f, None
-
-        f_final, _ = jax.lax.scan(body, f0, None, length=steps_eff)
-
-        # Extract macroscopic velocity
-        rho_f, u_out = xlb_macro(f_final)  # rho: (1,*spatial), u: (d,*spatial)
-
-        # (3, nx, ny, nz) → (nx, ny, nz, 3), lattice → physical units
-        result = jnp.moveaxis(u_out, 0, -1) / scale_eff
-
-        if _use_f64:
-            result = result.astype(jnp.float32)
-        return result, None, None
 
     # ── Standard periodic / inflow / obstacle mode ───────────────────────────
     obs_mask = _make_obstacle_mask_xlb(obstacle, u0.shape[1:])
@@ -761,8 +654,8 @@ def abstract_eval(abstract_inputs):
 # VJP / JVP plumbing
 # ---------------------------------------------------------------------------
 #
-# xlb exposes five differentiable array-valued inputs: v0, viscosity, dt,
-# inflow_profile, and lid_velocity.  The VJP must return a gradient for every
+# xlb exposes four differentiable array-valued inputs: v0, viscosity, dt,
+# inflow_profile.  The VJP must return a gradient for every
 # input requested in `vjp_inputs` under its *own* path key, otherwise the
 # tesseract_jax dispatcher falls back to a NaN filler (in particular the
 # drag_opt harness asks for the `inflow_profile` gradient — returning only
@@ -782,7 +675,6 @@ _DIFF_INPUT_KEYS: tuple[str, ...] = (
     "viscosity",
     "dt",
     "inflow_profile",
-    "lid_velocity",
 )
 
 # Module-level cache: (v0_shape, steps, present_keys, vjp_outputs) -> jit-compiled fn.
@@ -837,7 +729,7 @@ def _run_forward_f64(
     # Optional fields: only pass when the caller actually supplied them
     # (either via diff_bundle or via the primal input dict).  Passing None
     # is also fine because xlb_fwd treats both as "no such BC".
-    for k in ("inflow_profile", "lid_velocity"):
+    for k in ("inflow_profile",):
         if k in diff_bundle and diff_bundle[k] is not None:
             fwd_kwargs[k] = jnp.asarray(diff_bundle[k], dtype=jnp.float64)
         elif inputs.get(k) is not None:

@@ -308,7 +308,6 @@ def _make_domain(  # mosaic:init
     N: int,
     ndim: int,
     dtype: torch.dtype = torch.float32,
-    lid_velocity_t: torch.Tensor | None = None,
     inflow_profile_t: torch.Tensor | None = None,
     phys_scale: float = 1.0,
     obstacle: dict | None = None,
@@ -317,15 +316,10 @@ def _make_domain(  # mosaic:init
 ) -> tuple:
     """Create a single-block domain of size N×N (×N for 3-D).
 
-    Four modes are supported:
+    Three modes are supported:
 
-    * **Periodic** (default): ``lid_velocity_t``, ``inflow_profile_t``, and
-      ``obstacle`` are all ``None``.  Uses ``CreateBlockWithSize`` — all faces
-      periodic.
-    * **Lid-driven cavity**: ``lid_velocity_t`` is provided (shape
-      ``(nx, ny, 2)`` torch tensor).  A no-slip wall is applied to all faces via
-      ``CloseAllBoundaries()``, then the lid face is driven with a moving lid
-      via ``CloseBoundary(face, vel)`` — ``"+y"`` in 2-D, ``"+z"`` in 3-D.
+    * **Periodic** (default): ``inflow_profile_t`` and ``obstacle`` are both
+      ``None``.  Uses ``CreateBlockWithSize`` — all faces periodic.
     * **Inflow/channel**: ``inflow_profile_t`` is provided (shape ``(ny,)``
       torch tensor).  Walls are applied to top/bottom/right faces via
       ``CloseAllBoundaries()``, the ``"-x"`` face receives the inflow via
@@ -339,43 +333,6 @@ def _make_domain(  # mosaic:init
       boundaries.  An optional ``inflow_profile_t`` (torch tensor of shape
       ``(ny,)``) overrides the uniform inflow; the three left-face blocks each
       receive their matching y-slice.
-
-    Args:
-        viscosity_val: Kinematic viscosity ν in PICT units (already scaled).
-        N: Number of cells per spatial dimension.
-        ndim: Spatial dimensionality (2 or 3).
-        dtype: Torch dtype (float32 or float64).
-        lid_velocity_t: Moving-lid velocity as a torch tensor in canonical
-            layout ``(nx, ny, 2)`` (physical units).  Passed directly as a
-            live autograd leaf so boundary VJPs flow through to the user.
-            Ignored when ``None``.
-        inflow_profile_t: X-velocity inflow profile torch tensor of shape
-            ``(ny,)`` (physical units).  Live autograd leaf; boundary VJPs
-            flow through when ``requires_grad=True`` was set by the caller.
-            Ignored when ``None``.
-        phys_scale: ``N/L`` scaling factor to convert physical velocities to
-            PICT's unit-cell coordinate system.
-        obstacle: Optional obstacle dict with keys ``"shape"``, ``"center"``,
-            ``"radius"``.  When provided, triggers 8-block ring topology.
-        in_vel: Mean x-velocity at inflow (PICT units); used only for the
-            cylinder obstacle path when ``inflow_profile_t`` is ``None``.
-
-    Returns:
-        ``(domain, out_bounds, adv_velm, v0_setter, assembler, drag_assembler,
-        inflow_setter)`` where:
-        - ``domain``: freshly initialised PISOtorch.Domain (not yet PrepareSolve'd).
-        - ``out_bounds``: list of outflow boundaries needing per-step advective
-          update (empty for periodic/lid modes).
-        - ``adv_velm``: ``(1, ndim)`` advection-velocity tensor for
-          ``update_advective_boundaries`` (``None`` for periodic/lid modes).
-        - ``v0_setter``: callable ``(v0_pict)`` that sets the initial velocity
-          tensor onto the domain blocks.
-        - ``assembler``: callable ``(domain)`` that assembles the result velocity
-          tensor from the domain blocks in PICT channels-first format.
-        - ``drag_assembler``: callable or ``None`` for drag computation.
-        - ``inflow_setter``: callable ``()`` that re-applies the inflow boundary
-          condition each PISO step (keeps ``inflow_profile_t`` in the
-          PISOtorch_diff autograd graph), or ``None`` when not in inflow mode.
     """
     # ------------------------------------------------------------------
     # Cylinder obstacle path: delegate to 8-block ring topology
@@ -405,7 +362,7 @@ def _make_domain(  # mosaic:init
     # ------------------------------------------------------------------
     # Periodic path (default)
     # ------------------------------------------------------------------
-    if lid_velocity_t is None and inflow_profile_t is None:
+    if inflow_profile_t is None:
         if ndim == 3:
             block_size = PISOtorch.Int4(x=N, y=N, z=N)
         else:

@@ -1,5 +1,4 @@
 using TopOpt
-using Zygote
 
 # mosaic:util
 # ---------------------------------------------------------------------------
@@ -256,74 +255,3 @@ function topopt_vjp(
     return Float64.(comp.grad .* cotangent)
 end
 
-"""
-    topopt_general_vjp(adj_rhs_in, rho_in, pts_in, cells_in, dirichlet_mask_in,
-                       cload_mask_in, cload_values_in, E, nu, xmin)
-        -> grad_rho::Vector{Float64}
-
-General VJP for any output that depends on u via the adjoint method:
-
-    given  v  (cotangent over u, shape n_dofs),
-    solve  K λ = v  then return  ∂f/∂ρ_e = −(dρ̃_e/dρ_e) * λ_eᵀ Kₑ uₑ
-
-This covers VJP for the displacement field directly, and for any Python-side
-scalar function of u whose (∂f/∂u) has been assembled into adj_rhs before
-calling this function.  adj_rhs must already have zeros at Dirichlet-fixed DOFs.
-"""
-function topopt_general_vjp(
-    adj_rhs_in,
-    rho_in,
-    pts_in, cells_in,
-    dirichlet_mask_in, cload_mask_in, cload_values_in,
-    E::Float64, nu::Float64, xmin::Float64,
-)
-    pts            = Float64.(Matrix(pts_in))
-    cells          = Int64.(Matrix(cells_in))
-    dirichlet_mask = Int32.(vec(dirichlet_mask_in))
-    cload_mask     = Int32.(vec(cload_mask_in))
-    cload_values   = Float64.(Matrix(cload_values_in))
-
-    _, solver, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
-
-    rho = Float64.(vec(rho_in))
-    x   = PseudoDensities(rho)
-    comp(x)                          # assemble K, solve K u = f
-    u = Float64.(vec(solver.u))
-
-    adj_rhs = Float64.(vec(adj_rhs_in))
-
-    # Zero out Dirichlet-fixed DOFs in the adjoint RHS (adjoint BC: λ = 0 there).
-    # DOF layout: node n (1-based) owns DOFs 3(n-1)+1 .. 3(n-1)+3.
-    n_dofs = length(u)
-    fixed_nodes = findall(dirichlet_mask .> 0)
-    for n in fixed_nodes
-        for d in 1:3
-            dof = 3 * (n - 1) + d
-            dof <= n_dofs && (adj_rhs[dof] = 0.0)
-        end
-    end
-
-    # Solve adjoint system  K λ = adj_rhs
-    K = solver.globalinfo.K
-    λ = K \ adj_rhs
-
-    # Per-element sensitivity: ∂f/∂ρ_e = −(dρ̃_e/dρ_e) * λ_eᵀ Kₑ uₑ
-    # Kₑ = Kes[e] (unit element stiffness, full material E baked in),
-    # dρ̃_e/dρ_e = (1−xmin) * penal * ρ_e^(penal−1)
-    Kes       = solver.elementinfo.Kes
-    cell_dofs = solver.elementinfo.metadata.cell_dofs
-
-    n_cells = length(rho)
-    penal   = 3.0
-    dρ_drho = (1.0 - xmin) .* penal .* rho .^ (penal - 1.0)
-
-    sens = zeros(Float64, n_cells)
-    for e in 1:n_cells
-        dofs   = cell_dofs[:, e]
-        u_e    = u[dofs]
-        λ_e    = λ[dofs]
-        sens[e] = -dρ_drho[e] * dot(λ_e, Kes[e] * u_e)
-    end
-
-    return Float64.(sens)
-end

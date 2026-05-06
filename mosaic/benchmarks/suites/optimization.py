@@ -1776,17 +1776,9 @@ def run_conductivity_recovery(
         by_solver: dict = {}
         rho_snaps: dict = {}
         rho_histories: dict = {}
-        temperature_truths: dict[str, np.ndarray] = {}
-        temperature_finals: dict[str, np.ndarray] = {}
         _wall_times: dict[str, float] = {}
 
         candidate_solvers = _diff_solvers(cfg, "optimization", _exp_key)
-
-        _preferred_refs = ("dealii_heat", "jax_fem")
-        reference_solver = next(
-            (s for s in _preferred_refs if s in candidate_solvers),
-            candidate_solvers[0] if candidate_solvers else None,
-        )
 
         def _conductivity_recovery_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1889,33 +1881,6 @@ def run_conductivity_recovery(
                 if use_lbfgs
                 else grad_norms_adam,
             }
-
-            try:
-                inp_final = cfg.make_inputs(name, rho_opt, **phys)
-                out_final = apply_tesseract(t, inp_final)
-                T_final = out_final.get("temperature")
-                if T_final is not None:
-                    temperature_finals[name] = np.asarray(T_final, dtype=np.float32)
-            except Exception as exc:
-                from mosaic.benchmarks.core.console import print_warn
-
-                print_warn(
-                    f"{name} conductivity_recovery temperature_final forward failed: {exc}"
-                )
-
-            if rho_truth is not None:
-                try:
-                    inp_truth = cfg.make_inputs(name, jnp.asarray(rho_truth), **phys)
-                    out_truth = apply_tesseract(t, inp_truth)
-                    T_truth = out_truth.get("temperature")
-                    if T_truth is not None:
-                        temperature_truths[name] = np.asarray(T_truth, dtype=np.float32)
-                except Exception as exc:
-                    from mosaic.benchmarks.core.console import print_warn
-
-                    print_warn(
-                        f"{name} conductivity_recovery temperature_truth forward failed: {exc}"
-                    )
             _wall_times[name] = time.perf_counter() - _t0
 
         run_with_gpu_pool(
@@ -1940,36 +1905,16 @@ def run_conductivity_recovery(
             try:
                 prior = np.load(existing_path)
                 for key in prior.files:
-                    if (
-                        key.startswith("rho_final_")
-                        or key.startswith("rho_history_")
-                        or key.startswith("temperature_final_")
-                        or key.startswith("temperature_truth_")
-                    ):
+                    if key.startswith("rho_final_") or key.startswith("rho_history_"):
                         npz_payload[key] = prior[key]
                     elif key == "rho_truth" and "rho_truth" not in npz_payload:
                         npz_payload[key] = prior[key]
-                    elif key == "temperature_truth":
-                        npz_payload.setdefault("_prior_temperature_truth", prior[key])
             except Exception:
                 pass
         for sname in solver_names:
             npz_payload[f"rho_final_{sname}"] = rho_snaps[sname]
             if rho_histories[sname]:
                 npz_payload[f"rho_history_{sname}"] = np.asarray(rho_histories[sname])
-            if sname in temperature_finals:
-                npz_payload[f"temperature_final_{sname}"] = temperature_finals[sname]
-            if sname in temperature_truths:
-                npz_payload[f"temperature_truth_{sname}"] = temperature_truths[sname]
-
-        if reference_solver is not None and reference_solver in temperature_truths:
-            npz_payload["temperature_truth"] = temperature_truths[reference_solver]
-        elif temperature_truths:
-            any_name = next(iter(temperature_truths))
-            npz_payload["temperature_truth"] = temperature_truths[any_name]
-        elif "_prior_temperature_truth" in npz_payload:
-            npz_payload["temperature_truth"] = npz_payload["_prior_temperature_truth"]
-        npz_payload.pop("_prior_temperature_truth", None)
 
         np.savez(existing_path, **npz_payload)
 
