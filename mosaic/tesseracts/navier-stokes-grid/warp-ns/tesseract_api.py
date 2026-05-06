@@ -2775,7 +2775,6 @@ def ns3d_solve(  # mosaic:physics
         wp.zeros((n, n, n), dtype=wp.float32, requires_grad=True, device=device)
         for _ in range(steps)
     ]
-    top_k = n - 1
 
     tape = wp.Tape()
     with tape:
@@ -2917,20 +2916,9 @@ def ns3d_solve(  # mosaic:physics
                 arrays=[vel_bufs_x[dst], vel_bufs_y[dst], vel_bufs_z[dst]],
             )
 
-            # Step 3: velocity correction u^(n+1) = u* - dt_correct·∇p.
-            # Lid-driven cavity uses wall-BC kernel (clamped k-indices in z) so the
-            # pressure gradient is zero at top/bottom walls (Neumann BC).
-            # Lid-cavity path uses dt_correct=1.0 because the divergence
-            # RHS was scaled by inv_2h (not inv_2h/dt), so p absorbs the dt factor
-            # and the correction is u* - ∇p_new = u* - dt*∇p_old (same velocity).
-            _pressure_correct_kernel = (
-                pressure_correct_3d_wall_kernel
-                if lid_velocity is not None
-                else pressure_correct_3d_kernel
-            )
-            _dt_correct = 1.0 if lid_velocity is not None else dt
+            # Step 3: velocity correction u^(n+1) = u* - dt·∇p.
             _wlaunch(
-                _pressure_correct_kernel,
+                pressure_correct_3d_kernel,
                 dim=(n, n, n),
                 inputs=[
                     ux_star,
@@ -2940,80 +2928,12 @@ def ns3d_solve(  # mosaic:physics
                     vel_bufs_x[dst],
                     vel_bufs_y[dst],
                     vel_bufs_z[dst],
-                    _dt_correct,
+                    dt,
                     inv_2h,
                 ],
                 block_dim=_bd_3d,
                 device=device,
             )
-            if lid_wp is not None:
-                _wlaunch(
-                    apply_lid_field_bc_kernel,
-                    dim=(n, n),
-                    inputs=[
-                        vel_bufs_x[dst],
-                        vel_bufs_y[dst],
-                        vel_bufs_z[dst],
-                        lid_wp,
-                        top_k,
-                    ],
-                    block_dim=_bd_2d,
-                    device=device,
-                )
-                # Same overwrite-adjoint fix for the post-correction lid BC.
-                # vel_bufs_x[dst][top_k] was overwritten; adj_vel_bufs_x[dst][top_k]
-                # must be zeroed after accumulation so it does not flow back through
-                # the next timestep's tentative backward as a spurious top-face signal.
-                _vx_ref = vel_bufs_x[dst]
-                _vy_ref = vel_bufs_y[dst]
-                _vz_ref = vel_bufs_z[dst]
-                _lid_wp_ref2 = lid_wp
-                _top_k_ref2 = top_k
-                _n_ref2 = n
-                _dev_ref2 = device
-
-                def _fix_overwrite_adjoint_vel(
-                    _vx=_vx_ref,
-                    _vy=_vy_ref,
-                    _vz=_vz_ref,
-                    _lid=_lid_wp_ref2,
-                    _tk=_top_k_ref2,
-                    _n=_n_ref2,
-                    _d=_dev_ref2,
-                ):
-                    _wlaunch(
-                        _accumulate_top_slice_to_lid_kernel,
-                        dim=(_n, _n),
-                        inputs=[_vx.grad, _vy.grad, _lid.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_vx.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_vy.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-                    _wlaunch(
-                        _zero_top_slice_kernel,
-                        dim=(_n, _n),
-                        inputs=[_vz.grad, _tk],
-                        block_dim=_bd_2d,
-                        device=_d,
-                    )
-
-                tape.record_func(
-                    backward=_fix_overwrite_adjoint_vel,
-                    arrays=[vel_bufs_x[dst], vel_bufs_y[dst], vel_bufs_z[dst], lid_wp],
-                )
 
             src, dst = dst, src
 
@@ -3032,7 +2952,6 @@ def ns3d_solve(  # mosaic:physics
         ux_wp,
         uy_wp,
         uz_wp,
-        lid_wp,
     )
 
 
@@ -3046,15 +2965,8 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     uz_ic: wp.array,
     cotangent_np: np.ndarray,
     device: str,
-    lid_wp: "wp.array | None" = None,
 ) -> dict[str, np.ndarray]:
-    """Propagate cotangents through the 3-D IPCS tape.
-
-    lid_wp: optional warp vec2 array (N, N) that was uploaded with
-        requires_grad=True during ns3d_solve.  When provided, after
-        tape.backward() its .grad attribute holds the (N, N) vec2
-        gradient which is unpacked to shape (N, N, 2) float32.
-    """
+    """Propagate cotangents through the 3-D IPCS tape."""
     # mosaic:grad:v0:adjoint
     ux_final.grad = wp.array(
         cotangent_np[:, :, :, 0].astype(np.float32), dtype=wp.float32, device=device
@@ -3068,7 +2980,6 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
 
     tape.backward()
 
-    n = cotangent_np.shape[0]
     grad_v0 = np.zeros_like(cotangent_np)
     if ux_ic.grad is not None:
         grad_v0[:, :, :, 0] = ux_ic.grad.numpy()
@@ -3083,16 +2994,6 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
         "viscosity": np.zeros(1, dtype=np.float32),
         "dt": np.zeros(1, dtype=np.float32),
     }
-
-    # mosaic:grad:lid_velocity:adjoint
-    # Lid velocity gradient: warp returns (N, N, 2) float32 for vec2 arrays.
-    if lid_wp is not None:
-        if lid_wp.grad is not None:
-            grads["lid_velocity"] = np.asarray(lid_wp.grad.numpy(), dtype=np.float32)
-        else:
-            grads["lid_velocity"] = np.zeros((n, n, 2), dtype=np.float32)
-    else:
-        grads["lid_velocity"] = np.zeros((n, n, 2), dtype=np.float32)
 
     return grads
 
@@ -3157,11 +3058,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
     device = _warp_device()
 
     if _is_3d(v0):
-        lid_vel = (
-            np.asarray(inputs.lid_velocity, dtype=np.float32)
-            if inputs.lid_velocity is not None
-            else None
-        )
         result, _tape, *_ = ns3d_solve(
             v0,
             nu,
@@ -3169,7 +3065,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
             inputs.steps,
             inputs.domain_extent,
             inputs.num_iters_poisson_3d,
-            lid_velocity=lid_vel,
             device=device,
         )
         return OutputSchema(result=result, drag=None)
@@ -3200,7 +3095,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(result=result, drag=drag_out)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_profile:adjoint
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -3211,7 +3106,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
     Runs the forward pass under tape recording, then calls tape.backward()
     with the output cotangent to obtain gradients w.r.t. differentiable inputs.
 
-    Differentiable inputs: v0 (2D and 3D), lid_velocity (3D cavity mode).
+    Differentiable inputs: v0 (2D and 3D).
     Both 2D and 3D use IPCS with spectral FFT Poisson for numerically exact VJPs.
     """
     v0 = np.asarray(inputs.v0, dtype=np.float32)
@@ -3222,19 +3117,13 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
     result: dict[str, Any] = {}
 
     if _is_3d(v0):
-        lid_vel = (
-            np.asarray(inputs.lid_velocity, dtype=np.float32)
-            if inputs.lid_velocity is not None
-            else None
-        )
-        _result_np, tape, ux_f, uy_f, uz_f, ux_ic, uy_ic, uz_ic, lid_wp = ns3d_solve(
+        _result_np, tape, ux_f, uy_f, uz_f, ux_ic, uy_ic, uz_ic = ns3d_solve(
             v0,
             nu,
             dt,
             inputs.steps,
             inputs.domain_extent,
             inputs.num_iters_poisson_3d,
-            lid_velocity=lid_vel,
             device=device,
         )
         cot_result = np.asarray(
@@ -3250,7 +3139,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
             uz_ic,
             cot_result,
             device,
-            lid_wp=lid_wp,
         )
         if "v0" in vjp_inputs:
             result["v0"] = grads["v0"]
@@ -3258,8 +3146,6 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,lid_velocity,inflow_
             result["viscosity"] = grads["viscosity"]
         if "dt" in vjp_inputs:
             result["dt"] = grads["dt"]
-        if "lid_velocity" in vjp_inputs and inputs.lid_velocity is not None:
-            result["lid_velocity"] = grads["lid_velocity"]
 
     else:
         # 2-D IPCS path
@@ -3352,7 +3238,6 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
         shape = tuple(np.asarray(v0).shape)
 
     # Drag is only computed for 2-D obstacle runs.
-    # 3-D cavity mode (lid_velocity set) produces no drag output.
     is_3d = len(shape) == 4 and shape[2] != 1 and shape[3] == 3
     has_obstacle_2d = d.get("obstacle") is not None and not is_3d
 
