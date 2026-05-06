@@ -1,12 +1,12 @@
 """Write-side ↔ read-side roundtrip tests for the staleness pipeline.
 
-Background (ARCH-28, ARCH-21): ``save_experiment`` stamps each result.json with
-``harness_hash`` (AST-normalised fingerprint of the ``run_<experiment>``
-function) and a per-solver ``tesseract_hashes`` dict (content hash of the
-tesseract source tree). ``status.collect_status`` re-computes both and flips
-cells to ``ok*`` / ``anom*`` / ``fail*`` on mismatch.
+``save_experiment`` stamps each result.json with ``harness_hash``
+(AST-normalised fingerprint of the ``run_<experiment>`` function) and a
+per-solver ``tesseract_hashes`` dict (content hash of the tesseract source
+tree). ``status.collect_status`` re-computes both and flips cells to
+``ok*`` / ``anom*`` / ``fail*`` on mismatch.
 
-The bug that motivated this file: ARCH-21 moved the write side to the
+The bug that motivated this file: the write side moved to the
 AST-normalised ``harness_fn_hash`` but the read side in
 ``status._current_harness_hash`` continued to SHA the raw source. Every fresh
 run produced a mismatched pair, every cell stayed ``ok*``, and the campaign
@@ -101,9 +101,8 @@ class _StalenessRoundtripBase(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls._tmpdir = tempfile.TemporaryDirectory()
         cls.tmp_root = Path(cls._tmpdir.name)
-        # ``_results_dir`` in status.py is hard-coded to
-        # ``mosaic/benchmarks/results/<name>``. Redirect it at the module
-        # level so our fake results tree is walked.
+        # ``_results_dir`` in status.py delegates to ``results_dir()``
+        # (env-var / cwd based). Redirect it so our fake results tree is walked.
         cls.results_root = cls.tmp_root / "results"
         cls.results_root.mkdir(parents=True, exist_ok=True)
         cls._patcher = mock.patch.object(

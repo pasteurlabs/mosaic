@@ -1,6 +1,6 @@
 """Experiment-completion status discovery for the `mosaic status` CLI.
 
-Walks ``benchmarks/results/<problem>/<suite>/<experiment>/`` on disk, parses
+Walks ``<results_dir>/<problem>/<suite>/<experiment>/`` on disk, parses
 each ``result.json``, and classifies every (experiment × solver) cell as one
 of:
 
@@ -31,7 +31,13 @@ from pathlib import Path
 from typing import Any
 
 from .config import ProblemConfig
-from .utils import exclusion_lookup, harness_fn_hash, load_json, tesseract_content_hash
+from .utils import (
+    exclusion_lookup,
+    harness_fn_hash,
+    load_json,
+    results_dir,
+    tesseract_content_hash,
+)
 
 # Suites visited by the status command. "ics" produces no per-solver results.
 SUITES: tuple[str, ...] = ("forward", "cost", "gradient", "optimization")
@@ -43,16 +49,20 @@ FAILED = "failed"
 NOT_RUN = "not_run"
 EXCLUDED = "excluded"
 
-# Exclusion categories carried on EXCLUDED cells. The rationale tells the
-# reader *why* this solver is off — permanent limitation, missing code, too
-# slow, regime-limited stability, external bug, or legacy (unspecified).
+# Exclusion categories carried on EXCLUDED cells.  Only two matter:
 #
-# Only CATEGORICAL is treated as permanent: it stays out of the "% ok"
-# denominator because no amount of engineering on our side can fix it (e.g.
-# a solver that's FFT-only by construction can't do non-periodic BCs, and a
-# non-differentiable C++ solver has no AD path to add). Every other category
-# counts as work-to-do and stays in the denominator.
+#   CATEGORICAL (permanent) — method-intrinsic limitation (e.g. FFT-only
+#     solver + non-periodic BCs, non-differentiable C++ solver).  These
+#     stay out of the score denominator.
+#
+#   Everything else — work-to-do.  Counts in the score denominator at the
+#     neutral weight (0.33).  The Cell.reason string carries the human-
+#     readable explanation; no need for a taxonomy of sub-categories.
 EXCL_CATEGORICAL = "categorical"
+
+# Kept as aliases for backward compatibility with existing problem configs
+# that use {"category": "infeasible"} etc.  All non-categorical categories
+# are treated identically in scoring and rendering.
 EXCL_NOT_IMPLEMENTED = "not_implemented"
 EXCL_INFEASIBLE = "infeasible"
 EXCL_UNSTABLE = "unstable"
@@ -72,50 +82,19 @@ EXCL_PERMANENT = {EXCL_CATEGORICAL}
 
 # ── weighted campaign-health score ──────────────────────────────────────────
 #
-# A single scalar in [0.0, +1.0] summarising campaign state more honestly
-# than the binary `% ok`. Each non-categorical cell contributes its weight,
-# the sum is divided by the number of contributing cells. Categorical
-# exclusions (method-intrinsic — e.g. FFT solver + non-periodic BCs) are
-# excluded from both numerator and denominator: they're not "work to do".
-#
-# Keys are short labels matching the per-category glyphs used in the rich
-# summary table / markdown render. Tweak in place if the relative weighting
-# stops matching intuition — no logic changes needed.
-#
-# Values are a linear remap of the legacy [−0.5, +1.0] ladder onto [0, 1]:
-#   new = (old + 0.5) / 1.5  (fail 0.0, neutral 0.33, ok 1.0)
+# A single scalar in [0.0, +1.0] summarising campaign state.  Each
+# non-categorical cell contributes its weight; categorical exclusions are
+# excluded from both numerator and denominator.
 SCORE_WEIGHTS: dict[str, float] = {
-    # Fresh ok: full credit.
     "ok": 1.00,
-    # Stale ok: last known good, not verified against current source.
     "ok*": 0.67,
-    # Fresh anomaly: ran, produced data, but out of threshold.
     "anom": 0.53,
     "anom*": 0.43,
-    # Not-run / gap / regime-limited / infeasible: neutral (no signal yet).
     "missing": 0.33,
-    "todo": 0.33,  # EXCLUDED + not_implemented
-    "unst": 0.33,  # EXCLUDED + unstable
-    "slow": 0.33,  # EXCLUDED + infeasible
-    "excl": 0.33,  # EXCLUDED + unspecified
-    # Known upstream bug: broken, but outside our code.
-    "bug": 0.13,  # EXCLUDED + upstream_bug
-    # Stale failure: last known bad, not re-verified.
+    "excl": 0.33,  # all non-categorical exclusions
     "fail*": 0.17,
-    # Fresh failure: lowest score.
     "fail": 0.00,
     # "perm" (EXCLUDED + categorical) is excluded from the denominator.
-}
-
-# Map EXCL category → score-weight key for EXCLUDED cells. Categorical
-# exclusions return None and are excluded from both numerator & denominator.
-_EXCL_TO_WEIGHT_KEY: dict[str, str | None] = {
-    EXCL_CATEGORICAL: None,  # out of denominator
-    EXCL_NOT_IMPLEMENTED: "todo",
-    EXCL_INFEASIBLE: "slow",
-    EXCL_UNSTABLE: "unst",
-    EXCL_UPSTREAM_BUG: "bug",
-    EXCL_UNSPECIFIED: "excl",
 }
 
 
@@ -135,8 +114,9 @@ def cell_weight_key(cell: "Cell") -> str | None:
     if cell.status == NOT_RUN:
         return "missing"
     if cell.status == EXCLUDED:
-        cat = cell.category or EXCL_UNSPECIFIED
-        return _EXCL_TO_WEIGHT_KEY.get(cat, "excl")
+        if cell.category in EXCL_PERMANENT:
+            return None
+        return "excl"
     return None
 
 
@@ -904,7 +884,7 @@ def _iter_experiment_dirs(suite_dir: Path):
 
 
 def _results_dir(cfg: ProblemConfig) -> Path:
-    return Path(__file__).parent.parent / "results" / cfg.name
+    return results_dir() / cfg.name
 
 
 def collect_status(
@@ -1210,7 +1190,6 @@ def tally(st: ProblemStatus) -> dict[str, int]:
     """
     counts = {OK: 0, ANOMALY: 0, FAILED: 0, NOT_RUN: 0, EXCLUDED: 0}
     excl_perm = excl_work = stale = stale_ok = 0
-    excl_by_category: dict[str, int] = {cat: 0 for cat in EXCL_CATEGORIES}
     all_cells: list[Cell] = []
     for row in st.rows:
         for cell in row.cells.values():
@@ -1222,9 +1201,7 @@ def tally(st: ProblemStatus) -> dict[str, int]:
                 if cell.status == OK:
                     stale_ok += 1
             if cell.status == EXCLUDED:
-                cat = cell.category or EXCL_UNSPECIFIED
-                excl_by_category[cat] = excl_by_category.get(cat, 0) + 1
-                if cat in EXCL_PERMANENT:
+                if cell.category in EXCL_PERMANENT:
                     excl_perm += 1
                 else:
                     excl_work += 1
@@ -1232,7 +1209,6 @@ def tally(st: ProblemStatus) -> dict[str, int]:
     counts["fresh_ok"] = fresh_ok
     counts["excl_perm"] = excl_perm
     counts["excl_work"] = excl_work
-    counts["excl_by_category"] = excl_by_category
     counts["stale"] = stale
     counts["stale_ok"] = stale_ok
     # Denominator: fresh-ok + every other work-to-do bucket + stale-ok.
@@ -1261,15 +1237,9 @@ _MD_GLYPHS = {
     EXCLUDED: "⚪",
 }
 
-# Per-category glyph for EXCLUDED cells. Cells without a category (legacy
-# string exclusions) fall back to the generic EXCLUDED glyph above.
+# Per-category glyph for EXCLUDED cells.
 _MD_EXCL_GLYPHS = {
     EXCL_CATEGORICAL: "🚫",
-    EXCL_NOT_IMPLEMENTED: "🛠",
-    EXCL_INFEASIBLE: "🐢",
-    EXCL_UNSTABLE: "⚠️",
-    EXCL_UPSTREAM_BUG: "🐛",
-    EXCL_UNSPECIFIED: "⚪",
 }
 
 
@@ -1291,15 +1261,11 @@ def md_cell_glyph(cell: "Cell") -> str:
 _MD_LEGEND = (
     "**Legend** · "
     "✅ ok · "
-    "🟠 anom (outlier per status_checks, or documented method-intrinsic weakness) · "
+    "🟠 anom · "
     "❌ fail · "
     "· missing · "
-    "🚫 categorical (permanent — out of score denominator) · "
-    "🛠 not_implemented · "
-    "🐢 infeasible · "
-    "⚠️ unstable · "
-    "🐛 upstream_bug · "
-    "⚪ unspecified · "
+    "🚫 excluded (permanent — out of score denominator) · "
+    "⚪ excluded (work-to-do) · "
     "**\\*** stale — result predates current tesseract/harness source"
 )
 
@@ -1651,9 +1617,7 @@ def render_diff_markdown(diff: dict) -> str:
 
     def _glyph(status: str, category: str) -> str:
         if status == EXCLUDED:
-            return _MD_EXCL_GLYPHS.get(
-                category or EXCL_UNSPECIFIED, _MD_GLYPHS[EXCLUDED]
-            )
+            return _MD_EXCL_GLYPHS.get(category, _MD_GLYPHS[EXCLUDED])
         return _MD_GLYPHS.get(status, status)
 
     def _fmt_rec(r: dict) -> str:

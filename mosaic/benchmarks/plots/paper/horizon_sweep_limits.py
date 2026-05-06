@@ -27,10 +27,9 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import blended_transform_factory
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 SOLVER_ORDER = [
     "phiflow",
@@ -40,8 +39,6 @@ SOLVER_ORDER = [
     "exponax",
     "ins_jl",
 ]
-
-_TEMPORAL_COST_PATH = RESULTS / "ns-3d-grid" / "cost" / "temporal_cost" / "result.json"
 _OF_COLOR = SOLVER_STYLES.get("openfoam", ("OpenFOAM", "#DDCC77", "--", "h"))[1]
 _OF_LS = SOLVER_STYLES.get("openfoam", ("OpenFOAM", "#DDCC77", "--", "h"))[2]
 
@@ -87,9 +84,12 @@ def _openfoam_fd_vjp_estimate(
     constant (file I/O is N-independent).
     N_inputs = N_sweep³ × 3  (one FD perturbation per IC velocity component).
     """
-    if not _TEMPORAL_COST_PATH.exists():
+    _temporal_cost_path = (
+        results_dir() / "ns-3d-grid" / "cost" / "temporal_cost" / "result.json"
+    )
+    if not _temporal_cost_path.exists():
         return {}
-    td = json.loads(_TEMPORAL_COST_PATH.read_text())
+    td = json.loads(_temporal_cost_path.read_text())
     of_data = td.get("by_steps", {}).get("openfoam", {})
     pts = sorted(
         [
@@ -110,7 +110,13 @@ def _openfoam_fd_vjp_estimate(
 
 
 def generate(out_dir: Path) -> None:
-    path = RESULTS / "ns-3d-grid" / "gradient" / "horizon_sweep_limits" / "result.json"
+    path = (
+        results_dir()
+        / "ns-3d-grid"
+        / "gradient"
+        / "horizon_sweep_limits"
+        / "result.json"
+    )
     data = json.loads(path.read_text())
     by_solver = data["by_solver"]
 

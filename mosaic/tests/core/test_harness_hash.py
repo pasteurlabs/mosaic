@@ -4,11 +4,11 @@ Run directly with::
 
     conda run -n gym python -m benchmarks.core.tests.test_harness_hash
 
-Background (ARCH-21): the previous implementation hashed
-``inspect.getsource(fn)`` byte-for-byte. Any whitespace, comment, or
-docstring-only edit to a ``run_*`` harness flipped the hash and marked every
-previously-saved result as stale. ARCH-20's kwarg-threading refactor flipped
-~every forward/gradient/cost/recovery cell stale with zero behavioural change.
+The previous implementation hashed ``inspect.getsource(fn)`` byte-for-byte.
+Any whitespace, comment, or docstring-only edit to a ``run_*`` harness flipped
+the hash and marked every previously-saved result as stale. A kwarg-threading
+refactor flipped ~every forward/gradient/cost/recovery cell stale with zero
+behavioural change.
 
 The AST-normalised hash strips docstrings and ignores comments / whitespace
 entirely (comments are discarded by ``ast.parse``). Behavioural edits — new

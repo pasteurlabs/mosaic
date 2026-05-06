@@ -18,16 +18,15 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES, solver_props
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 SOLVER_ORDER = ["xlb", "phiflow", "pict"]
 
 
 def _plot_re(re_tag: str, out_dir: Path) -> None:
-    base = RESULTS / "ns-grid" / "optimization" / "drag_opt" / re_tag
+    base = results_dir() / "ns-grid" / "optimization" / "drag_opt" / re_tag
     result_path = base / "result.json"
     profiles_path = base / "profiles.npz"
 

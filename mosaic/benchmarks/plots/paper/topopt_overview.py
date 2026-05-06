@@ -27,6 +27,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
@@ -36,14 +37,14 @@ from mosaic.benchmarks.plots.paper.style import (
     make_handle,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-BASE = RESULTS / "structural-mesh" / "optimization" / "topopt"
 
-# optimizer key -> (linestyle, display label, result path)
-OPT_METHODS: dict[str, tuple] = {
-    "adam": ("-", "Adam", BASE.parent / "topopt" / "result.json"),
-    "mma": ("--", "MMA", BASE.parent / "topopt_mma" / "result.json"),
-}
+def _opt_methods():
+    base = results_dir() / "structural-mesh" / "optimization"
+    return {
+        "adam": ("-", "Adam", base / "topopt" / "result.json"),
+        "mma": ("--", "MMA", base / "topopt_mma" / "result.json"),
+    }
+
 
 _THRESH = 0.35
 _ELEV = 22
@@ -366,6 +367,9 @@ def _plot_convergence(
 
 
 def generate(out_dir: Path) -> None:
+    BASE = results_dir() / "structural-mesh" / "optimization" / "topopt"
+    OPT_METHODS = _opt_methods()
+
     result_path = BASE / "result.json"
     if not result_path.exists():
         print(f"[topopt_overview] {result_path} not found — skipping")

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -22,8 +23,6 @@ from mosaic.benchmarks.plots.paper.style import (
     make_handle,
     solver_props,
 )
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 DOMAINS = [
     ("2D NS", "ns-grid", "fd_check"),
@@ -37,7 +36,7 @@ def generate_main(out_dir: Path) -> None:
     """Generate the main-paper FD check figure (ns-grid only, 1×2 layout)."""
     plt.rcParams.update(RCPARAMS)
 
-    path = RESULTS / "ns-grid" / "gradient" / "fd_check" / "result.json"
+    path = results_dir() / "ns-grid" / "gradient" / "fd_check" / "result.json"
     data = json.loads(path.read_text())
 
     fig, (ax_err, ax_cos) = plt.subplots(
@@ -116,7 +115,7 @@ def generate(out_dir: Path) -> None:
     fem_seen: set[str] = set()
 
     for col, (domain_label, subdir, exp_key) in enumerate(DOMAINS):
-        path = RESULTS / subdir / "gradient" / exp_key / "result.json"
+        path = results_dir() / subdir / "gradient" / exp_key / "result.json"
         data = json.loads(path.read_text())
 
         ax_err = axes[0, col]

@@ -22,6 +22,26 @@ import numpy as np
 from .config import ProblemConfig
 from .console import print_saved
 
+# ── Results directory resolution ─────────────────────────────────────────────
+#
+# Priority:
+#   1. MOSAIC_RESULTS_DIR env var  (set by --output-dir or the user's shell)
+#   2. Current working directory / "mosaic-results"
+#
+# The old behaviour wrote to ``Path(__file__).parent.parent / "results"``
+# (inside the git tree).  That breaks read-only installs and makes the output
+# location invisible to the caller.
+
+_RESULTS_DIR_ENV = "MOSAIC_RESULTS_DIR"
+
+
+def results_dir() -> Path:
+    """Return the root results directory, respecting env-var overrides."""
+    if d := os.environ.get(_RESULTS_DIR_ENV):
+        return Path(d)
+    return Path.cwd() / "mosaic-results"
+
+
 # Staleness detection: files/directories excluded from the tesseract-source
 # content hash. Build artefacts, caches, and lockfiles don't affect the
 # solver's behaviour and would cause spurious staleness.

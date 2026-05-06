@@ -15,6 +15,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -27,8 +28,6 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-
 # Default perturb_sigma to show for NS IC recovery
 _NS_SIGMA = "0.1"
 
@@ -36,7 +35,7 @@ _NS_SIGMA = "0.1"
 def _plot_ns_recovery(
     ax, subdir: str, solver_order: list[str], title: str, seen: set[str]
 ) -> None:
-    path = RESULTS / subdir / "optimization" / "optimization" / "result.json"
+    path = results_dir() / subdir / "optimization" / "optimization" / "result.json"
     if not path.exists():
         ax.set_title(title)
         return
@@ -118,7 +117,7 @@ def generate(out_dir: Path) -> None:
         )
         _plot_fem_recovery(
             axes[1, 0],
-            RESULTS
+            results_dir()
             / "structural-mesh"
             / "optimization"
             / "load_recovery"
@@ -131,7 +130,7 @@ def generate(out_dir: Path) -> None:
         )
         _plot_fem_recovery(
             axes[1, 1],
-            RESULTS
+            results_dir()
             / "thermal-mesh"
             / "optimization"
             / "conductivity_recovery"

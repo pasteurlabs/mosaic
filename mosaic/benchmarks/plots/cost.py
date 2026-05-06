@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.utils import load_json
+from mosaic.benchmarks.core.utils import load_json, results_dir
 from mosaic.benchmarks.plots.style import (
     apply_style,
     fig_shared_legend,
@@ -19,7 +17,6 @@ from mosaic.benchmarks.plots.style import (
 
 apply_style()
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "cost"
 
 _FAILURE_MARKER = {
@@ -128,7 +125,7 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     Row 1 is hidden when no memory data is available.
     Failure markers (OOM ▼, error ◆, NaN ×) with connectors from last ok point.
     """
-    suite_dir = _RESULTS_DIR / cfg.name / _SUITE
+    suite_dir = results_dir() / cfg.name / _SUITE
 
     spatial_path = suite_dir / f"spatial_cost{suffix}" / "result.json"
     temporal_path = suite_dir / f"temporal_cost{suffix}" / "result.json"

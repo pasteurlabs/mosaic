@@ -18,10 +18,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 NS_ORDER_2D = [
     "jax_cfd",
@@ -144,7 +143,7 @@ def _plot_svd_figure(
 ) -> None:
     variants: list[tuple[str, dict]] = []
     for exp_key in experiments:
-        path = RESULTS / subdir / "gradient" / exp_key / "result.json"
+        path = results_dir() / subdir / "gradient" / exp_key / "result.json"
         if not path.exists():
             continue
         data = json.loads(path.read_text())
@@ -219,7 +218,7 @@ def _svd_comparison(
 
     variants: list[tuple[str, dict]] = []
     for exp_key in experiments:
-        path = RESULTS / subdir / "gradient" / exp_key / "result.json"
+        path = results_dir() / subdir / "gradient" / exp_key / "result.json"
         if not path.exists():
             continue
         data = json.loads(path.read_text())

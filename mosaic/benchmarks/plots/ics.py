@@ -17,8 +17,6 @@ from mosaic.benchmarks.plots.style import (
 
 apply_style()
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
-
 
 def plot_ic(
     cfg: ProblemConfig,

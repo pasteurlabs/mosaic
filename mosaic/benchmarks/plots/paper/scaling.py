@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -29,8 +30,6 @@ from mosaic.benchmarks.plots.paper.style import (
     make_handle,
     solver_props,
 )
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 DOMAINS = [
     ("2D NS", "ns-grid", "scaling_ns_grid", NS_ORDER),
@@ -78,7 +77,7 @@ def _extract(by_n: dict) -> dict[int, float]:
 
 
 def _load_cost(subdir: str, experiment: str) -> dict[str, dict[int, float]]:
-    p = RESULTS / subdir / "cost" / experiment / "result.json"
+    p = results_dir() / subdir / "cost" / experiment / "result.json"
     if not p.exists():
         return {}
     data = json.loads(p.read_text())

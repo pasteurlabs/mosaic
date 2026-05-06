@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -25,22 +26,23 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
-_CONFIGS = {
-    "f2": {
-        "path": RESULTS / "ns-grid" / "gradient" / "horizon_sweep" / "result.json",
-        "out": "appendix_ucurves_f2.pdf",
-        "title": "F2 — FD U-curves (2D NS)",
-        "ncols": 4,
-    },
-    "f3": {
-        "path": RESULTS / "ns-3d-grid" / "gradient" / "horizon_sweep" / "result.json",
-        "out": "appendix_ucurves_f3.pdf",
-        "title": "F3 — FD U-curves (3D NS)",
-        "ncols": 5,
-    },
-}
+def _configs():
+    R = results_dir()
+    return {
+        "f2": {
+            "path": R / "ns-grid" / "gradient" / "horizon_sweep" / "result.json",
+            "out": "appendix_ucurves_f2.pdf",
+            "title": "F2 — FD U-curves (2D NS)",
+            "ncols": 4,
+        },
+        "f3": {
+            "path": R / "ns-3d-grid" / "gradient" / "horizon_sweep" / "result.json",
+            "out": "appendix_ucurves_f3.pdf",
+            "title": "F3 — FD U-curves (3D NS)",
+            "ncols": 5,
+        },
+    }
 
 
 def _plot_domain(cfg: dict, out_dir: Path) -> None:
@@ -153,7 +155,7 @@ def _plot_domain(cfg: dict, out_dir: Path) -> None:
 
 def generate(out_dir: Path) -> None:
     with plt.rc_context(RCPARAMS):
-        for cfg in _CONFIGS.values():
+        for cfg in _configs().values():
             _plot_domain(cfg, out_dir)
 
 

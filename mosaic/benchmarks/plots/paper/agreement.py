@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -26,56 +27,57 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
-# (row, col, path, x_label, log_x, title, y_label)
-_CONFIGS = [
-    (
-        0,
-        0,
-        RESULTS / "ns-grid" / "forward" / "tgv_nu_sweep" / "result.json",
-        r"$\nu$",
-        True,
-        "F2 — TGV agreement vs $\\nu$",
-        "TGV analytic error",
-    ),
-    (
-        0,
-        1,
-        RESULTS / "ns-grid" / "forward" / "cylinder" / "result.json",
-        r"$\nu$",
-        True,
-        "F2 — cylinder flow vs $\\nu$",
-        "Consensus error",
-    ),
-    (
-        0,
-        2,
-        RESULTS / "ns-grid" / "forward" / "baseline" / "result.json",
-        "$N$",
-        True,
-        "F2 — convergence vs $N$",
-        "TGV analytic error",
-    ),
-    (
-        1,
-        0,
-        RESULTS / "ns-3d-grid" / "forward" / "agreement" / "result.json",
-        r"$\nu$",
-        True,
-        "F3 — TGV agreement vs $\\nu$",
-        "TGV analytic error",
-    ),
-    (
-        1,
-        2,
-        RESULTS / "ns-3d-grid" / "forward" / "baseline" / "result.json",
-        "$N$",
-        True,
-        "F3 — convergence vs $N$",
-        "TGV analytic error",
-    ),
-]
+def _configs():
+    """(row, col, path, x_label, log_x, title, y_label)"""
+    R = results_dir()
+    return [
+        (
+            0,
+            0,
+            R / "ns-grid" / "forward" / "tgv_nu_sweep" / "result.json",
+            r"$\nu$",
+            True,
+            "F2 — TGV agreement vs $\\nu$",
+            "TGV analytic error",
+        ),
+        (
+            0,
+            1,
+            R / "ns-grid" / "forward" / "cylinder" / "result.json",
+            r"$\nu$",
+            True,
+            "F2 — cylinder flow vs $\\nu$",
+            "Consensus error",
+        ),
+        (
+            0,
+            2,
+            R / "ns-grid" / "forward" / "baseline" / "result.json",
+            "$N$",
+            True,
+            "F2 — convergence vs $N$",
+            "TGV analytic error",
+        ),
+        (
+            1,
+            0,
+            R / "ns-3d-grid" / "forward" / "agreement" / "result.json",
+            r"$\nu$",
+            True,
+            "F3 — TGV agreement vs $\\nu$",
+            "TGV analytic error",
+        ),
+        (
+            1,
+            2,
+            R / "ns-3d-grid" / "forward" / "baseline" / "result.json",
+            "$N$",
+            True,
+            "F3 — convergence vs $N$",
+            "TGV analytic error",
+        ),
+    ]
 
 
 def generate(out_dir: Path) -> None:
@@ -93,7 +95,7 @@ def generate(out_dir: Path) -> None:
 
         seen: set[str] = set()
 
-        for row, col, path, x_label, log_x, title, y_label in _CONFIGS:
+        for row, col, path, x_label, log_x, title, y_label in _configs():
             ax = axes[row][col]
 
             if not path.exists():

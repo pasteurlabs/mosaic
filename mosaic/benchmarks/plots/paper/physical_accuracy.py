@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -25,8 +26,6 @@ from mosaic.benchmarks.plots.paper.style import (
     make_handle,
     solver_props,
 )
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
 
 SWEEPS = [
     ("vs_N", True, True),
@@ -122,7 +121,9 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
     ns_seen: set[str] = set()
 
     for row, (sweep_key, log_x, use_elements) in enumerate(SWEEPS):
-        path = RESULTS / subdir / "forward/physical_laws" / sweep_key / "result.json"
+        path = (
+            results_dir() / subdir / "forward/physical_laws" / sweep_key / "result.json"
+        )
         data = json.loads(path.read_text())
         by_param = data["by_param"]
         params = sorted(by_param.keys(), key=float)
@@ -245,7 +246,7 @@ def generate(out_dir: Path) -> None:
         fig, ax = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.47, TEXTWIDTH * 0.47 * 1.1))
         fig.subplots_adjust(bottom=0.22)
 
-        path = RESULTS / subdir / "forward/physical_laws/result.json"
+        path = results_dir() / subdir / "forward/physical_laws/result.json"
         data = json.loads(path.read_text())
         by_param = data["by_param"]
         params = sorted(by_param.keys(), key=float)

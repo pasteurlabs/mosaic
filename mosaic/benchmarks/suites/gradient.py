@@ -9,7 +9,6 @@ from __future__ import annotations
 import subprocess
 import threading
 import time
-from pathlib import Path
 
 import jax
 import jax.numpy as jnp
@@ -23,16 +22,16 @@ from mosaic.benchmarks.core.utils import (
     experiment_dir,
     extract_runs,
     iter_runs,
+    results_dir,
     save_experiment,
     save_gradient_fields_npz,
 )
 
-# ARCH-11: see recovery.py — JAX-traced closures capture this reference
+# JAX-traced closures capture this reference
 # at trace time, so we must import from the watchdog package to get the
 # container-liveness deadline into the call path.
 from mosaic.benchmarks.core.watchdog import apply_tesseract
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "gradient"
 
 
@@ -186,7 +185,7 @@ def run_fd_check(
 
         exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             exp_subdir,
@@ -420,7 +419,7 @@ def _run_generic_param_sweep(
         run_with_gpu_pool(diff_solvers, tags, _param_work, gpu_ids=gpu_ids)
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
@@ -863,7 +862,7 @@ def run_horizon_sweep_limits(
         run_with_gpu_pool(diff_solvers, tags, _limits_work, gpu_ids=gpu_ids)
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
@@ -1033,7 +1032,7 @@ def run_jacobian_svd(
         # full Jacobian matrix under the positional key ``jac_j`` (see save
         # below).  Per-solver entries already computed this run take precedence.
         out_dir_for_merge = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
@@ -1397,7 +1396,7 @@ def run_differentiability_table(
         run_with_gpu_pool(diff_solvers, tags, _diff_table_work, gpu_ids=gpu_ids)
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"differentiability_table/{ic_subdir}"

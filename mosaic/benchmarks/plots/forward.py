@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.utils import load_json
+from mosaic.benchmarks.core.utils import load_json, results_dir
 from mosaic.benchmarks.plots.style import (
     apply_style,
     field_grid,
@@ -43,7 +42,6 @@ def _field_grid_kw(cfg) -> dict:
     return {"cmap": cfg.field_cmap, "symmetric": cfg.field_symmetric}
 
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "forward"
 
 
@@ -54,7 +52,7 @@ def plot_agreement(
     cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "agreement"
 ):
     """Field-error grid (rows=solvers × cols=sweep values) + optional power spectra."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
     if not fields_path.exists():
         # Multi-IC layout: each IC lands in a subdir; plot each one.
@@ -297,7 +295,7 @@ def plot_agreement(
 
 def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Log-log error vs N + output field panels at each resolution."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"convergence{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"convergence{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -355,7 +353,7 @@ def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
 def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Scalar diagnostics bars, energy spectra, and density field panels."""
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"diagnostics{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"diagnostics{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -621,7 +619,7 @@ def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     labelled "solid" (above) / "liquid/gas" (below) so phase transitions appear
     as zero-crossings.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"stability{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"stability{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
@@ -920,7 +918,7 @@ def plot_physical_laws(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     layout (one named subdir per sweep, each with its own result.json).
     Also plots analytic_error vs sweep parameter when available.
     """
-    out_dir = _RESULTS_DIR / cfg.name / _SUITE / f"physical_laws{suffix}"
+    out_dir = results_dir() / cfg.name / _SUITE / f"physical_laws{suffix}"
     styles = solver_styles(cfg)
 
     # Single-run layout: result.json directly in out_dir

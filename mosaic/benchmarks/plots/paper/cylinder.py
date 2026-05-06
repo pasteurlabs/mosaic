@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -24,10 +25,6 @@ from mosaic.benchmarks.plots.paper.style import (
     make_handle,
     solver_props,
 )
-
-RESULTS = Path(__file__).parent.parent.parent / "results"
-_PATH = RESULTS / "ns-grid" / "forward" / "cylinder" / "result.json"
-_FIELDS = RESULTS / "ns-grid" / "forward" / "cylinder" / "fields.npz"
 
 # ν index to show for field panels (index 2 = ν=0.01)
 _NU_IDX = 2
@@ -46,17 +43,21 @@ def _vorticity(field: np.ndarray, L: float = 1.0) -> np.ndarray:
 
 
 def generate(out_dir: Path) -> None:
-    if not _PATH.exists():
-        print(f"[cylinder] {_PATH} not found — skipping")
+    _base = results_dir() / "ns-grid" / "forward" / "cylinder"
+    _path = _base / "result.json"
+    _fields = _base / "fields.npz"
+
+    if not _path.exists():
+        print(f"[cylinder] {_path} not found — skipping")
         return
 
     with plt.rc_context(RCPARAMS):
-        data = json.loads(_PATH.read_text())
+        data = json.loads(_path.read_text())
         by_param = data["by_param"]
         params = sorted(by_param.keys(), key=float)
         nu_vals = [float(p) for p in params]
 
-        fields_data = np.load(_FIELDS, allow_pickle=True) if _FIELDS.exists() else None
+        fields_data = np.load(_fields, allow_pickle=True) if _fields.exists() else None
 
         # Layout: left column = line plot, right 2×2 = vorticity fields
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.50))

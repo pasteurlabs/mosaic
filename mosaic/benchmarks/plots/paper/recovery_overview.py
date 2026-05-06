@@ -19,6 +19,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -28,15 +29,16 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-BASE = RESULTS / "ns-3d-grid" / "optimization"
 
-METHODS: dict[str, tuple] = {
-    "adam": ("Adam", "-.", BASE / "recovery_constant_ic"),
-    "adam_proj": ("Adam+proj", ":", BASE / "recovery_constant_ic_proj"),
-    "bfgs": ("L-BFGS", "--", BASE / "recovery_constant_ic_bfgs"),
-    "bfgs_proj": ("L-BFGS+proj", "-", BASE / "recovery_constant_ic_bfgs_proj"),
-}
+def _methods():
+    base = results_dir() / "ns-3d-grid" / "optimization"
+    return {
+        "adam": ("Adam", "-.", base / "recovery_constant_ic"),
+        "adam_proj": ("Adam+proj", ":", base / "recovery_constant_ic_proj"),
+        "bfgs": ("L-BFGS", "--", base / "recovery_constant_ic_bfgs"),
+        "bfgs_proj": ("L-BFGS+proj", "-", base / "recovery_constant_ic_bfgs_proj"),
+    }
+
 
 _FIELD_SOLVER = "phiflow"
 _FIELD_METHOD = "bfgs_proj"
@@ -89,7 +91,7 @@ def _generate_overview(loaded, out_path: Path) -> None:
 
     seen_solvers: set[str] = set()
 
-    for key, (m_label, m_ls, _) in METHODS.items():
+    for key, (m_label, m_ls, _) in _methods().items():
         if key == "adam_proj":
             continue  # shown separately in recovery_adam_proj.pdf
         if key not in loaded:
@@ -139,11 +141,11 @@ def _generate_overview(loaded, out_path: Path) -> None:
             [],
             [],
             color="0.3",
-            linestyle=METHODS[k][1],
+            linestyle=_methods()[k][1],
             linewidth=1.3,
-            label=METHODS[k][0],
+            label=_methods()[k][0],
         )
-        for k in METHODS
+        for k in _methods()
         if k != "adam_proj"
     ]
     solver_handles = dedup_handles(
@@ -233,7 +235,7 @@ def _generate_adam_proj(loaded, out_path: Path) -> None:
     seen_solvers: set[str] = set()
     for key in keys:
         result, npz = loaded[key]
-        _, m_ls, _ = METHODS[key]
+        _, m_ls, _ = _methods()[key]
         by_sweep = result["by_sweep"]
         for solver in NS_ORDER:
             entry = by_sweep.get(solver, {}).get(_STEP_KEY)
@@ -277,9 +279,9 @@ def _generate_adam_proj(loaded, out_path: Path) -> None:
             [],
             [],
             color="0.3",
-            linestyle=METHODS[k][1],
+            linestyle=_methods()[k][1],
             linewidth=1.3,
-            label=METHODS[k][0],
+            label=_methods()[k][0],
         )
         for k in keys
     ]
@@ -304,7 +306,7 @@ def _generate_adam_proj(loaded, out_path: Path) -> None:
 
 def generate(out_dir: Path) -> None:
     loaded: dict[str, tuple] = {}
-    for key, (*_, path) in METHODS.items():
+    for key, (*_, path) in _methods().items():
         rp = path / "result.json"
         fp = path / "recovery_fields.npz"
         if not rp.exists():

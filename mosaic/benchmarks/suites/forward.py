@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import inspect
 import threading
-from pathlib import Path
 
 import jax.numpy as jnp
 import numpy as np  # kept for np.savez and string arrays (JAX doesn't support these)
@@ -26,11 +25,11 @@ from mosaic.benchmarks.core.utils import (
     extract_runs,
     is_valid,
     iter_runs,
+    results_dir,
     save_experiment,
     trimmed_mean,
 )
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "forward"
 
 
@@ -124,7 +123,7 @@ def run_agreement(
         xaxis_fn = cfg.agreement_xaxis
         exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             exp_subdir,
@@ -449,7 +448,7 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                     )
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"physical_laws/{ic_subdir}" if ic_subdir else "physical_laws",

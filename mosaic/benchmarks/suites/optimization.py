@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import threading
 import time
-from pathlib import Path
 
 import jax
 import jax.numpy as jnp
@@ -27,12 +26,13 @@ from mosaic.benchmarks.core.utils import (
     extract_runs,
     is_valid,
     iter_runs,
+    results_dir,
     save_experiment,
     save_gradient_fields_npz,
     save_json,
 )
 
-# ARCH-11: import apply_tesseract from the watchdog package rather than
+# Import apply_tesseract from the watchdog package rather than
 # tesseract_jax directly. JAX-traced loss_fn closures below capture this
 # reference at trace time; if we imported the upstream function, the
 # watchdog (installed by runner.py via safe_apply_with_extras) would never
@@ -40,7 +40,6 @@ from mosaic.benchmarks.core.utils import (
 # makes the container-liveness deadline effective for gradient descent.
 from mosaic.benchmarks.core.watchdog import apply_tesseract
 
-_RESULTS_DIR = Path(__file__).parent.parent / "results"
 _SUITE = "optimization"
 
 
@@ -419,7 +418,7 @@ def _run_recovery_long_impl(
         gpu_ids = overrides.get("gpu_ids")
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
@@ -1021,7 +1020,7 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         run_with_gpu_pool(_topopt_solvers(cfg), tags, _topopt_work, gpu_ids=gpu_ids)
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"topopt/{ic_subdir}" if ic_subdir else "topopt",
@@ -1262,13 +1261,13 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         if ic_subdir:
             # Multi-run layout: drag_opt[_debug]/<ic_subdir>/
             _parent = experiment_dir(
-                _RESULTS_DIR, cfg.name, _SUITE, "drag_opt", suffix=_dbg
+                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg
             )
             out_dir = _parent / ic_subdir
             out_dir.mkdir(parents=True, exist_ok=True)
         else:
             out_dir = experiment_dir(
-                _RESULTS_DIR, cfg.name, _SUITE, "drag_opt", suffix=_dbg
+                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg
             )
         result = {
             "by_solver": by_solver,
@@ -1441,7 +1440,7 @@ def run_topopt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> di
         )
 
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"topopt_bfgs/{ic_subdir}" if ic_subdir else "topopt_bfgs",
@@ -1625,13 +1624,13 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         _dbg = "_debug" if overrides.get("debug") else ""
         if ic_subdir:
             _parent = experiment_dir(
-                _RESULTS_DIR, cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
+                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
             )
             out_dir = _parent / ic_subdir
             out_dir.mkdir(parents=True, exist_ok=True)
         else:
             out_dir = experiment_dir(
-                _RESULTS_DIR, cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
+                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
             )
         result = {
             "by_solver": by_solver,
@@ -1889,7 +1888,7 @@ def run_conductivity_recovery(
 
         _dbg = "_debug" if overrides.get("debug") else ""
         out_dir = experiment_dir(
-            _RESULTS_DIR,
+            results_dir(),
             cfg.name,
             _SUITE,
             f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
