@@ -425,26 +425,6 @@ Gradient benchmarks: finite-difference checks and gradient quality (magnitude, d
 
 ::: {.callout-note collapse='true' title='Settings'}
 
-**Differentiability Table**
-
-```json
-{
-  "ic": {
-    "name": "tgv",
-    "seed": 0
-  },
-  "physics": {
-    "N": 16,
-    "nu": 0.01,
-    "dt": 0.05,
-    "steps": 5
-  },
-  "fd": {
-    "eps": 0.001
-  }
-}
-```
-
 **Fd Check**
 
 ```json
@@ -774,37 +754,6 @@ Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
 ![](../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png){.lightbox}
 ![](../mosaic-results/ns-grid/gradient/horizon_sweep/ucurves.png){.lightbox}
 ![](../mosaic-results/ns-grid/gradient/horizon_sweep/best_eps_vs_steps.png){.lightbox}
-
-### Differentiability Table
-
-Differentiability table: FD check for all array inputs (v0, viscosity, dt) and all outputs w.r.t. IC.
-
-Heatmap of differentiability status (ok/fail/not_differentiable) for all (solver, field) pairs.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-```json
-{
-  "ic": {
-    "name": "tgv",
-    "seed": 0
-  },
-  "physics": {
-    "N": 16,
-    "nu": 0.01,
-    "dt": 0.05,
-    "steps": 5
-  },
-  "fd": {
-    "eps": 0.001
-  }
-}
-```
-
-:::
-
-![](../mosaic-results/ns-grid/gradient/differentiability_table/differentiability_table.png){.lightbox}
 
 ### Jacobian Svd
 

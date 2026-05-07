@@ -19,6 +19,11 @@ import optax
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
+
+# JAX-traced loss_fn closures capture this reference at trace time;
+# using the tracer-aware wrapper ensures primitive binding sees the
+# active trace.
+from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
     _diff_solvers,
     _has_vjp,
@@ -31,14 +36,6 @@ from mosaic.benchmarks.core.utils import (
     save_gradient_fields_npz,
     save_json,
 )
-
-# Import apply_tesseract from the watchdog package rather than
-# tesseract_jax directly. JAX-traced loss_fn closures below capture this
-# reference at trace time; if we imported the upstream function, the
-# watchdog (installed by runner.py via safe_apply_with_extras) would never
-# reach the call that actually blocks. Re-binding the name here is what
-# makes the container-liveness deadline effective for gradient descent.
-from mosaic.benchmarks.core.watchdog import apply_tesseract
 
 _SUITE = "optimization"
 
@@ -1293,7 +1290,7 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         #   "recovery/drag_opt/<run_name>" > "drag_opt/<run_name>" >
         #   "optimization/drag_opt" > "drag_opt" > "optimization"
         # Pass the run-specific sub-key so per-run exclusions (e.g.
-        # "recovery/drag_opt/re100") are honoured at solver-selection time.
+        # "recovery/drag_opt/re20") are honoured at solver-selection time.
         _drag_exp = f"drag_opt/{run_name}" if run_name else "drag_opt"
         drag_opt_solvers = _diff_solvers(cfg, "optimization", _drag_exp)
         run_with_gpu_pool(
@@ -1978,9 +1975,7 @@ _EXPERIMENTS = {
     "drag_opt": run_drag_opt,
     "drag_opt_bfgs": run_drag_opt_bfgs,
     "drag_opt/re20": run_drag_opt,
-    "drag_opt/re100": run_drag_opt,
     "drag_opt_bfgs/re20": run_drag_opt_bfgs,
-    "drag_opt_bfgs/re100": run_drag_opt_bfgs,
 }
 
 

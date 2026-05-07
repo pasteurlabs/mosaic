@@ -21,6 +21,7 @@ def make_build_progress() -> Progress:
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
         console=console,
+        disable=not console.is_terminal,
     )
 
 
@@ -40,6 +41,7 @@ def make_sweep_progress(total: int) -> Progress:
         MofNCompleteColumn(),
         TimeElapsedColumn(),
         console=console,
+        disable=not console.is_terminal,
     )
 
 

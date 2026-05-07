@@ -27,7 +27,7 @@ pip install -e ".[dev]"
 
 ## Evaluation protocol
 
-Suites (`--suites`): `forward` (`baseline`, `agreement`, `physical_laws`), `cost` (`spatial_cost`, `temporal_cost`, `vjp_cost`), `gradient` (`fd_check`, `param_sweep`, `horizon_sweep`, `jacobian_svd`, `differentiability_table`), `optimization` (`topopt`, `drag_opt`, `recovery`).
+Suites (`--suites`): `forward` (`baseline`, `agreement`, `physical_laws`), `cost` (`spatial_cost`, `temporal_cost`, `vjp_cost`), `gradient` (`fd_check`, `param_sweep`, `horizon_sweep`, `jacobian_svd`), `optimization` (`topopt`, `drag_opt`, `recovery`).
 
 Results land in `mosaic-results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF plots.
 

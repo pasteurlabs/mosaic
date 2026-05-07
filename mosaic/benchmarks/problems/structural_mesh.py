@@ -744,30 +744,6 @@ CONFIG = ProblemConfig(
                 )
             ],
         ),
-        "differentiability_table": dict(
-            description="FD differentiability check for all array inputs and outputs.",
-            plot_description=(
-                "Differentiability table: status (ok/fail/not_differentiable) and relative FD error "
-                "for each (input field, output field) pair. rho is the primary differentiable input; "
-                "hex_mesh and boundary_conditions are non-differentiable structs."
-            ),
-            runs=[
-                dict(
-                    ic=dict(name="random", seed=0),
-                    physics=dict(
-                        nx=4,
-                        ny=2,
-                        nz=2,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                    ),
-                    fd=dict(eps=1e-3, n_dirs=1),
-                )
-            ],
-        ),
     },
     inverse_defaults={
         "topopt": dict(
