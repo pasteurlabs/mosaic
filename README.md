@@ -36,9 +36,8 @@ git clone https://github.com/pasteurlabs/mosaic && cd mosaic
 uv sync              # uv (recommended)
 pip install -e .     # pip
 
-# Download the paper's benchmark results
-wget -qO- https://github.com/pasteurlabs/mosaic/releases/download/v1.0.0/benchmark-results.tar.gz \
-  | tar xz            # creates mosaic-results/
+# Download the paper's benchmark results (Zenodo: https://zenodo.org/records/20067888, ~443 MB)
+wget -qO- 'https://zenodo.org/records/20067888/files/mosaic-results.tar?download=1' | tar x
 
 # Regenerate per-suite plots (PNG/PDF alongside each result.json)
 mosaic run --plots-only
