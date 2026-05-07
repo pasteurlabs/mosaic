@@ -220,19 +220,16 @@ def _plot_best_eps_overlay(
     """All solvers overlaid: best-ε rel_error_mean vs x_keys."""
     fig, ax = plt.subplots(figsize=(7, 4))
 
+    def _best_re(eps_sweep: dict) -> float:
+        finite = [
+            v for v in (e["rel_error_mean"] for e in eps_sweep.values())
+            if np.isfinite(v)
+        ]
+        return float(min(finite)) if finite else float("nan")
+
     for name, results in by_solver.items():
         xs = [x_to_float(k) for k in x_keys]
-        best_re = [
-            float(
-                np.nanmin(
-                    [
-                        results[k]["eps_sweep"][e]["rel_error_mean"]
-                        for e in results[k]["eps_sweep"]
-                    ]
-                )
-            )
-            for k in x_keys
-        ]
+        best_re = [_best_re(results[k]["eps_sweep"]) for k in x_keys]
 
         pairs = [(x, v) for x, v in zip(xs, best_re) if np.isfinite(v)]
         if not pairs:

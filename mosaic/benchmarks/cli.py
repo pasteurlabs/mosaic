@@ -212,12 +212,19 @@ def _filter_solvers(cfg, tags: dict, solvers_csv: str | None):
     return cfg, filtered_tags
 
 
-def _plots_only(cfg, to_run, plot_fns, verbose_errors: bool = False):
+def _plots_only(cfg, to_run, plot_fns, suite: str, verbose_errors: bool = False):
     if plot_fns is None:
         console.print("No plot functions registered for this suite.")
         return
     print_rule("plots")
-    names = to_run or list(plot_fns)
+    if to_run:
+        names = to_run
+    else:
+        # Default: only attempt plots for experiments actually configured for
+        # this cfg+suite (avoids noisy [SKIP]s for variants that belong to a
+        # different problem, e.g. stokes-only jacobian_svd_mu* on ns-3d-grid).
+        configured = set(cfg._suite_defaults(suite).keys())
+        names = [n for n in plot_fns if n in configured]
     for name in names:
         if name not in plot_fns:
             print_skip(f"no plot function for '{name}'")
@@ -397,7 +404,9 @@ def run(
             try:
                 exps, plot_fns_fn = _suite_components(suite, cfg=cfg)
                 if plots_only:
-                    _plots_only(cfg, to_run, plot_fns_fn(), verbose_errors=traceback)
+                    _plots_only(
+                        cfg, to_run, plot_fns_fn(), suite, verbose_errors=traceback
+                    )
                     run_status[(problem, suite)] = ("ok", "plots-only")
                     continue
                 _overrides: dict = {}
