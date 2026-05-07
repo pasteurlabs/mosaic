@@ -42,6 +42,11 @@ def _field_grid_kw(cfg) -> dict:
     return {"cmap": cfg.field_cmap, "symmetric": cfg.field_symmetric}
 
 
+def _is_field(arr: np.ndarray) -> bool:
+    """True if *arr* is a plottable field (at least 2-D and not a scalar stub)."""
+    return arr.ndim >= 2
+
+
 _SUITE = "forward"
 
 
@@ -172,7 +177,7 @@ def plot_agreement(
     for name in solver_names:
         for i, val in enumerate(sweep_vals):
             key_s = f"{name}_{i}"
-            if key_s not in npz:
+            if key_s not in npz or not _is_field(npz[key_s]):
                 continue
             label = f"{styles.get(name, {}).get('label', name)}\n{sweep_key}={val:.3g}"
             raw_panels.append((label, f2d(npz[key_s])))
@@ -194,6 +199,8 @@ def plot_agreement(
             key_s = f"{name}_{i}"
             key_c = f"consensus_{i}"
             if key_s not in npz or key_c not in npz:
+                continue
+            if not _is_field(npz[key_s]) or not _is_field(npz[key_c]):
                 continue
             err = f2d(npz[key_s]) - f2d(npz[key_c])
             label = f"{styles.get(name, {}).get('label', name)}\n{sweep_key}={val:.3g}"
@@ -268,7 +275,7 @@ def plot_agreement(
         key_c = f"consensus_{i}"
         for j, name in enumerate(solver_names):
             key_s = f"{name}_{i}"
-            if key_s not in npz:
+            if key_s not in npz or not _is_field(npz[key_s]):
                 continue
             k, Pk = ps_fn(npz[key_s], domain_extent=cfg.domain_extent)
             style = styles.get(name, {})
@@ -334,7 +341,7 @@ def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     panels = [
         (f"N={N}", f2d(npz[f"f_{k}"]))
         for k, N in enumerate(N_values)
-        if f"f_{k}" in npz
+        if f"f_{k}" in npz and _is_field(npz[f"f_{k}"])
     ]
     if panels:
         fig_fld = field_grid(
@@ -514,7 +521,7 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
                 panels = [
                     (styles.get(n, {}).get("label", n), f2d(npz[f"f_{i}_{j}"]))
                     for j, n in enumerate(solver_names)
-                    if f"f_{i}_{j}" in npz
+                    if f"f_{i}_{j}" in npz and _is_field(npz[f"f_{i}_{j}"])
                 ]
                 if panels:
                     stem = "fields_" + re.sub(r"[ /]", "_", re.sub(r"[()=]", "", lbl))
@@ -839,7 +846,7 @@ def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     raw = [
         (n, styles.get(n, {}).get("label", n), npz[f"f_{j}"])
         for j, n in enumerate(solver_names)
-        if f"f_{j}" in npz
+        if f"f_{j}" in npz and _is_field(npz[f"f_{j}"])
     ]
     if raw:
         f2d = _field_to_2d(cfg)

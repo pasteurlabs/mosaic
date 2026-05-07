@@ -440,6 +440,9 @@ def run_with_gpu_pool(
     no GPU flags — for --gpus none / CPU-only hosts).
     When gpu_ids is given (non-empty), runs solvers in parallel; each container
     is pinned to a GPU from the pool (wraps round-robin if #solvers > #GPUs).
+
+    Solvers whose image tag is missing from *tags* (e.g. because the build
+    failed) are skipped with a warning.
     """
     # --no-healthcheck prevents Azure's c3-progenitor from killing containers
     # that are mid-computation when the health probe fires (~4 s interval).
@@ -448,6 +451,15 @@ def run_with_gpu_pool(
     # (use: docker ps -q --filter label=mosaic-problem=<name>).
     _problem_label = _current_problem or "mosaic"
     _NO_HC = ["--no-healthcheck", "--label", f"mosaic-problem={_problem_label}"]
+
+    # Filter out solvers with no built image.
+    missing = [n for n in solver_names if n not in tags]
+    if missing:
+        print_warn(
+            f"skipping {len(missing)} solver(s) with no built image: "
+            f"{', '.join(missing)}"
+        )
+    solver_names = [n for n in solver_names if n in tags]
 
     if gpu_ids is None or gpu_ids == []:
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])
