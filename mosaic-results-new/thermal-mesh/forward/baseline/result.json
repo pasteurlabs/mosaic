@@ -1,0 +1,234 @@
+{
+  "by_param": {
+    "2": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "3": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "4": {
+      "jax_fem": {
+        "error": 1.1707336769065277e+31,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 1.1707336769065277e+31,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 1.1707336769065277e+31,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 1.1707336769065277e+31,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 1.1707336769065277e+31,
+        "valid": true
+      }
+    },
+    "6": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 6.680672015590972e-08,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 2.0042016046772915e-07,
+        "valid": true
+      }
+    },
+    "8": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "12": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 4.009871759080852e-07,
+        "valid": true
+      }
+    },
+    "16": {
+      "jax_fem": {
+        "error": 6.215021386424269e-08,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 6.215021386424269e-08,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 6.215021386424269e-08,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 6.215021386424269e-08,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 6.215021386424269e-08,
+        "valid": true
+      }
+    },
+    "24": {
+      "jax_fem": {
+        "error": 6.945231234567473e-08,
+        "valid": true
+      },
+      "fenics_heat": {
+        "error": 6.945231234567473e-08,
+        "valid": true
+      },
+      "dealii_heat": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_heat": {
+        "error": 6.945231234567473e-08,
+        "valid": true
+      },
+      "torch_fem_thermal": {
+        "error": 9.028801173371903e-07,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "6": 7.790935541152066e-08,
+    "8": 0.0,
+    "12": 1.6039487604757596e-07,
+    "16": 0.0,
+    "24": 3.4137772786380083e-07
+  },
+  "sweep_key": "N",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "random",
+      "seed": 0
+    },
+    "physics": {
+      "nz": 1,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        2,
+        3,
+        4,
+        6,
+        8,
+        12,
+        16,
+        24
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "torch_fem_thermal": "2ee93574883182d1",
+    "firedrake_heat": "2350b99b2e6d5089",
+    "fenics_heat": "f6f97d9e6ad8769a",
+    "jax_fem": "57428ff8b7480089",
+    "dealii_heat": "edfc76c4a8c5d8c7"
+  },
+  "harness_hash": "a9e7977ebeef4a9d",
+  "harness_fn": "mosaic.benchmarks.suites.forward.run_agreement",
+  "wall_time_s": {
+    "jax_fem": 29.640191441983916,
+    "fenics_heat": 14.034864351036958,
+    "dealii_heat": 2.8484449919778854,
+    "firedrake_heat": 10.374998949933797,
+    "torch_fem_thermal": 4.221936170943081
+  }
+}

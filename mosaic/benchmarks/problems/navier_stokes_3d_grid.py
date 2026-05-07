@@ -738,32 +738,6 @@ CONFIG = ProblemConfig(
                 )
             ],
         ),
-        "differentiability_table": dict(
-            description="Differentiability table: FD check for v0 input w.r.t. output for all 3D solvers.",
-            plot_description=(
-                "Heatmap of differentiability status for all (solver, input) pairs in 3D. "
-                "Production results (N=8, ν=0.01, dt=0.05, steps=5, ε=1e-3, 5 solvers): "
-                "exponax fully differentiable — v0 OK (rel_err=0.018), viscosity OK (1e-4), dt OK (1.5e-3), drag OK (0.001); "
-                "ins_jl: v0 FAIL (rel_err=0.084 — N=8 resolution artifact; fd_check at N=16 gives cosine=0.9999), "
-                "viscosity FAIL (rel_err=1.0 — zero VJP w.r.t. viscosity), dt OK (0.001); "
-                "xlb: v0 FAIL (rel_err=0.165 — gradient wrong at N=8; xlb VJP passes fd_check at N=16), "
-                "viscosity ERROR (500 from server), dt ERROR; "
-                "warp_ns: v0 FAIL (rel_err=0.227), viscosity FAIL (rel_err=1.0), dt FAIL (rel_err=1.0). "
-                "phiflow: v0 FAIL (rel_err=0.116 — semi-Lagrangian at N=8 coarse grid, similar artifact to xlb/ins_jl), "
-                "viscosity OK (rel_err=5e-5 — excellent gradient), dt OK (rel_err=2e-5 — excellent). "
-                "Summary: exponax fully differentiable (best); phiflow differentiable for viscosity/dt but not v0 at N=8; "
-                "ins_jl missing viscosity gradient (N=8 coarseness masks v0 gradient); "
-                "xlb v0 gradient correct at N=16 but wrong at N=8 coarse grid; warp_ns VJP broken for all inputs. "
-                "v0 gradient failures at N=8 are resolution artifacts (coarse LBM/FD/semi-Lagrangian); N=16 fd_check confirms all solvers except warp_ns have correct v0 gradients."
-            ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=8, nu=0.01, dt=0.05, steps=5),
-                    fd=dict(eps=1e-3),
-                )
-            ],
-        ),
     },
     inverse_defaults={
         "recovery_constant_ic": dict(

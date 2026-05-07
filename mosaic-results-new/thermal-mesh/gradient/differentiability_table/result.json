@@ -1,0 +1,159 @@
+{
+  "by_solver": {
+    "jax_fem": {
+      "input/rho": {
+        "status": "ok",
+        "rel_error": 4.631938316948058e-05
+      },
+      "input/source": {
+        "status": "ok",
+        "rel_error": 0.0003463338803692574
+      },
+      "input/target_temperature": {
+        "status": "error",
+        "error": "Non-symbolic-zero tangent provided for non-differentiable input 'target_temperature'. If this input should be differenti"
+      },
+      "input/hex_mesh": {
+        "status": "not_differentiable"
+      },
+      "input/boundary_conditions": {
+        "status": "not_differentiable"
+      },
+      "output/identification_error": {
+        "status": "harness_opaque"
+      },
+      "output/thermal_compliance": {
+        "status": "harness_opaque"
+      }
+    },
+    "fenics_heat": {
+      "input/rho": {
+        "status": "ok",
+        "rel_error": 4.631938316948058e-05
+      },
+      "input/source": {
+        "status": "ok",
+        "rel_error": 0.0003463338803692574
+      },
+      "input/target_temperature": {
+        "status": "error",
+        "error": "Non-symbolic-zero tangent provided for non-differentiable input 'target_temperature'. If this input should be differenti"
+      },
+      "input/hex_mesh": {
+        "status": "not_differentiable"
+      },
+      "input/boundary_conditions": {
+        "status": "not_differentiable"
+      },
+      "input/k_max": {
+        "status": "not_differentiable"
+      },
+      "input/p_exp": {
+        "status": "not_differentiable"
+      },
+      "output/identification_error": {
+        "status": "harness_opaque"
+      },
+      "output/thermal_compliance": {
+        "status": "harness_opaque"
+      }
+    },
+    "firedrake_heat": {
+      "input/rho": {
+        "status": "ok",
+        "rel_error": 4.631938316948058e-05
+      },
+      "input/source": {
+        "status": "ok",
+        "rel_error": 0.0003463338803692574
+      },
+      "input/target_temperature": {
+        "status": "error",
+        "error": "Non-symbolic-zero tangent provided for non-differentiable input 'target_temperature'. If this input should be differenti"
+      },
+      "input/hex_mesh": {
+        "status": "not_differentiable"
+      },
+      "input/boundary_conditions": {
+        "status": "not_differentiable"
+      },
+      "input/k_max": {
+        "status": "not_differentiable"
+      },
+      "input/p_exp": {
+        "status": "not_differentiable"
+      },
+      "output/identification_error": {
+        "status": "harness_opaque"
+      },
+      "output/thermal_compliance": {
+        "status": "harness_opaque"
+      }
+    },
+    "torch_fem_thermal": {
+      "input/rho": {
+        "status": "ok",
+        "rel_error": 4.631938316948058e-05
+      },
+      "input/source": {
+        "status": "ok",
+        "rel_error": 0.0003463338803692574
+      },
+      "input/target_temperature": {
+        "status": "error",
+        "error": "Non-symbolic-zero tangent provided for non-differentiable input 'target_temperature'. If this input should be differenti"
+      },
+      "input/hex_mesh": {
+        "status": "not_differentiable"
+      },
+      "input/boundary_conditions": {
+        "status": "not_differentiable"
+      },
+      "input/k_max": {
+        "status": "not_differentiable"
+      },
+      "input/p_exp": {
+        "status": "not_differentiable"
+      },
+      "output/identification_error": {
+        "status": "harness_opaque"
+      },
+      "output/thermal_compliance": {
+        "status": "harness_opaque"
+      }
+    }
+  },
+  "params": {
+    "ic": {
+      "name": "random",
+      "seed": 0
+    },
+    "physics": {
+      "nx": 4,
+      "ny": 2,
+      "nz": 1,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0
+    },
+    "fd": {
+      "eps": 0.001,
+      "n_dirs": 1
+    }
+  },
+  "tesseract_hashes": {
+    "jax_fem": "57428ff8b7480089",
+    "torch_fem_thermal": "2ee93574883182d1",
+    "fenics_heat": "f6f97d9e6ad8769a",
+    "firedrake_heat": "2350b99b2e6d5089"
+  },
+  "harness_hash": "9810169d944e8e41",
+  "harness_fn": "mosaic.benchmarks.suites.gradient.run_differentiability_table",
+  "wall_time_s": {
+    "jax_fem": 12.83364809898194,
+    "fenics_heat": 24.92036648490466,
+    "firedrake_heat": 20.148822344024666,
+    "torch_fem_thermal": 4.915261173038743
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "by_param": {
+    "0.2": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "topopt_jl": {
+        "error": 0.005530686117708683,
+        "valid": true
+      },
+      "dealii_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_structural": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.4": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "topopt_jl": {
+        "error": 0.005530680529773235,
+        "valid": true
+      },
+      "dealii_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_structural": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.5": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "topopt_jl": {
+        "error": 0.005530667025595903,
+        "valid": true
+      },
+      "dealii_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_structural": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.7": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "topopt_jl": {
+        "error": 0.00553068146109581,
+        "valid": true
+      },
+      "dealii_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_structural": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.9": {
+      "jax_fem": {
+        "error": 0.0,
+        "valid": true
+      },
+      "topopt_jl": {
+        "error": 0.0055306716822087765,
+        "valid": true
+      },
+      "dealii_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "fenics_structural": {
+        "error": 0.0,
+        "valid": true
+      },
+      "firedrake_structural": {
+        "error": 0.0,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "0.2": 0.0022122743539512157,
+    "0.4": 0.002212272258475423,
+    "0.5": 0.002212266670539975,
+    "0.7": 0.00221227272413671,
+    "0.9": 0.0022122689988464117
+  },
+  "sweep_key": "rho_0",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "uniform",
+      "seed": 0
+    },
+    "physics": {
+      "nx": 8,
+      "ny": 2,
+      "nz": 4,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "F_total": 1.0,
+      "corner_load": false
+    },
+    "sweep": {
+      "key": "rho_0",
+      "values": [
+        0.2,
+        0.4,
+        0.5,
+        0.7,
+        0.9
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "firedrake_structural": "f3c927f09cdbd4f8",
+    "fenics_structural": "37fb93a57b0aeef5",
+    "dealii_structural": "067298662a260c47",
+    "jax_fem": "c4d160973de083a8",
+    "topopt_jl": "30b2830e1cb90029"
+  },
+  "harness_hash": "a9e7977ebeef4a9d",
+  "harness_fn": "mosaic.benchmarks.suites.forward.run_agreement",
+  "wall_time_s": {
+    "jax_fem": 5.746334566967562,
+    "topopt_jl": 29.592640497954562,
+    "dealii_structural": 9.846997975953855,
+    "fenics_structural": 19.803247311036102,
+    "firedrake_structural": 18.61814175406471
+  }
+}

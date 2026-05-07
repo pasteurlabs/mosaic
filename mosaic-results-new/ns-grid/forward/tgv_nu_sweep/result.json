@@ -1,0 +1,243 @@
+{
+  "by_param": {
+    "0.0001": {
+      "jax_cfd": {
+        "error": 0.004789900500327349,
+        "valid": true
+      },
+      "phiflow": {
+        "error": 0.0024074262473732233,
+        "valid": true
+      },
+      "ins_jl": {
+        "error": 0.0024074821267277002,
+        "valid": true
+      },
+      "openfoam": {
+        "error": 0.0064420136623084545,
+        "valid": true
+      },
+      "pict": {
+        "error": 0.0006557932938449085,
+        "valid": true
+      },
+      "xlb": {
+        "error": 0.026958683505654335,
+        "valid": true
+      },
+      "warp_ns": {
+        "error": 0.0006197799229994416,
+        "valid": true
+      }
+    },
+    "0.0005": {
+      "jax_cfd": {
+        "error": 0.004785517696291208,
+        "valid": true
+      },
+      "phiflow": {
+        "error": 0.00240684044547379,
+        "valid": true
+      },
+      "ins_jl": {
+        "error": 0.0024068234488368034,
+        "valid": true
+      },
+      "openfoam": {
+        "error": 0.005979865789413452,
+        "valid": true
+      },
+      "pict": {
+        "error": 0.0006484899204224348,
+        "valid": true
+      },
+      "xlb": {
+        "error": 0.02692132256925106,
+        "valid": true
+      },
+      "warp_ns": {
+        "error": 0.000618847378063947,
+        "valid": true
+      }
+    },
+    "0.001": {
+      "jax_cfd": {
+        "error": 0.004780176095664501,
+        "valid": true
+      },
+      "phiflow": {
+        "error": 0.002406120765954256,
+        "valid": true
+      },
+      "ins_jl": {
+        "error": 0.0024060287978500128,
+        "valid": true
+      },
+      "openfoam": {
+        "error": 0.005467766895890236,
+        "valid": true
+      },
+      "pict": {
+        "error": 0.0006398307159543037,
+        "valid": true
+      },
+      "xlb": {
+        "error": 0.026836449280381203,
+        "valid": true
+      },
+      "warp_ns": {
+        "error": 0.0006177144823595881,
+        "valid": true
+      }
+    },
+    "0.005": {
+      "jax_cfd": {
+        "error": 0.004739203490316868,
+        "valid": true
+      },
+      "phiflow": {
+        "error": 0.002402119804173708,
+        "valid": true
+      },
+      "ins_jl": {
+        "error": 0.002399632940068841,
+        "valid": true
+      },
+      "openfoam": {
+        "error": 0.003040629206225276,
+        "valid": true
+      },
+      "pict": {
+        "error": 0.0005890580359846354,
+        "valid": true
+      },
+      "xlb": {
+        "error": 0.026196245104074478,
+        "valid": true
+      },
+      "warp_ns": {
+        "error": 0.0006095845601521432,
+        "valid": true
+      }
+    },
+    "0.01": {
+      "jax_cfd": {
+        "error": 0.004691517911851406,
+        "valid": true
+      },
+      "phiflow": {
+        "error": 0.0024015905801206827,
+        "valid": true
+      },
+      "ins_jl": {
+        "error": 0.0023916244972497225,
+        "valid": true
+      },
+      "openfoam": {
+        "error": 0.001873291446827352,
+        "valid": true
+      },
+      "pict": {
+        "error": 0.0005860829842276871,
+        "valid": true
+      },
+      "xlb": {
+        "error": 0.02599168010056019,
+        "valid": true
+      },
+      "warp_ns": {
+        "error": 0.0006017496925778687,
+        "valid": true
+      }
+    },
+    "0.05": {
+      "jax_cfd": {
+        "error": 0.004407346714287996,
+        "valid": true
+      },
+      "phiflow": {
+        "error": 0.0025773602537810802,
+        "valid": true
+      },
+      "ins_jl": {
+        "error": 0.002327551366761327,
+        "valid": true
+      },
+      "openfoam": {
+        "error": 0.00047656730748713017,
+        "valid": true
+      },
+      "pict": {
+        "error": 0.002810623962432146,
+        "valid": true
+      },
+      "xlb": {
+        "error": 0.030895644798874855,
+        "valid": true
+      },
+      "warp_ns": {
+        "error": 0.0006526687648147345,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "0.0001": 0.008647897280752659,
+    "0.0005": 0.008636698126792908,
+    "0.001": 0.008612877689301968,
+    "0.005": 0.008467527106404305,
+    "0.01": 0.008460977114737034,
+    "0.05": 0.01011467445641756
+  },
+  "sweep_key": "nu",
+  "reference_label": "analytic",
+  "params": {
+    "ic": {
+      "name": "tgv",
+      "seed": 42
+    },
+    "physics": {
+      "N": 64,
+      "dt": 0.05,
+      "steps": 20
+    },
+    "sweep": {
+      "key": "nu",
+      "values": [
+        0.0001,
+        0.0005,
+        0.001,
+        0.005,
+        0.01,
+        0.05
+      ]
+    },
+    "fine": {
+      "solvers": [
+        "jax_cfd"
+      ],
+      "dt": 0.01,
+      "steps": 100
+    }
+  },
+  "tesseract_hashes": {
+    "phiflow": "52dd73797bb340f1",
+    "xlb": "81d9c57b12d682cf",
+    "pict": "865abb1e001f278c",
+    "warp_ns": "cd30649c97b7d97c",
+    "ins_jl": "2f476febd9b6f13d",
+    "jax_cfd": "e18927a6656a489d",
+    "openfoam": "275fcf99e9e6b08b"
+  },
+  "harness_hash": "a9e7977ebeef4a9d",
+  "harness_fn": "mosaic.benchmarks.suites.forward.run_agreement",
+  "wall_time_s": {
+    "jax_cfd": 9.828048539930023,
+    "phiflow": 22.530202765017748,
+    "ins_jl": 20.529497497947887,
+    "openfoam": 4.967485486995429,
+    "pict": 5.727906172978692,
+    "xlb": 4.34467190108262,
+    "warp_ns": 5.213786221109331
+  }
+}

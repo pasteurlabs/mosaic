@@ -1,0 +1,26 @@
+{
+  "ic": {
+    "name": "gaussian_source"
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "ic_field": "source"
+  },
+  "sweep": {
+    "key": "amplitude",
+    "values": [
+      0.1,
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ]
+  }
+}

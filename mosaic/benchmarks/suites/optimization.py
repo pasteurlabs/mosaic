@@ -32,13 +32,10 @@ from mosaic.benchmarks.core.utils import (
     save_json,
 )
 
-# Import apply_tesseract from the watchdog package rather than
-# tesseract_jax directly. JAX-traced loss_fn closures below capture this
-# reference at trace time; if we imported the upstream function, the
-# watchdog (installed by runner.py via safe_apply_with_extras) would never
-# reach the call that actually blocks. Re-binding the name here is what
-# makes the container-liveness deadline effective for gradient descent.
-from mosaic.benchmarks.core.watchdog import apply_tesseract
+# JAX-traced loss_fn closures capture this reference at trace time;
+# using the tracer-aware wrapper ensures primitive binding sees the
+# active trace.
+from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 
 _SUITE = "optimization"
 

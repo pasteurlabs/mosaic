@@ -1,0 +1,158 @@
+{
+  "by_param": {
+    "8": {
+      "exponax": {
+        "divergence_rms": 0.0009193833102472126,
+        "kinetic_energy": 0.11771081387996674,
+        "analytic_error": 0.04880514740943909
+      },
+      "phiflow": {
+        "divergence_rms": 0.000429314561188221,
+        "kinetic_energy": 0.08603508770465851,
+        "analytic_error": 0.15585002303123474
+      },
+      "xlb": {
+        "divergence_rms": 0.004396259784698486,
+        "kinetic_energy": 0.07719298452138901,
+        "analytic_error": 0.20052629709243774
+      },
+      "ins_jl": {
+        "divergence_rms": 0.00028408149955794215,
+        "kinetic_energy": 0.08598076552152634,
+        "analytic_error": 0.1557713896036148
+      },
+      "warp_ns": {
+        "divergence_rms": 0.0033212038688361645,
+        "kinetic_energy": 0.11807195097208023,
+        "analytic_error": 0.04466200992465019
+      },
+      "openfoam": {
+        "divergence_rms": 0.021257050335407257,
+        "kinetic_energy": 0.1178513765335083,
+        "analytic_error": 0.0486692450940609
+      },
+      "pict": {
+        "divergence_rms": 0.0028136414475739002,
+        "kinetic_energy": 0.11799218505620956,
+        "analytic_error": 0.03822539001703262
+      }
+    },
+    "16": {
+      "exponax": {
+        "divergence_rms": 0.0002962142461910844,
+        "kinetic_energy": 0.11771055310964584,
+        "analytic_error": 0.048805247992277145
+      },
+      "phiflow": {
+        "divergence_rms": 0.00032097959774546325,
+        "kinetic_energy": 0.10901729017496109,
+        "analytic_error": 0.06287399679422379
+      },
+      "xlb": {
+        "divergence_rms": 0.003848401829600334,
+        "kinetic_energy": 0.10811111330986023,
+        "analytic_error": 0.06684479117393494
+      },
+      "ins_jl": {
+        "divergence_rms": 0.0003078145382460207,
+        "kinetic_energy": 0.10898300260305405,
+        "analytic_error": 0.062457647174596786
+      },
+      "warp_ns": {
+        "divergence_rms": 0.0008704817155376077,
+        "kinetic_energy": 0.11781045794487,
+        "analytic_error": 0.047816503793001175
+      },
+      "openfoam": {
+        "divergence_rms": 0.01010345108807087,
+        "kinetic_energy": 0.11766106635332108,
+        "analytic_error": 0.047124795615673065
+      },
+      "pict": {
+        "divergence_rms": 0.0008193901157937944,
+        "kinetic_energy": 0.11777587234973907,
+        "analytic_error": 0.04584399238228798
+      }
+    },
+    "32": {
+      "exponax": {
+        "divergence_rms": 7.899765478214249e-05,
+        "kinetic_energy": 0.1177092045545578,
+        "analytic_error": 0.04880624637007713
+      },
+      "phiflow": {
+        "divergence_rms": 0.00010435528383823112,
+        "kinetic_energy": 0.11549200862646103,
+        "analytic_error": 0.05002160742878914
+      },
+      "xlb": {
+        "divergence_rms": 0.0037400207947939634,
+        "kinetic_energy": 0.11533969640731812,
+        "analytic_error": 0.050748731940984726
+      },
+      "ins_jl": {
+        "divergence_rms": 0.0001076097905752249,
+        "kinetic_energy": 0.11547581851482391,
+        "analytic_error": 0.04985443130135536
+      },
+      "warp_ns": {
+        "divergence_rms": 0.00022154606995172799,
+        "kinetic_energy": 0.11774300038814545,
+        "analytic_error": 0.04867621883749962
+      },
+      "openfoam": {
+        "divergence_rms": 0.0020754977595061064,
+        "kinetic_energy": 0.1176929771900177,
+        "analytic_error": 0.04804500937461853
+      },
+      "pict": {
+        "divergence_rms": 0.000205894946702756,
+        "kinetic_energy": 0.11772043257951736,
+        "analytic_error": 0.04798119515180588
+      }
+    }
+  },
+  "sweep_key": "N",
+  "params": {
+    "name": "vs_N",
+    "ic": {
+      "name": "tgv3d",
+      "seed": 0
+    },
+    "physics": {
+      "nu": 0.05,
+      "dt": 0.01,
+      "steps": 20,
+      "lbm_N_base": 16
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        8,
+        16,
+        32
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "exponax": "79d751cf65d55998",
+    "xlb": "81d9c57b12d682cf",
+    "pict": "22f97a934601d8e2",
+    "openfoam": "9c0d8de654862fda",
+    "warp_ns": "1231605635780d11",
+    "phiflow": "09823ad72fe29cc4",
+    "ins_jl": "2f476febd9b6f13d"
+  },
+  "harness_hash": "77dfb5d467aac2e6",
+  "harness_fn": "mosaic.benchmarks.suites.forward.run_physical_laws",
+  "wall_time_s": {
+    "exponax": 9.868746198015288,
+    "phiflow": 23.129235847038217,
+    "xlb": 4.4749759080586955,
+    "ins_jl": 25.92792784899939,
+    "warp_ns": 4.9449907400412485,
+    "openfoam": 4.319801795994863,
+    "pict": 2.229560279054567
+  },
+  "spread": {}
+}

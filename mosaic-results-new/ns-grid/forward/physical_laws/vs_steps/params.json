@@ -1,0 +1,22 @@
+{
+  "name": "vs_steps",
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "nu": 0.05,
+    "dt": 0.01,
+    "N": 64
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      5,
+      10,
+      20,
+      50,
+      100
+    ]
+  }
+}

@@ -304,6 +304,99 @@ def _generate_adam_proj(loaded, out_path: Path) -> None:
     print(f"Saved {out_path}")
 
 
+_MAIN_SUBSET = ["pict", "ins_jl", "xlb"]
+
+
+def _generate_main_subset(loaded, out_path: Path) -> None:
+    """Slim version for the main paper: only the top row (IC error, IC
+    divergence, optimisation loss) and only the ``_MAIN_SUBSET`` solvers."""
+    ref_npz = (loaded.get(_FIELD_METHOD) or list(loaded.values())[0])[1]
+    ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
+
+    fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.36))
+    fig.subplots_adjust(
+        left=0.07, right=0.98, top=0.86, bottom=0.36, wspace=0.30
+    )
+    ax_conv, ax_div, ax_loss = axes
+
+    seen_solvers: set[str] = set()
+
+    for key, (m_label, m_ls, _) in _methods().items():
+        if key == "adam_proj":
+            continue
+        if key not in loaded:
+            continue
+        result, npz = loaded[key]
+        by_sweep = result["by_sweep"]
+
+        for solver in _MAIN_SUBSET:
+            entry = by_sweep.get(solver, {}).get(_STEP_KEY)
+            if entry is None:
+                continue
+            hist = entry.get("ic_error_history")
+            if not hist:
+                continue
+            _, s_color, _, _ = solver_props(solver)
+            kw = dict(color=s_color, linestyle=m_ls, linewidth=1.4, alpha=0.9)
+
+            ax_conv.loglog(_snap_xs(len(hist)), list(hist), **kw)
+            seen_solvers.add(solver)
+
+            errors = entry.get("errors")
+            if errors:
+                ax_loss.loglog(_snap_xs(len(errors)), list(errors), **kw)
+
+            if npz is not None:
+                idx = _solver_idx(npz, solver)
+                if idx is not None:
+                    h = npz[f"ic_history_{idx}"]
+                    dys = [max(_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
+                    ax_div.loglog(_snap_xs(len(dys)), dys, **kw)
+
+    ax_conv.set_title("IC recovery error")
+    ax_conv.set_xlabel("Checkpoint")
+
+    if ic_true_div is not None:
+        ax_div.axhline(
+            ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0
+        )
+    ax_div.set_title("IC divergence")
+    ax_div.set_xlabel("Checkpoint")
+
+    ax_loss.set_title("Optimisation loss")
+    ax_loss.set_xlabel("Checkpoint")
+
+    method_handles = [
+        mlines.Line2D(
+            [],
+            [],
+            color="0.3",
+            linestyle=_methods()[k][1],
+            linewidth=1.4,
+            label=_methods()[k][0],
+        )
+        for k in _methods()
+        if k != "adam_proj"
+    ]
+    solver_handles = dedup_handles(
+        [make_handle(s) for s in _MAIN_SUBSET if s in seen_solvers]
+    )
+    fig.legend(
+        handles=method_handles + solver_handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.0),
+        ncol=6,
+        fontsize=7.0,
+        framealpha=0.8,
+        edgecolor="0.8",
+        handlelength=1.8,
+    )
+
+    fig.savefig(out_path)
+    plt.close(fig)
+    print(f"Saved {out_path}")
+
+
 def generate(out_dir: Path) -> None:
     loaded: dict[str, tuple] = {}
     for key, (*_, path) in _methods().items():
@@ -321,6 +414,7 @@ def generate(out_dir: Path) -> None:
     with plt.rc_context(RCPARAMS):
         _generate_overview(loaded, out_dir / "recovery_overview.pdf")
         _generate_adam_proj(loaded, out_dir / "recovery_adam_proj.pdf")
+        _generate_main_subset(loaded, out_dir / "recovery_main.pdf")
 
 
 if __name__ == "__main__":

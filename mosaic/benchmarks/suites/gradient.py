@@ -1,5 +1,4 @@
-"""Gradient evaluation suite: FD verification, parameter sweep, Jacobian SVD,
-differentiability table.
+"""Gradient evaluation suite: FD verification, parameter sweep, Jacobian SVD.
 
 Only runs solvers where SolverSpec.differentiable is True.
 """
@@ -27,10 +26,9 @@ from mosaic.benchmarks.core.utils import (
     save_gradient_fields_npz,
 )
 
-# JAX-traced closures capture this reference
-# at trace time, so we must import from the watchdog package to get the
-# container-liveness deadline into the call path.
-from mosaic.benchmarks.core.watchdog import apply_tesseract
+# JAX-traced closures capture this reference at trace time; using the
+# tracer-aware wrapper ensures primitive binding sees the active trace.
+from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 
 _SUITE = "gradient"
 
@@ -1213,224 +1211,6 @@ def run_jacobian_svd(
     return all_results
 
 
-# ── Differentiability table ───────────────────────────────────────────────────
-
-
-def run_differentiability_table(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
-) -> dict:
-    """Test differentiability of all array inputs and all outputs via FD check.
-
-    For each differentiable solver:
-      - Calls make_inputs to enumerate all inputs; array-valued inputs are tested,
-        scalar/integer inputs are marked "not_differentiable".
-      - For each array input x_i: computes jax.grad(sum(output_key) w.r.t. x_i
-        and verifies with one FD direction.  ε is scaled to x_i's magnitude.
-      - Performs a forward pass to enumerate all output fields; for each array
-        output o: computes jax.grad(sum(o)) w.r.t. cfg.ic_key and FD-checks.
-
-    Returns:
-        {"by_solver": {solver: {
-            "input/<field>": {"status": str, "rel_error": float|None},
-            "output/<field>": {"status": str, "rel_error": float|None},
-        }}}
-        where status ∈ {"ok", "fail", "not_differentiable", "error"}.
-        or {ic_name: <above>} when multiple runs are configured.
-    """
-    runs = cfg.gradient_defaults.get("differentiability_table", [])
-    if not runs:
-        raise NotImplementedError(
-            f"No 'differentiability_table' gradient_defaults configured for '{cfg.name}'"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        fd_cfg = run.get("fd", {})
-        eps = fd_cfg.get("eps", 1e-3)
-        phys = run.get("physics", {})
-        ic_subdir = ic_name if n_runs > 1 else ""
-
-        ic = cfg.make_ic[ic_name](seed=seed, L=cfg.domain_extent, **phys)
-
-        diff_solvers = _diff_solvers(cfg, "gradient", "differentiability_table")
-        results: dict = {}
-        _wall_times: dict[str, float] = {}
-        gpu_ids = overrides.get("gpu_ids")
-
-        def _diff_table_work(name: str, t) -> None:  # noqa: C901
-            color = cfg.solvers[name].color
-            t0 = time.perf_counter()
-            base_inputs = cfg.make_inputs(
-                name, ic, domain_extent=cfg.domain_extent, **phys
-            )
-            base_ic = jnp.array(base_inputs[cfg.ic_key])
-            ic_scale = float(jnp.sqrt(jnp.mean(base_ic**2) + 1e-30))
-            v_ic = _random_direction(base_ic.shape, jax.random.PRNGKey(seed))
-
-            field_results: dict = {}
-
-            # ── Input fields ──────────────────────────────────────────────────
-            for inp_key, inp_val in base_inputs.items():
-                label = f"input/{inp_key}"
-                # Accept both JAX and numpy float arrays; skip scalars, ints, structs.
-                _is_array = isinstance(inp_val, (jax.Array, np.ndarray))
-                _is_float = getattr(
-                    inp_val, "dtype", None
-                ) is not None and np.issubdtype(np.dtype(inp_val.dtype), np.floating)
-                if not (
-                    _is_array
-                    and _is_float
-                    and getattr(inp_val, "shape", ())
-                    and inp_val.shape
-                ):
-                    field_results[label] = {"status": "not_differentiable"}
-                    continue
-                try:
-                    x = jnp.array(inp_val)
-                    x_scale = float(jnp.sqrt(jnp.mean(x**2) + 1e-30))
-                    v = _random_direction(
-                        x.shape, jax.random.PRNGKey(seed + hash(inp_key) % 1000)
-                    )
-                    # Use max(x_scale, 1.0) to avoid absurdly small eps when the
-                    # parameter value is zero (which would amplify FP noise in FD).
-                    abs_eps = eps * max(x_scale, 1.0)
-
-                    def _loss(xi, _key=inp_key, _out=cfg.output_key):
-                        return jnp.sum(
-                            apply_tesseract(t, {**base_inputs, _key: xi})[_out] ** 2
-                        )
-
-                    g = jax.grad(_loss)(x)
-                    vjp_deriv = float(jnp.dot(g.ravel(), v.ravel()))
-                    fd_deriv = float(
-                        (_loss(x + abs_eps * v) - _loss(x - abs_eps * v))
-                        / (2 * abs_eps)
-                    )
-                    abs_tol = 1e-6
-                    if abs(vjp_deriv) < abs_tol and abs(fd_deriv) < abs_tol:
-                        # Both derivatives are numerically zero: gradient is
-                        # correctly zero; relative error is meaningless here.
-                        field_results[label] = {
-                            "status": "ok",
-                            "rel_error": 0.0,
-                            "note": "zero gradient (correctly)",
-                        }
-                    else:
-                        denom = max(abs(fd_deriv), abs(vjp_deriv), 1e-30)
-                        rel_error = abs(fd_deriv - vjp_deriv) / denom
-                        field_results[label] = {
-                            "status": "ok" if rel_error < 0.05 else "fail",
-                            "rel_error": float(rel_error),
-                        }
-                except Exception as exc:
-                    field_results[label] = {"status": "error", "error": str(exc)[:120]}
-
-            # ── Output fields ─────────────────────────────────────────────────
-            # Enumerate all outputs via a forward pass.
-            try:
-                out_dict = apply_tesseract(t, base_inputs)
-            except Exception as exc:
-                console.print(f"  [{color}]{name}[/] forward failed: {exc}")
-                results[name] = field_results
-                return
-
-            for out_key, out_val in out_dict.items():
-                label = f"output/{out_key}"
-                if not (
-                    isinstance(out_val, jax.Array)
-                    and hasattr(out_val, "shape")
-                    and out_val.shape
-                ):
-                    # apply_tesseract outside a JAX transformation returns numpy
-                    # arrays, not jax.Array.  This is a harness measurement
-                    # limitation, not evidence that the output is non-differentiable.
-                    field_results[label] = {"status": "harness_opaque"}
-                    continue
-                try:
-                    abs_eps = eps * ic_scale
-
-                    def _out_loss(ic_arr, _okey=out_key):
-                        return jnp.sum(
-                            apply_tesseract(t, {**base_inputs, cfg.ic_key: ic_arr})[
-                                _okey
-                            ]
-                        )
-
-                    g = jax.grad(_out_loss)(base_ic)
-                    vjp_deriv = float(jnp.dot(g.ravel(), v_ic.ravel()))
-                    fd_deriv = float(
-                        (
-                            _out_loss(base_ic + abs_eps * v_ic)
-                            - _out_loss(base_ic - abs_eps * v_ic)
-                        )
-                        / (2 * abs_eps)
-                    )
-                    abs_tol = 1e-6
-                    if abs(vjp_deriv) < abs_tol and abs(fd_deriv) < abs_tol:
-                        # Both derivatives are numerically zero: gradient is
-                        # correctly zero; relative error is meaningless here.
-                        field_results[label] = {
-                            "status": "ok",
-                            "rel_error": 0.0,
-                            "note": "zero gradient (correctly)",
-                        }
-                    else:
-                        denom = max(abs(fd_deriv), abs(vjp_deriv), 1e-30)
-                        rel_error = abs(fd_deriv - vjp_deriv) / denom
-                        field_results[label] = {
-                            "status": "ok" if rel_error < 0.05 else "fail",
-                            "rel_error": float(rel_error),
-                        }
-                except Exception as exc:
-                    field_results[label] = {"status": "error", "error": str(exc)[:120]}
-
-            results[name] = field_results
-            elapsed = time.perf_counter() - t0
-            _wall_times[name] = elapsed
-            console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-
-        run_with_gpu_pool(diff_solvers, tags, _diff_table_work, gpu_ids=gpu_ids)
-
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"differentiability_table/{ic_subdir}"
-            if ic_subdir
-            else "differentiability_table",
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        csv_rows = [
-            {
-                "solver": name,
-                "field": field,
-                "status": info.get("status"),
-                "rel_error": info.get("rel_error"),
-            }
-            for name, fields in results.items()
-            for field, info in fields.items()
-        ]
-        result = {"by_solver": results, "params": run}
-        save_experiment(
-            result,
-            out_dir,
-            csv_rows=csv_rows,
-            cfg=cfg,
-            harness_fn=run_differentiability_table,
-            wall_time_s=_wall_times,
-        )
-        if n_runs > 1:
-            all_results[ic_name] = result
-        else:
-            all_results = result
-
-    return all_results
-
-
 # ── run_all ───────────────────────────────────────────────────────────────────
 
 
@@ -1463,7 +1243,6 @@ _EXPERIMENTS = {
     "jacobian_svd_steps20": _jacobian_svd_variant("jacobian_svd_steps20"),
     "jacobian_svd_steps40": _jacobian_svd_variant("jacobian_svd_steps40"),
     "jacobian_svd_nu01": _jacobian_svd_variant("jacobian_svd_nu01"),
-    "differentiability_table": run_differentiability_table,
     # stokes-specific jacobian_svd variants (registered by stokes_grid problem config)
     "jacobian_svd_mu001": _jacobian_svd_variant("jacobian_svd_mu001"),
     "jacobian_svd_n16_mu001": _jacobian_svd_variant("jacobian_svd_n16_mu001"),
@@ -1478,7 +1257,6 @@ _EXPERIMENTS = {
 
 def _plot_fns() -> dict:
     from mosaic.benchmarks.plots.gradient import (
-        plot_differentiability_table,
         plot_fd_check,
         plot_horizon_sweep,
         plot_jacobian_svd,
@@ -1496,7 +1274,6 @@ def _plot_fns() -> dict:
         "jacobian_svd_steps20": _jsvd_plot("jacobian_svd_steps20"),
         "jacobian_svd_steps40": _jsvd_plot("jacobian_svd_steps40"),
         "jacobian_svd_nu01": _jsvd_plot("jacobian_svd_nu01"),
-        "differentiability_table": plot_differentiability_table,
         "source_fd_check": lambda cfg, **kw: plot_fd_check(
             cfg, exp_key="source_fd_check", **kw
         ),

@@ -218,14 +218,6 @@ def _reason_from_entry(entry: Any) -> str:
             v = entry.get(key)
             if isinstance(v, str) and v:
                 return v.strip().splitlines()[0][:160]
-        # differentiability_table style: per-input status dicts with errors.
-        errs = [
-            v.get("error")
-            for v in entry.values()
-            if isinstance(v, dict) and isinstance(v.get("error"), str)
-        ]
-        if errs:
-            return errs[0].strip().splitlines()[0][:160]
     return ""
 
 
@@ -767,50 +759,6 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
             )
 
 
-def _refine_differentiability_table(data: dict, cells: dict[str, Cell]) -> None:
-    """Per-solver status for differentiability_table.
-
-    Each solver entry is a dict of field_key → {"status": ..., "rel_error": ...}.
-    Statuses "ok" are successes; "fail"/"error" are failures; everything else
-    ("not_differentiable", "harness_opaque") is neutral.
-
-    Rules:
-      - no fail/error entries         → keep OK (or whatever _classify set)
-      - some fail/error, some ok      → ANOMALY
-      - all non-neutral entries fail  → FAILED
-    """
-    _BAD = {"fail", "error"}
-    _GOOD = {"ok"}
-    by_solver = data.get("by_solver", {})
-    if not isinstance(by_solver, dict):
-        return
-    for solver, entry in by_solver.items():
-        if solver not in cells:
-            continue
-        if not isinstance(entry, dict):
-            continue
-        n_good = sum(
-            1
-            for v in entry.values()
-            if isinstance(v, dict) and v.get("status") in _GOOD
-        )
-        n_bad = sum(
-            1 for v in entry.values() if isinstance(v, dict) and v.get("status") in _BAD
-        )
-        if n_bad == 0:
-            continue
-        bad_fields = [
-            k
-            for k, v in entry.items()
-            if isinstance(v, dict) and v.get("status") in _BAD
-        ]
-        reason = f"{n_bad} field(s) failed: {', '.join(bad_fields[:3])}"
-        if n_good > 0:
-            cells[solver] = Cell(ANOMALY, reason, stale=cells[solver].stale)
-        else:
-            cells[solver] = Cell(FAILED, reason, stale=cells[solver].stale)
-
-
 def _find_trajectory(entry: Any) -> list[float] | None:
     """Return the first list of floats named "errors"/"drags"/"loss" in entry."""
     if not isinstance(entry, dict):
@@ -987,11 +935,6 @@ def collect_status(
                     "source_fd_check",
                 ):
                     _refine_fd_check(data, row.cells, checks)
-                elif (
-                    suite == "gradient"
-                    and exp_label.split("/")[0] == "differentiability_table"
-                ):
-                    _refine_differentiability_table(data, row.cells)
                 elif suite == "optimization":
                     _refine_recovery(data, row.cells, checks)
 

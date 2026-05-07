@@ -1,0 +1,19 @@
+{
+  "ic": {
+    "name": "random",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 8,
+    "ny": 4,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0
+  },
+  "jacobian": {
+    "n_alphas": 21,
+    "alpha_range": 0.2
+  }
+}

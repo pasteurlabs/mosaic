@@ -1,0 +1,21 @@
+{
+  "name": "vs_N",
+  "ic": {
+    "name": "tgv3d",
+    "seed": 0
+  },
+  "physics": {
+    "nu": 0.05,
+    "dt": 0.01,
+    "steps": 20,
+    "lbm_N_base": 16
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      8,
+      16,
+      32
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "N": 16,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "hot_spot": true
+  },
+  "sweep": {
+    "key": "Q_total",
+    "values": [
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ]
+  }
+}

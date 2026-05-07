@@ -847,67 +847,9 @@ _DOMAIN_VARS: dict[str, list[str]] = {
     "thermal-mesh": ["rho", "source"],
 }
 
-# Maps result-directory problem names → tesseract problem names (many→one for NS)
-_DIFF_PROBLEM_MAP: dict[str, str] = {
-    "ns-3d-grid": "navier-stokes-grid",
-    "ns-grid": "navier-stokes-grid",
-    "structural-mesh": "structural-mesh",
-    "thermal-mesh": "thermal-mesh",
-}
-
-# Maps diff-table solver keys → tesseract solver directory names
-_DIFF_SOLVER_MAP: dict[str, str] = {
-    "exponax": "exponax",
-    "phiflow": "phiflow",
-    "xlb": "xlb",
-    "ins_jl": "incompressible-navier-stokes-jl",
-    "warp_ns": "warp-ns",
-    "pict": "pict",
-    "fenics_ns": "fenics-ns",
-    "jax_cfd": "jax-cfd",
-    "jax_fem": "jax-fem",
-    "fenics_heat": "fenics-heat",
-    "firedrake_heat": "firedrake-heat",
-    "dealii": "dealii",
-    "dealii_heat": "dealii-heat",
-    "topopt_jl": "topopt-jl",
-    "firedrake": "firedrake",
-    "fenics": "fenics",
-}
-
-
-def _load_diff_failures(results_root: Path) -> set[tuple[str, str, str]]:
-    """Return (tesseract_problem, tesseract_solver, var) triples with fail/error status."""
-    failures: set[tuple[str, str, str]] = set()
-    for result_dir, tesseract_problem in _DIFF_PROBLEM_MAP.items():
-        csv_path = (
-            results_root
-            / result_dir
-            / "gradient"
-            / "differentiability_table"
-            / "result.csv"
-        )
-        if not csv_path.exists():
-            continue
-        with open(csv_path) as f:
-            for row in csv.DictReader(f):
-                if row.get("status") not in ("fail", "error"):
-                    continue
-                field = row.get("field", "")
-                if not field.startswith("input/"):
-                    continue
-                var = field.removeprefix("input/")
-                solver_dir = _DIFF_SOLVER_MAP.get(row.get("solver", ""))
-                if solver_dir is None:
-                    continue
-                failures.add((tesseract_problem, solver_dir, var))
-    return failures
-
-
 def generate_latex_effort_table(
     results: list[SolverStats],
     scored: bool = False,
-    results_root: Path | None = None,
 ) -> str:
     """Return LaTeX source for the gradient effort table (one subtable per domain).
 

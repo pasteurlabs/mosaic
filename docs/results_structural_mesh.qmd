@@ -295,42 +295,6 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.6, 0.8}
 ![](../mosaic-results/structural-mesh/gradient/param_sweep/ucurves.png){.lightbox}
 ![](../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
 
-### Differentiability Table
-
-FD differentiability check for all array inputs and outputs.
-
-Differentiability table: status (ok/fail/not_differentiable) and relative FD error for each (input field, output field) pair. rho is the primary differentiable input; hex_mesh and boundary_conditions are non-differentiable structs.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-```json
-{
-  "ic": {
-    "name": "random",
-    "seed": 0
-  },
-  "physics": {
-    "nx": 4,
-    "ny": 2,
-    "nz": 2,
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "corner_load": true
-  },
-  "fd": {
-    "eps": 0.001,
-    "n_dirs": 1
-  }
-}
-```
-
-:::
-
-![](../mosaic-results/structural-mesh/gradient/differentiability_table/differentiability_table.png){.lightbox}
-
 ### Jacobian Svd
 
 Jacobian SVD and gradient subspace analysis at nominal mesh.

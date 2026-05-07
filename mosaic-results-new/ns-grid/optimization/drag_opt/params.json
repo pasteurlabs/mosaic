@@ -1,0 +1,30 @@
+{
+  "name": "re20",
+  "ic": {
+    "name": "flat_inflow",
+    "seed": 0
+  },
+  "physics": {
+    "N": 32,
+    "nu": 0.0025,
+    "dt": 0.02,
+    "steps": 400,
+    "domain_extent": 1.0,
+    "U_mean": 0.5,
+    "obstacle": {
+      "shape": "cylinder",
+      "center": [
+        0.5,
+        0.5
+      ],
+      "radius": 0.05
+    }
+  },
+  "optim": {
+    "lr": 0.0005,
+    "max_iters": 500,
+    "patience": 100,
+    "flow_penalty_weight": 50.0,
+    "snap_interval": 20
+  }
+}
