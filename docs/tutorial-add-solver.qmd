@@ -52,7 +52,7 @@ mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/
   tesseract_requirements.txt  # Python dependencies
 ```
 
-This is the only directory structure the framework requires. No Python registration step is needed --- the harness discovers solvers by scanning for `tesseract_config.yaml` files with a `mosaic:` block.
+This is the only directory structure the framework requires. No Python registration step is needed --- the harness discovers solvers by scanning for `tesseract_config.yaml` files with a `metadata.mosaic:` block.
 
 ## 3. Write `tesseract_config.yaml`
 
@@ -71,20 +71,21 @@ build_config:
   custom_build_steps:
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
 
-mosaic:
-  name: "My LBM"
-  backend: jax
-  family: lbm
-  scheme: "LBM BGK D2Q9"
-  color: "#CC6677"
-  linestyle: "--"
-  marker: "h"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
-  internal_dtype: float32
-  description: "D2Q9 BGK Lattice Boltzmann with JAX autodiff VJP."
-  doc_url: "https://github.com/yourname/my-lbm-solver"
+metadata:
+  mosaic:
+    name: "My LBM"
+    backend: jax
+    family: lbm
+    scheme: "LBM BGK D2Q9"
+    color: "#CC6677"
+    linestyle: "--"
+    marker: "h"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    description: "D2Q9 BGK Lattice Boltzmann with JAX autodiff VJP."
+    doc_url: "https://github.com/yourname/my-lbm-solver"
 ```
 
 Here is what each field means:
@@ -104,7 +105,7 @@ Here is what each field means:
 | `package_data` | Extra files to copy into the container (e.g. model weights). Usually `[]`. |
 | `custom_build_steps` | Extra `Dockerfile` directives run during the build. Useful for environment variables (e.g. XLA flags) or system packages (`RUN apt-get install ...`). |
 
-### `mosaic:` block
+### `metadata.mosaic:` block
 
 This is where Mosaic discovers your solver. Only `name` is strictly required; the rest have sensible defaults.
 
@@ -480,7 +481,7 @@ mosaic status -p ns-grid --format json > status.json
 
 If your solver does not appear in the status output, check:
 
-1. Your `tesseract_config.yaml` has a `mosaic:` block with at least a `name` field.
+1. Your `tesseract_config.yaml` has a `metadata.mosaic:` block with at least a `name` field.
 2. Your solver directory is under the correct domain path (`mosaic/tesseracts/navier-stokes-grid/`).
 3. The YAML is valid (`python -c "import yaml; yaml.safe_load(open('path/to/tesseract_config.yaml'))"` should not raise).
 
@@ -602,9 +603,9 @@ The complete set of files for a new solver is:
 
 ```
 mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/
-  tesseract_config.yaml       # mosaic: block for discovery + build config
+  tesseract_config.yaml       # metadata.mosaic: block for discovery + build config
   tesseract_api.py            # apply, abstract_eval, vector_jacobian_product
   tesseract_requirements.txt  # dependencies + ../../../mosaic_shared
 ```
 
-No other files need to be edited for basic operation. The benchmark harness discovers your solver automatically from the `mosaic:` block in `tesseract_config.yaml`. Domain-specific overrides (exclusions, input_overrides, explained_anomalies) are optional and go in the problem config only when needed.
+No other files need to be edited for basic operation. The benchmark harness discovers your solver automatically from the `metadata.mosaic:` block in `tesseract_config.yaml`. Domain-specific overrides (exclusions, input_overrides, explained_anomalies) are optional and go in the problem config only when needed.

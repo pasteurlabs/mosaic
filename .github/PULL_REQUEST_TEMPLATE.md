@@ -18,7 +18,7 @@
 
 ### For new solvers
 
-- [ ] `tesseract_config.yaml` has a `mosaic:` block with at least `name` and `backend`
+- [ ] `tesseract_config.yaml` has a `metadata.mosaic:` block with at least `name` and `backend`
 - [ ] `tesseract build mosaic/tesseracts/<domain>/<solver>` succeeds
 - [ ] `mosaic run -p <domain> --suites forward -s <solver> --debug` completes
 - [ ] `mosaic status -p <domain> -f` output pasted below

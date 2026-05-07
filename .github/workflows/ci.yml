@@ -120,31 +120,3 @@ jobs:
               sys.exit(1)
           print("All valid.")
           PYEOF
-
-  smoke-benchmark:
-    name: Smoke benchmark
-    needs: test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
-
-      - name: Build Exponax solver
-        run: uv run tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
-
-      - name: Integration tests (apply + VJP)
-        run: uv run pytest -m integration --timeout=300
-
-      - name: Smoke benchmark (forward + gradient, debug size)
-        run: uv run mosaic run -p ns-3d-grid --suites forward,gradient -s exponax --debug

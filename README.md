@@ -131,7 +131,7 @@ t = Tesseract.from_tesseract_api(
 outputs = t.apply(inputs)
 ```
 
-### Option B: Via container (supports `jax.grad`)
+### Option B: Via container (fully isolated)
 
 Works for every solver regardless of language. Build the image once, then use it from JAX:
 
@@ -206,24 +206,25 @@ A solver is three files in `mosaic/tesseracts/<domain>/<solver-name>/`:
 | File                         | Purpose                                                              |
 | :--------------------------- | :------------------------------------------------------------------- |
 | `tesseract_api.py`           | `apply`, `abstract_eval`, and (optionally) `vector_jacobian_product` |
-| `tesseract_config.yaml`      | Metadata with a `mosaic:` block for auto-discovery                   |
+| `tesseract_config.yaml`      | Metadata with a `metadata.mosaic:` block for auto-discovery          |
 | `tesseract_requirements.txt` | Python dependencies                                                  |
 
-The `mosaic:` block in the config is all the harness needs — no Python registration step:
+The `metadata.mosaic:` block in the config is all the harness needs — no Python registration step:
 
 ```yaml
 name: my-solver
 version: 0.1.0
 description: Short description.
 
-mosaic:
-  name: "My Solver"
-  backend: jax
-  scheme: "FEM HEX8"
-  color: "#1f77b4"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
+metadata:
+  mosaic:
+    name: "My Solver"
+    backend: jax
+    scheme: "FEM HEX8"
+    color: "#1f77b4"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
 ```
 
 Build, test, and run:

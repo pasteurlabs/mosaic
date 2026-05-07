@@ -405,18 +405,19 @@ description: |
   Spectral (FFT) solver for the 1-D diffusion equation.
   Exact in space; forward Euler in time. NumPy, CPU-only.
 
-mosaic:
-  name: "NumPy Spectral"
-  backend: numpy
-  family: spectral
-  scheme: "FFT + forward Euler"
-  color: "#4477AA"
-  marker: "o"
-  ad_strategy: null
-  differentiable: false
-  uses_gpu: false
-  internal_dtype: float64
-  description: "Spectral FFT solver with forward-Euler time stepping; NumPy CPU-only reference."
+metadata:
+  mosaic:
+    name: "NumPy Spectral"
+    backend: numpy
+    family: spectral
+    scheme: "FFT + forward Euler"
+    color: "#4477AA"
+    marker: "o"
+    ad_strategy: null
+    differentiable: false
+    uses_gpu: false
+    internal_dtype: float64
+    description: "Spectral FFT solver with forward-Euler time stepping; NumPy CPU-only reference."
 ```
 
 ::: {.callout-note}
