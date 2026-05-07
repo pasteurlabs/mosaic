@@ -28,7 +28,6 @@ _REGISTRY: dict[str, str] = {
     "ics": "mosaic.benchmarks.plots.paper.ics_figures",
     "jacobian_svd": "mosaic.benchmarks.plots.paper.jacobian_svd",
     "physical_accuracy": "mosaic.benchmarks.plots.paper.physical_accuracy",
-    "architecture": "mosaic.benchmarks.plots.paper.architecture",
     "domain_illustrations": "mosaic.benchmarks.plots.paper.domain_illustrations",
     "scaling": "mosaic.benchmarks.plots.paper.scaling",
     "horizon_sweep": "mosaic.benchmarks.plots.paper.horizon_sweep",

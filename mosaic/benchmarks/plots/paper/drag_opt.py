@@ -1,11 +1,11 @@
-"""Generate Figure: Drag optimisation for Re=20 and Re=100.
+"""Generate Figure: Drag optimisation at Re=20.
 
 Layout: 3-column figure
   col 0  — drag reduction (%) vs iteration  [spans full height]
   col 1  — final + initial inlet profiles   [spans full height]
   col 2  — profile evolution imshow         [3 rows, one per solver]
 
-Outputs: drag_opt_re20.pdf, drag_opt_re100.pdf
+Output: drag_opt_re20.pdf
 """
 
 from __future__ import annotations
@@ -196,7 +196,6 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
 def generate(out_dir: Path) -> None:
     with plt.rc_context(RCPARAMS):
         _plot_re("re20", out_dir)
-        _plot_re("re100", out_dir)
 
 
 if __name__ == "__main__":

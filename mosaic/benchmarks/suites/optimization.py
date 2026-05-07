@@ -1290,7 +1290,7 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         #   "recovery/drag_opt/<run_name>" > "drag_opt/<run_name>" >
         #   "optimization/drag_opt" > "drag_opt" > "optimization"
         # Pass the run-specific sub-key so per-run exclusions (e.g.
-        # "recovery/drag_opt/re100") are honoured at solver-selection time.
+        # "recovery/drag_opt/re20") are honoured at solver-selection time.
         _drag_exp = f"drag_opt/{run_name}" if run_name else "drag_opt"
         drag_opt_solvers = _diff_solvers(cfg, "optimization", _drag_exp)
         run_with_gpu_pool(
@@ -1975,9 +1975,7 @@ _EXPERIMENTS = {
     "drag_opt": run_drag_opt,
     "drag_opt_bfgs": run_drag_opt_bfgs,
     "drag_opt/re20": run_drag_opt,
-    "drag_opt/re100": run_drag_opt,
     "drag_opt_bfgs/re20": run_drag_opt_bfgs,
-    "drag_opt_bfgs/re100": run_drag_opt_bfgs,
 }
 
 

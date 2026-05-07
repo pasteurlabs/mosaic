@@ -246,7 +246,7 @@ def run(
         "--experiment",
         "-e",
         help="Experiment to run within each suite (default: all). "
-        "Use 'drag_opt/re100' for sub-run filtering.",
+        "Use 'drag_opt/re20' for sub-run filtering.",
     ),
     no_plots: bool = typer.Option(False, "--no-plots", help="Skip plot generation"),
     plots_only: bool = typer.Option(
@@ -319,7 +319,7 @@ def run(
         mosaic run -p ns-grid --suites forward
         mosaic run -p ns-grid --suites gradient -e fd_check
         mosaic run --plots-only
-        mosaic run -p thermal-mesh --suites optimization -e drag_opt/re100
+        mosaic run -p ns-grid --suites optimization -e drag_opt/re20
         mosaic run -o /tmp/bench-results -p ns-grid --suites forward
 
     Summary table legend:
@@ -417,7 +417,7 @@ def run(
                     valid = [ic for ic in requested if ic in cfg.make_ic]
                     if valid:
                         _overrides["ic_names"] = valid
-                # Sub-run path filtering (e.g. "drag_opt/re100").
+                # Sub-run path filtering (e.g. "drag_opt/re20").
                 if experiment != "all" and "/" in experiment:
                     _parts = experiment.split("/", 1)
                     _top, _sub = _parts[0], _parts[1]

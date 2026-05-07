@@ -40,6 +40,34 @@ VARIANT_STYLES = [
     {"color": "#EE7733", "linestyle": ":"},
 ]
 
+# Piecewise-log y-scale: normal log above this threshold, compressed log below.
+# Highlights the upper-spectrum behavior (where projection differences live)
+# while still showing the lower decades.
+_YSCALE_THRESHOLD = 1e-3
+_YSCALE_COMPRESS = 0.18
+
+
+def _piecewise_log_forward(y):
+    y = np.asarray(y, dtype=float)
+    log_thresh = np.log10(_YSCALE_THRESHOLD)
+    safe = np.where(y > 0, y, 1e-30)
+    log_y = np.log10(safe)
+    return np.where(
+        log_y >= log_thresh,
+        log_y,
+        log_thresh + _YSCALE_COMPRESS * (log_y - log_thresh),
+    )
+
+
+def _piecewise_log_inverse(t):
+    t = np.asarray(t, dtype=float)
+    log_thresh = np.log10(_YSCALE_THRESHOLD)
+    return np.where(
+        t >= log_thresh,
+        np.power(10.0, t),
+        np.power(10.0, log_thresh + (t - log_thresh) / _YSCALE_COMPRESS),
+    )
+
 
 def _variant_label(phys: dict) -> str:
     nu = phys["nu"]
@@ -87,7 +115,7 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
             vlabel = _variant_label(phys)
 
             mk = "o" if n <= 32 else ""
-            (line,) = ax.semilogy(
+            (line,) = ax.plot(
                 modes,
                 sv_norm[:n],
                 f"{mk}{vstyle['linestyle']}",
@@ -115,9 +143,18 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
 
         legend_built = True  # only collect handles from the first solver panel
 
+        ax.set_yscale(
+            "function",
+            functions=(_piecewise_log_forward, _piecewise_log_inverse),
+        )
         if np.isfinite(y_min_data) and y_min_data > 0:
             y_floor = 10 ** (np.floor(np.log10(y_min_data)) - 0.5)
             ax.set_ylim(bottom=y_floor, top=2.0)
+        # Faint divider at the scale-break to flag the change.
+        ax.axhline(
+            _YSCALE_THRESHOLD,
+            color="0.7", linestyle=":", linewidth=0.6, zorder=0,
+        )
 
         ax.set_title(label)
         ax.set_xlabel("Mode index $i$")  # hidden on non-bottom rows after subplots call
@@ -126,7 +163,10 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
         else:
             ax.set_ylabel("")
 
-        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+        ax.yaxis.set_major_locator(
+            mticker.FixedLocator([1.0, 1e-3, 1e-6, 1e-9])
+        )
+        ax.yaxis.set_major_formatter(mticker.LogFormatterSciNotation())
         ax.yaxis.set_minor_locator(mticker.NullLocator())
         ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=4, integer=True))
         ax.xaxis.set_minor_locator(mticker.NullLocator())

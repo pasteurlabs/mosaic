@@ -37,6 +37,12 @@ def _methods():
     }
 
 
+# See note in recovery_overview.py: optax L-BFGS averages ~3 grad evaluations
+# per outer iteration (zoom line search), Adam exactly 1.
+_GRAD_EVALS_PER_ITER: dict[str, int] = {"adam": 1, "bfgs": 3}
+_GRAD_EVAL_LABEL = "Gradient evaluations"
+
+
 def generate(out_dir: Path) -> None:
     loaded: dict[str, tuple] = {}
     for key, (*_, path) in _methods().items():
@@ -83,7 +89,8 @@ def generate(out_dir: Path) -> None:
                 if not errors:
                     continue
                 _, s_color, _, _ = solver_props(solver)
-                xs = list(range(1, len(errors) + 1))
+                f = _GRAD_EVALS_PER_ITER.get(key, 1)
+                xs = [(i + 1) * f for i in range(len(errors))]
                 ax_conv.loglog(
                     xs,
                     errors,
@@ -95,7 +102,7 @@ def generate(out_dir: Path) -> None:
                 seen_solvers.add(solver)
 
         ax_conv.set_title("Thermal conductivity recovery")
-        ax_conv.set_xlabel("Checkpoint")
+        ax_conv.set_xlabel(_GRAD_EVAL_LABEL)
         ax_conv.set_ylabel("Identification error")
 
         # ── Profile panels ────────────────────────────────────────────────

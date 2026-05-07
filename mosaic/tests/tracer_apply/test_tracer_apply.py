@@ -12,7 +12,7 @@ from __future__ import annotations
 import threading
 import unittest
 
-from mosaic.benchmarks.core import tesseract_apply
+from mosaic.benchmarks.core import tracer_apply
 from mosaic.benchmarks.core.exceptions import (
     ContainerDied,
     WatchdogError,
@@ -20,12 +20,12 @@ from mosaic.benchmarks.core.exceptions import (
 )
 
 
-class TesseractApplyTests(unittest.TestCase):
+class TracerApplyTests(unittest.TestCase):
     def test_happy_path(self) -> None:
         def _fake_apply(_t, inputs):
             return {"result": inputs["x"] * 2}
 
-        out = tesseract_apply.apply_tesseract(
+        out = tracer_apply.apply_tesseract(
             None, {"x": 21}, _apply_fn=_fake_apply
         )
         self.assertEqual(out, {"result": 42})
@@ -38,7 +38,7 @@ class TesseractApplyTests(unittest.TestCase):
             raise _Custom("boom")
 
         with self.assertRaises(_Custom):
-            tesseract_apply.apply_tesseract(None, {}, _apply_fn=_raising_apply)
+            tracer_apply.apply_tesseract(None, {}, _apply_fn=_raising_apply)
 
     def test_tracer_input_runs_on_caller_thread(self) -> None:
         """When inputs carry a JAX tracer, apply_fn must run on the
@@ -54,7 +54,7 @@ class TesseractApplyTests(unittest.TestCase):
             return {"y": inputs["x"] * 2.0}
 
         def _loss(x):
-            out = tesseract_apply.apply_tesseract(
+            out = tracer_apply.apply_tesseract(
                 None, {"x": x}, _apply_fn=_recording_apply
             )
             return jnp.sum(out["y"] ** 2)
@@ -70,8 +70,8 @@ class TesseractApplyTests(unittest.TestCase):
             )
 
     def test_tracer_detection_false_for_plain_inputs(self) -> None:
-        self.assertFalse(tesseract_apply._inputs_contain_tracer({"x": 1.0}))
-        self.assertFalse(tesseract_apply._inputs_contain_tracer({}))
+        self.assertFalse(tracer_apply._inputs_contain_tracer({"x": 1.0}))
+        self.assertFalse(tracer_apply._inputs_contain_tracer({}))
 
     def test_timeout_aliases_are_timeout_error(self) -> None:
         """Backward-compat aliases must be catchable as TimeoutError."""

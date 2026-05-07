@@ -20,6 +20,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mosaic.benchmarks.core.utils import results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -29,16 +30,15 @@ from mosaic.benchmarks.plots.paper.style import (
     solver_props,
 )
 
-RESULTS = Path(__file__).parent.parent.parent / "results"
-BASE    = RESULTS / "ns-3d-grid" / "optimization"
 
-# method_key -> (label, linestyle, run_dir)
-METHODS: dict[str, tuple] = {
-    "adam":      ("Adam",        "-.",  BASE / "recovery_constant_ic"),
-    "adam_proj": ("Adam+proj",   ":",   BASE / "recovery_constant_ic_proj"),
-    "bfgs":      ("L-BFGS",      "--",  BASE / "recovery_constant_ic_bfgs"),
-    "bfgs_proj": ("L-BFGS+proj", "-",   BASE / "recovery_constant_ic_bfgs_proj"),
-}
+def _methods() -> dict[str, tuple]:
+    base = results_dir() / "ns-3d-grid" / "optimization"
+    return {
+        "adam": ("Adam", "-.", base / "recovery_constant_ic"),
+        "adam_proj": ("Adam+proj", ":", base / "recovery_constant_ic_proj"),
+        "bfgs": ("L-BFGS", "--", base / "recovery_constant_ic_bfgs"),
+        "bfgs_proj": ("L-BFGS+proj", "-", base / "recovery_constant_ic_bfgs_proj"),
+    }
 
 # Adam: 1 grad eval / outer iter; optax L-BFGS averages ~3 (zoom line search).
 _GRAD_EVALS_PER_ITER: dict[str, int] = {
@@ -52,7 +52,7 @@ _FLOOR    = 1e-12
 
 def _load_results() -> dict[str, dict]:
     out: dict[str, dict] = {}
-    for key, (_, _, path) in METHODS.items():
+    for key, (_, _, path) in _methods().items():
         rp = path / "result.json"
         if not rp.exists():
             continue
@@ -69,8 +69,9 @@ def _series(entry: dict, field: str) -> list[float] | None:
 
 def _plot_panel(ax, results: dict[str, dict], field: str,
                 seen_solvers: set[str], seen_methods: set[str]) -> None:
+    methods = _methods()
     for key, result in results.items():
-        m_label, m_ls, _ = METHODS[key]
+        m_label, m_ls, _ = methods[key]
         by_sweep = result.get("by_sweep", {})
         f = _GRAD_EVALS_PER_ITER.get(key, 1)
         for solver in NS_ORDER:
@@ -110,11 +111,12 @@ def generate(out_dir: Path) -> None:
         ax_g.set_ylabel("max divergence")
         ax_u.set_title(r"IC divergence  $\max\,|\nabla\!\cdot u|$")
 
+        methods = _methods()
         method_handles = [
             mlines.Line2D([], [], color="0.3",
-                          linestyle=METHODS[k][1], linewidth=1.3,
-                          label=METHODS[k][0])
-            for k in METHODS if k in seen_methods
+                          linestyle=methods[k][1], linewidth=1.3,
+                          label=methods[k][0])
+            for k in methods if k in seen_methods
         ]
         solver_handles = dedup_handles(
             [make_handle(s) for s in NS_ORDER if s in seen_solvers]

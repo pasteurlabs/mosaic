@@ -150,7 +150,7 @@ def _run(  # mosaic:physics
     pressure projection). Raises NotImplementedError.
     """
     # Channel mode: obstacle present. Inflow may be either an explicit
-    # inflow_profile (drag_opt path) or derived from v0 (re20/re100-style).
+    # inflow_profile (drag_opt path) or derived from v0.
     if obstacle is not None:
         # v0 is (nx, ny, 1, 2) — squeeze z=1 dimension
         v0_2d = np.asarray(v0, dtype=np.float32)[:, :, 0, :]  # (N, N, 2)
@@ -251,7 +251,7 @@ def _vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     gradient w.r.t. the inflow column derived from v0[:, 0, 0, :] is computed.
     """
     # Channel mode VJP: obstacle present. Either inflow_profile (drag_opt)
-    # or v0-derived inflow (re20/re100).
+    # or v0-derived inflow.
     #
     # cotangent is a dict with keys "result" and/or "drag".  We pass both to
     # ns_vjp_channel_2d_drag_window so that Zygote can differentiate through
