@@ -45,7 +45,8 @@ def generate(out_dir: Path) -> None:
                 if sv not in sweep_data:
                     continue
                 label, color, ls, mk = SOLVER_STYLES.get(
-                    solver, (solver, "#888888", "-", "o"))
+                    solver, (solver, "#888888", "-", "o")
+                )
 
                 losses = sweep_data[sv]["losses"]
                 iters = list(range(len(losses)))
@@ -59,21 +60,27 @@ def generate(out_dir: Path) -> None:
                 ax.set_ylabel("Loss")
 
         handles = [
-            mlines.Line2D([], [],
-                          color=SOLVER_STYLES[s][1],
-                          linestyle=SOLVER_STYLES[s][2],
-                          linewidth=1.6,
-                          label=SOLVER_STYLES[s][0])
-            for s in SOLVER_ORDER if s in present
+            mlines.Line2D(
+                [],
+                [],
+                color=SOLVER_STYLES[s][1],
+                linestyle=SOLVER_STYLES[s][2],
+                linewidth=1.6,
+                label=SOLVER_STYLES[s][0],
+            )
+            for s in SOLVER_ORDER
+            if s in present
         ]
 
-        fig.legend(handles=handles,
-                   loc="lower center",
-                   bbox_to_anchor=(0.5, 0.01),
-                   ncol=3,
-                   fontsize=7.5,
-                   framealpha=0.7,
-                   handlelength=2.0)
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=3,
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
 
         out = out_dir / "lid_cavity_convergence.pdf"
         fig.savefig(out)

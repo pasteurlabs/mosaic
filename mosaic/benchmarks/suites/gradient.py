@@ -16,6 +16,10 @@ import numpy as np
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
+
+# JAX-traced closures capture this reference at trace time; using the
+# tracer-aware wrapper ensures primitive binding sees the active trace.
+from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
     _diff_solvers,
     experiment_dir,
@@ -25,10 +29,6 @@ from mosaic.benchmarks.core.utils import (
     save_experiment,
     save_gradient_fields_npz,
 )
-
-# JAX-traced closures capture this reference at trace time; using the
-# tracer-aware wrapper ensures primitive binding sees the active trace.
-from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 
 _SUITE = "gradient"
 

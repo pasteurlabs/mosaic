@@ -25,9 +25,7 @@ class TracerApplyTests(unittest.TestCase):
         def _fake_apply(_t, inputs):
             return {"result": inputs["x"] * 2}
 
-        out = tracer_apply.apply_tesseract(
-            None, {"x": 21}, _apply_fn=_fake_apply
-        )
+        out = tracer_apply.apply_tesseract(None, {"x": 21}, _apply_fn=_fake_apply)
         self.assertEqual(out, {"result": 42})
 
     def test_underlying_exception_propagates(self) -> None:

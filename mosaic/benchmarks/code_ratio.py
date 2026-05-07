@@ -847,6 +847,7 @@ _DOMAIN_VARS: dict[str, list[str]] = {
     "thermal-mesh": ["rho", "source"],
 }
 
+
 def generate_latex_effort_table(
     results: list[SolverStats],
     scored: bool = False,

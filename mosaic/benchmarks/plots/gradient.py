@@ -222,7 +222,8 @@ def _plot_best_eps_overlay(
 
     def _best_re(eps_sweep: dict) -> float:
         finite = [
-            v for v in (e["rel_error_mean"] for e in eps_sweep.values())
+            v
+            for v in (e["rel_error_mean"] for e in eps_sweep.values())
             if np.isfinite(v)
         ]
         return float(min(finite)) if finite else float("nan")

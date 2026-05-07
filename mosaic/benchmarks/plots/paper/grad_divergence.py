@@ -40,14 +40,18 @@ def _methods() -> dict[str, tuple]:
         "bfgs_proj": ("L-BFGS+proj", "-", base / "recovery_constant_ic_bfgs_proj"),
     }
 
+
 # Adam: 1 grad eval / outer iter; optax L-BFGS averages ~3 (zoom line search).
 _GRAD_EVALS_PER_ITER: dict[str, int] = {
-    "adam": 1, "adam_proj": 1, "bfgs": 3, "bfgs_proj": 3,
+    "adam": 1,
+    "adam_proj": 1,
+    "bfgs": 3,
+    "bfgs_proj": 3,
 }
 _GRAD_EVAL_LABEL = "Gradient evaluations"
 
 _STEP_KEY = "100"
-_FLOOR    = 1e-12
+_FLOOR = 1e-12
 
 
 def _load_results() -> dict[str, dict]:
@@ -67,8 +71,13 @@ def _series(entry: dict, field: str) -> list[float] | None:
     return [max(float(v), _FLOOR) for v in vals]
 
 
-def _plot_panel(ax, results: dict[str, dict], field: str,
-                seen_solvers: set[str], seen_methods: set[str]) -> None:
+def _plot_panel(
+    ax,
+    results: dict[str, dict],
+    field: str,
+    seen_solvers: set[str],
+    seen_methods: set[str],
+) -> None:
     methods = _methods()
     for key, result in results.items():
         m_label, m_ls, _ = methods[key]
@@ -81,9 +90,7 @@ def _plot_panel(ax, results: dict[str, dict], field: str,
                 continue
             _, color, _, _ = solver_props(solver)
             xs = np.array([(i + 1) * f for i in range(len(vals))])
-            ax.loglog(xs, vals,
-                      color=color, linestyle=m_ls,
-                      linewidth=1.3, alpha=0.9)
+            ax.loglog(xs, vals, color=color, linestyle=m_ls, linewidth=1.3, alpha=0.9)
             seen_solvers.add(solver)
             seen_methods.add(key)
     ax.set_xlabel(_GRAD_EVAL_LABEL)
@@ -96,16 +103,13 @@ def generate(out_dir: Path) -> None:
         return
 
     with plt.rc_context(RCPARAMS):
-        fig, (ax_g, ax_u) = plt.subplots(
-            1, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.42)
-        )
-        fig.subplots_adjust(left=0.09, right=0.98, top=0.90, bottom=0.32,
-                            wspace=0.30)
+        fig, (ax_g, ax_u) = plt.subplots(1, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.42))
+        fig.subplots_adjust(left=0.09, right=0.98, top=0.90, bottom=0.32, wspace=0.30)
 
         seen_solvers: set[str] = set()
         seen_methods: set[str] = set()
         _plot_panel(ax_g, results, "grad_divs", seen_solvers, seen_methods)
-        _plot_panel(ax_u, results, "ic_divs",   seen_solvers, seen_methods)
+        _plot_panel(ax_u, results, "ic_divs", seen_solvers, seen_methods)
 
         ax_g.set_title(r"Gradient divergence  $\max\,|\nabla\!\cdot g|$")
         ax_g.set_ylabel("max divergence")
@@ -113,10 +117,16 @@ def generate(out_dir: Path) -> None:
 
         methods = _methods()
         method_handles = [
-            mlines.Line2D([], [], color="0.3",
-                          linestyle=methods[k][1], linewidth=1.3,
-                          label=methods[k][0])
-            for k in methods if k in seen_methods
+            mlines.Line2D(
+                [],
+                [],
+                color="0.3",
+                linestyle=methods[k][1],
+                linewidth=1.3,
+                label=methods[k][0],
+            )
+            for k in methods
+            if k in seen_methods
         ]
         solver_handles = dedup_handles(
             [make_handle(s) for s in NS_ORDER if s in seen_solvers]
@@ -140,5 +150,4 @@ def generate(out_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    generate(Path(__file__).parent.parent.parent.parent.parent
-             / "paper" / "figures")
+    generate(Path(__file__).parent.parent.parent.parent.parent / "paper" / "figures")

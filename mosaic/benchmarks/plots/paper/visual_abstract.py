@@ -49,9 +49,7 @@ _RCPARAMS = {
 
 def _load_flow_data() -> dict | None:
     """Load flow fields and profiles from the drag_opt benchmark results."""
-    base = (
-        results_dir() / "ns-grid" / "optimization" / "drag_opt" / "re20"
-    )
+    base = results_dir() / "ns-grid" / "optimization" / "drag_opt" / "re20"
     flow_path = base / "flow_fields.npz"
     prof_path = base / "profiles.npz"
     if not flow_path.exists() or not prof_path.exists():
@@ -176,9 +174,7 @@ def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
         zorder=0,
     )
     ax.add_patch(
-        plt.Circle(
-            (0.33, 0.5), 0.06, fc="#2c3e50", ec="#1a252f", lw=1.0, zorder=3
-        )
+        plt.Circle((0.33, 0.5), 0.06, fc="#2c3e50", ec="#1a252f", lw=1.0, zorder=3)
     )
     wall_h = 0.015
     ax.add_patch(
@@ -200,20 +196,38 @@ def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
         x_tip = length
         x_tail = -0.01
         ax.plot(
-            [x_tail, x_tip], [y, y], color="black", lw=3.6,
-            solid_capstyle="butt", zorder=4,
+            [x_tail, x_tip],
+            [y, y],
+            color="black",
+            lw=3.6,
+            solid_capstyle="butt",
+            zorder=4,
         )
         ax.plot(
-            x_tip + 0.003, y, marker=">", color="black", ms=6.0,
-            markeredgewidth=0, zorder=4,
+            x_tip + 0.003,
+            y,
+            marker=">",
+            color="black",
+            ms=6.0,
+            markeredgewidth=0,
+            zorder=4,
         )
         ax.plot(
-            [x_tail, x_tip], [y, y], color=border_color, lw=3.2,
-            solid_capstyle="butt", zorder=5,
+            [x_tail, x_tip],
+            [y, y],
+            color=border_color,
+            lw=3.2,
+            solid_capstyle="butt",
+            zorder=5,
         )
         ax.plot(
-            x_tip + 0.003, y, marker=">", color=border_color, ms=5.5,
-            markeredgewidth=0, zorder=5,
+            x_tip + 0.003,
+            y,
+            marker=">",
+            color=border_color,
+            ms=5.5,
+            markeredgewidth=0,
+            zorder=5,
         )
 
     ax.set_xlim(-0.02, 1.0)
@@ -227,7 +241,14 @@ def _draw_backends(ax) -> None:
     ax.axis("off")
     _section_title(ax, "Solver backends")
     solvers = [
-        "PhiFlow", "XLB", "PICT", "FEniCS", "INS.jl", "OpenFOAM", "deal.II", "···",
+        "PhiFlow",
+        "XLB",
+        "PICT",
+        "FEniCS",
+        "INS.jl",
+        "OpenFOAM",
+        "deal.II",
+        "···",
     ]
     w, h = 0.72, 0.080
     n = len(solvers)
@@ -252,21 +273,53 @@ def _draw_interface(ax) -> None:
     tw, th = 0.84, 0.22
     ax.add_patch(
         FancyBboxPatch(
-            (tcx - tw / 2, tcy - th / 2), tw, th,
+            (tcx - tw / 2, tcy - th / 2),
+            tw,
+            th,
             boxstyle="round,pad=0.018",
-            facecolor=C["tess"], edgecolor=C["tess"],
-            alpha=0.92, lw=2.0, zorder=2,
+            facecolor=C["tess"],
+            edgecolor=C["tess"],
+            alpha=0.92,
+            lw=2.0,
+            zorder=2,
         )
     )
-    ax.text(tcx, tcy + 0.06, "Tesseract", fontsize=16, color="white",
-            ha="center", va="center", fontweight="bold", zorder=4,
-            fontfamily="monospace")
-    ax.text(tcx, tcy - 0.01, "apply(x) → y", fontsize=15, color="#85C1E9",
-            ha="center", va="center", zorder=4, fontfamily="monospace",
-            fontweight="medium")
-    ax.text(tcx, tcy - 0.08, "vjp(x, v) → g", fontsize=15, color="#F1948A",
-            ha="center", va="center", zorder=4, fontfamily="monospace",
-            fontweight="medium")
+    ax.text(
+        tcx,
+        tcy + 0.06,
+        "Tesseract",
+        fontsize=16,
+        color="white",
+        ha="center",
+        va="center",
+        fontweight="bold",
+        zorder=4,
+        fontfamily="monospace",
+    )
+    ax.text(
+        tcx,
+        tcy - 0.01,
+        "apply(x) → y",
+        fontsize=15,
+        color="#85C1E9",
+        ha="center",
+        va="center",
+        zorder=4,
+        fontfamily="monospace",
+        fontweight="medium",
+    )
+    ax.text(
+        tcx,
+        tcy - 0.08,
+        "vjp(x, v) → g",
+        fontsize=15,
+        color="#F1948A",
+        ha="center",
+        va="center",
+        zorder=4,
+        fontfamily="monospace",
+        fontweight="medium",
+    )
     _FWD_LABEL_FIG = (tcx + tw / 2 - 0.02, tcy - 0.01)
     _VJP_LABEL_FIG = (tcx + tw / 2 - 0.02, tcy - 0.08)
 
@@ -277,8 +330,15 @@ def _draw_tasks(ax, data) -> None:
     ax.axis("off")
     _section_title(ax, "Benchmark tasks")
     if data is None:
-        ax.text(0.5, 0.5, "(result data not available)", ha="center",
-                va="center", fontsize=12, color=C["muted"])
+        ax.text(
+            0.5,
+            0.5,
+            "(result data not available)",
+            ha="center",
+            va="center",
+            fontsize=12,
+            color=C["muted"],
+        )
         return
     iax_top = ax.inset_axes([0.02, 0.57, 0.96, 0.34])
     _draw_flow_panel(iax_top, data["flow_initial"], data["profile_initial"], C["fwd"])
@@ -286,16 +346,34 @@ def _draw_tasks(ax, data) -> None:
         sp.set_visible(True)
         sp.set_color(C["fwd"])
         sp.set_linewidth(2.0)
-    ax.text(0.50, 0.92, "forward solve", fontsize=13, color=C["fwd"],
-            ha="center", va="bottom", style="italic", zorder=10)
+    ax.text(
+        0.50,
+        0.92,
+        "forward solve",
+        fontsize=13,
+        color=C["fwd"],
+        ha="center",
+        va="bottom",
+        style="italic",
+        zorder=10,
+    )
     iax_bot = ax.inset_axes([0.02, 0.08, 0.96, 0.34])
     _draw_flow_panel(iax_bot, data["flow_final"], data["profile_final"], C["inv"])
     for sp in iax_bot.spines.values():
         sp.set_visible(True)
         sp.set_color(C["inv"])
         sp.set_linewidth(2.0)
-    ax.text(0.50, 0.43, "optimized inflow (via gradient)", fontsize=13,
-            color=C["inv"], ha="center", va="bottom", style="italic", zorder=10)
+    ax.text(
+        0.50,
+        0.43,
+        "optimized inflow (via gradient)",
+        fontsize=13,
+        color=C["inv"],
+        ha="center",
+        va="bottom",
+        style="italic",
+        zorder=10,
+    )
 
 
 def _draw_results(ax) -> None:
@@ -334,19 +412,43 @@ def _draw_results(ax) -> None:
     hdr_y = hy - header_h / 2
     for j, hdr in enumerate(col_headers):
         cx = hx + sum(col_w[1 : j + 1]) + col_w[j + 1] / 2
-        ax.text(cx, hdr_y, hdr, fontsize=10, fontweight="bold",
-                color=C["text"], ha="center", va="center")
+        ax.text(
+            cx,
+            hdr_y,
+            hdr,
+            fontsize=10,
+            fontweight="bold",
+            color=C["text"],
+            ha="center",
+            va="center",
+        )
     rule_y = hy - header_h
     ax.plot([x0, x0 + tw], [rule_y, rule_y], color=C["text"], lw=0.8)
     for i, solver in enumerate(solvers):
         ry = rule_y - (i + 0.5) * row_h
-        ax.text(x0 + 0.02, ry, solver, fontsize=10, color=C["text"],
-                ha="left", va="center", fontfamily="monospace")
+        ax.text(
+            x0 + 0.02,
+            ry,
+            solver,
+            fontsize=10,
+            color=C["text"],
+            ha="left",
+            va="center",
+            fontfamily="monospace",
+        )
         for j, glyph in enumerate(cell_data[i]):
             cx = hx + sum(col_w[1 : j + 1]) + col_w[j + 1] / 2
             symbol, color = sym[glyph]
-            ax.text(cx, ry, symbol, fontsize=11, color=color,
-                    ha="center", va="center", zorder=2)
+            ax.text(
+                cx,
+                ry,
+                symbol,
+                fontsize=11,
+                color=color,
+                ha="center",
+                va="center",
+                zorder=2,
+            )
     bot_y = rule_y - n_rows * row_h
     ax.plot([x0, x0 + tw], [bot_y, bot_y], color=C["text"], lw=1.6)
 
@@ -389,8 +491,12 @@ def generate(out_dir: Path) -> None:
             fwd_dst = ax_tasks.transData.transform((0.0, 0.71))
             fwd_dst_fig = fig.transFigure.inverted().transform(fwd_dst)
             _colored_arrow(
-                fig, fwd_src_fig[0], fwd_src_fig[1],
-                fwd_dst_fig[0], fwd_dst_fig[1], C["fwd"],
+                fig,
+                fwd_src_fig[0],
+                fwd_src_fig[1],
+                fwd_dst_fig[0],
+                fwd_dst_fig[1],
+                C["fwd"],
             )
 
         if _VJP_LABEL_FIG is not None:
@@ -399,14 +505,20 @@ def generate(out_dir: Path) -> None:
             vjp_dst = ax_tasks.transData.transform((0.0, 0.24))
             vjp_dst_fig = fig.transFigure.inverted().transform(vjp_dst)
             _colored_arrow(
-                fig, vjp_src_fig[0], vjp_src_fig[1],
-                vjp_dst_fig[0], vjp_dst_fig[1], C["inv"],
+                fig,
+                vjp_src_fig[0],
+                vjp_src_fig[1],
+                vjp_dst_fig[0],
+                vjp_dst_fig[1],
+                C["inv"],
             )
 
         for ext in ("pdf", "png"):
             out = out_dir / f"visual_abstract.{ext}"
             fig.savefig(
-                out, bbox_inches="tight", pad_inches=0.04,
+                out,
+                bbox_inches="tight",
+                pad_inches=0.04,
                 dpi=300 if ext == "png" else 200,
             )
             print(f"Saved {out}")

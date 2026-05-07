@@ -153,7 +153,10 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
         # Faint divider at the scale-break to flag the change.
         ax.axhline(
             _YSCALE_THRESHOLD,
-            color="0.7", linestyle=":", linewidth=0.6, zorder=0,
+            color="0.7",
+            linestyle=":",
+            linewidth=0.6,
+            zorder=0,
         )
 
         ax.set_title(label)
@@ -163,9 +166,7 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
         else:
             ax.set_ylabel("")
 
-        ax.yaxis.set_major_locator(
-            mticker.FixedLocator([1.0, 1e-3, 1e-6, 1e-9])
-        )
+        ax.yaxis.set_major_locator(mticker.FixedLocator([1.0, 1e-3, 1e-6, 1e-9]))
         ax.yaxis.set_major_formatter(mticker.LogFormatterSciNotation())
         ax.yaxis.set_minor_locator(mticker.NullLocator())
         ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=4, integer=True))

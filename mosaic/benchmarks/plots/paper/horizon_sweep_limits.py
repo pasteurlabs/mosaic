@@ -461,11 +461,9 @@ def generate(out_dir: Path) -> None:
                 functions=(_x_log_forward, _x_log_inverse),
             )
             _ax.set_xticks([10, 100, 1000, 10000])
-            _ax.set_xticklabels(
-                [r"$10^{1}$", r"$10^{2}$", r"$10^{3}$", r"$10^{4}$"]
-            )
+            _ax.set_xticklabels([r"$10^{1}$", r"$10^{2}$", r"$10^{3}$", r"$10^{4}$"])
             _ax.axvline(
-                10 ** _X_BREAK_LOG,
+                10**_X_BREAK_LOG,
                 color="0.7",
                 linestyle=":",
                 linewidth=0.6,

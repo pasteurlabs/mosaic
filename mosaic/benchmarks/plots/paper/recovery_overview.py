@@ -78,9 +78,7 @@ def _snap_xs(n: int) -> list[int]:
 
 
 def _snap_interval(result: dict) -> int:
-    return int(
-        (result.get("params", {}).get("optim", {}).get("snap_interval") or 1)
-    )
+    return int((result.get("params", {}).get("optim", {}).get("snap_interval") or 1))
 
 
 def _x_per_iter(key: str, n: int) -> list[float]:
@@ -344,9 +342,7 @@ def _generate_main_subset(loaded, out_path: Path) -> None:
     ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
 
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.36))
-    fig.subplots_adjust(
-        left=0.07, right=0.98, top=0.86, bottom=0.36, wspace=0.30
-    )
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.86, bottom=0.36, wspace=0.30)
     ax_conv, ax_div, ax_loss = axes
 
     seen_solvers: set[str] = set()

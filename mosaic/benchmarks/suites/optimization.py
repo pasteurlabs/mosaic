@@ -19,6 +19,11 @@ import optax
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
+
+# JAX-traced loss_fn closures capture this reference at trace time;
+# using the tracer-aware wrapper ensures primitive binding sees the
+# active trace.
+from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
     _diff_solvers,
     _has_vjp,
@@ -31,11 +36,6 @@ from mosaic.benchmarks.core.utils import (
     save_gradient_fields_npz,
     save_json,
 )
-
-# JAX-traced loss_fn closures capture this reference at trace time;
-# using the tracer-aware wrapper ensures primitive binding sees the
-# active trace.
-from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 
 _SUITE = "optimization"
 
