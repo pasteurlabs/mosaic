@@ -204,12 +204,27 @@ def build_all(
         return name, image_tag
 
     images: dict[str, str] = {}
+    failed: list[str] = []
     with make_build_progress() as progress:
         task = progress.add_task("building solver images...", total=len(cfg.solvers))
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            for name, img_tag in pool.map(_build, cfg.solvers.items()):
-                images[name] = img_tag
+            futures = {
+                pool.submit(_build, item): item[0] for item in cfg.solvers.items()
+            }
+            for future in concurrent.futures.as_completed(futures):
+                solver_name = futures[future]
+                try:
+                    name, img_tag = future.result()
+                    images[name] = img_tag
+                except Exception as exc:
+                    failed.append(solver_name)
+                    print_warn(f"BUILD FAILED: {solver_name} — {exc}")
                 progress.advance(task)
+    if failed:
+        console.print(
+            f"\n[bold yellow]⚠ {len(failed)} solver(s) failed to build and will "
+            f"be skipped: {', '.join(sorted(failed))}[/bold yellow]\n"
+        )
     return images
 
 
