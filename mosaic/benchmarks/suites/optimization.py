@@ -17,7 +17,8 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import ProblemConfig, has_vjp
+from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
 
 # JAX-traced loss_fn closures capture this reference at trace time;
@@ -25,15 +26,12 @@ from mosaic.benchmarks.core.runner import run_with_gpu_pool
 # active trace.
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
-    _diff_solvers,
-    _has_vjp,
+    active_differentiable_solvers,
     experiment_dir,
     extract_runs,
     is_valid,
     iter_runs,
     results_dir,
-    save_experiment,
-    save_gradient_fields_npz,
     save_json,
 )
 
@@ -58,7 +56,7 @@ def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
     """
     nd = u.shape[-1]
     squeeze = u.ndim > nd + 1
-    v = u.reshape(u.shape[:nd] + (nd,)) if squeeze else u
+    v = u.reshape((*u.shape[:nd], nd)) if squeeze else u
 
     N = v.shape[0]
     k1d = np.fft.fftfreq(N) * N * (2.0 * np.pi / domain_extent)
@@ -81,7 +79,7 @@ def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
     """
     nd = u.shape[-1]
     squeeze = u.ndim > nd + 1  # True for (N,N,1,2); False for (N,N,N,3)
-    v = u.reshape(u.shape[:nd] + (nd,)) if squeeze else u
+    v = u.reshape((*u.shape[:nd], nd)) if squeeze else u
 
     N = v.shape[0]
     # Physical wavenumbers for a periodic box of size domain_extent.
@@ -246,8 +244,8 @@ def _topopt_solvers(cfg: ProblemConfig) -> list[str]:
         if cd is None:
             cd = getattr(spec, "differentiable", None)
         if cd is None:
-            # Fall back to runtime VJP endpoint detection (same as _diff_solvers)
-            cd = _has_vjp(spec)
+            # Fall back to runtime VJP endpoint detection (same as active_differentiable_solvers)
+            cd = has_vjp(spec)
         if cd:
             result.append(name)
     return result
@@ -540,9 +538,7 @@ def _run_recovery_long_impl(
                         if (snap_interval > 0 and val == rep_val and _is_primary)
                         else None
                     )
-                    _ic_err_hist: list[float] = (
-                        [] if (snap_interval > 0 and _is_primary) else []
-                    )
+                    _ic_err_hist: list[float] = []
                     ic_error_init = float(cfg.error_fn(_ic_init_k, _ic_true_k))
                     seed_tag = f" [ic_seed={_s}]" if _is_multi_seed else ""
                     console.print(
@@ -760,7 +756,7 @@ def _run_recovery_long_impl(
             _wall_times[name] = time.perf_counter() - _t0
 
         run_with_gpu_pool(
-            _diff_solvers(cfg, "optimization", exp_key),
+            active_differentiable_solvers(cfg, "optimization", exp_key),
             tags,
             _recovery_long_work,
             gpu_ids=gpu_ids,
@@ -824,7 +820,7 @@ def _run_recovery_long_impl(
             shared["ic_perturbed_all"] = np.stack(
                 [np.asarray(_sigma_ics[_sv]) for _sv in sweep_values]
             )
-        save_gradient_fields_npz(
+        save_field_snapshots_npz(
             out_dir,
             solver_names,
             per_solver_arrays,
@@ -1030,7 +1026,7 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
             if rho_histories[sname]:
                 entry["rho_history:"] = np.asarray(rho_histories[sname])
             per_solver[sname] = entry
-        save_gradient_fields_npz(
+        save_field_snapshots_npz(
             out_dir,
             solver_names,
             per_solver,
@@ -1292,7 +1288,7 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         # Pass the run-specific sub-key so per-run exclusions (e.g.
         # "recovery/drag_opt/re20") are honoured at solver-selection time.
         _drag_exp = f"drag_opt/{run_name}" if run_name else "drag_opt"
-        drag_opt_solvers = _diff_solvers(cfg, "optimization", _drag_exp)
+        drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
         run_with_gpu_pool(
             drag_opt_solvers,
             tags,
@@ -1489,7 +1485,7 @@ def run_topopt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> di
             if rho_histories[sname]:
                 entry["rho_history:"] = np.asarray(rho_histories[sname])
             per_solver[sname] = entry
-        save_gradient_fields_npz(
+        save_field_snapshots_npz(
             out_dir,
             solver_names,
             per_solver,
@@ -1644,7 +1640,7 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
             _wall_times[name] = time.perf_counter() - _t0
 
         _drag_exp = f"drag_opt_bfgs/{run_name}" if run_name else "drag_opt_bfgs"
-        drag_opt_solvers = _diff_solvers(cfg, "optimization", _drag_exp)
+        drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
         run_with_gpu_pool(drag_opt_solvers, tags, _drag_opt_bfgs_work, gpu_ids=gpu_ids)
 
         _dbg = "_debug" if overrides.get("debug") else ""
@@ -1797,7 +1793,7 @@ def run_conductivity_recovery(
         rho_histories: dict = {}
         _wall_times: dict[str, float] = {}
 
-        candidate_solvers = _diff_solvers(cfg, "optimization", _exp_key)
+        candidate_solvers = active_differentiable_solvers(cfg, "optimization", _exp_key)
 
         def _conductivity_recovery_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1924,9 +1920,11 @@ def run_conductivity_recovery(
             try:
                 prior = np.load(existing_path)
                 for key in prior.files:
-                    if key.startswith("rho_final_") or key.startswith("rho_history_"):
-                        npz_payload[key] = prior[key]
-                    elif key == "rho_truth" and "rho_truth" not in npz_payload:
+                    if (
+                        key.startswith("rho_final_")
+                        or key.startswith("rho_history_")
+                        or (key == "rho_truth" and "rho_truth" not in npz_payload)
+                    ):
                         npz_payload[key] = prior[key]
             except Exception:
                 pass

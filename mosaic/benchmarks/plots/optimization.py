@@ -238,7 +238,7 @@ def plot_recovery(
         fig_lc, axes_lc = subplots_grid(
             len(sweep_vals), panel_w=5, panel_h=4, sharey=True
         )
-        for ax, v in zip(axes_lc, sweep_vals):
+        for ax, v in zip(axes_lc, sweep_vals, strict=False):
             for name, s_results in by_sweep.items():
                 r = s_results.get(v) or s_results.get(str(v))
                 if not (r and r.get("errors")):
@@ -429,9 +429,7 @@ def plot_recovery(
         w_final_true = (
             f_vis(npz["final_gt_shared"]) if "final_gt_shared" in npz else None
         )
-        ic_perturbed_all = (
-            npz["ic_perturbed_all"] if "ic_perturbed_all" in npz else None
-        )
+        ic_perturbed_all = npz.get("ic_perturbed_all", None)
         ncols = 6
         for si, sv in enumerate(sweep_vals_arr):
             w_ic_pert = (
@@ -612,7 +610,7 @@ def plot_recovery_evolution_sidebyside(
     axes = axes[0]
 
     ims = []
-    for ax, frames, label in zip(axes, all_frames, labels):
+    for ax, frames, label in zip(axes, all_frames, labels, strict=False):
         im = ax.imshow(
             frames[0].T,
             origin="lower",
@@ -632,12 +630,12 @@ def plot_recovery_evolution_sidebyside(
     fig.tight_layout()
 
     def _update(idx):
-        for im, frames in zip(ims, all_frames):
+        for im, frames in zip(ims, all_frames, strict=False):
             im.set_data(frames[idx].T)
         sup.set_text(
             f"{cfg.name} — IC evolution ({sweep_key}={rep_val:.2f}) — {idx + 1}/{n_frames}"
         )
-        return ims + [sup]
+        return [*ims, sup]
 
     anim = manimation.FuncAnimation(
         fig, _update, frames=n_frames, interval=250, blit=False
@@ -882,7 +880,7 @@ def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "")
     fig_lc, axes_lc = subplots_grid(
         len(param_values), panel_w=5, panel_h=4, sharey=True
     )
-    for ax, val in zip(axes_lc, param_values):
+    for ax, val in zip(axes_lc, param_values, strict=False):
         for name in solvers:
             r = by_param[val].get(name)
             if isinstance(r, dict) and r.get("errors"):
@@ -915,7 +913,7 @@ def plot_viscosity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str =
 
     # ── μ recovery paths: one panel per μ_true ────────────────────────────────
     fig_p, axes_p = subplots_grid(len(mu_trues), panel_w=4.5, panel_h=3.5)
-    for ax, mu_true in zip(axes_p, mu_trues):
+    for ax, mu_true in zip(axes_p, mu_trues, strict=False):
         ax.axhline(mu_true, color="k", linewidth=1.2, linestyle="--", label="μ_true")
         ax.axhline(mu_init, color="gray", linewidth=0.8, linestyle=":", label="μ_init")
         for name in solvers:
@@ -938,7 +936,7 @@ def plot_viscosity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str =
 
     # ── loss convergence curves ────────────────────────────────────────────────
     fig_l, axes_l = subplots_grid(len(mu_trues), panel_w=4.5, panel_h=3.5, sharey=True)
-    for ax, mu_true in zip(axes_l, mu_trues):
+    for ax, mu_true in zip(axes_l, mu_trues, strict=False):
         for name in solvers:
             solver_data = data["by_solver"][name]
             r = solver_data.get(str(mu_true)) or solver_data.get(mu_true)
@@ -1060,7 +1058,7 @@ def plot_recovery_sigma_sweep(cfg: ProblemConfig, save: bool = True, suffix: str
         fig_lc, axes_lc = subplots_grid(
             len(sigma_values), panel_w=5, panel_h=4, sharey=True
         )
-        for ax_lc, sigma in zip(axes_lc, sigma_values):
+        for ax_lc, sigma in zip(axes_lc, sigma_values, strict=False):
             sigma_dict = (
                 by_sigma[str(sigma)]
                 if str(sigma) in by_sigma
@@ -1141,7 +1139,7 @@ def plot_topopt(
         if f"rho_final_{j}" in npz
     ]
     im = None
-    for ax, (title, rho) in zip(axes[0], panels):
+    for ax, (title, rho) in zip(axes[0], panels, strict=False):
         im = ax.imshow(
             _rho_to_2d(rho, params_all),
             origin="lower",
@@ -1230,7 +1228,7 @@ def _plot_topopt_3d(
 
         # Face colours: steel-blue for all filled voxels; alpha scales with density
         # so near-threshold cells appear translucent and solid cells opaque.
-        fc = np.zeros(rho_xyz.shape + (4,))
+        fc = np.zeros((*rho_xyz.shape, 4))
         fc[..., :3] = _SOLID_RGB
         # Remap density from [threshold, 1] → [0.35, 0.92] for alpha
         alpha = np.where(
@@ -1835,7 +1833,7 @@ def _plot_drag_opt_fields(
         return
 
     # Rows: initial + one per solver.  Columns: velocity magnitude | vorticity.
-    all_rows = ["__initial__"] + solver_names_clean
+    all_rows = ["__initial__", *solver_names_clean]
     n_rows = len(all_rows)
     ncols = 2
     fig_fld, axes_fld = plt.subplots(
@@ -2401,7 +2399,7 @@ def _plot_load_recovery_density(
         ax.set_visible(False)
 
     cmap, vmin, vmax = "gray_r", 0.0, 1.0
-    kw = dict(cmap=cmap, vmin=vmin, vmax=vmax, origin="lower", aspect="auto")
+    kw = {"cmap": cmap, "vmin": vmin, "vmax": vmax, "origin": "lower", "aspect": "auto"}
 
     # Row 0: reference fields then solver finals
     col = 0

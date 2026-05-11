@@ -40,8 +40,8 @@ from unittest import mock
 
 from mosaic.benchmarks.core import status as status_mod
 from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.results import save_experiment
 from mosaic.benchmarks.core.status import OK, collect_status
-from mosaic.benchmarks.core.utils import save_experiment
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ class HarnessRoundtripTests(_StalenessRoundtripBase):
 
     def _write_fn(self, src: str):
         mod = _make_module(self.mod_root, self.modname, src)
-        return getattr(mod, "run_baseline")
+        return mod.run_baseline
 
     def _save_once(self, fn) -> None:
         result = {

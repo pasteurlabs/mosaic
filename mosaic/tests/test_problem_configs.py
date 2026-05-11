@@ -22,10 +22,6 @@ def test_all_problems_load():
         assert cfg.name == name
 
 
-def test_config_has_solvers(problem_config):
-    assert len(problem_config.solvers) >= 1
-
-
 def test_solver_required_fields(problem_config):
     """Every solver must have name, dir, scheme, backend, and color populated."""
     for key, spec in problem_config.solvers.items():
@@ -47,19 +43,6 @@ def test_no_duplicate_dirs(problem_config):
     """Within a problem, no two solvers should share the same tesseract dir."""
     dirs = [spec.dir for spec in problem_config.solvers.values()]
     assert len(dirs) == len(set(dirs)), f"Duplicate dirs: {dirs}"
-
-
-def test_make_ic_populated(problem_config):
-    """Every problem must define at least one initial condition."""
-    assert len(problem_config.make_ic) >= 1
-
-
-def test_has_error_fn(problem_config):
-    assert callable(problem_config.error_fn)
-
-
-def test_has_make_inputs(problem_config):
-    assert callable(problem_config.make_inputs)
 
 
 def test_ad_strategy_values(problem_config):

@@ -9,6 +9,7 @@ import queue
 import subprocess
 import threading
 import time
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -115,6 +116,36 @@ from .console import (  # noqa: E402
 )
 
 _tl = threading.local()  # thread-local state (image_tag, gpu_id, last_apply_error)
+
+
+@dataclass(frozen=True)
+class WorkerContext:
+    """Per-thread context set by :func:`run_with_gpu_pool`.
+
+    Suites can read this inside their work callback (passed to
+    ``run_with_gpu_pool``) to discover which GPU they were assigned and
+    which image tag is serving — useful for ResourceSampler / MemoryPoller
+    construction.
+
+    Both fields are ``None`` when no GPU pool is active (e.g. serial mode
+    or when called outside a runner-managed thread).
+    """
+
+    gpu_id: int | str | None
+    image_tag: str | None
+
+
+def current_worker_context() -> WorkerContext:
+    """Return the :class:`WorkerContext` for the calling thread.
+
+    Always returns a :class:`WorkerContext`; fields are ``None`` when the
+    runner has not set them.
+    """
+    return WorkerContext(
+        gpu_id=getattr(_tl, "gpu_id", None),
+        image_tag=getattr(_tl, "image_tag", None),
+    )
+
 
 # Problem name set by run_suite so that run_with_gpu_pool can label containers.
 # Docker label scoping prevents concurrent runs on different problems from
@@ -505,17 +536,36 @@ def run_with_gpu_pool(
 
 
 def safe_apply(t: Tesseract, inputs: dict, output_key: str) -> jax.Array | None:
-    """Forward pass with exception handling and finiteness check. Returns None on failure.
+    """Forward pass with exception handling and finiteness check.
 
-    On failure the exception message is stored in _tl.last_apply_error so callers
-    can surface it (e.g. forward.py writes it to the JSON 'error' field).
+    Returns the output array on success, ``None`` on any failure (exception
+    raised, missing output key, non-finite values).
+
+    **Out-of-band error reporting**: on failure the exception message is
+    written to thread-local state and must be retrieved via
+    :func:`get_last_apply_error`. The pattern is::
+
+        arr = safe_apply(t, inputs, output_key)
+        if arr is None:
+            err_msg = get_last_apply_error()  # may be None if cleared
+            ...
+
+    Each call overwrites the previous thread's last error; callers that
+    interleave multiple ``safe_apply`` invocations should read the error
+    immediately after each failure. The same convention applies to
+    :func:`safe_apply_with_extras`.
     """
     arr, _, _ = safe_apply_with_extras(t, inputs, output_key, [], [])
     return arr
 
 
 def get_last_apply_error() -> str | None:
-    """Return the error message from the most recent failed safe_apply call on this thread."""
+    """Return the last :func:`safe_apply` failure message for this thread.
+
+    Returns ``None`` if no :func:`safe_apply` / :func:`safe_apply_with_extras`
+    call has failed on this thread, or if a successful call has overwritten
+    the slot.
+    """
     return getattr(_tl, "last_apply_error", None)
 
 
@@ -533,7 +583,7 @@ def safe_apply_with_extras(
     inputs: dict,
     output_key: str,
     extra_scalar_keys: list[str],
-    state_keys: list[str] = [],
+    state_keys: list[str] | None = None,
 ) -> tuple[jax.Array | None, dict[str, float], dict[str, jax.Array]]:
     """Forward pass returning (primary array, scalar extras, array state).
 
@@ -543,6 +593,8 @@ def safe_apply_with_extras(
 
     Returns (None, {}, {}) on failure.
     """
+    if state_keys is None:
+        state_keys = []
     try:
         out = _apply_tesseract_with_deadline(t, inputs)
         if output_key not in out:

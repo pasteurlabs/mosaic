@@ -376,15 +376,15 @@ def _make_inputs(
     hex_mesh = HexMesh(
         points=points.astype(np.float32),
         faces=cells.astype(np.int32),
-        n_points=int(len(points)),
-        n_faces=int(len(cells)),
+        n_points=len(points),
+        n_faces=len(cells),
     )
 
-    base = dict(
-        rho=rho_data,
-        hex_mesh=hex_mesh.model_dump(),
-        boundary_conditions=bc.model_dump(),
-    )
+    base = {
+        "rho": rho_data,
+        "hex_mesh": hex_mesh.model_dump(),
+        "boundary_conditions": bc.model_dump(),
+    }
     return {**base, **_SOLVERS[solver_name].input_overrides}
 
 
@@ -490,118 +490,123 @@ CONFIG = ProblemConfig(
     n_to_cells=lambda N: N * 2 * max(1, N // 2),  # nx=N, ny=2, nz=N//2
     units={"rho_0": "–"},
     forward_defaults={
-        "baseline": dict(
-            description="Inter-solver compliance agreement sweep over mesh resolution N.",
-            plot_description=(
+        "baseline": {
+            "description": "Inter-solver compliance agreement sweep over mesh resolution N.",
+            "plot_description": (
                 "Structural compliance C = F^T U vs mesh resolution N for each solver "
                 "(uniform density ρ₀=0.5, full-face downward load). "
                 "Both solvers implement HEX8 FEM; compliance should agree to <1% at all resolutions."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=8,
-                        ny=2,
-                        nz=4,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=False,
-                    ),
-                    sweep=dict(key="N", values=[4, 6, 8, 12, 16]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 2,
+                        "nz": 4,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": False,
+                    },
+                    "sweep": {"key": "N", "values": [4, 6, 8, 12, 16]},
+                }
             ],
-        ),
-        "agreement": dict(
-            description="Forward accuracy sweep across element density ρ₀ for each solver.",
-            plot_description=(
+        },
+        "agreement": {
+            "description": "Forward accuracy sweep across element density ρ₀ for each solver.",
+            "plot_description": (
                 "Structural compliance C = F^T U vs element density ρ₀ for each solver "
                 "(log-scale; full-face downward load). "
                 "jax_fem uses surface traction; topopt_jl distributes force uniformly across "
                 "right-face nodes — non-uniform shape-function weighting in jax_fem causes "
                 "a small but consistent compliance difference (~0.5–3%) across all densities."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=8,
-                        ny=2,
-                        nz=4,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=False,
-                    ),
-                    sweep=dict(key="rho_0", values=[0.2, 0.4, 0.5, 0.7, 0.9]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 2,
+                        "nz": 4,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": False,
+                    },
+                    "sweep": {"key": "rho_0", "values": [0.2, 0.4, 0.5, 0.7, 0.9]},
+                }
             ],
-        ),
-        "physical_laws": dict(
-            description="Structural compliance vs applied load F_total to verify quadratic scaling law C ∝ F².",
-            plot_description=(
+        },
+        "physical_laws": {
+            "description": "Structural compliance vs applied load F_total to verify quadratic scaling law C ∝ F².",
+            "plot_description": (
                 "Structural compliance C = F^T U vs total load F_total at fixed N=8 (nx=8, ny=2, nz=4), ρ₀=0.5. "
                 "For linear elasticity C = F^T K⁻¹ F ∝ F², so log-log slope must be 2.0. "
                 "Deviations across solvers reveal errors in the stiffness assembly or force application."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=8,
-                        ny=2,
-                        nz=4,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        corner_load=False,
-                        rho_0=0.5,
-                    ),
-                    sweep=dict(key="F_total", values=[0.25, 0.5, 1.0, 2.0, 4.0]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 2,
+                        "nz": 4,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "corner_load": False,
+                        "rho_0": 0.5,
+                    },
+                    "sweep": {"key": "F_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
+                }
             ],
-        ),
+        },
     },
-    cost_defaults=dict(
-        description="Wall-clock and memory profiling vs mesh size for all solvers.",
-        plot_descriptions={
+    cost_defaults={
+        "description": "Wall-clock and memory profiling vs mesh size for all solvers.",
+        "plot_descriptions": {
             "spatial_cost": "Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
             "vjp_cost": "VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
         },
-        runs=[
-            dict(
-                physics=dict(
-                    Lx=2.0, Ly=1.0, Lz=1.0, F_total=1.0, rho_0=0.5, corner_load=False
-                ),
-                cost=dict(
-                    N_values=[8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200],
-                    n_trials=3,
-                ),
-            )
+        "runs": [
+            {
+                "physics": {
+                    "Lx": 2.0,
+                    "Ly": 1.0,
+                    "Lz": 1.0,
+                    "F_total": 1.0,
+                    "rho_0": 0.5,
+                    "corner_load": False,
+                },
+                "cost": {
+                    "N_values": [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200],
+                    "n_trials": 3,
+                },
+            }
         ],
-    ),
+    },
     gradient_defaults={
-        "fd_check": dict(
-            description="FD gradient check vs analytic VJP at nominal mesh and load.",
-            plot_description="U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.",
-            runs=[
-                dict(
-                    ic=dict(name="random", seed=0),
-                    physics=dict(
-                        nx=8,
-                        ny=2,
-                        nz=4,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                    ),
-                    fd=dict(
-                        eps_values=[
+        "fd_check": {
+            "description": "FD gradient check vs analytic VJP at nominal mesh and load.",
+            "plot_description": "U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.",
+            "runs": [
+                {
+                    "ic": {"name": "random", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 2,
+                        "nz": 4,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                    },
+                    "fd": {
+                        "eps_values": [
                             2e0,
                             5e-1,
                             1e-1,
@@ -612,205 +617,206 @@ CONFIG = ProblemConfig(
                             3e-4,
                             1e-4,
                         ],
-                        n_dirs=6,
-                    ),
-                )
+                        "n_dirs": 6,
+                    },
+                }
             ],
-        ),
-        "param_sweep": dict(
-            description="Gradient quality vs element density ρ₀ at fixed mesh.",
-            plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=8,
-                        ny=2,
-                        nz=4,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                    ),
-                    fd=dict(
-                        eps_values=[5e-1, 1e-1, 3e-2, 1e-2, 3e-3, 1e-3, 3e-4], n_dirs=6
-                    ),
-                    sweep=dict(key="rho_0", values=[0.2, 0.4, 0.6, 0.8]),
-                )
+        },
+        "param_sweep": {
+            "description": "Gradient quality vs element density ρ₀ at fixed mesh.",
+            "plot_description": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 2,
+                        "nz": 4,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                    },
+                    "fd": {
+                        "eps_values": [5e-1, 1e-1, 3e-2, 1e-2, 3e-3, 1e-3, 3e-4],
+                        "n_dirs": 6,
+                    },
+                    "sweep": {"key": "rho_0", "values": [0.2, 0.4, 0.6, 0.8]},
+                }
             ],
-        ),
-        "jacobian_svd": dict(
-            description="Jacobian SVD and gradient subspace analysis at nominal mesh.",
-            plot_description=(
+        },
+        "jacobian_svd": {
+            "description": "Jacobian SVD and gradient subspace analysis at nominal mesh.",
+            "plot_description": (
                 "Singular-value spectrum of the stacked per-solver gradient matrix and "
                 "pairwise cosine similarity between JAX-FEM and TopOpt.jl gradient directions. "
                 "Both solvers implement the same SIMP adjoint so cosine similarity should be "
                 "near 1; deviations indicate differing adjoint formulations or numerical precision."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="random", seed=0),
-                    physics=dict(
-                        nx=8,
-                        ny=2,
-                        nz=4,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                    ),
-                    jacobian=dict(n_alphas=21, alpha_range=0.2),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "random", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 2,
+                        "nz": 4,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                    },
+                    "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
+                }
             ],
-        ),
+        },
     },
     inverse_defaults={
-        "topopt": dict(
-            description="SIMP topology optimisation: minimise structural compliance under volume fraction constraint.",
-            plot_description=(
+        "topopt": {
+            "description": "SIMP topology optimisation: minimise structural compliance under volume fraction constraint.",
+            "plot_description": (
                 "SIMP topology optimisation on a 16×8×8 cantilever beam: minimise compliance "
                 "C = F^T U subject to a 50% volume fraction constraint (Adam, lr=0.02). "
                 "Density field evolves from uniform ρ=0.5 toward a binary 0/1 layout; "
                 "both solvers converge to the same topology confirming consistent adjoint gradients."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=16,
-                        ny=2,
-                        nz=8,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                        v_frac=0.5,
-                        compliance_key="compliance",
-                        penalty_weight=50.0,
-                        x_min=1e-3,
-                        snap_interval=10,
-                    ),
-                    optim=dict(lr=5e-2, max_iters=2500, patience=100),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 2,
+                        "nz": 8,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                        "v_frac": 0.5,
+                        "compliance_key": "compliance",
+                        "penalty_weight": 50.0,
+                        "x_min": 1e-3,
+                        "snap_interval": 10,
+                    },
+                    "optim": {"lr": 5e-2, "max_iters": 2500, "patience": 100},
+                }
             ],
-        ),
-        "topopt_bfgs": dict(
-            description="SIMP topology optimisation with L-BFGS: minimise structural compliance under volume fraction constraint.",
-            plot_description=(
+        },
+        "topopt_bfgs": {
+            "description": "SIMP topology optimisation with L-BFGS: minimise structural compliance under volume fraction constraint.",
+            "plot_description": (
                 "SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: minimise compliance "
                 "C = F^T U subject to a 50% volume fraction constraint."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=16,
-                        ny=2,
-                        nz=8,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                        v_frac=0.5,
-                        compliance_key="compliance",
-                        penalty_weight=50.0,
-                        x_min=1e-3,
-                        snap_interval=5,
-                    ),
-                    optim=dict(max_iters=100, patience=20),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 2,
+                        "nz": 8,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                        "v_frac": 0.5,
+                        "compliance_key": "compliance",
+                        "penalty_weight": 50.0,
+                        "x_min": 1e-3,
+                        "snap_interval": 5,
+                    },
+                    "optim": {"max_iters": 100, "patience": 20},
+                }
             ],
-        ),
-        "topopt_mma": dict(
-            description="SIMP topology optimisation with MMA (nlopt LD_MMA): hard volume fraction constraint.",
-            plot_description=(
+        },
+        "topopt_mma": {
+            "description": "SIMP topology optimisation with MMA (nlopt LD_MMA): hard volume fraction constraint.",
+            "plot_description": (
                 "SIMP topology optimisation on a 16×2×8 cantilever beam with MMA: minimise compliance "
                 "C = F^T U subject to a hard 50% volume fraction inequality constraint."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=16,
-                        ny=2,
-                        nz=8,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                        v_frac=0.5,
-                        compliance_key="compliance",
-                        x_min=1e-3,
-                        snap_interval=5,
-                    ),
-                    optim=dict(max_iters=200, patience=30),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 2,
+                        "nz": 8,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                        "v_frac": 0.5,
+                        "compliance_key": "compliance",
+                        "x_min": 1e-3,
+                        "snap_interval": 5,
+                    },
+                    "optim": {"max_iters": 200, "patience": 30},
+                }
             ],
-        ),
-        "topopt_mma_fine": dict(
-            description=(
+        },
+        "topopt_mma_fine": {
+            "description": (
                 "SIMP topology optimisation with MMA on a fine 32×4×16 mesh (8× more elements than topopt_mma). "
                 "Tests whether solver cross-solver agreement holds at higher resolution."
             ),
-            plot_description=(
+            "plot_description": (
                 "SIMP topology optimisation on a fine 32×4×16 cantilever beam with MMA: minimise compliance "
                 "C = F^T U subject to a hard 50% volume fraction inequality constraint."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=32,
-                        ny=4,
-                        nz=16,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                        v_frac=0.5,
-                        compliance_key="compliance",
-                        x_min=1e-3,
-                        snap_interval=10,
-                    ),
-                    optim=dict(max_iters=300, patience=40),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 32,
+                        "ny": 4,
+                        "nz": 16,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                        "v_frac": 0.5,
+                        "compliance_key": "compliance",
+                        "x_min": 1e-3,
+                        "snap_interval": 10,
+                    },
+                    "optim": {"max_iters": 300, "patience": 40},
+                }
             ],
-        ),
-        "topopt_mma_finest": dict(
-            description=(
+        },
+        "topopt_mma_finest": {
+            "description": (
                 "SIMP topology optimisation with MMA on a finest 64×8×32 mesh (64× more elements than topopt_mma, 8× more than topopt_mma_fine). "
                 "Tests cross-solver agreement at near-production resolution."
             ),
-            plot_description=(
+            "plot_description": (
                 "SIMP topology optimisation on a finest 64×8×32 cantilever beam with MMA: minimise compliance "
                 "C = F^T U subject to a hard 50% volume fraction inequality constraint."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=64,
-                        ny=8,
-                        nz=32,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        F_total=1.0,
-                        corner_load=True,
-                        v_frac=0.5,
-                        compliance_key="compliance",
-                        x_min=1e-3,
-                        snap_interval=20,
-                    ),
-                    optim=dict(max_iters=400, patience=50),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 64,
+                        "ny": 8,
+                        "nz": 32,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "F_total": 1.0,
+                        "corner_load": True,
+                        "v_frac": 0.5,
+                        "compliance_key": "compliance",
+                        "x_min": 1e-3,
+                        "snap_interval": 20,
+                    },
+                    "optim": {"max_iters": 400, "patience": 50},
+                }
             ],
-        ),
+        },
     },
 )

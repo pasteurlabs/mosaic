@@ -895,7 +895,7 @@ def status(
             for i in order[:remainder]:
                 chars[i] += 1
             bar = ""
-            for (_, w), n_chars in zip(segs, chars):
+            for (_, w), n_chars in zip(segs, chars, strict=False):
                 if n_chars > 0:
                     bar += f"[{weight_color(w)}]{'█' * n_chars}[/]"
             return bar
@@ -1024,7 +1024,7 @@ def compare(
         new_snapshot = _json.loads(after.read_text())
     except Exception as exc:
         typer.echo(f"Error reading JSON snapshots: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     diff = diff_snapshots(old_snapshot, new_snapshot)
     typer.echo(render_diff_markdown(diff))
@@ -1168,7 +1168,7 @@ def validate_domain_cmd(
         console.print(f"[red]FAIL[/red]  ProblemConfig.validate():\n{exc}")
 
     # 2. Solver directories exist
-    for key, spec in cfg.solvers.items():
+    for _key, spec in cfg.solvers.items():
         n_checks += 1
         solver_dir = cfg.tesseract_dir / spec.dir
         if solver_dir.is_dir():

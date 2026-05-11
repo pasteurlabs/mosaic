@@ -101,7 +101,7 @@ def fig_shared_legend(
     for ax in axes_flat:
         if not hasattr(ax, "get_legend_handles_labels"):
             continue
-        for h, lbl in zip(*ax.get_legend_handles_labels()):
+        for h, lbl in zip(*ax.get_legend_handles_labels(), strict=False):
             if lbl not in seen:
                 seen.add(lbl)
                 handles.append(h)
@@ -183,10 +183,10 @@ def solver_line_props(idx: int, color: str, *, marker: bool = True) -> dict:
     Legacy API: idx selects linestyle from the global cycle; color is fixed.
     Prefer solver_plot_props() when solver_styles() is already available.
     """
-    props: dict = dict(
-        color=color,
-        linestyle=_LINESTYLES[idx % len(_LINESTYLES)],
-    )
+    props: dict = {
+        "color": color,
+        "linestyle": _LINESTYLES[idx % len(_LINESTYLES)],
+    }
     if marker:
         props["marker"] = _MARKERS[idx % len(_MARKERS)]
     return props
@@ -200,10 +200,10 @@ def solver_plot_props(style: dict, *, marker: bool = True) -> dict:
         styles = solver_styles(cfg)
         ax.plot(x, y, label=styles[name]["label"], **solver_plot_props(styles[name]))
     """
-    props: dict = dict(
-        color=style.get("color", "#888888"),
-        linestyle=style.get("linestyle", "-"),
-    )
+    props: dict = {
+        "color": style.get("color", "#888888"),
+        "linestyle": style.get("linestyle", "-"),
+    }
     if marker:
         mk = style.get("marker")
         if mk:
@@ -516,13 +516,13 @@ def field_grid(
         row, col = divmod(idx, ncols)
         ax = axes[row, col]
         v = vmax if shared_scale else np.abs(arr).max()
-        base_kw = dict(
-            origin="lower",
-            cmap=cmap,
-            interpolation="nearest",
-            vmin=-v if symmetric else 0,
-            vmax=v,
-        )
+        base_kw = {
+            "origin": "lower",
+            "cmap": cmap,
+            "interpolation": "nearest",
+            "vmin": -v if symmetric else 0,
+            "vmax": v,
+        }
         base_kw.update(extra_kw)
         imshow_with_cbar(ax, fig, arr.T, **base_kw)
         ax.set_title(label)

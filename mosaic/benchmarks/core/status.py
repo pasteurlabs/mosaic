@@ -23,6 +23,7 @@ surfaced alongside the cell.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import importlib
 import math
@@ -98,7 +99,7 @@ SCORE_WEIGHTS: dict[str, float] = {
 }
 
 
-def cell_weight_key(cell: "Cell") -> str | None:
+def cell_weight_key(cell: Cell) -> str | None:
     """Return the SCORE_WEIGHTS key for a cell, or None if categorical.
 
     Categorical (permanent) exclusions return None — the caller should skip
@@ -120,7 +121,7 @@ def cell_weight_key(cell: "Cell") -> str | None:
     return None
 
 
-def compute_score(cells: list["Cell"]) -> tuple[float | None, int]:
+def compute_score(cells: list[Cell]) -> tuple[float | None, int]:
     """Weighted campaign-health score over a list of cells.
 
     Returns ``(score, n_contributing)``. ``score`` is ``None`` when no cell
@@ -344,11 +345,10 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
             if not any_finite_sweep:
                 return FAILED, "eps_sweep produced all non-finite values"
         reason = _reason_from_entry(entry)
-        if reason:
-            # Reason present but no explicit valid flag — degrade to failed only
-            # if there is NO finite data anywhere in the entry.
-            if not _has_any_finite(entry):
-                return FAILED, reason
+        # Reason present but no explicit valid flag — degrade to failed only
+        # if there is NO finite data anywhere in the entry.
+        if reason and not _has_any_finite(entry):
+            return FAILED, reason
         if not _has_any_finite(entry):
             return FAILED, reason or "no finite values"
         return OK, ""
@@ -380,7 +380,7 @@ def _classify_from_by_param(
     by_param = data.get("by_param", {})
 
     per_solver_valid: dict[str, list[bool]] = {s: [] for s in solvers}
-    per_solver_reason: dict[str, str] = {s: "" for s in solvers}
+    per_solver_reason: dict[str, str] = dict.fromkeys(solvers, "")
     peer_medians: dict[Any, float] = {}
     solver_errs_by_pval: dict[str, dict[Any, float]] = {s: {} for s in solvers}
 
@@ -873,17 +873,13 @@ def collect_status(
                 # Walk the qualname against importable prefixes.
                 parts = qualname.split(".")
                 for i in range(len(parts) - 1, 0, -1):
-                    try:
+                    with contextlib.suppress(ImportError):
                         mod = importlib.import_module(".".join(parts[:i]))
-                    except ImportError:
-                        continue
-                    try:
-                        target = functools.reduce(getattr, parts[i:], mod)
-                        h = harness_fn_hash(target) or None
-                        harness_hash_cache[qualname] = h
-                        return h
-                    except (AttributeError, OSError, TypeError):
-                        continue
+                        with contextlib.suppress(AttributeError, OSError, TypeError):
+                            target = functools.reduce(getattr, parts[i:], mod)
+                            h = harness_fn_hash(target) or None
+                            harness_hash_cache[qualname] = h
+                            return h
                 harness_hash_cache[qualname] = None
                 return None
             mod = importlib.import_module(module_path)
@@ -1186,7 +1182,7 @@ _MD_EXCL_GLYPHS = {
 }
 
 
-def md_cell_glyph(cell: "Cell") -> str:
+def md_cell_glyph(cell: Cell) -> str:
     """Pick the markdown glyph for a cell, resolving the exclusion category.
 
     Appends ``*`` to the glyph when ``cell.stale`` is set (excluded cells
@@ -1300,7 +1296,7 @@ def weight_emoji(w: float | None) -> str:
     return "🔴"
 
 
-def cell_weight(cell: "Cell") -> float | None:
+def cell_weight(cell: Cell) -> float | None:
     """Return the SCORE_WEIGHTS value for a cell (None for categorical).
 
     Thin wrapper around ``cell_weight_key`` that looks the key up in the
@@ -1313,12 +1309,12 @@ def cell_weight(cell: "Cell") -> float | None:
     return SCORE_WEIGHTS.get(key)
 
 
-def cell_color(cell: "Cell") -> str:
+def cell_color(cell: Cell) -> str:
     """Rich ansi colour for a cell, derived from its weight."""
     return weight_color(cell_weight(cell))
 
 
-def cell_emoji(cell: "Cell") -> str:
+def cell_emoji(cell: Cell) -> str:
     """GFM emoji for a cell, derived from its weight."""
     return weight_emoji(cell_weight(cell))
 

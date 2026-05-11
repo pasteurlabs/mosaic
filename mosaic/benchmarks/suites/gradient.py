@@ -5,8 +5,6 @@ Only runs solvers where SolverSpec.differentiable is True.
 
 from __future__ import annotations
 
-import subprocess
-import threading
 import time
 
 import jax
@@ -15,19 +13,20 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.harness import classify_failure as _classify_failure
+from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
+from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
+from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_pool
 
 # JAX-traced closures capture this reference at trace time; using the
 # tracer-aware wrapper ensures primitive binding sees the active trace.
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
-    _diff_solvers,
+    active_differentiable_solvers,
     experiment_dir,
     extract_runs,
     iter_runs,
     results_dir,
-    save_experiment,
-    save_gradient_fields_npz,
 )
 
 _SUITE = "gradient"
@@ -59,6 +58,36 @@ def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
         np.dot(fd_arr, vjp_arr)
         / (np.linalg.norm(fd_arr) * np.linalg.norm(vjp_arr) + 1e-30)
     )
+
+
+def _safe_vjp_at(
+    t,
+    cfg: ProblemConfig,
+    name: str,
+    ic,
+    phys: dict,
+    sweep_key: str,
+    val,
+    output_key: str,
+    ic_key: str,
+) -> tuple[jax.Array | None, Exception | None]:
+    """Compute the VJP gradient at one sweep point, returning ``(grad, exc)``.
+
+    On success ``exc`` is ``None``. On any failure — including non-finite
+    gradient values — ``grad`` is ``None`` and ``exc`` carries the cause.
+    Used by horizon_sweep_limits so the call site stays flat (no
+    try/except nested inside ``with MemoryPoller(...)``).
+    """
+    try:
+        inputs = cfg.make_inputs(
+            name, ic, **{**phys, sweep_key: val, "domain_extent": cfg.domain_extent}
+        )
+        g = _vjp_grad(t, inputs, output_key, ic_key)
+        if not jnp.all(jnp.isfinite(g)):
+            return None, ValueError("VJP returned non-finite gradient (NaN/Inf)")
+        return g, None
+    except Exception as exc:
+        return None, exc
 
 
 # ── Finite-difference verification ───────────────────────────────────────────
@@ -106,7 +135,7 @@ def run_fd_check(
         # Gate on the experiment-specific exclusion so source_fd_check /
         # source_width_sweep only run on source-differentiable solvers
         # (those without a {suite}/{_exp_key} or bare {_exp_key} exclusion).
-        diff_solvers = _diff_solvers(cfg, "gradient", _exp_key)
+        diff_solvers = active_differentiable_solvers(cfg, "gradient", _exp_key)
         results: dict = {}
         grad_snaps: dict = {}
         gpu_ids = overrides.get("gpu_ids")
@@ -191,7 +220,7 @@ def run_fd_check(
         )
         solver_names = list(grad_snaps.keys())
         saved_ic = grad_snaps[solver_names[0]]["ic"] if grad_snaps else ic
-        save_gradient_fields_npz(
+        save_field_snapshots_npz(
             out_dir,
             solver_names,
             {name: {"": np.asarray(grad_snaps[name]["grad"])} for name in solver_names},
@@ -368,7 +397,7 @@ def _run_generic_param_sweep(
         # Gate on the experiment-specific exclusion so source-experiment
         # exclusions (e.g. "gradient/source_width_sweep") take precedence over
         # the suite-level "gradient" key.
-        diff_solvers = _diff_solvers(cfg, "gradient", exp_key)
+        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
         results: dict = {}
         grad_snaps: dict = {}  # name → {val: grad array}
         gpu_ids = overrides.get("gpu_ids")
@@ -435,7 +464,7 @@ def _run_generic_param_sweep(
                     for k, v in enumerate(sweep_values)
                     if v in grad_snaps[sname]
                 }
-            save_gradient_fields_npz(
+            save_field_snapshots_npz(
                 out_dir,
                 solver_names,
                 per_solver,
@@ -482,172 +511,6 @@ def run_param_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> di
         or {ic_name: <above>} when multiple runs are configured.
     """
     return _run_generic_param_sweep(cfg, tags, "param_sweep", **overrides)
-
-
-def _parse_mem_mib(s: str) -> float | None:
-    """Parse a Docker-style memory string to MiB. e.g. '1.23GiB' → 1260.6"""
-    s = s.strip()
-    try:
-        for suffix, factor in [
-            ("GiB", 1024.0),
-            ("MiB", 1.0),
-            ("KiB", 1.0 / 1024.0),
-            ("GB", 953.674),
-            ("MB", 0.953674),
-            ("kB", 9.537e-4),
-        ]:
-            if s.endswith(suffix):
-                return float(s[: -len(suffix)]) * factor
-        return float(s)
-    except (ValueError, OverflowError):
-        return None
-
-
-def _sample_vram_mib(gpu_id: str) -> float | None:
-    """Single nvidia-smi query for memory.used on one GPU (MiB)."""
-    try:
-        r = subprocess.run(
-            [
-                "nvidia-smi",
-                f"--id={gpu_id}",
-                "--query-gpu=memory.used",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        return float(r.stdout.strip()) if r.returncode == 0 else None
-    except Exception:
-        return None
-
-
-def _container_id_from_tesseract(t) -> str | None:
-    """Extract Docker container name/ID from a Tesseract instance.
-
-    Prefers _serve_context['container_name'] (tesseract_core ≥ 0.9), then
-    falls back to scanning legacy Docker-SDK Container object attributes.
-    """
-    try:
-        ctx = getattr(t, "_serve_context", None)
-        if isinstance(ctx, dict):
-            name = ctx.get("container_name") or ctx.get("container_id")
-            if name:
-                return name
-    except Exception:
-        pass
-    for attr in ("_container", "container", "_service", "_backend"):
-        try:
-            obj = getattr(t, attr, None)
-            if obj is None:
-                continue
-            cid = getattr(obj, "id", None) or getattr(obj, "short_id", None)
-            if isinstance(cid, str) and len(cid) >= 12:
-                return cid[:12]
-        except Exception:
-            continue
-    return None
-
-
-def _sample_ram_mib(container_id: str) -> float | None:
-    """Single docker stats query for container memory usage (MiB)."""
-    try:
-        r = subprocess.run(
-            [
-                "docker",
-                "stats",
-                "--no-stream",
-                "--format",
-                "{{.MemUsage}}",
-                container_id,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if r.returncode != 0 or not r.stdout.strip():
-            return None
-        return _parse_mem_mib(r.stdout.strip().split("/")[0])
-    except Exception:
-        return None
-
-
-class _MemoryPoller:
-    """Polls GPU VRAM and container RAM in a daemon thread at fixed intervals.
-
-    Used to record peak memory during VJP calls in run_horizon_sweep_limits.
-    For OOM cases the container is killed mid-VJP; the last-sampled VRAM
-    values before the kill capture the ~OOM threshold.
-    """
-
-    def __init__(
-        self,
-        gpu_id: str | None,
-        container_id: str | None,
-        interval: float = 0.5,
-    ):
-        self._gpu_id = gpu_id
-        self._container_id = container_id
-        self._interval = interval
-        self._stop = threading.Event()
-        self._vram: list[float] = []
-        self._ram: list[float] = []
-        self._thread = threading.Thread(target=self._loop, daemon=True)
-
-    def start(self) -> "_MemoryPoller":
-        self._thread.start()
-        return self
-
-    def stop(self) -> dict:
-        """Signal the thread to stop and return peak memory readings."""
-        self._stop.set()
-        self._thread.join(timeout=6.0)
-        return {
-            "vram_peak_mib": max(self._vram) if self._vram else None,
-            "ram_peak_mib": max(self._ram) if self._ram else None,
-        }
-
-    def _loop(self) -> None:
-        while not self._stop.is_set():
-            if self._gpu_id is not None:
-                v = _sample_vram_mib(self._gpu_id)
-                if v is not None:
-                    self._vram.append(v)
-            if self._container_id is not None:
-                r = _sample_ram_mib(self._container_id)
-                if r is not None:
-                    self._ram.append(r)
-            self._stop.wait(self._interval)
-
-
-def _classify_failure(exc_name: str, exc_str: str) -> str:
-    """Map an exception to a short failure-type label for horizon_sweep_limits."""
-    s = exc_str.lower()
-    if exc_name == "ContainerDied":
-        return (
-            "container_died"  # Linux OOM-kill or crash; most likely OOM for GPU solvers
-        )
-    if (
-        "resource_exhausted" in s
-        or "out of memory" in s
-        or "cuda_error_out_of_memory" in s
-    ):
-        return "OOM"
-    if (
-        exc_name
-        in (
-            "WatchdogTimeout",
-            "WatchdogError",
-            "TimeoutError",
-            "ReadTimeout",
-            "ConnectTimeout",
-        )
-        or "timeout" in exc_name.lower()
-    ):
-        return "timeout"
-    if "nan" in s or "not finite" in s:
-        return "nan"
-    return "error"
 
 
 def run_horizon_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
@@ -735,7 +598,7 @@ def run_horizon_sweep_limits(
 
         ic = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
 
-        diff_solvers = _diff_solvers(cfg, "gradient", exp_key)
+        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
         results: dict = {}
         grad_snaps: dict = {}
         _wall_times: dict[str, float] = {}
@@ -750,12 +613,10 @@ def run_horizon_sweep_limits(
             t0 = time.perf_counter()
 
             # GPU ID is set per-thread by run_with_gpu_pool; container ID is
-            # extracted from the Tesseract object.  Both may be None (serial
+            # extracted from the Tesseract object. Both may be None (serial
             # mode or unknown SDK layout), in which case that metric is skipped.
-            from mosaic.benchmarks.core.runner import _tl as _runner_tl  # thread-local
-
-            _gpu_id = getattr(_runner_tl, "gpu_id", None)
-            _cid = _container_id_from_tesseract(t)
+            _gpu_id = current_worker_context().gpu_id
+            _cid = container_id_from_tesseract(t)
 
             solver_results: dict = {}
             solver_grads: dict = {}
@@ -786,18 +647,26 @@ def run_horizon_sweep_limits(
                     solver_results[val] = {"status": "skipped", "reason": fail_reason}
                     continue
                 t_step = time.perf_counter()
-                poller = _MemoryPoller(_gpu_id, _cid).start()
-                try:
-                    base_inputs = cfg.make_inputs(
+                with MemoryPoller(_gpu_id, _cid) as poller:
+                    g, exc = _safe_vjp_at(
+                        t,
+                        cfg,
                         name,
                         ic,
-                        **{**phys, sweep_key: val, "domain_extent": cfg.domain_extent},
+                        phys,
+                        sweep_key,
+                        val,
+                        _run_output_key,
+                        _run_ic_key,
                     )
-                    g = _vjp_grad(t, base_inputs, _run_output_key, _run_ic_key)
-                    if not jnp.all(jnp.isfinite(g)):
-                        raise ValueError("VJP returned non-finite gradient (NaN/Inf)")
-                    mem = poller.stop()
-                    step_wall = time.perf_counter() - t_step
+                mem = poller.summary
+                step_wall = time.perf_counter() - t_step
+                _vram_str = (
+                    f" vram={mem['vram_peak_mib']:.0f}MiB"
+                    if mem.get("vram_peak_mib") is not None
+                    else ""
+                )
+                if exc is None:
                     g_np = np.array(g).ravel()
                     grad_norm = float(jnp.linalg.norm(g))
                     solver_results[val] = {
@@ -811,11 +680,6 @@ def run_horizon_sweep_limits(
                         **mem,
                     }
                     solver_grads[val] = np.array(g)
-                    _vram_str = (
-                        f" vram={mem['vram_peak_mib']:.0f}MiB"
-                        if mem.get("vram_peak_mib") is not None
-                        else ""
-                    )
                     _ram_str = (
                         f" ram={mem['ram_peak_mib']:.0f}MiB"
                         if mem.get("ram_peak_mib") is not None
@@ -825,11 +689,9 @@ def run_horizon_sweep_limits(
                         f"  [{color}]{name}[/] {sweep_key}={val} ok "
                         f"grad_norm={grad_norm:.3g}{_vram_str}{_ram_str} ({step_wall:.1f}s)"
                     )
-                except Exception as exc:
-                    mem = poller.stop()
+                else:
                     exc_name = type(exc).__name__
                     failure_type = _classify_failure(exc_name, str(exc))
-                    step_wall = time.perf_counter() - t_step
                     err_short = str(exc)[:300]
                     solver_results[val] = {
                         "status": "failed",
@@ -840,11 +702,6 @@ def run_horizon_sweep_limits(
                     }
                     fail_reason = f"first failure at {sweep_key}={val} ({failure_type})"
                     failed = True
-                    _vram_str = (
-                        f" vram={mem['vram_peak_mib']:.0f}MiB"
-                        if mem.get("vram_peak_mib") is not None
-                        else ""
-                    )
                     console.print(
                         f"  [{color}]{name}[/] [red]FAIL[/] {sweep_key}={val} "
                         f"({failure_type}){_vram_str}: {err_short[:80]} ({step_wall:.1f}s)"
@@ -876,7 +733,7 @@ def run_horizon_sweep_limits(
                     for k, v in enumerate(sweep_values)
                     if v in grad_snaps[sname]
                 }
-            save_gradient_fields_npz(
+            save_field_snapshots_npz(
                 out_dir,
                 solver_names,
                 per_solver,
@@ -959,7 +816,7 @@ def run_jacobian_svd(
 
         ic = cfg.make_ic[ic_name](seed=seed, L=cfg.domain_extent, **phys)
 
-        diff_solvers = _diff_solvers(cfg, "gradient", _exp_key)
+        diff_solvers = active_differentiable_solvers(cfg, "gradient", _exp_key)
         jacobians: dict = {}  # name → (D_out, D_in) ndarray
         grad_snaps: dict = {}  # name → (D_in,) ndarray  [for field plots]
         base_inputs_snap: dict = {}
@@ -1167,7 +1024,7 @@ def run_jacobian_svd(
                 "grad:": np.asarray(grad_snaps[_sname]),
                 "jac:": np.asarray(jacobians[_sname]),
             }
-        save_gradient_fields_npz(
+        save_field_snapshots_npz(
             out_dir,
             solver_names,
             _per_solver_npz,

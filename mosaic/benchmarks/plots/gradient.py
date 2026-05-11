@@ -232,10 +232,10 @@ def _plot_best_eps_overlay(
         xs = [x_to_float(k) for k in x_keys]
         best_re = [_best_re(results[k]["eps_sweep"]) for k in x_keys]
 
-        pairs = [(x, v) for x, v in zip(xs, best_re) if np.isfinite(v)]
+        pairs = [(x, v) for x, v in zip(xs, best_re, strict=False) if np.isfinite(v)]
         if not pairs:
             continue
-        px, py = zip(*pairs)
+        px, py = zip(*pairs, strict=False)
         ax.semilogy(
             px,
             py,

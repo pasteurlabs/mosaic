@@ -38,6 +38,11 @@ Timing semantics (apply to every experiment in this module):
   * Host-side RPC and (de)serialization together add ~2-20 ms of fixed cost
     per call.
 
+The per-trial timing loop, peak-memory sampling, and exception classification
+live in ``core/harness.py`` (``run_timed_trials``) so every suite shares the
+same semantics. This file only owns the cost-specific input construction,
+sweep dispatch, and result wiring.
+
 Run from the terminal:
     cd mosaic
     python -m benchmarks.suites.cost [--experiment EXPR] [--no-plots]
@@ -46,23 +51,22 @@ Run from the terminal:
 from __future__ import annotations
 
 import time
-import traceback
 
 import jax.numpy as jnp
 import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.hardware import ResourceSampler, get_hardware_info
-from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.hardware import get_hardware_info
+from mosaic.benchmarks.core.harness import run_timed_trials
+from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
+from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_pool
 from mosaic.benchmarks.core.utils import (
-    _diff_solvers,
+    active_differentiable_solvers,
     active_solvers,
     experiment_dir,
     iter_runs,
     results_dir,
-    save_experiment,
-    save_gradient_fields_npz,
 )
 
 _SUITE = "cost"
@@ -73,28 +77,10 @@ _SUITE = "cost"
 _SPATIAL_WALL_S = 1000
 
 
-def _classify_failure_import():
-    from mosaic.benchmarks.suites.gradient import _classify_failure  # noqa: PLC0415
-
-    return _classify_failure
-
-
-def _sampler_to_mem(sampler: ResourceSampler) -> dict:
-    """Map ResourceSampler summary to the cost-suite memory keys."""
-    s = sampler.summary
-    return {
-        "vram_peak_mib": s.get("peak_gpu_mem_mb"),
-        "ram_peak_mib": s.get("peak_ram_mb"),
-    }
-
-
-def _exc_info(exc: Exception) -> dict:
-    """Capture full exception details for failure entries."""
-    return {
-        "exc_type": type(exc).__name__,
-        "exc_msg": str(exc),
-        "traceback": traceback.format_exc(),
-    }
+def _mark_remaining_none(target: dict, values: list, current) -> None:
+    """Mark every value after ``current`` in ``values`` as ``None`` in ``target``."""
+    for remaining in values[values.index(current) + 1 :]:
+        target[remaining] = None
 
 
 # ── Spatial cost ─────────────────────────────────────────────────────────────
@@ -144,18 +130,13 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
     _wall_times: dict[str, float] = {}
     gpu_ids = overrides.get("gpu_ids")
 
-    _classify_failure = _classify_failure_import()
-
     def _spatial_work(name: str, t) -> None:
         color = cfg.solvers[name].color
         t_solver = time.perf_counter()
         console.print(
             f"  [{color}]{name}[/]  {res_key} sweep ({len(N_values)} sizes, {n_trials} trials each)"
         )
-        from mosaic.benchmarks.core.runner import _tl as _runner_tl
-
-        _gpu_id = getattr(_runner_tl, "gpu_id", None)
-        _image_tag = getattr(_runner_tl, "image_tag", None)
+        ctx = current_worker_context()
 
         for res in N_values:
             _phys = {**phys, res_key: res}
@@ -163,48 +144,32 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
                 _phys["steps"] = ref_steps
             ic = cfg.make_ic[ref_ic_name](L=cfg.domain_extent, **_phys)
             inputs = cfg.make_inputs(name, ic, domain_extent=cfg.domain_extent, **_phys)
-            times: list[float] = []
-            _hit_limit = False
-            sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
-            try:
-                with sampler:
-                    t.apply(
-                        inputs
-                    )  # warmup (unreported): absorbs JIT / CUDA / scan-trace cost
-                    for i in range(n_trials):
-                        t0 = time.perf_counter()
-                        t.apply(inputs)
-                        elapsed_trial = time.perf_counter() - t0
-                        times.append(elapsed_trial)
-                        if i == 0 and elapsed_trial > _SPATIAL_WALL_S:
-                            console.print(
-                                f"  [yellow][WARN][/] {name} {res_key}={res}: "
-                                f"first trial {elapsed_trial:.1f}s > {_SPATIAL_WALL_S}s limit"
-                            )
-                            _hit_limit = True
-                            break
-                mem = _sampler_to_mem(sampler)
-            except Exception as exc:
-                mem = _sampler_to_mem(sampler)
-                _ft = _classify_failure(type(exc).__name__, str(exc))
+
+            result = run_timed_trials(
+                lambda: t.apply(inputs),
+                n_trials=n_trials,
+                wall_limit_s=_SPATIAL_WALL_S,
+                gpu_id=ctx.gpu_id,
+                image_tag=ctx.image_tag,
+            )
+
+            if result.failure is not None:
                 console.print(
-                    f"  [yellow][WARN][/] {name} {res_key}={res} failed ({_ft}): {str(exc)[:80]}"
+                    f"  [yellow][WARN][/] {name} {res_key}={res} failed "
+                    f"({result.failure['failure_type']}): "
+                    f"{result.failure['exc_msg'][:80]}"
                 )
-                by_N[name][res] = {
-                    "status": "failed",
-                    "failure_type": _ft,
-                    **_exc_info(exc),
-                    **mem,
-                }
-                for remaining in N_values[N_values.index(res) + 1 :]:
-                    by_N[name][remaining] = None
+                by_N[name][res] = result.as_record()
+                _mark_remaining_none(by_N[name], N_values, res)
                 break
 
-            by_N[name][res] = {
-                "mean": float(jnp.mean(jnp.array(times))),
-                "std": float(jnp.std(jnp.array(times))) if len(times) > 1 else 0.0,
-                **mem,
-            }
+            if result.wall_limit_hit:
+                console.print(
+                    f"  [yellow][WARN][/] {name} {res_key}={res}: "
+                    f"first trial {result.first_elapsed:.1f}s > {_SPATIAL_WALL_S}s limit"
+                )
+
+            by_N[name][res] = result.as_record()
             csv_rows.append(
                 {
                     "solver": name,
@@ -213,9 +178,8 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
                     **by_N[name][res],
                 }
             )
-            if _hit_limit:
-                for remaining in N_values[N_values.index(res) + 1 :]:
-                    by_N[name][remaining] = None
+            if result.wall_limit_hit:
+                _mark_remaining_none(by_N[name], N_values, res)
                 break
 
         elapsed = time.perf_counter() - t_solver
@@ -292,8 +256,6 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
     _wall_times: dict[str, float] = {}
     gpu_ids = overrides.get("gpu_ids")
 
-    _classify_failure = _classify_failure_import()
-
     def _temporal_work(name: str, t) -> None:
         color = cfg.solvers[name].color
         t_solver = time.perf_counter()
@@ -302,10 +264,7 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         console.print(
             f"  [{color}]{name}[/]  steps sweep ({len(steps_values)} counts, {n_trials} trials each)"
         )
-        from mosaic.benchmarks.core.runner import _tl as _runner_tl
-
-        _gpu_id = getattr(_runner_tl, "gpu_id", None)
-        _image_tag = getattr(_runner_tl, "image_tag", None)
+        ctx = current_worker_context()
 
         for steps in steps_values:
             inputs = cfg.make_inputs(
@@ -314,42 +273,25 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 domain_extent=cfg.domain_extent,
                 **{**_phys_ref, "steps": steps},
             )
-            times: list[float] = []
-            _hit_limit = False
-            sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
-            try:
-                with sampler:
-                    t.apply(inputs)  # warmup (unreported)
-                    for i in range(n_trials):
-                        t0 = time.perf_counter()
-                        t.apply(inputs)
-                        elapsed_trial = time.perf_counter() - t0
-                        times.append(elapsed_trial)
-                        if i == 0 and elapsed_trial > _SPATIAL_WALL_S:
-                            _hit_limit = True
-                            break
-                mem = _sampler_to_mem(sampler)
-            except Exception as exc:
-                mem = _sampler_to_mem(sampler)
-                _ft = _classify_failure(type(exc).__name__, str(exc))
+            result = run_timed_trials(
+                lambda: t.apply(inputs),
+                n_trials=n_trials,
+                wall_limit_s=_SPATIAL_WALL_S,
+                gpu_id=ctx.gpu_id,
+                image_tag=ctx.image_tag,
+            )
+
+            if result.failure is not None:
                 console.print(
-                    f"  [yellow][WARN][/] {name} steps={steps} failed ({_ft}): {str(exc)[:80]}"
+                    f"  [yellow][WARN][/] {name} steps={steps} failed "
+                    f"({result.failure['failure_type']}): "
+                    f"{result.failure['exc_msg'][:80]}"
                 )
-                by_steps[name][steps] = {
-                    "status": "failed",
-                    "failure_type": _ft,
-                    **_exc_info(exc),
-                    **mem,
-                }
-                for remaining in steps_values[steps_values.index(steps) + 1 :]:
-                    by_steps[name][remaining] = None
+                by_steps[name][steps] = result.as_record()
+                _mark_remaining_none(by_steps[name], steps_values, steps)
                 break
 
-            by_steps[name][steps] = {
-                "mean": float(jnp.mean(jnp.array(times))),
-                "std": float(jnp.std(jnp.array(times))) if len(times) > 1 else 0.0,
-                **mem,
-            }
+            by_steps[name][steps] = result.as_record()
             csv_rows.append(
                 {
                     "solver": name,
@@ -358,9 +300,8 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                     **by_steps[name][steps],
                 }
             )
-            if _hit_limit:
-                for remaining in steps_values[steps_values.index(steps) + 1 :]:
-                    by_steps[name][remaining] = None
+            if result.wall_limit_hit:
+                _mark_remaining_none(by_steps[name], steps_values, steps)
                 break
 
         elapsed = time.perf_counter() - t_solver
@@ -418,8 +359,6 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                                or None on failure}},
          "hardware": {...}}
     """
-    import jax.numpy as jnp
-
     from mosaic.benchmarks.suites.gradient import _vjp_grad  # reuse — no duplication
 
     runs = cfg.cost_defaults
@@ -433,9 +372,9 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
     # VJP cost: a solver that's excluded from the entire "gradient" suite (no
     # IC-level adjoint) or specifically from "cost/vjp_cost" should be filtered.
-    diff_solver_names = set(_diff_solvers(cfg, "cost", "vjp_cost")) & set(
-        _diff_solvers(cfg, "gradient")
-    )
+    diff_solver_names = set(
+        active_differentiable_solvers(cfg, "cost", "vjp_cost")
+    ) & set(active_differentiable_solvers(cfg, "gradient"))
     diff_solvers = [(n, s) for n, s in cfg.solvers.items() if n in diff_solver_names]
     if not diff_solvers:
         console.print("  [yellow]No differentiable solvers — skipping vjp_cost[/]")
@@ -463,15 +402,10 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     gpu_ids = overrides.get("gpu_ids")
     diff_solver_names_list = [name for name, _ in diff_solvers]
 
-    _classify_failure = _classify_failure_import()
-
     def _vjp_work(name: str, t) -> None:
         color = cfg.solvers[name].color
         t_solver = time.perf_counter()
-        from mosaic.benchmarks.core.runner import _tl as _runner_tl
-
-        _gpu_id = getattr(_runner_tl, "gpu_id", None)
-        _image_tag = getattr(_runner_tl, "image_tag", None)
+        ctx = current_worker_context()
 
         # ── N sweep (spatial) ─────────────────────────────────────────────
         if N_values:
@@ -486,58 +420,40 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 inputs = cfg.make_inputs(
                     name, ic, domain_extent=cfg.domain_extent, **_phys
                 )
-                times: list[float] = []
-                _hit_limit = False
-                _last_grad = None
-                sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
-                try:
-                    with sampler:
-                        _vjp_grad(
-                            t, inputs, cfg.output_key, cfg.ic_key
-                        )  # warmup (unreported)
-                        for i in range(n_trials):
-                            t0 = time.perf_counter()
-                            g = _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key)
-                            elapsed_trial = time.perf_counter() - t0
-                            times.append(elapsed_trial)
-                            _last_grad = g
-                            if i == 0 and elapsed_trial > _SPATIAL_WALL_S:
-                                console.print(
-                                    f"  [yellow][WARN][/] {name} VJP {res_key}={res}: "
-                                    f"first trial {elapsed_trial:.1f}s > {_SPATIAL_WALL_S}s limit"
-                                )
-                                _hit_limit = True
-                                break
-                    mem = _sampler_to_mem(sampler)
-                except Exception as exc:
-                    mem = _sampler_to_mem(sampler)
-                    _ft = _classify_failure(type(exc).__name__, str(exc))
+
+                result = run_timed_trials(
+                    lambda: _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key),
+                    n_trials=n_trials,
+                    wall_limit_s=_SPATIAL_WALL_S,
+                    gpu_id=ctx.gpu_id,
+                    image_tag=ctx.image_tag,
+                    capture_value=True,
+                )
+
+                if result.failure is not None:
                     console.print(
-                        f"  [yellow][WARN][/] {name} VJP {res_key}={res} failed ({_ft}): {str(exc)[:80]}"
+                        f"  [yellow][WARN][/] {name} VJP {res_key}={res} failed "
+                        f"({result.failure['failure_type']}): "
+                        f"{result.failure['exc_msg'][:80]}"
                     )
-                    by_N[name][res] = {
-                        "status": "failed",
-                        "failure_type": _ft,
-                        **_exc_info(exc),
-                        **mem,
-                    }
-                    for remaining in N_values[N_values.index(res) + 1 :]:
-                        by_N[name][remaining] = None
+                    by_N[name][res] = result.as_record()
+                    _mark_remaining_none(by_N[name], N_values, res)
                     break
 
+                if result.wall_limit_hit:
+                    console.print(
+                        f"  [yellow][WARN][/] {name} VJP {res_key}={res}: "
+                        f"first trial {result.first_elapsed:.1f}s > {_SPATIAL_WALL_S}s limit"
+                    )
+
                 grad_norm = (
-                    float(jnp.linalg.norm(_last_grad))
-                    if _last_grad is not None
+                    float(jnp.linalg.norm(result.last_value))
+                    if result.last_value is not None
                     else None
                 )
-                by_N[name][res] = {
-                    "mean": float(jnp.mean(jnp.array(times))),
-                    "std": float(jnp.std(jnp.array(times))) if len(times) > 1 else 0.0,
-                    "grad_norm": grad_norm,
-                    **mem,
-                }
-                if _last_grad is not None:
-                    grad_snaps_N[name][res] = np.array(_last_grad)
+                by_N[name][res] = result.as_record(grad_norm=grad_norm)
+                if result.last_value is not None:
+                    grad_snaps_N[name][res] = np.array(result.last_value)
                 csv_rows.append(
                     {
                         "solver": name,
@@ -547,9 +463,8 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                         **by_N[name][res],
                     }
                 )
-                if _hit_limit:
-                    for remaining in N_values[N_values.index(res) + 1 :]:
-                        by_N[name][remaining] = None
+                if result.wall_limit_hit:
+                    _mark_remaining_none(by_N[name], N_values, res)
                     break
 
         # ── steps sweep (temporal) ────────────────────────────────────────
@@ -566,46 +481,32 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                     domain_extent=cfg.domain_extent,
                     **{**_phys_ref, "steps": steps},
                 )
-                times = []
-                _hit_limit = False
-                sampler = ResourceSampler(gpu_id=_gpu_id, image_tag=_image_tag)
-                try:
-                    with sampler:
-                        _vjp_grad(
-                            t, inputs, cfg.output_key, cfg.ic_key
-                        )  # warmup (unreported)
-                        for i in range(n_trials):
-                            t0 = time.perf_counter()
-                            g = _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key)
-                            elapsed_trial = time.perf_counter() - t0
-                            times.append(elapsed_trial)
-                            if i == 0 and elapsed_trial > _SPATIAL_WALL_S:
-                                _hit_limit = True
-                                break
-                    mem = _sampler_to_mem(sampler)
-                except Exception as exc:
-                    mem = _sampler_to_mem(sampler)
-                    _ft = _classify_failure(type(exc).__name__, str(exc))
+
+                result = run_timed_trials(
+                    lambda: _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key),
+                    n_trials=n_trials,
+                    wall_limit_s=_SPATIAL_WALL_S,
+                    gpu_id=ctx.gpu_id,
+                    image_tag=ctx.image_tag,
+                    capture_value=True,
+                )
+
+                if result.failure is not None:
                     console.print(
-                        f"  [yellow][WARN][/] {name} VJP steps={steps} failed ({_ft}): {str(exc)[:80]}"
+                        f"  [yellow][WARN][/] {name} VJP steps={steps} failed "
+                        f"({result.failure['failure_type']}): "
+                        f"{result.failure['exc_msg'][:80]}"
                     )
-                    by_steps[name][steps] = {
-                        "status": "failed",
-                        "failure_type": _ft,
-                        **_exc_info(exc),
-                        **mem,
-                    }
-                    for remaining in steps_values[steps_values.index(steps) + 1 :]:
-                        by_steps[name][remaining] = None
+                    by_steps[name][steps] = result.as_record()
+                    _mark_remaining_none(by_steps[name], steps_values, steps)
                     break
 
-                grad_norm = float(jnp.linalg.norm(g)) if times else None
-                by_steps[name][steps] = {
-                    "mean": float(jnp.mean(jnp.array(times))),
-                    "std": float(jnp.std(jnp.array(times))) if len(times) > 1 else 0.0,
-                    "grad_norm": grad_norm,
-                    **mem,
-                }
+                grad_norm = (
+                    float(jnp.linalg.norm(result.last_value))
+                    if result.last_value is not None
+                    else None
+                )
+                by_steps[name][steps] = result.as_record(grad_norm=grad_norm)
                 csv_rows.append(
                     {
                         "solver": name,
@@ -615,9 +516,8 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                         **by_steps[name][steps],
                     }
                 )
-                if _hit_limit:
-                    for remaining in steps_values[steps_values.index(steps) + 1 :]:
-                        by_steps[name][remaining] = None
+                if result.wall_limit_hit:
+                    _mark_remaining_none(by_steps[name], steps_values, steps)
                     break
 
         elapsed = time.perf_counter() - t_solver
@@ -651,7 +551,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
             for name, snaps in grad_snaps_N.items()
             if snaps
         }
-        save_gradient_fields_npz(
+        save_field_snapshots_npz(
             out_dir,
             solver_names=[n for n, _ in diff_solvers],
             per_solver_arrays=per_solver,

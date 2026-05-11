@@ -56,7 +56,7 @@ def _plot_ns_recovery(
         )
         if not errors:
             continue
-        label, color, ls, mk = solver_props(solver)
+        _label, color, ls, _mk = solver_props(solver)
         ax.semilogy(
             range(len(errors)), errors, color=color, linestyle=ls, linewidth=1.6
         )
@@ -90,7 +90,7 @@ def _plot_fem_recovery(
         vals = by_solver[solver].get(error_key, [])
         if not vals:
             continue
-        label, color, ls, mk = solver_props(solver)
+        _label, color, ls, _mk = solver_props(solver)
         ax.semilogy(range(len(vals)), vals, color=color, linestyle=ls, linewidth=1.6)
         seen.add(solver)
 
@@ -147,7 +147,7 @@ def generate(out_dir: Path) -> None:
             [make_handle(s) for s in FEM_ORDER if s in fem_seen]
         )
 
-        legend_kw = dict(fontsize=7.5, framealpha=0.7, handlelength=2.0)
+        legend_kw = {"fontsize": 7.5, "framealpha": 0.7, "handlelength": 2.0}
         fig.legend(
             handles=ns_handles,
             loc="lower left",

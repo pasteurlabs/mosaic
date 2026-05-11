@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import re
 
 import matplotlib.pyplot as plt
@@ -90,7 +91,7 @@ def plot_agreement(
     n_vals = len(sweep_vals)
 
     # ── detect comparison type from consensus shape ───────────────────────────
-    sample_consensus = npz["consensus_0"] if "consensus_0" in npz else None
+    sample_consensus = npz.get("consensus_0", None)
     curve_mode = sample_consensus is not None and sample_consensus.ndim == 1
 
     # Scalar outputs (ndim == 0): plot the scalar value vs sweep parameter.
@@ -98,7 +99,7 @@ def plot_agreement(
         fig, ax = plt.subplots(figsize=(6, 4))
         all_y: list[float] = []
         solver_series: list[tuple] = []
-        for j, name in enumerate(solver_names):
+        for _j, name in enumerate(solver_names):
             y_vals = [
                 float(npz[f"{name}_{i}"]) if f"{name}_{i}" in npz else np.nan
                 for i in range(n_vals)
@@ -145,7 +146,7 @@ def plot_agreement(
             cons_key = f"consensus_{i}"
             consensus = _smooth(npz[cons_key]) if cons_key in npz else None
 
-            for j, name in enumerate(solver_names):
+            for _j, name in enumerate(solver_names):
                 key_s = f"{name}_{i}"
                 if key_s not in npz:
                     continue
@@ -242,10 +243,8 @@ def plot_agreement(
         if all_errs:
             ax_conv.set_yscale("log")
             if exp_key == "baseline":
-                try:
+                with contextlib.suppress(Exception):
                     ax_conv.set_xscale("log")
-                except Exception:
-                    pass
         ref_desc = (
             "analytic solution" if reference_label == "analytic" else "solver consensus"
         )
@@ -271,9 +270,9 @@ def plot_agreement(
 
     fig_ps, axes = subplots_grid(n_vals, panel_w=4, panel_h=4, sharey=True)
 
-    for i, (val, ax) in enumerate(zip(sweep_vals, axes)):
+    for i, (val, ax) in enumerate(zip(sweep_vals, axes, strict=False)):
         key_c = f"consensus_{i}"
-        for j, name in enumerate(solver_names):
+        for _j, name in enumerate(solver_names):
             key_s = f"{name}_{i}"
             if key_s not in npz or not _is_field(npz[key_s]):
                 continue
@@ -313,10 +312,12 @@ def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
         Ns = sorted(n_errs.keys(), key=int)
         all_N.extend(Ns)
         valid = [
-            (int(N), e) for N, e in zip(Ns, [n_errs[N] for N in Ns]) if e is not None
+            (int(N), e)
+            for N, e in zip(Ns, [n_errs[N] for N in Ns], strict=False)
+            if e is not None
         ]
         if valid:
-            Nv, ev = zip(*valid)
+            Nv, ev = zip(*valid, strict=False)
             ax.loglog(
                 Nv,
                 ev,
@@ -384,7 +385,7 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
     if scalar_keys:
         fig_sc, axes_sc = subplots_grid(len(scalar_keys), panel_w=5, panel_h=4)
-        for col, (ax, dname) in enumerate(zip(axes_sc, scalar_keys)):
+        for _col, (ax, dname) in enumerate(zip(axes_sc, scalar_keys, strict=False)):
             for i, name in enumerate(solvers):
                 vals = [
                     (by_ic[lbl].get(name) or {}).get(dname, np.nan)
@@ -442,7 +443,7 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
         fig_sp, axes_sp = subplots_grid(
             len(ic_labels), panel_w=5, panel_h=4, sharey=True
         )
-        for col, (ax, lbl) in enumerate(zip(axes_sp, ic_labels)):
+        for _col, (ax, lbl) in enumerate(zip(axes_sp, ic_labels, strict=False)):
             for name in solvers:
                 spec = (by_ic[lbl].get(name) or {}).get("energy_spectrum")
                 if isinstance(spec, dict):
@@ -474,7 +475,7 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
         fig_rdf, axes_rdf = subplots_grid(
             len(ic_labels), panel_w=5, panel_h=4, sharey=True
         )
-        for i_ax, (ax, lbl) in enumerate(zip(axes_rdf, ic_labels)):
+        for i_ax, (ax, lbl) in enumerate(zip(axes_rdf, ic_labels, strict=False)):
             all_g: list[np.ndarray] = []
             r_ref: np.ndarray | None = None
             for name in solvers:
@@ -556,7 +557,7 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
             # ── curve-mode: one subplot per IC, all pairs overlaid ────────────
             fig, axes = subplots_grid(len(ic_labels), panel_w=5, panel_h=4, sharey=True)
             ylabel = cfg.pairwise_ylabels.get(dname, "r(k)")
-            for i_ax, (ax, lbl) in enumerate(zip(axes, ic_labels)):
+            for i_ax, (ax, lbl) in enumerate(zip(axes, ic_labels, strict=False)):
                 ic_res = by_ic_pw.get(lbl, {}).get(dname, {})
                 for p_idx, (pair_label, pdata) in enumerate(ic_res.items()):
                     if not isinstance(pdata, dict):
@@ -697,7 +698,7 @@ def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
                         pe = [r.get("potential_energy") for r in valid_rows]
                         ke = [r.get("kinetic_energy") for r in valid_rows]
                         vals_raw = (
-                            [p + k for p, k in zip(pe, ke)]
+                            [p + k for p, k in zip(pe, ke, strict=False)]
                             if all(v is not None for v in pe + ke)
                             else []
                         )
@@ -757,7 +758,7 @@ def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     # ── 2. Hessian / phase figures ────────────────────────────────────────────
     for metric in hessian_present:
         fig, axes = subplots_grid(len(vals), panel_w=4, panel_h=4, sharey=False)
-        for ax, val in zip(axes, vals):
+        for ax, val in zip(axes, vals, strict=False):
             for name, ts in by_param[val].items():
                 t_arr = [r["t"] for r in ts if r["valid"]]
                 m_arr = [
@@ -811,7 +812,7 @@ def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     # ── 3. Other metrics (generic) ─────────────────────────────────────────────
     for metric in other_keys:
         fig, axes = subplots_grid(len(vals), panel_w=4, panel_h=4, sharey=False)
-        for ax, val in zip(axes, vals):
+        for ax, val in zip(axes, vals, strict=False):
             for name, ts in by_param[val].items():
                 t_arr = [r["t"] for r in ts if r["valid"]]
                 m_arr = [
@@ -890,7 +891,7 @@ def _plot_physical_laws_single(cfg, data, out_dir, styles, save):
     if not isinstance(axes, (list, np.ndarray)):
         axes = [axes]
 
-    for ax, dname in zip(axes, diag_names):
+    for ax, dname in zip(axes, diag_names, strict=False):
         for name in cfg.solvers:
             y = []
             for val in vals:

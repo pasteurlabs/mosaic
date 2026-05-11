@@ -189,12 +189,12 @@ def _draw_load_arrow(
         "",
         xy=(x + dx * length, y + dy * length),
         xytext=(x, y),
-        arrowprops=dict(
-            arrowstyle="simple",
-            facecolor=_CLR_LOAD,
-            edgecolor=_CLR_LOAD,
-            mutation_scale=16,
-        ),
+        arrowprops={
+            "arrowstyle": "simple",
+            "facecolor": _CLR_LOAD,
+            "edgecolor": _CLR_LOAD,
+            "mutation_scale": 16,
+        },
         zorder=5,
     )
 
@@ -380,7 +380,7 @@ def generate(out_dir: Path) -> None:
 
     # Load additional optimizer results where available
     opt_datasets: list[tuple[str, dict]] = []
-    for key, (m_ls, m_label, rp) in OPT_METHODS.items():
+    for key, (m_ls, _m_label, rp) in OPT_METHODS.items():
         if rp.exists():
             opt_datasets.append((m_ls, json.loads(rp.read_text())["by_solver"]))
         else:

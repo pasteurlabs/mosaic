@@ -81,17 +81,19 @@ def _make_ops(vset, pp, cb, fdtype, kind: str):  # mosaic:init
         collide = KBC(velocity_set=vset, precision_policy=pp, compute_backend=cb)
     else:
         collide = BGK(velocity_set=vset, precision_policy=pp, compute_backend=cb)
-    return dict(
-        C=jnp.array(vset.c, dtype=fdtype),
-        W=jnp.array(vset.w, dtype=fdtype),
-        eq=QuadraticEquilibrium(
+    return {
+        "C": jnp.array(vset.c, dtype=fdtype),
+        "W": jnp.array(vset.w, dtype=fdtype),
+        "eq": QuadraticEquilibrium(
             velocity_set=vset, precision_policy=pp, compute_backend=cb
         ),
-        stream=Stream(velocity_set=vset, precision_policy=pp, compute_backend=cb),
-        macro=Macroscopic(velocity_set=vset, precision_policy=pp, compute_backend=cb),
-        bgk=collide,
-        fdtype=fdtype,
-    )
+        "stream": Stream(velocity_set=vset, precision_policy=pp, compute_backend=cb),
+        "macro": Macroscopic(
+            velocity_set=vset, precision_policy=pp, compute_backend=cb
+        ),
+        "bgk": collide,
+        "fdtype": fdtype,
+    }
 
 
 _vsets = {
@@ -184,6 +186,7 @@ _D2Q9_C: list[tuple[int, int]] = [
     for cx, cy in zip(
         _np.array(_vsets[(2, False)].c)[0],
         _np.array(_vsets[(2, False)].c)[1],
+        strict=False,
     )
 ]
 _D2Q9_CX: list[float] = [float(c[0]) for c in _D2Q9_C]
@@ -452,7 +455,7 @@ def xlb_fwd(  # mosaic:physics
         u0 = jnp.moveaxis(v0, -1, 0).astype(fdtype) * scale_eff
 
     spatial = u0.shape[1:]
-    rho0 = jnp.ones((1,) + spatial, dtype=fdtype)
+    rho0 = jnp.ones((1, *spatial), dtype=fdtype)
 
     # Initialise populations from equilibrium at rho=1 using XLB operator
     f0 = xlb_eq(rho0, u0)
@@ -554,7 +557,7 @@ def xlb_fwd(  # mosaic:physics
     f_final, drag_history = jax.lax.scan(body, f0, None, length=steps_eff)
 
     # Extract macroscopic velocity using XLB Macroscopic operator
-    rho_f, u_out = xlb_macro(f_final)  # rho: (1, *spatial), u: (d, *spatial)
+    _rho_f, u_out = xlb_macro(f_final)  # rho: (1, *spatial), u: (d, *spatial)
 
     # Drag computation via Ladd's momentum exchange method (2-D only).
     # We use the tail-window mean over the last half of the simulation to
@@ -591,7 +594,7 @@ def xlb_fwd(  # mosaic:physics
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
     result, drag = xlb_fwd(**inputs)
-    out = dict(result=result)
+    out = {"result": result}
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out
 
@@ -647,11 +650,9 @@ def abstract_eval(abstract_inputs):
     raw = abstract_inputs.model_dump()
     obstacle_raw = raw.get("obstacle") or {}
     _has_obstacle = bool(
-        (
-            obstacle_raw.get("shape")
-            if isinstance(obstacle_raw, dict)
-            else getattr(obstacle_raw, "shape", None)
-        )
+        obstacle_raw.get("shape")
+        if isinstance(obstacle_raw, dict)
+        else getattr(obstacle_raw, "shape", None)
     )
     return out
 

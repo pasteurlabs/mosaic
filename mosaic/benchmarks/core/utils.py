@@ -10,9 +10,7 @@ import fnmatch
 import hashlib
 import inspect
 import json
-import logging
 import os
-import time
 from pathlib import Path
 
 import jax
@@ -170,140 +168,6 @@ def _file_lock(lock_path: Path):
             os.close(fd)
 
 
-def save_gradient_fields_npz(
-    out_dir: Path,
-    solver_names: list[str],
-    per_solver_arrays: dict[str, dict[str, np.ndarray]],
-    shared_arrays: dict[str, np.ndarray] | None = None,
-    filename: str = "gradient_fields.npz",
-    prefixes: tuple[str, ...] = ("grad",),
-) -> None:
-    """Atomically merge-save a positional-indexed per-solver npz.
-
-    Our npz convention stores a ``solver_names`` string array and per-solver
-    arrays under positional keys like ``{prefix}_{j}`` or
-    ``{prefix}_{j}_<suffix>`` where ``j`` is the index of the solver in
-    ``solver_names``. Two concurrent mosaic processes writing the same npz
-    without coordination would race: whichever writes last wins wholesale,
-    dropping the other process's solvers.
-
-    This helper:
-      1) Acquires the same per-dir ``.save_experiment.lock`` used by
-         ``save_experiment`` so npz and json writes share a critical section.
-      2) Loads any existing npz, decodes its ``solver_names`` and remaps its
-         per-solver entries back to solver names.
-      3) Merges the caller's ``per_solver_arrays`` with the existing entries
-         (caller wins on collision, matching by_solver merge semantics).
-      4) Writes the merged npz with a new canonical ``solver_names`` ordering
-         (caller's names first, then older solvers appended) and re-emits
-         the positional keys.
-
-    ``per_solver_arrays``: ``{solver_name: {"<prefix>:<suffix>": array, ...}}``.
-        The key has the form ``"<prefix>:<suffix>"`` where ``<prefix>`` is one
-        of ``prefixes`` and ``<suffix>`` is whatever appears after
-        ``{prefix}_{j}_`` in the npz key (e.g. ``"N32"``). Use ``suffix=""``
-        for the plain ``{prefix}_{j}`` layout. For single-prefix use, the
-        convenience form ``{solver: {suffix: array}}`` (no colon, implicit
-        first prefix) is also accepted.
-
-    ``shared_arrays``: optional ``{key: array}`` — written verbatim alongside
-        (``ic``, ``N_values``, ``steps``…). Caller wins on collision.
-
-    ``prefixes``: tuple of positional-key prefixes to participate in merging
-        (e.g. ``("grad",)`` for gradient.py, ``("rho_final", "rho_history")``
-        for recovery.py topopt). Non-matching keys are preserved as shared.
-    """
-    out_dir.mkdir(parents=True, exist_ok=True)
-    lock_path = out_dir / ".save_experiment.lock"
-    npz_path = out_dir / filename
-
-    def _parse_positional(key: str) -> tuple[str, int, str] | None:
-        """Return (prefix, j, suffix) if key matches any of ``prefixes``."""
-        for p in prefixes:
-            if key == p or key.startswith(p + "_"):
-                rest = key[len(p) :]
-                if not rest:
-                    return None
-                if rest[0] != "_":
-                    continue
-                parts = rest[1:].split("_", 1)
-                try:
-                    j = int(parts[0])
-                except ValueError:
-                    continue
-                suffix = parts[1] if len(parts) > 1 else ""
-                return (p, j, suffix)
-        return None
-
-    def _canonicalise_input(
-        per_solver: dict[str, dict[str, np.ndarray]],
-    ) -> dict[str, dict[tuple[str, str], np.ndarray]]:
-        """Convert caller's keys to (prefix, suffix) tuples."""
-        out: dict[str, dict[tuple[str, str], np.ndarray]] = {}
-        default_prefix = prefixes[0]
-        for sname, suf_map in per_solver.items():
-            norm: dict[tuple[str, str], np.ndarray] = {}
-            for k, arr in suf_map.items():
-                if ":" in k:
-                    p, s = k.split(":", 1)
-                else:
-                    p, s = default_prefix, k
-                norm[(p, s)] = np.asarray(arr)
-            out[sname] = norm
-        return out
-
-    with _file_lock(lock_path):
-        merged_per_solver: dict[str, dict[tuple[str, str], np.ndarray]] = {}
-        merged_shared: dict[str, np.ndarray] = {}
-        if npz_path.exists():
-            try:
-                with np.load(npz_path, allow_pickle=True) as _old:
-                    old_names_arr = _old.get("solver_names")
-                    old_names: list[str] = (
-                        [str(n) for n in list(old_names_arr)]
-                        if old_names_arr is not None
-                        else []
-                    )
-                    for k in _old.files:
-                        if k == "solver_names":
-                            continue
-                        parsed = _parse_positional(k)
-                        if parsed is None:
-                            merged_shared[k] = np.asarray(_old[k])
-                            continue
-                        p, j, suffix = parsed
-                        if j < 0 or j >= len(old_names):
-                            merged_shared[k] = np.asarray(_old[k])
-                            continue
-                        sname = old_names[j]
-                        merged_per_solver.setdefault(sname, {})[(p, suffix)] = (
-                            np.asarray(_old[k])
-                        )
-            except Exception:
-                merged_per_solver = {}
-                merged_shared = {}
-
-        new_per_solver = _canonicalise_input(per_solver_arrays)
-        for sname, suf_map in new_per_solver.items():
-            merged_per_solver.setdefault(sname, {}).update(suf_map)
-        if shared_arrays:
-            merged_shared.update(shared_arrays)
-
-        ordered: list[str] = list(solver_names)
-        for sname in merged_per_solver:
-            if sname not in ordered:
-                ordered.append(sname)
-
-        gsnap: dict[str, np.ndarray] = {"solver_names": np.array(ordered)}
-        gsnap.update(merged_shared)
-        for j, sname in enumerate(ordered):
-            suf_map = merged_per_solver.get(sname, {})
-            for (p, suffix), arr in suf_map.items():
-                key = f"{p}_{j}" if suffix == "" else f"{p}_{j}_{suffix}"
-                gsnap[key] = arr
-        np.savez(npz_path, **gsnap)
-
-
 # ── JSON serialization ────────────────────────────────────────────────────────
 
 
@@ -332,6 +196,39 @@ def load_json(path: str | Path) -> dict:
         return json.load(f)
 
 
+def try_load_json(path: str | Path) -> dict | None:
+    """Return parsed JSON, or ``None`` if the file is missing or unparseable.
+
+    Use when the caller treats a missing/corrupt file as "no prior state"
+    rather than a hard error — avoids a try/except dance at every call site.
+    """
+    p = Path(path)
+    if not p.exists():
+        return None
+    try:
+        return load_json(p)
+    except Exception:
+        return None
+
+
+def try_load_npz(path: str | Path) -> dict[str, np.ndarray]:
+    """Return all arrays from an npz as a plain dict, or ``{}`` on failure.
+
+    Eagerly materialises every array into memory and closes the file before
+    returning, so callers don't need to manage the ``np.load`` context.
+    Returns ``{}`` if the file is missing, unreadable, or fails to parse —
+    same "no prior state" semantics as :func:`try_load_json`.
+    """
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        with np.load(p, allow_pickle=False) as f:
+            return {k: np.asarray(f[k]) for k in f.files}
+    except Exception:
+        return {}
+
+
 def save_csv(rows: list[dict], path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -345,7 +242,7 @@ def save_csv(rows: list[dict], path: str | Path) -> None:
     fieldnames: list[str] = []
     seen: set[str] = set()
     for row in rows:
-        for key in row.keys():
+        for key in row:
             if key not in seen:
                 seen.add(key)
                 fieldnames.append(key)
@@ -438,14 +335,14 @@ def physics_params(p: dict, extra: frozenset = frozenset()) -> dict:
     return {k: v for k, v in p.items() if k not in SUITE_KEYS | extra}
 
 
-def extract_runs(exp_def: "list[dict] | dict") -> "list[dict]":
+def extract_runs(exp_def: list[dict] | dict) -> list[dict]:
     """Return the runs list from an experiment def (wrapper dict or bare list)."""
     if isinstance(exp_def, dict):
         return exp_def.get("runs", [])
     return exp_def if exp_def is not None else []
 
 
-def iter_runs(runs: "list[dict] | dict", cli_overrides: dict):
+def iter_runs(runs: list[dict] | dict, cli_overrides: dict):
     """Yield run configs from an experiment def, applying debug and IC filter.
 
     Accepts either:
@@ -525,27 +422,6 @@ def _debug_run(run: dict) -> None:
             cost[key] = list(cost[key])[:2]
     if "n_trials" in cost:
         cost["n_trials"] = 1
-
-
-def _has_vjp(spec) -> bool:
-    """Return True if the solver's Docker image exposes vector_jacobian_product.
-
-    Respects the explicit ``spec.differentiable`` flag when set (avoids slow
-    Docker container startup for known-differentiable solvers).
-    """
-    explicit = getattr(spec, "differentiable", None)
-    if explicit is not None:
-        return bool(explicit)
-    from tesseract_core import Tesseract
-
-    tag = spec.image_tag
-    if not tag:
-        return False
-    try:
-        with Tesseract.from_image(tag) as t:
-            return "vector_jacobian_product" in t.available_endpoints
-    except Exception:
-        return False
 
 
 def exclusion_candidate_keys(
@@ -647,14 +523,16 @@ def active_solvers(
     return result
 
 
-def _diff_solvers(
+def active_differentiable_solvers(
     cfg: ProblemConfig, suite: str = "gradient", experiment: str | None = None
 ) -> list[str]:
     """Differentiable solvers not excluded for *suite* (and optionally *experiment*)."""
+    from mosaic.benchmarks.core.config import has_vjp
+
     return [
         name
         for name in active_solvers(cfg, suite, experiment)
-        if _has_vjp(cfg.solvers[name])
+        if has_vjp(cfg.solvers[name])
     ]
 
 
@@ -665,327 +543,3 @@ def experiment_dir(
     d = results_dir / problem / suite / f"{experiment}{suffix}"
     d.mkdir(parents=True, exist_ok=True)
     return d
-
-
-def _environment_metadata() -> dict:
-    """Gather environment metadata for result provenance tracking.
-
-    Imports are deferred to avoid module-level overhead.
-    """
-    import platform as _platform
-    from datetime import datetime, timezone
-
-    version = "unknown"
-    try:
-        from importlib.metadata import version as _pkg_version
-
-        version = _pkg_version("mosaic-bench")
-    except Exception:
-        pass
-
-    return {
-        "python_version": _platform.python_version(),
-        "platform": _platform.platform(),
-        "mosaic_version": version,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-def save_experiment(
-    result: dict,
-    out_dir: Path,
-    csv_rows: list[dict] | None = None,
-    cfg: ProblemConfig | None = None,
-    harness_fn=None,
-    wall_time_s: dict[str, float] | None = None,
-) -> None:
-    """Save result.json, params.json, and optionally result.csv for one experiment.
-
-    If an existing result.json already has a ``by_solver`` dict and the new
-    result shares the same *physics* ``params`` (parameter-compatible run),
-    merges the new ``by_solver`` entries into the existing ones — preserving
-    data from solvers that were NOT part of the current run. This prevents a
-    single-solver rerun from silently wiping out previously-benchmarked solvers.
-    If params differ, the new result overwrites wholesale (old data is no
-    longer valid).
-
-    Runtime/scheduling-only keys (e.g. ``gpu_ids``) are excluded from the
-    equality check — they do not affect physics or solver output.
-
-    Staleness stamps (optional): when *cfg* is supplied, a
-    ``tesseract_hashes`` dict {solver_name: content-hash} is injected for
-    every solver present in the result. When *harness_fn* is supplied, the
-    result is also stamped with ``harness_hash`` (SHA of the function's
-    source) and ``harness_fn`` (``module.qualname``). ``mosaic status`` uses
-    these to flip cells to the ``*`` (stale) annotation when the current
-    source differs from what produced the saved result.
-    """
-    # Keys that are scheduling/runtime only and should not gate merge behaviour.
-    _SCHEDULING_KEYS = {"gpu_ids"}
-
-    def _normalise(v):
-        """Recursively normalise a value for params equality comparison.
-
-        JSON round-trips convert Python sets to sorted lists (via _NumpyEncoder).
-        On a re-run the in-memory ``run`` dict may still carry sets (e.g.
-        ``fine.solvers = {"exponax", "jax_cfd"}``), while the previously saved
-        ``params.json`` carries ``["exponax", "jax_cfd"]``.  Without
-        normalisation the equality check always fails for such params, so the
-        merge branch is never reached and existing solver data is overwritten.
-        """
-        if isinstance(v, set):
-            return sorted(v)
-        if isinstance(v, dict):
-            return {k: _normalise(val) for k, val in v.items()}
-        if isinstance(v, (list, tuple)):
-            return [_normalise(x) for x in v]
-        return v
-
-    def _physics_params(p):
-        if not isinstance(p, dict):
-            return _normalise(p)
-        return _normalise({k: v for k, v in p.items() if k not in _SCHEDULING_KEYS})
-
-    # ── staleness stamps: compute here, merge with existing inside the lock ─
-    def _solvers_in_result(
-        res: dict, known_solvers: set[str] | None = None
-    ) -> set[str]:
-        """Collect solver names appearing in any known top-level map or in a
-        custom schema (e.g. ``per_solver_spectra``, ``grad_norms``,
-        ``landscape.by_solver``).
-
-        Strategy:
-          1. Hard-coded canonical maps (``by_solver``, ``by_sweep``, ``by_N``,
-             ``by_steps``, ``by_param[...]``).
-          2. Generic pass: for any top-level value that is a dict whose keys
-             overlap the registered solver names in ``cfg.solvers``, treat those
-             keys as solver names. Recurse one level so nested maps such as
-             ``landscape.by_solver`` are picked up too.
-        """
-        names: set[str] = set()
-        for key in ("by_solver", "by_sweep"):
-            top = res.get(key)
-            if isinstance(top, dict):
-                names.update(str(k) for k in top)
-        for key in ("by_N", "by_steps"):
-            top = res.get(key)
-            if isinstance(top, dict):
-                names.update(str(k) for k in top)
-        if isinstance(res.get("by_param"), dict):
-            for solver_map in res["by_param"].values():
-                if isinstance(solver_map, dict):
-                    names.update(str(k) for k in solver_map)
-
-        # Generic custom-schema pass: keyed off the registered solver names so
-        # we don't have to enumerate every custom harness output shape
-        # (per_solver_*, grad_norms, landscape.by_solver, …).
-        if known_solvers:
-
-            def _scan(node, depth: int) -> None:
-                if depth < 0 or not isinstance(node, dict):
-                    return
-                keys_as_str = {str(k) for k in node.keys()}
-                if keys_as_str & known_solvers:
-                    names.update(keys_as_str & known_solvers)
-                for v in node.values():
-                    if isinstance(v, dict):
-                        _scan(v, depth - 1)
-
-            # Depth 2 covers top-level dicts and one nested level
-            # (e.g. landscape → by_solver → {solver_name: …}).
-            _scan(res, depth=2)
-        return names
-
-    new_tesseract_hashes: dict[str, str] = {}
-    if isinstance(result, dict) and cfg is not None:
-        known_solvers = {str(k) for k in cfg.solvers.keys()}
-        for s in _solvers_in_result(result, known_solvers=known_solvers):
-            spec = cfg.solvers.get(s)
-            if spec is None:
-                continue
-            tess_dir = cfg.tesseract_dir / spec.dir
-            if tess_dir.is_dir():
-                h = tesseract_content_hash(tess_dir)
-                if h:
-                    new_tesseract_hashes[s] = h
-
-    new_harness_hash = ""
-    new_harness_fn_qualname = ""
-    if harness_fn is not None:
-        new_harness_hash = harness_fn_hash(harness_fn)
-        mod = getattr(harness_fn, "__module__", "") or ""
-        qual = getattr(harness_fn, "__qualname__", "") or getattr(
-            harness_fn, "__name__", ""
-        )
-        new_harness_fn_qualname = f"{mod}.{qual}" if mod else qual
-
-    result_path = out_dir / "result.json"
-    # Serialize the read-merge-write cycle across concurrent mosaic processes
-    # writing to the same experiment dir. Without this lock, two solvers
-    # finishing near-simultaneously can each read the old by_solver and each
-    # write their own, silently dropping entries. See cycle-18 feedback.
-    lock_path = out_dir / ".save_experiment.lock"
-    # Track flock hold time — a healthy save_experiment critical section is
-    # milliseconds; > 60s indicates a solver that wedged inside its apply() call.
-    _flock_t0 = time.monotonic()
-    with _file_lock(lock_path):
-        existing = None
-        if isinstance(result, dict) and result_path.exists():
-            try:
-                existing = load_json(result_path)
-            except Exception:
-                existing = None
-            if isinstance(existing, dict) and _physics_params(
-                existing.get("params")
-            ) == _physics_params(result.get("params")):
-                # ── by_solver merge (calibration, gradient, …) ────────────────
-                if isinstance(result.get("by_solver"), dict) and isinstance(
-                    existing.get("by_solver"), dict
-                ):
-                    merged_by_solver = {
-                        **existing["by_solver"],
-                        **result["by_solver"],
-                    }
-                    result = {**existing, **result, "by_solver": merged_by_solver}
-
-                # ── by_param merge (agreement / baseline / physical_laws) ──────
-                # Structure: {param_val: {solver_name: {...}, ...}, ...}
-                # Merge per-solver entries within each param value so a
-                # single-solver rerun does not overwrite other solvers' data.
-                elif isinstance(result.get("by_param"), dict) and isinstance(
-                    existing.get("by_param"), dict
-                ):
-                    # Normalise keys to str so JSON-round-tripped str keys and
-                    # fresh int keys don't coexist as duplicate entries.
-                    merged_by_param: dict = {
-                        str(k): v for k, v in existing["by_param"].items()
-                    }
-                    for pval, solver_map in result["by_param"].items():
-                        spval = str(pval)
-                        if (
-                            spval in merged_by_param
-                            and isinstance(merged_by_param[spval], dict)
-                            and isinstance(solver_map, dict)
-                        ):
-                            merged_by_param[spval] = {
-                                **merged_by_param[spval],
-                                **solver_map,
-                            }
-                        else:
-                            merged_by_param[spval] = solver_map
-                    # Also merge the spread dict (per-param scalar), normalising
-                    # keys to str for the same reason.
-                    merged_spread: dict = {
-                        str(k): v for k, v in existing.get("spread", {}).items()
-                    }
-                    merged_spread.update(
-                        {str(k): v for k, v in result.get("spread", {}).items()}
-                    )
-                    result = {
-                        **existing,
-                        **result,
-                        "by_param": merged_by_param,
-                        "spread": merged_spread,
-                    }
-
-                # ── by_sweep merge (recovery / topopt sweeps) ─────────────────
-                # Structure: {solver_name: {sweep_key: {...}, ...}, ...}
-                # Same per-solver shape as by_solver: preserve existing solvers'
-                # entries so a single-solver Stage 3 rerun does not overwrite
-                # peer solvers' sweep data.
-                elif isinstance(result.get("by_sweep"), dict) and isinstance(
-                    existing.get("by_sweep"), dict
-                ):
-                    merged_by_sweep = {
-                        **existing["by_sweep"],
-                        **result["by_sweep"],
-                    }
-                    result = {**existing, **result, "by_sweep": merged_by_sweep}
-
-                # ── by_N / by_steps merge (cost suite) ────────────────────────
-                # Structure: {solver_name: {size_value: {mean, std, ...}}}.
-                # Cost suites (spatial_cost / temporal_cost / vjp_cost) always
-                # pre-populate every solver key (empty dict for solvers that
-                # failed), so a naive outer-merge {**existing, **new} would
-                # overwrite a successful prior run's per-size entries with
-                # this run's empty dicts. Per-solver merge: prefer the new
-                # run's non-empty entries, fall back to existing data when
-                # the new run produced an empty dict for that solver.
-                # Without this merge, any run where all solvers failed
-                # silently wiped out previously valid data.
-                if isinstance(result.get("by_N"), dict) and isinstance(
-                    existing.get("by_N"), dict
-                ):
-                    merged_by_N: dict = {**existing["by_N"]}
-                    for sname, svals in result["by_N"].items():
-                        if isinstance(svals, dict) and svals:
-                            merged_by_N[sname] = svals
-                        elif sname not in merged_by_N:
-                            # new solver with empty data — record empty so
-                            # status surfaces the failure, but do not clobber
-                            # peer entries. Equivalent to the old behaviour
-                            # for first-time runs.
-                            merged_by_N[sname] = svals
-                    result = {**existing, **result, "by_N": merged_by_N}
-                if isinstance(result.get("by_steps"), dict) and isinstance(
-                    existing.get("by_steps"), dict
-                ):
-                    merged_by_steps: dict = {**existing["by_steps"]}
-                    for sname, svals in result["by_steps"].items():
-                        if isinstance(svals, dict) and svals:
-                            merged_by_steps[sname] = svals
-                        elif sname not in merged_by_steps:
-                            merged_by_steps[sname] = svals
-                    result = {**existing, **result, "by_steps": merged_by_steps}
-
-        # ── staleness stamps: merge with whatever we just loaded / merged ──
-        # tesseract_hashes: preserve peer-solver hashes from any prior run.
-        # Include existing hashes even when no merge branch was taken (e.g.
-        # jacobian_svd uses per_solver_spectra — without this seed a partial
-        # rerun drops all peer hashes).
-        if isinstance(result, dict) and new_tesseract_hashes:
-            prior = result.get("tesseract_hashes") or {}
-            if isinstance(existing, dict) and isinstance(
-                existing.get("tesseract_hashes"), dict
-            ):
-                prior = {**existing["tesseract_hashes"], **prior}
-            merged_hashes = (
-                {**prior, **new_tesseract_hashes}
-                if isinstance(prior, dict)
-                else new_tesseract_hashes
-            )
-            result["tesseract_hashes"] = merged_hashes
-        # harness_hash / harness_fn: latest write wins (the function that
-        # actually produced this save call is the authoritative one).
-        if isinstance(result, dict) and new_harness_hash:
-            result["harness_hash"] = new_harness_hash
-            result["harness_fn"] = new_harness_fn_qualname
-
-        if wall_time_s and isinstance(result, dict):
-            prior = result.get("wall_time_s") or {}
-            if isinstance(existing, dict) and isinstance(
-                existing.get("wall_time_s"), dict
-            ):
-                prior = {**existing["wall_time_s"], **prior}
-            result["wall_time_s"] = {**prior, **wall_time_s}
-
-        # Environment metadata: set on initial save, preserve on merge.
-        if isinstance(result, dict) and "environment" not in result:
-            result["environment"] = _environment_metadata()
-
-        save_json(result, result_path)
-        if "params" in result:
-            save_json(result["params"], out_dir / "params.json")
-        if csv_rows is not None:
-            save_csv(csv_rows, out_dir / "result.csv")
-
-    # Flock held > 60s is anomalous — solvers listed here are strong suspects
-    # for whatever blocked the write.
-    _flock_dt = time.monotonic() - _flock_t0
-    if _flock_dt > 60:
-        logging.warning(
-            "save_experiment flock held for %.1fs at %s (solvers=%s)",
-            _flock_dt,
-            result_path,
-            sorted(new_tesseract_hashes.keys()),
-        )

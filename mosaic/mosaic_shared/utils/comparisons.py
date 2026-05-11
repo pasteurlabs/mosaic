@@ -22,7 +22,7 @@ Example usage in a problem definition::
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 from pydantic import BaseModel
@@ -53,12 +53,12 @@ def make_ensemble_deviation_plot(
             s: np.linalg.norm((f - mean_field).reshape(*f.shape[:-1], -1), axis=-1)
             if f.ndim > 2
             else np.abs(f - mean_field)
-            for s, f in zip(names, fields)
+            for s, f in zip(names, fields, strict=False)
         }
         rms = {s: float(np.sqrt(np.mean(dev_maps[s] ** 2))) for s in names}
         dev_vmax = max(m.max() for m in dev_maps.values()) or 1.0
 
-        for ax, name in zip(axes, names):
+        for ax, name in zip(axes, names, strict=False):
             data = dev_maps[name]
             if data.ndim > 2:
                 data = data.reshape(data.shape[0], -1)
@@ -116,7 +116,7 @@ def make_gradient_cosine_plot(
                 denom = np.linalg.norm(gi) * np.linalg.norm(gj)
                 cos_sim[i, j] = np.dot(gi, gj) / (denom + 1e-30)
 
-        for ax, name in zip(axes[:n], names):
+        for ax, name in zip(axes[:n], names, strict=False):
             im = ax.imshow(
                 mags[name].T, origin="lower", cmap="viridis", vmin=0, vmax=vmax
             )

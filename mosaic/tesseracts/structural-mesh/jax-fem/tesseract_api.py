@@ -133,7 +133,7 @@ _setup_cache: dict = {}
 def setup(  # mosaic:init
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
-    boundary_conditions: dict = None,
+    boundary_conditions: dict | None = None,
 ) -> tuple[Elasticity, Callable]:
     """Setup the elasticity problem and its differentiable solver.
 

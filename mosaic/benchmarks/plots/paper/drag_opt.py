@@ -114,7 +114,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     ax_prof.set_ylabel("$y$")
 
     # ── Profile history imshow panels ─────────────────────────────────────────
-    for idx, (ax_im, solver) in enumerate(zip(imshow_axes, hist_solvers)):
+    for idx, (ax_im, solver) in enumerate(zip(imshow_axes, hist_solvers, strict=False)):
         hist = profiles[f"profile_history_{solver}"]  # (n_snaps, ny)
         label, color, _, _ = solver_props(solver)
 
@@ -144,7 +144,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
             va="top",
             fontsize=7.0,
             color=color,
-            bbox=dict(fc="white", ec="none", alpha=0.75, pad=1.0),
+            bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0},
         )
 
         if idx == 0:

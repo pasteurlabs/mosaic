@@ -12,13 +12,15 @@ Run from the terminal:
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import threading
 
 import jax.numpy as jnp
-import numpy as np  # kept for np.savez and string arrays (JAX doesn't support these)
+import numpy as np  # kept for string arrays (JAX doesn't support these)
 
 from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
 from mosaic.benchmarks.core.runner import (
     get_last_apply_error,
     safe_apply,
@@ -31,7 +33,6 @@ from mosaic.benchmarks.core.utils import (
     is_valid,
     iter_runs,
     results_dir,
-    save_experiment,
     trimmed_mean,
 )
 
@@ -142,23 +143,27 @@ def run_agreement(
             exp_subdir,
             suffix="_debug" if overrides.get("debug") else "",
         )
-        fsnap: dict = {
+        # Snapshot bookkeeping. Per-solver field arrays live in ``per_solver``
+        # keyed by sweep index; consensus and IC/x_axis go into ``shared_arrays``.
+        # save_field_snapshots_npz (flat_keys=True) handles the lock-and-merge:
+        # solvers not rerun this invocation keep their entries in fields.npz.
+        per_solver: dict[str, dict[str, np.ndarray]] = {}
+        shared_arrays: dict[str, np.ndarray] = {
             "sweep_values": np.array([float(v) for v in sweep_values]),
-            "solver_names": np.array(list(cfg.solvers)),
         }
         if transform is None and sweep_values:
             # Store IC at the first sweep value so plots have a reference waveform.
             _ic0 = cfg.make_ic[ic_name](
                 L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: sweep_values[0]}
             )
-            fsnap["ic"] = np.asarray(_ic0)
+            shared_arrays["ic"] = np.asarray(_ic0)
         if xaxis_fn is not None:
-            fsnap["x_axis"] = np.asarray(xaxis_fn(**phys))
+            shared_arrays["x_axis"] = np.asarray(xaxis_fn(**phys))
 
-        # When only a subset of solvers is re-run (e.g. --solvers warp_ns), load
-        # cached field arrays from the previous snapshot so consensus can still be
-        # formed. cfg.solvers is filtered by cli.py to only the requested solvers,
-        # so solver names are parsed from the snapshot keys rather than cfg.solvers.
+        # Pre-load cached arrays for solvers NOT being re-run this invocation
+        # so consensus can still be formed from the union. cfg.solvers is
+        # filtered by cli.py to only the requested solvers, so we parse solver
+        # names from the snapshot keys rather than cfg.solvers.
         _snap_path = out_dir / "fields.npz"
         _snap_meta_prefixes = (
             "sweep_values",
@@ -168,7 +173,6 @@ def run_agreement(
             "x_axis",
         )
         _cached_for_val: dict = {}
-        _old_snap_extras: dict = {}  # non-rerun solver arrays from old snapshot → merged into fsnap on save
         if _snap_path.exists():
             try:
                 with np.load(str(_snap_path), allow_pickle=False) as _snap:
@@ -180,10 +184,10 @@ def run_agreement(
                                 _sfile.startswith(p) for p in _snap_meta_prefixes
                             ):
                                 _cn = _sfile[: -len(sfx)]
-                                _arr_copy = np.asarray(_snap[_sfile])
                                 if _cn not in tags:
-                                    _cached_for_val[_cv][_cn] = _arr_copy
-                                    _old_snap_extras[_sfile] = _arr_copy
+                                    _cached_for_val[_cv][_cn] = np.asarray(
+                                        _snap[_sfile]
+                                    )
             except Exception:
                 pass
 
@@ -224,7 +228,7 @@ def run_agreement(
                 # Still store whatever output we have so scientists can inspect
                 # the lone solver's field even when consensus cannot be formed.
                 for n, arr in comparable.items():
-                    fsnap[f"{n}_{i}"] = arr
+                    per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
                 continue
             if cfg.analytic is not None and "obstacle" not in run.get("physics", {}):
                 curr_phys = {**phys, sweep_key: val}
@@ -252,9 +256,9 @@ def run_agreement(
             else:
                 reference = trimmed_mean(list(comparable.values()))
                 reference_label = "consensus"
-            fsnap[f"consensus_{i}"] = reference
+            shared_arrays[f"consensus_{i}"] = np.asarray(reference)
             for n, arr in comparable.items():
-                fsnap[f"{n}_{i}"] = arr
+                per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
             by_param[val] = {
                 n: (
                     {
@@ -272,25 +276,19 @@ def run_agreement(
                 )
                 for n in cfg.solvers
             }
-        # Merge old snapshot arrays for solvers not re-run in this invocation so
-        # that a partial run (--solvers X) never discards other solvers' data.
-        for _key, _arr in _old_snap_extras.items():
-            if _key not in fsnap:
-                fsnap[_key] = _arr
-        # Rebuild solver_names from every {name}_{index} key present after the
-        # merge — a partial rerun (--solvers X) would otherwise write a truncated
-        # solver_names while old solver field arrays are still in the npz.
-        _all_present_solvers = sorted(
-            {
-                k[: k.rfind("_")]
-                for k in fsnap
-                if "_" in k
-                and not any(k.startswith(p) for p in _snap_meta_prefixes)
-                and k[k.rfind("_") + 1 :].isdigit()
-            }
+        # Atomic merge-save: partial reruns preserve un-rerun solvers' arrays
+        # via save_field_snapshots_npz's lock-and-merge logic. ``prefixes``
+        # lists the shared (non-per-solver) key prefixes so they don't get
+        # parsed as ``{solver_name}_{suffix}`` on read.
+        save_field_snapshots_npz(
+            out_dir,
+            solver_names=list(cfg.solvers),
+            per_solver_arrays=per_solver,
+            shared_arrays=shared_arrays,
+            filename="fields.npz",
+            prefixes=("sweep_values", "ic", "consensus_", "x_axis"),
+            flat_keys=True,
         )
-        fsnap["solver_names"] = np.array(_all_present_solvers)
-        np.savez(out_dir / "fields.npz", **fsnap)
 
         spread = {
             val: float(
@@ -444,17 +442,13 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                     continue
                 diag: dict = {}
                 for dname, fn in cfg.diagnostics.items():
-                    try:
+                    with contextlib.suppress(Exception):
                         r = fn(out, **diag_ctx, **curr_phys)
                         if isinstance(r, (int, float)):
                             diag[dname] = float(r)
-                    except Exception:
-                        pass
                 if analytic_ref is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         diag["analytic_error"] = float(cfg.error_fn(out, analytic_ref))
-                    except Exception:
-                        pass
                 by_param[val][name] = diag
                 for dname, dval in diag.items():
                     csv_rows.append(

@@ -143,15 +143,15 @@ def exponax_fwd(  # mosaic:physics
     ndim = v0.shape[-1]  # 2 or 3
     num_points = v0.shape[0]  # isotropic: nx == ny (== nz)
 
-    stepper_kwargs = dict(
-        domain_extent=domain_extent,
-        num_points=num_points,
-        dt=dt,
-        diffusivity=viscosity,
-        drag=drag,
-        order=order,
-        dealiasing_fraction=1.0,  # disable 2/3-rule truncation to match other solvers
-    )
+    stepper_kwargs = {
+        "domain_extent": domain_extent,
+        "num_points": num_points,
+        "dt": dt,
+        "diffusivity": viscosity,
+        "drag": drag,
+        "order": order,
+        "dealiasing_fraction": 1.0,  # disable 2/3-rule truncation to match other solvers
+    }
 
     if ndim == 2:
         # v0: (N, N, 1, 2) -> squeeze z -> (N, N, 2)
@@ -217,7 +217,7 @@ def exponax_fwd(  # mosaic:physics
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:physics
-    return dict(result=exponax_fwd(**inputs))
+    return {"result": exponax_fwd(**inputs)}
 
 
 _SCALAR_KEYS = ("dt", "viscosity", "drag", "injection_scale")
@@ -389,9 +389,7 @@ def vjp_jit(
 
     out: dict = {}
     for k, g in grads.items():
-        if k in _SCALAR_KEYS:
-            g = jnp.atleast_1d(g)
-        elif g.ndim == 0:
+        if k in _SCALAR_KEYS or g.ndim == 0:
             g = jnp.atleast_1d(g)
         out[k] = g
     return out

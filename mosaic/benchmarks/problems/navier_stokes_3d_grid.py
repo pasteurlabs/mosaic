@@ -256,20 +256,20 @@ def _make_inputs(
         _dt = dt * (lbm_N_base / N)
         _steps = max(1, round(steps * (N / lbm_N_base)))
 
-    base = dict(
-        v0=ic,
-        viscosity=jnp.array([nu], dtype=jnp.float32),
-        dt=jnp.array([_dt], dtype=jnp.float32),
-        steps=_steps,
-        domain_extent=float(domain_extent),
-    )
+    base = {
+        "v0": ic,
+        "viscosity": jnp.array([nu], dtype=jnp.float32),
+        "dt": jnp.array([_dt], dtype=jnp.float32),
+        "steps": _steps,
+        "domain_extent": float(domain_extent),
+    }
     return {**base, **spec.input_overrides}
 
 
 # ── Field visualisation helpers ───────────────────────────────────────────────
 
 
-def _field_to_2d(v: "np.ndarray") -> "np.ndarray":
+def _field_to_2d(v: np.ndarray) -> np.ndarray:
     """Extract a 2-D scalar from a 3-D velocity field (N,N,N,3).
 
     Returns the z-component of vorticity on the middle-z slice,
@@ -313,7 +313,7 @@ def _energy_spectrum(arr: jax.Array, **_) -> dict:
     K = jnp.sqrt(sum(ax**2 for ax in axes))
     k_bins = np.arange(1, N // 2)
     E_k = jnp.array(
-        [float(E_hat[(K >= k - 0.5) & (K < k + 0.5)].sum()) for k in k_bins]
+        [float(E_hat[(k - 0.5 <= K) & (k + 0.5 > K)].sum()) for k in k_bins]
     )
     return {"k": k_bins.tolist(), "E_k": E_k.tolist()}
 
@@ -382,26 +382,26 @@ CONFIG = ProblemConfig(
     domain_extent=2 * float(jnp.pi),
     units={"nu": "–"},
     forward_defaults={
-        "baseline": dict(
-            description="Single time-step agreement across grid resolution N at fixed ν for the 3D TGV IC.",
-            plot_description=(
+        "baseline": {
+            "description": "Single time-step agreement across grid resolution N at fixed ν for the 3D TGV IC.",
+            "plot_description": (
                 "Relative error vs N at steps=1; validates single-step forward accuracy across 3D solvers. "
                 "Results (ν=0.05, dt=0.01): all 5 solvers valid at all N. "
                 "Error at N=32: phiflow 0.0027 (best), ins_jl 0.0033, xlb 0.0071, exponax 0.013. "
                 "Error at N=16: phiflow 0.011, ins_jl 0.012, xlb 0.025, exponax 0.052. "
                 "Spread (std of errors) at N=32: 0.0035. phiflow most accurate; exponax spectral resolution marginal at N≤16."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=16, nu=0.05, dt=0.01, steps=1),
-                    sweep=dict(key="N", values=[8, 16, 32]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.05, "dt": 0.01, "steps": 1},
+                    "sweep": {"key": "N", "values": [8, 16, 32]},
+                }
             ],
-        ),
-        "physical_laws": dict(
-            description="Physical laws sweeps: divergence RMS and kinetic energy vs grid resolution N, rollout length (steps), and viscosity ν.",
-            plot_description=(
+        },
+        "physical_laws": {
+            "description": "Physical laws sweeps: divergence RMS and kinetic energy vs grid resolution N, rollout length (steps), and viscosity ν.",
+            "plot_description": (
                 "Divergence RMS and kinetic energy vs N / steps / ν for each solver; validates incompressibility and energy cascade in 3D. "
                 "vs_N (steps=20, ν=0.05): xlb divergence_rms GROWS with N (4.7e-3→1.2e-2→2.0e-2, LBM mass leakage F-NS3D-1); "
                 "exponax/ins_jl converge ~O(1/N²); phiflow div_rms=1.7e-3 (N=8) → 7.8e-4 (N=16) → 1.9e-4 (N=32), converging (CG pressure fix). "
@@ -412,30 +412,30 @@ CONFIG = ProblemConfig(
                 "KE decay is physical for all solvers. LBM N-growing divergence extends F1.1b to 3D. "
                 "phiflow semi-Lagrangian div_rms ~8e-4 (N=16): higher than spectral/FD but lower than LBM; grows with rollout length."
             ),
-            runs=[
-                dict(
-                    name="vs_N",
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(nu=0.05, dt=0.01, steps=20, lbm_N_base=16),
-                    sweep=dict(key="N", values=[8, 16, 32]),
-                ),
-                dict(
-                    name="vs_steps",
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(nu=0.05, dt=0.01, N=16, lbm_N_base=16),
-                    sweep=dict(key="steps", values=[5, 10, 20, 50]),
-                ),
-                dict(
-                    name="vs_nu",
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(dt=0.01, steps=20, N=16, lbm_N_base=16),
-                    sweep=dict(key="nu", values=[0.001, 0.01, 0.05, 0.1]),
-                ),
+            "runs": [
+                {
+                    "name": "vs_N",
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"nu": 0.05, "dt": 0.01, "steps": 20, "lbm_N_base": 16},
+                    "sweep": {"key": "N", "values": [8, 16, 32]},
+                },
+                {
+                    "name": "vs_steps",
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"nu": 0.05, "dt": 0.01, "N": 16, "lbm_N_base": 16},
+                    "sweep": {"key": "steps", "values": [5, 10, 20, 50]},
+                },
+                {
+                    "name": "vs_nu",
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"dt": 0.01, "steps": 20, "N": 16, "lbm_N_base": 16},
+                    "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05, 0.1]},
+                },
             ],
-        ),
-        "agreement": dict(
-            description="3D forward accuracy sweep across ν for the 3D TGV IC at N=16. Solvers: exponax, phiflow, xlb, ins_jl, warp_ns, openfoam.",
-            plot_description=(
+        },
+        "agreement": {
+            "description": "3D forward accuracy sweep across ν for the 3D TGV IC at N=16. Solvers: exponax, phiflow, xlb, ins_jl, warp_ns, openfoam.",
+            "plot_description": (
                 "3D velocity magnitude fields and kinetic energy spectra for each solver, "
                 "sweeping viscosity ν. Initial condition: 3D Taylor-Green vortex (N=16). "
                 "Reference: exponax + ins_jl fine-grid consensus. "
@@ -448,11 +448,11 @@ CONFIG = ProblemConfig(
                 "F-NS3D-9 RESOLVED: phiflow explicit CG pressure solver (tol=1e-5) prevents 3D NaN at all tested steps/nu. "
                 "F-NS3D-11: phiflow valid but least accurate at steps=50 (~10% vs 5-solver consensus); semi-Lagrangian dissipation increases with rollout length."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=16, dt=0.01, steps=50, lbm_N_base=16),
-                    sweep=dict(key="nu", values=[0.001, 0.01, 0.05]),
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 16, "dt": 0.01, "steps": 50, "lbm_N_base": 16},
+                    "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05]},
                     # ins_jl removed from fine_set.
                     # The ins_jl tesseract container crashes (ContainerDied) when
                     # running the fine-grid reference (steps=250, dt=0.002) on a
@@ -460,14 +460,14 @@ CONFIG = ProblemConfig(
                     # Short runs (steps≤50) work fine; 3D is fully supported.
                     # Using only exponax as the fine-grid reference avoids the
                     # crash and provides a reliable single-solver consensus anchor.
-                    fine=dict(solvers={"exponax"}, dt=0.002, steps=250),
-                )
+                    "fine": {"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
+                }
             ],
-        ),
+        },
     },
-    cost_defaults=dict(
-        description="Wall-clock and memory profiling vs grid size N and step count for all 3D solvers.",
-        plot_descriptions={
+    cost_defaults={
+        "description": "Wall-clock and memory profiling vs grid size N and step count for all 3D solvers.",
+        "plot_descriptions": {
             "spatial_cost": (
                 "Forward-pass wall-clock time vs N (steps=10, ν=0.01, 3 trials). "
                 "Production results (6 solvers: exponax, xlb, ins_jl, warp_ns, openfoam, phiflow): "
@@ -502,21 +502,21 @@ CONFIG = ProblemConfig(
                 "phiflow VJP cost intermediate: 1.9× exponax but 4× cheaper than xlb; semi-Lagrangian backprop efficient."
             ),
         },
-        runs=[
-            dict(
-                physics=dict(nu=0.01, dt=0.01, lbm_N_base=16),
-                cost=dict(
-                    N_values=[16, 32, 48, 64],
-                    steps_values=[10, 50, 100],
-                    n_trials=3,
-                ),
-            )
+        "runs": [
+            {
+                "physics": {"nu": 0.01, "dt": 0.01, "lbm_N_base": 16},
+                "cost": {
+                    "N_values": [16, 32, 48, 64],
+                    "steps_values": [10, 50, 100],
+                    "n_trials": 3,
+                },
+            }
         ],
-    ),
+    },
     gradient_defaults={
-        "fd_check": dict(
-            description="FD gradient check for the 3D TGV IC at N=16. Reveals whether VJPs are correctly wired for 3D domains.",
-            plot_description=(
+        "fd_check": {
+            "description": "FD gradient check for the 3D TGV IC at N=16. Reveals whether VJPs are correctly wired for 3D domains.",
+            "plot_description": (
                 "FD gradient error U-curves and direction cosine for the 3D Taylor-Green vortex IC (N=16, shape 16³). "
                 "Results (N=16, ν=0.001, dt=0.05, steps=10, 5 solvers): "
                 "xlb OUTSTANDING — cosine~1.0 at all ε values including ε=0.0001 (cosine=0.9982); "
@@ -531,17 +531,20 @@ CONFIG = ProblemConfig(
                 "warp_ns systematic scale error confirmed by flat cosine plateau (F-NS3D-3). "
                 "phiflow gradient correct: rel_err < 1e-4, cosine=1.0000 at both ε values tested."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=16, nu=0.001, dt=0.05, steps=10),
-                    fd=dict(eps_values=[5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], n_dirs=10),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.001, "dt": 0.05, "steps": 10},
+                    "fd": {
+                        "eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4],
+                        "n_dirs": 10,
+                    },
+                }
             ],
-        ),
-        "horizon_sweep": dict(
-            description="Gradient quality vs rollout horizon for the 3D TGV IC at Re=6280 (N=16, ν=0.001, dt=0.05).",
-            plot_description=(
+        },
+        "horizon_sweep": {
+            "description": "Gradient quality vs rollout horizon for the 3D TGV IC at Re=6280 (N=16, ν=0.001, dt=0.05).",
+            "plot_description": (
                 "Gradient norm, FD error, and direction cosine vs rollout horizon (T = steps × dt) for the 3D TGV. "
                 "Production results (5 solvers: exponax, xlb, ins_jl, warp_ns, phiflow): "
                 "exponax: cosine(ε=0.01)≥0.999 at T≤4s (steps≤80); chaos onset at T=8s (steps=160, cosine(ε=1.0)=0.566). Gradient norm grows 68→240 (vortex stretching). "
@@ -557,17 +560,17 @@ CONFIG = ProblemConfig(
                 "xlb and ins_jl maintain gradient quality through chaos onset — their VJPs are more numerically stable than spectral/semi-Lagrangian methods in the chaotic regime. "
                 "phiflow gradient fails at chaos onset (steps≥80, T≥4s) due to semi-Lagrangian numerical dissipation amplifying in the chaotic regime."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=16, nu=0.001, dt=0.05),
-                    fd=dict(eps_values=[1e0, 1e-1, 1e-2, 1e-3], n_dirs=8),
-                    sweep=dict(key="steps", values=[10, 20, 40, 80, 160]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.001, "dt": 0.05},
+                    "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
+                    "sweep": {"key": "steps", "values": [10, 20, 40, 80, 160]},
+                }
             ],
-        ),
-        "horizon_sweep_limits": dict(
-            description=(
+        },
+        "horizon_sweep_limits": {
+            "description": (
                 "Rollout-length limit sweep for 3D TGV at N=20: finds the VJP OOM/timeout/NaN "
                 "failure boundary per solver. Each solver should run on its own dedicated GPU "
                 "(pass --gpu-ids 0 1 2 3) so OOM precisely reflects a single 16 GB V100 budget. "
@@ -579,26 +582,26 @@ CONFIG = ProblemConfig(
                 "A warmup VJP at steps=40 is run before timing to exclude JIT compilation. "
                 "XLB runs with XLA_PYTHON_CLIENT_PREALLOCATE=false to avoid VRAM pre-allocation."
             ),
-            plot_description=(
+            "plot_description": (
                 "Per-solver rollout-limit table: step count at first failure, failure type, "
                 "and wall time for each successful step. GPU solvers (xlb, phiflow, exponax, "
                 "pict, warp_ns) expected to OOM or NaN; CPU solver ins_jl "
                 "expected to show RAM growth with rollout length."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=20, nu=0.001, dt=0.05),
-                    sweep=dict(
-                        key="steps",
-                        values=[40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 20, "nu": 0.001, "dt": 0.05},
+                    "sweep": {
+                        "key": "steps",
+                        "values": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
+                    },
+                }
             ],
-        ),
-        "jacobian_svd": dict(
-            description="Full Jacobian SVD and inter-solver gradient subspace analysis for the 3D TGV IC at N=8.",
-            plot_description=(
+        },
+        "jacobian_svd": {
+            "description": "Full Jacobian SVD and inter-solver gradient subspace analysis for the 3D TGV IC at N=8.",
+            "plot_description": (
                 "Per-solver singular value spectra and cross-solver cosine similarity for the 3D TGV IC (N=8, ν=0.001, steps=10). "
                 "Solvers: exponax, xlb, ins_jl (warp_ns INFEASIBLE: 1536 × 18s = 7.7h). "
                 "Cross-solver cosine similarity: exponax–xlb=0.754, exponax–ins_jl=0.704, xlb–ins_jl=0.578. "
@@ -609,168 +612,168 @@ CONFIG = ProblemConfig(
                 "ins_jl Jacobian nearly singular (condition 2.3e12) suggesting redundant gradient directions; "
                 "LBM (xlb) and FD (ins_jl) gradient subspaces disagree most (cosine=0.578) — scheme-level structural divergence."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=8, nu=0.001, dt=0.05, steps=10),
-                    jacobian=dict(n_alphas=41, alpha_range=0.3),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
+                    "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+                }
             ],
-        ),
-        "jacobian_svd_steps20": dict(
-            description="Full Jacobian SVD for the 3D TGV IC at N=8, extended rollout steps=20 (T=1s).",
-            plot_description=(
+        },
+        "jacobian_svd_steps20": {
+            "description": "Full Jacobian SVD for the 3D TGV IC at N=8, extended rollout steps=20 (T=1s).",
+            "plot_description": (
                 "Per-solver singular value spectra and cross-solver cosine similarity for the 3D TGV IC (N=8, nu=0.001, steps=20). "
                 "Extended horizon vs base jacobian_svd (steps=10); probes gradient subspace alignment deeper into the chaotic regime."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=8, nu=0.001, dt=0.05, steps=20),
-                    jacobian=dict(n_alphas=41, alpha_range=0.3),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
+                    "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+                }
             ],
-        ),
-        "jacobian_svd_steps40": dict(
-            description="Full Jacobian SVD for the 3D TGV IC at N=8, extended rollout steps=40 (T=2s).",
-            plot_description=(
+        },
+        "jacobian_svd_steps40": {
+            "description": "Full Jacobian SVD for the 3D TGV IC at N=8, extended rollout steps=40 (T=2s).",
+            "plot_description": (
                 "Per-solver singular value spectra and cross-solver cosine similarity for the 3D TGV IC (N=8, nu=0.001, steps=40). "
                 "At T=2s the TGV is well into the chaotic regime; tests how gradient subspace structure evolves at chaos onset."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=8, nu=0.001, dt=0.05, steps=40),
-                    jacobian=dict(n_alphas=41, alpha_range=0.3),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
+                    "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+                }
             ],
-        ),
-        "jacobian_svd_nu01": dict(
-            description="Full Jacobian SVD for the 3D TGV IC at N=8, more viscous regime nu=0.01.",
-            plot_description=(
+        },
+        "jacobian_svd_nu01": {
+            "description": "Full Jacobian SVD for the 3D TGV IC at N=8, more viscous regime nu=0.01.",
+            "plot_description": (
                 "Per-solver singular value spectra and cross-solver cosine similarity for the 3D TGV IC (N=8, nu=0.01, steps=10). "
                 "10x more viscous than the base jacobian_svd (nu=0.001); expected to reduce condition number and raise effective rank."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv3d", seed=0),
-                    physics=dict(N=8, nu=0.01, dt=0.05, steps=10),
-                    jacobian=dict(n_alphas=41, alpha_range=0.3),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "tgv3d", "seed": 0},
+                    "physics": {"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
+                    "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+                }
             ],
-        ),
+        },
     },
     inverse_defaults={
-        "recovery_constant_ic": dict(
-            description=(
+        "recovery_constant_ic": {
+            "description": (
                 "IC recovery from a zero initial guess (cold start). "
                 "Optimizer starts from u=0 rather than a perturbed IC, "
                 "testing gradient signal without any warm initialisation. "
                 "Fixed rollout steps=100, rand_div_free IC, 3 seeds."
             ),
-            plot_description=(
+            "plot_description": (
                 "Final IC recovery error from zero-initialised optimisation "
                 "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        lr=1e-3,
-                        max_iters=500,
-                        patience=50,
-                        failure_threshold=2.0,
-                        snap_interval=20,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "rand_div_free", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+                    "sweep": {"key": "steps", "values": [100]},
+                    "optim": {
+                        "ic_init_type": "zeros",
+                        "lr": 1e-3,
+                        "max_iters": 500,
+                        "patience": 50,
+                        "failure_threshold": 2.0,
+                        "snap_interval": 20,
+                        "ic_seeds": [0, 1, 2],
+                        "record_diagnostics": True,
+                    },
+                }
             ],
-        ),
-        "recovery_constant_ic_bfgs": dict(
-            description=(
+        },
+        "recovery_constant_ic_bfgs": {
+            "description": (
                 "IC recovery with L-BFGS (cold start). Same setup as recovery_constant_ic "
                 "but using L-BFGS with zoom line search instead of Adam."
             ),
-            plot_description=(
+            "plot_description": (
                 "Final IC recovery error from zero-initialised L-BFGS optimisation "
                 "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        max_iters=100,
-                        patience=20,
-                        failure_threshold=2.0,
-                        snap_interval=5,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "rand_div_free", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+                    "sweep": {"key": "steps", "values": [100]},
+                    "optim": {
+                        "ic_init_type": "zeros",
+                        "max_iters": 100,
+                        "patience": 20,
+                        "failure_threshold": 2.0,
+                        "snap_interval": 5,
+                        "ic_seeds": [0, 1, 2],
+                        "record_diagnostics": True,
+                    },
+                }
             ],
-        ),
-        "recovery_constant_ic_bfgs_proj": dict(
-            description=(
+        },
+        "recovery_constant_ic_bfgs_proj": {
+            "description": (
                 "IC recovery with L-BFGS + divergence-free gradient projection (cold start). "
                 "Same as recovery_constant_ic_bfgs but gradients are projected onto the "
                 "divergence-free subspace before each L-BFGS update."
             ),
-            plot_description=(
+            "plot_description": (
                 "Final IC recovery error from zero-initialised L-BFGS+projection optimisation "
                 "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        max_iters=100,
-                        patience=20,
-                        failure_threshold=2.0,
-                        snap_interval=5,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "rand_div_free", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+                    "sweep": {"key": "steps", "values": [100]},
+                    "optim": {
+                        "ic_init_type": "zeros",
+                        "max_iters": 100,
+                        "patience": 20,
+                        "failure_threshold": 2.0,
+                        "snap_interval": 5,
+                        "ic_seeds": [0, 1, 2],
+                        "record_diagnostics": True,
+                    },
+                }
             ],
-        ),
-        "recovery_constant_ic_proj": dict(
-            description=(
+        },
+        "recovery_constant_ic_proj": {
+            "description": (
                 "IC recovery with Adam + divergence-free gradient projection (cold start). "
                 "Same as recovery_constant_ic but gradients are projected onto the "
                 "divergence-free subspace before each Adam update."
             ),
-            plot_description=(
+            "plot_description": (
                 "Final IC recovery error from zero-initialised Adam+projection optimisation "
                 "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        lr=1e-3,
-                        max_iters=500,
-                        patience=50,
-                        failure_threshold=2.0,
-                        snap_interval=20,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "rand_div_free", "seed": 0},
+                    "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+                    "sweep": {"key": "steps", "values": [100]},
+                    "optim": {
+                        "ic_init_type": "zeros",
+                        "lr": 1e-3,
+                        "max_iters": 500,
+                        "patience": 50,
+                        "failure_threshold": 2.0,
+                        "snap_interval": 20,
+                        "ic_seeds": [0, 1, 2],
+                        "record_diagnostics": True,
+                    },
+                }
             ],
-        ),
+        },
     },
     extra_plots={
         "gradient": [

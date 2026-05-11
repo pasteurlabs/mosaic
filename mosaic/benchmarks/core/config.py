@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ class SolverSpec:
     # solver units back to canonical IC units before comparison.
     differentiable: bool | None = None
     # Explicit VJP flag from YAML; None falls back to runtime detection via
-    # _has_vjp (probes the container for a vector_jacobian_product endpoint).
+    # ``has_vjp`` (probes the container for a vector_jacobian_product endpoint).
     ad_strategy: str | None = None
     # How gradients are computed.  One of:
     #   "autodiff"  — native reverse-mode AD traces through the forward pass
@@ -221,6 +222,29 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
         )
     log.info("Discovered %d solver(s) in %s", len(solvers), tesseract_dir)
     return solvers
+
+
+def has_vjp(spec: SolverSpec) -> bool:
+    """Return True if the solver exposes a ``vector_jacobian_product`` endpoint.
+
+    Respects the explicit ``spec.differentiable`` flag when set, avoiding a
+    slow container probe for solvers whose differentiability is declared in
+    YAML. Falls back to opening the Docker image and querying
+    ``available_endpoints`` when the flag is ``None``.
+    """
+    explicit = getattr(spec, "differentiable", None)
+    if explicit is not None:
+        return bool(explicit)
+    from tesseract_core import Tesseract
+
+    tag = spec.image_tag
+    if not tag:
+        return False
+    try:
+        with Tesseract.from_image(tag) as t:
+            return "vector_jacobian_product" in t.available_endpoints
+    except Exception:
+        return False
 
 
 @dataclass

@@ -387,7 +387,7 @@ def cfd_fwd(  # mosaic:physics
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
     result, drag = cfd_fwd(**inputs)
-    out = dict(result=result)
+    out = {"result": result}
     if drag is not None:
         out["drag"] = drag
     else:

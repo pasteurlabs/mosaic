@@ -141,9 +141,9 @@ def _build_firedrake_mesh(  # mosaic:init
         n_uniq = set(n_groups_)
 
         if len(d_uniq) == 1 and d_uniq != {0}:
-            tag = list(d_uniq)[0]
+            tag = next(iter(d_uniq))
         elif len(n_uniq) == 1 and n_uniq != {0}:
-            tag = neumann_offset + list(n_uniq)[0]
+            tag = neumann_offset + next(iter(n_uniq))
         else:
             tag = 0  # untagged boundary face
 
@@ -178,11 +178,11 @@ def _build_firedrake_mesh(  # mosaic:init
         # gmsh:physical cell data: one array per cell block.
         # Volume (hex) block gets physical tag 999 (unused by BCs).
         hex_phys = np.full(len(cells), 999, dtype=np.int32)
-        phys_data = [hex_phys] + extra_phys
+        phys_data = [hex_phys, *extra_phys]
 
         mio_mesh = meshio.Mesh(
             points=pts.astype(np.float64),
-            cells=[("hexahedron", cells.astype(np.int64))] + extra_cells,
+            cells=[("hexahedron", cells.astype(np.int64)), *extra_cells],
             cell_data={"gmsh:physical": phys_data},
         )
     else:

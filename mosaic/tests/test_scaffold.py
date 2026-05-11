@@ -8,25 +8,41 @@ from mosaic.templates.scaffold import list_templates, load_template, scaffold_do
 
 
 def test_list_templates():
-    """Built-in templates must include the three known names."""
+    """Built-in templates must be exactly the three known names."""
     templates = list_templates()
-    assert len(templates) >= 3
-    assert "ns-periodic" in templates
-    assert "structural-steady" in templates
-    assert "thermal-steady" in templates
+    assert templates == ["ns-periodic", "structural-steady", "thermal-steady"]
 
 
 def test_load_template():
-    """Loading a known template must return a valid DomainTemplate."""
+    """Loading a known template must return a fully-populated DomainTemplate."""
     tpl = load_template("ns-periodic")
-    assert tpl.name
-    assert tpl.schema_module
-    assert tpl.output_key
+    assert tpl.name == "ns-periodic"
+    assert tpl.schema_module == "mosaic_shared.problems.navier_stokes_grid"
+    assert tpl.output_key == "result"
+    assert tpl.ic_key == "v0"
+    assert tpl.source_path is not None
+    assert tpl.source_path.exists()
 
 
 def test_load_unknown_template_raises():
     with pytest.raises(FileNotFoundError, match="not found"):
         load_template("nonexistent-template-xyz")
+
+
+def test_load_template_missing_required_field_raises(tmp_path):
+    """Templates without name/schema_module/output_key must be rejected."""
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("description: missing required keys\n")
+    with pytest.raises(ValueError, match="missing required field"):
+        load_template(str(bad))
+
+
+def test_load_template_non_mapping_raises(tmp_path):
+    """A YAML file that's not a mapping must be rejected with a clear error."""
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("- just\n- a\n- list\n")
+    with pytest.raises(ValueError, match="expected a YAML mapping"):
+        load_template(str(bad))
 
 
 def _has_runtime():
@@ -53,6 +69,45 @@ def test_validate_builtin_templates(name):
     tpl = load_template(name)
     errors = validate_template(tpl)
     assert errors == [], f"Template {name!r} has errors: {errors}"
+
+
+@needs_runtime
+def test_validate_template_rejects_unknown_schema_module():
+    """A template referencing a non-importable schema module must error."""
+    from mosaic.templates.scaffold import DomainTemplate, validate_template
+
+    tpl = DomainTemplate(
+        name="bogus",
+        description="",
+        schema_module="this.module.does.not.exist",
+        output_key="result",
+    )
+    errors = validate_template(tpl)
+    assert any("cannot import schema module" in e for e in errors), errors
+
+
+@needs_runtime
+def test_validate_template_rejects_unknown_output_key():
+    """Template with an output_key not on OutputSchema must produce an error."""
+    from mosaic.templates.scaffold import validate_template
+
+    tpl = load_template("ns-periodic")
+    # Mutate the field that validate_template checks. DomainTemplate is a
+    # plain dataclass, so direct attribute assignment is fine.
+    tpl.output_key = "not-a-real-output-field"
+    errors = validate_template(tpl)
+    assert any("output_key" in e for e in errors), errors
+
+
+@needs_runtime
+def test_validate_template_rejects_bad_suite_shape():
+    """Suite defaults must be dicts of lists of dicts."""
+    from mosaic.templates.scaffold import validate_template
+
+    tpl = load_template("ns-periodic")
+    tpl.gradient = {"fd_check": "not-a-list"}
+    errors = validate_template(tpl)
+    assert any("expected a list of run dicts" in e for e in errors), errors
 
 
 def test_scaffold_creates_files(tmp_path):

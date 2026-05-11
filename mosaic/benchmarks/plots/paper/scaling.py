@@ -108,15 +108,15 @@ def _make_domain_fig(domain_label: str, subdir: str, order: list[str]):
         if not fwd_pts and not vjp_pts:
             continue
 
-        label, color, ls, mk = solver_props(solver)
-        kw = dict(
-            color=color,
-            linestyle=ls,
-            marker=mk,
-            markersize=4,
-            markeredgewidth=0,
-            linewidth=1.5,
-        )
+        _label, color, ls, mk = solver_props(solver)
+        kw = {
+            "color": color,
+            "linestyle": ls,
+            "marker": mk,
+            "markersize": 4,
+            "markeredgewidth": 0,
+            "linewidth": 1.5,
+        }
 
         if fwd_pts:
             ns_f = sorted(fwd_pts)
@@ -231,15 +231,15 @@ def _make_ns_combined_fig() -> plt.Figure:
             if not fwd_pts and not vjp_pts:
                 continue
 
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.5,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.5,
+            }
 
             if fwd_pts:
                 ns_f = sorted(fwd_pts)
@@ -359,15 +359,15 @@ def _make_fem_combined_fig() -> plt.Figure:
             if not fwd_pts and not vjp_pts:
                 continue
 
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.5,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.5,
+            }
 
             if fwd_pts:
                 ns_f = sorted(fwd_pts)

@@ -176,7 +176,7 @@ class HeatConduction(Problem):  # mosaic:physics
 def setup(  # mosaic:init
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
-    boundary_conditions: dict = None,
+    boundary_conditions: dict | None = None,
 ) -> tuple[HeatConduction, Callable]:
     """Setup the heat conduction problem and its differentiable solver.
 

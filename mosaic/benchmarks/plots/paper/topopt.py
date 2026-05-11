@@ -54,7 +54,9 @@ def _plot_combined_convergence(out_path: Path) -> None:
     all_present: set[str] = set()
     all_order: list[str] = []
 
-    for ax, (domain_label, result_path, solver_order) in zip(axes, domains):
+    for ax, (domain_label, result_path, solver_order) in zip(
+        axes, domains, strict=False
+    ):
         if not result_path.exists():
             print(f"[topopt] {result_path} not found — skipping {domain_label}")
             ax.set_title(f"{domain_label} (no data)")
@@ -64,7 +66,7 @@ def _plot_combined_convergence(out_path: Path) -> None:
         by_solver = data["by_solver"]
 
         for solver, sdata in by_solver.items():
-            label, color, ls, mk = SOLVER_STYLES.get(
+            _label, color, ls, _mk = SOLVER_STYLES.get(
                 solver, (solver, "#888888", "-", "o")
             )
             compliances = sdata.get("compliances", [])
@@ -271,7 +273,7 @@ def _plot_conductivity_recovery(out_path: Path) -> None:
         errors = sdata.get("errors", [])
         if not errors:
             continue
-        label, color, ls, mk = SOLVER_STYLES.get(solver, (solver, "#888888", "-", "o"))
+        label, color, ls, _mk = SOLVER_STYLES.get(solver, (solver, "#888888", "-", "o"))
         ax_conv.semilogy(
             range(len(errors)),
             errors,

@@ -27,14 +27,14 @@ from mosaic.benchmarks.suites import cost, forward, gradient, optimization
 __all__ = [
     # Problem registry
     "PROBLEMS",
-    "get_config",
+    "IcSpec",
     # Config dataclasses
     "ProblemConfig",
     "SolverSpec",
-    "IcSpec",
+    "cost",
     # Evaluation suites
     "forward",
+    "get_config",
     "gradient",
-    "cost",
     "optimization",
 ]

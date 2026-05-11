@@ -79,7 +79,7 @@ def generate(out_dir: Path) -> None:
 
         for solver in ordered:
             sv = by_solver[solver]
-            label, color, ls, mk = solver_props(solver)
+            _label, color, ls, _mk = solver_props(solver)
 
             step_keys = sorted(sv.keys(), key=int)
             ok_steps, ok_gn, ok_err, ok_cos = [], [], [], []
@@ -111,15 +111,15 @@ def generate(out_dir: Path) -> None:
                 else:
                     fail_steps.append(int(k))
 
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker="o",
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-                zorder=3,
-            )
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": "o",
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.6,
+                "zorder": 3,
+            }
 
             ok_cos_defect = [max(1.0 - c, 1e-12) for c in ok_cos]
 
@@ -131,15 +131,15 @@ def generate(out_dir: Path) -> None:
 
             for fs in fail_steps:
                 jx = jitter_x.get((solver, fs), float(fs))
-                mk_kw = dict(
-                    marker=_FAILURE_MARKER,
-                    color=color,
-                    markersize=9,
-                    markeredgewidth=1.2,
-                    markeredgecolor="white",
-                    linestyle="none",
-                    zorder=6,
-                )
+                mk_kw = {
+                    "marker": _FAILURE_MARKER,
+                    "color": color,
+                    "markersize": 9,
+                    "markeredgewidth": 1.2,
+                    "markeredgecolor": "white",
+                    "linestyle": "none",
+                    "zorder": 6,
+                }
                 if ok_gn:
                     ax_gn.loglog([jx], [ok_gn[-1]], **mk_kw)
                     ax_err.loglog([jx], [ok_err[-1]], **mk_kw)

@@ -99,12 +99,11 @@ class InputSchema(BaseModel):
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
-        if not self.boundary_conditions.is_fully_periodic:
-            if self.obstacle is None:
-                raise ValueError(
-                    "Non-periodic BCs require an obstacle. "
-                    "Use periodic BCs (the default) or add an obstacle."
-                )
+        if not self.boundary_conditions.is_fully_periodic and self.obstacle is None:
+            raise ValueError(
+                "Non-periodic BCs require an obstacle. "
+                "Use periodic BCs (the default) or add an obstacle."
+            )
         return self
 
 

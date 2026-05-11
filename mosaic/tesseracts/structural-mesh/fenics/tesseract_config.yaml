@@ -4,7 +4,7 @@ description: >
   FEniCS/DOLFIN CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient ∂C/∂ρ via
   dolfin-adjoint tape replay (discrete adjoint derived at the variational level via UFL).
 build_config:
-  base_image: "condaforge/miniforge3:24.11.2-0"
+  base_image: "condaforge/miniforge3:24.11.3-0"
   requirements:
     provider: conda
   package_data:

@@ -44,13 +44,13 @@ def generate(out_dir: Path) -> None:
                     continue
                 if sv not in sweep_data:
                     continue
-                label, color, ls, mk = SOLVER_STYLES.get(
+                _label, color, ls, _mk = SOLVER_STYLES.get(
                     solver, (solver, "#888888", "-", "o")
                 )
 
                 losses = sweep_data[sv]["losses"]
                 iters = list(range(len(losses)))
-                kw = dict(color=color, linestyle=ls, marker="", linewidth=1.6)
+                kw = {"color": color, "linestyle": ls, "marker": "", "linewidth": 1.6}
                 ax.semilogy(iters, losses, **kw)
                 present.add(solver)
 

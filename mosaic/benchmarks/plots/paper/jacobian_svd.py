@@ -96,7 +96,7 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
 
     for idx, solver in enumerate(solvers):
         ax = axes[idx // ncols][idx % ncols]
-        color, label = _solver_color_label(solver)
+        _color, label = _solver_color_label(solver)
         y_min_data = np.inf
 
         for vi, (_, data) in enumerate(variants):
@@ -115,7 +115,7 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
             vlabel = _variant_label(phys)
 
             mk = "o" if n <= 32 else ""
-            (line,) = ax.plot(
+            (_line,) = ax.plot(
                 modes,
                 sv_norm[:n],
                 f"{mk}{vstyle['linestyle']}",

@@ -141,15 +141,15 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
             x_all: list[float] = []
 
             for solver in all_solvers:
-                label, color, ls, mk = solver_props(solver)
-                kw = dict(
-                    color=color,
-                    linestyle=ls,
-                    marker=mk,
-                    markersize=4,
-                    markeredgewidth=0,
-                    linewidth=1.6,
-                )
+                _label, color, ls, mk = solver_props(solver)
+                kw = {
+                    "color": color,
+                    "linestyle": ls,
+                    "marker": mk,
+                    "markersize": 4,
+                    "markeredgewidth": 0,
+                    "linewidth": 1.6,
+                }
                 xs, ys = [], []
                 for p in params:
                     entry = by_param[p].get(solver)
@@ -279,17 +279,17 @@ def generate(out_dir: Path) -> None:
         )
 
         for solver in all_solvers:
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.6,
+            }
             xs, ys = [], []
-            for px, p in zip(x_vals, params):
+            for px, p in zip(x_vals, params, strict=False):
                 val = by_param[p].get(solver, {}).get(metric)
                 if val is not None:
                     xs.append(px)

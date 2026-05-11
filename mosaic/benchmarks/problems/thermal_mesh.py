@@ -412,17 +412,17 @@ def _make_inputs(
     hex_mesh = HexMesh(
         points=points.astype(np.float32),
         faces=cells.astype(np.int32),
-        n_points=int(len(points)),
-        n_faces=int(len(cells)),
+        n_points=len(points),
+        n_faces=len(cells),
     )
 
-    base = dict(
-        rho=rho_data,
-        source=source_data,
-        target_temperature=target_temperature,
-        hex_mesh=hex_mesh.model_dump(),
-        boundary_conditions=bc.model_dump(),
-    )
+    base = {
+        "rho": rho_data,
+        "source": source_data,
+        "target_temperature": target_temperature,
+        "hex_mesh": hex_mesh.model_dump(),
+        "boundary_conditions": bc.model_dump(),
+    }
     overrides = dict(_SOLVERS[solver_name].input_overrides)
     return {**base, **overrides}
 
@@ -560,9 +560,9 @@ def _compute_K_ref_simple(dx: float, dy: float, dz: float) -> np.ndarray:
     Jinv = np.diag([2.0 / dx, 2.0 / dy, 2.0 / dz])
     detJ = (dx / 2.0) * (dy / 2.0) * (dz / 2.0)
     K_ref = np.zeros((8, 8), dtype=np.float64)
-    for wi, xi in zip(gw, gp):
-        for wj, eta in zip(gw, gp):
-            for wk, zeta in zip(gw, gp):
+    for wi, xi in zip(gw, gp, strict=False):
+        for wj, eta in zip(gw, gp, strict=False):
+            for wk, zeta in zip(gw, gp, strict=False):
                 xi_i, eta_i, zeta_i = (
                     _HEX8_NODES_REF[:, 0],
                     _HEX8_NODES_REF[:, 1],
@@ -699,165 +699,223 @@ CONFIG = ProblemConfig(
     n_to_cells=lambda N: N * max(1, N // 2),  # nx=N, ny=N//2, nz=1
     units={"rho_0": "–"},
     forward_defaults={
-        "baseline": dict(
-            description=(
+        "baseline": {
+            "description": (
                 "FV vs FEM discretisation divergence: thermal compliance vs mesh resolution N "
                 "with heterogeneous random density. Non-uniform ρ stresses FV harmonic-mean vs "
                 "FEM Galerkin conductivity interpolation; phase transition visible at coarse N."
             ),
-            plot_description=(
+            "plot_description": (
                 "Thermal compliance C vs mesh resolution N (nx=2,3,4,6,8,12,16,24; ny=nx//2; nz=1) "
                 "with random density ρ~N(0.5,0.3) clipped to [0.05,0.95]. FV solvers diverge "
                 "from FEM at coarse N due to harmonic-mean vs Galerkin conductivity interpolation; "
                 "gap closes as O(h) with refinement. N=2–4 is the phase-transition regime."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="random", seed=0),
-                    physics=dict(nz=1, Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0),
-                    sweep=dict(key="N", values=[2, 3, 4, 6, 8, 12, 16, 24]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "random", "seed": 0},
+                    "physics": {
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "Q_total": 1.0,
+                    },
+                    "sweep": {"key": "N", "values": [2, 3, 4, 6, 8, 12, 16, 24]},
+                }
             ],
-        ),
-        "agreement": dict(
-            description=(
+        },
+        "agreement": {
+            "description": (
                 "Near-void contrast test: thermal compliance vs element density ρ₀ sweeping "
                 "from near-void (ρ=0.01) to near-solid (ρ=0.95). SIMP p=3 creates orders-of-magnitude "
                 "conductivity contrast; FV and FEM handle near-void channels differently."
             ),
-            plot_description=(
+            "plot_description": (
                 "Thermal compliance C vs uniform element density ρ₀ ∈ [0.01, 0.95] at N=16. "
                 "C ∝ ρ⁻³ due to SIMP (p=3); near-void (ρ→0) divergence between FV harmonic-mean "
                 "and FEM Galerkin conductivity is the key discriminator. Log scale recommended."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=16, ny=8, nz=1, Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0
-                    ),
-                    sweep=dict(
-                        key="rho_0", values=[0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95]
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 8,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "Q_total": 1.0,
+                    },
+                    "sweep": {
+                        "key": "rho_0",
+                        "values": [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95],
+                    },
+                }
             ],
-        ),
-        "physical_laws": dict(
-            description=(
+        },
+        "physical_laws": {
+            "description": (
                 "C ∝ Q² scaling law with hot-spot BC. Uniform flux would be trivially symmetric; "
                 "hot-spot (central 1/3 stripe) breaks y-symmetry and tests flux-area handling."
             ),
-            plot_description=(
+            "plot_description": (
                 "Thermal compliance C vs total heat flux Q_total at fixed N=16, ρ₀=0.5, hot_spot=True. "
                 "For a linear system C ∝ Q² (log-log slope 2.0). Hot-spot BC concentrates flux on "
                 "central 1/3 stripe in y, breaking symmetry; deviations across solvers reveal "
                 "errors in Neumann mask handling or compliance integral."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        N=16, nz=1, Lx=2.0, Ly=1.0, Lz=1.0, rho_0=0.5, hot_spot=True
-                    ),
-                    sweep=dict(key="Q_total", values=[0.25, 0.5, 1.0, 2.0, 4.0]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "N": 16,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "rho_0": 0.5,
+                        "hot_spot": True,
+                    },
+                    "sweep": {"key": "Q_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
+                }
             ],
-        ),
-        "source_baseline": dict(
-            description=(
+        },
+        "source_baseline": {
+            "description": (
                 "Resolution convergence for source identification: temperature field L2 error vs N "
                 "with a Gaussian source. Uses ic_field='source' so the IC is the heat-source field "
                 "rather than the density."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="gaussian_source"),
-                    physics=dict(
-                        nz=1, Lx=2.0, Ly=1.0, Lz=1.0, rho_0=0.5, ic_field="source"
-                    ),
-                    sweep=dict(key="N", values=[4, 6, 8, 12, 16, 24]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "gaussian_source"},
+                    "physics": {
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "rho_0": 0.5,
+                        "ic_field": "source",
+                    },
+                    "sweep": {"key": "N", "values": [4, 6, 8, 12, 16, 24]},
+                }
             ],
-        ),
-        "source_linearity": dict(
-            description=(
+        },
+        "source_linearity": {
+            "description": (
                 "Linearity check: T(α·f) = α·T(f). Sweep source amplitude α. "
                 "For a linear PDE the temperature scales linearly with the source amplitude."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="gaussian_source"),
-                    physics=dict(
-                        nx=16,
-                        ny=8,
-                        nz=1,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        rho_0=0.5,
-                        ic_field="source",
-                    ),
-                    sweep=dict(key="amplitude", values=[0.1, 0.25, 0.5, 1.0, 2.0, 4.0]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "gaussian_source"},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 8,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "rho_0": 0.5,
+                        "ic_field": "source",
+                    },
+                    "sweep": {
+                        "key": "amplitude",
+                        "values": [0.1, 0.25, 0.5, 1.0, 2.0, 4.0],
+                    },
+                }
             ],
-        ),
+        },
     },
-    cost_defaults=dict(
-        description="Wall-clock and memory profiling vs mesh size for all solvers.",
-        plot_descriptions={
+    cost_defaults={
+        "description": "Wall-clock and memory profiling vs mesh size for all solvers.",
+        "plot_descriptions": {
             "spatial_cost": "Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
             "vjp_cost": "VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
         },
-        runs=[
-            dict(
-                physics=dict(Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0, rho_0=0.5),
-                cost=dict(
-                    N_values=[16, 32, 64, 128, 256, 512, 1024, 2048, 4500], n_trials=3
-                ),
-            )
+        "runs": [
+            {
+                "physics": {
+                    "Lx": 2.0,
+                    "Ly": 1.0,
+                    "Lz": 1.0,
+                    "Q_total": 1.0,
+                    "rho_0": 0.5,
+                },
+                "cost": {
+                    "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
+                    "n_trials": 3,
+                },
+            }
         ],
-    ),
+    },
     gradient_defaults={
-        "fd_check": dict(
-            description="FD gradient check vs analytic VJP at nominal mesh and heat flux.",
-            plot_description="U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.",
-            runs=[
-                dict(
-                    ic=dict(name="random", seed=0),
-                    physics=dict(nx=8, ny=4, nz=1, Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0),
-                    fd=dict(eps_values=[1e0, 1e-1, 1e-2, 1e-3, 1e-4], n_dirs=6),
-                )
+        "fd_check": {
+            "description": "FD gradient check vs analytic VJP at nominal mesh and heat flux.",
+            "plot_description": "U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.",
+            "runs": [
+                {
+                    "ic": {"name": "random", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 4,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "Q_total": 1.0,
+                    },
+                    "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
+                }
             ],
-        ),
-        "param_sweep": dict(
-            description="Gradient quality vs element density ρ₀ at fixed mesh.",
-            plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(nx=8, ny=4, nz=1, Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0),
-                    fd=dict(eps_values=[1e0, 1e-1, 1e-2, 1e-3, 1e-4], n_dirs=6),
-                    sweep=dict(key="rho_0", values=[0.1, 0.2, 0.4, 0.6, 0.8]),
-                )
+        },
+        "param_sweep": {
+            "description": "Gradient quality vs element density ρ₀ at fixed mesh.",
+            "plot_description": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 4,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "Q_total": 1.0,
+                    },
+                    "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
+                    "sweep": {"key": "rho_0", "values": [0.1, 0.2, 0.4, 0.6, 0.8]},
+                }
             ],
-        ),
-        "jacobian_svd": dict(
-            description="Jacobian SVD and gradient subspace analysis at nominal mesh.",
-            plot_description=(
+        },
+        "jacobian_svd": {
+            "description": "Jacobian SVD and gradient subspace analysis at nominal mesh.",
+            "plot_description": (
                 "Singular-value spectrum of the stacked per-solver gradient matrix and "
                 "pairwise cosine similarity between JAX-FEM and FEniCS gradient directions "
                 "for the thermal compliance objective. Near-unity cosine confirms consistent "
                 "adjoint implementations; spectrum reveals dominant sensitivity modes of the "
                 "density field."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="random", seed=0),
-                    physics=dict(nx=8, ny=4, nz=1, Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0),
-                    jacobian=dict(n_alphas=21, alpha_range=0.2),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "random", "seed": 0},
+                    "physics": {
+                        "nx": 8,
+                        "ny": 4,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "Q_total": 1.0,
+                    },
+                    "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
+                }
             ],
-        ),
+        },
         # Source-identification gradient experiments.
         # NOTE: these experiments use source as the differentiable input and
         # identification_error as the objective.  The global ic_key="rho" means
@@ -865,115 +923,117 @@ CONFIG = ProblemConfig(
         # the harness supports it.  For now, physics dict carries ic_field="source"
         # to signal _make_inputs to set the source field from the IC, and the
         # caller must use output_key="identification_error" manually.
-        "source_fd_check": dict(
-            description=(
+        "source_fd_check": {
+            "description": (
                 "FD gradient check of d(identification_error)/d(source) at nominal mesh. "
                 "Uses ic_field='source' and output_key='identification_error'."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="gaussian_source"),
-                    ic_key="source",
-                    output_key="identification_error",
-                    physics=dict(
-                        nx=8,
-                        ny=4,
-                        nz=1,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        rho_0=0.5,
-                        target_from_two_gaussians=True,
-                        ic_field="source",
-                    ),
-                    fd=dict(eps_values=[1e0, 1e-1, 1e-2, 1e-3, 1e-4], n_dirs=6),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "gaussian_source"},
+                    "ic_key": "source",
+                    "output_key": "identification_error",
+                    "physics": {
+                        "nx": 8,
+                        "ny": 4,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "rho_0": 0.5,
+                        "target_from_two_gaussians": True,
+                        "ic_field": "source",
+                    },
+                    "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
+                }
             ],
-        ),
-        "source_width_sweep": dict(
-            description=(
+        },
+        "source_width_sweep": {
+            "description": (
                 "Gradient quality vs source localisation σ. "
                 "Phase transition: FEM/FD disagree as source narrows below element size."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="gaussian_source"),
-                    ic_key="source",
-                    output_key="identification_error",
-                    physics=dict(
-                        nx=16,
-                        ny=8,
-                        nz=1,
-                        rho_0=0.5,
-                        target_from_two_gaussians=True,
-                        ic_field="source",
-                    ),
-                    fd=dict(eps_values=[1e-1, 1e-2, 1e-3, 1e-4], n_dirs=4),
-                    sweep=dict(
-                        key="sigma", values=[0.05, 0.1, 0.2, 0.3, 0.5], ic_sweep=True
-                    ),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "gaussian_source"},
+                    "ic_key": "source",
+                    "output_key": "identification_error",
+                    "physics": {
+                        "nx": 16,
+                        "ny": 8,
+                        "nz": 1,
+                        "rho_0": 0.5,
+                        "target_from_two_gaussians": True,
+                        "ic_field": "source",
+                    },
+                    "fd": {"eps_values": [1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 4},
+                    "sweep": {
+                        "key": "sigma",
+                        "values": [0.05, 0.1, 0.2, 0.3, 0.5],
+                        "ic_sweep": True,
+                    },
+                }
             ],
-        ),
+        },
     },
     inverse_defaults={
-        "conductivity_recovery": dict(
-            description=(
+        "conductivity_recovery": {
+            "description": (
                 "Recover a two-Gaussian conductivity field from temperature observations. "
                 "Optimises rho (SIMP density, clipped to [x_min, 1]) to minimise "
                 "identification_error = ||T(rho) - T_target||². Target temperature is "
                 "produced by forward-solving with a two-Gaussian ground-truth conductivity "
                 "at uniform zero volumetric source (driven by Neumann BC only)."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=16,
-                        ny=8,
-                        nz=1,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        rho_0=0.5,
-                        Q_total=1.0,
-                        compliance_key="identification_error",
-                        penalty_weight=0.0,
-                        x_min=1e-3,
-                        snap_interval=20,
-                        target_rho_from_two_gaussians=True,
-                    ),
-                    optim=dict(lr=1e-2, max_iters=2000, patience=200),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 8,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "rho_0": 0.5,
+                        "Q_total": 1.0,
+                        "compliance_key": "identification_error",
+                        "penalty_weight": 0.0,
+                        "x_min": 1e-3,
+                        "snap_interval": 20,
+                        "target_rho_from_two_gaussians": True,
+                    },
+                    "optim": {"lr": 1e-2, "max_iters": 2000, "patience": 200},
+                }
             ],
-        ),
-        "conductivity_recovery_bfgs": dict(
-            description=(
+        },
+        "conductivity_recovery_bfgs": {
+            "description": (
                 "Recover a two-Gaussian conductivity field with L-BFGS. Same setup as "
                 "conductivity_recovery but using L-BFGS with zoom line search."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        nx=16,
-                        ny=8,
-                        nz=1,
-                        Lx=2.0,
-                        Ly=1.0,
-                        Lz=1.0,
-                        rho_0=0.5,
-                        Q_total=1.0,
-                        compliance_key="identification_error",
-                        penalty_weight=0.0,
-                        x_min=1e-3,
-                        snap_interval=10,
-                        target_rho_from_two_gaussians=True,
-                    ),
-                    optim=dict(max_iters=200, patience=30),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "nx": 16,
+                        "ny": 8,
+                        "nz": 1,
+                        "Lx": 2.0,
+                        "Ly": 1.0,
+                        "Lz": 1.0,
+                        "rho_0": 0.5,
+                        "Q_total": 1.0,
+                        "compliance_key": "identification_error",
+                        "penalty_weight": 0.0,
+                        "x_min": 1e-3,
+                        "snap_interval": 10,
+                        "target_rho_from_two_gaussians": True,
+                    },
+                    "optim": {"max_iters": 200, "patience": 30},
+                }
             ],
-        ),
+        },
     },
     status_checks={
         # Recovery / optimisation experiments must actually reduce loss,

@@ -191,7 +191,7 @@ def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
     else:
         p_norm = np.ones_like(profile)
 
-    for y, pn in list(zip(ys, p_norm))[::2]:
+    for y, pn in list(zip(ys, p_norm, strict=False))[::2]:
         length = max_arrow_len * max(pn, 0.05)
         x_tip = length
         x_tail = -0.01
@@ -470,7 +470,7 @@ def generate(out_dir: Path) -> None:
             x += w + gap
 
         axes = []
-        for pos, w in zip(positions, widths):
+        for pos, w in zip(positions, widths, strict=False):
             axes.append(fig.add_axes([pos, bottom, w, h]))
 
         _draw_backends(axes[0])

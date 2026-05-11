@@ -401,7 +401,7 @@ def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:  # mosaic:physics
     else:
         diff_params = None
 
-    u_k, f_k, f_neumann = _forward_torchfem(
+    u_k, _f_k, f_neumann = _forward_torchfem(
         points_np,
         cells_np,
         inputs_dict["boundary_conditions"],
@@ -531,7 +531,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
 
     grads = torch.autograd.grad(loss, targets, allow_unused=True)
 
-    for key, g in zip(keys, grads):
+    for key, g in zip(keys, grads, strict=False):
         n_full = n_rho if key == "rho" else n_source
         arr = np.zeros(n_full, dtype=np.float32)
         if g is not None:

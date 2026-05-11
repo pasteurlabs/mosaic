@@ -102,10 +102,14 @@ def _plot_domain(cfg: dict, out_dir: Path) -> None:
 
             if not all(np.isfinite(y) and y > 0 for y in ys):
                 # drop non-finite points
-                pairs = [(x, y) for x, y in zip(xs, ys) if np.isfinite(y) and y > 0]
+                pairs = [
+                    (x, y)
+                    for x, y in zip(xs, ys, strict=False)
+                    if np.isfinite(y) and y > 0
+                ]
                 if not pairs:
                     continue
-                xs, ys = zip(*pairs)
+                xs, ys = zip(*pairs, strict=False)
 
             _, color, ls, mk = solver_props(solver)
             ax.loglog(

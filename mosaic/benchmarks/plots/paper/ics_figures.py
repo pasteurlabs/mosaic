@@ -163,7 +163,7 @@ def generate(out_dir: Path) -> None:
     fields_ns = [_ic_tgv(), _ic_multimode(), _ic_tgv3d_slice(), _ic_abc_slice()]
     fig, axes = plt.subplots(1, 4, figsize=(TEXTWIDTH, _PH4))
     fig.subplots_adjust(wspace=0.05)
-    for ax, field, lbl in zip(axes, fields_ns, labels_ns):
+    for ax, field, lbl in zip(axes, fields_ns, labels_ns, strict=False):
         _imshow_sym(ax, field)
         ax.set_title(lbl, fontsize=8, pad=3)
     fig.savefig(out_dir / "appendix_ics_ns_combined.pdf")
@@ -177,7 +177,7 @@ def generate(out_dir: Path) -> None:
     _imshow_pos(axes[0], _ic_struct_uniform())
     _imshow_pos(axes[1], _ic_struct_random())
     _imshow_pos(axes[2], _ic_struct_two_bumps())
-    for ax, lbl in zip(axes, labels_struct):
+    for ax, lbl in zip(axes, labels_struct, strict=False):
         ax.set_title(lbl, fontsize=8, pad=3)
     fig.savefig(out_dir / "appendix_ics_structural_mesh.pdf")
     plt.close(fig)
@@ -192,7 +192,7 @@ def generate(out_dir: Path) -> None:
     ]
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, _PH3))
     fig.subplots_adjust(wspace=0.05)
-    for ax, field, lbl in zip(axes, fields_thermal, labels_thermal):
+    for ax, field, lbl in zip(axes, fields_thermal, labels_thermal, strict=False):
         _imshow_pos(ax, field, cmap="hot")
         ax.set_title(lbl, fontsize=8, pad=3)
     fig.savefig(out_dir / "appendix_ics_thermal_mesh.pdf")

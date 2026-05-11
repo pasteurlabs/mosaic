@@ -30,7 +30,7 @@ from unittest import mock
 from mosaic.benchmarks.core.utils import harness_fn_hash
 
 
-def _dummy_fn():  # noqa: D401 — stand-in target used only for getsource mocking
+def _dummy_fn():
     return 0
 
 

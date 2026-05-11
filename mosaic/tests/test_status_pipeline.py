@@ -80,7 +80,13 @@ def test_collect_status_classifies_solvers(mock_results):
 
 
 def test_snapshot_json_is_valid(mock_results):
-    """JSON snapshot produced by snapshot_to_dict is valid and contains expected fields."""
+    """JSON snapshot produced by snapshot_to_dict has the right shape end-to-end.
+
+    Round-trips through ``json.dumps`` to guarantee it's serialisable, then
+    asserts on the concrete structure consumers downstream rely on:
+    a per-problem entry with ``problem``, ``solvers``, ``rows`` (list of
+    ``{label, cells: {solver: {status, ...}}}``), and a numeric or null ``score``.
+    """
     from mosaic.benchmarks.core.status import collect_status, snapshot_to_dict
     from mosaic.benchmarks.problems import get_config
 
@@ -88,24 +94,40 @@ def test_snapshot_json_is_valid(mock_results):
     st = collect_status(cfg, suites=["forward"])
     snapshot = snapshot_to_dict([st])
 
-    # Snapshot must be JSON-serializable
-    json_str = json.dumps(snapshot)
-    parsed = json.loads(json_str)
+    parsed = json.loads(json.dumps(snapshot))
 
-    assert isinstance(parsed, dict)
-    assert "problems" in parsed
-    # snapshot_to_dict keys problems by name (dict), not a list
-    assert isinstance(parsed["problems"], dict)
-    assert len(parsed["problems"]) >= 1
+    assert set(parsed.keys()) >= {"problems"}
+    assert list(parsed["problems"].keys()) == ["ns-grid"]
 
     problem_data = parsed["problems"]["ns-grid"]
-    assert "problem" in problem_data
-    assert "score" in problem_data
-    assert "rows" in problem_data
+    assert problem_data["problem"] == "ns-grid"
+    assert isinstance(problem_data["solvers"], list)
+    assert isinstance(problem_data["rows"], list)
+    assert problem_data["rows"], (
+        "snapshot rows must not be empty for a configured problem"
+    )
+    # score is either a float in [0, 1] or null when no cells contribute.
+    score = problem_data["score"]
+    assert score is None or (isinstance(score, (int, float)) and 0.0 <= score <= 1.0)
+
+    # Every row carries a label and a per-solver cell dict, where each cell
+    # has at least a string ``status``. These are the fields the dashboard
+    # template and ``compare`` command both depend on.
+    for row in problem_data["rows"]:
+        assert isinstance(row["label"], str) and row["label"]
+        assert isinstance(row["cells"], dict)
+        for solver, cell in row["cells"].items():
+            assert isinstance(solver, str)
+            assert isinstance(cell["status"], str)
 
 
 def test_score_computation():
-    """Score weights are applied correctly for different cell types."""
+    """The mixed-cell score formula matches the published weights.
+
+    Not covered by ``core/test_status.py``: that file tests extremes and
+    single-cell transitions; this anchors the specific arithmetic for a
+    representative mixed bag (2 ok + 1 fail + 1 missing → 2.33/4 = 0.5825).
+    """
     from mosaic.benchmarks.core.status import (
         FAILED,
         NOT_RUN,
@@ -122,75 +144,7 @@ def test_score_computation():
     ]
     score, n = compute_score(cells)
     assert n == 4
-    assert score is not None
-    assert 0.0 < score < 1.0  # not all ok, not all failed
-    # 2 ok (1.0 each) + 1 fail (0.0) + 1 missing (0.33) = 2.33/4 = 0.5825
-    assert 0.5 < score < 0.65
-
-
-def test_score_all_ok():
-    """All-ok cells should give score 1.0."""
-    from mosaic.benchmarks.core.status import OK, Cell, compute_score
-
-    cells = [Cell(status=OK) for _ in range(5)]
-    score, n = compute_score(cells)
-    assert score == 1.0
-    assert n == 5
-
-
-def test_score_all_failed():
-    """All-failed cells should give score 0.0."""
-    from mosaic.benchmarks.core.status import FAILED, Cell, compute_score
-
-    cells = [Cell(status=FAILED) for _ in range(3)]
-    score, n = compute_score(cells)
-    assert score == 0.0
-    assert n == 3
-
-
-def test_score_empty():
-    """Empty cell list returns None score."""
-    from mosaic.benchmarks.core.status import compute_score
-
-    score, n = compute_score([])
-    assert score is None
-    assert n == 0
-
-
-def test_score_categorical_excluded_not_counted():
-    """Categorical exclusions are excluded from the denominator."""
-    from mosaic.benchmarks.core.status import (
-        EXCL_CATEGORICAL,
-        EXCLUDED,
-        OK,
-        Cell,
-        compute_score,
-    )
-
-    cells = [
-        Cell(status=OK),
-        Cell(status=EXCLUDED, category=EXCL_CATEGORICAL),
-        Cell(status=EXCLUDED, category=EXCL_CATEGORICAL),
-    ]
-    score, n = compute_score(cells)
-    # Only the OK cell contributes
-    assert n == 1
-    assert score == 1.0
-
-
-def test_score_stale_ok_penalised():
-    """Stale OK cells receive a lower weight than fresh OK cells."""
-    from mosaic.benchmarks.core.status import OK, SCORE_WEIGHTS, Cell, compute_score
-
-    fresh = [Cell(status=OK)]
-    stale = [Cell(status=OK, stale=True)]
-    fresh_score, _ = compute_score(fresh)
-    stale_score, _ = compute_score(stale)
-    assert fresh_score is not None
-    assert stale_score is not None
-    assert fresh_score > stale_score
-    assert fresh_score == SCORE_WEIGHTS["ok"]
-    assert stale_score == SCORE_WEIGHTS["ok*"]
+    assert score == pytest.approx(0.5825, abs=0.001)
 
 
 def test_cell_weight_key_mapping():

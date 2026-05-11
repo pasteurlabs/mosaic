@@ -7,8 +7,8 @@ one or more PDF/PNG figures to *out_dir*.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 # NeurIPS textwidth in inches — change here when targeting a different venue.
 TEXTWIDTH = 5.5

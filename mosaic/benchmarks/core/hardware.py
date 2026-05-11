@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import subprocess
 
+from mosaic.benchmarks.core.memory import sample_vram_mib
+
 # ── Hardware info ─────────────────────────────────────────────────────────────
 
 
@@ -74,38 +76,26 @@ def has_gpu() -> bool:
 # ── Resource sampler ──────────────────────────────────────────────────────────
 
 
-def _read_gpu_mem_mb(gpu_id: int = 0) -> float | None:
-    """Read whole-GPU memory.used (MiB) from nvidia-smi."""
-    try:
-        out = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=memory.used",
-                "--format=csv,noheader,nounits",
-                "-i",
-                str(gpu_id),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        if out.returncode != 0:
-            return None
-        return float(out.stdout.strip().splitlines()[0].strip())
-    except Exception:
-        return None
-
-
 class ResourceSampler:
-    """Simple before/after GPU memory sampler.  Use as a context manager.
+    """Before/after GPU memory delta sampler.  Use as a context manager.
 
-    Snapshots whole-GPU memory usage at __enter__ and __exit__, reporting the
-    peak delta as ``peak_gpu_mem_mb``.  Also reports harness-process RAM via
-    psutil if available.
+    Snapshots whole-GPU memory usage at ``__enter__`` and ``__exit__`` and
+    reports the delta as ``vram_peak_mib``. Also reports harness-process
+    RAM (RSS) at exit as ``ram_peak_mib`` if psutil is available.
+
+    The complementary tool, :class:`mosaic.benchmarks.core.memory.MemoryPoller`,
+    polls in a background thread and reports the absolute peak over the
+    block — pick that one when you need true peak or when the workload
+    may be killed mid-call. ResourceSampler is the cheaper choice for
+    steady-state timing.
+
+    The summary key shape (``vram_peak_mib`` / ``ram_peak_mib``) matches
+    :class:`MemoryPoller.summary` so both samplers are drop-in compatible
+    downstream (suite results, plots).
 
     Args:
-        gpu_id:    GPU index to query (int or str).  None → queries GPU 0.
-        interval:  Ignored (kept for API compatibility).
+        gpu_id:    GPU index to query (int or str). ``None`` → queries GPU 0.
+        interval:  Ignored (kept for API compatibility with MemoryPoller).
         image_tag: Ignored (kept for API compatibility).
     """
 
@@ -116,20 +106,20 @@ class ResourceSampler:
         image_tag: str | None = None,
     ) -> None:
         self.gpu_id = 0 if gpu_id is None else int(gpu_id)
-        self._baseline_gpu_mem_mb: float | None = None
-        self._final_gpu_mem_mb: float | None = None
-        self._peak_ram_mb: float | None = None
+        self._baseline_vram_mib: float | None = None
+        self._final_vram_mib: float | None = None
+        self._ram_mib: float | None = None
 
-    def __enter__(self) -> "ResourceSampler":
-        self._baseline_gpu_mem_mb = _read_gpu_mem_mb(self.gpu_id)
+    def __enter__(self) -> ResourceSampler:
+        self._baseline_vram_mib = sample_vram_mib(self.gpu_id)
         return self
 
     def __exit__(self, *_) -> None:
-        self._final_gpu_mem_mb = _read_gpu_mem_mb(self.gpu_id)
+        self._final_vram_mib = sample_vram_mib(self.gpu_id)
         try:
             import psutil
 
-            self._peak_ram_mb = psutil.Process().memory_info().rss / 1e6
+            self._ram_mib = psutil.Process().memory_info().rss / 1e6
         except Exception:
             pass
 
@@ -137,15 +127,14 @@ class ResourceSampler:
     def summary(self) -> dict:
         """Resource stats collected during the context.
 
-        Keys (only present when sampled):
-            peak_gpu_mem_mb — VRAM delta (final − baseline), whole-GPU
-            peak_ram_mb     — harness process RSS at exit
+        Returns:
+            ``vram_peak_mib``: VRAM delta (final − baseline), whole-GPU,
+                or ``None`` if either snapshot failed.
+            ``ram_peak_mib``: harness-process RSS at exit, in MiB, or
+                ``None`` if psutil is unavailable.
         """
-        out: dict = {}
-        if self._baseline_gpu_mem_mb is not None and self._final_gpu_mem_mb is not None:
-            out["peak_gpu_mem_mb"] = max(
-                0.0, self._final_gpu_mem_mb - self._baseline_gpu_mem_mb
-            )
-        if self._peak_ram_mb is not None:
-            out["peak_ram_mb"] = self._peak_ram_mb
-        return out
+        if self._baseline_vram_mib is not None and self._final_vram_mib is not None:
+            vram = max(0.0, self._final_vram_mib - self._baseline_vram_mib)
+        else:
+            vram = None
+        return {"vram_peak_mib": vram, "ram_peak_mib": self._ram_mib}

@@ -135,7 +135,7 @@ def generate(out_dir: Path) -> None:
         )
         nu_label = f"$\\nu$ = {nu_show:.3g}" if nu_show is not None else ""
 
-        for ax, solver in zip(field_axes, _FIELD_SOLVERS):
+        for ax, solver in zip(field_axes, _FIELD_SOLVERS, strict=False):
             label, color, _, _ = solver_props(solver)
             if fields_data is not None:
                 key = f"{solver}_{_NU_IDX}"
@@ -161,7 +161,7 @@ def generate(out_dir: Path) -> None:
                 va="top",
                 fontsize=7.0,
                 color=color,
-                bbox=dict(fc="white", ec="none", alpha=0.7, pad=1.0),
+                bbox={"fc": "white", "ec": "none", "alpha": 0.7, "pad": 1.0},
             )
             ax.axis("off")
 

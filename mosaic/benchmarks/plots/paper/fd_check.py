@@ -58,15 +58,15 @@ def generate_main(out_dir: Path) -> None:
         all_cos.extend(cos_vals)
 
         label, color, ls, mk = solver_props(solver)
-        kw = dict(
-            color=color,
-            linestyle=ls,
-            marker=mk,
-            markersize=4,
-            markeredgewidth=0,
-            linewidth=1.6,
-            label=label,
-        )
+        kw = {
+            "color": color,
+            "linestyle": ls,
+            "marker": mk,
+            "markersize": 4,
+            "markeredgewidth": 0,
+            "linewidth": 1.6,
+            "label": label,
+        }
 
         ax_err.loglog(eps_f, rel_mean, **kw)
         ax_cos.loglog(eps_f, cos_vals, **kw)
@@ -134,15 +134,15 @@ def generate(out_dir: Path) -> None:
             cos_vals = [max(1 - float(eps_sweep[e]["cosine"]), 1e-9) for e in epsilons]
             all_cos.extend(cos_vals)
 
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.6,
+            }
 
             ax_err.loglog(eps_f, rel_mean, **kw)
             ax_cos.loglog(eps_f, cos_vals, **kw)

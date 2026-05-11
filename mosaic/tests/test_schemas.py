@@ -21,45 +21,33 @@ needs_runtime = pytest.mark.skipif(
 
 
 @needs_runtime
-def test_ns_grid_schemas_importable():
-    from mosaic.mosaic_shared.problems.navier_stokes_grid import (
-        InputSchema,
-        OutputSchema,
-    )
+@pytest.mark.parametrize(
+    "module",
+    [
+        "mosaic.mosaic_shared.problems.navier_stokes_grid",
+        "mosaic.mosaic_shared.problems.structural_mesh",
+        "mosaic.mosaic_shared.problems.thermal_mesh",
+    ],
+)
+def test_domain_schemas_define_input_and_output(module):
+    """Each problem-schema module must expose populated InputSchema /
+    OutputSchema. Catches a broken import or an accidentally emptied schema
+    (pydantic happily accepts a zero-field model)."""
+    import importlib
 
-    assert hasattr(InputSchema, "model_fields")
-    assert hasattr(OutputSchema, "model_fields")
-    assert len(InputSchema.model_fields) >= 1
-    assert len(OutputSchema.model_fields) >= 1
-
-
-@needs_runtime
-def test_structural_mesh_schemas_importable():
-    from mosaic.mosaic_shared.problems.structural_mesh import InputSchema, OutputSchema
-
-    assert hasattr(InputSchema, "model_fields")
-    assert hasattr(OutputSchema, "model_fields")
-
-
-@needs_runtime
-def test_thermal_mesh_schemas_importable():
-    from mosaic.mosaic_shared.problems.thermal_mesh import InputSchema, OutputSchema
-
-    assert hasattr(InputSchema, "model_fields")
-    assert hasattr(OutputSchema, "model_fields")
+    mod = importlib.import_module(module)
+    for name in ("InputSchema", "OutputSchema"):
+        cls = getattr(mod, name)
+        assert cls.model_fields, f"{module}.{name} has no fields"
 
 
 @needs_runtime
-def test_ns_grid_input_has_differentiable_fields():
-    """NS grid InputSchema should mark some fields as differentiable."""
+def test_ns_grid_input_declares_canonical_fields():
+    """Catches a regression where the NS grid InputSchema loses its standard
+    fields. The full canonical set was once silently emptied by a refactor."""
     from mosaic.mosaic_shared.problems.navier_stokes_grid import InputSchema
 
     field_names = set(InputSchema.model_fields.keys())
-    # These are standard fields for the NS grid domain
-    assert "ic" in field_names or "viscosity" in field_names or len(field_names) >= 3
-
-
-def test_shared_types_importable():
-    from mosaic.mosaic_shared.types import Differentiable
-
-    assert Differentiable is not None
+    expected_subset = {"v0", "viscosity", "dt", "steps"}
+    missing = expected_subset - field_names
+    assert not missing, f"NS grid InputSchema lost canonical fields: {missing}"

@@ -19,12 +19,12 @@ from mosaic.benchmarks.plots.paper import TEXTWIDTH
 CONTROL_COLOR = "#2471a3"  # blue — marks control variables
 OBJECTIVE_COLOR = "#c0392b"  # red — marks objectives / loads / targets
 PHYS_COLOR = "#333333"  # dark gray — governing eqns, physical labels
-OBJ_BOX_KW = dict(
-    boxstyle="round,pad=0.3",
-    facecolor="#F2F2F2",
-    edgecolor="#AAAAAA",
-    lw=0.6,
-)
+OBJ_BOX_KW = {
+    "boxstyle": "round,pad=0.3",
+    "facecolor": "#F2F2F2",
+    "edgecolor": "#AAAAAA",
+    "lw": 0.6,
+}
 OBJ_FONTSIZE = 5
 CTRL_FONTSIZE = 4.5
 LABEL_FONTSIZE = 4.5
@@ -39,7 +39,7 @@ def _make_domain1(out_dir: Path) -> None:
     ax.set_aspect("equal")
     ax.axis("off")
 
-    font_kw = dict(fontfamily="sans-serif")
+    font_kw = {"fontfamily": "sans-serif"}
 
     chan_x0, chan_x1 = 0.0, 6.5
     chan_y0, chan_y1 = 0.0, 2.0
@@ -115,11 +115,11 @@ def _make_domain1(out_dir: Path) -> None:
         "",
         xy=(drag_arrow_x - 0.7, cyl_cy),
         xytext=(drag_arrow_x, cyl_cy),
-        arrowprops=dict(
-            arrowstyle="->,head_width=0.08,head_length=0.06",
-            color=OBJECTIVE_COLOR,
-            lw=0.8,
-        ),
+        arrowprops={
+            "arrowstyle": "->,head_width=0.08,head_length=0.06",
+            "color": OBJECTIVE_COLOR,
+            "lw": 0.8,
+        },
         zorder=6,
     )
     ax.text(
@@ -145,11 +145,11 @@ def _make_domain1(out_dir: Path) -> None:
             "",
             xy=(chan_x0 + length, y),
             xytext=(chan_x0 - 0.05, y),
-            arrowprops=dict(
-                arrowstyle="->,head_width=0.08,head_length=0.06",
-                color=CONTROL_COLOR,
-                lw=0.6,
-            ),
+            arrowprops={
+                "arrowstyle": "->,head_width=0.08,head_length=0.06",
+                "color": CONTROL_COLOR,
+                "lw": 0.6,
+            },
             zorder=4,
         )
 
@@ -170,11 +170,11 @@ def _make_domain1(out_dir: Path) -> None:
             "",
             xy=(chan_x1 + 0.35, y),
             xytext=(chan_x1 - 0.15, y),
-            arrowprops=dict(
-                arrowstyle="->,head_width=0.08,head_length=0.06",
-                color=CONTROL_COLOR,
-                lw=0.6,
-            ),
+            arrowprops={
+                "arrowstyle": "->,head_width=0.08,head_length=0.06",
+                "color": CONTROL_COLOR,
+                "lw": 0.6,
+            },
             zorder=4,
         )
     # ax.text(
@@ -193,7 +193,7 @@ def _make_domain1(out_dir: Path) -> None:
     amplitudes = [0.18, 0.14, 0.14, 0.06, 0.06]
     phases = [0.0, np.pi, 0.0, np.pi / 2, -np.pi / 2]
 
-    for off, amp, ph in zip(offsets, amplitudes, phases):
+    for off, amp, ph in zip(offsets, amplitudes, phases, strict=False):
         local_amp = amp * np.clip(
             (xs_stream - xs_stream[0]) / (xs_stream[-1] - xs_stream[0]), 0, 1
         )
@@ -243,11 +243,11 @@ def _make_domain1(out_dir: Path) -> None:
             "",
             xy=(arc_x[-1], arc_y[-1]),
             xytext=(arc_x[-3], arc_y[-3]),
-            arrowprops=dict(
-                arrowstyle="->,head_width=0.05,head_length=0.04",
-                color=vortex_colors[i % 2],
-                lw=0.6,
-            ),
+            arrowprops={
+                "arrowstyle": "->,head_width=0.05,head_length=0.04",
+                "color": vortex_colors[i % 2],
+                "lw": 0.6,
+            },
             zorder=3,
         )
 
@@ -322,24 +322,24 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
                 dj = coords[min(j + step, n - 1)] - cj
                 if face == "xy_bottom":
                     verts = [
-                        o + [ci, cj, 0],
-                        o + [ci + di, cj, 0],
-                        o + [ci + di, cj + dj, 0],
-                        o + [ci, cj + dj, 0],
+                        [*o, ci, cj, 0],
+                        [*o, ci + di, cj, 0],
+                        [*o, ci + di, cj + dj, 0],
+                        [*o, ci, cj + dj, 0],
                     ]
                 elif face == "xz_front":
                     verts = [
-                        o + [ci, 0, cj],
-                        o + [ci + di, 0, cj],
-                        o + [ci + di, 0, cj + dj],
-                        o + [ci, 0, cj + dj],
+                        [*o, ci, 0, cj],
+                        [*o, ci + di, 0, cj],
+                        [*o, ci + di, 0, cj + dj],
+                        [*o, ci, 0, cj + dj],
                     ]
                 elif face == "yz_left":
                     verts = [
-                        o + [0, ci, cj],
-                        o + [0, ci + di, cj],
-                        o + [0, ci + di, cj + dj],
-                        o + [0, ci, cj + dj],
+                        [*o, 0, ci, cj],
+                        [*o, 0, ci + di, cj],
+                        [*o, 0, ci + di, cj + dj],
+                        [*o, 0, ci, cj + dj],
                     ]
                 poly = Poly3DCollection([verts], alpha=0.75, zorder=2)
                 poly.set_facecolor(cm(norm(val)))
@@ -380,7 +380,7 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
         ]
         for i, j in edges:
             ax.plot(
-                *zip(corners[i], corners[j]),
+                *zip(corners[i], corners[j], strict=False),
                 color="0.5",
                 linewidth=0.5,
                 linestyle="-",
@@ -931,9 +931,12 @@ def _make_domain2b_topology(out_dir: Path) -> None:
         va="top",
         color="#37474F",
         fontstyle="italic",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", edgecolor="#90A4AE", alpha=0.85
-        ),
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": "white",
+            "edgecolor": "#90A4AE",
+            "alpha": 0.85,
+        },
     )
     ax.text(
         1.5, -0.05, 1.02, "wall", fontsize=7, ha="center", color="#607D8B", alpha=0.7
@@ -1108,9 +1111,12 @@ def _make_domain3(out_dir: Path) -> None:
         "",
         xy=(load_x + 0.15, load_y - arrow_len),
         xytext=(load_x + 0.15, load_y + 0.05),
-        arrowprops=dict(
-            arrowstyle="->", color=OBJECTIVE_COLOR, lw=1.0, mutation_scale=6
-        ),
+        arrowprops={
+            "arrowstyle": "->",
+            "color": OBJECTIVE_COLOR,
+            "lw": 1.0,
+            "mutation_scale": 6,
+        },
     )
     ax.text(
         load_x + 0.45,
@@ -1268,13 +1274,13 @@ def _make_domain4(out_dir: Path) -> None:
             xy=(1.17, yy),
             xytext=(1.12, yy),
             annotation_clip=False,
-            arrowprops=dict(
-                arrowstyle="-|>,head_width=0.14,head_length=0.14",
-                color="darkorange",
-                lw=0.75,
-                shrinkA=0,
-                shrinkB=0,
-            ),
+            arrowprops={
+                "arrowstyle": "-|>,head_width=0.14,head_length=0.14",
+                "color": "darkorange",
+                "lw": 0.75,
+                "shrinkA": 0,
+                "shrinkB": 0,
+            },
         )
     # ax.text(
     #    1.16,
@@ -1304,9 +1310,11 @@ def _make_domain4(out_dir: Path) -> None:
         xy=(1.70, 0.62),
         xytext=(1.10, 0.62),
         xycoords="axes fraction",
-        arrowprops=dict(
-            arrowstyle="-|>,head_width=0.14,head_length=0.18", color="black", lw=1
-        ),
+        arrowprops={
+            "arrowstyle": "-|>,head_width=0.14,head_length=0.18",
+            "color": "black",
+            "lw": 1,
+        },
     )
     ax.text(
         1.40,
@@ -1367,11 +1375,11 @@ def _make_domain4(out_dir: Path) -> None:
         xy=(-0.60, 0.38),
         xytext=(0.00, 0.38),
         xycoords="axes fraction",
-        arrowprops=dict(
-            arrowstyle="-|>,head_width=0.14,head_length=0.18",
-            color=OBJECTIVE_COLOR,
-            lw=1,
-        ),
+        arrowprops={
+            "arrowstyle": "-|>,head_width=0.14,head_length=0.18",
+            "color": OBJECTIVE_COLOR,
+            "lw": 1,
+        },
     )
     ax.text(
         -0.30,

@@ -36,12 +36,12 @@ __all__ = ["drag_jax", "drag_torch"]
 
 
 def drag_jax(
-    ux: "jnp.ndarray",
-    pressure: "jnp.ndarray",
-    solid_mask: "jnp.ndarray",
+    ux: jnp.ndarray,
+    pressure: jnp.ndarray,
+    solid_mask: jnp.ndarray,
     viscosity: Any,
     dx: Any,
-) -> "jnp.ndarray":
+) -> jnp.ndarray:
     """Surface-integral drag for jax-based solvers (PhiFlow, XLB, jax-cfd)."""
     import jax.numpy as jnp
 
@@ -63,12 +63,12 @@ def drag_jax(
 
 
 def drag_torch(
-    ux: "torch.Tensor",
-    pressure: "torch.Tensor",
-    solid_mask: "torch.Tensor",
+    ux: torch.Tensor,
+    pressure: torch.Tensor,
+    solid_mask: torch.Tensor,
     viscosity: Any,
     dx: Any,
-) -> "torch.Tensor":
+) -> torch.Tensor:
     """Surface-integral drag for PyTorch-based solvers (PICT)."""
     import torch
 

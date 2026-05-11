@@ -260,14 +260,14 @@ def _make_inputs(
             # increase T_phys and raise Ma_lattice (the opposite of the intent).
             _dt = dt * min(1.0, lbm_N_base / N)
             _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
-        base = dict(
-            v0=_uniform_flow(N, U=U_mean),
-            inflow_profile=ic,
-            viscosity=jnp.array([nu], dtype=jnp.float32),
-            dt=jnp.array([_dt], dtype=jnp.float32),
-            steps=_steps,
-            domain_extent=float(domain_extent),
-        )
+        base = {
+            "v0": _uniform_flow(N, U=U_mean),
+            "inflow_profile": ic,
+            "viscosity": jnp.array([nu], dtype=jnp.float32),
+            "dt": jnp.array([_dt], dtype=jnp.float32),
+            "steps": _steps,
+            "domain_extent": float(domain_extent),
+        }
         if obstacle is not None:
             base["obstacle"] = obstacle
             base["boundary_conditions"] = {
@@ -288,13 +288,13 @@ def _make_inputs(
         _dt = dt * min(1.0, lbm_N_base / N)
         _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
 
-    base = dict(
-        v0=ic,
-        viscosity=jnp.array([nu], dtype=jnp.float32),
-        dt=jnp.array([_dt], dtype=jnp.float32),
-        steps=_steps,
-        domain_extent=float(domain_extent),
-    )
+    base = {
+        "v0": ic,
+        "viscosity": jnp.array([nu], dtype=jnp.float32),
+        "dt": jnp.array([_dt], dtype=jnp.float32),
+        "steps": _steps,
+        "domain_extent": float(domain_extent),
+    }
     if obstacle is not None:
         base["obstacle"] = obstacle
         base["boundary_conditions"] = {
@@ -342,7 +342,7 @@ def _energy_spectrum(arr: jax.Array, **_) -> dict:
     K = jnp.sqrt(sum(ax**2 for ax in axes))
     k_bins = np.arange(1, N // 2)  # integer indices — numpy is fine here
     E_k = jnp.array(
-        [float(E_hat[(K >= k - 0.5) & (K < k + 0.5)].sum()) for k in k_bins]
+        [float(E_hat[(k - 0.5 <= K) & (k + 0.5 > K)].sum()) for k in k_bins]
     )
     return {"k": k_bins.tolist(), "E_k": E_k.tolist()}
 
@@ -414,278 +414,299 @@ CONFIG = ProblemConfig(
     domain_extent=2 * float(jnp.pi),
     units={"nu": "–"},
     forward_defaults={
-        "baseline": dict(
-            description="Single time-step agreement across grid resolution N at fixed ν.",
-            plot_description="Relative error vs N at steps=1; validates single-step forward accuracy across solvers.",
-            runs=[
-                dict(
-                    ic=dict(name="tgv", seed=0),
-                    physics=dict(N=64, nu=0.05, dt=0.01, steps=1, lbm_N_base=64),
-                    sweep=dict(key="N", values=[16, 32, 64, 128]),
-                )
+        "baseline": {
+            "description": "Single time-step agreement across grid resolution N at fixed ν.",
+            "plot_description": "Relative error vs N at steps=1; validates single-step forward accuracy across solvers.",
+            "runs": [
+                {
+                    "ic": {"name": "tgv", "seed": 0},
+                    "physics": {
+                        "N": 64,
+                        "nu": 0.05,
+                        "dt": 0.01,
+                        "steps": 1,
+                        "lbm_N_base": 64,
+                    },
+                    "sweep": {"key": "N", "values": [16, 32, 64, 128]},
+                }
             ],
-        ),
-        "agreement": dict(
-            description="Inter-solver agreement sweep across viscosity ν (TGV and multimode ICs).",
-            plot_description="Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.",
-            runs=[
-                dict(
-                    ic=dict(name="tgv", seed=42),
-                    physics=dict(N=64, dt=0.05, steps=20),
-                    sweep=dict(key="nu", values=[0.001, 0.005, 0.01, 0.02, 0.05]),
-                    fine=dict(solvers={"jax_cfd"}, dt=0.01, steps=100),
-                ),
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=64, dt=0.05, steps=20),
-                    sweep=dict(key="nu", values=[0.001, 0.005, 0.01, 0.02, 0.05]),
-                    fine=dict(solvers={"jax_cfd"}, dt=0.01, steps=100),
-                ),
+        },
+        "agreement": {
+            "description": "Inter-solver agreement sweep across viscosity ν (TGV and multimode ICs).",
+            "plot_description": "Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.",
+            "runs": [
+                {
+                    "ic": {"name": "tgv", "seed": 42},
+                    "physics": {"N": 64, "dt": 0.05, "steps": 20},
+                    "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.02, 0.05]},
+                    "fine": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
+                },
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 64, "dt": 0.05, "steps": 20},
+                    "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.02, 0.05]},
+                    "fine": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
+                },
             ],
-        ),
-        "tgv_nu_sweep": dict(
-            description=(
+        },
+        "tgv_nu_sweep": {
+            "description": (
                 "Dense TGV ν-sweep probing xlb LBM BGK-relaxation ill-conditioning "
                 "as ν→0. Covers ν ∈ {1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2} — three "
                 "decades — so a monotonic xlb degradation curve can be distinguished "
                 "from a single unlucky ν point. Uses the same N=64, dt=0.05, steps=20, "
                 "jax_cfd fine reference as `agreement/tgv` for comparability."
             ),
-            plot_description=(
+            "plot_description": (
                 "Relative error vs ν for each solver at fixed TGV IC; "
                 "xlb errors are flat 0.026-0.031 across all ν (KBC entropic operator removes "
                 "BGK monotonic degradation at low ν); peer solvers stay ≤ 0.001 across the full range."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="tgv", seed=42),
-                    physics=dict(N=64, dt=0.05, steps=20),
-                    sweep=dict(
-                        key="nu",
-                        values=[1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2],
-                    ),
-                    fine=dict(solvers={"jax_cfd"}, dt=0.01, steps=100),
-                ),
+            "runs": [
+                {
+                    "ic": {"name": "tgv", "seed": 42},
+                    "physics": {"N": 64, "dt": 0.05, "steps": 20},
+                    "sweep": {
+                        "key": "nu",
+                        "values": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2],
+                    },
+                    "fine": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
+                },
             ],
-        ),
-        "physical_laws": dict(
-            description="Physical laws sweeps: diagnostics vs grid resolution N, rollout length (steps), and viscosity ν (TGV IC).",
-            plot_description="Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.",
-            runs=[
-                dict(
-                    name="vs_N",
-                    ic=dict(name="tgv", seed=0),
-                    physics=dict(nu=0.05, dt=0.01, steps=20),
-                    sweep=dict(key="N", values=[16, 32, 64, 128]),
-                ),
-                dict(
-                    name="vs_steps",
-                    ic=dict(name="tgv", seed=0),
-                    physics=dict(nu=0.05, dt=0.01, N=64),
-                    sweep=dict(key="steps", values=[5, 10, 20, 50, 100]),
-                ),
-                dict(
-                    name="vs_nu",
-                    ic=dict(name="tgv", seed=0),
-                    physics=dict(dt=0.01, steps=20, N=64),
-                    sweep=dict(key="nu", values=[0.001, 0.005, 0.01, 0.05, 0.1]),
-                ),
+        },
+        "physical_laws": {
+            "description": "Physical laws sweeps: diagnostics vs grid resolution N, rollout length (steps), and viscosity ν (TGV IC).",
+            "plot_description": "Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.",
+            "runs": [
+                {
+                    "name": "vs_N",
+                    "ic": {"name": "tgv", "seed": 0},
+                    "physics": {"nu": 0.05, "dt": 0.01, "steps": 20},
+                    "sweep": {"key": "N", "values": [16, 32, 64, 128]},
+                },
+                {
+                    "name": "vs_steps",
+                    "ic": {"name": "tgv", "seed": 0},
+                    "physics": {"nu": 0.05, "dt": 0.01, "N": 64},
+                    "sweep": {"key": "steps", "values": [5, 10, 20, 50, 100]},
+                },
+                {
+                    "name": "vs_nu",
+                    "ic": {"name": "tgv", "seed": 0},
+                    "physics": {"dt": 0.01, "steps": 20, "N": 64},
+                    "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.05, 0.1]},
+                },
             ],
-        ),
-        "cylinder": dict(
-            description=(
+        },
+        "cylinder": {
+            "description": (
                 "Cylinder-wake (Kármán vortex street) experiment: uniform inflow past a "
                 "circular cylinder, sweeping Reynolds number Re=U·D/ν where D=2·radius·L."
             ),
-            plot_description=(
+            "plot_description": (
                 "Vorticity snapshots and kinetic-energy evolution vs time for each solver; "
                 "phase transition from steady to vortex-shedding regime as Re increases."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="uniform", seed=0),
-                    physics=dict(
-                        N=64,
-                        dt=0.01,
-                        steps=500,
-                        obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.1),
-                    ),
-                    sweep=dict(key="nu", values=[0.05, 0.02, 0.01, 0.005]),
-                )
+            "runs": [
+                {
+                    "ic": {"name": "uniform", "seed": 0},
+                    "physics": {
+                        "N": 64,
+                        "dt": 0.01,
+                        "steps": 500,
+                        "obstacle": {
+                            "shape": "cylinder",
+                            "center": [0.5, 0.5],
+                            "radius": 0.1,
+                        },
+                    },
+                    "sweep": {"key": "nu", "values": [0.05, 0.02, 0.01, 0.005]},
+                }
             ],
-        ),
+        },
     },
-    cost_defaults=dict(
-        description="Wall-clock and memory profiling vs grid size N and step count for all solvers.",
-        plot_descriptions={
+    cost_defaults={
+        "description": "Wall-clock and memory profiling vs grid size N and step count for all solvers.",
+        "plot_descriptions": {
             "spatial_cost": "Forward-pass wall-clock time vs N at fixed step count for all solvers.",
             "temporal_cost": "Forward-pass wall-clock time vs step count at fixed N for all solvers.",
             "vjp_cost": "VJP wall-clock time vs N and step count for differentiable solvers.",
         },
-        runs=[
-            dict(
-                physics=dict(nu=0.01, dt=0.01),
-                cost=dict(
-                    N_values=[64, 128, 192, 256],
-                    steps_values=[10, 50, 100, 500, 1000],
-                    n_trials=3,
-                ),
-            )
+        "runs": [
+            {
+                "physics": {"nu": 0.01, "dt": 0.01},
+                "cost": {
+                    "N_values": [64, 128, 192, 256],
+                    "steps_values": [10, 50, 100, 500, 1000],
+                    "n_trials": 3,
+                },
+            }
         ],
-    ),
+    },
     gradient_defaults={
-        "fd_check": dict(
-            description="FD gradient check vs analytic VJP at nominal physics (N=16, ν=0.001); multimode IC.",
-            plot_description="U-curves (FD gradient error vs ε) and subspace cosine; validates VJP correctness. LBM solvers (XLB, Lettuce) require ε≥5 (abs_eps≥0.36) to exit their float32 noise floor.",
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=16, nu=0.001, dt=0.05, steps=20),
-                    fd=dict(eps_values=[5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], n_dirs=20),
-                ),
+        "fd_check": {
+            "description": "FD gradient check vs analytic VJP at nominal physics (N=16, ν=0.001); multimode IC.",
+            "plot_description": "U-curves (FD gradient error vs ε) and subspace cosine; validates VJP correctness. LBM solvers (XLB, Lettuce) require ε≥5 (abs_eps≥0.36) to exit their float32 noise floor.",
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 16, "nu": 0.001, "dt": 0.05, "steps": 20},
+                    "fd": {
+                        "eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4],
+                        "n_dirs": 20,
+                    },
+                },
             ],
-        ),
-        "param_sweep": dict(
-            description="Gradient quality vs viscosity ν (2D multimode IC).",
-            plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=16, dt=0.05, steps=200),
-                    fd=dict(eps_values=[5e0, 1e0, 1e-1, 1e-2, 1e-3], n_dirs=15),
-                    sweep=dict(key="nu", values=[0.05, 0.01, 0.005, 0.001]),
-                ),
+        },
+        "param_sweep": {
+            "description": "Gradient quality vs viscosity ν (2D multimode IC).",
+            "plot_description": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 16, "dt": 0.05, "steps": 200},
+                    "fd": {"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 15},
+                    "sweep": {"key": "nu", "values": [0.05, 0.01, 0.005, 0.001]},
+                },
             ],
-        ),
-        "horizon_sweep": dict(
-            description="Gradient quality vs rollout horizon T=steps*dt for 2D multimode IC at Re=1000 (N=16, ν=0.001, dt=0.05). Establishes T* horizon limit for gradient-based optimization.",
-            plot_description=(
+        },
+        "horizon_sweep": {
+            "description": "Gradient quality vs rollout horizon T=steps*dt for 2D multimode IC at Re=1000 (N=16, ν=0.001, dt=0.05). Establishes T* horizon limit for gradient-based optimization.",
+            "plot_description": (
                 "Gradient norm, FD error, and direction cosine vs rollout horizon T=steps*dt for 2D multimode IC. "
                 "Key metric: the step count T* at which cosine(ε=0.1) drops below 0.999 — the practical gradient quality limit."
             ),
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=16, nu=0.001, dt=0.05),
-                    fd=dict(eps_values=[1e0, 1e-1, 1e-2, 1e-3], n_dirs=8),
-                    sweep=dict(key="steps", values=[5, 10, 20, 40, 80, 160, 320]),
-                ),
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 16, "nu": 0.001, "dt": 0.05},
+                    "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
+                    "sweep": {"key": "steps", "values": [5, 10, 20, 40, 80, 160, 320]},
+                },
             ],
-        ),
-        "jacobian_svd": dict(
-            description="Full Jacobian SVD and inter-solver gradient subspace analysis at N=8, ν=0.001, T=0.5s (steps=10).",
-            plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces (2D multimode IC, N=8, ν=0.001, steps=10).",
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=8, nu=0.001, dt=0.05, steps=10),
-                    jacobian=dict(),
-                )
+        },
+        "jacobian_svd": {
+            "description": "Full Jacobian SVD and inter-solver gradient subspace analysis at N=8, ν=0.001, T=0.5s (steps=10).",
+            "plot_description": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces (2D multimode IC, N=8, ν=0.001, steps=10).",
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
+                    "jacobian": {},
+                }
             ],
-        ),
-        "jacobian_svd_steps20": dict(
-            description="Full Jacobian SVD at N=8, extended rollout steps=20 (T=1s).",
-            plot_description="Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=20). Extended horizon vs base (steps=10).",
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=8, nu=0.001, dt=0.05, steps=20),
-                    jacobian=dict(),
-                )
+        },
+        "jacobian_svd_steps20": {
+            "description": "Full Jacobian SVD at N=8, extended rollout steps=20 (T=1s).",
+            "plot_description": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=20). Extended horizon vs base (steps=10).",
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
+                    "jacobian": {},
+                }
             ],
-        ),
-        "jacobian_svd_steps40": dict(
-            description="Full Jacobian SVD at N=8, extended rollout steps=40 (T=2s).",
-            plot_description="Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=40). Probes deeper into the chaotic regime.",
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=8, nu=0.001, dt=0.05, steps=40),
-                    jacobian=dict(),
-                )
+        },
+        "jacobian_svd_steps40": {
+            "description": "Full Jacobian SVD at N=8, extended rollout steps=40 (T=2s).",
+            "plot_description": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=40). Probes deeper into the chaotic regime.",
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
+                    "jacobian": {},
+                }
             ],
-        ),
-        "jacobian_svd_nu01": dict(
-            description="Full Jacobian SVD at N=8, more viscous regime ν=0.01 (T=0.5s).",
-            plot_description="Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.01, steps=10). 10× more viscous than base; expected to reduce condition number.",
-            runs=[
-                dict(
-                    ic=dict(name="multimode", seed=42),
-                    physics=dict(N=8, nu=0.01, dt=0.05, steps=10),
-                    jacobian=dict(),
-                )
+        },
+        "jacobian_svd_nu01": {
+            "description": "Full Jacobian SVD at N=8, more viscous regime ν=0.01 (T=0.5s).",
+            "plot_description": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.01, steps=10). 10× more viscous than base; expected to reduce condition number.",
+            "runs": [
+                {
+                    "ic": {"name": "multimode", "seed": 42},
+                    "physics": {"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
+                    "jacobian": {},
+                }
             ],
-        ),
+        },
     },
     inverse_defaults={
-        "drag_opt": dict(
-            description=(
+        "drag_opt": {
+            "description": (
                 "Inflow profile optimisation: minimise cylinder drag at Re=20 (steady Stokes-like regime). "
                 "Control variable is the 1-D inlet profile u_x(y); constraint is fixed mean flow rate "
                 "(flow-rate penalty). Geometry: cylinder at [0.5, 0.5], radius=0.05, domain [0,1]²."
             ),
-            plot_description=(
+            "plot_description": (
                 "Drag convergence curves per solver at Re=20; "
                 "optimised vs initial inflow profiles; final drag coefficient comparison."
             ),
-            runs=[
-                dict(
-                    name="re20",
-                    ic=dict(name="flat_inflow", seed=0),
-                    physics=dict(
-                        N=32,
+            "runs": [
+                {
+                    "name": "re20",
+                    "ic": {"name": "flat_inflow", "seed": 0},
+                    "physics": {
+                        "N": 32,
                         # Re = U·D/ν = 0.5·0.1/0.0025 = 20
                         # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
                         # projection divergence at N=64 (discontinuity at obstacle boundary
                         # overwhelms the periodic Poisson solve at step ~20).
-                        nu=0.0025,
-                        dt=0.02,
-                        steps=400,
-                        domain_extent=1.0,
-                        U_mean=0.5,
-                        obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),
-                    ),
-                    optim=dict(
-                        lr=5e-4,
-                        max_iters=500,
-                        patience=100,
-                        flow_penalty_weight=50.0,
-                        snap_interval=20,
-                    ),
-                ),
+                        "nu": 0.0025,
+                        "dt": 0.02,
+                        "steps": 400,
+                        "domain_extent": 1.0,
+                        "U_mean": 0.5,
+                        "obstacle": {
+                            "shape": "cylinder",
+                            "center": [0.5, 0.5],
+                            "radius": 0.05,
+                        },
+                    },
+                    "optim": {
+                        "lr": 5e-4,
+                        "max_iters": 500,
+                        "patience": 100,
+                        "flow_penalty_weight": 50.0,
+                        "snap_interval": 20,
+                    },
+                },
             ],
-        ),
-        "drag_opt_bfgs": dict(
-            description=(
+        },
+        "drag_opt_bfgs": {
+            "description": (
                 "Inflow profile optimisation with L-BFGS: minimise cylinder drag at Re=20. "
                 "Same setup as drag_opt but using L-BFGS with zoom line search."
             ),
-            plot_description=(
+            "plot_description": (
                 "L-BFGS drag convergence curves per solver at Re=20; "
                 "optimised vs initial inflow profiles; final drag coefficient comparison."
             ),
-            runs=[
-                dict(
-                    name="re20",
-                    ic=dict(name="flat_inflow", seed=0),
-                    physics=dict(
-                        N=32,
-                        nu=0.0025,
-                        dt=0.02,
-                        steps=400,
-                        domain_extent=1.0,
-                        U_mean=0.5,
-                        obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),
-                    ),
-                    optim=dict(
-                        max_iters=50,
-                        patience=15,
-                        flow_penalty_weight=50.0,
-                        snap_interval=5,
-                    ),
-                ),
+            "runs": [
+                {
+                    "name": "re20",
+                    "ic": {"name": "flat_inflow", "seed": 0},
+                    "physics": {
+                        "N": 32,
+                        "nu": 0.0025,
+                        "dt": 0.02,
+                        "steps": 400,
+                        "domain_extent": 1.0,
+                        "U_mean": 0.5,
+                        "obstacle": {
+                            "shape": "cylinder",
+                            "center": [0.5, 0.5],
+                            "radius": 0.05,
+                        },
+                    },
+                    "optim": {
+                        "max_iters": 50,
+                        "patience": 15,
+                        "flow_penalty_weight": 50.0,
+                        "snap_interval": 5,
+                    },
+                },
             ],
-        ),
+        },
     },
     extra_plots={
         "gradient": [

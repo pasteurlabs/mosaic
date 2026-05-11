@@ -80,7 +80,7 @@ def _plot_panel(
 ) -> None:
     methods = _methods()
     for key, result in results.items():
-        m_label, m_ls, _ = methods[key]
+        _m_label, m_ls, _ = methods[key]
         by_sweep = result.get("by_sweep", {})
         f = _GRAD_EVALS_PER_ITER.get(key, 1)
         for solver in NS_ORDER:

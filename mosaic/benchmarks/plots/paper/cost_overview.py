@@ -167,15 +167,15 @@ def generate(out_dir: Path) -> None:
         vmem_any = False
 
         for solver in all_solvers:
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.6,
+            }
 
             fwd_pts = _extract_by_n(fwd_data.get(solver, {}))
             vjp_pts = _extract_by_n(vjp_data.get(solver, {}))
@@ -301,7 +301,7 @@ def generate(out_dir: Path) -> None:
         if ft in failure_types_seen
     ]
 
-    legend_kw = dict(fontsize=7.5, framealpha=0.7, handlelength=2.0)
+    legend_kw = {"fontsize": 7.5, "framealpha": 0.7, "handlelength": 2.0}
     fig.legend(
         handles=ns_handles,
         loc="upper center",
