@@ -4,8 +4,14 @@ from pathlib import Path
 
 import numpy as np
 
-from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.config import (
+    IcSpec,
+    ProblemConfig,
+    SolverSpec,
+    discover_solvers,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.plots.solver_styles import apply_styles
 from mosaic.mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 
 _GYM_DIR = Path(__file__).parent.parent.parent
@@ -17,112 +23,26 @@ _NU = 0.3  # Poisson's ratio
 _XMIN = 1e-3  # Void stiffness ratio (E_min / E_max)
 
 
-_SOLVERS: dict[str, SolverSpec] = {
-    "jax_fem": SolverSpec(
-        name="JAX-FEM",
-        backend="jax",
-        family="fem",
-        differentiable=True,
-        ad_strategy="hybrid",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="jax-fem",
-        color="#4477AA",
-        scheme="FEM HEX8 linear elasticity (SIMP, adjoint AD)",
-        image_tag="jax_fem_structural_mesh:latest",
-        description="JAX-FEM HEX8 linear-elasticity solver; automatic differentiation adjoint via JAX.",
-    ),
-    "topopt_jl": SolverSpec(
-        name="TopOpt.jl",
-        backend="julia",
-        family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="topopt-jl",
-        color="#228833",
-        scheme="FEM HEX8 linear elasticity (SIMP, analytical adjoint)",
-        image_tag="topopt_jl_structural_grid:latest",
-        description="TopOpt.jl HEX8 FEM solver; analytical SIMP adjoint implemented in Julia.",
-        input_overrides={
-            "E": _E_MAX,
-            "nu": _NU,
-            "xmin": _XMIN,
-        },
-    ),
-    "dealii_structural": SolverSpec(
-        name="deal.II",
-        backend="dealii",
-        family="fem",
-        differentiable=False,
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="dealii",
-        color="#CCBB44",
-        scheme="FEM Q1 linear elasticity (SIMP, forward-only)",
-        image_tag="dealii_structural_mesh:latest",
-        description=(
-            "deal.II Q1 (trilinear hexahedral) FEM linear-elasticity solver via C++ subprocess. "
-            "SIMP stiffness E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal. "
-            "UMFPACK direct solver. Forward-only — reference C++ implementation for "
-            "cross-framework validation."
-        ),
-        input_overrides={
-            "E_max": _E_MAX,
-            "nu": _NU,
-            "xmin": _XMIN,
-        },
-    ),
-    "fenics_structural": SolverSpec(
-        name="FEniCS",
-        backend="fenics",
-        family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="fenics",
-        color="#AA3377",
-        scheme="FEM CG1 linear elasticity (SIMP, dolfin-adjoint)",
-        image_tag="fenics_structural_mesh:latest",
-        description=(
-            "FEniCS/DOLFIN 2019.1 CG1 FEM linear-elasticity solver with SIMP penalisation. "
-            "Gradient ∂C/∂ρ via dolfin-adjoint ReducedFunctional. "
-            "DG0 density field; compliance assembled as action(L, u_sol). "
-            "Von Mises stress via DG0 projection of deviatoric stress norm."
-        ),
-        input_overrides={
-            "E_max": _E_MAX,
-            "nu": _NU,
-            "xmin": _XMIN,
-        },
-    ),
-    "firedrake_structural": SolverSpec(
-        name="Firedrake",
-        backend="firedrake",
-        family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="firedrake",
-        color="#EE3377",
-        scheme="FEM CG1 linear elasticity (SIMP, pyadjoint ReducedFunctional)",
-        image_tag="firedrake_structural_mesh:latest",
-        description=(
-            "Firedrake CG1 FEM linear-elasticity solver with SIMP penalisation. "
-            "Gradient ∂C/∂ρ via firedrake-adjoint (pyadjoint ReducedFunctional). "
-            "Uses meshio for GMSH conversion of the HexMesh input. "
-            "Modern Firedrake complement to the FEniCS fenics-structural solver."
-        ),
-        input_overrides={
-            "E_max": _E_MAX,
-            "nu": _NU,
-            "xmin": _XMIN,
-        },
-    ),
-}
+# ── Solver registry ──────────────────────────────────────────────────────────
+# Solvers and per-solver metadata come from each tesseract's YAML; styling is
+# applied from mosaic.benchmarks.plots.solver_styles. Only per-(solver, problem)
+# overrides (material parameters via input_overrides) are set here.
+
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)
+
+# Preserve historical solver keys used by paper plots and CLI references.
+_SOLVERS["dealii_structural"] = _SOLVERS.pop("dealii")
+_SOLVERS["fenics_structural"] = _SOLVERS.pop("fenics")
+_SOLVERS["firedrake_structural"] = _SOLVERS.pop("firedrake")
+
+apply_styles(_SOLVERS)
+
+
+# Material parameters are per-(solver, problem): TopOpt.jl uses ``E`` while the
+# other backends use ``E_max``; ``nu``/``xmin`` are shared.
+_SOLVERS["topopt_jl"].input_overrides = {"E": _E_MAX, "nu": _NU, "xmin": _XMIN}
+for _key in ("dealii_structural", "fenics_structural", "firedrake_structural"):
+    _SOLVERS[_key].input_overrides = {"E_max": _E_MAX, "nu": _NU, "xmin": _XMIN}
 
 
 # ── Mesh builder ──────────────────────────────────────────────────────────────
@@ -501,6 +421,7 @@ def _get_compliance(compliance: np.ndarray, **_) -> float:
 
 CONFIG = ProblemConfig(
     name="structural-mesh",
+    category_label="Structural Mechanics",
     description=(
         "3D linear-elasticity compliance minimisation on a cantilever beam with SIMP "
         "material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples "

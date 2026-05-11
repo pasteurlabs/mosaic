@@ -6,266 +6,160 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.config import (
+    IcSpec,
+    ProblemConfig,
+    SolverSpec,
+    discover_solvers,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.plots.solver_styles import apply_styles
 
 _GYM_DIR = Path(__file__).parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "navier-stokes-grid"
 _LBM_SOLVERS = {"xlb"}
 
-_SOLVERS: dict[str, SolverSpec] = {
-    "jax_cfd": SolverSpec(
-        name="jax-cfd",
-        backend="jax",
-        family="projection",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="jax-cfd",
-        color="#4477AA",
-        linestyle="-",
-        marker="o",
-        scheme="MAC FD + projection",
-        description="Staggered MAC grid with pressure projection and finite-difference advection.",
-        doc_url="https://github.com/google/jax-cfd",
-        image_tag="jax_cfd_navier_stokes_grid:latest",
-        input_overrides={
-            "density": jnp.array([1.0], dtype=jnp.float32),
-            "inner_steps": 1,
-        },
-        exclusions={
-            "forward/cylinder": {
-                "category": "categorical",
-                "reason": "tesseract uses periodic FFT pressure solve + IBM volume penalization; channel-BC cylinder flow requires a non-periodic pressure solve that is not wired in this benchmark",
-            },
-            "optimization/drag_opt": {
-                "category": "categorical",
-                "reason": "periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs (same root cause as forward/cylinder)",
-            },
-        },
-        explained_anomalies={
-            "forward/baseline": {
-                "reason": (
-                    "staggered MAC grid double-interpolation: collocated TGV IC -> "
-                    "staggered faces -> collocated output gives sin^2(pi/N) round-trip "
-                    "error at all N; 35-40x above collocated peers"
-                ),
-            },
-        },
-    ),
-    "phiflow": SolverSpec(
-        name="PhiFlow",
-        backend="jax",
-        family="projection",
-        differentiable=True,
-        ad_strategy="hybrid",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="phiflow",
-        color="#EE3333",
-        linestyle="--",
-        marker="s",
-        scheme="semi-Lagrangian + projection",
-        description="Semi-Lagrangian advection with pressure projection; unconditionally stable for large dt.",
-        doc_url="https://tum-pbs.github.io/PhiFlow/",
-        image_tag="phiflow_navier_stokes_grid:latest",
-        exclusions={},
-        explained_anomalies={
-            "forward/agreement/tgv": {
-                "reason": (
-                    "phiflow's double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude "
-                    "damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average "
-                    "output conversion fix worsened error 9×; upstream library change required"
-                ),
-            },
-        },
-    ),
-    "ins_jl": SolverSpec(
-        name="INS.jl",
-        backend="julia",
-        family="projection",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="incompressible-navier-stokes-jl",
-        color="#228833",
-        linestyle="-.",
-        marker="^",
-        scheme="FD + projection",
-        description=(
-            "Julia finite-difference solver with pressure projection; CPU-only. "
-            "Gradients via Zygote.jl reverse-mode AD: v0, viscosity, dt, and the "
-            "inflow_profile (channel mode) all have valid VJPs through the RK4 "
-            "loop and spectral pressure projection. domain_extent always returns "
-            "a zero gradient by design (structural grid parameter)."
+
+# ── Solver registry ──────────────────────────────────────────────────────────
+# Per-solver fields (name, scheme, color, AD strategy, …) live in each
+# tesseract's ``tesseract_config.yaml`` under ``metadata.mosaic``.
+# Only per-(solver, problem) overrides (input_overrides / exclusions /
+# explained_anomalies) are applied here.
+
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)
+
+# Exponax is a 3D-only spectral solver; exclude it from the 2D suite.
+_SOLVERS.pop("exponax", None)
+
+# Preserve historical solver key used across paper plots and CLI references.
+_SOLVERS["ins_jl"] = _SOLVERS.pop("incompressible_navier_stokes_jl")
+
+# Plot styling lives in mosaic.benchmarks.plots.solver_styles, not in YAML.
+apply_styles(_SOLVERS)
+
+
+_SOLVERS["jax_cfd"].input_overrides = {
+    "density": jnp.array([1.0], dtype=jnp.float32),
+    "inner_steps": 1,
+}
+_SOLVERS["jax_cfd"].exclusions = {
+    "forward/cylinder": {
+        "category": "categorical",
+        "reason": (
+            "tesseract uses periodic FFT pressure solve + IBM volume penalization; "
+            "channel-BC cylinder flow requires a non-periodic pressure solve that "
+            "is not wired in this benchmark"
         ),
-        doc_url="https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/",
-        image_tag="ins_navier_stokes_grid:latest",
-        exclusions={
-            "forward/cylinder": {
-                "category": "categorical",
-                "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented in INS.jl; spectral/LU pressure projection is also periodic-only and incompatible with obstacle channel BCs",
-            },
-            "optimization/drag_opt": {
-                "category": "categorical",
-                "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented; inflow_profile VJP works only in periodic/channel mode without obstacles",
-            },
-        },
-        explained_anomalies={
-            "forward/baseline": {
-                "reason": (
-                    "staggered MAC grid double-interpolation: collocated TGV IC -> "
-                    "staggered faces -> collocated output gives sin^2(pi/N) round-trip "
-                    "error at all N; 35-40x above collocated peers"
-                ),
-            },
-        },
-    ),
-    "openfoam": SolverSpec(
-        name="OpenFOAM",
-        backend="cpp",
-        family="projection",
-        differentiable=False,
-        ad_strategy=None,
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="openfoam",
-        color="#DDAA33",
-        linestyle=":",
-        marker="D",
-        scheme="icoFoam PISO",
-        description="OpenFOAM icoFoam; forward-only non-differentiable reference baseline.",
-        doc_url="https://www.openfoam.com/documentation/overview",
-        image_tag="openfoam_navier_stokes_grid:latest",
-        exclusions={
-            "gradient": {
-                "category": "categorical",
-                "reason": "standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
-            },
-            "optimization": {
-                "category": "categorical",
-                "reason": "standard icoFoam is non-differentiable forward-only solver",
-            },
-            "cost/vjp_cost": {
-                "category": "categorical",
-                "reason": "standard icoFoam has no VJP to benchmark",
-            },
-        },
-    ),
-    "pict": SolverSpec(
-        name="PICT",
-        backend="pytorch",
-        family="projection",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="pict",
-        color="#AA44AA",
-        linestyle=(0, (5, 1)),
-        marker="v",
-        scheme="PISO (2nd-order)",
-        description=(
-            "PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch autograd. "
-            "VJP w.r.t. v0 is fully supported through the differentiable PISO time loop. "
-            "Gradients w.r.t. viscosity and dt are not available: those parameters are "
-            "consumed as Python scalars at domain construction / timestep time and have "
-            "no autograd path; zero gradients are returned for them."
+    },
+    "optimization/drag_opt": {
+        "category": "categorical",
+        "reason": (
+            "periodic FFT pressure solve + IBM volume penalization is incompatible "
+            "with cylinder obstacle channel BCs (same root cause as forward/cylinder)"
         ),
-        doc_url="https://github.com/tum-pbs/PICT",
-        image_tag="pict_navier_stokes_grid:latest",
-        exclusions={},
-        explained_anomalies={},
-    ),
-    "xlb": SolverSpec(
-        name="XLB",
-        backend="jax",
-        family="lbm",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float64",
-        dir="xlb",
-        color="#66CCEE",
-        linestyle=(0, (3, 1, 1, 1)),
-        marker="P",
-        scheme="LBM BGK/KBC D2Q9",
-        description=(
-            "JAX-accelerated LBM D2Q9 using XLB's BGK (default) / entropic-stabilised "
-            "KBC (2-D obstacle flows), Stream, QuadraticEquilibrium, and Macroscopic "
-            "operators (xlb 0.3.1) inside a jax.lax.scan time loop; incompressibility "
-            "recovered in the low-Mach limit. "
-            "VJP flows through the full scan unroll in float64 precision and is routed "
-            "per diff-input key (v0, viscosity, dt, inflow_profile). "
-            "Both apply() and vjp_jit() run in float64 internally (output cast to "
-            "float32) to avoid float32 quantization noise at fine ε (omega≈2 at low "
-            "viscosity). FD cosine ≥0.9999 at ε=1.0."
+    },
+}
+_SOLVERS["jax_cfd"].explained_anomalies = {
+    "forward/baseline": {
+        "reason": (
+            "staggered MAC grid double-interpolation: collocated TGV IC -> "
+            "staggered faces -> collocated output gives sin^2(pi/N) round-trip "
+            "error at all N; 35-40x above collocated peers"
         ),
-        doc_url="https://github.com/Autodesk/XLB",
-        image_tag="xlb_navier_stokes_grid:latest",
-        exclusions={},
-        explained_anomalies={
-            "forward/baseline": {
-                "reason": (
-                    "irreducible O(Ma²) LBM compressibility error floor: at fixed "
-                    "dt=0.01, Ma=u·dt/dx grows with N; at N=128 Ma~0.2 giving ~0.007 "
-                    "error floor (230× peers); anomalous at all N"
-                ),
-            },
-            "forward/agreement/tgv": {
-                "reason": (
-                    "automatic k=9 sub-steps reduce Ma 0.88→0.098 (81× Ma² reduction); "
-                    "errors drop from 0.216-0.278 → 0.026-0.031 (11-24× peers); "
-                    "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
-                    "by further sub-stepping (tested k=9..27); valid=True"
-                ),
-            },
-            "forward/tgv_nu_sweep": {
-                "reason": (
-                    "same root cause as forward/agreement/tgv — automatic k=9 sub-stepping reduces Ma 0.88→0.098 "
-                    "but residual O(dx²) LBM spatial discretization gives 11-24× peer errors "
-                    "at all nu values (0.0001–0.05); 0.0309 at nu=0.05 is 12.0× peer median; "
-                    "not reducible by further sub-stepping (tested k=9..27); valid=True"
-                ),
-            },
-        },
-    ),
-    "warp_ns": SolverSpec(
-        name="Warp-NS",
-        backend="warp",
-        family="fd",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="warp-ns",
-        color="#EE7733",
-        linestyle=(0, (1, 1)),
-        marker="X",
-        scheme="IPCS (2D+3D), periodic spectral FFT Poisson, wp.Tape VJP",
-        description=(
-            "NVIDIA Warp periodic-only NS solver: IPCS primitive-variable projection "
-            "for both 2D and 3D with spectral FFT pressure Poisson. VJP via wp.Tape; "
-            "viscosity and dt gradients via per-step record_func callbacks accumulated "
-            "analytically from the Laplacian / advection / divergence / pressure-correction "
-            "terms."
+    },
+}
+
+_SOLVERS["phiflow"].explained_anomalies = {
+    "forward/agreement/tgv": {
+        "reason": (
+            "phiflow's double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude "
+            "damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average "
+            "output conversion fix worsened error 9×; upstream library change required"
         ),
-        doc_url="https://github.com/NVIDIA/warp",
-        image_tag="warp_ns_navier_stokes_grid:latest",
-        exclusions={
-            "forward/cylinder": {
-                "category": "categorical",
-                "reason": "warp-ns is periodic-only; obstacle flows are not supported",
-            },
-            "optimization/drag_opt": {
-                "category": "categorical",
-                "reason": "warp-ns is periodic-only; obstacle/inflow flows are not supported",
-            },
-        },
-        explained_anomalies={},
-    ),
+    },
+}
+
+_SOLVERS["ins_jl"].exclusions = {
+    "forward/cylinder": {
+        "category": "categorical",
+        "reason": (
+            "no IBM or volume penalization — the cylinder obstacle cannot be "
+            "represented in INS.jl; spectral/LU pressure projection is also "
+            "periodic-only and incompatible with obstacle channel BCs"
+        ),
+    },
+    "optimization/drag_opt": {
+        "category": "categorical",
+        "reason": (
+            "no IBM or volume penalization — the cylinder obstacle cannot be "
+            "represented; inflow_profile VJP works only in periodic/channel mode "
+            "without obstacles"
+        ),
+    },
+}
+_SOLVERS["ins_jl"].explained_anomalies = {
+    "forward/baseline": {
+        "reason": (
+            "staggered MAC grid double-interpolation: collocated TGV IC -> "
+            "staggered faces -> collocated output gives sin^2(pi/N) round-trip "
+            "error at all N; 35-40x above collocated peers"
+        ),
+    },
+}
+
+_SOLVERS["openfoam"].exclusions = {
+    "gradient": {
+        "category": "categorical",
+        "reason": (
+            "standard icoFoam is non-differentiable (C++, no AD path); "
+            "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract"
+        ),
+    },
+    "optimization": {
+        "category": "categorical",
+        "reason": "standard icoFoam is non-differentiable forward-only solver",
+    },
+    "cost/vjp_cost": {
+        "category": "categorical",
+        "reason": "standard icoFoam has no VJP to benchmark",
+    },
+}
+
+_SOLVERS["xlb"].explained_anomalies = {
+    "forward/baseline": {
+        "reason": (
+            "irreducible O(Ma²) LBM compressibility error floor: at fixed "
+            "dt=0.01, Ma=u·dt/dx grows with N; at N=128 Ma~0.2 giving ~0.007 "
+            "error floor (230× peers); anomalous at all N"
+        ),
+    },
+    "forward/agreement/tgv": {
+        "reason": (
+            "automatic k=9 sub-steps reduce Ma 0.88→0.098 (81× Ma² reduction); "
+            "errors drop from 0.216-0.278 → 0.026-0.031 (11-24× peers); "
+            "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
+            "by further sub-stepping (tested k=9..27); valid=True"
+        ),
+    },
+    "forward/tgv_nu_sweep": {
+        "reason": (
+            "same root cause as forward/agreement/tgv — automatic k=9 sub-stepping reduces Ma 0.88→0.098 "
+            "but residual O(dx²) LBM spatial discretization gives 11-24× peer errors "
+            "at all nu values (0.0001–0.05); 0.0309 at nu=0.05 is 12.0× peer median; "
+            "not reducible by further sub-stepping (tested k=9..27); valid=True"
+        ),
+    },
+}
+
+_SOLVERS["warp_ns"].exclusions = {
+    "forward/cylinder": {
+        "category": "categorical",
+        "reason": "warp-ns is periodic-only; obstacle flows are not supported",
+    },
+    "optimization/drag_opt": {
+        "category": "categorical",
+        "reason": "warp-ns is periodic-only; obstacle/inflow flows are not supported",
+    },
 }
 
 
@@ -457,6 +351,7 @@ def _energy_spectrum(arr: jax.Array, **_) -> dict:
 
 CONFIG = ProblemConfig(
     name="ns-grid",
+    category_label="Navier–Stokes (Grid)",
     n_to_cells=lambda n: n**2,
     description=(
         "2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as "

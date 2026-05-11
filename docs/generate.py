@@ -22,220 +22,13 @@ sys.path.insert(0, str(ROOT))
 TESSERACTS = ROOT / "mosaic" / "tesseracts"
 OUTPUT = Path(__file__).resolve().parent / "solvers.qmd"
 
-CATEGORY_LABELS = {
-    "navier-stokes-grid": "Navier\u2013Stokes (Grid)",
-    "structural-mesh": "Structural Mechanics",
-    "thermal-mesh": "Heat Conduction",
-}
-
 # Maps (domain_dir, solver_dir) to the solver key used in problem configs.
 # Populated lazily by _load_solver_specs().
 _SOLVER_SPECS: dict[tuple[str, str], dict] | None = None
 
-# Per-solver narrative documentation sourced from the paper appendix.
-# Keys match the solver_dir name (not the display name).
-SOLVER_DOCS: dict[str, str] = {
-    "jax-cfd": (
-        "JAX-native incompressible flow solver on a staggered MAC grid with "
-        "finite-difference advection and spectral (FFT) pressure projection. "
-        "Gradients via JAX source-transformation AD. "
-        "The spectral pressure solve requires periodic BCs in all spatial "
-        "directions, so JAX-CFD is included in periodic benchmarks (TGV, "
-        "multimode agreement) but excluded from the cylinder-wake experiment."
-    ),
-    "phiflow": (
-        "Semi-Lagrangian advection with pressure projection. "
-        "Supports PyTorch, JAX, and TensorFlow backends, enabling gradient "
-        "computation through the same simulation code across AD frameworks."
-    ),
-    "incompressible-navier-stokes-jl": (
-        "IncompressibleNavierStokes.jl: Julia finite-difference "
-        "pressure-projection solver. Differentiates through the time loop "
-        "via Zygote.jl reverse-mode AD. CPU only."
-    ),
-    "xlb": (
-        "JAX-native lattice Boltzmann solver supporting D2Q9 and D3Q19 "
-        "stencils on GPU. Gradients via source-transformation AD through the "
-        "collision-streaming loop. Note: the LBM recovers incompressible "
-        "Navier\u2013Stokes only to O(Ma\u00b2) via Chapman\u2013Enskog "
-        "expansion, giving an intrinsic compressibility error floor at fine grids."
-    ),
-    "pict": (
-        "GPU-accelerated differentiable incompressible Navier\u2013Stokes "
-        "solver built on PyTorch with custom CUDA kernels implementing the "
-        "PISO algorithm. Supports reverse-mode AD through the full time loop "
-        "and handles multi-block curvilinear grids. The Mosaic Tesseract "
-        "exposes periodic, lid-driven cavity, inflow/channel, and "
-        "cylinder-wake modes via an 8-block ring topology."
-    ),
-    "warp-ns": (
-        "Implements the IPCS projection scheme in NVIDIA Warp CUDA kernels "
-        "with an FFT-based spectral Poisson solver. Gradients via the "
-        "wp.Tape kernel-level VJP. Custom solver: the framework provides "
-        "differentiable kernels but no ready-made incompressible flow solver, "
-        "so FE assembly and time integration were implemented using Warp "
-        "primitives. Represents the integration cost when a kernel toolkit "
-        "provides no built-in solver."
-    ),
-    "exponax": (
-        "Integrates the 3D Navier\u2013Stokes equations with an exponential "
-        "time-differencing Runge\u2013Kutta (ETDRK) spectral scheme, "
-        "enforcing incompressibility to machine precision by construction. "
-        "Gradients via JAX source-transformation AD."
-    ),
-    "openfoam": (
-        "Runs the icoFoam incompressible PISO solver as a forward-only "
-        "reference baseline. No reverse-mode AD available. Used as the "
-        "reference solver for fluid benchmark domains."
-    ),
-    "fenics": (
-        "Finite-element solver using P1 elements for structural problems. "
-        "dolfin-adjoint automates the discrete adjoint by replaying the "
-        "forward tape."
-    ),
-    "fenics-heat": (
-        "Finite-element solver using P1 elements for thermal problems. "
-        "dolfin-adjoint automates the discrete adjoint by replaying the "
-        "forward tape."
-    ),
-    "firedrake": (
-        "Mirrors the FEniCS P1/CG1 formulation for structural problems. "
-        "Differentiates via firedrake-adjoint, providing an independent "
-        "tape-based adjoint implementation for cross-validation."
-    ),
-    "firedrake-heat": (
-        "Mirrors the FEniCS P1/CG1 formulation for thermal problems. "
-        "Differentiates via firedrake-adjoint, providing an independent "
-        "tape-based adjoint implementation for cross-validation."
-    ),
-    "jax-fem": (
-        "Solves heat conduction and linear elasticity with trilinear HEX8 "
-        "finite elements in JAX. Gradients via AD through the assembled system."
-    ),
-    "topopt-jl": (
-        "SIMP topology optimization for linear elasticity with HEX8 elements "
-        "in Julia, using analytical adjoint sensitivities."
-    ),
-    "dealii": (
-        "Solves structural problems with Q1 elements using the industry-grade "
-        "C++ finite-element library deal.II. Gradients via hand-derived "
-        "analytical adjoint sensitivities. Used as the reference solver for "
-        "structural and thermal domains."
-    ),
-    "dealii-heat": (
-        "Solves thermal problems with Q1 elements using the industry-grade "
-        "C++ finite-element library deal.II. Gradients via hand-derived "
-        "analytical adjoint sensitivities. Used as the reference solver for "
-        "the thermal domain."
-    ),
-    "torch-fem": (
-        "Solves heat conduction with linear finite elements in PyTorch. "
-        "Gradients via torch.autograd through the assembled system."
-    ),
-}
-
-# Known solver limitations from benchmarking (paper appendix C.3).
-SOLVER_LIMITATIONS: dict[str, list[str]] = {
-    "pict": [
-        "Viscosity is not differentiable: PISOtorch_diff treats viscosity as "
-        "a static scalar. Differentiation w.r.t. viscosity would require "
-        "upstream changes to the C++/CUDA kernels.",
-    ],
-    "jax-cfd": [
-        "Spectral pressure solve requires periodic boundary conditions. "
-        "Excluded from channel/cylinder-wake experiments.",
-    ],
-    "warp-ns": [
-        "Spectral pressure solve requires periodic boundary conditions. "
-        "Excluded from channel/cylinder-wake experiments.",
-    ],
-    "incompressible-navier-stokes-jl": [
-        "Viscosity gradient uses finite differences (Zygote returns "
-        "NoTangent for the diffusion operator). FD gradients diverge as "
-        "rollout length grows.",
-        "Brinkman penalization incompatible with spectral pressure solve. "
-        "Excluded from drag optimization.",
-    ],
-    "xlb": [
-        "Intrinsic O(Ma\u00b2) compressibility error: the LBM recovers "
-        "incompressible NS only approximately. At N=128, dt=0.01, "
-        "Ma \u2248 0.2, giving ~4% error floor.",
-        "BGK collision instability at low viscosity: relaxation time "
-        "approaches the stability boundary as viscosity decreases.",
-    ],
-}
-
-# Per-solver wrapping notes: how the native solver is called from the Tesseract.
-WRAPPING_NOTES: dict[str, str] = {
-    "jax-cfd": (
-        "Pure JAX: the solver is called as a traced JAX function inside ``apply``. "
-        "VJP is obtained by wrapping the forward call with ``jax.vjp``."
-    ),
-    "phiflow": (
-        "Pure JAX: PhiFlow's JAX backend is selected at import time. The simulation "
-        "loop runs as a traced JAX function; VJP via ``jax.vjp``."
-    ),
-    "exponax": (
-        "Pure JAX: Exponax is an Equinox-based JAX library. The solver is called "
-        "as a traced JAX function; VJP via ``jax.vjp``."
-    ),
-    "xlb": (
-        "Pure JAX: XLB's JAX backend runs the LBM collision-streaming loop. "
-        "VJP via ``jax.vjp`` through the full loop."
-    ),
-    "jax-fem": (
-        "Pure JAX: JAX-FEM assembles and solves the FE system in JAX. "
-        "VJP via ``jax.vjp`` through the assembled linear solve."
-    ),
-    "pict": (
-        "PyTorch + CUDA: PISOtorch C++ extension runs the PISO time loop on GPU. "
-        "VJP via ``torch.autograd`` backward through the custom CUDA kernels."
-    ),
-    "warp-ns": (
-        "NVIDIA Warp: custom CUDA kernels implement IPCS projection. "
-        "VJP via ``wp.Tape`` kernel-level reverse-mode replay."
-    ),
-    "incompressible-navier-stokes-jl": (
-        "Julia subprocess: IncompressibleNavierStokes.jl is called via ``juliacall``. "
-        "VJP via Zygote.jl reverse-mode AD through the time loop."
-    ),
-    "topopt-jl": (
-        "Julia subprocess: the TopOpt solver is called via ``juliacall``. "
-        "VJP via analytical adjoint sensitivities computed in Julia."
-    ),
-    "openfoam": (
-        "Subprocess: icoFoam is launched as an external process. Input/output "
-        "fields are serialized to/from OpenFOAM's file format. Forward only, no VJP."
-    ),
-    "fenics": (
-        "In-process Python: FEniCS/dolfin assembles and solves via PETSc. "
-        "VJP via dolfin-adjoint tape replay (discrete adjoint)."
-    ),
-    "fenics-heat": (
-        "In-process Python: FEniCS/dolfin assembles and solves via PETSc. "
-        "VJP via dolfin-adjoint tape replay (discrete adjoint)."
-    ),
-    "firedrake": (
-        "In-process Python: Firedrake assembles and solves via PETSc. "
-        "VJP via firedrake-adjoint/pyadjoint tape replay (discrete adjoint)."
-    ),
-    "firedrake-heat": (
-        "In-process Python: Firedrake assembles and solves via PETSc. "
-        "VJP via firedrake-adjoint/pyadjoint tape replay (discrete adjoint)."
-    ),
-    "dealii": (
-        "C++ subprocess: deal.II solver compiled as a shared library, called via "
-        "ctypes. VJP via hand-derived analytical adjoint sensitivities in C++."
-    ),
-    "dealii-heat": (
-        "C++ subprocess: deal.II solver compiled as a shared library, called via "
-        "ctypes. VJP via hand-derived analytical adjoint sensitivities in C++."
-    ),
-    "torch-fem": (
-        "PyTorch: linear FE assembly and solve in pure PyTorch. "
-        "VJP via ``torch.autograd`` through the assembled system."
-    ),
-}
+# Per-physics-dir category label (e.g. "Navier\u2013Stokes (Grid)"), harvested from
+# each ProblemConfig.category_label. Populated by _load_solver_specs().
+_CATEGORY_LABELS: dict[str, str] = {}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -244,8 +37,13 @@ WRAPPING_NOTES: dict[str, str] = {
 
 
 def _load_solver_specs() -> dict[tuple[str, str], dict]:
-    """Try to load SolverSpec metadata from problem configs."""
-    global _SOLVER_SPECS
+    """Try to load SolverSpec metadata from problem configs.
+
+    Also harvests each ``ProblemConfig.category_label`` into ``_CATEGORY_LABELS``
+    keyed by tesseract-dir basename, so the generated page's section headings
+    are sourced from the problem configs rather than from this file.
+    """
+    global _SOLVER_SPECS, _CATEGORY_LABELS
     if _SOLVER_SPECS is not None:
         return _SOLVER_SPECS
 
@@ -255,20 +53,17 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
     except ImportError:
         return _SOLVER_SPECS
 
-    # Map from domain CLI names to tesseract directory names.
-    domain_dir_map = {
-        "ns-grid": "navier-stokes-grid",
-        "ns-3d-grid": "navier-stokes-grid",
-        "structural-mesh": "structural-mesh",
-        "thermal-mesh": "thermal-mesh",
-    }
-
     for prob in PROBLEMS:
         try:
             cfg = get_config(prob)
         except Exception:
             continue
-        domain_dir = domain_dir_map.get(prob, prob)
+        domain_dir = cfg.tesseract_dir.name
+        # First non-empty category_label per tesseract dir wins. Multiple
+        # ProblemConfigs (e.g. ns-grid + ns-3d-grid) can share a dir.
+        label = getattr(cfg, "category_label", "")
+        if label and not _CATEGORY_LABELS.get(domain_dir):
+            _CATEGORY_LABELS[domain_dir] = label
         for _solver_key, spec in cfg.solvers.items():
             key = (domain_dir, spec.dir)
             _SOLVER_SPECS[key] = {
@@ -351,20 +146,17 @@ def _parse_fields(source: str, class_name: str) -> list[dict]:
     return fields
 
 
-# Maps physics directory name → canonical schema module path (underscore form).
-_DOMAIN_TO_MODULE = {
-    "navier-stokes-grid": "navier_stokes_grid",
-    "thermal-mesh": "thermal_mesh",
-    "structural-mesh": "structural_mesh",
-}
-
 # Cache: domain module name → parsed canonical schema source text
 _CANONICAL_CACHE: dict[str, str] = {}
 
 
 def _canonical_schema_source(physics_dir: str) -> str | None:
-    """Return the source text of the canonical schemas.py for a physics domain."""
-    module = _DOMAIN_TO_MODULE.get(physics_dir)
+    """Return the source text of the canonical schemas.py for a physics domain.
+
+    The schema module follows the convention ``mosaic_shared/problems/<dir
+    with hyphens swapped for underscores>/schemas.py``.
+    """
+    module = physics_dir.replace("-", "_") if physics_dir else None
     if module is None:
         return None
     if module not in _CANONICAL_CACHE:
@@ -378,29 +170,72 @@ def _canonical_schema_source(physics_dir: str) -> str | None:
     return _CANONICAL_CACHE[module] or None
 
 
+def _extract_make_differentiable_fields(source: str, class_name: str) -> set[str]:
+    """Return the field names a solver promotes to ``Differentiable`` via
+    ``make_differentiable(_Canonical*Schema, [...])`` in its class bases.
+
+    Looks for patterns like::
+
+        class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
+            ...
+
+    The second argument is collected literally so the wrapped fields are
+    marked differentiable in the merged schema even though the solver's own
+    source has no ``Differentiable[...]`` annotation on them.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    fields: set[str] = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.ClassDef) and node.name == class_name):
+            continue
+        for base in node.bases:
+            if not (
+                isinstance(base, ast.Call)
+                and isinstance(base.func, ast.Name)
+                and base.func.id == "make_differentiable"
+                and len(base.args) >= 2
+            ):
+                continue
+            field_list = base.args[1]
+            if isinstance(field_list, (ast.List, ast.Tuple)):
+                for elt in field_list.elts:
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                        fields.add(elt.value)
+    return fields
+
+
 def parse_schema(source: str, class_name: str, physics_dir: str = "") -> list[dict]:
     """Parse schema fields, including inherited canonical fields.
 
     When ``InputSchema`` or ``OutputSchema`` in the solver source inherits from
     ``_CanonicalInputSchema`` / ``_CanonicalOutputSchema``, the canonical
     fields are resolved from ``mosaic_shared/problems/<domain>/schemas.py``
-    and prepended so that the full interface is documented.
+    and prepended so that the full interface is documented. Fields promoted
+    via ``make_differentiable(...)`` in the solver's class bases are marked
+    differentiable on the merged result.
     """
     solver_fields = _parse_fields(source, class_name)
     solver_names = {f["name"] for f in solver_fields}
+    diff_promoted = _extract_make_differentiable_fields(source, class_name)
 
     # Resolve canonical parent fields.
     canonical_source = _canonical_schema_source(physics_dir) if physics_dir else None
     if canonical_source is None:
-        return solver_fields
+        merged = solver_fields
+    else:
+        # The canonical module defines InputSchema / OutputSchema directly (not
+        # _CanonicalInputSchema), so parse with the bare class_name.
+        canonical_fields = _parse_fields(canonical_source, class_name)
+        merged = [f for f in canonical_fields if f["name"] not in solver_names]
+        merged.extend(solver_fields)
 
-    # The canonical module defines InputSchema / OutputSchema directly (not
-    # _CanonicalInputSchema), so parse with the bare class_name.
-    canonical_fields = _parse_fields(canonical_source, class_name)
-
-    # Merge: canonical fields first (skip any overridden by the solver).
-    merged = [f for f in canonical_fields if f["name"] not in solver_names]
-    merged.extend(solver_fields)
+    if diff_promoted:
+        for f in merged:
+            if f["name"] in diff_promoted:
+                f["differentiable"] = True
     return merged
 
 
@@ -415,31 +250,43 @@ def load_solver(path: Path) -> dict | None:
     physics, backend = path.parent.name, path.name
     spec = _get_spec(physics, backend)
 
+    # The YAML metadata.mosaic block is the authoritative per-container
+    # source; SolverSpec is used only as a fallback when a key is missing.
+    yaml_mosaic = (config.get("metadata") or {}).get("mosaic") or {}
+
     return {
         "name": config.get("name", f"{physics}/{backend}"),
         "version": config.get("version", ""),
         "description": (config.get("description") or "").strip(),
         "physics": physics,
         "backend": backend,
-        "category": CATEGORY_LABELS.get(physics, physics),
+        # Category label comes from each ProblemConfig.category_label (harvested
+        # by _load_solver_specs); fall back to the physics dir name if missing.
+        "category": _CATEGORY_LABELS.get(physics, physics),
         "inputs": parse_schema(source, "InputSchema", physics),
         "outputs": parse_schema(source, "OutputSchema", physics),
         "path": f"mosaic/tesseracts/{physics}/{backend}",
-        # Enriched fields from SolverSpec
-        "display_name": spec["name"] if spec else config.get("name", backend),
-        "scheme": spec["scheme"] if spec else "",
-        "backend_lang": spec["backend_lang"] if spec else "",
-        "ad_strategy": spec["ad_strategy"] if spec else None,
-        "doc_url": spec["doc_url"] if spec else "",
-        "family": spec["family"] if spec else "",
-        "uses_gpu": spec["uses_gpu"] if spec else None,
-        "differentiable": spec["differentiable"] if spec else None,
-        "internal_dtype": spec["internal_dtype"] if spec else "",
+        # Enriched fields: YAML metadata wins, SolverSpec is fallback.
+        "display_name": yaml_mosaic.get("name")
+        or (spec["name"] if spec else config.get("name", backend)),
+        "scheme": yaml_mosaic.get("scheme") or (spec["scheme"] if spec else ""),
+        "backend_lang": yaml_mosaic.get("backend")
+        or (spec["backend_lang"] if spec else ""),
+        "ad_strategy": yaml_mosaic.get(
+            "ad_strategy", spec["ad_strategy"] if spec else None
+        ),
+        "doc_url": yaml_mosaic.get("doc_url") or (spec["doc_url"] if spec else ""),
+        "discretization": yaml_mosaic.get("discretization", ""),
+        "numerics": yaml_mosaic.get("numerics", ""),
+        "family": yaml_mosaic.get("family") or (spec["family"] if spec else ""),
+        "uses_gpu": yaml_mosaic.get("uses_gpu", spec["uses_gpu"] if spec else None),
+        "differentiable": yaml_mosaic.get(
+            "differentiable", spec["differentiable"] if spec else None
+        ),
+        "internal_dtype": yaml_mosaic.get("internal_dtype")
+        or (spec["internal_dtype"] if spec else ""),
         "exclusions": spec["exclusions"] if spec else {},
         "explained_anomalies": spec["explained_anomalies"] if spec else {},
-        "narrative": SOLVER_DOCS.get(backend, ""),
-        "limitations": SOLVER_LIMITATIONS.get(backend, []),
-        "wrapping": WRAPPING_NOTES.get(backend, ""),
     }
 
 
@@ -463,11 +310,40 @@ def collect_solvers() -> dict[str, list[dict]]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 AD_LABELS = {
-    "autodiff": "Reverse-mode AD",
-    "adjoint": "Discrete adjoint",
-    "hybrid": "Hybrid (analytic rules + AD)",
-    None: "None (forward only)",
+    "autodiff": "AD: autodiff",
+    "adjoint": "AD: adjoint",
+    "hybrid": "AD: hybrid",
+    None: "AD: forward-only",
 }
+
+# Expand the paper Table-2 discretization codes for the plain-text "Numerics:"
+# line that appears on every solver card.
+_DISCR_FULL = {
+    "FD": "Finite Difference",
+    "FV": "Finite Volume",
+    "FE": "Finite Element",
+    "LBM": "Lattice Boltzmann",
+    "Spectral": "Spectral",
+}
+
+# Bootstrap badge classes used on every card. One colour per category so the
+# three pill types are visually distinct without overloading hues; every label
+# uses white text (which is the Bootstrap default on bg-primary / bg-dark /
+# bg-success).
+_LANG_BADGE_CLASS = "bg-dark"  # all language badges
+_AD_BADGE_CLASS = "bg-primary"  # all AD-strategy badges
+_GPU_BADGE_CLASS = "bg-success"  # only present on GPU-capable solvers
+
+
+def _badge(text: str, classes: str) -> str:
+    """Render a Bootstrap pill badge as a Pandoc bracketed span.
+
+    Quarto/Pandoc turns ``[text]{.badge .bg-primary}`` into
+    ``<span class="badge bg-primary">text</span>``, which the flatly theme
+    styles as a coloured pill label.
+    """
+    cls = " ".join("." + c for c in classes.split())
+    return f"[{text}]{{.badge {cls}}}"
 
 
 def render_field_table(fields: list[dict], label: str) -> str:
@@ -486,23 +362,32 @@ def render_field_table(fields: list[dict], label: str) -> str:
 
 def render_solver(solver: dict) -> str:
     name = solver["display_name"] or solver["name"]
-    lines = [f"### {name}", ""]
+    anchor = f"{solver['physics']}-{solver['backend']}"
+    lines = [f"### {name} {{#{anchor}}}", ""]
 
-    # Metadata badges
-    badges = []
-    if solver["scheme"]:
-        badges.append(f"**Scheme:** {solver['scheme']}")
+    # Method row: plain-text "Numerics: <Finite Volume>, <PISO, BDF1>".
+    numerics_parts: list[str] = []
+    if solver["discretization"]:
+        numerics_parts.append(
+            _DISCR_FULL.get(solver["discretization"], solver["discretization"])
+        )
+    if solver["numerics"]:
+        numerics_parts.append(solver["numerics"])
+    if numerics_parts:
+        lines.append("**Numerics:** " + ", ".join(numerics_parts))
+        lines.append("")
+
+    # Implementation row: language, AD strategy, GPU badge (only when present).
+    impl_badges: list[str] = []
     if solver["backend_lang"]:
-        badges.append(f"**Language:** {solver['backend_lang']}")
-    ad = AD_LABELS.get(solver["ad_strategy"], solver["ad_strategy"])
-    if ad:
-        badges.append(f"**Gradients:** {ad}")
-    if solver["internal_dtype"]:
-        badges.append(f"**Precision:** {solver['internal_dtype']}")
-    if solver["uses_gpu"] is not None:
-        badges.append(f"**GPU:** {'Yes' if solver['uses_gpu'] else 'No'}")
-    if badges:
-        lines.append(" &nbsp;\u00b7&nbsp; ".join(badges))
+        impl_badges.append(_badge(solver["backend_lang"], _LANG_BADGE_CLASS))
+    ad_label = AD_LABELS.get(solver["ad_strategy"], solver["ad_strategy"])
+    if ad_label:
+        impl_badges.append(_badge(ad_label, _AD_BADGE_CLASS))
+    if solver["uses_gpu"] is True:
+        impl_badges.append(_badge("GPU", _GPU_BADGE_CLASS))
+    if impl_badges:
+        lines.append(" ".join(impl_badges))
         lines.append("")
 
     if solver["doc_url"]:
@@ -512,24 +397,13 @@ def render_solver(solver: dict) -> str:
     lines.append(f"**Path:** `{solver['path']}`")
     lines.append("")
 
-    # Narrative description (from paper)
-    if solver["narrative"]:
-        lines.append(solver["narrative"])
+    if solver["name"]:
+        lines.append(f"**Image:** `{solver['name']}`")
         lines.append("")
 
-    # Wrapping approach
-    if solver.get("wrapping"):
-        lines.append(f"**Wrapping:** {solver['wrapping']}")
-        lines.append("")
-
-    # Known limitations
-    if solver["limitations"]:
-        lines.append("::: {.callout-warning}")
-        lines.append("#### Known limitations")
-        lines.append("")
-        for lim in solver["limitations"]:
-            lines.append(f"- {lim}")
-        lines.append(":::")
+    # Two-sentence description from the YAML's top-level ``description:``.
+    if solver["description"]:
+        lines.append(solver["description"])
         lines.append("")
 
     # Exclusions
@@ -563,29 +437,21 @@ def render_category(category: str, solvers: list[dict]) -> str:
 
 
 def generate_qmd(categories: dict[str, list[dict]]) -> str:
-    from datetime import datetime, timezone
-
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    total = sum(len(v) for v in categories.values())
-    total_diff = sum(
-        1
-        for v in categories.values()
-        for s in v
-        for f in s["inputs"] + s["outputs"]
-        if f["differentiable"]
-    )
-
     frontmatter = "---\ntitle: Solver Reference\n---\n\n"
     header = (
-        f"> Auto-generated {now} &nbsp;\u00b7&nbsp; "
-        f"{total} solvers &nbsp;\u00b7&nbsp; "
-        f"{len(categories)} physics domains &nbsp;\u00b7&nbsp; "
-        f"{total_diff} differentiable fields\n\n"
-        f"Each solver card shows its numerical scheme, AD strategy, known "
-        f"limitations, and Tesseract schema. "
+        f"Each solver card shows its numerical scheme, AD strategy, and "
+        f"Tesseract schema; per-(solver, problem) exclusions and explained "
+        f"anomalies come from the problem configs and are listed alongside. "
         f"Click **Inputs / Outputs** on any solver to expand its field tables. "
         f"The \u2202 column marks fields that support automatic differentiation "
         f"(VJP/JVP).\n\n"
+        f"**Legend.** Each card shows a **Numerics:** line — the discretization "
+        f"followed by the numerics column from Table 2 of the paper — and three "
+        f"badge categories: "
+        f"{_badge('language', _LANG_BADGE_CLASS)} (backend / runtime), "
+        f"{_badge('AD: strategy', _AD_BADGE_CLASS)} "
+        f"(autodiff / adjoint / hybrid / forward-only), and "
+        f"{_badge('GPU', _GPU_BADGE_CLASS)} on GPU-capable solvers.\n\n"
     )
     sections = "\n\n".join(
         render_category(cat, solvers) for cat, solvers in categories.items()

@@ -4,8 +4,14 @@ from pathlib import Path
 
 import numpy as np
 
-from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.config import (
+    IcSpec,
+    ProblemConfig,
+    SolverSpec,
+    discover_solvers,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.plots.solver_styles import apply_styles
 from mosaic.mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 
 _GYM_DIR = Path(__file__).parent.parent.parent
@@ -17,97 +23,21 @@ _P_EXP = 3.0  # SIMP penalisation exponent
 _K_MIN_RATIO = 1e-3  # k_min / k_max
 
 
-_SOLVERS: dict[str, SolverSpec] = {
-    "jax_fem": SolverSpec(
-        name="JAX-FEM",
-        backend="jax",
-        family="fem",
-        differentiable=True,
-        ad_strategy="hybrid",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="jax-fem",
-        color="#4477AA",
-        scheme="FEM HEX8 heat conduction (SIMP, adjoint AD)",
-        image_tag="jax_fem_thermal_mesh:latest",
-        description="JAX-FEM HEX8 heat-conduction solver; automatic differentiation adjoint via JAX.",
-    ),
-    "fenics_heat": SolverSpec(
-        name="FEniCS",
-        backend="fenics",
-        family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="fenics-heat",
-        color="#AA3377",
-        scheme="FEM P1 heat conduction (SIMP, dolfin-adjoint)",
-        image_tag="fenics_heat_thermal_mesh:latest",
-        description="FEniCS P1 FEM heat-conduction solver; dolfin-adjoint tape for both rho and source gradients.",
-        input_overrides={
-            "k_max": _K_MAX,
-            "p_exp": _P_EXP,
-        },
-    ),
-    "dealii_heat": SolverSpec(
-        name="deal.II",
-        backend="dealii",
-        family="fem",
-        differentiable=False,
-        ad_strategy=None,
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="dealii-heat",
-        color="#228833",
-        scheme="FEM Q1 heat conduction (SIMP, forward-only)",
-        image_tag="dealii_heat_thermal_mesh:latest",
-        description=(
-            "deal.II Q1 (trilinear hexahedral) FEM heat-conduction solver via C++ subprocess. "
-            "SIMP conductivity k(ρ) = k_min + (k_max−k_min)·ρ^p. "
-            "Forward-only reference C++ implementation for cross-framework validation."
-        ),
-        input_overrides={
-            "k_max": _K_MAX,
-            "p_exp": _P_EXP,
-        },
-    ),
-    "firedrake_heat": SolverSpec(
-        name="Firedrake",
-        backend="firedrake",
-        family="fem",
-        differentiable=True,
-        ad_strategy="adjoint",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="firedrake-heat",
-        color="#CCBB44",
-        scheme="FEM P1 heat conduction (SIMP, firedrake-adjoint)",
-        image_tag="firedrake_heat_thermal_mesh:latest",
-        description="Firedrake P1 FEM heat-conduction; firedrake-adjoint for both rho and source gradients.",
-        input_overrides={"k_max": _K_MAX, "p_exp": _P_EXP},
-    ),
-    "torch_fem_thermal": SolverSpec(
-        name="torch-fem",
-        backend="pytorch",
-        family="fem",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float64",
-        dir="torch-fem",
-        color="#EE6677",
-        scheme="FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)",
-        image_tag="torch_fem_thermal_mesh:latest",
-        description=(
-            "torch-fem (Meyer-Nils) SolidHeat HEX8 heat-conduction solver with "
-            "IsotropicConductivity3D SIMP material; PyTorch autograd through the "
-            "FE solve yields rho and source gradients.  First PyTorch backend and "
-            "first GPU-native thermal VJP path in thermal-mesh."
-        ),
-        input_overrides={"k_max": _K_MAX, "p_exp": _P_EXP},
-    ),
-}
+# ── Solver registry ──────────────────────────────────────────────────────────
+# Solvers and per-solver metadata come from each tesseract's YAML; styling is
+# applied from mosaic.benchmarks.plots.solver_styles. Only per-(solver, problem)
+# material-parameter overrides are set here.
+
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)
+
+# Preserve historical solver key.
+_SOLVERS["torch_fem_thermal"] = _SOLVERS.pop("torch_fem")
+
+apply_styles(_SOLVERS)
+
+
+for _key in ("fenics_heat", "dealii_heat", "firedrake_heat", "torch_fem_thermal"):
+    _SOLVERS[_key].input_overrides = {"k_max": _K_MAX, "p_exp": _P_EXP}
 
 
 # ── Mesh builder ──────────────────────────────────────────────────────────────
@@ -674,6 +604,7 @@ def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
 
 CONFIG = ProblemConfig(
     name="thermal-mesh",
+    category_label="Heat Conduction",
     description=(
         "Quasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP "
         "material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ "

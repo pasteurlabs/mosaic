@@ -1,37 +1,9 @@
 name: firedrake_structural_mesh
 version: "0.1.0"
-description: |
-  Linear elasticity + SIMP topology optimisation via Firedrake + firedrake-adjoint.
-  Differentiable via pyadjoint ReducedFunctional. HEX8 elements, CG1 displacement.
-
-  Solves:
-    -∇·σ(u) = 0    in Ω
-
-  with SIMP stiffness:
-    E(ρ) = E_min + (E_max − E_min) · ρ^p    (E_min = 1e-3·E_max, p = 3)
-    σ = λ tr(ε) I + 2μ ε
-    ε = ½(∇u + ∇u^T)
-
-  Compliance objective:
-    C = ∫_Γ_N f · u dΓ  (= F^T U for linear elasticity)
-
-  The gradient ∂C/∂ρ is computed via the adjoint method using firedrake-adjoint,
-  which records the forward solve on a pyadjoint tape and solves the adjoint
-  problem to obtain element-wise sensitivities.
-
-  Mesh : arbitrary HexMesh (8-node hexahedral elements), supplied by caller.
-         Converted to Firedrake format via meshio GMSH v2 at solve time.
-         Boundary facets are tagged from per-node Dirichlet / Neumann group masks.
-  FE   : CG1 Lagrange vector (linear) for displacement.
-         DG0 piecewise-constant scalar for density.
-  BCs  : per-node Dirichlet displacement groups (dirichlet.mask / dirichlet.values,
-         values=None → zero displacement) and per-node Neumann traction groups
-         (neumann.mask / neumann.values), matching the canonical structural-mesh schema.
-
-  Interface:
-    Inputs : rho (n_cells,), hex_mesh (HexMesh), boundary_conditions (MeshBC)
-    Outputs: compliance (scalar)
-
+description: >
+  Firedrake CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient ∂C/∂ρ via
+  firedrake-adjoint (pyadjoint ReducedFunctional) — an independent tape-based discrete
+  adjoint complement to FEniCS.
 build_config:
   base_image: "firedrakeproject/firedrake:2024.11.0"
   skip_checks: true
@@ -47,16 +19,10 @@ metadata:
     backend: firedrake
     family: fem
     scheme: "FEM CG1 linear elasticity (SIMP, pyadjoint ReducedFunctional)"
-    color: "#EE3377"
-    linestyle: "(0, (5, 2))"
-    marker: "^"
+    discretization: FE
+    numerics: "GMRES+AMG"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
     internal_dtype: float64
-    description: >
-      Firedrake CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient
-      ∂C/∂ρ via firedrake-adjoint (pyadjoint ReducedFunctional). Uses meshio for
-      GMSH conversion of the HexMesh input. Modern Firedrake complement to the
-      FEniCS fenics-structural solver.
     doc_url: "https://www.firedrakeproject.org/"

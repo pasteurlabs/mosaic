@@ -80,20 +80,23 @@ Run the scaffolding command:
 mosaic new-domain diffusion-1d --from-template ns-periodic
 ```
 
-This creates four things:
+This creates:
 
 ```
 mosaic/mosaic_shared/problems/diffusion_1d/
   __init__.py                    # re-exports InputSchema, OutputSchema
-  schemas.py                     # stub schemas (TODO placeholders)
+  schemas.py                     # InputSchema / OutputSchema with `# TODO` placeholders
 
 mosaic/tesseracts/diffusion-1d/  # empty directory, ready for solver subdirs
 
 mosaic/benchmarks/problems/
-  diffusion_1d.py                # ProblemConfig stub with TODO placeholders
+  diffusion_1d.py                # ProblemConfig pre-populated from the template
+                                 # (suite defaults filled in; make_ic / make_inputs are TODOs)
 ```
 
-Try validating right away --- it will fail because the schemas are still stubs:
+The `InputSchema` / `OutputSchema` bodies are empty (you'll fill them in next); the `ProblemConfig` already has plausible `forward_defaults` / `gradient_defaults` / `cost_defaults` / `inverse_defaults` blocks copied from the template, but `make_ic` and `make_inputs` are TODO stubs.
+
+Try validating right away --- it will fail because there are no solvers yet and the empty `OutputSchema` doesn't define `output_key`:
 
 ```bash
 mosaic validate-domain diffusion-1d
@@ -101,8 +104,11 @@ mosaic validate-domain diffusion-1d
 
 ```
 FAIL  ProblemConfig.validate():
-  - no solvers registered
-  ...
+  ProblemConfig 'diffusion-1d' validation failed:
+    - no solvers registered
+FAIL  output_key 'result' not in OutputSchema fields: []
+
+2 of 2 checks failed for 'diffusion-1d'.
 ```
 
 This is expected. We will fill in the schemas, problem config, and a reference solver in the next steps.
@@ -177,6 +183,13 @@ class OutputSchema(BaseModel):
 ### Key design decisions
 
 **`Differentiable` annotation.** Fields that the benchmark harness should be able to differentiate through are wrapped in `Differentiable[...]`. In our example, `u0`, `alpha`, and `dt` are differentiable; `steps` and `domain_extent` are not (they are integers or floats that control the problem setup, not the physics).
+
+::: {.callout-tip}
+Two equivalent ways to declare differentiable fields:
+
+* **Inline (shown above):** wrap each field's type with `Differentiable[...]` directly.
+* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `mosaic_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
+:::
 
 **`Array` type hints.** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).
 
@@ -342,11 +355,15 @@ CONFIG = ProblemConfig(
         ),
     },
     cost_defaults=dict(
-        description="Wall-clock and memory profiling vs grid size N.",
+        description="Wall-clock and memory profiling vs grid size N and step count.",
         runs=[
             dict(
-                physics=dict(alpha=0.01, dt=0.001, steps=100, L=1.0),
-                cost=dict(N_values=[32, 64, 128, 256, 512, 1024], n_trials=3),
+                physics=dict(alpha=0.01, dt=0.001, L=1.0),
+                cost=dict(
+                    N_values=[32, 64, 128, 256, 512, 1024],
+                    steps_values=[10, 50, 100, 500, 1000],
+                    n_trials=3,
+                ),
             )
         ],
     ),
@@ -401,27 +418,29 @@ mkdir -p mosaic/tesseracts/diffusion-1d/numpy-spectral
 ```yaml
 name: numpy_spectral_diffusion_1d
 version: "0.1.0"
-description: |
-  Spectral (FFT) solver for the 1-D diffusion equation.
-  Exact in space; forward Euler in time. NumPy, CPU-only.
+description: >
+  Pseudo-spectral (FFT) solver for the 1-D diffusion equation, exact in space
+  with forward Euler in time.
+  NumPy, CPU-only, forward-only — serves as the reference baseline for the domain.
 
 metadata:
   mosaic:
     name: "NumPy Spectral"
-    backend: numpy
+    backend: cpp  # use any language tag; "numpy" is fine if you add a `numpy` badge later
     family: spectral
     scheme: "FFT + forward Euler"
-    color: "#4477AA"
-    marker: "o"
+    discretization: Spectral
+    numerics: "Forward Euler"
     ad_strategy: null
     differentiable: false
     uses_gpu: false
     internal_dtype: float64
-    description: "Spectral FFT solver with forward-Euler time stepping; NumPy CPU-only reference."
 ```
 
+Plot styling (`color`, `linestyle`, `marker`) is **not** in the YAML — register it in `mosaic/benchmarks/plots/solver_styles.py` under the solver key (here, `numpy_spectral`).
+
 ::: {.callout-note}
-This reference solver is **not differentiable** (`differentiable: false`). The benchmark harness will use finite-difference gradients automatically. You can add a differentiable solver later --- see the [Add a Solver tutorial](tutorial-add-solver.qmd) for VJP implementation details.
+This reference solver is **not differentiable** (`differentiable: false`). The `gradient` and `optimization` suites will **skip** it; it still participates in the `forward` and `cost` suites as a reference baseline. To add a differentiable solver, follow the [Add a Solver tutorial](tutorial-add-solver.qmd) and implement `vector_jacobian_product`.
 :::
 
 ### `tesseract_api.py`

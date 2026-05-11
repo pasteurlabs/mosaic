@@ -132,7 +132,7 @@ t = Tesseract.from_tesseract_api(
 outputs = t.apply(inputs)
 ```
 
-### Option B: Via container (required Docker, fully isolated)
+### Option B: Via container (requires Docker, fully isolated)
 
 Works for every solver regardless of language. Build the image once, then use it from JAX:
 
@@ -157,7 +157,7 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     ))(inputs["v0"])
 ```
 
-See [Standalone Usage](docs/standalone.qmd) for the full guide, including solver catalog with image names, GPU usage, mesh-based solvers, and common gotchas.
+See [Standalone Usage](docs/standalone.qmd) for the full guide (GPU usage, mesh-based solvers, common gotchas) and the [Solver Reference](docs/solvers.qmd) for the per-solver catalog with image names.
 
 ### Programmatic API
 
@@ -177,110 +177,13 @@ Available top-level imports: `PROBLEMS`, `get_config`, `ProblemConfig`, `SolverS
 
 ## Contribute
 
-Mosaic is designed to grow with the community. Start by installing with the dev extra for linting and tests:
+Mosaic is designed to grow with the community. There are three ways in, roughly ordered by scope:
 
-```bash
-uv sync --extra dev        # uv
-pip install -e ".[dev]"    # pip
-pre-commit install
-```
+- **Tune an existing solver** — improve an out-of-the-box configuration. Snapshot `mosaic status --format json` before/after and include the diff in your PR. See [CONTRIBUTING.md](CONTRIBUTING.md#tuning-an-existing-solver) for the full workflow.
+- **Add a solver** to an existing domain — three files under `mosaic/tesseracts/<domain>/<solver-name>/`. Walkthrough: [Add a Solver tutorial](docs/tutorial-add-solver.qmd).
+- **Add a benchmark domain** — scaffold with `mosaic new-domain <name> --from-template <template>`. Walkthrough: [Add a Domain tutorial](docs/tutorial-add-domain.qmd).
 
-There are three ways to contribute, roughly ordered by scope.
-
-### Tune an existing solver
-
-Results reflect out-of-the-box configurations at the time of each tagged release. If you can improve a solver's performance, submit a PR:
-
-```bash
-mosaic status --format json > before.json
-# ... make changes ...
-mosaic run -p <problem> --suites gradient,optimization -s <solver>
-mosaic status --format json > after.json
-```
-
-Include the before/after diff in your PR description.
-
-### Add a solver
-
-A solver is three files in `mosaic/tesseracts/<domain>/<solver-name>/`:
-
-| File                         | Purpose                                                              |
-| :--------------------------- | :------------------------------------------------------------------- |
-| `tesseract_api.py`           | `apply`, `abstract_eval`, and (optionally) `vector_jacobian_product` |
-| `tesseract_config.yaml`      | Metadata with a `metadata.mosaic:` block for auto-discovery          |
-| `tesseract_requirements.txt` | Python dependencies                                                  |
-
-The `metadata.mosaic:` block in the config is all the harness needs — no Python registration step:
-
-```yaml
-name: my-solver
-version: 0.1.0
-description: Short description.
-
-metadata:
-  mosaic:
-    name: "My Solver"
-    backend: jax
-    scheme: "FEM HEX8"
-    color: "#1f77b4"
-    ad_strategy: autodiff
-    differentiable: true
-    uses_gpu: true
-```
-
-Build, test, and run:
-
-```bash
-tesseract build mosaic/tesseracts/<domain>/<solver-name>
-mosaic run -p <domain> --suites forward -s my-solver
-mosaic run -p <domain> --suites gradient -s my-solver -e fd_check
-```
-
-See the [Add a Solver tutorial](docs/tutorial-add-solver.qmd) for a complete walkthrough with a working example.
-
-### Add a benchmark domain
-
-Use templates to scaffold a new domain with schemas, a problem config, and a tesseract directory:
-
-```bash
-mosaic templates                                           # list available templates
-mosaic new-domain my-flow --from-template ns-periodic      # scaffold a new domain
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide on domain creation and PR workflow.
-
-### Pull request workflow
-
-1. Fork the repo, create a feature branch
-2. Ensure `pre-commit` and `pytest` pass
-3. Open a PR — CI runs lint, tests, and config validation automatically
-4. A maintainer adds the `benchmark` label to trigger a full GPU evaluation run
-
----
-
-## Running benchmarks
-
-```bash
-mosaic run                                        # all suites, all problems
-mosaic run --problems ns-grid,structural-mesh     # filter problems
-mosaic run --suites forward,gradient              # filter suites
-mosaic run --no-build                             # skip container builds
-mosaic run --plots-only                           # regenerate plots from existing results
-
-mosaic ics      -p <problem>                      # visualize initial conditions
-mosaic run -p <problem> --suites forward          # forward accuracy
-mosaic run -p <problem> --suites cost             # wall-clock scaling
-mosaic run -p <problem> --suites gradient         # gradient quality
-mosaic run -p <problem> --suites optimization     # optimization convergence
-
-# Useful flags
-mosaic run -p ns-grid --suites gradient -e fd_check --debug    # small problem for quick smoke-test
-mosaic run -p ns-grid --suites gradient -e fd_check --ics tgv  # run only specific IC
-mosaic run -p ns-grid --suites forward -s exponax              # single solver
-mosaic run -p ns-grid --suites forward --gpus 0,1,2            # multi-GPU parallel
-```
-
-Results land in `mosaic-results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF plots.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers code style, the PR workflow, and how to build the docs locally.
 
 ## Documentation
 
@@ -289,6 +192,7 @@ Results land in `mosaic-results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF pl
 - [Architecture](docs/architecture.qmd) — Tesseract interface, data structures, evaluation protocol
 - [Solver Reference](docs/solvers.qmd) — per-solver documentation with numerical methods, AD strategies, and known limitations
 - [Add a Solver](docs/tutorial-add-solver.qmd) — step-by-step tutorial with a complete working example
+- [Add a Domain](docs/tutorial-add-domain.qmd) — end-to-end walkthrough for a new physics domain
 
 ## Project structure
 

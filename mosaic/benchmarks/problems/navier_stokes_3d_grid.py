@@ -6,186 +6,106 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.config import IcSpec, ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.config import (
+    IcSpec,
+    ProblemConfig,
+    SolverSpec,
+    discover_solvers,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.plots.solver_styles import apply_styles
 
 _GYM_DIR = Path(__file__).parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "navier-stokes-grid"
 
-_SOLVERS: dict[str, SolverSpec] = {
-    "exponax": SolverSpec(
-        name="Exponax",
-        backend="jax",
-        family="spectral",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="exponax",
-        color="#33AA99",
-        linestyle="-",
-        marker="o",
-        scheme="spectral ETDRK",
-        description="Spectral ETDRK integrator; machine-precision incompressibility by construction.",
-        doc_url="https://fkoehler.site/exponax/",
-        image_tag="exponax_navier_stokes_grid:latest",
-        input_overrides={
-            "drag": jnp.array([0.0], dtype=jnp.float32),
-            "order": 2,
-            "kolmogorov_forcing": False,
-            "injection_mode": 4,
-            "injection_scale": jnp.array([1.0], dtype=jnp.float32),
-        },
-        exclusions={},
-    ),
-    "phiflow": SolverSpec(
-        name="PhiFlow",
-        backend="jax",
-        family="projection",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="phiflow",
-        color="#EE3333",
-        linestyle="--",
-        marker="s",
-        scheme="differential advection + projection",
-        description="Explicit Euler differential advection with CG pressure projection.",
-        doc_url="https://tum-pbs.github.io/PhiFlow/",
-        image_tag="phiflow_navier_stokes_grid:latest",
-        exclusions={
-            # phiflow OOM during cost/temporal_cost steps sweep.
-            # "Out of memory while trying to allocate 16.09MiB" during JAX CUDA graph
-            # profiling (jit(apply_jit)/while/body/closed_call/reduce_sum).
-            "cost/temporal_cost": {
-                "category": "infeasible",
-                "reason": "CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark (allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed — pending re-run to confirm resolved",
-            },
-        },
-    ),
-    "xlb": SolverSpec(
-        name="XLB",
-        backend="jax",
-        family="lbm",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float64",
-        dir="xlb",
-        color="#66CCEE",
-        linestyle="-.",
-        marker="^",
-        scheme="LBM KBC/BGK D3Q27",
-        doc_url="https://github.com/Autodesk/XLB",
-        description=(
-            "JAX-accelerated LBM D3Q27 using XLB's KBC (entropic-stabilised, selected when "
-            "omega > 1.8 or an obstacle is present) or BGK (default periodic), Stream, "
-            "QuadraticEquilibrium, and Macroscopic operators (xlb 0.3.1) inside a "
-            "jax.lax.scan time loop; incompressibility recovered in the low-Mach limit. "
-            "VJP flows through the full scan unroll. "
-            "V100 (CC 7.0) cuBLAS GEMM autotuning race fixed via "
-            "--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0 in tesseract config."
+
+# ── Solver registry ──────────────────────────────────────────────────────────
+# Solvers and per-solver metadata come from each tesseract's YAML; styling is
+# applied from mosaic.benchmarks.plots.solver_styles; only per-(solver, problem)
+# overrides — exclusions, input_overrides, explained_anomalies, plus a few
+# 3D-specific scheme/description tweaks — are set here.
+
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)
+
+# JAX-CFD is a 2D-only solver (spectral pressure solve doesn't generalise to
+# the 3D periodic-box benchmark configuration); drop it from the 3D suite.
+_SOLVERS.pop("jax_cfd", None)
+
+# Preserve historical solver key.
+_SOLVERS["ins_jl"] = _SOLVERS.pop("incompressible_navier_stokes_jl")
+
+apply_styles(_SOLVERS)
+
+# ── 3D-specific scheme / description overrides ───────────────────────────────
+# These differ from the 2D defaults shipped in the tesseract YAML because the
+# same tesseract image runs a different lattice / pressure-solver / wrapper in
+# the 3D periodic-box configuration.
+
+_SOLVERS["phiflow"].scheme = "differential advection + projection"
+_SOLVERS[
+    "phiflow"
+].description = "Explicit Euler differential advection with CG pressure projection."
+_SOLVERS["phiflow"].ad_strategy = "autodiff"
+
+_SOLVERS["xlb"].scheme = "LBM KBC/BGK D3Q27"
+_SOLVERS["xlb"].description = (
+    "JAX-accelerated LBM D3Q27 using XLB's KBC (entropic-stabilised, selected "
+    "when omega > 1.8 or an obstacle is present) or BGK (default periodic), "
+    "Stream, QuadraticEquilibrium, and Macroscopic operators (xlb 0.3.1) "
+    "inside a jax.lax.scan time loop; incompressibility recovered in the "
+    "low-Mach limit. VJP flows through the full scan unroll. V100 (CC 7.0) "
+    "cuBLAS GEMM autotuning race fixed via --xla_gpu_enable_cublaslt=false "
+    "--xla_gpu_autotune_level=0 in tesseract config."
+)
+
+_SOLVERS["ins_jl"].description = (
+    "Julia finite-difference solver with pressure projection; CPU-only. "
+    "Gradients via Zygote.jl reverse-mode AD."
+)
+
+_SOLVERS["warp_ns"].scheme = "IPCS (3D), wp.Tape VJP"
+_SOLVERS[
+    "warp_ns"
+].description = "NVIDIA Warp NS solver: 3D IPCS projection. VJP via wp.Tape."
+
+
+# ── Per-(solver, problem) overrides ──────────────────────────────────────────
+
+_SOLVERS["exponax"].input_overrides = {
+    "drag": jnp.array([0.0], dtype=jnp.float32),
+    "order": 2,
+    "kolmogorov_forcing": False,
+    "injection_mode": 4,
+    "injection_scale": jnp.array([1.0], dtype=jnp.float32),
+}
+
+_SOLVERS["phiflow"].exclusions = {
+    "cost/temporal_cost": {
+        "category": "infeasible",
+        "reason": (
+            "CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark "
+            "(allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed "
+            "— pending re-run to confirm resolved"
         ),
-        image_tag="xlb_navier_stokes_grid:latest",
-        exclusions={},
-        explained_anomalies={},
-    ),
-    "ins_jl": SolverSpec(
-        name="INS.jl",
-        backend="julia",
-        family="projection",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="incompressible-navier-stokes-jl",
-        color="#228833",
-        linestyle=":",
-        marker="D",
-        scheme="FD + projection",
-        description="Julia finite-difference solver with pressure projection; CPU-only. Gradients via Zygote.jl reverse-mode AD.",
-        doc_url="https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/",
-        image_tag="ins_navier_stokes_grid:latest",
-        exclusions={},
-        explained_anomalies={},
-    ),
-    "warp_ns": SolverSpec(
-        name="Warp-NS",
-        backend="warp",
-        family="fd",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="warp-ns",
-        color="#EE7733",
-        linestyle=(0, (5, 1)),
-        marker="v",
-        scheme="IPCS (3D), wp.Tape VJP",
-        description=("NVIDIA Warp NS solver: 3D IPCS projection. VJP via wp.Tape."),
-        doc_url="https://github.com/NVIDIA/warp",
-        image_tag="warp_ns_navier_stokes_grid:latest",
-        exclusions={},
-    ),
-    "openfoam": SolverSpec(
-        name="OpenFOAM",
-        backend="cpp",
-        family="projection",
-        differentiable=False,
-        ad_strategy=None,
-        uses_gpu=False,
-        internal_dtype="float64",
-        dir="openfoam",
-        color="#DDAA33",
-        linestyle=(0, (3, 1, 1, 1)),
-        marker="P",
-        scheme="icoFoam PISO",
-        description="OpenFOAM icoFoam; forward-only non-differentiable reference baseline.",
-        doc_url="https://www.openfoam.com/documentation/overview",
-        image_tag="openfoam_navier_stokes_grid:latest",
-        exclusions={
-            # Standard icoFoam has no AD path. DAFoam/OpenFOAM-v1812-AD exist as
-            # separate discrete-adjoint projects but are not deployed in this tesseract.
-            "gradient": {
-                "category": "categorical",
-                "reason": "standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
-            },
-            "optimization": {
-                "category": "categorical",
-                "reason": "standard icoFoam is non-differentiable forward-only solver",
-            },
-            "cost/vjp_cost": {
-                "category": "categorical",
-                "reason": "standard icoFoam has no VJP to benchmark",
-            },
-        },
-    ),
-    "pict": SolverSpec(
-        name="PICT",
-        backend="pytorch",
-        family="projection",
-        differentiable=True,
-        ad_strategy="autodiff",
-        uses_gpu=True,
-        internal_dtype="float32",
-        dir="pict",
-        color="#AA44AA",
-        linestyle=(0, (1, 1)),
-        marker="X",
-        scheme="PISO (2nd-order)",
-        description=(
-            "PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch autograd. "
-            "VJP w.r.t. v0 is fully supported through the differentiable PISO time loop. "
-            "Gradients w.r.t. viscosity and dt are not available: those parameters are "
-            "consumed as Python scalars at domain construction / timestep time and have "
-            "no autograd path; zero gradients are returned for them."
+    },
+}
+
+_SOLVERS["openfoam"].exclusions = {
+    "gradient": {
+        "category": "categorical",
+        "reason": (
+            "standard icoFoam is non-differentiable (C++, no AD path); "
+            "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract"
         ),
-        doc_url="https://github.com/tum-pbs/PICT",
-        image_tag="pict_navier_stokes_grid:latest",
-        exclusions={},
-        explained_anomalies={},
-    ),
+    },
+    "optimization": {
+        "category": "categorical",
+        "reason": "standard icoFoam is non-differentiable forward-only solver",
+    },
+    "cost/vjp_cost": {
+        "category": "categorical",
+        "reason": "standard icoFoam has no VJP to benchmark",
+    },
 }
 
 # ── IC generators ─────────────────────────────────────────────────────────────
@@ -402,6 +322,7 @@ def _energy_spectrum(arr: jax.Array, **_) -> dict:
 
 CONFIG = ProblemConfig(
     name="ns-3d-grid",
+    category_label="Navier–Stokes (Grid)",
     n_to_cells=lambda n: n**3,
     description=(
         "3D incompressible Navier–Stokes on a triply-periodic domain with viscosity ν as "

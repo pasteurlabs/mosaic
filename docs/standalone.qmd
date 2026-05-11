@@ -137,53 +137,11 @@ You do not need to install the benchmark harness, any specific solver, or Docker
 
 ## Solver catalog
 
-The table below lists every Tesseract shipped with Mosaic. **Image name** is what you pass to `Tesseract.from_image()`; **Path** is the source directory under `mosaic/tesseracts/` for `tesseract build` or `Tesseract.from_tesseract_api()`.
-
-### Incompressible fluids (2D and 3D grid)
-
-| Solver | Image name | Path | Backend | AD | GPU | Domains |
-|:-------|:-----------|:-----|:--------|:---|:----|:--------|
-| JAX-CFD | `jax_cfd_navier_stokes_grid` | `navier-stokes-grid/jax-cfd` | jax | autodiff | yes | F2 |
-| Exponax | `exponax_navier_stokes_grid` | `navier-stokes-grid/exponax` | jax | autodiff | yes | F3 |
-| PhiFlow | `phiflow_navier_stokes_grid` | `navier-stokes-grid/phiflow` | jax | hybrid | yes | F2, F3 |
-| XLB | `xlb_navier_stokes_grid` | `navier-stokes-grid/xlb` | jax | autodiff | yes | F2, F3 |
-| PICT | `pict_navier_stokes_grid` | `navier-stokes-grid/pict` | pytorch | autodiff | yes | F2, F3 |
-| Warp-NS | `warp_ns_navier_stokes_grid` | `navier-stokes-grid/warp-ns` | warp | autodiff | yes | F2, F3 |
-| INS.jl | `ins_navier_stokes_grid` | `navier-stokes-grid/incompressible-navier-stokes-jl` | julia | autodiff | no | F2, F3 |
-| OpenFOAM | `openfoam_navier_stokes_grid` | `navier-stokes-grid/openfoam` | cpp | --- | no | F2, F3 |
-
-### Structural mechanics (mesh)
-
-| Solver | Image name | Path | Backend | AD | GPU |
-|:-------|:-----------|:-----|:--------|:---|:----|
-| deal.II | `dealii_structural_mesh` | `structural-mesh/dealii` | dealii | adjoint | no |
-| FEniCS | `fenics_structural_mesh` | `structural-mesh/fenics` | fenics | adjoint | no |
-| Firedrake | `firedrake_structural_mesh` | `structural-mesh/firedrake` | firedrake | adjoint | no |
-| JAX-FEM | `jax_fem_structural_mesh` | `structural-mesh/jax-fem` | jax | hybrid | yes |
-| TopOpt.jl | `topopt_jl_structural_grid` | `structural-mesh/topopt-jl` | julia | adjoint | no |
-
-### Heat transfer (mesh)
-
-| Solver | Image name | Path | Backend | AD | GPU |
-|:-------|:-----------|:-----|:--------|:---|:----|
-| deal.II | `dealii_heat_thermal_mesh` | `thermal-mesh/dealii-heat` | dealii | adjoint | no |
-| FEniCS | `fenics_heat_thermal_mesh` | `thermal-mesh/fenics-heat` | fenics | adjoint | no |
-| Firedrake | `firedrake_heat_thermal_mesh` | `thermal-mesh/firedrake-heat` | firedrake | adjoint | no |
-| JAX-FEM | `jax_fem_thermal_mesh` | `thermal-mesh/jax-fem` | jax | hybrid | yes |
-| torch-fem | `torch_fem_thermal_mesh` | `thermal-mesh/torch-fem` | pytorch | autodiff | yes |
-
-The **AD** column shows the gradient strategy declared in `tesseract_config.yaml`:
-
-| Strategy | Meaning |
-|:---------|:--------|
-| `autodiff` | Native reverse-mode AD traces through the forward pass |
-| `adjoint` | Explicitly formulated adjoint equations |
-| `hybrid` | Analytic gradient rules + autodiff (e.g. implicit function theorem) |
-| `---` | No gradient support (forward-only reference) |
+For the full per-solver reference — numerical scheme, AD strategy, image name (the string you pass to `Tesseract.from_image()`), path, GPU support, schema fields, and known limitations — see the [Solver Reference](solvers.qmd).
 
 ## GPU solvers
 
-Solvers marked **GPU: yes** in the catalog above expect a CUDA device. Pass `gpus=` when creating the container:
+Solvers marked **GPU: Yes** in the Solver Reference expect a CUDA device. Pass `gpus=` when creating the container:
 
 ```python
 # GPU solver --- pass the device ID(s)

@@ -1,14 +1,9 @@
 name: jax_fem_structural_mesh
 version: "0.2.0"
-description: |
-  Tesseract that wraps jax-fem for structural analysis.
-
-  Accepts a gridded density field as input and computes the compliance of the structure.
-  The density field is expected to be a 3D numpy array with values between 0 and 1,
-  where 1 represents solid material and 0 represents void.
-
-  Uses SIMP interpolation for stiffness: E(θ) = E_min + (E_max - E_min) * θ^penal
-
+description: >
+  JAX-FEM HEX8 linear-elasticity solver with SIMP stiffness E(ρ) = E_min + (E_max −
+  E_min)·ρ^penal. Gradient ∂C/∂ρ via JAX automatic differentiation through the linear FE
+  solve (hybrid implicit-function-theorem adjoint).
 build_config:
   target_platform: "native"
   base_image: "condaforge/miniforge3:24.11.2-0"
@@ -27,19 +22,10 @@ metadata:
     backend: jax
     family: fem
     scheme: "FEM HEX8 linear elasticity (SIMP, adjoint AD)"
-    color: "#4477AA"
-    linestyle: "-."
-    marker: "o"
+    discretization: FE
+    numerics: "Direct (UMFPACK)"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true
     internal_dtype: float32
-    description: >
-      JAX-FEM HEX8 (8-node hexahedral) linear-elasticity solver. SIMP stiffness
-      E(ρ) = E_min + (E_max − E_min)·ρ^penal with E_min = xmin·E_max. Compliance
-      objective C = F^T·U on a structured HexMesh. Gradient ∂C/∂ρ obtained via
-      JAX automatic differentiation through the linear FE solve (hybrid adjoint:
-      JAX autodiff drives an implicit-function-theorem rewrite of the linear
-      system at the solve boundary). GPU-native via JAX/XLA; the only GPU-capable
-      adjoint backend in structural-mesh.
     doc_url: "https://github.com/deepmodeling/jax-fem"

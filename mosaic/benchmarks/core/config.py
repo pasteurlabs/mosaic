@@ -28,29 +28,46 @@ class IcSpec:
 
 @dataclass
 class SolverSpec:
-    dir: str  # subdir under tesseract_dir/
-    color: str  # hex, Tol bright palette
-    name: str  # solver name for plots
-    scheme: str  # numerical scheme, e.g. "LBM BGK", "spectral ETDRK"
-    backend: str  # runtime/language, e.g. "jax", "julia", "pytorch"
-    family: str = ""  # solver family for grouped styling: "lbm", "projection", "spectral", "fv", "fem", "ml"
-    linestyle: str | tuple | None = (
-        None  # explicit matplotlib linestyle; bypasses family-palette hue when set
+    """Runtime descriptor for a single solver registered in a ProblemConfig.
+
+    Most per-solver fields (name, scheme, backend, ad_strategy, differentiable,
+    uses_gpu, internal_dtype, description, doc_url) are populated by
+    :func:`discover_solvers` from the solver's ``tesseract_config.yaml`` —
+    that YAML is the ground truth, problem configs only set per-(solver,
+    problem) overrides (``input_overrides`` / ``exclusions`` /
+    ``explained_anomalies``).
+
+    Presentation-only fields — ``color`` / ``linestyle`` / ``marker`` — are
+    populated by :func:`mosaic.benchmarks.plots.solver_styles.apply_styles`
+    after discovery; they're attributes on the spec only so plot code can read
+    them via ``spec.color`` etc.
+    """
+
+    dir: str  # subdir under tesseract_dir/ (matches the YAML's solver dir name)
+    color: str  # hex; populated from solver_styles.SOLVER_STYLES, not YAML
+    name: str  # display name for plots and tables
+    scheme: str  # numerical scheme tag, e.g. "MAC FD + projection", "LBM BGK D2Q9"
+    backend: str  # runtime / language: "jax", "pytorch", "julia", "cpp", "warp", ...
+    family: str = (
+        ""  # grouped-styling tag: "projection", "lbm", "spectral", "fd", "fv", "fem"
     )
-    marker: str | None = (
-        None  # explicit matplotlib marker; bypasses family-palette hue when set
-    )
-    description: str = ""  # one-sentence solver description for reference tables
+    linestyle: str | tuple | None = None  # populated from solver_styles.SOLVER_STYLES
+    marker: str | None = None  # populated from solver_styles.SOLVER_STYLES
+    description: str = ""  # two-sentence summary from the top-level YAML description
     doc_url: str = ""  # canonical documentation / repository URL for the solver
     input_overrides: dict[str, Any] = field(default_factory=dict)
-    uses_gpu: bool = True  # False for CPU-only solvers (e.g. OpenFOAM, FEniCS)
-    image_tag: str | None = None  # override tag for --no-build mode
-    normalize_output: Callable | None = (
-        None  # convert solver output back to canonical IC units
-    )
-    differentiable: bool | None = (
-        None  # explicit VJP flag; None = runtime detection via _has_vjp
-    )
+    # Per-problem default values merged into every call to ``cfg.make_inputs``
+    # for this solver (e.g. material constants, solver-specific tunables).
+    uses_gpu: bool = True  # False for CPU-only solvers
+    image_tag: str | None = None
+    # Set by discover_solvers to "<image_name>:latest". Used by ``--no-build``
+    # mode and by ResourceSampler for GPU bookkeeping.
+    normalize_output: Callable | None = None
+    # Optional fn(arr) -> arr applied to forward-suite outputs to convert
+    # solver units back to canonical IC units before comparison.
+    differentiable: bool | None = None
+    # Explicit VJP flag from YAML; None falls back to runtime detection via
+    # _has_vjp (probes the container for a vector_jacobian_product endpoint).
     ad_strategy: str | None = None
     # How gradients are computed.  One of:
     #   "autodiff"  — native reverse-mode AD traces through the forward pass
@@ -61,21 +78,25 @@ class SolverSpec:
     #                 (implicit-function theorem, custom VJP rules that call autodiff internally)
     #   None        — non-differentiable (no gradient support)
     internal_dtype: str = "float32"
-    # Floating-point precision used internally by the solver.  One of "float32" or "float64".
-    # Solvers that compute in float64 but return float32 outputs may show lower discretisation
-    # error at the same resolution — a precision advantage, not a scheme advantage.
-    exclusions: dict[str, str] = field(default_factory=dict)
-    # Maps suite name (or "gradient", "optimization", "cost", "forward"), "cost", "forward") to a human-readable
-    # reason string.  Excluded solvers are skipped by the runner and annotated in docs.
-    # Example: {"gradient": "No IC gradient: SU2_CFD_AD only supports boundary DVs.",
-    #           "optimization": "Same: IC sensitivity not available."}
+    # Floating-point precision used internally by the solver. One of "float32"
+    # or "float64". Solvers that compute in float64 but return float32 outputs
+    # may show lower discretisation error at the same resolution — a precision
+    # advantage, not a scheme advantage.
+    exclusions: dict[str, dict | str] = field(default_factory=dict)
+    # Maps a suite key ("gradient", "optimization", …) or a more specific
+    # suite/experiment path ("forward/cylinder", "cost/vjp_cost") to a
+    # categorical reason. Excluded solver–experiment pairs are skipped by the
+    # runner and annotated as EXCLUDED in the status output. Values are usually
+    # ``{"category": "categorical" | "infeasible", "reason": "..."}``; a plain
+    # string is accepted as shorthand for the reason.
     explained_anomalies: dict[str, str | dict] = field(default_factory=dict)
-    # Maps experiment keys (same format as exclusions) to documented reasons why this
-    # solver is expected to produce anomalous results — the solver CAN run and produces
-    # finite output, but underperforms peers for known, method-intrinsic reasons (e.g.
-    # LBM O(Ma²) compressibility floor, staggered MAC grid interpolation error).
-    # These appear as ANOMALY cells (with the documented reason) rather than EXCLUDED,
-    # keeping the solver in the score denominator so weaknesses remain visible.
+    # Maps experiment keys (same format as exclusions) to documented reasons
+    # why this solver is expected to produce anomalous results — the solver
+    # CAN run and produces finite output, but underperforms peers for known,
+    # method-intrinsic reasons (e.g. LBM O(Ma²) compressibility floor,
+    # staggered MAC grid interpolation error). These appear as ANOMALY cells
+    # (with the documented reason) rather than EXCLUDED, keeping the solver
+    # in the score denominator so weaknesses remain visible.
     # Values: plain string reason, or dict with "reason" key.
 
 
@@ -95,25 +116,33 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
 
     .. code-block:: yaml
 
+        # Top-level YAML: two-sentence summary used by Mosaic.
+        description: >
+          One- or two-sentence solver summary covering method and gradient strategy.
+
         metadata:
           mosaic:
-            name: JAX-FEM             # display name (required)
-            backend: jax              # runtime: jax, pytorch, julia, cpp, …
-            family: fem               # solver family for grouped styling
-            scheme: "FEM HEX8"        # numerical scheme label
-            color: "#4477AA"          # hex colour for plots
-            linestyle: "-"            # matplotlib linestyle
-            marker: "o"               # matplotlib marker
-            ad_strategy: autodiff     # autodiff | adjoint | hybrid | null
-            differentiable: true      # explicit VJP flag
+            name: JAX-FEM                       # display name (required)
+            backend: jax                        # runtime: jax, pytorch, julia, cpp, warp, fenics, firedrake
+            family: fem                         # solver family for grouped styling
+            scheme: "FEM HEX8"                  # numerical scheme tag
+            discretization: FE                  # paper Table 2: FD | FV | FE | LBM | Spectral
+            numerics: "Direct (UMFPACK)"        # paper Table 2 numerics column
+            ad_strategy: autodiff               # autodiff | adjoint | hybrid | null
+            differentiable: true                # explicit VJP flag
             uses_gpu: true
             internal_dtype: float32
-            description: "..."        # one-sentence description
-            doc_url: "https://..."    # upstream docs link
+            doc_url: "https://..."              # upstream docs link
+
+    Note: ``color`` / ``linestyle`` / ``marker`` are *not* read from YAML —
+    plot styling lives in :mod:`mosaic.benchmarks.plots.solver_styles` and is
+    applied to each spec by ``apply_styles()`` after discovery.
 
     Returns a dict keyed by a normalised solver name (directory name with
-    hyphens replaced by underscores).  Problem configs can merge these with
-    domain-specific overrides (exclusions, input_overrides, …).
+    hyphens replaced by underscores). Problem configs can re-key (e.g.
+    ``incompressible_navier_stokes_jl`` → ``ins_jl``) and apply per-(solver,
+    problem) overrides (``input_overrides``, ``exclusions``,
+    ``explained_anomalies``) before publishing the spec dict.
     """
     import yaml
 
@@ -159,33 +188,35 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
         solver_key = dir_name.replace("-", "_")
         image_name = doc.get("name", dir_name)
 
-        # Parse linestyle — YAML gives a string, but matplotlib also accepts
-        # tuples like (0, (5, 1)).  Try literal_eval for tuple linestyles.
-        ls = meta.get("linestyle")
-        if isinstance(ls, str) and ls.startswith("("):
-            import ast
-
-            try:
-                ls = ast.literal_eval(ls)
-            except Exception:
-                pass
-
         backend = meta.get("backend", "")
+
+        def _txt(key: str, default: str = "") -> str:
+            # YAML block scalars (``description: >`` / ``narrative: >``) yield
+            # a trailing newline that callers don't want. Strip it.
+            val = meta.get(key, default)
+            return val.strip() if isinstance(val, str) else val
+
+        # Color / linestyle / marker are presentation-only; they live in
+        # ``mosaic.benchmarks.plots.solver_styles`` and are applied by each
+        # problem config via ``apply_styles()`` after re-keying. We leave them
+        # at neutral defaults here so the SolverSpec is well-formed.
         solvers[solver_key] = SolverSpec(
             dir=dir_name,
-            name=meta.get("name", image_name),
+            name=_txt("name", image_name),
             backend=backend,
-            family=meta.get("family", ""),
-            scheme=meta.get("scheme", ""),
-            color=meta.get("color", "#999999"),
-            linestyle=ls,
-            marker=meta.get("marker"),
+            family=_txt("family"),
+            scheme=_txt("scheme"),
+            color="#999999",
+            linestyle=None,
+            marker=None,
             ad_strategy=meta.get("ad_strategy"),
             differentiable=meta.get("differentiable"),
             uses_gpu=meta.get("uses_gpu", True),
             internal_dtype=meta.get("internal_dtype", "float32"),
-            description=meta.get("description", ""),
-            doc_url=meta.get("doc_url", ""),
+            # Per-solver description lives at the YAML's top level; it doubles as
+            # the container description shown by ``tesseract info``.
+            description=(doc.get("description") or "").strip(),
+            doc_url=_txt("doc_url"),
             image_tag=f"{image_name}:latest",
         )
     log.info("Discovered %d solver(s) in %s", len(solvers), tesseract_dir)
@@ -273,6 +304,12 @@ class ProblemConfig:
 
     # Physics-focused problem description (no solver names).
     description: str = ""
+
+    # Display label for the physics-domain section of the generated solver
+    # reference page (docs/solvers.qmd). When multiple problems share the same
+    # tesseract_dir (e.g. ns-grid and ns-3d-grid), the first non-empty value
+    # encountered wins.
+    category_label: str = ""
 
     # Boundary/domain condition description.
     bc_description: str = ""

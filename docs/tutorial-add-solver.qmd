@@ -4,7 +4,20 @@ title: "Tutorial: Adding a Solver Backend"
 
 This tutorial walks through adding a new solver backend to an existing Mosaic benchmark domain, end to end. By the end you will have a working Tesseract that the benchmark harness discovers automatically, runs against all evaluation suites, and is ready for a pull request.
 
-We will use the **ns-grid** (2D Navier--Stokes) domain as our running example and build a hypothetical **Lattice Boltzmann** solver called `my-lbm-solver`.
+We will use the **ns-grid** (2D Navier--Stokes) domain as our running example and build a short pseudo-spectral solver called `my-spectral-solver`. Spectral methods give us the shortest possible working `apply` — viscous diffusion in Fourier space is a one-line update — which keeps the focus on the integration plumbing rather than the physics.
+
+## How Mosaic relates to Tesseract
+
+Mosaic does **not** define its own container format or runtime. Every Mosaic solver is a plain Tesseract, and the entire base layer — container build, HTTP API, schema validation, `tesseract build` / `tesseract run`, `tesseract init` recipes — comes from [tesseract-core](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/) unchanged.
+
+What Mosaic adds is a thin convention layer on top so the same Tesseract slots into a benchmark suite:
+
+| Layer | What it provides | Where it lives |
+|:------|:-----------------|:---------------|
+| **Base Tesseract** (tesseract-core) | Container build (`tesseract_config.yaml` → Docker image), HTTP server, the `apply` / `abstract_eval` / `vector_jacobian_product` endpoint contract, Pydantic `InputSchema` / `OutputSchema` with `Differentiable[...]` types, `tesseract init` scaffolding. | `tesseract-core` package; configured per-solver via the `name`, `version`, `description`, and `build_config:` keys in `tesseract_config.yaml`, and per-solver endpoint code in `tesseract_api.py`. |
+| **Mosaic layer** | A `metadata.mosaic:` block in `tesseract_config.yaml` for solver discovery; **canonical per-domain `InputSchema` / `OutputSchema`** in `mosaic_shared.problems.<domain>` that every solver in a domain subclasses (so cross-solver comparison is well-defined); per-(solver, problem) overrides (exclusions, input_overrides, explained_anomalies) declared in `mosaic/benchmarks/problems/<domain>.py`; plot styling in `mosaic/benchmarks/plots/solver_styles.py`. | `mosaic` package — but the per-solver surface area is just **one extra YAML block** and **subclassing the canonical schema**. |
+
+Every section below flags which layer it touches. For deeper coverage of the base layer, follow the inline links to the tesseract-core docs.
 
 ## 1. Prerequisites
 
@@ -37,16 +50,16 @@ mosaic status        # lists all problems and registered solvers
 Each solver lives in its own subdirectory under the domain's `tesseracts/` folder. Create the directory with three files:
 
 ```bash
-mkdir -p mosaic/tesseracts/navier-stokes-grid/my-lbm-solver
-touch mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/tesseract_config.yaml
-touch mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/tesseract_api.py
-touch mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/tesseract_requirements.txt
+mkdir -p mosaic/tesseracts/navier-stokes-grid/my-spectral-solver
+touch mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/tesseract_config.yaml
+touch mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/tesseract_api.py
+touch mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/tesseract_requirements.txt
 ```
 
 Your directory should look like:
 
 ```
-mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/
+mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/
   tesseract_config.yaml       # metadata and build configuration
   tesseract_api.py            # solver implementation (apply, abstract_eval, vjp)
   tesseract_requirements.txt  # Python dependencies
@@ -54,17 +67,21 @@ mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/
 
 This is the only directory structure the framework requires. No Python registration step is needed --- the harness discovers solvers by scanning for `tesseract_config.yaml` files with a `metadata.mosaic:` block.
 
+::: {.callout-tip}
+Prefer to scaffold from a working template? `tesseract init --recipe jax` (or `--recipe pytorch`) generates a starter `tesseract_api.py` with apply / abstract_eval / VJP boilerplate you can edit in place. See [Initialize a new Tesseract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html).
+:::
+
 ## 3. Write `tesseract_config.yaml`
 
-The config file tells Tesseract how to build the container and tells Mosaic how to display and categorize your solver. Here is a complete example:
+This file straddles both layers. The top-level fields (`name`, `version`, `description`, `build_config`) are the **base Tesseract** schema enforced by tesseract-core; the `metadata.mosaic:` block is the **Mosaic layer** — tesseract-core ignores it, Mosaic discovers solvers by reading it.
 
 ```yaml
-name: my_lbm_solver_navier_stokes_grid
+name: my_spectral_solver_navier_stokes_grid
 version: "0.1.0"
-description: |
-  Differentiable 2D incompressible Navier-Stokes solver using a Lattice Boltzmann
-  Method with BGK collision operator, backed by JAX.
-  D2Q9 lattice, periodic boundary conditions.
+description: >
+  Pseudo-spectral viscous-diffusion solver for 2D incompressible Navier–Stokes
+  on a periodic domain, backed by JAX FFTs.
+  Gradients via JAX source-transformation AD through the spectral update.
 
 build_config:
   package_data: []
@@ -73,65 +90,69 @@ build_config:
 
 metadata:
   mosaic:
-    name: "My LBM"
+    name: "My Spectral"
     backend: jax
-    family: lbm
-    scheme: "LBM BGK D2Q9"
-    color: "#CC6677"
-    linestyle: "--"
-    marker: "h"
+    family: spectral
+    scheme: "Pseudo-spectral viscous step (periodic)"
+    discretization: Spectral
+    numerics: "Exponential diffusion"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
     internal_dtype: float32
-    description: "D2Q9 BGK Lattice Boltzmann with JAX autodiff VJP."
-    doc_url: "https://github.com/yourname/my-lbm-solver"
+    doc_url: "https://github.com/yourname/my-spectral-solver"
 ```
 
 Here is what each field means:
 
-### Top-level fields
+### Top-level fields *(base Tesseract)*
+
+These are the standard tesseract-core keys; Mosaic doesn't extend them.
 
 | Field | Purpose |
 |:------|:--------|
 | `name` | Docker image name. Convention: `<solver>_<domain>` with underscores. Must be unique across all Tesseracts. |
 | `version` | Semantic version of your solver wrapper. |
-| `description` | Free-text description; shown in `tesseract info`. |
+| `description` | Two-sentence solver summary. Used both by `tesseract info` and as the body of the Mosaic Solver Reference card. |
 
-### `build_config` block
+### `build_config` block *(base Tesseract)*
+
+Standard tesseract-core build options.
 
 | Field | Purpose |
 |:------|:--------|
 | `package_data` | Extra files to copy into the container (e.g. model weights). Usually `[]`. |
 | `custom_build_steps` | Extra `Dockerfile` directives run during the build. Useful for environment variables (e.g. XLA flags) or system packages (`RUN apt-get install ...`). |
 
-### `metadata.mosaic:` block
+The full schema (extra packages, base images, sandboxed-build options) is documented at [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). For more worked configurations — non-Python runtimes, custom base images, package installation patterns — browse the [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repository.
 
-This is where Mosaic discovers your solver. Only `name` is strictly required; the rest have sensible defaults.
+### `metadata.mosaic:` block *(Mosaic layer)*
+
+The single Mosaic-specific extension to the YAML. tesseract-core ignores this block (it's nested under the free-form `metadata` key); Mosaic's `discover_solvers()` reads it to build a `SolverSpec`. Only `name` is strictly required; the rest have sensible defaults.
 
 | Field | Type | Purpose |
 |:------|:-----|:--------|
-| `name` | `str` | Display name for plots and tables (e.g. "My LBM"). **Required.** |
-| `backend` | `str` | Runtime / language: `jax`, `pytorch`, `julia`, `cpp`, `warp`, `fenics`, etc. |
-| `family` | `str` | Solver family for grouped styling: `projection`, `lbm`, `spectral`, `fd`, `fem`, etc. |
-| `scheme` | `str` | Short label for the numerical scheme (appears in tables). |
-| `color` | `str` | Hex colour for plots. Pick one that does not collide with existing solvers. |
-| `linestyle` | `str` | Matplotlib linestyle (`"-"`, `"--"`, `"-."`, `":"`, or a dash-tuple). |
-| `marker` | `str` | Matplotlib marker (`"o"`, `"s"`, `"^"`, `"D"`, `"P"`, `"X"`, `"h"`, etc.). |
+| `name` | `str` | Display name for plots and tables (e.g. "My Spectral"). **Required.** |
+| `backend` | `str` | Runtime / language: `jax`, `pytorch`, `julia`, `cpp`, `warp`, `fenics`, `firedrake`, etc. |
+| `family` | `str` | Solver family for grouped styling: `projection`, `lbm`, `spectral`, `fd`, `fv`, `fem`. |
+| `scheme` | `str` | Verbose label for the numerical scheme (appears in some plot legends). |
+| `discretization` | `str` | Paper Table 2 discretization code: `FD`, `FV`, `FE`, `LBM`, or `Spectral`. |
+| `numerics` | `str` | Paper Table 2 numerics column, e.g. `"Projection, semi-implicit"`, `"Direct (UMFPACK)"`, `"Streaming"`. |
 | `ad_strategy` | `str` | How gradients are computed: `autodiff`, `adjoint`, `hybrid`, or `null`. |
 | `differentiable` | `bool` | Whether the solver implements `vector_jacobian_product`. |
 | `uses_gpu` | `bool` | `true` if the solver runs on GPU, `false` for CPU-only. |
 | `internal_dtype` | `str` | `"float32"` or `"float64"` --- the precision used internally. |
-| `description` | `str` | One-sentence description for reference tables. |
 | `doc_url` | `str` | Link to upstream documentation or repository. |
 
-::: {.callout-tip}
-To see which colours and markers are already in use, run `mosaic status -p ns-grid -f` and check the solver table, or look at `mosaic/benchmarks/problems/navier_stokes_grid.py`.
+::: {.callout-note}
+Plot styling (`color`, `linestyle`, `marker`) is **not** declared in the YAML. It lives in `mosaic/benchmarks/plots/solver_styles.py`. After adding your solver, register its style in the `SOLVER_STYLES` dict there using the solver key (typically the directory name with hyphens replaced by underscores).
 :::
 
 ## 4. Implement `tesseract_api.py`
 
-This is the core of your contribution. The file must define three functions (`apply`, `abstract_eval`, `vector_jacobian_product`) and two Pydantic models (`InputSchema`, `OutputSchema`).
+This is the core of your contribution. The file's structure is fixed by **base Tesseract** — it must define `apply` and the `InputSchema` / `OutputSchema` Pydantic models (plus optional `abstract_eval` and `vector_jacobian_product`). The full endpoint contract is documented in [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html).
+
+The **Mosaic** addition is that your `InputSchema` and `OutputSchema` subclass the *canonical* schemas published by `mosaic_shared.problems.<domain>`, so every solver in the domain reads and writes the same fields. That's what makes cross-solver comparison well-defined.
 
 ### 4.1 Import the canonical schemas
 
@@ -150,164 +171,114 @@ The import path uses `mosaic_shared.problems.navier_stokes_grid`, not a relative
 
 ### 4.2 Define `InputSchema` and `OutputSchema`
 
-If your solver uses the canonical interface exactly, just re-export the base classes:
+Subclass the canonical schemas and declare which fields your solver can differentiate through. Mosaic provides `make_differentiable(base, [...])`, which returns a new Pydantic class with the listed fields wrapped in `Differentiable[...]` (preserving every other field as-is):
+
+```python
+from mosaic_shared.types import make_differentiable
+
+
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
+    """Solver inputs; v0 and viscosity carry gradients, the rest do not."""
+
+
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+    """Solver outputs; `result` carries the cotangent during VJP."""
+```
+
+If your solver uses the canonical interface exactly and doesn't differentiate anything, just re-export:
 
 ```python
 class InputSchema(_CanonicalInputSchema):
     pass
+
 
 class OutputSchema(_CanonicalOutputSchema):
     pass
 ```
 
-If you need solver-specific parameters, add them as fields with defaults:
+If you need solver-specific parameters, add them as fields with defaults *on top of* the `make_differentiable` wrapper:
 
 ```python
 from pydantic import Field
 
-class InputSchema(_CanonicalInputSchema):
-    relaxation_factor: float = Field(
-        default=1.0,
-        description="BGK relaxation parameter override (0 = auto from viscosity).",
-    )
+
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
+    dealias: bool = Field(default=True, description="Apply 2/3 dealiasing rule.")
 ```
 
 All fields **must** have defaults --- this is a Tesseract requirement (the container must be callable with `apply '{}'`).
 
 ### 4.3 Implement `apply`
 
-The `apply` function runs the forward simulation. It receives an `InputSchema` instance and must return a dict matching `OutputSchema`.
-
-Here is a minimal working example for a 2D LBM solver:
+The `apply` function runs the forward simulation. It receives an `InputSchema` instance and must return a dict matching `OutputSchema`. The physics here is one line: each Fourier mode of the velocity decays as `exp(-ν |k|² t)` over the total time `t = dt · steps`.
 
 ```python
 import jax
 import jax.numpy as jnp
 
 
-def _lbm_forward(v0, viscosity, dt, steps, domain_extent, **_kwargs):
-    """Run a D2Q9 BGK LBM simulation.
+def _spectral_step(v0, viscosity, dt, steps, domain_extent):
+    """Evolve v(x, 0) -> v(x, dt·steps) under 2D viscous diffusion.
+
+    Pure spectral update on a periodic [0, L]² grid:
+        v̂(k, t) = v̂(k, 0) · exp(-ν |k|² t)
 
     Args:
-        v0: Initial velocity, shape (nx, ny, 1, 2).
-        viscosity: Kinematic viscosity.
-        dt: Timestep.
-        steps: Number of timesteps.
-        domain_extent: Side length of the periodic domain.
+        v0:  shape (N, N, 1, 2) — initial velocity field.
+        viscosity: scalar ν.
+        dt, steps: timestep and number of steps; only their product matters here.
+        domain_extent: side length L of the periodic square.
 
     Returns:
         Final velocity field, same shape as v0.
     """
-    nx, ny = v0.shape[0], v0.shape[1]
-    dx = domain_extent / nx
-    scale = dt / dx  # physical -> lattice velocity conversion
-
-    # D2Q9 lattice velocities and weights
-    C = jnp.array([[0, 1, 0, -1, 0, 1, -1, -1, 1],
-                    [0, 0, 1, 0, -1, 1, 1, -1, -1]], dtype=jnp.float32)
-    W = jnp.array([4/9, 1/9, 1/9, 1/9, 1/9,
-                    1/36, 1/36, 1/36, 1/36], dtype=jnp.float32)
-
-    nu_lb = viscosity * dt / dx**2
-    omega = 1.0 / (3.0 * nu_lb + 0.5)
-
-    # Convert (nx, ny, 1, 2) -> (2, nx, ny) lattice velocity
-    u0 = jnp.moveaxis(v0[:, :, 0, :], -1, 0) * scale
-
-    # Initialize populations from equilibrium
-    rho0 = jnp.ones((1, nx, ny), dtype=jnp.float32)
-    f0 = _equilibrium(C, W, rho0, u0)
-
-    def step(f, _):
-        # Stream: shift each population by its lattice velocity
-        f_s = _stream(f, C)
-        # Macroscopic: density and velocity from moments
-        rho = jnp.sum(f_s, axis=0, keepdims=True)
-        u = jnp.einsum("dq,q...->d...", C.astype(f_s.dtype), f_s) / rho
-        # Equilibrium + BGK collision
-        feq = _equilibrium(C, W, rho, u)
-        return f_s + omega * (feq - f_s), None
-
-    f_final, _ = jax.lax.scan(step, f0, None, length=steps)
-
-    # Extract velocity and convert back to physical units
-    rho_f = jnp.sum(f_final, axis=0, keepdims=True)
-    u_out = jnp.einsum("dq,q...->d...", C.astype(f_final.dtype), f_final) / rho_f
-
-    # (2, nx, ny) -> (nx, ny, 1, 2)
-    result = jnp.moveaxis(u_out, 0, -1)[:, :, None, :] / scale
-    return result
-
-
-def _equilibrium(C, W, rho, u):
-    """Quadratic equilibrium distribution, shape (q, nx, ny)."""
-    cu = jnp.einsum("dq,d...->q...", C, u)
-    usqr = jnp.sum(u**2, axis=0, keepdims=True)
-    w = W.reshape((-1,) + (1,) * (u.ndim - 1))
-    return rho * w * (1.0 + 3.0 * cu + 4.5 * cu**2 - 1.5 * usqr)
-
-
-def _stream(f, C):
-    """Stream populations along their lattice velocities."""
-    q = f.shape[0]
-    f_out = jnp.empty_like(f)
-    for i in range(q):
-        cx, cy = int(C[0, i]), int(C[1, i])
-        f_out = f_out.at[i].set(jnp.roll(jnp.roll(f[i], cx, axis=0), cy, axis=1))
-    return f_out
-
-
-def _unpack_scalars(d: dict) -> dict:
-    """Extract Python floats from 1-element arrays."""
-    for key in ("viscosity", "dt"):
-        if key in d and not isinstance(d[key], (int, float)):
-            d[key] = float(d[key][0])
-    return d
+    N = v0.shape[0]
+    k = jnp.fft.fftfreq(N, d=domain_extent / N) * 2 * jnp.pi
+    kx, ky = jnp.meshgrid(k, k, indexing="ij")
+    decay = jnp.exp(-viscosity * (kx**2 + ky**2) * dt * steps)
+    v_hat = jnp.fft.fft2(v0[:, :, 0, :], axes=(0, 1))  # (N, N, 2)
+    v_new = jnp.fft.ifft2(v_hat * decay[..., None], axes=(0, 1)).real
+    return v_new[:, :, None, :].astype(jnp.float32)
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    d = _unpack_scalars(inputs.model_dump())
-    result = _lbm_forward(**d)
+    d = inputs.model_dump()
+    result = _spectral_step(
+        v0=d["v0"],
+        viscosity=float(d["viscosity"][0]),
+        dt=float(d["dt"][0]),
+        steps=int(d["steps"]),
+        domain_extent=float(d["domain_extent"]),
+    )
     return {"result": result}
 ```
 
 Key points:
 
 - The function signature is `apply(inputs: InputSchema) -> OutputSchema`. The return value can be a dict --- Tesseract handles serialization.
-- Use `inputs.model_dump()` to convert the Pydantic model to a plain dict for your solver.
-- Scalar physics parameters (`viscosity`, `dt`) arrive as 1-element arrays (`shape (1,)`). Unpack them to Python floats before passing to JIT-compiled functions.
-- The output `result` must match the shape of the input `v0`. For ns-grid 2D, that is `(nx, ny, 1, 2)`.
+- Use `inputs.model_dump()` to convert the Pydantic model to a plain dict.
+- Scalar physics parameters (`viscosity`, `dt`) arrive as 1-element arrays (`shape (1,)`); unpack them to Python floats before passing to JIT-compiled code.
+- The output `result` must match the shape of the input `v0` (here `(N, N, 1, 2)`).
 
 ### 4.4 Implement `abstract_eval`
 
-`abstract_eval` returns output shapes and dtypes without running any computation. The Tesseract runtime uses it for JIT tracing and shape inference.
+`abstract_eval` returns output shapes and dtypes without running any computation. The Tesseract runtime uses it for JIT tracing and shape inference. For this solver `result` has the same shape as `v0`:
 
 ```python
 def abstract_eval(abstract_inputs):
-    """Output shape equals input v0 shape; drag is always shape (1,)."""
     v0_info = abstract_inputs.v0
-    if isinstance(v0_info, dict):
-        shape = tuple(v0_info["shape"])
-        dtype = v0_info.get("dtype", "float32")
-    else:
-        shape = v0_info.shape
-        dtype = "float32"
-    return {
-        "result": {"shape": shape, "dtype": dtype},
-        "drag": {"shape": (1,), "dtype": "float32"},
-    }
+    shape = tuple(v0_info["shape"]) if isinstance(v0_info, dict) else v0_info.shape
+    return {"result": {"shape": shape, "dtype": "float32"}}
 ```
 
-The `abstract_inputs` object has the same fields as `InputSchema`, but array fields are either `jax.ShapeDtypeStruct` objects or dicts with `"shape"` and `"dtype"` keys. Handle both cases as shown above.
+Array fields on `abstract_inputs` are either `jax.ShapeDtypeStruct` objects or dicts with `"shape"` / `"dtype"` keys — handle both. For the full endpoint signatures (when `abstract_eval` is required vs. optional, JIT-tracing rules, return types) see [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html).
 
 ### 4.5 Implement `vector_jacobian_product`
 
-If your solver is differentiable (i.e. you set `differentiable: true` in the config), you must implement the VJP. For JAX-based solvers, this typically wraps `jax.vjp`:
+If your solver is differentiable (`differentiable: true` in the config), implement the VJP. For JAX-based solvers, wrap `jax.vjp` around your forward function — the `make_differentiable` annotation on `InputSchema` tells the framework which fields to route cotangents to:
 
 ```python
 from typing import Any
-
-_DIFF_INPUT_KEYS = ("v0", "viscosity", "dt")
 
 
 def vector_jacobian_product(
@@ -316,40 +287,25 @@ def vector_jacobian_product(
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ):
-    """Reverse-mode VJP over requested input paths."""
-    d = _unpack_scalars(inputs.model_dump())
+    """Reverse-mode VJP w.r.t. v0 and viscosity."""
+    d = inputs.model_dump()
+    v0 = jnp.asarray(d["v0"])
+    viscosity = jnp.asarray(d["viscosity"])
+    dt = float(d["dt"][0])
+    steps = int(d["steps"])
+    L = float(d["domain_extent"])
 
-    # Build the subset of inputs to differentiate w.r.t.
-    present = tuple(k for k in vjp_inputs if k in _DIFF_INPUT_KEYS and d.get(k) is not None)
-    if not present:
-        return {}
+    def fwd(v0, viscosity):
+        return _spectral_step(v0, viscosity[0], dt, steps, L)
 
-    diff_bundle = {}
-    for k in present:
-        v = d[k]
-        if k in ("viscosity", "dt"):
-            diff_bundle[k] = jnp.asarray(v)
-        else:
-            diff_bundle[k] = jnp.asarray(v)
+    _, vjp_fn = jax.vjp(fwd, v0, viscosity)
+    g_v0, g_visc = vjp_fn(cotangent_vector["result"])
 
-    def fwd(bundle):
-        fwd_args = dict(d)
-        fwd_args.update(bundle)
-        result = _lbm_forward(**fwd_args)
-        out = {}
-        if "result" in vjp_outputs:
-            out["result"] = result
-        return out
-
-    _, vjp_fn = jax.vjp(fwd, diff_bundle)
-    grads = vjp_fn(cotangent_vector)[0]
-
-    out = {}
-    for k, g in grads.items():
-        if k in ("viscosity", "dt"):
-            out[k] = jnp.atleast_1d(g)  # schema expects shape (1,)
-        else:
-            out[k] = g
+    out: dict[str, Any] = {}
+    if "v0" in vjp_inputs:
+        out["v0"] = g_v0
+    if "viscosity" in vjp_inputs:
+        out["viscosity"] = jnp.atleast_1d(g_visc)  # schema expects shape (1,)
     return out
 ```
 
@@ -361,7 +317,11 @@ The VJP function signature is fixed by the Tesseract protocol:
 - `cotangent_vector` --- dict mapping output field names to cotangent arrays.
 
 ::: {.callout-tip}
-If your solver is **not differentiable** (e.g. a C++ reference solver), set `differentiable: false` in the config and omit the `vector_jacobian_product` function entirely. The benchmark harness will provide finite-difference gradients automatically.
+If your solver is **not differentiable** (e.g. a C++ reference solver), set `differentiable: false` in the config and omit `vector_jacobian_product` entirely. The gradient and optimization suites will **skip** that solver; the forward and cost suites still run normally, and it can be used as a reference baseline (FD reference gradients in `fd_check` are computed from the *differentiable* solvers' own forward passes, not as a substitute for missing VJPs).
+:::
+
+::: {.callout-note}
+For a working JAX VJP template you can copy from, run `tesseract init --recipe jax` in an empty directory: it scaffolds a `tesseract_api.py` with auto-generated `vector_jacobian_product` / `jacobian_vector_product` endpoints derived from your forward function. See [Initialize a new Tesseract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html) in the tesseract-core docs.
 :::
 
 ### Complete file
@@ -370,8 +330,8 @@ Putting it all together, your `tesseract_api.py` should have this structure:
 
 ```
 # Imports
-# Schema classes (InputSchema, OutputSchema)
-# Solver internals (_lbm_forward, _equilibrium, _stream, ...)
+# Schema classes (InputSchema, OutputSchema) — subclass via make_differentiable
+# Solver internals (_spectral_step)
 # apply(inputs) -> OutputSchema
 # abstract_eval(abstract_inputs) -> dict
 # vector_jacobian_product(inputs, vjp_inputs, vjp_outputs, cotangent_vector) -> dict
@@ -379,7 +339,7 @@ Putting it all together, your `tesseract_api.py` should have this structure:
 
 ## 5. Write `tesseract_requirements.txt`
 
-List your solver's Python dependencies, one per line. The last line should reference `mosaic_shared` so the container has access to the domain schemas:
+This file is **base Tesseract**: tesseract-core consumes it as the pip-install manifest for the container. List your solver's Python dependencies one per line. The Mosaic-specific bit is the last line, which makes the canonical domain schemas available inside the container:
 
 ```
 jax[cuda12]>=0.4.13
@@ -389,7 +349,7 @@ jax[cuda12]>=0.4.13
 The relative path `../../../mosaic_shared` is resolved at build time relative to your solver directory. It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
 
 ::: {.callout-note}
-If your solver uses a non-Python runtime (Julia, C++), you will also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. See the `incompressible-navier-stokes-jl` or `openfoam` solvers for examples.
+For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `incompressible-navier-stokes-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
 :::
 
 ## 6. Build and verify
@@ -397,15 +357,15 @@ If your solver uses a non-Python runtime (Julia, C++), you will also need `custo
 ### Build the container
 
 ```bash
-tesseract build mosaic/tesseracts/navier-stokes-grid/my-lbm-solver
+tesseract build mosaic/tesseracts/navier-stokes-grid/my-spectral-solver
 ```
 
-This builds a Docker image named `my_lbm_solver_navier_stokes_grid:latest`. The first build takes a few minutes (downloading base images, installing dependencies). Subsequent builds are faster thanks to Docker layer caching.
+This builds a Docker image named `my_spectral_solver_navier_stokes_grid:latest`. The first build takes a few minutes (downloading base images, installing dependencies). Subsequent builds are faster thanks to Docker layer caching.
 
 ### Smoke-test with a default forward call
 
 ```bash
-tesseract run my_lbm_solver_navier_stokes_grid apply '{}'
+tesseract run my_spectral_solver_navier_stokes_grid apply '{}'
 ```
 
 This calls `apply` with all-default inputs (the 64x64 random vortex IC defined in `InputSchema`). You should see JSON output with a `result` key containing the velocity field. If you see an error, check:
@@ -417,7 +377,7 @@ This calls `apply` with all-default inputs (the 64x64 random vortex IC defined i
 ### Inspect the output
 
 ```bash
-tesseract run my_lbm_solver_navier_stokes_grid apply '{}' | python -c "
+tesseract run my_spectral_solver_navier_stokes_grid apply '{}' | python -c "
 import sys, json, numpy as np
 data = json.load(sys.stdin)
 arr = np.array(data['result'])
@@ -434,7 +394,7 @@ Now that your solver builds and runs, plug it into the Mosaic benchmark harness.
 ### Forward accuracy
 
 ```bash
-mosaic run -p ns-grid --suites forward -s my_lbm_solver --no-build
+mosaic run -p ns-grid --suites forward -s my_spectral_solver --no-build
 ```
 
 This runs the full forward evaluation suite (baseline resolution sweep, inter-solver agreement, physical laws checks) for your solver only. Results are saved to `mosaic-results/ns-grid/forward/`.
@@ -442,7 +402,7 @@ This runs the full forward evaluation suite (baseline resolution sweep, inter-so
 ### Gradient quality
 
 ```bash
-mosaic run -p ns-grid --suites gradient -s my_lbm_solver -e fd_check --no-build
+mosaic run -p ns-grid --suites gradient -s my_spectral_solver -e fd_check --no-build
 ```
 
 This runs the finite-difference gradient check, comparing your VJP against central finite differences along random perturbation directions. Look for cosine similarity > 0.99 and relative error < 0.01.
@@ -450,7 +410,7 @@ This runs the finite-difference gradient check, comparing your VJP against centr
 ### Full evaluation
 
 ```bash
-mosaic run -p ns-grid -s my_lbm_solver --no-build
+mosaic run -p ns-grid -s my_spectral_solver --no-build
 ```
 
 This runs all suites (forward, gradient, cost, optimization) for your solver. Expect this to take 30--60 minutes depending on hardware.
@@ -459,7 +419,7 @@ This runs all suites (forward, gradient, cost, optimization) for your solver. Ex
 Use `--debug` for faster iteration --- it uses smaller problem sizes:
 
 ```bash
-mosaic run -p ns-grid --suites forward -s my_lbm_solver --debug --no-build
+mosaic run -p ns-grid --suites forward -s my_spectral_solver --debug --no-build
 ```
 :::
 
@@ -485,9 +445,9 @@ If your solver does not appear in the status output, check:
 2. Your solver directory is under the correct domain path (`mosaic/tesseracts/navier-stokes-grid/`).
 3. The YAML is valid (`python -c "import yaml; yaml.safe_load(open('path/to/tesseract_config.yaml'))"` should not raise).
 
-## 9. Add domain-specific overrides (optional)
+## 9. Add domain-specific overrides (optional) *(Mosaic layer)*
 
-Most solvers work with the default problem configuration out of the box. However, you may need domain-specific overrides in two cases:
+Most solvers work with the default problem configuration out of the box. These overrides live entirely in `mosaic/benchmarks/problems/<domain>.py` — they're per-(solver, problem) and have no analogue in base Tesseract:
 
 ### Exclusions
 
@@ -496,7 +456,7 @@ If your solver cannot run certain experiments (e.g. periodic-only solver on a ch
 Edit `mosaic/benchmarks/problems/navier_stokes_grid.py` and add an `exclusions` dict to your solver's `SolverSpec`:
 
 ```python
-"my_lbm_solver": SolverSpec(
+"my_spectral_solver": SolverSpec(
     # ... other fields populated from tesseract_config.yaml ...
     exclusions={
         "forward/cylinder": {
@@ -521,7 +481,7 @@ The `category` field can be:
 If your solver needs different default values for shared schema fields (e.g. a specific density or inner step count), add them as `input_overrides`:
 
 ```python
-"my_lbm_solver": SolverSpec(
+"my_spectral_solver": SolverSpec(
     # ...
     input_overrides={
         "density": jnp.array([1.0], dtype=jnp.float32),
@@ -536,11 +496,11 @@ These overrides are applied automatically whenever the harness builds inputs for
 If your solver produces results that are correct but noticeably different from peers for known, method-intrinsic reasons, document them:
 
 ```python
-"my_lbm_solver": SolverSpec(
+"my_spectral_solver": SolverSpec(
     # ...
     explained_anomalies={
-        "forward/baseline": {
-            "reason": "O(Ma^2) LBM compressibility error floor at high dt/dx",
+        "forward/cylinder": {
+            "reason": "spectral pressure solve requires periodic BCs; channel runs deviate from the no-slip reference",
         },
     },
 ),
@@ -559,7 +519,7 @@ If your solver needs none of these overrides, you do not need to edit the proble
 1. **Lint passes:** `ruff check --fix && ruff format`
 2. **Tests pass:** `pytest`
 3. **Config is valid:** CI validates all `tesseract_config.yaml` files automatically.
-4. **Forward suite runs:** `mosaic run -p ns-grid --suites forward -s my_lbm_solver` completes without errors.
+4. **Forward suite runs:** `mosaic run -p ns-grid --suites forward -s my_spectral_solver` completes without errors.
 5. **Status looks right:** `mosaic status -p ns-grid -f` shows your solver with expected results.
 
 ### What CI checks
@@ -602,7 +562,7 @@ Include the following in your PR description:
 The complete set of files for a new solver is:
 
 ```
-mosaic/tesseracts/navier-stokes-grid/my-lbm-solver/
+mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/
   tesseract_config.yaml       # metadata.mosaic: block for discovery + build config
   tesseract_api.py            # apply, abstract_eval, vector_jacobian_product
   tesseract_requirements.txt  # dependencies + ../../../mosaic_shared

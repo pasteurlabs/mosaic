@@ -1,18 +1,9 @@
 name: torch_fem_thermal_mesh
 version: "0.1.0"
-description: |
-  Tesseract that wraps torch-fem (Meyer-Nils/torch-fem, v0.6.2) for thermal
-  (steady heat conduction) topology optimisation on a structured HEX8 mesh.
-
-  SolidHeat FEM with IsotropicConductivity3D material, SIMP penalisation:
-    k(rho) = k_min + (k_max - k_min) * rho^p
-  Dirichlet T=0 on x=0 face, Neumann heat flux q_n on selected face (by mask).
-
-  First PyTorch-autograd backend on thermal-mesh and first GPU-native thermal
-  VJP path beyond JAX-FEM.  `vector_jacobian_product` uses torch.autograd.grad
-  through the Galerkin FE solver (differentiable_parameters=(rho, source)),
-  giving exact sensitivities for both rho and source.
-
+description: >
+  torch-fem SolidHeat HEX8 heat-conduction solver with IsotropicConductivity3D SIMP material
+  — the first PyTorch backend in thermal-mesh. Gradients via PyTorch autograd through the FE
+  solve; GPU-native.
 build_config:
   package_data: []
   # CUDA 12.1 runtime image is enough (no nvcc needed, pure-pip deps).
@@ -28,16 +19,10 @@ metadata:
     backend: pytorch
     family: fem
     scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
-    color: "#EE6677"
-    linestyle: "(0, (3, 1, 1, 1))"
-    marker: "h"
+    discretization: FE
+    numerics: "Direct (spsolve)"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
     internal_dtype: float64
-    description: >
-      torch-fem (Meyer-Nils) SolidHeat HEX8 heat-conduction solver with
-      IsotropicConductivity3D SIMP material; PyTorch autograd through the FE solve
-      yields rho and source gradients. First PyTorch backend and first GPU-native
-      thermal VJP path in thermal-mesh.
     doc_url: "https://github.com/meyer-nils/torch-fem"
