@@ -65,40 +65,10 @@ jobs:
 
       - name: Pull pre-built solver images from GHCR
         run: |
-          HARDWARE="${{ matrix.hardware }}"
-          REGISTRY="ghcr.io/${{ github.repository_owner }}/mosaic"
-
-          uv run python -c "
-          import subprocess, os
-          from mosaic.benchmarks.problems import PROBLEMS, get_config
-
-          registry = '${REGISTRY}'.lower()
-          hardware = '${HARDWARE}'
-
-          seen = set()
-          for p in PROBLEMS:
-              try:
-                  cfg = get_config(p)
-              except Exception:
-                  continue
-              for name, spec in cfg.solvers.items():
-                  if hardware == 'gpu' and not getattr(spec, 'uses_gpu', True):
-                      continue
-                  if hardware == 'cpu' and getattr(spec, 'uses_gpu', True):
-                      continue
-                  tag = spec.image_tag or f'{spec.dir}:latest'
-                  if tag in seen:
-                      continue
-                  seen.add(tag)
-                  remote = f'{registry}/{tag}'
-                  print(f'Pulling {remote}')
-                  r = subprocess.run(['docker', 'pull', remote], capture_output=True, text=True)
-                  if r.returncode == 0:
-                      subprocess.run(['docker', 'tag', remote, tag])
-                      print(f'  Tagged as {tag}')
-                  else:
-                      print(f'  WARN: {remote} not found in registry')
-          "
+          uv run python .github/scripts/pull-solver-images.py \
+            --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
+            --problems all \
+            --hardware "${{ matrix.hardware }}"
 
       - name: Run ${{ matrix.suite }} (${{ matrix.hardware }})
         run: |

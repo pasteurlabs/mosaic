@@ -192,17 +192,8 @@ jobs:
       - name: Pull dealii-root base image from GHCR (if needed)
         if: github.event_name != 'pull_request'
         run: |
-          SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
-          CONFIG="${SOLVER_DIR}/tesseract_config.yaml"
-
-          # Check if this solver uses dealii-root as its base image
-          BASE_IMAGE=$(python3 -c "
-          import yaml, sys
-          with open('${CONFIG}') as f:
-              cfg = yaml.safe_load(f)
-          bc = cfg.get('build_config', {})
-          print(bc.get('base_image', ''))
-          ")
+          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
+          BASE_IMAGE=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" build_config.base_image)
 
           if [[ "$BASE_IMAGE" == "dealii-root:latest" ]]; then
             GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/mosaic/dealii-root:latest"
@@ -216,16 +207,8 @@ jobs:
       - name: Build dealii-root locally (PR only, if needed)
         if: github.event_name == 'pull_request'
         run: |
-          SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
-          CONFIG="${SOLVER_DIR}/tesseract_config.yaml"
-
-          BASE_IMAGE=$(python3 -c "
-          import yaml, sys
-          with open('${CONFIG}') as f:
-              cfg = yaml.safe_load(f)
-          bc = cfg.get('build_config', {})
-          print(bc.get('base_image', ''))
-          ")
+          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
+          BASE_IMAGE=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" build_config.base_image)
 
           if [[ "$BASE_IMAGE" == "dealii-root:latest" ]]; then
             echo "Building dealii-root base image locally for PR validation"
@@ -240,16 +223,8 @@ jobs:
       - name: Extract image name and push to GHCR
         if: github.event_name != 'pull_request'
         run: |
-          SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
-          CONFIG="${SOLVER_DIR}/tesseract_config.yaml"
-
-          # Extract the tesseract name from config
-          IMAGE_NAME=$(python3 -c "
-          import yaml
-          with open('${CONFIG}') as f:
-              cfg = yaml.safe_load(f)
-          print(cfg['name'])
-          ")
+          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
+          IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
 
           echo "Tesseract image name: ${IMAGE_NAME}"
 

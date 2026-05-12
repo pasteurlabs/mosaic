@@ -71,54 +71,7 @@ jobs:
             DIFF_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
 
             # Use the problem registry to dynamically map changed files → problems.
-            # This builds a reverse map from tesseract_dir and problem config file
-            # to problem name(s), so new problems are picked up automatically.
-            PROBLEMS=$(echo "$DIFF_FILES" | uv run python -c "
-          import sys
-          from pathlib import Path
-          from mosaic.benchmarks.problems import PROBLEMS as ALL, get_config
-
-          diff_files = [l.strip() for l in sys.stdin if l.strip()]
-          if not diff_files:
-              print('')
-              sys.exit(0)
-
-          # Core harness changes trigger everything
-          core_prefixes = ('mosaic/benchmarks/core/', 'mosaic/benchmarks/suites/', 'mosaic/mosaic_shared/')
-          if any(f.startswith(core_prefixes) for f in diff_files):
-              print('all')
-              sys.exit(0)
-
-          # Build reverse maps: tesseract_dir_suffix → [problem_names], config_file → problem_name
-          tdir_to_problems: dict[str, list[str]] = {}
-          config_to_problem: dict[str, str] = {}
-          for name in ALL:
-              cfg = get_config(name)
-              # tesseract_dir is absolute; extract the relative suffix under mosaic/tesseracts/
-              tdir = str(cfg.tesseract_dir)
-              idx = tdir.find('mosaic/tesseracts/')
-              if idx >= 0:
-                  suffix = tdir[idx:]  # e.g. mosaic/tesseracts/navier-stokes-grid
-                  tdir_to_problems.setdefault(suffix, []).append(name)
-              # problem config file: module name → file path
-              mod_name = type(cfg).__module__ if hasattr(type(cfg), '__module__') else ''
-              # Simpler: just derive from cfg.name with underscore convention
-              config_to_problem[f'mosaic/benchmarks/problems/{name.replace(\"-\", \"_\")}.py'] = name
-
-          changed = set()
-          for f in diff_files:
-              # Check problem config files
-              if f in config_to_problem:
-                  changed.add(config_to_problem[f])
-                  continue
-              # Check tesseract dirs
-              for prefix, problems in tdir_to_problems.items():
-                  if f.startswith(prefix + '/'):
-                      changed.update(problems)
-                      break
-
-          print(','.join(sorted(changed)) if changed else '')
-          ")
+            PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
 
             if [[ -z "$PROBLEMS" ]]; then
               # No solver/harness changes — skip benchmark
@@ -215,43 +168,10 @@ jobs:
 
       - name: Pull pre-built solver images from GHCR
         run: |
-          PROBLEMS="${{ needs.plan.outputs.problems }}"
-          HARDWARE="${{ matrix.hardware }}"
-          REGISTRY="ghcr.io/${{ github.repository_owner }}/mosaic"
-
-          uv run python -c "
-          import subprocess, os
-          from mosaic.benchmarks.problems import PROBLEMS, get_config
-
-          registry = '${REGISTRY}'.lower()
-          hardware = '${HARDWARE}'
-          problems = PROBLEMS if '${PROBLEMS}' == 'all' else [p.strip() for p in '${PROBLEMS}'.split(',')]
-
-          seen = set()
-          for p in problems:
-              try:
-                  cfg = get_config(p)
-              except Exception:
-                  continue
-              for name, spec in cfg.solvers.items():
-                  # Filter by hardware target
-                  if hardware == 'gpu' and not getattr(spec, 'uses_gpu', True):
-                      continue
-                  if hardware == 'cpu' and getattr(spec, 'uses_gpu', True):
-                      continue
-                  tag = spec.image_tag or f'{spec.dir}:latest'
-                  if tag in seen:
-                      continue
-                  seen.add(tag)
-                  remote = f'{registry}/{tag}'
-                  print(f'Pulling {remote}')
-                  r = subprocess.run(['docker', 'pull', remote], capture_output=True, text=True)
-                  if r.returncode == 0:
-                      subprocess.run(['docker', 'tag', remote, tag])
-                      print(f'  Tagged as {tag}')
-                  else:
-                      print(f'  WARN: {remote} not found in registry')
-          "
+          uv run python .github/scripts/pull-solver-images.py \
+            --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
+            --problems "${{ needs.plan.outputs.problems }}" \
+            --hardware "${{ matrix.hardware }}"
 
       - name: Run ${{ matrix.suite }} (${{ matrix.hardware }})
         run: |
