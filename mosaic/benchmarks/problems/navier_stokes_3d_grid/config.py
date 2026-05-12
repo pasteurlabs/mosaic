@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import jax.numpy as jnp
+import numpy as np
 
 from mosaic.benchmarks.core.config import (
     Exclusion,
@@ -16,10 +17,25 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.shared.plots.solver_styles import apply_styles
 
-from .experiments import EXPERIMENTS
+from .experiments import EXPERIMENTS, PLOT_FNS
 from .ics import MAKE_IC, _tgv3d_analytic
 from .physics import DIAGNOSTICS, build_make_inputs
-from .plots import PLOT_FNS, _field_to_2d
+
+
+def _field_to_2d(v: np.ndarray) -> np.ndarray:
+    """Extract a 2-D scalar from a 3-D velocity field (N,N,N,3).
+
+    Returns the z-component of vorticity on the middle-z slice,
+    shape (N, N).  Used as the primary visualisation slice for 3D field plots.
+    """
+    N = v.shape[0]
+    zmid = N // 2
+    vx = np.array(v[:, :, zmid, 0])
+    vy = np.array(v[:, :, zmid, 1])
+    dvydx = (np.roll(vy, -1, 0) - np.roll(vy, 1, 0)) * 0.5
+    dvxdy = (np.roll(vx, -1, 1) - np.roll(vx, 1, 1)) * 0.5
+    return (dvydx - dvxdy).astype(np.float32)
+
 
 _GYM_DIR = Path(__file__).parent.parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "navier-stokes-grid"

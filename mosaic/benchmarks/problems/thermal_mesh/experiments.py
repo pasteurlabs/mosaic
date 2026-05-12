@@ -1,15 +1,13 @@
-"""Assembled ``EXPERIMENTS`` registry for thermal-mesh.
+"""Assembled ``EXPERIMENTS`` / ``PLOT_FNS`` registries for thermal-mesh.
 
-Every entry is a fully-explicit ``Experiment(fn=lambda ..., params=...)``
-literal: the runner, the runs list, every closure-captured dependency, and
-the introspection params are all visible at the call site. No helpers, no
-dispatch tables — adding/changing an experiment is a local edit on the
-entry itself.
+The :class:`Problem` builder captures the problem's closure deps once
+(``make_ic``, ``error_fn``, ``output_key``, …) and registers each
+experiment + plot in a single ``.add(...)`` call.
 """
 
 from __future__ import annotations
 
-from mosaic.benchmarks.core.config import Experiment
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.shared.cost import (
     run_spatial_cost,
@@ -22,11 +20,19 @@ from mosaic.benchmarks.shared.gradient import (
     run_jacobian_svd,
     run_param_sweep,
 )
-from mosaic.benchmarks.shared.ics import run_ic
 from mosaic.benchmarks.shared.optimization import (
     run_conductivity_recovery,
     run_conductivity_recovery_bfgs,
 )
+from mosaic.benchmarks.shared.plots.cost import plot_cost
+from mosaic.benchmarks.shared.plots.forward import plot_agreement, plot_physical_laws
+from mosaic.benchmarks.shared.plots.gradient import (
+    plot_fd_check,
+    plot_jacobian_svd,
+    plot_param_sweep,
+)
+from mosaic.benchmarks.shared.plots.ics import plot_ic
+from mosaic.benchmarks.shared.plots.optimization import plot_conductivity_recovery
 
 from .ics import MAKE_IC
 from .physics import DIAGNOSTICS
@@ -257,380 +263,172 @@ _CONDUCTIVITY_RECOVERY_BFGS_RUNS = [
 ]
 
 
-# ── Assembled experiment registry ────────────────────────────────────────────
+# ── Plot descriptions (keyed by full experiment path) ────────────────────────
 
-EXPERIMENTS = {
-    # ─ Forward ─
-    "forward/baseline": Experiment(
-        fn=lambda cfg, tags, **kw: run_agreement(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            analytic=None,
-            runs=_BASELINE_RUNS,
-            exp_key="baseline",
-            **kw,
-        ),
-        params={
-            "runs": _BASELINE_RUNS,
-            "plot_description": (
-                "Thermal compliance C vs mesh resolution N (nx=2,3,4,6,8,12,16,24; ny=nx//2; nz=1) "
-                "with random density ρ~N(0.5,0.3) clipped to [0.05,0.95]. FV solvers diverge "
-                "from FEM at coarse N due to harmonic-mean vs Galerkin conductivity interpolation; "
-                "gap closes as O(h) with refinement. N=2–4 is the phase-transition regime."
-            ),
-        },
+_DESCRIPTIONS = {
+    "forward/baseline": (
+        "Thermal compliance C vs mesh resolution N (nx=2,3,4,6,8,12,16,24; ny=nx//2; nz=1) "
+        "with random density ρ~N(0.5,0.3) clipped to [0.05,0.95]. FV solvers diverge "
+        "from FEM at coarse N due to harmonic-mean vs Galerkin conductivity interpolation; "
+        "gap closes as O(h) with refinement. N=2–4 is the phase-transition regime."
     ),
-    "forward/agreement": Experiment(
-        fn=lambda cfg, tags, **kw: run_agreement(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            analytic=None,
-            runs=_AGREEMENT_RUNS,
-            exp_key="agreement",
-            **kw,
-        ),
-        params={
-            "runs": _AGREEMENT_RUNS,
-            "plot_description": (
-                "Thermal compliance C vs uniform element density ρ₀ ∈ [0.01, 0.95] at N=16. "
-                "C ∝ ρ⁻³ due to SIMP (p=3); near-void (ρ→0) divergence between FV harmonic-mean "
-                "and FEM Galerkin conductivity is the key discriminator. Log scale recommended."
-            ),
-        },
+    "forward/agreement": (
+        "Thermal compliance C vs uniform element density ρ₀ ∈ [0.01, 0.95] at N=16. "
+        "C ∝ ρ⁻³ due to SIMP (p=3); near-void (ρ→0) divergence between FV harmonic-mean "
+        "and FEM Galerkin conductivity is the key discriminator. Log scale recommended."
     ),
-    "forward/physical_laws": Experiment(
-        fn=lambda cfg, tags, **kw: run_physical_laws(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            analytic=None,
-            diagnostics=DIAGNOSTICS,
-            runs=_PHYSICAL_LAWS_RUNS,
-            **kw,
-        ),
-        params={
-            "runs": _PHYSICAL_LAWS_RUNS,
-            "plot_description": (
-                "Thermal compliance C vs total heat flux Q_total at fixed N=16, ρ₀=0.5, hot_spot=True. "
-                "For a linear system C ∝ Q² (log-log slope 2.0). Hot-spot BC concentrates flux on "
-                "central 1/3 stripe in y, breaking symmetry; deviations across solvers reveal "
-                "errors in Neumann mask handling or compliance integral."
-            ),
-        },
+    "forward/physical_laws": (
+        "Thermal compliance C vs total heat flux Q_total at fixed N=16, ρ₀=0.5, hot_spot=True. "
+        "For a linear system C ∝ Q² (log-log slope 2.0). Hot-spot BC concentrates flux on "
+        "central 1/3 stripe in y, breaking symmetry; deviations across solvers reveal "
+        "errors in Neumann mask handling or compliance integral."
     ),
-    "forward/source_baseline": Experiment(
-        fn=lambda cfg, tags, **kw: run_agreement(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            analytic=None,
-            runs=_SOURCE_BASELINE_RUNS,
-            exp_key="source_baseline",
-            **kw,
-        ),
-        params={
-            "runs": _SOURCE_BASELINE_RUNS,
-            "plot_description": "",
-        },
+    "forward/source_baseline": "",
+    "forward/source_linearity": "",
+    "cost/spatial_cost": "Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
+    "cost/temporal_cost": "",
+    "cost/vjp_cost": "VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
+    "gradient/fd_check": (
+        "U-curves (FD gradient error vs ε), direction cosine between AD and FD "
+        "gradient vectors, and gradient magnitude field panels."
     ),
-    "forward/source_linearity": Experiment(
-        fn=lambda cfg, tags, **kw: run_agreement(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            analytic=None,
-            runs=_SOURCE_LINEARITY_RUNS,
-            exp_key="source_linearity",
-            **kw,
-        ),
-        params={
-            "runs": _SOURCE_LINEARITY_RUNS,
-            "plot_description": "",
-        },
+    "gradient/param_sweep": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
+    "gradient/jacobian_svd": (
+        "Singular-value spectrum of the stacked per-solver gradient matrix and "
+        "pairwise cosine similarity between JAX-FEM and FEniCS gradient directions "
+        "for the thermal compliance objective. Near-unity cosine confirms consistent "
+        "adjoint implementations; spectrum reveals dominant sensitivity modes of the "
+        "density field."
     ),
-    # ─ Cost ─
-    "cost/spatial_cost": Experiment(
-        fn=lambda cfg, tags, **kw: run_spatial_cost(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            domain_extent=2.0,
-            resolution_key="nx",
-            runs=_COST_RUNS,
-            **kw,
-        ),
-        params={
-            "runs": _COST_RUNS,
-            "plot_description": "Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
-        },
+    "gradient/source_fd_check": (
+        "FD gradient check of d(identification_error)/d(source) at nominal mesh. "
+        "Uses ic_field='source' and output_key='identification_error'."
     ),
-    "cost/temporal_cost": Experiment(
-        fn=lambda cfg, tags, **kw: run_temporal_cost(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            domain_extent=2.0,
-            resolution_key="nx",
-            runs=_COST_RUNS,
-            **kw,
-        ),
-        params={
-            "runs": _COST_RUNS,
-            "plot_description": "",
-        },
+    "gradient/source_width_sweep": (
+        "Gradient quality vs source localisation σ. "
+        "Phase transition: FEM/FD disagree as source narrows below element size."
     ),
-    "cost/vjp_cost": Experiment(
-        fn=lambda cfg, tags, **kw: run_vjp_cost(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            domain_extent=2.0,
-            resolution_key="nx",
-            output_key="thermal_compliance",
-            ic_key="rho",
-            runs=_COST_RUNS,
-            **kw,
-        ),
-        params={
-            "runs": _COST_RUNS,
-            "plot_description": "VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
-        },
+    "optimization/conductivity_recovery": (
+        "Recover a two-Gaussian conductivity field from temperature observations. "
+        "Optimises rho (SIMP density, clipped to [x_min, 1]) to minimise "
+        "identification_error = ||T(rho) - T_target||². Target temperature is "
+        "produced by forward-solving with a two-Gaussian ground-truth conductivity "
+        "at uniform zero volumetric source (driven by Neumann BC only)."
     ),
-    # ─ Gradient ─
-    "gradient/fd_check": Experiment(
-        fn=lambda cfg, tags, **kw: run_fd_check(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            output_key="thermal_compliance",
-            ic_key="rho",
-            domain_extent=2.0,
-            runs=_FD_CHECK_RUNS,
-            exp_key="fd_check",
-            **kw,
-        ),
-        params={
-            "runs": _FD_CHECK_RUNS,
-            "plot_description": (
-                "U-curves (FD gradient error vs ε), direction cosine between AD and FD "
-                "gradient vectors, and gradient magnitude field panels."
-            ),
-        },
-    ),
-    "gradient/param_sweep": Experiment(
-        fn=lambda cfg, tags, **kw: run_param_sweep(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            output_key="thermal_compliance",
-            ic_key="rho",
-            domain_extent=2.0,
-            runs=_PARAM_SWEEP_RUNS,
-            exp_key="param_sweep",
-            **kw,
-        ),
-        params={
-            "runs": _PARAM_SWEEP_RUNS,
-            "plot_description": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
-        },
-    ),
-    "gradient/jacobian_svd": Experiment(
-        fn=lambda cfg, tags, **kw: run_jacobian_svd(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            output_key="thermal_compliance",
-            ic_key="rho",
-            domain_extent=2.0,
-            runs=_JACOBIAN_SVD_RUNS,
-            exp_key="jacobian_svd",
-            **kw,
-        ),
-        params={
-            "runs": _JACOBIAN_SVD_RUNS,
-            "plot_description": (
-                "Singular-value spectrum of the stacked per-solver gradient matrix and "
-                "pairwise cosine similarity between JAX-FEM and FEniCS gradient directions "
-                "for the thermal compliance objective. Near-unity cosine confirms consistent "
-                "adjoint implementations; spectrum reveals dominant sensitivity modes of the "
-                "density field."
-            ),
-        },
-    ),
-    "gradient/source_fd_check": Experiment(
-        fn=lambda cfg, tags, **kw: run_fd_check(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            output_key="thermal_compliance",
-            ic_key="rho",
-            domain_extent=2.0,
-            runs=_SOURCE_FD_CHECK_RUNS,
-            exp_key="source_fd_check",
-            **kw,
-        ),
-        params={
-            "runs": _SOURCE_FD_CHECK_RUNS,
-            "plot_description": (
-                "FD gradient check of d(identification_error)/d(source) at nominal mesh. "
-                "Uses ic_field='source' and output_key='identification_error'."
-            ),
-        },
-    ),
-    "gradient/source_width_sweep": Experiment(
-        fn=lambda cfg, tags, **kw: run_param_sweep(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            output_key="thermal_compliance",
-            ic_key="rho",
-            domain_extent=2.0,
-            runs=_SOURCE_WIDTH_SWEEP_RUNS,
-            exp_key="source_width_sweep",
-            **kw,
-        ),
-        params={
-            "runs": _SOURCE_WIDTH_SWEEP_RUNS,
-            "plot_description": (
-                "Gradient quality vs source localisation σ. "
-                "Phase transition: FEM/FD disagree as source narrows below element size."
-            ),
-        },
-    ),
-    # ─ Optimization ─
-    "optimization/conductivity_recovery": Experiment(
-        fn=lambda cfg, tags, **kw: run_conductivity_recovery(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            runs=_CONDUCTIVITY_RECOVERY_RUNS,
-            **kw,
-        ),
-        params={
-            "runs": _CONDUCTIVITY_RECOVERY_RUNS,
-            "plot_description": (
-                "Recover a two-Gaussian conductivity field from temperature observations. "
-                "Optimises rho (SIMP density, clipped to [x_min, 1]) to minimise "
-                "identification_error = ||T(rho) - T_target||². Target temperature is "
-                "produced by forward-solving with a two-Gaussian ground-truth conductivity "
-                "at uniform zero volumetric source (driven by Neumann BC only)."
-            ),
-        },
-    ),
-    "optimization/conductivity_recovery_bfgs": Experiment(
-        fn=lambda cfg, tags, **kw: run_conductivity_recovery_bfgs(
-            cfg,
-            tags,
-            make_ic=MAKE_IC,
-            make_inputs=cfg.make_inputs,
-            error_fn=l2_error_rel,
-            output_key="thermal_compliance",
-            domain_extent=2.0,
-            runs=_CONDUCTIVITY_RECOVERY_BFGS_RUNS,
-            **kw,
-        ),
-        params={
-            "runs": _CONDUCTIVITY_RECOVERY_BFGS_RUNS,
-            "plot_description": (
-                "Recover a two-Gaussian conductivity field with L-BFGS. Same setup as "
-                "conductivity_recovery but using L-BFGS with zoom line search."
-            ),
-        },
-    ),
-    # ─ ICs ─
-    "ics/zero_source": Experiment(
-        fn=lambda cfg, tags, **kw: run_ic(
-            cfg,
-            "zero_source",
-            make_ic=MAKE_IC,
-            params={"nx": 16, "ny": 8, "nz": 1},
-        ),
-        params={"nx": 16, "ny": 8, "nz": 1},
-    ),
-    "ics/uniform": Experiment(
-        fn=lambda cfg, tags, **kw: run_ic(
-            cfg,
-            "uniform",
-            make_ic=MAKE_IC,
-            params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
-        ),
-        params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
-    ),
-    "ics/random": Experiment(
-        fn=lambda cfg, tags, **kw: run_ic(
-            cfg,
-            "random",
-            make_ic=MAKE_IC,
-            params={"rho_0": 0.5, "noise": 0.3, "nx": 16, "ny": 8, "nz": 1, "seed": 0},
-        ),
-        params={"rho_0": 0.5, "noise": 0.3, "nx": 16, "ny": 8, "nz": 1, "seed": 0},
-    ),
-    "ics/gaussian_source": Experiment(
-        fn=lambda cfg, tags, **kw: run_ic(
-            cfg,
-            "gaussian_source",
-            make_ic=MAKE_IC,
-            params={
-                "nx": 16,
-                "ny": 8,
-                "nz": 1,
-                "amplitude": 1.0,
-                "cx": 0.5,
-                "cy": 0.5,
-                "sigma": 0.2,
-            },
-        ),
-        params={
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "amplitude": 1.0,
-            "cx": 0.5,
-            "cy": 0.5,
-            "sigma": 0.2,
-        },
-    ),
-    "ics/two_gaussians": Experiment(
-        fn=lambda cfg, tags, **kw: run_ic(
-            cfg,
-            "two_gaussians",
-            make_ic=MAKE_IC,
-            params={"nx": 16, "ny": 8, "nz": 1},
-        ),
-        params={"nx": 16, "ny": 8, "nz": 1},
+    "optimization/conductivity_recovery_bfgs": (
+        "Recover a two-Gaussian conductivity field with L-BFGS. Same setup as "
+        "conductivity_recovery but using L-BFGS with zoom line search."
     ),
 }
+
+
+# ── Problem + registrations ──────────────────────────────────────────────────
+
+problem = Problem(
+    make_ic=MAKE_IC,
+    error_fn=l2_error_rel,
+    output_key="thermal_compliance",
+    ic_key="rho",
+    domain_extent=2.0,
+    resolution_key="nx",
+    analytic=None,
+    diagnostics=DIAGNOSTICS,
+    descriptions=_DESCRIPTIONS,
+)
+
+# Forward
+problem.add("forward/baseline", run_agreement, runs=_BASELINE_RUNS, plot=plot_agreement)
+problem.add(
+    "forward/agreement", run_agreement, runs=_AGREEMENT_RUNS, plot=plot_agreement
+)
+problem.add(
+    "forward/physical_laws",
+    run_physical_laws,
+    runs=_PHYSICAL_LAWS_RUNS,
+    plot=plot_physical_laws,
+)
+problem.add(
+    "forward/source_baseline",
+    run_agreement,
+    runs=_SOURCE_BASELINE_RUNS,
+    plot=plot_agreement,
+)
+problem.add(
+    "forward/source_linearity",
+    run_agreement,
+    runs=_SOURCE_LINEARITY_RUNS,
+    plot=plot_agreement,
+)
+
+# Cost
+problem.add("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
+problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost)
+problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
+
+# Gradient
+problem.add("gradient/fd_check", run_fd_check, runs=_FD_CHECK_RUNS, plot=plot_fd_check)
+problem.add(
+    "gradient/param_sweep",
+    run_param_sweep,
+    runs=_PARAM_SWEEP_RUNS,
+    plot=plot_param_sweep,
+)
+problem.add(
+    "gradient/jacobian_svd",
+    run_jacobian_svd,
+    runs=_JACOBIAN_SVD_RUNS,
+    plot=plot_jacobian_svd,
+)
+problem.add(
+    "gradient/source_fd_check",
+    run_fd_check,
+    runs=_SOURCE_FD_CHECK_RUNS,
+    plot=plot_fd_check,
+)
+problem.add(
+    "gradient/source_width_sweep",
+    run_param_sweep,
+    runs=_SOURCE_WIDTH_SWEEP_RUNS,
+    plot=plot_param_sweep,
+)
+
+# Optimization
+problem.add(
+    "optimization/conductivity_recovery",
+    run_conductivity_recovery,
+    runs=_CONDUCTIVITY_RECOVERY_RUNS,
+    plot=plot_conductivity_recovery,
+)
+problem.add(
+    "optimization/conductivity_recovery_bfgs",
+    run_conductivity_recovery_bfgs,
+    runs=_CONDUCTIVITY_RECOVERY_BFGS_RUNS,
+    plot=plot_conductivity_recovery,
+)
+
+# ICs (one entry per registered IC)
+problem.add_ic("zero_source", {"nx": 16, "ny": 8, "nz": 1}, plot=plot_ic)
+problem.add_ic("uniform", {"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1}, plot=plot_ic)
+problem.add_ic(
+    "random",
+    {"rho_0": 0.5, "noise": 0.3, "nx": 16, "ny": 8, "nz": 1, "seed": 0},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "gaussian_source",
+    {
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "amplitude": 1.0,
+        "cx": 0.5,
+        "cy": 0.5,
+        "sigma": 0.2,
+    },
+    plot=plot_ic,
+)
+problem.add_ic("two_gaussians", {"nx": 16, "ny": 8, "nz": 1}, plot=plot_ic)
+
+
+EXPERIMENTS = problem.experiments
+PLOT_FNS = problem.plot_fns

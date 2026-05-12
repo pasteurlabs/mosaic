@@ -12,10 +12,9 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.shared.plots.solver_styles import apply_styles
 
-from .experiments import EXPERIMENTS
+from .experiments import EXPERIMENTS, PLOT_FNS
 from .ics import MAKE_IC
-from .physics import DIAGNOSTICS, build_make_inputs
-from .plots import PLOT_FNS, _density_to_2d
+from .physics import DIAGNOSTICS, _density_to_2d, build_make_inputs
 
 _GYM_DIR = Path(__file__).parent.parent.parent.parent
 _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "structural-mesh"

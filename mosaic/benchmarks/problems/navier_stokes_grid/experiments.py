@@ -218,6 +218,42 @@ _DRAG_OPT_BFGS_RUNS = [
 ]
 
 
+# ── Plot descriptions (keyed by full experiment path) ────────────────────────
+
+_DESCRIPTIONS = {
+    "forward/baseline": "Relative error vs N at steps=1; validates single-step forward accuracy across solvers.",
+    "forward/agreement": "Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.",
+    "forward/tgv_nu_sweep": (
+        "Relative error vs ν for each solver at fixed TGV IC; "
+        "xlb errors are flat 0.026-0.031 across all ν (KBC entropic operator removes "
+        "BGK monotonic degradation at low ν); peer solvers stay ≤ 0.001 across the full range."
+    ),
+    "forward/physical_laws": "Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.",
+    "forward/cylinder": (
+        "Vorticity snapshots and kinetic-energy evolution vs time for each solver; "
+        "phase transition from steady to vortex-shedding regime as Re increases."
+    ),
+    "cost/spatial_cost": "Forward-pass wall-clock time vs N at fixed step count for all solvers.",
+    "cost/temporal_cost": "Forward-pass wall-clock time vs step count at fixed N for all solvers.",
+    "cost/vjp_cost": "VJP wall-clock time vs N and step count for differentiable solvers.",
+    "gradient/fd_check": (
+        "U-curves (FD gradient error vs ε) and subspace cosine; validates VJP correctness. "
+        "LBM solvers (XLB, Lettuce) require ε≥5 (abs_eps≥0.36) to exit their float32 noise floor."
+    ),
+    "gradient/param_sweep": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
+    "gradient/horizon_sweep": (
+        "Gradient norm, FD error, and direction cosine vs rollout horizon T=steps*dt for 2D multimode IC. "
+        "Key metric: the step count T* at which cosine(ε=0.1) drops below 0.999."
+    ),
+    "gradient/jacobian_svd": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces (2D multimode IC, N=8, ν=0.001, steps=10).",
+    "gradient/jacobian_svd_steps20": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=20). Extended horizon vs base (steps=10).",
+    "gradient/jacobian_svd_steps40": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=40). Probes deeper into the chaotic regime.",
+    "gradient/jacobian_svd_nu01": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.01, steps=10). 10× more viscous than base; expected to reduce condition number.",
+    "optimization/drag_opt": "Drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.",
+    "optimization/drag_opt_bfgs": "L-BFGS drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.",
+}
+
+
 # ── Problem + registrations ──────────────────────────────────────────────────
 
 problem = Problem(
@@ -229,146 +265,78 @@ problem = Problem(
     resolution_key="N",
     analytic=_tgv_analytic,
     diagnostics=DIAGNOSTICS,
+    descriptions=_DESCRIPTIONS,
 )
 
 # Forward
+problem.add("forward/baseline", run_agreement, runs=_BASELINE_RUNS, plot=plot_agreement)
 problem.add(
-    "forward/baseline",
-    run_agreement,
-    runs=_BASELINE_RUNS,
-    plot=plot_agreement,
-    plot_description="Relative error vs N at steps=1; validates single-step forward accuracy across solvers.",
+    "forward/agreement", run_agreement, runs=_AGREEMENT_RUNS, plot=plot_agreement
 )
 problem.add(
-    "forward/agreement",
-    run_agreement,
-    runs=_AGREEMENT_RUNS,
-    plot=plot_agreement,
-    plot_description="Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.",
-)
-problem.add(
-    "forward/tgv_nu_sweep",
-    run_agreement,
-    runs=_TGV_NU_SWEEP_RUNS,
-    plot=plot_agreement,
-    plot_description=(
-        "Relative error vs ν for each solver at fixed TGV IC; "
-        "xlb errors are flat 0.026-0.031 across all ν (KBC entropic operator removes "
-        "BGK monotonic degradation at low ν); peer solvers stay ≤ 0.001 across the full range."
-    ),
+    "forward/tgv_nu_sweep", run_agreement, runs=_TGV_NU_SWEEP_RUNS, plot=plot_agreement
 )
 problem.add(
     "forward/physical_laws",
     run_physical_laws,
     runs=_PHYSICAL_LAWS_RUNS,
     plot=plot_physical_laws,
-    plot_description="Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.",
 )
-problem.add(
-    "forward/cylinder",
-    run_agreement,
-    runs=_CYLINDER_RUNS,
-    plot=plot_agreement,
-    plot_description=(
-        "Vorticity snapshots and kinetic-energy evolution vs time for each solver; "
-        "phase transition from steady to vortex-shedding regime as Re increases."
-    ),
-)
+problem.add("forward/cylinder", run_agreement, runs=_CYLINDER_RUNS, plot=plot_agreement)
 
 # Cost
-problem.add(
-    "cost/spatial_cost",
-    run_spatial_cost,
-    runs=_COST_RUNS,
-    plot=plot_cost,
-    plot_description="Forward-pass wall-clock time vs N at fixed step count for all solvers.",
-)
-problem.add(
-    "cost/temporal_cost",
-    run_temporal_cost,
-    runs=_COST_RUNS,
-    plot=plot_cost,
-    plot_description="Forward-pass wall-clock time vs step count at fixed N for all solvers.",
-)
-problem.add(
-    "cost/vjp_cost",
-    run_vjp_cost,
-    runs=_COST_RUNS,
-    plot=plot_cost,
-    plot_description="VJP wall-clock time vs N and step count for differentiable solvers.",
-)
+problem.add("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
+problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost)
+problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
 
 # Gradient
-problem.add(
-    "gradient/fd_check",
-    run_fd_check,
-    runs=_FD_CHECK_RUNS,
-    plot=plot_fd_check,
-    plot_description=(
-        "U-curves (FD gradient error vs ε) and subspace cosine; validates VJP correctness. "
-        "LBM solvers (XLB, Lettuce) require ε≥5 (abs_eps≥0.36) to exit their float32 noise floor."
-    ),
-)
+problem.add("gradient/fd_check", run_fd_check, runs=_FD_CHECK_RUNS, plot=plot_fd_check)
 problem.add(
     "gradient/param_sweep",
     run_param_sweep,
     runs=_PARAM_SWEEP_RUNS,
     plot=plot_param_sweep,
-    plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
 )
 problem.add(
     "gradient/horizon_sweep",
     run_horizon_sweep,
     runs=_HORIZON_SWEEP_RUNS,
     plot=plot_horizon_sweep,
-    plot_description=(
-        "Gradient norm, FD error, and direction cosine vs rollout horizon T=steps*dt for 2D multimode IC. "
-        "Key metric: the step count T* at which cosine(ε=0.1) drops below 0.999."
-    ),
 )
 problem.add(
     "gradient/jacobian_svd",
     run_jacobian_svd,
     runs=_JSVD_BASE_RUNS,
     plot=plot_jacobian_svd,
-    plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces (2D multimode IC, N=8, ν=0.001, steps=10).",
 )
 problem.add(
     "gradient/jacobian_svd_steps20",
     run_jacobian_svd,
     runs=_JSVD_STEPS20_RUNS,
     plot=plot_jacobian_svd,
-    plot_description="Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=20). Extended horizon vs base (steps=10).",
 )
 problem.add(
     "gradient/jacobian_svd_steps40",
     run_jacobian_svd,
     runs=_JSVD_STEPS40_RUNS,
     plot=plot_jacobian_svd,
-    plot_description="Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=40). Probes deeper into the chaotic regime.",
 )
 problem.add(
     "gradient/jacobian_svd_nu01",
     run_jacobian_svd,
     runs=_JSVD_NU01_RUNS,
     plot=plot_jacobian_svd,
-    plot_description="Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.01, steps=10). 10× more viscous than base; expected to reduce condition number.",
 )
 
 # Optimization
 problem.add(
-    "optimization/drag_opt",
-    run_drag_opt,
-    runs=_DRAG_OPT_RUNS,
-    plot=plot_drag_opt,
-    plot_description="Drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.",
+    "optimization/drag_opt", run_drag_opt, runs=_DRAG_OPT_RUNS, plot=plot_drag_opt
 )
 problem.add(
     "optimization/drag_opt_bfgs",
     run_drag_opt_bfgs,
     runs=_DRAG_OPT_BFGS_RUNS,
     plot=plot_drag_opt,
-    plot_description="L-BFGS drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.",
 )
 
 # ICs (one entry per registered IC)

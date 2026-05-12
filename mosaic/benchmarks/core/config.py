@@ -157,6 +157,13 @@ class Problem:
     experiments: dict[str, Experiment] = field(default_factory=dict)
     plot_fns: dict[str, PlotFn] = field(default_factory=dict)
 
+    # Optional per-key plot descriptions. When ``add(...)`` is called without
+    # an explicit ``plot_description=`` kwarg, the value at
+    # ``descriptions[key]`` is used instead. Lets each problem keep its
+    # descriptions in one block at the top of experiments.py rather than
+    # inline in every .add() call.
+    descriptions: dict[str, str] = field(default_factory=dict)
+
     # ── Solver lookup ────────────────────────────────────────────────────
 
     def solver(self, name: str) -> SolverSpec:
@@ -231,7 +238,7 @@ class Problem:
         runner: Callable,
         *,
         plot: Callable | None = None,
-        plot_description: str = "",
+        plot_description: str | None = None,
         reduce: Callable | None = None,
         **config,
     ) -> None:
@@ -256,6 +263,10 @@ class Problem:
         ``plot_description`` is stored on every sub-experiment's params for
         introspection (e.g. ``mosaic status``).
         """
+        # Fall back to the descriptions dict if no explicit kwarg given.
+        if plot_description is None:
+            plot_description = self.descriptions.get(key, "")
+
         sweep_axes = self._collect_sweep_axes(config)
 
         if not sweep_axes:
