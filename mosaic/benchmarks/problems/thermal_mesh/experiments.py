@@ -41,76 +41,6 @@ from mosaic.benchmarks.problems.shared.plots.optimization import (
 from .ics import MAKE_IC
 from .physics import DIAGNOSTICS
 
-# ── Forward run-lists ────────────────────────────────────────────────────────
-
-_BASELINE_RUNS = [
-    {
-        "ic": {"name": "random", "seed": 0},
-        "physics": {"nz": 1, "Lx": 2.0, "Ly": 1.0, "Lz": 1.0, "Q_total": 1.0},
-        "sweep": {"key": "N", "values": [2, 3, 4, 6, 8, 12, 16, 24]},
-    }
-]
-_AGREEMENT_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "Q_total": 1.0,
-        },
-        "sweep": {"key": "rho_0", "values": [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95]},
-    }
-]
-_PHYSICAL_LAWS_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "N": 16,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "rho_0": 0.5,
-            "hot_spot": True,
-        },
-        "sweep": {"key": "Q_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
-    }
-]
-_SOURCE_BASELINE_RUNS = [
-    {
-        "ic": {"name": "gaussian_source"},
-        "physics": {
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "rho_0": 0.5,
-            "ic_field": "source",
-        },
-        "sweep": {"key": "N", "values": [4, 6, 8, 12, 16, 24]},
-    }
-]
-_SOURCE_LINEARITY_RUNS = [
-    {
-        "ic": {"name": "gaussian_source"},
-        "physics": {
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "rho_0": 0.5,
-            "ic_field": "source",
-        },
-        "sweep": {"key": "amplitude", "values": [0.1, 0.25, 0.5, 1.0, 2.0, 4.0]},
-    }
-]
-
 # ── Cost run-list (shared by spatial/temporal/vjp) ───────────────────────────
 
 _COST_RUNS = [
@@ -126,143 +56,6 @@ _COST_RUNS = [
             "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
             "n_trials": 3,
         },
-    }
-]
-
-# ── Gradient run-lists ───────────────────────────────────────────────────────
-
-_FD_CHECK_RUNS = [
-    {
-        "ic": {"name": "random", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 4,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "Q_total": 1.0,
-        },
-        "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
-    }
-]
-_PARAM_SWEEP_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 4,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "Q_total": 1.0,
-        },
-        "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
-        "sweep": {"key": "rho_0", "values": [0.1, 0.2, 0.4, 0.6, 0.8]},
-    }
-]
-_JACOBIAN_SVD_RUNS = [
-    {
-        "ic": {"name": "random", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 4,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "Q_total": 1.0,
-        },
-        "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
-    }
-]
-# Source-identification gradient experiments.
-# These use source as the differentiable input and identification_error as the
-# objective; per-run ``ic_key`` / ``output_key`` overrides the global defaults.
-_SOURCE_FD_CHECK_RUNS = [
-    {
-        "ic": {"name": "gaussian_source"},
-        "ic_key": "source",
-        "output_key": "identification_error",
-        "physics": {
-            "nx": 8,
-            "ny": 4,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "rho_0": 0.5,
-            "target_from_two_gaussians": True,
-            "ic_field": "source",
-        },
-        "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
-    }
-]
-_SOURCE_WIDTH_SWEEP_RUNS = [
-    {
-        "ic": {"name": "gaussian_source"},
-        "ic_key": "source",
-        "output_key": "identification_error",
-        "physics": {
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "rho_0": 0.5,
-            "target_from_two_gaussians": True,
-            "ic_field": "source",
-        },
-        "fd": {"eps_values": [1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 4},
-        "sweep": {
-            "key": "sigma",
-            "values": [0.05, 0.1, 0.2, 0.3, 0.5],
-            "ic_sweep": True,
-        },
-    }
-]
-
-# ── Optimization run-lists ───────────────────────────────────────────────────
-
-_CONDUCTIVITY_RECOVERY_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "rho_0": 0.5,
-            "Q_total": 1.0,
-            "compliance_key": "identification_error",
-            "penalty_weight": 0.0,
-            "x_min": 1e-3,
-            "snap_interval": 20,
-            "target_rho_from_two_gaussians": True,
-        },
-        "optim": {"lr": 1e-2, "max_iters": 2000, "patience": 200},
-    }
-]
-_CONDUCTIVITY_RECOVERY_BFGS_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "rho_0": 0.5,
-            "Q_total": 1.0,
-            "compliance_key": "identification_error",
-            "penalty_weight": 0.0,
-            "x_min": 1e-3,
-            "snap_interval": 10,
-            "target_rho_from_two_gaussians": True,
-        },
-        "optim": {"max_iters": 200, "patience": 30},
     }
 ]
 
@@ -339,26 +132,102 @@ problem = Problem(
 )
 
 # Forward
-problem.add("forward/baseline", run_agreement, runs=_BASELINE_RUNS, plot=plot_agreement)
 problem.add(
-    "forward/agreement", run_agreement, runs=_AGREEMENT_RUNS, plot=plot_agreement
+    "forward/baseline",
+    run_agreement,
+    runs=[
+        {
+            "ic": {"name": "random", "seed": 0},
+            "physics": {"nz": 1, "Lx": 2.0, "Ly": 1.0, "Lz": 1.0, "Q_total": 1.0},
+            "sweep": {"key": "N", "values": [2, 3, 4, 6, 8, 12, 16, 24]},
+        }
+    ],
+    plot=plot_agreement,
+)
+problem.add(
+    "forward/agreement",
+    run_agreement,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 16,
+                "ny": 8,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "Q_total": 1.0,
+            },
+            "sweep": {
+                "key": "rho_0",
+                "values": [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95],
+            },
+        }
+    ],
+    plot=plot_agreement,
 )
 problem.add(
     "forward/physical_laws",
     run_physical_laws,
-    runs=_PHYSICAL_LAWS_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "N": 16,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "rho_0": 0.5,
+                "hot_spot": True,
+            },
+            "sweep": {"key": "Q_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
+        }
+    ],
     plot=plot_physical_laws,
 )
 problem.add(
     "forward/source_baseline",
     run_agreement,
-    runs=_SOURCE_BASELINE_RUNS,
+    runs=[
+        {
+            "ic": {"name": "gaussian_source"},
+            "physics": {
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "rho_0": 0.5,
+                "ic_field": "source",
+            },
+            "sweep": {"key": "N", "values": [4, 6, 8, 12, 16, 24]},
+        }
+    ],
     plot=plot_agreement,
 )
 problem.add(
     "forward/source_linearity",
     run_agreement,
-    runs=_SOURCE_LINEARITY_RUNS,
+    runs=[
+        {
+            "ic": {"name": "gaussian_source"},
+            "physics": {
+                "nx": 16,
+                "ny": 8,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "rho_0": 0.5,
+                "ic_field": "source",
+            },
+            "sweep": {
+                "key": "amplitude",
+                "values": [0.1, 0.25, 0.5, 1.0, 2.0, 4.0],
+            },
+        }
+    ],
     plot=plot_agreement,
 )
 
@@ -368,29 +237,118 @@ problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_
 problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
 
 # Gradient
-problem.add("gradient/fd_check", run_fd_check, runs=_FD_CHECK_RUNS, plot=plot_fd_check)
+problem.add(
+    "gradient/fd_check",
+    run_fd_check,
+    runs=[
+        {
+            "ic": {"name": "random", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 4,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "Q_total": 1.0,
+            },
+            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
+        }
+    ],
+    plot=plot_fd_check,
+)
 problem.add(
     "gradient/param_sweep",
     run_param_sweep,
-    runs=_PARAM_SWEEP_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 4,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "Q_total": 1.0,
+            },
+            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
+            "sweep": {"key": "rho_0", "values": [0.1, 0.2, 0.4, 0.6, 0.8]},
+        }
+    ],
     plot=plot_param_sweep,
 )
 problem.add(
     "gradient/jacobian_svd",
     run_jacobian_svd,
-    runs=_JACOBIAN_SVD_RUNS,
+    runs=[
+        {
+            "ic": {"name": "random", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 4,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "Q_total": 1.0,
+            },
+            "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
+        }
+    ],
     plot=plot_jacobian_svd,
 )
+# Source-identification gradient experiments.
+# These use source as the differentiable input and identification_error as the
+# objective; per-run ``ic_key`` / ``output_key`` overrides the global defaults.
 problem.add(
     "gradient/source_fd_check",
     run_fd_check,
-    runs=_SOURCE_FD_CHECK_RUNS,
+    runs=[
+        {
+            "ic": {"name": "gaussian_source"},
+            "ic_key": "source",
+            "output_key": "identification_error",
+            "physics": {
+                "nx": 8,
+                "ny": 4,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "rho_0": 0.5,
+                "target_from_two_gaussians": True,
+                "ic_field": "source",
+            },
+            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
+        }
+    ],
     plot=plot_fd_check,
 )
 problem.add(
     "gradient/source_width_sweep",
     run_param_sweep,
-    runs=_SOURCE_WIDTH_SWEEP_RUNS,
+    runs=[
+        {
+            "ic": {"name": "gaussian_source"},
+            "ic_key": "source",
+            "output_key": "identification_error",
+            "physics": {
+                "nx": 16,
+                "ny": 8,
+                "nz": 1,
+                "rho_0": 0.5,
+                "target_from_two_gaussians": True,
+                "ic_field": "source",
+            },
+            "fd": {"eps_values": [1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 4},
+            "sweep": {
+                "key": "sigma",
+                "values": [0.05, 0.1, 0.2, 0.3, 0.5],
+                "ic_sweep": True,
+            },
+        }
+    ],
     plot=plot_param_sweep,
 )
 
@@ -398,14 +356,54 @@ problem.add(
 problem.add(
     "optimization/conductivity_recovery",
     run_conductivity_recovery,
-    runs=_CONDUCTIVITY_RECOVERY_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 16,
+                "ny": 8,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "rho_0": 0.5,
+                "Q_total": 1.0,
+                "compliance_key": "identification_error",
+                "penalty_weight": 0.0,
+                "x_min": 1e-3,
+                "snap_interval": 20,
+                "target_rho_from_two_gaussians": True,
+            },
+            "optim": {"lr": 1e-2, "max_iters": 2000, "patience": 200},
+        }
+    ],
     plot=plot_conductivity_recovery,
 )
 problem.add(
     "optimization/conductivity_recovery_bfgs",
     run_conductivity_recovery,
     optimizer="bfgs",
-    runs=_CONDUCTIVITY_RECOVERY_BFGS_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 16,
+                "ny": 8,
+                "nz": 1,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "rho_0": 0.5,
+                "Q_total": 1.0,
+                "compliance_key": "identification_error",
+                "penalty_weight": 0.0,
+                "x_min": 1e-3,
+                "snap_interval": 10,
+                "target_rho_from_two_gaussians": True,
+            },
+            "optim": {"max_iters": 200, "patience": 30},
+        }
+    ],
     plot=plot_conductivity_recovery,
 )
 

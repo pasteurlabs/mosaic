@@ -41,51 +41,6 @@ from mosaic.benchmarks.problems.shared.plots.optimization import plot_recovery
 from .ics import MAKE_IC, _tgv3d_analytic
 from .physics import DIAGNOSTICS
 
-# ── Forward run-lists ────────────────────────────────────────────────────────
-
-_BASELINE_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 16, "nu": 0.05, "dt": 0.01, "steps": 1},
-        "sweep": {"key": "N", "values": [8, 16, 32]},
-    }
-]
-_PHYSICAL_LAWS_RUNS = [
-    {
-        "name": "vs_N",
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"nu": 0.05, "dt": 0.01, "steps": 20, "lbm_N_base": 16},
-        "sweep": {"key": "N", "values": [8, 16, 32]},
-    },
-    {
-        "name": "vs_steps",
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"nu": 0.05, "dt": 0.01, "N": 16, "lbm_N_base": 16},
-        "sweep": {"key": "steps", "values": [5, 10, 20, 50]},
-    },
-    {
-        "name": "vs_nu",
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"dt": 0.01, "steps": 20, "N": 16, "lbm_N_base": 16},
-        "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05, 0.1]},
-    },
-]
-_AGREEMENT_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 16, "dt": 0.01, "steps": 50, "lbm_N_base": 16},
-        "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05]},
-        # ins_jl removed from fine_set.
-        # The ins_jl tesseract container crashes (ContainerDied) when
-        # running the fine-grid reference (steps=250, dt=0.002) on a
-        # 16³ grid — Julia OOM or resource exhaustion mid-computation.
-        # Short runs (steps≤50) work fine; 3D is fully supported.
-        # Using only exponax as the fine-grid reference avoids the
-        # crash and provides a reliable single-solver consensus anchor.
-        "fine": {"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
-    }
-]
-
 # ── Cost run-list (shared by spatial/temporal/vjp) ───────────────────────────
 
 _COST_RUNS = [
@@ -95,117 +50,6 @@ _COST_RUNS = [
             "N_values": [16, 32, 48, 64],
             "steps_values": [10, 50, 100],
             "n_trials": 3,
-        },
-    }
-]
-
-# ── Gradient run-lists ───────────────────────────────────────────────────────
-
-_FD_CHECK_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 16, "nu": 0.001, "dt": 0.05, "steps": 10},
-        "fd": {
-            "eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4],
-            "n_dirs": 10,
-        },
-    }
-]
-_HORIZON_SWEEP_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 16, "nu": 0.001, "dt": 0.05},
-        "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
-        "sweep": {"key": "steps", "values": [10, 20, 40, 80, 160]},
-    }
-]
-_HORIZON_SWEEP_LIMITS_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 20, "nu": 0.001, "dt": 0.05},
-        "sweep": {
-            "key": "steps",
-            "values": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
-        },
-    }
-]
-_JSVD_BASE_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
-        "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
-    }
-]
-_JSVD_STEPS20_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
-        "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
-    }
-]
-_JSVD_STEPS40_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
-        "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
-    }
-]
-_JSVD_NU01_RUNS = [
-    {
-        "ic": {"name": "tgv3d", "seed": 0},
-        "physics": {"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
-        "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
-    }
-]
-
-# ── Optimization run-lists ───────────────────────────────────────────────────
-
-_RECOVERY_CONSTANT_IC_RUNS = [
-    {
-        "ic": {"name": "rand_div_free", "seed": 0},
-        "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
-        "sweep": {"key": "steps", "values": [100]},
-        "optim": {
-            "ic_init_type": "zeros",
-            "lr": 1e-3,
-            "max_iters": 500,
-            "patience": 50,
-            "failure_threshold": 2.0,
-            "snap_interval": 20,
-            "ic_seeds": [0, 1, 2],
-            "record_diagnostics": True,
-        },
-    }
-]
-_RECOVERY_CONSTANT_IC_BFGS_RUNS = [
-    {
-        "ic": {"name": "rand_div_free", "seed": 0},
-        "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
-        "sweep": {"key": "steps", "values": [100]},
-        "optim": {
-            "ic_init_type": "zeros",
-            "max_iters": 100,
-            "patience": 20,
-            "failure_threshold": 2.0,
-            "snap_interval": 5,
-            "ic_seeds": [0, 1, 2],
-            "record_diagnostics": True,
-        },
-    }
-]
-_RECOVERY_CONSTANT_IC_BFGS_PROJ_RUNS = [
-    {
-        "ic": {"name": "rand_div_free", "seed": 0},
-        "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
-        "sweep": {"key": "steps", "values": [100]},
-        "optim": {
-            "ic_init_type": "zeros",
-            "max_iters": 100,
-            "patience": 20,
-            "failure_threshold": 2.0,
-            "snap_interval": 5,
-            "ic_seeds": [0, 1, 2],
-            "record_diagnostics": True,
         },
     }
 ]
@@ -289,14 +133,61 @@ problem = Problem(
 )
 
 # Forward
-problem.add("forward/baseline", run_agreement, runs=_BASELINE_RUNS, plot=plot_agreement)
 problem.add(
-    "forward/agreement", run_agreement, runs=_AGREEMENT_RUNS, plot=plot_agreement
+    "forward/baseline",
+    run_agreement,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 16, "nu": 0.05, "dt": 0.01, "steps": 1},
+            "sweep": {"key": "N", "values": [8, 16, 32]},
+        }
+    ],
+    plot=plot_agreement,
+)
+problem.add(
+    "forward/agreement",
+    run_agreement,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 16, "dt": 0.01, "steps": 50, "lbm_N_base": 16},
+            "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05]},
+            # ins_jl removed from fine_set.
+            # The ins_jl tesseract container crashes (ContainerDied) when
+            # running the fine-grid reference (steps=250, dt=0.002) on a
+            # 16³ grid — Julia OOM or resource exhaustion mid-computation.
+            # Short runs (steps≤50) work fine; 3D is fully supported.
+            # Using only exponax as the fine-grid reference avoids the
+            # crash and provides a reliable single-solver consensus anchor.
+            "fine": {"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
+        }
+    ],
+    plot=plot_agreement,
 )
 problem.add(
     "forward/physical_laws",
     run_physical_laws,
-    runs=_PHYSICAL_LAWS_RUNS,
+    runs=[
+        {
+            "name": "vs_N",
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"nu": 0.05, "dt": 0.01, "steps": 20, "lbm_N_base": 16},
+            "sweep": {"key": "N", "values": [8, 16, 32]},
+        },
+        {
+            "name": "vs_steps",
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"nu": 0.05, "dt": 0.01, "N": 16, "lbm_N_base": 16},
+            "sweep": {"key": "steps", "values": [5, 10, 20, 50]},
+        },
+        {
+            "name": "vs_nu",
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"dt": 0.01, "steps": 20, "N": 16, "lbm_N_base": 16},
+            "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05, 0.1]},
+        },
+    ],
     plot=plot_physical_laws,
 )
 
@@ -306,41 +197,95 @@ problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_
 problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
 
 # Gradient
-problem.add("gradient/fd_check", run_fd_check, runs=_FD_CHECK_RUNS, plot=plot_fd_check)
+problem.add(
+    "gradient/fd_check",
+    run_fd_check,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 16, "nu": 0.001, "dt": 0.05, "steps": 10},
+            "fd": {
+                "eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4],
+                "n_dirs": 10,
+            },
+        }
+    ],
+    plot=plot_fd_check,
+)
 problem.add(
     "gradient/horizon_sweep",
     run_horizon_sweep,
-    runs=_HORIZON_SWEEP_RUNS,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 16, "nu": 0.001, "dt": 0.05},
+            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
+            "sweep": {"key": "steps", "values": [10, 20, 40, 80, 160]},
+        }
+    ],
     plot=plot_horizon_sweep,
 )
 problem.add(
     "gradient/horizon_sweep_limits",
     run_horizon_sweep_limits,
-    runs=_HORIZON_SWEEP_LIMITS_RUNS,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 20, "nu": 0.001, "dt": 0.05},
+            "sweep": {
+                "key": "steps",
+                "values": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
+            },
+        }
+    ],
     plot=plot_horizon_sweep,
 )
 problem.add(
     "gradient/jacobian_svd",
     run_jacobian_svd,
-    runs=_JSVD_BASE_RUNS,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
+            "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+        }
+    ],
     plot=plot_jacobian_svd,
 )
 problem.add(
     "gradient/jacobian_svd_steps20",
     run_jacobian_svd,
-    runs=_JSVD_STEPS20_RUNS,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
+            "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+        }
+    ],
     plot=plot_jacobian_svd,
 )
 problem.add(
     "gradient/jacobian_svd_steps40",
     run_jacobian_svd,
-    runs=_JSVD_STEPS40_RUNS,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
+            "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+        }
+    ],
     plot=plot_jacobian_svd,
 )
 problem.add(
     "gradient/jacobian_svd_nu01",
     run_jacobian_svd,
-    runs=_JSVD_NU01_RUNS,
+    runs=[
+        {
+            "ic": {"name": "tgv3d", "seed": 0},
+            "physics": {"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
+            "jacobian": {"n_alphas": 41, "alpha_range": 0.3},
+        }
+    ],
     plot=plot_jacobian_svd,
 )
 
@@ -349,21 +294,67 @@ problem.add(
     "optimization/recovery_constant_ic",
     run_recovery,
     optimizer="adam",
-    runs=_RECOVERY_CONSTANT_IC_RUNS,
+    runs=[
+        {
+            "ic": {"name": "rand_div_free", "seed": 0},
+            "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+            "sweep": {"key": "steps", "values": [100]},
+            "optim": {
+                "ic_init_type": "zeros",
+                "lr": 1e-3,
+                "max_iters": 500,
+                "patience": 50,
+                "failure_threshold": 2.0,
+                "snap_interval": 20,
+                "ic_seeds": [0, 1, 2],
+                "record_diagnostics": True,
+            },
+        }
+    ],
     plot=plot_recovery,
 )
 problem.add(
     "optimization/recovery_constant_ic_bfgs",
     run_recovery,
     optimizer="bfgs",
-    runs=_RECOVERY_CONSTANT_IC_BFGS_RUNS,
+    runs=[
+        {
+            "ic": {"name": "rand_div_free", "seed": 0},
+            "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+            "sweep": {"key": "steps", "values": [100]},
+            "optim": {
+                "ic_init_type": "zeros",
+                "max_iters": 100,
+                "patience": 20,
+                "failure_threshold": 2.0,
+                "snap_interval": 5,
+                "ic_seeds": [0, 1, 2],
+                "record_diagnostics": True,
+            },
+        }
+    ],
     plot=plot_recovery,
 )
 problem.add(
     "optimization/recovery_constant_ic_bfgs_proj",
     run_recovery,
     optimizer="bfgs_proj",
-    runs=_RECOVERY_CONSTANT_IC_BFGS_PROJ_RUNS,
+    runs=[
+        {
+            "ic": {"name": "rand_div_free", "seed": 0},
+            "physics": {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100},
+            "sweep": {"key": "steps", "values": [100]},
+            "optim": {
+                "ic_init_type": "zeros",
+                "max_iters": 100,
+                "patience": 20,
+                "failure_threshold": 2.0,
+                "snap_interval": 5,
+                "ic_seeds": [0, 1, 2],
+                "record_diagnostics": True,
+            },
+        }
+    ],
     plot=plot_recovery,
 )
 

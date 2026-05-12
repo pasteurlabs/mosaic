@@ -37,56 +37,7 @@ from mosaic.benchmarks.problems.shared.plots.optimization import plot_topopt
 from .ics import MAKE_IC
 from .physics import DIAGNOSTICS
 
-# ── Run-lists (one per experiment) ───────────────────────────────────────────
-
-_BASELINE_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 2,
-            "nz": 4,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": False,
-        },
-        "sweep": {"key": "N", "values": [4, 6, 8, 12, 16]},
-    }
-]
-_AGREEMENT_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 2,
-            "nz": 4,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": False,
-        },
-        "sweep": {"key": "rho_0", "values": [0.2, 0.4, 0.5, 0.7, 0.9]},
-    }
-]
-_PHYSICAL_LAWS_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 2,
-            "nz": 4,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "corner_load": False,
-            "rho_0": 0.5,
-        },
-        "sweep": {"key": "F_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
-    }
-]
+# ── Shared run-lists (multi-use) ─────────────────────────────────────────────
 
 _COST_RUNS = [
     {
@@ -102,115 +53,6 @@ _COST_RUNS = [
             "N_values": [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200],
             "n_trials": 3,
         },
-    }
-]
-
-_FD_CHECK_RUNS = [
-    {
-        "ic": {"name": "random", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 2,
-            "nz": 4,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": True,
-        },
-        "fd": {
-            "eps_values": [
-                2e0,
-                5e-1,
-                1e-1,
-                3e-2,
-                1e-2,
-                3e-3,
-                1e-3,
-                3e-4,
-                1e-4,
-            ],
-            "n_dirs": 6,
-        },
-    }
-]
-_PARAM_SWEEP_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 2,
-            "nz": 4,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": True,
-        },
-        "fd": {
-            "eps_values": [5e-1, 1e-1, 3e-2, 1e-2, 3e-3, 1e-3, 3e-4],
-            "n_dirs": 6,
-        },
-        "sweep": {"key": "rho_0", "values": [0.2, 0.4, 0.6, 0.8]},
-    }
-]
-_JACOBIAN_SVD_RUNS = [
-    {
-        "ic": {"name": "random", "seed": 0},
-        "physics": {
-            "nx": 8,
-            "ny": 2,
-            "nz": 4,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": True,
-        },
-        "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
-    }
-]
-
-_TOPOPT_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 16,
-            "ny": 2,
-            "nz": 8,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": True,
-            "v_frac": 0.5,
-            "compliance_key": "compliance",
-            "penalty_weight": 50.0,
-            "x_min": 1e-3,
-            "snap_interval": 10,
-        },
-        "optim": {"lr": 5e-2, "max_iters": 2500, "patience": 100},
-    }
-]
-_TOPOPT_BFGS_RUNS = [
-    {
-        "ic": {"name": "uniform", "seed": 0},
-        "physics": {
-            "nx": 16,
-            "ny": 2,
-            "nz": 8,
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "F_total": 1.0,
-            "corner_load": True,
-            "v_frac": 0.5,
-            "compliance_key": "compliance",
-            "penalty_weight": 50.0,
-            "x_min": 1e-3,
-            "snap_interval": 5,
-        },
-        "optim": {"max_iters": 100, "patience": 20},
     }
 ]
 
@@ -269,14 +111,67 @@ problem = Problem(
 )
 
 # Forward
-problem.add("forward/baseline", run_agreement, runs=_BASELINE_RUNS, plot=plot_agreement)
 problem.add(
-    "forward/agreement", run_agreement, runs=_AGREEMENT_RUNS, plot=plot_agreement
+    "forward/baseline",
+    run_agreement,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 2,
+                "nz": 4,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": False,
+            },
+            "sweep": {"key": "N", "values": [4, 6, 8, 12, 16]},
+        }
+    ],
+    plot=plot_agreement,
+)
+problem.add(
+    "forward/agreement",
+    run_agreement,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 2,
+                "nz": 4,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": False,
+            },
+            "sweep": {"key": "rho_0", "values": [0.2, 0.4, 0.5, 0.7, 0.9]},
+        }
+    ],
+    plot=plot_agreement,
 )
 problem.add(
     "forward/physical_laws",
     run_physical_laws,
-    runs=_PHYSICAL_LAWS_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 2,
+                "nz": 4,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "corner_load": False,
+                "rho_0": 0.5,
+            },
+            "sweep": {"key": "F_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
+        }
+    ],
     plot=plot_physical_laws,
 )
 
@@ -286,27 +181,139 @@ problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_
 problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
 
 # Gradient
-problem.add("gradient/fd_check", run_fd_check, runs=_FD_CHECK_RUNS, plot=plot_fd_check)
+problem.add(
+    "gradient/fd_check",
+    run_fd_check,
+    runs=[
+        {
+            "ic": {"name": "random", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 2,
+                "nz": 4,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": True,
+            },
+            "fd": {
+                "eps_values": [
+                    2e0,
+                    5e-1,
+                    1e-1,
+                    3e-2,
+                    1e-2,
+                    3e-3,
+                    1e-3,
+                    3e-4,
+                    1e-4,
+                ],
+                "n_dirs": 6,
+            },
+        }
+    ],
+    plot=plot_fd_check,
+)
 problem.add(
     "gradient/param_sweep",
     run_param_sweep,
-    runs=_PARAM_SWEEP_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 2,
+                "nz": 4,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": True,
+            },
+            "fd": {
+                "eps_values": [5e-1, 1e-1, 3e-2, 1e-2, 3e-3, 1e-3, 3e-4],
+                "n_dirs": 6,
+            },
+            "sweep": {"key": "rho_0", "values": [0.2, 0.4, 0.6, 0.8]},
+        }
+    ],
     plot=plot_param_sweep,
 )
 problem.add(
     "gradient/jacobian_svd",
     run_jacobian_svd,
-    runs=_JACOBIAN_SVD_RUNS,
+    runs=[
+        {
+            "ic": {"name": "random", "seed": 0},
+            "physics": {
+                "nx": 8,
+                "ny": 2,
+                "nz": 4,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": True,
+            },
+            "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
+        }
+    ],
     plot=plot_jacobian_svd,
 )
 
 # Optimization
-problem.add("optimization/topopt", run_topopt, runs=_TOPOPT_RUNS, plot=plot_topopt)
+problem.add(
+    "optimization/topopt",
+    run_topopt,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 16,
+                "ny": 2,
+                "nz": 8,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": True,
+                "v_frac": 0.5,
+                "compliance_key": "compliance",
+                "penalty_weight": 50.0,
+                "x_min": 1e-3,
+                "snap_interval": 10,
+            },
+            "optim": {"lr": 5e-2, "max_iters": 2500, "patience": 100},
+        }
+    ],
+    plot=plot_topopt,
+)
 problem.add(
     "optimization/topopt_bfgs",
     run_topopt,
     optimizer="bfgs",
-    runs=_TOPOPT_BFGS_RUNS,
+    runs=[
+        {
+            "ic": {"name": "uniform", "seed": 0},
+            "physics": {
+                "nx": 16,
+                "ny": 2,
+                "nz": 8,
+                "Lx": 2.0,
+                "Ly": 1.0,
+                "Lz": 1.0,
+                "F_total": 1.0,
+                "corner_load": True,
+                "v_frac": 0.5,
+                "compliance_key": "compliance",
+                "penalty_weight": 50.0,
+                "x_min": 1e-3,
+                "snap_interval": 5,
+            },
+            "optim": {"max_iters": 100, "patience": 20},
+        }
+    ],
     plot=plot_topopt,
 )
 
