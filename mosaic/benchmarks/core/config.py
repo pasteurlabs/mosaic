@@ -134,7 +134,7 @@ class Problem:
     ic_key: str = ""
     domain_extent: float = 1.0
     resolution_key: str = "N"
-    analytic: Callable | None = None
+    reference: Callable | None = None
     diagnostics: dict = field(default_factory=dict)
     agreement_transform: Callable | None = None
     agreement_xaxis: Callable | None = None
@@ -226,7 +226,7 @@ class Problem:
             "ic_key": self.ic_key,
             "domain_extent": self.domain_extent,
             "resolution_key": self.resolution_key,
-            "analytic": self.analytic,
+            "reference": self.reference,
             "diagnostics": self.diagnostics,
             "agreement_transform": self.agreement_transform,
             "agreement_xaxis": self.agreement_xaxis,

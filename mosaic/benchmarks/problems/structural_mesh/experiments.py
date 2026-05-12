@@ -105,7 +105,6 @@ problem = Problem(
     ic_key="rho",
     domain_extent=2.0,
     resolution_key="nx",
-    analytic=None,
     diagnostics=DIAGNOSTICS,
     descriptions=_DESCRIPTIONS,
 )

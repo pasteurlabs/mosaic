@@ -73,7 +73,6 @@ CONFIG = Problem(
     make_inputs=build_make_inputs(_SOLVERS_LIST),
     error_fn=l2_error_rel,
     diagnostics=DIAGNOSTICS,
-    analytic=None,
     domain_extent=2.0,
     field_to_2d=None,
     ic_to_2d=_density_to_2d,

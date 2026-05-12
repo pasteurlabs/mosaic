@@ -56,7 +56,7 @@ def run_agreement(
     domain_extent: float,
     agreement_transform=None,
     agreement_xaxis=None,
-    analytic=None,
+    reference=None,
     runs=None,
     exp_key: str = "agreement",
     **overrides,
@@ -72,7 +72,13 @@ def run_agreement(
         domain_extent        — physical domain length (passed to make_ic / make_inputs)
         agreement_transform  — optional (arr, **physics) → arr applied before comparison
         agreement_xaxis      — optional (**physics) → 1-D x-axis array stored alongside the IC
-        analytic             — optional (ic, t, L, **physics) → arr reference solution
+        reference            — cfg-level default reference: a callable
+                               ``(ic, t, L, **physics) → arr`` for an analytic
+                               reference solution. Per-run dicts may override
+                               this via a ``"reference"`` key whose value is
+                               either a callable (analytic) or a dict
+                               ``{"solvers", "dt", "steps"}`` (fine-grid spec
+                               that bumps those solvers to finer dt/steps).
 
     ``cfg`` retains its role as the runtime *registry*: solver list (already
     filtered by CLI) and problem name (for output paths). It is never read
@@ -87,7 +93,7 @@ def run_agreement(
         ic=dict(name, seed)
         physics=dict(N, dt, steps, ...)
         sweep=dict(key, values)
-        fine=dict(solvers, dt, steps)   [optional]
+        reference=callable | dict(solvers, dt, steps)   [optional]
 
     Returns:
         {"by_param": {val: {solver: {"error": float, "valid": bool}}}, "spread": {val: float}}
@@ -116,7 +122,7 @@ def run_agreement(
             domain_extent=domain_extent,
             agreement_transform=agreement_transform,
             agreement_xaxis=agreement_xaxis,
-            analytic=analytic,
+            reference=reference,
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -141,7 +147,7 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
     domain_extent: float,
     agreement_transform,
     agreement_xaxis,
-    analytic,
+    reference,
 ) -> tuple[str, dict]:
     """Body of one ``run`` iteration in :func:`run_agreement`.
 
@@ -159,7 +165,13 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
             f"run_agreement requires sweep.key and sweep.values "
             f"in runs payload (not configured for '{cfg.name}')"
         )
-    fine_cfg = run.get("fine", {})
+    # ``reference`` may be overridden per-run. A callable is treated as an
+    # analytic reference; a dict is treated as a fine-grid solver spec.
+    # The cfg-level ``reference`` (always callable or None) is the fallback
+    # for the analytic path when the run does not supply its own callable.
+    run_reference = run.get("reference")
+    analytic_fn = run_reference if callable(run_reference) else reference
+    fine_cfg = run_reference if isinstance(run_reference, dict) else {}
     fine_set = set(fine_cfg.get("solvers", set()))
     fine_dt = fine_cfg.get("dt")
     fine_steps = fine_cfg.get("steps")
@@ -239,8 +251,8 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
 
     # Pre-inspect analytic signature once (avoids repeated calls inside loop).
     _analytic_sig_params: set[str] = set()
-    if analytic is not None:
-        _analytic_sig_params = set(inspect.signature(analytic).parameters)
+    if analytic_fn is not None:
+        _analytic_sig_params = set(inspect.signature(analytic_fn).parameters)
 
     by_param: dict = {}
     ctx = {
@@ -263,7 +275,7 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
         "make_inputs": make_inputs,
         "error_fn": error_fn,
         "domain_extent": domain_extent,
-        "analytic": analytic,
+        "analytic": analytic_fn,
         "solvers_for_inputs": cfg.solvers,
     }
     reference_label = "consensus"  # updated per-iteration when analytic is used
@@ -485,7 +497,7 @@ def run_physical_laws(
     output_key: str,
     domain_extent: float,
     diagnostics: dict,
-    analytic=None,
+    reference=None,
     runs=None,
     **overrides,
 ) -> dict:
@@ -502,8 +514,8 @@ def run_physical_laws(
         sweep=dict(key, values)
 
     At each sweep value the IC is regenerated, all solvers are run, and
-    ``diagnostics`` are computed on each output. If ``analytic`` is available,
-    ``analytic_error`` is also reported.
+    ``diagnostics`` are computed on each output. If ``reference`` is a callable
+    analytic function, ``analytic_error`` is also reported.
 
     Returns:
         {"by_param": {val: {solver: {diag_name: value, "analytic_error": float|None}}},
@@ -553,10 +565,13 @@ def run_physical_laws(
             gpu_ids=overrides.get("gpu_ids"),
         )
 
-        # Analytic signature inspection done once.
+        # Only callable references (analytic) yield per-value reference
+        # fields here. Per-run dicts (fine-grid specs) are ignored — physical
+        # laws are measured against the analytic baseline when available.
+        analytic_fn = reference if callable(reference) else None
         analytic_params: set[str] = set()
-        if analytic is not None:
-            analytic_params = set(inspect.signature(analytic).parameters)
+        if analytic_fn is not None:
+            analytic_params = set(inspect.signature(analytic_fn).parameters)
 
         by_param: dict = {}
         csv_rows: list[dict] = []
@@ -568,7 +583,7 @@ def run_physical_laws(
 
             # Analytic reference (regenerate IC at this val for correct shape).
             analytic_ref = None
-            if analytic is not None:
+            if analytic_fn is not None:
                 ic_ref = make_ic[ic_name](L=domain_extent, seed=seed, **curr_phys)
                 _dt = curr_phys.get("dt", 1.0)
                 _steps = curr_phys.get("steps", 1)
@@ -577,7 +592,7 @@ def run_physical_laws(
                     k: v for k, v in curr_phys.items() if k in analytic_params
                 }
                 try:
-                    analytic_ref = analytic(
+                    analytic_ref = analytic_fn(
                         ic_ref, t=t_end, L=domain_extent, **analytic_kw
                     )
                 except Exception:

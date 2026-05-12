@@ -127,7 +127,7 @@ problem = Problem(
     ic_key="v0",
     domain_extent=2 * math.pi,
     resolution_key="N",
-    analytic=_tgv3d_analytic,
+    reference=_tgv3d_analytic,
     diagnostics=DIAGNOSTICS,
     descriptions=_DESCRIPTIONS,
 )
@@ -153,14 +153,14 @@ problem.add(
             "ic": {"name": "tgv3d", "seed": 0},
             "physics": {"N": 16, "dt": 0.01, "steps": 50, "lbm_N_base": 16},
             "sweep": {"key": "nu", "values": [0.001, 0.01, 0.05]},
-            # ins_jl removed from fine_set.
-            # The ins_jl tesseract container crashes (ContainerDied) when
-            # running the fine-grid reference (steps=250, dt=0.002) on a
-            # 16³ grid — Julia OOM or resource exhaustion mid-computation.
-            # Short runs (steps≤50) work fine; 3D is fully supported.
-            # Using only exponax as the fine-grid reference avoids the
-            # crash and provides a reliable single-solver consensus anchor.
-            "fine": {"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
+            # ins_jl excluded from the fine-grid reference set: the ins_jl
+            # tesseract container crashes (ContainerDied) when running the
+            # fine-grid reference (steps=250, dt=0.002) on a 16³ grid —
+            # Julia OOM or resource exhaustion mid-computation. Short runs
+            # (steps≤50) work fine; 3D is fully supported. Using only
+            # exponax as the fine-grid reference avoids the crash and
+            # provides a reliable single-solver consensus anchor.
+            "reference": {"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
         }
     ],
     plot=plot_agreement,
