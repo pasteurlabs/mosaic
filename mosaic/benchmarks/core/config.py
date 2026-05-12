@@ -383,9 +383,12 @@ class Problem:
         def fn(cfg, tags, _runner=runner, _kw=runner_kwargs, **call_kw):
             return _runner(cfg, tags, make_inputs=cfg.make_inputs, **_kw, **call_kw)
 
+        # Params is the **introspection manifest** — short and metadata-only.
+        # The full config lives in the lambda's closure; we only surface what
+        # status/docs actually read (the plot blurb).
         self.experiments[key] = Experiment(
             fn=fn,
-            params={**config, "plot_description": plot_description},
+            params={"plot_description": plot_description},
         )
 
     def add_ic(
@@ -482,34 +485,6 @@ class Problem:
 
     # ── Validation ───────────────────────────────────────────────────────
 
-    def _validate_suite_defaults(self, errors: list[str]) -> None:
-        """Append errors for malformed ``Experiment.params`` payloads."""
-        for full_key, exp in self.experiments.items():
-            params = exp.params
-            if not params:
-                continue
-            if isinstance(params, list):
-                continue
-            if not isinstance(params, dict):
-                errors.append(
-                    f"experiments[{full_key!r}].params: expected dict or list, "
-                    f"got {type(params).__name__}"
-                )
-                continue
-            runs = params.get("runs")
-            if runs is None:
-                continue
-            if isinstance(runs, dict):
-                errors.append(
-                    f"experiments[{full_key!r}].params['runs']: expected a list of "
-                    f"run dicts, got a single dict. Wrap it in a list: [{runs!r}]"
-                )
-            elif not isinstance(runs, list):
-                errors.append(
-                    f"experiments[{full_key!r}].params['runs']: expected list, "
-                    f"got {type(runs).__name__}"
-                )
-
     def validate(self) -> None:
         """Check that the Problem is well-formed.  Raises on first error."""
         errors: list[str] = []
@@ -532,8 +507,6 @@ class Problem:
             errors.append("error_fn is not callable")
         if not self.tesseract_dir.is_dir():
             errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
-
-        self._validate_suite_defaults(errors)
 
         valid_ad = {"autodiff", "adjoint", "hybrid", None}
         for spec in self.solvers:

@@ -21,7 +21,6 @@ from dataclasses import dataclass, field
 from mosaic.benchmarks.core.config import Exclusion, ExclusionCategory
 from mosaic.benchmarks.core.utils import (
     active_solvers,
-    exclusion_candidate_keys,
     exclusion_lookup,
 )
 
@@ -39,56 +38,6 @@ class _FakeCfg:
 
     solvers: list[_FakeSpec] = field(default_factory=list)
     exclusions: dict[str, dict[str, Exclusion]] = field(default_factory=dict)
-
-
-class TestExclusionCandidateKeys(unittest.TestCase):
-    """Ordering of candidate keys: most-specific first."""
-
-    def test_suite_only(self) -> None:
-        self.assertEqual(
-            exclusion_candidate_keys("recovery"),
-            ("recovery",),
-        )
-
-    def test_suite_and_experiment(self) -> None:
-        self.assertEqual(
-            exclusion_candidate_keys("recovery", "drag_opt"),
-            ("recovery/drag_opt", "drag_opt", "recovery"),
-        )
-
-    def test_suite_experiment_sub(self) -> None:
-        # experiment="agreement", sub="tgv" — both granularities visited.
-        keys = exclusion_candidate_keys("forward", "agreement", "tgv")
-        self.assertEqual(
-            keys,
-            (
-                "forward/agreement/tgv",
-                "agreement/tgv",
-                "forward/agreement",
-                "agreement",
-                "forward",
-            ),
-        )
-
-    def test_inline_subdir_in_experiment(self) -> None:
-        # Caller passes "agreement/tgv" inline instead of experiment+sub.
-        keys = exclusion_candidate_keys("forward", "agreement/tgv")
-        self.assertEqual(
-            keys,
-            (
-                "forward/agreement/tgv",
-                "agreement/tgv",
-                "forward/agreement",
-                "agreement",
-                "forward",
-            ),
-        )
-
-    def test_dedupes_when_suite_equals_experiment(self) -> None:
-        # "recovery/recovery" is a real key in configs — candidate_keys should
-        # produce "recovery/recovery", "recovery" (no dup suite at end).
-        keys = exclusion_candidate_keys("recovery", "recovery")
-        self.assertEqual(keys, ("recovery/recovery", "recovery"))
 
 
 class TestExclusionLookup(unittest.TestCase):
@@ -142,13 +91,6 @@ class TestExclusionLookup(unittest.TestCase):
             match = exclusion_lookup(exclusions, "gradient", exp)
             self.assertIsNotNone(match, f"{exp}: expected suite-level match")
             self.assertEqual(match[0], "gradient")
-
-    def test_bare_experiment_key_legacy(self) -> None:
-        # Legacy configs wrote bare "lid_cavity" without a suite prefix.
-        exclusions = {"lid_cavity": {"category": "not_implemented"}}
-        match = exclusion_lookup(exclusions, "recovery", "lid_cavity")
-        self.assertIsNotNone(match)
-        self.assertEqual(match[0], "lid_cavity")
 
     def test_no_match_when_unrelated(self) -> None:
         exclusions = {"cost/spatial_cost": {"category": "infeasible"}}

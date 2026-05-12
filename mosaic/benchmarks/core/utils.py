@@ -8,8 +8,7 @@ contains the non-I/O utilities that don't fit anywhere more specific:
   * Array math: :func:`trimmed_mean`, :func:`l2_error_rel`, :func:`is_valid`.
   * Run iteration: :func:`physics_params`, :func:`extract_runs`,
     :func:`iter_runs`, :func:`_debug_run`.
-  * Solver filtering: :func:`exclusion_candidate_keys`,
-    :func:`exclusion_lookup`, :func:`active_solvers`,
+  * Solver filtering: :func:`exclusion_lookup`, :func:`active_solvers`,
     :func:`active_differentiable_solvers`.
 """
 
@@ -191,51 +190,6 @@ def _debug_run(run: dict) -> None:
         cost["n_trials"] = 1
 
 
-def exclusion_candidate_keys(
-    suite: str, experiment: str | None = None, sub: str | None = None
-) -> tuple[str, ...]:
-    """Return the ordered candidate exclusion keys for a (suite, experiment[, sub]).
-
-    Ordered MOST-SPECIFIC-FIRST so a lookup that breaks on first match reflects
-    the narrowest scope that the config declared. Example, for
-    ``suite="optimization"``, ``experiment="drag_opt"``::
-
-        ("optimization/drag_opt", "drag_opt", "optimization")
-
-    The bare-experiment form (``"drag_opt"``) is kept for backward compatibility
-    with existing configs that hadn't adopted the ``suite/experiment`` convention
-    yet. New configs should prefer the fully-qualified key.
-
-    Sub-experiment (e.g. ``"agreement/tgv"``) is split and considered at two
-    levels of granularity: the full ``experiment/sub`` label and the leading
-    ``experiment`` token. This mirrors :func:`status._lookup_check` so config
-    keys like ``"forward/agreement"`` work whether the experiment directory is
-    ``agreement`` or ``agreement/tgv``.
-    """
-    # Split a sub-dir out of experiment if the caller passed one inline (e.g.
-    # ``experiment="agreement/tgv"`` with sub=None).
-    if experiment and sub is None and "/" in experiment:
-        experiment, sub = experiment.split("/", 1)
-
-    keys: list[str] = []
-    if experiment and sub:
-        keys.append(f"{suite}/{experiment}/{sub}")
-        keys.append(f"{experiment}/{sub}")
-    if experiment:
-        keys.append(f"{suite}/{experiment}")
-        # Bare experiment key — legacy config form (kept for backward compat).
-        keys.append(experiment)
-    keys.append(suite)
-    # De-duplicate while preserving order (suite == experiment edge case).
-    seen: set[str] = set()
-    unique: list[str] = []
-    for k in keys:
-        if k not in seen:
-            seen.add(k)
-            unique.append(k)
-    return tuple(unique)
-
-
 def exclusion_lookup(
     exclusions: dict,
     suite: str,
@@ -244,18 +198,28 @@ def exclusion_lookup(
 ) -> tuple[str, object] | None:
     """Look up the most-specific exclusion entry for (suite, experiment[, sub]).
 
-    Returns ``(matched_key, value)`` if any candidate key is present in
-    ``exclusions``, else ``None``. The value is whatever the config stored —
-    typically a ``{"category": ..., "reason": ...}`` dict, but legacy string
-    exclusions are also accepted.
+    Returns ``(matched_key, value)`` or ``None``. A key matches if it equals
+    the full ``"<suite>/<experiment>[/<sub>]"`` path OR is a prefix-component
+    of it (``"<suite>/<experiment>"``, ``"<suite>"``). The longest matching
+    key wins, so a config can target one experiment (``forward/cylinder``) or
+    a whole suite (``gradient``) without needing a fallback chain.
 
     Used by both :func:`active_solvers` (runtime gating) and
-    ``core.status.collect_status`` (display) so the two paths can't drift on
-    which exclusion key takes precedence.
+    :mod:`core.status` (display) so the two paths can't drift on precedence.
     """
     if not exclusions:
         return None
-    for key in exclusion_candidate_keys(suite, experiment, sub):
+    # Full path: "<suite>", "<suite>/<exp>", "<suite>/<exp>/<sub>".
+    parts: list[str] = [suite]
+    if experiment:
+        for p in experiment.split("/"):
+            parts.append(p)
+    if sub:
+        for p in sub.split("/"):
+            parts.append(p)
+    # Try longest prefix first.
+    for n in range(len(parts), 0, -1):
+        key = "/".join(parts[:n])
         if key in exclusions:
             return key, exclusions[key]
     return None
