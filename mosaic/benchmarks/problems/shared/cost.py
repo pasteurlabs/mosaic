@@ -50,6 +50,9 @@ Run from the terminal:
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -85,7 +88,400 @@ def _mark_remaining_none(target: dict, values: list, current) -> None:
         target[remaining] = None
 
 
-# ── Spatial cost ─────────────────────────────────────────────────────────────
+# ── Internal context + helpers (module-level to keep complexity manageable) ──
+
+
+@dataclass
+class _CostCtx:
+    """Bundle of state shared between the run-impl and its inner closures."""
+
+    cfg: Problem
+    make_ic: Any
+    make_inputs: Callable
+    domain_extent: float
+    resolution_key: str
+    measure: str
+    sweep: str
+    output_key: str
+    ic_key: str
+
+    # Per-run state populated after we resolve ``runs``.
+    phys: dict = field(default_factory=dict)
+    N_values: list = field(default_factory=list)
+    steps_values: list = field(default_factory=list)
+    n_trials: int = 3
+    ref_N: Any = None
+    ref_steps: Any = None
+    ref_ic_name: str = ""
+
+    # Output containers (mutated by _work).
+    by_N: dict = field(default_factory=dict)
+    by_steps: dict = field(default_factory=dict)
+    grad_snaps_N: dict = field(default_factory=dict)
+    csv_rows: list = field(default_factory=list)
+    wall_times: dict = field(default_factory=dict)
+
+    # Callable resolved once: forward apply or vjp_grad with bound keys.
+    timed_call: Callable | None = None
+
+    @property
+    def is_vjp(self) -> bool:
+        return self.measure == "vjp"
+
+    @property
+    def sweep_N(self) -> bool:
+        return self.sweep in ("spatial", "both")
+
+    @property
+    def sweep_steps(self) -> bool:
+        return self.sweep in ("temporal", "both")
+
+    @property
+    def vjp_tag(self) -> str:
+        return "VJP " if self.is_vjp else ""
+
+
+def _resolve_solvers(cx: _CostCtx, exp_key: str) -> list[str]:
+    """Active solver names for this sweep — vjp filters down to differentiable."""
+    if not cx.is_vjp:
+        return active_solvers(cx.cfg, "cost", exp_key)
+    diff = set(active_differentiable_solvers(cx.cfg, "cost", "vjp_cost")) & set(
+        active_differentiable_solvers(cx.cfg, "gradient")
+    )
+    return [s.name for s in cx.cfg.solvers if s.name in diff]
+
+
+def _build_inputs_N(cx: _CostCtx, name: str, res):
+    _phys = {**cx.phys, cx.resolution_key: res}
+    if cx.ref_steps is not None:
+        _phys["steps"] = cx.ref_steps
+    ic = cx.make_ic[cx.ref_ic_name](L=cx.domain_extent, **_phys)
+    return cx.make_inputs(name, ic, domain_extent=cx.domain_extent, **_phys)
+
+
+def _build_inputs_steps(cx: _CostCtx, name: str, ic_ref, steps):
+    return cx.make_inputs(
+        name,
+        ic_ref,
+        domain_extent=cx.domain_extent,
+        **{**cx.phys, cx.resolution_key: cx.ref_N, "steps": steps},
+    )
+
+
+def _record_with_grad(cx: _CostCtx, result, target, name, val, *, capture_grads):
+    """Write a successful trial's record into ``target`` (and snapshot grads)."""
+    if cx.is_vjp:
+        grad_norm = (
+            float(jnp.linalg.norm(result.last_value))
+            if result.last_value is not None
+            else None
+        )
+        target[val] = result.as_record(grad_norm=grad_norm)
+        if capture_grads and result.last_value is not None:
+            cx.grad_snaps_N[name][val] = np.array(result.last_value)
+    else:
+        target[val] = result.as_record()
+
+
+@dataclass
+class _AxisSpec:
+    """Per-axis sweep recipe (built once per call to ``_work_one_solver``)."""
+
+    label: str  # "N" key (e.g. "nx") or "steps"
+    kind_word: str  # "sizes" or "counts" (banner phrasing)
+    values: list
+    target: dict
+    build_inputs: Callable  # value -> inputs
+    csv_row: Callable  # (value, record) -> dict
+    emit_first_trial_warn: bool
+    capture_grads: bool
+
+
+def _sweep_axis(
+    cx: _CostCtx, name: str, color: str, t, ctx_worker, spec: _AxisSpec
+) -> None:
+    """Run the timed-trial loop for a single sweep axis (N or steps)."""
+    console.print(
+        f"  [{color}]{name}[/]  {cx.vjp_tag}{spec.label} sweep "
+        f"({len(spec.values)} {spec.kind_word}, {cx.n_trials} trials each)"
+    )
+    for val in spec.values:
+        inputs = spec.build_inputs(val)
+        result = run_timed_trials(
+            lambda: cx.timed_call(t, inputs),
+            n_trials=cx.n_trials,
+            wall_limit_s=_SPATIAL_WALL_S,
+            gpu_id=ctx_worker.gpu_id,
+            image_tag=ctx_worker.image_tag,
+            capture_value=cx.is_vjp,
+        )
+
+        if result.failure is not None:
+            console.print(
+                f"  [yellow][WARN][/] {name} {cx.vjp_tag}{spec.label}={val} failed "
+                f"({result.failure['failure_type']}): "
+                f"{result.failure['exc_msg'][:80]}"
+            )
+            spec.target[val] = result.as_record()
+            _mark_remaining_none(spec.target, spec.values, val)
+            return
+
+        if spec.emit_first_trial_warn and result.wall_limit_hit:
+            console.print(
+                f"  [yellow][WARN][/] {name} {cx.vjp_tag}{spec.label}={val}: "
+                f"first trial {result.first_elapsed:.1f}s > {_SPATIAL_WALL_S}s limit"
+            )
+
+        _record_with_grad(
+            cx, result, spec.target, name, val, capture_grads=spec.capture_grads
+        )
+        cx.csv_rows.append(spec.csv_row(val, spec.target[val]))
+
+        if result.wall_limit_hit:
+            _mark_remaining_none(spec.target, spec.values, val)
+            return
+
+
+def _csv_factory_N(cx: _CostCtx, name: str) -> Callable:
+    def _row(res, record):
+        row: dict = {"solver": name}
+        if cx.sweep == "both":
+            row["sweep"] = "N"
+        row[cx.resolution_key] = res
+        row["ref_steps"] = cx.ref_steps
+        return {**row, **record}
+
+    return _row
+
+
+def _csv_factory_steps(cx: _CostCtx, name: str) -> Callable:
+    def _row(steps, record):
+        row: dict = {"solver": name}
+        if cx.sweep == "both":
+            row["sweep"] = "steps"
+        row[cx.resolution_key] = cx.ref_N
+        row["steps"] = steps
+        return {**row, **record}
+
+    return _row
+
+
+def _work_one_solver(cx: _CostCtx, name: str, t) -> None:
+    """Per-solver worker body — runs the configured sweeps for one solver."""
+    color = cx.cfg.solver(name).color
+    t_solver = time.perf_counter()
+    ctx_worker = current_worker_context()
+
+    if cx.sweep_N and cx.N_values:
+        _sweep_axis(
+            cx,
+            name,
+            color,
+            t,
+            ctx_worker,
+            _AxisSpec(
+                label=cx.resolution_key,
+                kind_word="sizes",
+                values=cx.N_values,
+                target=cx.by_N[name],
+                build_inputs=lambda res: _build_inputs_N(cx, name, res),
+                csv_row=_csv_factory_N(cx, name),
+                emit_first_trial_warn=True,
+                capture_grads=cx.is_vjp,
+            ),
+        )
+
+    if cx.sweep_steps and cx.steps_values:
+        _phys_ref = {**cx.phys, cx.resolution_key: cx.ref_N}
+        ic_ref = cx.make_ic[cx.ref_ic_name](L=cx.domain_extent, **_phys_ref)
+        _sweep_axis(
+            cx,
+            name,
+            color,
+            t,
+            ctx_worker,
+            _AxisSpec(
+                label="steps",
+                kind_word="counts",
+                values=cx.steps_values,
+                target=cx.by_steps[name],
+                build_inputs=lambda steps: _build_inputs_steps(cx, name, ic_ref, steps),
+                csv_row=_csv_factory_steps(cx, name),
+                emit_first_trial_warn=False,
+                capture_grads=False,
+            ),
+        )
+
+    elapsed = time.perf_counter() - t_solver
+    cx.wall_times[name] = elapsed
+    console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
+
+
+def _save_gradient_snapshots(cx: _CostCtx, out_dir, solver_names_list) -> None:
+    if not (cx.is_vjp and cx.sweep_N and cx.grad_snaps_N):
+        return
+    if not any(snaps for snaps in cx.grad_snaps_N.values()):
+        return
+    if not cx.N_values:
+        return
+    per_solver = {
+        name: {f"N{res}": arr for res, arr in snaps.items()}
+        for name, snaps in cx.grad_snaps_N.items()
+        if snaps
+    }
+    save_field_snapshots_npz(
+        out_dir,
+        solver_names=solver_names_list,
+        per_solver_arrays=per_solver,
+        shared_arrays={"N_values": np.array(cx.N_values)},
+        prefixes=("grad",),
+    )
+    console.print(f"  Saved gradient fields → {out_dir / 'gradient_fields.npz'}")
+
+
+def _label_for(cx: _CostCtx) -> str:
+    if cx.is_vjp:
+        return "run_vjp_cost"
+    return "run_spatial_cost" if cx.sweep == "spatial" else "run_temporal_cost"
+
+
+def _run_cost_impl(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    domain_extent: float,
+    resolution_key: str,
+    measure: str,
+    sweep: str,
+    exp_key: str,
+    output_key: str = "",
+    ic_key: str = "",
+    runs=None,
+    **overrides,
+) -> dict:
+    """Parametric wall-clock timing harness shared by spatial / temporal / VJP cost.
+
+    Parameters:
+        measure  — "forward" times ``t.apply(inputs)``;
+                   "vjp"     times ``_vjp_grad(t, inputs, output_key, ic_key)``
+                             and captures gradient snapshots.
+        sweep    — "spatial"  sweeps ``N_values`` at fixed ``ref_steps``;
+                   "temporal" sweeps ``steps_values`` at fixed ``ref_N``;
+                   "both"     sweeps both axes (used by vjp_cost).
+        exp_key  — output sub-directory name under ``<results>/<problem>/cost/``.
+
+    Returns:
+        Forward sweeps return ``{"by_N": ...}`` or ``{"by_steps": ...}``.
+        Both-sweeps (vjp_cost) returns ``{"by_N": ..., "by_steps": ...}``.
+    """
+    cx = _CostCtx(
+        cfg=cfg,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
+        resolution_key=resolution_key,
+        measure=measure,
+        sweep=sweep,
+        output_key=output_key,
+        ic_key=ic_key,
+    )
+
+    if cx.is_vjp:
+        from mosaic.benchmarks.problems.shared.gradient import _vjp_grad
+
+        cx.timed_call = lambda t, inputs: _vjp_grad(t, inputs, output_key, ic_key)
+    else:
+        cx.timed_call = lambda t, inputs: t.apply(inputs)
+
+    if not runs:
+        raise NotImplementedError(
+            f"{_label_for(cx)} requires runs= payload (not configured for '{cfg.name}')"
+        )
+    run = next(iter_runs(runs, overrides), None)
+    if run is None:
+        return {}
+
+    solver_names_list = _resolve_solvers(cx, exp_key)
+    if cx.is_vjp and not solver_names_list:
+        console.print("  [yellow]No differentiable solvers — skipping vjp_cost[/]")
+        return {}
+
+    cost_cfg = run.get("cost", {})
+    cx.N_values = cost_cfg.get("N_values", [])
+    cx.steps_values = cost_cfg.get("steps_values", [])
+    cx.n_trials = cost_cfg.get("n_trials", 3)
+    cx.phys = run.get("physics", {})
+
+    if cx.sweep == "spatial" and not cx.N_values:
+        raise NotImplementedError(
+            f"{_label_for(cx)} requires cost.N_values in runs payload"
+            f" (not configured for '{cfg.name}')"
+        )
+    if cx.sweep == "temporal" and not cx.steps_values:
+        raise NotImplementedError(
+            f"{_label_for(cx)} requires cost.steps_values in runs payload"
+            f" (not configured for '{cfg.name}')"
+        )
+
+    cx.ref_steps = (
+        cx.steps_values[len(cx.steps_values) // 2]
+        if cx.steps_values
+        else cx.phys.get("steps")
+    )
+    cx.ref_N = (
+        cx.N_values[len(cx.N_values) // 2] if cx.N_values else cx.phys.get("N", 64)
+    )
+    cx.ref_ic_name = next(iter(make_ic))
+    hardware = get_hardware_info()
+
+    # Forward sweeps pre-allocate entries for every cfg solver (excluded ones
+    # remain empty) — matches the legacy result-dict shape. The VJP path
+    # pre-allocates only differentiable solvers (excluded ones never appear).
+    preallocate = [s.name for s in cfg.solvers] if not cx.is_vjp else solver_names_list
+    if cx.sweep_N:
+        cx.by_N = {name: {} for name in preallocate}
+    if cx.sweep_steps:
+        cx.by_steps = {name: {} for name in preallocate}
+    if cx.is_vjp and cx.sweep_N:
+        cx.grad_snaps_N = {name: {} for name in solver_names_list}
+
+    gpu_ids = overrides.get("gpu_ids")
+    run_with_gpu_pool(
+        solver_names_list,
+        tags,
+        lambda name, t: _work_one_solver(cx, name, t),
+        gpu_ids=gpu_ids,
+    )
+
+    result: dict = {"params": run, "hardware": hardware}
+    if cx.sweep_N:
+        result["by_N"] = cx.by_N
+    if cx.sweep_steps:
+        result["by_steps"] = cx.by_steps
+
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        _SUITE,
+        exp_key,
+        suffix="_debug" if overrides.get("debug") else "",
+    )
+    save_experiment(
+        result,
+        out_dir,
+        csv_rows=cx.csv_rows,
+        cfg=cfg,
+        harness_fn=_run_cost_impl,
+        wall_time_s=cx.wall_times,
+    )
+
+    _save_gradient_snapshots(cx, out_dir, solver_names_list)
+    return result
+
+
+# ── Public wrappers ──────────────────────────────────────────────────────────
 
 
 def run_spatial_cost(
@@ -110,121 +506,19 @@ def run_spatial_cost(
                              or None on failure}},
          "hardware": {...}}
     """
-    if not runs:
-        raise NotImplementedError(
-            f"run_spatial_cost requires runs= payload (not configured for '{cfg.name}')"
-        )
-    run = next(iter_runs(runs, overrides), None)
-    if run is None:
-        return {}
-
-    cost_cfg = run.get("cost", {})
-    N_values = cost_cfg.get("N_values", [])
-    steps_values = cost_cfg.get("steps_values", [])
-    n_trials = cost_cfg.get("n_trials", 3)
-    phys = run.get("physics", {})
-
-    if not N_values:
-        raise NotImplementedError(
-            f"run_spatial_cost requires cost.N_values in runs payload"
-            f" (not configured for '{cfg.name}')"
-        )
-
-    ref_steps = (
-        steps_values[len(steps_values) // 2] if steps_values else phys.get("steps")
-    )
-    ref_ic_name = next(iter(make_ic))
-    res_key = resolution_key
-    hardware = get_hardware_info()
-
-    by_N: dict = {s.name: {} for s in cfg.solvers}
-    csv_rows: list[dict] = []
-    _wall_times: dict[str, float] = {}
-    gpu_ids = overrides.get("gpu_ids")
-
-    def _spatial_work(name: str, t) -> None:
-        color = cfg.solver(name).color
-        t_solver = time.perf_counter()
-        console.print(
-            f"  [{color}]{name}[/]  {res_key} sweep ({len(N_values)} sizes, {n_trials} trials each)"
-        )
-        ctx = current_worker_context()
-
-        for res in N_values:
-            _phys = {**phys, res_key: res}
-            if ref_steps is not None:
-                _phys["steps"] = ref_steps
-            ic = make_ic[ref_ic_name](L=domain_extent, **_phys)
-            inputs = make_inputs(name, ic, domain_extent=domain_extent, **_phys)
-
-            result = run_timed_trials(
-                lambda: t.apply(inputs),
-                n_trials=n_trials,
-                wall_limit_s=_SPATIAL_WALL_S,
-                gpu_id=ctx.gpu_id,
-                image_tag=ctx.image_tag,
-            )
-
-            if result.failure is not None:
-                console.print(
-                    f"  [yellow][WARN][/] {name} {res_key}={res} failed "
-                    f"({result.failure['failure_type']}): "
-                    f"{result.failure['exc_msg'][:80]}"
-                )
-                by_N[name][res] = result.as_record()
-                _mark_remaining_none(by_N[name], N_values, res)
-                break
-
-            if result.wall_limit_hit:
-                console.print(
-                    f"  [yellow][WARN][/] {name} {res_key}={res}: "
-                    f"first trial {result.first_elapsed:.1f}s > {_SPATIAL_WALL_S}s limit"
-                )
-
-            by_N[name][res] = result.as_record()
-            csv_rows.append(
-                {
-                    "solver": name,
-                    res_key: res,
-                    "ref_steps": ref_steps,
-                    **by_N[name][res],
-                }
-            )
-            if result.wall_limit_hit:
-                _mark_remaining_none(by_N[name], N_values, res)
-                break
-
-        elapsed = time.perf_counter() - t_solver
-        _wall_times[name] = elapsed
-        console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-
-    run_with_gpu_pool(
-        active_solvers(cfg, "cost", "spatial_cost"),
+    return _run_cost_impl(
+        cfg,
         tags,
-        _spatial_work,
-        gpu_ids=gpu_ids,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
+        resolution_key=resolution_key,
+        measure="forward",
+        sweep="spatial",
+        exp_key="spatial_cost",
+        runs=runs,
+        **overrides,
     )
-
-    result = {"by_N": by_N, "params": run, "hardware": hardware}
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        "spatial_cost",
-        suffix="_debug" if overrides.get("debug") else "",
-    )
-    save_experiment(
-        result,
-        out_dir,
-        csv_rows=csv_rows,
-        cfg=cfg,
-        harness_fn=run_spatial_cost,
-        wall_time_s=_wall_times,
-    )
-    return result
-
-
-# ── Temporal cost ─────────────────────────────────────────────────────────────
 
 
 def run_temporal_cost(
@@ -244,115 +538,19 @@ def run_temporal_cost(
         {"by_steps": {solver: {steps: {"mean", "std", ...resource stats}}},
          "hardware": {...}}
     """
-    if not runs:
-        raise NotImplementedError(
-            f"run_temporal_cost requires runs= payload (not configured for '{cfg.name}')"
-        )
-    run = next(iter_runs(runs, overrides), None)
-    if run is None:
-        return {}
-
-    cost_cfg = run.get("cost", {})
-    steps_values = cost_cfg.get("steps_values", [])
-    N_values = cost_cfg.get("N_values", [])
-    n_trials = cost_cfg.get("n_trials", 3)
-    phys = run.get("physics", {})
-
-    if not steps_values:
-        raise NotImplementedError(
-            f"run_temporal_cost requires cost.steps_values in runs payload"
-            f" (not configured for '{cfg.name}')"
-        )
-
-    ref_N = N_values[len(N_values) // 2] if N_values else phys.get("N", 64)
-    ref_ic_name = next(iter(make_ic))
-    res_key = resolution_key
-    hardware = get_hardware_info()
-
-    by_steps: dict = {s.name: {} for s in cfg.solvers}
-    csv_rows: list[dict] = []
-    _wall_times: dict[str, float] = {}
-    gpu_ids = overrides.get("gpu_ids")
-
-    def _temporal_work(name: str, t) -> None:
-        color = cfg.solver(name).color
-        t_solver = time.perf_counter()
-        _phys_ref = {**phys, res_key: ref_N}
-        ic_ref = make_ic[ref_ic_name](L=domain_extent, **_phys_ref)
-        console.print(
-            f"  [{color}]{name}[/]  steps sweep ({len(steps_values)} counts, {n_trials} trials each)"
-        )
-        ctx = current_worker_context()
-
-        for steps in steps_values:
-            inputs = make_inputs(
-                name,
-                ic_ref,
-                domain_extent=domain_extent,
-                **{**_phys_ref, "steps": steps},
-            )
-            result = run_timed_trials(
-                lambda: t.apply(inputs),
-                n_trials=n_trials,
-                wall_limit_s=_SPATIAL_WALL_S,
-                gpu_id=ctx.gpu_id,
-                image_tag=ctx.image_tag,
-            )
-
-            if result.failure is not None:
-                console.print(
-                    f"  [yellow][WARN][/] {name} steps={steps} failed "
-                    f"({result.failure['failure_type']}): "
-                    f"{result.failure['exc_msg'][:80]}"
-                )
-                by_steps[name][steps] = result.as_record()
-                _mark_remaining_none(by_steps[name], steps_values, steps)
-                break
-
-            by_steps[name][steps] = result.as_record()
-            csv_rows.append(
-                {
-                    "solver": name,
-                    res_key: ref_N,
-                    "steps": steps,
-                    **by_steps[name][steps],
-                }
-            )
-            if result.wall_limit_hit:
-                _mark_remaining_none(by_steps[name], steps_values, steps)
-                break
-
-        elapsed = time.perf_counter() - t_solver
-        _wall_times[name] = elapsed
-        console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-
-    run_with_gpu_pool(
-        active_solvers(cfg, "cost", "temporal_cost"),
+    return _run_cost_impl(
+        cfg,
         tags,
-        _temporal_work,
-        gpu_ids=gpu_ids,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
+        resolution_key=resolution_key,
+        measure="forward",
+        sweep="temporal",
+        exp_key="temporal_cost",
+        runs=runs,
+        **overrides,
     )
-
-    result = {"by_steps": by_steps, "params": run, "hardware": hardware}
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        "temporal_cost",
-        suffix="_debug" if overrides.get("debug") else "",
-    )
-    save_experiment(
-        result,
-        out_dir,
-        csv_rows=csv_rows,
-        cfg=cfg,
-        harness_fn=run_temporal_cost,
-        wall_time_s=_wall_times,
-    )
-    return result
-
-
-# ── VJP cost ──────────────────────────────────────────────────────────────────
 
 
 def run_vjp_cost(
@@ -389,204 +587,18 @@ def run_vjp_cost(
                                or None on failure}},
          "hardware": {...}}
     """
-    from mosaic.benchmarks.problems.shared.gradient import (
-        _vjp_grad,  # reuse — no duplication
+    return _run_cost_impl(
+        cfg,
+        tags,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
+        resolution_key=resolution_key,
+        measure="vjp",
+        sweep="both",
+        exp_key="vjp_cost",
+        output_key=output_key,
+        ic_key=ic_key,
+        runs=runs,
+        **overrides,
     )
-
-    if not runs:
-        raise NotImplementedError(
-            f"run_vjp_cost requires runs= payload (not configured for '{cfg.name}')"
-        )
-    run = next(iter_runs(runs, overrides), None)
-    if run is None:
-        return {}
-
-    # VJP cost: a solver that's excluded from the entire "gradient" suite (no
-    # IC-level adjoint) or specifically from "cost/vjp_cost" should be filtered.
-    diff_solver_names = set(
-        active_differentiable_solvers(cfg, "cost", "vjp_cost")
-    ) & set(active_differentiable_solvers(cfg, "gradient"))
-    diff_solvers = [(s.name, s) for s in cfg.solvers if s.name in diff_solver_names]
-    if not diff_solvers:
-        console.print("  [yellow]No differentiable solvers — skipping vjp_cost[/]")
-        return {}
-
-    cost_cfg = run.get("cost", {})
-    N_values = cost_cfg.get("N_values", [])
-    steps_values = cost_cfg.get("steps_values", [])
-    n_trials = cost_cfg.get("n_trials", 3)
-    phys = run.get("physics", {})
-
-    ref_steps = (
-        steps_values[len(steps_values) // 2] if steps_values else phys.get("steps")
-    )
-    ref_N = N_values[len(N_values) // 2] if N_values else phys.get("N", 64)
-    ref_ic_name = next(iter(make_ic))
-    res_key = resolution_key
-    hardware = get_hardware_info()
-
-    by_N: dict = {name: {} for name, _ in diff_solvers}
-    by_steps: dict = {name: {} for name, _ in diff_solvers}
-    grad_snaps_N: dict[str, dict] = {name: {} for name, _ in diff_solvers}
-    csv_rows: list[dict] = []
-    _wall_times: dict[str, float] = {}
-    gpu_ids = overrides.get("gpu_ids")
-    diff_solver_names_list = [name for name, _ in diff_solvers]
-
-    def _vjp_work(name: str, t) -> None:
-        color = cfg.solver(name).color
-        t_solver = time.perf_counter()
-        ctx = current_worker_context()
-
-        # ── N sweep (spatial) ─────────────────────────────────────────────
-        if N_values:
-            console.print(
-                f"  [{color}]{name}[/]  VJP {res_key} sweep ({len(N_values)} sizes, {n_trials} trials each)"
-            )
-            for res in N_values:
-                _phys = {**phys, res_key: res}
-                if ref_steps is not None:
-                    _phys["steps"] = ref_steps
-                ic = make_ic[ref_ic_name](L=domain_extent, **_phys)
-                inputs = make_inputs(name, ic, domain_extent=domain_extent, **_phys)
-
-                result = run_timed_trials(
-                    lambda: _vjp_grad(t, inputs, output_key, ic_key),
-                    n_trials=n_trials,
-                    wall_limit_s=_SPATIAL_WALL_S,
-                    gpu_id=ctx.gpu_id,
-                    image_tag=ctx.image_tag,
-                    capture_value=True,
-                )
-
-                if result.failure is not None:
-                    console.print(
-                        f"  [yellow][WARN][/] {name} VJP {res_key}={res} failed "
-                        f"({result.failure['failure_type']}): "
-                        f"{result.failure['exc_msg'][:80]}"
-                    )
-                    by_N[name][res] = result.as_record()
-                    _mark_remaining_none(by_N[name], N_values, res)
-                    break
-
-                if result.wall_limit_hit:
-                    console.print(
-                        f"  [yellow][WARN][/] {name} VJP {res_key}={res}: "
-                        f"first trial {result.first_elapsed:.1f}s > {_SPATIAL_WALL_S}s limit"
-                    )
-
-                grad_norm = (
-                    float(jnp.linalg.norm(result.last_value))
-                    if result.last_value is not None
-                    else None
-                )
-                by_N[name][res] = result.as_record(grad_norm=grad_norm)
-                if result.last_value is not None:
-                    grad_snaps_N[name][res] = np.array(result.last_value)
-                csv_rows.append(
-                    {
-                        "solver": name,
-                        "sweep": "N",
-                        res_key: res,
-                        "ref_steps": ref_steps,
-                        **by_N[name][res],
-                    }
-                )
-                if result.wall_limit_hit:
-                    _mark_remaining_none(by_N[name], N_values, res)
-                    break
-
-        # ── steps sweep (temporal) ────────────────────────────────────────
-        if steps_values:
-            console.print(
-                f"  [{color}]{name}[/]  VJP steps sweep ({len(steps_values)} counts, {n_trials} trials each)"
-            )
-            _phys_ref = {**phys, res_key: ref_N}
-            ic_ref = make_ic[ref_ic_name](L=domain_extent, **_phys_ref)
-            for steps in steps_values:
-                inputs = make_inputs(
-                    name,
-                    ic_ref,
-                    domain_extent=domain_extent,
-                    **{**_phys_ref, "steps": steps},
-                )
-
-                result = run_timed_trials(
-                    lambda: _vjp_grad(t, inputs, output_key, ic_key),
-                    n_trials=n_trials,
-                    wall_limit_s=_SPATIAL_WALL_S,
-                    gpu_id=ctx.gpu_id,
-                    image_tag=ctx.image_tag,
-                    capture_value=True,
-                )
-
-                if result.failure is not None:
-                    console.print(
-                        f"  [yellow][WARN][/] {name} VJP steps={steps} failed "
-                        f"({result.failure['failure_type']}): "
-                        f"{result.failure['exc_msg'][:80]}"
-                    )
-                    by_steps[name][steps] = result.as_record()
-                    _mark_remaining_none(by_steps[name], steps_values, steps)
-                    break
-
-                grad_norm = (
-                    float(jnp.linalg.norm(result.last_value))
-                    if result.last_value is not None
-                    else None
-                )
-                by_steps[name][steps] = result.as_record(grad_norm=grad_norm)
-                csv_rows.append(
-                    {
-                        "solver": name,
-                        "sweep": "steps",
-                        res_key: ref_N,
-                        "steps": steps,
-                        **by_steps[name][steps],
-                    }
-                )
-                if result.wall_limit_hit:
-                    _mark_remaining_none(by_steps[name], steps_values, steps)
-                    break
-
-        elapsed = time.perf_counter() - t_solver
-        _wall_times[name] = elapsed
-        console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-
-    run_with_gpu_pool(diff_solver_names_list, tags, _vjp_work, gpu_ids=gpu_ids)
-
-    result = {"by_N": by_N, "by_steps": by_steps, "params": run, "hardware": hardware}
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        "vjp_cost",
-        suffix="_debug" if overrides.get("debug") else "",
-    )
-    save_experiment(
-        result,
-        out_dir,
-        csv_rows=csv_rows,
-        cfg=cfg,
-        harness_fn=run_vjp_cost,
-        wall_time_s=_wall_times,
-    )
-
-    # Save gradient field snapshots (one per solver per N, from last trial)
-    any_grads = any(snaps for snaps in grad_snaps_N.values())
-    if any_grads and N_values:
-        per_solver = {
-            name: {f"N{res}": arr for res, arr in snaps.items()}
-            for name, snaps in grad_snaps_N.items()
-            if snaps
-        }
-        save_field_snapshots_npz(
-            out_dir,
-            solver_names=[n for n, _ in diff_solvers],
-            per_solver_arrays=per_solver,
-            shared_arrays={"N_values": np.array(N_values)},
-            prefixes=("grad",),
-        )
-        console.print(f"  Saved gradient fields → {out_dir / 'gradient_fields.npz'}")
-
-    return result
