@@ -5,7 +5,7 @@ description: >
   on periodic domains. Gradients via wp.Tape kernel-level VJP.
 build_config:
   package_data:
-    - ["../../../tesseract_shared", "/tmp/tesseract_shared"]
+    - ["../../tesseract_shared", "/tmp/tesseract_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/tesseract_shared"
 

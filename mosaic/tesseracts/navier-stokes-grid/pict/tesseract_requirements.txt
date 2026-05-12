@@ -3,4 +3,4 @@ numpy
 scipy
 imageio
 matplotlib
-../../../tesseract_shared
+../../tesseract_shared

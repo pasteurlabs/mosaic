@@ -1,2 +1,2 @@
 numpy
-../../../tesseract_shared
+../../tesseract_shared

@@ -8,7 +8,7 @@ build_config:
   requirements:
     provider: conda
   package_data:
-    - ["../../../tesseract_shared", "/tmp/tesseract_shared"]
+    - ["../../tesseract_shared", "/tmp/tesseract_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/tesseract_shared"
 
