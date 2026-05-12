@@ -1200,11 +1200,13 @@ def cmd_tesseracts(
 
     repo = _repo_root()
     tesseracts_root = repo / "mosaic" / "tesseracts"
-    mosaic_shared_root = repo / "mosaic" / "mosaic_shared"
+    tesseract_shared_root = repo / "mosaic" / "tesseract_shared"
     results = collect(
         tesseracts_root,
         problem_filter=problem,
-        mosaic_shared_root=mosaic_shared_root if mosaic_shared_root.exists() else None,
+        tesseract_shared_root=tesseract_shared_root
+        if tesseract_shared_root.exists()
+        else None,
     )
     if not results:
         console.print("[red]No tesseracts found.[/red]")
@@ -1312,12 +1314,12 @@ def validate_domain_cmd(
     n_checks += 1
     try:
         # Schema modules live under the canonical tesseract directory name
-        # (e.g. "navier-stokes-grid" → mosaic_shared.problems.navier_stokes_grid),
+        # (e.g. "navier-stokes-grid" → tesseract_shared.problems.navier_stokes_grid),
         # which is shared across CLI aliases like ns-grid / ns-3d-grid.
         slug = cfg.tesseract_dir.name.replace("-", "_")
         import importlib
 
-        mod = importlib.import_module(f"mosaic_shared.problems.{slug}")
+        mod = importlib.import_module(f"tesseract_shared.problems.{slug}")
         if hasattr(mod, "OutputSchema"):
             out_fields = set(mod.OutputSchema.model_fields.keys())
             if cfg.output_key in out_fields:

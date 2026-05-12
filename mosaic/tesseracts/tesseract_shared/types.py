@@ -48,7 +48,7 @@ class GridBC(BaseModel):
 
     Example — 2-D channel flow (periodic in x, no-slip walls in y)::
 
-        from mosaic_shared.types import BCType, FaceBC, GridBC
+        from tesseract_shared.types import BCType, FaceBC, GridBC
 
         bc = GridBC(
             y_lo=FaceBC(type=BCType.NO_SLIP),
@@ -175,7 +175,7 @@ class MeshBC(BaseModel):
     Example — 3-D Stokes no-slip walls::
 
         import numpy as np
-        from mosaic_shared.types import MeshBC, MeshDirichletBC
+        from tesseract_shared.types import MeshBC, MeshDirichletBC
 
         bc = MeshBC(
             dirichlet=MeshDirichletBC(

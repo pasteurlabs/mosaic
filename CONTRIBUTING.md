@@ -50,7 +50,7 @@ Solver behavior can be adjusted at three levels:
 
 ## Adding a benchmark domain
 
-A new domain bundles canonical schemas (`mosaic/mosaic_shared/problems/<domain>/schemas.py`), a `ProblemConfig` (`mosaic/benchmarks/problems/<domain>.py`), and at least one reference solver. The fastest way to start is `mosaic new-domain <name> --from-template <template>`, which scaffolds the file tree from a built-in template. The end-to-end walkthrough — schemas, suite defaults, IC generators, error functions, and a working reference solver — is in the [Add a Domain tutorial](https://pasteurlabs.github.io/mosaic/tutorial-add-domain.html) (source: [`docs/tutorial-add-domain.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial-add-domain.qmd)).
+A new domain bundles canonical schemas (`mosaic/tesseract_shared/problems/<domain>/schemas.py`), a `ProblemConfig` (`mosaic/benchmarks/problems/<domain>.py`), and at least one reference solver. The fastest way to start is `mosaic new-domain <name> --from-template <template>`, which scaffolds the file tree from a built-in template. The end-to-end walkthrough — schemas, suite defaults, IC generators, error functions, and a working reference solver — is in the [Add a Domain tutorial](https://pasteurlabs.github.io/mosaic/tutorial-add-domain.html) (source: [`docs/tutorial-add-domain.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial-add-domain.qmd)).
 
 ## Building the docs
 

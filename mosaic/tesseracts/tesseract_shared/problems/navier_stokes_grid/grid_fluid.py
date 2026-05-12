@@ -2,7 +2,7 @@
 
 All functions operate on raw numpy arrays with shape convention (N, N, 1, 2)
 for vector fields and (N, N) for scalar fields, matching GridVectorField /
-GridScalarField from mosaic_shared.types.
+GridScalarField from tesseract_shared.types.
 """
 
 import numpy as np

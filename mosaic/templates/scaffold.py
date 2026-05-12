@@ -158,8 +158,8 @@ def scaffold_domain(
     """Generate files for a new benchmark domain from a template.
 
     Creates:
-    - ``mosaic_shared/problems/<domain>/schemas.py`` (stub)
-    - ``mosaic_shared/problems/<domain>/__init__.py``
+    - ``tesseract_shared/problems/<domain>/schemas.py`` (stub)
+    - ``tesseract_shared/problems/<domain>/__init__.py``
     - ``tesseracts/<domain>/`` (empty, ready for solver dirs)
     - ``benchmarks/problems/<domain>.py`` (Problem stub)
 
@@ -169,7 +169,7 @@ def scaffold_domain(
     created: dict[str, Path] = {}
 
     # 1. Schema stubs
-    schema_dir = target_dir / "mosaic_shared" / "problems" / slug
+    schema_dir = target_dir / "tesseract_shared" / "problems" / slug
     schema_dir.mkdir(parents=True, exist_ok=True)
 
     init_path = schema_dir / "__init__.py"

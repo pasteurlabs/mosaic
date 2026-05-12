@@ -13,7 +13,7 @@ Both options use the same dict-based calling convention, so code written with Op
 
 ```bash
 # Schemas and types for all Mosaic domains (only deps: pydantic + tesseract-core)
-pip install -e mosaic/mosaic_shared
+pip install -e mosaic/tesseract_shared
 
 # Option A --- also install the solver's native dependencies
 pip install tesseract-core exponax jax
@@ -29,7 +29,7 @@ This is the quickest path for prototyping. You point `tesseract-core` at the sol
 ```python
 import numpy as np
 from tesseract_core import Tesseract
-from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+from tesseract_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
 
 # Create inputs
 ic = make_vortex_ic(N=64, seed=42)
@@ -59,7 +59,7 @@ import jax
 import jax.numpy as jnp
 from tesseract_core import Tesseract
 from tesseract_jax import apply_tesseract
-from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+from tesseract_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
 
 ic = make_vortex_ic(N=64, seed=42)
 inputs = {"v0": ic, "viscosity": jnp.array([0.01]), "steps": 50}
@@ -88,7 +88,7 @@ The thermal and structural mesh domains use hexahedral meshes with associated bo
 from tesseract_core import Tesseract
 
 # Thermal: heated block with uniform density
-from mosaic_shared.problems.thermal_mesh import make_default_inputs
+from tesseract_shared.problems.thermal_mesh import make_default_inputs
 inputs = make_default_inputs(nx=8, ny=4, nz=1)
 
 t = Tesseract.from_tesseract_api(
@@ -100,7 +100,7 @@ print("Thermal compliance:", outputs["thermal_compliance"])
 
 ```python
 # Structural: cantilever with uniform density
-from mosaic_shared.problems.structural_mesh import make_default_inputs
+from tesseract_shared.problems.structural_mesh import make_default_inputs
 inputs = make_default_inputs(nx=8, ny=2, nz=4)
 
 t = Tesseract.from_tesseract_api(
@@ -119,12 +119,12 @@ inputs = make_default_inputs(nx=16, ny=8, nz=1)
 inputs["rho"] = np.random.uniform(0.2, 0.8, size=16 * 8).astype(np.float32)
 ```
 
-## Installing `mosaic_shared` independently
+## Installing `tesseract_shared` independently
 
-`mosaic_shared` is a standalone pip-installable package. Its only dependencies are `pydantic` and `tesseract-core[runtime]`:
+`tesseract_shared` is a standalone pip-installable package. Its only dependencies are `pydantic` and `tesseract-core[runtime]`:
 
 ```bash
-pip install -e mosaic/mosaic_shared
+pip install -e mosaic/tesseract_shared
 ```
 
 This gives you all schema types (`InputSchema`, `OutputSchema`) for every benchmark domain, plus the shared types used across solvers:

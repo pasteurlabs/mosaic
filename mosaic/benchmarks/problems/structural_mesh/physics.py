@@ -7,7 +7,12 @@ from collections.abc import Callable
 import numpy as np
 
 from mosaic.benchmarks.core.config import SolverSpec
-from mosaic.mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
+from mosaic.tesseracts.tesseract_shared.types import (
+    HexMesh,
+    MeshBC,
+    MeshDirichletBC,
+    MeshNeumannBC,
+)
 
 # ── Mesh builder ──────────────────────────────────────────────────────────────
 

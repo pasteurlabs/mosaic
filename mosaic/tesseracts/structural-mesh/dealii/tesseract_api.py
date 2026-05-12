@@ -18,14 +18,14 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.problems.structural_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.structural_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
 from pydantic import Field
 from tesseract_core.runtime import ShapeDType
+from tesseract_shared.problems.structural_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.structural_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
 
 # ---------------------------------------------------------------------------
 # Binary path

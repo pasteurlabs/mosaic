@@ -10,7 +10,7 @@ description: >
   field and thermal compliance.
 
 # Schema module to import InputSchema / OutputSchema from.
-schema_module: mosaic_shared.problems.thermal_mesh
+schema_module: tesseract_shared.problems.thermal_mesh
 
 # Which output field is used for solver-to-solver comparison.
 output_key: thermal_compliance

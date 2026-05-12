@@ -10,7 +10,7 @@ description: >
   an initial velocity field and return the evolved velocity field.  The primary
   optimisation task is initial-condition recovery.
 
-schema_module: mosaic_shared.problems.navier_stokes_grid
+schema_module: tesseract_shared.problems.navier_stokes_grid
 output_key: result
 ic_key: v0
 domain_extent: 6.283185307179586 # 2*pi

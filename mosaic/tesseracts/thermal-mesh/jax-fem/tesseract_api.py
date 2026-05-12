@@ -8,15 +8,15 @@ import meshio
 from jax_fem.generate_mesh import Mesh
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper
-from mosaic_shared.problems.thermal_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.thermal_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
 from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+from tesseract_shared.problems.thermal_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.thermal_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 crt_file_path = os.path.dirname(__file__)
 

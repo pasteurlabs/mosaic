@@ -76,7 +76,7 @@ jobs:
                   CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}structural-mesh" ;;
                 mosaic/tesseracts/thermal-mesh/*|mosaic/benchmarks/problems/thermal_mesh.py)
                   CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}thermal-mesh" ;;
-                mosaic/benchmarks/core/*|mosaic/benchmarks/suites/*|mosaic/mosaic_shared/*)
+                mosaic/benchmarks/core/*|mosaic/benchmarks/suites/*|mosaic/tesseracts/tesseract_shared/*)
                   # Core harness change: run everything
                   CHANGED_PROBLEMS="all"
                   break ;;

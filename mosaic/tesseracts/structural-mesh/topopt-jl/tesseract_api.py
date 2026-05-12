@@ -49,17 +49,17 @@ from pathlib import Path
 from typing import Any
 
 import filelock
-import mosaic_shared
 import numpy as np
-from mosaic_shared.problems.structural_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.structural_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
+import tesseract_shared
 from pydantic import Field  # still needed for InputSchema fields
 from tesseract_core.runtime import ShapeDType
+from tesseract_shared.problems.structural_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.structural_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 _jl = None
 _julia_init_lock = filelock.FileLock("/tmp/julia_init.lock", timeout=600)
@@ -73,7 +73,7 @@ with _julia_init_lock:
     _jl_mod.seval("using TopOpt, Printf")
     _jl_mod.include(
         str(
-            Path(mosaic_shared.__file__).parent
+            Path(tesseract_shared.__file__).parent
             / "problems"
             / "structural_mesh"
             / "topopt_solver.jl"

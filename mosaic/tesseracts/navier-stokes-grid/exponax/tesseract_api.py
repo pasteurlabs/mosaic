@@ -5,15 +5,15 @@ import exponax as ex
 import jax
 import jax.numpy as jnp
 import numpy as np
-from mosaic_shared.problems.navier_stokes_grid import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.navier_stokes_grid import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
+from tesseract_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.navier_stokes_grid import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(

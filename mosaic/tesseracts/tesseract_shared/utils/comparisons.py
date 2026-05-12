@@ -8,7 +8,7 @@ schema instance, decoupling the plot logic from specific field names.
 
 Example usage in a problem definition::
 
-    from mosaic_shared.utils.comparisons import (
+    from tesseract_shared.utils.comparisons import (
         make_ensemble_deviation_plot,
         make_gradient_cosine_plot,
     )

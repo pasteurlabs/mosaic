@@ -83,7 +83,7 @@ mosaic new-domain diffusion-1d --from-template ns-periodic
 This creates:
 
 ```
-mosaic/mosaic_shared/problems/diffusion_1d/
+mosaic/tesseract_shared/problems/diffusion_1d/
   __init__.py                    # re-exports InputSchema, OutputSchema
   schemas.py                     # InputSchema / OutputSchema with `# TODO` placeholders
 
@@ -117,7 +117,7 @@ This is expected. We will fill in the schemas, problem config, and a reference s
 
 The schemas are the contract between the benchmark harness and every solver in your domain. All solvers import the same `InputSchema` and `OutputSchema`, so get these right first.
 
-Edit `mosaic/mosaic_shared/problems/diffusion_1d/schemas.py`:
+Edit `mosaic/tesseract_shared/problems/diffusion_1d/schemas.py`:
 
 ```python
 """Canonical InputSchema / OutputSchema for diffusion-1d tesseracts.
@@ -188,7 +188,7 @@ class OutputSchema(BaseModel):
 Two equivalent ways to declare differentiable fields:
 
 * **Inline (shown above):** wrap each field's type with `Differentiable[...]` directly.
-* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `mosaic_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
+* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `tesseract_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
 :::
 
 **`Array` type hints.** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).
@@ -449,7 +449,7 @@ This reference solver is **not differentiable** (`differentiable: false`). The `
 """Spectral (FFT) solver for 1-D periodic diffusion."""
 
 import numpy as np
-from mosaic_shared.problems.diffusion_1d import (
+from tesseract_shared.problems.diffusion_1d import (
     InputSchema as _CanonicalInputSchema,
     OutputSchema as _CanonicalOutputSchema,
 )
@@ -506,7 +506,7 @@ def abstract_eval(abstract_inputs):
 
 ```
 numpy>=1.24
-../../../mosaic_shared
+../../../tesseract_shared
 ```
 
 ### Build and smoke-test
@@ -577,7 +577,7 @@ mosaic status -p diffusion-1d -f
 ### Files to include in your PR
 
 ```
-mosaic/mosaic_shared/problems/diffusion_1d/
+mosaic/tesseract_shared/problems/diffusion_1d/
   __init__.py                         # re-exports schemas
   schemas.py                          # InputSchema + OutputSchema
 
@@ -618,7 +618,7 @@ Adding a new domain to Mosaic requires three components:
 
 | Component | Location | Purpose |
 |:----------|:---------|:--------|
-| **Schemas** | `mosaic/mosaic_shared/problems/<domain>/schemas.py` | Define the solver contract (input fields, output fields, types, defaults) |
+| **Schemas** | `mosaic/tesseract_shared/problems/<domain>/schemas.py` | Define the solver contract (input fields, output fields, types, defaults) |
 | **Problem config** | `mosaic/benchmarks/problems/<domain>.py` | IC generators, input factory, error function, and experiment definitions for each suite |
 | **Reference solver** | `mosaic/tesseracts/<domain>/<solver>/` | At least one working solver so the harness can run |
 

@@ -2,4 +2,4 @@ https://download.pytorch.org/whl/cu121/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86
 torch-fem>=0.6.2
 numpy
 scipy
-../../../mosaic_shared
+../../../tesseract_shared

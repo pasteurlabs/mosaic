@@ -20,7 +20,7 @@ resolution-markers = [
 [manifest]
 members = [
     "mosaic-bench",
-    "mosaic-shared",
+    "tesseract-shared",
 ]
 
 [[package]]
@@ -1686,10 +1686,10 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "mosaic-shared" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "tesseract-shared" },
 ]
 
 [package.metadata]
@@ -1698,7 +1698,6 @@ requires-dist = [
     { name = "filelock", specifier = ">=3" },
     { name = "jax", extras = ["cpu"] },
     { name = "matplotlib" },
-    { name = "mosaic-shared", marker = "extra == 'dev'", editable = "mosaic/mosaic_shared" },
     { name = "numpy" },
     { name = "optax" },
     { name = "pandas" },
@@ -1711,24 +1710,10 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "tesseract-core", extras = ["runtime"] },
     { name = "tesseract-jax" },
+    { name = "tesseract-shared", marker = "extra == 'dev'", editable = "mosaic/tesseracts/tesseract_shared" },
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["dev"]
-
-[[package]]
-name = "mosaic-shared"
-version = "0.1.0"
-source = { editable = "mosaic/mosaic_shared" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "tesseract-core", extra = ["runtime"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pydantic" },
-    { name = "tesseract-core", extras = ["runtime"] },
-]
 
 [[package]]
 name = "multidict"
@@ -3472,6 +3457,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/2b/99/74e978e0878324e5eb3238f3072718757d148c7861e02c7c9334363ba1fb/tesseract_jax-0.3.0.tar.gz", hash = "sha256:991c20bb205df7db14dbdd6ddf1f05e9e7637d2ee593ec2e8b8a76074345e6af", size = 42219 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0a/45/2146b322612760795f8543fb41bba4279507b823c41b9c7b11496af6656c/tesseract_jax-0.3.0-py3-none-any.whl", hash = "sha256:1a8825dfec38113bda481dcfdc8345121b5b50e2ca2266ef033e5c7695adbdb3", size = 28398 },
+]
+
+[[package]]
+name = "tesseract-shared"
+version = "0.1.0"
+source = { editable = "mosaic/tesseracts/tesseract_shared" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "tesseract-core", extra = ["runtime"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic" },
+    { name = "tesseract-core", extras = ["runtime"] },
 ]
 
 [[package]]

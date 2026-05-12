@@ -2,13 +2,13 @@
 
 The base schemas carry plain (non-`Differentiable`) array types.  Each solver
 wraps the fields it actually supports gradients on via
-``mosaic_shared.types.make_differentiable``::
+``tesseract_shared.types.make_differentiable``::
 
-    from mosaic_shared.problems.navier_stokes_grid import (
+    from tesseract_shared.problems.navier_stokes_grid import (
         InputSchema as _Base,
         OutputSchema as _BaseOut,
     )
-    from mosaic_shared.types import make_differentiable
+    from tesseract_shared.types import make_differentiable
 
     InputSchema = make_differentiable(
         _Base, ["v0", "viscosity", "dt", "inflow_profile"]
@@ -20,9 +20,10 @@ Solvers with extra inputs (e.g. ``inner_steps``) should subclass the result of
 """
 
 import numpy as np
-from mosaic_shared.types import GridBC, GridObstacle, GridVectorField
 from pydantic import BaseModel, Field, model_validator
 from tesseract_core.runtime import Array, Float32
+
+from tesseract_shared.types import GridBC, GridObstacle, GridVectorField
 
 
 def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndarray:

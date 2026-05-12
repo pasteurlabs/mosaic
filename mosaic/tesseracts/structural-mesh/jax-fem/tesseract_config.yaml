@@ -12,9 +12,9 @@ build_config:
   extra_packages:
     - libgl1
   package_data:
-    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../../tesseract_shared", "/tmp/tesseract_shared"]
   custom_build_steps:
-    - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+    - "RUN /python-env/bin/pip install /tmp/tesseract_shared"
 
 metadata:
   mosaic:

@@ -166,7 +166,7 @@ _CANONICAL_CACHE: dict[str, str] = {}
 def _canonical_schema_source(physics_dir: str) -> str | None:
     """Return the source text of the canonical schemas.py for a physics domain.
 
-    The schema module follows the convention ``mosaic_shared/problems/<dir
+    The schema module follows the convention ``tesseract_shared/problems/<dir
     with hyphens swapped for underscores>/schemas.py``.
     """
     module = physics_dir.replace("-", "_") if physics_dir else None
@@ -174,7 +174,7 @@ def _canonical_schema_source(physics_dir: str) -> str | None:
         return None
     if module not in _CANONICAL_CACHE:
         schema_path = (
-            ROOT / "mosaic" / "mosaic_shared" / "problems" / module / "schemas.py"
+            ROOT / "mosaic" / "tesseract_shared" / "problems" / module / "schemas.py"
         )
         if not schema_path.exists():
             _CANONICAL_CACHE[module] = ""
@@ -225,7 +225,7 @@ def parse_schema(source: str, class_name: str, physics_dir: str = "") -> list[di
 
     When ``InputSchema`` or ``OutputSchema`` in the solver source inherits from
     ``_CanonicalInputSchema`` / ``_CanonicalOutputSchema``, the canonical
-    fields are resolved from ``mosaic_shared/problems/<domain>/schemas.py``
+    fields are resolved from ``tesseract_shared/problems/<domain>/schemas.py``
     and prepended so that the full interface is documented. Fields promoted
     via ``make_differentiable(...)`` in the solver's class bases are marked
     differentiable on the merged result.

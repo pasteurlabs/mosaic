@@ -108,7 +108,7 @@ Every solver in Mosaic is a standalone [Tesseract](https://github.com/pasteurlab
 
 ```bash
 # Shared schemas (only deps: pydantic + tesseract-core)
-pip install -e mosaic/mosaic_shared
+pip install -e mosaic/tesseract_shared
 
 # For containerised usage (recommended): also install tesseract-jax
 pip install tesseract-core tesseract-jax jax
@@ -121,7 +121,7 @@ Fastest for prototyping. Requires the solver's native Python dependencies.
 ```python
 import numpy as np
 from tesseract_core import Tesseract
-from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+from tesseract_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
 
 ic = make_vortex_ic(N=64, seed=42)
 inputs = {"v0": ic, "viscosity": np.array([0.01], dtype=np.float32), "steps": 50}
@@ -145,7 +145,7 @@ import jax
 import jax.numpy as jnp
 from tesseract_core import Tesseract
 from tesseract_jax import apply_tesseract
-from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+from tesseract_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
 
 ic = make_vortex_ic(N=64, seed=42)
 inputs = {"v0": ic, "viscosity": jnp.array([0.01]), "steps": 50}
@@ -204,7 +204,7 @@ mosaic/
     suites/             # forward, gradient, cost, optimization
     problems/           # per-domain configs (ns-grid, structural-mesh, etc.)
     plots/              # paper figure generation
-  mosaic_shared/        # shared Tesseract interface schemas (also pip-installable)
+  tesseract_shared/        # shared Tesseract interface schemas (also pip-installable)
     problems/           # per-domain input/output schemas
     utils/              # comparison metrics, plotting utilities
   templates/            # task templates for scaffolding new domains

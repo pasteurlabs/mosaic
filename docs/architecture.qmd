@@ -32,12 +32,12 @@ Benchmark harness (JAX)
 
 ### Task-specific schemas
 
-Because solver APIs differ too widely for a single generic wrapper, each benchmark domain defines a **task-specific interface schema** (`InputSchema`, `OutputSchema`) that multiple solvers implement. Schemas live in `mosaic/mosaic_shared/problems/<domain>/schemas.py` and use Pydantic models. All fields must have defaults (Tesseract requirement).
+Because solver APIs differ too widely for a single generic wrapper, each benchmark domain defines a **task-specific interface schema** (`InputSchema`, `OutputSchema`) that multiple solvers implement. Schemas live in `mosaic/tesseract_shared/problems/<domain>/schemas.py` and use Pydantic models. All fields must have defaults (Tesseract requirement).
 
 Solvers import the canonical schema and may subclass it to add solver-specific parameters:
 
 ```python
-from mosaic_shared.problems.navier_stokes_grid import InputSchema as _Base, OutputSchema
+from tesseract_shared.problems.navier_stokes_grid import InputSchema as _Base, OutputSchema
 
 class InputSchema(_Base):
     inner_steps: int = Field(default=1, description="Sub-steps per outer step")

@@ -4,13 +4,13 @@ import numpy as np
 import PISOtorch
 import PISOtorch_simulation
 import torch
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import BCType, make_differentiable
+from tesseract_shared.types import BCType, make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "inflow_profile"])):

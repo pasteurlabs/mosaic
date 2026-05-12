@@ -18,16 +18,16 @@ import meshio
 import numpy as np
 from dolfin import *
 from dolfin_adjoint import *
-from mosaic_shared.problems.structural_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.structural_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
+from tesseract_shared.problems.structural_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.structural_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):

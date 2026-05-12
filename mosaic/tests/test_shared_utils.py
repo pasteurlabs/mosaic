@@ -1,4 +1,4 @@
-"""Tests for ``mosaic_shared/utils/`` helpers.
+"""Tests for ``tesseract_shared/utils/`` helpers.
 
 Covers:
 - ``sdf.generate_regular_grid``: shape, spacing, bounds, dtype.
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from mosaic.mosaic_shared.utils.sdf import generate_regular_grid
+from mosaic.tesseracts.tesseract_shared.utils.sdf import generate_regular_grid
 
 # ── sdf.generate_regular_grid ─────────────────────────────────────────────────
 
@@ -76,7 +76,9 @@ class _FakeOut:
 
 def test_ensemble_deviation_plot_renders_one_axis_per_solver():
     """The factory's plot fn draws an imshow on every supplied axis."""
-    from mosaic.mosaic_shared.utils.comparisons import make_ensemble_deviation_plot
+    from mosaic.tesseracts.tesseract_shared.utils.comparisons import (
+        make_ensemble_deviation_plot,
+    )
 
     plot_fn = make_ensemble_deviation_plot(
         get_field=lambda out: out.result,
@@ -107,7 +109,9 @@ def test_ensemble_deviation_plot_renders_one_axis_per_solver():
 
 def test_ensemble_deviation_handles_3d_fields():
     """Fields with ndim > 2 are reduced via a per-cell norm before plotting."""
-    from mosaic.mosaic_shared.utils.comparisons import make_ensemble_deviation_plot
+    from mosaic.tesseracts.tesseract_shared.utils.comparisons import (
+        make_ensemble_deviation_plot,
+    )
 
     plot_fn = make_ensemble_deviation_plot(get_field=lambda out: out.result)
 
@@ -132,7 +136,9 @@ def test_ensemble_deviation_handles_3d_fields():
 
 def test_gradient_cosine_plot_draws_n_plus_one_axes():
     """The factory draws one magnitude map per solver + one similarity matrix."""
-    from mosaic.mosaic_shared.utils.comparisons import make_gradient_cosine_plot
+    from mosaic.tesseracts.tesseract_shared.utils.comparisons import (
+        make_gradient_cosine_plot,
+    )
 
     plot_fn = make_gradient_cosine_plot(get_field=lambda g: g.result)
 
@@ -168,7 +174,9 @@ def test_gradient_cosine_similarity_diagonal_is_one():
     read the diagonal off the rendered cell text — each diagonal label should
     be '1.00'.
     """
-    from mosaic.mosaic_shared.utils.comparisons import make_gradient_cosine_plot
+    from mosaic.tesseracts.tesseract_shared.utils.comparisons import (
+        make_gradient_cosine_plot,
+    )
 
     plot_fn = make_gradient_cosine_plot(get_field=lambda g: g.result)
 
@@ -198,7 +206,7 @@ def test_gradient_cosine_similarity_diagonal_is_one():
 
 def test_plot_mesh_writes_image_file(tmp_path):
     """plot_mesh saves a PNG with non-zero size when save_path is given."""
-    from mosaic.mosaic_shared.utils.plotting import plot_mesh
+    from mosaic.tesseracts.tesseract_shared.utils.plotting import plot_mesh
 
     # Minimal valid mesh: a single triangle in 3D.
     mesh = {
@@ -219,7 +227,7 @@ def test_plot_mesh_writes_image_file(tmp_path):
 
 def test_plot_mesh_no_save_path_does_not_write(tmp_path, monkeypatch):
     """When save_path is None, plot_mesh shouldn't write any files."""
-    from mosaic.mosaic_shared.utils.plotting import plot_mesh
+    from mosaic.tesseracts.tesseract_shared.utils.plotting import plot_mesh
 
     mesh = {
         "points": np.array(

@@ -3,4 +3,4 @@ numpy
 scipy
 imageio
 matplotlib
-../../../mosaic_shared
+../../../tesseract_shared

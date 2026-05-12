@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import pytest
 
-# The schema modules import from ``mosaic_shared.types`` and
+# The schema modules import from ``tesseract_shared.types`` and
 # ``tesseract_core.runtime`` which are only available when these packages are
 # installed (e.g. inside a tesseract runtime or a full dev environment).
 _missing_runtime_deps = False
 try:
-    import mosaic_shared.types  # noqa: F401
     import tesseract_core.runtime  # noqa: F401
+    import tesseract_shared.types  # noqa: F401
 except ModuleNotFoundError:
     _missing_runtime_deps = True
 
 needs_runtime = pytest.mark.skipif(
     _missing_runtime_deps,
-    reason="mosaic_shared / tesseract_core not installed as top-level packages",
+    reason="tesseract_shared / tesseract_core not installed as top-level packages",
 )
 
 
@@ -24,9 +24,9 @@ needs_runtime = pytest.mark.skipif(
 @pytest.mark.parametrize(
     "module",
     [
-        "mosaic.mosaic_shared.problems.navier_stokes_grid",
-        "mosaic.mosaic_shared.problems.structural_mesh",
-        "mosaic.mosaic_shared.problems.thermal_mesh",
+        "mosaic.tesseracts.tesseract_shared.problems.navier_stokes_grid",
+        "mosaic.tesseracts.tesseract_shared.problems.structural_mesh",
+        "mosaic.tesseracts.tesseract_shared.problems.thermal_mesh",
     ],
 )
 def test_domain_schemas_define_input_and_output(module):
@@ -45,7 +45,9 @@ def test_domain_schemas_define_input_and_output(module):
 def test_ns_grid_input_declares_canonical_fields():
     """Catches a regression where the NS grid InputSchema loses its standard
     fields. The full canonical set was once silently emptied by a refactor."""
-    from mosaic.mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic.tesseracts.tesseract_shared.problems.navier_stokes_grid import (
+        InputSchema,
+    )
 
     field_names = set(InputSchema.model_fields.keys())
     expected_subset = {"v0", "viscosity", "dt", "steps"}

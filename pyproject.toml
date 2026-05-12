@@ -30,17 +30,17 @@ dev = [
     "pytest",
     "ruff",
     "pre-commit",
-    "mosaic-shared",
+    "tesseract-shared",
 ]
 
 [project.scripts]
 mosaic = "mosaic.benchmarks.cli:app"
 
 [tool.uv.workspace]
-members = ["mosaic/mosaic_shared"]
+members = ["mosaic/tesseracts/tesseract_shared"]
 
 [tool.uv.sources]
-mosaic-shared = { workspace = true }
+tesseract-shared = { workspace = true }
 
 [tool.setuptools.packages.find]
 where = ["."]

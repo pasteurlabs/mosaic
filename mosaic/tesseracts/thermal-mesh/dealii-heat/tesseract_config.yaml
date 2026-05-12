@@ -15,11 +15,11 @@ build_config:
   extra_packages:
     - nlohmann-json3-dev
   package_data:
-    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../../tesseract_shared", "/tmp/tesseract_shared"]
     - ["./src", "/opt/dealii_heat/src"]
     - ["./CMakeLists.txt", "/opt/dealii_heat/CMakeLists.txt"]
   custom_build_steps:
-    - "RUN pip install /tmp/mosaic_shared"
+    - "RUN pip install /tmp/tesseract_shared"
     - "RUN cd /opt/dealii_heat && cmake -B build -DCMAKE_BUILD_TYPE=Release . && cmake --build build -j4"
 
 metadata:

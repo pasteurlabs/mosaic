@@ -9,14 +9,14 @@ from typing import Any
 
 import numpy as np
 import warp as wp
-from mosaic_shared.problems.navier_stokes_grid import (
+from pydantic import Field
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
-from pydantic import Field
+from tesseract_shared.types import make_differentiable
 
 wp.init()
 

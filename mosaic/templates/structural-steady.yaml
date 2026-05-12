@@ -9,7 +9,7 @@ description: >
   The solver takes a per-cell density field and returns the displacement field
   and structural compliance.
 
-schema_module: mosaic_shared.problems.structural_mesh
+schema_module: tesseract_shared.problems.structural_mesh
 output_key: compliance
 ic_key: rho
 domain_extent: 1.0

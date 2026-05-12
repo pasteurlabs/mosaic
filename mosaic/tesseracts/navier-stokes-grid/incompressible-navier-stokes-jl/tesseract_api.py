@@ -2,15 +2,15 @@ from pathlib import Path
 from typing import Any
 
 import juliacall
-import mosaic_shared
 import numpy as np
-from mosaic_shared.problems.navier_stokes_grid import (
+import tesseract_shared
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
+from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(
@@ -32,7 +32,7 @@ jl.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
 jl.seval("using IncompressibleNavierStokes, Zygote")
 jl.include(
     str(
-        Path(mosaic_shared.__file__).parent
+        Path(tesseract_shared.__file__).parent
         / "problems"
         / "navier_stokes_grid"
         / "ns_solver.jl"
