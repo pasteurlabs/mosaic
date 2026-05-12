@@ -41,6 +41,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic (for problem registry)
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
       - id: decide
         name: Decide what to run
         run: |
@@ -61,37 +68,64 @@ jobs:
             IS_MAIN="true"
             SHOULD_RUN="true"
 
-            # Detect changed problem domains from the diff
-            CHANGED_PROBLEMS=""
             DIFF_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-            for file in $DIFF_FILES; do
-              case "$file" in
-                mosaic/tesseracts/navier-stokes-grid/*)
-                  # Shared tesseract dir — triggers both 2D and 3D NS problems
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid,ns-3d-grid" ;;
-                mosaic/benchmarks/problems/navier_stokes_grid.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid" ;;
-                mosaic/benchmarks/problems/navier_stokes_3d_grid.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-3d-grid" ;;
-                mosaic/tesseracts/structural-mesh/*|mosaic/benchmarks/problems/structural_mesh.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}structural-mesh" ;;
-                mosaic/tesseracts/thermal-mesh/*|mosaic/benchmarks/problems/thermal_mesh.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}thermal-mesh" ;;
-                mosaic/benchmarks/core/*|mosaic/benchmarks/suites/*|mosaic/mosaic_shared/*)
-                  # Core harness change: run everything
-                  CHANGED_PROBLEMS="all"
-                  break ;;
-              esac
-            done
 
-            # Deduplicate
-            if [[ -n "$CHANGED_PROBLEMS" && "$CHANGED_PROBLEMS" != "all" ]]; then
-              PROBLEMS=$(echo "$CHANGED_PROBLEMS" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
-            elif [[ "$CHANGED_PROBLEMS" == "all" ]]; then
-              PROBLEMS="all"
-            else
+            # Use the problem registry to dynamically map changed files → problems.
+            # This builds a reverse map from tesseract_dir and problem config file
+            # to problem name(s), so new problems are picked up automatically.
+            PROBLEMS=$(echo "$DIFF_FILES" | uv run python -c "
+          import sys
+          from pathlib import Path
+          from mosaic.benchmarks.problems import PROBLEMS as ALL, get_config
+
+          diff_files = [l.strip() for l in sys.stdin if l.strip()]
+          if not diff_files:
+              print('')
+              sys.exit(0)
+
+          # Core harness changes trigger everything
+          core_prefixes = ('mosaic/benchmarks/core/', 'mosaic/benchmarks/suites/', 'mosaic/mosaic_shared/')
+          if any(f.startswith(core_prefixes) for f in diff_files):
+              print('all')
+              sys.exit(0)
+
+          # Build reverse maps: tesseract_dir_suffix → [problem_names], config_file → problem_name
+          tdir_to_problems: dict[str, list[str]] = {}
+          config_to_problem: dict[str, str] = {}
+          for name in ALL:
+              cfg = get_config(name)
+              # tesseract_dir is absolute; extract the relative suffix under mosaic/tesseracts/
+              tdir = str(cfg.tesseract_dir)
+              idx = tdir.find('mosaic/tesseracts/')
+              if idx >= 0:
+                  suffix = tdir[idx:]  # e.g. mosaic/tesseracts/navier-stokes-grid
+                  tdir_to_problems.setdefault(suffix, []).append(name)
+              # problem config file: module name → file path
+              mod_name = type(cfg).__module__ if hasattr(type(cfg), '__module__') else ''
+              # Simpler: just derive from cfg.name with underscore convention
+              config_to_problem[f'mosaic/benchmarks/problems/{name.replace(\"-\", \"_\")}.py'] = name
+
+          changed = set()
+          for f in diff_files:
+              # Check problem config files
+              if f in config_to_problem:
+                  changed.add(config_to_problem[f])
+                  continue
+              # Check tesseract dirs
+              for prefix, problems in tdir_to_problems.items():
+                  if f.startswith(prefix + '/'):
+                      changed.update(problems)
+                      break
+
+          print(','.join(sorted(changed)) if changed else '')
+          ")
+
+            if [[ -z "$PROBLEMS" ]]; then
               # No solver/harness changes — skip benchmark
               SHOULD_RUN="false"
+              PROBLEMS="all"
+            elif [[ "$PROBLEMS" == "all" ]]; then
+              PROBLEMS="all"
             fi
           fi
 
