@@ -60,7 +60,7 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
             continue
         domain_dir = cfg.tesseract_dir.name
         # First non-empty category_label per tesseract dir wins. Multiple
-        # ProblemConfigs (e.g. ns-grid + ns-3d-grid) can share a dir.
+        # Problems (e.g. ns-grid + ns-3d-grid) can share a dir.
         label = cfg.category_label
         if label and not _CATEGORY_LABELS.get(domain_dir):
             _CATEGORY_LABELS[domain_dir] = label

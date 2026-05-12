@@ -67,26 +67,26 @@ Defined in `mosaic/benchmarks/core/config.py`. Each solver backend is described 
 | `explained_anomalies` | `dict` | Documents expected anomalous results with reasons |
 | `input_overrides` | `dict` | Solver-specific input field overrides |
 
-### `ProblemConfig`
+### `Problem`
 
-Each benchmark domain is configured by a `ProblemConfig` dataclass (also in `mosaic/benchmarks/core/config.py`):
+Each benchmark domain is configured by a `Problem` dataclass (also in `mosaic/benchmarks/core/config.py`):
 
 | Field | Type | Description |
 |:------|:-----|:------------|
 | `name` | `str` | CLI name (e.g. `"ns-grid"`) |
 | `tesseract_dir` | `Path` | Path to the domain's `tesseracts/` directory |
 | `output_key` | `str` | Field name to compare across solvers |
-| `solvers` | `dict[str, SolverSpec]` | Registered solver backends |
+| `solvers` | `list[SolverSpec]` | Registered solver backends |
 | `make_ic` | `dict[str, IcSpec]` | Named initial condition generators |
 | `make_inputs` | `Callable` | Builds solver inputs from IC and physics parameters |
 | `error_fn` | `Callable` | Computes the objective from solver outputs |
 | `diagnostics` | `dict[str, Callable]` | Named scalar diagnostics |
-| `forward_defaults` | `dict` | Default parameters for the forward suite |
-| `gradient_defaults` | `dict` | Default parameters for the gradient suite |
-| `cost_defaults` | `dict` | Default parameters for the cost suite |
-| `inverse_defaults` | `dict` | Default parameters for the optimization suite |
+| `reference` | `Callable \| None` | Analytic reference solution `(ic, t, L, **physics) → arr`, when one exists |
+| `experiments` | `dict[str, Experiment]` | Suite/experiment-key → registered runner closure |
+| `plot_fns` | `dict[str, PlotFn]` | Suite/experiment-key → registered plot closure |
+| `descriptions` | `dict[str, str]` | Short, plot-only descriptions keyed by experiment path |
 
-Problem configs live in `mosaic/benchmarks/problems/` and are registered in `mosaic/benchmarks/problems/__init__.py`.
+Each problem is a Python package at `mosaic/benchmarks/problems/<slug>/` containing four files: `__init__.py` (builds the canonical `CONFIG = Problem(...)`), `experiments.py` (exposes `register(problem)` which calls `problem.add(...)` per experiment), `ics.py`, and `physics.py`. The package re-exports `CONFIG`; the registry in `mosaic/benchmarks/problems/__init__.py` collects them all.
 
 ## Evaluation protocol
 
