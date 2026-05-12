@@ -251,30 +251,22 @@ def scaffold_domain(
 
     (pkg_dir / "experiments.py").write_text(
         f'"""Experiment + plot registrations for {domain_name}.\n\n'
-        f"Instantiate one :class:`Problem` with the closure deps, then call\n"
-        f"``.add()`` per experiment. The Problem's ``experiments`` /\n"
-        f"``plot_fns`` dicts are pulled into the final ``CONFIG`` from\n"
-        f'``config.py``."""\n\n'
+        f"Exposes :func:`register(problem)` which the per-problem ``config.py``\n"
+        f"calls after building the canonical :class:`Problem` instance, so\n"
+        f"closure deps and the experiment/plot registries live on a single\n"
+        f'``Problem``."""\n\n'
         f"from __future__ import annotations\n\n"
-        f"from mosaic.benchmarks.core.config import Problem\n"
-        f"from mosaic.benchmarks.core.utils import l2_error_rel\n\n"
-        f"from .ics import MAKE_IC\n\n\n"
-        f"problem = Problem(\n"
-        f"    make_ic=MAKE_IC,\n"
-        f"    error_fn=l2_error_rel,\n"
-        f'    output_key="{tpl.output_key}",\n'
-        f'    ic_key="{tpl.ic_key}",\n'
-        f"    domain_extent={tpl.domain_extent},\n"
-        f'    resolution_key="{tpl.resolution_key}",\n'
-        f")\n\n"
-        f"# TODO: register experiments with problem.add(...).\n"
-        f"#   from mosaic.benchmarks.problems.shared.forward import run_agreement\n"
-        f'#   problem.add("forward/baseline", run_agreement, ic={{...}}, physics={{...}})\n\n'
-        f"# TODO: register IC visualisations:\n"
-        f"#   for ic_name, ic_spec in MAKE_IC.items():\n"
-        f"#       problem.add_ic(ic_name, ic_spec.plot_params)\n\n"
-        f"EXPERIMENTS = problem.experiments\n"
-        f"PLOT_FNS = problem.plot_fns\n"
+        f"from typing import TYPE_CHECKING\n\n"
+        f"if TYPE_CHECKING:\n"
+        f"    from mosaic.benchmarks.core.config import Problem\n\n\n"
+        f"def register(problem: Problem) -> None:\n"
+        f'    """Populate ``problem.experiments`` / ``problem.plot_fns``."""\n'
+        f"    # TODO: register experiments with problem.add(...).\n"
+        f"    #   from mosaic.benchmarks.problems.shared.forward import run_agreement\n"
+        f'    #   problem.add("forward/baseline", run_agreement, runs=[{{...}}])\n\n'
+        f"    # TODO: register IC visualisations:\n"
+        f"    #   for ic_name, ic_spec in problem.make_ic.items():\n"
+        f"    #       problem.add_ic(ic_name, ic_spec.plot_params)\n"
     )
 
     config_path = pkg_dir / "config.py"
@@ -282,9 +274,10 @@ def scaffold_domain(
         f'"""Solver discovery, exclusions, and the assembled ``Problem``."""\n\n'
         f"from __future__ import annotations\n\n"
         f"from pathlib import Path\n\n"
-        f"from mosaic.benchmarks.core.config import SolverSpec, discover_solvers\n"
+        f"from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers\n"
+        f"from mosaic.benchmarks.core.utils import l2_error_rel\n"
         f"from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles\n\n"
-        f"from .experiments import EXPERIMENTS, PLOT_FNS, problem\n"
+        f"from .experiments import register as _register_experiments\n"
         f"from .ics import MAKE_IC\n"
         f"from .physics import DIAGNOSTICS, build_make_inputs\n\n"
         f"_GYM_DIR = Path(__file__).parent.parent.parent.parent\n"
@@ -295,14 +288,21 @@ def scaffold_domain(
         f"# Merge domain-specific overrides here, e.g.:\n"
         f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n'
         f"_SOLVERS_LIST = list(_SOLVERS.values())\n\n"
-        f"# Fill in the runtime registry on the Problem built in experiments.py.\n"
-        f'problem.name = "{domain_name}"\n'
-        f"problem.tesseract_dir = _TESSERACT_DIR\n"
-        f"problem.solvers = _SOLVERS_LIST\n"
-        f"problem.make_inputs = build_make_inputs(_SOLVERS_LIST)\n"
-        f"problem.diagnostics = DIAGNOSTICS\n"
-        f'problem.description = "{tpl.description.strip()}"\n\n'
-        f"CONFIG = problem\n"
+        f"CONFIG = Problem(\n"
+        f'    name="{domain_name}",\n'
+        f"    tesseract_dir=_TESSERACT_DIR,\n"
+        f"    solvers=_SOLVERS_LIST,\n"
+        f"    make_ic=MAKE_IC,\n"
+        f"    make_inputs=build_make_inputs(_SOLVERS_LIST),\n"
+        f"    error_fn=l2_error_rel,\n"
+        f"    diagnostics=DIAGNOSTICS,\n"
+        f'    output_key="{tpl.output_key}",\n'
+        f'    ic_key="{tpl.ic_key}",\n'
+        f"    domain_extent={tpl.domain_extent},\n"
+        f'    resolution_key="{tpl.resolution_key}",\n'
+        f'    description="{tpl.description.strip()}",\n'
+        f")\n\n"
+        f"_register_experiments(CONFIG)\n"
     )
     created["problem_config"] = config_path
     created["problem_pkg"] = pkg_dir
