@@ -17,8 +17,8 @@ from mosaic.benchmarks.core.harness import classify_failure as _classify_failure
 from mosaic.benchmarks.core.io import (
     experiment_dir,
     results_dir,
-    save_experiment,
     save_field_snapshots_npz,
+    save_harness_result,
     try_load_npz,
 )
 from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
@@ -234,6 +234,7 @@ def run_fd_check(
         )
 
         exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
+        # Pre-compute out_dir so the per-solver npz can land alongside result.json.
         out_dir = experiment_dir(
             results_dir(),
             cfg.name,
@@ -251,8 +252,14 @@ def run_fd_check(
         )
 
         result = {"by_solver": results, "params": run}
-        save_experiment(
-            result, out_dir, cfg=cfg, harness_fn=run_fd_check, wall_time_s=_wall_times
+        save_harness_result(
+            result,
+            cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=exp_subdir,
+            harness_fn=run_fd_check,
+            wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -470,11 +477,12 @@ def _run_generic_param_sweep(
             catch_label="VJP failed",
         )
 
+        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir = experiment_dir(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+            exp_subdir,
             suffix="_debug" if overrides.get("debug") else "",
         )
 
@@ -504,12 +512,14 @@ def _run_generic_param_sweep(
             )
 
         result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
-        save_experiment(
+        save_harness_result(
             result,
-            out_dir,
             cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=exp_subdir,
             harness_fn=_run_generic_param_sweep,
             wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -794,11 +804,12 @@ def run_horizon_sweep_limits(
             cfg, tags, diff_solvers, _limits_work, gpu_ids=gpu_ids
         )
 
+        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir = experiment_dir(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+            exp_subdir,
             suffix="_debug" if overrides.get("debug") else "",
         )
 
@@ -826,12 +837,14 @@ def run_horizon_sweep_limits(
             )
 
         result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
-        save_experiment(
+        save_harness_result(
             result,
-            out_dir,
             cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=exp_subdir,
             harness_fn=run_horizon_sweep_limits,
             wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -962,11 +975,12 @@ def run_jacobian_svd(
         # set rather than just the current subset.  The NPZ stores each solver's
         # full Jacobian matrix under the positional key ``jac_j`` (see save
         # below).  Per-solver entries already computed this run take precedence.
+        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir_for_merge = experiment_dir(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+            exp_subdir,
             suffix="_debug" if overrides.get("debug") else "",
         )
         _npz = try_load_npz(out_dir_for_merge / "jacobian_svd.npz")
@@ -1121,12 +1135,14 @@ def run_jacobian_svd(
             "landscape": {"alphas": alphas, "by_solver": landscape_by_solver},
             "params": run,
         }
-        save_experiment(
+        save_harness_result(
             result,
-            out_dir,
             cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=exp_subdir,
             harness_fn=run_jacobian_svd,
             wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[ic_name] = result

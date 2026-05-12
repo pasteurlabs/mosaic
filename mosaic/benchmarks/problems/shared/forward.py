@@ -22,8 +22,8 @@ from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import (
     experiment_dir,
     results_dir,
-    save_experiment,
     save_field_snapshots_npz,
+    save_harness_result,
     try_load_npz,
 )
 from mosaic.benchmarks.core.runner import (
@@ -223,7 +223,7 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
         _SUITE,
         exp_subdir,
         suffix="_debug" if overrides.get("debug") else "",
-    )
+    )  # pre-computed for cached-fields lookup; save_harness_result recomputes
     # Snapshot bookkeeping. Per-solver field arrays live in ``per_solver``
     # keyed by sweep index; consensus and IC/x_axis go into ``shared_arrays``.
     # save_field_snapshots_npz (flat_keys=True) handles the lock-and-merge:
@@ -317,9 +317,11 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
         "reference_label": reference_label,
         "params": run,
     }
-    save_experiment(
+    save_harness_result(
         result,
-        out_dir,
+        cfg=cfg,
+        suite=_SUITE,
+        exp_subdir=exp_subdir,
         csv_rows=[
             {
                 "solver": n,
@@ -330,9 +332,9 @@ def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
             for val in sweep_values
             for n in (s.name for s in cfg.solvers)
         ],
-        cfg=cfg,
         harness_fn=run_agreement,
         wall_time_s=_wall_times,
+        debug=bool(overrides.get("debug")),
     )
     return ic_name, result
 
@@ -623,21 +625,16 @@ def run_physical_laws(
                         }
                     )
 
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"physical_laws/{ic_subdir}" if ic_subdir else "physical_laws",
-            suffix="_debug" if overrides.get("debug") else "",
-        )
         result = {"by_param": by_param, "sweep_key": sweep_key, "params": run}
-        save_experiment(
+        save_harness_result(
             result,
-            out_dir,
-            csv_rows=csv_rows,
             cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=f"physical_laws/{ic_subdir}" if ic_subdir else "physical_laws",
+            csv_rows=csv_rows,
             harness_fn=run_physical_laws,
             wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[run_name] = result

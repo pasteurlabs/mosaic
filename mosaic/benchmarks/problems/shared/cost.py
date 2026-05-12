@@ -61,10 +61,8 @@ from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.hardware import get_hardware_info
 from mosaic.benchmarks.core.harness import run_timed_trials
 from mosaic.benchmarks.core.io import (
-    experiment_dir,
-    results_dir,
-    save_experiment,
     save_field_snapshots_npz,
+    save_harness_result,
 )
 from mosaic.benchmarks.core.runner import current_worker_context, per_solver_loop
 from mosaic.benchmarks.core.utils import (
@@ -460,20 +458,15 @@ def _run_cost_impl(
     if cx.sweep_steps:
         result["by_steps"] = cx.by_steps
 
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        exp_key,
-        suffix="_debug" if overrides.get("debug") else "",
-    )
-    save_experiment(
+    out_dir = save_harness_result(
         result,
-        out_dir,
-        csv_rows=cx.csv_rows,
         cfg=cfg,
+        suite=_SUITE,
+        exp_subdir=exp_key,
+        csv_rows=cx.csv_rows,
         harness_fn=_run_cost_impl,
         wall_time_s=cx.wall_times,
+        debug=bool(overrides.get("debug")),
     )
 
     _save_gradient_snapshots(cx, out_dir, solver_names_list)

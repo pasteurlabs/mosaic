@@ -806,6 +806,47 @@ def save_experiment(
         )
 
 
+def save_harness_result(
+    result: dict,
+    *,
+    cfg: Problem,
+    suite: str,
+    exp_subdir: str,
+    harness_fn,
+    wall_time_s: dict[str, float] | None = None,
+    csv_rows: list[dict] | None = None,
+    debug: bool = False,
+) -> Path:
+    """Compute the standard experiment directory and save a harness result.
+
+    Wraps the boilerplate every harness uses to land its output: builds
+    ``results/<problem>/<suite>/<exp_subdir>[_debug]/`` via
+    :func:`experiment_dir`, then delegates to :func:`save_experiment` with the
+    canonical ``cfg=`` / ``harness_fn=`` / ``wall_time_s=`` trailer that
+    drives the staleness hashing.
+
+    Returns the resolved ``out_dir`` so callers can layer additional artefacts
+    (e.g. a per-solver npz via :func:`save_field_snapshots_npz`) into the
+    same directory without re-deriving the path.
+    """
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        suite,
+        exp_subdir,
+        suffix="_debug" if debug else "",
+    )
+    save_experiment(
+        result,
+        out_dir,
+        csv_rows=csv_rows,
+        cfg=cfg,
+        harness_fn=harness_fn,
+        wall_time_s=wall_time_s,
+    )
+    return out_dir
+
+
 # ── Experiment-result readers ───────────────────────────────────────────────
 
 

@@ -22,6 +22,7 @@ from mosaic.benchmarks.core.io import (
     results_dir,
     save_experiment,
     save_field_snapshots_npz,
+    save_harness_result,
     save_json,
     save_npz_merged,
 )
@@ -1539,11 +1540,12 @@ def _run_topopt_impl(
             print_done=False,
         )
 
+        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir = experiment_dir(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+            exp_subdir,
             suffix="_debug" if overrides.get("debug") else "",
         )
         solver_names = list(rho_snaps.keys())
@@ -1563,12 +1565,14 @@ def _run_topopt_impl(
         )
 
         result = {"by_solver": by_solver, "params": run}
-        save_experiment(
+        save_harness_result(
             result,
-            out_dir,
             cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=exp_subdir,
             harness_fn=harness_fn,
             wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -2516,13 +2520,13 @@ def _run_conductivity_recovery_impl(
             print_done=False,
         )
 
-        _dbg = "_debug" if overrides.get("debug") else ""
+        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir = experiment_dir(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
-            suffix=_dbg,
+            exp_subdir,
+            suffix="_debug" if overrides.get("debug") else "",
         )
 
         solver_names = list(rho_snaps.keys())
@@ -2531,12 +2535,14 @@ def _run_conductivity_recovery_impl(
         )
 
         result = {"by_solver": by_solver, "params": run}
-        save_experiment(
+        save_harness_result(
             result,
-            out_dir,
             cfg=cfg,
+            suite=_SUITE,
+            exp_subdir=exp_subdir,
             harness_fn=harness_fn,
             wall_time_s=_wall_times,
+            debug=bool(overrides.get("debug")),
         )
         if n_runs > 1:
             all_results[ic_name] = result
