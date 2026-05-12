@@ -1,9 +1,9 @@
 """Experiment + plot registrations for thermal-mesh.
 
-Exposes :func:`register(problem)` which the per-problem ``config.py`` calls
+Exposes :func:`register(problem)` which the package ``__init__`` calls
 after building the canonical :class:`Problem` instance — so closure deps
 (``make_ic``, ``error_fn``, ``output_key``, …) and the experiment/plot
-registries live on a single ``Problem`` rather than two duplicated ones.
+registries live on a single ``Problem``.
 """
 
 from __future__ import annotations
