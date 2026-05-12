@@ -2,7 +2,7 @@
 title: "Tutorial: Adding a Benchmark Domain"
 ---
 
-This tutorial walks through adding an entirely new physics domain to Mosaic, end to end. By the end you will have a working domain with schemas, initial conditions, a problem configuration, and a reference solver --- ready for a pull request.
+This tutorial walks through adding an entirely new physics domain to Mosaic, end to end. By the end you will have a working domain with schemas, initial conditions, a `Problem` instance, and a reference solver --- ready for a pull request.
 
 We will use a **1D diffusion** equation as our running example and build a domain called `diffusion-1d`. This is deliberately simple so you can focus on the integration plumbing rather than the physics.
 
@@ -89,12 +89,14 @@ mosaic/tesseract_shared/problems/diffusion_1d/
 
 mosaic/tesseracts/diffusion-1d/  # empty directory, ready for solver subdirs
 
-mosaic/benchmarks/problems/
-  diffusion_1d.py                # ProblemConfig pre-populated from the template
-                                 # (suite defaults filled in; make_ic / make_inputs are TODOs)
+mosaic/benchmarks/problems/diffusion_1d/
+  __init__.py                    # canonical Problem instance + _register_experiments(CONFIG)
+  ics.py                         # IC generators + MAKE_IC registry (TODO stubs)
+  physics.py                     # build_make_inputs + DIAGNOSTICS (TODO stubs)
+  experiments.py                 # register(problem) + _DESCRIPTIONS (empty)
 ```
 
-The `InputSchema` / `OutputSchema` bodies are empty (you'll fill them in next); the `ProblemConfig` already has plausible `forward_defaults` / `gradient_defaults` / `cost_defaults` / `inverse_defaults` blocks copied from the template, but `make_ic` and `make_inputs` are TODO stubs.
+The `InputSchema` / `OutputSchema` bodies are empty (you'll fill them in next); the `Problem` instance in `__init__.py` is wired up to the four-file split but `MAKE_IC`, `build_make_inputs`, and the `register()` body are TODO stubs.
 
 Try validating right away --- it will fail because there are no solvers yet and the empty `OutputSchema` doesn't define `output_key`:
 
@@ -103,15 +105,15 @@ mosaic validate-domain diffusion-1d
 ```
 
 ```
-FAIL  ProblemConfig.validate():
-  ProblemConfig 'diffusion-1d' validation failed:
+FAIL  Problem.validate():
+  Problem 'diffusion-1d' validation failed:
     - no solvers registered
 FAIL  output_key 'result' not in OutputSchema fields: []
 
 2 of 2 checks failed for 'diffusion-1d'.
 ```
 
-This is expected. We will fill in the schemas, problem config, and a reference solver in the next steps.
+This is expected. We will fill in the schemas, problem package, and a reference solver in the next steps.
 
 ## 4. Define the schemas
 
@@ -195,7 +197,7 @@ Two equivalent ways to declare differentiable fields:
 
 **All fields must have defaults.** This is a Tesseract requirement --- the container must be callable with `apply '{}'`. Use `default_factory` for array fields and `default` for scalars.
 
-**`result` as output key.** The harness uses the `output_key` field from `ProblemConfig` to extract the main output for solver-to-solver comparison. We use `result` here by convention.
+**`result` as output key.** The harness uses the `output_key` field from `Problem` to extract the main output for solver-to-solver comparison. We use `result` here by convention.
 
 Now update the `__init__.py` to re-export the schemas and the IC factory:
 
@@ -207,39 +209,27 @@ __all__ = ["InputSchema", "OutputSchema", "make_gaussian_ic"]
 
 ## 5. Configure the problem
 
-The problem config tells the harness how to generate inputs, compare outputs, and which experiments to run. Edit `mosaic/benchmarks/problems/diffusion_1d.py`:
+The problem package tells the harness how to generate inputs, compare outputs, and which experiments to run. It lives at `mosaic/benchmarks/problems/diffusion_1d/` and is split across four files:
+
+| File | Responsibility |
+|:-----|:---------------|
+| `__init__.py` | Solver discovery, the canonical `Problem` instance (published as `CONFIG`), per-solver overrides, and the call to `_register_experiments(CONFIG)`. |
+| `ics.py` | IC generator functions and the `MAKE_IC: dict[str, IcSpec]` registry. |
+| `physics.py` | `build_make_inputs(solvers)` factory, mesh / BC builders, and the `DIAGNOSTICS` registry. |
+| `experiments.py` | `_DESCRIPTIONS` dict plus `register(problem)` which calls `problem.add(...)` once per experiment. |
+
+There is intentionally **no `config.py`** --- the canonical `Problem` instance lives directly in the package's `__init__.py`.
+
+### 5a. Fill in `ics.py`
 
 ```python
-"""Problem config for diffusion-1d: 1-D heat equation on a periodic domain."""
+"""Initial-condition generators and the ``MAKE_IC`` registry."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 
-from mosaic.benchmarks.core.config import (
-    IcSpec,
-    ProblemConfig,
-    SolverSpec,
-    discover_solvers,
-)
-from mosaic.benchmarks.core.utils import l2_error_rel
-
-_GYM_DIR = Path(__file__).parent.parent.parent
-_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "diffusion-1d"
-
-
-# ── Auto-discover solvers ────────────────────────────────────────────────────
-
-_SOLVERS = discover_solvers(_TESSERACT_DIR)
-
-# Merge domain-specific overrides here if needed, e.g.:
-# _SOLVERS["my_solver"].exclusions = {...}
-# _SOLVERS["my_solver"].input_overrides = {...}
-
-
-# ── IC generators ────────────────────────────────────────────────────────────
+from mosaic.benchmarks.core.config import IcSpec
 
 
 def _gaussian(N: int = 128, L: float = 1.0, seed: int = 0, **_) -> np.ndarray:
@@ -255,41 +245,257 @@ def _sine(N: int = 128, L: float = 1.0, k: int = 2, seed: int = 0, **_) -> np.nd
     return np.sin(2.0 * np.pi * k * x / L).astype(np.float32)
 
 
-# ── Input factory ────────────────────────────────────────────────────────────
-
-
-def _make_inputs(
-    solver_name: str,
-    ic: np.ndarray,
-    *,
-    N: int | None = None,
+def _sine_analytic(
+    N: int = 128,
+    L: float = 1.0,
+    k: int = 2,
     alpha: float = 0.01,
     dt: float = 0.001,
     steps: int = 100,
-    L: float = 1.0,
     **_,
-) -> dict:
-    """Build solver input dict from IC and physics parameters.
+) -> np.ndarray:
+    """Analytic solution of du/dt = alpha * d^2u/dx^2 for a sine IC."""
+    x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
+    t = dt * steps
+    decay = np.exp(-alpha * (2.0 * np.pi * k / L) ** 2 * t)
+    return (np.sin(2.0 * np.pi * k * x / L) * decay).astype(np.float32)
 
-    If N is provided and differs from ic.shape[0], the IC is regenerated at
-    the requested resolution.
+
+MAKE_IC: dict[str, IcSpec] = {
+    "gaussian": IcSpec(
+        fn=_gaussian,
+        description="Gaussian bump centred at L/2.",
+        plot_params={"N": 128, "L": 1.0},
+    ),
+    "sine": IcSpec(
+        fn=_sine,
+        description="Sine wave with wavenumber k=2 (analytic solution available).",
+        plot_params={"N": 128, "L": 1.0, "k": 2},
+    ),
+}
+```
+
+### 5b. Fill in `physics.py`
+
+```python
+"""Input factory + diagnostics for diffusion-1d."""
+
+from __future__ import annotations
+
+from typing import Callable
+
+import numpy as np
+
+from mosaic.benchmarks.core.config import SolverSpec
+
+
+def build_make_inputs(solvers: list[SolverSpec]) -> Callable:
+    """Build a closure mapping (solver_name, ic, **physics) → dict.
+
+    Captures per-solver ``input_overrides`` so the closure can merge them
+    in without re-importing the solver list at call time (avoids an import
+    cycle with the package ``__init__``).
     """
-    return {
-        "u0": ic,
-        "alpha": np.array([alpha], dtype=np.float32),
-        "dt": np.array([dt], dtype=np.float32),
-        "steps": int(steps),
-        "domain_extent": float(L),
+    spec_by_name = {s.name: s for s in solvers}
+
+    def _make_inputs(
+        solver_name: str,
+        ic: np.ndarray,
+        *,
+        N: int | None = None,
+        alpha: float = 0.01,
+        dt: float = 0.001,
+        steps: int = 100,
+        L: float = 1.0,
+        **_,
+    ) -> dict:
+        spec = spec_by_name[solver_name]
+        base = {
+            "u0": ic,
+            "alpha": np.array([alpha], dtype=np.float32),
+            "dt": np.array([dt], dtype=np.float32),
+            "steps": int(steps),
+            "domain_extent": float(L),
+        }
+        return {**base, **spec.input_overrides}
+
+    return _make_inputs
+
+
+# No problem-specific diagnostics for diffusion-1d.
+DIAGNOSTICS: dict = {}
+```
+
+### 5c. Fill in `experiments.py`
+
+This is where each experiment is registered onto the `Problem` instance. Each call is `problem.add(key, runner, runs=[...], plot=..., reduce=...)`; the runner is one of the shared functions from `mosaic.benchmarks.problems.shared.*`. Plot descriptions are kept in a single `_DESCRIPTIONS` dict at the top so they don't clutter the registrations.
+
+```python
+"""Experiment + plot registrations for diffusion-1d."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from mosaic.benchmarks.problems.shared.cost import run_spatial_cost, run_temporal_cost
+from mosaic.benchmarks.problems.shared.forward import run_agreement
+from mosaic.benchmarks.problems.shared.gradient import run_fd_check
+from mosaic.benchmarks.problems.shared.optimization import run_recovery
+from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
+from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
+from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
+from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
+from mosaic.benchmarks.problems.shared.plots.optimization import plot_recovery
+
+if TYPE_CHECKING:
+    from mosaic.benchmarks.core.config import Problem
+
+
+_DESCRIPTIONS = {
+    "forward/baseline": (
+        "Resolution convergence: relative L2 error vs grid size N with a "
+        "Gaussian bump IC."
+    ),
+    "forward/agreement": (
+        "Solver-to-solver agreement: relative L2 error vs diffusivity α at "
+        "fixed N."
+    ),
+    "cost/spatial_cost": "Forward-pass wall-clock time vs grid resolution N.",
+    "cost/temporal_cost": "Forward-pass wall-clock time vs step count at fixed N.",
+    "gradient/fd_check": (
+        "U-curves of finite-difference gradient error vs perturbation size ε "
+        "with subspace cosine; validates VJP correctness."
+    ),
+    "optimization/ic_recovery": (
+        "Recover the initial condition from the final state: optimise u0 to "
+        "minimise ||solver(u0) - target||^2."
+    ),
+}
+
+_COST_RUNS = [
+    {
+        "physics": {"alpha": 0.01, "dt": 0.001, "L": 1.0},
+        "cost": {
+            "N_values": [32, 64, 128, 256, 512, 1024],
+            "steps_values": [10, 50, 100, 500, 1000],
+            "n_trials": 3,
+        },
     }
+]
 
 
-# ── Error function ───────────────────────────────────────────────────────────
-# l2_error_rel computes ||pred - ref|| / ||ref||, the standard relative L2 error.
+def register(problem: Problem) -> None:
+    """Populate ``problem.experiments`` / ``problem.plot_fns``."""
+    problem.descriptions.update(_DESCRIPTIONS)
+
+    # Forward
+    problem.add(
+        "forward/baseline",
+        run_agreement,
+        runs=[
+            {
+                "ic": {"name": "gaussian", "seed": 0},
+                "physics": {"alpha": 0.01, "dt": 0.001, "steps": 100, "L": 1.0},
+                "sweep": {"key": "N", "values": [16, 32, 64, 128, 256]},
+            }
+        ],
+        plot=plot_agreement,
+    )
+    problem.add(
+        "forward/agreement",
+        run_agreement,
+        runs=[
+            {
+                "ic": {"name": "sine", "seed": 0},
+                "physics": {"N": 128, "dt": 0.001, "steps": 100, "L": 1.0},
+                "sweep": {"key": "alpha", "values": [0.001, 0.005, 0.01, 0.05, 0.1]},
+                # Reference can be a callable (analytic solution) OR a dict
+                # describing a fine-solver baseline:
+                #   "reference": {"solvers": {"numpy_spectral"}, "dt": 1e-4, "steps": 1000}
+                "reference": problem.reference,  # _sine_analytic, threaded via Problem(reference=...)
+            }
+        ],
+        plot=plot_agreement,
+    )
+
+    # Cost
+    problem.add("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
+    problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost)
+
+    # Gradient
+    problem.add(
+        "gradient/fd_check",
+        run_fd_check,
+        runs=[
+            {
+                "ic": {"name": "gaussian", "seed": 0},
+                "physics": {"N": 32, "alpha": 0.01, "dt": 0.01, "steps": 10, "L": 1.0},
+                "fd": {"eps_values": [1.0, 0.1, 0.01, 1e-3, 1e-4], "n_dirs": 10},
+            }
+        ],
+        plot=plot_fd_check,
+    )
+
+    # Optimization
+    problem.add(
+        "optimization/ic_recovery",
+        run_recovery,
+        optimizer="adam",  # also "bfgs" / "bfgs_proj"
+        runs=[
+            {
+                "ic": {"name": "gaussian", "seed": 0},
+                "physics": {"N": 64, "alpha": 0.01, "dt": 0.001, "steps": 50, "L": 1.0},
+                "optim": {"lr": 0.01, "max_iters": 300, "patience": 50},
+            }
+        ],
+        plot=plot_recovery,
+    )
+
+    # ICs (one entry per registered IC, for IC visualisation plots)
+    for ic_name, ic_spec in problem.make_ic.items():
+        problem.add_ic(ic_name, ic_spec.plot_params, plot=plot_ic)
+```
+
+### 5d. Wire it up in `__init__.py`
+
+```python
+"""Problem package for diffusion-1d: 1-D periodic heat equation."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers
+from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
+
+from .experiments import register as _register_experiments
+from .ics import MAKE_IC, _sine_analytic
+from .physics import DIAGNOSTICS, build_make_inputs
+
+_GYM_DIR = Path(__file__).parent.parent.parent.parent
+_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "diffusion-1d"
 
 
-# ── Config instance ──────────────────────────────────────────────────────────
+# ── Solver registry ──────────────────────────────────────────────────────────
+# Per-solver fields (name, scheme, backend, ad_strategy, …) live in each
+# tesseract's ``tesseract_config.yaml`` under ``metadata.mosaic``.
+# Only per-(solver, problem) overrides (input_overrides / exclusions) are
+# applied here.
 
-CONFIG = ProblemConfig(
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)
+
+# Plot styling lives in mosaic.benchmarks.problems.shared.plots.solver_styles,
+# not in YAML.
+apply_styles(_SOLVERS)
+
+# Example per-solver overrides (none needed for the reference solver):
+# _SOLVERS["my_solver"].input_overrides = {"some_param": 1.0}
+
+_SOLVERS_LIST = list(_SOLVERS.values())
+
+
+CONFIG = Problem(
     name="diffusion-1d",
     description=(
         "1-D periodic diffusion equation du/dt = alpha * d^2u/dx^2. "
@@ -297,111 +503,59 @@ CONFIG = ProblemConfig(
         "The sine-wave IC has a known analytic solution: "
         "u(x,t) = sin(2*pi*k*x/L) * exp(-alpha*(2*pi*k/L)^2 * t)."
     ),
+    category_label="Diffusion (1D)",
     tesseract_dir=_TESSERACT_DIR,
     output_key="result",
     ic_key="u0",
-    solvers=_SOLVERS,
-    make_ic={
-        "gaussian": IcSpec(
-            fn=_gaussian,
-            description="Gaussian bump centred at L/2.",
-            plot_params={"N": 128, "L": 1.0},
-        ),
-        "sine": IcSpec(
-            fn=_sine,
-            description="Sine wave with wavenumber k=2 (analytic solution available).",
-            plot_params={"N": 128, "L": 1.0, "k": 2},
-        ),
-    },
-    make_inputs=_make_inputs,
+    solvers=_SOLVERS_LIST,
+    make_ic=MAKE_IC,
+    make_inputs=build_make_inputs(_SOLVERS_LIST),
     error_fn=l2_error_rel,
-    diagnostics={},
+    diagnostics=DIAGNOSTICS,
+    reference=_sine_analytic,   # analytic baseline used by forward/agreement
     domain_extent=1.0,
     resolution_key="N",
-
-    # ── Suite experiment definitions ─────────────────────────────────────
-    forward_defaults={
-        "baseline": dict(
-            description="Resolution convergence: error vs grid size N with a Gaussian bump IC.",
-            runs=[
-                dict(
-                    ic=dict(name="gaussian", seed=0),
-                    physics=dict(alpha=0.01, dt=0.001, steps=100, L=1.0),
-                    sweep=dict(key="N", values=[16, 32, 64, 128, 256]),
-                )
-            ],
-        ),
-        "agreement": dict(
-            description="Solver-to-solver agreement: sweep diffusivity alpha at fixed N.",
-            runs=[
-                dict(
-                    ic=dict(name="gaussian", seed=0),
-                    physics=dict(N=128, dt=0.001, steps=100, L=1.0),
-                    sweep=dict(key="alpha", values=[0.001, 0.005, 0.01, 0.05, 0.1]),
-                )
-            ],
-        ),
-    },
-    gradient_defaults={
-        "fd_check": dict(
-            description="FD gradient check: compare VJP against central finite differences.",
-            runs=[
-                dict(
-                    ic=dict(name="gaussian", seed=0),
-                    physics=dict(N=32, alpha=0.01, dt=0.01, steps=10, L=1.0),
-                    fd=dict(eps_values=[1.0, 0.1, 0.01, 0.001, 0.0001], n_dirs=10),
-                )
-            ],
-        ),
-    },
-    cost_defaults=dict(
-        description="Wall-clock and memory profiling vs grid size N and step count.",
-        runs=[
-            dict(
-                physics=dict(alpha=0.01, dt=0.001, L=1.0),
-                cost=dict(
-                    N_values=[32, 64, 128, 256, 512, 1024],
-                    steps_values=[10, 50, 100, 500, 1000],
-                    n_trials=3,
-                ),
-            )
-        ],
-    ),
-    inverse_defaults={
-        "ic_recovery": dict(
-            description=(
-                "Recover the initial condition from the final state. "
-                "Optimises u0 to minimise ||solver(u0) - target||^2."
-            ),
-            runs=[
-                dict(
-                    ic=dict(name="gaussian", seed=0),
-                    physics=dict(N=64, alpha=0.01, dt=0.001, steps=50, L=1.0),
-                    optim=dict(lr=0.01, max_iters=300, patience=50),
-                )
-            ],
-        ),
-    },
+    n_to_cells=lambda n: n,     # 1-D: cell count == N
 )
+
+_register_experiments(CONFIG)
+
+__all__ = ["CONFIG"]
 ```
 
-### Anatomy of the problem config
+### Anatomy of the `Problem` dataclass
 
-The `ProblemConfig` dataclass is the single source of truth for your domain. Here is what each piece does:
+`Problem` (defined in `mosaic/benchmarks/core/config.py`) is the single source of truth for your domain. The fields you'll touch most often:
 
-**`make_ic`** --- a dict of named IC generators, each wrapped in an `IcSpec`. The harness calls `cfg.make_ic["gaussian"](N=128, seed=0)` to generate initial conditions. IC functions must accept `**kwargs` for forward compatibility.
+| Field | Purpose |
+|:------|:--------|
+| `name` | CLI slug (`"diffusion-1d"`, `"ns-grid"`, …). |
+| `description` / `bc_description` / `category_label` | Human-readable text used by `mosaic status`, the docs build, and paper tables. |
+| `tesseract_dir` | Filesystem path containing one solver subdirectory per backend. |
+| `output_key` / `ic_key` | Field names on `OutputSchema` / `InputSchema` extracted for comparison / IC injection. |
+| `solvers` | List of `SolverSpec` instances, typically populated by `discover_solvers(...)`. |
+| `make_ic` | `dict[str, IcSpec]` of named IC generators. The harness calls `cfg.make_ic["gaussian"](N=128, seed=0)`. |
+| `make_inputs` | `(solver_name, ic, **physics) → dict` — builds the full solver input payload. |
+| `error_fn` | `(pred, ref) → float` — typically `l2_error_rel`. |
+| `reference` | Optional callable for an analytic / fine-solver baseline (used by forward experiments). |
+| `diagnostics` | `dict[str, Callable]` of named diagnostic functionals (kinetic energy, divergence, …). |
+| `exclusions` | `dict[solver_name, dict[exp_key, Exclusion]]` — see existing problems for the most-specific-first match semantics. |
+| `experiments` | Filled in by `problem.add(...)` calls; maps `"suite/exp"` → `Experiment`. |
+| `plot_fns` | Filled in by `problem.add(..., plot=...)`; maps `"suite/exp"` → callable. |
+| `descriptions` | Optional `dict[str, str]` plot-description fallback. The pattern is `problem.descriptions.update(_DESCRIPTIONS)` at the top of `register()`. |
 
-**`make_inputs`** --- builds the full solver input dict from an IC array and physics keyword arguments. This is where you handle solver-specific input shapes (e.g. `jax-cfd` wants `(N, N, 1, 2)` while other solvers want `(N, N, 2)`). For our simple 1D case, the mapping is straightforward.
+**Registering experiments.** `problem.add(key, runner, *, plot=..., reduce=..., **config)` records an entry at `key` (formatted `"suite/experiment"`). The runner is a shared function from `mosaic.benchmarks.problems.shared.*` (e.g. `run_agreement`, `run_fd_check`, `run_recovery`, `run_topopt`, …). Everything else in `**config` is passed through to the runner; the `runs=[...]` kwarg holds the per-experiment run-list payload.
 
-**`error_fn`** --- takes `(pred, ref)` arrays and returns a scalar error. `l2_error_rel` (relative L2 norm) is the standard choice.
+Any list-of-primitives that appears **inside a dict kwarg** is auto-detected as a sweep axis. `problem.add` then materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`, `forward/baseline/N_32`, …). The plot is registered once at the parent key.
 
-**Suite defaults** --- each suite (`forward_defaults`, `gradient_defaults`, `cost_defaults`, `inverse_defaults`) contains named experiments. Each experiment has a `runs` list, and each run specifies:
+**Run-dict structure.** Each entry in `runs=[...]` is a dict with a stable set of sub-keys:
 
-- `ic` --- which IC to use (name + seed)
-- `physics` --- keyword arguments passed to `make_inputs`
-- `sweep` --- parameter to vary and its values
-- `fd` --- finite-difference settings (gradient suite only)
-- `optim` --- optimizer settings (optimization suite only)
+- `ic` --- which IC to use, e.g. `{"name": "gaussian", "seed": 0}`.
+- `physics` --- keyword arguments passed through to `make_inputs`.
+- `sweep` --- `{"key": "N", "values": [...]}` for sweep-driven runners.
+- `reference` --- either a **callable** (analytic) or a `{"solvers": {...}, "dt": ..., "steps": ...}` dict (fine-solver baseline). The runner dispatches by type.
+- `fd` --- finite-difference settings (gradient suite).
+- `optim` --- optimizer settings (optimization suite). Optimizer flavour is selected via the `optimizer=` kwarg on `problem.add(...)` (`"adam"` (default), `"bfgs"`, or `"bfgs_proj"`).
 
 ## 6. Add a reference solver
 
@@ -437,7 +591,7 @@ metadata:
     internal_dtype: float64
 ```
 
-Plot styling (`color`, `linestyle`, `marker`) is **not** in the YAML — register it in `mosaic/benchmarks/plots/solver_styles.py` under the solver key (here, `numpy_spectral`).
+Plot styling (`color`, `linestyle`, `marker`) is **not** in the YAML — register it in `mosaic/benchmarks/problems/shared/plots/solver_styles.py` under the solver key (here, `numpy_spectral`).
 
 ::: {.callout-note}
 This reference solver is **not differentiable** (`differentiable: false`). The `gradient` and `optimization` suites will **skip** it; it still participates in the `forward` and `cost` suites as a reference baseline. To add a differentiable solver, follow the [Add a Solver tutorial](tutorial-add-solver.qmd) and implement `vector_jacobian_product`.
@@ -527,7 +681,7 @@ mosaic validate-domain diffusion-1d
 ```
 
 ```
-  OK  ProblemConfig.validate()
+  OK  Problem.validate()
   OK  solver dir: numpy-spectral/
   OK  output_key 'result' in OutputSchema
 
@@ -544,13 +698,20 @@ Expected output:
 
 ```
  ── diffusion-1d / forward ──
-  baseline  sweep N=[16, 32, 64, 128, 256]
+  baseline   sweep N=[16, 32, 64, 128, 256]
     numpy_spectral ... ok (5 runs)
   agreement  sweep alpha=[0.001, 0.005, 0.01, 0.05, 0.1]
     numpy_spectral ... ok (5 runs)
 ```
 
 Results are saved to `mosaic-results/diffusion-1d/forward/`.
+
+To pin to a single experiment (and optionally a single IC) use the unified `-e <suite>/<exp>/<ic>` selector:
+
+```bash
+# Run only the agreement experiment with the sine IC
+mosaic run -p diffusion-1d -e forward/agreement/sine -s numpy_spectral
+```
 
 To run all suites:
 
@@ -581,8 +742,11 @@ mosaic/tesseract_shared/problems/diffusion_1d/
   __init__.py                         # re-exports schemas
   schemas.py                          # InputSchema + OutputSchema
 
-mosaic/benchmarks/problems/
-  diffusion_1d.py                     # ProblemConfig
+mosaic/benchmarks/problems/diffusion_1d/
+  __init__.py                         # canonical Problem + _register_experiments(CONFIG)
+  ics.py                              # IC generators + MAKE_IC
+  physics.py                          # build_make_inputs + DIAGNOSTICS
+  experiments.py                      # register(problem) + _DESCRIPTIONS
 
 mosaic/tesseracts/diffusion-1d/
   numpy-spectral/
@@ -619,16 +783,18 @@ Adding a new domain to Mosaic requires three components:
 | Component | Location | Purpose |
 |:----------|:---------|:--------|
 | **Schemas** | `mosaic/tesseract_shared/problems/<domain>/schemas.py` | Define the solver contract (input fields, output fields, types, defaults) |
-| **Problem config** | `mosaic/benchmarks/problems/<domain>.py` | IC generators, input factory, error function, and experiment definitions for each suite |
+| **Problem package** | `mosaic/benchmarks/problems/<domain>/` (4 files) | `__init__.py` (Problem + solver discovery), `ics.py`, `physics.py`, `experiments.py` |
 | **Reference solver** | `mosaic/tesseracts/<domain>/<solver>/` | At least one working solver so the harness can run |
 
 The `mosaic new-domain` command scaffolds all three as stubs. From there, the workflow is:
 
 1. Fill in the schemas (the contract).
-2. Fill in the problem config (the experiments).
-3. Add a reference solver (the baseline).
-4. Validate with `mosaic validate-domain`.
-5. Run with `mosaic run`.
-6. Submit a PR.
+2. Fill in `ics.py` (the IC generators) and `physics.py` (the input factory + diagnostics).
+3. Fill in `experiments.py` (one `problem.add(...)` per experiment).
+4. Wire the `Problem` instance together in `__init__.py`.
+5. Add a reference solver (the baseline).
+6. Validate with `mosaic validate-domain`.
+7. Run with `mosaic run`.
+8. Submit a PR.
 
 Once the domain is merged, other contributors can add solvers by following the [Add a Solver tutorial](tutorial-add-solver.qmd) --- they only need to implement `tesseract_api.py` against your schemas.
