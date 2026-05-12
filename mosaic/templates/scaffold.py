@@ -203,18 +203,14 @@ def scaffold_domain(
     tess_dir.mkdir(parents=True, exist_ok=True)
     created["tesseracts_dir"] = tess_dir
 
-    # 3. Problem config package — five-file layout under benchmarks/problems/<slug>/.
+    # 3. Problem config package — four-file layout under benchmarks/problems/<slug>/.
+    #    __init__.py holds the canonical CONFIG; experiments/ics/physics are
+    #    the other three.
     problems_dir = target_dir / "benchmarks" / "problems"
     pkg_dir = problems_dir / slug
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
     n_default = tpl.physics_defaults.get("N", 8)
-
-    (pkg_dir / "__init__.py").write_text(
-        f'"""Problem package for {domain_name}, generated from template: {tpl.name}."""\n\n'
-        f"from .config import CONFIG\n\n"
-        f'__all__ = ["CONFIG"]\n'
-    )
 
     (pkg_dir / "ics.py").write_text(
         f'"""Initial-condition generators and the ``MAKE_IC`` registry."""\n\n'
@@ -233,7 +229,7 @@ def scaffold_domain(
     (pkg_dir / "physics.py").write_text(
         f'"""Input factory + diagnostics. ``build_make_inputs`` captures per-solver\n'
         f"``input_overrides`` from the solver list so we avoid importing back into\n"
-        f'``.config`` (which would form an import cycle)."""\n\n'
+        f'the package ``__init__`` (which would form an import cycle)."""\n\n'
         f"from __future__ import annotations\n\n"
         f"from typing import Callable\n\n"
         f"import numpy as np\n\n"
@@ -251,10 +247,10 @@ def scaffold_domain(
 
     (pkg_dir / "experiments.py").write_text(
         f'"""Experiment + plot registrations for {domain_name}.\n\n'
-        f"Exposes :func:`register(problem)` which the per-problem ``config.py``\n"
-        f"calls after building the canonical :class:`Problem` instance, so\n"
-        f"closure deps and the experiment/plot registries live on a single\n"
-        f'``Problem``."""\n\n'
+        f"Exposes :func:`register(problem)` which the package ``__init__`` calls\n"
+        f"after building the canonical :class:`Problem` instance, so closure\n"
+        f"deps and the experiment/plot registries live on a single ``Problem``.\n"
+        f'"""\n\n'
         f"from __future__ import annotations\n\n"
         f"from typing import TYPE_CHECKING\n\n"
         f"if TYPE_CHECKING:\n"
@@ -269,9 +265,12 @@ def scaffold_domain(
         f"    #       problem.add_ic(ic_name, ic_spec.plot_params)\n"
     )
 
-    config_path = pkg_dir / "config.py"
-    config_path.write_text(
-        f'"""Solver discovery, exclusions, and the assembled ``Problem``."""\n\n'
+    init_path = pkg_dir / "__init__.py"
+    init_path.write_text(
+        f'"""Problem package for {domain_name}, generated from template: {tpl.name}.\n\n'
+        f"Solver discovery, the canonical :class:`Problem` instance, and any\n"
+        f"per-solver overrides live here. ``experiments.register(CONFIG)`` then\n"
+        f'populates the experiment/plot registries on it."""\n\n'
         f"from __future__ import annotations\n\n"
         f"from pathlib import Path\n\n"
         f"from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers\n"
@@ -302,9 +301,10 @@ def scaffold_domain(
         f'    resolution_key="{tpl.resolution_key}",\n'
         f'    description="{tpl.description.strip()}",\n'
         f")\n\n"
-        f"_register_experiments(CONFIG)\n"
+        f"_register_experiments(CONFIG)\n\n"
+        f'__all__ = ["CONFIG"]\n'
     )
-    created["problem_config"] = config_path
+    created["problem_config"] = init_path
     created["problem_pkg"] = pkg_dir
 
     return created

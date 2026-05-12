@@ -130,12 +130,15 @@ def test_scaffold_creates_files(tmp_path):
     assert created["tesseracts_dir"].is_dir()
     assert created["problem_config"].exists()
 
-    # The problem package must contain the canonical 5-file layout.
-    # plots.py is no longer emitted — plot registration happens via
+    # The problem package must contain the canonical 4-file layout.
+    # config.py was collapsed into __init__.py; plot registration happens via
     # ``problem.add(..., plot=...)`` inside ``experiments.py``.
     pkg = created["problem_pkg"]
-    for name in ("__init__.py", "config.py", "ics.py", "physics.py", "experiments.py"):
+    for name in ("__init__.py", "ics.py", "physics.py", "experiments.py"):
         assert (pkg / name).exists(), f"missing scaffolded file: {name}"
+    assert not (pkg / "config.py").exists(), (
+        "config.py should be collapsed into __init__.py"
+    )
 
 
 def test_scaffold_generates_valid_python(tmp_path):
@@ -170,7 +173,7 @@ def test_scaffold_produces_loadable_config(tmp_path):
 
     # Load the generated package via ``__init__.py``, giving the loader the
     # package's directory as a submodule search location so the relative
-    # imports inside ``config.py`` (``from .experiments import register``)
+    # imports inside ``__init__.py`` (``from .experiments import register``)
     # can be resolved. Absolute imports (mosaic.benchmarks.core.*) still
     # resolve against the real installed package because the tmp tree is
     # not on sys.path.
