@@ -170,7 +170,7 @@ def test_scaffold_produces_loadable_config(tmp_path):
 
     # Load the generated package via ``__init__.py``, giving the loader the
     # package's directory as a submodule search location so the relative
-    # imports inside ``config.py`` (``from .experiments import EXPERIMENTS``)
+    # imports inside ``config.py`` (``from .experiments import register``)
     # can be resolved. Absolute imports (mosaic.benchmarks.core.*) still
     # resolve against the real installed package because the tmp tree is
     # not on sys.path.
