@@ -21,9 +21,6 @@ from mosaic.benchmarks.problems.shared.gradient import (
     run_jacobian_svd,
     run_param_sweep,
 )
-from mosaic.benchmarks.problems.shared.optimization import (
-    run_conductivity_recovery,
-)
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
     plot_agreement,
@@ -38,6 +35,8 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.optimization import (
     plot_conductivity_recovery,
 )
+
+from .optimization import run_conductivity_recovery
 
 if TYPE_CHECKING:
     from mosaic.benchmarks.core.config import Problem

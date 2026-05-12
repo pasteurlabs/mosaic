@@ -22,7 +22,6 @@ from mosaic.benchmarks.problems.shared.gradient import (
     run_horizon_sweep_limits,
     run_jacobian_svd,
 )
-from mosaic.benchmarks.problems.shared.optimization import run_recovery
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
     plot_agreement,
@@ -36,6 +35,8 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.optimization import plot_recovery
+
+from .optimization import run_recovery
 
 if TYPE_CHECKING:
     from mosaic.benchmarks.core.config import Problem
