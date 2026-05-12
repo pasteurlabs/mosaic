@@ -6,61 +6,15 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 env:
   RESULTS_BRANCH: benchmark-results
 
 jobs:
-  run-gpu:
-    name: Full benchmark (GPU solvers)
-    runs-on: mosaic-bench-gpu
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Run GPU solvers
-        run: uv run mosaic run --hardware gpu
-        timeout-minutes: 360
-
-      - name: Upload GPU results
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-gpu
-          path: mosaic-results/
-
-  run-cpu:
-    name: Full benchmark (CPU solvers)
-    runs-on: mosaic-bench-cpu
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Run CPU solvers
-        run: uv run mosaic run --hardware cpu
-        timeout-minutes: 360
-
-      - name: Upload CPU results
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-cpu
-          path: mosaic-results/
-
-  report:
-    name: Report & publish release
-    needs: [run-gpu, run-cpu]
-    if: always() && (needs.run-gpu.result == 'success' || needs.run-cpu.result == 'success')
+  # ── Generate initial conditions (lightweight, no Docker) ─────────────────
+  ics:
+    name: Generate ICs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,19 +26,84 @@ jobs:
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
-      - name: Download GPU results
-        uses: actions/download-artifact@v4
-        with:
-          name: results-gpu
-          path: mosaic-results/
-        continue-on-error: true
+      - name: Run ICs suite
+        run: uv run mosaic run --suites ics
+        timeout-minutes: 15
 
-      - name: Download CPU results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-ics
+          path: mosaic-results/
+          if-no-files-found: ignore
+
+  # ── Run solver suites (matrix: suite × hardware) ────────────────────────
+  run:
+    name: "${{ matrix.suite }} (${{ matrix.hardware }})"
+    runs-on: ${{ matrix.hardware == 'gpu' && 'mosaic-bench-gpu' || 'mosaic-bench-cpu' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [forward, cost, gradient, optimization]
+        hardware: [gpu, cpu]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull pre-built solver images from GHCR
+        run: |
+          uv run python .github/scripts/pull-solver-images.py \
+            --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
+            --problems all \
+            --hardware "${{ matrix.hardware }}"
+
+      - name: Run ${{ matrix.suite }} (${{ matrix.hardware }})
+        run: |
+          uv run mosaic run --suites ${{ matrix.suite }} --hardware ${{ matrix.hardware }} --no-build
+        timeout-minutes: 180
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-${{ matrix.suite }}-${{ matrix.hardware }}
+          path: mosaic-results/
+          if-no-files-found: ignore
+
+  # ── Merge results, report, publish release ───────────────────────────────
+  report:
+    name: Report & publish release
+    needs: [ics, run]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Download all results
         uses: actions/download-artifact@v4
         with:
-          name: results-cpu
+          pattern: results-*
           path: mosaic-results/
-        continue-on-error: true
+          merge-multiple: true
 
       - name: Fetch baseline snapshot
         id: baseline

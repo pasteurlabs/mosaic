@@ -45,6 +45,7 @@ Run from the terminal:
 
 from __future__ import annotations
 
+import os
 import time
 import traceback
 
@@ -230,6 +231,12 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
     )
 
     result = {"by_N": by_N, "params": run, "hardware": hardware}
+    if os.environ.get("CI"):
+        result["_isolation_note"] = (
+            "Wall-clock times measured on dedicated per-suite VM in CI."
+            " Relative rankings reliable; absolute times may vary"
+            " \u00b110-15% across runs."
+        )
     out_dir = experiment_dir(
         results_dir(),
         cfg.name,
@@ -375,6 +382,12 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
     )
 
     result = {"by_steps": by_steps, "params": run, "hardware": hardware}
+    if os.environ.get("CI"):
+        result["_isolation_note"] = (
+            "Wall-clock times measured on dedicated per-suite VM in CI."
+            " Relative rankings reliable; absolute times may vary"
+            " \u00b110-15% across runs."
+        )
     out_dir = experiment_dir(
         results_dir(),
         cfg.name,
@@ -627,6 +640,12 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     run_with_gpu_pool(diff_solver_names_list, tags, _vjp_work, gpu_ids=gpu_ids)
 
     result = {"by_N": by_N, "by_steps": by_steps, "params": run, "hardware": hardware}
+    if os.environ.get("CI"):
+        result["_isolation_note"] = (
+            "Wall-clock times measured on dedicated per-suite VM in CI."
+            " Relative rankings reliable; absolute times may vary"
+            " \u00b110-15% across runs."
+        )
     out_dir = experiment_dir(
         results_dir(),
         cfg.name,
