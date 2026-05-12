@@ -6,8 +6,7 @@ Filesystem I/O (JSON/CSV/NPZ helpers, ``save_experiment``,
 contains the non-I/O utilities that don't fit anywhere more specific:
 
   * Array math: :func:`trimmed_mean`, :func:`l2_error_rel`, :func:`is_valid`.
-  * Run iteration: :func:`physics_params`, :func:`extract_runs`,
-    :func:`iter_runs`, :func:`_debug_run`.
+  * Run iteration: :func:`extract_runs`, :func:`iter_runs`, :func:`_debug_run`.
   * Solver filtering: :func:`exclusion_lookup`, :func:`active_solvers`,
     :func:`active_differentiable_solvers`.
 """
@@ -50,55 +49,7 @@ def is_valid(arr) -> bool:
     return arr is not None and bool(jnp.all(jnp.isfinite(arr)))
 
 
-# ── Misc ──────────────────────────────────────────────────────────────────────
-
-
-# Keys consumed by suite runners — never forwarded to make_ic / make_inputs.
-# Used only by run_diagnostics which retains the legacy flat-dict config format.
-SUITE_KEYS: frozenset = frozenset(
-    {
-        "N_values",
-        "ic",
-        "seed",
-        "sweep_key",
-        "sweep_values",
-        "fine_solvers",
-        "fine_dt",
-        "fine_steps",
-        "chunk_steps",
-        "n_chunks",
-        "fine_chunk",
-        "n_trials",
-        "steps_values",
-        "ics",
-        "eps_values",
-        "n_dirs",
-        "horizons",
-        "perturb_sigma",
-        "lr",
-        "max_iters",
-        "patience",
-        "failure_threshold",
-        "v_frac",
-        "penalty_weight",
-        "x_min",
-        "compliance_key",
-        "debug",
-        "ic_names",
-        "n_alphas",
-        "alpha_range",
-        "k_svd",
-    }
-)
-
-
-def physics_params(p: dict, extra: frozenset = frozenset()) -> dict:
-    """Physics kwargs: everything in p that is not a suite bookkeeping key.
-
-    Used only by run_diagnostics (legacy flat-dict config). All other suite
-    functions use iter_runs + named sub-dicts instead.
-    """
-    return {k: v for k, v in p.items() if k not in SUITE_KEYS | extra}
+# ── Run iteration ─────────────────────────────────────────────────────────────
 
 
 def extract_runs(exp_def: list[dict] | dict) -> list[dict]:
