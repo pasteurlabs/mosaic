@@ -25,7 +25,6 @@ from mosaic.benchmarks.problems.shared.gradient import (
 )
 from mosaic.benchmarks.problems.shared.optimization import (
     run_drag_opt,
-    run_drag_opt_bfgs,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -224,36 +223,23 @@ _DRAG_OPT_BFGS_RUNS = [
 # ── Plot descriptions (keyed by full experiment path) ────────────────────────
 
 _DESCRIPTIONS = {
-    "forward/baseline": "Relative error vs N at steps=1; validates single-step forward accuracy across solvers.",
-    "forward/agreement": "Relative error vs ν for each IC; vorticity fields comparing solver output to the fine-solver reference.",
-    "forward/tgv_nu_sweep": (
-        "Relative error vs ν for each solver at fixed TGV IC; "
-        "xlb errors are flat 0.026-0.031 across all ν (KBC entropic operator removes "
-        "BGK monotonic degradation at low ν); peer solvers stay ≤ 0.001 across the full range."
-    ),
-    "forward/physical_laws": "Divergence RMS, kinetic energy, and analytic error vs N / steps / ν for each solver; validates incompressibility and accuracy across regimes.",
-    "forward/cylinder": (
-        "Vorticity snapshots and kinetic-energy evolution vs time for each solver; "
-        "phase transition from steady to vortex-shedding regime as Re increases."
-    ),
-    "cost/spatial_cost": "Forward-pass wall-clock time vs N at fixed step count for all solvers.",
+    "forward/baseline": "Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across solvers.",
+    "forward/agreement": "Relative error vs viscosity ν for each IC, with vorticity field snapshots compared against a fine-solver reference.",
+    "forward/tgv_nu_sweep": "Relative error vs viscosity ν for each solver at a fixed TGV initial condition.",
+    "forward/physical_laws": "Divergence RMS, kinetic energy, and analytic error vs N, steps, and ν for each solver.",
+    "forward/cylinder": "Vorticity snapshots and kinetic-energy evolution vs time for each solver across a sweep of viscosities.",
+    "cost/spatial_cost": "Forward-pass wall-clock time vs grid resolution N at fixed step count for all solvers.",
     "cost/temporal_cost": "Forward-pass wall-clock time vs step count at fixed N for all solvers.",
     "cost/vjp_cost": "VJP wall-clock time vs N and step count for differentiable solvers.",
-    "gradient/fd_check": (
-        "U-curves (FD gradient error vs ε) and subspace cosine; validates VJP correctness. "
-        "LBM solvers (XLB, Lettuce) require ε≥5 (abs_eps≥0.36) to exit their float32 noise floor."
-    ),
+    "gradient/fd_check": "U-curves of finite-difference gradient error vs perturbation size ε together with subspace cosine; validates VJP correctness.",
     "gradient/param_sweep": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
-    "gradient/horizon_sweep": (
-        "Gradient norm, FD error, and direction cosine vs rollout horizon T=steps*dt for 2D multimode IC. "
-        "Key metric: the step count T* at which cosine(ε=0.1) drops below 0.999."
-    ),
-    "gradient/jacobian_svd": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces (2D multimode IC, N=8, ν=0.001, steps=10).",
-    "gradient/jacobian_svd_steps20": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=20). Extended horizon vs base (steps=10).",
-    "gradient/jacobian_svd_steps40": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.001, steps=40). Probes deeper into the chaotic regime.",
-    "gradient/jacobian_svd_nu01": "Singular-value spectrum and cross-solver cosine similarity for 2D multimode IC (N=8, ν=0.01, steps=10). 10× more viscous than base; expected to reduce condition number.",
-    "optimization/drag_opt": "Drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.",
-    "optimization/drag_opt_bfgs": "L-BFGS drag convergence curves per solver at Re=20; optimised vs initial inflow profiles; final drag coefficient comparison.",
+    "gradient/horizon_sweep": "Gradient norm, FD error, and direction cosine vs rollout horizon T = steps*dt.",
+    "gradient/jacobian_svd": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces.",
+    "gradient/jacobian_svd_steps20": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at an extended rollout horizon.",
+    "gradient/jacobian_svd_steps40": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at a long rollout horizon.",
+    "gradient/jacobian_svd_nu01": "Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at higher viscosity.",
+    "optimization/drag_opt": "Drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
+    "optimization/drag_opt_bfgs": "L-BFGS drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
 }
 
 
@@ -337,7 +323,8 @@ problem.add(
 )
 problem.add(
     "optimization/drag_opt_bfgs",
-    run_drag_opt_bfgs,
+    run_drag_opt,
+    optimizer="bfgs",
     runs=_DRAG_OPT_BFGS_RUNS,
     plot=plot_drag_opt,
 )

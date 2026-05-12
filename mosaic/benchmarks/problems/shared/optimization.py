@@ -1264,7 +1264,7 @@ def _run_recovery_for_one_run(  # noqa: PLR0913 — explicit-deps signature
     return result
 
 
-def run_recovery_constant_ic(
+def run_recovery(
     cfg: Problem,
     tags: dict[str, str],
     *,
@@ -1273,97 +1273,36 @@ def run_recovery_constant_ic(
     error_fn,
     output_key: str,
     domain_extent: float,
+    optimizer: str = "adam",
     runs=None,
+    exp_key: str = "recovery",
     **overrides,
 ) -> dict:
-    """IC recovery from zero initialisation (cold start), fixed steps=100.
+    """IC recovery from a zero initial guess (cold start).
 
-    Problem-semantics state is passed explicitly:
-        make_ic        — dict[ic_name → IcSpec | Callable]
-        make_inputs    — (solver_name, ic, **physics) → dict
-        error_fn       — (pred, ref) → float
-        output_key     — name of the solver-output array to compare
-        domain_extent  — physical domain length
+    ``optimizer`` selects the inner optimiser:
 
-    ``cfg`` retains its runtime-registry role (solvers, name); it is never
-    read for problem-semantics fields.
+      * ``"adam"``       — vanilla Adam (default).
+      * ``"bfgs"``       — L-BFGS with zoom line-search.
+      * ``"bfgs_proj"``  — L-BFGS with the gradient Helmholtz-projected
+        onto the ∇·g = 0 subspace each iteration (keeps the search
+        direction compatible with incompressibility for velocity-field
+        problems).
+
+    Problem-semantics state (``make_ic``, ``make_inputs``, ``error_fn``,
+    ``output_key``, ``domain_extent``) is passed explicitly. ``cfg``
+    retains its runtime-registry role only.
     """
+    optim_fn = _run_lbfgs if optimizer.startswith("bfgs") else _run_optim
+    project = optimizer == "bfgs_proj"
     return _run_recovery_long_impl(
         cfg,
         tags,
-        "recovery_constant_ic",
-        run_recovery_constant_ic,
+        exp_key,
+        run_recovery,
         runs=runs,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        error_fn=error_fn,
-        output_key=output_key,
-        domain_extent=domain_extent,
-        **overrides,
-    )
-
-
-def run_recovery_constant_ic_bfgs(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    runs=None,
-    **overrides,
-) -> dict:
-    """L-BFGS variant of run_recovery_constant_ic.
-
-    See :func:`run_recovery_constant_ic` for the kwarg semantics.
-    """
-    return _run_recovery_long_impl(
-        cfg,
-        tags,
-        "recovery_constant_ic_bfgs",
-        run_recovery_constant_ic_bfgs,
-        runs=runs,
-        _optim_fn=_run_lbfgs,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        error_fn=error_fn,
-        output_key=output_key,
-        domain_extent=domain_extent,
-        **overrides,
-    )
-
-
-def run_recovery_constant_ic_bfgs_proj(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    runs=None,
-    **overrides,
-) -> dict:
-    """L-BFGS variant with gradient Helmholtz-projected onto ∇·g = 0 each iteration.
-
-    Identical to ``run_recovery_constant_ic_bfgs`` except that the L-BFGS
-    gradient is spectral-projected onto the divergence-free subspace before
-    each quasi-Newton update, keeping the search direction compatible with
-    the incompressibility constraint throughout optimisation.
-
-    See :func:`run_recovery_constant_ic` for the kwarg semantics.
-    """
-    return _run_recovery_long_impl(
-        cfg,
-        tags,
-        "recovery_constant_ic_bfgs_proj",
-        run_recovery_constant_ic_bfgs_proj,
-        runs=runs,
-        _optim_fn=_run_lbfgs,
-        _project_grads=True,
+        _optim_fn=optim_fn,
+        _project_grads=project,
         make_ic=make_ic,
         make_inputs=make_inputs,
         error_fn=error_fn,
@@ -1644,14 +1583,20 @@ def run_topopt(
     error_fn,
     output_key: str,
     domain_extent: float,
+    optimizer: str = "adam",
     runs=None,
     **overrides,
 ) -> dict:
     """Topology optimisation: minimise compliance subject to a volume fraction constraint.
 
-    Runs Adam gradient descent with ρ clipped to [x_min, 1] and a soft volume
-    penalty. Designed for static FEA problems (structural-mesh) where IC recovery
-    is degenerate.
+    ``optimizer`` selects the inner optimiser:
+
+      * ``"adam"`` — Adam gradient descent with ρ clipped to [x_min, 1] and a
+        soft volume penalty (default).
+      * ``"bfgs"`` — L-BFGS with zoom line-search.
+
+    Designed for static FEA problems (structural-mesh) where IC recovery is
+    degenerate.
 
     Problem-semantics state is passed explicitly (``error_fn``, ``output_key``,
     ``domain_extent`` are accepted for signature parity with the other public
@@ -1665,12 +1610,15 @@ def run_topopt(
         or {ic_name: <above>} when multiple runs are configured.
     """
     del error_fn, output_key, domain_extent  # unused by topopt; kept for parity
+    optim_loop = _topopt_lbfgs_loop if optimizer == "bfgs" else _topopt_adam_loop
+    exp_key = "topopt_bfgs" if optimizer == "bfgs" else "topopt"
     return _run_topopt_impl(
         cfg,
         tags,
-        "topopt",
+        exp_key,
         run_topopt,
         runs=runs,
+        _optim_loop=optim_loop,
         make_ic=make_ic,
         make_inputs=make_inputs,
         **overrides,
@@ -2259,15 +2207,22 @@ def run_drag_opt(
     error_fn,
     output_key: str,
     domain_extent: float,
+    optimizer: str = "adam",
     runs=None,
+    exp_key: str = "drag_opt",
     **overrides,
 ) -> dict:
-    """Inflow profile optimisation: minimise drag on an embedded obstacle via Adam.
+    """Inflow profile optimisation: minimise drag on an embedded obstacle.
 
     Optimises the ``inflow_profile`` input field (1-D inlet velocity u_x(y)) to
     minimise the scalar ``drag`` output. A flow-rate conservation penalty is
     added to prevent the optimiser from trivially reducing drag by zeroing the
     inflow: L = drag + flow_penalty_weight * (mean(profile) - U_mean)².
+
+    ``optimizer`` selects the inner optimiser:
+
+      * ``"adam"`` — vanilla Adam (default).
+      * ``"bfgs"`` — L-BFGS with zoom line-search.
 
     Problem-semantics state is passed explicitly. ``error_fn`` and
     ``output_key`` are accepted for signature parity with the other public
@@ -2281,76 +2236,16 @@ def run_drag_opt(
         optim: {lr, max_iters, patience, flow_penalty_weight}
     """
     del error_fn, output_key  # unused by drag_opt; kept for parity
+    optim_loop = _drag_opt_lbfgs_loop if optimizer == "bfgs" else _drag_opt_adam_loop
+    supports_partial = optimizer != "bfgs"
     return _run_drag_opt_impl(
         cfg,
         tags,
-        "drag_opt",
+        exp_key,
         run_drag_opt,
         runs=runs,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        domain_extent=domain_extent,
-        **overrides,
-    )
-
-
-def run_topopt_bfgs(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    runs=None,
-    **overrides,
-) -> dict:
-    """L-BFGS variant of run_topopt.
-
-    See :func:`run_topopt` for the kwarg semantics (``error_fn``,
-    ``output_key``, ``domain_extent`` are unused but accepted for parity).
-    """
-    del error_fn, output_key, domain_extent  # unused by topopt; kept for parity
-    return _run_topopt_impl(
-        cfg,
-        tags,
-        "topopt_bfgs",
-        run_topopt_bfgs,
-        runs=runs,
-        _optim_loop=_topopt_lbfgs_loop,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        **overrides,
-    )
-
-
-def run_drag_opt_bfgs(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    runs=None,
-    **overrides,
-) -> dict:
-    """L-BFGS variant of run_drag_opt.
-
-    See :func:`run_drag_opt` for the kwarg semantics (``error_fn``,
-    ``output_key`` are unused but accepted for parity).
-    """
-    del error_fn, output_key  # unused by drag_opt; kept for parity
-    return _run_drag_opt_impl(
-        cfg,
-        tags,
-        "drag_opt_bfgs",
-        run_drag_opt_bfgs,
-        runs=runs,
-        _optim_loop=_drag_opt_lbfgs_loop,
-        _supports_partial=False,
+        _optim_loop=optim_loop,
+        _supports_partial=supports_partial,
         make_ic=make_ic,
         make_inputs=make_inputs,
         domain_extent=domain_extent,
@@ -2647,15 +2542,22 @@ def run_conductivity_recovery(
     *,
     make_ic,
     make_inputs,
+    optimizer: str = "adam",
     runs=None,
+    exp_key: str = "conductivity_recovery",
     **overrides,
 ) -> dict:
     """Conductivity-field recovery: recover rho from temperature observations.
 
     Optimises the SIMP density field (rho, clipped to [x_min, 1]) to minimise
-    identification_error = ||T(rho) - T_target||^2 using Adam. The target
-    temperature is produced by forward-solving with a two-Gaussian ground-truth
-    conductivity and zero volumetric source (Neumann BC only).
+    identification_error = ||T(rho) - T_target||^2. The target temperature is
+    produced by forward-solving with a two-Gaussian ground-truth conductivity
+    and zero volumetric source (Neumann BC only).
+
+    ``optimizer`` selects the inner optimiser:
+
+      * ``"adam"`` — vanilla Adam (default).
+      * ``"bfgs"`` — L-BFGS with zoom line-search.
 
     Problem-semantics state is passed explicitly (see
     :func:`run_recovery_constant_ic`).
@@ -2671,35 +2573,18 @@ def run_conductivity_recovery(
          "params": run}
         or {ic_name: <above>} when multiple runs are configured.
     """
+    optim_loop = (
+        _run_conductivity_lbfgs_loop
+        if optimizer == "bfgs"
+        else _run_conductivity_adam_loop
+    )
     return _run_conductivity_recovery_impl(
         cfg,
         tags,
-        "conductivity_recovery",
+        exp_key,
         run_conductivity_recovery,
         runs=runs,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        **overrides,
-    )
-
-
-def run_conductivity_recovery_bfgs(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    runs=None,
-    **overrides,
-) -> dict:
-    """L-BFGS variant of run_conductivity_recovery."""
-    return _run_conductivity_recovery_impl(
-        cfg,
-        tags,
-        "conductivity_recovery_bfgs",
-        run_conductivity_recovery_bfgs,
-        runs=runs,
-        _optim_loop=_run_conductivity_lbfgs_loop,
+        _optim_loop=optim_loop,
         make_ic=make_ic,
         make_inputs=make_inputs,
         **overrides,

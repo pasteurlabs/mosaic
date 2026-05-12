@@ -20,7 +20,7 @@ from mosaic.benchmarks.problems.shared.gradient import (
     run_jacobian_svd,
     run_param_sweep,
 )
-from mosaic.benchmarks.problems.shared.optimization import run_topopt, run_topopt_bfgs
+from mosaic.benchmarks.problems.shared.optimization import run_topopt
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
     plot_agreement,
@@ -219,42 +219,37 @@ _TOPOPT_BFGS_RUNS = [
 
 _DESCRIPTIONS = {
     "forward/baseline": (
-        "Structural compliance C = F^T U vs mesh resolution N for each solver "
-        "(uniform density ρ₀=0.5, full-face downward load). "
-        "Both solvers implement HEX8 FEM; compliance should agree to <1% at all resolutions."
+        "Structural compliance C = F^T U vs mesh resolution N for each solver, "
+        "uniform density ρ₀=0.5, full-face downward load."
     ),
     "forward/agreement": (
-        "Structural compliance C = F^T U vs element density ρ₀ for each solver "
-        "(log-scale; full-face downward load). "
-        "jax_fem uses surface traction; topopt_jl distributes force uniformly across "
-        "right-face nodes — non-uniform shape-function weighting in jax_fem causes "
-        "a small but consistent compliance difference (~0.5–3%) across all densities."
+        "Structural compliance C = F^T U vs element density ρ₀ for each solver, "
+        "log-scale, full-face downward load."
     ),
     "forward/physical_laws": (
-        "Structural compliance C = F^T U vs total load F_total at fixed N=8 (nx=8, ny=2, nz=4), ρ₀=0.5. "
-        "For linear elasticity C = F^T K⁻¹ F ∝ F², so log-log slope must be 2.0. "
-        "Deviations across solvers reveal errors in the stiffness assembly or force application."
+        "Structural compliance C = F^T U vs total load F_total at fixed mesh (nx=8, ny=2, nz=4), ρ₀=0.5, log-log."
     ),
-    "cost/spatial_cost": "Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
-    "cost/temporal_cost": "Forward-pass wall-clock time vs step count at fixed mesh size for all solvers.",
-    "cost/vjp_cost": "VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
-    "gradient/fd_check": "U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.",
-    "gradient/param_sweep": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
+    "cost/spatial_cost": "Forward-pass wall-clock time vs mesh size (nx) for each solver.",
+    "cost/temporal_cost": "Forward-pass wall-clock time vs step count at fixed mesh size for each solver.",
+    "cost/vjp_cost": "VJP wall-clock time vs mesh size (nx) for each differentiable solver.",
+    "gradient/fd_check": (
+        "FD gradient error vs step size ε (U-curves), AD–FD direction cosine, and "
+        "gradient magnitude field panels for each solver."
+    ),
+    "gradient/param_sweep": (
+        "Gradient norm, best-ε FD error, AD–FD direction cosine, and U-curves vs element density ρ₀."
+    ),
     "gradient/jacobian_svd": (
         "Singular-value spectrum of the stacked per-solver gradient matrix and "
-        "pairwise cosine similarity between JAX-FEM and TopOpt.jl gradient directions. "
-        "Both solvers implement the same SIMP adjoint so cosine similarity should be "
-        "near 1; deviations indicate differing adjoint formulations or numerical precision."
+        "pairwise cosine similarity between solver gradient directions."
     ),
     "optimization/topopt": (
-        "SIMP topology optimisation on a 16×8×8 cantilever beam: minimise compliance "
-        "C = F^T U subject to a 50% volume fraction constraint (Adam, lr=0.02). "
-        "Density field evolves from uniform ρ=0.5 toward a binary 0/1 layout; "
-        "both solvers converge to the same topology confirming consistent adjoint gradients."
+        "SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): "
+        "compliance C = F^T U and density field evolution under a 50% volume-fraction constraint."
     ),
     "optimization/topopt_bfgs": (
-        "SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: minimise compliance "
-        "C = F^T U subject to a 50% volume fraction constraint."
+        "SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: "
+        "compliance C = F^T U and density field evolution under a 50% volume-fraction constraint."
     ),
 }
 
@@ -309,7 +304,8 @@ problem.add(
 problem.add("optimization/topopt", run_topopt, runs=_TOPOPT_RUNS, plot=plot_topopt)
 problem.add(
     "optimization/topopt_bfgs",
-    run_topopt_bfgs,
+    run_topopt,
+    optimizer="bfgs",
     runs=_TOPOPT_BFGS_RUNS,
     plot=plot_topopt,
 )

@@ -22,7 +22,6 @@ from mosaic.benchmarks.problems.shared.gradient import (
 )
 from mosaic.benchmarks.problems.shared.optimization import (
     run_conductivity_recovery,
-    run_conductivity_recovery_bfgs,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -272,57 +271,55 @@ _CONDUCTIVITY_RECOVERY_BFGS_RUNS = [
 
 _DESCRIPTIONS = {
     "forward/baseline": (
-        "Thermal compliance C vs mesh resolution N (nx=2,3,4,6,8,12,16,24; ny=nx//2; nz=1) "
-        "with random density ρ~N(0.5,0.3) clipped to [0.05,0.95]. FV solvers diverge "
-        "from FEM at coarse N due to harmonic-mean vs Galerkin conductivity interpolation; "
-        "gap closes as O(h) with refinement. N=2–4 is the phase-transition regime."
+        "Thermal compliance C vs mesh resolution N with random density; "
+        "compares FV and FEM solvers across refinements."
     ),
     "forward/agreement": (
-        "Thermal compliance C vs uniform element density ρ₀ ∈ [0.01, 0.95] at N=16. "
-        "C ∝ ρ⁻³ due to SIMP (p=3); near-void (ρ→0) divergence between FV harmonic-mean "
-        "and FEM Galerkin conductivity is the key discriminator. Log scale recommended."
+        "Thermal compliance C vs uniform element density ρ₀ at fixed N; "
+        "compares solvers on a log scale."
     ),
     "forward/physical_laws": (
-        "Thermal compliance C vs total heat flux Q_total at fixed N=16, ρ₀=0.5, hot_spot=True. "
-        "For a linear system C ∝ Q² (log-log slope 2.0). Hot-spot BC concentrates flux on "
-        "central 1/3 stripe in y, breaking symmetry; deviations across solvers reveal "
-        "errors in Neumann mask handling or compliance integral."
+        "Thermal compliance C vs total heat flux Q_total at fixed N and ρ₀ "
+        "with a hot-spot BC; shown on log-log axes."
     ),
-    "forward/source_baseline": "",
-    "forward/source_linearity": "",
+    "forward/source_baseline": (
+        "Thermal compliance C vs mesh resolution N with a Gaussian source field; "
+        "compares solvers across refinements."
+    ),
+    "forward/source_linearity": (
+        "Thermal compliance C vs source amplitude at fixed mesh; "
+        "compares solvers on log-log axes."
+    ),
     "cost/spatial_cost": "Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
-    "cost/temporal_cost": "",
+    "cost/temporal_cost": "Forward-pass wall-clock time vs time-axis size for all solvers.",
     "cost/vjp_cost": "VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
     "gradient/fd_check": (
-        "U-curves (FD gradient error vs ε), direction cosine between AD and FD "
-        "gradient vectors, and gradient magnitude field panels."
+        "FD gradient error vs step size ε (U-curves), AD/FD direction cosine, "
+        "and gradient magnitude field panels."
     ),
-    "gradient/param_sweep": "Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.",
+    "gradient/param_sweep": (
+        "Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves "
+        "vs element density ρ₀."
+    ),
     "gradient/jacobian_svd": (
-        "Singular-value spectrum of the stacked per-solver gradient matrix and "
-        "pairwise cosine similarity between JAX-FEM and FEniCS gradient directions "
-        "for the thermal compliance objective. Near-unity cosine confirms consistent "
-        "adjoint implementations; spectrum reveals dominant sensitivity modes of the "
-        "density field."
+        "Singular-value spectrum of stacked per-solver gradients and pairwise "
+        "cosine similarity between solver gradient directions."
     ),
     "gradient/source_fd_check": (
-        "FD gradient check of d(identification_error)/d(source) at nominal mesh. "
-        "Uses ic_field='source' and output_key='identification_error'."
+        "FD gradient error vs ε, AD/FD direction cosine, and gradient field panels "
+        "for d(identification_error)/d(source)."
     ),
     "gradient/source_width_sweep": (
-        "Gradient quality vs source localisation σ. "
-        "Phase transition: FEM/FD disagree as source narrows below element size."
+        "Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves "
+        "vs source width σ."
     ),
     "optimization/conductivity_recovery": (
-        "Recover a two-Gaussian conductivity field from temperature observations. "
-        "Optimises rho (SIMP density, clipped to [x_min, 1]) to minimise "
-        "identification_error = ||T(rho) - T_target||². Target temperature is "
-        "produced by forward-solving with a two-Gaussian ground-truth conductivity "
-        "at uniform zero volumetric source (driven by Neumann BC only)."
+        "Optimisation traces (loss vs iteration) and recovered conductivity fields "
+        "vs the two-Gaussian ground truth, using gradient descent."
     ),
     "optimization/conductivity_recovery_bfgs": (
-        "Recover a two-Gaussian conductivity field with L-BFGS. Same setup as "
-        "conductivity_recovery but using L-BFGS with zoom line search."
+        "Optimisation traces (loss vs iteration) and recovered conductivity fields "
+        "vs the two-Gaussian ground truth, using L-BFGS."
     ),
 }
 
@@ -406,7 +403,8 @@ problem.add(
 )
 problem.add(
     "optimization/conductivity_recovery_bfgs",
-    run_conductivity_recovery_bfgs,
+    run_conductivity_recovery,
+    optimizer="bfgs",
     runs=_CONDUCTIVITY_RECOVERY_BFGS_RUNS,
     plot=plot_conductivity_recovery,
 )
