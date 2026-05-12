@@ -1,16 +1,15 @@
-"""Assembled ``EXPERIMENTS`` / ``PLOT_FNS`` registries for ns-grid.
+"""Experiment + plot registrations for ns-grid.
 
-The :class:`Problem` builder captures the problem's closure deps once
-(``make_ic``, ``error_fn``, ``output_key``, …) and registers each
-experiment + plot in a single ``.add(...)`` call.
+Exposes :func:`register(problem)` which the per-problem ``config.py`` calls
+after building the canonical :class:`Problem` instance — so closure deps
+(``make_ic``, ``error_fn``, ``output_key``, …) and the experiment/plot
+registries live on a single ``Problem`` rather than two duplicated ones.
 """
 
 from __future__ import annotations
 
-import math
+from typing import TYPE_CHECKING
 
-from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
     run_spatial_cost,
     run_temporal_cost,
@@ -41,8 +40,8 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.optimization import plot_drag_opt
 
-from .ics import MAKE_IC, _tgv_analytic
-from .physics import DIAGNOSTICS
+if TYPE_CHECKING:
+    from mosaic.benchmarks.core.config import Problem
 
 # ── Shared run-lists (referenced by multiple experiments) ────────────────────
 
@@ -81,273 +80,282 @@ _DESCRIPTIONS = {
 }
 
 
-# ── Problem + registrations ──────────────────────────────────────────────────
+# ── Registrations ────────────────────────────────────────────────────────────
 
-problem = Problem(
-    make_ic=MAKE_IC,
-    error_fn=l2_error_rel,
-    output_key="result",
-    ic_key="v0",
-    domain_extent=2 * math.pi,
-    resolution_key="N",
-    reference=_tgv_analytic,
-    diagnostics=DIAGNOSTICS,
-    descriptions=_DESCRIPTIONS,
-)
 
-# Forward
-problem.add(
-    "forward/baseline",
-    run_agreement,
-    runs=[
-        {
-            "ic": {"name": "tgv", "seed": 0},
-            "physics": {"N": 64, "nu": 0.05, "dt": 0.01, "steps": 1, "lbm_N_base": 64},
-            "sweep": {"key": "N", "values": [16, 32, 64, 128]},
-        }
-    ],
-    plot=plot_agreement,
-)
-problem.add(
-    "forward/agreement",
-    run_agreement,
-    runs=[
-        {
-            "ic": {"name": "tgv", "seed": 42},
-            "physics": {"N": 64, "dt": 0.05, "steps": 20},
-            "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.02, 0.05]},
-            "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
-        },
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 64, "dt": 0.05, "steps": 20},
-            "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.02, 0.05]},
-            "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
-        },
-    ],
-    plot=plot_agreement,
-)
-problem.add(
-    "forward/tgv_nu_sweep",
-    run_agreement,
-    runs=[
-        {
-            "ic": {"name": "tgv", "seed": 42},
-            "physics": {"N": 64, "dt": 0.05, "steps": 20},
-            "sweep": {"key": "nu", "values": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2]},
-            "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
-        },
-    ],
-    plot=plot_agreement,
-)
-problem.add(
-    "forward/physical_laws",
-    run_physical_laws,
-    runs=[
-        {
-            "name": "vs_N",
-            "ic": {"name": "tgv", "seed": 0},
-            "physics": {"nu": 0.05, "dt": 0.01, "steps": 20},
-            "sweep": {"key": "N", "values": [16, 32, 64, 128]},
-        },
-        {
-            "name": "vs_steps",
-            "ic": {"name": "tgv", "seed": 0},
-            "physics": {"nu": 0.05, "dt": 0.01, "N": 64},
-            "sweep": {"key": "steps", "values": [5, 10, 20, 50, 100]},
-        },
-        {
-            "name": "vs_nu",
-            "ic": {"name": "tgv", "seed": 0},
-            "physics": {"dt": 0.01, "steps": 20, "N": 64},
-            "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.05, 0.1]},
-        },
-    ],
-    plot=plot_physical_laws,
-)
-problem.add(
-    "forward/cylinder",
-    run_agreement,
-    runs=[
-        {
-            "ic": {"name": "uniform", "seed": 0},
-            "physics": {
-                "N": 64,
-                "dt": 0.01,
-                "steps": 500,
-                "obstacle": {"shape": "cylinder", "center": [0.5, 0.5], "radius": 0.1},
+def register(problem: Problem) -> None:
+    """Populate ``problem.experiments`` / ``problem.plot_fns`` / ``problem.descriptions``."""
+    problem.descriptions.update(_DESCRIPTIONS)
+
+    # Forward
+    problem.add(
+        "forward/baseline",
+        run_agreement,
+        runs=[
+            {
+                "ic": {"name": "tgv", "seed": 0},
+                "physics": {
+                    "N": 64,
+                    "nu": 0.05,
+                    "dt": 0.01,
+                    "steps": 1,
+                    "lbm_N_base": 64,
+                },
+                "sweep": {"key": "N", "values": [16, 32, 64, 128]},
+            }
+        ],
+        plot=plot_agreement,
+    )
+    problem.add(
+        "forward/agreement",
+        run_agreement,
+        runs=[
+            {
+                "ic": {"name": "tgv", "seed": 42},
+                "physics": {"N": 64, "dt": 0.05, "steps": 20},
+                "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.02, 0.05]},
+                "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
             },
-            "sweep": {"key": "nu", "values": [0.05, 0.02, 0.01, 0.005]},
-        }
-    ],
-    plot=plot_agreement,
-)
-
-# Cost
-problem.add("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
-problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost)
-problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
-
-# Gradient
-problem.add(
-    "gradient/fd_check",
-    run_fd_check,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 16, "nu": 0.001, "dt": 0.05, "steps": 20},
-            "fd": {"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 20},
-        },
-    ],
-    plot=plot_fd_check,
-)
-problem.add(
-    "gradient/param_sweep",
-    run_param_sweep,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 16, "dt": 0.05, "steps": 200},
-            "fd": {"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 15},
-            "sweep": {"key": "nu", "values": [0.05, 0.01, 0.005, 0.001]},
-        },
-    ],
-    plot=plot_param_sweep,
-)
-problem.add(
-    "gradient/horizon_sweep",
-    run_horizon_sweep,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 16, "nu": 0.001, "dt": 0.05},
-            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
-            "sweep": {"key": "steps", "values": [5, 10, 20, 40, 80, 160, 320]},
-        },
-    ],
-    plot=plot_horizon_sweep,
-)
-problem.add(
-    "gradient/jacobian_svd",
-    run_jacobian_svd,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
-            "jacobian": {},
-        }
-    ],
-    plot=plot_jacobian_svd,
-)
-problem.add(
-    "gradient/jacobian_svd_steps20",
-    run_jacobian_svd,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
-            "jacobian": {},
-        }
-    ],
-    plot=plot_jacobian_svd,
-)
-problem.add(
-    "gradient/jacobian_svd_steps40",
-    run_jacobian_svd,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
-            "jacobian": {},
-        }
-    ],
-    plot=plot_jacobian_svd,
-)
-problem.add(
-    "gradient/jacobian_svd_nu01",
-    run_jacobian_svd,
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
-            "jacobian": {},
-        }
-    ],
-    plot=plot_jacobian_svd,
-)
-
-# Optimization
-problem.add(
-    "optimization/drag_opt",
-    run_drag_opt,
-    runs=[
-        {
-            "name": "re20",
-            "ic": {"name": "flat_inflow", "seed": 0},
-            "physics": {
-                # Re = U·D/ν = 0.5·0.1/0.0025 = 20
-                # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
-                # projection divergence at N=64 (discontinuity at obstacle boundary
-                # overwhelms the periodic Poisson solve at step ~20).
-                "N": 32,
-                "nu": 0.0025,
-                "dt": 0.02,
-                "steps": 400,
-                "domain_extent": 1.0,
-                "U_mean": 0.5,
-                "obstacle": {"shape": "cylinder", "center": [0.5, 0.5], "radius": 0.05},
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 64, "dt": 0.05, "steps": 20},
+                "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.02, 0.05]},
+                "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
             },
-            "optim": {
-                "lr": 5e-4,
-                "max_iters": 500,
-                "patience": 100,
-                "flow_penalty_weight": 50.0,
-                "snap_interval": 20,
+        ],
+        plot=plot_agreement,
+    )
+    problem.add(
+        "forward/tgv_nu_sweep",
+        run_agreement,
+        runs=[
+            {
+                "ic": {"name": "tgv", "seed": 42},
+                "physics": {"N": 64, "dt": 0.05, "steps": 20},
+                "sweep": {"key": "nu", "values": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2]},
+                "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
             },
-        },
-    ],
-    plot=plot_drag_opt,
-)
-problem.add(
-    "optimization/drag_opt_bfgs",
-    run_drag_opt,
-    optimizer="bfgs",
-    runs=[
-        {
-            "name": "re20",
-            "ic": {"name": "flat_inflow", "seed": 0},
-            "physics": {
-                "N": 32,
-                "nu": 0.0025,
-                "dt": 0.02,
-                "steps": 400,
-                "domain_extent": 1.0,
-                "U_mean": 0.5,
-                "obstacle": {"shape": "cylinder", "center": [0.5, 0.5], "radius": 0.05},
+        ],
+        plot=plot_agreement,
+    )
+    problem.add(
+        "forward/physical_laws",
+        run_physical_laws,
+        runs=[
+            {
+                "name": "vs_N",
+                "ic": {"name": "tgv", "seed": 0},
+                "physics": {"nu": 0.05, "dt": 0.01, "steps": 20},
+                "sweep": {"key": "N", "values": [16, 32, 64, 128]},
             },
-            "optim": {
-                "max_iters": 50,
-                "patience": 15,
-                "flow_penalty_weight": 50.0,
-                "snap_interval": 5,
+            {
+                "name": "vs_steps",
+                "ic": {"name": "tgv", "seed": 0},
+                "physics": {"nu": 0.05, "dt": 0.01, "N": 64},
+                "sweep": {"key": "steps", "values": [5, 10, 20, 50, 100]},
             },
-        },
-    ],
-    plot=plot_drag_opt,
-)
+            {
+                "name": "vs_nu",
+                "ic": {"name": "tgv", "seed": 0},
+                "physics": {"dt": 0.01, "steps": 20, "N": 64},
+                "sweep": {"key": "nu", "values": [0.001, 0.005, 0.01, 0.05, 0.1]},
+            },
+        ],
+        plot=plot_physical_laws,
+    )
+    problem.add(
+        "forward/cylinder",
+        run_agreement,
+        runs=[
+            {
+                "ic": {"name": "uniform", "seed": 0},
+                "physics": {
+                    "N": 64,
+                    "dt": 0.01,
+                    "steps": 500,
+                    "obstacle": {
+                        "shape": "cylinder",
+                        "center": [0.5, 0.5],
+                        "radius": 0.1,
+                    },
+                },
+                "sweep": {"key": "nu", "values": [0.05, 0.02, 0.01, 0.005]},
+            }
+        ],
+        plot=plot_agreement,
+    )
 
-# ICs (one entry per registered IC)
-problem.add_ic("multimode", {"N": 64}, plot=plot_ic)
-problem.add_ic("tgv", {"N": 64}, plot=plot_ic)
-problem.add_ic("uniform", {"N": 64, "U": 1.0}, plot=plot_ic)
-problem.add_ic("flat_inflow", {"N": 64, "U": 0.5}, plot=plot_ic)
+    # Cost
+    problem.add("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
+    problem.add(
+        "cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost
+    )
+    problem.add("cost/vjp_cost", run_vjp_cost, runs=_COST_RUNS, plot=plot_cost)
 
-# Bonus plots (not paired with an experiment).
-problem.add_extra_plot(
-    "_extra/gradient/jacobian_svd_comparison",
-    lambda cfg, **_kw: plot_jacobian_svd_comparison(cfg),
-)
+    # Gradient
+    problem.add(
+        "gradient/fd_check",
+        run_fd_check,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 16, "nu": 0.001, "dt": 0.05, "steps": 20},
+                "fd": {"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 20},
+            },
+        ],
+        plot=plot_fd_check,
+    )
+    problem.add(
+        "gradient/param_sweep",
+        run_param_sweep,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 16, "dt": 0.05, "steps": 200},
+                "fd": {"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 15},
+                "sweep": {"key": "nu", "values": [0.05, 0.01, 0.005, 0.001]},
+            },
+        ],
+        plot=plot_param_sweep,
+    )
+    problem.add(
+        "gradient/horizon_sweep",
+        run_horizon_sweep,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 16, "nu": 0.001, "dt": 0.05},
+                "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
+                "sweep": {"key": "steps", "values": [5, 10, 20, 40, 80, 160, 320]},
+            },
+        ],
+        plot=plot_horizon_sweep,
+    )
+    problem.add(
+        "gradient/jacobian_svd",
+        run_jacobian_svd,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
+                "jacobian": {},
+            }
+        ],
+        plot=plot_jacobian_svd,
+    )
+    problem.add(
+        "gradient/jacobian_svd_steps20",
+        run_jacobian_svd,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
+                "jacobian": {},
+            }
+        ],
+        plot=plot_jacobian_svd,
+    )
+    problem.add(
+        "gradient/jacobian_svd_steps40",
+        run_jacobian_svd,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
+                "jacobian": {},
+            }
+        ],
+        plot=plot_jacobian_svd,
+    )
+    problem.add(
+        "gradient/jacobian_svd_nu01",
+        run_jacobian_svd,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 42},
+                "physics": {"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
+                "jacobian": {},
+            }
+        ],
+        plot=plot_jacobian_svd,
+    )
 
+    # Optimization
+    problem.add(
+        "optimization/drag_opt",
+        run_drag_opt,
+        runs=[
+            {
+                "name": "re20",
+                "ic": {"name": "flat_inflow", "seed": 0},
+                "physics": {
+                    # Re = U·D/ν = 0.5·0.1/0.0025 = 20
+                    # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
+                    # projection divergence at N=64 (discontinuity at obstacle boundary
+                    # overwhelms the periodic Poisson solve at step ~20).
+                    "N": 32,
+                    "nu": 0.0025,
+                    "dt": 0.02,
+                    "steps": 400,
+                    "domain_extent": 1.0,
+                    "U_mean": 0.5,
+                    "obstacle": {
+                        "shape": "cylinder",
+                        "center": [0.5, 0.5],
+                        "radius": 0.05,
+                    },
+                },
+                "optim": {
+                    "lr": 5e-4,
+                    "max_iters": 500,
+                    "patience": 100,
+                    "flow_penalty_weight": 50.0,
+                    "snap_interval": 20,
+                },
+            },
+        ],
+        plot=plot_drag_opt,
+    )
+    problem.add(
+        "optimization/drag_opt_bfgs",
+        run_drag_opt,
+        optimizer="bfgs",
+        runs=[
+            {
+                "name": "re20",
+                "ic": {"name": "flat_inflow", "seed": 0},
+                "physics": {
+                    "N": 32,
+                    "nu": 0.0025,
+                    "dt": 0.02,
+                    "steps": 400,
+                    "domain_extent": 1.0,
+                    "U_mean": 0.5,
+                    "obstacle": {
+                        "shape": "cylinder",
+                        "center": [0.5, 0.5],
+                        "radius": 0.05,
+                    },
+                },
+                "optim": {
+                    "max_iters": 50,
+                    "patience": 15,
+                    "flow_penalty_weight": 50.0,
+                    "snap_interval": 5,
+                },
+            },
+        ],
+        plot=plot_drag_opt,
+    )
 
-EXPERIMENTS = problem.experiments
-PLOT_FNS = problem.plot_fns
+    # ICs (one entry per registered IC)
+    problem.add_ic("multimode", {"N": 64}, plot=plot_ic)
+    problem.add_ic("tgv", {"N": 64}, plot=plot_ic)
+    problem.add_ic("uniform", {"N": 64, "U": 1.0}, plot=plot_ic)
+    problem.add_ic("flat_inflow", {"N": 64, "U": 0.5}, plot=plot_ic)
+
+    # Bonus plots (not paired with an experiment).
+    problem.add_extra_plot(
+        "_extra/gradient/jacobian_svd_comparison",
+        lambda cfg, **_kw: plot_jacobian_svd_comparison(cfg),
+    )

@@ -16,7 +16,7 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .experiments import EXPERIMENTS, PLOT_FNS
+from .experiments import register as _register_experiments
 from .ics import MAKE_IC, _tgv_analytic
 from .physics import DIAGNOSTICS, build_make_inputs
 
@@ -154,8 +154,6 @@ _SOLVERS_LIST = list(_SOLVERS.values())
 CONFIG = Problem(
     name="ns-grid",
     exclusions=_EXCLUSIONS,
-    experiments=EXPERIMENTS,
-    plot_fns=PLOT_FNS,
     category_label="Navier–Stokes (Grid)",
     n_to_cells=lambda n: n**2,
     description=(
@@ -192,3 +190,5 @@ CONFIG = Problem(
         "forward/agreement/multimode": {"median_k": 3.0, "max_error": 1.5},
     },
 )
+
+_register_experiments(CONFIG)

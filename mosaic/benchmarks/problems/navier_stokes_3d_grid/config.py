@@ -17,7 +17,7 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .experiments import EXPERIMENTS, PLOT_FNS
+from .experiments import register as _register_experiments
 from .ics import MAKE_IC, _tgv3d_analytic
 from .physics import DIAGNOSTICS, build_make_inputs
 
@@ -100,8 +100,6 @@ _SOLVERS_LIST = list(_SOLVERS.values())
 CONFIG = Problem(
     name="ns-3d-grid",
     exclusions=_EXCLUSIONS,
-    experiments=EXPERIMENTS,
-    plot_fns=PLOT_FNS,
     category_label="Navier–Stokes (Grid)",
     n_to_cells=lambda n: n**3,
     description=(
@@ -141,3 +139,5 @@ CONFIG = Problem(
         "optimization": {"max_final_ratio": 0.5},
     },
 )
+
+_register_experiments(CONFIG)

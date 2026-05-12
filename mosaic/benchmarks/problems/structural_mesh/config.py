@@ -12,7 +12,7 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .experiments import EXPERIMENTS, PLOT_FNS
+from .experiments import register as _register_experiments
 from .ics import MAKE_IC
 from .physics import DIAGNOSTICS, _density_to_2d, build_make_inputs
 
@@ -52,8 +52,6 @@ _SOLVERS_LIST = list(_SOLVERS.values())
 CONFIG = Problem(
     name="structural-mesh",
     exclusions={},
-    experiments=EXPERIMENTS,
-    plot_fns=PLOT_FNS,
     category_label="Structural Mechanics",
     description=(
         "3D linear-elasticity compliance minimisation on a cantilever beam with SIMP "
@@ -88,3 +86,5 @@ CONFIG = Problem(
     n_to_cells=lambda N: N * 2 * max(1, N // 2),  # nx=N, ny=2, nz=N//2
     units={"rho_0": "–"},
 )
+
+_register_experiments(CONFIG)

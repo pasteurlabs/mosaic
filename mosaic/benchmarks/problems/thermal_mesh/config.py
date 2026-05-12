@@ -12,7 +12,7 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .experiments import EXPERIMENTS, PLOT_FNS
+from .experiments import register as _register_experiments
 from .ics import MAKE_IC
 from .physics import DIAGNOSTICS, _density_to_2d, build_make_inputs
 
@@ -46,8 +46,6 @@ _SOLVERS_LIST = list(_SOLVERS.values())
 CONFIG = Problem(
     name="thermal-mesh",
     exclusions={},
-    experiments=EXPERIMENTS,
-    plot_fns=PLOT_FNS,
     category_label="Heat Conduction",
     description=(
         "Quasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP "
@@ -90,3 +88,5 @@ CONFIG = Problem(
         "optimization": {"max_final_ratio": 0.5},
     },
 )
+
+_register_experiments(CONFIG)
