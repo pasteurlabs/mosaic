@@ -126,7 +126,7 @@ def run_agreement(
     return all_results
 
 
-def _run_single_agreement(
+def _run_single_agreement(  # noqa: PLR0913 — explicit-deps signature
     cfg: Problem,
     tags: dict[str, str],
     run: dict,

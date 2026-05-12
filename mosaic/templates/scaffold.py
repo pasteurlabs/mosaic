@@ -268,7 +268,7 @@ def scaffold_domain(
         f'    resolution_key="{tpl.resolution_key}",\n'
         f")\n\n"
         f"# TODO: register experiments with problem.add(...).\n"
-        f"#   from mosaic.benchmarks.shared.forward import run_agreement\n"
+        f"#   from mosaic.benchmarks.problems.shared.forward import run_agreement\n"
         f'#   problem.add("forward/baseline", run_agreement, ic={{...}}, physics={{...}})\n\n'
         f"# TODO: register IC visualisations:\n"
         f"#   for ic_name, ic_spec in MAKE_IC.items():\n"
@@ -283,7 +283,7 @@ def scaffold_domain(
         f"from __future__ import annotations\n\n"
         f"from pathlib import Path\n\n"
         f"from mosaic.benchmarks.core.config import SolverSpec, discover_solvers\n"
-        f"from mosaic.benchmarks.shared.plots.solver_styles import apply_styles\n\n"
+        f"from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles\n\n"
         f"from .experiments import EXPERIMENTS, PLOT_FNS, problem\n"
         f"from .ics import MAKE_IC\n"
         f"from .physics import DIAGNOSTICS, build_make_inputs\n\n"

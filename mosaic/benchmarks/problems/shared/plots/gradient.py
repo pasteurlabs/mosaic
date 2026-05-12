@@ -9,7 +9,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.shared.plots.style import (
+from mosaic.benchmarks.problems.shared.plots.style import (
     apply_style,
     field_grid,
     fig_shared_legend,

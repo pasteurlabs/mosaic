@@ -107,7 +107,7 @@ def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
     return v_df.astype(u.dtype)
 
 
-def _run_optim(
+def _run_optim(  # noqa: PLR0913 — explicit-deps signature
     loss_fn,
     init_x,
     lr: float,
@@ -169,7 +169,7 @@ def _run_optim(
     return x, losses, diag
 
 
-def _run_lbfgs(
+def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
     loss_fn,
     init_x,
     lr=None,
@@ -1049,7 +1049,7 @@ def _run_recovery_long_impl(
     return all_results
 
 
-def _run_recovery_for_one_run(
+def _run_recovery_for_one_run(  # noqa: PLR0913 — explicit-deps signature
     *,
     cfg: Problem,
     tags: dict[str, str],
@@ -1935,7 +1935,7 @@ def _merge_drag_flow_fields_npz(
 # ── drag_opt: shared body, Adam vs L-BFGS as an argument ─────────────────────
 
 
-def _drag_opt_adam_loop(
+def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
     name: str,
     t,
     profile_init,

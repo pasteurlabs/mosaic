@@ -10,7 +10,7 @@ from mosaic.benchmarks.core.config import (
     discover_solvers,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.shared.plots.solver_styles import apply_styles
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .experiments import EXPERIMENTS, PLOT_FNS
 from .ics import MAKE_IC
@@ -27,7 +27,7 @@ _XMIN = 1e-3  # Void stiffness ratio (E_min / E_max)
 
 # ── Solver registry ──────────────────────────────────────────────────────────
 # Solvers and per-solver metadata come from each tesseract's YAML; styling is
-# applied from mosaic.benchmarks.shared.plots.solver_styles. Only per-(solver, problem)
+# applied from mosaic.benchmarks.problems.shared.plots.solver_styles. Only per-(solver, problem)
 # overrides (material parameters via input_overrides) are set here.
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)

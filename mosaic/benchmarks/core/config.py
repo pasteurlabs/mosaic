@@ -415,7 +415,7 @@ class Problem:
         ``{"N": 64, "U": 1.0}``). It is captured into the Experiment closure
         AND stored on ``Experiment.params`` for introspection.
         """
-        from mosaic.benchmarks.shared.ics import run_ic
+        from mosaic.benchmarks.problems.shared.ics import run_ic
 
         make_ic = self.make_ic
 
@@ -573,7 +573,7 @@ class SolverSpec:
     ``explained_anomalies``).
 
     Presentation-only fields — ``color`` / ``linestyle`` / ``marker`` — are
-    populated by :func:`mosaic.benchmarks.shared.plots.solver_styles.apply_styles`
+    populated by :func:`mosaic.benchmarks.problems.shared.plots.solver_styles.apply_styles`
     after discovery; they're attributes on the spec only so plot code can read
     them via ``spec.color`` etc.
     """
@@ -657,7 +657,7 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             doc_url: "https://..."              # upstream docs link
 
     Note: ``color`` / ``linestyle`` / ``marker`` are *not* read from YAML —
-    plot styling lives in :mod:`mosaic.benchmarks.shared.plots.solver_styles` and is
+    plot styling lives in :mod:`mosaic.benchmarks.problems.shared.plots.solver_styles` and is
     applied to each spec by ``apply_styles()`` after discovery.
 
     Returns a dict keyed by a normalised solver name (directory name with
@@ -719,7 +719,7 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             return val.strip() if isinstance(val, str) else val
 
         # Color / linestyle / marker are presentation-only; they live in
-        # ``mosaic.benchmarks.shared.plots.solver_styles`` and are applied by each
+        # ``mosaic.benchmarks.problems.shared.plots.solver_styles`` and are applied by each
         # problem config via ``apply_styles()`` after re-keying. We leave them
         # at neutral defaults here so the SolverSpec is well-formed.
         solvers[solver_key] = SolverSpec(

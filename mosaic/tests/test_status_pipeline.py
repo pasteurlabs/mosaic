@@ -36,7 +36,7 @@ def mock_results(tmp_path, monkeypatch):
             "solver_b": "efgh5678efgh5678",
         },
         "harness_hash": "0000111100001111",
-        "harness_fn": "mosaic.benchmarks.shared.forward.run_agreement",
+        "harness_fn": "mosaic.benchmarks.problems.shared.forward.run_agreement",
     }
     (exp_dir / "result.json").write_text(json.dumps(result))
 
@@ -52,7 +52,7 @@ def mock_results(tmp_path, monkeypatch):
         },
         "tesseract_hashes": {"solver_a": "abcd1234abcd1234"},
         "harness_hash": "2222333322223333",
-        "harness_fn": "mosaic.benchmarks.shared.gradient.run_fd_check",
+        "harness_fn": "mosaic.benchmarks.problems.shared.gradient.run_fd_check",
     }
     (grad_dir / "result.json").write_text(json.dumps(grad_result))
 

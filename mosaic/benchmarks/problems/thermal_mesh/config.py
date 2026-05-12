@@ -10,7 +10,7 @@ from mosaic.benchmarks.core.config import (
     discover_solvers,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.shared.plots.solver_styles import apply_styles
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .experiments import EXPERIMENTS, PLOT_FNS
 from .ics import MAKE_IC
@@ -26,7 +26,7 @@ _P_EXP = 3.0  # SIMP penalisation exponent
 
 # ── Solver registry ──────────────────────────────────────────────────────────
 # Solvers and per-solver metadata come from each tesseract's YAML; styling is
-# applied from mosaic.benchmarks.shared.plots.solver_styles. Only per-(solver, problem)
+# applied from mosaic.benchmarks.problems.shared.plots.solver_styles. Only per-(solver, problem)
 # material-parameter overrides are set here.
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)

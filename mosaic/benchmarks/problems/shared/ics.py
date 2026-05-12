@@ -28,7 +28,7 @@ def run_ic(
     params: dict,
 ) -> dict:
     """Generate one IC, save a visualisation plot and params.json."""
-    from mosaic.benchmarks.shared.plots.ics import plot_ic
+    from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 
     out_dir = results_dir() / cfg.name / _SUITE / ic_name
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -42,7 +42,7 @@ def run_ic(
 
 def plot_ic_only(cfg: Problem, ic_name: str, *, make_ic, params: dict) -> None:
     """Regenerate the IC plot without saving params.json (re-plot flow)."""
-    from mosaic.benchmarks.shared.plots.ics import plot_ic
+    from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 
     out_dir = results_dir() / cfg.name / _SUITE / ic_name
     ic = make_ic[ic_name](**params)

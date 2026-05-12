@@ -11,33 +11,36 @@ import math
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.shared.cost import (
+from mosaic.benchmarks.problems.shared.cost import (
     run_spatial_cost,
     run_temporal_cost,
     run_vjp_cost,
 )
-from mosaic.benchmarks.shared.forward import run_agreement, run_physical_laws
-from mosaic.benchmarks.shared.gradient import (
+from mosaic.benchmarks.problems.shared.forward import run_agreement, run_physical_laws
+from mosaic.benchmarks.problems.shared.gradient import (
     run_fd_check,
     run_horizon_sweep,
     run_horizon_sweep_limits,
     run_jacobian_svd,
 )
-from mosaic.benchmarks.shared.optimization import (
+from mosaic.benchmarks.problems.shared.optimization import (
     run_recovery_constant_ic,
     run_recovery_constant_ic_bfgs,
     run_recovery_constant_ic_bfgs_proj,
 )
-from mosaic.benchmarks.shared.plots.cost import plot_cost
-from mosaic.benchmarks.shared.plots.forward import plot_agreement, plot_physical_laws
-from mosaic.benchmarks.shared.plots.gradient import (
+from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
+from mosaic.benchmarks.problems.shared.plots.forward import (
+    plot_agreement,
+    plot_physical_laws,
+)
+from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
     plot_horizon_sweep,
     plot_jacobian_svd,
     plot_jacobian_svd_comparison,
 )
-from mosaic.benchmarks.shared.plots.ics import plot_ic
-from mosaic.benchmarks.shared.plots.optimization import plot_recovery
+from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
+from mosaic.benchmarks.problems.shared.plots.optimization import plot_recovery
 
 from .ics import MAKE_IC, _tgv3d_analytic
 from .physics import DIAGNOSTICS

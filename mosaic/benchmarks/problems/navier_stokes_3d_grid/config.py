@@ -15,7 +15,7 @@ from mosaic.benchmarks.core.config import (
     discover_solvers,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.shared.plots.solver_styles import apply_styles
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .experiments import EXPERIMENTS, PLOT_FNS
 from .ics import MAKE_IC, _tgv3d_analytic
@@ -43,7 +43,7 @@ _TESSERACT_DIR = _GYM_DIR / "tesseracts" / "navier-stokes-grid"
 
 # ── Solver registry ──────────────────────────────────────────────────────────
 # Solvers and per-solver metadata come from each tesseract's YAML; styling is
-# applied from mosaic.benchmarks.shared.plots.solver_styles; only per-(solver, problem)
+# applied from mosaic.benchmarks.problems.shared.plots.solver_styles; only per-(solver, problem)
 # overrides — exclusions, input_overrides, explained_anomalies, plus a few
 # 3D-specific scheme/description tweaks — are set here.
 

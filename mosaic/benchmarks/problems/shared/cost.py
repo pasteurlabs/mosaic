@@ -389,7 +389,9 @@ def run_vjp_cost(
                                or None on failure}},
          "hardware": {...}}
     """
-    from mosaic.benchmarks.shared.gradient import _vjp_grad  # reuse — no duplication
+    from mosaic.benchmarks.problems.shared.gradient import (
+        _vjp_grad,  # reuse — no duplication
+    )
 
     if not runs:
         raise NotImplementedError(

@@ -14,7 +14,7 @@ from mosaic.benchmarks.core.config import (
     discover_solvers,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.shared.plots.solver_styles import apply_styles
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .experiments import EXPERIMENTS, PLOT_FNS
 from .ics import MAKE_IC, _tgv_analytic
@@ -38,7 +38,7 @@ _SOLVERS.pop("exponax", None)
 # Preserve historical solver key used across paper plots and CLI references.
 _SOLVERS["ins_jl"] = _SOLVERS.pop("incompressible_navier_stokes_jl")
 
-# Plot styling lives in mosaic.benchmarks.shared.plots.solver_styles, not in YAML.
+# Plot styling lives in mosaic.benchmarks.problems.shared.plots.solver_styles, not in YAML.
 apply_styles(_SOLVERS)
 
 

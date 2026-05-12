@@ -12,7 +12,7 @@ from mosaic.benchmarks.core.console import console, print_rule, print_skip, prin
 from mosaic.benchmarks.core.io import RESULTS_DIR_ENV, results_dir
 from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, run_suite
 from mosaic.benchmarks.problems import PROBLEMS, get_config
-from mosaic.benchmarks.shared import SUITES
+from mosaic.benchmarks.problems.shared import SUITES
 
 app = typer.Typer(name="mosaic", rich_markup_mode="rich")
 
@@ -561,7 +561,7 @@ def ics(
     if output_dir is not None:
         os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 
-    from mosaic.benchmarks.shared.ics import get_experiments, get_plot_fns
+    from mosaic.benchmarks.problems.shared.ics import get_experiments, get_plot_fns
 
     cfg = get_config(problem)
     print_rule("initial conditions")

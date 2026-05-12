@@ -1,4 +1,4 @@
-from mosaic.benchmarks.shared.plots.style import (
+from mosaic.benchmarks.problems.shared.plots.style import (
     apply_style,
     field_grid,
     grad_magnitude_2d,

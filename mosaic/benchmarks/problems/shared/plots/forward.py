@@ -10,7 +10,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.shared.plots.style import (
+from mosaic.benchmarks.problems.shared.plots.style import (
     apply_style,
     field_grid,
     fig_shared_legend,
@@ -358,7 +358,7 @@ def _agreement_power_spectra(
         save_fig(fig_ps, "power_spectra", out_dir)
 
 
-def plot_agreement(
+def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
     cfg: Problem,
     *,
     field_to_2d=None,
@@ -382,21 +382,21 @@ def plot_agreement(
     """Field-error grid (rows=solvers × cols=sweep values) + optional power spectra."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
-    plot_kwargs = dict(
-        field_to_2d=field_to_2d,
-        output_key=output_key,
-        domain_extent=domain_extent,
-        resolution_key=resolution_key,
-        units=units,
-        agreement_xlabel=agreement_xlabel,
-        agreement_ylabel=agreement_ylabel,
-        pairwise_xlabel=pairwise_xlabel,
-        pairwise_ylabels=pairwise_ylabels,
-        field_cmap=field_cmap,
-        field_symmetric=field_symmetric,
-        diagnostic_fields=diagnostic_fields,
-        power_spectrum_fn=power_spectrum_fn,
-    )
+    plot_kwargs = {
+        "field_to_2d": field_to_2d,
+        "output_key": output_key,
+        "domain_extent": domain_extent,
+        "resolution_key": resolution_key,
+        "units": units,
+        "agreement_xlabel": agreement_xlabel,
+        "agreement_ylabel": agreement_ylabel,
+        "pairwise_xlabel": pairwise_xlabel,
+        "pairwise_ylabels": pairwise_ylabels,
+        "field_cmap": field_cmap,
+        "field_symmetric": field_symmetric,
+        "diagnostic_fields": diagnostic_fields,
+        "power_spectrum_fn": power_spectrum_fn,
+    }
     if not fields_path.exists():
         # Multi-IC layout: each IC lands in a subdir; plot each one.
         _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key, **plot_kwargs)

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.shared.plots.style import (
+from mosaic.benchmarks.problems.shared.plots.style import (
     apply_style,
     imshow_with_cbar,
     save_fig,

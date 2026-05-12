@@ -22,7 +22,7 @@ See the ``shared`` modules for the full list of ``run_*`` functions:
 
 from mosaic.benchmarks.core.config import IcSpec, Problem, SolverSpec
 from mosaic.benchmarks.problems import PROBLEMS, get_config
-from mosaic.benchmarks.shared import cost, forward, gradient, optimization
+from mosaic.benchmarks.problems.shared import cost, forward, gradient, optimization
 
 __all__ = [
     # Problem registry
