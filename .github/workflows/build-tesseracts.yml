@@ -36,7 +36,6 @@ jobs:
     outputs:
       matrix: ${{ steps.detect.outputs.matrix }}
       has_solvers: ${{ steps.detect.outputs.has_solvers }}
-      needs_dealii_base: ${{ steps.detect.outputs.needs_dealii_base }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,17 +93,12 @@ jobs:
             done
           fi
 
-          # Build JSON matrix; detect dealii base need from build_base.sh presence
-          NEEDS_DEALII="false"
+          # Build JSON matrix
           MATRIX_JSON="["
           FIRST=true
           for s in "${CHANGED[@]}"; do
             DOMAIN="${s%%/*}"
             SOLVER="${s#*/}"
-
-            if [[ -f "mosaic/tesseracts/${s}/build_base.sh" ]]; then
-              NEEDS_DEALII="true"
-            fi
 
             if [[ "$FIRST" == "true" ]]; then
               FIRST=false
@@ -122,50 +116,15 @@ jobs:
 
           echo "matrix=${MATRIX_JSON}" >> "$GITHUB_OUTPUT"
           echo "has_solvers=${HAS_SOLVERS}" >> "$GITHUB_OUTPUT"
-          echo "needs_dealii_base=${NEEDS_DEALII}" >> "$GITHUB_OUTPUT"
 
           echo "Changed solvers (${#CHANGED[@]}): ${CHANGED[*]:-none}"
-          echo "Needs dealii base: ${NEEDS_DEALII}"
           echo "Matrix: ${MATRIX_JSON}"
-
-  # ── Build dealii-root base image (only if needed) ───────────────────────
-  build-base:
-    name: Build dealii-root base image
-    needs: detect-changes
-    if: >-
-      needs.detect-changes.outputs.needs_dealii_base == 'true'
-      && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build dealii-root base image
-        run: bash mosaic/tesseracts/structural-mesh/dealii/build_base.sh
-
-      - name: Tag and push dealii-root to GHCR
-        run: |
-          GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/mosaic/dealii-root"
-          docker tag dealii-root:latest "${GHCR_IMAGE}:latest"
-          docker tag dealii-root:latest "${GHCR_IMAGE}:${{ github.sha }}"
-          docker push "${GHCR_IMAGE}:latest"
-          docker push "${GHCR_IMAGE}:${{ github.sha }}"
 
   # ── Build and push each Tesseract solver ────────────────────────────────
   build-and-push:
     name: "Build ${{ matrix.domain }}/${{ matrix.solver }}"
-    needs: [detect-changes, build-base]
-    if: >-
-      always()
-      && needs.detect-changes.outputs.has_solvers == 'true'
-      && needs.detect-changes.result == 'success'
-      && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_solvers == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -189,30 +148,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull dealii-root base image from GHCR (if needed)
-        if: github.event_name != 'pull_request'
+      - name: Run build_base.sh (if present)
         run: |
-          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
-          BASE_IMAGE=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" build_config.base_image)
-
-          if [[ "$BASE_IMAGE" == "dealii-root:latest" ]]; then
-            GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/mosaic/dealii-root:latest"
-            echo "Pulling dealii-root base from ${GHCR_IMAGE}"
-            docker pull "${GHCR_IMAGE}"
-            docker tag "${GHCR_IMAGE}" dealii-root:latest
+          SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
+          if [[ -f "${SOLVER_DIR}/build_base.sh" ]]; then
+            echo "Running ${SOLVER_DIR}/build_base.sh"
+            bash "${SOLVER_DIR}/build_base.sh"
           else
-            echo "Solver does not use dealii-root base image (base_image=${BASE_IMAGE:-default})"
-          fi
-
-      - name: Build dealii-root locally (PR only, if needed)
-        if: github.event_name == 'pull_request'
-        run: |
-          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
-          BASE_IMAGE=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" build_config.base_image)
-
-          if [[ "$BASE_IMAGE" == "dealii-root:latest" ]]; then
-            echo "Building dealii-root base image locally for PR validation"
-            bash mosaic/tesseracts/structural-mesh/dealii/build_base.sh
+            echo "No build_base.sh — skipping"
           fi
 
       - name: Build Tesseract image
