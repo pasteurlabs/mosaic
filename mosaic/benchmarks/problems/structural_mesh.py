@@ -93,7 +93,7 @@ def _hex_mesh_arrays(
     return points, cells
 
 
-def _cantilever_bcs(
+def _cantilever_bcs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
     points: np.ndarray,
     nx: int,
     ny: int,
@@ -296,7 +296,7 @@ def _two_density_bumps(
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 
-def _make_inputs(
+def _make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
     solver_name: str,
     ic: np.ndarray,
     *,

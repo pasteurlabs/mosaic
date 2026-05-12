@@ -3,8 +3,8 @@
 This module owns three concerns that previously lived inside the gradient
 suite:
 
-  * Single-shot memory queries — :func:`sample_vram_mib` (nvidia-smi) and
-    :func:`sample_container_ram_mib` (docker stats).
+  * Single-shot memory queries — :func:`sample_vram_mib` (via NVML) and
+    :func:`sample_container_ram_mib` (via the Docker SDK).
   * Tesseract → container-id extraction — :func:`container_id_from_tesseract`,
     which understands both modern (``_serve_context``) and legacy
     (``_container`` / ``_service`` / ``_backend``) layouts.
@@ -15,6 +15,10 @@ suite:
     mid-call: the last sample taken before the kill captures the
     ~OOM threshold (a final-delta read would either be 0 or fail).
 
+Both single-shot queries are best-effort: they return ``None`` on any
+failure (no NVIDIA driver, no Docker socket, container gone, …) so
+callers degrade gracefully on CPU-only / no-Docker hosts.
+
 The complementary tool, :class:`mosaic.benchmarks.core.hardware.ResourceSampler`,
 is a cheaper *before/after delta* sampler. Pick the poller when you need
 absolute peak or expect the container to die; pick ResourceSampler when
@@ -23,77 +27,90 @@ you only want the workload's incremental cost in the steady state.
 
 from __future__ import annotations
 
-import subprocess
 import threading
+
+# Lazy / optional imports: NVML and Docker may be absent on CI / CPU-only
+# hosts. We import inside the helpers so module import never fails — every
+# query has its own try/except that returns ``None`` on missing-driver
+# errors so callers don't need to feature-detect.
+
+# Module-level cache for the NVML init state. ``nvmlInit()`` is idempotent
+# (refcounted), but caching the success/failure avoids retrying on every
+# poll when the driver is genuinely unavailable.
+_NVML_OK: bool | None = None
+
+
+def _nvml_ready():
+    """Return the ``pynvml`` module if NVML is initialised, else ``None``.
+
+    Caches the init result so failing hosts (no driver, CPU-only CI) don't
+    re-pay the import + init cost on every sample.
+    """
+    global _NVML_OK
+    if _NVML_OK is False:
+        return None
+    try:
+        import pynvml  # type: ignore[import-not-found]
+    except ImportError:
+        _NVML_OK = False
+        return None
+    if _NVML_OK is None:
+        try:
+            pynvml.nvmlInit()
+            _NVML_OK = True
+        except Exception:
+            _NVML_OK = False
+            return None
+    return pynvml
+
+
+def _docker_client():
+    """Return a Docker SDK client, or ``None`` if Docker is unreachable.
+
+    The client is constructed once per call (cheap — it's just a wrapper
+    around a Unix socket). Returns ``None`` if the SDK can't connect.
+    """
+    try:
+        import docker  # type: ignore[import-not-found]
+
+        return docker.from_env()
+    except Exception:
+        return None
+
 
 # ── Single-shot queries ──────────────────────────────────────────────────────
 
 
-def _parse_mem_mib(s: str) -> float | None:
-    """Parse a Docker-style memory string to MiB. e.g. ``'1.23GiB'`` → ``1260.6``."""
-    s = s.strip()
-    try:
-        for suffix, factor in [
-            ("GiB", 1024.0),
-            ("MiB", 1.0),
-            ("KiB", 1.0 / 1024.0),
-            ("GB", 953.674),
-            ("MB", 0.953674),
-            ("kB", 9.537e-4),
-        ]:
-            if s.endswith(suffix):
-                return float(s[: -len(suffix)]) * factor
-        return float(s)
-    except (ValueError, OverflowError):
-        return None
-
-
 def sample_vram_mib(gpu_id: int | str) -> float | None:
-    """Single nvidia-smi query for ``memory.used`` on one GPU, in MiB.
+    """Used VRAM on one GPU, in MiB, via NVML.
 
-    Returns ``None`` on any failure (no NVIDIA driver, command error,
-    parse error) so callers can degrade gracefully.
+    Returns ``None`` on any failure (no NVIDIA driver, invalid ``gpu_id``,
+    NVML error) so callers degrade gracefully.
     """
+    nvml = _nvml_ready()
+    if nvml is None:
+        return None
     try:
-        r = subprocess.run(
-            [
-                "nvidia-smi",
-                f"--id={gpu_id}",
-                "--query-gpu=memory.used",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        return float(r.stdout.strip()) if r.returncode == 0 else None
+        handle = nvml.nvmlDeviceGetHandleByIndex(int(gpu_id))
+        return nvml.nvmlDeviceGetMemoryInfo(handle).used / (1024 * 1024)
     except Exception:
         return None
 
 
 def sample_container_ram_mib(container_id: str) -> float | None:
-    """Single ``docker stats`` query for container memory usage, in MiB.
+    """Resident RAM of a Docker container, in MiB, via the Docker SDK.
 
-    Returns ``None`` on any failure (docker not available, container gone,
-    parse error).
+    Returns ``None`` on any failure (no Docker socket, container gone,
+    missing stats field).
     """
+    client = _docker_client()
+    if client is None:
+        return None
     try:
-        r = subprocess.run(
-            [
-                "docker",
-                "stats",
-                "--no-stream",
-                "--format",
-                "{{.MemUsage}}",
-                container_id,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if r.returncode != 0 or not r.stdout.strip():
-            return None
-        return _parse_mem_mib(r.stdout.strip().split("/")[0])
+        container = client.containers.get(container_id)
+        stats = container.stats(stream=False)
+        usage = stats.get("memory_stats", {}).get("usage")
+        return float(usage) / (1024 * 1024) if usage is not None else None
     except Exception:
         return None
 
@@ -148,10 +165,10 @@ class MemoryPoller:
         # {"vram_peak_mib": float | None, "ram_peak_mib": float | None}
 
     Args:
-        gpu_id: GPU index for nvidia-smi (int or str). ``None`` disables
-            VRAM sampling.
-        container_id: Docker container ID/name for ``docker stats``. ``None``
-            disables container-RAM sampling.
+        gpu_id: GPU index for NVML (int or str). ``None`` disables VRAM
+            sampling.
+        container_id: Docker container ID/name. ``None`` disables
+            container-RAM sampling.
         interval: Seconds between samples (default 0.5).
     """
 

@@ -9,13 +9,12 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -39,7 +38,7 @@ def _plot_ns_recovery(
     if not path.exists():
         ax.set_title(title)
         return
-    data = json.loads(path.read_text())
+    data = load_json(path)
     by_sweep = data["by_sweep"]
 
     for solver in solver_order:
@@ -81,7 +80,7 @@ def _plot_fem_recovery(
     if not result_path.exists():
         ax.set_title(title)
         return
-    data = json.loads(result_path.read_text())
+    data = load_json(result_path)
     by_solver = data["by_solver"]
 
     for solver in solver_order:

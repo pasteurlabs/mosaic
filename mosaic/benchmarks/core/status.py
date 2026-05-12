@@ -32,13 +32,13 @@ from pathlib import Path
 from typing import Any
 
 from .config import ProblemConfig
-from .utils import (
-    exclusion_lookup,
+from .io import (
     harness_fn_hash,
     load_json,
     results_dir,
     tesseract_content_hash,
 )
+from .utils import exclusion_lookup
 
 # Suites visited by the status command. "ics" produces no per-solver results.
 SUITES: tuple[str, ...] = ("forward", "cost", "gradient", "optimization")
@@ -229,6 +229,130 @@ def _reason_from_entry(entry: Any) -> str:
 _TRAJECTORY_KEYS = ("errors", "drags", "flow_rates", "loss", "losses")
 
 
+def _finite_floats(values: Any) -> list[float]:
+    """Return the subset of *values* that are finite real numbers."""
+    if not isinstance(values, (list, tuple)):
+        return []
+    return [
+        float(v)
+        for v in values
+        if isinstance(v, (int, float))
+        and not (isinstance(v, float) and math.isnan(v))
+        and math.isfinite(v)
+    ]
+
+
+def _is_numeric_key(k: Any) -> bool:
+    """True if *k* parses as a float (used to spot numeric-keyed sweep dicts)."""
+    if isinstance(k, (int, float)):
+        return True
+    if isinstance(k, str):
+        try:
+            float(k)
+            return True
+        except ValueError:
+            return False
+    return False
+
+
+def _check_named_trajectory(entry: dict) -> tuple[str, str] | None:
+    """Reject entries whose named trajectory list is all non-finite or flat.
+
+    Returns ``(FAILED, reason)`` when the first matching trajectory key in
+    ``_TRAJECTORY_KEYS`` shows the entry produced no usable signal; otherwise
+    ``None`` (continue with other heuristics).
+    """
+    for key in _TRAJECTORY_KEYS:
+        traj = entry.get(key)
+        if not (isinstance(traj, list) and traj):
+            continue
+        finite_vals = _finite_floats(traj)
+        if not finite_vals:
+            return FAILED, f"'{key}' trajectory is all non-finite"
+        if len(finite_vals) > 1 and min(finite_vals) == max(finite_vals):
+            return (
+                FAILED,
+                f"'{key}' trajectory is flat — no loss reduction (broken gradient?)",
+            )
+        # First matching trajectory adjudicates — don't keep searching.
+        return None
+    return None
+
+
+def _check_numeric_sweep(entry: dict) -> tuple[str, str] | None:
+    """Reject numeric-keyed sweep dicts whose every non-trivial sub-entry is
+    bad (non-finite final loss across the board, or a flat sub-trajectory).
+    """
+    numeric_subs = [
+        (k, v) for k, v in entry.items() if _is_numeric_key(k) and isinstance(v, dict)
+    ]
+    if not numeric_subs:
+        return None
+    non_trivial = [
+        (k, v)
+        for k, v in numeric_subs
+        if isinstance(v.get("initial_loss"), (int, float))
+        and math.isfinite(float(v.get("initial_loss", 0)))
+        and float(v.get("initial_loss", 0)) > 0
+    ]
+    if not non_trivial:
+        return None
+    bad = [
+        (k, v)
+        for k, v in non_trivial
+        if not (
+            isinstance(v.get("final_loss"), (int, float))
+            and math.isfinite(float(v.get("final_loss", float("nan"))))
+        )
+    ]
+    if len(bad) == len(non_trivial):
+        return FAILED, "all non-trivial sweep values have non-finite final loss"
+    for sk, sv in non_trivial:
+        sub_finite = _finite_floats(sv.get("losses") or [])
+        if len(sub_finite) > 1 and min(sub_finite) == max(sub_finite):
+            return FAILED, (
+                f"sweep value {sk}: loss trajectory is flat"
+                " — no loss reduction (broken gradient?)"
+            )
+    return None
+
+
+def _check_eps_sweep(entry: dict) -> tuple[str, str] | None:
+    """Reject fd_check / source_fd_check entries whose eps_sweep is entirely
+    non-finite across cosine and rel_error.
+    """
+    sweep = entry.get("eps_sweep")
+    if not (isinstance(sweep, dict) and sweep):
+        return None
+    for st in sweep.values():
+        if not isinstance(st, dict):
+            continue
+        cos = st.get("cosine")
+        if isinstance(cos, (int, float)) and math.isfinite(cos):
+            return None
+        for r in st.get("rel_error", []) or []:
+            if isinstance(r, (int, float)) and math.isfinite(r):
+                return None
+    return FAILED, "eps_sweep produced all non-finite values"
+
+
+def _classify_dict_entry(entry: dict) -> tuple[str, str]:
+    """Classify a dict-shaped by_solver entry."""
+    if not entry:
+        return FAILED, "empty result"
+    # Explicit valid=False flag (forward-suite shape reused elsewhere).
+    if entry.get("valid") is False:
+        return FAILED, _reason_from_entry(entry) or "invalid"
+    for checker in (_check_named_trajectory, _check_numeric_sweep, _check_eps_sweep):
+        verdict = checker(entry)
+        if verdict is not None:
+            return verdict
+    reason = _reason_from_entry(entry)
+    if not _has_any_finite(entry):
+        return FAILED, reason or "no finite values"
+    return OK, ""
+
+
 def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
     """Classify a single solver's entry from a ``by_solver`` dict.
 
@@ -237,121 +361,7 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
     if entry is None:
         return FAILED, ""
     if isinstance(entry, dict):
-        if not entry:
-            return FAILED, "empty result"
-        # Explicit valid=False flag (forward-suite shape reused elsewhere).
-        if entry.get("valid") is False:
-            return FAILED, _reason_from_entry(entry) or "invalid"
-        # Recovery / optimisation shape: if the entry carries a named
-        # trajectory list (drags / errors / loss / …) and the whole list is
-        # non-finite, the optimiser ran but didn't produce usable data. Don't
-        # let finite scalar metadata like n_iters=30 mask this.
-        for _k in _TRAJECTORY_KEYS:
-            traj = entry.get(_k)
-            if isinstance(traj, list) and traj:
-                finite_vals = [
-                    v
-                    for v in traj
-                    if isinstance(v, (int, float))
-                    and not (isinstance(v, float) and math.isnan(v))
-                    and math.isfinite(v)
-                ]
-                if not finite_vals:
-                    return FAILED, f"'{_k}' trajectory is all non-finite"
-                if len(finite_vals) > 1 and min(finite_vals) == max(finite_vals):
-                    return (
-                        FAILED,
-                        f"'{_k}' trajectory is flat — no loss reduction (broken gradient?)",
-                    )
-                break
-
-        # Numeric-keyed sweep dict structure:
-        # {float_val: {"losses": [...], "final_loss": float, "initial_loss": float}}.
-        # The top-level trajectory keys above won't match (keys are floats), so
-        # check each sub-entry explicitly.  If ALL non-trivial sub-entries
-        # (initial_loss > 0) have non-finite final_loss the solver diverged on
-        # every meaningful test point → FAILED.  Also detect flat trajectories
-        # within individual non-trivial sub-entries.
-        def _is_numeric_key(k) -> bool:
-            if isinstance(k, (int, float)):
-                return True
-            if isinstance(k, str):
-                try:
-                    float(k)
-                    return True
-                except ValueError:
-                    return False
-            return False
-
-        _numeric_subs = [
-            (k, v)
-            for k, v in entry.items()
-            if _is_numeric_key(k) and isinstance(v, dict)
-        ]
-        if _numeric_subs:
-            _non_trivial = [
-                (k, v)
-                for k, v in _numeric_subs
-                if isinstance(v.get("initial_loss"), (int, float))
-                and math.isfinite(float(v.get("initial_loss", 0)))
-                and float(v.get("initial_loss", 0)) > 0
-            ]
-            if _non_trivial:
-                _bad = [
-                    (k, v)
-                    for k, v in _non_trivial
-                    if not (
-                        isinstance(v.get("final_loss"), (int, float))
-                        and math.isfinite(float(v.get("final_loss", float("nan"))))
-                    )
-                ]
-                if len(_bad) == len(_non_trivial):
-                    return (
-                        FAILED,
-                        "all non-trivial sweep values have non-finite final loss",
-                    )
-                for _sk, _sv in _non_trivial:
-                    _sub_traj = _sv.get("losses") or []
-                    _sub_finite = [
-                        x
-                        for x in _sub_traj
-                        if isinstance(x, (int, float)) and math.isfinite(x)
-                    ]
-                    if len(_sub_finite) > 1 and min(_sub_finite) == max(_sub_finite):
-                        return FAILED, (
-                            f"sweep value {_sk}: loss trajectory is flat"
-                            " — no loss reduction (broken gradient?)"
-                        )
-        # fd_check / source_fd_check shape: if every ε in eps_sweep has all
-        # non-finite cosine and rel_error, the solver effectively produced
-        # no gradient signal. Don't let ambient scalars (ic_scale, etc.)
-        # keep it classified as ok.
-        _sweep = entry.get("eps_sweep")
-        if isinstance(_sweep, dict) and _sweep:
-            any_finite_sweep = False
-            for _, _st in _sweep.items():
-                if not isinstance(_st, dict):
-                    continue
-                _c = _st.get("cosine")
-                if isinstance(_c, (int, float)) and math.isfinite(_c):
-                    any_finite_sweep = True
-                    break
-                for _r in _st.get("rel_error", []) or []:
-                    if isinstance(_r, (int, float)) and math.isfinite(_r):
-                        any_finite_sweep = True
-                        break
-                if any_finite_sweep:
-                    break
-            if not any_finite_sweep:
-                return FAILED, "eps_sweep produced all non-finite values"
-        reason = _reason_from_entry(entry)
-        # Reason present but no explicit valid flag — degrade to failed only
-        # if there is NO finite data anywhere in the entry.
-        if reason and not _has_any_finite(entry):
-            return FAILED, reason
-        if not _has_any_finite(entry):
-            return FAILED, reason or "no finite values"
-        return OK, ""
+        return _classify_dict_entry(entry)
     if isinstance(entry, (list, tuple)):
         if not entry or not _has_any_finite(entry):
             return FAILED, "no finite values"
@@ -640,112 +650,122 @@ def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: dict) -> None:
             )
 
 
-def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
-    """Flag recovery solvers whose final_error / initial_error exceeds
-    ``max_final_ratio``. Walks both ``by_solver`` and ``by_sweep`` layouts.
-
-    Also supports ``peer_final_loss_k`` for numeric-sweep experiments: for
-    each sweep value, flag any OK solver whose final_loss is
-    more than K× the minimum final_loss across all solvers with finite results
-    at that value.  Both categorically-excluded and non-excluded solvers are
-    used as peers since their loss values represent valid self-consistent
-    optimizations.
-    """
-    max_ratio = checks.get("max_final_ratio")
-    peer_k = checks.get("peer_final_loss_k")
-    top = data.get("by_solver") or data.get("by_sweep") or {}
-    if not isinstance(top, dict):
-        return
-
-    def _is_num(k) -> bool:
-        if isinstance(k, (int, float)):
-            return True
+def _is_sweep_key(k: Any) -> bool:
+    """True for keys that look like numeric sweep values (int/float, or a
+    string that parses as float). Mirrors the local ``_is_num`` from the
+    original ``_refine_recovery`` body."""
+    if isinstance(k, (int, float)):
+        return True
+    if isinstance(k, str):
         try:
             float(k)
-            return isinstance(k, str)
+            return True
         except (ValueError, TypeError):
             return False
+    return False
 
-    # ── peer_final_loss_k check ───────────────────────────────────────────────
-    # Only applies when the data layout is numeric-sweep.
-    if peer_k is not None:
-        # Collect all sweep keys present across any solver entry.
-        all_sweep_keys: set[str] = set()
-        for entry in top.values():
-            if not isinstance(entry, dict):
+
+def _sweep_sub_entry(entry: dict, sweep_k: str) -> Any:
+    """Look up a sweep sub-entry by string key, falling back to a float key
+    when the string parses as a plain number."""
+    sub = entry.get(sweep_k)
+    if sub is not None:
+        return sub
+    if sweep_k.replace(".", "").lstrip("-").isdigit():
+        return entry.get(float(sweep_k))
+    return entry.get(sweep_k)
+
+
+def _collect_sweep_keys(top: dict) -> set[str]:
+    """Return the union of numeric-style keys across all solver entries."""
+    keys: set[str] = set()
+    for entry in top.values():
+        if not isinstance(entry, dict):
+            continue
+        for k in entry:
+            if _is_sweep_key(k):
+                keys.add(str(k))
+    return keys
+
+
+def _peer_finals_at(top: dict, sweep_k: str) -> dict[str, float]:
+    """Gather non-trivial, finite final_loss values across all solvers at
+    sweep value *sweep_k*. Trivial points (initial_loss <= 0) are skipped."""
+    peer_finals: dict[str, float] = {}
+    for solver, entry in top.items():
+        if not isinstance(entry, dict):
+            continue
+        sub = _sweep_sub_entry(entry, sweep_k)
+        if not isinstance(sub, dict):
+            continue
+        fl = sub.get("final_loss")
+        il = sub.get("initial_loss", 0.0)
+        if (
+            isinstance(fl, (int, float))
+            and math.isfinite(fl)
+            and fl >= 0
+            and isinstance(il, (int, float))
+            and float(il) > 0
+        ):
+            peer_finals[solver] = float(fl)
+    return peer_finals
+
+
+def _apply_peer_final_loss(top: dict, cells: dict[str, Cell], peer_k: float) -> None:
+    """For each sweep value, flag any OK solver whose final_loss is more
+    than K× the minimum final_loss across all peers with finite results."""
+    for sweep_k in _collect_sweep_keys(top):
+        peer_finals = _peer_finals_at(top, sweep_k)
+        if len(peer_finals) < 2:
+            continue
+        best_final = min(peer_finals.values())
+        if best_final <= 0:
+            continue
+        for solver, fl in peer_finals.items():
+            if solver not in cells or cells[solver].status != OK:
                 continue
-            for k in entry:
-                if _is_num(k):
-                    all_sweep_keys.add(str(k))
-
-        for sweep_k in all_sweep_keys:
-            # Gather non-trivial, finite final_loss values across all solvers.
-            peer_finals: dict[str, float] = {}
-            for solver, entry in top.items():
-                if not isinstance(entry, dict):
-                    continue
-                sub = entry.get(sweep_k) or entry.get(
-                    float(sweep_k)
-                    if sweep_k.replace(".", "").lstrip("-").isdigit()
-                    else sweep_k
+            ratio = fl / best_final
+            if ratio > peer_k:
+                cells[solver] = Cell(
+                    ANOMALY,
+                    f"final_loss at sweep={sweep_k} is {ratio:.1f}× best peer"
+                    f" ({fl:.3g} vs {best_final:.3g}, threshold {peer_k}×)",
                 )
-                if not isinstance(sub, dict):
-                    continue
-                fl = sub.get("final_loss")
-                il = sub.get("initial_loss", 0.0)
-                if (
-                    isinstance(fl, (int, float))
-                    and math.isfinite(fl)
-                    and fl >= 0
-                    and isinstance(il, (int, float))
-                    and float(il) > 0  # skip trivial sweep values
-                ):
-                    peer_finals[solver] = float(fl)
 
-            if len(peer_finals) < 2:
-                continue  # need at least 2 peers to compare
-            best_final = min(peer_finals.values())
-            if best_final <= 0:
-                continue
-            for solver, fl in peer_finals.items():
-                if solver not in cells or cells[solver].status != OK:
-                    continue
-                ratio = fl / best_final
-                if ratio > peer_k:
-                    cells[solver] = Cell(
-                        ANOMALY,
-                        f"final_loss at sweep={sweep_k} is {ratio:.1f}× best peer"
-                        f" ({fl:.3g} vs {best_final:.3g}, threshold {peer_k}×)",
-                    )
 
-    # ── max_final_ratio check ─────────────────────────────────────────────────
-    if max_ratio is None:
-        return
+def _worst_case_trajectory(entry: dict) -> list[float] | None:
+    """Pick the worst-case (highest initial loss) trajectory from a
+    numeric-sweep dict, or fall back to a direct trajectory lookup when the
+    entry isn't numeric-keyed.
+
+    Without this, ``_find_trajectory`` would return the all-zero trajectory
+    of a trivial sweep value first and the caller would bail on
+    initial<=0 — masking non-trivial test points entirely.
+    """
+    numeric_subs = {
+        k: v for k, v in entry.items() if _is_sweep_key(k) and isinstance(v, dict)
+    }
+    if not numeric_subs:
+        return _find_trajectory(entry)
+    best_init = -1.0
+    series: list[float] | None = None
+    for sub_v in numeric_subs.values():
+        cand = _find_trajectory(sub_v)
+        if not cand:
+            continue
+        cand_init = abs(cand[0])
+        if cand_init > best_init:
+            best_init = cand_init
+            series = cand
+    return series
+
+
+def _apply_max_final_ratio(top: dict, cells: dict[str, Cell], max_ratio: float) -> None:
+    """Flag OK solvers whose final/initial trajectory ratio exceeds *max_ratio*."""
     for solver, entry in top.items():
         if solver not in cells or cells[solver].status != OK:
             continue
-        # For numeric-keyed sweep dicts ({sweep_val: {losses,...}}), pick the
-        # sub-entry with the highest initial loss (hardest test point). Trivial
-        # entries with initial_loss=0 are skipped via initial<=0 below, but
-        # _find_trajectory would return their all-zero trajectory first and
-        # then bail on initial<=0, never reaching the non-trivial entries. Instead,
-        # find the worst-case non-trivial trajectory explicitly.
-        _numeric_subs = {
-            k: v for k, v in entry.items() if _is_num(k) and isinstance(v, dict)
-        }
-        if _numeric_subs:
-            best_init = -1.0
-            series = None
-            for sub_v in _numeric_subs.values():
-                cand = _find_trajectory(sub_v)
-                if not cand:
-                    continue
-                cand_init = abs(cand[0])
-                if cand_init > best_init:
-                    best_init = cand_init
-                    series = cand
-        else:
-            series = _find_trajectory(entry)
+        series = _worst_case_trajectory(entry) if isinstance(entry, dict) else None
         if not series:
             continue
         initial = abs(series[0])
@@ -757,6 +777,28 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
             cells[solver] = Cell(
                 ANOMALY, f"final/initial = {ratio:.2f} (> {max_ratio})"
             )
+
+
+def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
+    """Flag recovery solvers whose final_error / initial_error exceeds
+    ``max_final_ratio``. Walks both ``by_solver`` and ``by_sweep`` layouts.
+
+    Also supports ``peer_final_loss_k`` for numeric-sweep experiments: for
+    each sweep value, flag any OK solver whose final_loss is
+    more than K× the minimum final_loss across all solvers with finite results
+    at that value.  Both categorically-excluded and non-excluded solvers are
+    used as peers since their loss values represent valid self-consistent
+    optimizations.
+    """
+    top = data.get("by_solver") or data.get("by_sweep") or {}
+    if not isinstance(top, dict):
+        return
+    peer_k = checks.get("peer_final_loss_k")
+    if peer_k is not None:
+        _apply_peer_final_loss(top, cells, peer_k)
+    max_ratio = checks.get("max_final_ratio")
+    if max_ratio is not None:
+        _apply_max_final_ratio(top, cells, max_ratio)
 
 
 def _find_trajectory(entry: Any) -> list[float] | None:
@@ -835,6 +877,210 @@ def _results_dir(cfg: ProblemConfig) -> Path:
     return results_dir() / cfg.name
 
 
+def _resolve_harness_hash(qualname: str, cache: dict[str, str | None]) -> str | None:
+    """Resolve ``module.qualname`` and hash via the AST-normalised
+    ``harness_fn_hash`` (must match the writer in ``save_experiment``).
+    Returns ``None`` on any failure; results are memoised in *cache*.
+    """
+    if qualname in cache:
+        return cache[qualname]
+    try:
+        module_path, _, attr_path = qualname.rpartition(".")
+        # Handle nested qualnames (e.g. Class.method).
+        if "." in attr_path or not module_path:
+            # Walk the qualname against importable prefixes.
+            parts = qualname.split(".")
+            for i in range(len(parts) - 1, 0, -1):
+                with contextlib.suppress(ImportError):
+                    mod = importlib.import_module(".".join(parts[:i]))
+                    with contextlib.suppress(AttributeError, OSError, TypeError):
+                        target = functools.reduce(getattr, parts[i:], mod)
+                        h = harness_fn_hash(target) or None
+                        cache[qualname] = h
+                        return h
+            cache[qualname] = None
+            return None
+        mod = importlib.import_module(module_path)
+        target = getattr(mod, attr_path)
+        h = harness_fn_hash(target) or None
+    except Exception:
+        h = None
+    cache[qualname] = h
+    return h
+
+
+def _resolve_tesseract_hash(
+    cfg: ProblemConfig, solver: str, cache: dict[str, str]
+) -> str:
+    """Hash the on-disk tesseract directory for *solver*; memoised in *cache*."""
+    if solver in cache:
+        return cache[solver]
+    spec = cfg.solvers.get(solver)
+    if spec is None:
+        cache[solver] = ""
+        return ""
+    tess_dir = cfg.tesseract_dir / spec.dir
+    h = tesseract_content_hash(tess_dir) if tess_dir.is_dir() else ""
+    cache[solver] = h
+    return h
+
+
+def _refine_for_suite(
+    suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: dict
+) -> None:
+    """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
+    if suite == "cost":
+        _refine_cost(data, cells, checks)
+    elif suite == "gradient" and exp_label.split("/")[0] in (
+        "fd_check",
+        "source_fd_check",
+    ):
+        _refine_fd_check(data, cells, checks)
+    elif suite == "optimization":
+        _refine_recovery(data, cells, checks)
+
+
+def _row_harness_stale(data: dict, harness_hash_cache: dict[str, str | None]) -> bool:
+    """Whether the result's stored harness hash matches the current source.
+
+    Missing-or-empty stored hash → stale (strict legacy policy).
+    """
+    stored_harness_hash = data.get("harness_hash")
+    stored_harness_fn = data.get("harness_fn")
+    if not stored_harness_hash or not stored_harness_fn:
+        return True
+    current = _resolve_harness_hash(stored_harness_fn, harness_hash_cache)
+    return current is None or current != stored_harness_hash
+
+
+def _apply_staleness(
+    cfg: ProblemConfig,
+    data: dict,
+    cells: dict[str, Cell],
+    solvers: list[str],
+    tesseract_hash_cache: dict[str, str],
+    harness_hash_cache: dict[str, str | None],
+) -> None:
+    """Mark row-level (harness) and cell-level (tesseract) staleness on cells.
+
+    Row-level: if the stored harness hash differs from the current on-disk
+    source (or nothing was stored, per the strict legacy policy), every
+    non-excluded cell gets ``*``. Cell-level: mismatch or missing tesseract
+    hash flags that solver alone even if the row as a whole isn't stale.
+    """
+    row_stale = _row_harness_stale(data, harness_hash_cache)
+    stored_tess = data.get("tesseract_hashes") or {}
+    if not isinstance(stored_tess, dict):
+        stored_tess = {}
+    for solver in solvers:
+        cell = cells.get(solver)
+        if cell is None or cell.status in (NOT_RUN, EXCLUDED):
+            continue
+        if row_stale:
+            cell.stale = True
+            continue
+        stored = stored_tess.get(solver)
+        if not stored:
+            cell.stale = True
+            continue
+        current = _resolve_tesseract_hash(cfg, solver, tesseract_hash_cache)
+        if current and stored != current:
+            cell.stale = True
+
+
+def _apply_exclusions(
+    cfg: ProblemConfig, suite: str, exp_label: str, cells: dict[str, Cell]
+) -> None:
+    """Mark excluded solvers (overrides whatever the result file said).
+
+    Uses the shared ``exclusion_lookup`` helper so the status display and the
+    runtime ``active_solvers`` filter can't drift on which key takes
+    precedence. Most-specific wins:
+    ``"{suite}/{exp}[/sub]" > "{exp}[/sub]" > "{suite}/{exp_head}" >
+    "{exp_head}" > "{suite}"``.
+    """
+    for name, spec in cfg.solvers.items():
+        match = exclusion_lookup(spec.exclusions, suite, exp_label)
+        if match is not None:
+            _key, value = match
+            cells[name] = _build_excluded_cell(value)
+
+
+def _apply_explained_anomalies(
+    cfg: ProblemConfig, suite: str, exp_label: str, cells: dict[str, Cell]
+) -> None:
+    """Mark explained-anomaly solvers. These override OK cells only — the
+    solver runs and produces finite results, but underperforms peers for
+    documented method-intrinsic reasons. FAILED and EXCLUDED cells are never
+    downgraded by this pass.
+    """
+    for name, spec in cfg.solvers.items():
+        ea_match = exclusion_lookup(
+            getattr(spec, "explained_anomalies", {}), suite, exp_label
+        )
+        if ea_match is None:
+            continue
+        cell = cells.get(name)
+        if cell is None or cell.status in (FAILED, EXCLUDED):
+            continue
+        _key, value = ea_match
+        if cell.status == OK:
+            # Promote an OK cell to documented anomaly.
+            cells[name] = _build_explained_anomaly_cell(value)
+        elif cell.status == ANOMALY and cell.category != "explained":
+            # Status_checks already flagged this as anomaly; mark it
+            # as explained anomaly to distinguish from threshold-triggered ones.
+            cells[name] = Cell(
+                ANOMALY, cell.reason, category="explained", stale=cell.stale
+            )
+
+
+def _suite_filter(cfg: ProblemConfig, suite: str) -> set[str]:
+    """Return the set of allowed experiment-head names for *suite*, or an
+    empty set if no filter applies (every experiment is admitted).
+
+    The cost-suite layout is a flat dict (keys: description, plot_descriptions,
+    runs) — not keyed by experiment name — so we use its ``plot_descriptions``
+    keys. Other suites use the top-level keys of ``_suite_defaults`` directly.
+    """
+    suite_defs = cfg._suite_defaults(suite) or {}
+    if suite == "cost":
+        return set((suite_defs.get("plot_descriptions") or {}).keys())
+    return set(suite_defs.keys())
+
+
+def _build_row(
+    cfg: ProblemConfig,
+    suite: str,
+    exp_label: str,
+    result_path: Path | None,
+    solvers: list[str],
+    tesseract_hash_cache: dict[str, str],
+    harness_hash_cache: dict[str, str | None],
+) -> ExperimentRow:
+    """Construct one ExperimentRow with classified, refined, and stamped cells."""
+    row = ExperimentRow(suite=suite, experiment=exp_label, result_path=result_path)
+    if result_path is None:
+        row.cells = {s: Cell(NOT_RUN) for s in solvers}
+        _apply_exclusions(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        return row
+    try:
+        data = load_json(result_path)
+    except Exception as exc:
+        row.cells = {s: Cell(FAILED, f"unreadable result.json: {exc}") for s in solvers}
+        return row
+    checks = _lookup_check(cfg, suite, exp_label)
+    row.cells = _classify_result(data, solvers, checks)
+    _refine_for_suite(suite, exp_label, data, row.cells, checks)
+    _apply_staleness(
+        cfg, data, row.cells, solvers, tesseract_hash_cache, harness_hash_cache
+    )
+    _apply_exclusions(cfg, suite, exp_label, row.cells)
+    _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+    return row
+
+
 def collect_status(
     cfg: ProblemConfig, suites: list[str] | None = None
 ) -> ProblemStatus:
@@ -847,160 +1093,22 @@ def collect_status(
     tesseract_hash_cache: dict[str, str] = {}
     harness_hash_cache: dict[str, str | None] = {}
 
-    def _current_tesseract_hash(solver: str) -> str:
-        if solver in tesseract_hash_cache:
-            return tesseract_hash_cache[solver]
-        spec = cfg.solvers.get(solver)
-        if spec is None:
-            tesseract_hash_cache[solver] = ""
-            return ""
-        tess_dir = cfg.tesseract_dir / spec.dir
-        h = tesseract_content_hash(tess_dir) if tess_dir.is_dir() else ""
-        tesseract_hash_cache[solver] = h
-        return h
-
-    def _current_harness_hash(qualname: str) -> str | None:
-        """Resolve module.qualname and hash via the AST-normalised
-        ``harness_fn_hash`` (must match the writer in `save_experiment`).
-        None on any failure.
-        """
-        if qualname in harness_hash_cache:
-            return harness_hash_cache[qualname]
-        try:
-            module_path, _, attr_path = qualname.rpartition(".")
-            # Handle nested qualnames (e.g. Class.method).
-            if "." in attr_path or not module_path:
-                # Walk the qualname against importable prefixes.
-                parts = qualname.split(".")
-                for i in range(len(parts) - 1, 0, -1):
-                    with contextlib.suppress(ImportError):
-                        mod = importlib.import_module(".".join(parts[:i]))
-                        with contextlib.suppress(AttributeError, OSError, TypeError):
-                            target = functools.reduce(getattr, parts[i:], mod)
-                            h = harness_fn_hash(target) or None
-                            harness_hash_cache[qualname] = h
-                            return h
-                harness_hash_cache[qualname] = None
-                return None
-            mod = importlib.import_module(module_path)
-            target = getattr(mod, attr_path)
-            h = harness_fn_hash(target) or None
-        except Exception:
-            h = None
-        harness_hash_cache[qualname] = h
-        return h
-
     rows: list[ExperimentRow] = []
     for suite in suites:
         suite_dir = root / suite
-        suite_defs = cfg._suite_defaults(suite)
-        # cost_defaults is a flat dict (keys: description/plot_descriptions/runs),
-        # not keyed by experiment name — use plot_descriptions keys for filtering.
-        if suite == "cost":
-            _cost_exp_names = set((suite_defs.get("plot_descriptions") or {}).keys())
-        else:
-            _cost_exp_names = set()
+        allowed = _suite_filter(cfg, suite)
         for exp_label, result_path in _iter_experiment_dirs(suite_dir):
-            if suite == "cost":
-                if _cost_exp_names and exp_label.split("/")[0] not in _cost_exp_names:
-                    continue
-            elif suite_defs and exp_label.split("/")[0] not in suite_defs:
+            if allowed and exp_label.split("/")[0] not in allowed:
                 continue
-            row = ExperimentRow(
-                suite=suite, experiment=exp_label, result_path=result_path
+            row = _build_row(
+                cfg,
+                suite,
+                exp_label,
+                result_path,
+                solvers,
+                tesseract_hash_cache,
+                harness_hash_cache,
             )
-            if result_path is None:
-                row.cells = {s: Cell(NOT_RUN) for s in solvers}
-            else:
-                try:
-                    data = load_json(result_path)
-                except Exception as exc:
-                    row.cells = {
-                        s: Cell(FAILED, f"unreadable result.json: {exc}")
-                        for s in solvers
-                    }
-                    rows.append(row)
-                    continue
-                checks = _lookup_check(cfg, suite, exp_label)
-                row.cells = _classify_result(data, solvers, checks)
-                # Suite-specific anomaly refinements (no-op when thresholds absent).
-                if suite == "cost":
-                    _refine_cost(data, row.cells, checks)
-                elif suite == "gradient" and exp_label.split("/")[0] in (
-                    "fd_check",
-                    "source_fd_check",
-                ):
-                    _refine_fd_check(data, row.cells, checks)
-                elif suite == "optimization":
-                    _refine_recovery(data, row.cells, checks)
-
-                # ── staleness: row-level (harness) + cell-level (tesseract) ──
-                # Row-level: if the stored harness hash differs from the
-                # current on-disk source (or nothing was stored, per the
-                # strict legacy policy), every non-excluded cell gets *.
-                stored_harness_hash = data.get("harness_hash")
-                stored_harness_fn = data.get("harness_fn")
-                row_stale = False
-                if not stored_harness_hash or not stored_harness_fn:
-                    row_stale = True
-                else:
-                    current = _current_harness_hash(stored_harness_fn)
-                    if current is None or current != stored_harness_hash:
-                        row_stale = True
-                # Cell-level: mismatch or missing tesseract hash → this solver
-                # alone is stale even if the row as a whole isn't.
-                stored_tess = data.get("tesseract_hashes") or {}
-                if not isinstance(stored_tess, dict):
-                    stored_tess = {}
-                for solver in solvers:
-                    cell = row.cells.get(solver)
-                    if cell is None:
-                        continue
-                    if cell.status in (NOT_RUN, EXCLUDED):
-                        continue
-                    if row_stale:
-                        cell.stale = True
-                        continue
-                    stored = stored_tess.get(solver)
-                    if not stored:
-                        cell.stale = True
-                        continue
-                    current = _current_tesseract_hash(solver)
-                    if current and stored != current:
-                        cell.stale = True
-            # Mark excluded solvers (overrides whatever the file said).
-            # Uses the shared exclusion_lookup helper so the status display
-            # and the runtime `active_solvers` filter can't drift on which
-            # key takes precedence. Most-specific wins:
-            # "{suite}/{exp}[/sub]" > "{exp}[/sub]" > "{suite}/{exp_head}" >
-            # "{exp_head}" > "{suite}".
-            for name, spec in cfg.solvers.items():
-                match = exclusion_lookup(spec.exclusions, suite, exp_label)
-                if match is not None:
-                    _key, value = match
-                    row.cells[name] = _build_excluded_cell(value)
-            # Mark explained-anomaly solvers. These override OK cells only —
-            # the solver runs and produces finite results, but underperforms
-            # peers for documented method-intrinsic reasons. FAILED and
-            # EXCLUDED cells are never downgraded by this pass.
-            for name, spec in cfg.solvers.items():
-                ea_match = exclusion_lookup(
-                    getattr(spec, "explained_anomalies", {}), suite, exp_label
-                )
-                if ea_match is not None:
-                    cell = row.cells.get(name)
-                    if cell is None or cell.status in (FAILED, EXCLUDED):
-                        continue
-                    _key, value = ea_match
-                    if cell.status == OK:
-                        # Promote an OK cell to documented anomaly.
-                        row.cells[name] = _build_explained_anomaly_cell(value)
-                    elif cell.status == ANOMALY and cell.category != "explained":
-                        # Status_checks already flagged this as anomaly; mark it
-                        # mark as explained anomaly to distinguish from threshold-triggered ones.
-                        row.cells[name] = Cell(
-                            ANOMALY, cell.reason, category="explained", stale=cell.stale
-                        )
             rows.append(row)
     return ProblemStatus(problem=cfg.name, solvers=solvers, rows=rows)
 

@@ -15,7 +15,7 @@ MOSAIC = [sys.executable, "-m", "mosaic.benchmarks.cli"]
 
 
 def _results_root():
-    from mosaic.benchmarks.core.utils import results_dir
+    from mosaic.benchmarks.core.io import results_dir
 
     return results_dir()
 

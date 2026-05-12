@@ -12,14 +12,13 @@ Solver labels carry (G) / (C) to indicate GPU vs. CPU execution.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -80,7 +79,7 @@ def _load_cost(subdir: str, experiment: str) -> dict[str, dict[int, float]]:
     p = results_dir() / subdir / "cost" / experiment / "result.json"
     if not p.exists():
         return {}
-    data = json.loads(p.read_text())
+    data = load_json(p)
     return {s: _extract(nd) for s, nd in data.get("by_N", {}).items()}
 
 

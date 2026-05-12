@@ -14,7 +14,6 @@ Output: topopt_overview.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.colors as mcolors
@@ -27,7 +26,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
@@ -375,14 +374,14 @@ def generate(out_dir: Path) -> None:
         print(f"[topopt_overview] {result_path} not found — skipping")
         return
 
-    data = json.loads(result_path.read_text())
+    data = load_json(result_path)
     by_solver = data["by_solver"]
 
     # Load additional optimizer results where available
     opt_datasets: list[tuple[str, dict]] = []
     for key, (m_ls, _m_label, rp) in OPT_METHODS.items():
         if rp.exists():
-            opt_datasets.append((m_ls, json.loads(rp.read_text())["by_solver"]))
+            opt_datasets.append((m_ls, load_json(rp)["by_solver"]))
         else:
             print(f"[topopt_overview] {rp} not found — skipping {key}")
     if not opt_datasets:
@@ -393,8 +392,8 @@ def generate(out_dir: Path) -> None:
     has_fields = fields_path.exists() and params_path.exists()
 
     if has_fields:
-        npz = np.load(fields_path)
-        ph = json.loads(params_path.read_text())["physics"]
+        npz = try_load_npz(fields_path)
+        ph = load_json(params_path)["physics"]
         nx, ny, nz = ph["nx"], ph["ny"], ph["nz"]
         npz_solvers = list(npz["solver_names"])
         field_solvers = [s for s in STRUCTURAL_ORDER if s in npz_solvers]

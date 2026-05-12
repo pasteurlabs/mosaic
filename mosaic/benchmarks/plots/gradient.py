@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.utils import load_json, results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.style import (
     apply_style,
     field_grid,
@@ -75,7 +75,7 @@ def plot_fd_check(
     if not fields_path.exists():
         return fig_c
 
-    npz = np.load(fields_path)
+    npz = try_load_npz(fields_path)
     solver_names = npz["solver_names"].tolist()
     ic = npz["ic"]
 
@@ -524,7 +524,7 @@ def plot_resolution_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = "
     if not fields_path.exists():
         return fig_c
 
-    npz = np.load(fields_path)
+    npz = try_load_npz(fields_path)
     solver_names = npz["solver_names"].tolist()
     N_arr = npz["N_values"].tolist()
 
@@ -665,7 +665,7 @@ def plot_jacobian_svd(
     if not fields_path.exists():
         return fig
 
-    npz = np.load(fields_path)
+    npz = try_load_npz(fields_path)
     npz_solvers = npz["solver_names"].tolist()
     ic = npz["ic"]
 
@@ -741,6 +741,170 @@ def plot_jacobian_svd(
 # ── G4: memory sweep ─────────────────────────────────────────────────────────
 
 
+def _memory_sweep_mem_key(entry: dict, pass_prefix: str) -> float:
+    """Return GPU mem if present, else RAM (CPU-only solvers), else NaN."""
+    gpu = entry.get(f"{pass_prefix}peak_gpu_mem_mb", np.nan)
+    if np.isfinite(gpu) and gpu > 0:
+        return gpu
+    return entry.get(f"{pass_prefix}peak_ram_mb", np.nan)
+
+
+def _memory_sweep_has_vjp(by_data: dict) -> bool:
+    for solver_data in by_data.values():
+        for entry in solver_data.values():
+            if "vjp_peak_gpu_mem_mb" in entry or "vjp_peak_ram_mb" in entry:
+                return True
+    return False
+
+
+def _memory_sweep_draw_panel(ax, by_data, x_label, x_to_int, title, cfg, styles):
+    """Draw fwd (dashed) and VJP (solid) lines on ax."""
+    all_keys = sorted(next(iter(by_data.values())).keys(), key=x_to_int)
+    x_arr = np.array([x_to_int(k) for k in all_keys], dtype=float)
+    has_gpu_label = False
+    has_ram_label = False
+    for name in cfg.solvers:
+        solver_data = by_data.get(name, {})
+        if not solver_data:
+            continue
+        style = styles.get(name, {})
+        label = style.get("label", name)
+        props_fwd = {**solver_plot_props(style), "linestyle": "--", "alpha": 0.7}
+        props_vjp = solver_plot_props(style)
+
+        fwd_mem = [
+            _memory_sweep_mem_key(solver_data.get(k, {}), "fwd_") for k in all_keys
+        ]
+        if any(np.isfinite(v) and v > 0 for v in fwd_mem):
+            ax.loglog(x_arr, fwd_mem, label=f"{label} fwd", **props_fwd)
+            # track whether GPU or RAM labels needed (for y-axis)
+            first_val = next(
+                (
+                    solver_data[k].get("fwd_peak_gpu_mem_mb", np.nan)
+                    for k in all_keys
+                    if k in solver_data
+                ),
+                np.nan,
+            )
+            if np.isfinite(first_val) and first_val > 0:
+                has_gpu_label = True
+            else:
+                has_ram_label = True
+
+        vjp_mem = [
+            _memory_sweep_mem_key(solver_data.get(k, {}), "vjp_") for k in all_keys
+        ]
+        if any(np.isfinite(v) and v > 0 for v in vjp_mem):
+            ax.loglog(x_arr, vjp_mem, label=f"{label} VJP", **props_vjp)
+
+    ax.set_xlabel(x_label)
+    y_label = "Peak GPU mem (MB)" if has_gpu_label else "Peak RAM (MB)"
+    if has_gpu_label and has_ram_label:
+        y_label = "Peak GPU / RAM (MB)"
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    return all_keys, x_arr
+
+
+def _memory_sweep_draw_ratio(
+    ax, by_data, all_keys, x_label, title, diff_solvers_with_vjp, styles
+):
+    x_arr = np.array([int(k) for k in all_keys], dtype=float)
+    for name in diff_solvers_with_vjp:
+        solver_data = by_data.get(name, {})
+        style = styles.get(name, {})
+        label = style.get("label", name)
+        ratios = []
+        for k in all_keys:
+            entry = solver_data.get(k, {})
+            fwd = _memory_sweep_mem_key(entry, "fwd_")
+            vjp = _memory_sweep_mem_key(entry, "vjp_")
+            ratios.append(
+                vjp / fwd
+                if (np.isfinite(fwd) and fwd > 0 and np.isfinite(vjp))
+                else np.nan
+            )
+        if any(np.isfinite(r) for r in ratios):
+            ax.plot(x_arr, ratios, label=label, **solver_plot_props(style))
+    ax.set_xscale("log")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel("VJP mem / forward mem")
+    ax.set_title(title)
+
+
+def _memory_sweep_fig_main(cfg, styles, by_N, by_steps, has_N, has_steps, res_key):
+    """Build the fwd-vs-VJP memory figure; return (fig, N_keys, steps_keys)."""
+    n_cols = int(has_N) + int(has_steps)
+    fig, axes = plt.subplots(1, n_cols, figsize=(6 * n_cols, 4.5), squeeze=False)
+    col = 0
+    N_keys = steps_keys = None
+
+    if has_N:
+        N_keys, _ = _memory_sweep_draw_panel(
+            axes[0][col], by_N, res_key, int, f"G4 — memory vs {res_key}", cfg, styles
+        )
+        col += 1
+
+    if has_steps:
+        steps_keys, _ = _memory_sweep_draw_panel(
+            axes[0][col], by_steps, "steps", int, "G4 — memory vs steps", cfg, styles
+        )
+
+    fig.suptitle(
+        f"{cfg.name} — G4 forward vs VJP memory  (— solid = VJP, -- dashed = fwd)"
+    )
+    fig_shared_legend(fig, axes[0])
+    fig.tight_layout()
+    return fig, N_keys, steps_keys
+
+
+def _memory_sweep_fig_ratio(
+    cfg,
+    styles,
+    by_N,
+    by_steps,
+    has_N,
+    has_steps,
+    N_keys,
+    steps_keys,
+    diff_solvers_with_vjp,
+    res_key,
+):
+    """Build the VJP / forward ratio figure."""
+    n_cols_r = int(has_N and N_keys is not None) + int(
+        has_steps and steps_keys is not None
+    )
+    fig_r, axes_r = plt.subplots(1, n_cols_r, figsize=(6 * n_cols_r, 4), squeeze=False)
+    col = 0
+
+    if has_N and N_keys is not None:
+        _memory_sweep_draw_ratio(
+            axes_r[0][col],
+            by_N,
+            N_keys,
+            res_key,
+            f"G4 — autodiff overhead vs {res_key}",
+            diff_solvers_with_vjp,
+            styles,
+        )
+        col += 1
+    if has_steps and steps_keys is not None:
+        _memory_sweep_draw_ratio(
+            axes_r[0][col],
+            by_steps,
+            steps_keys,
+            "steps",
+            "G4 — autodiff overhead vs steps",
+            diff_solvers_with_vjp,
+            styles,
+        )
+
+    fig_r.suptitle(f"{cfg.name} — G4 VJP / forward memory ratio")
+    fig_shared_legend(fig_r, axes_r[0])
+    fig_r.tight_layout()
+    return fig_r
+
+
 def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     """Two files:
     - memory_sweep.png: fwd vs VJP peak GPU memory vs N and vs steps (all solvers).
@@ -761,88 +925,12 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     if not has_N and not has_steps:
         return None
 
-    def _mem_key(entry: dict, pass_prefix: str) -> float:
-        """Return GPU mem if present, else RAM (CPU-only solvers), else NaN."""
-        gpu = entry.get(f"{pass_prefix}peak_gpu_mem_mb", np.nan)
-        if np.isfinite(gpu) and gpu > 0:
-            return gpu
-        return entry.get(f"{pass_prefix}peak_ram_mb", np.nan)
-
-    def _has_vjp(by_data: dict) -> bool:
-        for solver_data in by_data.values():
-            for entry in solver_data.values():
-                if "vjp_peak_gpu_mem_mb" in entry or "vjp_peak_ram_mb" in entry:
-                    return True
-        return False
+    res_key = cfg.resolution_key
 
     # ── Figure 1: forward vs VJP memory ─────────────────────────────────────
-    n_cols = int(has_N) + int(has_steps)
-    fig, axes = plt.subplots(1, n_cols, figsize=(6 * n_cols, 4.5), squeeze=False)
-    col = 0
-
-    def _draw_panel(ax, by_data, x_label, x_to_int, title):
-        """Draw fwd (dashed) and VJP (solid) lines on ax."""
-        all_keys = sorted(next(iter(by_data.values())).keys(), key=x_to_int)
-        x_arr = np.array([x_to_int(k) for k in all_keys], dtype=float)
-        has_gpu_label = False
-        has_ram_label = False
-        for name in cfg.solvers:
-            solver_data = by_data.get(name, {})
-            if not solver_data:
-                continue
-            style = styles.get(name, {})
-            label = style.get("label", name)
-            props_fwd = {**solver_plot_props(style), "linestyle": "--", "alpha": 0.7}
-            props_vjp = solver_plot_props(style)
-
-            fwd_mem = [_mem_key(solver_data.get(k, {}), "fwd_") for k in all_keys]
-            if any(np.isfinite(v) and v > 0 for v in fwd_mem):
-                ax.loglog(x_arr, fwd_mem, label=f"{label} fwd", **props_fwd)
-                # track whether GPU or RAM labels needed (for y-axis)
-                first_val = next(
-                    (
-                        solver_data[k].get("fwd_peak_gpu_mem_mb", np.nan)
-                        for k in all_keys
-                        if k in solver_data
-                    ),
-                    np.nan,
-                )
-                if np.isfinite(first_val) and first_val > 0:
-                    has_gpu_label = True
-                else:
-                    has_ram_label = True
-
-            vjp_mem = [_mem_key(solver_data.get(k, {}), "vjp_") for k in all_keys]
-            if any(np.isfinite(v) and v > 0 for v in vjp_mem):
-                ax.loglog(x_arr, vjp_mem, label=f"{label} VJP", **props_vjp)
-
-        ax.set_xlabel(x_label)
-        y_label = "Peak GPU mem (MB)" if has_gpu_label else "Peak RAM (MB)"
-        if has_gpu_label and has_ram_label:
-            y_label = "Peak GPU / RAM (MB)"
-        ax.set_ylabel(y_label)
-        ax.set_title(title)
-        return all_keys, x_arr
-
-    res_key = cfg.resolution_key
-    N_keys = steps_keys = None
-
-    if has_N:
-        N_keys, _ = _draw_panel(
-            axes[0][col], by_N, res_key, int, f"G4 — memory vs {res_key}"
-        )
-        col += 1
-
-    if has_steps:
-        steps_keys, _ = _draw_panel(
-            axes[0][col], by_steps, "steps", int, "G4 — memory vs steps"
-        )
-
-    fig.suptitle(
-        f"{cfg.name} — G4 forward vs VJP memory  (— solid = VJP, -- dashed = fwd)"
+    fig, N_keys, steps_keys = _memory_sweep_fig_main(
+        cfg, styles, by_N, by_steps, has_N, has_steps, res_key
     )
-    fig_shared_legend(fig, axes[0])
-    fig.tight_layout()
     if save:
         save_fig(fig, "memory_sweep", out_dir)
 
@@ -850,62 +938,24 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     diff_solvers_with_vjp = [
         name
         for name in cfg.solvers
-        if _has_vjp({name: by_N.get(name, {})})
-        or _has_vjp({name: by_steps.get(name, {})})
+        if _memory_sweep_has_vjp({name: by_N.get(name, {})})
+        or _memory_sweep_has_vjp({name: by_steps.get(name, {})})
     ]
     if not diff_solvers_with_vjp:
         return fig
 
-    n_cols_r = int(has_N and N_keys is not None) + int(
-        has_steps and steps_keys is not None
+    fig_r = _memory_sweep_fig_ratio(
+        cfg,
+        styles,
+        by_N,
+        by_steps,
+        has_N,
+        has_steps,
+        N_keys,
+        steps_keys,
+        diff_solvers_with_vjp,
+        res_key,
     )
-    fig_r, axes_r = plt.subplots(1, n_cols_r, figsize=(6 * n_cols_r, 4), squeeze=False)
-    col = 0
-
-    def _draw_ratio(ax, by_data, all_keys, x_label, title):
-        x_arr = np.array([int(k) for k in all_keys], dtype=float)
-        for name in diff_solvers_with_vjp:
-            solver_data = by_data.get(name, {})
-            style = styles.get(name, {})
-            label = style.get("label", name)
-            ratios = []
-            for k in all_keys:
-                entry = solver_data.get(k, {})
-                fwd = _mem_key(entry, "fwd_")
-                vjp = _mem_key(entry, "vjp_")
-                ratios.append(
-                    vjp / fwd
-                    if (np.isfinite(fwd) and fwd > 0 and np.isfinite(vjp))
-                    else np.nan
-                )
-            if any(np.isfinite(r) for r in ratios):
-                ax.plot(x_arr, ratios, label=label, **solver_plot_props(style))
-        ax.set_xscale("log")
-        ax.set_xlabel(x_label)
-        ax.set_ylabel("VJP mem / forward mem")
-        ax.set_title(title)
-
-    if has_N and N_keys is not None:
-        _draw_ratio(
-            axes_r[0][col],
-            by_N,
-            N_keys,
-            res_key,
-            f"G4 — autodiff overhead vs {res_key}",
-        )
-        col += 1
-    if has_steps and steps_keys is not None:
-        _draw_ratio(
-            axes_r[0][col],
-            by_steps,
-            steps_keys,
-            "steps",
-            "G4 — autodiff overhead vs steps",
-        )
-
-    fig_r.suptitle(f"{cfg.name} — G4 VJP / forward memory ratio")
-    fig_shared_legend(fig_r, axes_r[0])
-    fig_r.tight_layout()
     if save:
         save_fig(fig_r, "memory_ratio", out_dir)
 
@@ -992,7 +1042,7 @@ def plot_horizon_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     if not fields_path.exists():
         return fig_c
 
-    npz = np.load(fields_path)
+    npz = try_load_npz(fields_path)
     solver_names = npz["solver_names"].tolist()
     horizons = npz["horizons"].tolist()
 

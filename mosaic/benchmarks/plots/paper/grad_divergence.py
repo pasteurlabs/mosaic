@@ -13,14 +13,13 @@ Output: grad_divergence.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -60,7 +59,7 @@ def _load_results() -> dict[str, dict]:
         rp = path / "result.json"
         if not rp.exists():
             continue
-        out[key] = json.loads(rp.read_text())
+        out[key] = load_json(rp)
     return out
 
 

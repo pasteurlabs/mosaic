@@ -5,14 +5,13 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -37,7 +36,7 @@ def generate_main(out_dir: Path) -> None:
     plt.rcParams.update(RCPARAMS)
 
     path = results_dir() / "ns-grid" / "gradient" / "fd_check" / "result.json"
-    data = json.loads(path.read_text())
+    data = load_json(path)
 
     fig, (ax_err, ax_cos) = plt.subplots(
         1, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.3), dpi=300
@@ -116,7 +115,7 @@ def generate(out_dir: Path) -> None:
 
     for col, (domain_label, subdir, exp_key) in enumerate(DOMAINS):
         path = results_dir() / subdir / "gradient" / exp_key / "result.json"
-        data = json.loads(path.read_text())
+        data = load_json(path)
 
         ax_err = axes[0, col]
         ax_cos = axes[1, col]

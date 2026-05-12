@@ -7,13 +7,12 @@ Output: lid_cavity_convergence.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
@@ -28,7 +27,7 @@ def generate(out_dir: Path) -> None:
         print(f"[lid_cavity] {path} not found — skipping")
         return
     with plt.rc_context(RCPARAMS):
-        data = json.loads(path.read_text())
+        data = load_json(path)
         by_sweep = data["by_sweep"]
 
         fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.38))

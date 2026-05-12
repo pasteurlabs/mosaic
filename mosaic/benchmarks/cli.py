@@ -9,8 +9,8 @@ from pathlib import Path
 import typer
 
 from mosaic.benchmarks.core.console import console, print_rule, print_skip, print_warn
+from mosaic.benchmarks.core.io import RESULTS_DIR_ENV, results_dir
 from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, run_suite
-from mosaic.benchmarks.core.utils import _RESULTS_DIR_ENV, results_dir
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 from mosaic.benchmarks.suites import SUITE_REGISTRY
 
@@ -240,6 +240,135 @@ def _plots_only(cfg, to_run, plot_fns, suite: str, verbose_errors: bool = False)
             print_warn(f"{name}: {exc}")
 
 
+def _run_validate_suites(suite_list: list[str]) -> None:
+    """Validate suite names against the registry; raise typer.Exit(1) on unknown.
+
+    Done up-front before any builds — a typo'd suite name should fail fast
+    with a 'did you mean' hint rather than after a multi-minute build.
+    """
+    unknown_suites = [s for s in suite_list if s not in SUITE_REGISTRY]
+    if not unknown_suites:
+        return
+    from difflib import get_close_matches
+
+    for s in unknown_suites:
+        suggestion = get_close_matches(s, _ALL_SUITES, n=1, cutoff=0.5)
+        hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
+        console.print(f"[red]Unknown suite {s!r}.{hint}[/red]")
+    console.print(f"Available suites: {', '.join(_ALL_SUITES)}")
+    raise typer.Exit(1)
+
+
+def _run_prepare_problem(
+    problem: str,
+    suite_list: list[str],
+    *,
+    plots_only: bool,
+    no_build: bool,
+    solvers: str | None,
+    gpus: str | None,
+    hardware: str | None,
+    jobs: int,
+):
+    """Build (or skip building) for one problem and return (cfg, tags, gpus).
+
+    Encapsulates the two cfg-prep paths: full build via
+    :func:`_resolve_cfg_and_tags` when any non-ics suite is requested, and
+    the no-build path used for ics-only / plots-only runs.
+    """
+    _needs_build = (not plots_only) and any(s != "ics" for s in suite_list)
+    if _needs_build:
+        cfg, tags, gpus = _resolve_cfg_and_tags(
+            problem,
+            no_build,
+            solvers_csv=solvers,
+            gpus=gpus,
+            hardware=hardware,
+            max_build_workers=jobs,
+        )
+        cfg, tags = _filter_solvers(cfg, tags, solvers)
+        return cfg, tags, gpus
+    cfg = get_config(problem)
+    had_gpu = any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+    cfg = _filter_hardware(cfg, hardware)
+    no_gpu_left = not any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+    if had_gpu and no_gpu_left and not gpus:
+        gpus = "none"
+    cfg, gpus = _resolve_gpu_pool(cfg, gpus)
+    if solvers:
+        cfg = _apply_solver_filter(cfg, solvers)
+    return cfg, {}, gpus
+
+
+def _run_build_overrides(
+    cfg,
+    exps: dict,
+    *,
+    debug: bool,
+    gpus: str | None,
+    ics: str | None,
+    experiment: str,
+) -> dict:
+    """Assemble the ``overrides`` dict passed to :func:`run_suite`.
+
+    Bundles debug toggle, gpu pool resolution, IC filtering with
+    unknown-name warnings, and sub-run path filtering (e.g. ``drag_opt/re20``).
+    """
+    overrides: dict = {}
+    if debug:
+        overrides["debug"] = True
+    if gpus == "cpu-only":
+        overrides["gpu_ids"] = []
+    elif gpus:
+        overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
+    if ics:
+        requested = [s.strip() for s in ics.split(",") if s.strip()]
+        unknown = [ic for ic in requested if ic not in cfg.make_ic]
+        if unknown:
+            print_warn(f"unknown IC(s): {', '.join(sorted(unknown))} — skipping")
+        valid = [ic for ic in requested if ic in cfg.make_ic]
+        if valid:
+            overrides["ic_names"] = valid
+    # Sub-run path filtering (e.g. "drag_opt/re20").
+    if experiment != "all" and "/" in experiment:
+        _parts = experiment.split("/", 1)
+        _top, _sub = _parts[0], _parts[1]
+        if _top in exps and experiment in exps:
+            overrides["run_names"] = [_sub]
+    return overrides
+
+
+def _run_print_summary(
+    problem_list: list[str],
+    suite_list: list[str],
+    run_status: dict[tuple[str, str], tuple[str, str]],
+) -> None:
+    """Render the (problem × suite) summary table at the end of `run`."""
+    from rich.table import Table
+
+    print_rule("summary")
+    table = Table(show_header=True, header_style="bold", show_lines=False)
+    table.add_column("problem", style="bold", no_wrap=True)
+    for suite in suite_list:
+        table.add_column(suite, justify="center")
+
+    for problem in problem_list:
+        cells = [problem]
+        for suite in suite_list:
+            state, detail = run_status.get((problem, suite), ("skip", "not run"))
+            if state == "ok":
+                cells.append("[green]ok[/green]")
+            elif state == "partial":
+                cells.append(f"[yellow]{detail}[/yellow]")
+            elif state == "skip":
+                cells.append("[dim]skip[/dim]")
+            else:
+                cells.append("[red]error[/red]")
+        table.add_row(*cells)
+
+    console.print(table)
+
+
 @app.command()
 def run(
     problems: str = typer.Option(
@@ -304,7 +433,7 @@ def run(
         "-o",
         help="Root directory for benchmark results.  Defaults to ./mosaic-results "
         "in the current working directory.  Can also be set via the "
-        f"{_RESULTS_DIR_ENV} environment variable.",
+        f"{RESULTS_DIR_ENV} environment variable.",
     ),
     jobs: int = typer.Option(
         2,
@@ -336,8 +465,7 @@ def run(
       error     suite could not start (e.g. build failed, import error)
     """
     if output_dir is not None:
-        os.environ[_RESULTS_DIR_ENV] = str(output_dir.resolve())
-    from rich.table import Table
+        os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 
     problem_list = (
         PROBLEMS if problems == "all" else [p.strip() for p in problems.split(",")]
@@ -347,16 +475,7 @@ def run(
     )
 
     # Validate suite names early — before any builds start.
-    unknown_suites = [s for s in suite_list if s not in SUITE_REGISTRY]
-    if unknown_suites:
-        from difflib import get_close_matches
-
-        for s in unknown_suites:
-            suggestion = get_close_matches(s, _ALL_SUITES, n=1, cutoff=0.5)
-            hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
-            console.print(f"[red]Unknown suite {s!r}.{hint}[/red]")
-        console.print(f"Available suites: {', '.join(_ALL_SUITES)}")
-        raise typer.Exit(1)
+    _run_validate_suites(suite_list)
 
     to_run = None if experiment == "all" else [experiment]
 
@@ -365,33 +484,17 @@ def run(
 
     for problem in problem_list:
         print_rule(f"problem: {problem}")
-        _needs_build = (not plots_only) and any(s != "ics" for s in suite_list)
         try:
-            if _needs_build:
-                cfg, tags, gpus = _resolve_cfg_and_tags(
-                    problem,
-                    no_build,
-                    solvers_csv=solvers,
-                    gpus=gpus,
-                    hardware=hardware,
-                    max_build_workers=jobs,
-                )
-                cfg, tags = _filter_solvers(cfg, tags, solvers)
-            else:
-                cfg = get_config(problem)
-                had_gpu = any(
-                    getattr(s, "uses_gpu", True) for s in cfg.solvers.values()
-                )
-                cfg = _filter_hardware(cfg, hardware)
-                no_gpu_left = not any(
-                    getattr(s, "uses_gpu", True) for s in cfg.solvers.values()
-                )
-                if had_gpu and no_gpu_left and not gpus:
-                    gpus = "none"
-                cfg, gpus = _resolve_gpu_pool(cfg, gpus)
-                if solvers:
-                    cfg = _apply_solver_filter(cfg, solvers)
-                tags = {}
+            cfg, tags, gpus = _run_prepare_problem(
+                problem,
+                suite_list,
+                plots_only=plots_only,
+                no_build=no_build,
+                solvers=solvers,
+                gpus=gpus,
+                hardware=hardware,
+                jobs=jobs,
+            )
         except Exception as exc:
             msg = f"build failed: {exc}"
             console.print(f"  [red]{msg}[/]")
@@ -409,29 +512,14 @@ def run(
                     )
                     run_status[(problem, suite)] = ("ok", "plots-only")
                     continue
-                _overrides: dict = {}
-                if debug:
-                    _overrides["debug"] = True
-                if gpus == "cpu-only":
-                    _overrides["gpu_ids"] = []
-                elif gpus:
-                    _overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
-                if ics:
-                    requested = [s.strip() for s in ics.split(",") if s.strip()]
-                    unknown = [ic for ic in requested if ic not in cfg.make_ic]
-                    if unknown:
-                        print_warn(
-                            f"unknown IC(s): {', '.join(sorted(unknown))} — skipping"
-                        )
-                    valid = [ic for ic in requested if ic in cfg.make_ic]
-                    if valid:
-                        _overrides["ic_names"] = valid
-                # Sub-run path filtering (e.g. "drag_opt/re20").
-                if experiment != "all" and "/" in experiment:
-                    _parts = experiment.split("/", 1)
-                    _top, _sub = _parts[0], _parts[1]
-                    if _top in exps and experiment in exps:
-                        _overrides["run_names"] = [_sub]
+                _overrides = _run_build_overrides(
+                    cfg,
+                    exps,
+                    debug=debug,
+                    gpus=gpus,
+                    ics=ics,
+                    experiment=experiment,
+                )
                 results = run_suite(
                     cfg,
                     tags,
@@ -458,27 +546,7 @@ def run(
                 print_warn(f"{suite} failed: {exc}")
 
     # ── summary table ─────────────────────────────────────────────────────────
-    print_rule("summary")
-    table = Table(show_header=True, header_style="bold", show_lines=False)
-    table.add_column("problem", style="bold", no_wrap=True)
-    for suite in suite_list:
-        table.add_column(suite, justify="center")
-
-    for problem in problem_list:
-        cells = [problem]
-        for suite in suite_list:
-            state, detail = run_status.get((problem, suite), ("skip", "not run"))
-            if state == "ok":
-                cells.append("[green]ok[/green]")
-            elif state == "partial":
-                cells.append(f"[yellow]{detail}[/yellow]")
-            elif state == "skip":
-                cells.append("[dim]skip[/dim]")
-            else:
-                cells.append("[red]error[/red]")
-        table.add_row(*cells)
-
-    console.print(table)
+    _run_print_summary(problem_list, suite_list, run_status)
 
 
 @app.command()
@@ -503,7 +571,7 @@ def ics(
 ):
     """Generate initial-condition visualisations (no solver builds needed)."""
     if output_dir is not None:
-        os.environ[_RESULTS_DIR_ENV] = str(output_dir.resolve())
+        os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 
     from mosaic.benchmarks.suites.ics import get_experiments, get_plot_fns
 
@@ -587,6 +655,358 @@ def build(
         raise typer.Exit(code=1)
 
 
+def _status_emit_snapshot(
+    problem_list: list[str],
+    suite_list: list[str],
+    output_format: str,
+    diff_against: str | None,
+) -> None:
+    """Handle --format md/json: build snapshot(s) and emit to stdout.
+
+    For ``json`` writes a dict snapshot; for ``md`` renders a markdown report,
+    optionally prepended with a diff against a saved snapshot file.
+    """
+    import json as _json
+
+    from mosaic.benchmarks.core.status import (
+        collect_status,
+        diff_snapshots,
+        render_diff_markdown,
+        render_markdown,
+        snapshot_to_dict,
+    )
+
+    statuses = []
+    for problem in problem_list:
+        try:
+            cfg = get_config(problem)
+        except Exception as exc:
+            print_warn(f"{problem}: {exc}")
+            continue
+        statuses.append(collect_status(cfg, suites=suite_list))
+    if output_format == "json":
+        typer.echo(_json.dumps(snapshot_to_dict(statuses), indent=2))
+        return
+    # output_format == "md"
+    out_parts: list[str] = []
+    if diff_against:
+        try:
+            with open(diff_against) as f:
+                old_snapshot = _json.load(f)
+        except Exception as exc:
+            print_warn(f"could not read --diff-against file: {exc}")
+            old_snapshot = None
+        if old_snapshot is not None:
+            new_snapshot = snapshot_to_dict(statuses)
+            out_parts.append(
+                render_diff_markdown(diff_snapshots(old_snapshot, new_snapshot))
+            )
+    out_parts.append(render_markdown(statuses))
+    typer.echo("\n".join(out_parts))
+
+
+def _status_render_cell(cell) -> str:
+    """Render a single status cell as a coloured rich-markup label."""
+    from mosaic.benchmarks.core.status import (
+        ANOMALY,
+        EXCL_PERMANENT,
+        EXCLUDED,
+        FAILED,
+        NOT_RUN,
+        OK,
+        cell_color,
+    )
+
+    if cell is None:
+        return "?"
+    if cell.status == OK:
+        label = "ok"
+    elif cell.status == ANOMALY:
+        label = "anom"
+    elif cell.status == FAILED:
+        label = "fail"
+    elif cell.status == NOT_RUN:
+        label = "—"
+    elif cell.status == EXCLUDED:
+        label = "perm" if cell.category in EXCL_PERMANENT else "excl"
+    else:
+        return "?"
+    if getattr(cell, "stale", False) and cell.status != EXCLUDED:
+        label = f"{label}*"
+    return f"[{cell_color(cell)}]{label}[/]"
+
+
+def _status_tally_problem(st) -> tuple[dict, list]:
+    """Count cells per category for one problem's status snapshot.
+
+    Returns ``(counts, all_cells)`` where ``counts`` has keys
+    ``n_ok``, ``n_anom``, ``n_fail``, ``n_missing``, ``n_excl_work``,
+    ``n_excl_perm``, ``n_stale``, ``n_stale_ok``. ``ok`` is *fresh*-ok only
+    — stale-ok cells contribute to ``stale_ok`` (in score denominator but not
+    numerator). ``all_cells`` is the flat list used for ``compute_score``.
+    """
+    from mosaic.benchmarks.core.status import (
+        ANOMALY,
+        EXCL_PERMANENT,
+        EXCLUDED,
+        FAILED,
+        NOT_RUN,
+        OK,
+    )
+
+    n_ok = n_anom = n_fail = n_missing = n_excl_work = n_excl_perm = 0
+    n_stale = n_stale_ok = 0
+    all_cells = []
+    for row in st.rows:
+        for solver in st.solvers:
+            cell = row.cells.get(solver)
+            if not cell:
+                continue
+            all_cells.append(cell)
+            is_stale = getattr(cell, "stale", False)
+            if is_stale:
+                n_stale += 1
+            if cell.status == OK:
+                if is_stale:
+                    n_stale_ok += 1
+                else:
+                    n_ok += 1
+            elif cell.status == ANOMALY:
+                n_anom += 1
+            elif cell.status == FAILED:
+                n_fail += 1
+            elif cell.status == NOT_RUN:
+                n_missing += 1
+            elif cell.status == EXCLUDED:
+                if cell.category in EXCL_PERMANENT:
+                    n_excl_perm += 1
+                else:
+                    n_excl_work += 1
+    counts = {
+        "n_ok": n_ok,
+        "n_anom": n_anom,
+        "n_fail": n_fail,
+        "n_missing": n_missing,
+        "n_excl_work": n_excl_work,
+        "n_excl_perm": n_excl_perm,
+        "n_stale": n_stale,
+        "n_stale_ok": n_stale_ok,
+    }
+    return counts, all_cells
+
+
+def _status_print_problem_table(problem: str, st, counts: dict, score, score_n) -> None:
+    """Render the per-problem rule + experiment x solver table."""
+    from rich.table import Table
+
+    from mosaic.benchmarks.core.status import format_score, weight_color
+
+    n_ok = counts["n_ok"]
+    n_total = (
+        counts["n_ok"]
+        + counts["n_anom"]
+        + counts["n_fail"]
+        + counts["n_missing"]
+        + counts["n_excl_work"]
+        + counts["n_stale_ok"]
+    )
+    _hdr_colour = weight_color(score)
+    print_rule(
+        f"[bold {_hdr_colour}]{problem}[/]  —  {len(st.rows)} experiment(s), "
+        f"{n_ok}/{n_total} fresh-ok · score "
+        f"[bold {_hdr_colour}]{format_score(score)}[/] "
+        f"(n={score_n})"
+    )
+    if not st.rows:
+        console.print("  [dim]no result directories found[/]")
+        return
+    table = Table(show_header=True, header_style="bold", show_lines=False)
+    table.add_column("experiment", style="bold", no_wrap=True)
+    for solver in st.solvers:
+        table.add_column(solver, justify="center")
+    for row in st.rows:
+        cells = [row.label]
+        for solver in st.solvers:
+            cell = row.cells.get(solver)
+            cells.append(_status_render_cell(cell))
+        table.add_row(*cells)
+    console.print(table)
+
+
+def _status_collect_failures(problem: str, st) -> list[tuple]:
+    """Build the (problem, row, solver, status, reason, stale) records for failures/anomalies."""
+    from mosaic.benchmarks.core.status import ANOMALY, FAILED
+
+    records: list[tuple] = []
+    for row in st.rows:
+        for solver in st.solvers:
+            cell = row.cells.get(solver)
+            if cell and cell.status in (FAILED, ANOMALY):
+                records.append(
+                    (
+                        problem,
+                        row.label,
+                        solver,
+                        cell.status,
+                        cell.reason,
+                        getattr(cell, "stale", False),
+                    )
+                )
+    return records
+
+
+def _status_print_failures(failure_records: list[tuple]) -> None:
+    """Render the 'failures & anomalies' list."""
+    from mosaic.benchmarks.core.status import FAILED
+
+    print_rule("failures & anomalies")
+    if not failure_records:
+        console.print("  [green]none recorded[/]")
+        return
+    for problem, label, solver, status, reason, stale in failure_records:
+        reason_str = reason or "[dim]no reason recorded[/]"
+        tag = "[red]fail[/]" if status == FAILED else "[dark_orange]anom[/]"
+        stale_mark = "  [dim](stale)[/]" if stale else ""
+        console.print(
+            f"  {tag}  [dim]{problem}[/]  {label}  [bold]{solver}[/]  {reason_str}{stale_mark}"
+        )
+
+
+def _status_progress_bar(
+    score: float | None,
+    n_ok: int,
+    n_anom: int,
+    n_fail: int,
+    n_missing: int,
+    n_excl_work: int,
+    n_stale_ok: int = 0,
+    width: int = 18,
+) -> str:
+    """Render a fixed-width coloured progress bar weighted by status category."""
+    from mosaic.benchmarks.core.status import weight_color
+
+    segs = [
+        (n_ok, 1.00),
+        (n_stale_ok, 0.67),
+        (n_anom, 0.53),
+        (n_missing + n_excl_work, 0.33),
+        (n_fail, 0.00),
+    ]
+    total = sum(c for c, _ in segs)
+    if total <= 0:
+        return "[dim]" + "░" * width + "[/]"
+    raw = [c / total * width for c, _ in segs]
+    chars = [int(r) for r in raw]
+    remainder = width - sum(chars)
+    order = sorted(range(len(segs)), key=lambda i: raw[i] - chars[i], reverse=True)
+    for i in order[:remainder]:
+        chars[i] += 1
+    bar = ""
+    for (_, w), n_chars in zip(segs, chars, strict=False):
+        if n_chars > 0:
+            bar += f"[{weight_color(w)}]{'█' * n_chars}[/]"
+    return bar
+
+
+def _status_print_summary(per_problem_tally: list[tuple]) -> None:
+    """Render the bottom summary table with per-problem + overall rows."""
+    from rich.table import Table
+
+    from mosaic.benchmarks.core.status import format_score, weight_color
+
+    print_rule("summary")
+    console.print(
+        "[dim]legend:[/] "
+        "[green]ok[/] · "
+        "[dark_orange]anom[/] outlier · "
+        "[red]fail[/] · "
+        "[dim]—[/] missing · "
+        "[dim yellow]perm[/] excluded (permanent, out of %) · "
+        "[yellow]excl[/] excluded (work-to-do) · "
+        "[bold]*[/] stale (predates current tesseract/harness source)"
+    )
+
+    def _score_colored(score: float | None) -> str:
+        colour = weight_color(score)
+        return f"[bold {colour}]{format_score(score)}[/]"
+
+    summary = Table(show_header=True, header_style="bold", show_lines=False)
+    summary.add_column("problem", style="bold", no_wrap=True)
+    summary.add_column("ok", justify="right")
+    summary.add_column("anom", justify="right")
+    summary.add_column("fail", justify="right")
+    summary.add_column("missing", justify="right")
+    summary.add_column("excl·work", justify="right")
+    summary.add_column("excl·perm", justify="right")
+    summary.add_column("stale", justify="right")
+    summary.add_column("progress", no_wrap=True)
+    summary.add_column("score", justify="right")
+    total_ok = total_anom = total_fail = total_missing = 0
+    total_excl_work = total_excl_perm = total_stale = total_stale_ok = 0
+    score_num = 0.0
+    score_den = 0
+    for (
+        problem,
+        n_ok,
+        n_anom,
+        n_fail,
+        n_missing,
+        n_excl_work,
+        n_excl_perm,
+        n_stale,
+        n_stale_ok,
+        score,
+        score_n,
+    ) in per_problem_tally:
+        summary.add_row(
+            problem,
+            f"[green]{n_ok}[/]",
+            f"[dark_orange]{n_anom}[/]" if n_anom else "0",
+            f"[red]{n_fail}[/]" if n_fail else "0",
+            f"[dim]{n_missing}[/]" if n_missing else "0",
+            f"[yellow]{n_excl_work}[/]" if n_excl_work else "0",
+            f"[dim yellow]{n_excl_perm}[/]" if n_excl_perm else "0",
+            f"[dim]{n_stale}[/]" if n_stale else "[dim]0[/]",
+            _status_progress_bar(
+                score, n_ok, n_anom, n_fail, n_missing, n_excl_work, n_stale_ok
+            ),
+            _score_colored(score),
+        )
+        total_ok += n_ok
+        total_anom += n_anom
+        total_fail += n_fail
+        total_missing += n_missing
+        total_excl_work += n_excl_work
+        total_excl_perm += n_excl_perm
+        total_stale += n_stale
+        total_stale_ok += n_stale_ok
+        if score is not None:
+            score_num += score * score_n
+            score_den += score_n
+    overall_score = (score_num / score_den) if score_den else None
+    summary.add_row(
+        "[bold]overall[/]",
+        f"[green]{total_ok}[/]",
+        f"[dark_orange]{total_anom}[/]" if total_anom else "0",
+        f"[red]{total_fail}[/]" if total_fail else "0",
+        f"[dim]{total_missing}[/]" if total_missing else "0",
+        f"[yellow]{total_excl_work}[/]" if total_excl_work else "0",
+        f"[dim yellow]{total_excl_perm}[/]" if total_excl_perm else "0",
+        f"[dim]{total_stale}[/]" if total_stale else "[dim]0[/]",
+        _status_progress_bar(
+            overall_score,
+            total_ok,
+            total_anom,
+            total_fail,
+            total_missing,
+            total_excl_work,
+            total_stale_ok,
+        ),
+        _score_colored(overall_score),
+    )
+    console.print(summary)
+
+
 @app.command()
 def status(
     problems: str = typer.Option(
@@ -642,24 +1062,12 @@ def status(
     [bold]--diff-against[/] to render a regression/improvement diff.
     """
     if output_dir is not None:
-        os.environ[_RESULTS_DIR_ENV] = str(output_dir.resolve())
-
-    from rich.table import Table
+        os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 
     from mosaic.benchmarks.core.status import (
-        ANOMALY,
-        EXCL_PERMANENT,
-        EXCLUDED,
-        FAILED,
-        NOT_RUN,
-        OK,
         SUITES,
-        cell_color,
         collect_status,
-        diff_snapshots,
-        render_diff_markdown,
-        render_markdown,
-        snapshot_to_dict,
+        compute_score,
     )
 
     problem_list = (
@@ -671,63 +1079,14 @@ def status(
 
     # ── non-rich formats: skip terminal rendering and emit a snapshot ─────
     if format in ("md", "json"):
-        import json as _json
-
-        statuses = []
-        for problem in problem_list:
-            try:
-                cfg = get_config(problem)
-            except Exception as exc:
-                print_warn(f"{problem}: {exc}")
-                continue
-            statuses.append(collect_status(cfg, suites=suite_list))
-        if format == "json":
-            typer.echo(_json.dumps(snapshot_to_dict(statuses), indent=2))
-            return
-        # format == "md"
-        out_parts: list[str] = []
-        if diff_against:
-            try:
-                with open(diff_against) as f:
-                    old_snapshot = _json.load(f)
-            except Exception as exc:
-                print_warn(f"could not read --diff-against file: {exc}")
-                old_snapshot = None
-            if old_snapshot is not None:
-                new_snapshot = snapshot_to_dict(statuses)
-                out_parts.append(
-                    render_diff_markdown(diff_snapshots(old_snapshot, new_snapshot))
-                )
-        out_parts.append(render_markdown(statuses))
-        typer.echo("\n".join(out_parts))
+        _status_emit_snapshot(problem_list, suite_list, format, diff_against)
         return
-
-    def _render_cell(cell) -> str:
-        if cell is None:
-            return "?"
-        if cell.status == OK:
-            label = "ok"
-        elif cell.status == ANOMALY:
-            label = "anom"
-        elif cell.status == FAILED:
-            label = "fail"
-        elif cell.status == NOT_RUN:
-            label = "—"
-        elif cell.status == EXCLUDED:
-            label = "perm" if cell.category in EXCL_PERMANENT else "excl"
-        else:
-            return "?"
-        if getattr(cell, "stale", False) and cell.status != EXCLUDED:
-            label = f"{label}*"
-        return f"[{cell_color(cell)}]{label}[/]"
 
     failure_records: list[
         tuple[str, str, str, str, str, bool]
     ] = []  # (problem, row, solver, status, reason, stale)
     # tuple layout: (problem, ok, anom, fail, missing, excl_work, excl_perm, stale, stale_ok, score, score_n)
     per_problem_tally: list[tuple] = []
-
-    from mosaic.benchmarks.core.status import compute_score, format_score, weight_color
 
     for problem in problem_list:
         try:
@@ -737,251 +1096,35 @@ def status(
             continue
         st = collect_status(cfg, suites=suite_list)
 
-        # Count per-problem cells. `ok` now means *fresh* ok (not stale) —
-        # a stale-ok cell is work-to-do (re-run needed to verify) and only
-        # contributes to `stale`. `excl_work` (non-categorical exclusions)
-        # counts toward the denominator because they're fixable; `excl_perm`
-        # (categorical — method-intrinsic) stays out.
-        n_ok = n_anom = n_fail = n_missing = n_excl_work = n_excl_perm = 0
-        n_stale = n_stale_ok = 0
-        all_cells = []
-        for row in st.rows:
-            for solver in st.solvers:
-                cell = row.cells.get(solver)
-                if not cell:
-                    continue
-                all_cells.append(cell)
-                is_stale = getattr(cell, "stale", False)
-                if is_stale:
-                    n_stale += 1
-                if cell.status == OK:
-                    if is_stale:
-                        n_stale_ok += 1  # counts in denominator, not numerator
-                    else:
-                        n_ok += 1
-                elif cell.status == ANOMALY:
-                    n_anom += 1
-                elif cell.status == FAILED:
-                    n_fail += 1
-                elif cell.status == NOT_RUN:
-                    n_missing += 1
-                elif cell.status == EXCLUDED:
-                    if cell.category in EXCL_PERMANENT:
-                        n_excl_perm += 1
-                    else:
-                        n_excl_work += 1
+        counts, all_cells = _status_tally_problem(st)
         score, score_n = compute_score(all_cells)
         per_problem_tally.append(
             (
                 problem,
-                n_ok,
-                n_anom,
-                n_fail,
-                n_missing,
-                n_excl_work,
-                n_excl_perm,
-                n_stale,
-                n_stale_ok,
+                counts["n_ok"],
+                counts["n_anom"],
+                counts["n_fail"],
+                counts["n_missing"],
+                counts["n_excl_work"],
+                counts["n_excl_perm"],
+                counts["n_stale"],
+                counts["n_stale_ok"],
                 score,
                 score_n,
             )
         )
 
         if not only_failures:
-            # Per-problem header shows the weighted score — the single
-            # canonical campaign-health metric. Raw ok/total is kept for
-            # context but the % is gone; the score table row below carries
-            # the colour gradient.  Colour the whole rule by the problem's
-            # score via the canonical weight → colour ladder, so a quick
-            # vertical scan of the output agrees with the summary table
-            # and progress bar.
-            n_total = n_ok + n_anom + n_fail + n_missing + n_excl_work + n_stale_ok
-            _hdr_colour = weight_color(score)
-            print_rule(
-                f"[bold {_hdr_colour}]{problem}[/]  —  {len(st.rows)} experiment(s), "
-                f"{n_ok}/{n_total} fresh-ok · score "
-                f"[bold {_hdr_colour}]{format_score(score)}[/] "
-                f"(n={score_n})"
-            )
-            if not st.rows:
-                console.print("  [dim]no result directories found[/]")
-            else:
-                table = Table(show_header=True, header_style="bold", show_lines=False)
-                table.add_column("experiment", style="bold", no_wrap=True)
-                for solver in st.solvers:
-                    table.add_column(solver, justify="center")
-                for row in st.rows:
-                    cells = [row.label]
-                    for solver in st.solvers:
-                        cell = row.cells.get(solver)
-                        cells.append(_render_cell(cell))
-                    table.add_row(*cells)
-                console.print(table)
+            _status_print_problem_table(problem, st, counts, score, score_n)
 
-        for row in st.rows:
-            for solver in st.solvers:
-                cell = row.cells.get(solver)
-                if cell and cell.status in (FAILED, ANOMALY):
-                    failure_records.append(
-                        (
-                            problem,
-                            row.label,
-                            solver,
-                            cell.status,
-                            cell.reason,
-                            getattr(cell, "stale", False),
-                        )
-                    )
+        failure_records.extend(_status_collect_failures(problem, st))
 
     if failures or only_failures:
-        print_rule("failures & anomalies")
-        if not failure_records:
-            console.print("  [green]none recorded[/]")
-        else:
-            for problem, label, solver, status, reason, stale in failure_records:
-                reason_str = reason or "[dim]no reason recorded[/]"
-                tag = "[red]fail[/]" if status == FAILED else "[dark_orange]anom[/]"
-                stale_mark = "  [dim](stale)[/]" if stale else ""
-                console.print(
-                    f"  {tag}  [dim]{problem}[/]  {label}  [bold]{solver}[/]  {reason_str}{stale_mark}"
-                )
+        _status_print_failures(failure_records)
 
     # ── summary table: per-problem + overall ok-rate ─────────────────────────
     if per_problem_tally:
-        print_rule("summary")
-        console.print(
-            "[dim]legend:[/] "
-            "[green]ok[/] · "
-            "[dark_orange]anom[/] outlier · "
-            "[red]fail[/] · "
-            "[dim]—[/] missing · "
-            "[dim yellow]perm[/] excluded (permanent, out of %) · "
-            "[yellow]excl[/] excluded (work-to-do) · "
-            "[bold]*[/] stale (predates current tesseract/harness source)"
-        )
-
-        from mosaic.benchmarks.core.status import (
-            compute_score,
-            format_score,
-            weight_color,
-        )
-
-        def _progress_bar(
-            score: float | None,
-            n_ok: int,
-            n_anom: int,
-            n_fail: int,
-            n_missing: int,
-            n_excl_work: int,
-            n_stale_ok: int = 0,
-            width: int = 18,
-        ) -> str:
-            segs = [
-                (n_ok, 1.00),
-                (n_stale_ok, 0.67),
-                (n_anom, 0.53),
-                (n_missing + n_excl_work, 0.33),
-                (n_fail, 0.00),
-            ]
-            total = sum(c for c, _ in segs)
-            if total <= 0:
-                return "[dim]" + "░" * width + "[/]"
-            raw = [c / total * width for c, _ in segs]
-            chars = [int(r) for r in raw]
-            remainder = width - sum(chars)
-            order = sorted(
-                range(len(segs)), key=lambda i: raw[i] - chars[i], reverse=True
-            )
-            for i in order[:remainder]:
-                chars[i] += 1
-            bar = ""
-            for (_, w), n_chars in zip(segs, chars, strict=False):
-                if n_chars > 0:
-                    bar += f"[{weight_color(w)}]{'█' * n_chars}[/]"
-            return bar
-
-        def _score_colored(score: float | None) -> str:
-            """Render the weighted score using the weight → colour ladder. ``None`` renders dim."""
-            colour = weight_color(score)
-            return f"[bold {colour}]{format_score(score)}[/]"
-
-        summary = Table(show_header=True, header_style="bold", show_lines=False)
-        summary.add_column("problem", style="bold", no_wrap=True)
-        summary.add_column("ok", justify="right")
-        summary.add_column("anom", justify="right")
-        summary.add_column("fail", justify="right")
-        summary.add_column("missing", justify="right")
-        summary.add_column("excl·work", justify="right")
-        summary.add_column("excl·perm", justify="right")
-        summary.add_column("stale", justify="right")
-        summary.add_column("progress", no_wrap=True)
-        summary.add_column("score", justify="right")
-        total_ok = total_anom = total_fail = total_missing = 0
-        total_excl_work = total_excl_perm = total_stale = total_stale_ok = 0
-        score_num = 0.0
-        score_den = 0
-        for (
-            problem,
-            n_ok,
-            n_anom,
-            n_fail,
-            n_missing,
-            n_excl_work,
-            n_excl_perm,
-            n_stale,
-            n_stale_ok,
-            score,
-            score_n,
-        ) in per_problem_tally:
-            summary.add_row(
-                problem,
-                f"[green]{n_ok}[/]",
-                f"[dark_orange]{n_anom}[/]" if n_anom else "0",
-                f"[red]{n_fail}[/]" if n_fail else "0",
-                f"[dim]{n_missing}[/]" if n_missing else "0",
-                f"[yellow]{n_excl_work}[/]" if n_excl_work else "0",
-                f"[dim yellow]{n_excl_perm}[/]" if n_excl_perm else "0",
-                f"[dim]{n_stale}[/]" if n_stale else "[dim]0[/]",
-                _progress_bar(
-                    score, n_ok, n_anom, n_fail, n_missing, n_excl_work, n_stale_ok
-                ),
-                _score_colored(score),
-            )
-            total_ok += n_ok
-            total_anom += n_anom
-            total_fail += n_fail
-            total_missing += n_missing
-            total_excl_work += n_excl_work
-            total_excl_perm += n_excl_perm
-            total_stale += n_stale
-            total_stale_ok += n_stale_ok
-            # Aggregate score as weighted mean over per-problem scores,
-            # weighted by each problem's contributing-cell count.
-            if score is not None:
-                score_num += score * score_n
-                score_den += score_n
-        overall_score = (score_num / score_den) if score_den else None
-        summary.add_row(
-            "[bold]overall[/]",
-            f"[green]{total_ok}[/]",
-            f"[dark_orange]{total_anom}[/]" if total_anom else "0",
-            f"[red]{total_fail}[/]" if total_fail else "0",
-            f"[dim]{total_missing}[/]" if total_missing else "0",
-            f"[yellow]{total_excl_work}[/]" if total_excl_work else "0",
-            f"[dim yellow]{total_excl_perm}[/]" if total_excl_perm else "0",
-            f"[dim]{total_stale}[/]" if total_stale else "[dim]0[/]",
-            _progress_bar(
-                overall_score,
-                total_ok,
-                total_anom,
-                total_fail,
-                total_missing,
-                total_excl_work,
-                total_stale_ok,
-            ),
-            _score_colored(overall_score),
-        )
-        console.print(summary)
+        _status_print_summary(per_problem_tally)
 
 
 # ── `mosaic compare` ───────────────────────────────────────────────────────

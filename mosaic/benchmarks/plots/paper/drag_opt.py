@@ -10,7 +10,6 @@ Output: drag_opt_re20.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -18,7 +17,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES, solver_props
 
@@ -34,8 +33,8 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
         print(f"[drag_opt] {result_path} not found — skipping")
         return
 
-    data = json.loads(result_path.read_text())
-    profiles = np.load(profiles_path) if profiles_path.exists() else None
+    data = load_json(result_path)
+    profiles = try_load_npz(profiles_path) if profiles_path.exists() else None
 
     hist_solvers = [
         s

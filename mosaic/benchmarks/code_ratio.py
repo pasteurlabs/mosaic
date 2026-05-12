@@ -172,6 +172,96 @@ def _inline_grad_vars(
     return counts, types
 
 
+def _record_grad_vars(
+    grad_by_variable: dict[str, int],
+    grad_variable_type: dict[str, str],
+    variables: list[str],
+    gtype: str | None,
+    span: int,
+) -> None:
+    """Attribute ``span`` lines to each variable and record ``gtype`` if given."""
+    for var in variables:
+        grad_by_variable[var] = grad_by_variable.get(var, 0) + span
+    if gtype:
+        for var in variables:
+            grad_variable_type.setdefault(var, gtype)
+
+
+def _record_inline_grad(
+    grad_by_variable: dict[str, int],
+    grad_variable_type: dict[str, str],
+    inline_counts: dict[str, int],
+    inline_types: dict[str, str],
+) -> None:
+    """Merge per-variable inline counts and types into the running totals."""
+    for var, cnt in inline_counts.items():
+        grad_by_variable[var] = grad_by_variable.get(var, 0) + cnt
+    for var, t in inline_types.items():
+        grad_variable_type.setdefault(var, t)
+
+
+def _classify_class(
+    node: ast.ClassDef,
+    lines: list[str],
+    solver_by_category: dict[str, int],
+    grad_by_variable: dict[str, int],
+    grad_variable_type: dict[str, str],
+) -> tuple[int, int]:
+    """Classify a top-level class node.
+
+    Returns (interface_delta, solver_delta) and mutates the dicts in place for
+    any gradient attribution.
+    """
+    span = _node_span(node)
+    if node.name in INTERFACE_CLASSES:
+        return span, 0
+    # The tag may live on any line of a multi-line class header;
+    # bound the scan at the first body element.
+    header_end = node.body[0].lineno - 1 if node.body else node.lineno
+    cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
+    solver_by_category[cat] = solver_by_category.get(cat, 0) + span
+    if cat == "grad" and variables:
+        _record_grad_vars(grad_by_variable, grad_variable_type, variables, gtype, span)
+    return 0, span
+
+
+def _classify_function(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    lines: list[str],
+    solver_by_category: dict[str, int],
+    grad_by_variable: dict[str, int],
+    grad_variable_type: dict[str, str],
+) -> tuple[int, int]:
+    """Classify a top-level function node.
+
+    Returns (interface_delta, solver_delta) and mutates the dicts in place for
+    any gradient attribution.
+    """
+    span = _node_span(node)
+    if node.name in INTERFACE_FUNCTIONS:
+        return span, 0
+    header_end = node.body[0].lineno - 1 if node.body else node.lineno
+    cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
+    solver_by_category[cat] = solver_by_category.get(cat, 0) + span
+    if cat == "grad":
+        # Prefer fine-grained inline section markers; fall back to
+        # the function-level tag if none are present.
+        inline_counts, inline_types = _inline_grad_vars(
+            lines,
+            node.lineno - 1,
+            node.end_lineno,  # type: ignore[attr-defined]
+        )
+        if inline_counts:
+            _record_inline_grad(
+                grad_by_variable, grad_variable_type, inline_counts, inline_types
+            )
+        elif variables:
+            _record_grad_vars(
+                grad_by_variable, grad_variable_type, variables, gtype, span
+            )
+    return 0, span
+
+
 def classify_python(
     path: Path,
 ) -> tuple[int, int, int, int, dict[str, int], dict[str, int], dict[str, str]]:
@@ -208,48 +298,17 @@ def classify_python(
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             imports += span
         elif isinstance(node, ast.ClassDef):
-            if node.name in INTERFACE_CLASSES:
-                interface += span
-            else:
-                solver += span
-                # The tag may live on any line of a multi-line class header;
-                # bound the scan at the first body element.
-                header_end = node.body[0].lineno - 1 if node.body else node.lineno
-                cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
-                solver_by_category[cat] = solver_by_category.get(cat, 0) + span
-                if cat == "grad" and variables:
-                    for var in variables:
-                        grad_by_variable[var] = grad_by_variable.get(var, 0) + span
-                    if gtype:
-                        for var in variables:
-                            grad_variable_type.setdefault(var, gtype)
+            i_delta, s_delta = _classify_class(
+                node, lines, solver_by_category, grad_by_variable, grad_variable_type
+            )
+            interface += i_delta
+            solver += s_delta
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.name in INTERFACE_FUNCTIONS:
-                interface += span
-            else:
-                solver += span
-                header_end = node.body[0].lineno - 1 if node.body else node.lineno
-                cat, variables, gtype = _extract_tag(lines, node.lineno, header_end)
-                solver_by_category[cat] = solver_by_category.get(cat, 0) + span
-                if cat == "grad":
-                    # Prefer fine-grained inline section markers; fall back to
-                    # the function-level tag if none are present.
-                    inline_counts, inline_types = _inline_grad_vars(
-                        lines,
-                        node.lineno - 1,
-                        node.end_lineno,  # type: ignore[attr-defined]
-                    )
-                    if inline_counts:
-                        for var, cnt in inline_counts.items():
-                            grad_by_variable[var] = grad_by_variable.get(var, 0) + cnt
-                        for var, t in inline_types.items():
-                            grad_variable_type.setdefault(var, t)
-                    elif variables:
-                        for var in variables:
-                            grad_by_variable[var] = grad_by_variable.get(var, 0) + span
-                        if gtype:
-                            for var in variables:
-                                grad_variable_type.setdefault(var, gtype)
+            i_delta, s_delta = _classify_function(
+                node, lines, solver_by_category, grad_by_variable, grad_variable_type
+            )
+            interface += i_delta
+            solver += s_delta
         else:
             # Module-level assignments, constants, bare expressions
             interface += span
@@ -848,6 +907,221 @@ _DOMAIN_VARS: dict[str, list[str]] = {
 }
 
 
+def _effort_real_lines(s: SolverStats) -> int:
+    """Total gradient lines for ``s`` excluding ``zero`` (stub) attributions."""
+    return sum(
+        cnt
+        for var, cnt in s.grad_by_variable.items()
+        if s.grad_variable_type.get(var) != "zero"
+    )
+
+
+def _effort_raw(s: SolverStats, var: str) -> int:
+    """Raw line count for ``var`` on ``s`` (``zero``-typed entries count as 0)."""
+    cnt = s.grad_by_variable.get(var, 0)
+    gtype = s.grad_variable_type.get(var)
+    return 0 if (cnt == 0 or gtype == "zero") else cnt
+
+
+def _effort_cell_raw(s: SolverStats, var: str) -> str:
+    """Render a LaTeX cell showing raw line counts with optional strategy symbol."""
+    cnt = _effort_raw(s, var)
+    if cnt == 0:
+        return r"$-$"
+    gtype = s.grad_variable_type.get(var)
+    sym = _TYPE_LATEX_SYMBOL.get(gtype, "") if gtype else ""
+    return rf"{sym}\,{cnt}" if sym else str(cnt)
+
+
+def _effort_cell_scored(s: SolverStats, var: str, max_in_col: int) -> str:
+    """Render a LaTeX cell showing a 1--10 score normalised by ``max_in_col``."""
+    import math
+
+    cnt = _effort_raw(s, var)
+    if cnt == 0:
+        return r"$-$"
+    gtype = s.grad_variable_type.get(var)
+    sym = _TYPE_LATEX_SYMBOL.get(gtype, "") if gtype else ""
+    score = max(1, min(10, math.ceil(cnt / max_in_col * 10)))
+    return rf"{sym}\,{score}" if sym else str(score)
+
+
+def _effort_cell(
+    s: SolverStats, var: str, col_maxes: dict[str, int], scored: bool
+) -> str:
+    """Dispatch to scored or raw cell rendering."""
+    if scored:
+        return _effort_cell_scored(s, var, col_maxes[var])
+    return _effort_cell_raw(s, var)
+
+
+def _effort_fwd_cell(s: SolverStats, fwd_max: int, scored: bool) -> str:
+    """Render the Fwd column: total_solver as raw count or 1--10 score."""
+    import math
+
+    t = s.total_solver
+    if scored:
+        if t == 0:
+            return "0"
+        return str(max(1, min(10, math.ceil(t / fwd_max * 10))))
+    return str(t)
+
+
+def _effort_group_metrics(
+    sorted_rows: list[SolverStats],
+    vars_for_group: list[str],
+) -> tuple[dict[str, int], int]:
+    """Compute per-column max line counts and the Fwd-column max for a group."""
+    col_maxes: dict[str, int] = {
+        v: max((_effort_raw(s, v) for s in sorted_rows), default=1) or 1
+        for v in vars_for_group
+    }
+    fwd_max = max((s.total_solver for s in sorted_rows), default=1) or 1
+    return col_maxes, fwd_max
+
+
+def _build_ns_subtable(
+    sorted_rows: list[SolverStats],
+    vars_for_group: list[str],
+    col_spec: str,
+    var_headers: str,
+    col_maxes: dict[str, int],
+    fwd_max: int,
+    scored: bool,
+) -> str:
+    """Build the Navier-Stokes subtable LaTeX string."""
+    header_label = _DOMAIN_LABEL["navier-stokes-grid"]
+    lines: list[str] = [
+        rf"  \textit{{{header_label}}}\\[2pt]",
+        rf"  \begin{{tabular}}{{{col_spec}}}",
+        r"    \toprule",
+        rf"    \textbf{{Solver}} & \textbf{{Fwd}} & {var_headers} \\",
+        r"    \midrule",
+    ]
+    for s in sorted_rows:
+        display = _SOLVER_DISPLAY.get(s.solver, s.solver)
+        cells = " & ".join(
+            _effort_cell(s, v, col_maxes, scored) for v in vars_for_group
+        )
+        lines.append(
+            rf"    {display} & {_effort_fwd_cell(s, fwd_max, scored)} & {cells} \\"
+        )
+    lines += [r"    \bottomrule", r"  \end{tabular}"]
+    return "\n".join(lines)
+
+
+def _build_mesh_subtable(
+    sorted_rows: list[SolverStats],
+    domain_list: list[str],
+    vars_for_group: list[str],
+    col_spec: str,
+    var_headers: str,
+    ncols: int,
+    col_maxes: dict[str, int],
+    fwd_max: int,
+    scored: bool,
+) -> str:
+    """Build the structural+thermal subtable LaTeX string."""
+    lines: list[str] = [
+        r"  \textit{Structural mechanics \& heat transfer}\\[2pt]",
+        rf"  \begin{{tabular}}{{{col_spec}}}",
+        r"    \toprule",
+        rf"    \textbf{{Solver}} & \textbf{{Fwd}} & {var_headers} \\",
+    ]
+    for problem in domain_list:
+        domain_rows = [s for s in sorted_rows if s.problem == problem]
+        if not domain_rows:
+            continue
+        label = _DOMAIN_LABEL.get(problem, problem)
+        lines.append(r"    \midrule")
+        lines.append(rf"    \multicolumn{{{ncols}}}{{@{{}}l}}{{\textit{{{label}}}}} \\")
+        for s in domain_rows:
+            display = _SOLVER_DISPLAY.get(s.solver, s.solver)
+            cells = " & ".join(
+                _effort_cell(s, v, col_maxes, scored) for v in vars_for_group
+            )
+            lines.append(
+                rf"    {display} & {_effort_fwd_cell(s, fwd_max, scored)} & {cells} \\"
+            )
+    lines += [r"    \bottomrule", r"  \end{tabular}"]
+    return "\n".join(lines)
+
+
+def _build_effort_subtable(
+    group_key: str,
+    domain_list: list[str],
+    problems: dict[str, list[SolverStats]],
+    scored: bool,
+) -> str | None:
+    """Build one subtable for ``group_key``; returns None if no rows qualify."""
+    all_rows: list[SolverStats] = []
+    for problem in domain_list:
+        all_rows.extend(problems.get(problem, []))
+
+    if group_key == "navier-stokes-grid":
+        vars_for_group = _DOMAIN_VARS["navier-stokes-grid"]
+    else:
+        # Structural uses [rho], thermal uses [rho, source] — union is [rho, source].
+        vars_for_group = ["rho", "source"]
+
+    sorted_rows = sorted(all_rows, key=_effort_real_lines, reverse=True)
+    sorted_rows = [s for s in sorted_rows if _effort_real_lines(s) > 0]
+    if not sorted_rows:
+        return None
+
+    ncols = 2 + len(vars_for_group)  # Solver + Fwd + vars
+    col_spec = "@{}l" + "r" * (ncols - 1) + "@{}"
+
+    var_headers = " & ".join(
+        r"\textbf{" + _VAR_DISPLAY.get(v, v) + "}" for v in vars_for_group
+    )
+
+    col_maxes, fwd_max = _effort_group_metrics(sorted_rows, vars_for_group)
+
+    if group_key == "navier-stokes-grid":
+        return _build_ns_subtable(
+            sorted_rows,
+            vars_for_group,
+            col_spec,
+            var_headers,
+            col_maxes,
+            fwd_max,
+            scored,
+        )
+    return _build_mesh_subtable(
+        sorted_rows,
+        domain_list,
+        vars_for_group,
+        col_spec,
+        var_headers,
+        ncols,
+        col_maxes,
+        fwd_max,
+        scored,
+    )
+
+
+def _effort_caption_and_label(scored: bool) -> tuple[str, str]:
+    """Return (caption, label) for the LaTeX table depending on ``scored``."""
+    if scored:
+        caption = (
+            "Forward solver (Fwd) and per-variable gradient implementation effort,\n"
+            "    scored 0--10 within each domain (10 = most lines, $-$ = not implemented).\n"
+            "    Symbol indicates differentiation strategy:\n"
+            "    $\\bullet$~autodiff, $\\dagger$~adjoint, $\\star$~analytic.\n"
+            "    Full line counts are in \\cref{tab:grad_effort_full}."
+        )
+        return caption, "fig:grad_vs_gradfree"
+    caption = (
+        "Forward solver (Fwd) and per-variable gradient implementation effort\n"
+        "    (raw attributed lines of code).\n"
+        "    Symbol indicates differentiation strategy:\n"
+        "    $\\bullet$~autodiff, $\\dagger$~adjoint, $\\star$~analytic.\n"
+        "    Solvers sorted by total gradient lines within each domain."
+    )
+    return caption, "tab:grad_effort_full"
+
+
 def generate_latex_effort_table(
     results: list[SolverStats],
     scored: bool = False,
@@ -861,42 +1135,9 @@ def generate_latex_effort_table(
     scored=True: cells show 1--5 effort scores, normalised per column within each
         domain group (max lines in column → 5).  Dashes stay as dashes.
     """
-    import math
-
     problems: dict[str, list[SolverStats]] = {}
     for s in results:
         problems.setdefault(s.problem, []).append(s)
-
-    def _real_lines(s: SolverStats) -> int:
-        return sum(
-            cnt
-            for var, cnt in s.grad_by_variable.items()
-            if s.grad_variable_type.get(var) != "zero"
-        )
-
-    def _raw(s: SolverStats, var: str) -> int:
-        cnt = s.grad_by_variable.get(var, 0)
-        gtype = s.grad_variable_type.get(var)
-        return 0 if (cnt == 0 or gtype == "zero") else cnt
-
-    def _cell_raw(s: SolverStats, var: str) -> str:
-        cnt = _raw(s, var)
-        if cnt == 0:
-            return r"$-$"
-        gtype = s.grad_variable_type.get(var)
-        sym = _TYPE_LATEX_SYMBOL.get(gtype, "") if gtype else ""
-        return rf"{sym}\,{cnt}" if sym else str(cnt)
-
-    def _cell_scored(s: SolverStats, var: str, max_in_col: int) -> str:
-        cnt = _raw(s, var)
-        if cnt == 0:
-            return r"$-$"
-        gtype = s.grad_variable_type.get(var)
-        sym = _TYPE_LATEX_SYMBOL.get(gtype, "") if gtype else ""
-        score = max(1, min(10, math.ceil(cnt / max_in_col * 10)))
-        return rf"{sym}\,{score}" if sym else str(score)
-
-    subtables: list[str] = []
 
     # NS grid gets its own subtable; structural + thermal share one (both use rho/source).
     _GROUPS: list[tuple[str, list[str]]] = [
@@ -904,119 +1145,16 @@ def generate_latex_effort_table(
         ("mesh-based", ["structural-mesh", "thermal-mesh"]),
     ]
 
+    subtables: list[str] = []
     for group_key, domain_list in _GROUPS:
-        # Collect all rows and the union of variables across the group's domains.
-        all_rows: list[SolverStats] = []
-        for problem in domain_list:
-            all_rows.extend(problems.get(problem, []))
-
-        if group_key == "navier-stokes-grid":
-            vars_for_group = _DOMAIN_VARS["navier-stokes-grid"]
-        else:
-            # Structural uses [rho], thermal uses [rho, source] — union is [rho, source].
-            vars_for_group = ["rho", "source"]
-
-        sorted_rows = sorted(all_rows, key=_real_lines, reverse=True)
-        sorted_rows = [s for s in sorted_rows if _real_lines(s) > 0]
-        if not sorted_rows:
-            continue
-
-        ncols = 2 + len(vars_for_group)  # Solver + Fwd + vars
-        col_spec = "@{}l" + "r" * (ncols - 1) + "@{}"
-
-        var_headers = " & ".join(
-            r"\textbf{" + _VAR_DISPLAY.get(v, v) + "}" for v in vars_for_group
-        )
-
-        # Per-column max for scoring (computed over all rows in this group)
-        col_maxes: dict[str, int] = {
-            v: max((_raw(s, v) for s in sorted_rows), default=1) or 1
-            for v in vars_for_group
-        }
-        total_max = max((_real_lines(s) for s in sorted_rows), default=1) or 1
-        fwd_max = max((s.total_solver for s in sorted_rows), default=1) or 1
-
-        def _cell(s: SolverStats, var: str) -> str:
-            if scored:
-                return _cell_scored(s, var, col_maxes[var])
-            return _cell_raw(s, var)
-
-        def _total_cell(s: SolverStats) -> str:
-            t = _real_lines(s)
-            if scored:
-                if t == 0:
-                    return "0"
-                return str(max(1, min(10, math.ceil(t / total_max * 10))))
-            return str(t)
-
-        def _fwd_cell(s: SolverStats) -> str:
-            t = s.total_solver
-            if scored:
-                if t == 0:
-                    return "0"
-                return str(max(1, min(10, math.ceil(t / fwd_max * 10))))
-            return str(t)
-
-        if group_key == "navier-stokes-grid":
-            header_label = _DOMAIN_LABEL["navier-stokes-grid"]
-            lines: list[str] = [
-                rf"  \textit{{{header_label}}}\\[2pt]",
-                rf"  \begin{{tabular}}{{{col_spec}}}",
-                r"    \toprule",
-                rf"    \textbf{{Solver}} & \textbf{{Fwd}} & {var_headers} \\",
-                r"    \midrule",
-            ]
-            for s in sorted_rows:
-                display = _SOLVER_DISPLAY.get(s.solver, s.solver)
-                cells = " & ".join(_cell(s, v) for v in vars_for_group)
-                lines.append(rf"    {display} & {_fwd_cell(s)} & {cells} \\")
-            lines += [r"    \bottomrule", r"  \end{tabular}"]
-        else:
-            # Interleave structural and thermal rows with a domain sub-header.
-            lines = [
-                r"  \textit{Structural mechanics \& heat transfer}\\[2pt]",
-                rf"  \begin{{tabular}}{{{col_spec}}}",
-                r"    \toprule",
-                rf"    \textbf{{Solver}} & \textbf{{Fwd}} & {var_headers} \\",
-            ]
-            for problem in domain_list:
-                domain_rows = [s for s in sorted_rows if s.problem == problem]
-                if not domain_rows:
-                    continue
-                label = _DOMAIN_LABEL.get(problem, problem)
-                lines.append(r"    \midrule")
-                lines.append(
-                    rf"    \multicolumn{{{ncols}}}{{@{{}}l}}{{\textit{{{label}}}}} \\"
-                )
-                for s in domain_rows:
-                    display = _SOLVER_DISPLAY.get(s.solver, s.solver)
-                    cells = " & ".join(_cell(s, v) for v in vars_for_group)
-                    lines.append(rf"    {display} & {_fwd_cell(s)} & {cells} \\")
-            lines += [r"    \bottomrule", r"  \end{tabular}"]
-
-        subtables.append("\n".join(lines))
+        sub = _build_effort_subtable(group_key, domain_list, problems, scored)
+        if sub is not None:
+            subtables.append(sub)
 
     assert len(subtables) == 2, "expected exactly NS and mesh-based subtables"
     ns_body, mesh_body = subtables
 
-    if scored:
-        caption = (
-            "Forward solver (Fwd) and per-variable gradient implementation effort,\n"
-            "    scored 0--10 within each domain (10 = most lines, $-$ = not implemented).\n"
-            "    Symbol indicates differentiation strategy:\n"
-            "    $\\bullet$~autodiff, $\\dagger$~adjoint, $\\star$~analytic.\n"
-            "    Full line counts are in \\cref{tab:grad_effort_full}."
-        )
-        label = "fig:grad_vs_gradfree"
-    else:
-        caption = (
-            "Forward solver (Fwd) and per-variable gradient implementation effort\n"
-            "    (raw attributed lines of code).\n"
-            "    Symbol indicates differentiation strategy:\n"
-            "    $\\bullet$~autodiff, $\\dagger$~adjoint, $\\star$~analytic.\n"
-            "    Solvers sorted by total gradient lines within each domain."
-        )
-        label = "tab:grad_effort_full"
+    caption, label = _effort_caption_and_label(scored)
 
     return (
         "\\begin{table}[t]\n"

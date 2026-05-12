@@ -14,8 +14,14 @@ import numpy as np
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.harness import classify_failure as _classify_failure
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    results_dir,
+    save_experiment,
+    save_field_snapshots_npz,
+    try_load_npz,
+)
 from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
-from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
 from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_pool
 
 # JAX-traced closures capture this reference at trace time; using the
@@ -23,10 +29,8 @@ from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_p
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
-    experiment_dir,
     extract_runs,
     iter_runs,
-    results_dir,
 )
 
 _SUITE = "gradient"
@@ -198,8 +202,18 @@ def run_fd_check(
                     solver_results[eps] = {
                         "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
                         "cosine": _fd_cosine(fd_arr, vjp_arr),
+                        # Persist the raw per-direction FD derivative so the
+                        # rel_error / cosine summaries can be recomputed (or
+                        # replaced with alternative statistics) without
+                        # rerunning the benchmark. ``vjp_arr`` is the same for
+                        # every eps so it's stored once at the solver level.
+                        "fd_arr": fd_arr.tolist(),
                     }
-                results[name] = {"ic_scale": ic_scale, "eps_sweep": solver_results}
+                results[name] = {
+                    "ic_scale": ic_scale,
+                    "vjp_arr": vjp_arr.tolist(),
+                    "eps_sweep": solver_results,
+                }
                 elapsed = time.perf_counter() - t0
                 _wall_times[name] = elapsed
                 console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
@@ -893,32 +907,24 @@ def run_jacobian_svd(
             f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
             suffix="_debug" if overrides.get("debug") else "",
         )
-        _existing_npz = out_dir_for_merge / "jacobian_svd.npz"
-        if _existing_npz.exists():
-            try:
-                _npz = np.load(str(_existing_npz), allow_pickle=True)
-                _old_names = [str(n) for n in _npz.get("solver_names", np.array([]))]
-                for _j, _old_name in enumerate(_old_names):
-                    _jac_key = f"jac_{_j}"
-                    _grad_key = f"grad_{_j}"
-                    if _old_name not in jacobians and _jac_key in _npz:
-                        _J = _npz[_jac_key]
-                        jacobians[_old_name] = _J
-                        if _grad_key in _npz:
-                            grad_snaps[_old_name] = _npz[_grad_key]
-                        elif _J.ndim == 2:
-                            # Derive 1-D gradient from J: grad of sum(out²) = J^T @ (2*out).
-                            # We cannot recover ``out`` here, so fall back to Frobenius
-                            # row-norm as a proxy (correct sign not guaranteed; only
-                            # used for grad_norms reporting, not for SVD).
-                            grad_snaps[_old_name] = np.linalg.norm(_J, axis=0)
-                        console.print(
-                            f"  [dim]jacobian_svd: merged existing Jacobian for {_old_name} from NPZ[/]"
-                        )
-            except Exception as _merge_exc:
+        _npz = try_load_npz(out_dir_for_merge / "jacobian_svd.npz")
+        _old_names = [str(n) for n in _npz.get("solver_names", np.array([]))]
+        for _j, _old_name in enumerate(_old_names):
+            _jac_key = f"jac_{_j}"
+            _grad_key = f"grad_{_j}"
+            if _old_name not in jacobians and _jac_key in _npz:
+                _J = _npz[_jac_key]
+                jacobians[_old_name] = _J
+                if _grad_key in _npz:
+                    grad_snaps[_old_name] = _npz[_grad_key]
+                elif _J.ndim == 2:
+                    # Derive 1-D gradient from J: grad of sum(out²) = J^T @ (2*out).
+                    # We cannot recover ``out`` here, so fall back to Frobenius
+                    # row-norm as a proxy (correct sign not guaranteed; only
+                    # used for grad_norms reporting, not for SVD).
+                    grad_snaps[_old_name] = np.linalg.norm(_J, axis=0)
                 console.print(
-                    f"  [yellow]jacobian_svd: could not merge existing NPZ ({_merge_exc}); "
-                    f"proceeding with current-run solvers only[/]"
+                    f"  [dim]jacobian_svd: merged existing Jacobian for {_old_name} from NPZ[/]"
                 )
 
         solver_names = list(jacobians.keys())

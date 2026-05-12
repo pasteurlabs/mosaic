@@ -20,7 +20,13 @@ import jax.numpy as jnp
 import numpy as np  # kept for string arrays (JAX doesn't support these)
 
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    results_dir,
+    save_experiment,
+    save_field_snapshots_npz,
+    try_load_npz,
+)
 from mosaic.benchmarks.core.runner import (
     get_last_apply_error,
     safe_apply,
@@ -28,11 +34,9 @@ from mosaic.benchmarks.core.runner import (
     solver_sweep,
 )
 from mosaic.benchmarks.core.utils import (
-    experiment_dir,
     extract_runs,
     is_valid,
     iter_runs,
-    results_dir,
     trimmed_mean,
 )
 
@@ -75,259 +79,8 @@ def run_agreement(
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        sweep = run.get("sweep", {})
-        sweep_key = sweep.get("key")
-        sweep_values = sweep.get("values", [])
-        if not sweep_key or not sweep_values:
-            raise NotImplementedError(
-                f"run_agreement requires sweep.key and sweep.values "
-                f"in forward_defaults['{_exp_key}'] (not configured for '{cfg.name}')"
-            )
-        fine_cfg = run.get("fine", {})
-        fine_set = set(fine_cfg.get("solvers", set()))
-        fine_dt = fine_cfg.get("dt")
-        fine_steps = fine_cfg.get("steps")
-        phys = run.get("physics", {})
-        ic_subdir = ic_name if n_runs > 1 else ""
-
-        _apply_errors: dict = {n: {} for n in cfg.solvers}
-        _apply_errors_lock = threading.Lock()
-        # Capture drag (force on obstacle) from solvers that produce it. Cylinder
-        # experiments are the only ones that pass an obstacle; for the rest the
-        # extras dict comes back empty and this stays as {}.
-        _drags: dict = {n: {} for n in cfg.solvers}
-
-        # Regenerate IC at each sweep value so N-sweeps use the correct IC shape.
-        def _apply(name, t, val, _phys=phys, _ic_name=ic_name, _seed=seed):
-            curr_phys = {**_phys, sweep_key: val}
-            _ic = cfg.make_ic[_ic_name](L=cfg.domain_extent, seed=_seed, **curr_phys)
-            _p = dict(curr_phys)
-            if name in fine_set:
-                if fine_dt is not None:
-                    _p["dt"] = fine_dt
-                if fine_steps is not None:
-                    _p["steps"] = fine_steps
-            inputs = cfg.make_inputs(name, _ic, domain_extent=cfg.domain_extent, **_p)
-            result, extras, _ = safe_apply_with_extras(
-                t, inputs, cfg.output_key, ["drag"]
-            )
-            if result is None:
-                err = get_last_apply_error()
-                with _apply_errors_lock:
-                    _apply_errors[name][val] = err
-            if "drag" in extras:
-                _drags[name][val] = extras["drag"]
-            norm = cfg.solvers[name].normalize_output
-            return norm(result) if (norm is not None and result is not None) else result
-
-        raw, _wall_times = solver_sweep(
-            cfg,
-            tags,
-            sweep_values,
-            _apply,
-            experiment=_exp_key,
-            label_fn=lambda v: f"{sweep_key}={v}",
-            gpu_ids=overrides.get("gpu_ids"),
-        )
-
-        transform = cfg.agreement_transform
-        xaxis_fn = cfg.agreement_xaxis
-        exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        # Snapshot bookkeeping. Per-solver field arrays live in ``per_solver``
-        # keyed by sweep index; consensus and IC/x_axis go into ``shared_arrays``.
-        # save_field_snapshots_npz (flat_keys=True) handles the lock-and-merge:
-        # solvers not rerun this invocation keep their entries in fields.npz.
-        per_solver: dict[str, dict[str, np.ndarray]] = {}
-        shared_arrays: dict[str, np.ndarray] = {
-            "sweep_values": np.array([float(v) for v in sweep_values]),
-        }
-        if transform is None and sweep_values:
-            # Store IC at the first sweep value so plots have a reference waveform.
-            _ic0 = cfg.make_ic[ic_name](
-                L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: sweep_values[0]}
-            )
-            shared_arrays["ic"] = np.asarray(_ic0)
-        if xaxis_fn is not None:
-            shared_arrays["x_axis"] = np.asarray(xaxis_fn(**phys))
-
-        # Pre-load cached arrays for solvers NOT being re-run this invocation
-        # so consensus can still be formed from the union. cfg.solvers is
-        # filtered by cli.py to only the requested solvers, so we parse solver
-        # names from the snapshot keys rather than cfg.solvers.
-        _snap_path = out_dir / "fields.npz"
-        _snap_meta_prefixes = (
-            "sweep_values",
-            "solver_names",
-            "ic",
-            "consensus",
-            "x_axis",
-        )
-        _cached_for_val: dict = {}
-        if _snap_path.exists():
-            try:
-                with np.load(str(_snap_path), allow_pickle=False) as _snap:
-                    for _ci, _cv in enumerate(sweep_values):
-                        _cached_for_val[_cv] = {}
-                        sfx = f"_{_ci}"
-                        for _sfile in _snap.files:
-                            if _sfile.endswith(sfx) and not any(
-                                _sfile.startswith(p) for p in _snap_meta_prefixes
-                            ):
-                                _cn = _sfile[: -len(sfx)]
-                                if _cn not in tags:
-                                    _cached_for_val[_cv][_cn] = np.asarray(
-                                        _snap[_sfile]
-                                    )
-            except Exception:
-                pass
-
-        # Pre-inspect analytic signature once (avoids repeated calls inside loop).
-        _analytic_sig_params: set[str] = set()
-        if cfg.analytic is not None:
-            _analytic_sig_params = set(inspect.signature(cfg.analytic).parameters)
-
-        by_param: dict = {}
-        reference_label = "consensus"  # updated per-iteration when analytic is used
-        for i, val in enumerate(sweep_values):
-            valid_outputs = {
-                n: raw[n][val]
-                for n in cfg.solvers
-                if val in raw.get(n, {}) and raw[n][val] is not None
-            }
-            comparable = (
-                {
-                    n: np.asarray(transform(arr, **phys))
-                    for n, arr in valid_outputs.items()
-                }
-                if transform is not None
-                else valid_outputs
-            )
-            # Augment with cached arrays for solvers not re-run in this invocation.
-            # Snapshot stores already-transformed arrays, matching comparable's format.
-            for _cn, _arr in _cached_for_val.get(val, {}).items():
-                if _cn not in comparable:
-                    comparable[_cn] = _arr
-            if len(comparable) < 2:
-                by_param[val] = {
-                    n: {
-                        "error": _apply_errors.get(n, {}).get(val),
-                        "valid": False,
-                    }
-                    for n in cfg.solvers
-                }
-                # Still store whatever output we have so scientists can inspect
-                # the lone solver's field even when consensus cannot be formed.
-                for n, arr in comparable.items():
-                    per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
-                continue
-            if cfg.analytic is not None and "obstacle" not in run.get("physics", {}):
-                curr_phys = {**phys, sweep_key: val}
-                _ic_ref = cfg.make_ic[ic_name](
-                    L=cfg.domain_extent, seed=seed, **curr_phys
-                )
-                # Build a representative inputs dict for dt/steps/domain_extent lookup.
-                _inputs_ref = cfg.make_inputs(
-                    next(iter(cfg.solvers)),
-                    _ic_ref,
-                    domain_extent=cfg.domain_extent,
-                    **curr_phys,
-                )
-                _t_end = float(np.asarray(_inputs_ref["dt"])[0]) * int(
-                    _inputs_ref["steps"]
-                )
-                _L = float(_inputs_ref.get("domain_extent", 2 * np.pi))
-                _extra = {
-                    k: curr_phys[k]
-                    for k in _analytic_sig_params
-                    if k in curr_phys and k not in ("ic", "t", "L")
-                }
-                reference = np.asarray(cfg.analytic(_ic_ref, t=_t_end, L=_L, **_extra))
-                reference_label = "analytic"
-            else:
-                reference = trimmed_mean(list(comparable.values()))
-                reference_label = "consensus"
-            shared_arrays[f"consensus_{i}"] = np.asarray(reference)
-            for n, arr in comparable.items():
-                per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
-            by_param[val] = {
-                n: (
-                    {
-                        "error": cfg.error_fn(comparable[n], reference),
-                        "valid": True,
-                        **(
-                            {"drag": _drags[n][val]} if val in _drags.get(n, {}) else {}
-                        ),
-                    }
-                    if n in comparable
-                    else {
-                        "error": _apply_errors.get(n, {}).get(val),
-                        "valid": False,
-                    }
-                )
-                for n in cfg.solvers
-            }
-        # Atomic merge-save: partial reruns preserve un-rerun solvers' arrays
-        # via save_field_snapshots_npz's lock-and-merge logic. ``prefixes``
-        # lists the shared (non-per-solver) key prefixes so they don't get
-        # parsed as ``{solver_name}_{suffix}`` on read.
-        save_field_snapshots_npz(
-            out_dir,
-            solver_names=list(cfg.solvers),
-            per_solver_arrays=per_solver,
-            shared_arrays=shared_arrays,
-            filename="fields.npz",
-            prefixes=("sweep_values", "ic", "consensus_", "x_axis"),
-            flat_keys=True,
-        )
-
-        spread = {
-            val: float(
-                jnp.std(
-                    jnp.array(
-                        [
-                            r["error"]
-                            for r in s.values()
-                            if r["valid"] and r["error"] is not None
-                        ]
-                    )
-                )
-            )
-            for val, s in by_param.items()
-        }
-
-        result = {
-            "by_param": by_param,
-            "spread": spread,
-            "sweep_key": sweep_key,
-            "reference_label": reference_label,
-            "params": run,
-        }
-        save_experiment(
-            result,
-            out_dir,
-            csv_rows=[
-                {
-                    "solver": n,
-                    sweep_key: val,
-                    "error": by_param[val][n]["error"],
-                    "valid": by_param[val][n]["valid"],
-                }
-                for val in sweep_values
-                for n in cfg.solvers
-            ],
-            cfg=cfg,
-            harness_fn=run_agreement,
-            wall_time_s=_wall_times,
+        ic_name, result = _run_single_agreement(
+            cfg, tags, run, _exp_key=_exp_key, n_runs=n_runs, overrides=overrides
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -335,6 +88,332 @@ def run_agreement(
             all_results = result
 
     return all_results
+
+
+def _run_single_agreement(
+    cfg: ProblemConfig,
+    tags: dict[str, str],
+    run: dict,
+    *,
+    _exp_key: str,
+    n_runs: int,
+    overrides: dict,
+) -> tuple[str, dict]:
+    """Body of one ``run`` iteration in :func:`run_agreement`.
+
+    Returns ``(ic_name, result_dict)``. Extracted from the outer for-loop to
+    keep cyclomatic complexity and nesting depth below project thresholds; the
+    closure semantics inside this helper are preserved (the helper runs to
+    completion before the caller advances to the next ``run``, mirroring the
+    original drain-before-advance contract relied on by ``run_with_gpu_pool``).
+    """
+    ic_cfg = run.get("ic", {})
+    ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+    seed = ic_cfg.get("seed", 0)
+    sweep = run.get("sweep", {})
+    sweep_key = sweep.get("key")
+    sweep_values = sweep.get("values", [])
+    if not sweep_key or not sweep_values:
+        raise NotImplementedError(
+            f"run_agreement requires sweep.key and sweep.values "
+            f"in forward_defaults['{_exp_key}'] (not configured for '{cfg.name}')"
+        )
+    fine_cfg = run.get("fine", {})
+    fine_set = set(fine_cfg.get("solvers", set()))
+    fine_dt = fine_cfg.get("dt")
+    fine_steps = fine_cfg.get("steps")
+    phys = run.get("physics", {})
+    ic_subdir = ic_name if n_runs > 1 else ""
+
+    _apply_errors: dict = {n: {} for n in cfg.solvers}
+    _apply_errors_lock = threading.Lock()
+    # Capture drag (force on obstacle) from solvers that produce it. Cylinder
+    # experiments are the only ones that pass an obstacle; for the rest the
+    # extras dict comes back empty and this stays as {}.
+    _drags: dict = {n: {} for n in cfg.solvers}
+
+    # Regenerate IC at each sweep value so N-sweeps use the correct IC shape.
+    def _apply(name, t, val, _phys=phys, _ic_name=ic_name, _seed=seed):
+        curr_phys = {**_phys, sweep_key: val}
+        _ic = cfg.make_ic[_ic_name](L=cfg.domain_extent, seed=_seed, **curr_phys)
+        _p = dict(curr_phys)
+        if name in fine_set:
+            if fine_dt is not None:
+                _p["dt"] = fine_dt
+            if fine_steps is not None:
+                _p["steps"] = fine_steps
+        inputs = cfg.make_inputs(name, _ic, domain_extent=cfg.domain_extent, **_p)
+        result, extras, _ = safe_apply_with_extras(t, inputs, cfg.output_key, ["drag"])
+        if result is None:
+            err = get_last_apply_error()
+            with _apply_errors_lock:
+                _apply_errors[name][val] = err
+        if "drag" in extras:
+            _drags[name][val] = extras["drag"]
+        norm = cfg.solvers[name].normalize_output
+        return norm(result) if (norm is not None and result is not None) else result
+
+    raw, _wall_times = solver_sweep(
+        cfg,
+        tags,
+        sweep_values,
+        _apply,
+        experiment=_exp_key,
+        label_fn=lambda v: f"{sweep_key}={v}",
+        gpu_ids=overrides.get("gpu_ids"),
+    )
+
+    transform = cfg.agreement_transform
+    xaxis_fn = cfg.agreement_xaxis
+    exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        _SUITE,
+        exp_subdir,
+        suffix="_debug" if overrides.get("debug") else "",
+    )
+    # Snapshot bookkeeping. Per-solver field arrays live in ``per_solver``
+    # keyed by sweep index; consensus and IC/x_axis go into ``shared_arrays``.
+    # save_field_snapshots_npz (flat_keys=True) handles the lock-and-merge:
+    # solvers not rerun this invocation keep their entries in fields.npz.
+    per_solver: dict[str, dict[str, np.ndarray]] = {}
+    shared_arrays: dict[str, np.ndarray] = {
+        "sweep_values": np.array([float(v) for v in sweep_values]),
+    }
+    if transform is None and sweep_values:
+        # Store IC at the first sweep value so plots have a reference waveform.
+        _ic0 = cfg.make_ic[ic_name](
+            L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: sweep_values[0]}
+        )
+        shared_arrays["ic"] = np.asarray(_ic0)
+    if xaxis_fn is not None:
+        shared_arrays["x_axis"] = np.asarray(xaxis_fn(**phys))
+
+    # Pre-load cached arrays for solvers NOT being re-run this invocation
+    # so consensus can still be formed from the union. cfg.solvers is
+    # filtered by cli.py to only the requested solvers, so we parse solver
+    # names from the snapshot keys rather than cfg.solvers.
+    _cached_for_val = _load_cached_fields_for_vals(
+        out_dir / "fields.npz", sweep_values, tags
+    )
+
+    # Pre-inspect analytic signature once (avoids repeated calls inside loop).
+    _analytic_sig_params: set[str] = set()
+    if cfg.analytic is not None:
+        _analytic_sig_params = set(inspect.signature(cfg.analytic).parameters)
+
+    by_param: dict = {}
+    ctx = {
+        "cfg": cfg,
+        "run": run,
+        "raw": raw,
+        "phys": phys,
+        "sweep_key": sweep_key,
+        "ic_name": ic_name,
+        "seed": seed,
+        "transform": transform,
+        "cached_for_val": _cached_for_val,
+        "analytic_sig_params": _analytic_sig_params,
+        "apply_errors": _apply_errors,
+        "drags": _drags,
+        "per_solver": per_solver,
+        "shared_arrays": shared_arrays,
+        "by_param": by_param,
+    }
+    reference_label = "consensus"  # updated per-iteration when analytic is used
+    for i, val in enumerate(sweep_values):
+        reference_label = _process_sweep_value(ctx, i, val, reference_label)
+    # Atomic merge-save: partial reruns preserve un-rerun solvers' arrays
+    # via save_field_snapshots_npz's lock-and-merge logic. ``prefixes``
+    # lists the shared (non-per-solver) key prefixes so they don't get
+    # parsed as ``{solver_name}_{suffix}`` on read.
+    save_field_snapshots_npz(
+        out_dir,
+        solver_names=list(cfg.solvers),
+        per_solver_arrays=per_solver,
+        shared_arrays=shared_arrays,
+        filename="fields.npz",
+        prefixes=("sweep_values", "ic", "consensus_", "x_axis"),
+        flat_keys=True,
+    )
+
+    spread = {
+        val: float(
+            jnp.std(
+                jnp.array(
+                    [
+                        r["error"]
+                        for r in s.values()
+                        if r["valid"] and r["error"] is not None
+                    ]
+                )
+            )
+        )
+        for val, s in by_param.items()
+    }
+
+    result = {
+        "by_param": by_param,
+        "spread": spread,
+        "sweep_key": sweep_key,
+        "reference_label": reference_label,
+        "params": run,
+    }
+    save_experiment(
+        result,
+        out_dir,
+        csv_rows=[
+            {
+                "solver": n,
+                sweep_key: val,
+                "error": by_param[val][n]["error"],
+                "valid": by_param[val][n]["valid"],
+            }
+            for val in sweep_values
+            for n in cfg.solvers
+        ],
+        cfg=cfg,
+        harness_fn=run_agreement,
+        wall_time_s=_wall_times,
+    )
+    return ic_name, result
+
+
+def _load_cached_fields_for_vals(snap_path, sweep_values, tags: dict[str, str]) -> dict:
+    """Read fields.npz (if present) and return per-sweep-value cached arrays.
+
+    Solver names appearing in ``tags`` are skipped — those are being re-run
+    this invocation and will overwrite cached entries anyway. Meta keys
+    (``sweep_values``, ``solver_names``, ``ic``, ``consensus``, ``x_axis``)
+    are filtered out.
+    """
+    snap = try_load_npz(snap_path)
+    if not snap:
+        return {}
+    meta_prefixes = ("sweep_values", "solver_names", "ic", "consensus", "x_axis")
+    cached: dict = {}
+    for ci, cv in enumerate(sweep_values):
+        cached[cv] = {}
+        sfx = f"_{ci}"
+        for sfile, arr in snap.items():
+            if not sfile.endswith(sfx):
+                continue
+            if any(sfile.startswith(p) for p in meta_prefixes):
+                continue
+            cn = sfile[: -len(sfx)]
+            if cn not in tags:
+                cached[cv][cn] = arr
+    return cached
+
+
+def _analytic_reference(
+    cfg: ProblemConfig,
+    *,
+    ic_name: str,
+    seed: int,
+    phys: dict,
+    sweep_key: str,
+    val,
+    analytic_sig_params: set[str],
+) -> np.ndarray:
+    """Compute the analytic reference field for one sweep value."""
+    curr_phys = {**phys, sweep_key: val}
+    ic_ref = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **curr_phys)
+    # Build a representative inputs dict for dt/steps/domain_extent lookup.
+    inputs_ref = cfg.make_inputs(
+        next(iter(cfg.solvers)),
+        ic_ref,
+        domain_extent=cfg.domain_extent,
+        **curr_phys,
+    )
+    t_end = float(np.asarray(inputs_ref["dt"])[0]) * int(inputs_ref["steps"])
+    L = float(inputs_ref.get("domain_extent", 2 * np.pi))
+    extra = {
+        k: curr_phys[k]
+        for k in analytic_sig_params
+        if k in curr_phys and k not in ("ic", "t", "L")
+    }
+    return np.asarray(cfg.analytic(ic_ref, t=t_end, L=L, **extra))
+
+
+def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
+    """Process one sweep value: build ``comparable``, choose a reference, and
+    populate ``by_param[val]`` / ``per_solver`` / ``shared_arrays`` in place.
+
+    ``ctx`` carries the loop-invariant state assembled in :func:`_run_single_agreement`
+    (cfg, run, raw, phys, sweep_key, ic_name, seed, transform, cached_for_val,
+    analytic_sig_params, apply_errors, drags, per_solver, shared_arrays, by_param).
+    Returns the (possibly updated) ``reference_label``.
+    """
+    cfg = ctx["cfg"]
+    raw = ctx["raw"]
+    phys = ctx["phys"]
+    transform = ctx["transform"]
+    apply_errors = ctx["apply_errors"]
+    drags = ctx["drags"]
+    per_solver = ctx["per_solver"]
+    shared_arrays = ctx["shared_arrays"]
+    by_param = ctx["by_param"]
+
+    valid_outputs = {
+        n: raw[n][val]
+        for n in cfg.solvers
+        if val in raw.get(n, {}) and raw[n][val] is not None
+    }
+    comparable = (
+        {n: np.asarray(transform(arr, **phys)) for n, arr in valid_outputs.items()}
+        if transform is not None
+        else valid_outputs
+    )
+    # Augment with cached arrays for solvers not re-run in this invocation.
+    # Snapshot stores already-transformed arrays, matching comparable's format.
+    for cn, arr in ctx["cached_for_val"].get(val, {}).items():
+        if cn not in comparable:
+            comparable[cn] = arr
+    if len(comparable) < 2:
+        by_param[val] = {
+            n: {"error": apply_errors.get(n, {}).get(val), "valid": False}
+            for n in cfg.solvers
+        }
+        # Still store whatever output we have so scientists can inspect
+        # the lone solver's field even when consensus cannot be formed.
+        for n, arr in comparable.items():
+            per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
+        return reference_label
+    if cfg.analytic is not None and "obstacle" not in ctx["run"].get("physics", {}):
+        reference = _analytic_reference(
+            cfg,
+            ic_name=ctx["ic_name"],
+            seed=ctx["seed"],
+            phys=phys,
+            sweep_key=ctx["sweep_key"],
+            val=val,
+            analytic_sig_params=ctx["analytic_sig_params"],
+        )
+        reference_label = "analytic"
+    else:
+        reference = trimmed_mean(list(comparable.values()))
+        reference_label = "consensus"
+    shared_arrays[f"consensus_{i}"] = np.asarray(reference)
+    for n, arr in comparable.items():
+        per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
+    by_param[val] = {
+        n: (
+            {
+                "error": cfg.error_fn(comparable[n], reference),
+                "valid": True,
+                **({"drag": drags[n][val]} if val in drags.get(n, {}) else {}),
+            }
+            if n in comparable
+            else {
+                "error": apply_errors.get(n, {}).get(val),
+                "valid": False,
+            }
+        )
+        for n in cfg.solvers
+    }
+    return reference_label
 
 
 # ── Physical laws ─────────────────────────────────────────────────────────────

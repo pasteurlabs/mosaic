@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import threading
 import time
+from dataclasses import dataclass, field
 
 import jax
 import jax.numpy as jnp
@@ -18,7 +19,14 @@ import numpy as np
 import optax
 
 from mosaic.benchmarks.core.config import ProblemConfig, has_vjp
-from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    results_dir,
+    save_experiment,
+    save_field_snapshots_npz,
+    save_json,
+    save_npz_merged,
+)
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
 
 # JAX-traced loss_fn closures capture this reference at trace time;
@@ -27,12 +35,9 @@ from mosaic.benchmarks.core.runner import run_with_gpu_pool
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
-    experiment_dir,
     extract_runs,
     is_valid,
     iter_runs,
-    results_dir,
-    save_json,
 )
 
 _SUITE = "optimization"
@@ -230,6 +235,371 @@ def _run_lbfgs(
     return x, losses, {"grad_norms": grad_norms}
 
 
+def _project_ic_with_log(
+    raw: jax.Array,
+    label: str,
+    is_vel: bool,
+    domain_extent: float,
+    console,
+) -> jax.Array:
+    """Project to divergence-free and log; no-op for non-velocity fields."""
+    if not is_vel:
+        return raw
+    raw_np = np.asarray(raw)
+    div_before = _max_divergence(raw_np, domain_extent)
+    projected = _project_divergence_free(raw_np, domain_extent)
+    div_after = _max_divergence(projected, domain_extent)
+    console.print(
+        f"  [dim]{label}[/dim]  "
+        f"max|∇·u| {div_before:.2e} → {div_after:.2e} (after projection)"
+    )
+    return jnp.asarray(projected)
+
+
+def _build_per_seed_ics(
+    cfg: ProblemConfig,
+    ic_name: str,
+    ic_seeds: list[int],
+    phys: dict,
+    perturb_sigma: float,
+    ic_init_type: str,
+    console,
+) -> tuple[dict, dict, dict]:
+    """Build per-seed (true IC, initial IC, max divergence) dicts.
+
+    Returns ``(ic_true_dict, ic_init_dict, max_div_dict)``. For velocity fields
+    both true and perturbed ICs are Helmholtz-projected onto ∇·u = 0.
+    """
+    ic_true_dict: dict[int, jax.Array] = {}
+    ic_init_dict: dict[int, jax.Array] = {}
+    max_div_dict: dict[int, float | None] = {}
+
+    for s in ic_seeds:
+        ic_k = jnp.array(cfg.make_ic[ic_name](L=cfg.domain_extent, seed=s, **phys))
+        is_vel_k = _is_velocity_field(np.asarray(ic_k))
+        ic_k = _project_ic_with_log(
+            ic_k, f"IC seed={s} (true)", is_vel_k, cfg.domain_extent, console
+        )
+        max_div_dict[s] = (
+            _max_divergence(np.asarray(ic_k), cfg.domain_extent) if is_vel_k else None
+        )
+        ic_true_dict[s] = ic_k
+        if ic_init_type == "zeros":
+            ic_init_dict[s] = jnp.zeros_like(ic_k)
+        else:
+            noise_seed = s + 1000
+            if is_vel_k:
+                noise = jnp.array(
+                    cfg.make_ic[ic_name](L=cfg.domain_extent, seed=noise_seed, **phys)
+                )
+                raw_init = ic_k + perturb_sigma * noise
+            else:
+                raw_init = ic_k + perturb_sigma * jax.random.normal(
+                    jax.random.PRNGKey(noise_seed), ic_k.shape, dtype=jnp.float32
+                )
+            ic_init_dict[s] = _project_ic_with_log(
+                raw_init,
+                f"IC seed={s} (perturbed, σ={perturb_sigma})",
+                is_vel_k,
+                cfg.domain_extent,
+                console,
+            )
+    return ic_true_dict, ic_init_dict, max_div_dict
+
+
+def _build_sigma_perturbed_ics(
+    cfg: ProblemConfig,
+    ic_true: jax.Array,
+    sweep_values: list,
+    seed: int,
+    is_vel: bool,
+    console,
+) -> dict:
+    """For sigma sweep: build dict[sigma -> perturbed IC] (div-free projected)."""
+    sigma_ics: dict = {}
+    for sv in sweep_values:
+        sigma_val = float(sv)
+        key_sv = jax.random.fold_in(jax.random.PRNGKey(seed), int(sigma_val * 1000))
+        raw = ic_true + sigma_val * jax.random.normal(
+            key_sv, ic_true.shape, dtype=jnp.float32
+        )
+        sigma_ics[sv] = _project_ic_with_log(
+            raw, f"σ={sigma_val}", is_vel, cfg.domain_extent, console
+        )
+    return sigma_ics
+
+
+def _compute_targets_for_val(
+    cfg: ProblemConfig,
+    name: str,
+    exp_key: str,
+    val,
+    sweep_key: str,
+    ic_seeds: list[int],
+    ic_true_dict: dict,
+    phys: dict,
+    t,
+) -> dict:
+    """Forward-solve each seed's true IC to produce target outputs.
+
+    Skips seeds whose forward pass fails or produces invalid output.
+    Returns ``{seed: target_array}``.
+    """
+    targets: dict[int, jax.Array] = {}
+    for s in ic_seeds:
+        try:
+            inp_true = cfg.make_inputs(
+                name,
+                ic_true_dict[s],
+                domain_extent=cfg.domain_extent,
+                **{**phys, sweep_key: val},
+            )
+            tgt = apply_tesseract(t, inp_true)[cfg.output_key]
+        except Exception as exc:
+            from mosaic.benchmarks.core.console import print_warn
+
+            print_warn(
+                f"{name} {exp_key} target forward failed at {sweep_key}={val} ic_seed={s}: {exc}"
+            )
+            continue
+        if is_valid(tgt):
+            targets[s] = tgt
+    return targets
+
+
+def _aggregate_trial_results(
+    trial_results: list[dict],
+    primary_ic_err_hist: list[float],
+    val,
+    perturb_sigma: float,
+    is_sigma_sweep: bool,
+    is_multi_seed: bool,
+    failure_threshold: float,
+    max_div,
+    ic_true,
+) -> dict:
+    """Aggregate per-seed trial results into a single by_sweep entry."""
+    all_fice = [r["final_ic_error"] for r in trial_results]
+    first = trial_results[0]
+    first_diag = first.get("diag") or {}
+    return {
+        "errors": first["errors"],
+        "grad_norms": first_diag.get("grad_norms"),
+        "grad_divs": first_diag.get("grad_divs"),
+        "ic_divs": first_diag.get("ic_divs"),
+        "ic_error_history": primary_ic_err_hist,
+        "ic_error_init": float(np.mean([r["ic_error_init"] for r in trial_results])),
+        "final_ic_error": float(np.mean(all_fice)),
+        "final_ic_error_std": float(np.std(all_fice)) if is_multi_seed else None,
+        "final_ic_error_trials": all_fice if is_multi_seed else None,
+        "final_ic_div": float(
+            np.nanmean(
+                [
+                    r["final_ic_div"]
+                    for r in trial_results
+                    if r["final_ic_div"] is not None
+                ]
+            )
+        )
+        if any(r["final_ic_div"] is not None for r in trial_results)
+        else None,
+        "converged": np.mean(
+            [r["final_ic_error"] < failure_threshold for r in trial_results]
+        )
+        > 0.5,
+        "perturb_sigma": float(val) if is_sigma_sweep else perturb_sigma,
+        "max_div_ic": max_div if ic_true.ndim == 4 else None,
+        "n_trials": len(trial_results),
+        "final_loss": float(
+            np.mean([r["errors"][-1] for r in trial_results if r.get("errors")])
+        ),
+        "final_loss_trials": [r["errors"][-1] for r in trial_results if r.get("errors")]
+        if is_multi_seed
+        else None,
+    }
+
+
+def _build_recovery_visualization_stacks(
+    cfg: ProblemConfig,
+    name: str,
+    all_ic_opts: dict,
+    sweep_values: list,
+    sweep_key: str,
+    phys: dict,
+    is_sigma_sweep: bool,
+    sigma_ics: dict | None,
+    ic_true,
+    t,
+) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]:
+    """Stack per-sigma IC/final-rec arrays plus per-sigma perturbed-forward.
+
+    Returns ``(ic_stack, final_rec_stack, perturbed_stack)``; any may be ``None``.
+    """
+    ic_stack, fr_stack = [], []
+    for v in sweep_values:
+        io = all_ic_opts.get(v)
+        if io is not None:
+            ic_stack.append(np.asarray(io))
+            kw = phys if is_sigma_sweep else {**phys, sweep_key: v}
+            try:
+                inp = cfg.make_inputs(name, io, domain_extent=cfg.domain_extent, **kw)
+                fr_stack.append(np.asarray(apply_tesseract(t, inp)[cfg.output_key]))
+            except Exception:
+                fr_stack.append(np.zeros_like(np.asarray(io)))
+        else:
+            ic_stack.append(np.zeros_like(np.asarray(ic_true)))
+            fr_stack.append(np.zeros_like(np.asarray(ic_true)))
+
+    ic_arr = np.stack(ic_stack) if ic_stack else None
+    fr_arr = np.stack(fr_stack) if fr_stack else None
+
+    perturb_arr = None
+    if is_sigma_sweep and sigma_ics:
+        fp_stack = []
+        for v in sweep_values:
+            ip = sigma_ics.get(v)
+            if ip is not None:
+                try:
+                    inp_p = cfg.make_inputs(
+                        name, ip, domain_extent=cfg.domain_extent, **phys
+                    )
+                    fp_stack.append(
+                        np.asarray(apply_tesseract(t, inp_p)[cfg.output_key])
+                    )
+                except Exception:
+                    fp_stack.append(np.zeros_like(np.asarray(ic_true)))
+            else:
+                fp_stack.append(np.zeros_like(np.asarray(ic_true)))
+        if fp_stack:
+            perturb_arr = np.stack(fp_stack)
+    return ic_arr, fr_arr, perturb_arr
+
+
+def _compute_recovery_failure_values(by_sweep: dict, sweep_values: list) -> dict:
+    """For each solver: first sweep value where the optimizer failed to converge."""
+    failure_values: dict = {}
+    for name, s_results in by_sweep.items():
+        fail_val = None
+        for val in sweep_values:
+            r = s_results.get(val)
+            if r is None or not r["converged"]:
+                fail_val = val
+                break
+        failure_values[name] = fail_val
+    return failure_values
+
+
+def _build_recovery_shared_arrays(
+    rep_val,
+    sweep_values,
+    ic_true,
+    rep_ic_init,
+    solver_names: list[str],
+    final_states_gt: dict,
+    is_sigma_sweep: bool,
+    sigma_ics: dict,
+) -> dict:
+    """Assemble the ``shared_arrays`` dict for ``save_field_snapshots_npz``."""
+    shared_final_gt = (
+        np.asarray(final_states_gt[solver_names[0]])
+        if solver_names and solver_names[0] in final_states_gt
+        else None
+    )
+    shared: dict = {
+        "rep_val": np.array([rep_val]),
+        "sweep_values": np.array(sweep_values, dtype=float),
+        "ic_true": np.asarray(ic_true),
+        "ic_init": np.asarray(rep_ic_init)
+        if rep_ic_init is not None
+        else np.asarray(ic_true),
+    }
+    if shared_final_gt is not None:
+        shared["final_gt_shared"] = shared_final_gt
+    if is_sigma_sweep and sigma_ics:
+        shared["ic_perturbed_all"] = np.stack(
+            [np.asarray(sigma_ics[sv]) for sv in sweep_values]
+        )
+    return shared
+
+
+def _save_recovery_outputs(
+    out_dir,
+    solver_names: list[str],
+    per_solver_arrays: dict,
+    shared: dict,
+    result: dict,
+    cfg: ProblemConfig,
+    harness_fn,
+    wall_times: dict[str, float],
+    by_sweep: dict,
+    exp_key: str,
+) -> None:
+    """Save the per-solver npz fields and result.json (skip if by_sweep empty)."""
+    save_field_snapshots_npz(
+        out_dir,
+        solver_names,
+        per_solver_arrays,
+        shared_arrays=shared,
+        filename="recovery_fields.npz",
+        prefixes=(
+            "ic_rec",
+            "ic_history",
+            "final_gt",
+            "final_rec",
+            "final_rep_val",
+            "ic_rec_all",
+            "final_rec_all",
+            "final_perturbed_all",
+        ),
+    )
+    if not by_sweep:
+        from mosaic.benchmarks.core.console import print_warn
+
+        print_warn(
+            f"{exp_key}: by_sweep is empty (all solvers excluded or skipped) — "
+            "skipping result.json save to preserve existing data"
+        )
+    else:
+        save_experiment(
+            result, out_dir, cfg=cfg, harness_fn=harness_fn, wall_time_s=wall_times
+        )
+
+
+def _build_recovery_per_solver_arrays(
+    solver_names: list[str],
+    ic_snaps: dict,
+    ic_histories: dict,
+    final_states_gt: dict,
+    final_states_rec: dict,
+    final_states_rep_val: dict,
+    all_ic_snaps: dict,
+    all_final_rec_snaps: dict,
+    all_final_perturbed_snaps: dict,
+) -> dict[str, dict[str, np.ndarray]]:
+    """Build the per-solver dict of named ndarray entries for the npz save."""
+    per_solver_arrays: dict[str, dict[str, np.ndarray]] = {}
+    for sname in solver_names:
+        entry: dict[str, np.ndarray] = {
+            "ic_rec:": np.asarray(ic_snaps[sname]),
+        }
+        if sname in ic_histories:
+            entry["ic_history:"] = np.asarray(ic_histories[sname])
+        if sname in final_states_gt:
+            entry["final_gt:"] = np.asarray(final_states_gt[sname])
+        if sname in final_states_rec:
+            entry["final_rec:"] = np.asarray(final_states_rec[sname])
+        if sname in final_states_rep_val:
+            entry["final_rep_val:"] = np.array([final_states_rep_val[sname]])
+        if sname in all_ic_snaps:
+            entry["ic_rec_all:"] = np.asarray(all_ic_snaps[sname])
+        if sname in all_final_rec_snaps:
+            entry["final_rec_all:"] = np.asarray(all_final_rec_snaps[sname])
+        if sname in all_final_perturbed_snaps:
+            entry["final_perturbed_all:"] = np.asarray(all_final_perturbed_snaps[sname])
+        per_solver_arrays[sname] = entry
+    return per_solver_arrays
+
+
 def _topopt_solvers(cfg: ProblemConfig) -> list[str]:
     """Solvers that can differentiate compliance.
 
@@ -249,6 +619,370 @@ def _topopt_solvers(cfg: ProblemConfig) -> list[str]:
         if cd:
             result.append(name)
     return result
+
+
+@dataclass
+class _RecoveryRunCtx:
+    """Per-run state for `_run_recovery_long_impl` worker helpers.
+
+    Encapsulates the otherwise huge set of captured locals so the helper
+    functions can be lifted out of closures without a 30-parameter signature.
+    The mutable accumulator dicts (``by_sweep``, ``ic_snaps`` etc.) are
+    populated in place by worker callbacks running on the GPU pool.
+    """
+
+    cfg: ProblemConfig
+    run: dict
+    exp_key: str
+    # Config snapshot
+    sweep_key: str
+    sweep_values: list
+    phys: dict
+    snap_interval: int
+    lr: float
+    max_iters: int
+    patience: int
+    perturb_sigma: float
+    failure_threshold: float
+    record_diagnostics: bool
+    is_sigma_sweep: bool
+    is_multi_seed: bool
+    is_vel: bool
+    rep_val: float
+    primary_seed: int
+    ic_seeds: list
+    # Per-seed dicts
+    ic_true_dict: dict
+    ic_init_dict: dict
+    sigma_ics: dict
+    # Derived
+    max_div: float | None
+    ic_true: jax.Array
+    optim_fn: object
+    div_fn: object | None
+    grad_proj_fn: object | None
+    out_dir: object
+    partial_lock: threading.Lock
+    # Accumulators (mutated in place by workers)
+    by_sweep: dict = field(default_factory=dict)
+    ic_snaps: dict = field(default_factory=dict)
+    ic_init_snaps: dict = field(default_factory=dict)
+    ic_histories: dict = field(default_factory=dict)
+    final_states_gt: dict = field(default_factory=dict)
+    final_states_rec: dict = field(default_factory=dict)
+    final_states_rep_val: dict = field(default_factory=dict)
+    all_ic_snaps: dict = field(default_factory=dict)
+    all_final_rec_snaps: dict = field(default_factory=dict)
+    all_final_perturbed_snaps: dict = field(default_factory=dict)
+    wall_times: dict = field(default_factory=dict)
+
+
+def _write_recovery_partial(ctx: _RecoveryRunCtx) -> None:
+    """Snapshot ``by_sweep`` into ``result_partial.json`` under the run's lock."""
+    partial = {
+        "sweep_key": ctx.sweep_key,
+        "by_sweep": ctx.by_sweep,
+        "params": ctx.run,
+    }
+    with ctx.partial_lock:
+        save_json(partial, ctx.out_dir / "result_partial.json")
+
+
+def _run_one_seed_trial(
+    ctx: _RecoveryRunCtx,
+    name: str,
+    t,
+    color: str,
+    val,
+    s: int,
+    ic_init_k,
+    ic_true_k,
+    target_k,
+    is_primary: bool,
+) -> dict | None:
+    """Run a single per-seed optimisation trial; returns a result dict or None."""
+    from mosaic.benchmarks.core.console import console
+
+    cfg = ctx.cfg
+    phys = ctx.phys
+    sweep_key = ctx.sweep_key
+    snap_interval = ctx.snap_interval
+    max_iters = ctx.max_iters
+
+    def loss_fn(ic, _t=t, _target=target_k, _val=val):
+        _phys_kw = phys if ctx.is_sigma_sweep else {**phys, sweep_key: _val}
+        inp = cfg.make_inputs(
+            name,
+            ic,
+            domain_extent=cfg.domain_extent,
+            **_phys_kw,
+        )
+        return jnp.mean((apply_tesseract(_t, inp)[cfg.output_key] - _target) ** 2)
+
+    _hist: list | None = (
+        [] if (snap_interval > 0 and val == ctx.rep_val and is_primary) else None
+    )
+    _ic_err_hist: list[float] = []
+    ic_error_init = float(cfg.error_fn(ic_init_k, ic_true_k))
+    seed_tag = f" [ic_seed={s}]" if ctx.is_multi_seed else ""
+    console.print(
+        f"  [{color}]{name}[/] {sweep_key}={val}{seed_tag} "
+        f"optim start (init_err={ic_error_init:.4g})"
+    )
+
+    def _log_iter(i, loss, _n=name, _c=color, _v=val, _st=seed_tag):
+        console.print(
+            f"  [{_c}]{_n}[/] {sweep_key}={_v}{_st} iter {i}/{max_iters} loss={loss:.4g}"
+        )
+
+    try:
+        ic_opt, errors, diag = ctx.optim_fn(
+            loss_fn,
+            ic_init_k,
+            ctx.lr,
+            max_iters,
+            ctx.patience,
+            snap_interval=snap_interval if snap_interval > 0 else 0,
+            history=_hist,
+            snap_error_fn=lambda ic, _ict=ic_true_k: float(cfg.error_fn(ic, _ict)),
+            error_history=_ic_err_hist if (snap_interval > 0 and is_primary) else None,
+            log_fn=_log_iter,
+            record_diagnostics=ctx.record_diagnostics,
+            div_fn=ctx.div_fn,
+            grad_proj_fn=ctx.grad_proj_fn,
+        )
+    except Exception as exc:
+        from mosaic.benchmarks.core.console import print_warn
+
+        print_warn(
+            f"{name} {ctx.exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
+        )
+        return None
+    final_ic_error = cfg.error_fn(ic_opt, ic_true_k)
+    final_ic_div = (
+        _max_divergence(np.asarray(ic_opt), cfg.domain_extent) if ctx.is_vel else None
+    )
+    console.print(
+        f"  [{color}]{name}[/] {sweep_key}={val}{seed_tag} done "
+        f"iters={len(errors)} final_loss={errors[-1]:.4g} ic_err={final_ic_error:.4g}"
+    )
+    return {
+        "errors": errors,
+        "diag": diag,
+        "ic_error_history": _ic_err_hist if is_primary else [],
+        "ic_error_init": ic_error_init,
+        "final_ic_error": float(final_ic_error),
+        "final_ic_div": final_ic_div,
+        "ic_opt": ic_opt,
+        "target": target_k,
+        "ic_init": ic_init_k,
+        "phys_kw": phys if ctx.is_sigma_sweep else {**phys, sweep_key: val},
+        "ic_seed": s,
+        "_hist": _hist,
+        "_ic_err_hist": _ic_err_hist,
+    }
+
+
+def _process_recovery_sweep_val(
+    ctx: _RecoveryRunCtx,
+    name: str,
+    t,
+    color: str,
+    val,
+    sigma_target,
+    all_ic_opts: dict,
+    best_conv: dict,
+) -> dict:
+    """Process one sweep value: build targets, run per-seed trials, aggregate.
+
+    ``sigma_target`` is the pre-computed common target for sigma sweep (else
+    ``None``). Updates ``ctx.by_sweep`` / vis snaps in place and returns the
+    updated ``best_conv`` dict.
+    """
+    if ctx.is_sigma_sweep:
+        _ic_init = ctx.sigma_ics[val]
+        seeds_for_val: list[int] = [ctx.primary_seed]
+        target_for_seed: dict[int, jax.Array] = {ctx.primary_seed: sigma_target}
+    else:
+        _ic_init = None
+        seeds_for_val = ctx.ic_seeds
+        target_for_seed = _compute_targets_for_val(
+            ctx.cfg,
+            name,
+            ctx.exp_key,
+            val,
+            ctx.sweep_key,
+            ctx.ic_seeds,
+            ctx.ic_true_dict,
+            ctx.phys,
+            t,
+        )
+        if not target_for_seed:
+            ctx.by_sweep[name][val] = None
+            _write_recovery_partial(ctx)
+            return best_conv
+
+    trial_results: list[dict] = []
+    primary_hist: list | None = None
+    primary_ic_err_hist: list[float] = []
+
+    for s in seeds_for_val:
+        if s not in target_for_seed:
+            continue
+        ic_true_k = ctx.ic_true_dict[s]
+        ic_init_k = ctx.ic_init_dict[s] if not ctx.is_sigma_sweep else _ic_init
+        target_k = target_for_seed[s]
+        is_primary = s == ctx.primary_seed
+        trial = _run_one_seed_trial(
+            ctx, name, t, color, val, s, ic_init_k, ic_true_k, target_k, is_primary
+        )
+        if trial is None:
+            continue
+        if is_primary and trial["_hist"]:
+            primary_hist = trial["_hist"]
+        if is_primary and trial["_ic_err_hist"]:
+            primary_ic_err_hist = trial["_ic_err_hist"]
+        trial_results.append(trial)
+
+    if not trial_results:
+        ctx.by_sweep[name][val] = None
+        _write_recovery_partial(ctx)
+        return best_conv
+
+    ctx.by_sweep[name][val] = _aggregate_trial_results(
+        trial_results,
+        primary_ic_err_hist,
+        val,
+        ctx.perturb_sigma,
+        ctx.is_sigma_sweep,
+        ctx.is_multi_seed,
+        ctx.failure_threshold,
+        ctx.max_div,
+        ctx.ic_true,
+    )
+    _write_recovery_partial(ctx)
+
+    prim_trial = next(
+        (r for r in trial_results if r["ic_seed"] == ctx.primary_seed),
+        trial_results[0],
+    )
+    ic_opt = prim_trial["ic_opt"]
+    all_ic_opts[val] = ic_opt
+    if val == ctx.rep_val:
+        ctx.ic_snaps[name] = ic_opt
+        ctx.ic_init_snaps[name] = prim_trial["ic_init"]
+        if primary_hist:
+            ctx.ic_histories[name] = np.asarray(primary_hist)
+    if prim_trial["final_ic_error"] < ctx.failure_threshold:
+        return {
+            "val": val,
+            "ic_opt": ic_opt,
+            "target": prim_trial["target"],
+            "ic_init": prim_trial["ic_init"],
+            "phys_kw": prim_trial["phys_kw"],
+        }
+    return best_conv
+
+
+def _collect_final_states(ctx: _RecoveryRunCtx, name: str, t, best_conv: dict) -> None:
+    """Use the hardest converged val (or rep_val) to record final GT / rec states."""
+    fv = best_conv.get("val", ctx.rep_val)
+    fic = best_conv.get("ic_opt", ctx.ic_snaps.get(name))
+    ftgt = best_conv.get("target")
+    fphys = best_conv.get("phys_kw", ctx.phys)
+    if fic is None or ftgt is None:
+        return
+    ctx.final_states_gt[name] = np.asarray(ftgt)
+    ctx.final_states_rep_val[name] = fv
+    try:
+        inp_rec = ctx.cfg.make_inputs(
+            name,
+            fic,
+            domain_extent=ctx.cfg.domain_extent,
+            **fphys,
+        )
+        ctx.final_states_rec[name] = np.asarray(
+            apply_tesseract(t, inp_rec)[ctx.cfg.output_key]
+        )
+    except Exception:
+        pass
+
+
+def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
+    """Per-solver worker: run the full sweep optimisation pipeline."""
+    from mosaic.benchmarks.core.console import console
+
+    color = ctx.cfg.solvers[name].color
+    t0 = time.perf_counter()
+    ctx.by_sweep[name] = {}
+    best_conv: dict = {}
+    all_ic_opts: dict = {}
+    console.print(
+        f"  [{color}]{name}[/] {ctx.exp_key} starting ({len(ctx.sweep_values)} sweep values, "
+        f"max_iters={ctx.max_iters})"
+    )
+
+    sigma_target = None
+    if ctx.is_sigma_sweep:
+        sigma_target = _precompute_sigma_target(ctx, name, t, color)
+        if sigma_target is None:
+            for val in ctx.sweep_values:
+                ctx.by_sweep[name][val] = None
+            ctx.wall_times[name] = time.perf_counter() - t0
+            return
+
+    for val in ctx.sweep_values:
+        best_conv = _process_recovery_sweep_val(
+            ctx, name, t, color, val, sigma_target, all_ic_opts, best_conv
+        )
+
+    _collect_final_states(ctx, name, t, best_conv)
+
+    ic_arr, fr_arr, perturb_arr = _build_recovery_visualization_stacks(
+        ctx.cfg,
+        name,
+        all_ic_opts,
+        ctx.sweep_values,
+        ctx.sweep_key,
+        ctx.phys,
+        ctx.is_sigma_sweep,
+        ctx.sigma_ics if ctx.is_sigma_sweep else None,
+        ctx.ic_true,
+        t,
+    )
+    if ic_arr is not None:
+        ctx.all_ic_snaps[name] = ic_arr
+    if fr_arr is not None:
+        ctx.all_final_rec_snaps[name] = fr_arr
+    if perturb_arr is not None:
+        ctx.all_final_perturbed_snaps[name] = perturb_arr
+    ctx.wall_times[name] = time.perf_counter() - t0
+
+
+def _precompute_sigma_target(ctx: _RecoveryRunCtx, name: str, t, color: str):
+    """For sigma sweep: forward the primary true IC to produce the shared target.
+
+    Returns the target array, or ``None`` if forward failed or output invalid.
+    """
+    try:
+        inputs_true_fixed = ctx.cfg.make_inputs(
+            name,
+            ctx.ic_true,
+            domain_extent=ctx.cfg.domain_extent,
+            **ctx.phys,
+        )
+        target = apply_tesseract(t, inputs_true_fixed)[ctx.cfg.output_key]
+    except Exception as exc:
+        from mosaic.benchmarks.core.console import print_warn
+
+        print_warn(
+            f"{name} {ctx.exp_key} target forward failed: {exc} — "
+            f"marking all {len(ctx.sweep_values)} sweep values as None"
+        )
+        return None
+    if not is_valid(target):
+        return None
+    return target
 
 
 def _run_recovery_long_impl(
@@ -271,596 +1005,223 @@ def _run_recovery_long_impl(
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        sweep_cfg = run.get("sweep", {})
-        sweep_key = sweep_cfg.get("key", "steps")
-        sweep_values = sweep_cfg.get("values", [])
-        optim_cfg = run.get("optim", {})
-        perturb_sigma = optim_cfg.get("perturb_sigma", 0.3)
-        lr = optim_cfg.get("lr", 3e-3)
-        max_iters = optim_cfg.get("max_iters", 1000)
-        patience = optim_cfg.get("patience", 100)
-        failure_threshold = optim_cfg.get("failure_threshold", 0.5)
-        snap_interval = int(optim_cfg.get("snap_interval", 0))
-        # Multi-seed: list of IC seeds; defaults to single seed from ic_cfg.
-        ic_seeds: list[int] = optim_cfg.get("ic_seeds", [seed])
-        record_diagnostics: bool = bool(optim_cfg.get("record_diagnostics", True))
-        ic_init_type: str = optim_cfg.get("ic_init_type", "perturb")
-        phys = run.get("physics", {})
-        _is_sigma_sweep = sweep_key == "perturb_sigma"
-        _is_multi_seed = len(ic_seeds) > 1
-        ic_subdir = ic_name if n_runs > 1 else ""
-
-        if not sweep_values:
-            raise NotImplementedError(
-                f"'{exp_key}' requires sweep.values in inverse_defaults "
-                f"(not configured for '{cfg.name}')"
-            )
-
-        from mosaic.benchmarks.core.console import console
-
-        # ── IC helpers ────────────────────────────────────────────────────────
-        def _project_ic(raw: jax.Array, label: str, is_vel: bool) -> jax.Array:
-            """Project to divergence-free and log; no-op for non-velocity fields."""
-            if not is_vel:
-                return raw
-            raw_np = np.asarray(raw)
-            div_before = _max_divergence(raw_np, cfg.domain_extent)
-            projected = _project_divergence_free(raw_np, cfg.domain_extent)
-            div_after = _max_divergence(projected, cfg.domain_extent)
-            console.print(
-                f"  [dim]{label}[/dim]  "
-                f"max|∇·u| {div_before:.2e} → {div_after:.2e} (after projection)"
-            )
-            return jnp.asarray(projected)
-
-        # ── Build per-seed IC true + perturbed IC ─────────────────────────────
-        # Each ic_seed gives a different ground-truth IC.
-        # The perturbed IC is the true IC + σ·noise, projected back to div-free.
-        _ic_true_dict: dict[int, jax.Array] = {}
-        _ic_init_dict: dict[int, jax.Array] = {}
-        _max_div_dict: dict[int, float | None] = {}
-
-        for _s in ic_seeds:
-            _ic_k = jnp.array(
-                cfg.make_ic[ic_name](L=cfg.domain_extent, seed=_s, **phys)
-            )
-            _is_vel_k = _is_velocity_field(np.asarray(_ic_k))
-            # Project true IC
-            _ic_k = _project_ic(_ic_k, f"IC seed={_s} (true)", _is_vel_k)
-            _max_div_dict[_s] = (
-                _max_divergence(np.asarray(_ic_k), cfg.domain_extent)
-                if _is_vel_k
-                else None
-            )
-            _ic_true_dict[_s] = _ic_k
-            if ic_init_type == "zeros":
-                _ic_init_dict[_s] = jnp.zeros_like(_ic_k)
-            else:
-                # Perturbed IC: for velocity fields use the same div-free generator with a
-                # different seed so the perturbation is exactly div-free by construction.
-                # For non-velocity fields fall back to Gaussian noise + projection.
-                _noise_seed = _s + 1000
-                if _is_vel_k:
-                    _noise = jnp.array(
-                        cfg.make_ic[ic_name](
-                            L=cfg.domain_extent, seed=_noise_seed, **phys
-                        )
-                    )
-                    _raw_init = _ic_k + perturb_sigma * _noise
-                else:
-                    _raw_init = _ic_k + perturb_sigma * jax.random.normal(
-                        jax.random.PRNGKey(_noise_seed), _ic_k.shape, dtype=jnp.float32
-                    )
-                _ic_init_dict[_s] = _project_ic(
-                    _raw_init, f"IC seed={_s} (perturbed, σ={perturb_sigma})", _is_vel_k
-                )
-
-        # Primary IC / init for single-seed and for visualization (always seed 0 / ic_seeds[0])
-        _primary_seed = ic_seeds[0]
-        ic_true = _ic_true_dict[_primary_seed]
-        max_div = _max_div_dict[_primary_seed]
-        _is_vel = _is_velocity_field(np.asarray(ic_true))
-
-        # div_fn for diagnostics: computes max|∇·u| per-iteration inside _run_optim
-        _div_fn = (
-            (lambda u: _max_divergence(np.asarray(u), cfg.domain_extent))
-            if (_is_vel and record_diagnostics)
-            else None
+        result = _run_recovery_for_one_run(
+            cfg=cfg,
+            tags=tags,
+            exp_key=exp_key,
+            harness_fn=harness_fn,
+            run=run,
+            n_runs=n_runs,
+            overrides=overrides,
+            optim_fn=_optim_fn,
+            project_grads=_project_grads,
         )
-
-        # Gradient projection: Helmholtz-project onto ∇·g = 0 before handing to
-        # the optimiser. Only meaningful for velocity fields; ignored otherwise.
-        _grad_proj_fn = (
-            (lambda g: _project_divergence_free(g, cfg.domain_extent))
-            if (_project_grads and _is_vel)
-            else None
-        )
-
-        # Keep a single _make_div_free_ic shim for the sigma-sweep path
-        def _make_div_free_ic(raw: jax.Array, label: str) -> jax.Array:
-            return _project_ic(raw, label, _is_vel)
-
-        if not _is_sigma_sweep:
-            ic_init = _ic_init_dict[_primary_seed]
-        else:
-            ic_init = None
-            _sigma_ics: dict = {}
-            for _sv in sweep_values:
-                _sigma_val = float(_sv)
-                _key_sv = jax.random.fold_in(
-                    jax.random.PRNGKey(seed), int(_sigma_val * 1000)
-                )
-                _raw = ic_true + _sigma_val * jax.random.normal(
-                    _key_sv, ic_true.shape, dtype=jnp.float32
-                )
-                _sigma_ics[_sv] = _make_div_free_ic(_raw, f"σ={_sigma_val}")
-
-        rep_val = sweep_values[len(sweep_values) // 2]
-        ic_snaps: dict = {}
-        ic_init_snaps: dict = {}
-        ic_histories: dict = {}
-        final_states_gt: dict = {}
-        final_states_rec: dict = {}
-        final_states_rep_val: dict = {}  # per-solver val actually used for final states
-        all_ic_snaps: dict = {}  # per-solver stacked (n_sigmas, *ic_shape)
-        all_final_rec_snaps: dict = {}  # per-solver stacked (n_sigmas, *field_shape)
-        all_final_perturbed_snaps: dict = {}  # per-solver stacked (n_sigmas, *field_shape)
-        by_sweep: dict = {}
-        _wall_times: dict[str, float] = {}
-        gpu_ids = overrides.get("gpu_ids")
-
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        _partial_lock = threading.Lock()
-
-        def _write_partial() -> None:
-            partial = {
-                "sweep_key": sweep_key,
-                "by_sweep": by_sweep,
-                "params": run,
-            }
-            with _partial_lock:
-                save_json(partial, out_dir / "result_partial.json")
-
-        def _recovery_long_work(name: str, t) -> None:
-            from mosaic.benchmarks.core.console import console
-
-            _color = cfg.solvers[name].color
-            _t0 = time.perf_counter()
-            by_sweep[name] = {}
-            # Track the last converged (val, ic_opt, target, ic_init) for final
-            # state plots — use the hardest case that still converged rather than
-            # the blind median rep_val which may be a failed recovery.
-            _best_conv: dict = {}
-            _all_ic_opts: dict = {}  # val -> ic_opt for all completed sweep values
-            console.print(
-                f"  [{_color}]{name}[/] {exp_key} starting ({len(sweep_values)} sweep values, max_iters={max_iters})"
-            )
-
-            if _is_sigma_sweep:
-                try:
-                    inputs_true_fixed = cfg.make_inputs(
-                        name,
-                        ic_true,
-                        domain_extent=cfg.domain_extent,
-                        **phys,
-                    )
-                    target = apply_tesseract(t, inputs_true_fixed)[cfg.output_key]
-                except Exception as exc:
-                    from mosaic.benchmarks.core.console import print_warn
-
-                    print_warn(
-                        f"{name} {exp_key} target forward failed: {exc} — "
-                        f"marking all {len(sweep_values)} sweep values as None"
-                    )
-                    for val in sweep_values:
-                        by_sweep[name][val] = None
-                    _wall_times[name] = time.perf_counter() - _t0
-                    return
-                if not is_valid(target):
-                    for val in sweep_values:
-                        by_sweep[name][val] = None
-                    _wall_times[name] = time.perf_counter() - _t0
-                    return
-
-            for val in sweep_values:
-                if _is_sigma_sweep:
-                    # sigma sweep: single IC seed, target pre-computed above
-                    _ic_init = _sigma_ics[val]
-                    _seeds_for_val: list[int] = [_primary_seed]
-                    _target_for_seed: dict[int, jax.Array] = {_primary_seed: target}  # type: ignore[assignment]
-                else:
-                    # steps / other sweep: compute target per ic_seed
-                    _seeds_for_val = ic_seeds
-                    _target_for_seed = {}
-                    for _s in ic_seeds:
-                        try:
-                            _inp_true = cfg.make_inputs(
-                                name,
-                                _ic_true_dict[_s],
-                                domain_extent=cfg.domain_extent,
-                                **{**phys, sweep_key: val},
-                            )
-                            _tgt = apply_tesseract(t, _inp_true)[cfg.output_key]
-                        except Exception as exc:
-                            from mosaic.benchmarks.core.console import print_warn
-
-                            print_warn(
-                                f"{name} {exp_key} target forward failed at {sweep_key}={val} ic_seed={_s}: {exc}"
-                            )
-                            continue
-                        if is_valid(_tgt):
-                            _target_for_seed[_s] = _tgt
-
-                    if not _target_for_seed:
-                        by_sweep[name][val] = None
-                        _write_partial()
-                        continue
-
-                # ── Per-seed optimization trials ──────────────────────────────
-                # For the primary (first) seed, capture history/snaps for visualization.
-                _trial_results: list[dict] = []
-                _primary_hist: list | None = None
-                _primary_ic_err_hist: list[float] = []
-
-                for _s in _seeds_for_val:
-                    if _s not in _target_for_seed:
-                        continue
-                    _ic_true_k = _ic_true_dict[_s]
-                    _ic_init_k = _ic_init_dict[_s] if not _is_sigma_sweep else _ic_init  # type: ignore[assignment]
-                    _target_k = _target_for_seed[_s]
-                    _is_primary = _s == _primary_seed
-
-                    def loss_fn(ic, _t=t, _target=_target_k, _val=val):
-                        _phys_kw = (
-                            phys if _is_sigma_sweep else {**phys, sweep_key: _val}
-                        )
-                        inp = cfg.make_inputs(
-                            name,
-                            ic,
-                            domain_extent=cfg.domain_extent,
-                            **_phys_kw,
-                        )
-                        return jnp.mean(
-                            (apply_tesseract(_t, inp)[cfg.output_key] - _target) ** 2
-                        )
-
-                    _hist: list | None = (
-                        []
-                        if (snap_interval > 0 and val == rep_val and _is_primary)
-                        else None
-                    )
-                    _ic_err_hist: list[float] = []
-                    ic_error_init = float(cfg.error_fn(_ic_init_k, _ic_true_k))
-                    seed_tag = f" [ic_seed={_s}]" if _is_multi_seed else ""
-                    console.print(
-                        f"  [{_color}]{name}[/] {sweep_key}={val}{seed_tag} "
-                        f"optim start (init_err={ic_error_init:.4g})"
-                    )
-
-                    def _log_iter(i, loss, _n=name, _c=_color, _v=val, _st=seed_tag):
-                        console.print(
-                            f"  [{_c}]{_n}[/] {sweep_key}={_v}{_st} iter {i}/{max_iters} loss={loss:.4g}"
-                        )
-
-                    try:
-                        ic_opt, errors, diag = _optim_fn(
-                            loss_fn,
-                            _ic_init_k,
-                            lr,
-                            max_iters,
-                            patience,
-                            snap_interval=snap_interval if snap_interval > 0 else 0,
-                            history=_hist,
-                            snap_error_fn=lambda ic, _ict=_ic_true_k: float(
-                                cfg.error_fn(ic, _ict)
-                            ),
-                            error_history=_ic_err_hist
-                            if (snap_interval > 0 and _is_primary)
-                            else None,
-                            log_fn=_log_iter,
-                            record_diagnostics=record_diagnostics,
-                            div_fn=_div_fn,
-                            grad_proj_fn=_grad_proj_fn,
-                        )
-                    except Exception as exc:
-                        from mosaic.benchmarks.core.console import print_warn
-
-                        print_warn(
-                            f"{name} {exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
-                        )
-                        continue
-                    final_ic_error = cfg.error_fn(ic_opt, _ic_true_k)
-                    final_ic_div = (
-                        _max_divergence(np.asarray(ic_opt), cfg.domain_extent)
-                        if _is_vel
-                        else None
-                    )
-                    console.print(
-                        f"  [{_color}]{name}[/] {sweep_key}={val}{seed_tag} done "
-                        f"iters={len(errors)} final_loss={errors[-1]:.4g} ic_err={final_ic_error:.4g}"
-                    )
-                    _trial_results.append(
-                        {
-                            "errors": errors,
-                            "diag": diag,
-                            "ic_error_history": _ic_err_hist if _is_primary else [],
-                            "ic_error_init": ic_error_init,
-                            "final_ic_error": float(final_ic_error),
-                            "final_ic_div": final_ic_div,
-                            "ic_opt": ic_opt,
-                            "target": _target_k,
-                            "ic_init": _ic_init_k,
-                            "phys_kw": phys
-                            if _is_sigma_sweep
-                            else {**phys, sweep_key: val},
-                            "ic_seed": _s,
-                        }
-                    )
-                    if _is_primary and _hist:
-                        _primary_hist = _hist
-                    if _is_primary and _ic_err_hist:
-                        _primary_ic_err_hist = _ic_err_hist
-
-                if not _trial_results:
-                    by_sweep[name][val] = None
-                    _write_partial()
-                    continue
-
-                # ── Aggregate across seeds ────────────────────────────────────
-                _all_fice = [r["final_ic_error"] for r in _trial_results]
-                _first = _trial_results[0]
-                _first_diag = _first.get("diag") or {}
-                by_sweep[name][val] = {
-                    "errors": _first["errors"],
-                    "grad_norms": _first_diag.get("grad_norms"),
-                    "grad_divs": _first_diag.get("grad_divs"),
-                    "ic_divs": _first_diag.get("ic_divs"),
-                    "ic_error_history": _primary_ic_err_hist,
-                    "ic_error_init": float(
-                        np.mean([r["ic_error_init"] for r in _trial_results])
-                    ),
-                    "final_ic_error": float(np.mean(_all_fice)),
-                    "final_ic_error_std": float(np.std(_all_fice))
-                    if _is_multi_seed
-                    else None,
-                    "final_ic_error_trials": _all_fice if _is_multi_seed else None,
-                    "final_ic_div": float(
-                        np.nanmean(
-                            [
-                                r["final_ic_div"]
-                                for r in _trial_results
-                                if r["final_ic_div"] is not None
-                            ]
-                        )
-                    )
-                    if any(r["final_ic_div"] is not None for r in _trial_results)
-                    else None,
-                    "converged": np.mean(
-                        [
-                            r["final_ic_error"] < failure_threshold
-                            for r in _trial_results
-                        ]
-                    )
-                    > 0.5,
-                    "perturb_sigma": float(val) if _is_sigma_sweep else perturb_sigma,
-                    "max_div_ic": max_div if ic_true.ndim == 4 else None,
-                    "n_trials": len(_trial_results),
-                    "final_loss": float(
-                        np.mean(
-                            [r["errors"][-1] for r in _trial_results if r.get("errors")]
-                        )
-                    ),
-                    "final_loss_trials": [
-                        r["errors"][-1] for r in _trial_results if r.get("errors")
-                    ]
-                    if _is_multi_seed
-                    else None,
-                }
-                _write_partial()
-
-                # ── Visualization snaps (use primary seed trial) ──────────────
-                _prim_trial = next(
-                    (r for r in _trial_results if r["ic_seed"] == _primary_seed),
-                    _trial_results[0],
-                )
-                ic_opt = _prim_trial["ic_opt"]
-                target = _prim_trial["target"]
-                _ic_init = _prim_trial["ic_init"]
-                _all_ic_opts[val] = ic_opt
-                if val == rep_val:
-                    ic_snaps[name] = ic_opt
-                    ic_init_snaps[name] = _ic_init
-                    if _primary_hist:
-                        ic_histories[name] = np.asarray(_primary_hist)
-                if _prim_trial["final_ic_error"] < failure_threshold:
-                    _best_conv = {
-                        "val": val,
-                        "ic_opt": ic_opt,
-                        "target": target,
-                        "ic_init": _ic_init,
-                        "phys_kw": _prim_trial["phys_kw"],
-                    }
-
-            # Collect final states from the hardest converged val; fall back to rep_val.
-            _fv = _best_conv.get("val", rep_val)
-            _fic = _best_conv.get("ic_opt", ic_snaps.get(name))
-            _ftgt = _best_conv.get("target")
-            _fphys = _best_conv.get("phys_kw", phys)
-            if _fic is not None and _ftgt is not None:
-                final_states_gt[name] = np.asarray(_ftgt)
-                final_states_rep_val[name] = _fv
-                try:
-                    inp_rec = cfg.make_inputs(
-                        name,
-                        _fic,
-                        domain_extent=cfg.domain_extent,
-                        **_fphys,
-                    )
-                    final_states_rec[name] = np.asarray(
-                        apply_tesseract(t, inp_rec)[cfg.output_key]
-                    )
-                except Exception:
-                    pass
-
-            # Build per-sigma stacks for the all-sigma grid plot.
-            # For sigma sweep the target (GT final) is the same for all sigmas.
-            _ic_stack, _fr_stack = [], []
-            for _v in sweep_values:
-                _io = _all_ic_opts.get(_v)
-                if _io is not None:
-                    _ic_stack.append(np.asarray(_io))
-                    _kw = phys if _is_sigma_sweep else {**phys, sweep_key: _v}
-                    try:
-                        _inp = cfg.make_inputs(
-                            name, _io, domain_extent=cfg.domain_extent, **_kw
-                        )
-                        _fr_stack.append(
-                            np.asarray(apply_tesseract(t, _inp)[cfg.output_key])
-                        )
-                    except Exception:
-                        _fr_stack.append(np.zeros_like(np.asarray(_io)))
-                else:
-                    _ic_stack.append(np.zeros_like(np.asarray(ic_true)))
-                    _fr_stack.append(np.zeros_like(np.asarray(ic_true)))
-            if _ic_stack:
-                all_ic_snaps[name] = np.stack(_ic_stack)
-                all_final_rec_snaps[name] = np.stack(_fr_stack)
-            # Build per-sigma stack of forward rollouts from perturbed ICs.
-            if _is_sigma_sweep:
-                _fp_stack = []
-                for _v in sweep_values:
-                    _ip = _sigma_ics.get(_v)
-                    if _ip is not None:
-                        try:
-                            _inp_p = cfg.make_inputs(
-                                name, _ip, domain_extent=cfg.domain_extent, **phys
-                            )
-                            _fp_stack.append(
-                                np.asarray(apply_tesseract(t, _inp_p)[cfg.output_key])
-                            )
-                        except Exception:
-                            _fp_stack.append(np.zeros_like(np.asarray(ic_true)))
-                    else:
-                        _fp_stack.append(np.zeros_like(np.asarray(ic_true)))
-                if _fp_stack:
-                    all_final_perturbed_snaps[name] = np.stack(_fp_stack)
-            _wall_times[name] = time.perf_counter() - _t0
-
-        run_with_gpu_pool(
-            active_differentiable_solvers(cfg, "optimization", exp_key),
-            tags,
-            _recovery_long_work,
-            gpu_ids=gpu_ids,
-        )
-
-        failure_values: dict = {}
-        for name, s_results in by_sweep.items():
-            fail_val = None
-            for val in sweep_values:
-                r = s_results.get(val)
-                if r is None or not r["converged"]:
-                    fail_val = val
-                    break
-            failure_values[name] = fail_val
-
-        solver_names = list(ic_snaps.keys())
-        _rep_ic_init = (
-            ic_init_snaps.get(solver_names[0], ic_init)
-            if ic_init_snaps and solver_names
-            else ic_init
-        )
-        per_solver_arrays: dict[str, dict[str, np.ndarray]] = {}
-        for sname in solver_names:
-            entry: dict[str, np.ndarray] = {
-                "ic_rec:": np.asarray(ic_snaps[sname]),
-            }
-            if sname in ic_histories:
-                entry["ic_history:"] = np.asarray(ic_histories[sname])
-            if sname in final_states_gt:
-                entry["final_gt:"] = np.asarray(final_states_gt[sname])
-            if sname in final_states_rec:
-                entry["final_rec:"] = np.asarray(final_states_rec[sname])
-            if sname in final_states_rep_val:
-                entry["final_rep_val:"] = np.array([final_states_rep_val[sname]])
-            if sname in all_ic_snaps:
-                entry["ic_rec_all:"] = np.asarray(all_ic_snaps[sname])
-            if sname in all_final_rec_snaps:
-                entry["final_rec_all:"] = np.asarray(all_final_rec_snaps[sname])
-            if sname in all_final_perturbed_snaps:
-                entry["final_perturbed_all:"] = np.asarray(
-                    all_final_perturbed_snaps[sname]
-                )
-            per_solver_arrays[sname] = entry
-        # Store the ground-truth final state (same for all sigmas in sigma sweep)
-        _shared_final_gt = (
-            np.asarray(final_states_gt[solver_names[0]])
-            if solver_names and solver_names[0] in final_states_gt
-            else None
-        )
-        shared: dict = {
-            "rep_val": np.array([rep_val]),
-            "sweep_values": np.array(sweep_values, dtype=float),
-            "ic_true": np.asarray(ic_true),
-            "ic_init": np.asarray(_rep_ic_init)
-            if _rep_ic_init is not None
-            else np.asarray(ic_true),
-        }
-        if _shared_final_gt is not None:
-            shared["final_gt_shared"] = _shared_final_gt
-        if _is_sigma_sweep and _sigma_ics:
-            shared["ic_perturbed_all"] = np.stack(
-                [np.asarray(_sigma_ics[_sv]) for _sv in sweep_values]
-            )
-        save_field_snapshots_npz(
-            out_dir,
-            solver_names,
-            per_solver_arrays,
-            shared_arrays=shared,
-            filename="recovery_fields.npz",
-            prefixes=(
-                "ic_rec",
-                "ic_history",
-                "final_gt",
-                "final_rec",
-                "final_rep_val",
-                "ic_rec_all",
-                "final_rec_all",
-                "final_perturbed_all",
-            ),
-        )
-
-        result = {
-            "sweep_key": sweep_key,
-            "by_sweep": by_sweep,
-            "failure_values": failure_values,
-            "params": run,
-        }
-        if not by_sweep:
-            from mosaic.benchmarks.core.console import print_warn
-
-            print_warn(
-                f"{exp_key}: by_sweep is empty (all solvers excluded or skipped) — "
-                "skipping result.json save to preserve existing data"
-            )
-        else:
-            save_experiment(
-                result, out_dir, cfg=cfg, harness_fn=harness_fn, wall_time_s=_wall_times
-            )
         if n_runs > 1:
+            ic_name = run.get("ic", {}).get("name", next(iter(cfg.make_ic)))
             all_results[ic_name] = result
         else:
             all_results = result
 
     return all_results
+
+
+def _run_recovery_for_one_run(
+    *,
+    cfg: ProblemConfig,
+    tags: dict[str, str],
+    exp_key: str,
+    harness_fn,
+    run: dict,
+    n_runs: int,
+    overrides: dict,
+    optim_fn,
+    project_grads: bool,
+) -> dict:
+    """Inner body of ``_run_recovery_long_impl``: process a single ``run`` entry."""
+    ic_cfg = run.get("ic", {})
+    ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+    seed = ic_cfg.get("seed", 0)
+    sweep_cfg = run.get("sweep", {})
+    sweep_key = sweep_cfg.get("key", "steps")
+    sweep_values = sweep_cfg.get("values", [])
+    optim_cfg = run.get("optim", {})
+    perturb_sigma = optim_cfg.get("perturb_sigma", 0.3)
+    lr = optim_cfg.get("lr", 3e-3)
+    max_iters = optim_cfg.get("max_iters", 1000)
+    patience = optim_cfg.get("patience", 100)
+    failure_threshold = optim_cfg.get("failure_threshold", 0.5)
+    snap_interval = int(optim_cfg.get("snap_interval", 0))
+    # Multi-seed: list of IC seeds; defaults to single seed from ic_cfg.
+    ic_seeds: list[int] = optim_cfg.get("ic_seeds", [seed])
+    record_diagnostics: bool = bool(optim_cfg.get("record_diagnostics", True))
+    ic_init_type: str = optim_cfg.get("ic_init_type", "perturb")
+    phys = run.get("physics", {})
+    _is_sigma_sweep = sweep_key == "perturb_sigma"
+    _is_multi_seed = len(ic_seeds) > 1
+    ic_subdir = ic_name if n_runs > 1 else ""
+    _optim_fn = optim_fn
+    _project_grads = project_grads
+
+    if not sweep_values:
+        raise NotImplementedError(
+            f"'{exp_key}' requires sweep.values in inverse_defaults "
+            f"(not configured for '{cfg.name}')"
+        )
+
+    from mosaic.benchmarks.core.console import console
+
+    # ── Build per-seed IC true + perturbed IC ─────────────────────────────
+    _ic_true_dict, _ic_init_dict, _max_div_dict = _build_per_seed_ics(
+        cfg,
+        ic_name,
+        ic_seeds,
+        phys,
+        perturb_sigma,
+        ic_init_type,
+        console,
+    )
+
+    # Primary IC / init for single-seed and for visualization (always seed 0 / ic_seeds[0])
+    _primary_seed = ic_seeds[0]
+    ic_true = _ic_true_dict[_primary_seed]
+    max_div = _max_div_dict[_primary_seed]
+    _is_vel = _is_velocity_field(np.asarray(ic_true))
+
+    # div_fn for diagnostics: computes max|∇·u| per-iteration inside _run_optim
+    _div_fn = (
+        (lambda u: _max_divergence(np.asarray(u), cfg.domain_extent))
+        if (_is_vel and record_diagnostics)
+        else None
+    )
+
+    # Gradient projection: Helmholtz-project onto ∇·g = 0 before handing to
+    # the optimiser. Only meaningful for velocity fields; ignored otherwise.
+    _grad_proj_fn = (
+        (lambda g: _project_divergence_free(g, cfg.domain_extent))
+        if (_project_grads and _is_vel)
+        else None
+    )
+
+    _sigma_ics: dict = {}
+    if not _is_sigma_sweep:
+        ic_init = _ic_init_dict[_primary_seed]
+    else:
+        ic_init = None
+        _sigma_ics = _build_sigma_perturbed_ics(
+            cfg, ic_true, sweep_values, seed, _is_vel, console
+        )
+
+    rep_val = sweep_values[len(sweep_values) // 2]
+    gpu_ids = overrides.get("gpu_ids")
+
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        _SUITE,
+        f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+        suffix="_debug" if overrides.get("debug") else "",
+    )
+
+    ctx = _RecoveryRunCtx(
+        cfg=cfg,
+        run=run,
+        exp_key=exp_key,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        phys=phys,
+        snap_interval=snap_interval,
+        lr=lr,
+        max_iters=max_iters,
+        patience=patience,
+        perturb_sigma=perturb_sigma,
+        failure_threshold=failure_threshold,
+        record_diagnostics=record_diagnostics,
+        is_sigma_sweep=_is_sigma_sweep,
+        is_multi_seed=_is_multi_seed,
+        is_vel=_is_vel,
+        rep_val=rep_val,
+        primary_seed=_primary_seed,
+        ic_seeds=ic_seeds,
+        ic_true_dict=_ic_true_dict,
+        ic_init_dict=_ic_init_dict,
+        sigma_ics=_sigma_ics,
+        max_div=max_div,
+        ic_true=ic_true,
+        optim_fn=_optim_fn,
+        div_fn=_div_fn,
+        grad_proj_fn=_grad_proj_fn,
+        out_dir=out_dir,
+        partial_lock=threading.Lock(),
+    )
+
+    run_with_gpu_pool(
+        active_differentiable_solvers(cfg, "optimization", exp_key),
+        tags,
+        lambda name, t: _recovery_long_work(ctx, name, t),
+        gpu_ids=gpu_ids,
+    )
+
+    by_sweep = ctx.by_sweep
+    ic_snaps = ctx.ic_snaps
+    ic_init_snaps = ctx.ic_init_snaps
+    ic_histories = ctx.ic_histories
+    final_states_gt = ctx.final_states_gt
+    final_states_rec = ctx.final_states_rec
+    final_states_rep_val = ctx.final_states_rep_val
+    all_ic_snaps = ctx.all_ic_snaps
+    all_final_rec_snaps = ctx.all_final_rec_snaps
+    all_final_perturbed_snaps = ctx.all_final_perturbed_snaps
+    _wall_times = ctx.wall_times
+
+    failure_values = _compute_recovery_failure_values(by_sweep, sweep_values)
+
+    solver_names = list(ic_snaps.keys())
+    _rep_ic_init = (
+        ic_init_snaps.get(solver_names[0], ic_init)
+        if ic_init_snaps and solver_names
+        else ic_init
+    )
+    per_solver_arrays = _build_recovery_per_solver_arrays(
+        solver_names,
+        ic_snaps,
+        ic_histories,
+        final_states_gt,
+        final_states_rec,
+        final_states_rep_val,
+        all_ic_snaps,
+        all_final_rec_snaps,
+        all_final_perturbed_snaps,
+    )
+    shared = _build_recovery_shared_arrays(
+        rep_val,
+        sweep_values,
+        ic_true,
+        _rep_ic_init,
+        solver_names,
+        final_states_gt,
+        _is_sigma_sweep,
+        _sigma_ics,
+    )
+
+    result = {
+        "sweep_key": sweep_key,
+        "by_sweep": by_sweep,
+        "failure_values": failure_values,
+        "params": run,
+    }
+    _save_recovery_outputs(
+        out_dir,
+        solver_names,
+        per_solver_arrays,
+        shared,
+        result,
+        cfg,
+        harness_fn,
+        _wall_times,
+        by_sweep,
+        exp_key,
+    )
+    return result
 
 
 def run_recovery_constant_ic(
@@ -911,23 +1272,150 @@ def run_recovery_constant_ic_bfgs_proj(
 # ── Topology optimisation ─────────────────────────────────────────────────────
 
 
-def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
-    """Topology optimisation: minimise compliance subject to a volume fraction constraint.
+# ── topopt: shared body, Adam vs L-BFGS as an argument ───────────────────────
 
-    Runs Adam gradient descent with ρ clipped to [x_min, 1] and a soft volume
-    penalty. Designed for static FEA problems (structural-mesh) where IC recovery
-    is degenerate.
 
-    Returns:
-        {"by_solver": {solver: {"compliances", "vol_fracs", "final_compliance",
-                                "final_vol_frac", "n_iters", "converged"}},
-         "params": run}
-        or {ic_name: <above>} when multiple runs are configured.
+def _topopt_adam_loop(
+    loss_components,
+    rho_init,
+    *,
+    t,
+    lr: float = 1e-2,
+    max_iters: int = 200,
+    patience: int = 30,
+    x_min: float = 1e-3,
+    snap_interval: int = 0,
+    **_unused,  # absorb kwargs only the L-BFGS loop uses (e.g. ``name``)
+) -> tuple[jax.Array, dict]:
+    """Adam loop for topopt: per-iter compliance & vol_frac tracking + clip + patience.
+
+    ``loss_components(rho, t)`` must return ``(loss, compliance)`` so the loop
+    can record raw compliance separately from the (compliance + vol_penalty)
+    loss the optimiser sees.
     """
-    runs = cfg.inverse_defaults.get("topopt", [])
+    del _unused  # signature-parity slot, intentionally discarded
+    optimizer = optax.adam(lr)
+    opt_state = optimizer.init(rho_init)
+    rho_opt = rho_init
+    compliances: list[float] = []
+    vol_fracs: list[float] = []
+    grad_norms: list[float] = []
+    history: list = []
+    best_c, no_improve = jnp.inf, 0
+
+    def _loss(rho, _t=t):
+        return loss_components(rho, _t)
+
+    for i in range(max_iters):
+        (_, compliance_val), g = jax.value_and_grad(_loss, has_aux=True)(rho_opt)
+        grad_norms.append(float(jnp.linalg.norm(g.ravel())))
+        updates, opt_state = optimizer.update(g, opt_state)
+        rho_opt = jnp.clip(optax.apply_updates(rho_opt, updates), x_min, 1.0)
+        c = float(compliance_val)
+        compliances.append(c)
+        vol_fracs.append(float(jnp.mean(rho_opt)))
+        if snap_interval > 0 and (i + 1) % snap_interval == 0:
+            history.append(np.array(rho_opt))
+        if c < best_c:
+            best_c, no_improve = c, 0
+        else:
+            no_improve += 1
+        if no_improve >= patience:
+            break
+
+    return rho_opt, {
+        "compliances": compliances,
+        "vol_fracs": vol_fracs,
+        "final_compliance": compliances[-1] if compliances else float("nan"),
+        "final_vol_frac": vol_fracs[-1] if vol_fracs else float(jnp.mean(rho_opt)),
+        "n_iters": len(compliances),
+        "converged": no_improve >= patience,
+        "grad_norms": grad_norms,
+        "history": history,
+    }
+
+
+def _topopt_lbfgs_loop(
+    loss_components,
+    rho_init,
+    *,
+    t,
+    name: str,
+    max_iters: int = 100,
+    x_min: float = 1e-3,
+    snap_interval: int = 0,
+    **_unused,  # absorb kwargs only the Adam loop uses (lr, patience)
+) -> tuple[jax.Array, dict]:
+    """L-BFGS loop for topopt: scalar loss + clip; vol_fracs not tracked per-iter.
+
+    ``loss_components(rho, t)`` returns ``(loss, compliance)``; the loop wraps
+    it to a scalar for L-BFGS and runs one extra forward call afterwards to
+    recover the pure compliance value (``losses[-1]`` includes the vol
+    penalty).
+    """
+    del _unused  # signature-parity slot, intentionally discarded
+    history: list = []
+
+    def _loss_scalar(rho, _t=t):
+        loss, _ = loss_components(rho, _t)
+        return loss
+
+    def _log_iter(i, loss_val, _n=name):
+        from mosaic.benchmarks.core.console import console
+
+        console.print(
+            f"  [green]{_n}[/] topopt_bfgs iter {i}/{max_iters} loss={loss_val:.4g}"
+        )
+
+    rho_opt, losses, lbfgs_diag = _run_lbfgs(
+        _loss_scalar,
+        rho_init,
+        max_iters=max_iters,
+        snap_interval=snap_interval,
+        history=history if snap_interval > 0 else None,
+        log_fn=_log_iter,
+        log_interval=10,
+        clip_fn=lambda rho: jnp.clip(rho, x_min, 1.0),
+    )
+
+    try:
+        _, final_compliance = loss_components(rho_opt, t)
+        final_compliance = float(final_compliance)
+    except Exception:
+        final_compliance = losses[-1] if losses else float("nan")
+
+    return rho_opt, {
+        "compliances": losses,
+        "vol_fracs": [],
+        "final_compliance": final_compliance,
+        "final_vol_frac": float(jnp.mean(rho_opt)),
+        "n_iters": len(losses),
+        "converged": len(losses) < max_iters,
+        "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
+        "history": history,
+    }
+
+
+def _run_topopt_impl(
+    cfg: ProblemConfig,
+    tags: dict[str, str],
+    exp_key: str,
+    harness_fn,
+    *,
+    _optim_loop=_topopt_adam_loop,
+    **overrides,
+) -> dict:
+    """Shared body for ``run_topopt`` and its L-BFGS variant.
+
+    The optimiser is selected by passing a loop function via ``_optim_loop``.
+    Both candidate loops (:func:`_topopt_adam_loop`, :func:`_topopt_lbfgs_loop`)
+    return ``(rho_final, info)`` with the same ``info`` dict shape so the
+    downstream save/result code is optimiser-agnostic.
+    """
+    runs = cfg.inverse_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No 'topopt' inverse_defaults configured for '{cfg.name}'"
+            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
@@ -938,9 +1426,6 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         seed = ic_cfg.get("seed", 0)
         phys = run.get("physics", {})
         optim_cfg = run.get("optim", {})
-        lr = optim_cfg.get("lr", 1e-2)
-        max_iters = optim_cfg.get("max_iters", 200)
-        patience = optim_cfg.get("patience", 30)
         v_frac = phys.get("v_frac")
         compliance_key = phys.get("compliance_key", "compliance")
         penalty_weight = phys.get("penalty_weight", 100.0)
@@ -950,9 +1435,17 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
         if v_frac is None:
             raise NotImplementedError(
-                f"'topopt' requires physics.v_frac in inverse_defaults "
+                f"'{exp_key}' requires physics.v_frac in inverse_defaults "
                 f"(not configured for '{cfg.name}')"
             )
+
+        # Only forward optimiser knobs that the YAML actually sets; each loop
+        # function carries its own default so Adam's max_iters=200 vs BFGS's
+        # max_iters=100 (etc.) stay correct without the wrappers having to
+        # know which optimiser is in use.
+        loop_kwargs = {
+            k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
+        }
 
         rho_init = cfg.make_ic[ic_name](rho_0=v_frac, seed=seed, **phys)
 
@@ -964,49 +1457,33 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
         def _topopt_work(name: str, t) -> None:
             _t0 = time.perf_counter()
-            rho_opt = rho_init
-            optimizer = optax.adam(lr)
-            opt_state = optimizer.init(rho_opt)
-            compliances, vol_fracs = [], []
-            best_c, no_improve = jnp.inf, 0
-            rho_history: list = []
-            grad_norms: list[float] = []
 
-            def loss_fn(rho, _t=t):
+            def loss_components(rho, _t):
                 inp = cfg.make_inputs(name, rho, **phys)
                 compliance = apply_tesseract(_t, inp)[compliance_key]
                 vol_penalty = penalty_weight * (jnp.mean(rho) - v_frac) ** 2
                 return compliance + vol_penalty, compliance
 
-            for i in range(max_iters):
-                (_, compliance_val), g = jax.value_and_grad(loss_fn, has_aux=True)(
-                    rho_opt
-                )
-                grad_norms.append(float(jnp.linalg.norm(g.ravel())))
-                updates, opt_state = optimizer.update(g, opt_state)
-                rho_opt = jnp.clip(optax.apply_updates(rho_opt, updates), x_min, 1.0)
-                c = float(compliance_val)
-                compliances.append(c)
-                vol_fracs.append(float(jnp.mean(rho_opt)))
-                if snap_interval > 0 and (i + 1) % snap_interval == 0:
-                    rho_history.append(np.array(rho_opt))
-                if c < best_c:
-                    best_c, no_improve = c, 0
-                else:
-                    no_improve += 1
-                if no_improve >= patience:
-                    break
+            rho_opt, info = _optim_loop(
+                loss_components,
+                rho_init,
+                t=t,
+                name=name,
+                x_min=x_min,
+                snap_interval=snap_interval,
+                **loop_kwargs,
+            )
 
             rho_snaps[name] = np.array(rho_opt)
-            rho_histories[name] = rho_history
+            rho_histories[name] = info["history"]
             by_solver[name] = {
-                "compliances": compliances,
-                "vol_fracs": vol_fracs,
-                "final_compliance": compliances[-1],
-                "final_vol_frac": vol_fracs[-1],
-                "n_iters": len(compliances),
-                "converged": no_improve >= patience,
-                "grad_norms": grad_norms,
+                "compliances": info["compliances"],
+                "vol_fracs": info["vol_fracs"],
+                "final_compliance": info["final_compliance"],
+                "final_vol_frac": info["final_vol_frac"],
+                "n_iters": info["n_iters"],
+                "converged": info["converged"],
+                "grad_norms": info["grad_norms"],
             }
             _wall_times[name] = time.perf_counter() - _t0
 
@@ -1016,7 +1493,7 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
             results_dir(),
             cfg.name,
             _SUITE,
-            f"topopt/{ic_subdir}" if ic_subdir else "topopt",
+            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
             suffix="_debug" if overrides.get("debug") else "",
         )
         solver_names = list(rho_snaps.keys())
@@ -1037,10 +1514,569 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
         result = {"by_solver": by_solver, "params": run}
         save_experiment(
-            result, out_dir, cfg=cfg, harness_fn=run_topopt, wall_time_s=_wall_times
+            result,
+            out_dir,
+            cfg=cfg,
+            harness_fn=harness_fn,
+            wall_time_s=_wall_times,
         )
         if n_runs > 1:
             all_results[ic_name] = result
+        else:
+            all_results = result
+
+    return all_results
+
+
+def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+    """Topology optimisation: minimise compliance subject to a volume fraction constraint.
+
+    Runs Adam gradient descent with ρ clipped to [x_min, 1] and a soft volume
+    penalty. Designed for static FEA problems (structural-mesh) where IC recovery
+    is degenerate.
+
+    Returns:
+        {"by_solver": {solver: {"compliances", "vol_fracs", "final_compliance",
+                                "final_vol_frac", "n_iters", "converged"}},
+         "params": run}
+        or {ic_name: <above>} when multiple runs are configured.
+    """
+    return _run_topopt_impl(cfg, tags, "topopt", run_topopt, **overrides)
+
+
+def _drag_opt_out_dir(cfg: ProblemConfig, ic_subdir: str, debug: bool, exp_name: str):
+    """Compute the on-disk output directory for a drag_opt[_bfgs] run."""
+    suffix = "_debug" if debug else ""
+    if ic_subdir:
+        parent = experiment_dir(
+            results_dir(), cfg.name, _SUITE, exp_name, suffix=suffix
+        )
+        out_dir = parent / ic_subdir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return out_dir
+    return experiment_dir(results_dir(), cfg.name, _SUITE, exp_name, suffix=suffix)
+
+
+def _drag_capture_flow(
+    cfg: ProblemConfig,
+    name: str,
+    t,
+    profile,
+    phys: dict,
+) -> np.ndarray | None:
+    """Forward the (initial or final) profile and return the velocity field if any."""
+    try:
+        de = phys.get("domain_extent", cfg.domain_extent)
+        inp = cfg.make_inputs(
+            name,
+            profile,
+            domain_extent=de,
+            **{k: v for k, v in phys.items() if k != "domain_extent"},
+        )
+        out = apply_tesseract(t, inp)
+        vel = out.get("result")
+        if vel is not None:
+            return np.array(vel)
+    except Exception:
+        pass
+    return None
+
+
+def _drag_build_solver_entry(
+    drags: list,
+    flow_rates: list,
+    grad_norms: list,
+    n_iters_total: int,
+    converged: bool,
+    in_progress: bool = False,
+    error: str | None = None,
+) -> dict:
+    """Assemble a single solver's drag-opt result dict (used for partial + final)."""
+    entry = {
+        "drags": drags,
+        "flow_rates": flow_rates,
+        "initial_drag": drags[0] if drags else None,
+        "final_drag": drags[-1] if drags else None,
+        "drag_reduction_pct": (
+            100.0 * (abs(drags[0]) - abs(drags[-1])) / (abs(drags[0]) + 1e-30)
+            if len(drags) >= 2
+            else 0.0
+        ),
+        "n_iters": n_iters_total,
+        "converged": converged,
+        "grad_norms": grad_norms,
+    }
+    if in_progress:
+        entry["in_progress"] = True
+    if error is not None:
+        entry["error"] = error
+    return entry
+
+
+@dataclass
+class _DragAdamConfig:
+    """Hyper-parameters for ``_run_drag_adam_loop`` (groups loop knobs)."""
+
+    lr: float
+    max_iters: int
+    patience: int
+    flow_penalty_weight: float
+    snap_interval: int
+    U_mean: float
+
+
+def _run_drag_adam_loop(
+    cfg: ProblemConfig,
+    name: str,
+    t,
+    profile_init,
+    phys: dict,
+    adam_cfg: _DragAdamConfig,
+    by_solver: dict,
+    write_partial,
+) -> tuple:
+    """Run the Adam drag-optimisation loop for one solver.
+
+    Returns ``(profile, profile_history, drags, flow_rates, grad_norms,
+    non_finite_grad, no_improve_at_end)``.
+    """
+    profile = profile_init
+    optimizer = optax.adam(adam_cfg.lr)
+    opt_state = optimizer.init(profile)
+    drags: list[float] = []
+    flow_rates: list[float] = []
+    best_drag = jnp.inf
+    no_improve = 0
+    profile_history: list = []
+    grad_norms: list[float] = []
+    U_mean = adam_cfg.U_mean
+    flow_penalty_weight = adam_cfg.flow_penalty_weight
+    snap_interval = adam_cfg.snap_interval
+    max_iters = adam_cfg.max_iters
+    patience = adam_cfg.patience
+
+    def loss_fn(p, _t=t):
+        # domain_extent may already be inside phys (drag_opt sets it to 1.0);
+        # avoid passing it twice by letting phys take precedence.
+        _de = phys.get("domain_extent", cfg.domain_extent)
+        inp = cfg.make_inputs(
+            name,
+            p,
+            domain_extent=_de,
+            **{k: v for k, v in phys.items() if k != "domain_extent"},
+        )
+        out = apply_tesseract(_t, inp)
+        drag_val = out.get("drag")
+        if drag_val is None:
+            raise RuntimeError(
+                f"Solver '{name}' did not return 'drag' — "
+                "ensure the tesseract implements drag computation."
+            )
+        flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
+        return jnp.abs(jnp.squeeze(drag_val)) + flow_penalty, jnp.squeeze(drag_val)
+
+    non_finite_grad = False
+    for i in range(max_iters):
+        (_, drag_val), g = jax.value_and_grad(loss_fn, has_aux=True)(profile)
+        if not jnp.isfinite(g).all():
+            from mosaic.benchmarks.core.console import print_warn
+
+            print_warn(
+                f"{name} drag_opt iter {i}: non-finite gradient detected "
+                f"(max|g|={float(jnp.max(jnp.abs(g))):.3e}); "
+                "aborting optimisation loop"
+            )
+            non_finite_grad = True
+            break
+        grad_norms.append(float(jnp.linalg.norm(g.ravel())))
+        updates, opt_state = optimizer.update(g, opt_state)
+        profile = jnp.clip(optax.apply_updates(profile, updates), 0.0, 3.0 * U_mean)
+        d = float(drag_val)
+        drags.append(d)
+        flow_rates.append(float(jnp.mean(profile)))
+        if snap_interval > 0 and (i + 1) % snap_interval == 0:
+            profile_history.append(np.asarray(profile))
+        if abs(d) < best_drag:
+            best_drag, no_improve = abs(d), 0
+        else:
+            no_improve += 1
+        by_solver[name] = _drag_build_solver_entry(
+            drags,
+            flow_rates,
+            grad_norms,
+            len(drags),
+            converged=False,
+            in_progress=True,
+        )
+        if (i + 1) % 10 == 0:
+            write_partial()
+        if no_improve >= patience:
+            break
+    return (
+        profile,
+        profile_history,
+        drags,
+        flow_rates,
+        grad_norms,
+        non_finite_grad,
+        no_improve,
+    )
+
+
+def _drag_bfgs_final_drag(
+    cfg: ProblemConfig,
+    name: str,
+    t,
+    profile,
+    phys: dict,
+    losses: list,
+) -> tuple[float, np.ndarray | None]:
+    """Forward the final profile to get the drag scalar and velocity field.
+
+    Falls back to ``losses[-1]`` (or NaN) if the forward call fails.
+    Returns ``(final_drag, velocity_field_or_None)``.
+    """
+    try:
+        de = phys.get("domain_extent", cfg.domain_extent)
+        inp_f = cfg.make_inputs(
+            name,
+            profile,
+            domain_extent=de,
+            **{k: v for k, v in phys.items() if k != "domain_extent"},
+        )
+        out_f = apply_tesseract(t, inp_f)
+        final_drag = float(jnp.squeeze(out_f.get("drag", jnp.array(float("nan")))))
+        vel = out_f.get("result")
+        return final_drag, (np.array(vel) if vel is not None else None)
+    except Exception:
+        return (losses[-1] if losses else float("nan")), None
+
+
+def _merge_drag_profiles_npz(
+    out_dir,
+    profile_init,
+    profile_snaps: dict,
+    profile_histories: dict,
+) -> None:
+    """Save profiles.npz with merge so single-solver reruns don't wipe peers."""
+    payload: dict[str, np.ndarray] = {"initial": np.array(profile_init)}
+    for k, v in profile_snaps.items():
+        payload[f"final_{k}"] = v
+    for k, v in profile_histories.items():
+        payload[f"profile_history_{k}"] = v
+    save_npz_merged(
+        out_dir / "profiles.npz",
+        payload,
+        keep_old=lambda k: k.startswith(("final_", "profile_history_")),
+    )
+
+
+def _merge_drag_flow_fields_npz(
+    out_dir,
+    flow_init_snaps: dict,
+    flow_snaps: dict,
+) -> None:
+    """Save flow_fields.npz with merge logic (per-solver and canonical entries)."""
+    if not (flow_snaps or flow_init_snaps):
+        return
+    payload: dict[str, np.ndarray] = {}
+    for sn, v in flow_init_snaps.items():
+        payload[f"flow_initial_{sn}"] = v
+    for sn, v in flow_snaps.items():
+        payload[f"flow_final_{sn}"] = v
+    # Canonical ``flow_initial`` is set only on the first write — preserve
+    # whatever ``save_npz_merged`` finds on disk and seed from the new
+    # per-solver entries when no prior file exists.
+    ff_path = out_dir / "flow_fields.npz"
+    if not ff_path.exists() and flow_init_snaps:
+        payload["flow_initial"] = next(iter(flow_init_snaps.values()))
+    save_npz_merged(ff_path, payload)
+
+
+# ── drag_opt: shared body, Adam vs L-BFGS as an argument ─────────────────────
+
+
+def _drag_opt_adam_loop(
+    cfg: ProblemConfig,
+    name: str,
+    t,
+    profile_init,
+    phys: dict,
+    *,
+    lr: float = 1e-3,
+    max_iters: int = 150,
+    patience: int = 30,
+    flow_penalty_weight: float = 50.0,
+    snap_interval: int = 0,
+    U_mean: float = 0.5,
+    by_solver: dict,
+    write_partial,
+) -> tuple[jax.Array, list, dict]:
+    """Adam loop for drag_opt; supports per-iter partial-checkpoint flushes.
+
+    Returns ``(profile_final, profile_history, by_solver_entry)``.
+    """
+    (
+        profile,
+        profile_history,
+        drags,
+        flow_rates,
+        grad_norms,
+        non_finite_grad,
+        no_improve,
+    ) = _run_drag_adam_loop(
+        cfg,
+        name,
+        t,
+        profile_init,
+        phys,
+        _DragAdamConfig(
+            lr=lr,
+            max_iters=max_iters,
+            patience=patience,
+            flow_penalty_weight=flow_penalty_weight,
+            snap_interval=snap_interval,
+            U_mean=U_mean,
+        ),
+        by_solver,
+        write_partial,
+    )
+    entry = _drag_build_solver_entry(
+        drags,
+        flow_rates,
+        grad_norms,
+        len(drags),
+        converged=(not non_finite_grad) and (no_improve >= patience),
+        error="non-finite gradients" if non_finite_grad else None,
+    )
+    return profile, profile_history, entry
+
+
+def _drag_opt_lbfgs_loop(
+    cfg: ProblemConfig,
+    name: str,
+    t,
+    profile_init,
+    phys: dict,
+    *,
+    max_iters: int = 50,
+    flow_penalty_weight: float = 50.0,
+    snap_interval: int = 0,
+    U_mean: float = 0.5,
+    **_unused,  # absorb Adam-only kwargs (by_solver, write_partial, lr, patience)
+) -> tuple[jax.Array, list, dict]:
+    """L-BFGS loop for drag_opt; no partial checkpointing.
+
+    Returns ``(profile_final, profile_history, by_solver_entry)``. Computes
+    ``final_drag`` via one extra forward pass after convergence so the entry
+    reflects the post-clip drag rather than the last loss (which includes the
+    flow penalty).
+    """
+    del _unused  # signature-parity slot, intentionally discarded
+    profile_history: list = []
+
+    def loss_fn(p, _t=t):
+        _de = phys.get("domain_extent", cfg.domain_extent)
+        inp = cfg.make_inputs(
+            name,
+            p,
+            domain_extent=_de,
+            **{k: v for k, v in phys.items() if k != "domain_extent"},
+        )
+        out = apply_tesseract(_t, inp)
+        drag_val = out.get("drag")
+        if drag_val is None:
+            raise RuntimeError(f"Solver '{name}' did not return 'drag'")
+        flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
+        return jnp.abs(jnp.squeeze(drag_val)) + flow_penalty
+
+    def _log_iter(i, loss_val, _n=name):
+        from mosaic.benchmarks.core.console import console
+
+        console.print(
+            f"  [green]{_n}[/] drag_opt_bfgs iter {i}/{max_iters} loss={loss_val:.4g}"
+        )
+
+    profile, losses, lbfgs_diag = _run_lbfgs(
+        loss_fn,
+        profile_init,
+        max_iters=max_iters,
+        snap_interval=snap_interval,
+        history=profile_history if snap_interval > 0 else None,
+        log_fn=_log_iter,
+        log_interval=10,
+        clip_fn=lambda p: jnp.clip(p, 0.0, 3.0 * U_mean),
+    )
+
+    final_drag, _ = _drag_bfgs_final_drag(cfg, name, t, profile, phys, losses)
+    initial_drag = losses[0] if losses else None
+    entry = {
+        "drags": losses,
+        "flow_rates": [],
+        "initial_drag": initial_drag,
+        "final_drag": final_drag,
+        "drag_reduction_pct": (
+            100.0 * (abs(losses[0]) - abs(final_drag)) / (abs(losses[0]) + 1e-30)
+            if losses
+            else 0.0
+        ),
+        "n_iters": len(losses),
+        "converged": len(losses) < max_iters,
+        "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
+    }
+    return profile, profile_history, entry
+
+
+def _run_drag_opt_impl(
+    cfg: ProblemConfig,
+    tags: dict[str, str],
+    exp_key: str,
+    harness_fn,
+    *,
+    _optim_loop=_drag_opt_adam_loop,
+    _supports_partial: bool = True,
+    **overrides,
+) -> dict:
+    """Shared body for ``run_drag_opt`` and its L-BFGS variant.
+
+    ``_optim_loop`` selects the optimiser via the same contract used by
+    :func:`_run_topopt_impl`: it returns ``(profile, profile_history, entry)``
+    where ``entry`` is the fully-formed ``by_solver[name]`` dict.
+
+    ``_supports_partial`` toggles the result_partial.json checkpointing the
+    Adam variant relies on for long PICT runs. The L-BFGS variant doesn't use
+    it, so the impl skips constructing the partial-write callback and lock.
+    """
+    runs = cfg.inverse_defaults.get(exp_key, [])
+    if not runs:
+        raise NotImplementedError(
+            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
+        )
+    n_runs = len(extract_runs(runs))
+    all_results: dict = {}
+
+    for run in iter_runs(runs, overrides):
+        ic_cfg = run.get("ic", {})
+        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        seed = ic_cfg.get("seed", 0)
+        phys = run.get("physics", {})
+        optim_cfg = run.get("optim", {})
+        flow_penalty_weight = optim_cfg.get("flow_penalty_weight", 50.0)
+        snap_interval = int(optim_cfg.get("snap_interval", 0))
+        U_mean = float(phys.get("U_mean", 0.5))
+        run_name = run.get("name", ic_name)
+        ic_subdir = run_name if n_runs > 1 else ""
+        gpu_ids = overrides.get("gpu_ids")
+
+        # Forward only knobs that the YAML sets; each loop carries its own
+        # default so Adam's max_iters=150 vs BFGS's max_iters=50 stay correct.
+        loop_kwargs = {
+            k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
+        }
+
+        profile_init = jnp.array(
+            cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
+        )
+
+        by_solver: dict = {}
+        profile_snaps: dict = {}
+        profile_histories: dict = {}
+        # Velocity fields per solver, shape (N, N, 1, 2).
+        flow_init_snaps: dict = {}
+        flow_snaps: dict = {}
+        _wall_times: dict[str, float] = {}
+
+        # Partial-checkpoint plumbing (Adam path only). Adam mutates ``by_solver``
+        # in-place inside its loop and calls ``write_partial`` periodically; the
+        # L-BFGS loop ignores both arguments via its signature.
+        write_partial = None
+        if _supports_partial:
+            partial_out_dir = _drag_opt_out_dir(
+                cfg, ic_subdir, bool(overrides.get("debug")), exp_key
+            )
+            _partial_lock = threading.Lock()
+
+            def write_partial() -> None:
+                if not by_solver:
+                    return
+                payload = {
+                    "by_solver": by_solver,
+                    "run_name": run_name,
+                    "U_mean": U_mean,
+                    "params": run,
+                }
+                with _partial_lock:
+                    save_json(payload, partial_out_dir / "result_partial.json")
+
+        def _drag_opt_work(name: str, t) -> None:
+            _t0 = time.perf_counter()
+            vel0 = _drag_capture_flow(cfg, name, t, profile_init, phys)
+            if vel0 is not None:
+                flow_init_snaps[name] = vel0
+
+            profile, profile_history, entry = _optim_loop(
+                cfg,
+                name,
+                t,
+                profile_init,
+                phys,
+                flow_penalty_weight=flow_penalty_weight,
+                snap_interval=snap_interval,
+                U_mean=U_mean,
+                by_solver=by_solver,
+                write_partial=write_partial,
+                **loop_kwargs,
+            )
+
+            profile_snaps[name] = np.array(profile)
+            if profile_history:
+                profile_histories[name] = np.asarray(profile_history)
+            by_solver[name] = entry
+            if write_partial is not None:
+                write_partial()
+            vel = _drag_capture_flow(cfg, name, t, profile, phys)
+            if vel is not None:
+                flow_snaps[name] = vel
+            _wall_times[name] = time.perf_counter() - _t0
+
+        _drag_exp = f"{exp_key}/{run_name}" if run_name else exp_key
+        drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
+        run_with_gpu_pool(drag_opt_solvers, tags, _drag_opt_work, gpu_ids=gpu_ids)
+
+        out_dir = _drag_opt_out_dir(
+            cfg, ic_subdir, bool(overrides.get("debug")), exp_key
+        )
+        result = {
+            "by_solver": by_solver,
+            "run_name": run_name,
+            "U_mean": U_mean,
+            "params": run,
+        }
+        if not by_solver:
+            from mosaic.benchmarks.core.console import print_warn
+
+            print_warn(
+                f"{harness_fn.__name__}: by_solver is empty (all solvers excluded or "
+                f"skipped) — skipping result.json save to preserve existing data"
+            )
+            if n_runs > 1:
+                all_results[run_name] = result
+            else:
+                all_results = result
+            continue
+        save_experiment(
+            result,
+            out_dir,
+            cfg=cfg,
+            harness_fn=harness_fn,
+            wall_time_s=_wall_times,
+        )
+        _merge_drag_profiles_npz(
+            out_dir, profile_init, profile_snaps, profile_histories
+        )
+        _merge_drag_flow_fields_npz(out_dir, flow_init_snaps, flow_snaps)
+        if n_runs > 1:
+            all_results[run_name] = result
         else:
             all_results = result
 
@@ -1061,698 +2097,188 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         physics: {N, nu, dt, steps, domain_extent, U_mean, obstacle, ...}
         optim: {lr, max_iters, patience, flow_penalty_weight}
     """
-    runs = cfg.inverse_defaults.get("drag_opt", [])
-    if not runs:
-        raise NotImplementedError(
-            f"No 'drag_opt' inverse_defaults configured for '{cfg.name}'"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        phys = run.get("physics", {})
-        optim_cfg = run.get("optim", {})
-        lr = optim_cfg.get("lr", 1e-3)
-        max_iters = optim_cfg.get("max_iters", 150)
-        patience = optim_cfg.get("patience", 30)
-        flow_penalty_weight = optim_cfg.get("flow_penalty_weight", 50.0)
-        # Snap every ``snap_interval`` iterations so the plotter can animate
-        # the inflow-profile evolution; 0 disables capture.
-        snap_interval = int(optim_cfg.get("snap_interval", 0))
-        U_mean = float(phys.get("U_mean", 0.5))
-        run_name = run.get("name", ic_name)
-        ic_subdir = run_name if n_runs > 1 else ""
-        gpu_ids = overrides.get("gpu_ids")
-
-        profile_init = jnp.array(
-            cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
-        )
-
-        by_solver: dict = {}
-        profile_snaps: dict = {}
-        profile_histories: dict = {}
-        # Velocity fields per solver, shape (N, N, 1, 2).
-        # flow_init_snaps: initial (unoptimised) flow per solver.
-        # flow_snaps:      final (optimised) flow per solver.
-        flow_init_snaps: dict = {}
-        flow_snaps: dict = {}
-        _wall_times: dict[str, float] = {}
-
-        # Compute the output directory up front so the optimisation loop can
-        # checkpoint partial results into ``result_partial.json``. Without this,
-        # a killed / interrupted long run loses every iteration recorded so far.
-        _dbg_partial = "_debug" if overrides.get("debug") else ""
-        if ic_subdir:
-            _partial_parent = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg_partial
-            )
-            partial_out_dir = _partial_parent / ic_subdir
-            partial_out_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            partial_out_dir = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg_partial
-            )
-        _partial_lock = threading.Lock()
-
-        def _write_partial() -> None:
-            """Snapshot the current by_solver dict to result_partial.json.
-
-            Mirrors the recovery_constant_ic harness so an interrupted drag_opt
-            (long PICT runs in particular) preserves per-iteration progress.
-            """
-            if not by_solver:
-                return
-            payload = {
-                "by_solver": by_solver,
-                "run_name": run_name,
-                "U_mean": U_mean,
-                "params": run,
-            }
-            with _partial_lock:
-                save_json(payload, partial_out_dir / "result_partial.json")
-
-        def _drag_opt_work(name: str, t) -> None:
-            _t0 = time.perf_counter()
-            profile = profile_init
-            optimizer = optax.adam(lr)
-            opt_state = optimizer.init(profile)
-            drags, flow_rates = [], []
-            best_drag, no_improve = jnp.inf, 0
-            profile_history: list = []
-            grad_norms: list[float] = []
-
-            # Capture the *initial* (unoptimised) velocity field before training.
-            try:
-                _de0 = phys.get("domain_extent", cfg.domain_extent)
-                _inp0 = cfg.make_inputs(
-                    name,
-                    profile_init,
-                    domain_extent=_de0,
-                    **{k: v for k, v in phys.items() if k != "domain_extent"},
-                )
-                _out0 = apply_tesseract(t, _inp0)
-                _vel0 = _out0.get("result")
-                if _vel0 is not None:
-                    flow_init_snaps[name] = np.array(_vel0)
-            except Exception:
-                pass
-
-            def loss_fn(p, _t=t):
-                # domain_extent may already be inside phys (drag_opt sets it to 1.0);
-                # avoid passing it twice by letting phys take precedence.
-                _de = phys.get("domain_extent", cfg.domain_extent)
-                inp = cfg.make_inputs(
-                    name,
-                    p,
-                    domain_extent=_de,
-                    **{k: v for k, v in phys.items() if k != "domain_extent"},
-                )
-                out = apply_tesseract(_t, inp)
-                drag_val = out.get("drag")
-                if drag_val is None:
-                    raise RuntimeError(
-                        f"Solver '{name}' did not return 'drag' — "
-                        "ensure the tesseract implements drag computation."
-                    )
-                flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
-                # Use abs(drag) so the loss works regardless of sign convention:
-                # solvers that return positive drag (pict, su2) and negative drag
-                # (xlb, phiflow) are both minimised correctly.
-                return jnp.abs(jnp.squeeze(drag_val)) + flow_penalty, jnp.squeeze(
-                    drag_val
-                )
-
-            non_finite_grad = False
-            for i in range(max_iters):
-                (_, drag_val), g = jax.value_and_grad(loss_fn, has_aux=True)(profile)
-                # NaN/Inf gradient detection (Option B): if the VJP returns
-                # non-finite gradients on the first step, the adjoint is broken
-                # for this solver/experiment combination.  Break immediately so
-                # the patience counter cannot tick up 30 times and record
-                # converged=True with an all-NaN drag trajectory.
-                if not jnp.isfinite(g).all():
-                    from mosaic.benchmarks.core.console import print_warn
-
-                    print_warn(
-                        f"{name} drag_opt iter {i}: non-finite gradient detected "
-                        f"(max|g|={float(jnp.max(jnp.abs(g))):.3e}); "
-                        "aborting optimisation loop"
-                    )
-                    non_finite_grad = True
-                    break
-                grad_norms.append(float(jnp.linalg.norm(g.ravel())))
-                updates, opt_state = optimizer.update(g, opt_state)
-                profile = jnp.clip(
-                    optax.apply_updates(profile, updates), 0.0, 3.0 * U_mean
-                )
-                d = float(drag_val)
-                drags.append(d)
-                flow_rates.append(float(jnp.mean(profile)))
-                if snap_interval > 0 and (i + 1) % snap_interval == 0:
-                    profile_history.append(np.asarray(profile))
-                if abs(d) < best_drag:
-                    best_drag, no_improve = abs(d), 0
-                else:
-                    no_improve += 1
-                # Snapshot progress into by_solver so a partial-write captures
-                # whatever's been done, even if the process is killed mid-loop.
-                by_solver[name] = {
-                    "drags": drags,
-                    "flow_rates": flow_rates,
-                    "initial_drag": drags[0] if drags else None,
-                    "final_drag": drags[-1] if drags else None,
-                    "drag_reduction_pct": (
-                        100.0
-                        * (abs(drags[0]) - abs(drags[-1]))
-                        / (abs(drags[0]) + 1e-30)
-                        if len(drags) >= 2
-                        else 0.0
-                    ),
-                    "n_iters": len(drags),
-                    "converged": False,  # finalised after the loop exits
-                    "grad_norms": grad_norms,
-                    "in_progress": True,
-                }
-                # Flush every 10 iterations to bound IO without losing more than
-                # ~10 iters of work on an interrupt.
-                if (i + 1) % 10 == 0:
-                    _write_partial()
-                if no_improve >= patience:
-                    break
-
-            profile_snaps[name] = np.array(profile)
-            if profile_history:
-                profile_histories[name] = np.asarray(profile_history)
-            by_solver[name] = {
-                "drags": drags,
-                "flow_rates": flow_rates,
-                "initial_drag": drags[0] if drags else None,
-                "final_drag": drags[-1] if drags else None,
-                "drag_reduction_pct": (
-                    100.0 * (abs(drags[0]) - abs(drags[-1])) / (abs(drags[0]) + 1e-30)
-                    if len(drags) >= 2
-                    else 0.0
-                ),
-                "n_iters": len(drags),
-                "converged": (not non_finite_grad) and (no_improve >= patience),
-                "grad_norms": grad_norms,
-                **({"error": "non-finite gradients"} if non_finite_grad else {}),
-            }
-            # Final partial flush so a kill between this point and result.json
-            # save still preserves the converged-state record.
-            _write_partial()
-            # Capture the final velocity field (no gradient needed — plain call).
-            try:
-                _de = phys.get("domain_extent", cfg.domain_extent)
-                _inp_final = cfg.make_inputs(
-                    name,
-                    profile,
-                    domain_extent=_de,
-                    **{k: v for k, v in phys.items() if k != "domain_extent"},
-                )
-                _out_final = apply_tesseract(t, _inp_final)
-                _vel = _out_final.get("result")
-                if _vel is not None:
-                    flow_snaps[name] = np.array(_vel)
-            except Exception:
-                pass  # velocity snapshot is optional; do not abort the run
-            _wall_times[name] = time.perf_counter() - _t0
-
-        # drag_opt requires both inflow_profile support and obstacle drag output.
-        # exclusion_lookup checks most-specific first:
-        #   "recovery/drag_opt/<run_name>" > "drag_opt/<run_name>" >
-        #   "optimization/drag_opt" > "drag_opt" > "optimization"
-        # Pass the run-specific sub-key so per-run exclusions (e.g.
-        # "recovery/drag_opt/re20") are honoured at solver-selection time.
-        _drag_exp = f"drag_opt/{run_name}" if run_name else "drag_opt"
-        drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
-        run_with_gpu_pool(
-            drag_opt_solvers,
-            tags,
-            _drag_opt_work,
-            gpu_ids=gpu_ids,
-        )
-
-        _dbg = "_debug" if overrides.get("debug") else ""
-        if ic_subdir:
-            # Multi-run layout: drag_opt[_debug]/<ic_subdir>/
-            _parent = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg
-            )
-            out_dir = _parent / ic_subdir
-            out_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            out_dir = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt", suffix=_dbg
-            )
-        result = {
-            "by_solver": by_solver,
-            "run_name": run_name,
-            "U_mean": U_mean,
-            "params": run,
-        }
-        if not by_solver:
-            from mosaic.benchmarks.core.console import print_warn
-
-            print_warn(
-                "run_drag_opt: by_solver is empty (all solvers excluded or skipped) — "
-                "skipping result.json save to preserve existing data"
-            )
-            if n_runs > 1:
-                all_results[run_name] = result
-            else:
-                all_results = result
-            continue
-        save_experiment(
-            result, out_dir, cfg=cfg, harness_fn=run_drag_opt, wall_time_s=_wall_times
-        )
-        # Merge profiles.npz with any prior per-solver entries so a
-        # single-solver rerun does not wipe peer solvers' profiles / histories.
-        profiles_payload: dict[str, np.ndarray] = {
-            "initial": np.array(profile_init),
-        }
-        profiles_path = out_dir / "profiles.npz"
-        if profiles_path.exists():
-            try:
-                prior = np.load(profiles_path)
-                for key in prior.files:
-                    if key.startswith("final_") or key.startswith("profile_history_"):
-                        profiles_payload[key] = prior[key]
-            except Exception:
-                pass
-        for k, v in profile_snaps.items():
-            profiles_payload[f"final_{k}"] = v
-        for k, v in profile_histories.items():
-            profiles_payload[f"profile_history_{k}"] = v
-        np.savez(profiles_path, **profiles_payload)
-        if flow_snaps or flow_init_snaps:
-            _npz_fields: dict = {}
-            # Merge with any prior entries so a single-solver rerun does not
-            # wipe peer solvers' fields — mirrors profiles.npz merge logic.
-            _ff_path = out_dir / "flow_fields.npz"
-            if _ff_path.exists():
-                try:
-                    _prior_ff = np.load(_ff_path)
-                    for _k in _prior_ff.files:
-                        _npz_fields[_k] = _prior_ff[_k]
-                except Exception:
-                    pass
-            # Save per-solver initial flow (keys flow_initial_{name})
-            for _sn, _v in flow_init_snaps.items():
-                _npz_fields[f"flow_initial_{_sn}"] = _v
-            # Save one canonical initial-flow array using the first available solver
-            if flow_init_snaps and "flow_initial" not in _npz_fields:
-                _npz_fields["flow_initial"] = next(iter(flow_init_snaps.values()))
-            # Save per-solver final flow (keys flow_final_{name})
-            for _sn, _v in flow_snaps.items():
-                _npz_fields[f"flow_final_{_sn}"] = _v
-            np.savez(_ff_path, **_npz_fields)
-        if n_runs > 1:
-            all_results[run_name] = result
-        else:
-            all_results = result
-
-    return all_results
+    return _run_drag_opt_impl(cfg, tags, "drag_opt", run_drag_opt, **overrides)
 
 
 def run_topopt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     """L-BFGS variant of run_topopt. Reads inverse_defaults["topopt_bfgs"]."""
-    runs = cfg.inverse_defaults.get("topopt_bfgs", [])
-    if not runs:
-        raise NotImplementedError(
-            f"No 'topopt_bfgs' inverse_defaults configured for '{cfg.name}'"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        phys = run.get("physics", {})
-        optim_cfg = run.get("optim", {})
-        max_iters = optim_cfg.get("max_iters", 100)
-        v_frac = phys.get("v_frac")
-        compliance_key = phys.get("compliance_key", "compliance")
-        penalty_weight = phys.get("penalty_weight", 100.0)
-        x_min = phys.get("x_min", 1e-3)
-        snap_interval = int(phys.get("snap_interval", 0))
-        ic_subdir = ic_name if n_runs > 1 else ""
-
-        if v_frac is None:
-            raise NotImplementedError(
-                f"'topopt_bfgs' requires physics.v_frac in inverse_defaults "
-                f"(not configured for '{cfg.name}')"
-            )
-
-        rho_init = cfg.make_ic[ic_name](rho_0=v_frac, seed=seed, **phys)
-
-        by_solver: dict = {}
-        rho_snaps: dict = {}
-        rho_histories: dict = {}
-        _wall_times: dict[str, float] = {}
-        gpu_ids = overrides.get("gpu_ids")
-
-        def _topopt_bfgs_work(name: str, t) -> None:
-            _t0 = time.perf_counter()
-            rho_opt = rho_init
-            rho_history: list = []
-
-            def loss_fn_scalar(rho, _t=t):
-                inp = cfg.make_inputs(name, rho, **phys)
-                compliance = apply_tesseract(_t, inp)[compliance_key]
-                vol_penalty = penalty_weight * (jnp.mean(rho) - v_frac) ** 2
-                return compliance + vol_penalty
-
-            def _log_iter(i, loss_val, _n=name):
-                from mosaic.benchmarks.core.console import console
-
-                console.print(
-                    f"  [green]{_n}[/] topopt_bfgs iter {i}/{max_iters} loss={loss_val:.4g}"
-                )
-
-            rho_opt, losses, lbfgs_diag = _run_lbfgs(
-                loss_fn_scalar,
-                rho_opt,
-                max_iters=max_iters,
-                snap_interval=snap_interval,
-                history=rho_history if snap_interval > 0 else None,
-                log_fn=_log_iter,
-                log_interval=10,
-                clip_fn=lambda rho: jnp.clip(rho, x_min, 1.0),
-            )
-
-            try:
-                inp_final = cfg.make_inputs(name, rho_opt, **phys)
-                out_final = apply_tesseract(t, inp_final)
-                final_compliance = float(out_final[compliance_key])
-                final_vol_frac = float(jnp.mean(rho_opt))
-            except Exception:
-                final_compliance = losses[-1] if losses else float("nan")
-                final_vol_frac = float(jnp.mean(rho_opt))
-
-            rho_snaps[name] = np.array(rho_opt)
-            rho_histories[name] = rho_history
-            by_solver[name] = {
-                "compliances": losses,
-                "vol_fracs": [],
-                "final_compliance": final_compliance,
-                "final_vol_frac": final_vol_frac,
-                "n_iters": len(losses),
-                "converged": len(losses) < max_iters,
-                "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
-            }
-            _wall_times[name] = time.perf_counter() - _t0
-
-        run_with_gpu_pool(
-            _topopt_solvers(cfg), tags, _topopt_bfgs_work, gpu_ids=gpu_ids
-        )
-
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"topopt_bfgs/{ic_subdir}" if ic_subdir else "topopt_bfgs",
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        solver_names = list(rho_snaps.keys())
-        per_solver: dict[str, dict[str, np.ndarray]] = {}
-        for sname in solver_names:
-            entry: dict[str, np.ndarray] = {"rho_final:": np.asarray(rho_snaps[sname])}
-            if rho_histories[sname]:
-                entry["rho_history:"] = np.asarray(rho_histories[sname])
-            per_solver[sname] = entry
-        save_field_snapshots_npz(
-            out_dir,
-            solver_names,
-            per_solver,
-            shared_arrays={"rho_init": np.array(rho_init)},
-            filename="topopt_fields.npz",
-            prefixes=("rho_final", "rho_history"),
-        )
-
-        result = {"by_solver": by_solver, "params": run}
-        save_experiment(
-            result,
-            out_dir,
-            cfg=cfg,
-            harness_fn=run_topopt_bfgs,
-            wall_time_s=_wall_times,
-        )
-        if n_runs > 1:
-            all_results[ic_name] = result
-        else:
-            all_results = result
-
-    return all_results
+    return _run_topopt_impl(
+        cfg,
+        tags,
+        "topopt_bfgs",
+        run_topopt_bfgs,
+        _optim_loop=_topopt_lbfgs_loop,
+        **overrides,
+    )
 
 
 def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     """L-BFGS variant of run_drag_opt. Reads inverse_defaults["drag_opt_bfgs"]."""
-    runs = cfg.inverse_defaults.get("drag_opt_bfgs", [])
-    if not runs:
-        raise NotImplementedError(
-            f"No 'drag_opt_bfgs' inverse_defaults configured for '{cfg.name}'"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        phys = run.get("physics", {})
-        optim_cfg = run.get("optim", {})
-        max_iters = optim_cfg.get("max_iters", 50)
-        flow_penalty_weight = optim_cfg.get("flow_penalty_weight", 50.0)
-        snap_interval = int(optim_cfg.get("snap_interval", 0))
-        U_mean = float(phys.get("U_mean", 0.5))
-        run_name = run.get("name", ic_name)
-        ic_subdir = run_name if n_runs > 1 else ""
-        gpu_ids = overrides.get("gpu_ids")
-
-        profile_init = jnp.array(
-            cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
-        )
-
-        by_solver: dict = {}
-        profile_snaps: dict = {}
-        profile_histories: dict = {}
-        flow_init_snaps: dict = {}
-        flow_snaps: dict = {}
-        _wall_times: dict[str, float] = {}
-
-        def _drag_opt_bfgs_work(name: str, t) -> None:
-            _t0 = time.perf_counter()
-            profile = profile_init
-            profile_history: list = []
-
-            try:
-                _de0 = phys.get("domain_extent", cfg.domain_extent)
-                _inp0 = cfg.make_inputs(
-                    name,
-                    profile_init,
-                    domain_extent=_de0,
-                    **{k: v for k, v in phys.items() if k != "domain_extent"},
-                )
-                _out0 = apply_tesseract(t, _inp0)
-                _vel0 = _out0.get("result")
-                if _vel0 is not None:
-                    flow_init_snaps[name] = np.array(_vel0)
-            except Exception:
-                pass
-
-            def loss_fn(p, _t=t):
-                _de = phys.get("domain_extent", cfg.domain_extent)
-                inp = cfg.make_inputs(
-                    name,
-                    p,
-                    domain_extent=_de,
-                    **{k: v for k, v in phys.items() if k != "domain_extent"},
-                )
-                out = apply_tesseract(_t, inp)
-                drag_val = out.get("drag")
-                if drag_val is None:
-                    raise RuntimeError(f"Solver '{name}' did not return 'drag'")
-                flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
-                return jnp.abs(jnp.squeeze(drag_val)) + flow_penalty
-
-            def _log_iter(i, loss_val, _n=name):
-                from mosaic.benchmarks.core.console import console
-
-                console.print(
-                    f"  [green]{_n}[/] drag_opt_bfgs iter {i}/{max_iters} loss={loss_val:.4g}"
-                )
-
-            profile, losses, lbfgs_diag = _run_lbfgs(
-                loss_fn,
-                profile,
-                max_iters=max_iters,
-                snap_interval=snap_interval,
-                history=profile_history if snap_interval > 0 else None,
-                log_fn=_log_iter,
-                log_interval=10,
-                clip_fn=lambda p: jnp.clip(p, 0.0, 3.0 * U_mean),
-            )
-
-            try:
-                _de = phys.get("domain_extent", cfg.domain_extent)
-                _inp_f = cfg.make_inputs(
-                    name,
-                    profile,
-                    domain_extent=_de,
-                    **{k: v for k, v in phys.items() if k != "domain_extent"},
-                )
-                _out_f = apply_tesseract(t, _inp_f)
-                final_drag = float(
-                    jnp.squeeze(_out_f.get("drag", jnp.array(float("nan"))))
-                )
-                _vel = _out_f.get("result")
-                if _vel is not None:
-                    flow_snaps[name] = np.array(_vel)
-            except Exception:
-                final_drag = losses[-1] if losses else float("nan")
-
-            initial_drag = losses[0] if losses else None
-
-            profile_snaps[name] = np.array(profile)
-            if profile_history:
-                profile_histories[name] = np.asarray(profile_history)
-            by_solver[name] = {
-                "drags": losses,
-                "flow_rates": [],
-                "initial_drag": initial_drag,
-                "final_drag": final_drag,
-                "drag_reduction_pct": (
-                    100.0
-                    * (abs(losses[0]) - abs(final_drag))
-                    / (abs(losses[0]) + 1e-30)
-                    if losses
-                    else 0.0
-                ),
-                "n_iters": len(losses),
-                "converged": len(losses) < max_iters,
-                "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
-            }
-            _wall_times[name] = time.perf_counter() - _t0
-
-        _drag_exp = f"drag_opt_bfgs/{run_name}" if run_name else "drag_opt_bfgs"
-        drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
-        run_with_gpu_pool(drag_opt_solvers, tags, _drag_opt_bfgs_work, gpu_ids=gpu_ids)
-
-        _dbg = "_debug" if overrides.get("debug") else ""
-        if ic_subdir:
-            _parent = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
-            )
-            out_dir = _parent / ic_subdir
-            out_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            out_dir = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
-            )
-        result = {
-            "by_solver": by_solver,
-            "run_name": run_name,
-            "U_mean": U_mean,
-            "params": run,
-        }
-        if not by_solver:
-            from mosaic.benchmarks.core.console import print_warn
-
-            print_warn(
-                "run_drag_opt_bfgs: by_solver is empty (all solvers excluded or skipped) — "
-                "skipping result.json save to preserve existing data"
-            )
-            if n_runs > 1:
-                all_results[run_name] = result
-            else:
-                all_results = result
-            continue
-        save_experiment(
-            result,
-            out_dir,
-            cfg=cfg,
-            harness_fn=run_drag_opt_bfgs,
-            wall_time_s=_wall_times,
-        )
-        profiles_payload: dict[str, np.ndarray] = {
-            "initial": np.array(profile_init),
-        }
-        profiles_path = out_dir / "profiles.npz"
-        if profiles_path.exists():
-            try:
-                prior = np.load(profiles_path)
-                for key in prior.files:
-                    if key.startswith("final_") or key.startswith("profile_history_"):
-                        profiles_payload[key] = prior[key]
-            except Exception:
-                pass
-        for k, v in profile_snaps.items():
-            profiles_payload[f"final_{k}"] = v
-        for k, v in profile_histories.items():
-            profiles_payload[f"profile_history_{k}"] = v
-        np.savez(profiles_path, **profiles_payload)
-        if flow_snaps or flow_init_snaps:
-            _npz_fields: dict = {}
-            _ff_path = out_dir / "flow_fields.npz"
-            if _ff_path.exists():
-                try:
-                    _prior_ff = np.load(_ff_path)
-                    for _k in _prior_ff.files:
-                        _npz_fields[_k] = _prior_ff[_k]
-                except Exception:
-                    pass
-            for _sn, _v in flow_init_snaps.items():
-                _npz_fields[f"flow_initial_{_sn}"] = _v
-            if flow_init_snaps and "flow_initial" not in _npz_fields:
-                _npz_fields["flow_initial"] = next(iter(flow_init_snaps.values()))
-            for _sn, _v in flow_snaps.items():
-                _npz_fields[f"flow_final_{_sn}"] = _v
-            np.savez(_ff_path, **_npz_fields)
-        if n_runs > 1:
-            all_results[run_name] = result
-        else:
-            all_results = result
-
-    return all_results
+    return _run_drag_opt_impl(
+        cfg,
+        tags,
+        "drag_opt_bfgs",
+        run_drag_opt_bfgs,
+        _optim_loop=_drag_opt_lbfgs_loop,
+        _supports_partial=False,
+        **overrides,
+    )
 
 
 # ── Conductivity recovery (thermal-mesh) ─────────────────────────────────────
 
 
-def run_conductivity_recovery(
+def _run_conductivity_adam_loop(
+    loss_components,
+    rho_opt,
+    *,
+    lr: float = 1e-2,
+    max_iters: int = 500,
+    patience: int = 50,
+    snap_interval: int = 0,
+    x_min: float = 1e-3,
+    rho_history: list,
+    name: str,
+) -> tuple[jax.Array, list[float], dict]:
+    """Adam optimisation loop for conductivity recovery.
+
+    ``loss_components(rho)`` must return ``(loss, err)`` with ``has_aux=True``
+    semantics so ``err`` (raw identification error) is tracked separately from
+    the (loss + penalty) the optimiser sees.
+
+    Returns ``(rho_opt, errors, info)`` where ``info`` has keys
+    ``grad_norms`` and ``converged``. ``rho_history`` is appended in place.
+    """
+    optimizer = optax.adam(lr)
+    opt_state = optimizer.init(rho_opt)
+    best_err = jnp.inf
+    no_improve = 0
+    errors: list[float] = []
+    grad_norms_adam: list[float] = []
+
+    for i in range(max_iters):
+        try:
+            (_, err_val), g = jax.value_and_grad(loss_components, has_aux=True)(rho_opt)
+            grad_norms_adam.append(float(jnp.linalg.norm(g.ravel())))
+            updates, opt_state = optimizer.update(g, opt_state)
+            # Project rho back into [x_min, 1] after each step.
+            rho_opt = jnp.clip(optax.apply_updates(rho_opt, updates), x_min, 1.0)
+            e = float(err_val)
+            errors.append(e)
+            if snap_interval > 0 and (i + 1) % snap_interval == 0:
+                rho_history.append(np.array(rho_opt))
+            if e < best_err:
+                best_err, no_improve = e, 0
+            else:
+                no_improve += 1
+            if no_improve >= patience:
+                break
+        except Exception as exc:
+            from mosaic.benchmarks.core.console import print_warn
+
+            print_warn(f"{name} conductivity_recovery iter {i} failed: {exc}")
+            break
+    return (
+        rho_opt,
+        errors,
+        {
+            "grad_norms": grad_norms_adam,
+            "converged": no_improve >= patience,
+        },
+    )
+
+
+def _run_conductivity_lbfgs_loop(
+    loss_components,
+    rho_opt,
+    *,
+    max_iters: int = 500,
+    snap_interval: int = 0,
+    x_min: float = 1e-3,
+    rho_history: list,
+    **_unused,  # absorb Adam-only kwargs (lr, patience, name)
+) -> tuple[jax.Array, list[float], dict]:
+    """L-BFGS loop for conductivity recovery.
+
+    Accepts ``loss_components(rho)`` returning ``(loss, err)`` for signature
+    parity with the Adam loop; internally wraps it to a scalar for L-BFGS.
+    """
+    del _unused  # signature-parity slot, intentionally discarded
+
+    def _loss_scalar(rho):
+        loss, _ = loss_components(rho)
+        return loss
+
+    rho_opt, errors, lbfgs_diag = _run_lbfgs(
+        _loss_scalar,
+        rho_opt,
+        max_iters=max_iters,
+        snap_interval=snap_interval,
+        history=rho_history if snap_interval > 0 else None,
+        log_interval=10,
+        clip_fn=lambda r: jnp.clip(r, x_min, 1.0),
+    )
+    return (
+        rho_opt,
+        errors,
+        {
+            "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
+            # L-BFGS terminates early via its internal stopping criterion; len(losses)
+            # below max_iters means convergence, equal means the budget was exhausted.
+            "converged": len(errors) < max_iters,
+        },
+    )
+
+
+def _merge_rho_fields_npz(
+    out_dir,
+    rho_init,
+    rho_truth,
+    solver_names: list[str],
+    rho_snaps: dict,
+    rho_histories: dict,
+) -> None:
+    """Save rho_fields.npz with merge logic preserving peer-solver entries."""
+    payload: dict[str, np.ndarray] = {"rho_init": np.array(rho_init)}
+    if rho_truth is not None:
+        payload["rho_truth"] = rho_truth
+    for sname in solver_names:
+        payload[f"rho_final_{sname}"] = rho_snaps[sname]
+        if rho_histories[sname]:
+            payload[f"rho_history_{sname}"] = np.asarray(rho_histories[sname])
+    # Keep peer-solver entries from prior runs plus prior rho_truth (only when
+    # the caller didn't compute a fresh one).
+    new_keys = set(payload.keys())
+    save_npz_merged(
+        out_dir / "rho_fields.npz",
+        payload,
+        keep_old=lambda k: (
+            k.startswith(("rho_final_", "rho_history_"))
+            or (k == "rho_truth" and k not in new_keys)
+        ),
+    )
+
+
+def _run_conductivity_recovery_impl(
     cfg: ProblemConfig,
     tags: dict[str, str],
-    _exp_key: str = "conductivity_recovery",
-    use_lbfgs: bool = False,
+    exp_key: str,
+    harness_fn,
+    *,
+    _optim_loop=_run_conductivity_adam_loop,
     **overrides,
 ) -> dict:
-    """Conductivity-field recovery: recover rho from temperature observations.
+    """Shared body for ``run_conductivity_recovery`` and its L-BFGS variant.
 
-    Optimises the SIMP density field (rho, clipped to [x_min, 1]) to minimise
-    identification_error = ||T(rho) - T_target||^2 using Adam.  The target
-    temperature is produced by forward-solving with a two-Gaussian ground-truth
-    conductivity and zero volumetric source (Neumann BC only).
-
-    Expects ``inverse_defaults[_exp_key]`` runs with:
-        ic:     {name, seed}         — IC generator for initial rho (e.g. "uniform")
-        physics: {nx, ny, nz, Lx, Ly, Lz, rho_0, Q_total, compliance_key,
-                  penalty_weight, x_min, snap_interval, target_rho_from_two_gaussians}
-        optim:  {lr, max_iters, patience}
-
-    Returns:
-        {"by_solver": {solver: {"errors", "final_error", "n_iters", "converged"}},
-         "params": run}
-        or {ic_name: <above>} when multiple runs are configured.
+    The optimiser is selected by passing a loop function via ``_optim_loop``;
+    both candidate loops accept the same ``loss_components(rho) -> (loss, err)``
+    closure and return ``(rho, errors, info)`` with a uniform info dict
+    (``grad_norms``, ``converged``).
     """
-    runs = cfg.inverse_defaults.get(_exp_key, [])
+    runs = cfg.inverse_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{_exp_key}' inverse_defaults configured for '{cfg.name}'"
+            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
@@ -1763,15 +2289,19 @@ def run_conductivity_recovery(
         seed = ic_cfg.get("seed", 0)
         phys = run.get("physics", {})
         optim_cfg = run.get("optim", {})
-        lr = optim_cfg.get("lr", 1e-2)
-        max_iters = optim_cfg.get("max_iters", 500)
-        patience = optim_cfg.get("patience", 50)
         compliance_key = phys.get("compliance_key", "identification_error")
         penalty_weight = float(phys.get("penalty_weight", 0.0))
         x_min = float(phys.get("x_min", 1e-3))
         snap_interval = int(phys.get("snap_interval", 0))
         ic_subdir = ic_name if n_runs > 1 else ""
         gpu_ids = overrides.get("gpu_ids")
+
+        # Only forward optimiser knobs that the YAML sets; each loop carries
+        # its own default so Adam's max_iters=500/patience=50 vs BFGS's
+        # max_iters=500 (no patience) stay correct.
+        loop_kwargs = {
+            k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
+        }
 
         rho_init = jnp.array(cfg.make_ic[ic_name](seed=seed, **phys))
 
@@ -1793,17 +2323,15 @@ def run_conductivity_recovery(
         rho_histories: dict = {}
         _wall_times: dict[str, float] = {}
 
-        candidate_solvers = active_differentiable_solvers(cfg, "optimization", _exp_key)
+        candidate_solvers = active_differentiable_solvers(cfg, "optimization", exp_key)
 
         def _conductivity_recovery_work(name: str, t) -> None:
             _t0 = time.perf_counter()
-            rho_opt = rho_init
-            errors = []
             rho_history: list = []
 
             _loss_phys = {k: v for k, v in phys.items() if k != "rho_0"}
 
-            def loss_fn(rho, _t=t):
+            def loss_components(rho, _t=t):
                 inp = cfg.make_inputs(name, rho, **_loss_phys)
                 out = apply_tesseract(_t, inp)
                 err = out.get(compliance_key)
@@ -1816,66 +2344,15 @@ def run_conductivity_recovery(
                 )
                 return jnp.squeeze(err) + penalty, jnp.squeeze(err)
 
-            def loss_fn_scalar(rho, _t=t):
-                inp = cfg.make_inputs(name, rho, **_loss_phys)
-                out = apply_tesseract(_t, inp)
-                err = out.get(compliance_key)
-                if err is None:
-                    raise RuntimeError(
-                        f"Solver '{name}' did not return '{compliance_key}'"
-                    )
-                penalty = (
-                    penalty_weight * jnp.mean(rho**2) if penalty_weight > 0 else 0.0
-                )
-                return jnp.squeeze(err) + penalty
-
-            if use_lbfgs:
-                rho_opt, errors, _lbfgs_diag = _run_lbfgs(
-                    loss_fn_scalar,
-                    rho_opt,
-                    max_iters=max_iters,
-                    snap_interval=snap_interval,
-                    history=rho_history if snap_interval > 0 else None,
-                    log_interval=10,
-                    clip_fn=lambda r: jnp.clip(r, x_min, 1.0),
-                )
-                no_improve = patience  # treat as converged for result reporting
-                grad_norms_adam: list[float] = []
-            else:
-                _lbfgs_diag = None
-                optimizer = optax.adam(lr)
-                opt_state = optimizer.init(rho_opt)
-                best_err, no_improve = jnp.inf, 0
-                grad_norms_adam: list[float] = []
-
-                for i in range(max_iters):
-                    try:
-                        (_, err_val), g = jax.value_and_grad(loss_fn, has_aux=True)(
-                            rho_opt
-                        )
-                        grad_norms_adam.append(float(jnp.linalg.norm(g.ravel())))
-                        updates, opt_state = optimizer.update(g, opt_state)
-                        # Project rho back into [x_min, 1] after each step.
-                        rho_opt = jnp.clip(
-                            optax.apply_updates(rho_opt, updates), x_min, 1.0
-                        )
-                        e = float(err_val)
-                        errors.append(e)
-                        if snap_interval > 0 and (i + 1) % snap_interval == 0:
-                            rho_history.append(np.array(rho_opt))
-                        if e < best_err:
-                            best_err, no_improve = e, 0
-                        else:
-                            no_improve += 1
-                        if no_improve >= patience:
-                            break
-                    except Exception as exc:
-                        from mosaic.benchmarks.core.console import print_warn
-
-                        print_warn(
-                            f"{name} conductivity_recovery iter {i} failed: {exc}"
-                        )
-                        break
+            rho_opt, errors, info = _optim_loop(
+                loss_components,
+                rho_init,
+                snap_interval=snap_interval,
+                x_min=x_min,
+                rho_history=rho_history,
+                name=name,
+                **loop_kwargs,
+            )
 
             rho_snaps[name] = np.array(rho_opt)
             rho_histories[name] = rho_history
@@ -1889,12 +2366,8 @@ def run_conductivity_recovery(
                     else 0.0
                 ),
                 "n_iters": len(errors),
-                "converged": len(errors) < max_iters
-                if use_lbfgs
-                else no_improve >= patience,
-                "grad_norms": (_lbfgs_diag or {}).get("grad_norms")
-                if use_lbfgs
-                else grad_norms_adam,
+                "converged": info["converged"],
+                "grad_norms": info["grad_norms"],
             }
             _wall_times[name] = time.perf_counter() - _t0
 
@@ -1907,40 +2380,21 @@ def run_conductivity_recovery(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
+            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
             suffix=_dbg,
         )
 
         solver_names = list(rho_snaps.keys())
-        npz_payload: dict[str, np.ndarray] = {"rho_init": np.array(rho_init)}
-        if rho_truth is not None:
-            npz_payload["rho_truth"] = rho_truth
-        existing_path = out_dir / "rho_fields.npz"
-        if existing_path.exists():
-            try:
-                prior = np.load(existing_path)
-                for key in prior.files:
-                    if (
-                        key.startswith("rho_final_")
-                        or key.startswith("rho_history_")
-                        or (key == "rho_truth" and "rho_truth" not in npz_payload)
-                    ):
-                        npz_payload[key] = prior[key]
-            except Exception:
-                pass
-        for sname in solver_names:
-            npz_payload[f"rho_final_{sname}"] = rho_snaps[sname]
-            if rho_histories[sname]:
-                npz_payload[f"rho_history_{sname}"] = np.asarray(rho_histories[sname])
-
-        np.savez(existing_path, **npz_payload)
+        _merge_rho_fields_npz(
+            out_dir, rho_init, rho_truth, solver_names, rho_snaps, rho_histories
+        )
 
         result = {"by_solver": by_solver, "params": run}
         save_experiment(
             result,
             out_dir,
             cfg=cfg,
-            harness_fn=run_conductivity_recovery,
+            harness_fn=harness_fn,
             wall_time_s=_wall_times,
         )
         if n_runs > 1:
@@ -1951,12 +2405,43 @@ def run_conductivity_recovery(
     return all_results
 
 
+def run_conductivity_recovery(
+    cfg: ProblemConfig, tags: dict[str, str], **overrides
+) -> dict:
+    """Conductivity-field recovery: recover rho from temperature observations.
+
+    Optimises the SIMP density field (rho, clipped to [x_min, 1]) to minimise
+    identification_error = ||T(rho) - T_target||^2 using Adam.  The target
+    temperature is produced by forward-solving with a two-Gaussian ground-truth
+    conductivity and zero volumetric source (Neumann BC only).
+
+    Expects ``inverse_defaults["conductivity_recovery"]`` runs with:
+        ic:     {name, seed}         — IC generator for initial rho (e.g. "uniform")
+        physics: {nx, ny, nz, Lx, Ly, Lz, rho_0, Q_total, compliance_key,
+                  penalty_weight, x_min, snap_interval, target_rho_from_two_gaussians}
+        optim:  {lr, max_iters, patience}
+
+    Returns:
+        {"by_solver": {solver: {"errors", "final_error", "n_iters", "converged"}},
+         "params": run}
+        or {ic_name: <above>} when multiple runs are configured.
+    """
+    return _run_conductivity_recovery_impl(
+        cfg, tags, "conductivity_recovery", run_conductivity_recovery, **overrides
+    )
+
+
 def run_conductivity_recovery_bfgs(
     cfg: ProblemConfig, tags: dict[str, str], **overrides
 ) -> dict:
     """L-BFGS variant of run_conductivity_recovery."""
-    return run_conductivity_recovery(
-        cfg, tags, _exp_key="conductivity_recovery_bfgs", use_lbfgs=True, **overrides
+    return _run_conductivity_recovery_impl(
+        cfg,
+        tags,
+        "conductivity_recovery_bfgs",
+        run_conductivity_recovery_bfgs,
+        _optim_loop=_run_conductivity_lbfgs_loop,
+        **overrides,
     )
 
 

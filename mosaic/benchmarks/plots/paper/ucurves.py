@@ -8,7 +8,6 @@ Output: appendix_ucurves_f2.pdf, appendix_ucurves_f3.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -16,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -51,7 +50,7 @@ def _plot_domain(cfg: dict, out_dir: Path) -> None:
         print(f"[ucurves] {path} not found — skipping")
         return
 
-    data = json.loads(path.read_text())
+    data = load_json(path)
     by_solver: dict = data["by_solver"]
 
     # Collect all step values across solvers, sorted numerically

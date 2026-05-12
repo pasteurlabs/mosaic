@@ -10,7 +10,6 @@ Output: conductivity_recovery_overview.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -18,7 +17,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
@@ -51,8 +50,8 @@ def generate(out_dir: Path) -> None:
         if not rp.exists():
             print(f"[conductivity_overview] {rp} not found — skipping {key}")
             continue
-        npz = np.load(fp, allow_pickle=True) if fp.exists() else None
-        loaded[key] = (json.loads(rp.read_text()), npz)
+        npz = try_load_npz(fp) if fp.exists() else None
+        loaded[key] = (load_json(rp), npz)
 
     if not loaded:
         return

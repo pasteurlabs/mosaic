@@ -11,10 +11,8 @@ Results are saved to <results>/{problem}/ics/{ic_name}/:
 
 from __future__ import annotations
 
-import json
-
 from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import results_dir, save_json
 
 _SUITE = "ics"
 
@@ -33,7 +31,7 @@ def _run_ic(
     ic = cfg.make_ic[ic_name](**params)
     plot_ic(cfg, ic_name, ic, out_dir)
 
-    (out_dir / "params.json").write_text(json.dumps(params, indent=2), encoding="utf-8")
+    save_json(params, out_dir / "params.json")
     return {"ic_name": ic_name, "shape": list(ic.shape)}
 
 

@@ -1,257 +1,24 @@
-"""JSON helpers, array math, and small algorithm utilities."""
+"""Array math, run iteration, and solver-filtering utilities.
+
+Filesystem I/O (JSON/CSV/NPZ helpers, ``save_experiment``,
+``save_field_snapshots_npz``, content hashing, ``results_dir``,
+``experiment_dir``) lives in :mod:`mosaic.benchmarks.core.io`. This module
+contains the non-I/O utilities that don't fit anywhere more specific:
+
+  * Array math: :func:`trimmed_mean`, :func:`l2_error_rel`, :func:`is_valid`.
+  * Run iteration: :func:`physics_params`, :func:`extract_runs`,
+    :func:`iter_runs`, :func:`_debug_run`.
+  * Solver filtering: :func:`exclusion_candidate_keys`,
+    :func:`exclusion_lookup`, :func:`active_solvers`,
+    :func:`active_differentiable_solvers`.
+"""
 
 from __future__ import annotations
 
-import ast
-import contextlib
-import csv
-import fcntl
-import fnmatch
-import hashlib
-import inspect
-import json
-import os
-from pathlib import Path
-
 import jax
 import jax.numpy as jnp
-import numpy as np
 
 from .config import ProblemConfig
-from .console import print_saved
-
-# ── Results directory resolution ─────────────────────────────────────────────
-#
-# Priority:
-#   1. MOSAIC_RESULTS_DIR env var  (set by --output-dir or the user's shell)
-#   2. Current working directory / "mosaic-results"
-#
-# The old behaviour wrote to ``Path(__file__).parent.parent / "results"``
-# (inside the git tree).  That breaks read-only installs and makes the output
-# location invisible to the caller.
-
-_RESULTS_DIR_ENV = "MOSAIC_RESULTS_DIR"
-
-
-def results_dir() -> Path:
-    """Return the root results directory, respecting env-var overrides."""
-    if d := os.environ.get(_RESULTS_DIR_ENV):
-        return Path(d)
-    return Path.cwd() / "mosaic-results"
-
-
-# Staleness detection: files/directories excluded from the tesseract-source
-# content hash. Build artefacts, caches, and lockfiles don't affect the
-# solver's behaviour and would cause spurious staleness.
-_HASH_EXCLUDE_PARTS = frozenset(
-    {"__pycache__", ".pytest_cache", "target", ".git", "node_modules", ".mypy_cache"}
-)
-_HASH_EXCLUDE_GLOBS = ("*.pyc", "*.lock", ".DS_Store")
-
-
-def _py_source_no_comments(raw: bytes) -> bytes:
-    """Return comment-stripped, normalised source for a Python file.
-
-    Uses ast.unparse(ast.parse(...)) which drops all comments and normalises
-    whitespace.  Falls back to raw bytes on SyntaxError so broken files are
-    still hashed (differently from valid ones, which is correct).
-    """
-    try:
-        src = raw.decode("utf-8")
-        return ast.unparse(ast.parse(src)).encode("utf-8")
-    except (SyntaxError, UnicodeDecodeError):
-        return raw
-
-
-def tesseract_content_hash(tesseract_dir: Path) -> str:
-    """SHA-256 (first 16 hex chars) of a tesseract directory's source.
-
-    Walks *tesseract_dir* recursively, sorts surviving files by POSIX path,
-    and digests ``rel_path + NUL + file_bytes + NUL`` for each. Excludes
-    build artefacts (``__pycache__``, ``target``, ``.pytest_cache``) and
-    lockfiles so uninteresting churn doesn't flag results as stale.
-
-    Python files are hashed after stripping comments (via ast.unparse) so
-    that annotation-only edits (e.g. ``# mosaic:<category>`` tags) do not
-    invalidate cached benchmark results.
-    """
-    tesseract_dir = Path(tesseract_dir)
-    if not tesseract_dir.is_dir():
-        return ""
-    h = hashlib.sha256()
-    paths: list[Path] = []
-    for p in tesseract_dir.rglob("*"):
-        if not p.is_file():
-            continue
-        parts = p.relative_to(tesseract_dir).parts
-        if any(part in _HASH_EXCLUDE_PARTS for part in parts):
-            continue
-        if any(fnmatch.fnmatchcase(p.name, pat) for pat in _HASH_EXCLUDE_GLOBS):
-            continue
-        paths.append(p)
-    paths.sort(key=lambda q: q.relative_to(tesseract_dir).as_posix())
-    for p in paths:
-        rel = p.relative_to(tesseract_dir).as_posix().encode()
-        h.update(rel)
-        h.update(b"\0")
-        raw = p.read_bytes()
-        data = _py_source_no_comments(raw) if p.suffix == ".py" else raw
-        h.update(data)
-        h.update(b"\0")
-    return h.hexdigest()[:16]
-
-
-def harness_fn_hash(fn) -> str:
-    """SHA-256 (first 16 hex chars) of a function's normalised AST.
-
-    Used to detect when the ``run_<experiment>`` function that produced a
-    result.json has been edited since the result was saved. We hash an
-    ``ast.dump`` of the source with docstrings stripped, rather than the raw
-    source bytes, so that whitespace, comment, and docstring-only edits — which
-    cannot affect runtime behaviour — do not invalidate previously-saved
-    results. Behavioural edits (new statements, renamed locals, reordered
-    expressions) still flip the hash because ``ast.dump`` preserves identifier
-    names and statement order.
-
-    Falls back to the raw-source SHA on ``SyntaxError`` so pathological sources
-    (e.g. decorator-generated closures whose ``inspect.getsource`` returns
-    partial text) still yield a stable fingerprint rather than the empty
-    string.
-    """
-    try:
-        src = inspect.getsource(fn)
-    except (OSError, TypeError):
-        return ""
-    try:
-        tree = ast.parse(src)
-    except SyntaxError:
-        return hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
-    # Strip leading docstring Expr(Constant(str)) nodes from every scope that
-    # can carry one — Module, FunctionDef, AsyncFunctionDef, ClassDef.
-    for node in ast.walk(tree):
-        if isinstance(
-            node,
-            (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
-        ):
-            body = getattr(node, "body", None)
-            if (
-                body
-                and isinstance(body[0], ast.Expr)
-                and isinstance(body[0].value, ast.Constant)
-                and isinstance(body[0].value.value, str)
-            ):
-                body.pop(0)
-    normalised = ast.dump(tree, annotate_fields=False, include_attributes=False)
-    return hashlib.sha256(normalised.encode("utf-8")).hexdigest()[:16]
-
-
-@contextlib.contextmanager
-def _file_lock(lock_path: Path):
-    """Advisory flock on ``lock_path`` — used to serialize concurrent
-    ``save_experiment`` invocations so the read-merge-write cycle is atomic.
-
-    Two mosaic processes saving the same experiment directory would otherwise
-    race: each reads the old ``by_solver``, each writes its own ``by_solver``,
-    and whichever writes last silently drops the other's entries. The lock
-    file is created alongside the result (not the result itself, so we never
-    interfere with the JSON write).
-    """
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        yield
-    finally:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        finally:
-            os.close(fd)
-
-
-# ── JSON serialization ────────────────────────────────────────────────────────
-
-
-class _NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (np.ndarray, jax.Array)):
-            return obj.tolist()
-        if isinstance(obj, (np.floating, np.integer)):
-            return obj.item()
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, set):
-            return sorted(obj)
-        return super().default(obj)
-
-
-def save_json(data, path: str | Path) -> None:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, cls=_NumpyEncoder, indent=2)
-    print_saved(path)
-
-
-def load_json(path: str | Path) -> dict:
-    with open(path) as f:
-        return json.load(f)
-
-
-def try_load_json(path: str | Path) -> dict | None:
-    """Return parsed JSON, or ``None`` if the file is missing or unparseable.
-
-    Use when the caller treats a missing/corrupt file as "no prior state"
-    rather than a hard error — avoids a try/except dance at every call site.
-    """
-    p = Path(path)
-    if not p.exists():
-        return None
-    try:
-        return load_json(p)
-    except Exception:
-        return None
-
-
-def try_load_npz(path: str | Path) -> dict[str, np.ndarray]:
-    """Return all arrays from an npz as a plain dict, or ``{}`` on failure.
-
-    Eagerly materialises every array into memory and closes the file before
-    returning, so callers don't need to manage the ``np.load`` context.
-    Returns ``{}`` if the file is missing, unreadable, or fails to parse —
-    same "no prior state" semantics as :func:`try_load_json`.
-    """
-    p = Path(path)
-    if not p.exists():
-        return {}
-    try:
-        with np.load(p, allow_pickle=False) as f:
-            return {k: np.asarray(f[k]) for k in f.files}
-    except Exception:
-        return {}
-
-
-def save_csv(rows: list[dict], path: str | Path) -> None:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not rows:
-        return
-    # Collect the UNION of keys across all rows so that partial rows (e.g. a
-    # solver whose ResourceSampler silently returned no stats) don't truncate
-    # the header and cause DictWriter to reject well-populated rows that come
-    # later.  Preserves first-row ordering, then appends new keys in the order
-    # they appear.
-    fieldnames: list[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        for key in row:
-            if key not in seen:
-                seen.add(key)
-                fieldnames.append(key)
-    with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-    print_saved(path)
-
 
 # ── Array statistics ──────────────────────────────────────────────────────────
 
@@ -534,12 +301,3 @@ def active_differentiable_solvers(
         for name in active_solvers(cfg, suite, experiment)
         if has_vjp(cfg.solvers[name])
     ]
-
-
-def experiment_dir(
-    results_dir: Path, problem: str, suite: str, experiment: str, suffix: str = ""
-) -> Path:
-    """Create and return results/<problem>/<suite>/<experiment><suffix>/."""
-    d = results_dir / problem / suite / f"{experiment}{suffix}"
-    d.mkdir(parents=True, exist_ok=True)
-    return d

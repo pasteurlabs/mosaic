@@ -17,7 +17,6 @@ its label is placed inline at the right edge of the (V)RAM axis.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from pathlib import Path
 
@@ -27,7 +26,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import blended_transform_factory
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
@@ -116,7 +115,7 @@ def _openfoam_fd_vjp_estimate(
     )
     if not _temporal_cost_path.exists():
         return {}
-    td = json.loads(_temporal_cost_path.read_text())
+    td = load_json(_temporal_cost_path)
     of_data = td.get("by_steps", {}).get("openfoam", {})
     pts = sorted(
         [
@@ -136,6 +135,470 @@ def _openfoam_fd_vjp_estimate(
     return {T: N_inputs * max(startup + per_step_scaled * T, 1e-3) for T in sweep_steps}
 
 
+def _order_solvers(by_solver: dict) -> tuple[set[str], list[str]]:
+    """Return (present_set, ordered_list) of solvers, excluding the blocklist."""
+    excluded = {"fenics_ns", "fenics_ns_3d", "su2"}
+    present = set(by_solver.keys())
+    ordered = [s for s in SOLVER_ORDER if s in present] + [
+        s for s in present if s not in SOLVER_ORDER and s not in excluded
+    ]
+    return present, ordered
+
+
+def _parse_one_solver(step_results: dict) -> dict:
+    """Parse the per-step result dict for a single solver into plotting fields."""
+    all_steps = sorted(step_results.keys(), key=int)
+
+    ok_steps, ok_vram, ok_wall, ok_gnorm = [], [], [], []
+    fail_step = fail_vram = fail_wall = fail_ram = fail_ft = None
+    for k in all_steps:
+        r = step_results[k]
+        if r["status"] == "ok":
+            ok_steps.append(int(k))
+            ok_vram.append(r.get("vram_peak_mib") or 0.0)
+            ok_wall.append(r["wall_time_s"])
+            ok_gnorm.append(r.get("grad_norm") or 1.0)
+        elif r["status"] == "failed" and fail_step is None:
+            fail_step = int(k)
+            fail_vram = r.get("vram_peak_mib") or 1.0
+            fail_wall = r["wall_time_s"]
+            fail_ram = r.get("ram_peak_mib") or 1.0
+            fail_ft = r["failure_type"]
+
+    ok_ram = [step_results[str(s)].get("ram_peak_mib") for s in ok_steps]
+    cpu_only = all(v == 0.0 for v in ok_vram) and bool(ok_vram)
+    has_ram = any(r is not None and r > 0 for r in ok_ram)
+
+    return {
+        "ok_steps": ok_steps,
+        "ok_vram": ok_vram,
+        "ok_wall": ok_wall,
+        "ok_gnorm": ok_gnorm,
+        "ok_ram": ok_ram,
+        "cpu_only": cpu_only,
+        "has_ram": has_ram,
+        "fail_step": fail_step,
+        "fail_vram": fail_vram,
+        "fail_wall": fail_wall,
+        "fail_ram": fail_ram,
+        "fail_ft": fail_ft,
+    }
+
+
+def _parse_all_solvers(by_solver: dict, ordered: list[str]) -> dict[str, dict]:
+    return {solver: _parse_one_solver(by_solver[solver]) for solver in ordered}
+
+
+def _build_gn_scale(solver_data: dict[str, dict]) -> tuple:
+    """Build the piecewise gradient-norm y-display function and its max."""
+    all_log10 = [
+        np.log10(max(g, 1e-30)) for d in solver_data.values() for g in d["ok_gnorm"]
+    ]
+    max_log10 = max(all_log10) if all_log10 else _BREAK_LOG + 1.0
+    upper_data = max(max_log10 - _BREAK_LOG, 0.1)
+    middle_height = _BREAK_LOG - _GN_LOWER_BREAK
+    middle_disp = middle_height * _GN_MIDDLE_FACTOR
+    upper_factor = (middle_disp / 3.0) / upper_data
+    lower_disp_height = (_GN_LOWER_BREAK - _GN_YMIN) * _GN_LOWER_FACTOR
+    gn_lower_break_disp = _GN_YMIN + lower_disp_height
+    gn_upper_break_disp = gn_lower_break_disp + middle_disp
+
+    def gn_display(v: float) -> float:
+        if v <= _GN_LOWER_BREAK:
+            return _GN_YMIN + (v - _GN_YMIN) * _GN_LOWER_FACTOR
+        elif v <= _BREAK_LOG:
+            return gn_lower_break_disp + (v - _GN_LOWER_BREAK) * _GN_MIDDLE_FACTOR
+        else:
+            return gn_upper_break_disp + (v - _BREAK_LOG) * upper_factor
+
+    return gn_display, max_log10
+
+
+def _build_wt_scale(solver_data: dict[str, dict], of_fd: dict[int, float]) -> tuple:
+    """Build the piecewise wall-time y-display function and its scale params."""
+    all_wt_log10 = [
+        np.log10(max(t, 1e-10)) for d in solver_data.values() for t in d["ok_wall"]
+    ]
+    if of_fd:
+        all_wt_log10 += [np.log10(max(c, 1e-10)) for c in of_fd.values()]
+    max_wt_log10 = max(all_wt_log10) if all_wt_log10 else _WT_BREAK_LOG + 1.0
+    wt_lower_height = _WT_BREAK_LOG - _WT_YMIN
+    wt_upper_data = max(max_wt_log10 - _WT_BREAK_LOG, 0.1)
+    wt_upper_factor = (wt_lower_height / 3.0) / wt_upper_data
+
+    def wt_display(v: float) -> float:
+        if v <= _WT_BREAK_LOG:
+            return v
+        return _WT_BREAK_LOG + (v - _WT_BREAK_LOG) * wt_upper_factor
+
+    return wt_display, max_wt_log10, wt_upper_factor, wt_upper_data
+
+
+def _compute_jitter(
+    solver_data: dict[str, dict], ordered: list[str]
+) -> dict[tuple[str, int], float]:
+    """Compute log-space x-jitter for solvers sharing the same failure step."""
+    fail_at_step: dict[int, list[str]] = defaultdict(list)
+    for solver in ordered:
+        fs = solver_data[solver]["fail_step"]
+        if fs is not None:
+            fail_at_step[fs].append(solver)
+
+    jitter_x: dict[tuple[str, int], float] = {}
+    for step, solvers_here in fail_at_step.items():
+        n = len(solvers_here)
+        for i, sv in enumerate(solvers_here):
+            if n == 1:
+                jitter_x[(sv, step)] = float(step)
+            else:
+                t = i / (n - 1)
+                log_off = (2 * t - 1) * _JITTER_LOG
+                jitter_x[(sv, step)] = step * 10**log_off
+    return jitter_x
+
+
+def _plot_vram_panel(ax_vr, d: dict, kw: dict, kw_line: dict) -> None:
+    """Plot the (V)RAM curve (and failure-trail line) for one solver."""
+    ok_steps = d["ok_steps"]
+    fail_step = d["fail_step"]
+    if not d["cpu_only"]:
+        ax_vr.loglog(ok_steps, [max(v, 1) for v in d["ok_vram"]], **kw)
+        if fail_step:
+            ax_vr.loglog(
+                [ok_steps[-1], fail_step],
+                [max(d["ok_vram"][-1], 1), max(d["fail_vram"], 1)],
+                **kw_line,
+            )
+    elif d["has_ram"]:
+        ax_vr.loglog(ok_steps, [max(r, 1) for r in d["ok_ram"]], **kw)
+        if fail_step and d["fail_ram"]:
+            ax_vr.loglog(
+                [ok_steps[-1], fail_step],
+                [max(d["ok_ram"][-1], 1), max(d["fail_ram"], 1)],
+                **kw_line,
+            )
+    else:
+        ax_vr.loglog([], [], **kw)
+
+
+def _plot_wt_panel(ax_wt, d: dict, kw: dict, kw_line: dict, wt_display) -> None:
+    """Plot the wall-time curve (and failure-trail line) for one solver."""
+    ok_steps = d["ok_steps"]
+    ok_wall = d["ok_wall"]
+    fail_step = d["fail_step"]
+    log_wt = [np.log10(max(t, 1e-10)) for t in ok_wall]
+    disp_wt = [wt_display(v) for v in log_wt]
+    ax_wt.semilogx(ok_steps, disp_wt, **kw)
+    if fail_step:
+        last_wt_disp = wt_display(np.log10(max(ok_wall[-1], 1e-10)))
+        fail_wt_disp = wt_display(np.log10(max(d["fail_wall"], 1e-10)))
+        ax_wt.semilogx(
+            [ok_steps[-1], fail_step],
+            [last_wt_disp, fail_wt_disp],
+            **kw_line,
+        )
+
+
+def _plot_gn_panel(
+    ax_gn, d: dict, kw: dict, kw_line: dict, gn_display, jx: float | None
+) -> None:
+    """Plot the gradient-norm curve, trail line, and failure marker for one solver."""
+    ok_steps = d["ok_steps"]
+    ok_gnorm = d["ok_gnorm"]
+    fail_step = d["fail_step"]
+    fail_ft = d["fail_ft"]
+    log_gnorm = [np.log10(max(g, 1e-30)) for g in ok_gnorm]
+    disp_gnorm = [gn_display(v) for v in log_gnorm]
+    ax_gn.semilogx(ok_steps, disp_gnorm, **kw)
+    if fail_step and ok_gnorm:
+        last_disp = gn_display(np.log10(max(ok_gnorm[-1], 1e-30)))
+        ax_gn.semilogx([ok_steps[-1], fail_step], [last_disp, last_disp], **kw_line)
+        ax_gn.semilogx(
+            [jx],
+            [last_disp],
+            **{
+                **kw,
+                "marker": _FAILURE_MARKER.get(fail_ft, "D"),
+                "markersize": 9,
+                "markeredgewidth": 1.2,
+                "markeredgecolor": "white",
+                "linestyle": "none",
+                "zorder": 6,
+            },
+        )
+
+
+def _plot_failure_markers(
+    ax_vr, ax_wt, d: dict, color: str, jx: float | None, wt_display
+) -> None:
+    """Plot the failure marker on the VRAM and wall-time panels."""
+    fail_ft = d["fail_ft"]
+    fm = _FAILURE_MARKER.get(fail_ft, "D")
+    mk_kw = {
+        "marker": fm,
+        "color": color,
+        "markersize": 9,
+        "markeredgewidth": 1.2,
+        "markeredgecolor": "white",
+        "linestyle": "none",
+        "zorder": 6,
+    }
+    if not d["cpu_only"]:
+        ax_vr.loglog([jx], [max(d["fail_vram"], 1)], **mk_kw)
+    ax_wt.semilogx([jx], [wt_display(np.log10(max(d["fail_wall"], 1e-10)))], **mk_kw)
+
+
+def _plot_solvers(
+    axes: tuple,
+    solver_data: dict[str, dict],
+    ordered: list[str],
+    jitter_x: dict[tuple[str, int], float],
+    gn_display,
+    wt_display,
+) -> set[str]:
+    """Plot all solver curves across the three panels and return failure types seen."""
+    ax_vr, ax_wt, ax_gn = axes
+    failure_types_seen: set[str] = set()
+    for solver in ordered:
+        d = solver_data[solver]
+        label, color, ls, _ = _solver_style(solver)
+        fail_step = d["fail_step"]
+        jx = jitter_x.get((solver, fail_step)) if fail_step is not None else None
+
+        kw = {
+            "color": color,
+            "linestyle": ls,
+            "marker": "o",
+            "markersize": 4,
+            "markeredgewidth": 0,
+            "linewidth": 1.6,
+            "label": label,
+            "zorder": 3,
+        }
+        kw_line = {
+            "color": color,
+            "linestyle": ls,
+            "marker": "none",
+            "linewidth": 1.6,
+            "zorder": 3,
+        }
+
+        if d["ok_steps"]:
+            _plot_vram_panel(ax_vr, d, kw, kw_line)
+            _plot_wt_panel(ax_wt, d, kw, kw_line, wt_display)
+            _plot_gn_panel(ax_gn, d, kw, kw_line, gn_display, jx)
+        else:
+            for ax in (ax_vr, ax_wt, ax_gn):
+                ax.loglog([], [], **kw)
+
+        if fail_step is not None:
+            _plot_failure_markers(ax_vr, ax_wt, d, color, jx, wt_display)
+            failure_types_seen.add(d["fail_ft"])
+    return failure_types_seen
+
+
+def _plot_openfoam_fd(ax_wt, of_fd: dict[int, float], wt_display) -> None:
+    """Plot the OpenFOAM FD VJP estimate curve on the wall-time panel."""
+    if not of_fd:
+        return
+    of_steps = sorted(of_fd)
+    of_disp = [wt_display(np.log10(max(of_fd[s], 1e-10))) for s in of_steps]
+    ax_wt.semilogx(
+        of_steps,
+        of_disp,
+        color=_OF_COLOR,
+        linestyle=_OF_LS,
+        marker="h",
+        markersize=4,
+        markeredgewidth=0,
+        linewidth=1.6,
+        label="OpenFOAM (FD est.)",
+        zorder=3,
+    )
+
+
+def _decorate_vram_panel(ax_vr) -> None:
+    """Draw the 16 GiB limit line, inline label, and standard titles/labels."""
+    ax_vr.axhline(
+        _VRAM_LIMIT_MIB, color="0.35", linestyle="--", linewidth=1.0, zorder=2
+    )
+    trans = blended_transform_factory(ax_vr.transAxes, ax_vr.transData)
+    ax_vr.text(
+        0.28,
+        _VRAM_LIMIT_MIB,
+        "16 GiB",
+        transform=trans,
+        ha="right",
+        va="bottom",
+        fontsize=6.5,
+        color="0.35",
+        clip_on=True,
+    )
+    ax_vr.set_title("Peak (V)RAM")
+    ax_vr.set_xlabel("Rollout steps $T$")
+    ax_vr.set_ylabel("MiB")
+
+
+def _set_panel_titles(ax_wt, ax_gn) -> None:
+    ax_wt.set_title("Wall time")
+    ax_wt.set_xlabel("Rollout steps $T$")
+    ax_wt.set_ylabel("Seconds")
+
+    ax_gn.set_title("Gradient norm")
+    ax_gn.set_xlabel("Rollout steps $T$")
+    ax_gn.set_ylabel(r"$\|\nabla\mathcal{L}\|$")
+
+
+def _set_wt_yticks(
+    ax_wt, max_wt_log10: float, wt_upper_factor: float, wt_upper_data: float
+) -> None:
+    wt_below_ticks = [v for v in [0, 1, 2] if v >= _WT_YMIN]
+    wt_above_ticks = [v for v in [4, 6, 8] if v <= max_wt_log10 + 0.5]
+    wt_above_disp = [
+        _WT_BREAK_LOG + (v - _WT_BREAK_LOG) * wt_upper_factor for v in wt_above_ticks
+    ]
+    ax_wt.set_yticks(list(wt_below_ticks) + wt_above_disp)
+    ax_wt.set_yticklabels([rf"$10^{{{v}}}$" for v in wt_below_ticks + wt_above_ticks])
+    wt_ymax = _WT_BREAK_LOG + wt_upper_data * wt_upper_factor
+    ax_wt.set_ylim(_WT_YMIN, wt_ymax + 0.1)
+
+
+def _set_gn_yticks(ax_gn, gn_display, max_log10: float) -> None:
+    lower_ticks = [v for v in [1] if _GN_YMIN <= v < _GN_LOWER_BREAK]
+    middle_ticks = [2, 3]
+    above_ticks = [v for v in [5, 7, 9] if v <= max_log10 + 0.5]
+    all_gn_ticks = lower_ticks + middle_ticks + above_ticks
+    all_gn_disp = [gn_display(v) for v in all_gn_ticks]
+    ax_gn.set_yticks(all_gn_disp)
+    ax_gn.set_yticklabels([rf"$10^{{{v}}}$" for v in all_gn_ticks])
+    gn_ymax = gn_display(max_log10)
+    ax_gn.set_ylim(_GN_YMIN, gn_ymax + 0.05)
+
+
+def _set_piecewise_x_axis(ax_vr, ax_wt, ax_gn, all_sweep_steps: list[int]) -> None:
+    """Apply the piecewise-log x-axis to all three panels and align x-limits."""
+    x_min_data = min(all_sweep_steps) if all_sweep_steps else 1
+    x_max_data = max(all_sweep_steps) if all_sweep_steps else 1e4
+    # Small log-space padding so tick labels at the edges aren't clipped.
+    x_pad = 0.06 * (np.log10(x_max_data) - np.log10(x_min_data))
+    x_lim_lo = 10 ** (np.log10(x_min_data) - x_pad)
+    x_lim_hi = 10 ** (np.log10(x_max_data) + x_pad)
+    for ax in (ax_wt, ax_gn):
+        ax.set_xscale(
+            "function",
+            functions=(_x_log_forward, _x_log_inverse),
+        )
+        ax.set_xticks([10, 100, 1000, 10000])
+        ax.set_xticklabels([r"$10^{1}$", r"$10^{2}$", r"$10^{3}$", r"$10^{4}$"])
+        ax.axvline(
+            10**_X_BREAK_LOG,
+            color="0.7",
+            linestyle=":",
+            linewidth=0.6,
+            zorder=0,
+        )
+        ax.set_xlim(x_lim_lo, x_lim_hi)
+    # Match VRAM panel x-range to actual data, too.
+    ax_vr.set_xlim(x_lim_lo, x_lim_hi)
+
+
+def _build_solver_handles(present: set[str], of_fd: dict[int, float]) -> list:
+    """Build the solver legend handles, including OpenFOAM FD if present."""
+    dummy = mlines.Line2D(
+        [], [], color="none", linestyle="none", marker="none", label=""
+    )
+    solver_handles = []
+    for s in SOLVER_ORDER:
+        if s not in present:
+            continue
+        lb, co, li, _ = _solver_style(s)
+        solver_handles.append(
+            mlines.Line2D(
+                [],
+                [],
+                color=co,
+                linestyle=li,
+                marker="o",
+                markersize=5,
+                markeredgewidth=0,
+                linewidth=1.6,
+                label=lb,
+            )
+        )
+    if of_fd:
+        solver_handles.append(
+            mlines.Line2D(
+                [],
+                [],
+                color=_OF_COLOR,
+                linestyle=_OF_LS,
+                marker="h",
+                markersize=5,
+                markeredgewidth=0,
+                linewidth=1.6,
+                label="OpenFOAM (FD est.)",
+            )
+        )
+        solver_handles.append(dummy)
+    return solver_handles
+
+
+def _build_failure_handles(failure_types_seen: set[str]) -> list:
+    failure_handles = []
+    for ft in ["OOM", "nan", "error", "timeout"]:
+        if ft in failure_types_seen:
+            failure_handles.append(
+                mlines.Line2D(
+                    [],
+                    [],
+                    marker=_FAILURE_MARKER[ft],
+                    color="0.4",
+                    linestyle="none",
+                    markersize=7,
+                    markeredgewidth=1.0,
+                    markeredgecolor="white",
+                    label=_FAILURE_LABEL[ft],
+                )
+            )
+    return failure_handles
+
+
+def _attach_legend(
+    fig, present: set[str], of_fd: dict[int, float], failure_types_seen: set[str]
+) -> None:
+    """Build and attach the combined solver + failure-type legend."""
+    solver_handles = _build_solver_handles(present, of_fd)
+    failure_handles = _build_failure_handles(failure_types_seen)
+
+    # matplotlib fills legends column-first: entries 2k and 2k+1 share a column.
+    # Pad solver handles to an even count so OOM and NaN (consecutive) land
+    # in the same column on different rows → vertically aligned.
+    dummy = mlines.Line2D(
+        [], [], color="none", linestyle="none", marker="none", label=""
+    )
+    if len(solver_handles) % 2 == 1:
+        solver_handles.append(dummy)
+
+    all_handles = solver_handles + failure_handles
+    ncol = -(-len(all_handles) // 2)  # ceil → 2 rows
+    fig.legend(
+        handles=all_handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.4),
+        ncol=ncol,
+        fontsize=7.5,
+        framealpha=0.7,
+        handlelength=2.0,
+    )
+
+
+def _save_figure(fig, out_dir: Path) -> None:
+    for ext in ("pdf", "png"):
+        out = out_dir / f"horizon_sweep_limits.{ext}"
+        fig.savefig(out)
+        print(f"Saved {out}")
+
+
 def generate(out_dir: Path) -> None:
     path = (
         results_dir()
@@ -144,7 +607,7 @@ def generate(out_dir: Path) -> None:
         / "horizon_sweep_limits"
         / "result.json"
     )
-    data = json.loads(path.read_text())
+    data = load_json(path)
     by_solver = data["by_solver"]
 
     with plt.rc_context(RCPARAMS):
@@ -155,407 +618,53 @@ def generate(out_dir: Path) -> None:
         ax_wt = fig.add_subplot(gs[0, 1])
         ax_gn = fig.add_subplot(gs[0, 2])
 
-        failure_types_seen: set[str] = set()
-
-        _EXCLUDED = {"fenics_ns", "fenics_ns_3d", "su2"}
-        present = set(by_solver.keys())
-        ordered = [s for s in SOLVER_ORDER if s in present] + [
-            s for s in present if s not in SOLVER_ORDER and s not in _EXCLUDED
-        ]
+        present, ordered = _order_solvers(by_solver)
 
         # ── Phase 0: pre-compute OpenFOAM FD estimate ────────────────────────
-        _all_sweep_steps = sorted(
+        all_sweep_steps = sorted(
             {int(k) for sv in data["by_solver"].values() for k in sv}
         )
-        _of_fd = _openfoam_fd_vjp_estimate(_all_sweep_steps, N_sweep=20)
+        of_fd = _openfoam_fd_vjp_estimate(all_sweep_steps, N_sweep=20)
 
         # ── Phase 1: parse all solver data ───────────────────────────────────
-        solver_data: dict[str, dict] = {}
-        for solver in ordered:
-            step_results = by_solver[solver]
-            all_steps = sorted(step_results.keys(), key=int)
-
-            ok_steps, ok_vram, ok_wall, ok_gnorm = [], [], [], []
-            fail_step = fail_vram = fail_wall = fail_ram = fail_ft = None
-            for k in all_steps:
-                r = step_results[k]
-                if r["status"] == "ok":
-                    ok_steps.append(int(k))
-                    ok_vram.append(r.get("vram_peak_mib") or 0.0)
-                    ok_wall.append(r["wall_time_s"])
-                    ok_gnorm.append(r.get("grad_norm") or 1.0)
-                elif r["status"] == "failed" and fail_step is None:
-                    fail_step = int(k)
-                    fail_vram = r.get("vram_peak_mib") or 1.0
-                    fail_wall = r["wall_time_s"]
-                    fail_ram = r.get("ram_peak_mib") or 1.0
-                    fail_ft = r["failure_type"]
-
-            ok_ram = [step_results[str(s)].get("ram_peak_mib") for s in ok_steps]
-            cpu_only = all(v == 0.0 for v in ok_vram) and bool(ok_vram)
-            has_ram = any(r is not None and r > 0 for r in ok_ram)
-
-            solver_data[solver] = {
-                "ok_steps": ok_steps,
-                "ok_vram": ok_vram,
-                "ok_wall": ok_wall,
-                "ok_gnorm": ok_gnorm,
-                "ok_ram": ok_ram,
-                "cpu_only": cpu_only,
-                "has_ram": has_ram,
-                "fail_step": fail_step,
-                "fail_vram": fail_vram,
-                "fail_wall": fail_wall,
-                "fail_ram": fail_ram,
-                "fail_ft": fail_ft,
-            }
+        solver_data = _parse_all_solvers(by_solver, ordered)
 
         # ── Phase 1b: piecewise y-scale parameters ────────────────────────────
-        _all_log10 = [
-            np.log10(max(g, 1e-30)) for d in solver_data.values() for g in d["ok_gnorm"]
-        ]
-        _max_log10 = max(_all_log10) if _all_log10 else _BREAK_LOG + 1.0
-        _upper_data = max(_max_log10 - _BREAK_LOG, 0.1)
-        _middle_height = _BREAK_LOG - _GN_LOWER_BREAK
-        _middle_disp = _middle_height * _GN_MIDDLE_FACTOR
-        _upper_factor = (_middle_disp / 3.0) / _upper_data
-        _lower_disp_height = (_GN_LOWER_BREAK - _GN_YMIN) * _GN_LOWER_FACTOR
-        _gn_lower_break_disp = _GN_YMIN + _lower_disp_height
-        _gn_upper_break_disp = _gn_lower_break_disp + _middle_disp
-
-        def _gn_display(v: float) -> float:
-            if v <= _GN_LOWER_BREAK:
-                return _GN_YMIN + (v - _GN_YMIN) * _GN_LOWER_FACTOR
-            elif v <= _BREAK_LOG:
-                return _gn_lower_break_disp + (v - _GN_LOWER_BREAK) * _GN_MIDDLE_FACTOR
-            else:
-                return _gn_upper_break_disp + (v - _BREAK_LOG) * _upper_factor
-
-        _all_wt_log10 = [
-            np.log10(max(t, 1e-10)) for d in solver_data.values() for t in d["ok_wall"]
-        ]
-        if _of_fd:
-            _all_wt_log10 += [np.log10(max(c, 1e-10)) for c in _of_fd.values()]
-        _max_wt_log10 = max(_all_wt_log10) if _all_wt_log10 else _WT_BREAK_LOG + 1.0
-        _wt_lower_height = _WT_BREAK_LOG - _WT_YMIN
-        _wt_upper_data = max(_max_wt_log10 - _WT_BREAK_LOG, 0.1)
-        _wt_upper_factor = (_wt_lower_height / 3.0) / _wt_upper_data
-
-        def _wt_display(v: float) -> float:
-            if v <= _WT_BREAK_LOG:
-                return v
-            return _WT_BREAK_LOG + (v - _WT_BREAK_LOG) * _wt_upper_factor
+        gn_display, max_log10 = _build_gn_scale(solver_data)
+        wt_display, max_wt_log10, wt_upper_factor, wt_upper_data = _build_wt_scale(
+            solver_data, of_fd
+        )
 
         # ── Phase 2: compute log-space jitter for coincident failure steps ────
-        fail_at_step: dict[int, list[str]] = defaultdict(list)
-        for solver in ordered:
-            fs = solver_data[solver]["fail_step"]
-            if fs is not None:
-                fail_at_step[fs].append(solver)
-
-        jitter_x: dict[tuple[str, int], float] = {}
-        for step, solvers_here in fail_at_step.items():
-            n = len(solvers_here)
-            for i, sv in enumerate(solvers_here):
-                if n == 1:
-                    jitter_x[(sv, step)] = float(step)
-                else:
-                    t = i / (n - 1)
-                    log_off = (2 * t - 1) * _JITTER_LOG
-                    jitter_x[(sv, step)] = step * 10**log_off
+        jitter_x = _compute_jitter(solver_data, ordered)
 
         # ── Phase 3: plot ────────────────────────────────────────────────────
-        for solver in ordered:
-            d = solver_data[solver]
-            label, color, ls, _ = _solver_style(solver)
-
-            ok_steps = d["ok_steps"]
-            ok_vram = d["ok_vram"]
-            ok_wall = d["ok_wall"]
-            ok_gnorm = d["ok_gnorm"]
-            ok_ram = d["ok_ram"]
-            cpu_only = d["cpu_only"]
-            has_ram = d["has_ram"]
-            fail_step = d["fail_step"]
-            fail_vram = d["fail_vram"]
-            fail_wall = d["fail_wall"]
-            fail_ram = d["fail_ram"]
-            fail_ft = d["fail_ft"]
-
-            jx = jitter_x.get((solver, fail_step)) if fail_step is not None else None
-
-            kw = {
-                "color": color,
-                "linestyle": ls,
-                "marker": "o",
-                "markersize": 4,
-                "markeredgewidth": 0,
-                "linewidth": 1.6,
-                "label": label,
-                "zorder": 3,
-            }
-            kw_line = {
-                "color": color,
-                "linestyle": ls,
-                "marker": "none",
-                "linewidth": 1.6,
-                "zorder": 3,
-            }
-
-            if ok_steps:
-                # ── (V)RAM ───────────────────────────────────────────────────
-                if not cpu_only:
-                    ax_vr.loglog(ok_steps, [max(v, 1) for v in ok_vram], **kw)
-                    if fail_step:
-                        ax_vr.loglog(
-                            [ok_steps[-1], fail_step],
-                            [max(ok_vram[-1], 1), max(fail_vram, 1)],
-                            **kw_line,
-                        )
-                elif has_ram:
-                    ax_vr.loglog(ok_steps, [max(r, 1) for r in ok_ram], **kw)
-                    if fail_step and fail_ram:
-                        ax_vr.loglog(
-                            [ok_steps[-1], fail_step],
-                            [max(ok_ram[-1], 1), max(fail_ram, 1)],
-                            **kw_line,
-                        )
-                else:
-                    ax_vr.loglog([], [], **kw)
-
-                # ── Wall time (piecewise-scaled y) ────────────────────────────
-                log_wt = [np.log10(max(t, 1e-10)) for t in ok_wall]
-                disp_wt = [_wt_display(v) for v in log_wt]
-                ax_wt.semilogx(ok_steps, disp_wt, **kw)
-                if fail_step:
-                    _last_wt_disp = _wt_display(np.log10(max(ok_wall[-1], 1e-10)))
-                    _fail_wt_disp = _wt_display(np.log10(max(fail_wall, 1e-10)))
-                    ax_wt.semilogx(
-                        [ok_steps[-1], fail_step],
-                        [_last_wt_disp, _fail_wt_disp],
-                        **kw_line,
-                    )
-
-                # ── Gradient norm (piecewise-scaled y) ────────────────────────
-                log_gnorm = [np.log10(max(g, 1e-30)) for g in ok_gnorm]
-                disp_gnorm = [_gn_display(v) for v in log_gnorm]
-                ax_gn.semilogx(ok_steps, disp_gnorm, **kw)
-                if fail_step and ok_gnorm:
-                    _last_disp = _gn_display(np.log10(max(ok_gnorm[-1], 1e-30)))
-                    ax_gn.semilogx(
-                        [ok_steps[-1], fail_step], [_last_disp, _last_disp], **kw_line
-                    )
-                    ax_gn.semilogx(
-                        [jx],
-                        [_last_disp],
-                        **{
-                            **kw,
-                            "marker": _FAILURE_MARKER.get(fail_ft, "D"),
-                            "markersize": 9,
-                            "markeredgewidth": 1.2,
-                            "markeredgecolor": "white",
-                            "linestyle": "none",
-                            "zorder": 6,
-                        },
-                    )
-            else:
-                for ax in (ax_vr, ax_wt, ax_gn):
-                    ax.loglog([], [], **kw)
-
-            # ── Failure markers on VRAM and wall-time axes ────────────────────
-            if fail_step is not None:
-                fm = _FAILURE_MARKER.get(fail_ft, "D")
-                mk_kw = {
-                    "marker": fm,
-                    "color": color,
-                    "markersize": 9,
-                    "markeredgewidth": 1.2,
-                    "markeredgecolor": "white",
-                    "linestyle": "none",
-                    "zorder": 6,
-                }
-                if not cpu_only:
-                    ax_vr.loglog([jx], [max(fail_vram, 1)], **mk_kw)
-                ax_wt.semilogx(
-                    [jx], [_wt_display(np.log10(max(fail_wall, 1e-10)))], **mk_kw
-                )
-                failure_types_seen.add(fail_ft)
+        failure_types_seen = _plot_solvers(
+            (ax_vr, ax_wt, ax_gn),
+            solver_data,
+            ordered,
+            jitter_x,
+            gn_display,
+            wt_display,
+        )
 
         # ── OpenFOAM FD VJP estimate — wall-time panel only ──────────────────
-        if _of_fd:
-            _of_steps = sorted(_of_fd)
-            _of_disp = [_wt_display(np.log10(max(_of_fd[s], 1e-10))) for s in _of_steps]
-            ax_wt.semilogx(
-                _of_steps,
-                _of_disp,
-                color=_OF_COLOR,
-                linestyle=_OF_LS,
-                marker="h",
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-                label="OpenFOAM (FD est.)",
-                zorder=3,
-            )
+        _plot_openfoam_fd(ax_wt, of_fd, wt_display)
 
-        # ── 16 GiB limit line ─────────────────────────────────────────────────
-        ax_vr.axhline(
-            _VRAM_LIMIT_MIB, color="0.35", linestyle="--", linewidth=1.0, zorder=2
-        )
-        _trans = blended_transform_factory(ax_vr.transAxes, ax_vr.transData)
-        ax_vr.text(
-            0.28,
-            _VRAM_LIMIT_MIB,
-            "16 GiB",
-            transform=_trans,
-            ha="right",
-            va="bottom",
-            fontsize=6.5,
-            color="0.35",
-            clip_on=True,
-        )
+        # ── 16 GiB limit line + titles/labels ────────────────────────────────
+        _decorate_vram_panel(ax_vr)
+        _set_panel_titles(ax_wt, ax_gn)
 
-        ax_vr.set_title("Peak (V)RAM")
-        ax_vr.set_xlabel("Rollout steps $T$")
-        ax_vr.set_ylabel("MiB")
-
-        ax_wt.set_title("Wall time")
-        ax_wt.set_xlabel("Rollout steps $T$")
-        ax_wt.set_ylabel("Seconds")
-
-        ax_gn.set_title("Gradient norm")
-        ax_gn.set_xlabel("Rollout steps $T$")
-        ax_gn.set_ylabel(r"$\|\nabla\mathcal{L}\|$")
-
-        # ── Wall time y-axis ticks ────────────────────────────────────────────
-        _wt_below_ticks = [v for v in [0, 1, 2] if v >= _WT_YMIN]
-        _wt_above_ticks = [v for v in [4, 6, 8] if v <= _max_wt_log10 + 0.5]
-        _wt_above_disp = [
-            _WT_BREAK_LOG + (v - _WT_BREAK_LOG) * _wt_upper_factor
-            for v in _wt_above_ticks
-        ]
-        ax_wt.set_yticks(list(_wt_below_ticks) + _wt_above_disp)
-        ax_wt.set_yticklabels(
-            [rf"$10^{{{v}}}$" for v in _wt_below_ticks + _wt_above_ticks]
-        )
-        _wt_ymax = _WT_BREAK_LOG + _wt_upper_data * _wt_upper_factor
-        ax_wt.set_ylim(_WT_YMIN, _wt_ymax + 0.1)
-
-        # ── Gradient norm y-axis ticks ────────────────────────────────────────
-        _lower_ticks = [v for v in [1] if _GN_YMIN <= v < _GN_LOWER_BREAK]
-        _middle_ticks = [2, 3]
-        _above_ticks = [v for v in [5, 7, 9] if v <= _max_log10 + 0.5]
-        _all_gn_ticks = _lower_ticks + _middle_ticks + _above_ticks
-        _all_gn_disp = [_gn_display(v) for v in _all_gn_ticks]
-        ax_gn.set_yticks(_all_gn_disp)
-        ax_gn.set_yticklabels([rf"$10^{{{v}}}$" for v in _all_gn_ticks])
-        _gn_ymax = _gn_display(_max_log10)
-        ax_gn.set_ylim(_GN_YMIN, _gn_ymax + 0.05)
+        # ── Wall time + gradient norm y-axis ticks ───────────────────────────
+        _set_wt_yticks(ax_wt, max_wt_log10, wt_upper_factor, wt_upper_data)
+        _set_gn_yticks(ax_gn, gn_display, max_log10)
 
         # ── Piecewise log x-axis on wall-time and gradient-norm panels ────────
-        _x_min_data = min(_all_sweep_steps) if _all_sweep_steps else 1
-        _x_max_data = max(_all_sweep_steps) if _all_sweep_steps else 1e4
-        # Small log-space padding so tick labels at the edges aren't clipped.
-        _x_pad = 0.06 * (np.log10(_x_max_data) - np.log10(_x_min_data))
-        _x_lim_lo = 10 ** (np.log10(_x_min_data) - _x_pad)
-        _x_lim_hi = 10 ** (np.log10(_x_max_data) + _x_pad)
-        for _ax in (ax_wt, ax_gn):
-            _ax.set_xscale(
-                "function",
-                functions=(_x_log_forward, _x_log_inverse),
-            )
-            _ax.set_xticks([10, 100, 1000, 10000])
-            _ax.set_xticklabels([r"$10^{1}$", r"$10^{2}$", r"$10^{3}$", r"$10^{4}$"])
-            _ax.axvline(
-                10**_X_BREAK_LOG,
-                color="0.7",
-                linestyle=":",
-                linewidth=0.6,
-                zorder=0,
-            )
-            _ax.set_xlim(_x_lim_lo, _x_lim_hi)
-        # Match VRAM panel x-range to actual data, too.
-        ax_vr.set_xlim(_x_lim_lo, _x_lim_hi)
+        _set_piecewise_x_axis(ax_vr, ax_wt, ax_gn, all_sweep_steps)
 
         # ── Legend ────────────────────────────────────────────────────────────
-        _dummy = mlines.Line2D(
-            [], [], color="none", linestyle="none", marker="none", label=""
-        )
-        solver_handles = []
-        for s in SOLVER_ORDER:
-            if s not in present:
-                continue
-            lb, co, li, _ = _solver_style(s)
-            solver_handles.append(
-                mlines.Line2D(
-                    [],
-                    [],
-                    color=co,
-                    linestyle=li,
-                    marker="o",
-                    markersize=5,
-                    markeredgewidth=0,
-                    linewidth=1.6,
-                    label=lb,
-                )
-            )
-        if _of_fd:
-            solver_handles.append(
-                mlines.Line2D(
-                    [],
-                    [],
-                    color=_OF_COLOR,
-                    linestyle=_OF_LS,
-                    marker="h",
-                    markersize=5,
-                    markeredgewidth=0,
-                    linewidth=1.6,
-                    label="OpenFOAM (FD est.)",
-                )
-            )
-            solver_handles.append(_dummy)
+        _attach_legend(fig, present, of_fd, failure_types_seen)
 
-        failure_handles = []
-        for ft in ["OOM", "nan", "error", "timeout"]:
-            if ft in failure_types_seen:
-                failure_handles.append(
-                    mlines.Line2D(
-                        [],
-                        [],
-                        marker=_FAILURE_MARKER[ft],
-                        color="0.4",
-                        linestyle="none",
-                        markersize=7,
-                        markeredgewidth=1.0,
-                        markeredgecolor="white",
-                        label=_FAILURE_LABEL[ft],
-                    )
-                )
-
-        # matplotlib fills legends column-first: entries 2k and 2k+1 share a column.
-        # Pad solver handles to an even count so OOM and NaN (consecutive) land
-        # in the same column on different rows → vertically aligned.
-        _dummy = mlines.Line2D(
-            [], [], color="none", linestyle="none", marker="none", label=""
-        )
-        if len(solver_handles) % 2 == 1:
-            solver_handles.append(_dummy)
-
-        all_handles = solver_handles + failure_handles
-        ncol = -(-len(all_handles) // 2)  # ceil → 2 rows
-        fig.legend(
-            handles=all_handles,
-            loc="lower center",
-            bbox_to_anchor=(0.5, -0.4),
-            ncol=ncol,
-            fontsize=7.5,
-            framealpha=0.7,
-            handlelength=2.0,
-        )
-
-        for ext in ("pdf", "png"):
-            out = out_dir / f"horizon_sweep_limits.{ext}"
-            fig.savefig(out)
-            print(f"Saved {out}")
+        _save_figure(fig, out_dir)
         plt.close(fig)
     return fig

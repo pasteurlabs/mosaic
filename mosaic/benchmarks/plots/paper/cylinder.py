@@ -8,7 +8,6 @@ Output: appendix_cylinder.pdf
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.gridspec as gridspec
@@ -16,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -52,12 +51,12 @@ def generate(out_dir: Path) -> None:
         return
 
     with plt.rc_context(RCPARAMS):
-        data = json.loads(_path.read_text())
+        data = load_json(_path)
         by_param = data["by_param"]
         params = sorted(by_param.keys(), key=float)
         nu_vals = [float(p) for p in params]
 
-        fields_data = np.load(_fields, allow_pickle=True) if _fields.exists() else None
+        fields_data = try_load_npz(_fields) if _fields.exists() else None
 
         # Layout: left column = line plot, right 2×2 = vorticity fields
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.50))

@@ -14,7 +14,6 @@ short horizontal connector from the last successful point.
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
@@ -23,7 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -144,16 +143,8 @@ def generate(out_dir: Path) -> None:
 
         fwd_path = cost_dir / "spatial_cost" / "result.json"
         vjp_path = cost_dir / "vjp_cost" / "result.json"
-        fwd_data = (
-            json.loads(fwd_path.read_text()).get("by_N", {})
-            if fwd_path.exists()
-            else {}
-        )
-        vjp_data = (
-            json.loads(vjp_path.read_text()).get("by_N", {})
-            if vjp_path.exists()
-            else {}
-        )
+        fwd_data = load_json(fwd_path).get("by_N", {}) if fwd_path.exists() else {}
+        vjp_data = load_json(vjp_path).get("by_N", {}) if vjp_path.exists() else {}
 
         ax_fwd = axes[0, col]
         ax_vjp = axes[1, col]

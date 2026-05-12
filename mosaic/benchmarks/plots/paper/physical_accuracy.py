@@ -9,14 +9,13 @@ Produces:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     FEM_ORDER,
@@ -124,7 +123,7 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
         path = (
             results_dir() / subdir / "forward/physical_laws" / sweep_key / "result.json"
         )
-        data = json.loads(path.read_text())
+        data = load_json(path)
         by_param = data["by_param"]
         params = sorted(by_param.keys(), key=float)
         phys = data.get("params", {}).get("physics", {})
@@ -247,7 +246,7 @@ def generate(out_dir: Path) -> None:
         fig.subplots_adjust(bottom=0.22)
 
         path = results_dir() / subdir / "forward/physical_laws/result.json"
-        data = json.loads(path.read_text())
+        data = load_json(path)
         by_param = data["by_param"]
         params = sorted(by_param.keys(), key=float)
         x_vals = np.array([float(p) for p in params])

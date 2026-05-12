@@ -2,11 +2,34 @@
 
 from __future__ import annotations
 
-import subprocess
-
-from mosaic.benchmarks.core.memory import sample_vram_mib
+from mosaic.benchmarks.core.memory import _nvml_ready, sample_vram_mib
 
 # ── Hardware info ─────────────────────────────────────────────────────────────
+
+
+def _gpu_descriptions() -> list[str]:
+    """``["<name>, <total_mib> MiB", ...]`` for each visible GPU via NVML.
+
+    Returns an empty list on any failure (no driver, NVML init error).
+    Format mirrors the previous ``nvidia-smi --query-gpu=name,memory.total
+    --format=csv,noheader`` output so existing consumers (status display,
+    paper plot captions) don't change.
+    """
+    nvml = _nvml_ready()
+    if nvml is None:
+        return []
+    out: list[str] = []
+    try:
+        for i in range(nvml.nvmlDeviceGetCount()):
+            handle = nvml.nvmlDeviceGetHandleByIndex(i)
+            name = nvml.nvmlDeviceGetName(handle)
+            if isinstance(name, bytes):
+                name = name.decode("utf-8", errors="replace")
+            total_mib = nvml.nvmlDeviceGetMemoryInfo(handle).total / (1024 * 1024)
+            out.append(f"{name}, {total_mib:.0f} MiB")
+    except Exception:
+        return []
+    return out
 
 
 def get_hardware_info() -> dict:
@@ -17,26 +40,9 @@ def get_hardware_info() -> dict:
     """
     info: dict = {}
 
-    # GPUs via nvidia-smi
-    try:
-        out = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=name,memory.total",
-                "--format=csv,noheader",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if out.returncode == 0:
-            gpus = [
-                line.strip() for line in out.stdout.strip().splitlines() if line.strip()
-            ]
-            if gpus:
-                info["gpus"] = gpus
-    except Exception:
-        pass
+    gpus = _gpu_descriptions()
+    if gpus:
+        info["gpus"] = gpus
 
     # CPU model from /proc/cpuinfo
     try:
@@ -60,15 +66,12 @@ def get_hardware_info() -> dict:
 
 
 def has_gpu() -> bool:
-    """Return True if at least one NVIDIA GPU is visible via nvidia-smi."""
+    """Return True if at least one NVIDIA GPU is visible via NVML."""
+    nvml = _nvml_ready()
+    if nvml is None:
+        return False
     try:
-        out = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        return out.returncode == 0 and bool(out.stdout.strip())
+        return nvml.nvmlDeviceGetCount() > 0
     except Exception:
         return False
 

@@ -414,30 +414,12 @@ class ProblemConfig:
 
     # ── Validation ────────────────────────────────────────────────────────────
 
-    def validate(self) -> None:
-        """Check that the config is well-formed.  Raises on first error."""
-        errors: list[str] = []
-        if not self.name:
-            errors.append("name is empty")
-        if not self.solvers:
-            errors.append("no solvers registered")
-        for key, spec in self.solvers.items():
-            for attr in ("name", "dir", "scheme", "backend", "color"):
-                if not getattr(spec, attr, None):
-                    errors.append(f"solver {key!r}: missing {attr}")
-        if not self.make_ic:
-            errors.append("make_ic is empty (no initial conditions)")
-        for ic_name, ic in self.make_ic.items():
-            if not callable(ic):
-                errors.append(f"make_ic[{ic_name!r}] is not callable")
-        if not callable(self.make_inputs):
-            errors.append("make_inputs is not callable")
-        if not callable(self.error_fn):
-            errors.append("error_fn is not callable")
-        if not self.tesseract_dir.is_dir():
-            errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
+    def _validate_suite_defaults(self, errors: list[str]) -> None:
+        """Append errors for malformed suite-defaults entries.
 
-        # Validate suite defaults structure: each experiment should be a list of run dicts
+        Each experiment value should be a list of run dicts; bare metadata
+        strings and metadata-only dicts (without any run keys) are tolerated.
+        """
         for suite_attr, suite_label in [
             ("forward_defaults", "forward_defaults"),
             ("gradient_defaults", "gradient_defaults"),
@@ -463,6 +445,32 @@ class ProblemConfig:
                         f"{suite_label}[{exp_name!r}]: expected a list of run dicts, "
                         f"got {type(exp_val).__name__}"
                     )
+
+    def validate(self) -> None:
+        """Check that the config is well-formed.  Raises on first error."""
+        errors: list[str] = []
+        if not self.name:
+            errors.append("name is empty")
+        if not self.solvers:
+            errors.append("no solvers registered")
+        for key, spec in self.solvers.items():
+            for attr in ("name", "dir", "scheme", "backend", "color"):
+                if not getattr(spec, attr, None):
+                    errors.append(f"solver {key!r}: missing {attr}")
+        if not self.make_ic:
+            errors.append("make_ic is empty (no initial conditions)")
+        for ic_name, ic in self.make_ic.items():
+            if not callable(ic):
+                errors.append(f"make_ic[{ic_name!r}] is not callable")
+        if not callable(self.make_inputs):
+            errors.append("make_inputs is not callable")
+        if not callable(self.error_fn):
+            errors.append("error_fn is not callable")
+        if not self.tesseract_dir.is_dir():
+            errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
+
+        # Validate suite defaults structure: each experiment should be a list of run dicts
+        self._validate_suite_defaults(errors)
 
         valid_ad = {"autodiff", "adjoint", "hybrid", None}
         for key, spec in self.solvers.items():

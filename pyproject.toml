@@ -20,6 +20,9 @@ dependencies = [
     "tesseract-jax",
     "psutil",
     "pyyaml",
+    "filelock>=3",
+    "pynvml",
+    "docker>=6",
 ]
 
 [project.optional-dependencies]
@@ -115,18 +118,7 @@ max-complexity = 20     # default 10
 # each file is refactored. Snapshot: 2026-05-11.
 "mosaic/benchmarks/suites/optimization.py"           = ["C901", "PLR0912", "PLR0913", "PLR0915", "PLR1702"]
 "mosaic/benchmarks/core/status.py"                   = ["C901", "PLR0911", "PLR0912", "PLR0915"]
-"mosaic/benchmarks/plots/forward.py"                 = ["C901", "PLR0912", "PLR0915", "PLR1702"]
 "mosaic/benchmarks/cli.py"                           = ["C901", "PLR0912", "PLR0913", "PLR0915"]
-"mosaic/benchmarks/code_ratio.py"                    = ["C901", "PLR1702"]
-"mosaic/benchmarks/core/config.py"                   = ["C901"]
-"mosaic/benchmarks/core/results.py"                  = ["C901", "PLR0912"]
-"mosaic/benchmarks/plots/cost.py"                    = ["C901"]
-"mosaic/benchmarks/plots/gradient.py"                = ["C901"]
-"mosaic/benchmarks/plots/optimization.py"            = ["C901", "PLR0912", "PLR0915"]
-"mosaic/benchmarks/plots/paper/horizon_sweep_limits.py" = ["C901", "PLR0912", "PLR0915"]
-"mosaic/benchmarks/problems/structural_mesh.py"      = ["PLR0913"]
-"mosaic/benchmarks/problems/thermal_mesh.py"         = ["PLR0913"]
-"mosaic/benchmarks/suites/forward.py"                = ["C901", "PLR1702"]
 "mosaic/tesseracts/thermal-mesh/fenics-heat/tesseract_api.py" = [
     "F403",   # star import from dolfin/dolfin_adjoint — required by FEniCS conventions
     "F405",   # may be from star import — dolfin exports are only available via star import

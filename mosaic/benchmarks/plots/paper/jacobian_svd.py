@@ -9,7 +9,6 @@ Produces:
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
@@ -18,7 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
 
@@ -187,7 +186,7 @@ def _plot_svd_figure(
         path = results_dir() / subdir / "gradient" / exp_key / "result.json"
         if not path.exists():
             continue
-        data = json.loads(path.read_text())
+        data = load_json(path)
         if data.get("per_solver_spectra"):
             variants.append((exp_key, data))
 
@@ -262,7 +261,7 @@ def _svd_comparison(
         path = results_dir() / subdir / "gradient" / exp_key / "result.json"
         if not path.exists():
             continue
-        data = json.loads(path.read_text())
+        data = load_json(path)
         if data.get("per_solver_spectra"):
             variants.append((exp_key, data))
 

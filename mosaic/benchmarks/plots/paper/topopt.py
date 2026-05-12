@@ -10,7 +10,6 @@ Outputs:
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
@@ -20,7 +19,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
@@ -62,7 +61,7 @@ def _plot_combined_convergence(out_path: Path) -> None:
             ax.set_title(f"{domain_label} (no data)")
             ax.set_visible(False)
             continue
-        data = json.loads(result_path.read_text())
+        data = load_json(result_path)
         by_solver = data["by_solver"]
 
         for solver, sdata in by_solver.items():
@@ -199,8 +198,8 @@ def _plot_fields(
         print(f"Skipping fields figure — {fields_path} not found")
         return
 
-    npz = np.load(fields_path)
-    params = json.loads(params_path.read_text())
+    npz = try_load_npz(fields_path)
+    params = load_json(params_path)
     ph = params["physics"]
     nx, ny, nz = ph["nx"], ph["ny"], ph["nz"]
 
@@ -254,7 +253,7 @@ def _plot_conductivity_recovery(out_path: Path) -> None:
         / "conductivity_recovery_fields.png"
     )
 
-    data = json.loads(result_path.read_text())
+    data = load_json(result_path)
     by_solver = data["by_solver"]
 
     has_fields = fields_png.exists()

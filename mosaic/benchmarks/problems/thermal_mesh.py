@@ -310,7 +310,7 @@ def _two_gaussians(
     return (s1 + s2).astype(np.float32)
 
 
-def _make_inputs(
+def _make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
     solver_name: str,
     ic: np.ndarray,
     *,

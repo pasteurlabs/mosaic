@@ -59,14 +59,17 @@ from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.hardware import get_hardware_info
 from mosaic.benchmarks.core.harness import run_timed_trials
-from mosaic.benchmarks.core.results import save_experiment, save_field_snapshots_npz
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    results_dir,
+    save_experiment,
+    save_field_snapshots_npz,
+)
 from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_pool
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
     active_solvers,
-    experiment_dir,
     iter_runs,
-    results_dir,
 )
 
 _SUITE = "cost"

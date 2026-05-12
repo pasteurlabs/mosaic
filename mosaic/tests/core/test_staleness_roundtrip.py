@@ -40,7 +40,7 @@ from unittest import mock
 
 from mosaic.benchmarks.core import status as status_mod
 from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
-from mosaic.benchmarks.core.results import save_experiment
+from mosaic.benchmarks.core.io import save_experiment
 from mosaic.benchmarks.core.status import OK, collect_status
 
 # ── helpers ──────────────────────────────────────────────────────────────────

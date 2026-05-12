@@ -10,7 +10,6 @@ Failure modes (NaN grad_norm or non-finite FD error) are marked with a ×.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from pathlib import Path
 
@@ -18,7 +17,7 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
@@ -39,7 +38,7 @@ def generate(out_dir: Path) -> None:
         print(f"[horizon_sweep] {path} not found — skipping")
         return
 
-    data = json.loads(path.read_text())
+    data = load_json(path)
     by_solver = data["by_solver"]
 
     with plt.rc_context(RCPARAMS):

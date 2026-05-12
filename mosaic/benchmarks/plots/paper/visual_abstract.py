@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
 
-from mosaic.benchmarks.core.utils import results_dir
+from mosaic.benchmarks.core.io import results_dir, try_load_npz
 
 C = {
     "bg": "#FFFFFF",
@@ -55,8 +55,8 @@ def _load_flow_data() -> dict | None:
     if not flow_path.exists() or not prof_path.exists():
         print(f"[visual_abstract] result data not found at {base} — skipping")
         return None
-    flows = np.load(flow_path)
-    profs = np.load(prof_path)
+    flows = try_load_npz(flow_path)
+    profs = try_load_npz(prof_path)
     return {
         "flow_initial": flows["flow_initial"][:, :, 0, :],
         "flow_final": flows["flow_final_xlb"][:, :, 0, :],
