@@ -5,9 +5,9 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir
-from mosaic.benchmarks.plots.style import (
+from mosaic.benchmarks.shared.plots.style import (
     apply_style,
     fig_shared_legend,
     save_fig,
@@ -210,11 +210,11 @@ def _build_columns(
     return columns
 
 
-def _column_x(panel_id: str, keys: list, cfg: ProblemConfig, xlabel: str):
+def _column_x(panel_id: str, keys: list, n_to_cells, xlabel: str):
     """Compute x-axis array and display label for a column."""
     is_N_panel = panel_id in ("spatial_N", "vjp_N")
-    if is_N_panel and cfg.n_to_cells is not None:
-        x_arr = np.array([cfg.n_to_cells(int(k)) for k in keys], dtype=float)
+    if is_N_panel and n_to_cells is not None:
+        x_arr = np.array([n_to_cells(int(k)) for k in keys], dtype=float)
         return x_arr, "cells"
     x_arr = np.array([int(k) for k in keys], dtype=float)
     return x_arr, xlabel
@@ -227,14 +227,14 @@ def _draw_solver_series(
     keys: list,
     row: dict,
     style: dict,
-    cfg: ProblemConfig,
+    cfg: Problem,
     name: str,
     failure_types_seen: set[str],
 ) -> bool:
     """Draw one solver's time + memory series on a column. Return True if mem was drawn."""
     color = style.get("color", "black")
     ls = style.get("linestyle", "-")
-    spec = cfg.solvers[name]
+    spec = cfg.solver(name)
     tag = "(GPU)" if spec.uses_gpu else "(CPU)"
     label = f"{spec.name} {tag}"
     kw = dict(
@@ -268,21 +268,24 @@ def _draw_column(
     axes_grid,
     col: int,
     col_spec: tuple,
-    cfg: ProblemConfig,
+    cfg: Problem,
     styles: dict,
     failure_types_seen: set[str],
+    *,
+    n_to_cells,
 ) -> bool:
     """Draw all solvers on one column. Return True if any memory series was drawn."""
     panel_id, by_data, xlabel, title, keys = col_spec
     ax_time = axes_grid[0, col]
     ax_mem = axes_grid[1, col]
 
-    x_arr, xlabel_disp = _column_x(panel_id, keys, cfg, xlabel)
+    x_arr, xlabel_disp = _column_x(panel_id, keys, n_to_cells, xlabel)
 
     col_has_mem = False
-    for name in cfg.solvers:
+    for spec in cfg.solvers:
+        name = spec.name
         row = by_data.get(name) or {}
-        style = styles.get(name, {"color": cfg.solvers[name].color})
+        style = styles.get(name, {"color": cfg.solver(name).color})
         if _draw_solver_series(
             ax_time, ax_mem, x_arr, keys, row, style, cfg, name, failure_types_seen
         ):
@@ -318,7 +321,15 @@ def _add_failure_legend_entries(ax, failure_types_seen: set[str]) -> None:
             )
 
 
-def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_cost(
+    cfg: Problem,
+    *,
+    n_to_cells=None,
+    resolution_key: str = "N",
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Cost plots: wall-clock timing + peak (V)RAM (log-log), 2 rows × N columns.
 
     Row 0 — wall-clock time.  Row 1 — peak GPU VRAM (or RAM for CPU solvers).
@@ -332,7 +343,7 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
         return None
     spatial_data, temporal_data, vjp_data = loaded
 
-    columns = _build_columns(spatial_data, temporal_data, vjp_data, cfg.resolution_key)
+    columns = _build_columns(spatial_data, temporal_data, vjp_data, resolution_key)
     n_cols = len(columns)
     if n_cols == 0:
         return None
@@ -350,7 +361,15 @@ def plot_cost(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     mem_row_used = False
 
     for col, col_spec in enumerate(columns):
-        if _draw_column(axes_grid, col, col_spec, cfg, styles, failure_types_seen):
+        if _draw_column(
+            axes_grid,
+            col,
+            col_spec,
+            cfg,
+            styles,
+            failure_types_seen,
+            n_to_cells=n_to_cells,
+        ):
             mem_row_used = True
 
     # hide memory row label axes if the whole row is empty

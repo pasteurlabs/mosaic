@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.harness import classify_failure as _classify_failure
 from mosaic.benchmarks.core.io import (
@@ -66,7 +66,6 @@ def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
 
 def _safe_vjp_at(
     t,
-    cfg: ProblemConfig,
     name: str,
     ic,
     phys: dict,
@@ -74,6 +73,9 @@ def _safe_vjp_at(
     val,
     output_key: str,
     ic_key: str,
+    *,
+    make_inputs,
+    domain_extent: float,
 ) -> tuple[jax.Array | None, Exception | None]:
     """Compute the VJP gradient at one sweep point, returning ``(grad, exc)``.
 
@@ -83,8 +85,8 @@ def _safe_vjp_at(
     try/except nested inside ``with MemoryPoller(...)``).
     """
     try:
-        inputs = cfg.make_inputs(
-            name, ic, **{**phys, sweep_key: val, "domain_extent": cfg.domain_extent}
+        inputs = make_inputs(
+            name, ic, **{**phys, sweep_key: val, "domain_extent": domain_extent}
         )
         g = _vjp_grad(t, inputs, output_key, ic_key)
         if not jnp.all(jnp.isfinite(g)):
@@ -98,7 +100,17 @@ def _safe_vjp_at(
 
 
 def run_fd_check(
-    cfg: ProblemConfig, tags: dict[str, str], *, _exp_key: str = "fd_check", **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    output_key: str,
+    ic_key: str,
+    domain_extent: float,
+    runs=None,
+    exp_key: str = "fd_check",
+    **overrides,
 ) -> dict:
     """Verify VJP gradients against central finite differences over a range of ε values.
 
@@ -111,17 +123,17 @@ def run_fd_check(
         {"by_solver": {solver: {eps: {"rel_error": [float], "cosine": float}}}}
         or {ic_name: <above>} when multiple runs are configured.
     """
-    runs = cfg.gradient_defaults.get(_exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{_exp_key}' gradient_defaults configured for '{cfg.name}'"
+            f"run_fd_check requires runs= payload for {exp_key!r} "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         fd_cfg = run.get("fd", {})
         eps_values = fd_cfg.get("eps_values", [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4])
@@ -129,17 +141,17 @@ def run_fd_check(
         phys = run.get("physics", {})
         ic_subdir = ic_name if n_runs > 1 else ""
         # Per-run ic_key and output_key allow source-identification experiments
-        # to override the global cfg.ic_key="rho" / cfg.output_key defaults.
-        run_ic_key = run.get("ic_key", cfg.ic_key)
-        run_output_key = run.get("output_key", cfg.output_key)
+        # to override the global ic_key="rho" / output_key defaults.
+        run_ic_key = run.get("ic_key", ic_key)
+        run_output_key = run.get("output_key", output_key)
 
-        ic = cfg.make_ic[ic_name](seed=seed, L=cfg.domain_extent, **phys)
+        ic = make_ic[ic_name](seed=seed, L=domain_extent, **phys)
         keys = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
 
         # Gate on the experiment-specific exclusion so source_fd_check /
         # source_width_sweep only run on source-differentiable solvers
-        # (those without a {suite}/{_exp_key} or bare {_exp_key} exclusion).
-        diff_solvers = active_differentiable_solvers(cfg, "gradient", _exp_key)
+        # (those without a {suite}/{exp_key} or bare {exp_key} exclusion).
+        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
         results: dict = {}
         grad_snaps: dict = {}
         gpu_ids = overrides.get("gpu_ids")
@@ -148,12 +160,10 @@ def run_fd_check(
         def _fd_work(
             name: str, t, _run_ic_key=run_ic_key, _run_output_key=run_output_key
         ) -> None:
-            color = cfg.solvers[name].color
+            color = cfg.solver(name).color
             t0 = time.perf_counter()
             try:
-                base_inputs = cfg.make_inputs(
-                    name, ic, domain_extent=cfg.domain_extent, **phys
-                )
+                base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
                 # Use the actual IC from make_inputs as the perturbation base.  For some
                 # problems (e.g. structural-mesh) make_inputs may override the passed ic
                 # (e.g. via a rho_0 parameter), so we must perturb around base_inputs[ic_key]
@@ -224,7 +234,7 @@ def run_fd_check(
 
         run_with_gpu_pool(diff_solvers, tags, _fd_work, gpu_ids=gpu_ids)
 
-        exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
+        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir = experiment_dir(
             results_dir(),
             cfg.name,
@@ -260,33 +270,33 @@ _DEFAULT_EPS = [1e0, 1e-1, 1e-2, 1e-3]
 
 def _eps_sweep(
     t,
-    cfg,
     name,
     ic,
     dirs,
     eps_values,
     make_inputs_kwargs,
-    ic_key: str | None = None,
-    output_key: str | None = None,
+    *,
+    make_inputs,
+    ic_key: str,
+    output_key: str,
 ) -> tuple[dict, jax.Array]:
     """Run FD vs VJP over a list of ε values.
 
-    ic_key and output_key override cfg.ic_key/cfg.output_key for per-experiment
-    source-identification gradient checks (source_fd_check etc.).
+    ic_key and output_key are passed explicitly so callers can override the
+    problem defaults for per-experiment source-identification gradient checks
+    (source_fd_check etc.).
 
     Returns:
         result : {"grad_norm", "eps_sweep": {eps: {rel_error_mean, rel_error_std,
                                                     cosine_mean}}}
         grad   : jax.Array  — VJP gradient (reuse by caller, avoids recomputation)
     """
-    _ic_key = ic_key if ic_key is not None else cfg.ic_key
-    _output_key = output_key if output_key is not None else cfg.output_key
-    base_inputs = cfg.make_inputs(name, ic, **make_inputs_kwargs)
+    base_inputs = make_inputs(name, ic, **make_inputs_kwargs)
     # Use the actual IC from make_inputs as the perturbation base.  For some
     # problems (e.g. structural-mesh) make_inputs may override the passed ic
     # (e.g. via a rho_0 parameter), so we must perturb around base_inputs[ic_key]
     # rather than the raw ic array — otherwise the FD sees no perturbation.
-    base_ic = jnp.array(base_inputs[_ic_key])
+    base_ic = jnp.array(base_inputs[ic_key])
     # Scale ε relative to IC magnitude so eps_values are problem-agnostic.
     ic_scale = float(jnp.sqrt(jnp.mean(base_ic**2) + 1e-30))
     # Reuse the caller's random directions when they match base_ic's shape (the
@@ -300,7 +310,7 @@ def _eps_sweep(
         ]
     )
 
-    g = _vjp_grad(t, base_inputs, _output_key, _ic_key)
+    g = _vjp_grad(t, base_inputs, output_key, ic_key)
     vjp_arr = np.array([float(jnp.dot(g.ravel(), v.ravel())) for v in dirs_base])
 
     eps_sweep: dict = {}
@@ -311,12 +321,12 @@ def _eps_sweep(
                 float(
                     jnp.sum(
                         apply_tesseract(
-                            t, {**base_inputs, _ic_key: base_ic + abs_eps * v}
-                        )[_output_key]
+                            t, {**base_inputs, ic_key: base_ic + abs_eps * v}
+                        )[output_key]
                         ** 2
                         - apply_tesseract(
-                            t, {**base_inputs, _ic_key: base_ic - abs_eps * v}
-                        )[_output_key]
+                            t, {**base_inputs, ic_key: base_ic - abs_eps * v}
+                        )[output_key]
                         ** 2
                     )
                     / (2 * abs_eps)
@@ -342,27 +352,32 @@ def _eps_sweep(
 
 
 def _run_generic_param_sweep(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     exp_key: str,
+    *,
+    make_ic,
+    make_inputs,
+    output_key: str,
+    ic_key: str,
+    domain_extent: float,
+    runs=None,
     **overrides,
 ) -> dict:
     """Shared implementation for param_sweep and horizon_sweep experiments.
 
-    Reads gradient_defaults[exp_key] and saves results to
-    results/<problem>/gradient/<exp_key>/.
+    Saves results to ``results/<problem>/gradient/<exp_key>/``.
     """
-    runs = cfg.gradient_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{exp_key}' gradient_defaults configured for '{cfg.name}'"
+            f"No runs payload for '{exp_key}' configured for '{cfg.name}'"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         fd_cfg = run.get("fd", {})
         eps_values = fd_cfg.get("eps_values", _DEFAULT_EPS)
@@ -372,12 +387,12 @@ def _run_generic_param_sweep(
         sweep_values = sweep_cfg.get("values", [])
         phys = run.get("physics", {})
         ic_subdir = ic_name if n_runs > 1 else ""
-        run_ic_key = run.get("ic_key", cfg.ic_key)
-        run_output_key = run.get("output_key", cfg.output_key)
+        run_ic_key = run.get("ic_key", ic_key)
+        run_output_key = run.get("output_key", output_key)
 
         if not sweep_key or not sweep_values:
             raise NotImplementedError(
-                f"'{exp_key}' requires sweep.key and sweep.values in gradient_defaults "
+                f"'{exp_key}' requires sweep.key and sweep.values in runs payload "
                 f"(not configured for '{cfg.name}')"
             )
 
@@ -390,8 +405,8 @@ def _run_generic_param_sweep(
             ic_per_val: dict = {}
             dirs_per_val: dict = {}
             for _val in sweep_values:
-                _ic_v = cfg.make_ic[ic_name](
-                    L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: _val}
+                _ic_v = make_ic[ic_name](
+                    L=domain_extent, seed=seed, **{**phys, sweep_key: _val}
                 )
                 _keys_v = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
                 ic_per_val[_val] = _ic_v
@@ -402,7 +417,7 @@ def _run_generic_param_sweep(
             ic = ic_per_val[sweep_values[0]]
             dirs = dirs_per_val[sweep_values[0]]
         else:
-            ic = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
+            ic = make_ic[ic_name](L=domain_extent, seed=seed, **phys)
             keys = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
             dirs = [_random_direction(ic.shape, k) for k in keys]
             ic_per_val = None
@@ -425,7 +440,7 @@ def _run_generic_param_sweep(
             _ic_per_val=ic_per_val,
             _dirs_per_val=dirs_per_val,
         ) -> None:
-            color = cfg.solvers[name].color
+            color = cfg.solver(name).color
             t0 = time.perf_counter()
             try:
                 solver_results: dict = {}
@@ -436,12 +451,12 @@ def _run_generic_param_sweep(
                     _dirs = _dirs_per_val[val] if _dirs_per_val is not None else dirs
                     entry, g = _eps_sweep(
                         t,
-                        cfg,
                         name,
                         _ic,
                         _dirs,
                         eps_values,
-                        {**phys, sweep_key: val, "domain_extent": cfg.domain_extent},
+                        {**phys, sweep_key: val, "domain_extent": domain_extent},
+                        make_inputs=make_inputs,
                         ic_key=_run_ic_key,
                         output_key=_run_output_key,
                     )
@@ -508,13 +523,25 @@ def _run_generic_param_sweep(
     return all_results
 
 
-def run_param_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_param_sweep(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    output_key: str,
+    ic_key: str,
+    domain_extent: float,
+    runs=None,
+    exp_key: str = "param_sweep",
+    **overrides,
+) -> dict:
     """Gradient norm and per-solver FD ε-sweep vs one physics parameter.
 
-    Uses sweep.key / sweep.values from gradient_defaults["param_sweep"] so any
-    problem-specific parameter (nu, kT, sigma8, …) can be swept without changing
-    this function.  Use sweep.key="N" or sweep.key="steps" to replace the former
-    resolution_sweep and horizon_sweep respectively.
+    Each run dict supplies ``sweep.key`` / ``sweep.values`` so any
+    problem-specific parameter (nu, kT, sigma8, …) can be swept without
+    changing this function. Use ``sweep.key="N"`` or ``sweep.key="steps"``
+    to replace the former resolution_sweep and horizon_sweep respectively.
 
     Returns:
         {"by_solver": {solver: {val: {"grad_norm",
@@ -524,14 +551,37 @@ def run_param_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> di
          "sweep_key": sweep_key}
         or {ic_name: <above>} when multiple runs are configured.
     """
-    return _run_generic_param_sweep(cfg, tags, "param_sweep", **overrides)
+    return _run_generic_param_sweep(
+        cfg,
+        tags,
+        exp_key,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        output_key=output_key,
+        ic_key=ic_key,
+        domain_extent=domain_extent,
+        runs=runs,
+        **overrides,
+    )
 
 
-def run_horizon_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_horizon_sweep(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    output_key: str,
+    ic_key: str,
+    domain_extent: float,
+    runs=None,
+    exp_key: str = "horizon_sweep",
+    **overrides,
+) -> dict:
     """Gradient quality vs rollout horizon sweep.
 
-    Uses sweep.key / sweep.values from gradient_defaults["horizon_sweep"].
-    Saves results and gradient field snapshots to results/<problem>/gradient/horizon_sweep/.
+    Saves results and gradient field snapshots to
+    ``results/<problem>/gradient/horizon_sweep/``.
 
     Returns:
         {"by_solver": {solver: {val: {"grad_norm",
@@ -541,11 +591,32 @@ def run_horizon_sweep(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
          "sweep_key": sweep_key}
         or {ic_name: <above>} when multiple runs are configured.
     """
-    return _run_generic_param_sweep(cfg, tags, "horizon_sweep", **overrides)
+    return _run_generic_param_sweep(
+        cfg,
+        tags,
+        exp_key,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        output_key=output_key,
+        ic_key=ic_key,
+        domain_extent=domain_extent,
+        runs=runs,
+        **overrides,
+    )
 
 
 def run_horizon_sweep_limits(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    output_key: str,
+    ic_key: str,
+    domain_extent: float,
+    runs=None,
+    exp_key: str = "horizon_sweep_limits",
+    **overrides,
 ) -> dict:
     """Rollout-length limit sweep: VJP only, per-step failure recording, early stopping.
 
@@ -577,26 +648,25 @@ def run_horizon_sweep_limits(
 
         mosaic gradient ns-3d-grid --experiments horizon_sweep_limits --gpu-ids 0 1 2 3
     """
-    exp_key = "horizon_sweep_limits"
-    runs = cfg.gradient_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{exp_key}' gradient_defaults configured for '{cfg.name}'"
+            f"run_horizon_sweep_limits requires runs= payload "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         sweep_cfg = run.get("sweep", {})
         sweep_key = sweep_cfg.get("key")
         sweep_values = sweep_cfg.get("values", [])
         phys = run.get("physics", {})
         ic_subdir = ic_name if n_runs > 1 else ""
-        run_ic_key = run.get("ic_key", cfg.ic_key)
-        run_output_key = run.get("output_key", cfg.output_key)
+        run_ic_key = run.get("ic_key", ic_key)
+        run_output_key = run.get("output_key", output_key)
         gpu_ids = overrides.get("gpu_ids")
 
         if gpu_ids is None:
@@ -607,10 +677,10 @@ def run_horizon_sweep_limits(
 
         if not sweep_key or not sweep_values:
             raise NotImplementedError(
-                f"'{exp_key}' requires sweep.key and sweep.values in gradient_defaults"
+                f"'{exp_key}' requires sweep.key and sweep.values in runs payload"
             )
 
-        ic = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
+        ic = make_ic[ic_name](L=domain_extent, seed=seed, **phys)
 
         diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
         results: dict = {}
@@ -623,7 +693,7 @@ def run_horizon_sweep_limits(
             _run_ic_key=run_ic_key,
             _run_output_key=run_output_key,
         ) -> None:
-            color = cfg.solvers[name].color
+            color = cfg.solver(name).color
             t0 = time.perf_counter()
 
             # GPU ID is set per-thread by run_with_gpu_pool; container ID is
@@ -640,13 +710,13 @@ def run_horizon_sweep_limits(
             # Warmup VJP at smallest step count to prime JIT/kernel compilation
             # (warp_ns Warp kernels, ins_jl Julia/Zygote JIT) before timing starts.
             try:
-                _wu_inputs = cfg.make_inputs(
+                _wu_inputs = make_inputs(
                     name,
                     ic,
                     **{
                         **phys,
                         sweep_key: sweep_values[0],
-                        "domain_extent": cfg.domain_extent,
+                        "domain_extent": domain_extent,
                     },
                 )
                 _vjp_grad(t, _wu_inputs, _run_output_key, _run_ic_key)
@@ -664,7 +734,6 @@ def run_horizon_sweep_limits(
                 with MemoryPoller(_gpu_id, _cid) as poller:
                     g, exc = _safe_vjp_at(
                         t,
-                        cfg,
                         name,
                         ic,
                         phys,
@@ -672,6 +741,8 @@ def run_horizon_sweep_limits(
                         val,
                         _run_output_key,
                         _run_ic_key,
+                        make_inputs=make_inputs,
+                        domain_extent=domain_extent,
                     )
                 mem = poller.summary
                 step_wall = time.perf_counter() - t_step
@@ -781,10 +852,16 @@ def run_horizon_sweep_limits(
 
 
 def run_jacobian_svd(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     *,
-    _exp_key: str = "jacobian_svd",
+    make_ic,
+    make_inputs,
+    output_key: str,
+    ic_key: str,
+    domain_extent: float,
+    runs=None,
+    exp_key: str = "jacobian_svd",
     **overrides,
 ) -> dict:
     """Singular-value spectrum of the stacked per-solver gradient matrix.
@@ -809,17 +886,17 @@ def run_jacobian_svd(
         {"solver_names": [...], "singular_values": [...], ...}
         or {ic_name: <above>} when multiple runs are configured.
     """
-    runs = cfg.gradient_defaults.get(_exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{_exp_key}' gradient_defaults configured for '{cfg.name}'"
+            f"run_jacobian_svd requires runs= payload for {exp_key!r} "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         jacobian_cfg = run.get("jacobian", {})
         n_alphas = jacobian_cfg.get("n_alphas", 41)
@@ -828,9 +905,9 @@ def run_jacobian_svd(
         phys = run.get("physics", {})
         ic_subdir = ic_name if n_runs > 1 else ""
 
-        ic = cfg.make_ic[ic_name](seed=seed, L=cfg.domain_extent, **phys)
+        ic = make_ic[ic_name](seed=seed, L=domain_extent, **phys)
 
-        diff_solvers = active_differentiable_solvers(cfg, "gradient", _exp_key)
+        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
         jacobians: dict = {}  # name → (D_out, D_in) ndarray
         grad_snaps: dict = {}  # name → (D_in,) ndarray  [for field plots]
         base_inputs_snap: dict = {}
@@ -841,17 +918,15 @@ def run_jacobian_svd(
         # jax.jacrev computes ∂output[i]/∂ic[j] for all (i,j), giving the full
         # (D_out, D_in) Jacobian with D_out VJP calls — tractable for small N.
         def _svd_work(name: str, t) -> None:
-            color = cfg.solvers[name].color
+            color = cfg.solver(name).color
             t0 = time.perf_counter()
             try:
-                base_inputs = cfg.make_inputs(
-                    name, ic, domain_extent=cfg.domain_extent, **phys
-                )
-                base_ic = jnp.array(base_inputs[cfg.ic_key])
+                base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
+                base_ic = jnp.array(base_inputs[ic_key])
 
                 def fwd(ic_arr):
-                    return apply_tesseract(t, {**base_inputs, cfg.ic_key: ic_arr})[
-                        cfg.output_key
+                    return apply_tesseract(t, {**base_inputs, ic_key: ic_arr})[
+                        output_key
                     ]
 
                 # Full Jacobian via sequential VJP (one call per output element).
@@ -904,7 +979,7 @@ def run_jacobian_svd(
             results_dir(),
             cfg.name,
             _SUITE,
-            f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
+            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
             suffix="_debug" if overrides.get("debug") else "",
         )
         _npz = try_load_npz(out_dir_for_merge / "jacobian_svd.npz")
@@ -990,7 +1065,7 @@ def run_jacobian_svd(
             d_top_jax = jnp.array(d_top)
 
             def _landscape_work(name: str, t) -> None:
-                color = cfg.solvers[name].color
+                color = cfg.solver(name).color
                 base_inputs, base_ic_solver = base_inputs_snap[name]
                 base_ic_jax = jnp.array(base_ic_solver)
                 losses = [
@@ -1000,10 +1075,10 @@ def run_jacobian_svd(
                                 t,
                                 {
                                     **base_inputs,
-                                    cfg.ic_key: base_ic_jax
+                                    ic_key: base_ic_jax
                                     + float(a) * ic_scale * d_top_jax,
                                 },
-                            )[cfg.output_key]
+                            )[output_key]
                             ** 2
                         )
                     )
@@ -1072,103 +1147,3 @@ def run_jacobian_svd(
             all_results = result
 
     return all_results
-
-
-# ── run_all ───────────────────────────────────────────────────────────────────
-
-
-def _jacobian_svd_variant(exp_key: str):
-    def _run(cfg, tags, **kw):
-        return run_jacobian_svd(cfg, tags, _exp_key=exp_key, **kw)
-
-    _run.__name__ = f"run_{exp_key}"
-    return _run
-
-
-def _fd_check_variant(exp_key: str):
-    def _run(cfg, tags, **kw):
-        return run_fd_check(cfg, tags, _exp_key=exp_key, **kw)
-
-    _run.__name__ = f"run_{exp_key}"
-    return _run
-
-
-_EXPERIMENTS = {
-    "fd_check": run_fd_check,
-    "source_fd_check": _fd_check_variant("source_fd_check"),
-    "param_sweep": run_param_sweep,
-    "source_width_sweep": lambda cfg, tags, **kw: _run_generic_param_sweep(
-        cfg, tags, "source_width_sweep", **kw
-    ),
-    "horizon_sweep": run_horizon_sweep,
-    "horizon_sweep_limits": run_horizon_sweep_limits,
-    "jacobian_svd": run_jacobian_svd,
-    "jacobian_svd_steps20": _jacobian_svd_variant("jacobian_svd_steps20"),
-    "jacobian_svd_steps40": _jacobian_svd_variant("jacobian_svd_steps40"),
-    "jacobian_svd_nu01": _jacobian_svd_variant("jacobian_svd_nu01"),
-    # stokes-specific jacobian_svd variants (registered by stokes_grid problem config)
-    "jacobian_svd_mu001": _jacobian_svd_variant("jacobian_svd_mu001"),
-    "jacobian_svd_n16_mu001": _jacobian_svd_variant("jacobian_svd_n16_mu001"),
-    "jacobian_svd_n32_mu001": _jacobian_svd_variant("jacobian_svd_n32_mu001"),
-    "jacobian_svd_n32_mu01": _jacobian_svd_variant("jacobian_svd_n32_mu01"),
-    "jacobian_svd_n32_mu03": _jacobian_svd_variant("jacobian_svd_n32_mu03"),
-    "jacobian_svd_n32_mu05": _jacobian_svd_variant("jacobian_svd_n32_mu05"),
-    "jacobian_svd_n32_mu07": _jacobian_svd_variant("jacobian_svd_n32_mu07"),
-    "jacobian_svd_n32_mu09": _jacobian_svd_variant("jacobian_svd_n32_mu09"),
-}
-
-
-def _plot_fns() -> dict:
-    from mosaic.benchmarks.plots.gradient import (
-        plot_fd_check,
-        plot_horizon_sweep,
-        plot_jacobian_svd,
-        plot_param_sweep,
-    )
-
-    def _jsvd_plot(exp_key):
-        return lambda cfg, **kw: plot_jacobian_svd(cfg, exp_key=exp_key, **kw)
-
-    return {
-        "fd_check": plot_fd_check,
-        "param_sweep": plot_param_sweep,
-        "horizon_sweep": plot_horizon_sweep,
-        "jacobian_svd": plot_jacobian_svd,
-        "jacobian_svd_steps20": _jsvd_plot("jacobian_svd_steps20"),
-        "jacobian_svd_steps40": _jsvd_plot("jacobian_svd_steps40"),
-        "jacobian_svd_nu01": _jsvd_plot("jacobian_svd_nu01"),
-        "source_fd_check": lambda cfg, **kw: plot_fd_check(
-            cfg, exp_key="source_fd_check", **kw
-        ),
-        "source_width_sweep": lambda cfg, **kw: plot_param_sweep(
-            cfg, exp_key="source_width_sweep", **kw
-        ),
-        "jacobian_svd_mu001": _jsvd_plot("jacobian_svd_mu001"),
-        "jacobian_svd_n16_mu001": _jsvd_plot("jacobian_svd_n16_mu001"),
-        "jacobian_svd_n32_mu001": _jsvd_plot("jacobian_svd_n32_mu001"),
-        "jacobian_svd_n32_mu01": _jsvd_plot("jacobian_svd_n32_mu01"),
-        "jacobian_svd_n32_mu03": _jsvd_plot("jacobian_svd_n32_mu03"),
-        "jacobian_svd_n32_mu05": _jsvd_plot("jacobian_svd_n32_mu05"),
-        "jacobian_svd_n32_mu07": _jsvd_plot("jacobian_svd_n32_mu07"),
-        "jacobian_svd_n32_mu09": _jsvd_plot("jacobian_svd_n32_mu09"),
-    }
-
-
-def run_all(
-    cfg: ProblemConfig,
-    tags: dict[str, str],
-    experiments: list[str] | None = None,
-    plots: bool = True,
-) -> dict[str, dict]:
-    """Run gradient experiments and optionally generate plots."""
-    from mosaic.benchmarks.core.runner import run_suite
-
-    return run_suite(
-        cfg,
-        tags,
-        _EXPERIMENTS,
-        to_run=experiments,
-        plots=plots,
-        plot_fns=_plot_fns() if plots else None,
-        suite_name=_SUITE,
-    )

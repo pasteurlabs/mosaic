@@ -27,7 +27,7 @@ OUTPUT = Path(__file__).resolve().parent / "solvers.qmd"
 _SOLVER_SPECS: dict[tuple[str, str], dict] | None = None
 
 # Per-physics-dir category label (e.g. "Navier\u2013Stokes (Grid)"), harvested from
-# each ProblemConfig.category_label. Populated by _load_solver_specs().
+# each Problem.category_label. Populated by _load_solver_specs().
 _CATEGORY_LABELS: dict[str, str] = {}
 
 
@@ -39,7 +39,7 @@ _CATEGORY_LABELS: dict[str, str] = {}
 def _load_solver_specs() -> dict[tuple[str, str], dict]:
     """Try to load SolverSpec metadata from problem configs.
 
-    Also harvests each ``ProblemConfig.category_label`` into ``_CATEGORY_LABELS``
+    Also harvests each ``Problem.category_label`` into ``_CATEGORY_LABELS``
     keyed by tesseract-dir basename, so the generated page's section headings
     are sourced from the problem configs rather than from this file.
     """
@@ -61,11 +61,24 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
         domain_dir = cfg.tesseract_dir.name
         # First non-empty category_label per tesseract dir wins. Multiple
         # ProblemConfigs (e.g. ns-grid + ns-3d-grid) can share a dir.
-        label = getattr(cfg, "category_label", "")
+        label = cfg.category_label
         if label and not _CATEGORY_LABELS.get(domain_dir):
             _CATEGORY_LABELS[domain_dir] = label
-        for _solver_key, spec in cfg.solvers.items():
+        for spec in cfg.solvers:
+            solver_name = spec.name
             key = (domain_dir, spec.dir)
+            # cfg.exclusions stores Exclusion instances; split them into the
+            # legacy two-dict shape (exclusions vs. explained_anomalies) that
+            # the docs template renders.
+            per_solver = cfg.exclusions.get(solver_name, {})
+            exc_dict: dict[str, dict] = {}
+            anom_dict: dict[str, dict] = {}
+            for exp_key, exc in per_solver.items():
+                payload = {"category": exc.category.value, "reason": exc.reason}
+                if exc.category.value == "anomaly_explained":
+                    anom_dict[exp_key] = payload
+                else:
+                    exc_dict[exp_key] = payload
             _SOLVER_SPECS[key] = {
                 "name": spec.name,
                 "scheme": spec.scheme,
@@ -77,8 +90,8 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
                 "uses_gpu": spec.uses_gpu,
                 "differentiable": spec.differentiable,
                 "internal_dtype": spec.internal_dtype,
-                "exclusions": spec.exclusions,
-                "explained_anomalies": spec.explained_anomalies,
+                "exclusions": exc_dict,
+                "explained_anomalies": anom_dict,
             }
     return _SOLVER_SPECS
 
@@ -260,7 +273,7 @@ def load_solver(path: Path) -> dict | None:
         "description": (config.get("description") or "").strip(),
         "physics": physics,
         "backend": backend,
-        # Category label comes from each ProblemConfig.category_label (harvested
+        # Category label comes from each Problem.category_label (harvested
         # by _load_solver_specs); fall back to the physics dir name if missing.
         "category": _CATEGORY_LABELS.get(physics, physics),
         "inputs": parse_schema(source, "InputSchema", physics),

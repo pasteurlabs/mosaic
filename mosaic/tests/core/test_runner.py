@@ -282,11 +282,11 @@ def test_safe_apply_returns_only_primary_array(monkeypatch):
 
 def test_image_tags_no_build_uses_explicit_image_tag(tmp_path):
     """When SolverSpec.image_tag is set, image_tags_no_build returns it verbatim."""
-    from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+    from mosaic.benchmarks.core.config import Problem, SolverSpec
 
     spec = SolverSpec(
         dir="my-solver",
-        name="My Solver",
+        name="my_solver",
         backend="jax",
         family="spectral",
         scheme="dummy",
@@ -301,8 +301,8 @@ def test_image_tags_no_build_uses_explicit_image_tag(tmp_path):
         doc_url="",
         image_tag="explicit:tag42",
     )
-    cfg = ProblemConfig.__new__(ProblemConfig)
-    cfg.solvers = {"my_solver": spec}
+    cfg = Problem.__new__(Problem)
+    cfg.solvers = [spec]
     cfg.tesseract_dir = tmp_path
 
     tags = runner.image_tags_no_build(cfg)
@@ -311,7 +311,7 @@ def test_image_tags_no_build_uses_explicit_image_tag(tmp_path):
 
 def test_image_tags_no_build_reads_yaml_name_field(tmp_path):
     """When image_tag isn't set, the image name is read from tesseract_config.yaml."""
-    from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+    from mosaic.benchmarks.core.config import Problem, SolverSpec
 
     # Build a fake tesseract dir layout: <tmp>/<solver_dir>/tesseract_config.yaml
     solver_dir = tmp_path / "fancy-solver"
@@ -322,7 +322,7 @@ def test_image_tags_no_build_reads_yaml_name_field(tmp_path):
 
     spec = SolverSpec(
         dir="fancy-solver",
-        name="Fancy",
+        name="fancy",
         backend="jax",
         family="",
         scheme="",
@@ -337,8 +337,8 @@ def test_image_tags_no_build_reads_yaml_name_field(tmp_path):
         doc_url="",
         image_tag="",  # empty → trigger yaml-lookup branch
     )
-    cfg = ProblemConfig.__new__(ProblemConfig)
-    cfg.solvers = {"fancy": spec}
+    cfg = Problem.__new__(Problem)
+    cfg.solvers = [spec]
     cfg.tesseract_dir = tmp_path
 
     tags = runner.image_tags_no_build(cfg)
@@ -347,11 +347,11 @@ def test_image_tags_no_build_reads_yaml_name_field(tmp_path):
 
 def test_image_tags_no_build_falls_back_to_dir_name(tmp_path):
     """When no yaml and no image_tag, fall back to <dir>:latest."""
-    from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+    from mosaic.benchmarks.core.config import Problem, SolverSpec
 
     spec = SolverSpec(
         dir="lonely-solver",
-        name="Lonely",
+        name="lonely",
         backend="jax",
         family="",
         scheme="",
@@ -366,8 +366,8 @@ def test_image_tags_no_build_falls_back_to_dir_name(tmp_path):
         doc_url="",
         image_tag="",
     )
-    cfg = ProblemConfig.__new__(ProblemConfig)
-    cfg.solvers = {"lonely": spec}
+    cfg = Problem.__new__(Problem)
+    cfg.solvers = [spec]
     cfg.tesseract_dir = tmp_path  # no subdir created, so no yaml exists
 
     tags = runner.image_tags_no_build(cfg)

@@ -6,8 +6,7 @@ Each run_* function:
   - Returns the results dict
 
 Run from the terminal:
-    cd mosaic
-    python -m benchmarks.suites.forward [--experiment EXPR] [--no-plots]
+    mosaic run <problem> forward [--experiments EXPR] [--plots-only]
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ import threading
 import jax.numpy as jnp
 import numpy as np  # kept for string arrays (JAX doesn't support these)
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import (
     experiment_dir,
     results_dir,
@@ -47,19 +46,44 @@ _SUITE = "forward"
 
 
 def run_agreement(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     *,
-    _exp_key: str = "agreement",
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    agreement_transform=None,
+    agreement_xaxis=None,
+    analytic=None,
+    runs=None,
+    exp_key: str = "agreement",
     **overrides,
 ) -> dict:
     """Run all solvers across a sweep of one physics parameter; compute trimmed-mean
     consensus and per-solver error.
 
-    Reads cfg.forward_defaults[_exp_key] (default "agreement").
-    Use _exp_key="baseline" for the single-step baseline experiment.
+    Problem-semantics state is passed explicitly:
+        make_ic              — dict[ic_name → IcSpec | Callable]
+        make_inputs          — (solver_name, ic, **physics) → dict
+        error_fn             — (pred, ref) → float
+        output_key           — name of the solver-output array to compare
+        domain_extent        — physical domain length (passed to make_ic / make_inputs)
+        agreement_transform  — optional (arr, **physics) → arr applied before comparison
+        agreement_xaxis      — optional (**physics) → 1-D x-axis array stored alongside the IC
+        analytic             — optional (ic, t, L, **physics) → arr reference solution
 
-    Expects each run dict to contain:
+    ``cfg`` retains its role as the runtime *registry*: solver list (already
+    filtered by CLI) and problem name (for output paths). It is never read
+    for problem-semantics fields.
+
+    ``runs`` is the per-experiment run payload (list of run dicts, or a
+    wrapper dict with a ``"runs"`` key). ``exp_key`` is the full experiment
+    label used for output-dir naming and exclusion lookup (e.g.
+    ``"agreement/tgv"``, ``"baseline"``).
+
+    Each run dict must contain:
         ic=dict(name, seed)
         physics=dict(N, dt, steps, ...)
         sweep=dict(key, values)
@@ -69,10 +93,9 @@ def run_agreement(
         {"by_param": {val: {solver: {"error": float, "valid": bool}}}, "spread": {val: float}}
         or {ic_name: <above>} when multiple IC runs are configured.
     """
-    runs = cfg.forward_defaults.get(_exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"run_agreement requires '{_exp_key}' list in forward_defaults "
+            f"run_agreement requires runs= payload for {exp_key!r} "
             f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
@@ -80,7 +103,20 @@ def run_agreement(
 
     for run in iter_runs(runs, overrides):
         ic_name, result = _run_single_agreement(
-            cfg, tags, run, _exp_key=_exp_key, n_runs=n_runs, overrides=overrides
+            cfg,
+            tags,
+            run,
+            exp_key=exp_key,
+            n_runs=n_runs,
+            overrides=overrides,
+            make_ic=make_ic,
+            make_inputs=make_inputs,
+            error_fn=error_fn,
+            output_key=output_key,
+            domain_extent=domain_extent,
+            agreement_transform=agreement_transform,
+            agreement_xaxis=agreement_xaxis,
+            analytic=analytic,
         )
         if n_runs > 1:
             all_results[ic_name] = result
@@ -91,24 +127,29 @@ def run_agreement(
 
 
 def _run_single_agreement(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     run: dict,
     *,
-    _exp_key: str,
+    exp_key: str,
     n_runs: int,
     overrides: dict,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    agreement_transform,
+    agreement_xaxis,
+    analytic,
 ) -> tuple[str, dict]:
     """Body of one ``run`` iteration in :func:`run_agreement`.
 
-    Returns ``(ic_name, result_dict)``. Extracted from the outer for-loop to
-    keep cyclomatic complexity and nesting depth below project thresholds; the
-    closure semantics inside this helper are preserved (the helper runs to
-    completion before the caller advances to the next ``run``, mirroring the
-    original drain-before-advance contract relied on by ``run_with_gpu_pool``).
+    Returns ``(ic_name, result_dict)``. Receives problem-semantics state via
+    explicit kwargs (see :func:`run_agreement` for descriptions).
     """
     ic_cfg = run.get("ic", {})
-    ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+    ic_name = ic_cfg.get("name", next(iter(make_ic)))
     seed = ic_cfg.get("seed", 0)
     sweep = run.get("sweep", {})
     sweep_key = sweep.get("key")
@@ -116,7 +157,7 @@ def _run_single_agreement(
     if not sweep_key or not sweep_values:
         raise NotImplementedError(
             f"run_agreement requires sweep.key and sweep.values "
-            f"in forward_defaults['{_exp_key}'] (not configured for '{cfg.name}')"
+            f"in runs payload (not configured for '{cfg.name}')"
         )
     fine_cfg = run.get("fine", {})
     fine_set = set(fine_cfg.get("solvers", set()))
@@ -125,32 +166,32 @@ def _run_single_agreement(
     phys = run.get("physics", {})
     ic_subdir = ic_name if n_runs > 1 else ""
 
-    _apply_errors: dict = {n: {} for n in cfg.solvers}
+    _apply_errors: dict = {s.name: {} for s in cfg.solvers}
     _apply_errors_lock = threading.Lock()
     # Capture drag (force on obstacle) from solvers that produce it. Cylinder
     # experiments are the only ones that pass an obstacle; for the rest the
     # extras dict comes back empty and this stays as {}.
-    _drags: dict = {n: {} for n in cfg.solvers}
+    _drags: dict = {s.name: {} for s in cfg.solvers}
 
     # Regenerate IC at each sweep value so N-sweeps use the correct IC shape.
     def _apply(name, t, val, _phys=phys, _ic_name=ic_name, _seed=seed):
         curr_phys = {**_phys, sweep_key: val}
-        _ic = cfg.make_ic[_ic_name](L=cfg.domain_extent, seed=_seed, **curr_phys)
+        _ic = make_ic[_ic_name](L=domain_extent, seed=_seed, **curr_phys)
         _p = dict(curr_phys)
         if name in fine_set:
             if fine_dt is not None:
                 _p["dt"] = fine_dt
             if fine_steps is not None:
                 _p["steps"] = fine_steps
-        inputs = cfg.make_inputs(name, _ic, domain_extent=cfg.domain_extent, **_p)
-        result, extras, _ = safe_apply_with_extras(t, inputs, cfg.output_key, ["drag"])
+        inputs = make_inputs(name, _ic, domain_extent=domain_extent, **_p)
+        result, extras, _ = safe_apply_with_extras(t, inputs, output_key, ["drag"])
         if result is None:
             err = get_last_apply_error()
             with _apply_errors_lock:
                 _apply_errors[name][val] = err
         if "drag" in extras:
             _drags[name][val] = extras["drag"]
-        norm = cfg.solvers[name].normalize_output
+        norm = cfg.solver(name).normalize_output
         return norm(result) if (norm is not None and result is not None) else result
 
     raw, _wall_times = solver_sweep(
@@ -158,14 +199,12 @@ def _run_single_agreement(
         tags,
         sweep_values,
         _apply,
-        experiment=_exp_key,
+        experiment=exp_key,
         label_fn=lambda v: f"{sweep_key}={v}",
         gpu_ids=overrides.get("gpu_ids"),
     )
 
-    transform = cfg.agreement_transform
-    xaxis_fn = cfg.agreement_xaxis
-    exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
+    exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
     out_dir = experiment_dir(
         results_dir(),
         cfg.name,
@@ -181,14 +220,14 @@ def _run_single_agreement(
     shared_arrays: dict[str, np.ndarray] = {
         "sweep_values": np.array([float(v) for v in sweep_values]),
     }
-    if transform is None and sweep_values:
+    if agreement_transform is None and sweep_values:
         # Store IC at the first sweep value so plots have a reference waveform.
-        _ic0 = cfg.make_ic[ic_name](
-            L=cfg.domain_extent, seed=seed, **{**phys, sweep_key: sweep_values[0]}
+        _ic0 = make_ic[ic_name](
+            L=domain_extent, seed=seed, **{**phys, sweep_key: sweep_values[0]}
         )
         shared_arrays["ic"] = np.asarray(_ic0)
-    if xaxis_fn is not None:
-        shared_arrays["x_axis"] = np.asarray(xaxis_fn(**phys))
+    if agreement_xaxis is not None:
+        shared_arrays["x_axis"] = np.asarray(agreement_xaxis(**phys))
 
     # Pre-load cached arrays for solvers NOT being re-run this invocation
     # so consensus can still be formed from the union. cfg.solvers is
@@ -200,8 +239,8 @@ def _run_single_agreement(
 
     # Pre-inspect analytic signature once (avoids repeated calls inside loop).
     _analytic_sig_params: set[str] = set()
-    if cfg.analytic is not None:
-        _analytic_sig_params = set(inspect.signature(cfg.analytic).parameters)
+    if analytic is not None:
+        _analytic_sig_params = set(inspect.signature(analytic).parameters)
 
     by_param: dict = {}
     ctx = {
@@ -212,7 +251,7 @@ def _run_single_agreement(
         "sweep_key": sweep_key,
         "ic_name": ic_name,
         "seed": seed,
-        "transform": transform,
+        "transform": agreement_transform,
         "cached_for_val": _cached_for_val,
         "analytic_sig_params": _analytic_sig_params,
         "apply_errors": _apply_errors,
@@ -220,6 +259,12 @@ def _run_single_agreement(
         "per_solver": per_solver,
         "shared_arrays": shared_arrays,
         "by_param": by_param,
+        "make_ic": make_ic,
+        "make_inputs": make_inputs,
+        "error_fn": error_fn,
+        "domain_extent": domain_extent,
+        "analytic": analytic,
+        "solvers_for_inputs": cfg.solvers,
     }
     reference_label = "consensus"  # updated per-iteration when analytic is used
     for i, val in enumerate(sweep_values):
@@ -230,7 +275,7 @@ def _run_single_agreement(
     # parsed as ``{solver_name}_{suffix}`` on read.
     save_field_snapshots_npz(
         out_dir,
-        solver_names=list(cfg.solvers),
+        solver_names=[s.name for s in cfg.solvers],
         per_solver_arrays=per_solver,
         shared_arrays=shared_arrays,
         filename="fields.npz",
@@ -271,7 +316,7 @@ def _run_single_agreement(
                 "valid": by_param[val][n]["valid"],
             }
             for val in sweep_values
-            for n in cfg.solvers
+            for n in (s.name for s in cfg.solvers)
         ],
         cfg=cfg,
         harness_fn=run_agreement,
@@ -308,7 +353,6 @@ def _load_cached_fields_for_vals(snap_path, sweep_values, tags: dict[str, str]) 
 
 
 def _analytic_reference(
-    cfg: ProblemConfig,
     *,
     ic_name: str,
     seed: int,
@@ -316,16 +360,22 @@ def _analytic_reference(
     sweep_key: str,
     val,
     analytic_sig_params: set[str],
+    make_ic,
+    make_inputs,
+    domain_extent: float,
+    analytic,
+    solver_name_for_inputs: str,
 ) -> np.ndarray:
-    """Compute the analytic reference field for one sweep value."""
+    """Compute the analytic reference field for one sweep value.
+
+    ``solver_name_for_inputs`` is the solver whose ``make_inputs`` shape is
+    queried for dt/steps/domain_extent — usually the first registered solver
+    in cfg.solvers; only metadata is read, not its output.
+    """
     curr_phys = {**phys, sweep_key: val}
-    ic_ref = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **curr_phys)
-    # Build a representative inputs dict for dt/steps/domain_extent lookup.
-    inputs_ref = cfg.make_inputs(
-        next(iter(cfg.solvers)),
-        ic_ref,
-        domain_extent=cfg.domain_extent,
-        **curr_phys,
+    ic_ref = make_ic[ic_name](L=domain_extent, seed=seed, **curr_phys)
+    inputs_ref = make_inputs(
+        solver_name_for_inputs, ic_ref, domain_extent=domain_extent, **curr_phys
     )
     t_end = float(np.asarray(inputs_ref["dt"])[0]) * int(inputs_ref["steps"])
     L = float(inputs_ref.get("domain_extent", 2 * np.pi))
@@ -334,7 +384,7 @@ def _analytic_reference(
         for k in analytic_sig_params
         if k in curr_phys and k not in ("ic", "t", "L")
     }
-    return np.asarray(cfg.analytic(ic_ref, t=t_end, L=L, **extra))
+    return np.asarray(analytic(ic_ref, t=t_end, L=L, **extra))
 
 
 def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
@@ -355,10 +405,12 @@ def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
     per_solver = ctx["per_solver"]
     shared_arrays = ctx["shared_arrays"]
     by_param = ctx["by_param"]
+    error_fn = ctx["error_fn"]
+    analytic = ctx["analytic"]
 
     valid_outputs = {
         n: raw[n][val]
-        for n in cfg.solvers
+        for n in (s.name for s in cfg.solvers)
         if val in raw.get(n, {}) and raw[n][val] is not None
     }
     comparable = (
@@ -374,22 +426,26 @@ def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
     if len(comparable) < 2:
         by_param[val] = {
             n: {"error": apply_errors.get(n, {}).get(val), "valid": False}
-            for n in cfg.solvers
+            for n in (s.name for s in cfg.solvers)
         }
         # Still store whatever output we have so scientists can inspect
         # the lone solver's field even when consensus cannot be formed.
         for n, arr in comparable.items():
             per_solver.setdefault(n, {})[str(i)] = np.asarray(arr)
         return reference_label
-    if cfg.analytic is not None and "obstacle" not in ctx["run"].get("physics", {}):
+    if analytic is not None and "obstacle" not in ctx["run"].get("physics", {}):
         reference = _analytic_reference(
-            cfg,
             ic_name=ctx["ic_name"],
             seed=ctx["seed"],
             phys=phys,
             sweep_key=ctx["sweep_key"],
             val=val,
             analytic_sig_params=ctx["analytic_sig_params"],
+            make_ic=ctx["make_ic"],
+            make_inputs=ctx["make_inputs"],
+            domain_extent=ctx["domain_extent"],
+            analytic=analytic,
+            solver_name_for_inputs=ctx["solvers_for_inputs"][0].name,
         )
         reference_label = "analytic"
     else:
@@ -401,7 +457,7 @@ def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
     by_param[val] = {
         n: (
             {
-                "error": cfg.error_fn(comparable[n], reference),
+                "error": error_fn(comparable[n], reference),
                 "valid": True,
                 **({"drag": drags[n][val]} if val in drags.get(n, {}) else {}),
             }
@@ -411,7 +467,7 @@ def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
                 "valid": False,
             }
         )
-        for n in cfg.solvers
+        for n in (s.name for s in cfg.solvers)
     }
     return reference_label
 
@@ -419,27 +475,44 @@ def _process_sweep_value(ctx: dict, i: int, val, reference_label: str) -> str:
 # ── Physical laws ─────────────────────────────────────────────────────────────
 
 
-def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_physical_laws(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    diagnostics: dict,
+    analytic=None,
+    runs=None,
+    **overrides,
+) -> dict:
     """Sweep complexity parameter, compute physical diagnostics at each value.
 
-    Expects cfg.forward_defaults["physical_laws"] to be a list of run dicts, each with:
+    Problem-semantics state is passed explicitly (see :func:`run_agreement` for
+    the field semantics). ``cfg`` is only used for the runtime solver registry
+    (``cfg.solvers``, ``cfg.name``, ``cfg.solver(name)`` for output
+    normalization).
+
+    ``runs`` is a list of run dicts (or wrapper dict with ``"runs"``), each with:
         ic=dict(name, seed)
         physics=dict(N, dt, steps, ...)
         sweep=dict(key, values)
 
-    At each sweep value the IC is regenerated (so N sweeps work correctly), all
-    solvers are run, and cfg.diagnostics are computed on each output.  If
-    cfg.analytic is available, analytic_error is also reported.
+    At each sweep value the IC is regenerated, all solvers are run, and
+    ``diagnostics`` are computed on each output. If ``analytic`` is available,
+    ``analytic_error`` is also reported.
 
     Returns:
         {"by_param": {val: {solver: {diag_name: value, "analytic_error": float|None}}},
          "sweep_key": str}
         or {ic_name: <above>} when multiple IC runs are configured.
     """
-    runs = cfg.forward_defaults.get("physical_laws", [])
     if not runs:
         raise NotImplementedError(
-            f"run_physical_laws requires 'physical_laws' list in forward_defaults "
+            f"run_physical_laws requires runs= payload "
             f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
@@ -447,7 +520,7 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         sweep = run.get("sweep", {})
         sweep_key = sweep.get("key")
@@ -455,7 +528,7 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         if not sweep_key or not sweep_values:
             raise NotImplementedError(
                 f"run_physical_laws requires sweep.key and sweep.values "
-                f"in forward_defaults['physical_laws'] (not configured for '{cfg.name}')"
+                f"in runs payload (not configured for '{cfg.name}')"
             )
         phys = run.get("physics", {})
         run_name = run.get("name", ic_name)
@@ -464,12 +537,10 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         # Regenerate IC at each sweep value (handles N sweeps correctly).
         def _apply(name, t, val, _phys=phys, _ic_name=ic_name, _seed=seed):
             curr_phys = {**_phys, sweep_key: val}
-            _ic = cfg.make_ic[_ic_name](L=cfg.domain_extent, seed=_seed, **curr_phys)
-            inputs = cfg.make_inputs(
-                name, _ic, domain_extent=cfg.domain_extent, **curr_phys
-            )
-            out = safe_apply(t, inputs, cfg.output_key)
-            norm = cfg.solvers[name].normalize_output
+            _ic = make_ic[_ic_name](L=domain_extent, seed=_seed, **curr_phys)
+            inputs = make_inputs(name, _ic, domain_extent=domain_extent, **curr_phys)
+            out = safe_apply(t, inputs, output_key)
+            norm = cfg.solver(name).normalize_output
             return norm(out) if (norm is not None and out is not None) else out
 
         raw, _wall_times = solver_sweep(
@@ -484,12 +555,12 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 
         # Analytic signature inspection done once.
         analytic_params: set[str] = set()
-        if cfg.analytic is not None:
-            analytic_params = set(inspect.signature(cfg.analytic).parameters)
+        if analytic is not None:
+            analytic_params = set(inspect.signature(analytic).parameters)
 
         by_param: dict = {}
         csv_rows: list[dict] = []
-        diag_ctx = {"domain_extent": cfg.domain_extent}
+        diag_ctx = {"domain_extent": domain_extent}
 
         for val in sweep_values:
             curr_phys = {**phys, sweep_key: val}
@@ -497,10 +568,8 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 
             # Analytic reference (regenerate IC at this val for correct shape).
             analytic_ref = None
-            if cfg.analytic is not None:
-                ic_ref = cfg.make_ic[ic_name](
-                    L=cfg.domain_extent, seed=seed, **curr_phys
-                )
+            if analytic is not None:
+                ic_ref = make_ic[ic_name](L=domain_extent, seed=seed, **curr_phys)
                 _dt = curr_phys.get("dt", 1.0)
                 _steps = curr_phys.get("steps", 1)
                 t_end = float(_dt) * int(_steps)
@@ -508,8 +577,8 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                     k: v for k, v in curr_phys.items() if k in analytic_params
                 }
                 try:
-                    analytic_ref = cfg.analytic(
-                        ic_ref, t=t_end, L=cfg.domain_extent, **analytic_kw
+                    analytic_ref = analytic(
+                        ic_ref, t=t_end, L=domain_extent, **analytic_kw
                     )
                 except Exception:
                     analytic_ref = None
@@ -520,14 +589,14 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                     by_param[val][name] = None
                     continue
                 diag: dict = {}
-                for dname, fn in cfg.diagnostics.items():
+                for dname, fn in diagnostics.items():
                     with contextlib.suppress(Exception):
                         r = fn(out, **diag_ctx, **curr_phys)
                         if isinstance(r, (int, float)):
                             diag[dname] = float(r)
                 if analytic_ref is not None:
                     with contextlib.suppress(Exception):
-                        diag["analytic_error"] = float(cfg.error_fn(out, analytic_ref))
+                        diag["analytic_error"] = float(error_fn(out, analytic_ref))
                 by_param[val][name] = diag
                 for dname, dval in diag.items():
                     csv_rows.append(
@@ -561,69 +630,3 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
             all_results = result
 
     return all_results
-
-
-# ── run_all + registry ────────────────────────────────────────────────────────
-
-
-def _agreement_variant(exp_key: str):
-    def _run(cfg, tags, **kw):
-        return run_agreement(cfg, tags, _exp_key=exp_key, **kw)
-
-    _run.__name__ = f"run_{exp_key}"
-    return _run
-
-
-_EXPERIMENTS = {
-    "baseline": _agreement_variant("baseline"),
-    "agreement": run_agreement,
-    "agreement/tgv": run_agreement,
-    "agreement/multimode": run_agreement,
-    "tgv_nu_sweep": _agreement_variant("tgv_nu_sweep"),
-    "physical_laws": run_physical_laws,
-    "cylinder": _agreement_variant("cylinder"),
-    "source_baseline": _agreement_variant("source_baseline"),
-    "source_linearity": _agreement_variant("source_linearity"),
-}
-
-
-def _plot_fns() -> dict:
-    from mosaic.benchmarks.plots.forward import plot_agreement, plot_physical_laws
-
-    return {
-        "baseline": lambda cfg, **kw: plot_agreement(cfg, exp_key="baseline", **kw),
-        "agreement": plot_agreement,
-        "agreement/tgv": plot_agreement,
-        "agreement/multimode": plot_agreement,
-        "tgv_nu_sweep": lambda cfg, **kw: plot_agreement(
-            cfg, exp_key="tgv_nu_sweep", **kw
-        ),
-        "physical_laws": plot_physical_laws,
-        "cylinder": lambda cfg, **kw: plot_agreement(cfg, exp_key="cylinder", **kw),
-        "source_baseline": lambda cfg, **kw: plot_agreement(
-            cfg, exp_key="source_baseline", **kw
-        ),
-        "source_linearity": lambda cfg, **kw: plot_agreement(
-            cfg, exp_key="source_linearity", **kw
-        ),
-    }
-
-
-def run_all(
-    cfg: ProblemConfig,
-    tags: dict[str, str],
-    experiments: list[str] | None = None,
-    plots: bool = True,
-) -> dict[str, dict]:
-    """Run forward experiments and optionally generate plots."""
-    from mosaic.benchmarks.core.runner import run_suite
-
-    return run_suite(
-        cfg,
-        tags,
-        _EXPERIMENTS,
-        to_run=experiments,
-        plots=plots,
-        plot_fns=_plot_fns() if plots else None,
-        suite_name=_SUITE,
-    )

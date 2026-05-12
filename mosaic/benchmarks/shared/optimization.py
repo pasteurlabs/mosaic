@@ -3,8 +3,7 @@
 Only runs solvers where SolverSpec.differentiable is True.
 
 Run from the terminal:
-    cd mosaic
-    python -m benchmarks.suites.optimization [--experiment EXPR] [--no-plots]
+    mosaic run <problem> optimization [--experiments EXPR] [--plots-only]
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from mosaic.benchmarks.core.config import ProblemConfig, has_vjp
+from mosaic.benchmarks.core.config import Problem, has_vjp
 from mosaic.benchmarks.core.io import (
     experiment_dir,
     results_dir,
@@ -257,13 +256,15 @@ def _project_ic_with_log(
 
 
 def _build_per_seed_ics(
-    cfg: ProblemConfig,
     ic_name: str,
     ic_seeds: list[int],
     phys: dict,
     perturb_sigma: float,
     ic_init_type: str,
     console,
+    *,
+    make_ic,
+    domain_extent: float,
 ) -> tuple[dict, dict, dict]:
     """Build per-seed (true IC, initial IC, max divergence) dicts.
 
@@ -275,13 +276,13 @@ def _build_per_seed_ics(
     max_div_dict: dict[int, float | None] = {}
 
     for s in ic_seeds:
-        ic_k = jnp.array(cfg.make_ic[ic_name](L=cfg.domain_extent, seed=s, **phys))
+        ic_k = jnp.array(make_ic[ic_name](L=domain_extent, seed=s, **phys))
         is_vel_k = _is_velocity_field(np.asarray(ic_k))
         ic_k = _project_ic_with_log(
-            ic_k, f"IC seed={s} (true)", is_vel_k, cfg.domain_extent, console
+            ic_k, f"IC seed={s} (true)", is_vel_k, domain_extent, console
         )
         max_div_dict[s] = (
-            _max_divergence(np.asarray(ic_k), cfg.domain_extent) if is_vel_k else None
+            _max_divergence(np.asarray(ic_k), domain_extent) if is_vel_k else None
         )
         ic_true_dict[s] = ic_k
         if ic_init_type == "zeros":
@@ -290,7 +291,7 @@ def _build_per_seed_ics(
             noise_seed = s + 1000
             if is_vel_k:
                 noise = jnp.array(
-                    cfg.make_ic[ic_name](L=cfg.domain_extent, seed=noise_seed, **phys)
+                    make_ic[ic_name](L=domain_extent, seed=noise_seed, **phys)
                 )
                 raw_init = ic_k + perturb_sigma * noise
             else:
@@ -301,19 +302,20 @@ def _build_per_seed_ics(
                 raw_init,
                 f"IC seed={s} (perturbed, σ={perturb_sigma})",
                 is_vel_k,
-                cfg.domain_extent,
+                domain_extent,
                 console,
             )
     return ic_true_dict, ic_init_dict, max_div_dict
 
 
 def _build_sigma_perturbed_ics(
-    cfg: ProblemConfig,
     ic_true: jax.Array,
     sweep_values: list,
     seed: int,
     is_vel: bool,
     console,
+    *,
+    domain_extent: float,
 ) -> dict:
     """For sigma sweep: build dict[sigma -> perturbed IC] (div-free projected)."""
     sigma_ics: dict = {}
@@ -324,13 +326,12 @@ def _build_sigma_perturbed_ics(
             key_sv, ic_true.shape, dtype=jnp.float32
         )
         sigma_ics[sv] = _project_ic_with_log(
-            raw, f"σ={sigma_val}", is_vel, cfg.domain_extent, console
+            raw, f"σ={sigma_val}", is_vel, domain_extent, console
         )
     return sigma_ics
 
 
 def _compute_targets_for_val(
-    cfg: ProblemConfig,
     name: str,
     exp_key: str,
     val,
@@ -339,6 +340,10 @@ def _compute_targets_for_val(
     ic_true_dict: dict,
     phys: dict,
     t,
+    *,
+    make_inputs,
+    output_key: str,
+    domain_extent: float,
 ) -> dict:
     """Forward-solve each seed's true IC to produce target outputs.
 
@@ -348,13 +353,13 @@ def _compute_targets_for_val(
     targets: dict[int, jax.Array] = {}
     for s in ic_seeds:
         try:
-            inp_true = cfg.make_inputs(
+            inp_true = make_inputs(
                 name,
                 ic_true_dict[s],
-                domain_extent=cfg.domain_extent,
+                domain_extent=domain_extent,
                 **{**phys, sweep_key: val},
             )
-            tgt = apply_tesseract(t, inp_true)[cfg.output_key]
+            tgt = apply_tesseract(t, inp_true)[output_key]
         except Exception as exc:
             from mosaic.benchmarks.core.console import print_warn
 
@@ -420,7 +425,6 @@ def _aggregate_trial_results(
 
 
 def _build_recovery_visualization_stacks(
-    cfg: ProblemConfig,
     name: str,
     all_ic_opts: dict,
     sweep_values: list,
@@ -430,6 +434,10 @@ def _build_recovery_visualization_stacks(
     sigma_ics: dict | None,
     ic_true,
     t,
+    *,
+    make_inputs,
+    output_key: str,
+    domain_extent: float,
 ) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]:
     """Stack per-sigma IC/final-rec arrays plus per-sigma perturbed-forward.
 
@@ -442,8 +450,8 @@ def _build_recovery_visualization_stacks(
             ic_stack.append(np.asarray(io))
             kw = phys if is_sigma_sweep else {**phys, sweep_key: v}
             try:
-                inp = cfg.make_inputs(name, io, domain_extent=cfg.domain_extent, **kw)
-                fr_stack.append(np.asarray(apply_tesseract(t, inp)[cfg.output_key]))
+                inp = make_inputs(name, io, domain_extent=domain_extent, **kw)
+                fr_stack.append(np.asarray(apply_tesseract(t, inp)[output_key]))
             except Exception:
                 fr_stack.append(np.zeros_like(np.asarray(io)))
         else:
@@ -460,12 +468,8 @@ def _build_recovery_visualization_stacks(
             ip = sigma_ics.get(v)
             if ip is not None:
                 try:
-                    inp_p = cfg.make_inputs(
-                        name, ip, domain_extent=cfg.domain_extent, **phys
-                    )
-                    fp_stack.append(
-                        np.asarray(apply_tesseract(t, inp_p)[cfg.output_key])
-                    )
+                    inp_p = make_inputs(name, ip, domain_extent=domain_extent, **phys)
+                    fp_stack.append(np.asarray(apply_tesseract(t, inp_p)[output_key]))
                 except Exception:
                     fp_stack.append(np.zeros_like(np.asarray(ic_true)))
             else:
@@ -528,7 +532,7 @@ def _save_recovery_outputs(
     per_solver_arrays: dict,
     shared: dict,
     result: dict,
-    cfg: ProblemConfig,
+    cfg: Problem,
     harness_fn,
     wall_times: dict[str, float],
     by_sweep: dict,
@@ -600,7 +604,7 @@ def _build_recovery_per_solver_arrays(
     return per_solver_arrays
 
 
-def _topopt_solvers(cfg: ProblemConfig) -> list[str]:
+def _topopt_solvers(cfg: Problem) -> list[str]:
     """Solvers that can differentiate compliance.
 
     Checks spec.compliance_differentiable first (explicit override), then
@@ -609,7 +613,7 @@ def _topopt_solvers(cfg: ProblemConfig) -> list[str]:
     that omit these optional fields are handled gracefully.
     """
     result = []
-    for name, spec in cfg.solvers.items():
+    for spec in cfg.solvers:
         cd = getattr(spec, "compliance_differentiable", None)
         if cd is None:
             cd = getattr(spec, "differentiable", None)
@@ -617,7 +621,7 @@ def _topopt_solvers(cfg: ProblemConfig) -> list[str]:
             # Fall back to runtime VJP endpoint detection (same as active_differentiable_solvers)
             cd = has_vjp(spec)
         if cd:
-            result.append(name)
+            result.append(spec.name)
     return result
 
 
@@ -631,7 +635,7 @@ class _RecoveryRunCtx:
     populated in place by worker callbacks running on the GPU pool.
     """
 
-    cfg: ProblemConfig
+    cfg: Problem
     run: dict
     exp_key: str
     # Config snapshot
@@ -663,6 +667,12 @@ class _RecoveryRunCtx:
     grad_proj_fn: object | None
     out_dir: object
     partial_lock: threading.Lock
+    # Problem-semantics state (explicit dependencies)
+    make_ic: object = None
+    make_inputs: object = None
+    error_fn: object = None
+    output_key: str = ""
+    domain_extent: float = 0.0
     # Accumulators (mutated in place by workers)
     by_sweep: dict = field(default_factory=dict)
     ic_snaps: dict = field(default_factory=dict)
@@ -703,7 +713,6 @@ def _run_one_seed_trial(
     """Run a single per-seed optimisation trial; returns a result dict or None."""
     from mosaic.benchmarks.core.console import console
 
-    cfg = ctx.cfg
     phys = ctx.phys
     sweep_key = ctx.sweep_key
     snap_interval = ctx.snap_interval
@@ -711,19 +720,19 @@ def _run_one_seed_trial(
 
     def loss_fn(ic, _t=t, _target=target_k, _val=val):
         _phys_kw = phys if ctx.is_sigma_sweep else {**phys, sweep_key: _val}
-        inp = cfg.make_inputs(
+        inp = ctx.make_inputs(
             name,
             ic,
-            domain_extent=cfg.domain_extent,
+            domain_extent=ctx.domain_extent,
             **_phys_kw,
         )
-        return jnp.mean((apply_tesseract(_t, inp)[cfg.output_key] - _target) ** 2)
+        return jnp.mean((apply_tesseract(_t, inp)[ctx.output_key] - _target) ** 2)
 
     _hist: list | None = (
         [] if (snap_interval > 0 and val == ctx.rep_val and is_primary) else None
     )
     _ic_err_hist: list[float] = []
-    ic_error_init = float(cfg.error_fn(ic_init_k, ic_true_k))
+    ic_error_init = float(ctx.error_fn(ic_init_k, ic_true_k))
     seed_tag = f" [ic_seed={s}]" if ctx.is_multi_seed else ""
     console.print(
         f"  [{color}]{name}[/] {sweep_key}={val}{seed_tag} "
@@ -744,7 +753,7 @@ def _run_one_seed_trial(
             ctx.patience,
             snap_interval=snap_interval if snap_interval > 0 else 0,
             history=_hist,
-            snap_error_fn=lambda ic, _ict=ic_true_k: float(cfg.error_fn(ic, _ict)),
+            snap_error_fn=lambda ic, _ict=ic_true_k: float(ctx.error_fn(ic, _ict)),
             error_history=_ic_err_hist if (snap_interval > 0 and is_primary) else None,
             log_fn=_log_iter,
             record_diagnostics=ctx.record_diagnostics,
@@ -758,9 +767,9 @@ def _run_one_seed_trial(
             f"{name} {ctx.exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
         )
         return None
-    final_ic_error = cfg.error_fn(ic_opt, ic_true_k)
+    final_ic_error = ctx.error_fn(ic_opt, ic_true_k)
     final_ic_div = (
-        _max_divergence(np.asarray(ic_opt), cfg.domain_extent) if ctx.is_vel else None
+        _max_divergence(np.asarray(ic_opt), ctx.domain_extent) if ctx.is_vel else None
     )
     console.print(
         f"  [{color}]{name}[/] {sweep_key}={val}{seed_tag} done "
@@ -807,7 +816,6 @@ def _process_recovery_sweep_val(
         _ic_init = None
         seeds_for_val = ctx.ic_seeds
         target_for_seed = _compute_targets_for_val(
-            ctx.cfg,
             name,
             ctx.exp_key,
             val,
@@ -816,6 +824,9 @@ def _process_recovery_sweep_val(
             ctx.ic_true_dict,
             ctx.phys,
             t,
+            make_inputs=ctx.make_inputs,
+            output_key=ctx.output_key,
+            domain_extent=ctx.domain_extent,
         )
         if not target_for_seed:
             ctx.by_sweep[name][val] = None
@@ -895,14 +906,14 @@ def _collect_final_states(ctx: _RecoveryRunCtx, name: str, t, best_conv: dict) -
     ctx.final_states_gt[name] = np.asarray(ftgt)
     ctx.final_states_rep_val[name] = fv
     try:
-        inp_rec = ctx.cfg.make_inputs(
+        inp_rec = ctx.make_inputs(
             name,
             fic,
-            domain_extent=ctx.cfg.domain_extent,
+            domain_extent=ctx.domain_extent,
             **fphys,
         )
         ctx.final_states_rec[name] = np.asarray(
-            apply_tesseract(t, inp_rec)[ctx.cfg.output_key]
+            apply_tesseract(t, inp_rec)[ctx.output_key]
         )
     except Exception:
         pass
@@ -912,7 +923,7 @@ def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
     """Per-solver worker: run the full sweep optimisation pipeline."""
     from mosaic.benchmarks.core.console import console
 
-    color = ctx.cfg.solvers[name].color
+    color = ctx.cfg.solver(name).color
     t0 = time.perf_counter()
     ctx.by_sweep[name] = {}
     best_conv: dict = {}
@@ -939,7 +950,6 @@ def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
     _collect_final_states(ctx, name, t, best_conv)
 
     ic_arr, fr_arr, perturb_arr = _build_recovery_visualization_stacks(
-        ctx.cfg,
         name,
         all_ic_opts,
         ctx.sweep_values,
@@ -949,6 +959,9 @@ def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
         ctx.sigma_ics if ctx.is_sigma_sweep else None,
         ctx.ic_true,
         t,
+        make_inputs=ctx.make_inputs,
+        output_key=ctx.output_key,
+        domain_extent=ctx.domain_extent,
     )
     if ic_arr is not None:
         ctx.all_ic_snaps[name] = ic_arr
@@ -965,13 +978,13 @@ def _precompute_sigma_target(ctx: _RecoveryRunCtx, name: str, t, color: str):
     Returns the target array, or ``None`` if forward failed or output invalid.
     """
     try:
-        inputs_true_fixed = ctx.cfg.make_inputs(
+        inputs_true_fixed = ctx.make_inputs(
             name,
             ctx.ic_true,
-            domain_extent=ctx.cfg.domain_extent,
+            domain_extent=ctx.domain_extent,
             **ctx.phys,
         )
-        target = apply_tesseract(t, inputs_true_fixed)[ctx.cfg.output_key]
+        target = apply_tesseract(t, inputs_true_fixed)[ctx.output_key]
     except Exception as exc:
         from mosaic.benchmarks.core.console import print_warn
 
@@ -986,20 +999,26 @@ def _precompute_sigma_target(ctx: _RecoveryRunCtx, name: str, t, color: str):
 
 
 def _run_recovery_long_impl(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     exp_key: str,
     harness_fn,
     *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
     _optim_fn=_run_optim,
     _project_grads: bool = False,
     **overrides,
 ) -> dict:
     """Shared implementation for run_recovery_long and variants."""
-    runs = cfg.inverse_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
+            f"_run_recovery_long_impl requires runs= payload for {exp_key!r} "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
@@ -1015,9 +1034,14 @@ def _run_recovery_long_impl(
             overrides=overrides,
             optim_fn=_optim_fn,
             project_grads=_project_grads,
+            make_ic=make_ic,
+            make_inputs=make_inputs,
+            error_fn=error_fn,
+            output_key=output_key,
+            domain_extent=domain_extent,
         )
         if n_runs > 1:
-            ic_name = run.get("ic", {}).get("name", next(iter(cfg.make_ic)))
+            ic_name = run.get("ic", {}).get("name", next(iter(make_ic)))
             all_results[ic_name] = result
         else:
             all_results = result
@@ -1027,7 +1051,7 @@ def _run_recovery_long_impl(
 
 def _run_recovery_for_one_run(
     *,
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     exp_key: str,
     harness_fn,
@@ -1036,10 +1060,15 @@ def _run_recovery_for_one_run(
     overrides: dict,
     optim_fn,
     project_grads: bool,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
 ) -> dict:
     """Inner body of ``_run_recovery_long_impl``: process a single ``run`` entry."""
     ic_cfg = run.get("ic", {})
-    ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+    ic_name = ic_cfg.get("name", next(iter(make_ic)))
     seed = ic_cfg.get("seed", 0)
     sweep_cfg = run.get("sweep", {})
     sweep_key = sweep_cfg.get("key", "steps")
@@ -1064,7 +1093,7 @@ def _run_recovery_for_one_run(
 
     if not sweep_values:
         raise NotImplementedError(
-            f"'{exp_key}' requires sweep.values in inverse_defaults "
+            f"'{exp_key}' requires sweep.values in runs payload "
             f"(not configured for '{cfg.name}')"
         )
 
@@ -1072,13 +1101,14 @@ def _run_recovery_for_one_run(
 
     # ── Build per-seed IC true + perturbed IC ─────────────────────────────
     _ic_true_dict, _ic_init_dict, _max_div_dict = _build_per_seed_ics(
-        cfg,
         ic_name,
         ic_seeds,
         phys,
         perturb_sigma,
         ic_init_type,
         console,
+        make_ic=make_ic,
+        domain_extent=domain_extent,
     )
 
     # Primary IC / init for single-seed and for visualization (always seed 0 / ic_seeds[0])
@@ -1089,7 +1119,7 @@ def _run_recovery_for_one_run(
 
     # div_fn for diagnostics: computes max|∇·u| per-iteration inside _run_optim
     _div_fn = (
-        (lambda u: _max_divergence(np.asarray(u), cfg.domain_extent))
+        (lambda u: _max_divergence(np.asarray(u), domain_extent))
         if (_is_vel and record_diagnostics)
         else None
     )
@@ -1097,7 +1127,7 @@ def _run_recovery_for_one_run(
     # Gradient projection: Helmholtz-project onto ∇·g = 0 before handing to
     # the optimiser. Only meaningful for velocity fields; ignored otherwise.
     _grad_proj_fn = (
-        (lambda g: _project_divergence_free(g, cfg.domain_extent))
+        (lambda g: _project_divergence_free(g, domain_extent))
         if (_project_grads and _is_vel)
         else None
     )
@@ -1108,7 +1138,12 @@ def _run_recovery_for_one_run(
     else:
         ic_init = None
         _sigma_ics = _build_sigma_perturbed_ics(
-            cfg, ic_true, sweep_values, seed, _is_vel, console
+            ic_true,
+            sweep_values,
+            seed,
+            _is_vel,
+            console,
+            domain_extent=domain_extent,
         )
 
     rep_val = sweep_values[len(sweep_values) // 2]
@@ -1152,6 +1187,11 @@ def _run_recovery_for_one_run(
         grad_proj_fn=_grad_proj_fn,
         out_dir=out_dir,
         partial_lock=threading.Lock(),
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        error_fn=error_fn,
+        output_key=output_key,
+        domain_extent=domain_extent,
     )
 
     run_with_gpu_pool(
@@ -1225,46 +1265,110 @@ def _run_recovery_for_one_run(
 
 
 def run_recovery_constant_ic(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
 ) -> dict:
-    """IC recovery from zero initialisation (cold start), fixed steps=100."""
+    """IC recovery from zero initialisation (cold start), fixed steps=100.
+
+    Problem-semantics state is passed explicitly:
+        make_ic        — dict[ic_name → IcSpec | Callable]
+        make_inputs    — (solver_name, ic, **physics) → dict
+        error_fn       — (pred, ref) → float
+        output_key     — name of the solver-output array to compare
+        domain_extent  — physical domain length
+
+    ``cfg`` retains its runtime-registry role (solvers, name); it is never
+    read for problem-semantics fields.
+    """
     return _run_recovery_long_impl(
-        cfg, tags, "recovery_constant_ic", run_recovery_constant_ic, **overrides
+        cfg,
+        tags,
+        "recovery_constant_ic",
+        run_recovery_constant_ic,
+        runs=runs,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        error_fn=error_fn,
+        output_key=output_key,
+        domain_extent=domain_extent,
+        **overrides,
     )
 
 
 def run_recovery_constant_ic_bfgs(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
 ) -> dict:
-    """L-BFGS variant of run_recovery_constant_ic. Reads inverse_defaults["recovery_constant_ic_bfgs"]."""
+    """L-BFGS variant of run_recovery_constant_ic.
+
+    See :func:`run_recovery_constant_ic` for the kwarg semantics.
+    """
     return _run_recovery_long_impl(
         cfg,
         tags,
         "recovery_constant_ic_bfgs",
         run_recovery_constant_ic_bfgs,
+        runs=runs,
         _optim_fn=_run_lbfgs,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        error_fn=error_fn,
+        output_key=output_key,
+        domain_extent=domain_extent,
         **overrides,
     )
 
 
 def run_recovery_constant_ic_bfgs_proj(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
 ) -> dict:
     """L-BFGS variant with gradient Helmholtz-projected onto ∇·g = 0 each iteration.
 
-    Reads inverse_defaults["recovery_constant_ic_bfgs_proj"]. Identical to
-    run_recovery_constant_ic_bfgs except that the L-BFGS gradient is
-    spectral-projected onto the divergence-free subspace before each quasi-Newton
-    update, keeping the search direction compatible with the incompressibility
-    constraint throughout optimisation.
+    Identical to ``run_recovery_constant_ic_bfgs`` except that the L-BFGS
+    gradient is spectral-projected onto the divergence-free subspace before
+    each quasi-Newton update, keeping the search direction compatible with
+    the incompressibility constraint throughout optimisation.
+
+    See :func:`run_recovery_constant_ic` for the kwarg semantics.
     """
     return _run_recovery_long_impl(
         cfg,
         tags,
         "recovery_constant_ic_bfgs_proj",
         run_recovery_constant_ic_bfgs_proj,
+        runs=runs,
         _optim_fn=_run_lbfgs,
         _project_grads=True,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        error_fn=error_fn,
+        output_key=output_key,
+        domain_extent=domain_extent,
         **overrides,
     )
 
@@ -1397,11 +1501,14 @@ def _topopt_lbfgs_loop(
 
 
 def _run_topopt_impl(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     exp_key: str,
     harness_fn,
     *,
+    make_ic,
+    make_inputs,
+    runs=None,
     _optim_loop=_topopt_adam_loop,
     **overrides,
 ) -> dict:
@@ -1412,17 +1519,17 @@ def _run_topopt_impl(
     return ``(rho_final, info)`` with the same ``info`` dict shape so the
     downstream save/result code is optimiser-agnostic.
     """
-    runs = cfg.inverse_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
+            f"_run_topopt_impl requires runs= payload for {exp_key!r} "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         phys = run.get("physics", {})
         optim_cfg = run.get("optim", {})
@@ -1435,7 +1542,7 @@ def _run_topopt_impl(
 
         if v_frac is None:
             raise NotImplementedError(
-                f"'{exp_key}' requires physics.v_frac in inverse_defaults "
+                f"'{exp_key}' requires physics.v_frac in runs payload "
                 f"(not configured for '{cfg.name}')"
             )
 
@@ -1447,7 +1554,7 @@ def _run_topopt_impl(
             k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
         }
 
-        rho_init = cfg.make_ic[ic_name](rho_0=v_frac, seed=seed, **phys)
+        rho_init = make_ic[ic_name](rho_0=v_frac, seed=seed, **phys)
 
         by_solver: dict = {}
         rho_snaps: dict = {}
@@ -1459,7 +1566,7 @@ def _run_topopt_impl(
             _t0 = time.perf_counter()
 
             def loss_components(rho, _t):
-                inp = cfg.make_inputs(name, rho, **phys)
+                inp = make_inputs(name, rho, **phys)
                 compliance = apply_tesseract(_t, inp)[compliance_key]
                 vol_penalty = penalty_weight * (jnp.mean(rho) - v_frac) ** 2
                 return compliance + vol_penalty, compliance
@@ -1528,12 +1635,28 @@ def _run_topopt_impl(
     return all_results
 
 
-def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_topopt(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
+) -> dict:
     """Topology optimisation: minimise compliance subject to a volume fraction constraint.
 
     Runs Adam gradient descent with ρ clipped to [x_min, 1] and a soft volume
     penalty. Designed for static FEA problems (structural-mesh) where IC recovery
     is degenerate.
+
+    Problem-semantics state is passed explicitly (``error_fn``, ``output_key``,
+    ``domain_extent`` are accepted for signature parity with the other public
+    harnesses but unused by topopt). See :func:`run_recovery_constant_ic` for
+    the field semantics.
 
     Returns:
         {"by_solver": {solver: {"compliances", "vol_fracs", "final_compliance",
@@ -1541,10 +1664,20 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
          "params": run}
         or {ic_name: <above>} when multiple runs are configured.
     """
-    return _run_topopt_impl(cfg, tags, "topopt", run_topopt, **overrides)
+    del error_fn, output_key, domain_extent  # unused by topopt; kept for parity
+    return _run_topopt_impl(
+        cfg,
+        tags,
+        "topopt",
+        run_topopt,
+        runs=runs,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        **overrides,
+    )
 
 
-def _drag_opt_out_dir(cfg: ProblemConfig, ic_subdir: str, debug: bool, exp_name: str):
+def _drag_opt_out_dir(cfg: Problem, ic_subdir: str, debug: bool, exp_name: str):
     """Compute the on-disk output directory for a drag_opt[_bfgs] run."""
     suffix = "_debug" if debug else ""
     if ic_subdir:
@@ -1558,16 +1691,18 @@ def _drag_opt_out_dir(cfg: ProblemConfig, ic_subdir: str, debug: bool, exp_name:
 
 
 def _drag_capture_flow(
-    cfg: ProblemConfig,
     name: str,
     t,
     profile,
     phys: dict,
+    *,
+    make_inputs,
+    domain_extent: float,
 ) -> np.ndarray | None:
     """Forward the (initial or final) profile and return the velocity field if any."""
     try:
-        de = phys.get("domain_extent", cfg.domain_extent)
-        inp = cfg.make_inputs(
+        de = phys.get("domain_extent", domain_extent)
+        inp = make_inputs(
             name,
             profile,
             domain_extent=de,
@@ -1626,7 +1761,6 @@ class _DragAdamConfig:
 
 
 def _run_drag_adam_loop(
-    cfg: ProblemConfig,
     name: str,
     t,
     profile_init,
@@ -1634,6 +1768,9 @@ def _run_drag_adam_loop(
     adam_cfg: _DragAdamConfig,
     by_solver: dict,
     write_partial,
+    *,
+    make_inputs,
+    domain_extent: float,
 ) -> tuple:
     """Run the Adam drag-optimisation loop for one solver.
 
@@ -1658,8 +1795,8 @@ def _run_drag_adam_loop(
     def loss_fn(p, _t=t):
         # domain_extent may already be inside phys (drag_opt sets it to 1.0);
         # avoid passing it twice by letting phys take precedence.
-        _de = phys.get("domain_extent", cfg.domain_extent)
-        inp = cfg.make_inputs(
+        _de = phys.get("domain_extent", domain_extent)
+        inp = make_inputs(
             name,
             p,
             domain_extent=_de,
@@ -1724,12 +1861,14 @@ def _run_drag_adam_loop(
 
 
 def _drag_bfgs_final_drag(
-    cfg: ProblemConfig,
     name: str,
     t,
     profile,
     phys: dict,
     losses: list,
+    *,
+    make_inputs,
+    domain_extent: float,
 ) -> tuple[float, np.ndarray | None]:
     """Forward the final profile to get the drag scalar and velocity field.
 
@@ -1737,8 +1876,8 @@ def _drag_bfgs_final_drag(
     Returns ``(final_drag, velocity_field_or_None)``.
     """
     try:
-        de = phys.get("domain_extent", cfg.domain_extent)
-        inp_f = cfg.make_inputs(
+        de = phys.get("domain_extent", domain_extent)
+        inp_f = make_inputs(
             name,
             profile,
             domain_extent=de,
@@ -1797,7 +1936,6 @@ def _merge_drag_flow_fields_npz(
 
 
 def _drag_opt_adam_loop(
-    cfg: ProblemConfig,
     name: str,
     t,
     profile_init,
@@ -1811,6 +1949,8 @@ def _drag_opt_adam_loop(
     U_mean: float = 0.5,
     by_solver: dict,
     write_partial,
+    make_inputs,
+    domain_extent: float,
 ) -> tuple[jax.Array, list, dict]:
     """Adam loop for drag_opt; supports per-iter partial-checkpoint flushes.
 
@@ -1825,7 +1965,6 @@ def _drag_opt_adam_loop(
         non_finite_grad,
         no_improve,
     ) = _run_drag_adam_loop(
-        cfg,
         name,
         t,
         profile_init,
@@ -1840,6 +1979,8 @@ def _drag_opt_adam_loop(
         ),
         by_solver,
         write_partial,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
     )
     entry = _drag_build_solver_entry(
         drags,
@@ -1853,7 +1994,6 @@ def _drag_opt_adam_loop(
 
 
 def _drag_opt_lbfgs_loop(
-    cfg: ProblemConfig,
     name: str,
     t,
     profile_init,
@@ -1863,6 +2003,8 @@ def _drag_opt_lbfgs_loop(
     flow_penalty_weight: float = 50.0,
     snap_interval: int = 0,
     U_mean: float = 0.5,
+    make_inputs,
+    domain_extent: float,
     **_unused,  # absorb Adam-only kwargs (by_solver, write_partial, lr, patience)
 ) -> tuple[jax.Array, list, dict]:
     """L-BFGS loop for drag_opt; no partial checkpointing.
@@ -1876,8 +2018,8 @@ def _drag_opt_lbfgs_loop(
     profile_history: list = []
 
     def loss_fn(p, _t=t):
-        _de = phys.get("domain_extent", cfg.domain_extent)
-        inp = cfg.make_inputs(
+        _de = phys.get("domain_extent", domain_extent)
+        inp = make_inputs(
             name,
             p,
             domain_extent=_de,
@@ -1908,7 +2050,15 @@ def _drag_opt_lbfgs_loop(
         clip_fn=lambda p: jnp.clip(p, 0.0, 3.0 * U_mean),
     )
 
-    final_drag, _ = _drag_bfgs_final_drag(cfg, name, t, profile, phys, losses)
+    final_drag, _ = _drag_bfgs_final_drag(
+        name,
+        t,
+        profile,
+        phys,
+        losses,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
+    )
     initial_drag = losses[0] if losses else None
     entry = {
         "drags": losses,
@@ -1928,11 +2078,15 @@ def _drag_opt_lbfgs_loop(
 
 
 def _run_drag_opt_impl(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     exp_key: str,
     harness_fn,
     *,
+    make_ic,
+    make_inputs,
+    domain_extent: float,
+    runs=None,
     _optim_loop=_drag_opt_adam_loop,
     _supports_partial: bool = True,
     **overrides,
@@ -1947,17 +2101,17 @@ def _run_drag_opt_impl(
     Adam variant relies on for long PICT runs. The L-BFGS variant doesn't use
     it, so the impl skips constructing the partial-write callback and lock.
     """
-    runs = cfg.inverse_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
+            f"_run_drag_opt_impl requires runs= payload for {exp_key!r} "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         phys = run.get("physics", {})
         optim_cfg = run.get("optim", {})
@@ -1974,9 +2128,7 @@ def _run_drag_opt_impl(
             k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
         }
 
-        profile_init = jnp.array(
-            cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **phys)
-        )
+        profile_init = jnp.array(make_ic[ic_name](L=domain_extent, seed=seed, **phys))
 
         by_solver: dict = {}
         profile_snaps: dict = {}
@@ -2010,12 +2162,18 @@ def _run_drag_opt_impl(
 
         def _drag_opt_work(name: str, t) -> None:
             _t0 = time.perf_counter()
-            vel0 = _drag_capture_flow(cfg, name, t, profile_init, phys)
+            vel0 = _drag_capture_flow(
+                name,
+                t,
+                profile_init,
+                phys,
+                make_inputs=make_inputs,
+                domain_extent=domain_extent,
+            )
             if vel0 is not None:
                 flow_init_snaps[name] = vel0
 
             profile, profile_history, entry = _optim_loop(
-                cfg,
                 name,
                 t,
                 profile_init,
@@ -2025,6 +2183,8 @@ def _run_drag_opt_impl(
                 U_mean=U_mean,
                 by_solver=by_solver,
                 write_partial=write_partial,
+                make_inputs=make_inputs,
+                domain_extent=domain_extent,
                 **loop_kwargs,
             )
 
@@ -2034,7 +2194,14 @@ def _run_drag_opt_impl(
             by_solver[name] = entry
             if write_partial is not None:
                 write_partial()
-            vel = _drag_capture_flow(cfg, name, t, profile, phys)
+            vel = _drag_capture_flow(
+                name,
+                t,
+                profile,
+                phys,
+                make_inputs=make_inputs,
+                domain_extent=domain_extent,
+            )
             if vel is not None:
                 flow_snaps[name] = vel
             _wall_times[name] = time.perf_counter() - _t0
@@ -2083,44 +2250,110 @@ def _run_drag_opt_impl(
     return all_results
 
 
-def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_drag_opt(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
+) -> dict:
     """Inflow profile optimisation: minimise drag on an embedded obstacle via Adam.
 
     Optimises the ``inflow_profile`` input field (1-D inlet velocity u_x(y)) to
-    minimise the scalar ``drag`` output.  A flow-rate conservation penalty is
+    minimise the scalar ``drag`` output. A flow-rate conservation penalty is
     added to prevent the optimiser from trivially reducing drag by zeroing the
-    inflow:  L = drag + flow_penalty_weight * (mean(profile) - U_mean)².
+    inflow: L = drag + flow_penalty_weight * (mean(profile) - U_mean)².
 
-    Expects ``inverse_defaults["drag_opt"]`` runs with:
+    Problem-semantics state is passed explicitly. ``error_fn`` and
+    ``output_key`` are accepted for signature parity with the other public
+    harnesses but unused (drag is read from a fixed ``"drag"`` output and the
+    loss is built in-line from ``mean(profile)``).
+
+    Each run dict in ``runs`` must contain:
         name: str               — used as result subdir when multiple runs present
         ic: {name, seed}        — IC generator returning 1-D profile, shape (N,)
         physics: {N, nu, dt, steps, domain_extent, U_mean, obstacle, ...}
         optim: {lr, max_iters, patience, flow_penalty_weight}
     """
-    return _run_drag_opt_impl(cfg, tags, "drag_opt", run_drag_opt, **overrides)
+    del error_fn, output_key  # unused by drag_opt; kept for parity
+    return _run_drag_opt_impl(
+        cfg,
+        tags,
+        "drag_opt",
+        run_drag_opt,
+        runs=runs,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
+        **overrides,
+    )
 
 
-def run_topopt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
-    """L-BFGS variant of run_topopt. Reads inverse_defaults["topopt_bfgs"]."""
+def run_topopt_bfgs(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
+) -> dict:
+    """L-BFGS variant of run_topopt.
+
+    See :func:`run_topopt` for the kwarg semantics (``error_fn``,
+    ``output_key``, ``domain_extent`` are unused but accepted for parity).
+    """
+    del error_fn, output_key, domain_extent  # unused by topopt; kept for parity
     return _run_topopt_impl(
         cfg,
         tags,
         "topopt_bfgs",
         run_topopt_bfgs,
+        runs=runs,
         _optim_loop=_topopt_lbfgs_loop,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
         **overrides,
     )
 
 
-def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
-    """L-BFGS variant of run_drag_opt. Reads inverse_defaults["drag_opt_bfgs"]."""
+def run_drag_opt_bfgs(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    runs=None,
+    **overrides,
+) -> dict:
+    """L-BFGS variant of run_drag_opt.
+
+    See :func:`run_drag_opt` for the kwarg semantics (``error_fn``,
+    ``output_key`` are unused but accepted for parity).
+    """
+    del error_fn, output_key  # unused by drag_opt; kept for parity
     return _run_drag_opt_impl(
         cfg,
         tags,
         "drag_opt_bfgs",
         run_drag_opt_bfgs,
+        runs=runs,
         _optim_loop=_drag_opt_lbfgs_loop,
         _supports_partial=False,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        domain_extent=domain_extent,
         **overrides,
     )
 
@@ -2260,11 +2493,14 @@ def _merge_rho_fields_npz(
 
 
 def _run_conductivity_recovery_impl(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     exp_key: str,
     harness_fn,
     *,
+    make_ic,
+    make_inputs,
+    runs=None,
     _optim_loop=_run_conductivity_adam_loop,
     **overrides,
 ) -> dict:
@@ -2275,17 +2511,17 @@ def _run_conductivity_recovery_impl(
     closure and return ``(rho, errors, info)`` with a uniform info dict
     (``grad_norms``, ``converged``).
     """
-    runs = cfg.inverse_defaults.get(exp_key, [])
     if not runs:
         raise NotImplementedError(
-            f"No '{exp_key}' inverse_defaults configured for '{cfg.name}'"
+            f"_run_conductivity_recovery_impl requires runs= payload for {exp_key!r} "
+            f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
     all_results: dict = {}
 
     for run in iter_runs(runs, overrides):
         ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
+        ic_name = ic_cfg.get("name", next(iter(make_ic)))
         seed = ic_cfg.get("seed", 0)
         phys = run.get("physics", {})
         optim_cfg = run.get("optim", {})
@@ -2303,17 +2539,17 @@ def _run_conductivity_recovery_impl(
             k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
         }
 
-        rho_init = jnp.array(cfg.make_ic[ic_name](seed=seed, **phys))
+        rho_init = jnp.array(make_ic[ic_name](seed=seed, **phys))
 
         # Ground-truth conductivity field: prefer "two_gaussians_rho", then "two_gaussians".
         truth_ic_name: str | None = None
         for candidate in ("two_gaussians_rho", "two_gaussians"):
-            if candidate in cfg.make_ic:
+            if candidate in make_ic:
                 truth_ic_name = candidate
                 break
         if truth_ic_name is not None:
             rho_truth = np.asarray(
-                cfg.make_ic[truth_ic_name](seed=seed, **phys), dtype=np.float32
+                make_ic[truth_ic_name](seed=seed, **phys), dtype=np.float32
             )
         else:
             rho_truth = None
@@ -2332,7 +2568,7 @@ def _run_conductivity_recovery_impl(
             _loss_phys = {k: v for k, v in phys.items() if k != "rho_0"}
 
             def loss_components(rho, _t=t):
-                inp = cfg.make_inputs(name, rho, **_loss_phys)
+                inp = make_inputs(name, rho, **_loss_phys)
                 out = apply_tesseract(_t, inp)
                 err = out.get(compliance_key)
                 if err is None:
@@ -2406,16 +2642,25 @@ def _run_conductivity_recovery_impl(
 
 
 def run_conductivity_recovery(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    runs=None,
+    **overrides,
 ) -> dict:
     """Conductivity-field recovery: recover rho from temperature observations.
 
     Optimises the SIMP density field (rho, clipped to [x_min, 1]) to minimise
-    identification_error = ||T(rho) - T_target||^2 using Adam.  The target
+    identification_error = ||T(rho) - T_target||^2 using Adam. The target
     temperature is produced by forward-solving with a two-Gaussian ground-truth
     conductivity and zero volumetric source (Neumann BC only).
 
-    Expects ``inverse_defaults["conductivity_recovery"]`` runs with:
+    Problem-semantics state is passed explicitly (see
+    :func:`run_recovery_constant_ic`).
+
+    Each run dict in ``runs`` must contain:
         ic:     {name, seed}         — IC generator for initial rho (e.g. "uniform")
         physics: {nx, ny, nz, Lx, Ly, Lz, rho_0, Q_total, compliance_key,
                   penalty_weight, x_min, snap_interval, target_rho_from_two_gaussians}
@@ -2427,12 +2672,25 @@ def run_conductivity_recovery(
         or {ic_name: <above>} when multiple runs are configured.
     """
     return _run_conductivity_recovery_impl(
-        cfg, tags, "conductivity_recovery", run_conductivity_recovery, **overrides
+        cfg,
+        tags,
+        "conductivity_recovery",
+        run_conductivity_recovery,
+        runs=runs,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
+        **overrides,
     )
 
 
 def run_conductivity_recovery_bfgs(
-    cfg: ProblemConfig, tags: dict[str, str], **overrides
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    runs=None,
+    **overrides,
 ) -> dict:
     """L-BFGS variant of run_conductivity_recovery."""
     return _run_conductivity_recovery_impl(
@@ -2440,74 +2698,9 @@ def run_conductivity_recovery_bfgs(
         tags,
         "conductivity_recovery_bfgs",
         run_conductivity_recovery_bfgs,
+        runs=runs,
         _optim_loop=_run_conductivity_lbfgs_loop,
+        make_ic=make_ic,
+        make_inputs=make_inputs,
         **overrides,
-    )
-
-
-# ── run_all + __main__ ────────────────────────────────────────────────────────
-
-_EXPERIMENTS = {
-    "recovery_constant_ic": run_recovery_constant_ic,
-    "recovery_constant_ic_bfgs": run_recovery_constant_ic_bfgs,
-    "recovery_constant_ic_bfgs_proj": run_recovery_constant_ic_bfgs_proj,
-    "topopt": run_topopt,
-    "topopt_bfgs": run_topopt_bfgs,
-    "conductivity_recovery": run_conductivity_recovery,
-    "conductivity_recovery_bfgs": run_conductivity_recovery_bfgs,
-    "drag_opt": run_drag_opt,
-    "drag_opt_bfgs": run_drag_opt_bfgs,
-    "drag_opt/re20": run_drag_opt,
-    "drag_opt_bfgs/re20": run_drag_opt_bfgs,
-}
-
-
-def _plot_fns() -> dict:
-    from mosaic.benchmarks.plots.optimization import (
-        plot_conductivity_recovery,
-        plot_drag_opt,
-        plot_recovery,
-        plot_topopt,
-    )
-
-    return {
-        "recovery_constant_ic": lambda cfg, **kw: plot_recovery(
-            cfg, exp_key="recovery_constant_ic", **kw
-        ),
-        "recovery_constant_ic_bfgs": lambda cfg, **kw: plot_recovery(
-            cfg, exp_key="recovery_constant_ic_bfgs", **kw
-        ),
-        "recovery_constant_ic_bfgs_proj": lambda cfg, **kw: plot_recovery(
-            cfg, exp_key="recovery_constant_ic_bfgs_proj", **kw
-        ),
-        "topopt": plot_topopt,
-        "topopt_bfgs": lambda cfg, **kw: plot_topopt(cfg, exp_key="topopt_bfgs", **kw),
-        "conductivity_recovery": plot_conductivity_recovery,
-        "conductivity_recovery_bfgs": lambda cfg, **kw: plot_conductivity_recovery(
-            cfg, exp_key="conductivity_recovery_bfgs", **kw
-        ),
-        "drag_opt": plot_drag_opt,
-        "drag_opt_bfgs": lambda cfg, **kw: plot_drag_opt(
-            cfg, exp_key="drag_opt_bfgs", **kw
-        ),
-    }
-
-
-def run_all(
-    cfg: ProblemConfig,
-    tags: dict[str, str],
-    experiments: list[str] | None = None,
-    plots: bool = True,
-) -> dict[str, dict]:
-    """Run optimization experiments and optionally generate plots."""
-    from mosaic.benchmarks.core.runner import run_suite
-
-    return run_suite(
-        cfg,
-        tags,
-        _EXPERIMENTS,
-        to_run=experiments,
-        plots=plots,
-        plot_fns=_plot_fns() if plots else None,
-        suite_name=_SUITE,
     )

@@ -5,7 +5,7 @@ Experiments:
   temporal_cost  — forward pass timing vs step count (fixed problem size)
   vjp_cost       — VJP (backward pass) timing vs N and steps (differentiable solvers only)
 
-All three read from cfg.cost_defaults.
+All three read from the cost runs payload.
 
 Timing semantics (apply to every experiment in this module):
   * The reported ``mean`` / ``std`` are in **seconds**, aggregated across
@@ -44,8 +44,7 @@ same semantics. This file only owns the cost-specific input construction,
 sweep dispatch, and result wiring.
 
 Run from the terminal:
-    cd mosaic
-    python -m benchmarks.suites.cost [--experiment EXPR] [--no-plots]
+    mosaic run <problem> cost [--experiments EXPR] [--plots-only]
 """
 
 from __future__ import annotations
@@ -55,7 +54,7 @@ import time
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.hardware import get_hardware_info
 from mosaic.benchmarks.core.harness import run_timed_trials
@@ -89,21 +88,31 @@ def _mark_remaining_none(target: dict, values: list, current) -> None:
 # ── Spatial cost ─────────────────────────────────────────────────────────────
 
 
-def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_spatial_cost(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    domain_extent: float,
+    resolution_key: str,
+    runs=None,
+    **overrides,
+) -> dict:
     """Wall-clock timing sweep over problem sizes (N) at a fixed step count.
 
-    Reads cfg.cost_defaults.  Requires cost.N_values; uses the middle entry
-    of cost.steps_values (or physics.steps) as the fixed reference step count.
+    Problem-semantics state is passed explicitly. ``cfg`` is only used for the
+    runtime registry (``cfg.solvers``, ``cfg.solver(name)``, ``cfg.name``,
+    ``cfg.exclusions`` via :func:`active_solvers`).
 
     Returns:
         {"by_N": {solver: {N: {"mean", "std", "vram_peak_mib", "ram_peak_mib"}
                              or None on failure}},
          "hardware": {...}}
     """
-    runs = cfg.cost_defaults
     if not runs:
         raise NotImplementedError(
-            f"run_spatial_cost requires cost_defaults (not configured for '{cfg.name}')"
+            f"run_spatial_cost requires runs= payload (not configured for '{cfg.name}')"
         )
     run = next(iter_runs(runs, overrides), None)
     if run is None:
@@ -117,24 +126,24 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
 
     if not N_values:
         raise NotImplementedError(
-            f"run_spatial_cost requires cost.N_values in cost_defaults"
+            f"run_spatial_cost requires cost.N_values in runs payload"
             f" (not configured for '{cfg.name}')"
         )
 
     ref_steps = (
         steps_values[len(steps_values) // 2] if steps_values else phys.get("steps")
     )
-    ref_ic_name = next(iter(cfg.make_ic))
-    res_key = cfg.resolution_key
+    ref_ic_name = next(iter(make_ic))
+    res_key = resolution_key
     hardware = get_hardware_info()
 
-    by_N: dict = {name: {} for name in cfg.solvers}
+    by_N: dict = {s.name: {} for s in cfg.solvers}
     csv_rows: list[dict] = []
     _wall_times: dict[str, float] = {}
     gpu_ids = overrides.get("gpu_ids")
 
     def _spatial_work(name: str, t) -> None:
-        color = cfg.solvers[name].color
+        color = cfg.solver(name).color
         t_solver = time.perf_counter()
         console.print(
             f"  [{color}]{name}[/]  {res_key} sweep ({len(N_values)} sizes, {n_trials} trials each)"
@@ -145,8 +154,8 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
             _phys = {**phys, res_key: res}
             if ref_steps is not None:
                 _phys["steps"] = ref_steps
-            ic = cfg.make_ic[ref_ic_name](L=cfg.domain_extent, **_phys)
-            inputs = cfg.make_inputs(name, ic, domain_extent=cfg.domain_extent, **_phys)
+            ic = make_ic[ref_ic_name](L=domain_extent, **_phys)
+            inputs = make_inputs(name, ic, domain_extent=domain_extent, **_phys)
 
             result = run_timed_trials(
                 lambda: t.apply(inputs),
@@ -218,20 +227,26 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
 # ── Temporal cost ─────────────────────────────────────────────────────────────
 
 
-def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_temporal_cost(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    domain_extent: float,
+    resolution_key: str,
+    runs=None,
+    **overrides,
+) -> dict:
     """Wall-clock timing sweep over step counts at a fixed problem size.
-
-    Reads cfg.cost_defaults.  Requires cost.steps_values; uses the middle
-    entry of cost.N_values (or physics.N) as the fixed reference size.
 
     Returns:
         {"by_steps": {solver: {steps: {"mean", "std", ...resource stats}}},
          "hardware": {...}}
     """
-    runs = cfg.cost_defaults
     if not runs:
         raise NotImplementedError(
-            f"run_temporal_cost requires cost_defaults (not configured for '{cfg.name}')"
+            f"run_temporal_cost requires runs= payload (not configured for '{cfg.name}')"
         )
     run = next(iter_runs(runs, overrides), None)
     if run is None:
@@ -245,35 +260,35 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 
     if not steps_values:
         raise NotImplementedError(
-            f"run_temporal_cost requires cost.steps_values in cost_defaults"
+            f"run_temporal_cost requires cost.steps_values in runs payload"
             f" (not configured for '{cfg.name}')"
         )
 
     ref_N = N_values[len(N_values) // 2] if N_values else phys.get("N", 64)
-    ref_ic_name = next(iter(cfg.make_ic))
-    res_key = cfg.resolution_key
+    ref_ic_name = next(iter(make_ic))
+    res_key = resolution_key
     hardware = get_hardware_info()
 
-    by_steps: dict = {name: {} for name in cfg.solvers}
+    by_steps: dict = {s.name: {} for s in cfg.solvers}
     csv_rows: list[dict] = []
     _wall_times: dict[str, float] = {}
     gpu_ids = overrides.get("gpu_ids")
 
     def _temporal_work(name: str, t) -> None:
-        color = cfg.solvers[name].color
+        color = cfg.solver(name).color
         t_solver = time.perf_counter()
         _phys_ref = {**phys, res_key: ref_N}
-        ic_ref = cfg.make_ic[ref_ic_name](L=cfg.domain_extent, **_phys_ref)
+        ic_ref = make_ic[ref_ic_name](L=domain_extent, **_phys_ref)
         console.print(
             f"  [{color}]{name}[/]  steps sweep ({len(steps_values)} counts, {n_trials} trials each)"
         )
         ctx = current_worker_context()
 
         for steps in steps_values:
-            inputs = cfg.make_inputs(
+            inputs = make_inputs(
                 name,
                 ic_ref,
-                domain_extent=cfg.domain_extent,
+                domain_extent=domain_extent,
                 **{**_phys_ref, "steps": steps},
             )
             result = run_timed_trials(
@@ -340,7 +355,19 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 # ── VJP cost ──────────────────────────────────────────────────────────────────
 
 
-def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
+def run_vjp_cost(
+    cfg: Problem,
+    tags: dict[str, str],
+    *,
+    make_ic,
+    make_inputs,
+    domain_extent: float,
+    resolution_key: str,
+    output_key: str,
+    ic_key: str,
+    runs=None,
+    **overrides,
+) -> dict:
     """Wall-clock timing of the VJP (backward pass) for differentiable solvers.
 
     Sweeps both N (spatial) and steps (temporal) in one function, mirroring
@@ -351,7 +378,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     ``gradient_fields.npz`` alongside the JSON result, keyed as
     ``grad_{si}_N{N}`` where si is the solver index in ``solver_names``.
 
-    Reads cfg.cost_defaults — same params dict as spatial/temporal cost.
+    Reads the cost runs payload — same params dict as spatial/temporal cost.
 
     Returns:
         {"by_N":     {solver: {N:     {"mean", "std", "grad_norm",
@@ -362,12 +389,11 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                                or None on failure}},
          "hardware": {...}}
     """
-    from mosaic.benchmarks.suites.gradient import _vjp_grad  # reuse — no duplication
+    from mosaic.benchmarks.shared.gradient import _vjp_grad  # reuse — no duplication
 
-    runs = cfg.cost_defaults
     if not runs:
         raise NotImplementedError(
-            f"run_vjp_cost requires cost_defaults (not configured for '{cfg.name}')"
+            f"run_vjp_cost requires runs= payload (not configured for '{cfg.name}')"
         )
     run = next(iter_runs(runs, overrides), None)
     if run is None:
@@ -378,7 +404,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     diff_solver_names = set(
         active_differentiable_solvers(cfg, "cost", "vjp_cost")
     ) & set(active_differentiable_solvers(cfg, "gradient"))
-    diff_solvers = [(n, s) for n, s in cfg.solvers.items() if n in diff_solver_names]
+    diff_solvers = [(s.name, s) for s in cfg.solvers if s.name in diff_solver_names]
     if not diff_solvers:
         console.print("  [yellow]No differentiable solvers — skipping vjp_cost[/]")
         return {}
@@ -393,8 +419,8 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         steps_values[len(steps_values) // 2] if steps_values else phys.get("steps")
     )
     ref_N = N_values[len(N_values) // 2] if N_values else phys.get("N", 64)
-    ref_ic_name = next(iter(cfg.make_ic))
-    res_key = cfg.resolution_key
+    ref_ic_name = next(iter(make_ic))
+    res_key = resolution_key
     hardware = get_hardware_info()
 
     by_N: dict = {name: {} for name, _ in diff_solvers}
@@ -406,7 +432,7 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     diff_solver_names_list = [name for name, _ in diff_solvers]
 
     def _vjp_work(name: str, t) -> None:
-        color = cfg.solvers[name].color
+        color = cfg.solver(name).color
         t_solver = time.perf_counter()
         ctx = current_worker_context()
 
@@ -419,13 +445,11 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 _phys = {**phys, res_key: res}
                 if ref_steps is not None:
                     _phys["steps"] = ref_steps
-                ic = cfg.make_ic[ref_ic_name](L=cfg.domain_extent, **_phys)
-                inputs = cfg.make_inputs(
-                    name, ic, domain_extent=cfg.domain_extent, **_phys
-                )
+                ic = make_ic[ref_ic_name](L=domain_extent, **_phys)
+                inputs = make_inputs(name, ic, domain_extent=domain_extent, **_phys)
 
                 result = run_timed_trials(
-                    lambda: _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key),
+                    lambda: _vjp_grad(t, inputs, output_key, ic_key),
                     n_trials=n_trials,
                     wall_limit_s=_SPATIAL_WALL_S,
                     gpu_id=ctx.gpu_id,
@@ -476,17 +500,17 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 f"  [{color}]{name}[/]  VJP steps sweep ({len(steps_values)} counts, {n_trials} trials each)"
             )
             _phys_ref = {**phys, res_key: ref_N}
-            ic_ref = cfg.make_ic[ref_ic_name](L=cfg.domain_extent, **_phys_ref)
+            ic_ref = make_ic[ref_ic_name](L=domain_extent, **_phys_ref)
             for steps in steps_values:
-                inputs = cfg.make_inputs(
+                inputs = make_inputs(
                     name,
                     ic_ref,
-                    domain_extent=cfg.domain_extent,
+                    domain_extent=domain_extent,
                     **{**_phys_ref, "steps": steps},
                 )
 
                 result = run_timed_trials(
-                    lambda: _vjp_grad(t, inputs, cfg.output_key, cfg.ic_key),
+                    lambda: _vjp_grad(t, inputs, output_key, ic_key),
                     n_trials=n_trials,
                     wall_limit_s=_SPATIAL_WALL_S,
                     gpu_id=ctx.gpu_id,
@@ -564,49 +588,3 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         console.print(f"  Saved gradient fields → {out_dir / 'gradient_fields.npz'}")
 
     return result
-
-
-# ── run_all + __main__ ────────────────────────────────────────────────────────
-
-_EXPERIMENTS = {
-    "spatial_cost": run_spatial_cost,
-    "temporal_cost": run_temporal_cost,
-    "vjp_cost": run_vjp_cost,
-}
-
-
-def _plot_fns() -> dict:
-    from mosaic.benchmarks.plots.cost import plot_cost
-
-    return {
-        "spatial_cost": plot_cost,
-        "temporal_cost": plot_cost,
-        "vjp_cost": plot_cost,
-    }
-
-
-def run_all(
-    cfg: ProblemConfig,
-    tags: dict[str, str],
-    experiments: list[str] | None = None,
-    plots: bool = True,
-) -> dict[str, dict]:
-    """Run cost experiments and optionally generate plots."""
-    from mosaic.benchmarks.core.runner import run_suite
-
-    # Drop temporal_cost for problems that have no time steps (steady-state solvers).
-    run = next(iter_runs(cfg.cost_defaults, {}), {})
-    has_steps = bool(run.get("cost", {}).get("steps_values"))
-    available = {
-        k: v for k, v in _EXPERIMENTS.items() if k != "temporal_cost" or has_steps
-    }
-
-    return run_suite(
-        cfg,
-        tags,
-        available,
-        to_run=experiments,
-        plots=plots,
-        plot_fns=_plot_fns() if plots else None,
-        suite_name=_SUITE,
-    )

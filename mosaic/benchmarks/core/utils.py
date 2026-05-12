@@ -18,7 +18,7 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 
-from .config import ProblemConfig
+from .config import Problem
 
 # ── Array statistics ──────────────────────────────────────────────────────────
 
@@ -262,15 +262,19 @@ def exclusion_lookup(
 
 
 def active_solvers(
-    cfg: ProblemConfig, suite: str, experiment: str | None = None
+    cfg: Problem, suite: str, experiment: str | None = None
 ) -> list[str]:
     """Solver names not excluded for *suite* (and optionally *experiment*).
 
-    Checks ``spec.exclusions`` via :func:`exclusion_lookup`, which tries the
-    most-specific key first (``"suite/experiment"``) and falls back to the
-    bare experiment key and finally to ``suite``. This matches the lookup
-    used by ``mosaic status`` so the runtime filter and the status display
-    can never disagree on which cells are gated.
+    Reads ``cfg.exclusions[name]`` via :func:`exclusion_lookup`, which tries
+    the most-specific key first (``"suite/experiment"``) and falls back to
+    the bare experiment key and finally to ``suite``. ``mosaic status`` uses
+    the same lookup so the runtime filter and the display can never disagree
+    on which cells are gated.
+
+    ``Exclusion(category="anomaly_explained", ...)`` is treated as
+    *not excluded* — the solver runs and produces output that's flagged in
+    the status display but not skipped at runtime.
 
     Prints a one-line warning per excluded solver, naming the matched key so
     the exclusion source is visible in runner output.
@@ -278,20 +282,26 @@ def active_solvers(
     from .console import console
 
     result = []
-    for name, spec in cfg.solvers.items():
-        match = exclusion_lookup(spec.exclusions, suite, experiment)
+    for spec in cfg.solvers:
+        name = spec.name
+        match = exclusion_lookup(cfg.exclusions.get(name, {}), suite, experiment)
         if match is None:
             result.append(name)
-        else:
-            matched_key, reason = match
-            console.print(
-                f"  [yellow]SKIP {name}[/] excluded from {matched_key!r}: {reason}"
-            )
+            continue
+        matched_key, value = match
+        if getattr(value, "category", None) == "anomaly_explained":
+            # Explained-anomaly is a display annotation, not a runtime skip.
+            result.append(name)
+            continue
+        reason = getattr(value, "reason", value)
+        console.print(
+            f"  [yellow]SKIP {name}[/] excluded from {matched_key!r}: {reason}"
+        )
     return result
 
 
 def active_differentiable_solvers(
-    cfg: ProblemConfig, suite: str = "gradient", experiment: str | None = None
+    cfg: Problem, suite: str = "gradient", experiment: str | None = None
 ) -> list[str]:
     """Differentiable solvers not excluded for *suite* (and optionally *experiment*)."""
     from mosaic.benchmarks.core.config import has_vjp
@@ -299,5 +309,5 @@ def active_differentiable_solvers(
     return [
         name
         for name in active_solvers(cfg, suite, experiment)
-        if has_vjp(cfg.solvers[name])
+        if has_vjp(cfg.solver(name))
     ]

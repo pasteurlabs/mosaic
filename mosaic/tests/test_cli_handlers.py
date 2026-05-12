@@ -123,7 +123,7 @@ def test_validate_domain_known_problem_runs():
     # Whether all checks pass depends on the environment (schema imports may
     # not all resolve in test envs); the contract is just that the command
     # runs to completion and prints at least one OK or FAIL line.
-    assert "ProblemConfig.validate" in result.output
+    assert "Problem.validate" in result.output
     assert result.exit_code in (0, 1)
 
 

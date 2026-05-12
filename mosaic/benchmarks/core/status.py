@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .config import ProblemConfig
+from .config import Problem
 from .io import (
     harness_fn_hash,
     load_json,
@@ -50,35 +50,21 @@ FAILED = "failed"
 NOT_RUN = "not_run"
 EXCLUDED = "excluded"
 
-# Exclusion categories carried on EXCLUDED cells.  Only two matter:
-#
-#   CATEGORICAL (permanent) — method-intrinsic limitation (e.g. FFT-only
-#     solver + non-periodic BCs, non-differentiable C++ solver).  These
-#     stay out of the score denominator.
-#
-#   Everything else — work-to-do.  Counts in the score denominator at the
-#     neutral weight (0.33).  The Cell.reason string carries the human-
-#     readable explanation; no need for a taxonomy of sub-categories.
-EXCL_CATEGORICAL = "categorical"
-
-# Kept as aliases for backward compatibility with existing problem configs
-# that use {"category": "infeasible"} etc.  All non-categorical categories
-# are treated identically in scoring and rendering.
-EXCL_NOT_IMPLEMENTED = "not_implemented"
-EXCL_INFEASIBLE = "infeasible"
-EXCL_UNSTABLE = "unstable"
-EXCL_UPSTREAM_BUG = "upstream_bug"
-EXCL_UNSPECIFIED = "unspecified"
-
-EXCL_CATEGORIES = (
-    EXCL_CATEGORICAL,
-    EXCL_NOT_IMPLEMENTED,
-    EXCL_INFEASIBLE,
-    EXCL_UNSTABLE,
-    EXCL_UPSTREAM_BUG,
-    EXCL_UNSPECIFIED,
+# Exclusion categories carried on EXCLUDED cells live on
+# :class:`mosaic.benchmarks.core.config.ExclusionCategory`. Only
+# ``CATEGORICAL`` is *permanent* (out of the score denominator); everything
+# else is "work to do" at the neutral weight. ``Cell.category`` stores the
+# raw string value (str-Enum), so existing comparisons against ``"categorical"``
+# / ``"explained"`` etc. continue to work unchanged.
+from mosaic.benchmarks.core.config import (  # noqa: E402
+    EXCL_PERMANENT,
+    Exclusion,
+    ExclusionCategory,
 )
-EXCL_PERMANENT = {EXCL_CATEGORICAL}
+
+# Permanent categories as a set of raw strings (for ``cell.category in …``
+# checks where the cell's category is a plain string).
+EXCL_PERMANENT_VALUES: frozenset[str] = frozenset(c.value for c in EXCL_PERMANENT)
 
 
 # ── weighted campaign-health score ──────────────────────────────────────────
@@ -144,10 +130,10 @@ def compute_score(cells: list[Cell]) -> tuple[float | None, int]:
     return total / n, n
 
 
-def _lookup_check(cfg: ProblemConfig, suite: str, experiment: str) -> dict:
+def _lookup_check(cfg: Problem, suite: str, experiment: str) -> dict:
     """Return the status_checks entry for (suite, experiment), merging suite
     defaults with experiment-specific overrides. Later keys win."""
-    checks = getattr(cfg, "status_checks", {}) or {}
+    checks = cfg.status_checks
     merged: dict = {}
     merged.update(checks.get(suite, {}) or {})
     # experiment labels may include an IC sub-dir (e.g. "agreement/tgv");
@@ -873,7 +859,7 @@ def _iter_experiment_dirs(suite_dir: Path):
             yield exp_dir.name, None
 
 
-def _results_dir(cfg: ProblemConfig) -> Path:
+def _results_dir(cfg: Problem) -> Path:
     return results_dir() / cfg.name
 
 
@@ -909,14 +895,13 @@ def _resolve_harness_hash(qualname: str, cache: dict[str, str | None]) -> str | 
     return h
 
 
-def _resolve_tesseract_hash(
-    cfg: ProblemConfig, solver: str, cache: dict[str, str]
-) -> str:
+def _resolve_tesseract_hash(cfg: Problem, solver: str, cache: dict[str, str]) -> str:
     """Hash the on-disk tesseract directory for *solver*; memoised in *cache*."""
     if solver in cache:
         return cache[solver]
-    spec = cfg.solvers.get(solver)
-    if spec is None:
+    try:
+        spec = cfg.solver(solver)
+    except KeyError:
         cache[solver] = ""
         return ""
     tess_dir = cfg.tesseract_dir / spec.dir
@@ -954,7 +939,7 @@ def _row_harness_stale(data: dict, harness_hash_cache: dict[str, str | None]) ->
 
 
 def _apply_staleness(
-    cfg: ProblemConfig,
+    cfg: Problem,
     data: dict,
     cells: dict[str, Cell],
     solvers: list[str],
@@ -989,68 +974,79 @@ def _apply_staleness(
 
 
 def _apply_exclusions(
-    cfg: ProblemConfig, suite: str, exp_label: str, cells: dict[str, Cell]
+    cfg: Problem, suite: str, exp_label: str, cells: dict[str, Cell]
 ) -> None:
     """Mark excluded solvers (overrides whatever the result file said).
 
-    Uses the shared ``exclusion_lookup`` helper so the status display and the
-    runtime ``active_solvers`` filter can't drift on which key takes
-    precedence. Most-specific wins:
-    ``"{suite}/{exp}[/sub]" > "{exp}[/sub]" > "{suite}/{exp_head}" >
-    "{exp_head}" > "{suite}"``.
+    Reads from ``cfg.exclusions[name]`` (canonical store). Uses the shared
+    ``exclusion_lookup`` helper so the status display and the runtime
+    ``active_solvers`` filter can't drift on which key takes precedence.
+    Most-specific wins: ``"{suite}/{exp}[/sub]" > "{exp}[/sub]" >
+    "{suite}/{exp_head}" > "{exp_head}" > "{suite}"``. Entries with
+    ``Exclusion.category == "anomaly_explained"`` are skipped here — they're
+    handled by :func:`_apply_explained_anomalies` below.
     """
-    for name, spec in cfg.solvers.items():
-        match = exclusion_lookup(spec.exclusions, suite, exp_label)
-        if match is not None:
-            _key, value = match
-            cells[name] = _build_excluded_cell(value)
+    for spec in cfg.solvers:
+        name = spec.name
+        match = exclusion_lookup(cfg.exclusions.get(name, {}), suite, exp_label)
+        if match is None:
+            continue
+        _key, value = match
+        if getattr(value, "category", None) == "anomaly_explained":
+            continue
+        cells[name] = _build_excluded_cell(value)
 
 
 def _apply_explained_anomalies(
-    cfg: ProblemConfig, suite: str, exp_label: str, cells: dict[str, Cell]
+    cfg: Problem, suite: str, exp_label: str, cells: dict[str, Cell]
 ) -> None:
     """Mark explained-anomaly solvers. These override OK cells only — the
     solver runs and produces finite results, but underperforms peers for
     documented method-intrinsic reasons. FAILED and EXCLUDED cells are never
     downgraded by this pass.
+
+    Reads ``cfg.exclusions[name]`` filtered to entries with
+    ``Exclusion.category == "anomaly_explained"``.
     """
-    for name, spec in cfg.solvers.items():
-        ea_match = exclusion_lookup(
-            getattr(spec, "explained_anomalies", {}), suite, exp_label
-        )
-        if ea_match is None:
+    for spec in cfg.solvers:
+        name = spec.name
+        match = exclusion_lookup(cfg.exclusions.get(name, {}), suite, exp_label)
+        if match is None:
+            continue
+        _key, value = match
+        if getattr(value, "category", None) != "anomaly_explained":
             continue
         cell = cells.get(name)
         if cell is None or cell.status in (FAILED, EXCLUDED):
             continue
-        _key, value = ea_match
         if cell.status == OK:
-            # Promote an OK cell to documented anomaly.
             cells[name] = _build_explained_anomaly_cell(value)
         elif cell.status == ANOMALY and cell.category != "explained":
-            # Status_checks already flagged this as anomaly; mark it
-            # as explained anomaly to distinguish from threshold-triggered ones.
             cells[name] = Cell(
                 ANOMALY, cell.reason, category="explained", stale=cell.stale
             )
 
 
-def _suite_filter(cfg: ProblemConfig, suite: str) -> set[str]:
+def _suite_filter(cfg: Problem, suite: str) -> set[str]:
     """Return the set of allowed experiment-head names for *suite*, or an
     empty set if no filter applies (every experiment is admitted).
 
-    The cost-suite layout is a flat dict (keys: description, plot_descriptions,
-    runs) — not keyed by experiment name — so we use its ``plot_descriptions``
-    keys. Other suites use the top-level keys of ``_suite_defaults`` directly.
+    Walks ``cfg.experiments`` and returns the short names (suite-prefix
+    stripped) of every entry that has a non-empty ``params`` payload —
+    "configured experiments." Entries without params are registered in the
+    suite catalog but not configured for this problem, so they're filtered
+    out of the status display.
     """
-    suite_defs = cfg._suite_defaults(suite) or {}
-    if suite == "cost":
-        return set((suite_defs.get("plot_descriptions") or {}).keys())
-    return set(suite_defs.keys())
+    prefix = f"{suite}/"
+    return {
+        k[len(prefix) :]
+        for k, exp in cfg.experiments.items()
+        if k.startswith(prefix) and exp.params
+    }
 
 
 def _build_row(
-    cfg: ProblemConfig,
+    cfg: Problem,
     suite: str,
     exp_label: str,
     result_path: Path | None,
@@ -1081,12 +1077,10 @@ def _build_row(
     return row
 
 
-def collect_status(
-    cfg: ProblemConfig, suites: list[str] | None = None
-) -> ProblemStatus:
+def collect_status(cfg: Problem, suites: list[str] | None = None) -> ProblemStatus:
     """Build a ProblemStatus for one problem by walking its results/ tree."""
     suites = list(suites) if suites else list(SUITES)
-    solvers = list(cfg.solvers.keys())
+    solvers = list(cfg.solver_names)
     root = _results_dir(cfg)
     # Caches shared across rows: hashing is O(files) per tesseract and
     # O(source-size) per harness fn — both stable within one status call.
@@ -1113,28 +1107,18 @@ def collect_status(
     return ProblemStatus(problem=cfg.name, solvers=solvers, rows=rows)
 
 
-def _build_excluded_cell(value) -> Cell:
-    """Construct an EXCLUDED cell from a SolverSpec.exclusions value.
+def _build_excluded_cell(value: Exclusion) -> Cell:
+    """Construct an EXCLUDED cell from an :class:`Exclusion`.
 
-    Accepts either a plain string (legacy — category defaults to
-    ``EXCL_UNSPECIFIED``) or a dict ``{"category": ..., "reason": ...}``.
-    Unknown categories fall back to ``EXCL_UNSPECIFIED`` with the raw string
-    preserved in the reason so the user can inspect it.
+    The cell's ``category`` is the raw string value of the enum member
+    (e.g. ``"categorical"``), so existing comparisons against string
+    literals continue to work.
     """
-    if isinstance(value, dict):
-        category = value.get("category", EXCL_UNSPECIFIED)
-        reason = value.get("reason", "")
-        if category not in EXCL_CATEGORIES:
-            reason = f"[{category}] {reason}".strip()
-            category = EXCL_UNSPECIFIED
-        return Cell(EXCLUDED, reason, category=category)
-    return Cell(
-        EXCLUDED, str(value) if value is not None else "", category=EXCL_UNSPECIFIED
-    )
+    return Cell(EXCLUDED, value.reason, category=value.category.value)
 
 
-def _build_explained_anomaly_cell(value) -> Cell:
-    """Construct an ANOMALY cell from a SolverSpec.explained_anomalies value.
+def _build_explained_anomaly_cell(value: Exclusion) -> Cell:
+    """Construct an ANOMALY cell from an explained-anomaly :class:`Exclusion`.
 
     The solver runs and produces finite output but underperforms peers for
     documented method-intrinsic reasons (e.g. LBM compressibility floor,
@@ -1143,13 +1127,10 @@ def _build_explained_anomaly_cell(value) -> Cell:
     solver weaknesses remain visible.
 
     ``category="explained"`` marks the cell as a pre-documented anomaly,
-    distinguishing it from threshold-triggered anomalies without re-inspecting result.json.
+    distinguishing it from threshold-triggered anomalies without re-inspecting
+    ``result.json``.
     """
-    if isinstance(value, dict):
-        reason = value.get("reason", "")
-    else:
-        reason = str(value) if value is not None else ""
-    return Cell(ANOMALY, reason, category="explained")
+    return Cell(ANOMALY, value.reason, category="explained")
 
 
 # ── JSON / markdown / diff rendering ─────────────────────────────────────────
@@ -1286,7 +1267,7 @@ _MD_GLYPHS = {
 
 # Per-category glyph for EXCLUDED cells.
 _MD_EXCL_GLYPHS = {
-    EXCL_CATEGORICAL: "🚫",
+    ExclusionCategory.CATEGORICAL.value: "🚫",
 }
 
 

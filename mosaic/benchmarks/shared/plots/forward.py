@@ -8,9 +8,9 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.plots.style import (
+from mosaic.benchmarks.shared.plots.style import (
     apply_style,
     field_grid,
     fig_shared_legend,
@@ -33,14 +33,14 @@ def _smooth(arr: np.ndarray, sigma: float = 2.0) -> np.ndarray:
     return np.convolve(arr, k, mode="same")
 
 
-def _field_to_2d(cfg):
-    """Return the field→2D callable for *cfg*, falling back to vorticity_2d."""
-    return cfg.field_to_2d if cfg.field_to_2d is not None else vorticity_2d
+def _resolve_field_to_2d(field_to_2d):
+    """Return the field→2D callable, falling back to vorticity_2d."""
+    return field_to_2d if field_to_2d is not None else vorticity_2d
 
 
-def _field_grid_kw(cfg) -> dict:
+def _field_grid_kw(field_cmap: str, field_symmetric: bool) -> dict:
     """Return field_grid keyword overrides for the problem's colormap / symmetry."""
-    return {"cmap": cfg.field_cmap, "symmetric": cfg.field_symmetric}
+    return {"cmap": field_cmap, "symmetric": field_symmetric}
 
 
 def _is_field(arr: np.ndarray) -> bool:
@@ -54,7 +54,7 @@ _SUITE = "forward"
 # ── agreement ─────────────────────────────────────────────────────────────────
 
 
-def _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key) -> bool:
+def _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key, **plot_kwargs) -> bool:
     """Dispatch into per-IC subdirs if no top-level fields.npz exists.
 
     Returns True iff the multi-IC layout was detected and dispatched.
@@ -69,12 +69,28 @@ def _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key) -> bool:
     if not subdirs:
         return False
     for sub in subdirs:
-        plot_agreement(cfg, save=save, suffix=f"{suffix}/{sub.name}", exp_key=exp_key)
+        plot_agreement(
+            cfg,
+            save=save,
+            suffix=f"{suffix}/{sub.name}",
+            exp_key=exp_key,
+            **plot_kwargs,
+        )
     return True
 
 
 def _agreement_plot_scalar(
-    cfg, npz, solver_names, sweep_vals, sweep_key, styles, out_dir, save
+    cfg,
+    npz,
+    solver_names,
+    sweep_vals,
+    sweep_key,
+    styles,
+    out_dir,
+    save,
+    *,
+    output_key: str,
+    units: dict | None,
 ):
     """Scalar-output agreement: plot the scalar value vs sweep parameter."""
     n_vals = len(sweep_vals)
@@ -96,8 +112,8 @@ def _agreement_plot_scalar(
         ax.set_yscale("log")
     for y_vals, props, lbl in solver_series:
         ax.plot(sweep_vals, y_vals, label=lbl, **props)
-    ax.set_xlabel(unit_label(sweep_key, cfg.units))
-    ylabel = cfg.output_key.replace("_", " ")
+    ax.set_xlabel(unit_label(sweep_key, units))
+    ylabel = output_key.replace("_", " ")
     ax.set_ylabel(ylabel)
     ax.set_title(f"{cfg.name} — {ylabel} vs {sweep_key}")
     ax.grid(True, alpha=0.3)
@@ -136,6 +152,9 @@ def _agreement_plot_curves(
     styles,
     out_dir,
     save,
+    *,
+    agreement_xlabel: str,
+    agreement_ylabel: str,
 ):
     """1-D observable agreement (RDF g(r), P(k), etc.) with residual row."""
     n_vals = len(sweep_vals)
@@ -153,11 +172,11 @@ def _agreement_plot_curves(
         ax_bot = ax_grid[1, i]
         _agreement_curve_panel(ax_top, ax_bot, x, npz, solver_names, i, styles)
         ax_top.set_title(f"{sweep_key}={val:.3g}")
-        ax_bot.set_xlabel(cfg.agreement_xlabel)
+        ax_bot.set_xlabel(agreement_xlabel)
         if i == 0:
-            ax_top.set_ylabel(cfg.agreement_ylabel)
-            ax_bot.set_ylabel(f"Δ {cfg.agreement_ylabel}")
-    fig_agr.suptitle(f"{cfg.name} — agreement ({cfg.agreement_ylabel})")
+            ax_top.set_ylabel(agreement_ylabel)
+            ax_bot.set_ylabel(f"Δ {agreement_ylabel}")
+    fig_agr.suptitle(f"{cfg.name} — agreement ({agreement_ylabel})")
     fig_shared_legend(fig_agr, list(ax_grid.flat))
     if save:
         save_fig(fig_agr, "curves", out_dir)
@@ -165,7 +184,18 @@ def _agreement_plot_curves(
 
 
 def _agreement_raw_fields(
-    cfg, npz, solver_names, sweep_vals, sweep_key, styles, f2d, out_dir, save
+    cfg,
+    npz,
+    solver_names,
+    sweep_vals,
+    sweep_key,
+    styles,
+    f2d,
+    out_dir,
+    save,
+    *,
+    field_cmap: str,
+    field_symmetric: bool,
 ):
     """Raw field grid: rows=solvers, cols=sweep values."""
     raw_panels = []
@@ -182,7 +212,7 @@ def _agreement_raw_fields(
         raw_panels,
         f"{cfg.name} — solver fields",
         ncols=len(sweep_vals),
-        **_field_grid_kw(cfg),
+        **_field_grid_kw(field_cmap, field_symmetric),
     )
     if save:
         save_fig(fig_raw, "fields_raw", out_dir)
@@ -199,6 +229,9 @@ def _agreement_error_fields(
     f2d,
     out_dir,
     save,
+    *,
+    field_cmap: str,
+    field_symmetric: bool,
 ):
     """Field error grid: rows=solvers, cols=sweep values."""
     panels = []
@@ -220,7 +253,7 @@ def _agreement_error_fields(
         panels,
         f"{cfg.name} — field error vs {_ref_desc}",
         ncols=len(sweep_vals),
-        **_field_grid_kw(cfg),
+        **_field_grid_kw(field_cmap, field_symmetric),
     )
     if save:
         save_fig(fig_err, "fields", out_dir)
@@ -228,7 +261,17 @@ def _agreement_error_fields(
 
 
 def _agreement_convergence(
-    cfg, data, solver_names, sweep_key, styles, reference_label, exp_key, out_dir, save
+    cfg,
+    data,
+    solver_names,
+    sweep_key,
+    styles,
+    reference_label,
+    exp_key,
+    out_dir,
+    save,
+    *,
+    units: dict | None,
 ):
     """Error vs sweep param line chart (baseline: convergence; agreement: error vs ν)."""
     by_param = data.get("by_param", {})
@@ -258,7 +301,7 @@ def _agreement_convergence(
     ref_desc = (
         "analytic solution" if reference_label == "analytic" else "solver consensus"
     )
-    ax_conv.set_xlabel(unit_label(sweep_key, cfg.units))
+    ax_conv.set_xlabel(unit_label(sweep_key, units))
     ax_conv.set_ylabel(f"Relative L₂ error vs {ref_desc}")
     title = (
         f"{cfg.name} — spatial convergence (steps=1)"
@@ -275,11 +318,20 @@ def _agreement_convergence(
 
 
 def _agreement_power_spectra(
-    cfg, npz, solver_names, sweep_vals, sweep_key, styles, out_dir, save
+    cfg,
+    npz,
+    solver_names,
+    sweep_vals,
+    sweep_key,
+    styles,
+    out_dir,
+    save,
+    *,
+    power_spectrum_fn,
+    domain_extent: float,
 ):
     """Power spectra (one subplot per sweep value, all solvers overlaid)."""
-    ps_fn = cfg.power_spectrum_fn
-    if ps_fn is None:
+    if power_spectrum_fn is None:
         return
     n_vals = len(sweep_vals)
     fig_ps, axes = subplots_grid(n_vals, panel_w=4, panel_h=4, sharey=True)
@@ -288,7 +340,7 @@ def _agreement_power_spectra(
             key_s = f"{name}_{i}"
             if key_s not in npz or not _is_field(npz[key_s]):
                 continue
-            k, Pk = ps_fn(npz[key_s], domain_extent=cfg.domain_extent)
+            k, Pk = power_spectrum_fn(npz[key_s], domain_extent=domain_extent)
             style = styles.get(name, {})
             ax.loglog(
                 k,
@@ -307,21 +359,54 @@ def _agreement_power_spectra(
 
 
 def plot_agreement(
-    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "agreement"
+    cfg: Problem,
+    *,
+    field_to_2d=None,
+    output_key: str = "output",
+    domain_extent: float = 2 * np.pi,
+    resolution_key: str = "N",
+    units: dict | None = None,
+    agreement_xlabel: str = "x",
+    agreement_ylabel: str = "value",
+    pairwise_xlabel: str = "k",
+    pairwise_ylabels: dict | None = None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+    diagnostic_fields: bool = True,
+    power_spectrum_fn=None,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "agreement",
+    **_kw,
 ):
     """Field-error grid (rows=solvers × cols=sweep values) + optional power spectra."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
+    plot_kwargs = dict(
+        field_to_2d=field_to_2d,
+        output_key=output_key,
+        domain_extent=domain_extent,
+        resolution_key=resolution_key,
+        units=units,
+        agreement_xlabel=agreement_xlabel,
+        agreement_ylabel=agreement_ylabel,
+        pairwise_xlabel=pairwise_xlabel,
+        pairwise_ylabels=pairwise_ylabels,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
+        diagnostic_fields=diagnostic_fields,
+        power_spectrum_fn=power_spectrum_fn,
+    )
     if not fields_path.exists():
         # Multi-IC layout: each IC lands in a subdir; plot each one.
-        _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key)
+        _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key, **plot_kwargs)
         return None
 
     data = load_json(out_dir / "result.json")
     sweep_key = data.get("sweep_key", "param")
     reference_label = data.get("reference_label", "consensus")
     styles = solver_styles(cfg)
-    f2d = _field_to_2d(cfg)
+    f2d = _resolve_field_to_2d(field_to_2d)
 
     npz = try_load_npz(fields_path)
     sweep_vals = npz["sweep_values"].tolist()
@@ -333,7 +418,16 @@ def plot_agreement(
     # Scalar outputs (ndim == 0): plot the scalar value vs sweep parameter.
     if sample_consensus is not None and sample_consensus.ndim == 0:
         return _agreement_plot_scalar(
-            cfg, npz, solver_names, sweep_vals, sweep_key, styles, out_dir, save
+            cfg,
+            npz,
+            solver_names,
+            sweep_vals,
+            sweep_key,
+            styles,
+            out_dir,
+            save,
+            output_key=output_key,
+            units=units,
         )
 
     if sample_consensus is not None and sample_consensus.ndim == 1:
@@ -352,10 +446,22 @@ def plot_agreement(
             styles,
             out_dir,
             save,
+            agreement_xlabel=agreement_xlabel,
+            agreement_ylabel=agreement_ylabel,
         )
 
     _agreement_raw_fields(
-        cfg, npz, solver_names, sweep_vals, sweep_key, styles, f2d, out_dir, save
+        cfg,
+        npz,
+        solver_names,
+        sweep_vals,
+        sweep_key,
+        styles,
+        f2d,
+        out_dir,
+        save,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
     )
     fig_err = _agreement_error_fields(
         cfg,
@@ -368,6 +474,8 @@ def plot_agreement(
         f2d,
         out_dir,
         save,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
     )
     _agreement_convergence(
         cfg,
@@ -379,9 +487,19 @@ def plot_agreement(
         exp_key,
         out_dir,
         save,
+        units=units,
     )
     _agreement_power_spectra(
-        cfg, npz, solver_names, sweep_vals, sweep_key, styles, out_dir, save
+        cfg,
+        npz,
+        solver_names,
+        sweep_vals,
+        sweep_key,
+        styles,
+        out_dir,
+        save,
+        power_spectrum_fn=power_spectrum_fn,
+        domain_extent=domain_extent,
     )
     return fig_err
 
@@ -389,7 +507,18 @@ def plot_agreement(
 # ── convergence ───────────────────────────────────────────────────────────────
 
 
-def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_convergence(
+    cfg: Problem,
+    *,
+    field_to_2d=None,
+    resolution_key: str = "N",
+    units: dict | None = None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Log-log error vs N + output field panels at each resolution."""
     out_dir = results_dir() / cfg.name / _SUITE / f"convergence{suffix}"
     data = load_json(out_dir / "result.json")
@@ -414,7 +543,7 @@ def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
                 label=styles[name]["label"],
                 **solver_plot_props(styles[name]),
             )
-    ax.set_xlabel(unit_label(cfg.resolution_key, cfg.units))
+    ax.set_xlabel(unit_label(resolution_key, units))
     ax.set_ylabel("Relative L2 error")
     ax.set_title(f"{cfg.name} — spatial convergence")
     fig_shared_legend(fig_err, [ax])
@@ -428,7 +557,7 @@ def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
     npz = try_load_npz(fields_path)
     N_values = npz["N_values"].tolist()
-    f2d = _field_to_2d(cfg)
+    f2d = _resolve_field_to_2d(field_to_2d)
     panels = [
         (f"N={N}", f2d(npz[f"f_{k}"]))
         for k, N in enumerate(N_values)
@@ -439,7 +568,7 @@ def plot_convergence(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
             panels,
             f"{cfg.name} — output field by resolution",
             ncols=len(panels),
-            **_field_grid_kw(cfg),
+            **_field_grid_kw(field_cmap, field_symmetric),
         )
         if save:
             save_fig(fig_fld, "fields", out_dir)
@@ -597,9 +726,19 @@ def _diag_plot_rdf_curves(
             save_fig(fig_rdf, dname.replace(" ", "_"), out_dir)
 
 
-def _diag_plot_output_fields(cfg, out_dir, styles, save):
+def _diag_plot_output_fields(
+    cfg,
+    out_dir,
+    styles,
+    save,
+    *,
+    field_to_2d,
+    field_cmap: str,
+    field_symmetric: bool,
+    diagnostic_fields: bool,
+):
     """Output field panels (one figure per IC). No-op if no fields cached."""
-    if not cfg.diagnostic_fields:
+    if not diagnostic_fields:
         return
     fields_path = out_dir / "fields.npz"
     if not fields_path.exists():
@@ -609,7 +748,7 @@ def _diag_plot_output_fields(cfg, out_dir, styles, save):
     solver_names = npz["solver_names"].tolist()
     n_sol = len(solver_names)
 
-    f2d = _field_to_2d(cfg)
+    f2d = _resolve_field_to_2d(field_to_2d)
     for i, lbl in enumerate(ic_lbl_arr):
         panels = [
             (styles.get(n, {}).get("label", n), f2d(npz[f"f_{i}_{j}"]))
@@ -622,13 +761,15 @@ def _diag_plot_output_fields(cfg, out_dir, styles, save):
                 panels,
                 f"{cfg.name} — density | {lbl}",
                 ncols=min(len(panels), n_sol),
-                **_field_grid_kw(cfg),
+                **_field_grid_kw(field_cmap, field_symmetric),
             )
             if save:
                 save_fig(fig_fld, stem, out_dir)
 
 
-def _diag_pairwise_curve_panel(ax, ic_res, cmap, cfg, ylabel, lbl, is_first):
+def _diag_pairwise_curve_panel(
+    ax, ic_res, cmap, ylabel, lbl, is_first, *, pairwise_xlabel: str
+):
     """Curve-mode pairwise diagnostic panel for one IC."""
     for p_idx, (pair_label, pdata) in enumerate(ic_res.items()):
         if not isinstance(pdata, dict):
@@ -639,20 +780,33 @@ def _diag_pairwise_curve_panel(ax, ic_res, cmap, cfg, ylabel, lbl, is_first):
             continue
         ax.plot(x, y, color=cmap(p_idx % 10), lw=1.5, label=pair_label)
     ax.axhline(1.0, color="0.6", lw=0.8, ls="--")
-    ax.set_xlabel(cfg.pairwise_xlabel)
+    ax.set_xlabel(pairwise_xlabel)
     ax.set_ylim(-0.05, 1.05)
     ax.set_title(lbl)
     if is_first:
         ax.set_ylabel(ylabel)
 
 
-def _diag_pairwise_curves(cfg, by_ic_pw, ic_labels, dname, cmap, out_dir, save):
+def _diag_pairwise_curves(
+    cfg,
+    by_ic_pw,
+    ic_labels,
+    dname,
+    cmap,
+    out_dir,
+    save,
+    *,
+    pairwise_xlabel: str,
+    pairwise_ylabels: dict | None,
+):
     """One subplot per IC, all pairs overlaid (curve-mode pairwise diagnostic)."""
     fig, axes = subplots_grid(len(ic_labels), panel_w=5, panel_h=4, sharey=True)
-    ylabel = cfg.pairwise_ylabels.get(dname, "r(k)")
+    ylabel = (pairwise_ylabels or {}).get(dname, "r(k)")
     for i_ax, (ax, lbl) in enumerate(zip(axes, ic_labels, strict=False)):
         ic_res = by_ic_pw.get(lbl, {}).get(dname, {})
-        _diag_pairwise_curve_panel(ax, ic_res, cmap, cfg, ylabel, lbl, i_ax == 0)
+        _diag_pairwise_curve_panel(
+            ax, ic_res, cmap, ylabel, lbl, i_ax == 0, pairwise_xlabel=pairwise_xlabel
+        )
     fig.suptitle(f"{cfg.name} — {dname}")
     fig_shared_legend(fig, axes)
     if save:
@@ -692,7 +846,16 @@ def _diag_pairwise_bars(cfg, by_ic_pw, ic_labels, dname, cmap, out_dir, save):
         save_fig(fig, f"pairwise_{safe_stem}", out_dir)
 
 
-def _diag_plot_pairwise(cfg, data, ic_labels, out_dir, save):
+def _diag_plot_pairwise(
+    cfg,
+    data,
+    ic_labels,
+    out_dir,
+    save,
+    *,
+    pairwise_xlabel: str,
+    pairwise_ylabels: dict | None,
+):
     """Pairwise diagnostics: dispatch curve-mode or scalar-mode per metric."""
     by_ic_pw = data.get("by_ic_pairwise") or {}
     if not by_ic_pw:
@@ -709,12 +872,34 @@ def _diag_plot_pairwise(cfg, data, ic_labels, out_dir, save):
         if sample_val is None:
             continue
         if isinstance(sample_val, dict) and "k" in sample_val and "r_k" in sample_val:
-            _diag_pairwise_curves(cfg, by_ic_pw, ic_labels, dname, cmap, out_dir, save)
+            _diag_pairwise_curves(
+                cfg,
+                by_ic_pw,
+                ic_labels,
+                dname,
+                cmap,
+                out_dir,
+                save,
+                pairwise_xlabel=pairwise_xlabel,
+                pairwise_ylabels=pairwise_ylabels,
+            )
         else:
             _diag_pairwise_bars(cfg, by_ic_pw, ic_labels, dname, cmap, out_dir, save)
 
 
-def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_diagnostics(
+    cfg: Problem,
+    *,
+    field_to_2d=None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+    diagnostic_fields: bool = True,
+    pairwise_xlabel: str = "k",
+    pairwise_ylabels: dict | None = None,
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Scalar diagnostics bars, energy spectra, and density field panels."""
     out_dir = results_dir() / cfg.name / _SUITE / f"diagnostics{suffix}"
     data = load_json(out_dir / "result.json")
@@ -722,7 +907,7 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
     by_ic = data["by_ic"]
     ic_labels = list(by_ic.keys())
-    solvers = list(cfg.solvers)
+    solvers = [s.name for s in cfg.solvers]
     x = np.arange(len(ic_labels))
     width = 0.8 / len(solvers)
 
@@ -742,8 +927,25 @@ def plot_diagnostics(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     _diag_plot_rdf_curves(
         cfg, by_ic, ic_labels, solvers, sample_diag, styles, out_dir, save
     )
-    _diag_plot_output_fields(cfg, out_dir, styles, save)
-    _diag_plot_pairwise(cfg, data, ic_labels, out_dir, save)
+    _diag_plot_output_fields(
+        cfg,
+        out_dir,
+        styles,
+        save,
+        field_to_2d=field_to_2d,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
+        diagnostic_fields=diagnostic_fields,
+    )
+    _diag_plot_pairwise(
+        cfg,
+        data,
+        ic_labels,
+        out_dir,
+        save,
+        pairwise_xlabel=pairwise_xlabel,
+        pairwise_ylabels=pairwise_ylabels,
+    )
 
 
 # ── stability ─────────────────────────────────────────────────────────────────
@@ -759,7 +961,7 @@ _STAB_ENERGY_YLABELS = {
 
 def _stab_ensemble(cfg, name):
     """Return 'NVT' if the solver scheme implies a thermostat, else 'NVE'."""
-    scheme = (cfg.solvers[name].scheme or "").lower()
+    scheme = (cfg.solver(name).scheme or "").lower()
     return (
         "NVT" if ("nvt" in scheme or "nose" in scheme or "hoover" in scheme) else "NVE"
     )
@@ -969,7 +1171,17 @@ def _stab_plot_generic_metrics(
     return first_fig
 
 
-def _stab_plot_final_fields(cfg, out_dir, styles, sweep_key, save):
+def _stab_plot_final_fields(
+    cfg,
+    out_dir,
+    styles,
+    sweep_key,
+    save,
+    *,
+    field_to_2d,
+    field_cmap: str,
+    field_symmetric: bool,
+):
     """Final-state output field grid (one figure if fields.npz is present)."""
     fields_path = out_dir / "fields.npz"
     if not fields_path.exists():
@@ -984,18 +1196,27 @@ def _stab_plot_final_fields(cfg, out_dir, styles, sweep_key, save):
     ]
     if not raw:
         return
-    f2d = _field_to_2d(cfg)
+    f2d = _resolve_field_to_2d(field_to_2d)
     panels = [(lbl_, f2d(arr)) for _, lbl_, arr in raw]
     fig_fld = field_grid(
         panels,
         f"{cfg.name} — density at {sweep_key}={rep_val:.4g}",
-        **_field_grid_kw(cfg),
+        **_field_grid_kw(field_cmap, field_symmetric),
     )
     if save:
         save_fig(fig_fld, "fields", out_dir)
 
 
-def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_stability(
+    cfg: Problem,
+    *,
+    field_to_2d=None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Compound energy figure + Hessian phase figure + generic per-metric figures.
 
     Energy (PE / KE / total) are grouped into a single multi-row figure and
@@ -1046,14 +1267,23 @@ def plot_stability(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     fig_generic = _stab_plot_generic_metrics(
         cfg, by_param, vals, sweep_key, styles, other_keys, out_dir, save
     )
-    _stab_plot_final_fields(cfg, out_dir, styles, sweep_key, save)
+    _stab_plot_final_fields(
+        cfg,
+        out_dir,
+        styles,
+        sweep_key,
+        save,
+        field_to_2d=field_to_2d,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
+    )
     return fig_energy or fig_hessian or fig_generic
 
 
 # ── physical_laws ──────────────────────────────────────────────────────────────
 
 
-def _plot_physical_laws_single(cfg, data, out_dir, styles, save):
+def _plot_physical_laws_single(cfg, data, out_dir, styles, save, *, units: dict | None):
     """Render one physical-laws sweep result (one sweep key)."""
     by_param = data.get("by_param", {})
     sweep_key = data.get("sweep_key", "param")
@@ -1080,7 +1310,8 @@ def _plot_physical_laws_single(cfg, data, out_dir, styles, save):
         axes = [axes]
 
     for ax, dname in zip(axes, diag_names, strict=False):
-        for name in cfg.solvers:
+        for spec in cfg.solvers:
+            name = spec.name
             y = []
             for val in vals:
                 sd = by_param[val].get(name)
@@ -1094,7 +1325,7 @@ def _plot_physical_laws_single(cfg, data, out_dir, styles, save):
                     label=style.get("label", name),
                     **solver_plot_props(style),
                 )
-        ax.set_xlabel(unit_label(sweep_key, cfg.units))
+        ax.set_xlabel(unit_label(sweep_key, units))
         ax.set_ylabel(dname)
         ax.set_title(f"{dname} vs {sweep_key}")
         if np.any(x > 0):
@@ -1107,7 +1338,14 @@ def _plot_physical_laws_single(cfg, data, out_dir, styles, save):
     return fig
 
 
-def plot_physical_laws(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_physical_laws(
+    cfg: Problem,
+    *,
+    units: dict | None = None,
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """One subplot per diagnostic: value vs sweep parameter for each solver.
 
     Supports both single-run layout (result.json at top level) and multi-run
@@ -1123,7 +1361,7 @@ def plot_physical_laws(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     except FileNotFoundError:
         data = None
     if data is not None:
-        return _plot_physical_laws_single(cfg, data, out_dir, styles, save)
+        return _plot_physical_laws_single(cfg, data, out_dir, styles, save, units=units)
 
     # Multi-run layout: one named subdir per sweep
     figs = []
@@ -1136,7 +1374,9 @@ def plot_physical_laws(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
             except FileNotFoundError:
                 continue
             if sub_data is not None:
-                fig = _plot_physical_laws_single(cfg, sub_data, sub, styles, save)
+                fig = _plot_physical_laws_single(
+                    cfg, sub_data, sub, styles, save, units=units
+                )
                 if fig is not None:
                     figs.append(fig)
     return figs if figs else None

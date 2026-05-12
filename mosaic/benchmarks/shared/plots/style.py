@@ -15,7 +15,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projectio
 from mosaic.benchmarks.core.console import print_saved
 
 if TYPE_CHECKING:
-    from mosaic.benchmarks.core.config import ProblemConfig
+    from mosaic.benchmarks.core.config import Problem
 
 # ── rcParams ──────────────────────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ def solver_plot_props(style: dict, *, marker: bool = True) -> dict:
 
 
 def solver_styles(
-    cfg: ProblemConfig, *, differentiable_only: bool = False
+    cfg: Problem, *, differentiable_only: bool = False
 ) -> dict[str, dict]:
     """Return {solver_name: {"color", "label", "linestyle", "marker"}} for plotting.
 
@@ -225,8 +225,8 @@ def solver_styles(
     from collections import defaultdict
 
     specs = {
-        name: spec
-        for name, spec in cfg.solvers.items()
+        spec.name: spec
+        for spec in cfg.solvers
         if not differentiable_only or getattr(spec, "differentiable", True)
     }
 

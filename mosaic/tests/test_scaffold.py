@@ -111,7 +111,7 @@ def test_validate_template_rejects_bad_suite_shape():
 
 
 def test_scaffold_creates_files(tmp_path):
-    """scaffold_domain must create schema stubs, tesseract dir, and problem config."""
+    """scaffold_domain must create schema stubs, tesseract dir, and problem package."""
     tpl = load_template("ns-periodic")
     target = tmp_path / "mosaic"
     # Create the required parent dirs
@@ -123,11 +123,19 @@ def test_scaffold_creates_files(tmp_path):
     assert "schema_init" in created
     assert "tesseracts_dir" in created
     assert "problem_config" in created
+    assert "problem_pkg" in created
 
     assert created["schemas"].exists()
     assert created["schema_init"].exists()
     assert created["tesseracts_dir"].is_dir()
     assert created["problem_config"].exists()
+
+    # The problem package must contain the canonical 5-file layout.
+    # plots.py is no longer emitted — plot registration happens via
+    # ``problem.add(..., plot=...)`` inside ``experiments.py``.
+    pkg = created["problem_pkg"]
+    for name in ("__init__.py", "config.py", "ics.py", "physics.py", "experiments.py"):
+        assert (pkg / name).exists(), f"missing scaffolded file: {name}"
 
 
 def test_scaffold_generates_valid_python(tmp_path):
@@ -151,7 +159,7 @@ def test_scaffold_produces_loadable_config(tmp_path):
     import importlib.util
     import sys
 
-    from mosaic.benchmarks.core.config import ProblemConfig
+    from mosaic.benchmarks.core.config import Problem
 
     tpl = load_template("ns-periodic")
     target = tmp_path / "mosaic"
@@ -160,11 +168,19 @@ def test_scaffold_produces_loadable_config(tmp_path):
     # scaffold_domain creates a tesseracts dir; discover_solvers needs it
     created = scaffold_domain("test-domain", tpl, target_dir=target)
 
-    # Load the generated module using spec_from_file_location so that
-    # absolute imports (mosaic.benchmarks.core.*) resolve against the
-    # real installed package rather than the tmp_path tree.
-    config_path = created["problem_config"]
-    spec = importlib.util.spec_from_file_location("test_domain_config", config_path)
+    # Load the generated package via ``__init__.py``, giving the loader the
+    # package's directory as a submodule search location so the relative
+    # imports inside ``config.py`` (``from .experiments import EXPERIMENTS``)
+    # can be resolved. Absolute imports (mosaic.benchmarks.core.*) still
+    # resolve against the real installed package because the tmp tree is
+    # not on sys.path.
+    pkg_dir = created["problem_pkg"]
+    pkg_name = "test_domain_pkg"
+    spec = importlib.util.spec_from_file_location(
+        pkg_name,
+        pkg_dir / "__init__.py",
+        submodule_search_locations=[str(pkg_dir)],
+    )
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
@@ -172,13 +188,13 @@ def test_scaffold_produces_loadable_config(tmp_path):
     assert hasattr(mod, "CONFIG"), "Generated module must define CONFIG"
     cfg = mod.CONFIG
 
-    assert isinstance(cfg, ProblemConfig)
+    assert isinstance(cfg, Problem)
     assert cfg.name == "test-domain"
     assert cfg.output_key == tpl.output_key
     assert callable(cfg.make_inputs)
     assert callable(cfg.error_fn)
 
-    # Solvers dict will be empty (no tesseract configs in the scaffolded dir)
+    # Solvers list will be empty (no tesseract configs in the scaffolded dir)
     # so validate() would fail on "no solvers registered". Instead we verify
     # the structural properties above are correct.
-    assert cfg.solvers == {}
+    assert cfg.solvers == []

@@ -36,7 +36,7 @@ def mock_results(tmp_path, monkeypatch):
             "solver_b": "efgh5678efgh5678",
         },
         "harness_hash": "0000111100001111",
-        "harness_fn": "mosaic.benchmarks.suites.forward.run_agreement",
+        "harness_fn": "mosaic.benchmarks.shared.forward.run_agreement",
     }
     (exp_dir / "result.json").write_text(json.dumps(result))
 
@@ -52,7 +52,7 @@ def mock_results(tmp_path, monkeypatch):
         },
         "tesseract_hashes": {"solver_a": "abcd1234abcd1234"},
         "harness_hash": "2222333322223333",
-        "harness_fn": "mosaic.benchmarks.suites.gradient.run_fd_check",
+        "harness_fn": "mosaic.benchmarks.shared.gradient.run_fd_check",
     }
     (grad_dir / "result.json").write_text(json.dumps(grad_result))
 
@@ -149,10 +149,9 @@ def test_score_computation():
 
 def test_cell_weight_key_mapping():
     """cell_weight_key returns the correct SCORE_WEIGHTS key for each status."""
+    from mosaic.benchmarks.core.config import ExclusionCategory
     from mosaic.benchmarks.core.status import (
         ANOMALY,
-        EXCL_CATEGORICAL,
-        EXCL_UNSPECIFIED,
         EXCLUDED,
         FAILED,
         NOT_RUN,
@@ -168,8 +167,18 @@ def test_cell_weight_key_mapping():
     assert cell_weight_key(Cell(status=FAILED)) == "fail"
     assert cell_weight_key(Cell(status=FAILED, stale=True)) == "fail*"
     assert cell_weight_key(Cell(status=NOT_RUN)) == "missing"
-    assert cell_weight_key(Cell(status=EXCLUDED, category=EXCL_UNSPECIFIED)) == "excl"
-    assert cell_weight_key(Cell(status=EXCLUDED, category=EXCL_CATEGORICAL)) is None
+    assert (
+        cell_weight_key(
+            Cell(status=EXCLUDED, category=ExclusionCategory.UNSPECIFIED.value)
+        )
+        == "excl"
+    )
+    assert (
+        cell_weight_key(
+            Cell(status=EXCLUDED, category=ExclusionCategory.CATEGORICAL.value)
+        )
+        is None
+    )
 
 
 def test_status_to_dict_roundtrip():

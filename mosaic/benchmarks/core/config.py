@@ -1,14 +1,564 @@
-"""ProblemConfig and SolverSpec dataclasses — the only shared abstraction."""
+"""Problem and SolverSpec dataclasses — the only shared abstraction."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 log = logging.getLogger(__name__)
+
+
+class ExclusionCategory(str, Enum):
+    """Why a solver does not run for a given experiment.
+
+    The ``(str, Enum)`` mixin means each member *is* a string (e.g.
+    ``ExclusionCategory.CATEGORICAL == "categorical"``), so the on-disk
+    serialisation of an :class:`Exclusion` lands as a plain string — no
+    schema change vs. the legacy free-form strings.
+
+    Members:
+      * ``CATEGORICAL`` — method-intrinsic limitation (e.g. FFT-only solver
+        on non-periodic BCs; non-differentiable C++ solver). Permanent;
+        excluded from the campaign score denominator.
+      * ``INFEASIBLE`` — would run but the result is not meaningful.
+      * ``NOT_IMPLEMENTED`` — could in principle run but the support hasn't
+        been wired yet. Counts in the score as "work to do".
+      * ``UNSTABLE`` — runs but blows up; same as NOT_IMPLEMENTED in scoring.
+      * ``UPSTREAM_BUG`` — failure attributable to a tracked upstream issue.
+      * ``WIP`` — temporarily skipped while work is in progress.
+      * ``UNSPECIFIED`` — fallback for legacy / un-categorised entries.
+      * ``ANOMALY_EXPLAINED`` — the solver runs and produces output that's
+        anomalous for documented method-intrinsic reasons; not a runtime
+        skip, only a display annotation.
+    """
+
+    CATEGORICAL = "categorical"
+    INFEASIBLE = "infeasible"
+    NOT_IMPLEMENTED = "not_implemented"
+    UNSTABLE = "unstable"
+    UPSTREAM_BUG = "upstream_bug"
+    WIP = "wip"
+    UNSPECIFIED = "unspecified"
+    ANOMALY_EXPLAINED = "anomaly_explained"
+
+
+# Categories that are *permanent* — these stay out of the campaign score
+# denominator. Everything else counts as "work to do" at the neutral weight.
+EXCL_PERMANENT: frozenset[ExclusionCategory] = frozenset(
+    {ExclusionCategory.CATEGORICAL}
+)
+
+
+# ── New experiment/plot abstractions ─────────────────────────────────────────
+#
+# These are the canonical types for the closure-style refactor. They live
+# above ``Problem`` so the dataclass annotation below can reference
+# them. See plan: `~/.claude/plans/i-want-to-make-encapsulated-token.md`.
+
+
+class ExperimentFn(Protocol):
+    """Callable that runs one experiment.
+
+    Signature: ``(cfg, tags, **overrides) -> dict``. Experiments capture
+    problem-specific state (``make_ic``, ``make_inputs``, ``error_fn``,
+    per-experiment params, …) in their closures so the runner doesn't need
+    to know about it. Returns a result dict saved by
+    :func:`mosaic.benchmarks.core.io.save_experiment`.
+    """
+
+    def __call__(
+        self, cfg: Problem, tags: dict[str, str], **overrides: Any
+    ) -> dict: ...
+
+
+class PlotFn(Protocol):
+    """Callable that renders the plots for one experiment.
+
+    Signature: ``(cfg, **kw) -> Any``. Like :class:`ExperimentFn`, plot
+    functions close over problem-specific presentation state (colormap,
+    axis labels, ``field_to_2d``, ``agreement_transform``, …) so the cfg
+    surface stays small.
+    """
+
+    def __call__(self, cfg: Problem, **kw: Any) -> Any: ...
+
+
+@dataclass
+class Experiment:
+    """An experiment is a closure plus the params it was built with.
+
+    ``params`` is the introspection manifest — what configuration the closure
+    captured. The runner only invokes ``fn``; ``params`` is read by status,
+    documentation, and result-saving for provenance.
+    """
+
+    fn: ExperimentFn
+    params: dict = field(default_factory=dict)
+
+
+@dataclass
+class Problem:
+    """The single per-problem definition: closure deps + metadata +
+    registries + builder methods.
+
+    Each problem's ``experiments.py`` instantiates one ``Problem`` (with
+    closure deps: ``make_ic``, ``error_fn``, ``output_key``, …), then
+    :meth:`add` / :meth:`add_ic` / :meth:`add_extra_plot` register
+    experiments + plot fns at ``"<suite>/<name>"`` keys. ``config.py``
+    fills in solvers + metadata + exclusions and publishes the same
+    ``Problem`` as ``CONFIG``. The runner / status / CLI consume
+    ``Problem`` directly — there is no separate "config" wrapper.
+    """
+
+    # ── Metadata ─────────────────────────────────────────────────────────
+    name: str = ""  # CLI slug: "ns-grid", "structural-mesh", …
+    tesseract_dir: Path = Path()
+    description: str = ""
+    category_label: str = ""
+    bc_description: str = ""
+
+    # ── Runtime registry ─────────────────────────────────────────────────
+    solvers: list[SolverSpec] = field(default_factory=list)
+    make_inputs: Callable | None = None  # (solver_name, ic, **physics) → dict
+    exclusions: dict[str, dict[str, Exclusion]] = field(default_factory=dict)
+    status_checks: dict[str, dict] = field(default_factory=dict)
+
+    # ── Experiment-time deps (threaded into Experiment.fn closures) ─────
+    make_ic: dict = field(default_factory=dict)
+    error_fn: Callable | None = None
+    output_key: str = ""
+    ic_key: str = ""
+    domain_extent: float = 1.0
+    resolution_key: str = "N"
+    analytic: Callable | None = None
+    diagnostics: dict = field(default_factory=dict)
+    agreement_transform: Callable | None = None
+    agreement_xaxis: Callable | None = None
+
+    # ── Plot-time deps (used by per-problem plot lambdas) ────────────────
+    field_to_2d: Callable | None = None
+    ic_to_2d: Callable | None = None
+    field_cmap: str = "RdBu_r"
+    field_symmetric: bool = True
+    diagnostic_fields: bool = True
+    units: dict = field(default_factory=dict)
+    power_spectrum_fn: Callable | None = None
+    agreement_xlabel: str = "x"
+    agreement_ylabel: str = "value"
+    pairwise_xlabel: str = "k"
+    pairwise_ylabels: dict = field(default_factory=dict)
+    n_to_cells: Callable | None = None
+
+    # ── Registries (filled by .add / .add_ic / .add_extra_plot) ─────────
+    experiments: dict[str, Experiment] = field(default_factory=dict)
+    plot_fns: dict[str, PlotFn] = field(default_factory=dict)
+
+    # ── Solver lookup ────────────────────────────────────────────────────
+
+    def solver(self, name: str) -> SolverSpec:
+        """Look up a solver by name. Raises ``KeyError`` if no match."""
+        for s in self.solvers:
+            if s.name == name:
+                return s
+        raise KeyError(name)
+
+    @property
+    def solver_names(self) -> list[str]:
+        """List of ``SolverSpec.name`` strings, preserving insertion order."""
+        return [s.name for s in self.solvers]
+
+    # ── IC / experiment introspection ────────────────────────────────────
+
+    def get_ic_description(self, ic_name: str) -> str:
+        ic = self.make_ic.get(ic_name)
+        return ic.description if isinstance(ic, IcSpec) else ""
+
+    def get_ic_plot_params(self, ic_name: str) -> dict:
+        ic = self.make_ic.get(ic_name)
+        return ic.plot_params if isinstance(ic, IcSpec) else {}
+
+    def _exp_params(self, suite: str, experiment: str) -> dict:
+        """Look up an experiment's ``params`` payload via :attr:`experiments`.
+
+        Sub-experiments like ``"horizon_sweep/tgv3d"`` fall back to
+        ``"horizon_sweep"`` when no exact key is registered.
+        """
+        full = f"{suite}/{experiment}" if experiment else suite
+        exp = self.experiments.get(full)
+        if exp is None and experiment and "/" in experiment:
+            parent = experiment.split("/")[0]
+            exp = self.experiments.get(f"{suite}/{parent}")
+        return exp.params if exp is not None else {}
+
+    def get_plot_description(self, suite: str, experiment: str) -> str:
+        """Return the plot description for (suite, experiment)."""
+        params = self._exp_params(suite, experiment)
+        if not params:
+            return ""
+        if suite == "cost" and "plot_descriptions" in params:
+            if not experiment:
+                return params.get("description", "")
+            return params["plot_descriptions"].get(experiment, "")
+        return params.get("plot_description", "")
+
+    def get_experiment_description(self, suite: str, experiment: str) -> str:
+        """Return the short experiment description."""
+        params = self._exp_params(suite, experiment)
+        return params.get("description", "") if isinstance(params, dict) else ""
+
+    def _experiment_deps(self) -> dict:
+        """Return the kwarg bag that runners may pull from."""
+        return {
+            "make_ic": self.make_ic,
+            "error_fn": self.error_fn,
+            "output_key": self.output_key,
+            "ic_key": self.ic_key,
+            "domain_extent": self.domain_extent,
+            "resolution_key": self.resolution_key,
+            "analytic": self.analytic,
+            "diagnostics": self.diagnostics,
+            "agreement_transform": self.agreement_transform,
+            "agreement_xaxis": self.agreement_xaxis,
+        }
+
+    def add(
+        self,
+        key: str,
+        runner: Callable,
+        *,
+        plot: Callable | None = None,
+        plot_description: str = "",
+        reduce: Callable | None = None,
+        **config,
+    ) -> None:
+        """Register an experiment at ``key`` with optional sweep + plot + reduce.
+
+        Any value inside ``**config`` (top-level or nested inside a dict
+        kwarg) that is a list-of-primitives is treated as a **sweep axis**.
+        Multiple sweep axes must have matching lengths; the framework
+        parallel-zips them and registers one sub-experiment per zipped
+        tuple, keyed at ``<key>/<auto-suffix>``. The suffix is derived
+        from the differing key→value pairs (e.g. ``steps_10_nu_0p001``).
+
+        If no sweep axes are present, a single experiment is registered
+        at ``key`` exactly.
+
+        ``plot`` (optional) is registered once at the **parent** ``key`` —
+        it runs after all sub-experiments complete and receives either the
+        list of per-sub-experiment result dicts (if ``reduce is None``) or
+        ``reduce(results)`` otherwise. Plots that need ``exp_key=`` get it
+        wrapped in automatically.
+
+        ``plot_description`` is stored on every sub-experiment's params for
+        introspection (e.g. ``mosaic status``).
+        """
+        sweep_axes = self._collect_sweep_axes(config)
+
+        if not sweep_axes:
+            # No sweep — a single leaf experiment at ``key``.
+            self._register_one_experiment(
+                key, runner, config, plot_description=plot_description
+            )
+            sub_keys = [key]
+        else:
+            n_subs = self._validate_axes(sweep_axes)
+            sub_keys = []
+            for i in range(n_subs):
+                sub_config, suffix = self._materialize_one(config, sweep_axes, i)
+                sub_key = f"{key}/{suffix}"
+                sub_keys.append(sub_key)
+                self._register_one_experiment(
+                    sub_key, runner, sub_config, plot_description=plot_description
+                )
+
+        if plot is not None:
+            self._register_plot(key, plot, sub_keys, reduce)
+
+    def _collect_sweep_axes(self, config: dict) -> list:
+        """Return ``[(path_tuple, list_values), ...]`` for every list-of-primitives
+        nested one level inside a dict kwarg.
+
+        Sweeps are detected **only inside dict kwargs** (e.g.
+        ``physics={"nu": [...]}``), not at the top level — that lets the
+        legacy ``runs=[...]`` kwarg pass through unchanged during the
+        transition. Top-level lists fan out only when the user marks the
+        kwarg explicitly via ``problem.add(..., ic=[{tgv}, {mm}])`` and we
+        treat ``ic``'s value as the i-th element.
+        """
+        axes = []
+        for k, v in config.items():
+            if k == "runs":
+                # Legacy: ``runs=[...]`` is the per-experiment run-list payload,
+                # not a sweep axis. Skip.
+                continue
+            if isinstance(v, list) and self._is_sweep_list(v):
+                axes.append(((k,), v))
+            elif isinstance(v, dict):
+                for sub_k, sub_v in v.items():
+                    if isinstance(sub_v, list) and self._is_sweep_list(sub_v):
+                        axes.append(((k, sub_k), sub_v))
+        return axes
+
+    @staticmethod
+    def _is_sweep_list(value: list) -> bool:
+        """A non-empty list whose elements are primitives or dicts is a sweep axis."""
+        if not value:
+            return False
+        head = value[0]
+        # Treat numbers / strings / dicts as sweep elements. Skip nested lists
+        # (they're presumed to be already-list-valued single elements like
+        # ``[16, 32, 64]`` for sweep keys).
+        return isinstance(head, (int, float, str, bool, dict))
+
+    @staticmethod
+    def _validate_axes(axes: list) -> int:
+        """Ensure all sweep axes have matching length. Returns that length."""
+        lengths = {len(vals) for _, vals in axes}
+        if len(lengths) > 1:
+            sketch = ", ".join(f"{'.'.join(p)}={len(v)}" for p, v in axes)
+            raise ValueError(
+                f"Problem.add: sweep axes have mismatched lengths ({sketch}); "
+                f"parallel-zip requires equal-length lists."
+            )
+        return lengths.pop()
+
+    @staticmethod
+    def _materialize_one(config: dict, axes: list, i: int) -> tuple[dict, str]:
+        """Build the i-th sub-experiment's config + an auto-derived path suffix."""
+        sub_config: dict = {}
+        for k, v in config.items():
+            if isinstance(v, dict):
+                sub_config[k] = {**v}
+            else:
+                sub_config[k] = v
+        parts: list[str] = []
+        for path, vals in axes:
+            v_i = vals[i]
+            if len(path) == 1:
+                sub_config[path[0]] = v_i
+                name = path[0]
+            else:
+                k, sub_k = path
+                sub_config[k][sub_k] = v_i
+                name = sub_k
+            parts.append(f"{name}_{Problem._fmt_val(v_i)}")
+        suffix = "_".join(parts)
+        return sub_config, suffix
+
+    @staticmethod
+    def _fmt_val(value) -> str:
+        """Filesystem-safe formatting of a sweep value (no dots, no slashes)."""
+        if isinstance(value, float):
+            s = f"{value:g}"
+            return s.replace(".", "p").replace("-", "m")
+        if isinstance(value, dict):
+            # Lists of dicts (e.g. ic) — use the dict's "name" if present.
+            return str(value.get("name", "v"))
+        return str(value).replace("/", "_").replace(".", "p")
+
+    def _register_one_experiment(
+        self,
+        key: str,
+        runner: Callable,
+        config: dict,
+        *,
+        plot_description: str = "",
+    ) -> None:
+        """Build the Experiment lambda for a single (scalar) config and store it."""
+        import inspect
+
+        suite, _, exp_key_str = key.partition("/")
+        all_deps = {k: v for k, v in self._experiment_deps().items() if v is not None}
+        all_deps.update(config)
+
+        sig = set(inspect.signature(runner).parameters)
+        runner_kwargs = {k: v for k, v in all_deps.items() if k in sig}
+        if "exp_key" in sig:
+            runner_kwargs["exp_key"] = exp_key_str or suite
+
+        def fn(cfg, tags, _runner=runner, _kw=runner_kwargs, **call_kw):
+            return _runner(cfg, tags, make_inputs=cfg.make_inputs, **_kw, **call_kw)
+
+        self.experiments[key] = Experiment(
+            fn=fn,
+            params={**config, "plot_description": plot_description},
+        )
+
+    def add_ic(
+        self,
+        ic_name: str,
+        plot_params: dict,
+        *,
+        plot: Callable | None = None,
+    ) -> None:
+        """Register an ``ics/<ic_name>`` entry.
+
+        ``plot_params`` is the kwarg bag handed to the IC generator (e.g.
+        ``{"N": 64, "U": 1.0}``). It is captured into the Experiment closure
+        AND stored on ``Experiment.params`` for introspection.
+        """
+        from mosaic.benchmarks.shared.ics import run_ic
+
+        make_ic = self.make_ic
+
+        def fn(
+            cfg,
+            tags,
+            _name=ic_name,
+            _params=plot_params,
+            _make_ic=make_ic,
+            **_kw,
+        ):
+            return run_ic(cfg, _name, make_ic=_make_ic, params=_params)
+
+        self.experiments[f"ics/{ic_name}"] = Experiment(fn=fn, params=dict(plot_params))
+        if plot is not None:
+            self.plot_fns[f"ics/{ic_name}"] = plot
+
+    def add_extra_plot(self, key: str, plot: Callable) -> None:
+        """Register a ``_extra/<suite>/<name>`` plot not tied to an experiment."""
+        self.plot_fns[key] = plot
+
+    def _register_plot(
+        self,
+        key: str,
+        plot: Callable,
+        sub_keys: list[str],
+        reduce: Callable | None,
+    ) -> None:
+        """Store ``plot`` at ``key``.
+
+        ``sub_keys`` is the list of one-or-more sub-experiment keys this plot
+        spans. When ``len(sub_keys) == 1`` and the plot accepts ``exp_key=``,
+        the plot is wrapped to pass the sub-key suffix (the legacy single-key
+        plot pattern). When there is a real sweep (``len > 1``) the plot is
+        wrapped to receive the list of sub-keys via ``sub_keys=`` (or, if a
+        ``reduce`` callable is given, the reduced result).
+        """
+        import inspect
+
+        plot_sig = set(inspect.signature(plot).parameters)
+        if len(sub_keys) == 1 and reduce is None:
+            single = sub_keys[0]
+            _, _, exp_key_str = single.partition("/")
+            if "exp_key" in plot_sig:
+                self.plot_fns[key] = (
+                    lambda cfg, _p=plot, _k=exp_key_str or single, **kw: _p(
+                        cfg, exp_key=_k, **kw
+                    )
+                )
+            else:
+                self.plot_fns[key] = plot
+            return
+
+        # Sweep: the plot spans multiple sub-experiments. Pass them along.
+        if "sub_keys" in plot_sig or "results" in plot_sig:
+            if reduce is not None:
+                self.plot_fns[key] = (
+                    lambda cfg, _p=plot, _subs=sub_keys, _r=reduce, **kw: _p(
+                        cfg, sub_keys=_subs, results=_r(_subs), **kw
+                    )
+                )
+            else:
+                self.plot_fns[key] = lambda cfg, _p=plot, _subs=sub_keys, **kw: _p(
+                    cfg, sub_keys=_subs, **kw
+                )
+        else:
+            # Plot doesn't take sub_keys — call it once per sub-key (independent
+            # variants like jacobian_svd). The plot reads from its own dir.
+            def _multi(cfg, _p=plot, _subs=sub_keys, **kw):
+                for sub_key in _subs:
+                    _, _, exp_key_str = sub_key.partition("/")
+                    if "exp_key" in plot_sig:
+                        _p(cfg, exp_key=exp_key_str, **kw)
+                    else:
+                        _p(cfg, **kw)
+
+            self.plot_fns[key] = _multi
+
+    # ── Validation ───────────────────────────────────────────────────────
+
+    def _validate_suite_defaults(self, errors: list[str]) -> None:
+        """Append errors for malformed ``Experiment.params`` payloads."""
+        for full_key, exp in self.experiments.items():
+            params = exp.params
+            if not params:
+                continue
+            if isinstance(params, list):
+                continue
+            if not isinstance(params, dict):
+                errors.append(
+                    f"experiments[{full_key!r}].params: expected dict or list, "
+                    f"got {type(params).__name__}"
+                )
+                continue
+            runs = params.get("runs")
+            if runs is None:
+                continue
+            if isinstance(runs, dict):
+                errors.append(
+                    f"experiments[{full_key!r}].params['runs']: expected a list of "
+                    f"run dicts, got a single dict. Wrap it in a list: [{runs!r}]"
+                )
+            elif not isinstance(runs, list):
+                errors.append(
+                    f"experiments[{full_key!r}].params['runs']: expected list, "
+                    f"got {type(runs).__name__}"
+                )
+
+    def validate(self) -> None:
+        """Check that the Problem is well-formed.  Raises on first error."""
+        errors: list[str] = []
+        if not self.name:
+            errors.append("name is empty")
+        if not self.solvers:
+            errors.append("no solvers registered")
+        for spec in self.solvers:
+            for attr in ("name", "dir", "scheme", "backend", "color"):
+                if not getattr(spec, attr, None):
+                    errors.append(f"solver {spec.name!r}: missing {attr}")
+        if not self.make_ic:
+            errors.append("make_ic is empty (no initial conditions)")
+        for ic_name, ic in self.make_ic.items():
+            if not callable(ic):
+                errors.append(f"make_ic[{ic_name!r}] is not callable")
+        if not callable(self.make_inputs):
+            errors.append("make_inputs is not callable")
+        if not callable(self.error_fn):
+            errors.append("error_fn is not callable")
+        if not self.tesseract_dir.is_dir():
+            errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
+
+        self._validate_suite_defaults(errors)
+
+        valid_ad = {"autodiff", "adjoint", "hybrid", None}
+        for spec in self.solvers:
+            if spec.ad_strategy not in valid_ad:
+                errors.append(
+                    f"solver {spec.name!r}: ad_strategy={spec.ad_strategy!r} "
+                    f"not in {valid_ad}"
+                )
+
+        if errors:
+            raise ValueError(
+                f"Problem {self.name!r} validation failed:\n"
+                + "\n".join(f"  - {e}" for e in errors)
+            )
+
+
+@dataclass(frozen=True)
+class Exclusion:
+    """Why a solver does not run for a given experiment.
+
+    See :class:`ExclusionCategory` for the category taxonomy.
+    """
+
+    category: ExclusionCategory
+    reason: str
 
 
 @dataclass
@@ -29,7 +579,7 @@ class IcSpec:
 
 @dataclass
 class SolverSpec:
-    """Runtime descriptor for a single solver registered in a ProblemConfig.
+    """Runtime descriptor for a single solver registered in a Problem.
 
     Most per-solver fields (name, scheme, backend, ad_strategy, differentiable,
     uses_gpu, internal_dtype, description, doc_url) are populated by
@@ -39,7 +589,7 @@ class SolverSpec:
     ``explained_anomalies``).
 
     Presentation-only fields — ``color`` / ``linestyle`` / ``marker`` — are
-    populated by :func:`mosaic.benchmarks.plots.solver_styles.apply_styles`
+    populated by :func:`mosaic.benchmarks.shared.plots.solver_styles.apply_styles`
     after discovery; they're attributes on the spec only so plot code can read
     them via ``spec.color`` etc.
     """
@@ -83,22 +633,9 @@ class SolverSpec:
     # or "float64". Solvers that compute in float64 but return float32 outputs
     # may show lower discretisation error at the same resolution — a precision
     # advantage, not a scheme advantage.
-    exclusions: dict[str, dict | str] = field(default_factory=dict)
-    # Maps a suite key ("gradient", "optimization", …) or a more specific
-    # suite/experiment path ("forward/cylinder", "cost/vjp_cost") to a
-    # categorical reason. Excluded solver–experiment pairs are skipped by the
-    # runner and annotated as EXCLUDED in the status output. Values are usually
-    # ``{"category": "categorical" | "infeasible", "reason": "..."}``; a plain
-    # string is accepted as shorthand for the reason.
-    explained_anomalies: dict[str, str | dict] = field(default_factory=dict)
-    # Maps experiment keys (same format as exclusions) to documented reasons
-    # why this solver is expected to produce anomalous results — the solver
-    # CAN run and produces finite output, but underperforms peers for known,
-    # method-intrinsic reasons (e.g. LBM O(Ma²) compressibility floor,
-    # staggered MAC grid interpolation error). These appear as ANOMALY cells
-    # (with the documented reason) rather than EXCLUDED, keeping the solver
-    # in the score denominator so weaknesses remain visible.
-    # Values: plain string reason, or dict with "reason" key.
+    # NB: per-solver exclusions and explained-anomalies live on
+    # :attr:`Problem.exclusions` — a problem-level dict keyed by solver
+    # name. SolverSpec is solver-identity data only.
 
 
 def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
@@ -136,7 +673,7 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             doc_url: "https://..."              # upstream docs link
 
     Note: ``color`` / ``linestyle`` / ``marker`` are *not* read from YAML —
-    plot styling lives in :mod:`mosaic.benchmarks.plots.solver_styles` and is
+    plot styling lives in :mod:`mosaic.benchmarks.shared.plots.solver_styles` and is
     applied to each spec by ``apply_styles()`` after discovery.
 
     Returns a dict keyed by a normalised solver name (directory name with
@@ -198,7 +735,7 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
             return val.strip() if isinstance(val, str) else val
 
         # Color / linestyle / marker are presentation-only; they live in
-        # ``mosaic.benchmarks.plots.solver_styles`` and are applied by each
+        # ``mosaic.benchmarks.shared.plots.solver_styles`` and are applied by each
         # problem config via ``apply_styles()`` after re-keying. We leave them
         # at neutral defaults here so the SolverSpec is well-formed.
         solvers[solver_key] = SolverSpec(
@@ -245,243 +782,3 @@ def has_vjp(spec: SolverSpec) -> bool:
             return "vector_jacobian_product" in t.available_endpoints
     except Exception:
         return False
-
-
-@dataclass
-class ProblemConfig:
-    name: str  # "ns-grid", "n-body", "md"
-    tesseract_dir: Path  # abs path to tesseracts/{problem}/
-    output_key: str  # field to compare: "result", "density", …
-
-    solvers: dict[str, SolverSpec]
-
-    # IC and input construction
-    make_ic: dict[str, IcSpec | Callable]  # ic_name → IcSpec (or bare callable)
-    make_inputs: Callable  # (solver_name, ic, **physics) → dict
-
-    # Comparison
-    error_fn: Callable  # (pred, ref) → float
-    diagnostics: dict[str, Callable]  # name → fn(array, **kw) → scalar | dict
-    pairwise_diagnostics: dict[str, Callable] = field(default_factory=dict)
-    analytic: Callable | None = None  # (ic, **physics, t) → array, or None
-
-    ic_key: str = "ic"  # input dict key for the initial condition
-    domain_extent: float = 1.0
-    resolution_key: str = "N"  # param that controls IC size (e.g. "N", "mesh_level")
-    n_to_cells: Callable | None = None  # N → total cell count for x-axis labelling
-
-    # Field visualisation
-    field_to_2d: Callable | None = None
-    ic_to_2d: Callable | None = None
-    field_cmap: str = "RdBu_r"
-    field_symmetric: bool = True
-    diagnostic_fields: bool = True
-
-    # Optional spectral diagnostics for plot_agreement
-    power_spectrum_fn: Callable | None = None
-
-    # Problem-specific plot hooks
-    extra_plots: dict[str, list[Callable]] = field(default_factory=dict)
-
-    # Extra scalar outputs to capture alongside output_key
-    extra_output_keys: list[str] = field(default_factory=list)
-
-    # State keys threaded between stability chunks
-    state_keys: list[str] = field(default_factory=list)
-
-    # Agreement metric override
-    agreement_transform: Callable | None = None
-    agreement_xaxis: Callable | None = None
-    agreement_xlabel: str = "x"
-    agreement_ylabel: str = "value"
-
-    # Pairwise diagnostic axis labels
-    pairwise_xlabel: str = "k"
-    pairwise_ylabels: dict[str, str] = field(default_factory=dict)
-
-    # Units for axis labels
-    units: dict[str, str] = field(default_factory=dict)
-
-    # Per-suite experiment defaults
-    forward_defaults: dict = field(default_factory=dict)
-    cost_defaults: dict = field(default_factory=dict)
-    gradient_defaults: dict = field(default_factory=dict)
-    inverse_defaults: dict = field(default_factory=dict)
-
-    # Legacy plot descriptions: (suite, experiment) → description string.
-    # Prefer inline description/plot_description keys in each experiment def.
-    plot_descriptions: dict[tuple[str, str], str] = field(default_factory=dict)
-
-    # Per-problem thresholds consumed by `mosaic status` to flag solvers whose
-    # results are finite but far from their peers. Keys are either a suite
-    # name ("forward") or "suite/experiment" for experiment-specific overrides
-    # ("gradient/fd_check"); the more specific key wins. Each value is a dict
-    # of check name → threshold, e.g.
-    #
-    #   {"forward":           {"median_k": 3.0, "max_error": 0.5},
-    #    "gradient/fd_check": {"min_cosine": 0.99},
-    #    "optimization":          {"max_final_ratio": 0.5}}
-    #
-    # A check is skipped when its key is absent, so a new problem does not
-    # start flagging anomalies until its author opts in.
-    status_checks: dict[str, dict] = field(default_factory=dict)
-
-    # Physics-focused problem description (no solver names).
-    description: str = ""
-
-    # Display label for the physics-domain section of the generated solver
-    # reference page (docs/solvers.qmd). When multiple problems share the same
-    # tesseract_dir (e.g. ns-grid and ns-3d-grid), the first non-empty value
-    # encountered wins.
-    category_label: str = ""
-
-    # Boundary/domain condition description.
-    bc_description: str = ""
-
-    # Legacy IC descriptions (use IcSpec.description instead).
-    ic_descriptions: dict[str, str] = field(default_factory=dict)
-
-    # Legacy IC plot params (use IcSpec.plot_params instead).
-    ic_plot_params: dict[str, dict] = field(default_factory=dict)
-
-    # ── IC helpers ────────────────────────────────────────────────────────────
-
-    def get_ic_description(self, ic_name: str) -> str:
-        ic = self.make_ic.get(ic_name)
-        if isinstance(ic, IcSpec):
-            return ic.description
-        return self.ic_descriptions.get(ic_name, "")
-
-    def get_ic_plot_params(self, ic_name: str) -> dict:
-        ic = self.make_ic.get(ic_name)
-        if isinstance(ic, IcSpec):
-            return ic.plot_params
-        return self.ic_plot_params.get(ic_name, {})
-
-    # ── Experiment description helpers ───────────────────────────────────────
-
-    def _suite_defaults(self, suite: str) -> dict:
-        if suite == "gradient":
-            return self.gradient_defaults
-        if suite == "optimization":
-            return self.inverse_defaults
-        if suite == "cost":
-            return self.cost_defaults
-        return self.forward_defaults
-
-    def _exp_def(self, suite: str, experiment: str) -> dict:
-        """Look up experiment definition, falling back to parent key for sub-experiments.
-
-        Sub-experiments like "horizon_sweep/tgv3d" fall back to "horizon_sweep"
-        if no exact key is found, allowing the parent experiment's description to
-        be reused for sub-experiments that don't have their own key.
-        """
-        defaults = self._suite_defaults(suite)
-        exp_def = defaults.get(experiment, {})
-        if not exp_def and "/" in experiment:
-            parent_key = experiment.split("/")[0]
-            exp_def = defaults.get(parent_key, {})
-        return exp_def
-
-    def get_plot_description(self, suite: str, experiment: str) -> str:
-        """Return the plot description for (suite, experiment).
-
-        For the cost suite, experiment="" returns the suite-level description
-        and a named experiment (e.g. "spatial_cost") returns its per-plot text.
-        Falls back to the legacy plot_descriptions dict.
-        """
-        if suite == "cost":
-            cost_def = self.cost_defaults.get("cost", self.cost_defaults)
-            if isinstance(cost_def, dict):
-                if not experiment:
-                    return cost_def.get("description", "")
-                return cost_def.get("plot_descriptions", {}).get(experiment, "")
-        exp_def = self._exp_def(suite, experiment)
-        if isinstance(exp_def, dict) and "plot_description" in exp_def:
-            return exp_def["plot_description"]
-        return self.plot_descriptions.get((suite, experiment), "")
-
-    def get_experiment_description(self, suite: str, experiment: str) -> str:
-        """Return the short experiment description (what it measures)."""
-        if suite == "cost":
-            cost_def = self.cost_defaults.get("cost", self.cost_defaults)
-            if isinstance(cost_def, dict):
-                return cost_def.get("description", "")
-        exp_def = self._exp_def(suite, experiment)
-        if isinstance(exp_def, dict):
-            return exp_def.get("description", "")
-        return ""
-
-    # ── Validation ────────────────────────────────────────────────────────────
-
-    def _validate_suite_defaults(self, errors: list[str]) -> None:
-        """Append errors for malformed suite-defaults entries.
-
-        Each experiment value should be a list of run dicts; bare metadata
-        strings and metadata-only dicts (without any run keys) are tolerated.
-        """
-        for suite_attr, suite_label in [
-            ("forward_defaults", "forward_defaults"),
-            ("gradient_defaults", "gradient_defaults"),
-            ("inverse_defaults", "inverse_defaults (optimization)"),
-        ]:
-            defaults = getattr(self, suite_attr)
-            for exp_name, exp_val in defaults.items():
-                # Skip metadata keys (description, plot_description, etc.)
-                if isinstance(exp_val, str):
-                    continue
-                if isinstance(exp_val, dict) and not any(
-                    k in exp_val for k in ("ic", "physics", "sweep", "fd", "optim")
-                ):
-                    # Looks like a metadata dict (e.g. {"description": "...", "plot_description": "..."})
-                    continue
-                if isinstance(exp_val, dict):
-                    errors.append(
-                        f"{suite_label}[{exp_name!r}]: expected a list of run dicts, "
-                        f"got a single dict. Wrap it in a list: [{exp_val!r}]"
-                    )
-                elif not isinstance(exp_val, list):
-                    errors.append(
-                        f"{suite_label}[{exp_name!r}]: expected a list of run dicts, "
-                        f"got {type(exp_val).__name__}"
-                    )
-
-    def validate(self) -> None:
-        """Check that the config is well-formed.  Raises on first error."""
-        errors: list[str] = []
-        if not self.name:
-            errors.append("name is empty")
-        if not self.solvers:
-            errors.append("no solvers registered")
-        for key, spec in self.solvers.items():
-            for attr in ("name", "dir", "scheme", "backend", "color"):
-                if not getattr(spec, attr, None):
-                    errors.append(f"solver {key!r}: missing {attr}")
-        if not self.make_ic:
-            errors.append("make_ic is empty (no initial conditions)")
-        for ic_name, ic in self.make_ic.items():
-            if not callable(ic):
-                errors.append(f"make_ic[{ic_name!r}] is not callable")
-        if not callable(self.make_inputs):
-            errors.append("make_inputs is not callable")
-        if not callable(self.error_fn):
-            errors.append("error_fn is not callable")
-        if not self.tesseract_dir.is_dir():
-            errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
-
-        # Validate suite defaults structure: each experiment should be a list of run dicts
-        self._validate_suite_defaults(errors)
-
-        valid_ad = {"autodiff", "adjoint", "hybrid", None}
-        for key, spec in self.solvers.items():
-            if spec.ad_strategy not in valid_ad:
-                errors.append(
-                    f"solver {key!r}: ad_strategy={spec.ad_strategy!r} "
-                    f"not in {valid_ad}"
-                )
-
-        if errors:
-            raise ValueError(
-                f"ProblemConfig {self.name!r} validation failed:\n"
-                + "\n".join(f"  - {e}" for e in errors)
-            )

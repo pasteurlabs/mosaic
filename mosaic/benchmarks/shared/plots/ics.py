@@ -7,8 +7,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
-from mosaic.benchmarks.plots.style import (
+from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.shared.plots.style import (
     apply_style,
     imshow_with_cbar,
     save_fig,
@@ -19,28 +19,37 @@ apply_style()
 
 
 def plot_ic(
-    cfg: ProblemConfig,
+    cfg: Problem,
     ic_name: str,
     ic: np.ndarray,
     out_dir: Path,
+    *,
+    make_ic=None,
+    field_to_2d=None,
+    ic_to_2d=None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+    **_kw,
 ) -> None:
     """Save one IC visualisation as ic.png (and ic.pdf) under out_dir.
 
-    Uses cfg.ic_to_2d if set, else cfg.field_to_2d, else falls back to
+    Uses ``ic_to_2d`` if set, else ``field_to_2d``, else falls back to
     vorticity_2d (appropriate for 2-D velocity/force fields).  If 2-D
     conversion raises an exception the raw array shape is shown instead.
+
+    The IC description is read off ``make_ic[ic_name].description`` when
+    ``make_ic`` is provided (else falls back to ``""``).
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    to_2d = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
+    to_2d = ic_to_2d or field_to_2d or vorticity_2d
 
     fig, ax = plt.subplots(1, 1, figsize=(4.5, 4.0))
 
     try:
         arr2d = np.asarray(to_2d(ic), dtype=np.float32)
-        cmap = cfg.field_cmap
-        if cfg.field_symmetric:
+        if field_symmetric:
             vmax = float(np.abs(arr2d).max()) or 1.0
             vmin_v, vmax_v = -vmax, vmax
         else:
@@ -53,7 +62,7 @@ def plot_ic(
             fig,
             arr2d.T,
             origin="lower",
-            cmap=cmap,
+            cmap=field_cmap,
             vmin=vmin_v,
             vmax=vmax_v,
             interpolation="nearest",
@@ -70,7 +79,9 @@ def plot_ic(
         )
         ax.axis("off")
 
-    desc = cfg.get_ic_description(ic_name)
+    desc = ""
+    if make_ic is not None and ic_name in make_ic:
+        desc = getattr(make_ic[ic_name], "description", "") or ""
     title_parts = [ic_name]
     if desc:
         # Wrap long descriptions onto a second line

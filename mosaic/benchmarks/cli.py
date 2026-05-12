@@ -12,11 +12,11 @@ from mosaic.benchmarks.core.console import console, print_rule, print_skip, prin
 from mosaic.benchmarks.core.io import RESULTS_DIR_ENV, results_dir
 from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, run_suite
 from mosaic.benchmarks.problems import PROBLEMS, get_config
-from mosaic.benchmarks.suites import SUITE_REGISTRY
+from mosaic.benchmarks.shared import SUITES
 
 app = typer.Typer(name="mosaic", rich_markup_mode="rich")
 
-_ALL_SUITES = list(SUITE_REGISTRY)
+_ALL_SUITES = list(SUITES)
 
 
 def _repo_root() -> Path:
@@ -24,34 +24,37 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _suite_components(suite: str, cfg=None) -> tuple[dict, callable]:
-    """Return (experiments_dict, plot_fns_factory) for the named suite.
+def _suite_components(suite: str, cfg) -> tuple[dict, callable]:
+    """Return (experiments_dict, plot_fns_factory) for ``suite`` in ``cfg``.
 
-    Dynamically imports the suite module from :data:`SUITE_REGISTRY`.
-    Suites that define ``get_experiments(cfg)`` / ``get_plot_fns(cfg)``
-    (dynamic suites like *ics*) require *cfg*; static suites expose
-    ``_EXPERIMENTS`` and ``_plot_fns`` at module level.
+    Filters ``cfg.experiments`` and ``cfg.plot_fns`` to the entries whose
+    full key starts with ``"<suite>/"`` and strips the prefix. The plot
+    factory is a no-arg callable that returns the (prefix-stripped) plot dict.
     """
-    import importlib
-
-    if suite not in SUITE_REGISTRY:
+    if suite not in SUITES:
         from difflib import get_close_matches
 
         suggestion = get_close_matches(suite, _ALL_SUITES, n=1, cutoff=0.5)
         hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
         raise ValueError(f"Unknown suite {suite!r}. Choose from: {_ALL_SUITES}.{hint}")
 
-    mod = importlib.import_module(SUITE_REGISTRY[suite])
-
-    # Dynamic suites (e.g. ics) define get_experiments / get_plot_fns
-    if hasattr(mod, "get_experiments"):
-        if cfg is None:
-            raise ValueError(f"cfg is required for the {suite!r} suite")
-        exps = mod.get_experiments(cfg)
-        return exps, lambda: mod.get_plot_fns(cfg)
-
-    # Static suites define _EXPERIMENTS and _plot_fns at module level
-    return mod._EXPERIMENTS, mod._plot_fns
+    prefix = f"{suite}/"
+    extra_prefix = f"_extra/{suite}/"
+    exps = {
+        k[len(prefix) :]: v.fn
+        for k, v in cfg.experiments.items()
+        if k.startswith(prefix)
+    }
+    plot_fns: dict = {}
+    for k, v in cfg.plot_fns.items():
+        if k.startswith(prefix):
+            plot_fns[k[len(prefix) :]] = v
+        elif k.startswith(extra_prefix):
+            # Suite-wide bonus plots (formerly cfg.extra_plots) — preserved
+            # under the "_extra/<name>" key so the runner can call them
+            # unconditionally (no associated experiment result needed).
+            plot_fns[f"_extra/{k[len(extra_prefix) :]}"] = v
+    return exps, lambda: plot_fns
 
 
 def _apply_solver_filter(cfg, solvers_csv: str | None):
@@ -65,10 +68,10 @@ def _apply_solver_filter(cfg, solvers_csv: str | None):
     if not solvers_csv:
         return cfg
     requested = {s.strip() for s in solvers_csv.split(",") if s.strip()}
-    unknown = requested - cfg.solvers.keys()
+    unknown = requested - cfg.solver_names
     if unknown:
         print_warn(f"unknown solver(s): {', '.join(sorted(unknown))} — skipping")
-    keep = {k: v for k, v in cfg.solvers.items() if k in requested}
+    keep = [s for s in cfg.solvers if s.name in requested]
     if not keep:
         print_warn("no matching solvers after filtering — running all")
         return cfg
@@ -86,11 +89,7 @@ def _resolve_gpu_pool(cfg, gpus: str | None):
     Anything else (a real comma-separated list, or None) passes through.
     """
     if isinstance(gpus, str) and gpus.lower() in ("none", "cpu", "cpu-only"):
-        cpu_only = {
-            name: spec
-            for name, spec in cfg.solvers.items()
-            if not getattr(spec, "uses_gpu", True)
-        }
+        cpu_only = [s for s in cfg.solvers if not getattr(s, "uses_gpu", True)]
         if not cpu_only:
             print_warn(
                 "no CPU-only solvers in this problem — --gpus none would run nothing"
@@ -117,29 +116,19 @@ def _filter_hardware(cfg, hardware: str | None):
         from mosaic.benchmarks.core.hardware import has_gpu
 
         if not has_gpu():
-            gpu_solvers = [
-                n for n, s in cfg.solvers.items() if getattr(s, "uses_gpu", True)
-            ]
+            gpu_solvers = [s.name for s in cfg.solvers if getattr(s, "uses_gpu", True)]
             if gpu_solvers:
                 print_warn(
                     f"no GPU detected — skipping GPU solvers: {', '.join(gpu_solvers)}. "
                     "Pass --hardware all to override."
                 )
-                cpu_only = {
-                    n: s
-                    for n, s in cfg.solvers.items()
-                    if not getattr(s, "uses_gpu", True)
-                }
+                cpu_only = [s for s in cfg.solvers if not getattr(s, "uses_gpu", True)]
                 if cpu_only:
                     return dataclasses.replace(cfg, solvers=cpu_only)
                 print_warn("no CPU-only solvers either — keeping all solvers")
         return cfg
     if hardware.lower() == "cpu":
-        filtered = {
-            name: spec
-            for name, spec in cfg.solvers.items()
-            if not getattr(spec, "uses_gpu", True)
-        }
+        filtered = [s for s in cfg.solvers if not getattr(s, "uses_gpu", True)]
         if not filtered:
             print_warn(
                 "no CPU-only solvers in this problem — --hardware cpu would run nothing"
@@ -147,11 +136,7 @@ def _filter_hardware(cfg, hardware: str | None):
             return cfg
         return dataclasses.replace(cfg, solvers=filtered)
     if hardware.lower() == "gpu":
-        filtered = {
-            name: spec
-            for name, spec in cfg.solvers.items()
-            if getattr(spec, "uses_gpu", True)
-        }
+        filtered = [s for s in cfg.solvers if getattr(s, "uses_gpu", True)]
         if not filtered:
             print_warn(
                 "no GPU solvers in this problem — --hardware gpu would run nothing"
@@ -173,11 +158,9 @@ def _resolve_cfg_and_tags(
 ):
     cfg = get_config(problem)
     # --hardware cpu/gpu filters solvers by target hardware BEFORE build.
-    had_gpu_solvers = any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+    had_gpu_solvers = any(getattr(s, "uses_gpu", True) for s in cfg.solvers)
     cfg = _filter_hardware(cfg, hardware)
-    no_gpu_solvers_left = not any(
-        getattr(s, "uses_gpu", True) for s in cfg.solvers.values()
-    )
+    no_gpu_solvers_left = not any(getattr(s, "uses_gpu", True) for s in cfg.solvers)
     # If all GPU solvers were removed (explicit --hardware cpu or auto-detect),
     # force gpus to "none" so the runner never passes --gpus to Docker.
     if had_gpu_solvers and no_gpu_solvers_left and not gpus:
@@ -207,7 +190,7 @@ def _filter_solvers(cfg, tags: dict, solvers_csv: str | None):
     is already narrowed."""
     if not solvers_csv:
         return cfg, tags
-    keep_names = set(cfg.solvers.keys())
+    keep_names = set(cfg.solver_names)
     filtered_tags = {k: v for k, v in tags.items() if k in keep_names}
     return cfg, filtered_tags
 
@@ -223,7 +206,12 @@ def _plots_only(cfg, to_run, plot_fns, suite: str, verbose_errors: bool = False)
         # Default: only attempt plots for experiments actually configured for
         # this cfg+suite (avoids noisy [SKIP]s for variants that belong to a
         # different problem, e.g. stokes-only jacobian_svd_mu* on ns-3d-grid).
-        configured = set(cfg._suite_defaults(suite).keys())
+        prefix = f"{suite}/"
+        configured = {
+            k[len(prefix) :]
+            for k, exp in cfg.experiments.items()
+            if k.startswith(prefix) and exp.params
+        }
         names = [n for n in plot_fns if n in configured]
     for name in names:
         if name not in plot_fns:
@@ -246,7 +234,7 @@ def _run_validate_suites(suite_list: list[str]) -> None:
     Done up-front before any builds — a typo'd suite name should fail fast
     with a 'did you mean' hint rather than after a multi-minute build.
     """
-    unknown_suites = [s for s in suite_list if s not in SUITE_REGISTRY]
+    unknown_suites = [s for s in suite_list if s not in SUITES]
     if not unknown_suites:
         return
     from difflib import get_close_matches
@@ -289,9 +277,9 @@ def _run_prepare_problem(
         cfg, tags = _filter_solvers(cfg, tags, solvers)
         return cfg, tags, gpus
     cfg = get_config(problem)
-    had_gpu = any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+    had_gpu = any(getattr(s, "uses_gpu", True) for s in cfg.solvers)
     cfg = _filter_hardware(cfg, hardware)
-    no_gpu_left = not any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+    no_gpu_left = not any(getattr(s, "uses_gpu", True) for s in cfg.solvers)
     if had_gpu and no_gpu_left and not gpus:
         gpus = "none"
     cfg, gpus = _resolve_gpu_pool(cfg, gpus)
@@ -573,7 +561,7 @@ def ics(
     if output_dir is not None:
         os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 
-    from mosaic.benchmarks.suites.ics import get_experiments, get_plot_fns
+    from mosaic.benchmarks.shared.ics import get_experiments, get_plot_fns
 
     cfg = get_config(problem)
     print_rule("initial conditions")
@@ -1290,7 +1278,7 @@ def paper_plots(
 def validate_domain_cmd(
     problem: str = typer.Argument(help="Problem name to validate (e.g. 'ns-grid')."),
 ) -> None:
-    """Validate a registered problem domain's ProblemConfig.
+    """Validate a registered problem domain's Problem.
 
     Checks solver metadata, tesseract directories, suite defaults structure,
     ad_strategy values, and output_key against the schema module.
@@ -1301,17 +1289,17 @@ def validate_domain_cmd(
     n_checks = 0
     n_ok = 0
 
-    # 1. ProblemConfig.validate()
+    # 1. Problem.validate()
     n_checks += 1
     try:
         cfg.validate()
-        console.print("[green]  OK[/green]  ProblemConfig.validate()")
+        console.print("[green]  OK[/green]  Problem.validate()")
         n_ok += 1
     except ValueError as exc:
-        console.print(f"[red]FAIL[/red]  ProblemConfig.validate():\n{exc}")
+        console.print(f"[red]FAIL[/red]  Problem.validate():\n{exc}")
 
     # 2. Solver directories exist
-    for _key, spec in cfg.solvers.items():
+    for spec in cfg.solvers:
         n_checks += 1
         solver_dir = cfg.tesseract_dir / spec.dir
         if solver_dir.is_dir():
@@ -1323,11 +1311,13 @@ def validate_domain_cmd(
     # 3. Check output_key against schema module (best-effort)
     n_checks += 1
     try:
-        # Try to find the schema module for this domain
-        slug = problem.replace("-", "_")
+        # Schema modules live under the canonical tesseract directory name
+        # (e.g. "navier-stokes-grid" → mosaic_shared.problems.navier_stokes_grid),
+        # which is shared across CLI aliases like ns-grid / ns-3d-grid.
+        slug = cfg.tesseract_dir.name.replace("-", "_")
         import importlib
 
-        mod = importlib.import_module(f"mosaic.mosaic_shared.problems.{slug}")
+        mod = importlib.import_module(f"mosaic_shared.problems.{slug}")
         if hasattr(mod, "OutputSchema"):
             out_fields = set(mod.OutputSchema.model_fields.keys())
             if cfg.output_key in out_fields:

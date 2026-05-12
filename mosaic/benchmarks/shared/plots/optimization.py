@@ -8,10 +8,10 @@ import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import print_saved
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.plots.style import (
+from mosaic.benchmarks.shared.plots.style import (
     apply_style,
     fig_shared_legend,
     imshow_with_cbar,
@@ -153,7 +153,7 @@ def _compute_fallback_ic_error_init(
 
 
 def _plot_recovery_summary(
-    cfg: ProblemConfig,
+    cfg: Problem,
     by_sweep: dict,
     sweep_vals: list,
     sweep_key: str,
@@ -257,7 +257,7 @@ def _draw_convergence_panel(
 
 
 def _plot_convergence_curves(
-    cfg: ProblemConfig,
+    cfg: Problem,
     by_sweep: dict,
     sweep_vals: list,
     sweep_key: str,
@@ -302,7 +302,7 @@ def _imshow_panel(ax, fig, arr, v_use, cmap="RdBu_r") -> None:
 
 
 def _plot_ic_field_comparison(
-    cfg: ProblemConfig,
+    cfg: Problem,
     npz,
     solver_names: list,
     ic_true: np.ndarray,
@@ -366,7 +366,7 @@ def _plot_ic_field_comparison(
 
 
 def _plot_final_state_comparison(
-    cfg: ProblemConfig,
+    cfg: Problem,
     npz,
     solver_names: list,
     f_out,
@@ -472,7 +472,7 @@ def _draw_per_sigma_row(
 
 
 def _plot_per_sigma_grid(
-    cfg: ProblemConfig,
+    cfg: Problem,
     npz,
     solver_names: list,
     ic_true: np.ndarray,
@@ -540,12 +540,16 @@ def _plot_per_sigma_grid(
 
 
 def plot_recovery(
-    cfg: ProblemConfig,
+    cfg: Problem,
     threshold: float | None = None,
+    *,
+    field_to_2d=None,
+    ic_to_2d=None,
     save: bool = True,
     suffix: str = "",
     ic: str | None = None,
     exp_key: str = "optimization",
+    **_kw,
 ):
     """Three files: error vs horizon + failure bars, loss curves, IC field comparison.
 
@@ -608,9 +612,9 @@ def plot_recovery(
     ic_true = npz["ic_true"]
     ic_init = npz["ic_init"]
 
-    # Use cfg.ic_to_2d when set (e.g. n-body density contrast δ₀ slice),
-    # then cfg.field_to_2d (e.g. 3D vorticity slice), then vorticity_2d for 2-D.
-    f_ic = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
+    # Use ic_to_2d when set (e.g. n-body density contrast δ₀ slice),
+    # then field_to_2d (e.g. 3D vorticity slice), then vorticity_2d for 2-D.
+    f_ic = ic_to_2d or field_to_2d or vorticity_2d
 
     _plot_ic_field_comparison(
         cfg,
@@ -631,7 +635,7 @@ def plot_recovery(
         )
 
     # ── Final temporal state comparison (GT vs recovered rollout) ────────────
-    f_out = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
+    f_out = ic_to_2d or field_to_2d or vorticity_2d
     _plot_final_state_comparison(
         cfg,
         npz,
@@ -645,7 +649,7 @@ def plot_recovery(
     )
 
     # ── Per-sigma all-solver grid ─────────────────────────────────────────────
-    f_vis = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
+    f_vis = ic_to_2d or field_to_2d or vorticity_2d
     _plot_per_sigma_grid(
         cfg,
         npz,
@@ -673,7 +677,7 @@ def _render_recovery_evolution_gifs(
     """Write ``recovery_evolution_<solver>.gif`` per solver from ``ic_history_<j>``.
 
     Each frame is the 2-D scalar view of the IC at snapshot ``frame`` (same
-    mapping used in the static ``recovery_fields`` panel: ``cfg.ic_to_2d`` or
+    mapping used in the static ``recovery_fields`` panel: ``ic_to_2d`` or
     vorticity).  Shared vmin/vmax across frames keeps colouring stable so the
     viewer can see the IC re-form rather than a flicker from autoscaling.
     Silently skips solvers without a recorded history.
@@ -729,10 +733,14 @@ def _render_recovery_evolution_gifs(
 
 
 def plot_recovery_evolution_sidebyside(
-    cfg: ProblemConfig,
+    cfg: Problem,
     exp_key: str = "optimization",
     suffix: str = "",
+    *,
+    field_to_2d=None,
+    ic_to_2d=None,
     save: bool = True,
+    **_kw,
 ) -> None:
     """Single GIF with all solver evolutions displayed side by side."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
@@ -745,7 +753,7 @@ def plot_recovery_evolution_sidebyside(
     rep_val = float((npz.get("rep_val") or npz.get("rep_horizon", np.array([0])))[0])
     sweep_key = "perturb_sigma"
 
-    f_ic = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
+    f_ic = ic_to_2d or field_to_2d or vorticity_2d
     styles = solver_styles(cfg, differentiable_only=True)
 
     all_frames: list[list] = []
@@ -809,11 +817,13 @@ def plot_recovery_evolution_sidebyside(
 
 
 def plot_recovery_2panel(
-    cfg: ProblemConfig,
+    cfg: Problem,
     exp_key: str = "optimization",
     suffix: str = "",
     threshold: float | None = None,
+    *,
     save: bool = True,
+    **_kw,
 ):
     """Two-panel figure: IC error vs sweep (left) | loss reduction vs sweep (right)."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
@@ -876,10 +886,14 @@ def plot_recovery_2panel(
 
 
 def plot_recovery_field_grid(
-    cfg: ProblemConfig,
+    cfg: Problem,
     exp_key: str = "optimization",
     suffix: str = "",
+    *,
+    field_to_2d=None,
+    ic_to_2d=None,
     save: bool = True,
+    **_kw,
 ):
     """n_solvers × 8 grid: True IC | Pert IC | Pert Res | Rec IC | Rec Res | True Final | Rec Final | Final Res."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
@@ -891,7 +905,7 @@ def plot_recovery_field_grid(
     solver_names = npz["solver_names"].tolist()
     rep_val = float((npz.get("rep_val") or npz.get("rep_horizon", np.array([0])))[0])
 
-    f_ic = cfg.ic_to_2d or cfg.field_to_2d or vorticity_2d
+    f_ic = ic_to_2d or field_to_2d or vorticity_2d
     styles = solver_styles(cfg, differentiable_only=True)
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -991,7 +1005,7 @@ def plot_recovery_field_grid(
 # ── R3: parameter recovery ────────────────────────────────────────────────────
 
 
-def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_param_recovery(cfg: Problem, *, save: bool = True, suffix: str = "", **_kw):
     """Two files: final IC error bar chart + optimisation loss curves per sweep param."""
     out_dir = results_dir() / cfg.name / _SUITE / f"param_recovery{suffix}"
     data = load_json(out_dir / "result.json")
@@ -1000,9 +1014,7 @@ def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "")
 
     by_param = data["by_param"]
     param_values = sorted(by_param.keys(), key=float)
-    solvers = [
-        n for n in cfg.solvers if getattr(cfg.solvers[n], "differentiable", True)
-    ]
+    solvers = [n for n in cfg.solvers if getattr(cfg.solver(n), "differentiable", True)]
     x = np.arange(len(param_values))
     width = 0.8 / len(solvers)
 
@@ -1020,7 +1032,7 @@ def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "")
             errs,
             width,
             label=styles[name]["label"],
-            color=cfg.solvers[name].color,
+            color=cfg.solver(name).color,
         )
     ax.set_xticks(x + width * len(solvers) / 2)
     ax.set_xticklabels([f"{sweep_key}={v}" for v in param_values])
@@ -1066,7 +1078,9 @@ def plot_param_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = "")
 # ── R4: viscosity recovery ────────────────────────────────────────────────────
 
 
-def plot_viscosity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_viscosity_recovery(
+    cfg: Problem, *, save: bool = True, suffix: str = "", **_kw
+):
     """Three files: μ recovery paths, loss curves, and final error bar chart."""
     out_dir = results_dir() / cfg.name / _SUITE / f"viscosity_recovery{suffix}"
     data = load_json(out_dir / "result.json")
@@ -1135,7 +1149,7 @@ def plot_viscosity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str =
             errs,
             width,
             label=styles[name]["label"],
-            color=cfg.solvers[name].color,
+            color=cfg.solver(name).color,
         )
     ax.set_xticks(x + width * len(solvers) / 2)
     ax.set_xticklabels([f"μ={v}" for v in mu_trues])
@@ -1153,7 +1167,9 @@ def plot_viscosity_recovery(cfg: ProblemConfig, save: bool = True, suffix: str =
 # ── R5: recovery vs perturbation sigma ───────────────────────────────────────
 
 
-def plot_recovery_sigma_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_recovery_sigma_sweep(
+    cfg: Problem, *, save: bool = True, suffix: str = "", **_kw
+):
     """Two files: final IC error vs σ (phase-transition plot) + loss curves.
 
     Produces:
@@ -1252,7 +1268,12 @@ def plot_recovery_sigma_sweep(cfg: ProblemConfig, save: bool = True, suffix: str
 
 
 def plot_topopt(
-    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "topopt"
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "topopt",
+    **_kw,
 ):
     """Two files: compliance + volume fraction convergence; initial + final density fields."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
@@ -1333,7 +1354,7 @@ def plot_topopt(
 
 
 def _plot_topopt_3d(
-    cfg: ProblemConfig,
+    cfg: Problem,
     npz,
     solver_names: list,
     by_solver: dict,
@@ -1522,7 +1543,7 @@ def _render_topopt_evolution_gifs(
         _save_animation(anim, f"topopt_evolution_{name}", out_dir, fps=4)
 
 
-def plot_source_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_source_recovery(cfg: Problem, *, save: bool = True, suffix: str = "", **_kw):
     """Three files: loss curves + final error bar chart, plus optimised source fields.
 
     The fields figure (``source_recovery_fields.{png,pdf}``) overlays
@@ -1560,7 +1581,7 @@ def plot_source_recovery(cfg: ProblemConfig, save: bool = True, suffix: str = ""
     ax_lc.set_title("Source recovery — loss curves")
     ax_lc.legend(fontsize=8)
 
-    colors = [cfg.solvers[n].color if n in cfg.solvers else "#888888" for n in names]
+    colors = [cfg.solver(n).color if n in cfg.solvers else "#888888" for n in names]
     labels = [styles.get(n, {}).get("label", n) for n in names]
     ax_bar.bar(labels, final_errors, color=colors)
     ax_bar.set_ylabel("Final identification error")
@@ -1655,7 +1676,7 @@ def _render_source_recovery_evolution_gifs(
 
 
 def _plot_source_recovery_fields(
-    cfg: ProblemConfig,
+    cfg: Problem,
     fields_path: Path,
     out_dir: Path,
     solver_names: list,
@@ -1836,7 +1857,12 @@ def _plot_source_recovery_fields(
 
 
 def plot_drag_opt(
-    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "drag_opt"
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "drag_opt",
+    **_kw,
 ) -> list:
     """Two-panel plot per run: drag convergence curves + optimised inflow profiles.
 
@@ -2183,10 +2209,12 @@ def _render_drag_opt_evolution_gifs(
 
 
 def plot_conductivity_recovery(
-    cfg: ProblemConfig,
+    cfg: Problem,
+    *,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "conductivity_recovery",
+    **_kw,
 ):
     """Two outputs: loss curves + final-error bar; recovered conductivity field comparison.
 
@@ -2225,7 +2253,7 @@ def plot_conductivity_recovery(
     ax_lc.legend(fontsize=8)
     ax_lc.grid(True, which="both", alpha=0.3)
 
-    colors = [cfg.solvers[n].color if n in cfg.solvers else "#888888" for n in names]
+    colors = [cfg.solver(n).color if n in cfg.solvers else "#888888" for n in names]
     labels = [styles.get(n, {}).get("label", n) for n in names]
     ax_bar.bar(labels, final_errors, color=colors)
     ax_bar.set_ylabel("Final identification error")
@@ -2253,7 +2281,7 @@ def plot_conductivity_recovery(
 
 
 def _plot_conductivity_recovery_fields(
-    cfg: ProblemConfig,
+    cfg: Problem,
     fields_path: Path,
     out_dir: Path,
     solver_names: list,
@@ -2403,10 +2431,12 @@ def _render_conductivity_recovery_evolution_gifs(
 
 
 def plot_load_recovery(
-    cfg: ProblemConfig,
+    cfg: Problem,
+    *,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "load_recovery",
+    **_kw,
 ):
     """Three outputs: loss curves, density field comparison, per-solver evolution GIFs.
 
@@ -2482,7 +2512,7 @@ def plot_load_recovery(
     ax_err.legend(fontsize=8)
     ax_err.grid(True, which="both", alpha=0.3)
 
-    colors = [cfg.solvers[n].color if n in cfg.solvers else "#888888" for n in names]
+    colors = [cfg.solver(n).color if n in cfg.solvers else "#888888" for n in names]
     labels = [styles.get(n, {}).get("label", n) for n in names]
     ax_bar.bar(labels, rho_errors, color=colors)
     ax_bar.axhline(1.0, color="grey", linestyle="--", linewidth=0.8)
@@ -2510,7 +2540,7 @@ def plot_load_recovery(
 
 
 def _plot_load_recovery_density(
-    cfg: ProblemConfig,
+    cfg: Problem,
     fields_path: Path,
     out_dir: Path,
     solver_names: list,

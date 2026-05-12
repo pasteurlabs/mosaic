@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import unittest
 
+from mosaic.benchmarks.core.config import ExclusionCategory
 from mosaic.benchmarks.core.status import (
     ANOMALY,
-    EXCL_CATEGORICAL,
-    EXCL_INFEASIBLE,
     EXCLUDED,
     FAILED,
     NOT_RUN,
@@ -37,6 +36,11 @@ from mosaic.benchmarks.core.status import (
     weight_color,
     weight_emoji,
 )
+
+# Shorthand: Cell.category stores the raw string value of an ExclusionCategory
+# enum member, so tests can reference categories via the enum members.
+EXCL_CATEGORICAL = ExclusionCategory.CATEGORICAL.value
+EXCL_INFEASIBLE = ExclusionCategory.INFEASIBLE.value
 
 
 def _status_from_cells(cells_by_solver: dict[str, Cell]) -> ProblemStatus:

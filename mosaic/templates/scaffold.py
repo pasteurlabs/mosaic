@@ -161,7 +161,7 @@ def scaffold_domain(
     - ``mosaic_shared/problems/<domain>/schemas.py`` (stub)
     - ``mosaic_shared/problems/<domain>/__init__.py``
     - ``tesseracts/<domain>/`` (empty, ready for solver dirs)
-    - ``benchmarks/problems/<domain>.py`` (ProblemConfig stub)
+    - ``benchmarks/problems/<domain>.py`` (Problem stub)
 
     Returns a dict of generated file paths keyed by role.
     """
@@ -203,49 +203,108 @@ def scaffold_domain(
     tess_dir.mkdir(parents=True, exist_ok=True)
     created["tesseracts_dir"] = tess_dir
 
-    # 3. Problem config stub
+    # 3. Problem config package — five-file layout under benchmarks/problems/<slug>/.
     problems_dir = target_dir / "benchmarks" / "problems"
-    config_path = problems_dir / f"{slug}.py"
-    config_path.write_text(
-        f'"""Problem config for {domain_name}, generated from template: {tpl.name}."""\n\n'
+    pkg_dir = problems_dir / slug
+    pkg_dir.mkdir(parents=True, exist_ok=True)
+
+    n_default = tpl.physics_defaults.get("N", 8)
+
+    (pkg_dir / "__init__.py").write_text(
+        f'"""Problem package for {domain_name}, generated from template: {tpl.name}."""\n\n'
+        f"from .config import CONFIG\n\n"
+        f'__all__ = ["CONFIG"]\n'
+    )
+
+    (pkg_dir / "ics.py").write_text(
+        f'"""Initial-condition generators and the ``MAKE_IC`` registry."""\n\n'
         f"from __future__ import annotations\n\n"
-        f"from pathlib import Path\n\n"
         f"import numpy as np\n\n"
-        f"from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec, discover_solvers\n"
-        f"from mosaic.benchmarks.core.utils import l2_error_rel\n\n"
-        f"_GYM_DIR = Path(__file__).parent.parent.parent\n"
-        f'_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "{domain_name}"\n\n\n'
-        f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
-        f"_SOLVERS = discover_solvers(_TESSERACT_DIR)\n\n"
-        f"# Merge domain-specific overrides here, e.g.:\n"
-        f'# _SOLVERS["my_solver"].exclusions = {{...}}\n'
-        f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n\n'
-        f"def _make_ic(seed: int = 0, **physics) -> np.ndarray:\n"
+        f"from mosaic.benchmarks.core.config import IcSpec\n\n\n"
+        f"def _default_ic(seed: int = 0, **physics) -> np.ndarray:\n"
         f'    """Generate an initial condition. TODO: implement."""\n'
-        f"    N = physics.get('N', {tpl.physics_defaults.get('N', 8)})\n"
+        f"    N = physics.get('N', {n_default})\n"
         f"    return np.zeros(N, dtype=np.float32)\n\n\n"
-        f"def _make_inputs(solver_name: str, ic: np.ndarray, **physics) -> dict:\n"
-        f'    """Build solver inputs from IC and physics parameters. TODO: implement."""\n'
-        f'    return {{"{tpl.ic_key}": ic}}\n\n\n'
-        f"CONFIG = ProblemConfig(\n"
-        f'    name="{domain_name}",\n'
-        f"    tesseract_dir=_TESSERACT_DIR,\n"
-        f'    output_key="{tpl.output_key}",\n'
-        f"    solvers=_SOLVERS,\n"
-        f'    make_ic={{"default": _make_ic}},\n'
-        f"    make_inputs=_make_inputs,\n"
+        f"MAKE_IC: dict[str, IcSpec] = {{\n"
+        f'    "default": IcSpec(fn=_default_ic, description="TODO", plot_params={{}}),\n'
+        f"}}\n"
+    )
+
+    (pkg_dir / "physics.py").write_text(
+        f'"""Input factory + diagnostics. ``build_make_inputs`` captures per-solver\n'
+        f"``input_overrides`` from the solver list so we avoid importing back into\n"
+        f'``.config`` (which would form an import cycle)."""\n\n'
+        f"from __future__ import annotations\n\n"
+        f"from typing import Callable\n\n"
+        f"import numpy as np\n\n"
+        f"from mosaic.benchmarks.core.config import SolverSpec\n\n\n"
+        f"def build_make_inputs(solvers: list[SolverSpec]) -> Callable:\n"
+        f"    spec_by_name = {{s.name: s for s in solvers}}\n\n"
+        f"    def _make_inputs(solver_name: str, ic: np.ndarray, **physics) -> dict:\n"
+        f'        """Build solver inputs from IC and physics parameters. TODO: implement."""\n'
+        f"        spec = spec_by_name[solver_name]\n"
+        f'        base = {{"{tpl.ic_key}": ic}}\n'
+        f"        return {{**base, **spec.input_overrides}}\n\n"
+        f"    return _make_inputs\n\n\n"
+        f"DIAGNOSTICS: dict = {{}}\n"
+    )
+
+    (pkg_dir / "experiments.py").write_text(
+        f'"""Experiment + plot registrations for {domain_name}.\n\n'
+        f"Instantiate one :class:`Problem` with the closure deps, then call\n"
+        f"``.add()`` per experiment. The Problem's ``experiments`` /\n"
+        f"``plot_fns`` dicts are pulled into the final ``CONFIG`` from\n"
+        f'``config.py``."""\n\n'
+        f"from __future__ import annotations\n\n"
+        f"from mosaic.benchmarks.core.config import Problem\n"
+        f"from mosaic.benchmarks.core.utils import l2_error_rel\n\n"
+        f"from .ics import MAKE_IC\n\n\n"
+        f"problem = Problem(\n"
+        f"    make_ic=MAKE_IC,\n"
         f"    error_fn=l2_error_rel,\n"
-        f"    diagnostics={{}},\n"
+        f'    output_key="{tpl.output_key}",\n'
         f'    ic_key="{tpl.ic_key}",\n'
         f"    domain_extent={tpl.domain_extent},\n"
         f'    resolution_key="{tpl.resolution_key}",\n'
-        f"    forward_defaults={tpl.forward!r},\n"
-        f"    gradient_defaults={tpl.gradient!r},\n"
-        f"    cost_defaults={tpl.cost!r},\n"
-        f"    inverse_defaults={tpl.optimization!r},\n"
-        f'    description="{tpl.description.strip()}",\n'
-        f")\n"
+        f")\n\n"
+        f"# TODO: register experiments with problem.add(...).\n"
+        f"#   from mosaic.benchmarks.shared.forward import run_agreement\n"
+        f'#   problem.add("forward/baseline", run_agreement, ic={{...}}, physics={{...}})\n\n'
+        f"# TODO: register IC visualisations:\n"
+        f"#   for ic_name, ic_spec in MAKE_IC.items():\n"
+        f"#       problem.add_ic(ic_name, ic_spec.plot_params)\n\n"
+        f"EXPERIMENTS = problem.experiments\n"
+        f"PLOT_FNS = problem.plot_fns\n"
+    )
+
+    config_path = pkg_dir / "config.py"
+    config_path.write_text(
+        f'"""Solver discovery, exclusions, and the assembled ``Problem``."""\n\n'
+        f"from __future__ import annotations\n\n"
+        f"from pathlib import Path\n\n"
+        f"from mosaic.benchmarks.core.config import SolverSpec, discover_solvers\n"
+        f"from mosaic.benchmarks.shared.plots.solver_styles import apply_styles\n\n"
+        f"from .experiments import EXPERIMENTS, PLOT_FNS, problem\n"
+        f"from .ics import MAKE_IC\n"
+        f"from .physics import DIAGNOSTICS, build_make_inputs\n\n"
+        f"_GYM_DIR = Path(__file__).parent.parent.parent.parent\n"
+        f'_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "{domain_name}"\n\n\n'
+        f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
+        f"_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)\n"
+        f"apply_styles(_SOLVERS)\n\n"
+        f"# Merge domain-specific overrides here, e.g.:\n"
+        f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n'
+        f"_SOLVERS_LIST = list(_SOLVERS.values())\n\n"
+        f"# Fill in the runtime registry on the Problem built in experiments.py.\n"
+        f'problem.name = "{domain_name}"\n'
+        f"problem.tesseract_dir = _TESSERACT_DIR\n"
+        f"problem.solvers = _SOLVERS_LIST\n"
+        f"problem.make_inputs = build_make_inputs(_SOLVERS_LIST)\n"
+        f"problem.diagnostics = DIAGNOSTICS\n"
+        f'problem.description = "{tpl.description.strip()}"\n\n'
+        f"CONFIG = problem\n"
     )
     created["problem_config"] = config_path
+    created["problem_pkg"] = pkg_dir
 
     return created

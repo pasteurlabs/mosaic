@@ -7,9 +7,9 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.plots.style import (
+from mosaic.benchmarks.shared.plots.style import (
     apply_style,
     field_grid,
     fig_shared_legend,
@@ -30,7 +30,15 @@ _SUITE = "gradient"
 
 
 def plot_fd_check(
-    cfg: ProblemConfig, save: bool = True, suffix: str = "", exp_key: str = "fd_check"
+    cfg: Problem,
+    *,
+    ic_to_2d=None,
+    ic_key: str = "ic",
+    diagnostic_fields: bool = True,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "fd_check",
+    **_kw,
 ):
     """Two files: FD error + subspace cosine curves, and gradient magnitude field panels."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
@@ -79,12 +87,12 @@ def plot_fd_check(
     solver_names = npz["solver_names"].tolist()
     ic = npz["ic"]
 
-    # Determine IC transform: use cfg.ic_to_2d when set (density/IC field),
+    # Determine IC transform: use ic_to_2d when set (density/IC field),
     # fall back to vorticity_2d for 2-D velocity fields (ndim==4), or skip
     # entirely if neither applies.
-    if cfg.ic_to_2d is not None:
-        f_ic = cfg.ic_to_2d
-    elif cfg.diagnostic_fields:
+    if ic_to_2d is not None:
+        f_ic = ic_to_2d
+    elif diagnostic_fields:
         f_ic = vorticity_2d if ic.ndim == 4 else None
     else:
         f_ic = None
@@ -92,7 +100,7 @@ def plot_fd_check(
         return fig_c
 
     ic_arr = f_ic(ic)
-    ic_label = f"IC ({cfg.ic_key})"
+    ic_label = f"IC ({ic_key})"
     # Non-negative IC (e.g. density ρ ∈ [0,1]): sequential gray_r, no symmetric range.
     # Signed IC (e.g. density contrast δ₀): symmetric RdBu_r.
     if ic_arr.min() >= -1e-6:
@@ -113,7 +121,7 @@ def plot_fd_check(
             raw = npz[key]
             # Use the same spatial transform as the IC when available (same per-cell shape).
             # Fall back to the generic grad_magnitude_2d for problems without ic_to_2d.
-            if cfg.ic_to_2d is not None:
+            if ic_to_2d is not None:
                 g = np.abs(f_ic(raw)).astype(np.float32)
             else:
                 g = grad_magnitude_2d(raw)
@@ -318,10 +326,13 @@ def _plot_ucurve_overlay(
 
 
 def plot_param_sweep(
-    cfg: ProblemConfig,
+    cfg: Problem,
+    *,
+    units: dict | None = None,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "param_sweep",
+    **_kw,
 ):
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
@@ -340,7 +351,11 @@ def plot_param_sweep(
         if subdirs:
             for sub in subdirs:
                 plot_param_sweep(
-                    cfg, save=save, suffix=f"{suffix}/{sub.name}", exp_key=exp_key
+                    cfg,
+                    units=units,
+                    save=save,
+                    suffix=f"{suffix}/{sub.name}",
+                    exp_key=exp_key,
                 )
             return
         else:
@@ -365,7 +380,7 @@ def plot_param_sweep(
         axes[1].loglog(param_f, re_mean, label=styles[name]["label"], **props)
         axes[2].semilogx(param_f, cosines, label=styles[name]["label"], **props)
 
-    xlbl = unit_label(sweep_key, cfg.units)
+    xlbl = unit_label(sweep_key, units)
     axes[0].set_xlabel(xlbl)
     axes[0].set_ylabel("Gradient norm")
     axes[0].set_title(f"G2a — gradient norm vs {sweep_key}")
@@ -429,7 +444,15 @@ def plot_param_sweep(
 # ── G2b: resolution sweep ────────────────────────────────────────────────────
 
 
-def plot_resolution_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_resolution_sweep(
+    cfg: Problem,
+    *,
+    resolution_key: str = "N",
+    units: dict | None = None,
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Summary curves (grad norm + best-ε error + cosine) and U-curve grid vs N."""
     out_dir = results_dir() / cfg.name / _SUITE / f"resolution_sweep{suffix}"
     result_path = out_dir / "result.json"
@@ -465,7 +488,7 @@ def plot_resolution_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = "
         axes[1].loglog(N_f, re_mean, label=styles[name]["label"], **props)
         axes[2].semilogx(N_f, cosines, label=styles[name]["label"], **props)
 
-    res_lbl = unit_label(cfg.resolution_key, cfg.units)
+    res_lbl = unit_label(resolution_key, units)
     axes[0].set_xlabel(res_lbl)
     axes[0].set_ylabel("Gradient norm")
     axes[0].set_title("G2b — gradient norm vs resolution")
@@ -557,10 +580,15 @@ def plot_resolution_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = "
 
 
 def plot_jacobian_svd(
-    cfg: ProblemConfig,
+    cfg: Problem,
+    *,
+    ic_to_2d=None,
+    ic_key: str = "ic",
+    diagnostic_fields: bool = True,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "jacobian_svd",
+    **_kw,
 ):
     """Three files:
     - jacobian_svd.png: singular spectrum + explained variance + cosine heatmap
@@ -669,9 +697,9 @@ def plot_jacobian_svd(
     npz_solvers = npz["solver_names"].tolist()
     ic = npz["ic"]
 
-    if cfg.ic_to_2d is not None:
-        f_ic = cfg.ic_to_2d
-    elif cfg.diagnostic_fields:
+    if ic_to_2d is not None:
+        f_ic = ic_to_2d
+    elif diagnostic_fields:
         f_ic = vorticity_2d if ic.ndim == 4 else None
     else:
         f_ic = None
@@ -688,14 +716,14 @@ def plot_jacobian_svd(
     else:
         ic_vmax = float(np.abs(ic_arr).max())
         ic_panel_kw = {"cmap": "RdBu_r", "vmin": -ic_vmax, "vmax": ic_vmax}
-    panels = [(f"IC ({cfg.ic_key})", ic_arr, ic_panel_kw)]
+    panels = [(f"IC ({ic_key})", ic_arr, ic_panel_kw)]
 
     for j, name in enumerate(npz_solvers):
         key = f"grad_{j}"
         if key in npz:
             raw = npz[key]
-            # Use cfg.ic_to_2d when available (same per-cell transform as IC).
-            if cfg.ic_to_2d is not None:
+            # Use ic_to_2d when available (same per-cell transform as IC).
+            if ic_to_2d is not None:
                 g = np.abs(f_ic(raw)).astype(np.float32)
             else:
                 g = grad_magnitude_2d(raw)
@@ -714,7 +742,7 @@ def plot_jacobian_svd(
         ref_shape = npz["grad_0"].shape
         if d_top_flat.size == np.prod(ref_shape):
             d_top = d_top_flat.reshape(ref_shape)
-            if cfg.ic_to_2d is not None:
+            if ic_to_2d is not None:
                 d_top_2d = np.abs(f_ic(d_top)).astype(np.float32)
             else:
                 d_top_2d = grad_magnitude_2d(d_top)
@@ -763,7 +791,8 @@ def _memory_sweep_draw_panel(ax, by_data, x_label, x_to_int, title, cfg, styles)
     x_arr = np.array([x_to_int(k) for k in all_keys], dtype=float)
     has_gpu_label = False
     has_ram_label = False
-    for name in cfg.solvers:
+    for spec in cfg.solvers:
+        name = spec.name
         solver_data = by_data.get(name, {})
         if not solver_data:
             continue
@@ -905,7 +934,14 @@ def _memory_sweep_fig_ratio(
     return fig_r
 
 
-def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_memory_sweep(
+    cfg: Problem,
+    *,
+    resolution_key: str = "N",
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Two files:
     - memory_sweep.png: fwd vs VJP peak GPU memory vs N and vs steps (all solvers).
     - memory_ratio.png: VJP / forward memory ratio vs N and vs steps (diff solvers).
@@ -925,7 +961,7 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
     if not has_N and not has_steps:
         return None
 
-    res_key = cfg.resolution_key
+    res_key = resolution_key
 
     # ── Figure 1: forward vs VJP memory ─────────────────────────────────────
     fig, N_keys, steps_keys = _memory_sweep_fig_main(
@@ -936,10 +972,10 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
     # ── Figure 2: VJP / forward memory ratio (differentiable solvers only) ────
     diff_solvers_with_vjp = [
-        name
-        for name in cfg.solvers
-        if _memory_sweep_has_vjp({name: by_N.get(name, {})})
-        or _memory_sweep_has_vjp({name: by_steps.get(name, {})})
+        s.name
+        for s in cfg.solvers
+        if _memory_sweep_has_vjp({s.name: by_N.get(s.name, {})})
+        or _memory_sweep_has_vjp({s.name: by_steps.get(s.name, {})})
     ]
     if not diff_solvers_with_vjp:
         return fig
@@ -965,7 +1001,13 @@ def plot_memory_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 # ── G2c: horizon sweep ────────────────────────────────────────────────────────
 
 
-def plot_horizon_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
+def plot_horizon_sweep(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **_kw,
+):
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid,
     plus gradient field panels."""
     out_dir = results_dir() / cfg.name / _SUITE / f"horizon_sweep{suffix}"
@@ -1072,10 +1114,12 @@ def plot_horizon_sweep(cfg: ProblemConfig, save: bool = True, suffix: str = ""):
 
 
 def plot_jacobian_svd_comparison(
-    cfg: ProblemConfig,
+    cfg: Problem,
     exp_keys: list[str] | None = None,
+    *,
     save: bool = True,
     out_name: str = "jacobian_svd_comparison",
+    **_kw,
 ):
     """Overlay per-solver singular value spectra across multiple jacobian_svd variants.
 

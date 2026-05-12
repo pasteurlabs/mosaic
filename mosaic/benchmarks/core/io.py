@@ -46,7 +46,7 @@ import jax
 import numpy as np
 from filelock import FileLock
 
-from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import print_saved
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -597,17 +597,16 @@ def _scan_known_solvers(
             _scan_known_solvers(v, known_solvers, names, depth - 1)
 
 
-def _compute_tesseract_hashes(
-    result: dict, cfg: ProblemConfig | None
-) -> dict[str, str]:
+def _compute_tesseract_hashes(result: dict, cfg: Problem | None) -> dict[str, str]:
     """Compute fresh tesseract content hashes for solvers present in ``result``."""
     if not isinstance(result, dict) or cfg is None:
         return {}
-    known_solvers = {str(k) for k in cfg.solvers}
+    known_solvers = {s.name for s in cfg.solvers}
     hashes: dict[str, str] = {}
     for s in _solvers_in_result(result, known_solvers=known_solvers):
-        spec = cfg.solvers.get(s)
-        if spec is None:
+        try:
+            spec = cfg.solver(s)
+        except KeyError:
             continue
         tess_dir = cfg.tesseract_dir / spec.dir
         if tess_dir.is_dir():
@@ -744,7 +743,7 @@ def save_experiment(
     result: dict,
     out_dir: Path,
     csv_rows: list[dict] | None = None,
-    cfg: ProblemConfig | None = None,
+    cfg: Problem | None = None,
     harness_fn=None,
     wall_time_s: dict[str, float] | None = None,
 ) -> None:

@@ -105,7 +105,7 @@ def _install_tesseract_http_timeout() -> None:
 
 _install_tesseract_http_timeout()
 
-from .config import ProblemConfig  # noqa: E402
+from .config import Problem  # noqa: E402
 from .console import (  # noqa: E402
     console,
     make_build_progress,
@@ -156,7 +156,7 @@ _current_problem: str = ""
 
 
 def build_all(
-    cfg: ProblemConfig, tag: str = "latest", max_workers: int = 2
+    cfg: Problem, tag: str = "latest", max_workers: int = 2
 ) -> dict[str, str]:
     """Build all solver images in parallel. Returns name → image_tag.
 
@@ -182,8 +182,8 @@ def build_all(
             return f"{image_name}:{tag}"
         return f"{spec.dir}:{tag}"
 
-    def _build(item):
-        name, spec = item
+    def _build(spec):
+        name = spec.name
         # Run any adjacent build_base.sh first — lets tesseracts ship a
         # locally-built base-image wrapper (e.g. dealii-root:latest that
         # switches the upstream dealii/dealii image to USER root so the
@@ -239,9 +239,7 @@ def build_all(
     with make_build_progress() as progress:
         task = progress.add_task("building solver images...", total=len(cfg.solvers))
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {
-                pool.submit(_build, item): item[0] for item in cfg.solvers.items()
-            }
+            futures = {pool.submit(_build, spec): spec.name for spec in cfg.solvers}
             for future in concurrent.futures.as_completed(futures):
                 solver_name = futures[future]
                 try:
@@ -259,13 +257,14 @@ def build_all(
     return images
 
 
-def image_tags_no_build(cfg: ProblemConfig) -> dict[str, str]:
+def image_tags_no_build(cfg: Problem) -> dict[str, str]:
     """Return name → image_tag without building, using SolverSpec.image_tag
     if set, otherwise deriving the image name from the tesseract_config.yaml."""
     import yaml
 
     tags = {}
-    for name, spec in cfg.solvers.items():
+    for spec in cfg.solvers:
+        name = spec.name
         if spec.image_tag:
             tags[name] = spec.image_tag
         else:
@@ -284,7 +283,7 @@ def image_tags_no_build(cfg: ProblemConfig) -> dict[str, str]:
 
 
 def run_suite(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     experiments: dict,
     to_run: list[str] | None = None,
@@ -297,14 +296,16 @@ def run_suite(
     """Run a set of named experiments and optionally generate plots.
 
     Args:
-        cfg:             ProblemConfig instance.
+        cfg:             Problem instance.
         tags:            solver name → image tag mapping.
         experiments:     {name: callable(cfg, tags) → dict}
         to_run:          subset of names to run; None runs all.
         plots:           if True, call matching entries in plot_fns after experiments.
-        plot_fns:        {name: callable(cfg)} for plot generation; None skips plots.
-        suite_name:      name of the suite (e.g. "calibration") used to look up
-                         cfg.extra_plots for problem-specific plot hooks.
+        plot_fns:        {name: callable(cfg)} for plot generation; None skips
+                         plots. Entries whose name starts with ``"_extra/"`` are
+                         suite-wide bonus plots — fired unconditionally after the
+                         per-experiment plots, regardless of which experiments ran.
+        suite_name:      name of the suite (e.g. "forward"), passed for display.
         verbose_errors:  if True, print full traceback on experiment/plot failures.
 
     Returns:
@@ -344,6 +345,7 @@ def run_suite(
             _plot_cfg = _get_cfg(cfg.name)
         except Exception:
             _plot_cfg = cfg
+        # Regular per-experiment plots: only fire when the matching experiment ran.
         for name in to_run:
             if name in plot_fns and name in results:
                 try:
@@ -352,13 +354,17 @@ def run_suite(
                     if verbose_errors:
                         console.print_exception()
                     print_warn(f"plot_{name} failed: {exc}")
-        for fn in _plot_cfg.extra_plots.get(suite_name, []):
+        # Suite-wide bonus plots ("_extra/<name>") — fire unconditionally.
+        for key, fn in plot_fns.items():
+            if not key.startswith("_extra/"):
+                continue
+            short_name = key[len("_extra/") :]
             try:
                 fn(_plot_cfg)
             except Exception as exc:
                 if verbose_errors:
                     console.print_exception()
-                print_warn(f"{fn.__name__} failed: {exc}")
+                print_warn(f"{short_name} failed: {exc}")
 
     return results
 
@@ -367,7 +373,7 @@ def run_suite(
 
 
 def solver_sweep(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     conditions: list,
     fn,
@@ -427,7 +433,7 @@ def solver_sweep(
         task = progress.add_task("running sweep...", total=n_total)
 
         def _per_solver(name: str, t) -> None:
-            color = cfg.solvers[name].color
+            color = cfg.solver(name).color
             t0 = time.perf_counter()
             for ci, cond in enumerate(conditions):
                 label = cond_labels[ci]
