@@ -553,8 +553,9 @@ def plot_recovery(
 ):
     """Three files: error vs horizon + failure bars, loss curves, IC field comparison.
 
-    When results live in per-IC subdirectories (from ``--ics`` runs), pass ``ic``
-    to select a specific IC (e.g. ``ic="multimode"``).  If the root-level
+    When results live in per-IC subdirectories (from
+    ``--experiments <suite>/<exp>/<ic>`` runs), pass ``ic`` to select a specific
+    IC (e.g. ``ic="multimode"``).  If the root-level
     ``result.json`` is not found, the function automatically falls back to the
     first available IC subdirectory.
     """

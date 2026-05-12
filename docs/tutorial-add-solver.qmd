@@ -402,7 +402,7 @@ This runs the full forward evaluation suite (baseline resolution sweep, inter-so
 ### Gradient quality
 
 ```bash
-mosaic run -p ns-grid --suites gradient -s my_spectral_solver -e fd_check --no-build
+mosaic run -p ns-grid -e gradient/fd_check -s my_spectral_solver --no-build
 ```
 
 This runs the finite-difference gradient check, comparing your VJP against central finite differences along random perturbation directions. Look for cosine similarity > 0.99 and relative error < 0.01.

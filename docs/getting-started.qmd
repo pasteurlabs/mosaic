@@ -73,7 +73,7 @@ Each suite can target a specific problem and (optionally) a specific solver:
 mosaic run -p ns-grid --suites forward
 
 # Gradient quality check for a single solver (quick debug mode)
-mosaic run -p ns-grid --suites gradient -e fd_check --debug
+mosaic run -p ns-grid -e gradient/fd_check --debug
 
 # Cost scaling for structural mechanics
 mosaic run -p structural-mesh --suites cost
@@ -87,8 +87,8 @@ mosaic run -p thermal-mesh --suites optimization
 | Flag | Effect |
 |:-----|:-------|
 | `-s <solver>` | Run only one solver |
-| `-e <experiment>` | Run only one experiment within a suite |
-| `--ics <name>` | Use a specific initial condition (e.g. `tgv`, `multimode`) |
+| `-e <suite>/<exp>` | Run only one experiment within a suite |
+| `-e <suite>/<exp>/<ic>` | Pin one initial condition (e.g. `forward/agreement/tgv`) |
 | `--debug` | Small problem size for quick iteration |
 | `--no-build` | Skip container builds (use existing images) |
 | `--no-plots` | Skip plot generation |

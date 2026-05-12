@@ -456,8 +456,8 @@ def plot_resolution_sweep(
     """Summary curves (grad norm + best-ε error + cosine) and U-curve grid vs N."""
     out_dir = results_dir() / cfg.name / _SUITE / f"resolution_sweep{suffix}"
     result_path = out_dir / "result.json"
-    # When --ics <name> is used the run lands in a subdir; fall back to the
-    # first IC subdir that contains a result.json.
+    # When an IC filter is used (e.g. `-e gradient/resolution_sweep/<ic>`) the
+    # run lands in a subdir; fall back to the first IC subdir with a result.json.
     if not result_path.exists():
         subdirs = (
             sorted(
