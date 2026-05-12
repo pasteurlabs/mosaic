@@ -22,7 +22,11 @@ from mosaic.benchmarks.core.io import (
     try_load_npz,
 )
 from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
-from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_pool
+from mosaic.benchmarks.core.runner import (
+    current_worker_context,
+    per_solver_loop,
+    run_with_gpu_pool,
+)
 
 # JAX-traced closures capture this reference at trace time; using the
 # tracer-aware wrapper ensures primitive binding sees the active trace.
@@ -155,84 +159,79 @@ def run_fd_check(
         results: dict = {}
         grad_snaps: dict = {}
         gpu_ids = overrides.get("gpu_ids")
-        _wall_times: dict[str, float] = {}
 
         def _fd_work(
             name: str, t, _run_ic_key=run_ic_key, _run_output_key=run_output_key
         ) -> None:
-            color = cfg.solver(name).color
-            t0 = time.perf_counter()
-            try:
-                base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
-                # Use the actual IC from make_inputs as the perturbation base.  For some
-                # problems (e.g. structural-mesh) make_inputs may override the passed ic
-                # (e.g. via a rho_0 parameter), so we must perturb around base_inputs[ic_key]
-                # rather than the raw ic array — otherwise the FD sees no perturbation.
-                base_ic = jnp.array(base_inputs[_run_ic_key])
-                # Scale ε relative to IC magnitude so eps_values are problem-agnostic.
-                ic_scale = float(jnp.sqrt(jnp.mean(base_ic**2) + 1e-30))
-                dirs_base = [_random_direction(base_ic.shape, k) for k in keys]
-                solver_results: dict = {}
-                g = _vjp_grad(t, base_inputs, _run_output_key, _run_ic_key)
-                grad_snaps[name] = {"ic": np.array(base_ic), "grad": np.array(g)}
-                vjp_arr = np.array(
-                    [float(jnp.dot(g.ravel(), v.ravel())) for v in dirs_base]
-                )
-                for eps in eps_values:
-                    abs_eps = eps * ic_scale
-                    fd_arr = np.array(
-                        [
-                            float(
-                                jnp.sum(
-                                    apply_tesseract(
-                                        t,
-                                        {
-                                            **base_inputs,
-                                            _run_ic_key: base_ic + abs_eps * v,
-                                        },
-                                    )[_run_output_key]
-                                    ** 2
-                                    - apply_tesseract(
-                                        t,
-                                        {
-                                            **base_inputs,
-                                            _run_ic_key: base_ic - abs_eps * v,
-                                        },
-                                    )[_run_output_key]
-                                    ** 2
-                                )
-                                / (2 * abs_eps)
+            base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
+            # Use the actual IC from make_inputs as the perturbation base.  For some
+            # problems (e.g. structural-mesh) make_inputs may override the passed ic
+            # (e.g. via a rho_0 parameter), so we must perturb around base_inputs[ic_key]
+            # rather than the raw ic array — otherwise the FD sees no perturbation.
+            base_ic = jnp.array(base_inputs[_run_ic_key])
+            # Scale ε relative to IC magnitude so eps_values are problem-agnostic.
+            ic_scale = float(jnp.sqrt(jnp.mean(base_ic**2) + 1e-30))
+            dirs_base = [_random_direction(base_ic.shape, k) for k in keys]
+            solver_results: dict = {}
+            g = _vjp_grad(t, base_inputs, _run_output_key, _run_ic_key)
+            grad_snaps[name] = {"ic": np.array(base_ic), "grad": np.array(g)}
+            vjp_arr = np.array(
+                [float(jnp.dot(g.ravel(), v.ravel())) for v in dirs_base]
+            )
+            for eps in eps_values:
+                abs_eps = eps * ic_scale
+                fd_arr = np.array(
+                    [
+                        float(
+                            jnp.sum(
+                                apply_tesseract(
+                                    t,
+                                    {
+                                        **base_inputs,
+                                        _run_ic_key: base_ic + abs_eps * v,
+                                    },
+                                )[_run_output_key]
+                                ** 2
+                                - apply_tesseract(
+                                    t,
+                                    {
+                                        **base_inputs,
+                                        _run_ic_key: base_ic - abs_eps * v,
+                                    },
+                                )[_run_output_key]
+                                ** 2
                             )
-                            for v in dirs_base
-                        ]
-                    )
-                    denom = np.maximum(
-                        np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30
-                    )
-                    solver_results[eps] = {
-                        "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
-                        "cosine": _fd_cosine(fd_arr, vjp_arr),
-                        # Persist the raw per-direction FD derivative so the
-                        # rel_error / cosine summaries can be recomputed (or
-                        # replaced with alternative statistics) without
-                        # rerunning the benchmark. ``vjp_arr`` is the same for
-                        # every eps so it's stored once at the solver level.
-                        "fd_arr": fd_arr.tolist(),
-                    }
-                results[name] = {
-                    "ic_scale": ic_scale,
-                    "vjp_arr": vjp_arr.tolist(),
-                    "eps_sweep": solver_results,
-                }
-                elapsed = time.perf_counter() - t0
-                _wall_times[name] = elapsed
-                console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-            except Exception as exc:
-                console.print(
-                    f"  [{color}]{name}[/] [yellow]SKIP (VJP failed: {exc})[/]"
+                            / (2 * abs_eps)
+                        )
+                        for v in dirs_base
+                    ]
                 )
+                denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
+                solver_results[eps] = {
+                    "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
+                    "cosine": _fd_cosine(fd_arr, vjp_arr),
+                    # Persist the raw per-direction FD derivative so the
+                    # rel_error / cosine summaries can be recomputed (or
+                    # replaced with alternative statistics) without
+                    # rerunning the benchmark. ``vjp_arr`` is the same for
+                    # every eps so it's stored once at the solver level.
+                    "fd_arr": fd_arr.tolist(),
+                }
+            results[name] = {
+                "ic_scale": ic_scale,
+                "vjp_arr": vjp_arr.tolist(),
+                "eps_sweep": solver_results,
+            }
 
-        run_with_gpu_pool(diff_solvers, tags, _fd_work, gpu_ids=gpu_ids)
+        _wall_times = per_solver_loop(
+            cfg,
+            tags,
+            diff_solvers,
+            _fd_work,
+            gpu_ids=gpu_ids,
+            catch=True,
+            catch_label="VJP failed",
+        )
 
         exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
         out_dir = experiment_dir(
@@ -430,7 +429,6 @@ def _run_generic_param_sweep(
         results: dict = {}
         grad_snaps: dict = {}  # name → {val: grad array}
         gpu_ids = overrides.get("gpu_ids")
-        _wall_times: dict[str, float] = {}
 
         def _param_work(
             name: str,
@@ -440,39 +438,37 @@ def _run_generic_param_sweep(
             _ic_per_val=ic_per_val,
             _dirs_per_val=dirs_per_val,
         ) -> None:
-            color = cfg.solver(name).color
-            t0 = time.perf_counter()
-            try:
-                solver_results: dict = {}
-                solver_grads: dict = {}
-                for val in sweep_values:
-                    # Use per-val IC/dirs if ic_sweep=True, else shared IC/dirs.
-                    _ic = _ic_per_val[val] if _ic_per_val is not None else ic
-                    _dirs = _dirs_per_val[val] if _dirs_per_val is not None else dirs
-                    entry, g = _eps_sweep(
-                        t,
-                        name,
-                        _ic,
-                        _dirs,
-                        eps_values,
-                        {**phys, sweep_key: val, "domain_extent": domain_extent},
-                        make_inputs=make_inputs,
-                        ic_key=_run_ic_key,
-                        output_key=_run_output_key,
-                    )
-                    solver_results[val] = entry
-                    solver_grads[val] = np.array(g)
-                results[name] = solver_results
-                grad_snaps[name] = solver_grads
-                elapsed = time.perf_counter() - t0
-                _wall_times[name] = elapsed
-                console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-            except Exception as exc:
-                console.print(
-                    f"  [{color}]{name}[/] [yellow]SKIP (VJP failed: {exc})[/]"
+            solver_results: dict = {}
+            solver_grads: dict = {}
+            for val in sweep_values:
+                # Use per-val IC/dirs if ic_sweep=True, else shared IC/dirs.
+                _ic = _ic_per_val[val] if _ic_per_val is not None else ic
+                _dirs = _dirs_per_val[val] if _dirs_per_val is not None else dirs
+                entry, g = _eps_sweep(
+                    t,
+                    name,
+                    _ic,
+                    _dirs,
+                    eps_values,
+                    {**phys, sweep_key: val, "domain_extent": domain_extent},
+                    make_inputs=make_inputs,
+                    ic_key=_run_ic_key,
+                    output_key=_run_output_key,
                 )
+                solver_results[val] = entry
+                solver_grads[val] = np.array(g)
+            results[name] = solver_results
+            grad_snaps[name] = solver_grads
 
-        run_with_gpu_pool(diff_solvers, tags, _param_work, gpu_ids=gpu_ids)
+        _wall_times = per_solver_loop(
+            cfg,
+            tags,
+            diff_solvers,
+            _param_work,
+            gpu_ids=gpu_ids,
+            catch=True,
+            catch_label="VJP failed",
+        )
 
         out_dir = experiment_dir(
             results_dir(),
@@ -685,7 +681,6 @@ def run_horizon_sweep_limits(
         diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
         results: dict = {}
         grad_snaps: dict = {}
-        _wall_times: dict[str, float] = {}
 
         def _limits_work(
             name: str,
@@ -694,7 +689,6 @@ def run_horizon_sweep_limits(
             _run_output_key=run_output_key,
         ) -> None:
             color = cfg.solver(name).color
-            t0 = time.perf_counter()
 
             # GPU ID is set per-thread by run_with_gpu_pool; container ID is
             # extracted from the Tesseract object. Both may be None (serial
@@ -795,11 +789,10 @@ def run_horizon_sweep_limits(
             results[name] = solver_results
             if solver_grads:
                 grad_snaps[name] = solver_grads
-            elapsed = time.perf_counter() - t0
-            _wall_times[name] = elapsed
-            console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
-        run_with_gpu_pool(diff_solvers, tags, _limits_work, gpu_ids=gpu_ids)
+        _wall_times = per_solver_loop(
+            cfg, tags, diff_solvers, _limits_work, gpu_ids=gpu_ids
+        )
 
         out_dir = experiment_dir(
             results_dir(),
@@ -912,59 +905,53 @@ def run_jacobian_svd(
         grad_snaps: dict = {}  # name → (D_in,) ndarray  [for field plots]
         base_inputs_snap: dict = {}
         gpu_ids = overrides.get("gpu_ids")
-        _wall_times: dict[str, float] = {}
 
         # ── Pass 1: full Jacobian via jacrev ──────────────────────────────────
         # jax.jacrev computes ∂output[i]/∂ic[j] for all (i,j), giving the full
         # (D_out, D_in) Jacobian with D_out VJP calls — tractable for small N.
         def _svd_work(name: str, t) -> None:
             color = cfg.solver(name).color
-            t0 = time.perf_counter()
-            try:
-                base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
-                base_ic = jnp.array(base_inputs[ic_key])
+            base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
+            base_ic = jnp.array(base_inputs[ic_key])
 
-                def fwd(ic_arr):
-                    return apply_tesseract(t, {**base_inputs, ic_key: ic_arr})[
-                        output_key
-                    ]
+            def fwd(ic_arr):
+                return apply_tesseract(t, {**base_inputs, ic_key: ic_arr})[output_key]
 
-                # Full Jacobian via sequential VJP (one call per output element).
-                # jax.jacrev uses vmap which tesseract does not support, so we loop.
-                out, vjp_fn = jax.vjp(fwd, base_ic)
-                out_arr = np.array(out)
-                D_out = int(out_arr.size)
-                J_rows = []
-                _log_every = max(1, D_out // 8)
-                console.print(f"  [{color}]{name}[/] Jacobian {D_out} rows starting")
-                for i in range(D_out):
-                    e_i = jnp.zeros(D_out).at[i].set(1.0)
-                    (row,) = vjp_fn(e_i.reshape(out_arr.shape))
-                    J_rows.append(np.array(row).ravel())
-                    if (i + 1) % _log_every == 0:
-                        console.print(
-                            f"  [{color}]{name}[/] Jacobian {i + 1}/{D_out} rows done"
-                        )
-                J_mat = np.stack(J_rows)  # (D_out, D_in)
-                jacobians[name] = J_mat
+            # Full Jacobian via sequential VJP (one call per output element).
+            # jax.jacrev uses vmap which tesseract does not support, so we loop.
+            out, vjp_fn = jax.vjp(fwd, base_ic)
+            out_arr = np.array(out)
+            D_out = int(out_arr.size)
+            J_rows = []
+            _log_every = max(1, D_out // 8)
+            console.print(f"  [{color}]{name}[/] Jacobian {D_out} rows starting")
+            for i in range(D_out):
+                e_i = jnp.zeros(D_out).at[i].set(1.0)
+                (row,) = vjp_fn(e_i.reshape(out_arr.shape))
+                J_rows.append(np.array(row).ravel())
+                if (i + 1) % _log_every == 0:
+                    console.print(
+                        f"  [{color}]{name}[/] Jacobian {i + 1}/{D_out} rows done"
+                    )
+            J_mat = np.stack(J_rows)  # (D_out, D_in)
+            jacobians[name] = J_mat
 
-                # Gradient of sum(output²) = J^T @ (2*output): for field plots
-                grad_snaps[name] = (J_mat.T @ (2.0 * out_arr.ravel())).reshape(
-                    base_ic.shape
-                )
+            # Gradient of sum(output²) = J^T @ (2*output): for field plots
+            grad_snaps[name] = (J_mat.T @ (2.0 * out_arr.ravel())).reshape(
+                base_ic.shape
+            )
 
-                base_inputs_snap[name] = (dict(base_inputs), np.array(base_ic))
-                elapsed = time.perf_counter() - t0
-                _wall_times[name] = elapsed
-                console.print(
-                    f"  [{color}]{name}[/] J {J_mat.shape} done in {elapsed:.1f}s"
-                )
-            except Exception as exc:
-                console.print(
-                    f"  [{color}]{name}[/] [yellow]SKIP (VJP failed: {exc})[/]"
-                )
+            base_inputs_snap[name] = (dict(base_inputs), np.array(base_ic))
 
-        run_with_gpu_pool(diff_solvers, tags, _svd_work, gpu_ids=gpu_ids)
+        _wall_times = per_solver_loop(
+            cfg,
+            tags,
+            diff_solvers,
+            _svd_work,
+            gpu_ids=gpu_ids,
+            catch=True,
+            catch_label="VJP failed",
+        )
 
         if not jacobians:
             raise RuntimeError("No differentiable solvers returned Jacobians")

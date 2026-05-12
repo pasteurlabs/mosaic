@@ -9,7 +9,6 @@ Run from the terminal:
 from __future__ import annotations
 
 import threading
-import time
 from dataclasses import dataclass, field
 
 import jax
@@ -26,7 +25,7 @@ from mosaic.benchmarks.core.io import (
     save_json,
     save_npz_merged,
 )
-from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.runner import per_solver_loop
 
 # JAX-traced loss_fn closures capture this reference at trace time;
 # using the tracer-aware wrapper ensures primitive binding sees the
@@ -920,11 +919,13 @@ def _collect_final_states(ctx: _RecoveryRunCtx, name: str, t, best_conv: dict) -
 
 
 def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
-    """Per-solver worker: run the full sweep optimisation pipeline."""
+    """Per-solver worker: run the full sweep optimisation pipeline.
+
+    Wall-time bookkeeping is handled by :func:`per_solver_loop` in the caller.
+    """
     from mosaic.benchmarks.core.console import console
 
     color = ctx.cfg.solver(name).color
-    t0 = time.perf_counter()
     ctx.by_sweep[name] = {}
     best_conv: dict = {}
     all_ic_opts: dict = {}
@@ -939,7 +940,6 @@ def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
         if sigma_target is None:
             for val in ctx.sweep_values:
                 ctx.by_sweep[name][val] = None
-            ctx.wall_times[name] = time.perf_counter() - t0
             return
 
     for val in ctx.sweep_values:
@@ -969,7 +969,6 @@ def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
         ctx.all_final_rec_snaps[name] = fr_arr
     if perturb_arr is not None:
         ctx.all_final_perturbed_snaps[name] = perturb_arr
-    ctx.wall_times[name] = time.perf_counter() - t0
 
 
 def _precompute_sigma_target(ctx: _RecoveryRunCtx, name: str, t, color: str):
@@ -1194,11 +1193,13 @@ def _run_recovery_for_one_run(  # noqa: PLR0913 — explicit-deps signature
         domain_extent=domain_extent,
     )
 
-    run_with_gpu_pool(
-        active_differentiable_solvers(cfg, "optimization", exp_key),
+    ctx.wall_times = per_solver_loop(
+        cfg,
         tags,
+        active_differentiable_solvers(cfg, "optimization", exp_key),
         lambda name, t: _recovery_long_work(ctx, name, t),
         gpu_ids=gpu_ids,
+        print_done=False,
     )
 
     by_sweep = ctx.by_sweep
@@ -1498,12 +1499,9 @@ def _run_topopt_impl(
         by_solver: dict = {}
         rho_snaps: dict = {}
         rho_histories: dict = {}
-        _wall_times: dict[str, float] = {}
         gpu_ids = overrides.get("gpu_ids")
 
         def _topopt_work(name: str, t) -> None:
-            _t0 = time.perf_counter()
-
             def loss_components(rho, _t):
                 inp = make_inputs(name, rho, **phys)
                 compliance = apply_tesseract(_t, inp)[compliance_key]
@@ -1531,9 +1529,15 @@ def _run_topopt_impl(
                 "converged": info["converged"],
                 "grad_norms": info["grad_norms"],
             }
-            _wall_times[name] = time.perf_counter() - _t0
 
-        run_with_gpu_pool(_topopt_solvers(cfg), tags, _topopt_work, gpu_ids=gpu_ids)
+        _wall_times = per_solver_loop(
+            cfg,
+            tags,
+            _topopt_solvers(cfg),
+            _topopt_work,
+            gpu_ids=gpu_ids,
+            print_done=False,
+        )
 
         out_dir = experiment_dir(
             results_dir(),
@@ -2084,7 +2088,6 @@ def _run_drag_opt_impl(
         # Velocity fields per solver, shape (N, N, 1, 2).
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
-        _wall_times: dict[str, float] = {}
 
         # Partial-checkpoint plumbing (Adam path only). Adam mutates ``by_solver``
         # in-place inside its loop and calls ``write_partial`` periodically; the
@@ -2109,7 +2112,6 @@ def _run_drag_opt_impl(
                     save_json(payload, partial_out_dir / "result_partial.json")
 
         def _drag_opt_work(name: str, t) -> None:
-            _t0 = time.perf_counter()
             vel0 = _drag_capture_flow(
                 name,
                 t,
@@ -2152,11 +2154,17 @@ def _run_drag_opt_impl(
             )
             if vel is not None:
                 flow_snaps[name] = vel
-            _wall_times[name] = time.perf_counter() - _t0
 
         _drag_exp = f"{exp_key}/{run_name}" if run_name else exp_key
         drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
-        run_with_gpu_pool(drag_opt_solvers, tags, _drag_opt_work, gpu_ids=gpu_ids)
+        _wall_times = per_solver_loop(
+            cfg,
+            tags,
+            drag_opt_solvers,
+            _drag_opt_work,
+            gpu_ids=gpu_ids,
+            print_done=False,
+        )
 
         out_dir = _drag_opt_out_dir(
             cfg, ic_subdir, bool(overrides.get("debug")), exp_key
@@ -2452,12 +2460,10 @@ def _run_conductivity_recovery_impl(
         by_solver: dict = {}
         rho_snaps: dict = {}
         rho_histories: dict = {}
-        _wall_times: dict[str, float] = {}
 
         candidate_solvers = active_differentiable_solvers(cfg, "optimization", exp_key)
 
         def _conductivity_recovery_work(name: str, t) -> None:
-            _t0 = time.perf_counter()
             rho_history: list = []
 
             _loss_phys = {k: v for k, v in phys.items() if k != "rho_0"}
@@ -2500,10 +2506,14 @@ def _run_conductivity_recovery_impl(
                 "converged": info["converged"],
                 "grad_norms": info["grad_norms"],
             }
-            _wall_times[name] = time.perf_counter() - _t0
 
-        run_with_gpu_pool(
-            candidate_solvers, tags, _conductivity_recovery_work, gpu_ids=gpu_ids
+        _wall_times = per_solver_loop(
+            cfg,
+            tags,
+            candidate_solvers,
+            _conductivity_recovery_work,
+            gpu_ids=gpu_ids,
+            print_done=False,
         )
 
         _dbg = "_debug" if overrides.get("debug") else ""

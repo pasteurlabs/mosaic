@@ -369,6 +369,61 @@ def run_suite(
     return results
 
 
+# ── Per-solver loop ───────────────────────────────────────────────────────────
+
+
+def per_solver_loop(
+    cfg: Problem,
+    tags: dict[str, str],
+    solver_names: list[str],
+    work_one,
+    *,
+    gpu_ids: list[str] | None = None,
+    print_done: bool = True,
+    catch: bool = False,
+    catch_label: str = "work failed",
+) -> dict[str, float]:
+    """Run ``work_one(name, t)`` for each solver, returning ``{name: wall_seconds}``.
+
+    Centralises the per-solver bookkeeping that every harness used to repeat
+    inline:
+
+      * ``t0 = time.perf_counter()`` start / ``elapsed = ... - t0`` end
+      * Records ``elapsed`` in the returned ``wall_times`` dict
+      * Optionally prints ``  {color}{name}[/] done in {elapsed:.1f}s`` after
+        each solver completes (``print_done=True``, default)
+      * Optionally swallows worker exceptions and prints a one-line SKIP marker
+        in the solver's color (``catch=True`` — used by gradient harnesses
+        that want one failing solver to not abort the others)
+
+    The framework runs solver workers either serially (one Tesseract at a time)
+    or in parallel across a GPU pool — see :func:`run_with_gpu_pool`. This
+    helper sits on top of that loop and adds nothing more than the
+    bookkeeping common to every existing harness.
+    """
+    wall_times: dict[str, float] = {}
+
+    def _wrapper(name: str, t) -> None:
+        color = cfg.solver(name).color
+        t0 = time.perf_counter()
+        try:
+            work_one(name, t)
+        except Exception as exc:
+            if not catch:
+                raise
+            console.print(
+                f"  [{color}]{name}[/] [yellow]SKIP ({catch_label}: {exc})[/]"
+            )
+            return
+        elapsed = time.perf_counter() - t0
+        wall_times[name] = elapsed
+        if print_done:
+            console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
+
+    run_with_gpu_pool(solver_names, tags, _wrapper, gpu_ids=gpu_ids)
+    return wall_times
+
+
 # ── Parameter sweeps ─────────────────────────────────────────────────────────
 
 

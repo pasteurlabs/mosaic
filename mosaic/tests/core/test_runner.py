@@ -372,3 +372,104 @@ def test_image_tags_no_build_falls_back_to_dir_name(tmp_path):
 
     tags = runner.image_tags_no_build(cfg)
     assert tags == {"lonely": "lonely-solver:latest"}
+
+
+# ── per_solver_loop ───────────────────────────────────────────────────────────
+
+
+def _make_dummy_cfg(names: list[str]):
+    """Tiny Problem stub with the minimal surface ``per_solver_loop`` reads."""
+    from mosaic.benchmarks.core.config import Problem, SolverSpec
+
+    cfg = Problem.__new__(Problem)
+    cfg.solvers = [
+        SolverSpec(
+            dir=f"{n}-dir",
+            name=n,
+            backend="jax",
+            family="",
+            scheme="",
+            color="#123456",
+            linestyle=None,
+            marker=None,
+            ad_strategy=None,
+            differentiable=False,
+            uses_gpu=False,
+            internal_dtype="float32",
+            description="",
+            doc_url="",
+            image_tag=f"{n}:latest",
+        )
+        for n in names
+    ]
+    return cfg
+
+
+def test_per_solver_loop_records_wall_times_for_each_solver(monkeypatch):
+    """The helper returns ``{name: wall_seconds}`` populated by the wrapper.
+
+    Patches ``run_with_gpu_pool`` to call the per-solver wrapper synchronously
+    so we don't need Docker; verifies that every successful work_one invocation
+    has a positive wall-time entry in the returned dict.
+    """
+    cfg = _make_dummy_cfg(["a", "b"])
+    tags = {"a": "a:latest", "b": "b:latest"}
+    seen: list[str] = []
+
+    def _fake_pool(solver_names, _tags, fn, gpu_ids=None):
+        for n in solver_names:
+            fn(n, object())
+
+    monkeypatch.setattr(runner, "run_with_gpu_pool", _fake_pool)
+
+    def work(name, _t):
+        seen.append(name)
+
+    wall = runner.per_solver_loop(cfg, tags, ["a", "b"], work)
+    assert seen == ["a", "b"]
+    assert set(wall) == {"a", "b"}
+    assert all(v >= 0 for v in wall.values())
+
+
+def test_per_solver_loop_catch_swallows_exceptions(monkeypatch):
+    """When ``catch=True``, a failing solver leaves its entry out of wall_times.
+
+    The other (successful) solver's wall-time entry must still appear so the
+    caller can report partial progress (the gradient harnesses rely on this).
+    """
+    cfg = _make_dummy_cfg(["good", "bad"])
+    tags = {"good": "g:latest", "bad": "b:latest"}
+
+    def _fake_pool(solver_names, _tags, fn, gpu_ids=None):
+        for n in solver_names:
+            fn(n, object())
+
+    monkeypatch.setattr(runner, "run_with_gpu_pool", _fake_pool)
+
+    def work(name, _t):
+        if name == "bad":
+            raise RuntimeError("boom")
+
+    wall = runner.per_solver_loop(
+        cfg, tags, ["good", "bad"], work, catch=True, catch_label="VJP failed"
+    )
+    assert "good" in wall
+    assert "bad" not in wall
+
+
+def test_per_solver_loop_catch_false_reraises(monkeypatch):
+    """``catch=False`` (default) lets worker exceptions propagate to the caller."""
+    cfg = _make_dummy_cfg(["x"])
+    tags = {"x": "x:latest"}
+
+    def _fake_pool(solver_names, _tags, fn, gpu_ids=None):
+        for n in solver_names:
+            fn(n, object())
+
+    monkeypatch.setattr(runner, "run_with_gpu_pool", _fake_pool)
+
+    def work(_name, _t):
+        raise RuntimeError("fatal")
+
+    with pytest.raises(RuntimeError, match="fatal"):
+        runner.per_solver_loop(cfg, tags, ["x"], work)

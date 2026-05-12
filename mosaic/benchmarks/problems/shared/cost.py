@@ -49,7 +49,6 @@ Run from the terminal:
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -67,7 +66,7 @@ from mosaic.benchmarks.core.io import (
     save_experiment,
     save_field_snapshots_npz,
 )
-from mosaic.benchmarks.core.runner import current_worker_context, run_with_gpu_pool
+from mosaic.benchmarks.core.runner import current_worker_context, per_solver_loop
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
     active_solvers,
@@ -267,9 +266,12 @@ def _csv_factory_steps(cx: _CostCtx, name: str) -> Callable:
 
 
 def _work_one_solver(cx: _CostCtx, name: str, t) -> None:
-    """Per-solver worker body — runs the configured sweeps for one solver."""
+    """Per-solver worker body — runs the configured sweeps for one solver.
+
+    Wall-time bookkeeping is handled by :func:`per_solver_loop`; this body
+    only owns the cost-specific N/steps sweep dispatch.
+    """
     color = cx.cfg.solver(name).color
-    t_solver = time.perf_counter()
     ctx_worker = current_worker_context()
 
     if cx.sweep_N and cx.N_values:
@@ -311,10 +313,6 @@ def _work_one_solver(cx: _CostCtx, name: str, t) -> None:
                 capture_grads=False,
             ),
         )
-
-    elapsed = time.perf_counter() - t_solver
-    cx.wall_times[name] = elapsed
-    console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
 
 def _save_gradient_snapshots(cx: _CostCtx, out_dir, solver_names_list) -> None:
@@ -448,9 +446,10 @@ def _run_cost_impl(
         cx.grad_snaps_N = {name: {} for name in solver_names_list}
 
     gpu_ids = overrides.get("gpu_ids")
-    run_with_gpu_pool(
-        solver_names_list,
+    cx.wall_times = per_solver_loop(
+        cfg,
         tags,
+        solver_names_list,
         lambda name, t: _work_one_solver(cx, name, t),
         gpu_ids=gpu_ids,
     )
