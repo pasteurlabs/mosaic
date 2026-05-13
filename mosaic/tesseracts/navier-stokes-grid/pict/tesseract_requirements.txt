@@ -1,4 +1,3 @@
-https://download.pytorch.org/whl/cu121/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl
 numpy
 scipy
 imageio
