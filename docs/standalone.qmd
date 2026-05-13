@@ -13,7 +13,7 @@ Both options use the same dict-based calling convention, so code written with Op
 
 ```bash
 # Schemas and types for all Mosaic domains (only deps: pydantic + tesseract-core)
-pip install -e mosaic/tesseract_shared
+pip install -e mosaic/tesseracts/tesseract_shared
 
 # Option A --- also install the solver's native dependencies
 pip install tesseract-core exponax jax
@@ -124,7 +124,7 @@ inputs["rho"] = np.random.uniform(0.2, 0.8, size=16 * 8).astype(np.float32)
 `tesseract_shared` is a standalone pip-installable package. Its only dependencies are `pydantic` and `tesseract-core[runtime]`:
 
 ```bash
-pip install -e mosaic/tesseract_shared
+pip install -e mosaic/tesseracts/tesseract_shared
 ```
 
 This gives you all schema types (`InputSchema`, `OutputSchema`) for every benchmark domain, plus the shared types used across solvers:

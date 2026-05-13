@@ -23,15 +23,15 @@ from mosaic.benchmarks.core.config import (
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
-    run_spatial_cost,
-    run_temporal_cost,
-    run_vjp_cost,
+    spatial_cost,
+    temporal_cost,
+    vjp_cost,
 )
-from mosaic.benchmarks.problems.shared.forward import run_agreement, run_physical_laws
+from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
-    run_fd_check,
-    run_jacobian_svd,
-    run_param_sweep,
+    fd_check,
+    jacobian_svd,
+    param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -47,7 +47,7 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _random, _two_density_bumps, _uniform
-from .optimization import run_topopt
+from .optimization import topopt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_topopt
 
@@ -146,7 +146,7 @@ problem.add_ic(
 # Forward
 problem.add_experiment(
     "forward/baseline",
-    run_agreement,
+    agreement,
     plot_description="Structural compliance C = F^T U vs mesh resolution N for each solver, uniform density ρ₀=0.5, full-face downward load.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -163,7 +163,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/agreement",
-    run_agreement,
+    agreement,
     plot_description="Structural compliance C = F^T U vs density ρ₀ at fixed mesh, sweeping uniform density to span the SIMP stiffness regime.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -181,7 +181,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/physical_laws",
-    run_physical_laws,
+    physical_laws,
     plot_description="Diagnostic functionals (compliance, total displacement) vs total load F_total, validating linearity of the SIMP response.",
     diagnostics=DIAGNOSTICS,
     ic={"name": "uniform", "seed": 0},
@@ -200,68 +200,53 @@ problem.add_experiment(
 )
 
 # Cost
+_MESH_PHYS = {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "rho_0": 0.5,
+    "corner_load": False,
+}
 problem.add_experiment(
     "cost/spatial_cost",
-    run_spatial_cost,
+    spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh resolution N at one assembly step.",
-    physics={
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "F_total": 1.0,
-        "rho_0": 0.5,
-        "corner_load": False,
-    },
-    cost={
-        "N_values": [4, 6, 8, 12, 16],
-        "steps_values": [1],
-        "n_trials": 3,
-    },
+    physics={**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
+    cost={"n_trials": 3},
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/temporal_cost",
-    run_temporal_cost,
+    temporal_cost,
     plot_description="Forward-pass wall-clock time vs solve count at fixed mesh (single-step assembly is the dominant cost — temporal axis collapses to one point).",
-    physics={
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "F_total": 1.0,
-        "rho_0": 0.5,
-        "corner_load": False,
-    },
-    cost={
-        "N_values": [4, 6, 8, 12, 16],
-        "steps_values": [1],
-        "n_trials": 3,
-    },
+    physics={**_MESH_PHYS, "nx": 8, "steps": [1]},
+    cost={"n_trials": 3},
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/vjp_cost",
-    run_vjp_cost,
+    vjp_cost,
     plot_description="VJP wall-clock time vs mesh resolution N for differentiable solvers.",
-    physics={
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "F_total": 1.0,
-        "rho_0": 0.5,
-        "corner_load": False,
-    },
-    cost={
-        "N_values": [4, 6, 8, 12, 16],
-        "steps_values": [1],
-        "n_trials": 3,
-    },
+    runs=[
+        {
+            "name": "by_N",
+            "physics": {**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
+            "cost": {"n_trials": 3},
+        },
+        {
+            "name": "by_steps",
+            "physics": {**_MESH_PHYS, "nx": 8, "steps": [1]},
+            "cost": {"n_trials": 3},
+        },
+    ],
     plot=plot_cost,
 )
 
 # Gradient
 problem.add_experiment(
     "gradient/fd_check",
-    run_fd_check,
+    fd_check,
     plot_description="U-curves of finite-difference gradient error vs perturbation size ε with subspace cosine, validating VJP correctness on a random density.",
     ic={"name": "random", "seed": 0},
     physics={
@@ -292,7 +277,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/param_sweep",
-    run_param_sweep,
+    param_sweep,
     plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs uniform density ρ₀.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -314,7 +299,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Singular-value spectrum of the stacked per-solver gradient matrix and pairwise cosine similarity between solver gradient directions.",
     ic={"name": "random", "seed": 0},
     physics={
@@ -334,7 +319,7 @@ problem.add_experiment(
 # Optimization
 problem.add_experiment(
     "optimization/topopt",
-    run_topopt,
+    topopt,
     plot_description="SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -357,7 +342,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "optimization/topopt_bfgs",
-    run_topopt,
+    topopt,
     optimizer="bfgs",
     plot_description="SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.",
     ic={"name": "uniform", "seed": 0},

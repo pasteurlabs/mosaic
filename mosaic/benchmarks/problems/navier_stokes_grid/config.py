@@ -36,16 +36,15 @@ from mosaic.benchmarks.core.status_checks import (
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
-    run_spatial_cost,
-    run_temporal_cost,
-    run_vjp_cost,
+    spatial_cost,
+    temporal_cost,
+    vjp_cost,
 )
-from mosaic.benchmarks.problems.shared.forward import run_agreement, run_physical_laws
+from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
-    run_fd_check,
-    run_horizon_sweep,
-    run_jacobian_svd,
-    run_param_sweep,
+    fd_check,
+    jacobian_svd,
+    param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -63,7 +62,7 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
-from .optimization import run_drag_opt
+from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_drag_opt
 
@@ -222,7 +221,7 @@ problem.add_ic(
 # Forward
 problem.add_experiment(
     "forward/baseline",
-    run_agreement,
+    agreement,
     plot_description="Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across solvers.",
     ic={"name": "tgv", "seed": 0},
     physics={
@@ -244,7 +243,7 @@ problem.exclude(
 )
 problem.add_experiment(
     "forward/agreement",
-    run_agreement,
+    agreement,
     plot_description="Relative error vs viscosity ν for each IC, with vorticity field snapshots compared against a fine-solver reference.",
     ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
     physics={
@@ -277,7 +276,7 @@ problem.exclude(
 )
 problem.add_experiment(
     "forward/tgv_nu_sweep",
-    run_agreement,
+    agreement,
     plot_description="Relative error vs viscosity ν for each solver at a fixed TGV initial condition.",
     ic={"name": "tgv", "seed": 42},
     physics={
@@ -292,7 +291,7 @@ problem.add_experiment(
 problem.exclude("forward/tgv_nu_sweep", {"xlb": _XLB_DX2_FLOOR})
 problem.add_experiment(
     "forward/physical_laws",
-    run_physical_laws,
+    physical_laws,
     plot_description="Divergence RMS, kinetic energy, and analytic error vs N, steps, and ν for each solver.",
     diagnostics=DIAGNOSTICS,
     runs=[
@@ -321,7 +320,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/cylinder",
-    run_agreement,
+    agreement,
     plot_description="Vorticity snapshots and kinetic-energy evolution vs time for each solver across a sweep of viscosities.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -350,38 +349,41 @@ problem.exclude(
 # Cost
 problem.add_experiment(
     "cost/spatial_cost",
-    run_spatial_cost,
+    spatial_cost,
     plot_description="Forward-pass wall-clock time vs grid resolution N at fixed step count for all solvers.",
-    physics={"nu": 0.01, "dt": 0.01},
-    cost={
-        "N_values": [64, 128, 192, 256],
-        "steps_values": [10, 50, 100, 500, 1000],
-        "n_trials": 3,
-    },
+    physics={"nu": 0.01, "dt": 0.01, "steps": 100, "N": [64, 128, 192, 256]},
+    cost={"n_trials": 3},
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/temporal_cost",
-    run_temporal_cost,
+    temporal_cost,
     plot_description="Forward-pass wall-clock time vs step count at fixed N for all solvers.",
-    physics={"nu": 0.01, "dt": 0.01},
-    cost={
-        "N_values": [64, 128, 192, 256],
-        "steps_values": [10, 50, 100, 500, 1000],
-        "n_trials": 3,
-    },
+    physics={"nu": 0.01, "dt": 0.01, "N": 128, "steps": [10, 50, 100, 500, 1000]},
+    cost={"n_trials": 3},
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/vjp_cost",
-    run_vjp_cost,
+    vjp_cost,
     plot_description="VJP wall-clock time vs N and step count for differentiable solvers.",
-    physics={"nu": 0.01, "dt": 0.01},
-    cost={
-        "N_values": [64, 128, 192, 256],
-        "steps_values": [10, 50, 100, 500, 1000],
-        "n_trials": 3,
-    },
+    runs=[
+        {
+            "name": "by_N",
+            "physics": {"nu": 0.01, "dt": 0.01, "steps": 100, "N": [64, 128, 192, 256]},
+            "cost": {"n_trials": 3},
+        },
+        {
+            "name": "by_steps",
+            "physics": {
+                "nu": 0.01,
+                "dt": 0.01,
+                "N": 128,
+                "steps": [10, 50, 100, 500, 1000],
+            },
+            "cost": {"n_trials": 3},
+        },
+    ],
     plot=plot_cost,
 )
 problem.exclude("cost/vjp_cost", {"openfoam": _OPENFOAM_NO_VJP})
@@ -400,7 +402,7 @@ problem.exclude(
 )
 problem.add_experiment(
     "gradient/fd_check",
-    run_fd_check,
+    fd_check,
     plot_description="U-curves of finite-difference gradient error vs perturbation size ε together with subspace cosine; validates VJP correctness.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": 20},
@@ -414,7 +416,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/param_sweep",
-    run_param_sweep,
+    param_sweep,
     plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 16, "dt": 0.05, "steps": 200, "nu": [0.05, 0.01, 0.005, 0.001]},
@@ -423,7 +425,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/horizon_sweep",
-    run_horizon_sweep,
+    param_sweep,
     plot_description="Gradient norm, FD error, and direction cosine vs rollout horizon T = steps*dt.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": [5, 10, 20, 40, 80, 160, 320]},
@@ -432,7 +434,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
@@ -440,7 +442,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at an extended rollout horizon.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
@@ -448,7 +450,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at a long rollout horizon.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
@@ -456,7 +458,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at higher viscosity.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
@@ -476,7 +478,7 @@ problem.exclude(
 )
 problem.add_experiment(
     "optimization/drag_opt",
-    run_drag_opt,
+    drag_opt,
     plot_description="Drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
     ic={"name": "flat_inflow", "seed": 0},
     physics={
@@ -515,7 +517,7 @@ problem.exclude(
 )
 problem.add_experiment(
     "optimization/drag_opt_bfgs",
-    run_drag_opt,
+    drag_opt,
     optimizer="bfgs",
     plot_description="L-BFGS drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
     ic={"name": "flat_inflow", "seed": 0},

@@ -41,6 +41,7 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import jax
 import numpy as np
@@ -321,6 +322,92 @@ def save_csv(rows: list[dict], path: str | Path) -> None:
 
 
 # ── Field-snapshot npz writer ───────────────────────────────────────────────
+
+
+class PartialResultWriter:
+    """Process-safe writer for periodic ``result_partial.json`` dumps.
+
+    Long-running per-solver kernels (drag_opt, recovery, …) want
+    restartability: a checkpoint of partial progress should survive a
+    crash or kill. Under the kernel pattern each solver lives on its own
+    worker, so the in-memory ``by_solver`` dict is no longer shared —
+    every checkpoint must acquire a :class:`FileLock`, re-read the
+    on-disk JSON, merge in the current solver's entry, and re-write.
+
+    Usage::
+
+        writer = PartialResultWriter(
+            out_dir,
+            base_payload={"run_name": run_name, "params": run, ...},
+        )
+        # Inside the optimization loop, every N iterations:
+        writer.write(solver_name, current_entry)
+
+    ``write(name, None)`` is a no-op so kernels can pass through optional
+    entries unconditionally.
+    """
+
+    def __init__(self, out_dir: Path, *, base_payload: dict | None = None) -> None:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        self._partial_path = out_dir / "result_partial.json"
+        self._lock_path = out_dir / ".result_partial.lock"
+        self._base_payload = dict(base_payload or {})
+
+    def write(self, name: str, entry: dict | None) -> None:
+        if entry is None:
+            return
+        with FileLock(self._lock_path):
+            existing = try_load_json(self._partial_path) or {}
+            by_solver = dict(existing.get("by_solver") or {})
+            by_solver[name] = entry
+            save_json(
+                {**self._base_payload, "by_solver": by_solver}, self._partial_path
+            )
+
+
+def load_cached_field_snapshots(
+    snap_path: Path | str,
+    sweep_values: list,
+    *,
+    skip_solvers: set | dict | None = None,
+    shared_prefixes: tuple[str, ...] = (),
+) -> dict[Any, dict[str, np.ndarray]]:
+    """Inverse of :func:`save_field_snapshots_npz` with ``flat_keys=True``.
+
+    Reads ``snap_path`` (a ``fields.npz`` written under the flat
+    ``{solver_name}_{idx}`` convention) and returns a mapping from each
+    sweep value to ``{solver_name: array}`` for solvers cached in the
+    NPZ. Used by partial-rerun support in the forward suite, where
+    solvers not being re-executed this invocation still need to
+    contribute to the cross-solver consensus.
+
+    Parameters:
+      * ``sweep_values`` — the in-memory list whose index maps to the
+        ``_{idx}`` suffix on disk.
+      * ``skip_solvers`` — solvers to omit (typically the ``tags`` dict
+        keys, i.e. solvers being rebuilt this run). Either a set, or any
+        mapping that supports ``in``.
+      * ``shared_prefixes`` — key prefixes that mark *shared* (non-
+        per-solver) arrays (mirrors ``save_field_snapshots_npz`` arg
+        of the same name). Keys with these prefixes are filtered out.
+    """
+    snap = try_load_npz(snap_path)
+    if not snap:
+        return {}
+    skip = skip_solvers or set()
+    cached: dict = {}
+    for ci, cv in enumerate(sweep_values):
+        cached[cv] = {}
+        sfx = f"_{ci}"
+        for sfile, arr in snap.items():
+            if not sfile.endswith(sfx):
+                continue
+            if shared_prefixes and any(sfile.startswith(p) for p in shared_prefixes):
+                continue
+            cn = sfile[: -len(sfx)]
+            if cn not in skip:
+                cached[cv][cn] = arr
+    return cached
 
 
 def save_field_snapshots_npz(

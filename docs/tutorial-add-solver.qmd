@@ -15,7 +15,7 @@ What Mosaic adds is a thin convention layer on top so the same Tesseract slots i
 | Layer | What it provides | Where it lives |
 |:------|:-----------------|:---------------|
 | **Base Tesseract** (tesseract-core) | Container build (`tesseract_config.yaml` → Docker image), HTTP server, the `apply` / `abstract_eval` / `vector_jacobian_product` endpoint contract, Pydantic `InputSchema` / `OutputSchema` with `Differentiable[...]` types, `tesseract init` scaffolding. | `tesseract-core` package; configured per-solver via the `name`, `version`, `description`, and `build_config:` keys in `tesseract_config.yaml`, and per-solver endpoint code in `tesseract_api.py`. |
-| **Mosaic layer** | A `metadata.mosaic:` block in `tesseract_config.yaml` for solver discovery; **canonical per-domain `InputSchema` / `OutputSchema`** in `tesseract_shared.problems.<domain>` that every solver in a domain subclasses (so cross-solver comparison is well-defined); per-(solver, problem) overrides (exclusions, input_overrides, explained_anomalies) declared in `mosaic/benchmarks/problems/<domain>.py`; plot styling in `mosaic/benchmarks/plots/solver_styles.py`. | `mosaic` package — but the per-solver surface area is just **one extra YAML block** and **subclassing the canonical schema**. |
+| **Mosaic layer** | A `metadata.mosaic:` block in `tesseract_config.yaml` for solver discovery; **canonical per-domain `InputSchema` / `OutputSchema`** in `tesseract_shared.problems.<domain>` that every solver in a domain subclasses (so cross-solver comparison is well-defined); per-(solver, problem) overrides (exclusions, input_overrides) declared in `mosaic/benchmarks/problems/<domain>/config.py`; plot styling in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. | `mosaic` package — but the per-solver surface area is just **one extra YAML block** and **subclassing the canonical schema**. |
 
 Every section below flags which layer it touches. For deeper coverage of the base layer, follow the inline links to the tesseract-core docs.
 
@@ -145,7 +145,7 @@ The single Mosaic-specific extension to the YAML. tesseract-core ignores this bl
 | `doc_url` | `str` | Link to upstream documentation or repository. |
 
 ::: {.callout-note}
-Plot styling (`color`, `linestyle`, `marker`) is **not** declared in the YAML. It lives in `mosaic/benchmarks/plots/solver_styles.py`. After adding your solver, register its style in the `SOLVER_STYLES` dict there using the solver key (typically the directory name with hyphens replaced by underscores).
+Plot styling (`color`, `linestyle`, `marker`) is **not** declared in the YAML. It lives in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. After adding your solver, register its style in the `SOLVER_STYLES` dict there using the solver key (typically the directory name with hyphens replaced by underscores).
 :::
 
 ## 4. Implement `tesseract_api.py`
@@ -156,7 +156,7 @@ The **Mosaic** addition is that your `InputSchema` and `OutputSchema` subclass t
 
 ### 4.1 Import the canonical schemas
 
-Every domain defines a shared `InputSchema` and `OutputSchema` in `mosaic/tesseract_shared/problems/<domain>/schemas.py`. Your solver imports these and can optionally subclass them to add solver-specific parameters.
+Every domain defines a shared `InputSchema` and `OutputSchema` in `mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`. Your solver imports these and can optionally subclass them to add solver-specific parameters.
 
 ```python
 from tesseract_shared.problems.navier_stokes_grid import (
@@ -343,10 +343,10 @@ This file is **base Tesseract**: tesseract-core consumes it as the pip-install m
 
 ```
 jax[cuda12]>=0.4.13
-../../../tesseract_shared
+../../tesseract_shared
 ```
 
-The relative path `../../../tesseract_shared` is resolved at build time relative to your solver directory. It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
+The relative path `../../tesseract_shared` is resolved at build time relative to your solver directory (`mosaic/tesseracts/<domain>/<solver>/` → `mosaic/tesseracts/tesseract_shared/`). It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
 
 ::: {.callout-note}
 For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `ins-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
@@ -447,66 +447,74 @@ If your solver does not appear in the status output, check:
 
 ## 9. Add domain-specific overrides (optional) *(Mosaic layer)*
 
-Most solvers work with the default problem configuration out of the box. These overrides live entirely in `mosaic/benchmarks/problems/<domain>.py` — they're per-(solver, problem) and have no analogue in base Tesseract:
+Most solvers work with the default problem configuration out of the box. These overrides live entirely in `mosaic/benchmarks/problems/<domain>/config.py` — they're per-(solver, problem) and have no analogue in base Tesseract:
 
 ### Exclusions
 
-If your solver cannot run certain experiments (e.g. periodic-only solver on a channel domain), declare exclusions so the harness skips them gracefully instead of crashing:
+If your solver cannot run certain experiments (e.g. periodic-only solver on a channel domain), declare exclusions so the harness skips them gracefully instead of crashing.
 
-Edit `mosaic/benchmarks/problems/navier_stokes_grid.py` and add an `exclusions` dict to your solver's `SolverSpec`:
+Open `mosaic/benchmarks/problems/navier_stokes_grid/config.py` and add a `problem.exclude(...)` call after the matching `problem.add_experiment(...)`:
 
 ```python
-"my_spectral_solver": SolverSpec(
-    # ... other fields populated from tesseract_config.yaml ...
-    exclusions={
-        "forward/cylinder": {
-            "category": "categorical",
-            "reason": "periodic-only lattice; channel BCs not implemented",
-        },
-        "optimization/drag_opt": {
-            "category": "categorical",
-            "reason": "same: no channel BC support",
-        },
+from mosaic.benchmarks.core.config import Exclusion, ExclusionCategory
+
+problem.exclude(
+    "forward/cylinder",
+    {
+        "my_spectral_solver": Exclusion(
+            ExclusionCategory.CATEGORICAL,
+            "periodic-only lattice; channel BCs not implemented",
+        ),
     },
-),
+)
+problem.exclude(
+    "optimization/drag_opt",
+    {
+        "my_spectral_solver": Exclusion(
+            ExclusionCategory.CATEGORICAL,
+            "same: no channel BC support",
+        ),
+    },
+)
 ```
 
-The `category` field can be:
+`problem.exclude(key, ...)` does longest-prefix matching, so a single suite-level entry (e.g. `key="gradient"`) blocks every `gradient/*` experiment for that solver. The full taxonomy is in `ExclusionCategory`:
 
-- `"categorical"` --- method-level incompatibility (e.g. wrong BC type).
-- `"infeasible"` --- the solver can technically run but produces unusable results.
+- `CATEGORICAL` — method-intrinsic limitation (permanent; excluded from the campaign score denominator).
+- `INFEASIBLE` — would run but the result is not meaningful.
+- `NOT_IMPLEMENTED` — could in principle run but not wired yet.
+- `UNSTABLE` — runs but blows up.
+- `UPSTREAM_BUG`, `WIP`, `UNSPECIFIED` — see the enum docstring for the rest.
+- `ANOMALY_EXPLAINED` — solver runs and produces anomalous-but-documented output (display-only, not a runtime skip).
 
 ### Input overrides
 
-If your solver needs different default values for shared schema fields (e.g. a specific density or inner step count), add them as `input_overrides`:
+If your solver needs different default values for shared schema fields (e.g. a specific density or inner step count), set them on the `SolverSpec` returned by `discover_solvers()`:
 
 ```python
-"my_spectral_solver": SolverSpec(
-    # ...
-    input_overrides={
-        "density": jnp.array([1.0], dtype=jnp.float32),
-    },
-),
+_SOLVERS["my_spectral_solver"].input_overrides = {
+    "density": jnp.array([1.0], dtype=jnp.float32),
+}
 ```
 
-These overrides are applied automatically whenever the harness builds inputs for your solver.
+These overrides are merged into every call to `cfg.make_inputs(...)` for your solver, after the per-solver `make_inputs(spec, ic, **physics)` callable returns its base dict.
 
 ### Explained anomalies
 
-If your solver produces results that are correct but noticeably different from peers for known, method-intrinsic reasons, document them:
+Use `ExclusionCategory.ANOMALY_EXPLAINED` via the same `problem.exclude(...)` API — the result still runs and appears in plots, but the status table flags it as a documented anomaly rather than an unexplained outlier:
 
 ```python
-"my_spectral_solver": SolverSpec(
-    # ...
-    explained_anomalies={
-        "forward/cylinder": {
-            "reason": "spectral pressure solve requires periodic BCs; channel runs deviate from the no-slip reference",
-        },
+problem.exclude(
+    "forward/cylinder",
+    {
+        "my_spectral_solver": Exclusion(
+            ExclusionCategory.ANOMALY_EXPLAINED,
+            "spectral pressure solve requires periodic BCs; channel runs "
+            "deviate from the no-slip reference",
+        ),
     },
-),
+)
 ```
-
-This makes the anomaly appear as a documented annotation in the status table rather than an unexplained failure.
 
 ::: {.callout-note}
 If your solver needs none of these overrides, you do not need to edit the problem config at all. The `discover_solvers()` function in `mosaic/benchmarks/core/config.py` auto-generates a `SolverSpec` from your `tesseract_config.yaml` for you.
@@ -565,7 +573,7 @@ The complete set of files for a new solver is:
 mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/
   tesseract_config.yaml       # metadata.mosaic: block for discovery + build config
   tesseract_api.py            # apply, abstract_eval, vector_jacobian_product
-  tesseract_requirements.txt  # dependencies + ../../../tesseract_shared
+  tesseract_requirements.txt  # dependencies + ../../tesseract_shared
 ```
 
-No other files need to be edited for basic operation. The benchmark harness discovers your solver automatically from the `metadata.mosaic:` block in `tesseract_config.yaml`. Domain-specific overrides (exclusions, input_overrides, explained_anomalies) are optional and go in the problem config only when needed.
+No other files need to be edited for basic operation. The benchmark harness discovers your solver automatically from the `metadata.mosaic:` block in `tesseract_config.yaml`. Domain-specific overrides (exclusions, input overrides, anomaly annotations) are optional and go in `mosaic/benchmarks/problems/<domain>/config.py` only when needed.

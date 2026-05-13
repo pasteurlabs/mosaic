@@ -34,16 +34,16 @@ from mosaic.benchmarks.core.status_checks import (
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
-    run_spatial_cost,
-    run_temporal_cost,
-    run_vjp_cost,
+    spatial_cost,
+    temporal_cost,
+    vjp_cost,
 )
-from mosaic.benchmarks.problems.shared.forward import run_agreement, run_physical_laws
+from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
-    run_fd_check,
-    run_horizon_sweep,
-    run_horizon_sweep_limits,
-    run_jacobian_svd,
+    fd_check,
+    horizon_sweep_limits,
+    jacobian_svd,
+    param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -60,7 +60,7 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _abc_flow, _rand_div_free_3d, _tgv3d, _tgv3d_analytic
-from .optimization import run_recovery
+from .optimization import recovery
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_recovery
 
@@ -104,14 +104,12 @@ _OPENFOAM_NO_VJP = Exclusion(
 
 # ── Shared run-lists ─────────────────────────────────────────────────────────
 
-_COST_RUNS = {
-    "physics": {"nu": 0.01, "dt": 0.01, "lbm_N_base": 16},
-    "cost": {
-        "N_values": [16, 32, 48, 64],
-        "steps_values": [10, 50, 100],
-        "n_trials": 3,
-    },
-}
+_COST_BASE_PHYS = {"nu": 0.01, "dt": 0.01, "lbm_N_base": 16}
+_COST_N_VALUES = [16, 32, 48, 64]
+_COST_STEPS_VALUES = [10, 50, 100]
+_COST_REF_N = 48
+_COST_REF_STEPS = 50
+_COST_TRIALS = {"n_trials": 3}
 
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
@@ -189,7 +187,7 @@ problem.add_ic(
 # Forward
 problem.add_experiment(
     "forward/baseline",
-    run_agreement,
+    agreement,
     plot_description="Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across 3D solvers.",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": [8, 16, 32], "nu": 0.05, "dt": 0.01, "steps": 1},
@@ -197,7 +195,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/agreement",
-    run_agreement,
+    agreement,
     plot_description="3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a fine-grid consensus reference.",
     ic={"name": "tgv3d", "seed": 0},
     physics={
@@ -212,7 +210,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/physical_laws",
-    run_physical_laws,
+    physical_laws,
     plot_description="Divergence RMS and kinetic energy vs grid resolution N, step count, and viscosity ν for each solver; diagnoses incompressibility and energy decay in 3D.",
     diagnostics=DIAGNOSTICS,
     runs=[
@@ -256,24 +254,45 @@ problem.add_experiment(
 # Cost
 problem.add_experiment(
     "cost/spatial_cost",
-    run_spatial_cost,
+    spatial_cost,
     plot_description="Forward-pass wall-clock time vs grid resolution N for each solver.",
-    **_COST_RUNS,
+    physics={**_COST_BASE_PHYS, "steps": _COST_REF_STEPS, "N": _COST_N_VALUES},
+    cost=_COST_TRIALS,
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/temporal_cost",
-    run_temporal_cost,
+    temporal_cost,
     plot_description="Forward-pass wall-clock time vs number of integration steps for each solver.",
-    **_COST_RUNS,
+    physics={**_COST_BASE_PHYS, "N": _COST_REF_N, "steps": _COST_STEPS_VALUES},
+    cost=_COST_TRIALS,
     plot=plot_cost,
 )
 problem.exclude("cost/temporal_cost", {"phiflow": _PHIFLOW_3D_CUDA_OOM})
 problem.add_experiment(
     "cost/vjp_cost",
-    run_vjp_cost,
+    vjp_cost,
     plot_description="VJP (gradient) wall-clock time vs grid resolution N for each differentiable solver.",
-    **_COST_RUNS,
+    runs=[
+        {
+            "name": "by_N",
+            "physics": {
+                **_COST_BASE_PHYS,
+                "steps": _COST_REF_STEPS,
+                "N": _COST_N_VALUES,
+            },
+            "cost": _COST_TRIALS,
+        },
+        {
+            "name": "by_steps",
+            "physics": {
+                **_COST_BASE_PHYS,
+                "N": _COST_REF_N,
+                "steps": _COST_STEPS_VALUES,
+            },
+            "cost": _COST_TRIALS,
+        },
+    ],
     plot=plot_cost,
 )
 problem.exclude("cost/vjp_cost", {"openfoam": _OPENFOAM_NO_VJP})
@@ -291,7 +310,7 @@ problem.exclude(
 )
 problem.add_experiment(
     "gradient/fd_check",
-    run_fd_check,
+    fd_check,
     plot_description="Finite-difference gradient error U-curves and direction cosine vs perturbation ε for each solver on the 3D Taylor-Green vortex IC.",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": 10},
@@ -313,7 +332,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/horizon_sweep",
-    run_horizon_sweep,
+    param_sweep,
     plot_description="Gradient norm, finite-difference error, and direction cosine vs rollout horizon T = steps × dt for each solver on the 3D TGV.",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": [10, 20, 40, 80, 160]},
@@ -322,7 +341,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/horizon_sweep_limits",
-    run_horizon_sweep_limits,
+    horizon_sweep_limits,
     plot_description="Per-solver rollout-limit table reporting step count at first failure, failure type, and wall time per successful step.",
     ic={"name": "tgv3d", "seed": 0},
     physics={
@@ -335,7 +354,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian for the 3D TGV IC.",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
@@ -344,7 +363,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at an extended rollout horizon (steps=20).",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
@@ -353,7 +372,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at a long rollout horizon (steps=40).",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
@@ -362,7 +381,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at higher viscosity (ν=0.01).",
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
@@ -382,8 +401,9 @@ problem.exclude(
 )
 problem.add_experiment(
     "optimization/recovery_constant_ic",
-    run_recovery,
+    recovery,
     optimizer="adam",
+    _exp_key="recovery_constant_ic",
     plot_description="Final IC recovery error per solver from zero-initialised gradient-descent optimisation.",
     ic={"name": "rand_div_free", "seed": 0},
     physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
@@ -401,8 +421,9 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "optimization/recovery_constant_ic_bfgs",
-    run_recovery,
+    recovery,
     optimizer="bfgs",
+    _exp_key="recovery_constant_ic_bfgs",
     plot_description="Final IC recovery error per solver from zero-initialised L-BFGS optimisation.",
     ic={"name": "rand_div_free", "seed": 0},
     physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
@@ -419,8 +440,9 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "optimization/recovery_constant_ic_bfgs_proj",
-    run_recovery,
+    recovery,
     optimizer="bfgs_proj",
+    _exp_key="recovery_constant_ic_bfgs_proj",
     plot_description="Final IC recovery error per solver from zero-initialised L-BFGS optimisation with divergence-free projection.",
     ic={"name": "rand_div_free", "seed": 0},
     physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},

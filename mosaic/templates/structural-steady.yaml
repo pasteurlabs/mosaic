@@ -1,47 +1,110 @@
-# Template: Steady-state linear elasticity on a hexahedral mesh (SIMP topology optimisation)
+# Template: Steady-state linear elasticity on a hexahedral mesh (SIMP topology
+# optimisation).
 #
 # Based on the structural-mesh domain. Extend to new geometries by modifying
-# the mesh, boundary conditions, and loading.
+# the mesh, boundary conditions, and loading in the generated physics.py.
 
 name: structural-steady
 description: >
   Linear elasticity with SIMP topology optimisation on a hexahedral mesh.
-  The solver takes a per-cell density field and returns the displacement field
-  and structural compliance.
+  The solver takes a per-cell density field and returns the displacement
+  field and structural compliance C = F^T·U.
+
+category_label: Structural Mechanics
+bc_description: >
+  3-D cantilever beam on domain [0, Lx]×[0, Ly]×[0, Lz] meshed with HEX8 elements.
+  Dirichlet: all nodes at x=0 clamped. Neumann: prescribed total force on the
+  right face (uniform traction by default; flip `corner_load: True` for a
+  concentrated upward corner load).
 
 schema_module: tesseract_shared.problems.structural_mesh
 output_key: compliance
 ic_key: rho
-domain_extent: 1.0
-resolution_key: N
+domain_extent: 2.0
+resolution_key: nx
 
 physics_defaults:
-  N: 8
-  mesh_level: 1
+  nx: 8
+  ny: 2
+  nz: 4
+  Lx: 2.0
+  Ly: 1.0
+  Lz: 1.0
+  F_total: 1.0
+  rho_0: 0.5
+  corner_load: false
 
 ic_defaults:
-  name: uniform
+  name: default
   seed: 0
 
 forward:
+  baseline:
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: [4, 6, 8, 12, 16]
+        ny: 2
+        nz: 4
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 1.0
+        F_total: 1.0
+        corner_load: false
   agreement:
-    - ic: { name: uniform, seed: 0 }
-      physics: { N: 8 }
-      sweep: { key: N, values: [4, 8, 12, 16] }
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: 8
+        ny: 2
+        nz: 4
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 1.0
+        F_total: 1.0
+        corner_load: false
+        rho_0: [0.2, 0.4, 0.5, 0.7, 0.9]
 
 gradient:
   fd_check:
-    - ic: { name: uniform, seed: 0 }
-      physics: { N: 8 }
-      fd: { eps_values: [1.0, 0.1, 0.01, 0.001], n_dirs: 10 }
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: 8
+        ny: 2
+        nz: 4
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 1.0
+        F_total: 1.0
+        corner_load: true
+      fd:
+        eps_values: [2.0, 0.5, 0.1, 0.03, 0.01, 0.003, 0.001]
+        n_dirs: 6
 
 cost:
-  cost:
-    n_trials: 3
-    N_values: [4, 8, 12, 16]
+  spatial_cost:
+    - physics:
+        nx: [4, 6, 8, 12, 16]
+        ny: 2
+        nz: 4
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 1.0
+        F_total: 1.0
+        rho_0: 0.5
+        corner_load: false
+        steps: 1
+      cost: { n_trials: 3 }
 
 optimization:
   topopt:
-    - ic: { name: uniform, seed: 0 }
-      physics: { N: 8 }
-      optim: { lr: 0.01, steps: 200, patience: 30 }
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: 16
+        ny: 2
+        nz: 8
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 1.0
+        F_total: 1.0
+        corner_load: true
+        v_frac: 0.5
+      optim: { lr: 0.05, max_iters: 2500, patience: 100 }

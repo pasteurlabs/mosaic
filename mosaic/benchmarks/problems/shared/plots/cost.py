@@ -132,21 +132,37 @@ def _first_nonempty_keys(top: dict) -> list[str]:
 
 
 def _load_cost_inputs(suite_dir, suffix: str):
-    """Load the three result.json files; return (data_dicts, hw_str) or (None, "")."""
+    """Load the four result.json files; return (data_dicts, hw_str) or (None, "").
+
+    ``vjp_cost`` is registered as two sub-experiments — ``vjp_cost/by_N``
+    and ``vjp_cost/by_steps`` — since the framework iterates one sweep
+    axis at a time. We merge the two into a single ``vjp_data`` dict so
+    the downstream column-building logic stays one path.
+    """
     spatial_path = suite_dir / f"spatial_cost{suffix}" / "result.json"
     temporal_path = suite_dir / f"temporal_cost{suffix}" / "result.json"
-    vjp_path = suite_dir / f"vjp_cost{suffix}" / "result.json"
+    vjp_n_path = suite_dir / f"vjp_cost{suffix}" / "by_N" / "result.json"
+    vjp_s_path = suite_dir / f"vjp_cost{suffix}" / "by_steps" / "result.json"
 
     has_spatial = spatial_path.exists()
     has_temporal = temporal_path.exists()
-    has_vjp = vjp_path.exists()
+    has_vjp_n = vjp_n_path.exists()
+    has_vjp_s = vjp_s_path.exists()
 
-    if not has_spatial and not has_temporal and not has_vjp:
+    if not (has_spatial or has_temporal or has_vjp_n or has_vjp_s):
         return None, ""
 
     spatial_data = load_json(spatial_path) if has_spatial else {}
     temporal_data = load_json(temporal_path) if has_temporal else {}
-    vjp_data = load_json(vjp_path) if has_vjp else {}
+    vjp_n = load_json(vjp_n_path) if has_vjp_n else {}
+    vjp_s = load_json(vjp_s_path) if has_vjp_s else {}
+    vjp_data: dict = {}
+    if vjp_n.get("by_N"):
+        vjp_data["by_N"] = vjp_n["by_N"]
+        vjp_data.setdefault("hardware", vjp_n.get("hardware"))
+    if vjp_s.get("by_steps"):
+        vjp_data["by_steps"] = vjp_s["by_steps"]
+        vjp_data.setdefault("hardware", vjp_s.get("hardware"))
 
     hw_str = ""
     for data in (spatial_data, temporal_data, vjp_data):

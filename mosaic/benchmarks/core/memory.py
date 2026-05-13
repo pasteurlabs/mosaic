@@ -43,6 +43,9 @@ _NVML_OK: bool | None = None
 def _nvml_ready():
     """Return the ``pynvml`` module if NVML is initialised, else ``None``.
 
+    The upstream package is ``nvidia-ml-py`` (see ``pyproject.toml``); it
+    ships a module named ``pynvml`` so the import statement is unchanged.
+
     Caches the init result so failing hosts (no driver, CPU-only CI) don't
     re-pay the import + init cost on every sample.
     """

@@ -1,50 +1,54 @@
-"""IC-recovery runner and helpers for the ns-3d-grid problem.
+"""IC-recovery kernel for the ns-3d-grid problem.
 
-This module hosts the gradient-descent / L-BFGS based initial-condition
-recovery pipeline.  The runner ``run_recovery`` (plus its private helpers
-and the ``_RecoveryRunCtx`` dataclass) used to live in
-``mosaic.benchmarks.problems.shared.optimization`` but is consumed only by
-the navier-stokes 3D grid problem, so it was moved here.
+The IC-recovery pipeline used to be a bespoke ``run_recovery`` harness that
+managed its own per-solver and per-sweep loops. It now lives as a
+:func:`recovery` kernel + :func:`_recovery_aggregate` aggregate plugged
+into :func:`mosaic.benchmarks.core.experiment.run_experiment`.
+
+Layout:
+
+* :func:`recovery` — per-(solver, sweep-value) kernel. The framework
+  iterates ``sweep_values`` (``sweep_mode="default"``); each invocation
+  handles ONE sweep point. The kernel still iterates ``ic_seeds`` (the
+  inner per-seed trial loop) and aggregates per-seed trial results into
+  the single ``by_sweep[name][val]`` entry it returns as ``metrics``.
+* :func:`_recovery_aggregate` — cross-solver post-pass. The framework
+  hands back ``by_solver[name] = {val: entry}`` (already shaped as
+  ``by_sweep``); the aggregate computes ``failure_values``, repacks the
+  per-(solver, val) visualisation snapshots into the legacy
+  ``recovery_fields.npz`` schema, and returns the final
+  ``{sweep_key, by_sweep, failure_values, params}`` result dict.
+* Inner helpers (``_build_per_seed_ics``, ``_compute_targets_for_val``,
+  ``_run_one_seed_trial``, …) are unchanged science primitives shared
+  between the kernel body and (previously) the runner.
 
 The inner optimiser primitives ``_run_optim`` (Adam with patience-based
 early stopping) and ``_run_lbfgs`` (L-BFGS with zoom line-search) remain
 in ``shared/`` since they are reused by topology-optimisation and other
-suites; they are imported below.
+suites.
 """
 
 from __future__ import annotations
-
-import threading
-from dataclasses import dataclass, field
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import (
+    PartialResultWriter,
     experiment_dir,
     results_dir,
-    save_experiment,
     save_field_snapshots_npz,
-    save_json,
+    try_load_json,
 )
-from mosaic.benchmarks.core.runner import per_solver_loop
 
 # JAX-traced loss_fn closures capture this reference at trace time;
 # using the tracer-aware wrapper ensures primitive binding sees the
 # active trace.
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
-from mosaic.benchmarks.core.utils import (
-    active_differentiable_solvers,
-    extract_runs,
-    is_valid,
-    iter_runs,
-)
+from mosaic.benchmarks.core.utils import is_valid
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
-
-_SUITE = "optimization"
-
 
 # ── Divergence-free helpers ───────────────────────────────────────────────────
 
@@ -185,27 +189,21 @@ def _build_per_seed_ics(
     return ic_true_dict, ic_init_dict, max_div_dict
 
 
-def _build_sigma_perturbed_ics(
+def _build_sigma_perturbed_ic(
     ic_true: jax.Array,
-    sweep_values: list,
+    sigma_val: float,
     seed: int,
     is_vel: bool,
     console,
     *,
     domain_extent: float,
-) -> dict:
-    """For sigma sweep: build dict[sigma -> perturbed IC] (div-free projected)."""
-    sigma_ics: dict = {}
-    for sv in sweep_values:
-        sigma_val = float(sv)
-        key_sv = jax.random.fold_in(jax.random.PRNGKey(seed), int(sigma_val * 1000))
-        raw = ic_true + sigma_val * jax.random.normal(
-            key_sv, ic_true.shape, dtype=jnp.float32
-        )
-        sigma_ics[sv] = _project_ic_with_log(
-            raw, f"σ={sigma_val}", is_vel, domain_extent, console
-        )
-    return sigma_ics
+) -> jax.Array:
+    """Build the perturbed IC at a single sigma value (div-free projected)."""
+    key_sv = jax.random.fold_in(jax.random.PRNGKey(seed), int(sigma_val * 1000))
+    raw = ic_true + sigma_val * jax.random.normal(
+        key_sv, ic_true.shape, dtype=jnp.float32
+    )
+    return _project_ic_with_log(raw, f"σ={sigma_val}", is_vel, domain_extent, console)
 
 
 def _compute_targets_for_val(
@@ -301,61 +299,6 @@ def _aggregate_trial_results(
     }
 
 
-def _build_recovery_visualization_stacks(
-    name: str,
-    all_ic_opts: dict,
-    sweep_values: list,
-    sweep_key: str,
-    phys: dict,
-    is_sigma_sweep: bool,
-    sigma_ics: dict | None,
-    ic_true,
-    t,
-    *,
-    make_inputs,
-    output_key: str,
-    domain_extent: float,
-) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]:
-    """Stack per-sigma IC/final-rec arrays plus per-sigma perturbed-forward.
-
-    Returns ``(ic_stack, final_rec_stack, perturbed_stack)``; any may be ``None``.
-    """
-    ic_stack, fr_stack = [], []
-    for v in sweep_values:
-        io = all_ic_opts.get(v)
-        if io is not None:
-            ic_stack.append(np.asarray(io))
-            kw = phys if is_sigma_sweep else {**phys, sweep_key: v}
-            try:
-                inp = make_inputs(name, io, domain_extent=domain_extent, **kw)
-                fr_stack.append(np.asarray(apply_tesseract(t, inp)[output_key]))
-            except Exception:
-                fr_stack.append(np.zeros_like(np.asarray(io)))
-        else:
-            ic_stack.append(np.zeros_like(np.asarray(ic_true)))
-            fr_stack.append(np.zeros_like(np.asarray(ic_true)))
-
-    ic_arr = np.stack(ic_stack) if ic_stack else None
-    fr_arr = np.stack(fr_stack) if fr_stack else None
-
-    perturb_arr = None
-    if is_sigma_sweep and sigma_ics:
-        fp_stack = []
-        for v in sweep_values:
-            ip = sigma_ics.get(v)
-            if ip is not None:
-                try:
-                    inp_p = make_inputs(name, ip, domain_extent=domain_extent, **phys)
-                    fp_stack.append(np.asarray(apply_tesseract(t, inp_p)[output_key]))
-                except Exception:
-                    fp_stack.append(np.zeros_like(np.asarray(ic_true)))
-            else:
-                fp_stack.append(np.zeros_like(np.asarray(ic_true)))
-        if fp_stack:
-            perturb_arr = np.stack(fp_stack)
-    return ic_arr, fr_arr, perturb_arr
-
-
 def _compute_recovery_failure_values(by_sweep: dict, sweep_values: list) -> dict:
     """For each solver: first sweep value where the optimizer failed to converge."""
     failure_values: dict = {}
@@ -370,192 +313,11 @@ def _compute_recovery_failure_values(by_sweep: dict, sweep_values: list) -> dict
     return failure_values
 
 
-def _build_recovery_shared_arrays(
-    rep_val,
-    sweep_values,
-    ic_true,
-    rep_ic_init,
-    solver_names: list[str],
-    final_states_gt: dict,
-    is_sigma_sweep: bool,
-    sigma_ics: dict,
-) -> dict:
-    """Assemble the ``shared_arrays`` dict for ``save_field_snapshots_npz``."""
-    shared_final_gt = (
-        np.asarray(final_states_gt[solver_names[0]])
-        if solver_names and solver_names[0] in final_states_gt
-        else None
-    )
-    shared: dict = {
-        "rep_val": np.array([rep_val]),
-        "sweep_values": np.array(sweep_values, dtype=float),
-        "ic_true": np.asarray(ic_true),
-        "ic_init": np.asarray(rep_ic_init)
-        if rep_ic_init is not None
-        else np.asarray(ic_true),
-    }
-    if shared_final_gt is not None:
-        shared["final_gt_shared"] = shared_final_gt
-    if is_sigma_sweep and sigma_ics:
-        shared["ic_perturbed_all"] = np.stack(
-            [np.asarray(sigma_ics[sv]) for sv in sweep_values]
-        )
-    return shared
+# ── Per-seed trial body ───────────────────────────────────────────────────────
 
 
-def _save_recovery_outputs(
-    out_dir,
-    solver_names: list[str],
-    per_solver_arrays: dict,
-    shared: dict,
-    result: dict,
-    cfg: Problem,
-    harness_fn,
-    wall_times: dict[str, float],
-    by_sweep: dict,
-    exp_key: str,
-) -> None:
-    """Save the per-solver npz fields and result.json (skip if by_sweep empty)."""
-    save_field_snapshots_npz(
-        out_dir,
-        solver_names,
-        per_solver_arrays,
-        shared_arrays=shared,
-        filename="recovery_fields.npz",
-        prefixes=(
-            "ic_rec",
-            "ic_history",
-            "final_gt",
-            "final_rec",
-            "final_rep_val",
-            "ic_rec_all",
-            "final_rec_all",
-            "final_perturbed_all",
-        ),
-    )
-    if not by_sweep:
-        from mosaic.benchmarks.core.console import print_warn
-
-        print_warn(
-            f"{exp_key}: by_sweep is empty (all solvers excluded or skipped) — "
-            "skipping result.json save to preserve existing data"
-        )
-    else:
-        save_experiment(
-            result, out_dir, cfg=cfg, harness_fn=harness_fn, wall_time_s=wall_times
-        )
-
-
-def _build_recovery_per_solver_arrays(
-    solver_names: list[str],
-    ic_snaps: dict,
-    ic_histories: dict,
-    final_states_gt: dict,
-    final_states_rec: dict,
-    final_states_rep_val: dict,
-    all_ic_snaps: dict,
-    all_final_rec_snaps: dict,
-    all_final_perturbed_snaps: dict,
-) -> dict[str, dict[str, np.ndarray]]:
-    """Build the per-solver dict of named ndarray entries for the npz save."""
-    per_solver_arrays: dict[str, dict[str, np.ndarray]] = {}
-    for sname in solver_names:
-        entry: dict[str, np.ndarray] = {
-            "ic_rec:": np.asarray(ic_snaps[sname]),
-        }
-        if sname in ic_histories:
-            entry["ic_history:"] = np.asarray(ic_histories[sname])
-        if sname in final_states_gt:
-            entry["final_gt:"] = np.asarray(final_states_gt[sname])
-        if sname in final_states_rec:
-            entry["final_rec:"] = np.asarray(final_states_rec[sname])
-        if sname in final_states_rep_val:
-            entry["final_rep_val:"] = np.array([final_states_rep_val[sname]])
-        if sname in all_ic_snaps:
-            entry["ic_rec_all:"] = np.asarray(all_ic_snaps[sname])
-        if sname in all_final_rec_snaps:
-            entry["final_rec_all:"] = np.asarray(all_final_rec_snaps[sname])
-        if sname in all_final_perturbed_snaps:
-            entry["final_perturbed_all:"] = np.asarray(all_final_perturbed_snaps[sname])
-        per_solver_arrays[sname] = entry
-    return per_solver_arrays
-
-
-@dataclass
-class _RecoveryRunCtx:
-    """Per-run state for `_run_recovery_long_impl` worker helpers.
-
-    Encapsulates the otherwise huge set of captured locals so the helper
-    functions can be lifted out of closures without a 30-parameter signature.
-    The mutable accumulator dicts (``by_sweep``, ``ic_snaps`` etc.) are
-    populated in place by worker callbacks running on the GPU pool.
-    """
-
-    cfg: Problem
-    run: dict
-    exp_key: str
-    # Config snapshot
-    sweep_key: str
-    sweep_values: list
-    phys: dict
-    snap_interval: int
-    lr: float
-    max_iters: int
-    patience: int
-    perturb_sigma: float
-    failure_threshold: float
-    record_diagnostics: bool
-    is_sigma_sweep: bool
-    is_multi_seed: bool
-    is_vel: bool
-    rep_val: float
-    primary_seed: int
-    ic_seeds: list
-    # Per-seed dicts
-    ic_true_dict: dict
-    ic_init_dict: dict
-    sigma_ics: dict
-    # Derived
-    max_div: float | None
-    ic_true: jax.Array
-    optim_fn: object
-    div_fn: object | None
-    grad_proj_fn: object | None
-    out_dir: object
-    partial_lock: threading.Lock
-    # Problem-semantics state (explicit dependencies)
-    make_ic: object = None
-    make_inputs: object = None
-    error_fn: object = None
-    output_key: str = ""
-    domain_extent: float = 0.0
-    # Accumulators (mutated in place by workers)
-    by_sweep: dict = field(default_factory=dict)
-    ic_snaps: dict = field(default_factory=dict)
-    ic_init_snaps: dict = field(default_factory=dict)
-    ic_histories: dict = field(default_factory=dict)
-    final_states_gt: dict = field(default_factory=dict)
-    final_states_rec: dict = field(default_factory=dict)
-    final_states_rep_val: dict = field(default_factory=dict)
-    all_ic_snaps: dict = field(default_factory=dict)
-    all_final_rec_snaps: dict = field(default_factory=dict)
-    all_final_perturbed_snaps: dict = field(default_factory=dict)
-    wall_times: dict = field(default_factory=dict)
-
-
-def _write_recovery_partial(ctx: _RecoveryRunCtx) -> None:
-    """Snapshot ``by_sweep`` into ``result_partial.json`` under the run's lock."""
-    partial = {
-        "sweep_key": ctx.sweep_key,
-        "by_sweep": ctx.by_sweep,
-        "params": ctx.run,
-    }
-    with ctx.partial_lock:
-        save_json(partial, ctx.out_dir / "result_partial.json")
-
-
-def _run_one_seed_trial(
-    ctx: _RecoveryRunCtx,
+def _run_one_seed_trial(  # noqa: PLR0913 — explicit-deps signature
+    *,
     name: str,
     t,
     color: str,
@@ -565,31 +327,45 @@ def _run_one_seed_trial(
     ic_true_k,
     target_k,
     is_primary: bool,
+    phys: dict,
+    sweep_key: str,
+    is_sigma_sweep: bool,
+    is_multi_seed: bool,
+    is_vel: bool,
+    rep_val,
+    snap_interval: int,
+    lr: float,
+    max_iters: int,
+    patience: int,
+    record_diagnostics: bool,
+    optim_fn,
+    div_fn,
+    grad_proj_fn,
+    make_inputs,
+    error_fn,
+    output_key: str,
+    domain_extent: float,
+    exp_key: str,
 ) -> dict | None:
     """Run a single per-seed optimisation trial; returns a result dict or None."""
     from mosaic.benchmarks.core.console import console
 
-    phys = ctx.phys
-    sweep_key = ctx.sweep_key
-    snap_interval = ctx.snap_interval
-    max_iters = ctx.max_iters
-
     def loss_fn(ic, _t=t, _target=target_k, _val=val):
-        _phys_kw = phys if ctx.is_sigma_sweep else {**phys, sweep_key: _val}
-        inp = ctx.make_inputs(
+        _phys_kw = phys if is_sigma_sweep else {**phys, sweep_key: _val}
+        inp = make_inputs(
             name,
             ic,
-            domain_extent=ctx.domain_extent,
+            domain_extent=domain_extent,
             **_phys_kw,
         )
-        return jnp.mean((apply_tesseract(_t, inp)[ctx.output_key] - _target) ** 2)
+        return jnp.mean((apply_tesseract(_t, inp)[output_key] - _target) ** 2)
 
     _hist: list | None = (
-        [] if (snap_interval > 0 and val == ctx.rep_val and is_primary) else None
+        [] if (snap_interval > 0 and val == rep_val and is_primary) else None
     )
     _ic_err_hist: list[float] = []
-    ic_error_init = float(ctx.error_fn(ic_init_k, ic_true_k))
-    seed_tag = f" [ic_seed={s}]" if ctx.is_multi_seed else ""
+    ic_error_init = float(error_fn(ic_init_k, ic_true_k))
+    seed_tag = f" [ic_seed={s}]" if is_multi_seed else ""
     console.print(
         f"  [{color}]{name}[/] {sweep_key}={val}{seed_tag} "
         f"optim start (init_err={ic_error_init:.4g})"
@@ -601,31 +377,31 @@ def _run_one_seed_trial(
         )
 
     try:
-        ic_opt, errors, diag = ctx.optim_fn(
+        ic_opt, errors, diag = optim_fn(
             loss_fn,
             ic_init_k,
-            ctx.lr,
+            lr,
             max_iters,
-            ctx.patience,
+            patience,
             snap_interval=snap_interval if snap_interval > 0 else 0,
             history=_hist,
-            snap_error_fn=lambda ic, _ict=ic_true_k: float(ctx.error_fn(ic, _ict)),
+            snap_error_fn=lambda ic, _ict=ic_true_k: float(error_fn(ic, _ict)),
             error_history=_ic_err_hist if (snap_interval > 0 and is_primary) else None,
             log_fn=_log_iter,
-            record_diagnostics=ctx.record_diagnostics,
-            div_fn=ctx.div_fn,
-            grad_proj_fn=ctx.grad_proj_fn,
+            record_diagnostics=record_diagnostics,
+            div_fn=div_fn,
+            grad_proj_fn=grad_proj_fn,
         )
     except Exception as exc:
         from mosaic.benchmarks.core.console import print_warn
 
         print_warn(
-            f"{name} {ctx.exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
+            f"{name} {exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
         )
         return None
-    final_ic_error = ctx.error_fn(ic_opt, ic_true_k)
+    final_ic_error = error_fn(ic_opt, ic_true_k)
     final_ic_div = (
-        _max_divergence(np.asarray(ic_opt), ctx.domain_extent) if ctx.is_vel else None
+        _max_divergence(np.asarray(ic_opt), domain_extent) if is_vel else None
     )
     console.print(
         f"  [{color}]{name}[/] {sweep_key}={val}{seed_tag} done "
@@ -641,288 +417,327 @@ def _run_one_seed_trial(
         "ic_opt": ic_opt,
         "target": target_k,
         "ic_init": ic_init_k,
-        "phys_kw": phys if ctx.is_sigma_sweep else {**phys, sweep_key: val},
+        "phys_kw": phys if is_sigma_sweep else {**phys, sweep_key: val},
         "ic_seed": s,
         "_hist": _hist,
         "_ic_err_hist": _ic_err_hist,
     }
 
 
-def _process_recovery_sweep_val(
-    ctx: _RecoveryRunCtx,
+def _precompute_sigma_target(
+    *,
     name: str,
     t,
-    color: str,
-    val,
-    sigma_target,
-    all_ic_opts: dict,
-    best_conv: dict,
-) -> dict:
-    """Process one sweep value: build targets, run per-seed trials, aggregate.
-
-    ``sigma_target`` is the pre-computed common target for sigma sweep (else
-    ``None``). Updates ``ctx.by_sweep`` / vis snaps in place and returns the
-    updated ``best_conv`` dict.
-    """
-    if ctx.is_sigma_sweep:
-        _ic_init = ctx.sigma_ics[val]
-        seeds_for_val: list[int] = [ctx.primary_seed]
-        target_for_seed: dict[int, jax.Array] = {ctx.primary_seed: sigma_target}
-    else:
-        _ic_init = None
-        seeds_for_val = ctx.ic_seeds
-        target_for_seed = _compute_targets_for_val(
-            name,
-            ctx.exp_key,
-            val,
-            ctx.sweep_key,
-            ctx.ic_seeds,
-            ctx.ic_true_dict,
-            ctx.phys,
-            t,
-            make_inputs=ctx.make_inputs,
-            output_key=ctx.output_key,
-            domain_extent=ctx.domain_extent,
-        )
-        if not target_for_seed:
-            ctx.by_sweep[name][val] = None
-            _write_recovery_partial(ctx)
-            return best_conv
-
-    trial_results: list[dict] = []
-    primary_hist: list | None = None
-    primary_ic_err_hist: list[float] = []
-
-    for s in seeds_for_val:
-        if s not in target_for_seed:
-            continue
-        ic_true_k = ctx.ic_true_dict[s]
-        ic_init_k = ctx.ic_init_dict[s] if not ctx.is_sigma_sweep else _ic_init
-        target_k = target_for_seed[s]
-        is_primary = s == ctx.primary_seed
-        trial = _run_one_seed_trial(
-            ctx, name, t, color, val, s, ic_init_k, ic_true_k, target_k, is_primary
-        )
-        if trial is None:
-            continue
-        if is_primary and trial["_hist"]:
-            primary_hist = trial["_hist"]
-        if is_primary and trial["_ic_err_hist"]:
-            primary_ic_err_hist = trial["_ic_err_hist"]
-        trial_results.append(trial)
-
-    if not trial_results:
-        ctx.by_sweep[name][val] = None
-        _write_recovery_partial(ctx)
-        return best_conv
-
-    ctx.by_sweep[name][val] = _aggregate_trial_results(
-        trial_results,
-        primary_ic_err_hist,
-        val,
-        ctx.perturb_sigma,
-        ctx.is_sigma_sweep,
-        ctx.is_multi_seed,
-        ctx.failure_threshold,
-        ctx.max_div,
-        ctx.ic_true,
-    )
-    _write_recovery_partial(ctx)
-
-    prim_trial = next(
-        (r for r in trial_results if r["ic_seed"] == ctx.primary_seed),
-        trial_results[0],
-    )
-    ic_opt = prim_trial["ic_opt"]
-    all_ic_opts[val] = ic_opt
-    if val == ctx.rep_val:
-        ctx.ic_snaps[name] = ic_opt
-        ctx.ic_init_snaps[name] = prim_trial["ic_init"]
-        if primary_hist:
-            ctx.ic_histories[name] = np.asarray(primary_hist)
-    if prim_trial["final_ic_error"] < ctx.failure_threshold:
-        return {
-            "val": val,
-            "ic_opt": ic_opt,
-            "target": prim_trial["target"],
-            "ic_init": prim_trial["ic_init"],
-            "phys_kw": prim_trial["phys_kw"],
-        }
-    return best_conv
-
-
-def _collect_final_states(ctx: _RecoveryRunCtx, name: str, t, best_conv: dict) -> None:
-    """Use the hardest converged val (or rep_val) to record final GT / rec states."""
-    fv = best_conv.get("val", ctx.rep_val)
-    fic = best_conv.get("ic_opt", ctx.ic_snaps.get(name))
-    ftgt = best_conv.get("target")
-    fphys = best_conv.get("phys_kw", ctx.phys)
-    if fic is None or ftgt is None:
-        return
-    ctx.final_states_gt[name] = np.asarray(ftgt)
-    ctx.final_states_rep_val[name] = fv
-    try:
-        inp_rec = ctx.make_inputs(
-            name,
-            fic,
-            domain_extent=ctx.domain_extent,
-            **fphys,
-        )
-        ctx.final_states_rec[name] = np.asarray(
-            apply_tesseract(t, inp_rec)[ctx.output_key]
-        )
-    except Exception:
-        pass
-
-
-def _recovery_long_work(ctx: _RecoveryRunCtx, name: str, t) -> None:
-    """Per-solver worker: run the full sweep optimisation pipeline.
-
-    Wall-time bookkeeping is handled by :func:`per_solver_loop` in the caller.
-    """
-    from mosaic.benchmarks.core.console import console
-
-    color = ctx.cfg.solver(name).color
-    ctx.by_sweep[name] = {}
-    best_conv: dict = {}
-    all_ic_opts: dict = {}
-    console.print(
-        f"  [{color}]{name}[/] {ctx.exp_key} starting ({len(ctx.sweep_values)} sweep values, "
-        f"max_iters={ctx.max_iters})"
-    )
-
-    sigma_target = None
-    if ctx.is_sigma_sweep:
-        sigma_target = _precompute_sigma_target(ctx, name, t, color)
-        if sigma_target is None:
-            for val in ctx.sweep_values:
-                ctx.by_sweep[name][val] = None
-            return
-
-    for val in ctx.sweep_values:
-        best_conv = _process_recovery_sweep_val(
-            ctx, name, t, color, val, sigma_target, all_ic_opts, best_conv
-        )
-
-    _collect_final_states(ctx, name, t, best_conv)
-
-    ic_arr, fr_arr, perturb_arr = _build_recovery_visualization_stacks(
-        name,
-        all_ic_opts,
-        ctx.sweep_values,
-        ctx.sweep_key,
-        ctx.phys,
-        ctx.is_sigma_sweep,
-        ctx.sigma_ics if ctx.is_sigma_sweep else None,
-        ctx.ic_true,
-        t,
-        make_inputs=ctx.make_inputs,
-        output_key=ctx.output_key,
-        domain_extent=ctx.domain_extent,
-    )
-    if ic_arr is not None:
-        ctx.all_ic_snaps[name] = ic_arr
-    if fr_arr is not None:
-        ctx.all_final_rec_snaps[name] = fr_arr
-    if perturb_arr is not None:
-        ctx.all_final_perturbed_snaps[name] = perturb_arr
-
-
-def _precompute_sigma_target(ctx: _RecoveryRunCtx, name: str, t, color: str):
+    ic_true,
+    phys: dict,
+    make_inputs,
+    output_key: str,
+    domain_extent: float,
+    exp_key: str,
+):
     """For sigma sweep: forward the primary true IC to produce the shared target.
 
     Returns the target array, or ``None`` if forward failed or output invalid.
     """
     try:
-        inputs_true_fixed = ctx.make_inputs(
+        inputs_true_fixed = make_inputs(
             name,
-            ctx.ic_true,
-            domain_extent=ctx.domain_extent,
-            **ctx.phys,
+            ic_true,
+            domain_extent=domain_extent,
+            **phys,
         )
-        target = apply_tesseract(t, inputs_true_fixed)[ctx.output_key]
+        target = apply_tesseract(t, inputs_true_fixed)[output_key]
     except Exception as exc:
         from mosaic.benchmarks.core.console import print_warn
 
-        print_warn(
-            f"{name} {ctx.exp_key} target forward failed: {exc} — "
-            f"marking all {len(ctx.sweep_values)} sweep values as None"
-        )
+        print_warn(f"{name} {exp_key} target forward failed: {exc}")
         return None
     if not is_valid(target):
         return None
     return target
 
 
-def _run_recovery_long_impl(
-    cfg: Problem,
-    tags: dict[str, str],
-    exp_key: str,
-    harness_fn,
+# ── Aggregate ────────────────────────────────────────────────────────────────
+
+
+def _decode_snap_key(key: str) -> tuple[str, str]:
+    """Split a ``"prefix:suffix"`` framework snapshot key.
+
+    The framework's ``_absorb`` writes per-call snapshots under
+    ``f"{prefix}:{idx}"`` where ``idx`` is the sweep-iteration index
+    (stringified). Empty suffix means a single (non-per-val) array.
+    """
+    if ":" in key:
+        p, s = key.split(":", 1)
+        return p, s
+    return key, ""
+
+
+def _collect_per_val_arrays(
+    suf_map: dict[str, np.ndarray], prefix: str, n_vals: int, fallback: np.ndarray
+) -> list[np.ndarray]:
+    """Order per-val snapshots ``prefix:0..N-1`` into a list, zero-padding gaps."""
+    out: list[np.ndarray] = []
+    for idx in range(n_vals):
+        arr = suf_map.get(f"{prefix}:{idx}")
+        out.append(np.asarray(arr) if arr is not None else np.zeros_like(fallback))
+    return out
+
+
+def _build_solver_snap_layout(
+    suf_map: dict[str, np.ndarray],
+    sweep_values: list,
+    by_sweep_name: dict,
+    failure_threshold: float,
+    rep_val,
+    fallback_ic: np.ndarray,
+    is_sigma_sweep: bool,
+) -> dict[str, np.ndarray]:
+    """Repack per-(solver, val) framework snapshots into the legacy NPZ schema.
+
+    The kernel emits one ``ic_rec`` / ``final_gt`` / ``final_rec`` array per
+    sweep value (framework adds ``:<idx>`` suffix). The on-disk schema wants:
+
+      * ``ic_rec_<j>``        — IC at rep_val (showcase)
+      * ``ic_history_<j>``    — history at rep_val
+      * ``final_gt_<j>``      — target at the hardest converged val
+      * ``final_rec_<j>``     — forward of that IC at that val
+      * ``final_rep_val_<j>`` — that val itself
+      * ``ic_rec_all_<j>``    — stack across all sweep values
+      * ``final_rec_all_<j>`` — stack across all sweep values
+      * ``final_perturbed_all_<j>`` — sigma-sweep only, stack of perturbed forwards
+
+    Returns the empty-suffix ``"prefix:"`` keyed dict expected by
+    :func:`save_field_snapshots_npz` (positional layout).
+    """
+    n_vals = len(sweep_values)
+    rep_idx = n_vals // 2
+
+    # Stack ``_all`` arrays across all sweep values.
+    ic_all = _collect_per_val_arrays(suf_map, "ic_rec", n_vals, fallback_ic)
+    fr_all = _collect_per_val_arrays(suf_map, "final_rec", n_vals, fallback_ic)
+    perturb_all = (
+        _collect_per_val_arrays(suf_map, "final_perturbed", n_vals, fallback_ic)
+        if is_sigma_sweep
+        else None
+    )
+
+    # ``best_conv``: pick the hardest sweep value where the trial converged;
+    # legacy semantics walked the sweep in registration order and overwrote
+    # so the last converged val wins (NOT a strict ``max`` — keeps the same
+    # ordering as the iteration order).
+    best_idx: int | None = None
+    for idx, val in enumerate(sweep_values):
+        entry = by_sweep_name.get(val)
+        if entry is None:
+            continue
+        if (
+            entry.get("final_ic_error") is not None
+            and entry["final_ic_error"] < failure_threshold
+        ):
+            best_idx = idx
+    showcase_idx = best_idx if best_idx is not None else rep_idx
+    showcase_val = sweep_values[showcase_idx]
+
+    out: dict[str, np.ndarray] = {}
+    # Single-array showcases (empty suffix → ``ic_rec_<j>``).
+    rep_ic = suf_map.get(f"ic_rec:{rep_idx}")
+    if rep_ic is not None:
+        out["ic_rec:"] = np.asarray(rep_ic)
+    rep_hist = suf_map.get(f"ic_history:{rep_idx}")
+    if rep_hist is not None:
+        out["ic_history:"] = np.asarray(rep_hist)
+    # ``final_gt``/``final_rec``/``final_rep_val`` come from the best-conv val
+    # (showcase_val). Per-val ``final_gt:<idx>`` / ``final_rec:<idx>`` arrays
+    # are emitted by the kernel; pick the showcase index.
+    sc_gt = suf_map.get(f"final_gt:{showcase_idx}")
+    sc_rec = suf_map.get(f"final_rec:{showcase_idx}")
+    if sc_gt is not None:
+        out["final_gt:"] = np.asarray(sc_gt)
+    if sc_rec is not None:
+        out["final_rec:"] = np.asarray(sc_rec)
+    if sc_gt is not None or sc_rec is not None:
+        out["final_rep_val:"] = np.array([showcase_val])
+
+    out["ic_rec_all:"] = np.stack(ic_all)
+    out["final_rec_all:"] = np.stack(fr_all)
+    if perturb_all is not None:
+        out["final_perturbed_all:"] = np.stack(perturb_all)
+    return out
+
+
+def _recovery_aggregate(
+    by_solver,
     *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    runs=None,
-    _optim_fn=_run_optim,
-    _project_grads: bool = False,
-    **overrides,
+    run,
+    cfg,
+    out_dir,
+    snapshots,
+    shared_extras,
+    ic,
+    sweep_values,
+    sweep_key,
+    snapshot_filename,
+    snapshot_prefixes,
+    **_,
 ) -> dict:
-    """Shared implementation for run_recovery_long and variants."""
-    if not runs:
-        raise NotImplementedError(
-            f"_run_recovery_long_impl requires runs= payload for {exp_key!r} "
-            f"(not configured for '{cfg.name}')"
+    """Cross-solver post-pass: failure_values + per-solver NPZ + result dict.
+
+    The framework already iterated ``sweep_values`` via ``sweep_mode="default"``
+    so ``by_solver[name]`` is the per-solver ``{val: entry}`` map (i.e.
+    ``by_sweep[name]``). Per-val visualisation snapshots arrive on
+    ``snapshots[name][f"{prefix}:{idx}"]``; we repack them into the
+    legacy ``recovery_fields.npz`` empty-suffix schema.
+    """
+    del ic  # already covered by shared_extras["ic_true"] / ["ic_init"]
+    by_sweep: dict = {name: per for name, per in by_solver.items() if per}
+
+    optim_cfg = run.get("optim", {})
+    failure_threshold = optim_cfg.get("failure_threshold", 0.5)
+    rep_val = sweep_values[len(sweep_values) // 2] if sweep_values else None
+
+    failure_values = _compute_recovery_failure_values(by_sweep, sweep_values)
+
+    # Build per-solver legacy NPZ layout. Use ic_true (from shared_extras) as
+    # the zero-padding template for any missing per-val arrays so the stacked
+    # ``ic_rec_all`` shape is well-defined even with mid-sweep failures.
+    ic_true_arr = np.asarray(shared_extras.get("ic_true"))
+    is_sigma_sweep = sweep_key == "perturb_sigma"
+    per_solver_arrays: dict[str, dict[str, np.ndarray]] = {}
+    for name, suf_map in snapshots.items():
+        per_solver_arrays[name] = _build_solver_snap_layout(
+            suf_map,
+            sweep_values,
+            by_sweep.get(name, {}),
+            failure_threshold,
+            rep_val,
+            ic_true_arr,
+            is_sigma_sweep,
         )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
+    solver_names = list(snapshots.keys())
 
-    for run in iter_runs(runs, overrides):
-        result = _run_recovery_for_one_run(
-            cfg=cfg,
-            tags=tags,
-            exp_key=exp_key,
-            harness_fn=harness_fn,
-            run=run,
-            n_runs=n_runs,
-            overrides=overrides,
-            optim_fn=_optim_fn,
-            project_grads=_project_grads,
-            make_ic=make_ic,
-            make_inputs=make_inputs,
-            error_fn=error_fn,
-            output_key=output_key,
-            domain_extent=domain_extent,
+    # Shared NPZ payload: framework-collected ``shared`` values from the first
+    # solver to report (rep_val, sweep_values, ic_true, ic_init, …). For sigma
+    # sweep we also build ``ic_perturbed_all`` by stacking the per-val
+    # ``ic_perturbed`` arrays from whichever solver's snapshot dict contains
+    # them (each solver emits the same set; first non-empty wins).
+    shared_dict: dict = {k: np.asarray(v) for k, v in shared_extras.items()}
+    if is_sigma_sweep and snapshots:
+        first_suf = next(iter(snapshots.values()))
+        perturbed_stack = _collect_per_val_arrays(
+            first_suf, "ic_perturbed", len(sweep_values), ic_true_arr
         )
-        if n_runs > 1:
-            ic_name = run.get("ic", {}).get("name", next(iter(make_ic)))
-            all_results[ic_name] = result
-        else:
-            all_results = result
+        if perturbed_stack:
+            shared_dict["ic_perturbed_all"] = np.stack(perturbed_stack)
 
-    return all_results
+    # Empty-by_sweep preservation: the legacy code skipped result.json save
+    # entirely when no solver returned any sweep value. Reproduce by handing
+    # back the existing result dict (the framework's save_harness_result will
+    # then idempotently re-stamp staleness fields without overwriting data).
+    if not by_sweep:
+        from mosaic.benchmarks.core.console import print_warn
+
+        # NPZ is written unconditionally — matches the original
+        # _save_recovery_outputs ordering.
+        if per_solver_arrays:
+            save_field_snapshots_npz(
+                out_dir,
+                solver_names,
+                per_solver_arrays,
+                shared_arrays=shared_dict,
+                filename=snapshot_filename,
+                prefixes=snapshot_prefixes,
+            )
+        print_warn(
+            f"{out_dir.name}: by_sweep is empty (all solvers excluded or skipped) — "
+            "skipping result.json save to preserve existing data"
+        )
+        existing = try_load_json(out_dir / "result.json") or {
+            "sweep_key": sweep_key,
+            "by_sweep": {},
+            "failure_values": failure_values,
+            "params": run,
+        }
+        return existing
+
+    save_field_snapshots_npz(
+        out_dir,
+        solver_names,
+        per_solver_arrays,
+        shared_arrays=shared_dict,
+        filename=snapshot_filename,
+        prefixes=snapshot_prefixes,
+    )
+
+    del cfg  # accepted for signature parity; unused here
+    return {
+        "sweep_key": sweep_key,
+        "by_sweep": by_sweep,
+        "failure_values": failure_values,
+        "params": run,
+    }
 
 
-def _run_recovery_for_one_run(  # noqa: PLR0913 — explicit-deps signature
-    *,
-    cfg: Problem,
-    tags: dict[str, str],
-    exp_key: str,
-    harness_fn,
-    run: dict,
-    n_runs: int,
-    overrides: dict,
-    optim_fn,
-    project_grads: bool,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-) -> dict:
-    """Inner body of ``_run_recovery_long_impl``: process a single ``run`` entry."""
+# ── Kernel ───────────────────────────────────────────────────────────────────
+
+
+@kernel(
+    sweep_mode="default",
+    ic_sweep=False,
+    aggregate_fn=_recovery_aggregate,
+    catch_label="recovery failed",
+    snapshot_filename="recovery_fields.npz",
+    snapshot_prefixes=(
+        "ic_rec",
+        "ic_history",
+        "final_gt",
+        "final_rec",
+        "final_rep_val",
+        "ic_rec_all",
+        "final_rec_all",
+        "final_perturbed_all",
+        "ic_perturbed",
+        "final_perturbed",
+    ),
+)
+def recovery(t, ctx: KernelContext) -> dict:
+    """One (solver, sweep-value) IC-recovery point.
+
+    Builds per-seed (true, perturbed) ICs, computes the target for the
+    current sweep value, runs per-seed gradient-based optimisation against
+    each target-forward output, aggregates the per-seed trials into a
+    single ``by_sweep`` entry, and emits the per-val visualisation
+    snapshots (``ic_rec``, ``final_gt``, ``final_rec``, plus the
+    ``ic_history`` history at ``val == rep_val``, and the sigma-only
+    ``ic_perturbed`` / ``final_perturbed`` for downstream stacking).
+
+    The framework owns the sweep loop (``sweep_mode="default"``); each
+    invocation handles exactly one ``ctx.sweep_value``. Per-seed
+    iteration remains inside the kernel since seeds are a trial dimension,
+    not a sweep dimension.
+
+    The ``run["optimizer"]`` key selects the inner optimiser:
+
+      * ``"adam"``       — vanilla Adam (default).
+      * ``"bfgs"``       — L-BFGS with zoom line-search.
+      * ``"bfgs_proj"``  — L-BFGS with the gradient Helmholtz-projected
+        onto the ∇·g = 0 subspace each iteration (keeps the search
+        direction compatible with incompressibility for velocity-field
+        problems).
+    """
+    from mosaic.benchmarks.core.console import console
+
+    cfg = ctx.cfg
+    run = ctx.run
+    name = ctx.name
+    color = cfg.solver(name).color
+    domain_extent = ctx.domain_extent
+    make_inputs = ctx.make_inputs
+    output_key = ctx.output_key
+    make_ic = cfg.make_ic
+    error_fn = cfg.error_fn
+
+    # ── Unpack run config ────────────────────────────────────────────────
     ic_cfg = run.get("ic", {})
     ic_name = ic_cfg.get("name", next(iter(make_ic)))
     seed = ic_cfg.get("seed", 0)
@@ -936,27 +751,33 @@ def _run_recovery_for_one_run(  # noqa: PLR0913 — explicit-deps signature
     patience = optim_cfg.get("patience", 100)
     failure_threshold = optim_cfg.get("failure_threshold", 0.5)
     snap_interval = int(optim_cfg.get("snap_interval", 0))
-    # Multi-seed: list of IC seeds; defaults to single seed from ic_cfg.
     ic_seeds: list[int] = optim_cfg.get("ic_seeds", [seed])
     record_diagnostics: bool = bool(optim_cfg.get("record_diagnostics", True))
     ic_init_type: str = optim_cfg.get("ic_init_type", "perturb")
     phys = run.get("physics", {})
-    _is_sigma_sweep = sweep_key == "perturb_sigma"
-    _is_multi_seed = len(ic_seeds) > 1
-    ic_subdir = ic_name if n_runs > 1 else ""
-    _optim_fn = optim_fn
-    _project_grads = project_grads
+    is_sigma_sweep = sweep_key == "perturb_sigma"
+    is_multi_seed = len(ic_seeds) > 1
+
+    # Experiment key flows in via the run dict — the framework folds any
+    # add_experiment kwarg not consumed by run_experiment into each run's
+    # payload, so config.py passes ``_exp_key="..."`` per registration.
+    exp_key = run.get("_exp_key", "recovery")
 
     if not sweep_values:
         raise NotImplementedError(
-            f"'{exp_key}' requires sweep.values in runs payload "
-            f"(not configured for '{cfg.name}')"
+            f"recovery kernel requires sweep.values in runs payload "
+            f"(not configured for {cfg.name!r})"
         )
 
-    from mosaic.benchmarks.core.console import console
+    # The current sweep point. Framework-provided; falls back to the first
+    # sweep_value as a defensive default (should never trigger under
+    # sweep_mode="default").
+    val = ctx.sweep_value if ctx.sweep_value is not None else sweep_values[0]
+    rep_val = sweep_values[len(sweep_values) // 2]
+    is_rep = val == rep_val
 
-    # ── Build per-seed IC true + perturbed IC ─────────────────────────────
-    _ic_true_dict, _ic_init_dict, _max_div_dict = _build_per_seed_ics(
+    # ── Build per-seed IC true + perturbed IC (cheap; doesn't depend on val) ─
+    ic_true_dict, ic_init_dict, max_div_dict = _build_per_seed_ics(
         ic_name,
         ic_seeds,
         phys,
@@ -967,204 +788,243 @@ def _run_recovery_for_one_run(  # noqa: PLR0913 — explicit-deps signature
         domain_extent=domain_extent,
     )
 
-    # Primary IC / init for single-seed and for visualization (always seed 0 / ic_seeds[0])
-    _primary_seed = ic_seeds[0]
-    ic_true = _ic_true_dict[_primary_seed]
-    max_div = _max_div_dict[_primary_seed]
-    _is_vel = _is_velocity_field(np.asarray(ic_true))
+    primary_seed = ic_seeds[0]
+    ic_true = ic_true_dict[primary_seed]
+    max_div = max_div_dict[primary_seed]
+    is_vel = _is_velocity_field(np.asarray(ic_true))
 
     # div_fn for diagnostics: computes max|∇·u| per-iteration inside _run_optim
-    _div_fn = (
+    div_fn = (
         (lambda u: _max_divergence(np.asarray(u), domain_extent))
-        if (_is_vel and record_diagnostics)
+        if (is_vel and record_diagnostics)
         else None
     )
+
+    # Optimiser dispatch from run["optimizer"].
+    optimizer = run.get("optimizer", "adam")
+    optim_fn = _run_lbfgs if optimizer.startswith("bfgs") else _run_optim
+    project_grads = optimizer == "bfgs_proj"
 
     # Gradient projection: Helmholtz-project onto ∇·g = 0 before handing to
     # the optimiser. Only meaningful for velocity fields; ignored otherwise.
-    _grad_proj_fn = (
+    grad_proj_fn = (
         (lambda g: _project_divergence_free(g, domain_extent))
-        if (_project_grads and _is_vel)
+        if (project_grads and is_vel)
         else None
     )
 
-    _sigma_ics: dict = {}
-    if not _is_sigma_sweep:
-        ic_init = _ic_init_dict[_primary_seed]
-    else:
-        ic_init = None
-        _sigma_ics = _build_sigma_perturbed_ics(
-            ic_true,
-            sweep_values,
-            seed,
-            _is_vel,
-            console,
-            domain_extent=domain_extent,
-        )
-
-    rep_val = sweep_values[len(sweep_values) // 2]
-    gpu_ids = overrides.get("gpu_ids")
-
+    # Resolve out_dir from the framework's standard layout so partial-result
+    # writes land alongside the final ``result.json``. We re-derive rather
+    # than reading off ``ctx`` because :class:`KernelContext` doesn't (yet)
+    # surface the experiment key; the run dict carries ``_exp_key`` from the
+    # add_experiment registration.
+    suite = "optimization"
     out_dir = experiment_dir(
         results_dir(),
         cfg.name,
-        _SUITE,
-        f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
-        suffix="_debug" if overrides.get("debug") else "",
+        suite,
+        exp_key,
+    )
+    partial_writer = PartialResultWriter(
+        out_dir, base_payload={"sweep_key": sweep_key, "params": run}
     )
 
-    ctx = _RecoveryRunCtx(
-        cfg=cfg,
-        run=run,
-        exp_key=exp_key,
-        sweep_key=sweep_key,
-        sweep_values=sweep_values,
-        phys=phys,
-        snap_interval=snap_interval,
-        lr=lr,
-        max_iters=max_iters,
-        patience=patience,
-        perturb_sigma=perturb_sigma,
-        failure_threshold=failure_threshold,
-        record_diagnostics=record_diagnostics,
-        is_sigma_sweep=_is_sigma_sweep,
-        is_multi_seed=_is_multi_seed,
-        is_vel=_is_vel,
-        rep_val=rep_val,
-        primary_seed=_primary_seed,
-        ic_seeds=ic_seeds,
-        ic_true_dict=_ic_true_dict,
-        ic_init_dict=_ic_init_dict,
-        sigma_ics=_sigma_ics,
-        max_div=max_div,
-        ic_true=ic_true,
-        optim_fn=_optim_fn,
-        div_fn=_div_fn,
-        grad_proj_fn=_grad_proj_fn,
-        out_dir=out_dir,
-        partial_lock=threading.Lock(),
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        error_fn=error_fn,
-        output_key=output_key,
-        domain_extent=domain_extent,
+    # ── Per-val target setup ────────────────────────────────────────────
+    if is_sigma_sweep:
+        sigma_target = _precompute_sigma_target(
+            name=name,
+            t=t,
+            ic_true=ic_true,
+            phys=phys,
+            make_inputs=make_inputs,
+            output_key=output_key,
+            domain_extent=domain_extent,
+            exp_key=exp_key,
+        )
+        if sigma_target is None:
+            # Persist a None entry for this val and ask the framework to
+            # short-circuit the remaining sweep (sigma_target failure is a
+            # function of name + ic_true + phys, not val — it would fail
+            # identically for every subsequent val).
+            partial_writer.write(name, None)
+            return {"metrics": None, "stop_sweep": True}
+        ic_init_at_val = _build_sigma_perturbed_ic(
+            ic_true,
+            float(val),
+            seed,
+            is_vel,
+            console,
+            domain_extent=domain_extent,
+        )
+        seeds_for_val: list[int] = [primary_seed]
+        target_for_seed: dict[int, jax.Array] = {primary_seed: sigma_target}
+    else:
+        ic_init_at_val = ic_init_dict[primary_seed]
+        seeds_for_val = ic_seeds
+        target_for_seed = _compute_targets_for_val(
+            name,
+            exp_key,
+            val,
+            sweep_key,
+            ic_seeds,
+            ic_true_dict,
+            phys,
+            t,
+            make_inputs=make_inputs,
+            output_key=output_key,
+            domain_extent=domain_extent,
+        )
+        if not target_for_seed:
+            partial_writer.write(name, None)
+            return {"metrics": None}
+
+    console.print(
+        f"  [{color}]{name}[/] {exp_key} {sweep_key}={val} starting "
+        f"(max_iters={max_iters})"
     )
 
-    ctx.wall_times = per_solver_loop(
-        cfg,
-        tags,
-        active_differentiable_solvers(cfg, "optimization", exp_key),
-        lambda name, t: _recovery_long_work(ctx, name, t),
-        gpu_ids=gpu_ids,
-        print_done=False,
-    )
+    # ── Per-seed trial loop ──────────────────────────────────────────────
+    trial_results: list[dict] = []
+    primary_hist: list | None = None
+    primary_ic_err_hist: list[float] = []
 
-    by_sweep = ctx.by_sweep
-    ic_snaps = ctx.ic_snaps
-    ic_init_snaps = ctx.ic_init_snaps
-    ic_histories = ctx.ic_histories
-    final_states_gt = ctx.final_states_gt
-    final_states_rec = ctx.final_states_rec
-    final_states_rep_val = ctx.final_states_rep_val
-    all_ic_snaps = ctx.all_ic_snaps
-    all_final_rec_snaps = ctx.all_final_rec_snaps
-    all_final_perturbed_snaps = ctx.all_final_perturbed_snaps
-    _wall_times = ctx.wall_times
+    for s in seeds_for_val:
+        if s not in target_for_seed:
+            continue
+        ic_true_k = ic_true_dict[s]
+        ic_init_k = ic_init_dict[s] if not is_sigma_sweep else ic_init_at_val
+        target_k = target_for_seed[s]
+        is_primary = s == primary_seed
+        trial = _run_one_seed_trial(
+            name=name,
+            t=t,
+            color=color,
+            val=val,
+            s=s,
+            ic_init_k=ic_init_k,
+            ic_true_k=ic_true_k,
+            target_k=target_k,
+            is_primary=is_primary,
+            phys=phys,
+            sweep_key=sweep_key,
+            is_sigma_sweep=is_sigma_sweep,
+            is_multi_seed=is_multi_seed,
+            is_vel=is_vel,
+            rep_val=rep_val,
+            snap_interval=snap_interval,
+            lr=lr,
+            max_iters=max_iters,
+            patience=patience,
+            record_diagnostics=record_diagnostics,
+            optim_fn=optim_fn,
+            div_fn=div_fn,
+            grad_proj_fn=grad_proj_fn,
+            make_inputs=make_inputs,
+            error_fn=error_fn,
+            output_key=output_key,
+            domain_extent=domain_extent,
+            exp_key=exp_key,
+        )
+        if trial is None:
+            continue
+        if is_primary and trial["_hist"]:
+            primary_hist = trial["_hist"]
+        if is_primary and trial["_ic_err_hist"]:
+            primary_ic_err_hist = trial["_ic_err_hist"]
+        trial_results.append(trial)
 
-    failure_values = _compute_recovery_failure_values(by_sweep, sweep_values)
+    if not trial_results:
+        partial_writer.write(name, None)
+        return {"metrics": None}
 
-    solver_names = list(ic_snaps.keys())
-    _rep_ic_init = (
-        ic_init_snaps.get(solver_names[0], ic_init)
-        if ic_init_snaps and solver_names
-        else ic_init
-    )
-    per_solver_arrays = _build_recovery_per_solver_arrays(
-        solver_names,
-        ic_snaps,
-        ic_histories,
-        final_states_gt,
-        final_states_rec,
-        final_states_rep_val,
-        all_ic_snaps,
-        all_final_rec_snaps,
-        all_final_perturbed_snaps,
-    )
-    shared = _build_recovery_shared_arrays(
-        rep_val,
-        sweep_values,
+    entry = _aggregate_trial_results(
+        trial_results,
+        primary_ic_err_hist,
+        val,
+        perturb_sigma,
+        is_sigma_sweep,
+        is_multi_seed,
+        failure_threshold,
+        max_div,
         ic_true,
-        _rep_ic_init,
-        solver_names,
-        final_states_gt,
-        _is_sigma_sweep,
-        _sigma_ics,
     )
 
-    result = {
-        "sweep_key": sweep_key,
-        "by_sweep": by_sweep,
-        "failure_values": failure_values,
-        "params": run,
+    # ── Partial-result checkpoint ────────────────────────────────────────
+    # Merge this val's entry into the on-disk ``by_sweep[name]`` slice so a
+    # crash mid-sweep preserves the previous vals' progress. We read +
+    # merge + write inside the lock-acquiring writer; the read-before-write
+    # for THIS solver is race-free because each solver's worker is the sole
+    # writer of its own ``by_solver[name]`` entry.
+    existing = try_load_json(out_dir / "result_partial.json") or {}
+    prev_for_solver = (existing.get("by_solver") or {}).get(name) or {}
+    # JSON keys round-trip as strings; legacy code kept them keyed by the
+    # raw value in-memory. Coerce both forms when merging so we don't
+    # duplicate entries across runs.
+    coerced: dict = {}
+    for k, v in prev_for_solver.items():
+        try:
+            coerced[type(val)(k)] = v
+        except (TypeError, ValueError):
+            coerced[k] = v
+    coerced[val] = entry
+    partial_writer.write(name, coerced)
+
+    # ── Per-val snapshots ────────────────────────────────────────────────
+    prim_trial = next(
+        (r for r in trial_results if r["ic_seed"] == primary_seed),
+        trial_results[0],
+    )
+    ic_opt = prim_trial["ic_opt"]
+
+    # Per-val visualisation arrays. ``ic_rec`` is the optimised IC at this
+    # val; ``final_gt`` is the target; ``final_rec`` is the forward of the
+    # optimised IC. The aggregate stacks these per solver into
+    # ``ic_rec_all`` / ``final_rec_all`` and picks single-array showcases
+    # (``ic_rec``, ``final_gt``, ``final_rec``, ``final_rep_val``) from the
+    # per-val arrays at rep_val / best-conv val.
+    snaps: dict[str, np.ndarray] = {
+        "ic_rec": np.asarray(ic_opt),
+        "final_gt": np.asarray(prim_trial["target"]),
     }
-    _save_recovery_outputs(
-        out_dir,
-        solver_names,
-        per_solver_arrays,
-        shared,
-        result,
-        cfg,
-        harness_fn,
-        _wall_times,
-        by_sweep,
-        exp_key,
-    )
-    return result
+    fphys = prim_trial["phys_kw"]
+    try:
+        inp_rec = make_inputs(name, ic_opt, domain_extent=domain_extent, **fphys)
+        snaps["final_rec"] = np.asarray(apply_tesseract(t, inp_rec)[output_key])
+    except Exception:
+        snaps["final_rec"] = np.zeros_like(np.asarray(ic_opt))
 
+    if is_rep and primary_hist:
+        snaps["ic_history"] = np.asarray(primary_hist)
 
-def run_recovery(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    optimizer: str = "adam",
-    runs=None,
-    exp_key: str = "recovery",
-    **overrides,
-) -> dict:
-    """IC recovery from a zero initial guess (cold start).
+    if is_sigma_sweep:
+        # ``ic_perturbed``: the perturbed IC at this sigma (for the shared
+        # ``ic_perturbed_all`` stack). ``final_perturbed``: forward-solve of
+        # that perturbed IC (for the per-solver ``final_perturbed_all`` stack).
+        snaps["ic_perturbed"] = np.asarray(ic_init_at_val)
+        try:
+            inp_p = make_inputs(
+                name, ic_init_at_val, domain_extent=domain_extent, **phys
+            )
+            snaps["final_perturbed"] = np.asarray(apply_tesseract(t, inp_p)[output_key])
+        except Exception:
+            snaps["final_perturbed"] = np.zeros_like(np.asarray(ic_true))
 
-    ``optimizer`` selects the inner optimiser:
+    # ── Shared NPZ payload ───────────────────────────────────────────────
+    # Framework's shared_extras uses setdefault, so only the first solver's
+    # contribution sticks. ``ic_init`` prefers the actual init at rep_val so
+    # the visualisation matches the showcase; non-rep calls still set it as
+    # a fallback (any single contribution suffices since the shared key is
+    # deterministic across solvers).
+    shared: dict[str, np.ndarray] = {
+        "rep_val": np.array([rep_val]),
+        "sweep_values": np.array(sweep_values, dtype=float),
+        "ic_true": np.asarray(ic_true),
+    }
+    if is_rep:
+        shared["ic_init"] = np.asarray(ic_init_at_val)
 
-      * ``"adam"``       — vanilla Adam (default).
-      * ``"bfgs"``       — L-BFGS with zoom line-search.
-      * ``"bfgs_proj"``  — L-BFGS with the gradient Helmholtz-projected
-        onto the ∇·g = 0 subspace each iteration (keeps the search
-        direction compatible with incompressibility for velocity-field
-        problems).
-
-    Problem-semantics state (``make_ic``, ``make_inputs``, ``error_fn``,
-    ``output_key``, ``domain_extent``) is passed explicitly. ``cfg``
-    retains its runtime-registry role only.
-    """
-    optim_fn = _run_lbfgs if optimizer.startswith("bfgs") else _run_optim
-    project = optimizer == "bfgs_proj"
-    return _run_recovery_long_impl(
-        cfg,
-        tags,
-        exp_key,
-        run_recovery,
-        runs=runs,
-        _optim_fn=optim_fn,
-        _project_grads=project,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        error_fn=error_fn,
-        output_key=output_key,
-        domain_extent=domain_extent,
-        **overrides,
-    )
+    return {
+        "metrics": entry,
+        "snapshots": snaps,
+        "shared": shared,
+    }

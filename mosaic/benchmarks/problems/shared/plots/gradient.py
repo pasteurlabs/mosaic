@@ -337,29 +337,6 @@ def plot_param_sweep(
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
-    # When multiple ICs are used, each IC lands in a subdir; plot each one.
-    if not result_path.exists():
-        subdirs = (
-            sorted(
-                p
-                for p in out_dir.iterdir()
-                if p.is_dir() and (p / "result.json").exists()
-            )
-            if out_dir.exists()
-            else []
-        )
-        if subdirs:
-            for sub in subdirs:
-                plot_param_sweep(
-                    cfg,
-                    units=units,
-                    save=save,
-                    suffix=f"{suffix}/{sub.name}",
-                    exp_key=exp_key,
-                )
-            return
-        else:
-            raise FileNotFoundError(str(result_path))
     data = load_json(result_path)
     styles = solver_styles(cfg)
     sweep_key = data.get("sweep_key", "param")

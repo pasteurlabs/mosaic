@@ -1,61 +1,38 @@
-"""Drag-optimisation runner and helpers for the navier-stokes grid problem.
+"""Drag-optimisation kernel and helpers for the navier-stokes grid problem.
 
-This module hosts the ``run_drag_opt`` entry point and its private helpers,
-which optimise an inflow velocity profile to minimise drag on an embedded
-obstacle. The code is ns-grid-specific (drag is a fluid-flow quantity tied to
-this problem's tesseract outputs), so it lives next to the problem rather than
-in ``shared/optimization.py``.
+This module hosts the ``drag_opt`` kernel and its private helpers, which
+optimise an inflow velocity profile to minimise drag on an embedded
+obstacle. The code is ns-grid-specific (drag is a fluid-flow quantity tied
+to this problem's tesseract outputs), so it lives next to the problem
+rather than in ``shared/optimization.py``.
 
-The two inner optimisation primitives ``_run_optim`` (Adam) and ``_run_lbfgs``
-(L-BFGS with zoom line-search) remain in ``shared/optimization.py`` and are
-imported here.
+The two inner optimisation primitives ``_run_optim`` (Adam) and
+``_run_lbfgs`` (L-BFGS with zoom line-search) live in
+``shared/optimization.py``; both are imported here.
 """
 
 from __future__ import annotations
 
-import threading
-from dataclasses import dataclass
-
 import jax
 import jax.numpy as jnp
 import numpy as np
-import optax
 
-from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import (
+    PartialResultWriter,
     experiment_dir,
     results_dir,
-    save_experiment,
-    save_json,
     save_npz_merged,
 )
-from mosaic.benchmarks.core.runner import per_solver_loop
 
 # JAX-traced loss_fn closures capture this reference at trace time;
 # using the tracer-aware wrapper ensures primitive binding sees the
 # active trace.
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
-from mosaic.benchmarks.core.utils import (
-    active_differentiable_solvers,
-    extract_runs,
-    iter_runs,
-)
-from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs
+from mosaic.benchmarks.core.utils import active_differentiable_solvers
+from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
 
 _SUITE = "optimization"
-
-
-def _drag_opt_out_dir(cfg: Problem, ic_subdir: str, debug: bool, exp_name: str):
-    """Compute the on-disk output directory for a drag_opt[_bfgs] run."""
-    suffix = "_debug" if debug else ""
-    if ic_subdir:
-        parent = experiment_dir(
-            results_dir(), cfg.name, _SUITE, exp_name, suffix=suffix
-        )
-        out_dir = parent / ic_subdir
-        out_dir.mkdir(parents=True, exist_ok=True)
-        return out_dir
-    return experiment_dir(results_dir(), cfg.name, _SUITE, exp_name, suffix=suffix)
 
 
 def _drag_capture_flow(
@@ -114,118 +91,6 @@ def _drag_build_solver_entry(
     if error is not None:
         entry["error"] = error
     return entry
-
-
-@dataclass
-class _DragAdamConfig:
-    """Hyper-parameters for ``_run_drag_adam_loop`` (groups loop knobs)."""
-
-    lr: float
-    max_iters: int
-    patience: int
-    flow_penalty_weight: float
-    snap_interval: int
-    U_mean: float
-
-
-def _run_drag_adam_loop(
-    name: str,
-    t,
-    profile_init,
-    phys: dict,
-    adam_cfg: _DragAdamConfig,
-    by_solver: dict,
-    write_partial,
-    *,
-    make_inputs,
-    domain_extent: float,
-) -> tuple:
-    """Run the Adam drag-optimisation loop for one solver.
-
-    Returns ``(profile, profile_history, drags, flow_rates, grad_norms,
-    non_finite_grad, no_improve_at_end)``.
-    """
-    profile = profile_init
-    optimizer = optax.adam(adam_cfg.lr)
-    opt_state = optimizer.init(profile)
-    drags: list[float] = []
-    flow_rates: list[float] = []
-    best_drag = jnp.inf
-    no_improve = 0
-    profile_history: list = []
-    grad_norms: list[float] = []
-    U_mean = adam_cfg.U_mean
-    flow_penalty_weight = adam_cfg.flow_penalty_weight
-    snap_interval = adam_cfg.snap_interval
-    max_iters = adam_cfg.max_iters
-    patience = adam_cfg.patience
-
-    def loss_fn(p, _t=t):
-        # domain_extent may already be inside phys (drag_opt sets it to 1.0);
-        # avoid passing it twice by letting phys take precedence.
-        _de = phys.get("domain_extent", domain_extent)
-        inp = make_inputs(
-            name,
-            p,
-            domain_extent=_de,
-            **{k: v for k, v in phys.items() if k != "domain_extent"},
-        )
-        out = apply_tesseract(_t, inp)
-        drag_val = out.get("drag")
-        if drag_val is None:
-            raise RuntimeError(
-                f"Solver '{name}' did not return 'drag' — "
-                "ensure the tesseract implements drag computation."
-            )
-        flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
-        return jnp.abs(jnp.squeeze(drag_val)) + flow_penalty, jnp.squeeze(drag_val)
-
-    non_finite_grad = False
-    for i in range(max_iters):
-        (_, drag_val), g = jax.value_and_grad(loss_fn, has_aux=True)(profile)
-        if not jnp.isfinite(g).all():
-            from mosaic.benchmarks.core.console import print_warn
-
-            print_warn(
-                f"{name} drag_opt iter {i}: non-finite gradient detected "
-                f"(max|g|={float(jnp.max(jnp.abs(g))):.3e}); "
-                "aborting optimisation loop"
-            )
-            non_finite_grad = True
-            break
-        grad_norms.append(float(jnp.linalg.norm(g.ravel())))
-        updates, opt_state = optimizer.update(g, opt_state)
-        profile = jnp.clip(optax.apply_updates(profile, updates), 0.0, 3.0 * U_mean)
-        d = float(drag_val)
-        drags.append(d)
-        flow_rates.append(float(jnp.mean(profile)))
-        if snap_interval > 0 and (i + 1) % snap_interval == 0:
-            profile_history.append(np.asarray(profile))
-        if abs(d) < best_drag:
-            best_drag, no_improve = abs(d), 0
-        else:
-            no_improve += 1
-        by_solver[name] = _drag_build_solver_entry(
-            drags,
-            flow_rates,
-            grad_norms,
-            len(drags),
-            converged=False,
-            in_progress=True,
-        )
-        if (i + 1) % 10 == 0:
-            write_partial()
-        if no_improve >= patience:
-            break
-    return (
-        profile,
-        profile_history,
-        drags,
-        flow_rates,
-        grad_norms,
-        non_finite_grad,
-        no_improve,
-    )
 
 
 def _drag_bfgs_final_drag(
@@ -322,41 +187,84 @@ def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
 ) -> tuple[jax.Array, list, dict]:
     """Adam loop for drag_opt; supports per-iter partial-checkpoint flushes.
 
+    Thin wrapper around :func:`_run_optim` with ``has_aux=True``. The loss
+    closure returns ``(|drag| + flow_penalty, {"drag": ..., "flow_rate": ...})``
+    so the per-iter drag and flow-rate traces flow through the shared
+    ``aux_history`` plumbing. Partial-checkpoint flushes happen via the
+    ``log_fn`` callback every 10 iterations.
+
     Returns ``(profile_final, profile_history, by_solver_entry)``.
     """
-    (
-        profile,
-        profile_history,
-        drags,
-        flow_rates,
-        grad_norms,
-        non_finite_grad,
-        no_improve,
-    ) = _run_drag_adam_loop(
-        name,
-        t,
+
+    def loss_fn(p, _t=t):
+        # domain_extent may already be inside phys (drag_opt sets it to 1.0);
+        # avoid passing it twice by letting phys take precedence.
+        _de = phys.get("domain_extent", domain_extent)
+        inp = make_inputs(
+            name,
+            p,
+            domain_extent=_de,
+            **{k: v for k, v in phys.items() if k != "domain_extent"},
+        )
+        out = apply_tesseract(_t, inp)
+        drag_val = out.get("drag")
+        if drag_val is None:
+            raise RuntimeError(
+                f"Solver '{name}' did not return 'drag' — "
+                "ensure the tesseract implements drag computation."
+            )
+        flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
+        return (
+            jnp.abs(jnp.squeeze(drag_val)) + flow_penalty,
+            {"drag": jnp.squeeze(drag_val), "flow_rate": jnp.mean(p)},
+        )
+
+    aux_history: dict = {}
+    profile_history: list = []
+
+    def _log_iter(_i, _loss_val):
+        # ``_run_optim`` invokes us every ``log_interval`` iters. Rebuild
+        # the cross-solver shim entry from the live aux traces and flush a
+        # partial result. Grad-norms are kept inside ``_run_optim``'s local
+        # ``diag`` dict and only surfaced post-loop, so partial entries
+        # written during the run carry an empty grad_norms list — the final
+        # flush in the kernel replaces the entry with the converged one.
+        drag_trace = list(aux_history.get("drag", []))
+        by_solver[name] = _drag_build_solver_entry(
+            drag_trace,
+            list(aux_history.get("flow_rate", [])),
+            [],
+            len(drag_trace),
+            converged=False,
+            in_progress=True,
+        )
+        write_partial()
+
+    profile, losses, diag = _run_optim(
+        loss_fn,
         profile_init,
-        phys,
-        _DragAdamConfig(
-            lr=lr,
-            max_iters=max_iters,
-            patience=patience,
-            flow_penalty_weight=flow_penalty_weight,
-            snap_interval=snap_interval,
-            U_mean=U_mean,
-        ),
-        by_solver,
-        write_partial,
-        make_inputs=make_inputs,
-        domain_extent=domain_extent,
+        lr=lr,
+        max_iters=max_iters,
+        patience=patience,
+        has_aux=True,
+        aux_history=aux_history,
+        clip_fn=lambda p: jnp.clip(p, 0.0, 3.0 * U_mean),
+        snap_interval=snap_interval,
+        history=profile_history if snap_interval > 0 else None,
+        log_fn=_log_iter,
+        log_interval=10,
     )
+
+    drags = list(aux_history.get("drag", []))
+    flow_rates = list(aux_history.get("flow_rate", []))
+    grad_norms = list((diag or {}).get("grad_norms") or [])
+    n_iters = len(losses)
     entry = _drag_build_solver_entry(
         drags,
         flow_rates,
         grad_norms,
-        len(drags),
-        converged=(not non_finite_grad) and (no_improve >= patience),
-        error="non-finite gradients" if non_finite_grad else None,
+        n_iters,
+        converged=n_iters < max_iters,
     )
     return profile, profile_history, entry
 
@@ -445,198 +353,234 @@ def _drag_opt_lbfgs_loop(
     return profile, profile_history, entry
 
 
-def run_drag_opt(
-    cfg: Problem,
-    tags: dict[str, str],
+# ── kernel + aggregate ───────────────────────────────────────────────────────
+
+
+def _drag_opt_aggregate(
+    by_solver,
     *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    optimizer: str = "adam",
-    runs=None,
-    exp_key: str = "drag_opt",
-    **overrides,
+    run,
+    cfg,
+    out_dir,
+    snapshots,
+    shared_extras,
+    **_,
 ) -> dict:
-    """Inflow profile optimisation: minimise drag on an embedded obstacle.
+    """Aggregate per-solver drag_opt output → result dict + profiles/flow npz.
 
-    Optimises the ``inflow_profile`` input field (1-D inlet velocity u_x(y)) to
-    minimise the scalar ``drag`` output. A flow-rate conservation penalty is
-    added to prevent the optimiser from trivially reducing drag by zeroing the
-    inflow: L = drag + flow_penalty_weight * (mean(profile) - U_mean)².
+    The framework hands us:
+      * ``by_solver`` — ``{name: <solver entry dict>}`` from each kernel's
+        ``metrics`` return.
+      * ``snapshots`` — ``{name: {"profile_final:": arr,
+        "profile_history:": arr, "flow_initial:": arr, "flow_final:": arr}}``
+        from each kernel's ``snapshots`` return. Empty-suffix prefixed keys
+        carry the ``"prefix:"`` form used by
+        :func:`mosaic.benchmarks.core.experiment._absorb`.
+      * ``shared_extras`` — ``{"profile_initial": arr}`` shared across solvers.
 
-    ``optimizer`` selects the inner optimiser:
-
-      * ``"adam"`` — vanilla Adam (default). Supports partial-result
-        checkpointing (``result_partial.json``) which long PICT runs rely on
-        for restartability.
-      * ``"bfgs"`` — L-BFGS with zoom line-search. No partial checkpointing.
-
-    Problem-semantics state is passed explicitly. ``error_fn`` and
-    ``output_key`` are accepted for signature parity with the other public
-    harnesses but unused (drag is read from a fixed ``"drag"`` output and the
-    loss is built in-line from ``mean(profile)``).
-
-    Each run dict in ``runs`` must contain:
-        name: str               — used as result subdir when multiple runs present
-        ic: {name, seed}        — IC generator returning 1-D profile, shape (N,)
-        physics: {N, nu, dt, steps, domain_extent, U_mean, obstacle, ...}
-        optim: {lr, max_iters, patience, flow_penalty_weight}
+    Writes ``profiles.npz`` (initial profile + per-solver final/history) and
+    ``flow_fields.npz`` (per-solver flow snapshots) via the existing
+    merge-aware helpers so single-solver reruns don't wipe peer entries.
+    Returns the canonical ``{by_solver, run_name, U_mean, params}`` result
+    dict (writing ``result.json`` is the framework's job).
     """
-    del error_fn, output_key  # unused by drag_opt; kept for parity
-    optim_loop = _drag_opt_lbfgs_loop if optimizer == "bfgs" else _drag_opt_adam_loop
-    supports_partial = optimizer != "bfgs"
+    del cfg  # not needed; out_dir already resolved
+    # Strip the framework's ``"prefix:"`` suffix convention; sweep_mode="none"
+    # so the suffix after ``":"`` is always empty.
+    profile_snaps: dict[str, np.ndarray] = {}
+    profile_histories: dict[str, np.ndarray] = {}
+    flow_init_snaps: dict[str, np.ndarray] = {}
+    flow_snaps: dict[str, np.ndarray] = {}
+    for name, suf_map in snapshots.items():
+        for k, arr in suf_map.items():
+            prefix = k.split(":", 1)[0]
+            if prefix == "profile_final":
+                profile_snaps[name] = np.asarray(arr)
+            elif prefix == "profile_history":
+                profile_histories[name] = np.asarray(arr)
+            elif prefix == "flow_initial":
+                flow_init_snaps[name] = np.asarray(arr)
+            elif prefix == "flow_final":
+                flow_snaps[name] = np.asarray(arr)
 
-    if not runs:
-        raise NotImplementedError(
-            f"run_drag_opt requires runs= payload for {exp_key!r} "
-            f"(not configured for '{cfg.name}')"
+    profile_init = shared_extras.get("profile_initial")
+    U_mean = float(run.get("physics", {}).get("U_mean", 0.5))
+    run_name = run.get("name", "")
+
+    if not by_solver:
+        from mosaic.benchmarks.core.console import print_warn
+
+        print_warn(
+            "drag_opt: by_solver is empty (all solvers excluded or "
+            "skipped) — skipping NPZ writes to preserve existing data"
         )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        phys = run.get("physics", {})
-        optim_cfg = run.get("optim", {})
-        flow_penalty_weight = optim_cfg.get("flow_penalty_weight", 50.0)
-        snap_interval = int(optim_cfg.get("snap_interval", 0))
-        U_mean = float(phys.get("U_mean", 0.5))
-        run_name = run.get("name", ic_name)
-        ic_subdir = run_name if n_runs > 1 else ""
-        gpu_ids = overrides.get("gpu_ids")
-
-        # Forward only knobs that the YAML sets; each loop carries its own
-        # default so Adam's max_iters=150 vs BFGS's max_iters=50 stay correct.
-        loop_kwargs = {
-            k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
-        }
-
-        profile_init = jnp.array(make_ic[ic_name](L=domain_extent, seed=seed, **phys))
-
-        by_solver: dict = {}
-        profile_snaps: dict = {}
-        profile_histories: dict = {}
-        # Velocity fields per solver, shape (N, N, 1, 2).
-        flow_init_snaps: dict = {}
-        flow_snaps: dict = {}
-
-        # Partial-checkpoint plumbing (Adam path only). Adam mutates
-        # ``by_solver`` in-place inside its loop and calls ``write_partial``
-        # periodically; the L-BFGS loop ignores both arguments via its
-        # signature.
-        write_partial = None
-        if supports_partial:
-            partial_out_dir = _drag_opt_out_dir(
-                cfg, ic_subdir, bool(overrides.get("debug")), exp_key
-            )
-            _partial_lock = threading.Lock()
-
-            def write_partial() -> None:
-                if not by_solver:
-                    return
-                payload = {
-                    "by_solver": by_solver,
-                    "run_name": run_name,
-                    "U_mean": U_mean,
-                    "params": run,
-                }
-                with _partial_lock:
-                    save_json(payload, partial_out_dir / "result_partial.json")
-
-        def _drag_opt_work(name: str, t) -> None:
-            vel0 = _drag_capture_flow(
-                name,
-                t,
-                profile_init,
-                phys,
-                make_inputs=make_inputs,
-                domain_extent=domain_extent,
-            )
-            if vel0 is not None:
-                flow_init_snaps[name] = vel0
-
-            profile, profile_history, entry = optim_loop(
-                name,
-                t,
-                profile_init,
-                phys,
-                flow_penalty_weight=flow_penalty_weight,
-                snap_interval=snap_interval,
-                U_mean=U_mean,
-                by_solver=by_solver,
-                write_partial=write_partial,
-                make_inputs=make_inputs,
-                domain_extent=domain_extent,
-                **loop_kwargs,
-            )
-
-            profile_snaps[name] = np.array(profile)
-            if profile_history:
-                profile_histories[name] = np.asarray(profile_history)
-            by_solver[name] = entry
-            if write_partial is not None:
-                write_partial()
-            vel = _drag_capture_flow(
-                name,
-                t,
-                profile,
-                phys,
-                make_inputs=make_inputs,
-                domain_extent=domain_extent,
-            )
-            if vel is not None:
-                flow_snaps[name] = vel
-
-        _drag_exp = f"{exp_key}/{run_name}" if run_name else exp_key
-        drag_opt_solvers = active_differentiable_solvers(cfg, "optimization", _drag_exp)
-        _wall_times = per_solver_loop(
-            cfg,
-            tags,
-            drag_opt_solvers,
-            _drag_opt_work,
-            gpu_ids=gpu_ids,
-            print_done=False,
-        )
-
-        out_dir = _drag_opt_out_dir(
-            cfg, ic_subdir, bool(overrides.get("debug")), exp_key
-        )
-        result = {
+        return {
             "by_solver": by_solver,
             "run_name": run_name,
             "U_mean": U_mean,
             "params": run,
         }
-        if not by_solver:
-            from mosaic.benchmarks.core.console import print_warn
 
-            print_warn(
-                "run_drag_opt: by_solver is empty (all solvers excluded or "
-                "skipped) — skipping result.json save to preserve existing data"
-            )
-            if n_runs > 1:
-                all_results[run_name] = result
-            else:
-                all_results = result
-            continue
-        save_experiment(
-            result,
-            out_dir,
-            cfg=cfg,
-            harness_fn=run_drag_opt,
-            wall_time_s=_wall_times,
-        )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if profile_init is not None:
         _merge_drag_profiles_npz(
             out_dir, profile_init, profile_snaps, profile_histories
         )
-        _merge_drag_flow_fields_npz(out_dir, flow_init_snaps, flow_snaps)
-        if n_runs > 1:
-            all_results[run_name] = result
-        else:
-            all_results = result
+    _merge_drag_flow_fields_npz(out_dir, flow_init_snaps, flow_snaps)
 
-    return all_results
+    return {
+        "by_solver": by_solver,
+        "run_name": run_name,
+        "U_mean": U_mean,
+        "params": run,
+    }
+
+
+@kernel(
+    sweep_mode="none",
+    selector_fn=active_differentiable_solvers,
+    aggregate_fn=_drag_opt_aggregate,
+    snapshot_filename="profiles.npz",
+    snapshot_prefixes=(
+        "profile_final",
+        "profile_history",
+        "flow_initial",
+        "flow_final",
+    ),
+)
+def drag_opt(t, ctx: KernelContext) -> dict:
+    """One solver's full inflow-profile drag optimisation.
+
+    Builds the initial 1-D inlet velocity profile from the IC factory,
+    optionally captures the initial flow field, runs Adam or L-BFGS
+    (selected via ``run["optimizer"]``) to minimise drag subject to a
+    soft flow-rate conservation penalty, captures the final flow field,
+    and hands the per-solver entry + snapshots back to the framework.
+
+    Adam supports partial-result checkpointing — every 10 iterations the
+    kernel merges its current entry into ``result_partial.json`` (under a
+    FileLock so peer solvers running on other workers don't clobber it).
+    L-BFGS doesn't checkpoint.
+
+    Loss: ``L = |drag| + flow_penalty_weight * (mean(profile) - U_mean)²``.
+    The penalty stops the optimiser from trivially zeroing the inflow.
+    """
+    run = ctx.run
+    phys_run = run.get("physics", {})
+    optim_cfg = run.get("optim", {})
+    optimizer_name = run.get("optimizer", "adam")
+
+    flow_penalty_weight = optim_cfg.get("flow_penalty_weight", 50.0)
+    snap_interval = int(optim_cfg.get("snap_interval", 0))
+    U_mean = float(phys_run.get("U_mean", 0.5))
+
+    ic_cfg = run.get("ic", {})
+    ic_name = ic_cfg.get("name", next(iter(ctx.cfg.make_ic)))
+    profile_init = jnp.array(
+        ctx.cfg.make_ic[ic_name](L=ctx.domain_extent, seed=ctx.seed, **phys_run)
+    )
+
+    # phys for forward / loss closures: physics fields + canonical
+    # ``domain_extent`` (kept consistent with the old harness behaviour).
+    phys = {**phys_run}
+    phys.setdefault("domain_extent", ctx.domain_extent)
+
+    # Forward only the optimiser knobs the YAML sets; each loop carries
+    # its own default so Adam's max_iters=500 vs BFGS's max_iters=50 stay
+    # correct without the caller knowing which optimiser is in use.
+    loop_kwargs = {
+        k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
+    }
+    optim_loop = (
+        _drag_opt_lbfgs_loop if optimizer_name == "bfgs" else _drag_opt_adam_loop
+    )
+    supports_partial = optimizer_name != "bfgs"
+
+    # ── Partial-result checkpointing (Adam only) ───────────────────────────
+    # Resolve out_dir the same way the framework does so the partial JSON
+    # lands next to the final ``result.json``. Both drag_opt registrations
+    # in this problem's config follow the ``optimization/drag_opt[_bfgs]``
+    # naming convention, so the exp_name is implied by the optimiser flag.
+    run_name = run.get("name", "")
+    debug_flag = bool(run.get("debug"))
+    exp_name = "drag_opt_bfgs" if optimizer_name == "bfgs" else "drag_opt"
+    partial_out_dir = experiment_dir(
+        results_dir(),
+        ctx.cfg.name,
+        _SUITE,
+        exp_name,
+        suffix="_debug" if debug_flag else "",
+    )
+
+    # The Adam inner loop mutates a tiny ``by_solver`` dict in place and
+    # invokes ``write_partial()`` every 10 iters. We keep that contract
+    # by giving the loop a one-key dict shim that forwards through to the
+    # cross-solver FileLock-backed writer.
+    by_solver_shim: dict = {}
+    if supports_partial:
+        partial_writer = PartialResultWriter(
+            partial_out_dir,
+            base_payload={"run_name": run_name, "U_mean": U_mean, "params": run},
+        )
+
+        def write_partial() -> None:
+            partial_writer.write(ctx.name, by_solver_shim.get(ctx.name))
+
+    else:
+
+        def write_partial() -> None:
+            return
+
+    # ── Initial flow field capture ─────────────────────────────────────────
+    vel0 = _drag_capture_flow(
+        ctx.name,
+        t,
+        profile_init,
+        phys,
+        make_inputs=ctx.make_inputs,
+        domain_extent=ctx.domain_extent,
+    )
+
+    # ── Optimisation loop ──────────────────────────────────────────────────
+    profile, profile_history, entry = optim_loop(
+        ctx.name,
+        t,
+        profile_init,
+        phys,
+        flow_penalty_weight=flow_penalty_weight,
+        snap_interval=snap_interval,
+        U_mean=U_mean,
+        by_solver=by_solver_shim,
+        write_partial=write_partial,
+        make_inputs=ctx.make_inputs,
+        domain_extent=ctx.domain_extent,
+        **loop_kwargs,
+    )
+    if supports_partial:
+        # Final flush — replace the in-progress entry with the converged one.
+        by_solver_shim[ctx.name] = entry
+        write_partial()
+
+    # ── Final flow field capture ───────────────────────────────────────────
+    vel_final = _drag_capture_flow(
+        ctx.name,
+        t,
+        profile,
+        phys,
+        make_inputs=ctx.make_inputs,
+        domain_extent=ctx.domain_extent,
+    )
+
+    snaps: dict[str, np.ndarray] = {"profile_final": np.asarray(profile)}
+    if profile_history:
+        snaps["profile_history"] = np.asarray(profile_history)
+    if vel0 is not None:
+        snaps["flow_initial"] = vel0
+    if vel_final is not None:
+        snaps["flow_final"] = vel_final
+
+    return {
+        "metrics": entry,
+        "snapshots": snaps,
+        "shared": {"profile_initial": np.asarray(profile_init)},
+    }

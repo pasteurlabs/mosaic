@@ -137,13 +137,12 @@ class Problem:
     """The single per-problem definition: closure deps + metadata +
     registries + builder methods.
 
-    Each problem's ``experiments.py`` instantiates one ``Problem`` (with
-    closure deps: ``make_ic``, ``error_fn``, ``output_key``, …), then
-    :meth:`add` / :meth:`add_ic` / :meth:`add_extra_plot` register
-    experiments + plot fns at ``"<suite>/<name>"`` keys. ``config.py``
-    fills in solvers + metadata + exclusions and publishes the same
-    ``Problem`` as ``CONFIG``. The runner / status / CLI consume
-    ``Problem`` directly — there is no separate "config" wrapper.
+    Each problem's ``config.py`` instantiates one ``Problem`` (with closure
+    deps: ``make_ic``, ``error_fn``, ``output_key``, …), then
+    :meth:`add_experiment` / :meth:`add_ic` / :meth:`add_extra_plot`
+    register experiments + ICs + plot fns at ``"<suite>/<name>"`` keys.
+    The runner / status / CLI consume ``Problem`` directly — there is no
+    separate "config" wrapper.
     """
 
     # ── Metadata ─────────────────────────────────────────────────────────
@@ -275,7 +274,7 @@ class Problem:
     def add_experiment(
         self,
         key: str,
-        runner: Callable,
+        kernel: Callable,
         *,
         plot: Callable | None = None,
         plot_description: str = "",
@@ -336,7 +335,7 @@ class Problem:
                 sub_config = {**config, "runs": [variant]}
                 self._register_one_experiment(
                     sub_key,
-                    runner,
+                    kernel,
                     sub_config,
                     plot_description=plot_description,
                     status_check=status_check,
@@ -347,7 +346,7 @@ class Problem:
                 # No sweep — a single leaf experiment at ``key``.
                 self._register_one_experiment(
                     key,
-                    runner,
+                    kernel,
                     config,
                     plot_description=plot_description,
                     status_check=status_check,
@@ -362,7 +361,7 @@ class Problem:
                     sub_keys.append(sub_key)
                     self._register_one_experiment(
                         sub_key,
-                        runner,
+                        kernel,
                         sub_config,
                         plot_description=plot_description,
                         status_check=status_check,
@@ -616,26 +615,74 @@ class Problem:
     def _register_one_experiment(
         self,
         key: str,
-        runner: Callable,
+        kernel: Callable,
         config: dict,
         *,
         plot_description: str = "",
         status_check: list | None = None,
     ) -> None:
-        """Build the Experiment lambda for a single (scalar) config and store it."""
+        """Build the Experiment lambda for a single (scalar) config and store it.
+
+        ``kernel`` must be a function decorated with
+        :func:`mosaic.benchmarks.core.experiment.kernel`. The framework
+        drives the run via :func:`run_experiment` with the kernel's
+        attached config plus the per-experiment overrides assembled here.
+        """
         import inspect
 
+        from mosaic.benchmarks.core.experiment import (
+            get_kernel_config,
+            is_kernel,
+            run_experiment,
+        )
+
+        if not is_kernel(kernel):
+            raise TypeError(
+                f"add_experiment({key!r}): expected a kernel decorated with "
+                f"@kernel(...), got {kernel!r}. Wrap the function with "
+                f"`from mosaic.benchmarks.core.experiment import kernel` and "
+                f"`@kernel(sweep_mode=..., ...)`."
+            )
+
         suite, _, exp_key_str = key.partition("/")
-        all_deps = {k: v for k, v in self._experiment_deps().items() if v is not None}
-        all_deps.update(config)
+        kcfg = get_kernel_config(kernel)
+        deps = {k: v for k, v in self._experiment_deps().items() if v is not None}
+        merged = {**deps, **config}
+        run_sig = set(inspect.signature(run_experiment).parameters)
+        run_kwargs = {k: v for k, v in merged.items() if k in run_sig}
 
-        sig = set(inspect.signature(runner).parameters)
-        runner_kwargs = {k: v for k, v in all_deps.items() if k in sig}
-        if "exp_key" in sig:
-            runner_kwargs["exp_key"] = exp_key_str or suite
+        # Per-experiment kwargs not consumed by run_experiment or by the
+        # problem-level deps (e.g. ``diagnostics`` for physical_laws,
+        # ``optimizer`` for topopt) get folded into each run dict so kernels
+        # and aggregates can read them off ``ctx.run``.
+        extras = {k: v for k, v in config.items() if k not in run_sig and k != "runs"}
+        if extras and "runs" in run_kwargs:
+            run_kwargs = {
+                **run_kwargs,
+                "runs": [{**r, **extras} for r in run_kwargs["runs"]],
+            }
 
-        def fn(cfg, tags, _runner=runner, _kw=runner_kwargs, **call_kw):
-            return _runner(cfg, tags, make_inputs=cfg.make_inputs, **_kw, **call_kw)
+        def fn(
+            cfg,
+            tags,
+            _kernel=kernel,
+            _kw=run_kwargs,
+            _kcfg=kcfg,
+            _suite=suite,
+            _exp=exp_key_str or suite,
+            **call_kw,
+        ):
+            return run_experiment(
+                cfg,
+                tags,
+                _kernel,
+                suite=_suite,
+                exp_key=_exp,
+                make_inputs=cfg.make_inputs,
+                **_kcfg,
+                **_kw,
+                **call_kw,
+            )
 
         # Params is the **introspection manifest** — short and metadata-only.
         # The full config lives in the lambda's closure; we only surface what

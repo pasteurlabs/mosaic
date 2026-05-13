@@ -53,31 +53,6 @@ _SUITE = "forward"
 # ── agreement ─────────────────────────────────────────────────────────────────
 
 
-def _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key, **plot_kwargs) -> bool:
-    """Dispatch into per-IC subdirs if no top-level fields.npz exists.
-
-    Returns True iff the multi-IC layout was detected and dispatched.
-    """
-    subdirs = (
-        sorted(
-            p for p in out_dir.iterdir() if p.is_dir() and (p / "fields.npz").exists()
-        )
-        if out_dir.exists()
-        else []
-    )
-    if not subdirs:
-        return False
-    for sub in subdirs:
-        plot_agreement(
-            cfg,
-            save=save,
-            suffix=f"{suffix}/{sub.name}",
-            exp_key=exp_key,
-            **plot_kwargs,
-        )
-    return True
-
-
 def _agreement_plot_scalar(
     cfg,
     npz,
@@ -381,26 +356,6 @@ def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
     """Field-error grid (rows=solvers × cols=sweep values) + optional power spectra."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
-    plot_kwargs = {
-        "field_to_2d": field_to_2d,
-        "output_key": output_key,
-        "domain_extent": domain_extent,
-        "resolution_key": resolution_key,
-        "units": units,
-        "agreement_xlabel": agreement_xlabel,
-        "agreement_ylabel": agreement_ylabel,
-        "pairwise_xlabel": pairwise_xlabel,
-        "pairwise_ylabels": pairwise_ylabels,
-        "field_cmap": field_cmap,
-        "field_symmetric": field_symmetric,
-        "diagnostic_fields": diagnostic_fields,
-        "power_spectrum_fn": power_spectrum_fn,
-    }
-    if not fields_path.exists():
-        # Multi-IC layout: each IC lands in a subdir; plot each one.
-        _agreement_multi_ic(cfg, out_dir, save, suffix, exp_key, **plot_kwargs)
-        return None
-
     data = load_json(out_dir / "result.json")
     sweep_key = data.get("sweep_key", "param")
     reference_label = data.get("reference_label", "consensus")

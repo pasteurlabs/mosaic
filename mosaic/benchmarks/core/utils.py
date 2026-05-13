@@ -6,7 +6,7 @@ Filesystem I/O (JSON/CSV/NPZ helpers, ``save_experiment``,
 contains the non-I/O utilities that don't fit anywhere more specific:
 
   * Array math: :func:`trimmed_mean`, :func:`l2_error_rel`, :func:`is_valid`.
-  * Run iteration: :func:`extract_runs`, :func:`iter_runs`, :func:`_debug_run`.
+  * Run iteration: :func:`iter_runs`, :func:`_debug_run`.
   * Solver filtering: :func:`exclusion_lookup`, :func:`active_solvers`,
     :func:`active_differentiable_solvers`.
 """
@@ -52,11 +52,6 @@ def is_valid(arr) -> bool:
 # ── Run iteration ─────────────────────────────────────────────────────────────
 
 
-def extract_runs(runs: list[dict] | None) -> list[dict]:
-    """Return the runs list, treating ``None`` as empty."""
-    return runs if runs is not None else []
-
-
 def iter_runs(runs: list[dict] | None, cli_overrides: dict):
     """Yield run configs from a runs list, applying debug and IC filters.
 
@@ -65,7 +60,6 @@ def iter_runs(runs: list[dict] | None, cli_overrides: dict):
 
     cli_overrides keys consumed here (read-only, never mutated):
         ic_names   — list[str]: filter to runs whose ic.name is in the list
-        run_names  — list[str]: filter to runs whose name field is in the list
         debug      — bool: cap physics sizes and truncate sweep lists
     """
     import copy
@@ -74,15 +68,11 @@ def iter_runs(runs: list[dict] | None, cli_overrides: dict):
         return
 
     ic_filter = cli_overrides.get("ic_names")
-    run_filter = cli_overrides.get("run_names")
     debug = cli_overrides.get("debug", False)
 
     for run in runs:
         ic_name = run.get("ic", {}).get("name", "")
         if ic_filter and ic_name not in ic_filter:
-            continue
-        run_name = run.get("name", ic_name)
-        if run_filter and run_name not in run_filter:
             continue
         run = copy.deepcopy(run)
         if debug:

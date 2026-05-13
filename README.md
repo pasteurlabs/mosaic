@@ -108,7 +108,7 @@ Every solver in Mosaic is a standalone [Tesseract](https://github.com/pasteurlab
 
 ```bash
 # Shared schemas (only deps: pydantic + tesseract-core)
-pip install -e mosaic/tesseract_shared
+pip install -e mosaic/tesseracts/tesseract_shared
 
 # For containerised usage (recommended): also install tesseract-jax
 pip install tesseract-core tesseract-jax jax
@@ -164,14 +164,18 @@ See [Standalone Usage](docs/standalone.qmd) for the full guide (GPU usage, mesh-
 Mosaic also exposes a Python API for running evaluations without the CLI:
 
 ```python
-from mosaic import get_config, gradient, PROBLEMS
+from mosaic import get_config, PROBLEMS
 
-cfg = get_config("ns-grid")           # ProblemConfig for 2-D Navier-Stokes
-tags = {"exponax": "exponax_navier_stokes_grid:latest"}
-results = gradient.run_fd_check(cfg, tags)
+cfg = get_config("ns-grid")           # Problem for 2-D Navier-Stokes
+print(cfg.solver_names)               # available solver backends
+
+# Each (suite, experiment) is registered on the Problem as an Experiment
+# closure. Invoke one directly with a {solver_name: image_tag} mapping:
+tags = {s.name: s.image_tag for s in cfg.solvers}
+results = cfg.experiments["gradient/fd_check"].fn(cfg, tags)
 ```
 
-Available top-level imports: `PROBLEMS`, `get_config`, `ProblemConfig`, `SolverSpec`, `IcSpec`, and the suite modules `forward`, `gradient`, `cost`, `optimization`.
+Available top-level imports: `PROBLEMS`, `get_config`, `Problem`, `SolverSpec`, `IcSpec`, and the shared suite-kernel modules `forward`, `gradient`, `cost`, `optimization` (from `mosaic.benchmarks.problems.shared`).
 
 ---
 
@@ -198,22 +202,22 @@ Mosaic is designed to grow with the community. There are three ways in, roughly 
 
 ```
 mosaic/
-  benchmarks/           # evaluation harness (Python package: mosaic.benchmarks)
-    cli.py              # command-line interface
-    core/               # runner, config, hardware detection, solver auto-discovery
-    suites/             # forward, gradient, cost, optimization
-    problems/           # per-domain configs (ns-grid, structural-mesh, etc.)
-    plots/              # paper figure generation
-  tesseract_shared/        # shared Tesseract interface schemas (also pip-installable)
-    problems/           # per-domain input/output schemas
-    utils/              # comparison metrics, plotting utilities
-  templates/            # task templates for scaffolding new domains
-  tesseracts/           # solver backends (each is a Tesseract container)
-    navier-stokes-grid/ # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
-    structural-mesh/    # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl
-    thermal-mesh/       # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
-  tests/                # unit tests (run with pytest)
-docs/                   # Quarto documentation site
+  benchmarks/             # evaluation harness (Python package: mosaic.benchmarks)
+    cli.py                # command-line interface
+    core/                 # runner, config, hardware detection, solver auto-discovery
+    problems/             # per-domain packages (ns-grid, ns-3d-grid, structural-mesh, thermal-mesh)
+      shared/             # cross-domain suite kernels (forward, gradient, cost, optimization) + plots
+    plots/paper/          # paper figure generation
+  templates/              # task templates for scaffolding new domains
+  tesseracts/             # solver backends (each is a Tesseract container)
+    tesseract_shared/     # shared Tesseract interface schemas (also pip-installable)
+      problems/           # per-domain input/output schemas
+      utils/              # comparison metrics, plotting utilities
+    navier-stokes-grid/   # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
+    structural-mesh/      # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl
+    thermal-mesh/         # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
+  tests/                  # unit tests (run with pytest)
+docs/                     # Quarto documentation site
 ```
 
 ## License

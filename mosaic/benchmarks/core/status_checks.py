@@ -10,13 +10,9 @@ Built-in checks for each suite are factory functions that capture their
 threshold and return a callable matching the suite's summary type.
 User-defined checks can be plain functions with the same signature — the
 classifier doesn't care whether a check came from a factory or was
-hand-written, only that its signature accepts the summary.
-
-Why functions and not a dict-of-thresholds: extensibility. Adding a new
-threshold to the dict-form required editing both every problem config
-*and* the classifier in :mod:`status` to teach it the new key. With
-function-form, a user adds a new check by writing it next to the
-``.add_experiment(status_check=[...])`` call — no core-code edits needed.
+hand-written, only that its signature accepts the summary. Add a new check
+by writing it next to the ``.add_experiment(status_check=[...])`` call —
+no core-code edits needed.
 """
 
 from __future__ import annotations

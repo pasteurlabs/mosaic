@@ -1,9 +1,24 @@
 """Generic optimizer primitives — :func:`_run_optim` (Adam) and :func:`_run_lbfgs`.
 
-Problem-specific optimization harnesses (drag-opt, IC recovery, SIMP
-topology optimisation, conductivity recovery) live in each problem's
-own ``optimization.py``. This module only holds the two cross-problem
-primitives those harnesses share.
+Problem-specific optimisation harnesses (drag-opt, IC recovery, SIMP
+topology optimisation, conductivity recovery) call these directly. The
+``has_aux=True`` mode lets per-iter auxiliary values (compliance vs. loss,
+volume fraction, error vs. target, …) flow through the same primitive so
+each problem only writes its loss function — not its own loop.
+
+Both primitives share the same call shape:
+
+    final_x, losses, diag = _run_optim(loss_fn, init_x, lr, max_iters, patience, ...)
+    final_x, losses, diag = _run_lbfgs(loss_fn, init_x, lr, max_iters, patience, ...)
+
+Trailing ``lr``/``patience`` are ignored by L-BFGS so the two are
+signature-compatible at call sites.
+
+When ``has_aux=True``, ``loss_fn(x)`` must return ``(scalar_loss, aux_dict)``
+where ``aux_dict`` maps a label to a JAX scalar. The primitive records each
+label's per-iter trace into ``aux_history`` (the caller-supplied dict, keys
+materialised on first sight) so callers can recover compliance/vol_frac/
+error-vs-target trajectories without writing their own loop.
 """
 
 from __future__ import annotations
@@ -14,6 +29,19 @@ import numpy as np
 import optax
 
 
+def _append_aux(aux_history: dict | None, aux) -> None:
+    """Append every (label, float) in ``aux`` to ``aux_history[label]``.
+
+    ``aux`` must be a dict of JAX scalars (the convention for
+    ``has_aux=True``). Missing labels are created on first sight so
+    callers don't need to pre-populate the dict.
+    """
+    if aux_history is None or not isinstance(aux, dict):
+        return
+    for label, val in aux.items():
+        aux_history.setdefault(label, []).append(float(val))
+
+
 def _run_optim(  # noqa: PLR0913 — explicit-deps signature
     loss_fn,
     init_x,
@@ -21,6 +49,9 @@ def _run_optim(  # noqa: PLR0913 — explicit-deps signature
     max_iters: int,
     patience: int,
     *,
+    has_aux: bool = False,
+    aux_history: dict | None = None,
+    clip_fn=None,
     snap_interval: int = 0,
     history: list | None = None,
     snap_error_fn=None,
@@ -33,31 +64,45 @@ def _run_optim(  # noqa: PLR0913 — explicit-deps signature
 ):
     """Adam with patience-based early stopping.
 
-    Returns ``(final_x, losses, diag)`` where ``losses`` is the per-iteration
-    loss list and ``diag`` is a dict with optional diagnostic time-series
-    (all ``None`` when ``record_diagnostics=False``):
+    When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)`` and each
+    aux label's per-iter trace lands in ``aux_history[label]`` (caller
+    provides the dict, primitive populates it).
 
-    - ``grad_norms``: per-iter ``‖∇L‖₂``
-    - ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` provided)
-    - ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` provided)
+    ``clip_fn`` (e.g. ``lambda x: jnp.clip(x, x_min, 1.0)``) is applied to
+    ``x`` after each Adam update so the iterate stays in the feasible set
+    — matches the projection contract used by :func:`_run_lbfgs`.
+
+    Returns ``(final_x, losses, diag)`` where ``losses`` is the per-iter
+    scalar-loss list and ``diag`` is a dict with optional diagnostic
+    time-series (``None`` when ``record_diagnostics=False``):
+
+      * ``grad_norms``: per-iter ``‖∇L‖₂``
+      * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
+      * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
     """
     optimizer = optax.adam(lr)
     opt_state = optimizer.init(init_x)
     x = init_x
     losses, best, no_improve = [], jnp.inf, 0
-    # grad_norms always recorded; grad_divs/ic_divs only when record_diagnostics
     diag: dict = {"grad_norms": []}
     if record_diagnostics:
         diag["grad_divs"] = [] if div_fn else None
         diag["ic_divs"] = [] if div_fn else None
+    value_and_grad = jax.value_and_grad(loss_fn, has_aux=has_aux)
     for i in range(max_iters):
-        loss, g = jax.value_and_grad(loss_fn)(x)
+        if has_aux:
+            (loss, aux), g = value_and_grad(x)
+            _append_aux(aux_history, aux)
+        else:
+            loss, g = value_and_grad(x)
         diag["grad_norms"].append(float(jnp.linalg.norm(g.ravel())))
         if record_diagnostics and div_fn is not None:
             diag["grad_divs"].append(div_fn(np.asarray(g)))
             diag["ic_divs"].append(div_fn(np.asarray(x)))
         updates, opt_state = optimizer.update(g, opt_state)
         x = optax.apply_updates(x, updates)
+        if clip_fn is not None:
+            x = clip_fn(x)
         loss_val = float(loss)
         losses.append(loss_val)
         if loss_val < best:
@@ -83,6 +128,9 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
     max_iters: int = 100,
     patience=None,
     *,
+    has_aux: bool = False,
+    aux_history: dict | None = None,
+    clip_fn=None,
     record_diagnostics: bool = False,
     div_fn=None,
     snap_interval: int = 0,
@@ -91,38 +139,55 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
     error_history: list | None = None,
     log_fn=None,
     log_interval: int = 10,
-    clip_fn=None,
     grad_proj_fn=None,
 ):
     """L-BFGS with zoom line-search.
 
-    ``clip_fn`` is called after each update to project ``x`` back into the
-    feasible set (e.g. ``jnp.clip(x, x_min, 1)`` for density fields).
-    ``grad_proj_fn``, when provided, is called on the gradient (as a numpy
-    array) before it is handed to L-BFGS, e.g. Helmholtz projection onto the
-    divergence-free subspace for velocity-field optimisation.
-    Returns ``(final_x, losses, None)`` — same shape as ``_run_optim``.
+    When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)``; we
+    wrap to a scalar for optax's line-search, but reuse
+    ``jax.value_and_grad(loss_fn, has_aux=True)`` so each iteration only
+    computes one forward pass (the value/aux pair shares trace work). Aux
+    values land in ``aux_history`` exactly as in :func:`_run_optim`.
 
-    The ``lr``, ``patience``, ``record_diagnostics``, and ``div_fn`` parameters
-    are accepted but ignored, so call sites that pass them (e.g.
-    ``_run_recovery_long_impl``) work without modification.
+    ``clip_fn`` projects ``x`` back into the feasible set after each
+    update (e.g. ``jnp.clip(x, x_min, 1.0)`` for density fields).
+    ``grad_proj_fn``, when provided, is called on the gradient (numpy)
+    before the L-BFGS update — used by velocity-field optimisation to
+    project onto the divergence-free subspace (Helmholtz).
 
-    Signature matches ``_run_optim(loss_fn, init_x, lr, max_iters, patience, ...)``
-    so the two are interchangeable at call sites.
+    The ``lr``, ``patience``, ``record_diagnostics``, and ``div_fn``
+    parameters are accepted but ignored, so call sites that pass them
+    work without modification.
+
+    Returns ``(final_x, losses, diag)`` where ``diag`` is
+    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`.
     """
+    if has_aux:
+
+        def _scalar_loss(x):
+            return loss_fn(x)[0]
+
+        vg = jax.value_and_grad(loss_fn, has_aux=True)
+    else:
+        _scalar_loss = loss_fn
+        vg = jax.value_and_grad(loss_fn)
+
     solver = optax.lbfgs()
     opt_state = solver.init(init_x)
     x = init_x
     losses: list[float] = []
     grad_norms: list[float] = []
-    value_and_grad = optax.value_and_grad_from_state(loss_fn)
     for i in range(max_iters):
-        value, grad = value_and_grad(x, state=opt_state)
+        if has_aux:
+            (value, aux), grad = vg(x)
+            _append_aux(aux_history, aux)
+        else:
+            value, grad = vg(x)
         if grad_proj_fn is not None:
             grad = jnp.array(grad_proj_fn(np.asarray(grad)))
         grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
         updates, opt_state = solver.update(
-            grad, opt_state, x, value=value, grad=grad, value_fn=loss_fn
+            grad, opt_state, x, value=value, grad=grad, value_fn=_scalar_loss
         )
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:

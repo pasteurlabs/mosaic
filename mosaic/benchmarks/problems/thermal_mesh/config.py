@@ -24,15 +24,15 @@ from mosaic.benchmarks.core.config import (
 from mosaic.benchmarks.core.status_checks import max_final_ratio
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
-    run_spatial_cost,
-    run_temporal_cost,
-    run_vjp_cost,
+    spatial_cost,
+    temporal_cost,
+    vjp_cost,
 )
-from mosaic.benchmarks.problems.shared.forward import run_agreement, run_physical_laws
+from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
-    run_fd_check,
-    run_jacobian_svd,
-    run_param_sweep,
+    fd_check,
+    jacobian_svd,
+    param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -48,7 +48,7 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _gaussian_source, _random, _two_gaussians, _uniform, _zero_source
-from .optimization import run_conductivity_recovery
+from .optimization import conductivity_recovery
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_conductivity_recovery
 
@@ -182,7 +182,7 @@ problem.add_ic(
 # Forward
 problem.add_experiment(
     "forward/baseline",
-    run_agreement,
+    agreement,
     plot_description="Thermal compliance C vs mesh resolution N with random density; compares FV and FEM solvers across refinements.",
     ic={"name": "random", "seed": 0},
     physics={
@@ -197,7 +197,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/agreement",
-    run_agreement,
+    agreement,
     plot_description="Thermal compliance C vs uniform element density ρ₀ at fixed N; compares solvers on a log scale.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -214,7 +214,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/physical_laws",
-    run_physical_laws,
+    physical_laws,
     plot_description="Thermal compliance C vs total heat flux Q_total at fixed N and ρ₀ with a hot-spot BC; shown on log-log axes.",
     diagnostics=DIAGNOSTICS,
     ic={"name": "uniform", "seed": 0},
@@ -232,7 +232,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/source_baseline",
-    run_agreement,
+    agreement,
     plot_description="Thermal compliance C vs mesh resolution N with a Gaussian source field; compares solvers across refinements.",
     ic={"name": "gaussian_source"},
     physics={
@@ -248,7 +248,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "forward/source_linearity",
-    run_agreement,
+    agreement,
     plot_description="Thermal compliance C vs source amplitude at fixed mesh; compares solvers on log-log axes.",
     ic={"name": "gaussian_source"},
     physics={
@@ -266,62 +266,53 @@ problem.add_experiment(
 )
 
 # Cost
+_THERMAL_PHYS = {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "Q_total": 1.0,
+    "rho_0": 0.5,
+}
+_THERMAL_NX = [16, 32, 64, 128, 256, 512, 1024, 2048, 4500]
 problem.add_experiment(
     "cost/spatial_cost",
-    run_spatial_cost,
+    spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
-    physics={
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "Q_total": 1.0,
-        "rho_0": 0.5,
-    },
-    cost={
-        "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
-        "n_trials": 3,
-    },
+    physics={**_THERMAL_PHYS, "steps": 1, "nx": _THERMAL_NX},
+    cost={"n_trials": 3},
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/temporal_cost",
-    run_temporal_cost,
+    temporal_cost,
     plot_description="Forward-pass wall-clock time vs time-axis size for all solvers.",
-    physics={
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "Q_total": 1.0,
-        "rho_0": 0.5,
-    },
-    cost={
-        "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
-        "n_trials": 3,
-    },
+    physics={**_THERMAL_PHYS, "nx": 64, "steps": [1]},
+    cost={"n_trials": 3},
     plot=plot_cost,
 )
 problem.add_experiment(
     "cost/vjp_cost",
-    run_vjp_cost,
+    vjp_cost,
     plot_description="VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
-    physics={
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "Q_total": 1.0,
-        "rho_0": 0.5,
-    },
-    cost={
-        "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
-        "n_trials": 3,
-    },
+    runs=[
+        {
+            "name": "by_N",
+            "physics": {**_THERMAL_PHYS, "steps": 1, "nx": _THERMAL_NX},
+            "cost": {"n_trials": 3},
+        },
+        {
+            "name": "by_steps",
+            "physics": {**_THERMAL_PHYS, "nx": 64, "steps": [1]},
+            "cost": {"n_trials": 3},
+        },
+    ],
     plot=plot_cost,
 )
 
 # Gradient
 problem.add_experiment(
     "gradient/fd_check",
-    run_fd_check,
+    fd_check,
     plot_description="FD gradient error vs step size ε (U-curves), AD/FD direction cosine, and gradient magnitude field panels.",
     ic={"name": "random", "seed": 0},
     physics={
@@ -338,7 +329,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/param_sweep",
-    run_param_sweep,
+    param_sweep,
     plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs element density ρ₀.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -356,7 +347,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/jacobian_svd",
-    run_jacobian_svd,
+    jacobian_svd,
     plot_description="Singular-value spectrum of stacked per-solver gradients and pairwise cosine similarity between solver gradient directions.",
     ic={"name": "random", "seed": 0},
     physics={
@@ -377,7 +368,7 @@ problem.add_experiment(
 # objective; per-run ``ic_key`` / ``output_key`` overrides the global defaults.
 problem.add_experiment(
     "gradient/source_fd_check",
-    run_fd_check,
+    fd_check,
     plot_description="FD gradient error vs ε, AD/FD direction cosine, and gradient field panels for d(identification_error)/d(source).",
     ic={"name": "gaussian_source"},
     ic_key="source",
@@ -398,7 +389,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "gradient/source_width_sweep",
-    run_param_sweep,
+    param_sweep,
     plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs source width σ.",
     ic={"name": "gaussian_source"},
     ic_key="source",
@@ -423,7 +414,7 @@ problem.add_experiment(
 # Optimization
 problem.add_experiment(
     "optimization/conductivity_recovery",
-    run_conductivity_recovery,
+    conductivity_recovery,
     plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using gradient descent.",
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -446,7 +437,7 @@ problem.add_experiment(
 )
 problem.add_experiment(
     "optimization/conductivity_recovery_bfgs",
-    run_conductivity_recovery,
+    conductivity_recovery,
     optimizer="bfgs",
     plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using L-BFGS.",
     ic={"name": "uniform", "seed": 0},

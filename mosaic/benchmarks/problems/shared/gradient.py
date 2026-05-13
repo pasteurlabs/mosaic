@@ -1,48 +1,42 @@
 """Gradient evaluation suite: FD verification, parameter sweep, Jacobian SVD.
 
-Only runs solvers where SolverSpec.differentiable is True.
+Only runs solvers where ``SolverSpec.differentiable`` is True.
+
+Every harness in this module is a decorated *kernel*: a tiny science function
+that handles one (solver, sweep-point). The framework
+(:func:`mosaic.benchmarks.core.experiment.run_experiment`) owns IC
+construction, solver iteration, sweep walking, memory polling, failure
+classification, and result persistence. Configs reference the kernel
+directly — no harness wrapper:
+
+    problem.add_experiment("gradient/horizon_sweep", param_sweep, ...)
+
+:func:`jacobian_svd` is also a kernel but pairs with a custom
+:func:`_jacobian_svd_aggregate` (passed via the ``@kernel`` decorator)
+that does the cross-solver SVD + optional loss-landscape pass after the
+per-solver Jacobian phase.
 """
 
 from __future__ import annotations
-
-import time
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.harness import classify_failure as _classify_failure
-from mosaic.benchmarks.core.io import (
-    experiment_dir,
-    results_dir,
-    save_field_snapshots_npz,
-    save_harness_result,
-    try_load_npz,
+from mosaic.benchmarks.core.experiment import (
+    KernelContext,
+    kernel,
+    random_direction,
 )
-from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
-from mosaic.benchmarks.core.runner import (
-    current_worker_context,
-    per_solver_loop,
-    run_with_gpu_pool,
-)
+from mosaic.benchmarks.core.io import save_field_snapshots_npz, try_load_npz
+from mosaic.benchmarks.core.runner import run_with_gpu_pool
 
 # JAX-traced closures capture this reference at trace time; using the
 # tracer-aware wrapper ensures primitive binding sees the active trace.
 from mosaic.benchmarks.core.tracer_apply import apply_tesseract
-from mosaic.benchmarks.core.utils import (
-    active_differentiable_solvers,
-    extract_runs,
-    iter_runs,
-)
 
-_SUITE = "gradient"
-
-
-def _random_direction(shape: tuple, key: jax.Array) -> jax.Array:
-    v = jax.random.normal(key, shape, dtype=jnp.float32)
-    return v / (jnp.linalg.norm(v) + 1e-30)
+# ── Science primitives ───────────────────────────────────────────────────────
 
 
 def _vjp_grad(t, inputs: dict, output_key: str, ic_key: str) -> jax.Array:
@@ -68,1085 +62,439 @@ def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
     )
 
 
-def _safe_vjp_at(
-    t,
-    name: str,
-    ic,
-    phys: dict,
-    sweep_key: str,
-    val,
-    output_key: str,
-    ic_key: str,
-    *,
-    make_inputs,
-    domain_extent: float,
-) -> tuple[jax.Array | None, Exception | None]:
-    """Compute the VJP gradient at one sweep point, returning ``(grad, exc)``.
-
-    On success ``exc`` is ``None``. On any failure — including non-finite
-    gradient values — ``grad`` is ``None`` and ``exc`` carries the cause.
-    Used by horizon_sweep_limits so the call site stays flat (no
-    try/except nested inside ``with MemoryPoller(...)``).
-    """
-    try:
-        inputs = make_inputs(
-            name, ic, **{**phys, sweep_key: val, "domain_extent": domain_extent}
-        )
-        g = _vjp_grad(t, inputs, output_key, ic_key)
-        if not jnp.all(jnp.isfinite(g)):
-            return None, ValueError("VJP returned non-finite gradient (NaN/Inf)")
-        return g, None
-    except Exception as exc:
-        return None, exc
-
-
-# ── Finite-difference verification ───────────────────────────────────────────
-
-
-def run_fd_check(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    output_key: str,
-    ic_key: str,
-    domain_extent: float,
-    runs=None,
-    exp_key: str = "fd_check",
-    **overrides,
-) -> dict:
-    """Verify VJP gradients against central finite differences over a range of ε values.
-
-    For each solver × ε × random direction computes:
-        - FD directional derivative of L = sum(output²): (L(f(x+εv)) - L(f(x-εv))) / (2ε)
-        - VJP directional derivative: <grad_ic L, v>
-    Reports relative error and subspace cosine similarity.
-
-    Returns:
-        {"by_solver": {solver: {eps: {"rel_error": [float], "cosine": float}}}}
-        or {ic_name: <above>} when multiple runs are configured.
-    """
-    if not runs:
-        raise NotImplementedError(
-            f"run_fd_check requires runs= payload for {exp_key!r} "
-            f"(not configured for '{cfg.name}')"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        fd_cfg = run.get("fd", {})
-        eps_values = fd_cfg.get("eps_values", [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4])
-        n_dirs = fd_cfg.get("n_dirs", 20)
-        phys = run.get("physics", {})
-        ic_subdir = ic_name if n_runs > 1 else ""
-        # Per-run ic_key and output_key allow source-identification experiments
-        # to override the global ic_key="rho" / output_key defaults.
-        run_ic_key = run.get("ic_key", ic_key)
-        run_output_key = run.get("output_key", output_key)
-
-        ic = make_ic[ic_name](seed=seed, L=domain_extent, **phys)
-        keys = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
-
-        # Gate on the experiment-specific exclusion so source_fd_check /
-        # source_width_sweep only run on source-differentiable solvers
-        # (those without a {suite}/{exp_key} or bare {exp_key} exclusion).
-        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
-        results: dict = {}
-        grad_snaps: dict = {}
-        gpu_ids = overrides.get("gpu_ids")
-
-        def _fd_work(
-            name: str, t, _run_ic_key=run_ic_key, _run_output_key=run_output_key
-        ) -> None:
-            base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
-            # Use the actual IC from make_inputs as the perturbation base.  For some
-            # problems (e.g. structural-mesh) make_inputs may override the passed ic
-            # (e.g. via a rho_0 parameter), so we must perturb around base_inputs[ic_key]
-            # rather than the raw ic array — otherwise the FD sees no perturbation.
-            base_ic = jnp.array(base_inputs[_run_ic_key])
-            # Scale ε relative to IC magnitude so eps_values are problem-agnostic.
-            ic_scale = float(jnp.sqrt(jnp.mean(base_ic**2) + 1e-30))
-            dirs_base = [_random_direction(base_ic.shape, k) for k in keys]
-            solver_results: dict = {}
-            g = _vjp_grad(t, base_inputs, _run_output_key, _run_ic_key)
-            grad_snaps[name] = {"ic": np.array(base_ic), "grad": np.array(g)}
-            vjp_arr = np.array(
-                [float(jnp.dot(g.ravel(), v.ravel())) for v in dirs_base]
-            )
-            for eps in eps_values:
-                abs_eps = eps * ic_scale
-                fd_arr = np.array(
-                    [
-                        float(
-                            jnp.sum(
-                                apply_tesseract(
-                                    t,
-                                    {
-                                        **base_inputs,
-                                        _run_ic_key: base_ic + abs_eps * v,
-                                    },
-                                )[_run_output_key]
-                                ** 2
-                                - apply_tesseract(
-                                    t,
-                                    {
-                                        **base_inputs,
-                                        _run_ic_key: base_ic - abs_eps * v,
-                                    },
-                                )[_run_output_key]
-                                ** 2
-                            )
-                            / (2 * abs_eps)
-                        )
-                        for v in dirs_base
-                    ]
-                )
-                denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
-                solver_results[eps] = {
-                    "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
-                    "cosine": _fd_cosine(fd_arr, vjp_arr),
-                    # Persist the raw per-direction FD derivative so the
-                    # rel_error / cosine summaries can be recomputed (or
-                    # replaced with alternative statistics) without
-                    # rerunning the benchmark. ``vjp_arr`` is the same for
-                    # every eps so it's stored once at the solver level.
-                    "fd_arr": fd_arr.tolist(),
-                }
-            results[name] = {
-                "ic_scale": ic_scale,
-                "vjp_arr": vjp_arr.tolist(),
-                "eps_sweep": solver_results,
-            }
-
-        _wall_times = per_solver_loop(
-            cfg,
-            tags,
-            diff_solvers,
-            _fd_work,
-            gpu_ids=gpu_ids,
-            catch=True,
-            catch_label="VJP failed",
-        )
-
-        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
-        # Pre-compute out_dir so the per-solver npz can land alongside result.json.
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        solver_names = list(grad_snaps.keys())
-        saved_ic = grad_snaps[solver_names[0]]["ic"] if grad_snaps else ic
-        save_field_snapshots_npz(
-            out_dir,
-            solver_names,
-            {name: {"": np.asarray(grad_snaps[name]["grad"])} for name in solver_names},
-            shared_arrays={"ic": np.asarray(saved_ic)},
-        )
-
-        result = {"by_solver": results, "params": run}
-        save_harness_result(
-            result,
-            cfg=cfg,
-            suite=_SUITE,
-            exp_subdir=exp_subdir,
-            harness_fn=run_fd_check,
-            wall_time_s=_wall_times,
-            debug=bool(overrides.get("debug")),
-        )
-        if n_runs > 1:
-            all_results[ic_name] = result
-        else:
-            all_results = result
-
-    return all_results
-
-
-# ── shared ε-sweep helper ─────────────────────────────────────────────────────
-
 _DEFAULT_EPS = [1e0, 1e-1, 1e-2, 1e-3]
+_FD_CHECK_DEFAULT_EPS = [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4]
 
 
-def _eps_sweep(
+def _fd_vjp_arrays(
     t,
-    name,
-    ic,
-    dirs,
-    eps_values,
-    make_inputs_kwargs,
-    *,
-    make_inputs,
-    ic_key: str,
-    output_key: str,
-) -> tuple[dict, jax.Array]:
-    """Run FD vs VJP over a list of ε values.
+    ctx: KernelContext,
+    eps_values: list,
+    n_dirs: int,
+) -> tuple[jax.Array, float, jax.Array, np.ndarray, dict[float, np.ndarray]]:
+    """Compute the raw FD/VJP arrays underpinning every FD-style kernel.
 
-    ic_key and output_key are passed explicitly so callers can override the
-    problem defaults for per-experiment source-identification gradient checks
-    (source_fd_check etc.).
+    Returns ``(base_ic, ic_scale, g, vjp_arr, fd_per_eps)``:
 
-    Returns:
-        result : {"grad_norm", "eps_sweep": {eps: {rel_error_mean, rel_error_std,
-                                                    cosine_mean}}}
-        grad   : jax.Array  — VJP gradient (reuse by caller, avoids recomputation)
+      * ``base_ic`` — IC array after make_inputs (some problems override the
+        passed IC via a parameter like rho_0; we must perturb around this
+        post-make_inputs array, not the raw caller-side IC).
+      * ``ic_scale`` — RMS of base_ic, used to scale ε relative to the IC
+        magnitude so that ``eps_values`` are problem-agnostic.
+      * ``g`` — VJP gradient of ``sum(output**2)`` w.r.t. ``base_ic``.
+      * ``vjp_arr`` — per-direction VJP directional derivative
+        ``<g, v_k>`` for each of ``n_dirs`` random directions.
+      * ``fd_per_eps`` — per-eps central-FD directional derivatives, same
+        layout as ``vjp_arr``.
     """
-    base_inputs = make_inputs(name, ic, **make_inputs_kwargs)
-    # Use the actual IC from make_inputs as the perturbation base.  For some
-    # problems (e.g. structural-mesh) make_inputs may override the passed ic
-    # (e.g. via a rho_0 parameter), so we must perturb around base_inputs[ic_key]
-    # rather than the raw ic array — otherwise the FD sees no perturbation.
-    base_ic = jnp.array(base_inputs[ic_key])
-    # Scale ε relative to IC magnitude so eps_values are problem-agnostic.
+    base_inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    base_ic = jnp.array(base_inputs[ctx.ic_key])
     ic_scale = float(jnp.sqrt(jnp.mean(base_ic**2) + 1e-30))
-    # Reuse the caller's random directions when they match base_ic's shape (the
-    # common case).  Only regenerate if make_inputs changed the IC shape.
-    dirs_base = (
-        dirs
-        if base_ic.shape == ic.shape
-        else [
-            _random_direction(base_ic.shape, k)
-            for k in jax.random.split(jax.random.PRNGKey(0), len(dirs))
-        ]
-    )
+    keys = jax.random.split(jax.random.PRNGKey(ctx.seed), n_dirs)
+    dirs = [random_direction(base_ic.shape, k) for k in keys]
 
-    g = _vjp_grad(t, base_inputs, output_key, ic_key)
-    vjp_arr = np.array([float(jnp.dot(g.ravel(), v.ravel())) for v in dirs_base])
+    g = _vjp_grad(t, base_inputs, ctx.output_key, ctx.ic_key)
+    vjp_arr = np.array([float(jnp.dot(g.ravel(), v.ravel())) for v in dirs])
 
-    eps_sweep: dict = {}
+    fd_per_eps: dict[float, np.ndarray] = {}
     for eps in eps_values:
         abs_eps = eps * ic_scale
-        fd_arr = np.array(
+        fd_per_eps[eps] = np.array(
             [
                 float(
                     jnp.sum(
                         apply_tesseract(
-                            t, {**base_inputs, ic_key: base_ic + abs_eps * v}
-                        )[output_key]
+                            t, {**base_inputs, ctx.ic_key: base_ic + abs_eps * v}
+                        )[ctx.output_key]
                         ** 2
                         - apply_tesseract(
-                            t, {**base_inputs, ic_key: base_ic - abs_eps * v}
-                        )[output_key]
+                            t, {**base_inputs, ctx.ic_key: base_ic - abs_eps * v}
+                        )[ctx.output_key]
                         ** 2
                     )
                     / (2 * abs_eps)
                 )
-                for v in dirs_base
+                for v in dirs
             ]
         )
+    return base_ic, ic_scale, g, vjp_arr, fd_per_eps
+
+
+# ── Kernels ──────────────────────────────────────────────────────────────────
+
+
+@kernel(sweep_mode="none", catch_label="VJP failed")
+def fd_check(t, ctx: KernelContext) -> dict:
+    """One FD-verification point: VJP grad + central-FD over ``eps_values``.
+
+    Records per-direction rel_error (not aggregated) so that downstream
+    analysis can recompute mean/std/cosine without rerunning the benchmark.
+    """
+    fd_cfg = ctx.run.get("fd", {})
+    eps_values = fd_cfg.get("eps_values", _FD_CHECK_DEFAULT_EPS)
+    n_dirs = fd_cfg.get("n_dirs", 20)
+
+    base_ic, ic_scale, g, vjp_arr, fd_per_eps = _fd_vjp_arrays(
+        t, ctx, eps_values, n_dirs
+    )
+    eps_sweep: dict = {}
+    for eps, fd_arr in fd_per_eps.items():
+        denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
+        eps_sweep[eps] = {
+            "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
+            "cosine": _fd_cosine(fd_arr, vjp_arr),
+            "fd_arr": fd_arr.tolist(),
+        }
+    return {
+        "metrics": {
+            "ic_scale": ic_scale,
+            "vjp_arr": vjp_arr.tolist(),
+            "eps_sweep": eps_sweep,
+        },
+        "snapshot": np.asarray(g),
+        # Override the framework's raw-IC default with the post-make_inputs
+        # IC so plots see the same array the kernel perturbed around (matters
+        # for structural_mesh where make_inputs substitutes rho_0).
+        "shared": {"ic": np.asarray(base_ic)},
+    }
+
+
+@kernel(sweep_mode="default", horizons_shared=True, catch_label="VJP failed")
+def param_sweep(t, ctx: KernelContext) -> dict:
+    """One sweep point for a parameter sweep: grad_norm + per-eps mean/std/cosine.
+
+    ``sweep.key`` / ``sweep.values`` on the run dict pick the parameter
+    (``nu``, ``kT``, ``sigma8``, ``N``, ``steps``, …) so the same kernel
+    handles every variant — registering it under ``gradient/horizon_sweep``
+    versus ``gradient/param_sweep`` differs only by the experiment key.
+    """
+    fd_cfg = ctx.run.get("fd", {})
+    eps_values = fd_cfg.get("eps_values", _DEFAULT_EPS)
+    n_dirs = fd_cfg.get("n_dirs", 15)
+
+    _, ic_scale, g, vjp_arr, fd_per_eps = _fd_vjp_arrays(t, ctx, eps_values, n_dirs)
+    eps_sweep: dict = {}
+    for eps, fd_arr in fd_per_eps.items():
         denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
         eps_sweep[eps] = {
             "rel_error_mean": float(np.mean(np.abs(fd_arr - vjp_arr) / denom)),
             "rel_error_std": float(np.std(np.abs(fd_arr - vjp_arr) / denom)),
             "cosine_mean": _fd_cosine(fd_arr, vjp_arr),
         }
-
     return {
-        "grad_norm": float(jnp.linalg.norm(g)),
-        "ic_scale": ic_scale,
-        "eps_sweep": eps_sweep,
-    }, g
+        "metrics": {
+            "grad_norm": float(jnp.linalg.norm(g)),
+            "ic_scale": ic_scale,
+            "eps_sweep": eps_sweep,
+        },
+        "snapshot": np.asarray(g),
+    }
 
 
-# ── Generic parameter sweep ───────────────────────────────────────────────────
+@kernel(
+    sweep_mode="limits",
+    warmup=True,
+    horizons_shared=True,
+    catch_label="VJP failed",
+)
+def horizon_sweep_limits(t, ctx: KernelContext) -> dict:
+    """One VJP attempt for the rollout-limit sweep — no FD check.
 
+    Raises on non-finite gradient so the framework's per-step try/except
+    catches it as a regular failure (classified as ``nan`` downstream).
 
-def _run_generic_param_sweep(
-    cfg: Problem,
-    tags: dict[str, str],
-    exp_key: str,
-    *,
-    make_ic,
-    make_inputs,
-    output_key: str,
-    ic_key: str,
-    domain_extent: float,
-    runs=None,
-    **overrides,
-) -> dict:
-    """Shared implementation for param_sweep and horizon_sweep experiments.
+    Result layout::
 
-    Saves results to ``results/<problem>/gradient/<exp_key>/``.
-    """
-    if not runs:
-        raise NotImplementedError(
-            f"No runs payload for '{exp_key}' configured for '{cfg.name}'"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
+        by_solver[name][steps_val] = {"status": "ok",
+                                      "grad_norm": float,
+                                      "wall_time_s": float,
+                                      "vram_peak_mib": float | None,
+                                      "ram_peak_mib": float | None}
+                                   | {"status": "failed",
+                                      "failure_type": "OOM"|"timeout"|"container_died"|"nan"|"error",
+                                      "error": str,
+                                      "wall_time_s": float, ...}
+                                   | {"status": "skipped", "reason": str}
 
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        fd_cfg = run.get("fd", {})
-        eps_values = fd_cfg.get("eps_values", _DEFAULT_EPS)
-        n_dirs = fd_cfg.get("n_dirs", 15)
-        sweep_cfg = run.get("sweep", {})
-        sweep_key = sweep_cfg.get("key")
-        sweep_values = sweep_cfg.get("values", [])
-        phys = run.get("physics", {})
-        ic_subdir = ic_name if n_runs > 1 else ""
-        run_ic_key = run.get("ic_key", ic_key)
-        run_output_key = run.get("output_key", output_key)
-
-        if not sweep_key or not sweep_values:
-            raise NotImplementedError(
-                f"'{exp_key}' requires sweep.key and sweep.values in runs payload "
-                f"(not configured for '{cfg.name}')"
-            )
-
-        # ic_sweep=True: regenerate IC per sweep value (e.g., sigma sweep where IC depends on sigma).
-        # ic_sweep=False (default): generate IC once with base phys params.
-        ic_sweep_flag = sweep_cfg.get("ic_sweep", False)
-
-        if ic_sweep_flag:
-            # Pre-compute IC and FD directions for each sweep value.
-            ic_per_val: dict = {}
-            dirs_per_val: dict = {}
-            for _val in sweep_values:
-                _ic_v = make_ic[ic_name](
-                    L=domain_extent, seed=seed, **{**phys, sweep_key: _val}
-                )
-                _keys_v = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
-                ic_per_val[_val] = _ic_v
-                dirs_per_val[_val] = [
-                    _random_direction(_ic_v.shape, _k) for _k in _keys_v
-                ]
-            # Use a representative IC (first sweep value) for shape; dirs are per-val.
-            ic = ic_per_val[sweep_values[0]]
-            dirs = dirs_per_val[sweep_values[0]]
-        else:
-            ic = make_ic[ic_name](L=domain_extent, seed=seed, **phys)
-            keys = jax.random.split(jax.random.PRNGKey(seed), n_dirs)
-            dirs = [_random_direction(ic.shape, k) for k in keys]
-            ic_per_val = None
-            dirs_per_val = None
-
-        # Gate on the experiment-specific exclusion so source-experiment
-        # exclusions (e.g. "gradient/source_width_sweep") take precedence over
-        # the suite-level "gradient" key.
-        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
-        results: dict = {}
-        grad_snaps: dict = {}  # name → {val: grad array}
-        gpu_ids = overrides.get("gpu_ids")
-
-        def _param_work(
-            name: str,
-            t,
-            _run_ic_key=run_ic_key,
-            _run_output_key=run_output_key,
-            _ic_per_val=ic_per_val,
-            _dirs_per_val=dirs_per_val,
-        ) -> None:
-            solver_results: dict = {}
-            solver_grads: dict = {}
-            for val in sweep_values:
-                # Use per-val IC/dirs if ic_sweep=True, else shared IC/dirs.
-                _ic = _ic_per_val[val] if _ic_per_val is not None else ic
-                _dirs = _dirs_per_val[val] if _dirs_per_val is not None else dirs
-                entry, g = _eps_sweep(
-                    t,
-                    name,
-                    _ic,
-                    _dirs,
-                    eps_values,
-                    {**phys, sweep_key: val, "domain_extent": domain_extent},
-                    make_inputs=make_inputs,
-                    ic_key=_run_ic_key,
-                    output_key=_run_output_key,
-                )
-                solver_results[val] = entry
-                solver_grads[val] = np.array(g)
-            results[name] = solver_results
-            grad_snaps[name] = solver_grads
-
-        _wall_times = per_solver_loop(
-            cfg,
-            tags,
-            diff_solvers,
-            _param_work,
-            gpu_ids=gpu_ids,
-            catch=True,
-            catch_label="VJP failed",
-        )
-
-        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-
-        # Save gradient field snapshots per sweep value (needed by plot_horizon_sweep)
-        if grad_snaps:
-            solver_names = list(grad_snaps.keys())
-            # Build per_solver_arrays: suffix = str index of sweep value
-            per_solver: dict[str, dict[str, np.ndarray]] = {}
-            for sname in solver_names:
-                per_solver[sname] = {
-                    str(k): grad_snaps[sname][v]
-                    for k, v in enumerate(sweep_values)
-                    if v in grad_snaps[sname]
-                }
-            save_field_snapshots_npz(
-                out_dir,
-                solver_names,
-                per_solver,
-                shared_arrays={
-                    "ic": np.asarray(ic),
-                    "horizons": np.array(
-                        [float(v) * float(phys.get("dt", 1.0)) for v in sweep_values]
-                        if sweep_key == "steps"
-                        else [float(v) for v in sweep_values]
-                    ),
-                },
-            )
-
-        result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
-        save_harness_result(
-            result,
-            cfg=cfg,
-            suite=_SUITE,
-            exp_subdir=exp_subdir,
-            harness_fn=_run_generic_param_sweep,
-            wall_time_s=_wall_times,
-            debug=bool(overrides.get("debug")),
-        )
-        if n_runs > 1:
-            all_results[ic_name] = result
-        else:
-            all_results = result
-
-    return all_results
-
-
-def run_param_sweep(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    output_key: str,
-    ic_key: str,
-    domain_extent: float,
-    runs=None,
-    exp_key: str = "param_sweep",
-    **overrides,
-) -> dict:
-    """Gradient norm and per-solver FD ε-sweep vs one physics parameter.
-
-    Each run dict supplies ``sweep.key`` / ``sweep.values`` so any
-    problem-specific parameter (nu, kT, sigma8, …) can be swept without
-    changing this function. Use ``sweep.key="N"`` or ``sweep.key="steps"``
-    to replace the former resolution_sweep and horizon_sweep respectively.
-
-    Returns:
-        {"by_solver": {solver: {val: {"grad_norm",
-                                      "eps_sweep": {eps: {rel_error_mean,
-                                                          rel_error_std,
-                                                          cosine_mean}}}}},
-         "sweep_key": sweep_key}
-        or {ic_name: <above>} when multiple runs are configured.
-    """
-    return _run_generic_param_sweep(
-        cfg,
-        tags,
-        exp_key,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        output_key=output_key,
-        ic_key=ic_key,
-        domain_extent=domain_extent,
-        runs=runs,
-        **overrides,
-    )
-
-
-def run_horizon_sweep(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    output_key: str,
-    ic_key: str,
-    domain_extent: float,
-    runs=None,
-    exp_key: str = "horizon_sweep",
-    **overrides,
-) -> dict:
-    """Gradient quality vs rollout horizon sweep.
-
-    Saves results and gradient field snapshots to
-    ``results/<problem>/gradient/horizon_sweep/``.
-
-    Returns:
-        {"by_solver": {solver: {val: {"grad_norm",
-                                      "eps_sweep": {eps: {rel_error_mean,
-                                                          rel_error_std,
-                                                          cosine_mean}}}}},
-         "sweep_key": sweep_key}
-        or {ic_name: <above>} when multiple runs are configured.
-    """
-    return _run_generic_param_sweep(
-        cfg,
-        tags,
-        exp_key,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        output_key=output_key,
-        ic_key=ic_key,
-        domain_extent=domain_extent,
-        runs=runs,
-        **overrides,
-    )
-
-
-def run_horizon_sweep_limits(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    output_key: str,
-    ic_key: str,
-    domain_extent: float,
-    runs=None,
-    exp_key: str = "horizon_sweep_limits",
-    **overrides,
-) -> dict:
-    """Rollout-length limit sweep: VJP only, per-step failure recording, early stopping.
-
-    For each solver, attempts VJP at increasing step counts.  Stops at the first
-    failure (OOM, timeout, container_died, nan, error) and records all subsequent
-    steps as 'skipped'.  No FD check is performed — gradient quality is out of scope
-    for this experiment; OOM/failure boundary is the target metric.
-
-    Result structure::
-
-        {"by_solver": {
-            solver: {
-                steps_val: {"status": "ok",
-                            "grad_norm": float,
-                            "wall_time_s": float,
-                            "vram_peak_mib": float | None,   # peak GPU VRAM during VJP
-                            "ram_peak_mib": float | None}    # peak container RAM during VJP
-                         | {"status": "failed",
-                            "failure_type": "OOM"|"timeout"|"container_died"|"nan"|"error",
-                            "error": str,
-                            "wall_time_s": float,
-                            "vram_peak_mib": float | None,   # last-known VRAM before failure
-                            "ram_peak_mib": float | None}
-                         | {"status": "skipped", "reason": str}
-            }
-        }, "sweep_key": "steps", "params": run}
-
-    Intended to be run with one GPU per solver so OOM reflects a single GPU budget::
+    Intended to be run with one GPU per solver so OOM reflects a single GPU
+    budget::
 
         mosaic gradient ns-3d-grid --experiments horizon_sweep_limits --gpu-ids 0 1 2 3
     """
-    if not runs:
-        raise NotImplementedError(
-            f"run_horizon_sweep_limits requires runs= payload "
-            f"(not configured for '{cfg.name}')"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
-
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        sweep_cfg = run.get("sweep", {})
-        sweep_key = sweep_cfg.get("key")
-        sweep_values = sweep_cfg.get("values", [])
-        phys = run.get("physics", {})
-        ic_subdir = ic_name if n_runs > 1 else ""
-        run_ic_key = run.get("ic_key", ic_key)
-        run_output_key = run.get("output_key", output_key)
-        gpu_ids = overrides.get("gpu_ids")
-
-        if gpu_ids is None:
-            console.print(
-                "  [yellow]WARN[/] horizon_sweep_limits: gpu_ids not set — solvers share all "
-                "GPUs. Pass --gpu-ids 0 1 2 3 for isolated per-GPU OOM measurements."
-            )
-
-        if not sweep_key or not sweep_values:
-            raise NotImplementedError(
-                f"'{exp_key}' requires sweep.key and sweep.values in runs payload"
-            )
-
-        ic = make_ic[ic_name](L=domain_extent, seed=seed, **phys)
-
-        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
-        results: dict = {}
-        grad_snaps: dict = {}
-
-        def _limits_work(
-            name: str,
-            t,
-            _run_ic_key=run_ic_key,
-            _run_output_key=run_output_key,
-        ) -> None:
-            color = cfg.solver(name).color
-
-            # GPU ID is set per-thread by run_with_gpu_pool; container ID is
-            # extracted from the Tesseract object. Both may be None (serial
-            # mode or unknown SDK layout), in which case that metric is skipped.
-            _gpu_id = current_worker_context().gpu_id
-            _cid = container_id_from_tesseract(t)
-
-            solver_results: dict = {}
-            solver_grads: dict = {}
-            failed = False
-            fail_reason = ""
-
-            # Warmup VJP at smallest step count to prime JIT/kernel compilation
-            # (warp_ns Warp kernels, ins_jl Julia/Zygote JIT) before timing starts.
-            try:
-                _wu_inputs = make_inputs(
-                    name,
-                    ic,
-                    **{
-                        **phys,
-                        sweep_key: sweep_values[0],
-                        "domain_extent": domain_extent,
-                    },
-                )
-                _vjp_grad(t, _wu_inputs, _run_output_key, _run_ic_key)
-                console.print(f"  [{color}]{name}[/] warmup ok")
-            except Exception as _wex:
-                console.print(
-                    f"  [{color}]{name}[/] warmup skipped ({type(_wex).__name__})"
-                )
-
-            for val in sweep_values:
-                if failed:
-                    solver_results[val] = {"status": "skipped", "reason": fail_reason}
-                    continue
-                t_step = time.perf_counter()
-                with MemoryPoller(_gpu_id, _cid) as poller:
-                    g, exc = _safe_vjp_at(
-                        t,
-                        name,
-                        ic,
-                        phys,
-                        sweep_key,
-                        val,
-                        _run_output_key,
-                        _run_ic_key,
-                        make_inputs=make_inputs,
-                        domain_extent=domain_extent,
-                    )
-                mem = poller.summary
-                step_wall = time.perf_counter() - t_step
-                _vram_str = (
-                    f" vram={mem['vram_peak_mib']:.0f}MiB"
-                    if mem.get("vram_peak_mib") is not None
-                    else ""
-                )
-                if exc is None:
-                    g_np = np.array(g).ravel()
-                    grad_norm = float(jnp.linalg.norm(g))
-                    solver_results[val] = {
-                        "status": "ok",
-                        "grad_norm": grad_norm,
-                        "grad_mean": float(g_np.mean()),
-                        "grad_std": float(g_np.std()),
-                        "grad_min": float(g_np.min()),
-                        "grad_max": float(g_np.max()),
-                        "wall_time_s": step_wall,
-                        **mem,
-                    }
-                    solver_grads[val] = np.array(g)
-                    _ram_str = (
-                        f" ram={mem['ram_peak_mib']:.0f}MiB"
-                        if mem.get("ram_peak_mib") is not None
-                        else ""
-                    )
-                    console.print(
-                        f"  [{color}]{name}[/] {sweep_key}={val} ok "
-                        f"grad_norm={grad_norm:.3g}{_vram_str}{_ram_str} ({step_wall:.1f}s)"
-                    )
-                else:
-                    exc_name = type(exc).__name__
-                    failure_type = _classify_failure(exc_name, str(exc))
-                    err_short = str(exc)[:300]
-                    solver_results[val] = {
-                        "status": "failed",
-                        "failure_type": failure_type,
-                        "error": err_short,
-                        "wall_time_s": step_wall,
-                        **mem,
-                    }
-                    fail_reason = f"first failure at {sweep_key}={val} ({failure_type})"
-                    failed = True
-                    console.print(
-                        f"  [{color}]{name}[/] [red]FAIL[/] {sweep_key}={val} "
-                        f"({failure_type}){_vram_str}: {err_short[:80]} ({step_wall:.1f}s)"
-                    )
-
-            results[name] = solver_results
-            if solver_grads:
-                grad_snaps[name] = solver_grads
-
-        _wall_times = per_solver_loop(
-            cfg, tags, diff_solvers, _limits_work, gpu_ids=gpu_ids
-        )
-
-        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-
-        if grad_snaps:
-            solver_names = list(grad_snaps.keys())
-            per_solver: dict[str, dict[str, np.ndarray]] = {}
-            for sname in solver_names:
-                per_solver[sname] = {
-                    str(k): grad_snaps[sname][v]
-                    for k, v in enumerate(sweep_values)
-                    if v in grad_snaps[sname]
-                }
-            save_field_snapshots_npz(
-                out_dir,
-                solver_names,
-                per_solver,
-                shared_arrays={
-                    "ic": np.asarray(ic),
-                    "horizons": np.array(
-                        [float(v) * float(phys.get("dt", 1.0)) for v in sweep_values]
-                        if sweep_key == "steps"
-                        else [float(v) for v in sweep_values]
-                    ),
-                },
-            )
-
-        result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
-        save_harness_result(
-            result,
-            cfg=cfg,
-            suite=_SUITE,
-            exp_subdir=exp_subdir,
-            harness_fn=run_horizon_sweep_limits,
-            wall_time_s=_wall_times,
-            debug=bool(overrides.get("debug")),
-        )
-        if n_runs > 1:
-            all_results[ic_name] = result
-        else:
-            all_results = result
-
-    return all_results
+    inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    g = _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key)
+    if not jnp.all(jnp.isfinite(g)):
+        raise ValueError("VJP returned non-finite gradient (NaN/Inf)")
+    g_np = np.array(g).ravel()
+    return {
+        "metrics": {
+            "grad_norm": float(jnp.linalg.norm(g)),
+            "grad_mean": float(g_np.mean()),
+            "grad_std": float(g_np.std()),
+            "grad_min": float(g_np.min()),
+            "grad_max": float(g_np.max()),
+        },
+        "snapshot": np.asarray(g),
+    }
 
 
 # ── Jacobian SVD ─────────────────────────────────────────────────────────────
 
 
-def run_jacobian_svd(
-    cfg: Problem,
-    tags: dict[str, str],
+def _jacobian_svd_aggregate(  # noqa: PLR0913 — aggregate signature mirrors the kernel's extras
+    by_solver,
     *,
-    make_ic,
-    make_inputs,
-    output_key: str,
-    ic_key: str,
-    domain_extent: float,
-    runs=None,
-    exp_key: str = "jacobian_svd",
-    **overrides,
+    run,
+    cfg,
+    tags,
+    out_dir,
+    selected,
+    gpu_ids,
+    snapshots,
+    shared_extras,
+    ic,
+    sweep_values,
+    sweep_key,
+    snapshot_filename,
+    snapshot_prefixes,
+    horizons_shared,
 ) -> dict:
-    """Singular-value spectrum of the stacked per-solver gradient matrix.
+    """Cross-solver SVD + optional loss-landscape pass.
 
-    Computes VJP gradients ∂L/∂IC for all differentiable solvers, stacks them
-    into G (n_solvers × D), runs SVD, and records:
-
-        - singular_values: σᵢ/σ₁ (normalised spectrum, length = n_solvers)
-        - condition_number: σ₁/σₙ
-        - effective_rank: (Σσ)²/(Σσ²)  — participation ratio
-        - explained_variance: cumulative σᵢ² / Σσⱼ² per mode
-        - cross_cosine: n×n pairwise cosine similarity between gradient vectors
-          (inter-solver gradient agreement)
-        - grad_norms: {solver: float}
-        - landscape: 1-D loss slice along the top singular direction
-          (set n_alphas=0 to skip)
-
-    NPZ: solver_names, singular_values (raw), singular_vectors (top k × D), ic,
-         grad_j for each solver j.
-
-    Returns:
-        {"solver_names": [...], "singular_values": [...], ...}
-        or {ic_name: <above>} when multiple runs are configured.
+    Inputs (via ``snapshots``): ``{name: {"grad:": grad_arr, "jac:": J_mat}}``
+    from the per-solver kernel pass. ``by_solver`` is unused — all metrics
+    are derived from the snapshots and the SVD.
     """
-    if not runs:
-        raise NotImplementedError(
-            f"run_jacobian_svd requires runs= payload for {exp_key!r} "
-            f"(not configured for '{cfg.name}')"
-        )
-    n_runs = len(extract_runs(runs))
-    all_results: dict = {}
+    del by_solver  # unused — metrics are computed here from snapshots
+    jacobian_cfg = run.get("jacobian", {})
+    n_alphas = jacobian_cfg.get("n_alphas", 41)
+    alpha_range = jacobian_cfg.get("alpha_range", 0.3)
+    k_svd = jacobian_cfg.get("k_svd", None)
+    phys = run.get("physics", {})
+    ic_cfg = run.get("ic", {})
+    ic_name = ic_cfg.get("name")
+    seed = ic_cfg.get("seed", 0)
+    output_key = run.get("output_key", cfg.output_key)
+    ic_key = run.get("ic_key", cfg.ic_key)
 
-    for run in iter_runs(runs, overrides):
-        ic_cfg = run.get("ic", {})
-        ic_name = ic_cfg.get("name", next(iter(make_ic)))
-        seed = ic_cfg.get("seed", 0)
-        jacobian_cfg = run.get("jacobian", {})
-        n_alphas = jacobian_cfg.get("n_alphas", 41)
-        alpha_range = jacobian_cfg.get("alpha_range", 0.3)
-        k_svd = jacobian_cfg.get("k_svd", None)
-        phys = run.get("physics", {})
-        ic_subdir = ic_name if n_runs > 1 else ""
+    # ── Unpack per-solver kernel output ───────────────────────────────────
+    jacobians: dict = {}
+    grad_snaps: dict = {}
+    for name, suf_map in snapshots.items():
+        for k, arr in suf_map.items():
+            if k.startswith("jac:"):
+                jacobians[name] = np.asarray(arr)
+            elif k.startswith("grad:"):
+                grad_snaps[name] = np.asarray(arr)
 
-        ic = make_ic[ic_name](seed=seed, L=domain_extent, **phys)
-
-        diff_solvers = active_differentiable_solvers(cfg, "gradient", exp_key)
-        jacobians: dict = {}  # name → (D_out, D_in) ndarray
-        grad_snaps: dict = {}  # name → (D_in,) ndarray  [for field plots]
-        base_inputs_snap: dict = {}
-        gpu_ids = overrides.get("gpu_ids")
-
-        # ── Pass 1: full Jacobian via jacrev ──────────────────────────────────
-        # jax.jacrev computes ∂output[i]/∂ic[j] for all (i,j), giving the full
-        # (D_out, D_in) Jacobian with D_out VJP calls — tractable for small N.
-        def _svd_work(name: str, t) -> None:
-            color = cfg.solver(name).color
-            base_inputs = make_inputs(name, ic, domain_extent=domain_extent, **phys)
-            base_ic = jnp.array(base_inputs[ic_key])
-
-            def fwd(ic_arr):
-                return apply_tesseract(t, {**base_inputs, ic_key: ic_arr})[output_key]
-
-            # Full Jacobian via sequential VJP (one call per output element).
-            # jax.jacrev uses vmap which tesseract does not support, so we loop.
-            out, vjp_fn = jax.vjp(fwd, base_ic)
-            out_arr = np.array(out)
-            D_out = int(out_arr.size)
-            J_rows = []
-            _log_every = max(1, D_out // 8)
-            console.print(f"  [{color}]{name}[/] Jacobian {D_out} rows starting")
-            for i in range(D_out):
-                e_i = jnp.zeros(D_out).at[i].set(1.0)
-                (row,) = vjp_fn(e_i.reshape(out_arr.shape))
-                J_rows.append(np.array(row).ravel())
-                if (i + 1) % _log_every == 0:
-                    console.print(
-                        f"  [{color}]{name}[/] Jacobian {i + 1}/{D_out} rows done"
-                    )
-            J_mat = np.stack(J_rows)  # (D_out, D_in)
-            jacobians[name] = J_mat
-
-            # Gradient of sum(output²) = J^T @ (2*output): for field plots
-            grad_snaps[name] = (J_mat.T @ (2.0 * out_arr.ravel())).reshape(
-                base_ic.shape
+    # ── Merge with existing Jacobians from NPZ (partial-run resumption) ──
+    # If a prior partial run saved Jacobians, load them so aggregate stats
+    # (combined SVD, cross_cosine) use the full solver set rather than just
+    # the current subset. Per-solver entries computed this run take precedence.
+    _npz = try_load_npz(out_dir / snapshot_filename)
+    _old_names = [str(n) for n in _npz.get("solver_names", np.array([]))]
+    for _j, _old_name in enumerate(_old_names):
+        _jac_key = f"jac_{_j}"
+        _grad_key = f"grad_{_j}"
+        if _old_name not in jacobians and _jac_key in _npz:
+            _J = _npz[_jac_key]
+            jacobians[_old_name] = _J
+            if _grad_key in _npz:
+                grad_snaps[_old_name] = _npz[_grad_key]
+            elif _J.ndim == 2:
+                # Frobenius row-norm as a stand-in when only the matrix is
+                # cached — sign is not guaranteed but the value is only
+                # consumed by grad_norms reporting, not by the SVD.
+                grad_snaps[_old_name] = np.linalg.norm(_J, axis=0)
+            console.print(
+                f"  [dim]jacobian_svd: merged existing Jacobian for {_old_name} from NPZ[/]"
             )
 
-            base_inputs_snap[name] = (dict(base_inputs), np.array(base_ic))
+    if not jacobians:
+        raise RuntimeError("No differentiable solvers returned Jacobians")
 
-        _wall_times = per_solver_loop(
-            cfg,
-            tags,
-            diff_solvers,
-            _svd_work,
-            gpu_ids=gpu_ids,
-            catch=True,
-            catch_label="VJP failed",
-        )
+    solver_names = list(jacobians.keys())
+    G_stack = np.vstack([jacobians[n] for n in solver_names])
 
-        if not jacobians:
-            raise RuntimeError("No differentiable solvers returned Jacobians")
+    # ── SVD ───────────────────────────────────────────────────────────────
+    _U, S, Vt = np.linalg.svd(G_stack, full_matrices=False)
+    k_report = k_svd if k_svd is not None else len(S)
+    S = S[:k_report]
+    Vt = Vt[:k_report]
 
-        # ── Merge with existing Jacobians from NPZ (Option A) ─────────────────
-        # If a prior partial run saved Jacobians to the NPZ, load them so that
-        # aggregate statistics (combined SVD, cross_cosine) use the full solver
-        # set rather than just the current subset.  The NPZ stores each solver's
-        # full Jacobian matrix under the positional key ``jac_j`` (see save
-        # below).  Per-solver entries already computed this run take precedence.
-        exp_subdir = f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key
-        out_dir_for_merge = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        _npz = try_load_npz(out_dir_for_merge / "jacobian_svd.npz")
-        _old_names = [str(n) for n in _npz.get("solver_names", np.array([]))]
-        for _j, _old_name in enumerate(_old_names):
-            _jac_key = f"jac_{_j}"
-            _grad_key = f"grad_{_j}"
-            if _old_name not in jacobians and _jac_key in _npz:
-                _J = _npz[_jac_key]
-                jacobians[_old_name] = _J
-                if _grad_key in _npz:
-                    grad_snaps[_old_name] = _npz[_grad_key]
-                elif _J.ndim == 2:
-                    # Derive 1-D gradient from J: grad of sum(out²) = J^T @ (2*out).
-                    # We cannot recover ``out`` here, so fall back to Frobenius
-                    # row-norm as a proxy (correct sign not guaranteed; only
-                    # used for grad_norms reporting, not for SVD).
-                    grad_snaps[_old_name] = np.linalg.norm(_J, axis=0)
-                console.print(
-                    f"  [dim]jacobian_svd: merged existing Jacobian for {_old_name} from NPZ[/]"
-                )
+    S_norm = (S / (S[0] + 1e-30)).tolist()
+    cond = float(S[0] / (S[-1] + 1e-30))
+    eff_rank = float(S.sum() ** 2 / ((S**2).sum() + 1e-30))
+    expl_var = (np.cumsum(S**2) / (float((S**2).sum()) + 1e-30)).tolist()
 
-        solver_names = list(jacobians.keys())
-        G_stack = np.vstack([jacobians[n] for n in solver_names])  # (n_s*D_out, D_in)
+    # Per-solver singular value spectra (SVD of each solver's Jacobian separately).
+    # Reveals spectral structure per solver family: projection methods tend to
+    # have a steep singular-value drop (low effective rank) while LBM Jacobians
+    # have a flatter spectrum (higher effective rank).
+    per_solver_spectra: dict[str, list[float]] = {}
+    per_solver_cond: dict[str, float] = {}
+    per_solver_eff_rank: dict[str, float] = {}
+    per_solver_grad_norm: dict[str, float] = {}
+    for name in solver_names:
+        _, Si, _ = np.linalg.svd(jacobians[name], full_matrices=False)
+        k_i = k_svd if k_svd is not None else len(Si)
+        Si = Si[:k_i]
+        per_solver_spectra[name] = (Si / (Si[0] + 1e-30)).tolist()
+        per_solver_cond[name] = float(Si[0] / (Si[-1] + 1e-30))
+        per_solver_eff_rank[name] = float(Si.sum() ** 2 / ((Si**2).sum() + 1e-30))
+        per_solver_grad_norm[name] = float(Si[0])
 
-        # ── SVD ───────────────────────────────────────────────────────────────
-        _U, S, Vt = np.linalg.svd(
-            G_stack, full_matrices=False
-        )  # S: (≤D_in,), Vt: (≤D_in, D_in)
-
-        k_report = k_svd if k_svd is not None else len(S)
-        S = S[:k_report]
-        Vt = Vt[:k_report]
-
-        S_norm = (S / (S[0] + 1e-30)).tolist()
-        cond = float(S[0] / (S[-1] + 1e-30))
-        eff_rank = float(S.sum() ** 2 / ((S**2).sum() + 1e-30))
-        expl_var = (np.cumsum(S**2) / (float((S**2).sum()) + 1e-30)).tolist()
-
-        # Per-solver singular value spectra (SVD of each solver's Jacobian separately).
-        # This reveals spectral structure per solver family:
-        # projection methods tend to have a steep singular-value drop (low effective rank)
-        # while LBM Jacobians have a flatter spectrum (higher effective rank).
-        per_solver_spectra: dict[str, list[float]] = {}
-        per_solver_cond: dict[str, float] = {}
-        per_solver_eff_rank: dict[str, float] = {}
-        per_solver_grad_norm: dict[str, float] = {}
-        for name in solver_names:
-            _, Si, _ = np.linalg.svd(jacobians[name], full_matrices=False)
-            k_i = k_svd if k_svd is not None else len(Si)
-            Si = Si[:k_i]
-            per_solver_spectra[name] = (Si / (Si[0] + 1e-30)).tolist()
-            per_solver_cond[name] = float(Si[0] / (Si[-1] + 1e-30))
-            per_solver_eff_rank[name] = float(Si.sum() ** 2 / ((Si**2).sum() + 1e-30))
-            per_solver_grad_norm[name] = float(Si[0])
-
-        # Cross-cosine: Frobenius inner product between per-solver Jacobians (normalised)
-        J_flat = {n: jacobians[n].ravel() for n in solver_names}
-        J_norms = {n: float(np.linalg.norm(v) + 1e-30) for n, v in J_flat.items()}
-        cross_cos = [
-            [
-                float(np.dot(J_flat[a], J_flat[b]) / (J_norms[a] * J_norms[b]))
-                for b in solver_names
-            ]
-            for a in solver_names
+    # Cross-cosine: Frobenius inner product between per-solver Jacobians (normalised)
+    J_flat = {n: jacobians[n].ravel() for n in solver_names}
+    J_norms = {n: float(np.linalg.norm(v) + 1e-30) for n, v in J_flat.items()}
+    cross_cos = [
+        [
+            float(np.dot(J_flat[a], J_flat[b]) / (J_norms[a] * J_norms[b]))
+            for b in solver_names
         ]
-        grad_norms = {n: float(np.linalg.norm(grad_snaps[n])) for n in solver_names}
+        for a in solver_names
+    ]
+    grad_norms = {n: float(np.linalg.norm(grad_snaps[n])) for n in solver_names}
 
-        # Top singular direction — shaped like the IC
-        _, base_ic_arr = base_inputs_snap[solver_names[0]]
-        ic_scale = float(np.sqrt(np.mean(base_ic_arr**2) + 1e-30))
-        d_top = Vt[0].reshape(base_ic_arr.shape).astype(np.float32)
+    # Top singular direction — shaped like the IC.
+    # The grad-snapshot has the IC shape; use any solver's to reconstruct.
+    base_ic_arr = np.asarray(grad_snaps[solver_names[0]])
+    ic_scale = float(np.sqrt(np.mean(base_ic_arr**2) + 1e-30))
+    d_top = Vt[0].reshape(base_ic_arr.shape).astype(np.float32)
 
-        # ── Pass 2: loss landscape along d_top (skip when n_alphas == 0) ──────
-        alphas = (
-            np.linspace(-alpha_range, alpha_range, n_alphas).tolist()
-            if n_alphas > 0
-            else []
-        )
-        landscape_by_solver: dict = {}
+    # ── Pass 2: loss landscape along d_top (skip when n_alphas == 0) ──────
+    alphas = (
+        np.linspace(-alpha_range, alpha_range, n_alphas).tolist()
+        if n_alphas > 0
+        else []
+    )
+    landscape_by_solver: dict = {}
 
-        if alphas:
-            d_top_jax = jnp.array(d_top)
+    if alphas:
+        # Reconstruct the per-solver IC from make_ic — the original IC array
+        # is shared across solvers (make_inputs may mutate it, but the
+        # landscape pass needs the same base each solver was perturbed
+        # around).
+        base_ic_jax = jnp.array(ic)
+        d_top_jax = jnp.array(d_top)
+        domain_extent = cfg.domain_extent
 
-            def _landscape_work(name: str, t) -> None:
-                color = cfg.solver(name).color
-                base_inputs, base_ic_solver = base_inputs_snap[name]
-                base_ic_jax = jnp.array(base_ic_solver)
-                losses = [
-                    float(
-                        jnp.sum(
-                            apply_tesseract(
-                                t,
-                                {
-                                    **base_inputs,
-                                    ic_key: base_ic_jax
-                                    + float(a) * ic_scale * d_top_jax,
-                                },
-                            )[output_key]
-                            ** 2
-                        )
+        def _landscape_work(name: str, t) -> None:
+            color = cfg.solver(name).color
+            base_inputs = cfg.make_inputs(
+                name, base_ic_jax, domain_extent=domain_extent, **phys
+            )
+            base_ic_solver = jnp.array(base_inputs[ic_key])
+            losses = [
+                float(
+                    jnp.sum(
+                        apply_tesseract(
+                            t,
+                            {
+                                **base_inputs,
+                                ic_key: base_ic_solver
+                                + float(a) * ic_scale * d_top_jax,
+                            },
+                        )[output_key]
+                        ** 2
                     )
-                    for a in alphas
-                ]
-                landscape_by_solver[name] = losses
-                console.print(f"  [{color}]{name}[/] landscape done")
+                )
+                for a in alphas
+            ]
+            landscape_by_solver[name] = losses
+            console.print(f"  [{color}]{name}[/] landscape done")
 
-            # Only run landscape for solvers that succeeded in pass 1 (have Jacobians).
-            # Solvers that failed pass 1 (e.g. pict VJP error) are not in
-            # base_inputs_snap and would cause a KeyError here.
-            landscape_solvers = [n for n in diff_solvers if n in base_inputs_snap]
-            run_with_gpu_pool(landscape_solvers, tags, _landscape_work, gpu_ids=gpu_ids)
+        # Only run landscape for solvers that produced a Jacobian.
+        landscape_solvers = [n for n in selected if n in jacobians]
+        run_with_gpu_pool(landscape_solvers, tags, _landscape_work, gpu_ids=gpu_ids)
 
-        # ── Save NPZ ──────────────────────────────────────────────────────────
-        out_dir = out_dir_for_merge  # already computed above for merge lookup
-        # Build per-solver payload: grad_{j} (1-D gradient) and jac_{j} (full
-        # Jacobian matrix).  The ``jac`` prefix enables future partial runs to
-        # reload existing Jacobians and recompute aggregate statistics without
-        # re-running all solvers (see merge block above).
-        _per_solver_npz: dict[str, dict[str, np.ndarray]] = {}
-        for _sname in solver_names:
-            _per_solver_npz[_sname] = {
-                "grad:": np.asarray(grad_snaps[_sname]),
-                "jac:": np.asarray(jacobians[_sname]),
-            }
-        save_field_snapshots_npz(
-            out_dir,
-            solver_names,
-            _per_solver_npz,
-            shared_arrays={
-                "singular_values": np.asarray(S),
-                "singular_vectors": np.asarray(Vt),
-                "ic": np.array(ic),
-            },
-            filename="jacobian_svd.npz",
-            prefixes=("grad", "jac"),
-        )
-
-        result = {
-            "solver_names": solver_names,
-            "singular_values": S_norm,
-            "singular_values_raw": S.tolist(),
-            "condition_number": cond,
-            "effective_rank": eff_rank,
-            "explained_variance": expl_var,
-            "per_solver_spectra": per_solver_spectra,
-            "per_solver_cond": per_solver_cond,
-            "per_solver_eff_rank": per_solver_eff_rank,
-            "per_solver_grad_norm": per_solver_grad_norm,
-            "cross_cosine": cross_cos,
-            "grad_norms": grad_norms,
-            "landscape": {"alphas": alphas, "by_solver": landscape_by_solver},
-            "params": run,
+    # ── Save NPZ ──────────────────────────────────────────────────────────
+    # Per-solver payload: grad_{j} (1-D gradient) and jac_{j} (full Jacobian
+    # matrix). The ``jac`` prefix enables future partial runs to reload
+    # existing Jacobians and recompute aggregate statistics without
+    # re-running all solvers (see merge block above).
+    _per_solver_npz: dict[str, dict[str, np.ndarray]] = {
+        name: {
+            "grad:": np.asarray(grad_snaps[name]),
+            "jac:": np.asarray(jacobians[name]),
         }
-        save_harness_result(
-            result,
-            cfg=cfg,
-            suite=_SUITE,
-            exp_subdir=exp_subdir,
-            harness_fn=run_jacobian_svd,
-            wall_time_s=_wall_times,
-            debug=bool(overrides.get("debug")),
-        )
-        if n_runs > 1:
-            all_results[ic_name] = result
-        else:
-            all_results = result
+        for name in solver_names
+    }
+    save_field_snapshots_npz(
+        out_dir,
+        solver_names,
+        _per_solver_npz,
+        shared_arrays={
+            "singular_values": np.asarray(S),
+            "singular_vectors": np.asarray(Vt),
+            "ic": np.array(ic),
+            **shared_extras,
+        },
+        filename=snapshot_filename,
+        prefixes=snapshot_prefixes,
+    )
 
-    return all_results
+    del ic_name, seed  # unused; accepted for signature parity
+    del horizons_shared, sweep_values, sweep_key  # not applicable to non-sweep
+    return {
+        "solver_names": solver_names,
+        "singular_values": S_norm,
+        "singular_values_raw": S.tolist(),
+        "condition_number": cond,
+        "effective_rank": eff_rank,
+        "explained_variance": expl_var,
+        "per_solver_spectra": per_solver_spectra,
+        "per_solver_cond": per_solver_cond,
+        "per_solver_eff_rank": per_solver_eff_rank,
+        "per_solver_grad_norm": per_solver_grad_norm,
+        "cross_cosine": cross_cos,
+        "grad_norms": grad_norms,
+        "landscape": {"alphas": alphas, "by_solver": landscape_by_solver},
+        "params": run,
+    }
+
+
+@kernel(
+    sweep_mode="none",
+    aggregate_fn=_jacobian_svd_aggregate,
+    catch_label="VJP failed",
+    snapshot_filename="jacobian_svd.npz",
+    snapshot_prefixes=("grad", "jac"),
+)
+def jacobian_svd(t, ctx: KernelContext) -> dict:
+    """Full per-solver Jacobian via sequential VJP — one column per output element.
+
+    ``jax.jacrev`` would use ``vmap`` which tesseract doesn't support, so we
+    loop. Tractable only for small N (D_out scales with the output grid).
+    The cross-solver SVD, per-solver spectra, cross-cosine, and (optional)
+    loss-landscape pass live in :func:`_jacobian_svd_aggregate`.
+    """
+    color = ctx.cfg.solver(ctx.name).color
+    base_inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    base_ic = jnp.array(base_inputs[ctx.ic_key])
+
+    def fwd(ic_arr):
+        return apply_tesseract(t, {**base_inputs, ctx.ic_key: ic_arr})[ctx.output_key]
+
+    out, vjp_fn = jax.vjp(fwd, base_ic)
+    out_arr = np.array(out)
+    D_out = int(out_arr.size)
+    log_every = max(1, D_out // 8)
+    console.print(f"  [{color}]{ctx.name}[/] Jacobian {D_out} rows starting")
+    J_rows = []
+    for i in range(D_out):
+        e_i = jnp.zeros(D_out).at[i].set(1.0)
+        (row,) = vjp_fn(e_i.reshape(out_arr.shape))
+        J_rows.append(np.array(row).ravel())
+        if (i + 1) % log_every == 0:
+            console.print(
+                f"  [{color}]{ctx.name}[/] Jacobian {i + 1}/{D_out} rows done"
+            )
+    J_mat = np.stack(J_rows)
+
+    # Gradient of sum(output²) = J^T @ (2*output): for field plots.
+    grad = (J_mat.T @ (2.0 * out_arr.ravel())).reshape(base_ic.shape)
+    return {
+        "metrics": {},  # populated entirely by the aggregate pass
+        "snapshots": {"grad": np.asarray(grad), "jac": J_mat},
+    }
