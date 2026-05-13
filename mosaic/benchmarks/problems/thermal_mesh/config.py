@@ -398,34 +398,27 @@ problem.add(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_fd_check,
 )
-# ``ic_sweep: True`` is a sweep-config flag that lives only inside the sweep
-# dict; the auto-detect shorthand cannot express it, so this experiment keeps
-# the explicit ``runs=[{...}]`` form.
 problem.add(
     "gradient/source_width_sweep",
     run_param_sweep,
     plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs source width σ.",
-    runs=[
-        {
-            "ic": {"name": "gaussian_source"},
-            "ic_key": "source",
-            "output_key": "identification_error",
-            "physics": {
-                "nx": 16,
-                "ny": 8,
-                "nz": 1,
-                "rho_0": 0.5,
-                "target_from_two_gaussians": True,
-                "ic_field": "source",
-            },
-            "fd": {"eps_values": [1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 4},
-            "sweep": {
-                "key": "sigma",
-                "values": [0.05, 0.1, 0.2, 0.3, 0.5],
-                "ic_sweep": True,
-            },
-        }
-    ],
+    ic={"name": "gaussian_source"},
+    ic_key="source",
+    output_key="identification_error",
+    physics={
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "rho_0": 0.5,
+        "target_from_two_gaussians": True,
+        "ic_field": "source",
+    },
+    fd={"eps_values": [1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 4},
+    sweep={
+        "key": "sigma",
+        "values": [0.05, 0.1, 0.2, 0.3, 0.5],
+        "ic_sweep": True,
+    },
     plot=plot_param_sweep,
 )
 

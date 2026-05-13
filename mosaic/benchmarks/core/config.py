@@ -166,6 +166,11 @@ class Problem:
     ic_key: str = ""
     domain_extent: float = 1.0
     resolution_key: str = "N"
+    # Analytic reference solution callable (e.g. TGV viscous decay). Threaded
+    # into runner closures as the cfg-level fallback when per-run ``reference``
+    # is a fine-grid spec dict rather than a callable. Lives at Problem level
+    # because the analytic is tied to the problem (TGV analytic for ns-grid,
+    # TGV3D for ns-3d-grid), not the experiment.
     reference: Callable | None = None
 
     # ── Registries (filled by .add / .add_ic / .add_extra_plot) ─────────
@@ -344,19 +349,22 @@ class Problem:
 
         Three accepted input forms (in order of precedence):
 
-        1. ``runs=[{...}, ...]`` (legacy multi-element): pass through, only
+        1. ``runs=[{...}, ...]`` (multi-variant): pass through, only
            applying sweep-auto-detection to each run dict that lacks an
-           explicit ``"sweep"`` key.
+           explicit ``"sweep"`` key. Use this when one experiment has
+           structurally different sub-runs that share a plot (different
+           swept keys per sub-run, or multiple ICs).
         2. ``run={...}`` (singular): wrapped into ``runs=[{...}]``.
         3. Bare run-dict fields (``ic=``, ``physics=``, ``fd=``, ``optim=``,
-           ``jacobian=``, ``reference=``) at the top level: collected into a
-           single run dict, then wrapped.
+           ``jacobian=``, ``reference=``, ``sweep=``) at the top level:
+           collected into a single run dict, then wrapped.
 
         After collection, each run dict is scanned for list-valued fields
         (nested one level inside ``physics``/``fd``/``optim``/etc.). The
         first list found becomes the sweep axis: ``sweep={"key": k, "values":
         [...]}`` is added and the field is replaced with its first value (a
-        placeholder; the runner overwrites it per sweep iteration).
+        placeholder; the runner overwrites it per sweep iteration). When an
+        explicit ``sweep=`` is supplied via shorthand, auto-detect is skipped.
         """
         # ── Step 1: collect run dict(s) ─────────────────────────────────
         if "runs" in config:
@@ -380,6 +388,7 @@ class Problem:
                 "cost",
                 "ic_key",
                 "output_key",
+                "sweep",
             }
             run_dict = {k: config.pop(k) for k in list(config) if k in payload_keys}
             if run_dict:
@@ -425,11 +434,15 @@ class Problem:
         nested one level inside a dict kwarg.
 
         Sweeps are detected **only inside dict kwargs** (e.g.
-        ``physics={"nu": [...]}``), not at the top level — that lets the
-        legacy ``runs=[...]`` kwarg pass through unchanged during the
-        transition. Top-level lists fan out only when the user marks the
-        kwarg explicitly via ``problem.add(..., ic=[{tgv}, {mm}])`` and we
-        treat ``ic``'s value as the i-th element.
+        ``physics={"nu": [...]}``), not at the top level — ``runs=[...]``
+        is the multi-variant payload (passed through to the runner) and
+        must not be treated as a sweep axis. Top-level lists in other
+        kwargs (e.g. ``ic=[{tgv}, {mm}]``) are treated as the i-th
+        sub-experiment's value.
+
+        Detection is one level deep only: ``optim={"adam": {"lr": [...]}}``
+        is **not** auto-swept — restructure to ``optim={"lr": [...]}`` or
+        provide an explicit ``sweep=`` dict.
         """
         axes = []
         for k, v in config.items():
@@ -461,10 +474,11 @@ class Problem:
         """Ensure all sweep axes have matching length. Returns that length."""
         lengths = {len(vals) for _, vals in axes}
         if len(lengths) > 1:
-            sketch = ", ".join(f"{'.'.join(p)}={len(v)}" for p, v in axes)
+            sketch = ", ".join(f"{'.'.join(p)}=len {len(v)}" for p, v in axes)
             raise ValueError(
                 f"Problem.add: sweep axes have mismatched lengths ({sketch}); "
-                f"parallel-zip requires equal-length lists."
+                f"parallel-zip requires equal-length lists. Found "
+                f"{sorted(lengths)}."
             )
         return lengths.pop()
 
@@ -493,10 +507,26 @@ class Problem:
 
     @staticmethod
     def _fmt_val(value) -> str:
-        """Filesystem-safe formatting of a sweep value (no dots, no slashes)."""
+        """Filesystem-safe formatting of a sweep value (no dots, no slashes).
+
+        Floats outside the readable decimal range (``< 1e-3`` or ``>= 1e6``)
+        render in scientific notation: ``1e-4`` → ``1em4``, ``5e-4`` → ``5em4``,
+        ``2.5e7`` → ``2p5e7``. The previous ``:g``-only formatter produced
+        ``0p0001`` and ``0p0005`` — uniquely identifying but unreadable.
+        Negative values get an ``m`` prefix.
+        """
         if isinstance(value, float):
-            s = f"{value:g}"
-            return s.replace(".", "p").replace("-", "m")
+            if value == 0:
+                return "0"
+            sign = "m" if value < 0 else ""
+            abs_v = abs(value)
+            if abs_v < 1e-3 or abs_v >= 1e6:
+                mantissa_str, exp_str = f"{abs_v:e}".split("e")
+                mantissa = mantissa_str.rstrip("0").rstrip(".") or "1"
+                exp_int = int(exp_str)
+                exp_part = f"m{-exp_int}" if exp_int < 0 else str(exp_int)
+                return f"{sign}{mantissa.replace('.', 'p')}e{exp_part}"
+            return f"{sign}{abs_v:g}".replace(".", "p")
         if isinstance(value, dict):
             # Lists of dicts (e.g. ic) — use the dict's "name" if present.
             return str(value.get("name", "v"))
