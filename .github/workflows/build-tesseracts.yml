@@ -159,9 +159,11 @@ jobs:
           fi
 
       - name: Build Tesseract image
+        env:
+          TESSERACT_DOCKER_BUILD_ARGS: "--no-cache"
         run: |
           SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
-          tesseract build --tag latest "${SOLVER_DIR}"
+          tesseract build --loglevel debug --tag latest "${SOLVER_DIR}"
 
       - name: Extract image name and push to GHCR
         if: github.event_name != 'pull_request'
