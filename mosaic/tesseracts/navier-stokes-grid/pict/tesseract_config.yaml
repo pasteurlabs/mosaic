@@ -46,50 +46,40 @@ build_config:
   # import time, which fails in the GPU-less Docker build environment.
   # The assertion passes correctly at runtime when a GPU is present.
   skip_checks: true
-  # Use CUDA 12.1 runtime image + minimal dev packages (nvcc, headers) instead
-  # of the ~9.5 GB devel image — saves ~6 GB of disk during CI builds.
-  # CUDA 12.1 requires driver >= 525.60; host has driver 535.274 → compatible.
-  # torch==2.5.1+cu121 is pinned in requirements to avoid the cu128/cu130
-  # mismatch that the unconstrained torch>=2.1.0 spec would select.
-  base_image: "nvidia/cuda:12.1.1-runtime-ubuntu22.04"
+  # No CUDA base image needed: torch's nvidia-* pip deps provide the CUDA
+  # runtime, nvidia-cuda-nvcc-cu12 provides nvcc for building PISOtorch's
+  # CUDA extensions, and the GPU driver is injected at runtime by
+  # nvidia-container-toolkit on the host.
+  # torch==2.5.1+cu121 is pinned in requirements to avoid cu128/cu130 mismatch.
   extra_packages:
     - ninja-build
     - git
     - build-essential
     - python3-dev
   custom_build_steps:
-    # Install CUDA dev packages for building PISOtorch extensions, plus the
-    # runtime libs that the runtime base image doesn't include (cupti, cudnn,
-    # nvtx). Torch is installed with --no-deps to skip ~5 GB of nvidia pip
-    # packages — it uses these system CUDA libs instead.
+    # Install nvcc from the NVIDIA apt repo for building PISOtorch CUDA extensions.
+    # All CUDA runtime libs come from torch's nvidia-* pip deps; only the compiler
+    # needs apt. We also need cuda-cudart-dev for the CUDA headers.
     - |
-      RUN apt-get update && apt-get install -y --no-install-recommends \
-          cuda-nvcc-12-1 cuda-cudart-dev-12-1 libcublas-dev-12-1 \
-          libcusparse-dev-12-1 libcusolver-dev-12-1 \
-          cuda-cupti-12-1 cuda-nvtx-12-1 \
-          libcudnn9-cuda-12 libcudnn9-dev-cuda-12 \
-        && rm -rf /var/lib/apt/lists/* \
-        && ldconfig
+      RUN apt-get update \
+        && apt-get install -y --no-install-recommends wget ca-certificates \
+        && wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb \
+        && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends cuda-nvcc-12-3 cuda-cudart-dev-12-3 \
+        && rm -rf /var/lib/apt/lists/*
     - "ENV CUDA_HOME=/usr/local/cuda"
     - "ENV PATH=/usr/local/cuda/bin:${PATH}"
     - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
-    # Install torch without its nvidia-* pip dependencies (~5 GB).
-    # Torch will use CUDA from the base image + apt packages at runtime.
     - |
-      RUN pip install --no-deps \
-        https://download.pytorch.org/whl/cu121/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl
-    - "ENV LD_LIBRARY_PATH=/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"
+      RUN TORCH_LIB=$(python3 -c "import torch; print(torch.__path__[0])")/lib \
+        && echo "${TORCH_LIB}" > /etc/ld.so.conf.d/torch.conf && ldconfig
     - "RUN git -c http.sslVerify=false clone https://github.com/tum-pbs/PICT.git /opt/pict"
     - "RUN pip install setuptools wheel"
     - "RUN cd /opt/pict/extensions && pip install . --no-build-isolation --no-deps"
-    - "RUN echo '/opt/pict' > /python-env/lib/python3.10/site-packages/pict.pth"
-    # Clean up build-only dev packages (keep runtime libs). Purge pip cache.
     - |
-      RUN apt-get remove -y cuda-nvcc-12-1 cuda-cudart-dev-12-1 \
-          libcublas-dev-12-1 libcusparse-dev-12-1 libcusolver-dev-12-1 \
-          libcudnn9-dev-cuda-12 \
-        && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
-        && pip cache purge 2>/dev/null || true
+      RUN SITE=$(python3 -c "import site; print(site.getsitepackages()[0])") \
+        && echo '/opt/pict' > "${SITE}/pict.pth"
 
 metadata:
   mosaic:
