@@ -57,19 +57,22 @@ build_config:
     - build-essential
     - python3-dev
   custom_build_steps:
-    # Install only the CUDA compiler toolkit needed for building PISOtorch
-    # extensions — much smaller than the full devel image.
+    # Install CUDA dev packages for building PISOtorch extensions, plus the
+    # runtime libs that the runtime base image doesn't include (cupti, cudnn,
+    # nvtx). Torch is installed with --no-deps to skip ~5 GB of nvidia pip
+    # packages — it uses these system CUDA libs instead.
     - |
       RUN apt-get update && apt-get install -y --no-install-recommends \
           cuda-nvcc-12-1 cuda-cudart-dev-12-1 libcublas-dev-12-1 \
           libcusparse-dev-12-1 libcusolver-dev-12-1 \
+          cuda-cupti-12-1 cuda-nvtx-12-1 \
           libcudnn9-cuda-12 libcudnn9-dev-cuda-12 \
         && rm -rf /var/lib/apt/lists/*
     - "ENV CUDA_HOME=/usr/local/cuda"
     - "ENV PATH=/usr/local/cuda/bin:${PATH}"
     - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
     # Install torch without its nvidia-* pip dependencies (~5 GB).
-    # Torch will use CUDA from the base image at runtime instead.
+    # Torch will use CUDA from the base image + apt packages at runtime.
     - |
       RUN pip install --no-deps \
         https://download.pytorch.org/whl/cu121/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl
@@ -78,7 +81,7 @@ build_config:
     - "RUN pip install setuptools wheel"
     - "RUN cd /opt/pict/extensions && python3 setup.py install"
     - "RUN echo '/opt/pict' > /python-env/lib/python3.10/site-packages/pict.pth"
-    # Clean up build-only CUDA dev packages and pip cache.
+    # Clean up build-only dev packages (keep runtime libs). Purge pip cache.
     - |
       RUN apt-get remove -y cuda-nvcc-12-1 cuda-cudart-dev-12-1 \
           libcublas-dev-12-1 libcusparse-dev-12-1 libcusolver-dev-12-1 \
