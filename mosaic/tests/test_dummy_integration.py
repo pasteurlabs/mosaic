@@ -33,6 +33,14 @@ DUMMY_NS_GRID = (
     / "tesseract_api.py"
 ).resolve()
 
+DUMMY_STRUCTURAL_MESH = (
+    Path(__file__).parent / "dummy_tesseracts" / "structural_mesh" / "tesseract_api.py"
+).resolve()
+
+DUMMY_THERMAL_MESH = (
+    Path(__file__).parent / "dummy_tesseracts" / "thermal_mesh" / "tesseract_api.py"
+).resolve()
+
 
 @pytest.fixture
 def ns_grid_tags():
@@ -41,6 +49,26 @@ def ns_grid_tags():
 
     cfg = get_config("ns-grid")
     tag = f"inprocess:{DUMMY_NS_GRID}"
+    return cfg, dict.fromkeys(cfg.solver_names, tag)
+
+
+@pytest.fixture
+def structural_mesh_tags():
+    """Return a tags dict pointing every structural-mesh solver at the dummy."""
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("structural-mesh")
+    tag = f"inprocess:{DUMMY_STRUCTURAL_MESH}"
+    return cfg, dict.fromkeys(cfg.solver_names, tag)
+
+
+@pytest.fixture
+def thermal_mesh_tags():
+    """Return a tags dict pointing every thermal-mesh solver at the dummy."""
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("thermal-mesh")
+    tag = f"inprocess:{DUMMY_THERMAL_MESH}"
     return cfg, dict.fromkeys(cfg.solver_names, tag)
 
 
@@ -82,3 +110,130 @@ def test_forward_baseline_runs_with_dummy(ns_grid_tags, tmp_path, monkeypatch):
     assert json_path.exists()
     on_disk = json.loads(json_path.read_text())
     assert "by_param" in on_disk
+
+
+def test_structural_mesh_forward_runs_with_dummy(
+    structural_mesh_tags, tmp_path, monkeypatch
+):
+    """Structural-mesh forward agreement runs end-to-end against the dummy."""
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = structural_mesh_tags
+
+    # Tiny resolution sweep — just exercise the plumbing on the canonical
+    # thin-slab cantilever geometry (ny=2, nz=nx//2).
+    from mosaic.benchmarks.problems.shared.forward import agreement
+
+    cfg.add_experiment(
+        "forward/dummy_baseline",
+        agreement,
+        ic={"name": "uniform", "seed": 0},
+        physics={
+            "N": [4, 6],
+            "ny": 2,
+            "nz": 2,
+            "Lx": 2.0,
+            "Ly": 1.0,
+            "Lz": 1.0,
+            "F_total": 1.0,
+            "corner_load": False,
+        },
+    )
+    result = cfg.experiments["forward/dummy_baseline"].fn(cfg, tags)
+    assert "by_param" in result
+    assert "spread" in result
+    assert result["by_param"]
+    json_path = (
+        tmp_path / "structural-mesh" / "forward" / "dummy_baseline" / "result.json"
+    )
+    assert json_path.exists()
+    on_disk = json.loads(json_path.read_text())
+    assert "by_param" in on_disk
+
+
+def test_thermal_mesh_forward_runs_with_dummy(thermal_mesh_tags, tmp_path, monkeypatch):
+    """Thermal-mesh forward agreement runs end-to-end against the dummy."""
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = thermal_mesh_tags
+
+    # Tiny resolution sweep — just exercise the plumbing on the canonical
+    # quasi-2D heated-slab geometry.
+    from mosaic.benchmarks.problems.shared.forward import agreement
+
+    cfg.add_experiment(
+        "forward/dummy_baseline",
+        agreement,
+        ic={"name": "random", "seed": 0},
+        physics={
+            "N": [4, 6],
+            "nz": 1,
+            "Lx": 2.0,
+            "Ly": 1.0,
+            "Lz": 1.0,
+            "Q_total": 1.0,
+        },
+    )
+    result = cfg.experiments["forward/dummy_baseline"].fn(cfg, tags)
+    assert "by_param" in result
+    assert "spread" in result
+    assert result["by_param"]
+    json_path = tmp_path / "thermal-mesh" / "forward" / "dummy_baseline" / "result.json"
+    assert json_path.exists()
+    on_disk = json.loads(json_path.read_text())
+    assert "by_param" in on_disk
+
+
+# ── Every-experiment parametrized smoke test ─────────────────────────────────
+
+_DUMMY_FOR = {
+    "ns-grid": DUMMY_NS_GRID,
+    "ns-3d-grid": DUMMY_NS_GRID,
+    "structural-mesh": DUMMY_STRUCTURAL_MESH,
+    "thermal-mesh": DUMMY_THERMAL_MESH,
+}
+
+
+def _all_experiments():
+    """Enumerate (problem, exp_key) pairs for every non-IC experiment.
+
+    ``ics/*`` keys are pure plot-IC registrations that don't invoke a
+    tesseract, so they're skipped here.
+    """
+    from mosaic.benchmarks.problems import get_config
+
+    pairs: list[tuple[str, str]] = []
+    for problem in _DUMMY_FOR:
+        cfg = get_config(problem)
+        for key in sorted(cfg.experiments):
+            if key.startswith("ics/"):
+                continue
+            pairs.append((problem, key))
+    return pairs
+
+
+@pytest.mark.parametrize("problem, exp_key", _all_experiments())
+def test_experiment_runs_with_dummy(problem, exp_key, tmp_path, monkeypatch):
+    """Every registered experiment runs end-to-end against the dummy.
+
+    The dummy returns constant outputs so numerical results are trivial —
+    we only check that the kernel + framework + per_solver_loop +
+    apply_tesseract VJP pipeline executes and ``result.json`` lands on
+    disk. Optimisation runs against a zero-gradient target will iterate
+    their configured ``max_iters`` since loss never decreases; the
+    runtime cost is bounded by the dummy's near-zero per-call latency.
+    """
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg = get_config(problem)
+    tag = f"inprocess:{_DUMMY_FOR[problem]}"
+    tags = dict.fromkeys(cfg.solver_names, tag)
+    cfg.experiments[exp_key].fn(cfg, tags)
+
+    # The framework writes ``result.json`` somewhere under
+    # ``<results>/<problem>/<exp_key>[/sub]``. Don't pin the exact path —
+    # IC-suffix / debug-suffix conventions vary by harness — just confirm
+    # *some* result.json was written under the problem dir.
+    written = list((tmp_path / problem).rglob("result.json"))
+    assert written, (
+        f"{problem}/{exp_key}: no result.json found under {tmp_path / problem}"
+    )

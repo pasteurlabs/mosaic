@@ -208,6 +208,13 @@ class _NumpyEncoder(json.JSONEncoder):
             return bool(obj)
         if isinstance(obj, set):
             return sorted(obj)
+        # Callables / modules / classes flow into ``params`` when an
+        # experiment is registered with non-JSON kwargs (e.g.
+        # ``diagnostics={"div_rms": fn, ...}`` for physical_laws,
+        # ``reference=<callable>`` for the agreement analytic). Stringify
+        # them so ``params.json`` retains the metadata without raising.
+        if callable(obj) or isinstance(obj, type):
+            return f"<callable {getattr(obj, '__qualname__', repr(obj))}>"
         return super().default(obj)
 
 
