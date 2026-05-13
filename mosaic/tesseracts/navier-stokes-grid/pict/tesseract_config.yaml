@@ -51,18 +51,16 @@ build_config:
   # CUDA extensions, and the GPU driver is injected at runtime by
   # nvidia-container-toolkit on the host.
   # torch==2.5.1+cu121 is pinned in requirements to avoid cu128/cu130 mismatch.
-  extra_packages:
-    - ninja-build
-    - git
-    - build-essential
-    - python3-dev
+  # No extra_packages — build-only deps (ninja, gcc, nvcc) are installed in
+  # custom_build_steps so they only appear in run_stage, avoiding duplication
+  # across the two-stage Dockerfile and saving ~200 MB of disk during build.
   custom_build_steps:
-    # Install nvcc from the NVIDIA apt repo for building PISOtorch CUDA extensions.
-    # All CUDA runtime libs come from torch's nvidia-* pip deps; only the compiler
-    # needs apt. We also need cuda-cudart-dev for the CUDA headers.
+    # Install build tools + nvcc for compiling PISOtorch CUDA extensions.
+    # All CUDA runtime libs come from torch's nvidia-* pip deps.
     - |
       RUN apt-get update \
-        && apt-get install -y --no-install-recommends wget ca-certificates \
+        && apt-get install -y --no-install-recommends \
+           wget ca-certificates ninja-build git build-essential python3-dev \
         && wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb \
         && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
         && apt-get update \
