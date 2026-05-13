@@ -227,21 +227,16 @@ def scaffold_domain(
     )
 
     (pkg_dir / "physics.py").write_text(
-        f'"""Input factory + diagnostics. ``build_make_inputs`` captures per-solver\n'
-        f"``input_overrides`` from the solver list so we avoid importing back into\n"
-        f'the package ``__init__`` (which would form an import cycle)."""\n\n'
+        f'"""Input factory + diagnostics. ``make_inputs`` receives a ``SolverSpec``\n'
+        f"directly; the per-solver ``input_overrides`` are merged into the returned\n"
+        f'dict so the user does not need to import ``config`` here."""\n\n'
         f"from __future__ import annotations\n\n"
-        f"from typing import Callable\n\n"
         f"import numpy as np\n\n"
         f"from mosaic.benchmarks.core.config import SolverSpec\n\n\n"
-        f"def build_make_inputs(solvers: list[SolverSpec]) -> Callable:\n"
-        f"    spec_by_name = {{s.name: s for s in solvers}}\n\n"
-        f"    def _make_inputs(solver_name: str, ic: np.ndarray, **physics) -> dict:\n"
-        f'        """Build solver inputs from IC and physics parameters. TODO: implement."""\n'
-        f"        spec = spec_by_name[solver_name]\n"
-        f'        base = {{"{tpl.ic_key}": ic}}\n'
-        f"        return {{**base, **spec.input_overrides}}\n\n"
-        f"    return _make_inputs\n\n\n"
+        f"def make_inputs(spec: SolverSpec, ic: np.ndarray, **physics) -> dict:\n"
+        f'    """Build solver inputs from IC and physics parameters. TODO: implement."""\n'
+        f'    base = {{"{tpl.ic_key}": ic}}\n'
+        f"    return {{**base, **spec.input_overrides}}\n\n\n"
         f"DIAGNOSTICS: dict = {{}}\n"
     )
 
@@ -277,20 +272,19 @@ def scaffold_domain(
         f"from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles\n\n"
         f"from .experiments import register as _register_experiments\n"
         f"from .ics import MAKE_IC\n"
-        f"from .physics import DIAGNOSTICS, build_make_inputs\n\n"
+        f"from .physics import DIAGNOSTICS, make_inputs\n\n"
         f'_TESSERACT_SLUG = "{domain_name}"\n\n\n'
         f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
         f"_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)\n"
         f"apply_styles(_SOLVERS)\n\n"
         f"# Merge domain-specific overrides here, e.g.:\n"
         f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n'
-        f"_SOLVERS_LIST = list(_SOLVERS.values())\n\n"
         f"problem = Problem(\n"
         f'    name="{domain_name}",\n'
         f"    tesseract_dir=_TESSERACT_SLUG,\n"
-        f"    solvers=_SOLVERS_LIST,\n"
+        f"    solvers=list(_SOLVERS.values()),\n"
         f"    make_ic=MAKE_IC,\n"
-        f"    make_inputs=build_make_inputs(_SOLVERS_LIST),\n"
+        f"    make_inputs=make_inputs,\n"
         f"    error_fn=l2_error_rel,\n"
         f'    output_key="{tpl.output_key}",\n'
         f'    ic_key="{tpl.ic_key}",\n'

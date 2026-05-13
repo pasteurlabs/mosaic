@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import numpy as np
 
 from mosaic.benchmarks.core.config import SolverSpec
@@ -169,109 +167,96 @@ def _infer_mesh_dims(n_cells: int) -> tuple[int, int, int]:
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 
-def build_make_inputs(solvers: list[SolverSpec]) -> Callable:
-    """Return a ``make_inputs(solver_name, ic, **physics) → dict`` closure.
+def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
+    spec: SolverSpec,
+    ic: np.ndarray,
+    *,
+    nx: int = 8,
+    ny: int | None = None,
+    nz: int | None = None,
+    N: int | None = None,
+    Lx: float = 2.0,
+    Ly: float = 1.0,
+    Lz: float = 1.0,
+    F_total: float = 1.0,
+    rho_0: float | None = None,
+    corner_load: bool = False,
+    corner_y_high: bool = False,
+    corner_z_high: bool = False,
+    load_axis: str = "z",
+    **_,
+) -> dict:
+    """Build solver input dict from density IC and geometry parameters.
 
-    Captures the solver list so per-solver ``input_overrides`` can be merged
-    into the final dict without importing :mod:`.config` (which would create
-    a cycle, since ``config`` imports from this module).
+    rho_0, if provided, overrides ic with a uniform density field of that value.
+    This allows run_agreement to sweep rho_0 while keeping a fixed IC shape.
+
+    N, if provided, overrides nx (resolution_sweep convention: N = nx).
+
+    When neither N nor explicit nx is given and rho_0 is None, infer nx from
+    the IC shape using the canonical thin-slab geometry (ny=2, nz=nx//2).
+    This ensures resolution_sweep passes the correct mesh to the solver even
+    when the suite does not forward N through the physics kwargs.
+
+    corner_load=True selects a single-element corner patch on the right face
+    with an upward (+z) force instead of a full-face downward load.
+
+    jax_fem   expects rho shape (n_cells, 1).
+    topopt_jl expects rho shape (n_cells,).
+    topopt_jl material params (E, nu, xmin) are injected via SolverSpec.input_overrides.
     """
-    spec_by_name = {s.name: s for s in solvers}
+    if N is not None:
+        nx = N
+    if ny is None:
+        ny = 2
+    if nz is None:
+        nz = max(1, nx // 2)
 
-    def _make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
-        solver_name: str,
-        ic: np.ndarray,
-        *,
-        nx: int = 8,
-        ny: int | None = None,
-        nz: int | None = None,
-        N: int | None = None,
-        Lx: float = 2.0,
-        Ly: float = 1.0,
-        Lz: float = 1.0,
-        F_total: float = 1.0,
-        rho_0: float | None = None,
-        corner_load: bool = False,
-        corner_y_high: bool = False,
-        corner_z_high: bool = False,
-        load_axis: str = "z",
-        **_,
-    ) -> dict:
-        """Build solver input dict from density IC and geometry parameters.
+    # Infer mesh dims from IC when rho_0 is not specified and IC size disagrees
+    # with the default nx×ny×nz.  This makes resolution_sweep work even when the
+    # suite does not thread N through the physics kwargs into make_inputs.
+    if rho_0 is None and ic is not None and len(ic) != nx * ny * nz:
+        nx_inferred, ny_inferred, nz_inferred = _infer_mesh_dims(len(ic))
+        # Only accept the inference if the inferred shape exactly matches.
+        if nx_inferred * ny_inferred * nz_inferred == len(ic):
+            nx, ny, nz = nx_inferred, ny_inferred, nz_inferred
 
-        rho_0, if provided, overrides ic with a uniform density field of that value.
-        This allows run_agreement to sweep rho_0 while keeping a fixed IC shape.
+    rho_data = (
+        np.full((nx * ny * nz,), float(rho_0), dtype=np.float32)
+        if rho_0 is not None
+        else ic.astype(np.float32)
+    )
 
-        N, if provided, overrides nx (resolution_sweep convention: N = nx).
+    points, cells = _hex_mesh_arrays(nx, ny, nz, Lx, Ly, Lz)
+    bc = _cantilever_bcs(
+        points,
+        nx,
+        ny,
+        nz,
+        Lx,
+        Ly,
+        Lz,
+        solver_name=spec.name,
+        F_total=F_total,
+        corner_load=corner_load,
+        corner_y_high=corner_y_high,
+        corner_z_high=corner_z_high,
+        load_axis=load_axis,
+    )
 
-        When neither N nor explicit nx is given and rho_0 is None, infer nx from
-        the IC shape using the canonical thin-slab geometry (ny=2, nz=nx//2).
-        This ensures resolution_sweep passes the correct mesh to the solver even
-        when the suite does not forward N through the physics kwargs.
+    hex_mesh = HexMesh(
+        points=points.astype(np.float32),
+        faces=cells.astype(np.int32),
+        n_points=len(points),
+        n_faces=len(cells),
+    )
 
-        corner_load=True selects a single-element corner patch on the right face
-        with an upward (+z) force instead of a full-face downward load.
-
-        jax_fem   expects rho shape (n_cells, 1).
-        topopt_jl expects rho shape (n_cells,).
-        topopt_jl material params (E, nu, xmin) are injected via SolverSpec.input_overrides.
-        """
-        spec = spec_by_name[solver_name]
-
-        if N is not None:
-            nx = N
-        if ny is None:
-            ny = 2
-        if nz is None:
-            nz = max(1, nx // 2)
-
-        # Infer mesh dims from IC when rho_0 is not specified and IC size disagrees
-        # with the default nx×ny×nz.  This makes resolution_sweep work even when the
-        # suite does not thread N through the physics kwargs into make_inputs.
-        if rho_0 is None and ic is not None and len(ic) != nx * ny * nz:
-            nx_inferred, ny_inferred, nz_inferred = _infer_mesh_dims(len(ic))
-            # Only accept the inference if the inferred shape exactly matches.
-            if nx_inferred * ny_inferred * nz_inferred == len(ic):
-                nx, ny, nz = nx_inferred, ny_inferred, nz_inferred
-
-        rho_data = (
-            np.full((nx * ny * nz,), float(rho_0), dtype=np.float32)
-            if rho_0 is not None
-            else ic.astype(np.float32)
-        )
-
-        points, cells = _hex_mesh_arrays(nx, ny, nz, Lx, Ly, Lz)
-        bc = _cantilever_bcs(
-            points,
-            nx,
-            ny,
-            nz,
-            Lx,
-            Ly,
-            Lz,
-            solver_name=solver_name,
-            F_total=F_total,
-            corner_load=corner_load,
-            corner_y_high=corner_y_high,
-            corner_z_high=corner_z_high,
-            load_axis=load_axis,
-        )
-
-        hex_mesh = HexMesh(
-            points=points.astype(np.float32),
-            faces=cells.astype(np.int32),
-            n_points=len(points),
-            n_faces=len(cells),
-        )
-
-        base = {
-            "rho": rho_data,
-            "hex_mesh": hex_mesh.model_dump(),
-            "boundary_conditions": bc.model_dump(),
-        }
-        return {**base, **spec.input_overrides}
-
-    return _make_inputs
+    base = {
+        "rho": rho_data,
+        "hex_mesh": hex_mesh.model_dump(),
+        "boundary_conditions": bc.model_dump(),
+    }
+    return {**base, **spec.input_overrides}
 
 
 # ── Diagnostics ───────────────────────────────────────────────────────────────

@@ -52,20 +52,13 @@ def is_valid(arr) -> bool:
 # ── Run iteration ─────────────────────────────────────────────────────────────
 
 
-def extract_runs(exp_def: list[dict] | dict) -> list[dict]:
-    """Return the runs list from an experiment def (wrapper dict or bare list)."""
-    if isinstance(exp_def, dict):
-        return exp_def.get("runs", [])
-    return exp_def if exp_def is not None else []
+def extract_runs(runs: list[dict] | None) -> list[dict]:
+    """Return the runs list, treating ``None`` as empty."""
+    return runs if runs is not None else []
 
 
-def iter_runs(runs: list[dict] | dict, cli_overrides: dict):
-    """Yield run configs from an experiment def, applying debug and IC filter.
-
-    Accepts either:
-    - A list[dict] of run configs (bare list form).
-    - A wrapper dict with a ``runs`` key (experiment wrapper form):
-        dict(description=..., plot_description=..., runs=[...])
+def iter_runs(runs: list[dict] | None, cli_overrides: dict):
+    """Yield run configs from a runs list, applying debug and IC filters.
 
     Each run dict has named sub-groups: ic, physics, sweep, fd, optim, jacobian,
     fine, cost.  Yields a deep-copied, debug-adjusted run per matching entry.
@@ -77,8 +70,8 @@ def iter_runs(runs: list[dict] | dict, cli_overrides: dict):
     """
     import copy
 
-    if isinstance(runs, dict):
-        runs = runs.get("runs", [])
+    if runs is None:
+        return
 
     ic_filter = cli_overrides.get("ic_names")
     run_filter = cli_overrides.get("run_names")

@@ -5,7 +5,7 @@ The problem definition is split across three modules:
 - :mod:`.ics`         — IC generators (``_multimode``, ``_tgv``, ``_uniform_flow``,
                         ``_flat_inflow``) and the ``_tgv_analytic`` reference
                         solution.
-- :mod:`.physics`     — input factory (``build_make_inputs``) and diagnostic
+- :mod:`.physics`     — input factory (``make_inputs``) and diagnostic
                         functions (``_divergence_rms``, ``_kinetic_energy``,
                         ``_energy_spectrum``).
 - :mod:`.optimization` — drag-minimisation runner.
@@ -64,7 +64,7 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import run_drag_opt
-from .physics import DIAGNOSTICS, build_make_inputs
+from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_drag_opt
 
 _TESSERACT_SLUG = "navier-stokes-grid"
@@ -139,8 +139,6 @@ _XLB_DX2_FLOOR = Exclusion(
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
 
-_SOLVERS_LIST = list(_SOLVERS.values())
-
 problem = Problem(
     name="ns-grid",
     category_label="Navier–Stokes (Grid)",
@@ -158,8 +156,8 @@ problem = Problem(
     tesseract_dir=_TESSERACT_SLUG,
     output_key="result",
     ic_key="v0",
-    solvers=_SOLVERS_LIST,
-    make_inputs=build_make_inputs(_SOLVERS_LIST),
+    solvers=list(_SOLVERS.values()),
+    make_inputs=make_inputs,
     error_fn=l2_error_rel,
     reference=_tgv_analytic,
     domain_extent=2 * float(jnp.pi),
@@ -245,32 +243,17 @@ problem.add(
     "forward/agreement",
     run_agreement,
     plot_description="Relative error vs viscosity ν for each IC, with vorticity field snapshots compared against a fine-solver reference.",
-    runs=[
-        {
-            "ic": {"name": "tgv", "seed": 42},
-            "physics": {
-                "N": 64,
-                "dt": 0.05,
-                "steps": 20,
-                "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
-            },
-            "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
-        },
-        {
-            "ic": {"name": "multimode", "seed": 42},
-            "physics": {
-                "N": 64,
-                "dt": 0.05,
-                "steps": 20,
-                "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
-            },
-            "reference": {"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
-        },
-    ],
+    ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
+    physics={
+        "N": 64,
+        "dt": 0.05,
+        "steps": 20,
+        "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
+    },
+    reference={"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
     plot=plot_agreement,
 )
-# Per-IC overrides for the multi-IC forward/agreement run-list above:
-# both target the tgv sub-key produced by the runner.
+# Per-IC overrides for the multi-IC forward/agreement fan-out above:
 problem.exclude(
     "forward/agreement/tgv",
     {

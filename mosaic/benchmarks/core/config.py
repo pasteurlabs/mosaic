@@ -157,7 +157,7 @@ class Problem:
     solvers: list[SolverSpec] = field(default_factory=list)
     make_inputs: Callable | None = None  # (solver_name, ic, **physics) → dict
     exclusions: dict[str, dict[str, Exclusion]] = field(default_factory=dict)
-    status_checks: dict[str, dict | list] = field(default_factory=dict)
+    status_checks: dict[str, list] = field(default_factory=dict)
 
     # ── Experiment-time deps (threaded into Experiment.fn closures) ─────
     make_ic: dict = field(default_factory=dict)
@@ -178,9 +178,17 @@ class Problem:
     plot_fns: dict[str, PlotFn] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Resolve a relative :attr:`tesseract_dir` against the central
-        :data:`TESSERACTS_DIR` (so configs can pass just a slug like
-        ``"navier-stokes-grid"``).
+        """Setup that can't be expressed declaratively:
+
+        - Resolve a relative :attr:`tesseract_dir` against
+          :data:`TESSERACTS_DIR` (so configs can pass a slug string like
+          ``"navier-stokes-grid"``).
+        - Wrap :attr:`make_inputs` so it looks up the :class:`SolverSpec`
+          from the solver name. The user-provided callable has signature
+          ``(spec: SolverSpec, ic, **physics) -> dict``; the wrapped
+          version exposed as ``cfg.make_inputs`` has signature
+          ``(name: str, ic, **physics) -> dict``. This drops the
+          per-problem ``build_make_inputs(solvers)`` closure factory.
 
         ICs are registered explicitly via :meth:`add_ic` after construction —
         no auto-registration from :attr:`make_ic` happens here.
@@ -189,6 +197,15 @@ class Problem:
             self.tesseract_dir = Path(self.tesseract_dir)
         if self.tesseract_dir.parts and not self.tesseract_dir.is_absolute():
             self.tesseract_dir = TESSERACTS_DIR / self.tesseract_dir
+
+        if self.make_inputs is not None:
+            _user_fn = self.make_inputs
+            _spec_by_name = {s.name: s for s in self.solvers}
+
+            def _by_name(name: str, ic, **physics):
+                return _user_fn(_spec_by_name[name], ic, **physics)
+
+            self.make_inputs = _by_name
 
     # ── Solver lookup ────────────────────────────────────────────────────
 
@@ -263,7 +280,7 @@ class Problem:
         plot: Callable | None = None,
         plot_description: str = "",
         reduce: Callable | None = None,
-        status_check: dict | list | None = None,
+        status_check: list | None = None,
         exclusions: dict[str, Exclusion] | None = None,
         **config,
     ) -> None:
@@ -291,10 +308,9 @@ class Problem:
         ``status_check`` (optional) is a list of check callables (built via
         the factories in :mod:`mosaic.benchmarks.core.status_checks` —
         ``median_k(k)``, ``max_error(t)``, ``min_cosine(t)``, …) attached to
-        every sub-experiment's params. Legacy dict-of-thresholds form is
-        still accepted and normalised at lookup time. It is merged on top
-        of any suite-level defaults from :attr:`status_checks` when the
-        status pipeline classifies a result.
+        every sub-experiment's params. Merged on top of any suite-level
+        defaults from :attr:`status_checks` when the status pipeline
+        classifies a result.
 
         ``exclusions`` (optional) is a ``{solver_name: Exclusion}`` dict.
         Each entry is pushed into :attr:`exclusions` at this experiment's
@@ -347,17 +363,19 @@ class Problem:
     def _normalize_run_shorthand(self, config: dict) -> dict:
         """Convert ``.add()`` shorthand into the canonical runner payload.
 
-        Three accepted input forms (in order of precedence):
+        Two accepted input forms (in order of precedence):
 
-        1. ``runs=[{...}, ...]`` (multi-variant): pass through, only
-           applying sweep-auto-detection to each run dict that lacks an
-           explicit ``"sweep"`` key. Use this when one experiment has
-           structurally different sub-runs that share a plot (different
-           swept keys per sub-run, or multiple ICs).
-        2. ``run={...}`` (singular): wrapped into ``runs=[{...}]``.
-        3. Bare run-dict fields (``ic=``, ``physics=``, ``fd=``, ``optim=``,
+        1. ``runs=[{...}, ...]`` (explicit multi-variant): pass through.
+           Use this when variants have **structurally different** payloads
+           — e.g. different swept keys per variant (``physical_laws``:
+           ``vs_N``, ``vs_steps``, ``vs_nu``).
+        2. Bare run-dict fields (``ic=``, ``physics=``, ``fd=``, ``optim=``,
            ``jacobian=``, ``reference=``, ``sweep=``) at the top level:
-           collected into a single run dict, then wrapped.
+           collected into a single run dict, then wrapped into
+           ``runs=[{...}]``. When any payload field is a **list of dicts**
+           (e.g. ``ic=[{tgv}, {multimode}]``), it fans out: each element
+           becomes one variant, with shared fields broadcast. Multiple
+           list-of-dicts fields parallel-zip (same length required).
 
         After collection, each run dict is scanned for list-valued fields
         (nested one level inside ``physics``/``fd``/``optim``/etc.). The
@@ -373,9 +391,6 @@ class Problem:
                 raise TypeError(
                     f".add(runs=...): expected a list, got {type(runs).__name__}"
                 )
-        elif "run" in config:
-            runs = [config.pop("run")]
-            config["runs"] = runs
         else:
             # Collect known run-payload keys into a synthetic single run.
             payload_keys = {
@@ -391,13 +406,44 @@ class Problem:
                 "sweep",
             }
             run_dict = {k: config.pop(k) for k in list(config) if k in payload_keys}
-            if run_dict:
-                config["runs"] = [run_dict]
-                runs = config["runs"]
-            else:
+            if not run_dict:
                 # No run payload at all (e.g. an IC-registration call); leave
                 # config untouched.
                 return config
+            # Detect list-of-dicts payload fields (e.g. ic=[{tgv}, {mm}])
+            # — each one fans out to N variants. Multiple such fields
+            # parallel-zip; their lengths must match.
+            fanout_keys = [
+                k
+                for k, v in run_dict.items()
+                if isinstance(v, list) and v and isinstance(v[0], dict)
+            ]
+            if fanout_keys:
+                lengths = {len(run_dict[k]) for k in fanout_keys}
+                if len(lengths) > 1:
+                    sketch = ", ".join(
+                        f"{k}=len {len(run_dict[k])}" for k in fanout_keys
+                    )
+                    raise ValueError(
+                        f".add: fan-out fields have mismatched lengths "
+                        f"({sketch}); parallel-zip requires equal-length lists."
+                    )
+                n = lengths.pop()
+                # Deep-copy shared fields so the per-variant sweep auto-detect
+                # (which mutates physics/fd/etc. in-place) doesn't leak across
+                # variants.
+                import copy
+
+                runs = [
+                    {
+                        k: (v[i] if k in fanout_keys else copy.deepcopy(v))
+                        for k, v in run_dict.items()
+                    }
+                    for i in range(n)
+                ]
+            else:
+                runs = [run_dict]
+            config["runs"] = runs
 
         # ── Step 2: auto-detect sweep in each run dict ─────────────────
         for run in runs:
@@ -539,7 +585,7 @@ class Problem:
         config: dict,
         *,
         plot_description: str = "",
-        status_check: dict | list | None = None,
+        status_check: list | None = None,
     ) -> None:
         """Build the Experiment lambda for a single (scalar) config and store it."""
         import inspect
@@ -561,11 +607,7 @@ class Problem:
         # status/docs actually read (plot blurb + per-experiment thresholds).
         params: dict = {"plot_description": plot_description}
         if status_check:
-            params["status_check"] = (
-                list(status_check)
-                if isinstance(status_check, list)
-                else dict(status_check)
-            )
+            params["status_check"] = list(status_check)
         self.experiments[key] = Experiment(fn=fn, params=params)
 
     def add_ic(
@@ -644,10 +686,10 @@ class Problem:
 
         ``sub_keys`` is the list of one-or-more sub-experiment keys this plot
         spans. When ``len(sub_keys) == 1`` and the plot accepts ``exp_key=``,
-        the plot is wrapped to pass the sub-key suffix (the legacy single-key
-        plot pattern). When there is a real sweep (``len > 1``) the plot is
-        wrapped to receive the list of sub-keys via ``sub_keys=`` (or, if a
-        ``reduce`` callable is given, the reduced result).
+        the plot is wrapped to pass the sub-key suffix. When there is a real
+        sweep (``len > 1``) the plot is wrapped to receive the list of
+        sub-keys via ``sub_keys=`` (or, if a ``reduce`` callable is given,
+        the reduced result).
         """
         import inspect
 
@@ -680,10 +722,12 @@ class Problem:
         else:
             # Plot doesn't take sub_keys — call it once per sub-key (independent
             # variants like jacobian_svd). The plot reads from its own dir.
-            def _multi(cfg, _p=plot, _subs=sub_keys, **kw):
+            wants_exp_key = "exp_key" in plot_sig
+
+            def _multi(cfg, _p=plot, _subs=sub_keys, _wants=wants_exp_key, **kw):
                 for sub_key in _subs:
-                    _, _, exp_key_str = sub_key.partition("/")
-                    if "exp_key" in plot_sig:
+                    if _wants:
+                        _, _, exp_key_str = sub_key.partition("/")
                         _p(cfg, exp_key=exp_key_str, **kw)
                     else:
                         _p(cfg, **kw)

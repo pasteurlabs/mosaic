@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -15,67 +13,33 @@ from .ics import _uniform_flow
 _LBM_SOLVERS = {"xlb"}
 
 
-def build_make_inputs(solvers: list[SolverSpec]) -> Callable:
-    """Return a ``make_inputs(solver_name, ic, **physics) → dict`` closure.
+def make_inputs(
+    spec: SolverSpec,
+    ic: jax.Array,
+    *,
+    nu: float,
+    dt: float,
+    steps: int,
+    domain_extent: float = 2 * jnp.pi,
+    lbm_N_base: int | None = None,
+    obstacle: dict | None = None,
+    U_mean: float = 0.5,
+    **_,
+) -> dict:
+    """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
 
-    Captures the solver list so per-solver ``input_overrides`` can be merged
-    into the final dict without importing :mod:`.config` (which would create
-    a cycle, since ``config`` imports from this module).
+    When ic is 1-D (shape (N,)) it is treated as an inflow profile for drag
+    optimisation (v0 = uniform background at U_mean, ic → inflow_profile field).
     """
-    spec_by_name = {s.name: s for s in solvers}
-
-    def _make_inputs(
-        solver_name: str,
-        ic: jax.Array,
-        *,
-        nu: float,
-        dt: float,
-        steps: int,
-        domain_extent: float = 2 * jnp.pi,
-        lbm_N_base: int | None = None,
-        obstacle: dict | None = None,
-        U_mean: float = 0.5,
-        **_,
-    ) -> dict:
-        """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
-
-        When ic is 1-D (shape (N,)) it is treated as an inflow profile for drag
-        optimisation (v0 = uniform background at U_mean, ic → inflow_profile field).
-        """
-        spec = spec_by_name[solver_name]
-
-        if ic.ndim == 1:
-            N = ic.shape[0]
-            _dt, _steps = dt, steps
-            if solver_name in _LBM_SOLVERS and lbm_N_base is not None:
-                _dt = dt * min(1.0, lbm_N_base / N)
-                _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
-            base = {
-                "v0": _uniform_flow(N, U=U_mean),
-                "inflow_profile": ic,
-                "viscosity": jnp.array([nu], dtype=jnp.float32),
-                "dt": jnp.array([_dt], dtype=jnp.float32),
-                "steps": _steps,
-                "domain_extent": float(domain_extent),
-            }
-            if obstacle is not None:
-                base["obstacle"] = obstacle
-                base["boundary_conditions"] = {
-                    "x_lo": {"type": "periodic"},
-                    "x_hi": {"type": "periodic"},
-                    "y_lo": {"type": "no_slip"},
-                    "y_hi": {"type": "no_slip"},
-                }
-            return {**base, **spec.input_overrides}
-
+    if ic.ndim == 1:
         N = ic.shape[0]
         _dt, _steps = dt, steps
-        if solver_name in _LBM_SOLVERS and lbm_N_base is not None:
+        if spec.name in _LBM_SOLVERS and lbm_N_base is not None:
             _dt = dt * min(1.0, lbm_N_base / N)
             _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
-
         base = {
-            "v0": ic,
+            "v0": _uniform_flow(N, U=U_mean),
+            "inflow_profile": ic,
             "viscosity": jnp.array([nu], dtype=jnp.float32),
             "dt": jnp.array([_dt], dtype=jnp.float32),
             "steps": _steps,
@@ -84,14 +48,35 @@ def build_make_inputs(solvers: list[SolverSpec]) -> Callable:
         if obstacle is not None:
             base["obstacle"] = obstacle
             base["boundary_conditions"] = {
-                "x_lo": {"type": "neumann"},
-                "x_hi": {"type": "neumann"},
+                "x_lo": {"type": "periodic"},
+                "x_hi": {"type": "periodic"},
                 "y_lo": {"type": "no_slip"},
                 "y_hi": {"type": "no_slip"},
             }
         return {**base, **spec.input_overrides}
 
-    return _make_inputs
+    N = ic.shape[0]
+    _dt, _steps = dt, steps
+    if spec.name in _LBM_SOLVERS and lbm_N_base is not None:
+        _dt = dt * min(1.0, lbm_N_base / N)
+        _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
+
+    base = {
+        "v0": ic,
+        "viscosity": jnp.array([nu], dtype=jnp.float32),
+        "dt": jnp.array([_dt], dtype=jnp.float32),
+        "steps": _steps,
+        "domain_extent": float(domain_extent),
+    }
+    if obstacle is not None:
+        base["obstacle"] = obstacle
+        base["boundary_conditions"] = {
+            "x_lo": {"type": "neumann"},
+            "x_hi": {"type": "neumann"},
+            "y_lo": {"type": "no_slip"},
+            "y_hi": {"type": "no_slip"},
+        }
+    return {**base, **spec.input_overrides}
 
 
 def _divergence_rms(arr: jax.Array, domain_extent: float = 2 * jnp.pi, **_) -> float:

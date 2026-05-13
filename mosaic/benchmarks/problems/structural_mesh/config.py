@@ -5,7 +5,7 @@ The problem definition is split across three modules:
 - :mod:`.ics`         — IC generators (``_uniform``, ``_random``,
                         ``_two_density_bumps``).
 - :mod:`.physics`     — mesh and BC builders, input factory
-                        (``build_make_inputs``), the ``_infer_mesh_dims``
+                        (``make_inputs``), the ``_infer_mesh_dims``
                         helper, and the ``DIAGNOSTICS`` registry.
 - :mod:`.optimization` — SIMP topology-optimisation runner.
 
@@ -48,7 +48,7 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _random, _two_density_bumps, _uniform
 from .optimization import run_topopt
-from .physics import DIAGNOSTICS, build_make_inputs
+from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_topopt
 
 _TESSERACT_SLUG = "structural-mesh"
@@ -76,8 +76,6 @@ for _key in ("dealii_structural", "fenics_structural", "firedrake_structural"):
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
 
-_SOLVERS_LIST = list(_SOLVERS.values())
-
 problem = Problem(
     name="structural-mesh",
     category_label="Structural Mechanics",
@@ -99,8 +97,8 @@ problem = Problem(
     tesseract_dir=_TESSERACT_SLUG,
     output_key="compliance",
     ic_key="rho",
-    solvers=_SOLVERS_LIST,
-    make_inputs=build_make_inputs(_SOLVERS_LIST),
+    solvers=list(_SOLVERS.values()),
+    make_inputs=make_inputs,
     error_fn=l2_error_rel,
     domain_extent=2.0,
     resolution_key="nx",

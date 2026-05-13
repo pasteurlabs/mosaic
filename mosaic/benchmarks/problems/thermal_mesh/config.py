@@ -6,7 +6,7 @@ The problem definition is split across three modules:
                         ``_random``, ``_gaussian_source``, ``_two_gaussians``).
 - :mod:`.physics`     — mesh / BC builders, the reference FEM solve for
                         inverse-recovery ground truth, the
-                        ``build_make_inputs`` factory, and ``DIAGNOSTICS``.
+                        ``make_inputs`` factory, and ``DIAGNOSTICS``.
 - :mod:`.optimization` — conductivity-recovery runner.
 
 This module performs solver discovery, the canonical :class:`Problem`
@@ -49,7 +49,7 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _gaussian_source, _random, _two_gaussians, _uniform, _zero_source
 from .optimization import run_conductivity_recovery
-from .physics import DIAGNOSTICS, build_make_inputs
+from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_conductivity_recovery
 
 _TESSERACT_SLUG = "thermal-mesh"
@@ -71,8 +71,6 @@ for _key in ("fenics_heat", "dealii_heat", "firedrake_heat", "torch_fem_thermal"
 
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
-
-_SOLVERS_LIST = list(_SOLVERS.values())
 
 problem = Problem(
     name="thermal-mesh",
@@ -96,8 +94,8 @@ problem = Problem(
     tesseract_dir=_TESSERACT_SLUG,
     output_key="thermal_compliance",
     ic_key="rho",
-    solvers=_SOLVERS_LIST,
-    make_inputs=build_make_inputs(_SOLVERS_LIST),
+    solvers=list(_SOLVERS.values()),
+    make_inputs=make_inputs,
     error_fn=l2_error_rel,
     domain_extent=2.0,
     resolution_key="nx",

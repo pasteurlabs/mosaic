@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -13,50 +11,37 @@ from mosaic.benchmarks.core.config import SolverSpec
 _LBM_SOLVERS = {"xlb"}
 
 
-def build_make_inputs(solvers: list[SolverSpec]) -> Callable:
-    """Return a ``make_inputs(solver_name, ic, **physics) → dict`` closure.
+def make_inputs(
+    spec: SolverSpec,
+    ic: jax.Array,
+    *,
+    nu: float,
+    dt: float,
+    steps: int,
+    domain_extent: float = 2 * jnp.pi,
+    lbm_N_base: int | None = None,
+    **_,
+) -> dict:
+    """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
 
-    Captures the solver list so per-solver ``input_overrides`` can be merged
-    into the final dict without importing :mod:`.config` (which would create
-    a cycle, since ``config`` imports from this module).
+    For standard 3-D periodic runs ic has shape (N, N, N, 3) and is passed
+    directly as v0.
     """
-    spec_by_name = {s.name: s for s in solvers}
+    N = ic.shape[0]
+    _dt, _steps = dt, steps
 
-    def _make_inputs(
-        solver_name: str,
-        ic: jax.Array,
-        *,
-        nu: float,
-        dt: float,
-        steps: int,
-        domain_extent: float = 2 * jnp.pi,
-        lbm_N_base: int | None = None,
-        **_,
-    ) -> dict:
-        """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
+    if spec.name in _LBM_SOLVERS and lbm_N_base is not None:
+        _dt = dt * (lbm_N_base / N)
+        _steps = max(1, round(steps * (N / lbm_N_base)))
 
-        For standard 3-D periodic runs ic has shape (N, N, N, 3) and is passed
-        directly as v0.
-        """
-        spec = spec_by_name[solver_name]
-
-        N = ic.shape[0]
-        _dt, _steps = dt, steps
-
-        if solver_name in _LBM_SOLVERS and lbm_N_base is not None:
-            _dt = dt * (lbm_N_base / N)
-            _steps = max(1, round(steps * (N / lbm_N_base)))
-
-        base = {
-            "v0": ic,
-            "viscosity": jnp.array([nu], dtype=jnp.float32),
-            "dt": jnp.array([_dt], dtype=jnp.float32),
-            "steps": _steps,
-            "domain_extent": float(domain_extent),
-        }
-        return {**base, **spec.input_overrides}
-
-    return _make_inputs
+    base = {
+        "v0": ic,
+        "viscosity": jnp.array([nu], dtype=jnp.float32),
+        "dt": jnp.array([_dt], dtype=jnp.float32),
+        "steps": _steps,
+        "domain_extent": float(domain_extent),
+    }
+    return {**base, **spec.input_overrides}
 
 
 def _divergence_rms(arr: jax.Array, domain_extent: float = 2 * jnp.pi, **_) -> float:

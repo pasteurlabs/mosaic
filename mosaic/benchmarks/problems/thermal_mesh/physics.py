@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import numpy as np
 
 from mosaic.benchmarks.core.config import SolverSpec
@@ -301,133 +299,121 @@ def _get_thermal_compliance(thermal_compliance: np.ndarray, **_) -> float:
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 
-def build_make_inputs(solvers: list[SolverSpec]) -> Callable:
-    """Return a ``make_inputs(solver_name, ic, **physics) → dict`` closure.
+def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
+    spec: SolverSpec,
+    ic: np.ndarray,
+    *,
+    nx: int = 8,
+    ny: int | None = None,
+    nz: int = 1,
+    Lx: float = 2.0,
+    Ly: float = 1.0,
+    Lz: float = 1.0,
+    Q_total: float = 1.0,
+    rho_0: float | None = None,
+    hot_spot: bool = False,
+    N: int | None = None,
+    ic_field: str = "rho",
+    target_from_two_gaussians: bool = False,
+    target_rho_from_two_gaussians: bool = False,
+    **_,
+) -> dict:
+    """Build solver input dict from IC and geometry parameters.
 
-    Captures the solver list so per-solver ``input_overrides`` can be merged
-    into the final dict without importing :mod:`.config` (which would create
-    a cycle, since ``config`` imports from this module).
+    ic_field controls which input field the IC array is placed in:
+      - "rho"    (default): topology-optimisation mode; ic is the density field.
+      - "source": source-identification mode; ic is the volumetric heat source;
+                  rho is set to a uniform rho_0 (default 0.5).
+
+    rho_0, if provided, overrides the rho field with a uniform density of that value.
+    hot_spot, if True, concentrates Neumann flux on the central 1/3 stripe in y
+    (and also in z for nz > 1).
+    target_from_two_gaussians, if True, computes target_temperature by running the
+    two-Gaussian source through a reference FEM solve analytically.
+    target_rho_from_two_gaussians, if True and ic_field != "source", computes
+    target_temperature by solving with a two-Gaussian conductivity field (rho in
+    [0, 1]) and zero volumetric source — used for conductivity-recovery experiments.
+
+    N, if provided, overrides nx (resolution_sweep convention: N = nx).
+    If ic does not match the expected (nx * ny * nz) shape, nx is inferred
+    from ic.size to keep the mesh consistent with the density field.
+
+    jax_fem      expects rho shape (n_cells, 1).
+    fenics_heat  expects rho shape (n_cells,) and extra k_max/p_exp params
+                 (injected via SolverSpec.input_overrides).
     """
-    spec_by_name = {s.name: s for s in solvers}
+    if N is not None:
+        nx = N
+    if ny is None:
+        ny = max(1, nx // 2)
 
-    def _make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
-        solver_name: str,
-        ic: np.ndarray,
-        *,
-        nx: int = 8,
-        ny: int | None = None,
-        nz: int = 1,
-        Lx: float = 2.0,
-        Ly: float = 1.0,
-        Lz: float = 1.0,
-        Q_total: float = 1.0,
-        rho_0: float | None = None,
-        hot_spot: bool = False,
-        N: int | None = None,
-        ic_field: str = "rho",
-        target_from_two_gaussians: bool = False,
-        target_rho_from_two_gaussians: bool = False,
-        **_,
-    ) -> dict:
-        """Build solver input dict from IC and geometry parameters.
+    n_cells_expected = nx * ny * nz
 
-        ic_field controls which input field the IC array is placed in:
-          - "rho"    (default): topology-optimisation mode; ic is the density field.
-          - "source": source-identification mode; ic is the volumetric heat source;
-                      rho is set to a uniform rho_0 (default 0.5).
-
-        rho_0, if provided, overrides the rho field with a uniform density of that value.
-        hot_spot, if True, concentrates Neumann flux on the central 1/3 stripe in y
-        (and also in z for nz > 1).
-        target_from_two_gaussians, if True, computes target_temperature by running the
-        two-Gaussian source through a reference FEM solve analytically.
-        target_rho_from_two_gaussians, if True and ic_field != "source", computes
-        target_temperature by solving with a two-Gaussian conductivity field (rho in
-        [0, 1]) and zero volumetric source — used for conductivity-recovery experiments.
-
-        N, if provided, overrides nx (resolution_sweep convention: N = nx).
-        If ic does not match the expected (nx * ny * nz) shape, nx is inferred
-        from ic.size to keep the mesh consistent with the density field.
-
-        jax_fem      expects rho shape (n_cells, 1).
-        fenics_heat  expects rho shape (n_cells,) and extra k_max/p_exp params
-                     (injected via SolverSpec.input_overrides).
-        """
-        if N is not None:
-            nx = N
-        if ny is None:
+    if ic_field == "source":
+        # Source-identification mode: ic is the source field; rho is uniform.
+        n_cells_ic = int(ic.size)
+        if n_cells_ic != n_cells_expected:
+            nx = max(1, round((n_cells_ic * 2) ** 0.5))
             ny = max(1, nx // 2)
-
-        n_cells_expected = nx * ny * nz
-
-        if ic_field == "source":
-            # Source-identification mode: ic is the source field; rho is uniform.
-            n_cells_ic = int(ic.size)
-            if n_cells_ic != n_cells_expected:
-                nx = max(1, round((n_cells_ic * 2) ** 0.5))
-                ny = max(1, nx // 2)
-            source_data = ic.astype(np.float32)
-            rho_val = float(rho_0) if rho_0 is not None else 0.5
-            rho_data = np.full((nx * ny * nz,), rho_val, dtype=np.float32)
-        else:
-            # Topology-optimisation mode (ic_field == "rho"): ic is the density field.
-            n_cells_ic = int(ic.size) if rho_0 is None else n_cells_expected
-            if n_cells_ic != n_cells_expected:
-                nx = max(1, round((n_cells_ic * 2) ** 0.5))
-                ny = max(1, nx // 2)
-            rho_data = (
-                np.full((nx * ny * nz,), float(rho_0), dtype=np.float32)
-                if rho_0 is not None
-                else ic.astype(np.float32)
-            )
-            source_data = np.zeros(nx * ny * nz, dtype=np.float32)
-
-        points, cells = _hex_mesh_arrays(nx, ny, nz, Lx, Ly, Lz)
-        bc = _heated_block_bcs(points, Lx, Ly, Lz, Q_total=Q_total, hot_spot=hot_spot)
-
-        n_nodes = len(points)
-        if target_rho_from_two_gaussians and ic_field != "source":
-            # Conductivity-recovery target: solve with two-Gaussian rho (zero source,
-            # Neumann BC only) to get T_target.  The optimiser must recover this rho
-            # from the resulting temperature observations.
-            rho_gt = np.clip(
-                _two_gaussians(nx=nx, ny=ny, nz=nz, Lx=Lx, Ly=Ly), 0.0, 1.0
-            ).astype(np.float32)
-            target_temperature = _approx_target_temperature(
-                rho_gt,
-                np.zeros(nx * ny * nz, dtype=np.float32),
-                cells,
-                points,
-                bc.model_dump(),
-            )
-        elif target_from_two_gaussians:
-            # Source-recovery target: solve with two-Gaussian source at nominal rho.
-            target_source = _two_gaussians(nx=nx, ny=ny, nz=nz, Lx=Lx, Ly=Ly)
-            target_temperature = _approx_target_temperature(
-                rho_data, target_source, cells, points, bc.model_dump()
-            )
-        else:
-            target_temperature = np.zeros(n_nodes, dtype=np.float32)
-
-        hex_mesh = HexMesh(
-            points=points.astype(np.float32),
-            faces=cells.astype(np.int32),
-            n_points=len(points),
-            n_faces=len(cells),
+        source_data = ic.astype(np.float32)
+        rho_val = float(rho_0) if rho_0 is not None else 0.5
+        rho_data = np.full((nx * ny * nz,), rho_val, dtype=np.float32)
+    else:
+        # Topology-optimisation mode (ic_field == "rho"): ic is the density field.
+        n_cells_ic = int(ic.size) if rho_0 is None else n_cells_expected
+        if n_cells_ic != n_cells_expected:
+            nx = max(1, round((n_cells_ic * 2) ** 0.5))
+            ny = max(1, nx // 2)
+        rho_data = (
+            np.full((nx * ny * nz,), float(rho_0), dtype=np.float32)
+            if rho_0 is not None
+            else ic.astype(np.float32)
         )
+        source_data = np.zeros(nx * ny * nz, dtype=np.float32)
 
-        base = {
-            "rho": rho_data,
-            "source": source_data,
-            "target_temperature": target_temperature,
-            "hex_mesh": hex_mesh.model_dump(),
-            "boundary_conditions": bc.model_dump(),
-        }
-        spec = spec_by_name[solver_name]
-        overrides = dict(spec.input_overrides)
-        return {**base, **overrides}
+    points, cells = _hex_mesh_arrays(nx, ny, nz, Lx, Ly, Lz)
+    bc = _heated_block_bcs(points, Lx, Ly, Lz, Q_total=Q_total, hot_spot=hot_spot)
 
-    return _make_inputs
+    n_nodes = len(points)
+    if target_rho_from_two_gaussians and ic_field != "source":
+        # Conductivity-recovery target: solve with two-Gaussian rho (zero source,
+        # Neumann BC only) to get T_target.  The optimiser must recover this rho
+        # from the resulting temperature observations.
+        rho_gt = np.clip(
+            _two_gaussians(nx=nx, ny=ny, nz=nz, Lx=Lx, Ly=Ly), 0.0, 1.0
+        ).astype(np.float32)
+        target_temperature = _approx_target_temperature(
+            rho_gt,
+            np.zeros(nx * ny * nz, dtype=np.float32),
+            cells,
+            points,
+            bc.model_dump(),
+        )
+    elif target_from_two_gaussians:
+        # Source-recovery target: solve with two-Gaussian source at nominal rho.
+        target_source = _two_gaussians(nx=nx, ny=ny, nz=nz, Lx=Lx, Ly=Ly)
+        target_temperature = _approx_target_temperature(
+            rho_data, target_source, cells, points, bc.model_dump()
+        )
+    else:
+        target_temperature = np.zeros(n_nodes, dtype=np.float32)
+
+    hex_mesh = HexMesh(
+        points=points.astype(np.float32),
+        faces=cells.astype(np.int32),
+        n_points=len(points),
+        n_faces=len(cells),
+    )
+
+    base = {
+        "rho": rho_data,
+        "source": source_data,
+        "target_temperature": target_temperature,
+        "hex_mesh": hex_mesh.model_dump(),
+        "boundary_conditions": bc.model_dump(),
+    }
+    overrides = dict(spec.input_overrides)
+    return {**base, **overrides}
 
 
 DIAGNOSTICS = {"thermal_compliance": _get_thermal_compliance}

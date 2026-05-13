@@ -5,7 +5,7 @@ The problem definition is split across three modules:
 - :mod:`.ics`         — IC generators (``_tgv3d``, ``_abc_flow``,
                         ``_rand_div_free_3d``) and the ``_tgv3d_analytic``
                         reference solution.
-- :mod:`.physics`     — input factory (``build_make_inputs``) and diagnostic
+- :mod:`.physics`     — input factory (``make_inputs``) and diagnostic
                         functions (``_divergence_rms``, ``_kinetic_energy``,
                         ``_energy_spectrum``).
 - :mod:`.optimization` — IC-recovery runner.
@@ -61,7 +61,7 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .ics import _abc_flow, _rand_div_free_3d, _tgv3d, _tgv3d_analytic
 from .optimization import run_recovery
-from .physics import DIAGNOSTICS, build_make_inputs
+from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_recovery
 
 _TESSERACT_SLUG = "navier-stokes-grid"
@@ -116,8 +116,6 @@ _COST_RUNS = {
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
 
-_SOLVERS_LIST = list(_SOLVERS.values())
-
 problem = Problem(
     name="ns-3d-grid",
     category_label="Navier–Stokes (Grid)",
@@ -135,8 +133,8 @@ problem = Problem(
     tesseract_dir=_TESSERACT_SLUG,
     output_key="result",
     ic_key="v0",
-    solvers=_SOLVERS_LIST,
-    make_inputs=build_make_inputs(_SOLVERS_LIST),
+    solvers=list(_SOLVERS.values()),
+    make_inputs=make_inputs,
     error_fn=l2_error_rel,
     reference=_tgv3d_analytic,
     domain_extent=2 * float(jnp.pi),

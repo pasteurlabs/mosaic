@@ -229,44 +229,14 @@ def peer_final_loss_k(k: float) -> Callable[[OptimizationSummary], CheckOutcome]
     return _check
 
 
-# ── Dict → list adapter (transition) ─────────────────────────────────────────
-# Many existing configs still pass status_check as a dict-of-thresholds.
-# Convert that to the equivalent list of built-in checks so the classifier
-# only has to handle one form.
-
-_DICT_KEY_TO_FACTORY: dict[str, Callable[[float], Callable]] = {
-    "median_k": median_k,
-    "max_error": max_error,
-    "max_peer_k": max_peer_k,
-    "min_cosine": min_cosine,
-    "max_rel_err": max_rel_err,
-    "rel_err_peer_k": rel_err_peer_outlier,
-    "max_final_ratio": max_final_ratio,
-    "peer_final_loss_k": peer_final_loss_k,
-}
-
-
-def normalize(checks: dict | list | None) -> list[Callable]:
-    """Coerce legacy dict-of-thresholds to the canonical list-of-callables form.
-
-    Returns a list of check callables. Unknown dict keys are logged and
-    skipped (matches legacy behaviour where unknown keys were silently
-    ignored by classifiers that didn't read them).
-    """
+def normalize(checks: list[Callable] | Callable | None) -> list[Callable]:
+    """Coerce ``None`` / single callable to the canonical list-of-callables form."""
     if not checks:
         return []
     if callable(checks):
         return [checks]
     if isinstance(checks, list):
         return list(checks)
-    if isinstance(checks, dict):
-        out: list[Callable] = []
-        for key, value in checks.items():
-            factory = _DICT_KEY_TO_FACTORY.get(key)
-            if factory is None:
-                continue
-            out.append(factory(value))
-        return out
     raise TypeError(
-        f"status_check must be a list of callables or a dict of thresholds; got {type(checks).__name__}"
+        f"status_check must be a list of callables; got {type(checks).__name__}"
     )
