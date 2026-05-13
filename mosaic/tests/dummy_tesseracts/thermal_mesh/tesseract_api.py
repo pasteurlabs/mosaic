@@ -1,3 +1,4 @@
+# ruff: noqa: E402 — sys.path bootstrap must precede the workspace imports below
 """Dummy thermal-mesh tesseract — constant outputs for end-to-end framework tests.
 
 Imports the canonical :class:`InputSchema` / :class:`OutputSchema` from
@@ -19,7 +20,18 @@ the ``inprocess:`` prefix to use
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import Any
+
+# ``tesseract_shared`` lives under ``mosaic/tesseracts/`` as a uv-workspace
+# package. ``Tesseract.from_tesseract_api`` loads this file via
+# ``load_module_from_path``, which bypasses the import machinery that uv
+# wires up — so we have to put the workspace dir on ``sys.path`` ourselves
+# to make the canonical-schema imports below resolve in any environment.
+_TESSERACTS_DIR = Path(__file__).resolve().parents[3] / "tesseracts"
+if str(_TESSERACTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_TESSERACTS_DIR))
 
 import numpy as np
 from tesseract_core.runtime import ShapeDType
@@ -31,12 +43,22 @@ from tesseract_shared.problems.thermal_mesh import (
 )
 from tesseract_shared.types import make_differentiable
 
+
 # Match the differentiable surface of the real thermal-mesh solvers
 # (jax_fem, fenics_heat, dealii_heat, firedrake_heat, torch_fem_thermal).
-InputSchema = make_differentiable(_CanonicalInputSchema, ["rho", "source"])
-OutputSchema = make_differentiable(
-    _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
-)
+# Subclassing keeps the type name ``InputSchema`` so the OpenAPI schema
+# tesseract-jax's :class:`Jaxeract` introspects lands at the expected key
+# ``Apply_InputSchema`` rather than ``Apply_DifferentiableInputSchema``.
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
+    pass
+
+
+class OutputSchema(
+    make_differentiable(
+        _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
+    )
+):
+    pass
 
 
 def apply(inputs: InputSchema) -> OutputSchema:

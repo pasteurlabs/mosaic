@@ -182,7 +182,11 @@ def active_solvers(
     result = []
     for spec in cfg.solvers:
         name = spec.name
-        match = exclusion_lookup(cfg.exclusions.get(name, {}), suite, experiment)
+        # cfg.exclusions is keyed by the underscore-normalised solver slug
+        # (e.g. ``ins_jl``) — the same key ``discover_solvers`` returns —
+        # so we derive it from ``spec.dir`` rather than the display name.
+        slug = spec.dir.replace("-", "_")
+        match = exclusion_lookup(cfg.exclusions.get(slug, {}), suite, experiment)
         if match is None:
             result.append(name)
             continue

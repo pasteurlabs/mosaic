@@ -219,10 +219,20 @@ class _NumpyEncoder(json.JSONEncoder):
 
 
 def save_json(data, path: str | Path) -> None:
-    """Pretty-print ``data`` as JSON to ``path``; creates parent dirs."""
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, cls=_NumpyEncoder, indent=2)
+    """Pretty-print ``data`` as JSON to ``path``; creates parent dirs.
+
+    Serialises to a string first, then writes atomically via a ``.tmp``
+    sibling + ``os.replace``. If the encoder raises (e.g. a kernel result
+    contains an unencodable value), the destination is left untouched —
+    avoiding the truncated-file failure mode where ``mosaic status``
+    later reports ``unreadable result.json`` instead of the real error.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(data, cls=_NumpyEncoder, indent=2)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(payload)
+    os.replace(tmp_path, path)
     print_saved(path)
 
 

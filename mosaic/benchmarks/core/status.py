@@ -987,7 +987,8 @@ def _apply_exclusions(
     """
     for spec in cfg.solvers:
         name = spec.name
-        match = exclusion_lookup(cfg.exclusions.get(name, {}), suite, exp_label)
+        slug = spec.dir.replace("-", "_")
+        match = exclusion_lookup(cfg.exclusions.get(slug, {}), suite, exp_label)
         if match is None:
             continue
         _key, value = match
@@ -1009,7 +1010,8 @@ def _apply_explained_anomalies(
     """
     for spec in cfg.solvers:
         name = spec.name
-        match = exclusion_lookup(cfg.exclusions.get(name, {}), suite, exp_label)
+        slug = spec.dir.replace("-", "_")
+        match = exclusion_lookup(cfg.exclusions.get(slug, {}), suite, exp_label)
         if match is None:
             continue
         _key, value = match

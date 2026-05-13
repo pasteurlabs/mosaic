@@ -1,3 +1,4 @@
+# ruff: noqa: E402 — sys.path bootstrap must precede the workspace imports below
 """Dummy structural-mesh tesseract — constant scalar compliance for end-to-end tests.
 
 Imports the canonical :class:`InputSchema` / :class:`OutputSchema` from
@@ -19,7 +20,18 @@ runner's ``inprocess:`` prefix routes to
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import Any
+
+# ``tesseract_shared`` lives under ``mosaic/tesseracts/`` as a uv-workspace
+# package. ``Tesseract.from_tesseract_api`` loads this file via
+# ``load_module_from_path``, which bypasses the import machinery that uv
+# wires up — so we have to put the workspace dir on ``sys.path`` ourselves
+# to make the canonical-schema imports below resolve in any environment.
+_TESSERACTS_DIR = Path(__file__).resolve().parents[3] / "tesseracts"
+if str(_TESSERACTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_TESSERACTS_DIR))
 
 import numpy as np
 from tesseract_core.runtime import ShapeDType
@@ -31,10 +43,18 @@ from tesseract_shared.problems.structural_mesh import (
 )
 from tesseract_shared.types import make_differentiable
 
+
 # Match the differentiable surface of the real structural-mesh solvers
 # (jax-fem, topopt-jl, …): only `rho` in / `compliance` out are diff'd.
-InputSchema = make_differentiable(_CanonicalInputSchema, ["rho"])
-OutputSchema = make_differentiable(_CanonicalOutputSchema, ["compliance"])
+# Subclassing keeps the type name ``InputSchema`` so the OpenAPI schema
+# tesseract-jax's :class:`Jaxeract` introspects lands at the expected key
+# ``Apply_InputSchema`` rather than ``Apply_DifferentiableInputSchema``.
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
+    pass
+
+
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
+    pass
 
 
 # Scalar zero — matches the canonical OutputSchema ``compliance: Array[(), Float32]``.
