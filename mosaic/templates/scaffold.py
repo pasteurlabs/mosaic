@@ -287,7 +287,7 @@ def scaffold_domain(
         f"# Merge domain-specific overrides here, e.g.:\n"
         f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n'
         f"_SOLVERS_LIST = list(_SOLVERS.values())\n\n"
-        f"CONFIG = Problem(\n"
+        f"problem = Problem(\n"
         f'    name="{domain_name}",\n'
         f"    tesseract_dir=_TESSERACT_DIR,\n"
         f"    solvers=_SOLVERS_LIST,\n"
@@ -301,8 +301,8 @@ def scaffold_domain(
         f'    resolution_key="{tpl.resolution_key}",\n'
         f'    description="{tpl.description.strip()}",\n'
         f")\n\n"
-        f"_register_experiments(CONFIG)\n\n"
-        f'__all__ = ["CONFIG"]\n'
+        f"_register_experiments(problem)\n\n"
+        f'__all__ = ["problem"]\n'
     )
     created["problem_config"] = init_path
     created["problem_pkg"] = pkg_dir

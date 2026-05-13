@@ -132,7 +132,15 @@ def compute_score(cells: list[Cell]) -> tuple[float | None, int]:
 
 def _lookup_check(cfg: Problem, suite: str, experiment: str) -> dict:
     """Return the status_checks entry for (suite, experiment), merging suite
-    defaults with experiment-specific overrides. Later keys win."""
+    defaults with experiment-specific overrides. Later keys win.
+
+    Sources, in order of increasing precedence:
+      1. ``cfg.status_checks[suite]`` — suite-level defaults
+      2. ``cfg.status_checks[full]`` / ``cfg.status_checks[leading]`` — legacy
+         per-experiment / per-IC overrides from the Problem-level dict
+      3. ``cfg.experiments[full].params["status_check"]`` — inline overrides
+         set on the ``.add(..., status_check={...})`` call
+    """
     checks = cfg.status_checks
     merged: dict = {}
     merged.update(checks.get(suite, {}) or {})
@@ -140,6 +148,13 @@ def _lookup_check(cfg: Problem, suite: str, experiment: str) -> dict:
     # match both the full label and the leading token.
     for key in (f"{suite}/{experiment}", f"{suite}/{experiment.split('/', 1)[0]}"):
         merged.update(checks.get(key, {}) or {})
+        exp = cfg.experiments.get(key)
+        if exp is not None:
+            inline = (
+                exp.params.get("status_check") if isinstance(exp.params, dict) else None
+            )
+            if inline:
+                merged.update(inline)
     return merged
 
 

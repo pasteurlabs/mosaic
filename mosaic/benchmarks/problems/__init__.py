@@ -2,8 +2,8 @@
 
 Problem modules are auto-discovered. Each problem lives either as a top-level
 ``<name>.py`` file or as a subpackage ``<name>/`` containing an
-``__init__.py`` that re-exports ``CONFIG``. The discovery scan picks up both
-shapes — anything defining a module-level ``CONFIG`` of type
+``__init__.py`` that re-exports ``problem``. The discovery scan picks up both
+shapes — anything defining a module-level ``problem`` of type
 :class:`Problem` is registered automatically.
 """
 
@@ -42,7 +42,7 @@ def _registry() -> dict[str, Problem]:
         except Exception as exc:
             log.warning("skipping %s: %s", module_name, exc)
             continue
-        cfg = getattr(mod, "CONFIG", None)
+        cfg = getattr(mod, "problem", None)
         if isinstance(cfg, Problem):
             registry[cfg.name] = cfg
     return registry

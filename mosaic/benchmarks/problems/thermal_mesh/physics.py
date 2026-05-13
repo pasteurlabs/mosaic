@@ -298,21 +298,6 @@ def _get_thermal_compliance(thermal_compliance: np.ndarray, **_) -> float:
     return float(thermal_compliance)
 
 
-# ── IC visualisation helper ──────────────────────────────────────────────────
-
-
-def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
-    """Per-cell density → (ny, nx) image for the quasi-2D (nz=1) layout.
-
-    Assumes nx = 2·ny (canonical 2:1 x:y aspect ratio) and nz = 1, so
-    n_cells = 2·ny².  Returns shape (ny, nx) — the full x-y cross-section.
-    """
-    n_cells = len(rho)
-    ny = max(1, round((n_cells / 2) ** 0.5))
-    nx = max(1, n_cells // ny)
-    return rho.reshape(ny, nx)
-
-
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 

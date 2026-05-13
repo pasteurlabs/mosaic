@@ -166,12 +166,6 @@ def _infer_mesh_dims(n_cells: int) -> tuple[int, int, int]:
     return nx, ny, nz
 
 
-def _density_to_2d(rho: np.ndarray, **_) -> np.ndarray:
-    """Mid-y cross-section of per-cell density field → (nz, nx) image."""
-    nx, ny, nz = _infer_mesh_dims(len(rho))
-    return rho.reshape(nz, ny, nx)[:, ny // 2, :]  # (nz, nx)
-
-
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 

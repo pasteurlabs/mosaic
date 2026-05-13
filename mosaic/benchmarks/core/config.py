@@ -53,6 +53,30 @@ EXCL_PERMANENT: frozenset[ExclusionCategory] = frozenset(
 )
 
 
+class AdStrategy(str, Enum):
+    """How a solver computes gradients.
+
+    Same ``(str, Enum)`` mixin as :class:`ExclusionCategory` — members
+    serialise to plain strings on disk (e.g. ``AdStrategy.AUTODIFF == "autodiff"``).
+
+    Members:
+      * ``AUTODIFF`` — native reverse-mode AD traces through the forward pass
+        (``jax.vjp``, ``torch.autograd``, ``Zygote``, ``wp.Tape``).
+      * ``ADJOINT``  — explicitly formulated adjoint equations
+        (dolfin-adjoint, pyadjoint, analytic self-adjoint SIMP sensitivity).
+      * ``HYBRID``   — analytic gradient rules combined with autodiff
+        (implicit-function theorem, custom VJP rules that call autodiff internally).
+
+    The ``None`` sentinel represents *non-differentiable*; it is not a
+    member of the enum (so ``ad_strategy: AdStrategy | None`` carries the
+    "no gradient support" case explicitly).
+    """
+
+    AUTODIFF = "autodiff"
+    ADJOINT = "adjoint"
+    HYBRID = "hybrid"
+
+
 # ── New experiment/plot abstractions ─────────────────────────────────────────
 #
 # These are the canonical types for the closure-style refactor. They live
@@ -136,33 +160,27 @@ class Problem:
     resolution_key: str = "N"
     reference: Callable | None = None
     diagnostics: dict = field(default_factory=dict)
-    agreement_transform: Callable | None = None
-    agreement_xaxis: Callable | None = None
 
-    # ── Plot-time deps (used by per-problem plot lambdas) ────────────────
-    field_to_2d: Callable | None = None
-    ic_to_2d: Callable | None = None
-    field_cmap: str = "RdBu_r"
-    field_symmetric: bool = True
-    diagnostic_fields: bool = True
-    units: dict = field(default_factory=dict)
-    power_spectrum_fn: Callable | None = None
-    agreement_xlabel: str = "x"
-    agreement_ylabel: str = "value"
-    pairwise_xlabel: str = "k"
-    pairwise_ylabels: dict = field(default_factory=dict)
-    n_to_cells: Callable | None = None
+    # Plot function used for every auto-registered ``ics/<name>`` experiment.
+    # When set, every IC in :attr:`make_ic` is registered as a runnable
+    # ``ics/<name>`` experiment at :meth:`__post_init__` time, with
+    # ``plot_params`` read from the entry's :class:`IcSpec`.
+    plot_ic: Callable | None = None
 
-    # ── Registries (filled by .add / .add_ic / .add_extra_plot) ─────────
+    # ── Registries (filled by .add / .add_extra_plot + __post_init__) ───
     experiments: dict[str, Experiment] = field(default_factory=dict)
     plot_fns: dict[str, PlotFn] = field(default_factory=dict)
 
-    # Optional per-key plot descriptions. When ``add(...)`` is called without
-    # an explicit ``plot_description=`` kwarg, the value at
-    # ``descriptions[key]`` is used instead. Lets each problem keep its
-    # descriptions in one block at the top of experiments.py rather than
-    # inline in every .add() call.
-    descriptions: dict[str, str] = field(default_factory=dict)
+    def __post_init__(self) -> None:
+        """Auto-register one ``ics/<name>`` experiment per entry in
+        :attr:`make_ic` using :attr:`plot_ic` as the plot function.
+
+        ``IcSpec.plot_params`` provides the kwarg bag for the IC generator;
+        if the entry isn't an :class:`IcSpec` (plain callable) it's skipped.
+        """
+        for ic_name, ic in self.make_ic.items():
+            if isinstance(ic, IcSpec):
+                self._register_ic(ic_name, ic.plot_params, plot=self.plot_ic)
 
     # ── Solver lookup ────────────────────────────────────────────────────
 
@@ -228,8 +246,6 @@ class Problem:
             "resolution_key": self.resolution_key,
             "reference": self.reference,
             "diagnostics": self.diagnostics,
-            "agreement_transform": self.agreement_transform,
-            "agreement_xaxis": self.agreement_xaxis,
         }
 
     def add(
@@ -238,8 +254,10 @@ class Problem:
         runner: Callable,
         *,
         plot: Callable | None = None,
-        plot_description: str | None = None,
+        plot_description: str = "",
         reduce: Callable | None = None,
+        status_check: dict | None = None,
+        exclusions: dict[str, Exclusion] | None = None,
         **config,
     ) -> None:
         """Register an experiment at ``key`` with optional sweep + plot + reduce.
@@ -262,17 +280,35 @@ class Problem:
 
         ``plot_description`` is stored on every sub-experiment's params for
         introspection (e.g. ``mosaic status``).
+
+        ``status_check`` (optional) is a dict of thresholds (``median_k``,
+        ``max_error``, ``min_cosine``, …) attached to every sub-experiment's
+        params. It is merged on top of any suite-level defaults from
+        :attr:`status_checks` when the status pipeline classifies a result.
+
+        ``exclusions`` (optional) is a ``{solver_name: Exclusion}`` dict.
+        Each entry is pushed into :attr:`exclusions` at this experiment's
+        key, so :func:`exclusion_lookup` finds it via the same longest-prefix
+        match it uses for suite-level entries.
         """
-        # Fall back to the descriptions dict if no explicit kwarg given.
-        if plot_description is None:
-            plot_description = self.descriptions.get(key, "")
+        # Push per-experiment exclusions into the problem-level registry, keyed
+        # by the parent path. ``exclusion_lookup`` already does longest-prefix
+        # matching against ``cfg.exclusions[solver]``, so this single push
+        # covers every sub-key the runner produces.
+        if exclusions:
+            for solver_name, excl in exclusions.items():
+                self.exclusions.setdefault(solver_name, {})[key] = excl
 
         sweep_axes = self._collect_sweep_axes(config)
 
         if not sweep_axes:
             # No sweep — a single leaf experiment at ``key``.
             self._register_one_experiment(
-                key, runner, config, plot_description=plot_description
+                key,
+                runner,
+                config,
+                plot_description=plot_description,
+                status_check=status_check,
             )
             sub_keys = [key]
         else:
@@ -283,7 +319,11 @@ class Problem:
                 sub_key = f"{key}/{suffix}"
                 sub_keys.append(sub_key)
                 self._register_one_experiment(
-                    sub_key, runner, sub_config, plot_description=plot_description
+                    sub_key,
+                    runner,
+                    sub_config,
+                    plot_description=plot_description,
+                    status_check=status_check,
                 )
 
         if plot is not None:
@@ -378,6 +418,7 @@ class Problem:
         config: dict,
         *,
         plot_description: str = "",
+        status_check: dict | None = None,
     ) -> None:
         """Build the Experiment lambda for a single (scalar) config and store it."""
         import inspect
@@ -396,24 +437,25 @@ class Problem:
 
         # Params is the **introspection manifest** — short and metadata-only.
         # The full config lives in the lambda's closure; we only surface what
-        # status/docs actually read (the plot blurb).
-        self.experiments[key] = Experiment(
-            fn=fn,
-            params={"plot_description": plot_description},
-        )
+        # status/docs actually read (plot blurb + per-experiment thresholds).
+        params: dict = {"plot_description": plot_description}
+        if status_check:
+            params["status_check"] = dict(status_check)
+        self.experiments[key] = Experiment(fn=fn, params=params)
 
-    def add_ic(
+    def _register_ic(
         self,
         ic_name: str,
         plot_params: dict,
         *,
         plot: Callable | None = None,
     ) -> None:
-        """Register an ``ics/<ic_name>`` entry.
+        """Register an ``ics/<ic_name>`` entry. Called from :meth:`__post_init__`.
 
         ``plot_params`` is the kwarg bag handed to the IC generator (e.g.
-        ``{"N": 64, "U": 1.0}``). It is captured into the Experiment closure
-        AND stored on ``Experiment.params`` for introspection.
+        ``{"N": 64, "U": 1.0}``) — sourced from the entry's
+        :class:`IcSpec.plot_params`. Captured into the Experiment closure AND
+        stored on ``Experiment.params`` for introspection.
         """
         from mosaic.benchmarks.problems.shared.ics import run_ic
 
@@ -436,6 +478,18 @@ class Problem:
     def add_extra_plot(self, key: str, plot: Callable) -> None:
         """Register a ``_extra/<suite>/<name>`` plot not tied to an experiment."""
         self.plot_fns[key] = plot
+
+    def exclude(self, key: str, exclusions: dict[str, Exclusion]) -> None:
+        """Attach exclusions at ``key`` without registering an experiment.
+
+        Use for suite-level entries (e.g. ``key="gradient"`` to block a
+        solver from every ``gradient/*`` experiment) or per-IC sub-keys
+        (e.g. ``key="forward/agreement/tgv"`` to block a single IC variant
+        of a multi-IC ``.add(runs=[...])`` call). Per-experiment exclusions
+        should use :meth:`add` ``exclusions=`` kwarg instead.
+        """
+        for solver_name, excl in exclusions.items():
+            self.exclusions.setdefault(solver_name, {})[key] = excl
 
     def _register_plot(
         self,
@@ -519,7 +573,7 @@ class Problem:
         if not self.tesseract_dir.is_dir():
             errors.append(f"tesseract_dir does not exist: {self.tesseract_dir}")
 
-        valid_ad = {"autodiff", "adjoint", "hybrid", None}
+        valid_ad: set[AdStrategy | None] = {*AdStrategy, None}
         for spec in self.solvers:
             if spec.ad_strategy not in valid_ad:
                 errors.append(
@@ -603,15 +657,9 @@ class SolverSpec:
     differentiable: bool | None = None
     # Explicit VJP flag from YAML; None falls back to runtime detection via
     # ``has_vjp`` (probes the container for a vector_jacobian_product endpoint).
-    ad_strategy: str | None = None
-    # How gradients are computed.  One of:
-    #   "autodiff"  — native reverse-mode AD traces through the forward pass
-    #                 (jax.vjp, torch.autograd, Zygote, wp.Tape)
-    #   "adjoint"   — explicitly formulated adjoint equations
-    #                 (dolfin-adjoint, pyadjoint, analytic self-adjoint SIMP sensitivity)
-    #   "hybrid"    — analytic gradient rules combined with autodiff
-    #                 (implicit-function theorem, custom VJP rules that call autodiff internally)
-    #   None        — non-differentiable (no gradient support)
+    ad_strategy: AdStrategy | None = None
+    # How gradients are computed. See :class:`AdStrategy` for the taxonomy.
+    # ``None`` is the non-differentiable sentinel (no gradient support).
     internal_dtype: str = "float32"
     # Floating-point precision used internally by the solver. One of "float32"
     # or "float64". Solvers that compute in float64 but return float32 outputs
@@ -620,6 +668,16 @@ class SolverSpec:
     # NB: per-solver exclusions and explained-anomalies live on
     # :attr:`Problem.exclusions` — a problem-level dict keyed by solver
     # name. SolverSpec is solver-identity data only.
+
+    def __post_init__(self) -> None:
+        # Coerce raw strings from YAML / test fixtures into the AdStrategy enum.
+        # ``AdStrategy(str, Enum)`` means the resulting member still compares
+        # equal to its string form, so existing string equality checks keep
+        # working.
+        if isinstance(self.ad_strategy, str) and not isinstance(
+            self.ad_strategy, AdStrategy
+        ):
+            self.ad_strategy = AdStrategy(self.ad_strategy)
 
 
 def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:

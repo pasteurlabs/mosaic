@@ -188,8 +188,8 @@ def test_scaffold_produces_loadable_config(tmp_path):
     sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
 
-    assert hasattr(mod, "CONFIG"), "Generated module must define CONFIG"
-    cfg = mod.CONFIG
+    assert hasattr(mod, "problem"), "Generated module must define problem"
+    cfg = mod.problem
 
     assert isinstance(cfg, Problem)
     assert cfg.name == "test-domain"
