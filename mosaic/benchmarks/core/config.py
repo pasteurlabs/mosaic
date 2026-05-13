@@ -281,7 +281,6 @@ class Problem:
         plot_description: str = "",
         reduce: Callable | None = None,
         status_check: list | None = None,
-        exclusions: dict[str, Exclusion] | None = None,
         **config,
     ) -> None:
         """Register an experiment at ``key`` with optional sweep + plot + reduce.
@@ -312,19 +311,10 @@ class Problem:
         defaults from :attr:`status_checks` when the status pipeline
         classifies a result.
 
-        ``exclusions`` (optional) is a ``{solver_name: Exclusion}`` dict.
-        Each entry is pushed into :attr:`exclusions` at this experiment's
-        key, so :func:`exclusion_lookup` finds it via the same longest-prefix
-        match it uses for suite-level entries.
+        Per-experiment exclusions are attached via :meth:`exclude` — call
+        ``problem.exclude(key, {solver_name: Exclusion, ...})`` immediately
+        after this method to register them at the same key.
         """
-        # Push per-experiment exclusions into the problem-level registry, keyed
-        # by the parent path. ``exclusion_lookup`` already does longest-prefix
-        # matching against ``cfg.exclusions[solver]``, so this single push
-        # covers every sub-key the runner produces.
-        if exclusions:
-            for solver_name, excl in exclusions.items():
-                self.exclusions.setdefault(solver_name, {})[key] = excl
-
         # Shorthand: ``run=dict`` wraps into ``runs=[dict]`` and list-valued
         # fields in the run get auto-converted into the runner's sweep dict
         # form (``sweep={"key": k, "values": [...]}`` + scalar override).
@@ -709,13 +699,21 @@ class Problem:
         self.plot_fns[key] = plot
 
     def exclude(self, key: str, exclusions: dict[str, Exclusion]) -> None:
-        """Attach exclusions at ``key`` without registering an experiment.
+        """Attach exclusions at ``key``.
 
-        Use for suite-level entries (e.g. ``key="gradient"`` to block a
-        solver from every ``gradient/*`` experiment) or per-IC sub-keys
-        (e.g. ``key="forward/agreement/tgv"`` to block a single IC variant
-        of a multi-IC ``.add_experiment(runs=[...])`` call). Per-experiment exclusions
-        should use :meth:`add_experiment` ``exclusions=`` kwarg instead.
+        This is the single entry point for registering exclusions. Use for:
+
+        * Suite-level entries (e.g. ``key="gradient"`` to block a solver from
+          every ``gradient/*`` experiment).
+        * Per-experiment entries (call this immediately after the matching
+          :meth:`add_experiment` with the same key).
+        * Per-IC sub-keys (e.g. ``key="forward/agreement/tgv"`` to block a
+          single IC variant of a multi-IC
+          ``.add_experiment(runs=[...])`` call).
+
+        :func:`exclusion_lookup` does longest-prefix matching against
+        :attr:`exclusions`, so a single entry covers every sub-key the
+        runner produces below it.
         """
         for solver_name, excl in exclusions.items():
             self.exclusions.setdefault(solver_name, {})[key] = excl

@@ -233,7 +233,10 @@ problem.add_experiment(
         "lbm_N_base": 64,
     },
     plot=plot_agreement,
-    exclusions={
+)
+problem.exclude(
+    "forward/baseline",
+    {
         "jax_cfd": _STAGGERED_MAC_BIAS,
         "ins_jl": _STAGGERED_MAC_BIAS,
         "xlb": _XLB_MA_FLOOR,
@@ -285,8 +288,8 @@ problem.add_experiment(
     },
     reference={"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
     plot=plot_agreement,
-    exclusions={"xlb": _XLB_DX2_FLOOR},
 )
+problem.exclude("forward/tgv_nu_sweep", {"xlb": _XLB_DX2_FLOOR})
 problem.add_experiment(
     "forward/physical_laws",
     run_physical_laws,
@@ -334,7 +337,10 @@ problem.add_experiment(
     },
     plot=plot_agreement,
     status_check=[median_k(50.0), max_error(0.5)],
-    exclusions={
+)
+problem.exclude(
+    "forward/cylinder",
+    {
         "jax_cfd": _JAX_CFD_NO_OBSTACLE,
         "ins_jl": _INS_JL_NO_OBSTACLE,
         "warp_ns": _WARP_NS_NO_OBSTACLE,
@@ -377,8 +383,8 @@ problem.add_experiment(
         "n_trials": 3,
     },
     plot=plot_cost,
-    exclusions={"openfoam": _OPENFOAM_NO_VJP},
 )
+problem.exclude("cost/vjp_cost", {"openfoam": _OPENFOAM_NO_VJP})
 
 # Gradient
 # Suite-level exclusion: covers every gradient/* experiment below.
@@ -498,7 +504,10 @@ problem.add_experiment(
         "snap_interval": 20,
     },
     plot=plot_drag_opt,
-    exclusions={
+)
+problem.exclude(
+    "optimization/drag_opt",
+    {
         "jax_cfd": _JAX_CFD_NO_OBSTACLE,
         "ins_jl": _INS_JL_NO_OBSTACLE,
         "warp_ns": _WARP_NS_NO_OBSTACLE,
@@ -530,7 +539,10 @@ problem.add_experiment(
         "snap_interval": 5,
     },
     plot=plot_drag_opt,
-    exclusions={
+)
+problem.exclude(
+    "optimization/drag_opt_bfgs",
+    {
         "jax_cfd": _JAX_CFD_NO_OBSTACLE,
         "ins_jl": _INS_JL_NO_OBSTACLE,
         "warp_ns": _WARP_NS_NO_OBSTACLE,

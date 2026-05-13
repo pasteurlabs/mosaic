@@ -1030,15 +1030,19 @@ def _suite_filter(cfg: Problem, suite: str) -> set[str]:
     """Return the set of allowed experiment-head names for *suite*, or an
     empty set if no filter applies (every experiment is admitted).
 
-    Walks ``cfg.experiments`` and returns the short names (suite-prefix
-    stripped) of every entry that has a non-empty ``params`` payload —
-    "configured experiments." Entries without params are registered in the
-    suite catalog but not configured for this problem, so they're filtered
-    out of the status display.
+    Walks ``cfg.experiments`` and returns the *first* path segment after the
+    suite prefix for every entry that has a non-empty ``params`` payload —
+    "configured experiments." Auto-sweep fan-out registers keys like
+    ``forward/agreement/tgv``; we collapse those to ``agreement`` so the
+    caller's ``exp_label.split("/")[0]`` membership test matches.
+
+    Entries without params are registered in the suite catalog but not
+    configured for this problem, so they're filtered out of the status
+    display.
     """
     prefix = f"{suite}/"
     return {
-        k[len(prefix) :]
+        k[len(prefix) :].split("/", 1)[0]
         for k, exp in cfg.experiments.items()
         if k.startswith(prefix) and exp.params
     }

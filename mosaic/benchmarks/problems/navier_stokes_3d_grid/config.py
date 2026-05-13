@@ -267,16 +267,16 @@ problem.add_experiment(
     plot_description="Forward-pass wall-clock time vs number of integration steps for each solver.",
     **_COST_RUNS,
     plot=plot_cost,
-    exclusions={"phiflow": _PHIFLOW_3D_CUDA_OOM},
 )
+problem.exclude("cost/temporal_cost", {"phiflow": _PHIFLOW_3D_CUDA_OOM})
 problem.add_experiment(
     "cost/vjp_cost",
     run_vjp_cost,
     plot_description="VJP (gradient) wall-clock time vs grid resolution N for each differentiable solver.",
     **_COST_RUNS,
     plot=plot_cost,
-    exclusions={"openfoam": _OPENFOAM_NO_VJP},
 )
+problem.exclude("cost/vjp_cost", {"openfoam": _OPENFOAM_NO_VJP})
 
 # Gradient
 problem.exclude(

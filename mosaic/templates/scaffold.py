@@ -213,17 +213,17 @@ def scaffold_domain(
     n_default = tpl.physics_defaults.get("N", 8)
 
     (pkg_dir / "ics.py").write_text(
-        f'"""Initial-condition generators and the ``MAKE_IC`` registry."""\n\n'
+        f'"""Initial-condition generators.\n\n'
+        f"Each generator has signature ``(L: float, seed: int, **physics) -> array``.\n"
+        f"Register them on the problem via ``problem.add_ic(name, fn, ...)`` in\n"
+        f"``config.py`` — there is no module-level IC dict.\n"
+        f'"""\n\n'
         f"from __future__ import annotations\n\n"
-        f"import numpy as np\n\n"
-        f"from mosaic.benchmarks.core.config import IcSpec\n\n\n"
-        f"def _default_ic(seed: int = 0, **physics) -> np.ndarray:\n"
+        f"import numpy as np\n\n\n"
+        f"def _default_ic(L: float = 1.0, seed: int = 0, **physics) -> np.ndarray:\n"
         f'    """Generate an initial condition. TODO: implement."""\n'
         f"    N = physics.get('N', {n_default})\n"
-        f"    return np.zeros(N, dtype=np.float32)\n\n\n"
-        f"MAKE_IC: dict[str, IcSpec] = {{\n"
-        f'    "default": IcSpec(fn=_default_ic, description="TODO", plot_params={{}}),\n'
-        f"}}\n"
+        f"    return np.zeros(N, dtype=np.float32)\n"
     )
 
     (pkg_dir / "physics.py").write_text(
@@ -254,10 +254,7 @@ def scaffold_domain(
         f'    """Populate ``problem.experiments`` / ``problem.plot_fns``."""\n'
         f"    # TODO: register experiments with problem.add_experiment(...).\n"
         f"    #   from mosaic.benchmarks.problems.shared.forward import run_agreement\n"
-        f'    #   problem.add_experiment("forward/baseline", run_agreement, runs=[{{...}}])\n\n'
-        f"    # TODO: register IC visualisations:\n"
-        f"    #   for ic_name, ic_spec in problem.make_ic.items():\n"
-        f"    #       problem.add_ic(ic_name, ic_spec.plot_params)\n"
+        f'    #   problem.add_experiment("forward/baseline", run_agreement, ic={{...}}, physics={{...}})\n'
     )
 
     init_path = pkg_dir / "__init__.py"
@@ -271,9 +268,10 @@ def scaffold_domain(
         f"from __future__ import annotations\n\n"
         f"from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers\n"
         f"from mosaic.benchmarks.core.utils import l2_error_rel\n"
+        f"from mosaic.benchmarks.problems.shared.plots.ics import plot_ic\n"
         f"from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles\n\n"
         f"from .experiments import register as _register_experiments\n"
-        f"from .ics import MAKE_IC\n"
+        f"from .ics import _default_ic\n"
         f"from .physics import DIAGNOSTICS, make_inputs\n\n"
         f'_TESSERACT_SLUG = "{domain_name}"\n\n\n'
         f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
@@ -285,7 +283,6 @@ def scaffold_domain(
         f'    name="{domain_name}",\n'
         f"    tesseract_dir=_TESSERACT_SLUG,\n"
         f"    solvers=list(_SOLVERS.values()),\n"
-        f"    make_ic=MAKE_IC,\n"
         f"    make_inputs=make_inputs,\n"
         f"    error_fn=l2_error_rel,\n"
         f'    output_key="{tpl.output_key}",\n'
@@ -293,6 +290,14 @@ def scaffold_domain(
         f"    domain_extent={tpl.domain_extent},\n"
         f'    resolution_key="{tpl.resolution_key}",\n'
         f'    description="{tpl.description.strip()}",\n'
+        f")\n\n"
+        f"# ── Initial conditions ─────────────────────────────────────────────\n"
+        f"problem.add_ic(\n"
+        f'    "default",\n'
+        f"    fn=_default_ic,\n"
+        f'    description="TODO: describe this initial condition.",\n'
+        f'    plot_params={{"N": {n_default}}},\n'
+        f"    plot=plot_ic,\n"
         f")\n\n"
         f"_register_experiments(problem)\n"
     )

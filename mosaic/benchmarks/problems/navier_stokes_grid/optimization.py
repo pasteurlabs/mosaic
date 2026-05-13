@@ -445,33 +445,52 @@ def _drag_opt_lbfgs_loop(
     return profile, profile_history, entry
 
 
-def _run_drag_opt_impl(
+def run_drag_opt(
     cfg: Problem,
     tags: dict[str, str],
-    exp_key: str,
-    harness_fn,
     *,
     make_ic,
     make_inputs,
+    error_fn,
+    output_key: str,
     domain_extent: float,
+    optimizer: str = "adam",
     runs=None,
-    _optim_loop=_drag_opt_adam_loop,
-    _supports_partial: bool = True,
+    exp_key: str = "drag_opt",
     **overrides,
 ) -> dict:
-    """Shared body for ``run_drag_opt`` and its L-BFGS variant.
+    """Inflow profile optimisation: minimise drag on an embedded obstacle.
 
-    ``_optim_loop`` selects the optimiser via the same contract used by
-    :func:`_run_topopt_impl`: it returns ``(profile, profile_history, entry)``
-    where ``entry`` is the fully-formed ``by_solver[name]`` dict.
+    Optimises the ``inflow_profile`` input field (1-D inlet velocity u_x(y)) to
+    minimise the scalar ``drag`` output. A flow-rate conservation penalty is
+    added to prevent the optimiser from trivially reducing drag by zeroing the
+    inflow: L = drag + flow_penalty_weight * (mean(profile) - U_mean)².
 
-    ``_supports_partial`` toggles the result_partial.json checkpointing the
-    Adam variant relies on for long PICT runs. The L-BFGS variant doesn't use
-    it, so the impl skips constructing the partial-write callback and lock.
+    ``optimizer`` selects the inner optimiser:
+
+      * ``"adam"`` — vanilla Adam (default). Supports partial-result
+        checkpointing (``result_partial.json``) which long PICT runs rely on
+        for restartability.
+      * ``"bfgs"`` — L-BFGS with zoom line-search. No partial checkpointing.
+
+    Problem-semantics state is passed explicitly. ``error_fn`` and
+    ``output_key`` are accepted for signature parity with the other public
+    harnesses but unused (drag is read from a fixed ``"drag"`` output and the
+    loss is built in-line from ``mean(profile)``).
+
+    Each run dict in ``runs`` must contain:
+        name: str               — used as result subdir when multiple runs present
+        ic: {name, seed}        — IC generator returning 1-D profile, shape (N,)
+        physics: {N, nu, dt, steps, domain_extent, U_mean, obstacle, ...}
+        optim: {lr, max_iters, patience, flow_penalty_weight}
     """
+    del error_fn, output_key  # unused by drag_opt; kept for parity
+    optim_loop = _drag_opt_lbfgs_loop if optimizer == "bfgs" else _drag_opt_adam_loop
+    supports_partial = optimizer != "bfgs"
+
     if not runs:
         raise NotImplementedError(
-            f"_run_drag_opt_impl requires runs= payload for {exp_key!r} "
+            f"run_drag_opt requires runs= payload for {exp_key!r} "
             f"(not configured for '{cfg.name}')"
         )
     n_runs = len(extract_runs(runs))
@@ -505,11 +524,12 @@ def _run_drag_opt_impl(
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
 
-        # Partial-checkpoint plumbing (Adam path only). Adam mutates ``by_solver``
-        # in-place inside its loop and calls ``write_partial`` periodically; the
-        # L-BFGS loop ignores both arguments via its signature.
+        # Partial-checkpoint plumbing (Adam path only). Adam mutates
+        # ``by_solver`` in-place inside its loop and calls ``write_partial``
+        # periodically; the L-BFGS loop ignores both arguments via its
+        # signature.
         write_partial = None
-        if _supports_partial:
+        if supports_partial:
             partial_out_dir = _drag_opt_out_dir(
                 cfg, ic_subdir, bool(overrides.get("debug")), exp_key
             )
@@ -539,7 +559,7 @@ def _run_drag_opt_impl(
             if vel0 is not None:
                 flow_init_snaps[name] = vel0
 
-            profile, profile_history, entry = _optim_loop(
+            profile, profile_history, entry = optim_loop(
                 name,
                 t,
                 profile_init,
@@ -595,8 +615,8 @@ def _run_drag_opt_impl(
             from mosaic.benchmarks.core.console import print_warn
 
             print_warn(
-                f"{harness_fn.__name__}: by_solver is empty (all solvers excluded or "
-                f"skipped) — skipping result.json save to preserve existing data"
+                "run_drag_opt: by_solver is empty (all solvers excluded or "
+                "skipped) — skipping result.json save to preserve existing data"
             )
             if n_runs > 1:
                 all_results[run_name] = result
@@ -607,7 +627,7 @@ def _run_drag_opt_impl(
             result,
             out_dir,
             cfg=cfg,
-            harness_fn=harness_fn,
+            harness_fn=run_drag_opt,
             wall_time_s=_wall_times,
         )
         _merge_drag_profiles_npz(
@@ -620,58 +640,3 @@ def _run_drag_opt_impl(
             all_results = result
 
     return all_results
-
-
-def run_drag_opt(
-    cfg: Problem,
-    tags: dict[str, str],
-    *,
-    make_ic,
-    make_inputs,
-    error_fn,
-    output_key: str,
-    domain_extent: float,
-    optimizer: str = "adam",
-    runs=None,
-    exp_key: str = "drag_opt",
-    **overrides,
-) -> dict:
-    """Inflow profile optimisation: minimise drag on an embedded obstacle.
-
-    Optimises the ``inflow_profile`` input field (1-D inlet velocity u_x(y)) to
-    minimise the scalar ``drag`` output. A flow-rate conservation penalty is
-    added to prevent the optimiser from trivially reducing drag by zeroing the
-    inflow: L = drag + flow_penalty_weight * (mean(profile) - U_mean)².
-
-    ``optimizer`` selects the inner optimiser:
-
-      * ``"adam"`` — vanilla Adam (default).
-      * ``"bfgs"`` — L-BFGS with zoom line-search.
-
-    Problem-semantics state is passed explicitly. ``error_fn`` and
-    ``output_key`` are accepted for signature parity with the other public
-    harnesses but unused (drag is read from a fixed ``"drag"`` output and the
-    loss is built in-line from ``mean(profile)``).
-
-    Each run dict in ``runs`` must contain:
-        name: str               — used as result subdir when multiple runs present
-        ic: {name, seed}        — IC generator returning 1-D profile, shape (N,)
-        physics: {N, nu, dt, steps, domain_extent, U_mean, obstacle, ...}
-        optim: {lr, max_iters, patience, flow_penalty_weight}
-    """
-    del error_fn, output_key  # unused by drag_opt; kept for parity
-    optim_loop = _drag_opt_lbfgs_loop if optimizer == "bfgs" else _drag_opt_adam_loop
-    supports_partial = optimizer != "bfgs"
-    return _run_drag_opt_impl(
-        cfg,
-        tags,
-        exp_key,
-        run_drag_opt,
-        runs=runs,
-        _optim_loop=optim_loop,
-        _supports_partial=supports_partial,
-        make_ic=make_ic,
-        make_inputs=make_inputs,
-        domain_extent=domain_extent,
-        **overrides,
-    )
