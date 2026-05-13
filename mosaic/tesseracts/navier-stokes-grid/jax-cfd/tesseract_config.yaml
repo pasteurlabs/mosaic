@@ -4,6 +4,7 @@ description: |
   Tesseract that runs a differentiable 3D Navier Stokes simulation on a 3D grid.
 
 build_config:
+  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu22.04"
   package_data: []
   custom_build_steps:
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"

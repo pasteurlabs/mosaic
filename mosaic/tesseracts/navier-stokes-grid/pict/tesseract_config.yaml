@@ -45,17 +45,25 @@ build_config:
   # import time, which fails in the GPU-less Docker build environment.
   # The assertion passes correctly at runtime when a GPU is present.
   skip_checks: true
-  # Use CUDA 12.1 devel image: nvcc available for PISOtorch CUDA extension.
+  # Use CUDA 12.1 runtime image + minimal dev packages (nvcc, headers) instead
+  # of the ~9.5 GB devel image — saves ~6 GB of disk during CI builds.
   # CUDA 12.1 requires driver >= 525.60; host has driver 535.274 → compatible.
   # torch==2.5.1+cu121 is pinned in requirements to avoid the cu128/cu130
   # mismatch that the unconstrained torch>=2.1.0 spec would select.
-  base_image: "nvidia/cuda:12.1.1-devel-ubuntu22.04"
+  base_image: "nvidia/cuda:12.1.1-runtime-ubuntu22.04"
   extra_packages:
     - ninja-build
     - git
     - build-essential
     - python3-dev
   custom_build_steps:
+    # Install only the CUDA compiler toolkit needed for building PISOtorch
+    # extensions — much smaller than the full devel image.
+    - |
+      RUN apt-get update && apt-get install -y --no-install-recommends \
+          cuda-nvcc-12-1 cuda-cudart-dev-12-1 libcublas-dev-12-1 \
+          libcusparse-dev-12-1 libcusolver-dev-12-1 \
+        && rm -rf /var/lib/apt/lists/*
     - "ENV CUDA_HOME=/usr/local/cuda"
     - "ENV PATH=/usr/local/cuda/bin:${PATH}"
     - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
@@ -64,6 +72,20 @@ build_config:
     - "RUN pip install setuptools wheel"
     - "RUN cd /opt/pict/extensions && python3 setup.py install"
     - "RUN echo '/opt/pict' > /python-env/lib/python3.10/site-packages/pict.pth"
+    # Remove nvidia pip packages (duplicates of base image CUDA libs, ~5 GB)
+    # and build-only CUDA dev packages, then purge pip cache.
+    - |
+      RUN pip uninstall -y \
+          nvidia-cublas-cu12 nvidia-cuda-cupti-cu12 nvidia-cuda-nvrtc-cu12 \
+          nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cufft-cu12 \
+          nvidia-curand-cu12 nvidia-cusolver-cu12 nvidia-cusparse-cu12 \
+          nvidia-nccl-cu12 nvidia-nvtx-cu12 nvidia-nvjitlink-cu12 \
+        2>/dev/null || true
+    - |
+      RUN apt-get remove -y cuda-nvcc-12-1 cuda-cudart-dev-12-1 \
+          libcublas-dev-12-1 libcusparse-dev-12-1 libcusolver-dev-12-1 \
+        && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
+        && pip cache purge 2>/dev/null || true
 
 metadata:
   mosaic:
