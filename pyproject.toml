@@ -21,7 +21,7 @@ dependencies = [
     "psutil",
     "pyyaml",
     "filelock>=3",
-    "pynvml",
+    "nvidia-ml-py",
     "docker>=6",
 ]
 

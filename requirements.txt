@@ -166,7 +166,7 @@ numpy==2.4.4 ; python_full_version >= '3.11'
     #   scipy
     #   tesseract-core
 nvidia-ml-py==13.595.45
-    # via pynvml
+    # via mosaic-bench
 opentelemetry-api==1.41.1
     # via
     #   mlflow-skinny
@@ -225,8 +225,6 @@ pydantic-core==2.46.3
     # via pydantic
 pygments==2.20.0
     # via rich
-pynvml==13.0.1
-    # via mosaic-bench
 pyparsing==3.3.2
     # via matplotlib
 python-dateutil==2.9.0.post0
