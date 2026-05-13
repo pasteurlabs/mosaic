@@ -553,6 +553,22 @@ def run_with_gpu_pool(
         )
     solver_names = [n for n in solver_names if n in tags]
 
+    def _open_tesseract(tag: str, gpus, docker_args):
+        """Pick the right loader for ``tag``.
+
+        Tags prefixed with ``inprocess:`` use
+        :meth:`Tesseract.from_tesseract_api` (no Docker, just imports a
+        ``tesseract_api.py``) — meant for end-to-end framework tests
+        with the dummy tesseracts in ``mosaic/tests/dummy_tesseracts/``.
+        Every other tag is a Docker image and goes through
+        :meth:`Tesseract.from_image`.
+        """
+        if tag.startswith("inprocess:"):
+            return Tesseract.from_tesseract_api(tag[len("inprocess:") :])
+        return Tesseract.from_image(
+            tag, gpus=gpus, docker_args=docker_args, num_workers=1
+        )
+
     if gpu_ids is None or gpu_ids == []:
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])
         # gpu_ids=[]    → --gpus none/cpu, CPU-only host (gpus=None, no GPU flags)
@@ -561,9 +577,7 @@ def run_with_gpu_pool(
             _tl.image_tag = tags[name]
             _tl.gpu_id = None  # all GPUs available
             try:
-                with Tesseract.from_image(
-                    tags[name], gpus=_gpus, docker_args=_NO_HC, num_workers=1
-                ) as t:
+                with _open_tesseract(tags[name], _gpus, _NO_HC) as t:
                     fn(name, t)
             except Exception as exc:
                 print_warn(f"{name} failed: {exc}")
@@ -580,9 +594,7 @@ def run_with_gpu_pool(
         try:
             _tl.image_tag = tags[name]
             _tl.gpu_id = gid
-            with Tesseract.from_image(
-                tags[name], gpus=[gid], docker_args=_NO_HC, num_workers=1
-            ) as t:
+            with _open_tesseract(tags[name], [gid], _NO_HC) as t:
                 fn(name, t)
         except Exception as exc:
             print_warn(f"{name} failed: {exc}")
