@@ -216,7 +216,7 @@ The problem package tells the harness how to generate inputs, compare outputs, a
 | `__init__.py` | Solver discovery, the canonical `Problem` instance (published as `CONFIG`), per-solver overrides, and the call to `_register_experiments(CONFIG)`. |
 | `ics.py` | IC generator functions and the `MAKE_IC: dict[str, IcSpec]` registry. |
 | `physics.py` | `build_make_inputs(solvers)` factory, mesh / BC builders, and the `DIAGNOSTICS` registry. |
-| `experiments.py` | `_DESCRIPTIONS` dict plus `register(problem)` which calls `problem.add(...)` once per experiment. |
+| `experiments.py` | `_DESCRIPTIONS` dict plus `register(problem)` which calls `problem.add_experiment(...)` once per experiment. |
 
 There is intentionally **no `config.py`** --- the canonical `Problem` instance lives directly in the package's `__init__.py`.
 
@@ -328,7 +328,7 @@ DIAGNOSTICS: dict = {}
 
 ### 5c. Fill in `experiments.py`
 
-This is where each experiment is registered onto the `Problem` instance. Each call is `problem.add(key, runner, runs=[...], plot=..., reduce=...)`; the runner is one of the shared functions from `mosaic.benchmarks.problems.shared.*`. Plot descriptions are kept in a single `_DESCRIPTIONS` dict at the top so they don't clutter the registrations.
+This is where each experiment is registered onto the `Problem` instance. Each call is `problem.add_experiment(key, runner, runs=[...], plot=..., reduce=...)`; the runner is one of the shared functions from `mosaic.benchmarks.problems.shared.*`. Plot descriptions are kept in a single `_DESCRIPTIONS` dict at the top so they don't clutter the registrations.
 
 ```python
 """Experiment + plot registrations for diffusion-1d."""
@@ -390,7 +390,7 @@ def register(problem: Problem) -> None:
     problem.descriptions.update(_DESCRIPTIONS)
 
     # Forward
-    problem.add(
+    problem.add_experiment(
         "forward/baseline",
         run_agreement,
         runs=[
@@ -402,7 +402,7 @@ def register(problem: Problem) -> None:
         ],
         plot=plot_agreement,
     )
-    problem.add(
+    problem.add_experiment(
         "forward/agreement",
         run_agreement,
         runs=[
@@ -420,11 +420,11 @@ def register(problem: Problem) -> None:
     )
 
     # Cost
-    problem.add("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
-    problem.add("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost)
+    problem.add_experiment("cost/spatial_cost", run_spatial_cost, runs=_COST_RUNS, plot=plot_cost)
+    problem.add_experiment("cost/temporal_cost", run_temporal_cost, runs=_COST_RUNS, plot=plot_cost)
 
     # Gradient
-    problem.add(
+    problem.add_experiment(
         "gradient/fd_check",
         run_fd_check,
         runs=[
@@ -438,7 +438,7 @@ def register(problem: Problem) -> None:
     )
 
     # Optimization
-    problem.add(
+    problem.add_experiment(
         "optimization/ic_recovery",
         run_recovery,
         optimizer="adam",  # also "bfgs" / "bfgs_proj"
@@ -541,13 +541,13 @@ __all__ = ["CONFIG"]
 | `reference` | Optional callable for an analytic / fine-solver baseline (used by forward experiments). |
 | `diagnostics` | `dict[str, Callable]` of named diagnostic functionals (kinetic energy, divergence, …). |
 | `exclusions` | `dict[solver_name, dict[exp_key, Exclusion]]` — see existing problems for the most-specific-first match semantics. |
-| `experiments` | Filled in by `problem.add(...)` calls; maps `"suite/exp"` → `Experiment`. |
-| `plot_fns` | Filled in by `problem.add(..., plot=...)`; maps `"suite/exp"` → callable. |
+| `experiments` | Filled in by `problem.add_experiment(...)` calls; maps `"suite/exp"` → `Experiment`. |
+| `plot_fns` | Filled in by `problem.add_experiment(..., plot=...)`; maps `"suite/exp"` → callable. |
 | `descriptions` | Optional `dict[str, str]` plot-description fallback. The pattern is `problem.descriptions.update(_DESCRIPTIONS)` at the top of `register()`. |
 
-**Registering experiments.** `problem.add(key, runner, *, plot=..., reduce=..., **config)` records an entry at `key` (formatted `"suite/experiment"`). The runner is a shared function from `mosaic.benchmarks.problems.shared.*` (e.g. `run_agreement`, `run_fd_check`, `run_recovery`, `run_topopt`, …). Everything else in `**config` is passed through to the runner; the `runs=[...]` kwarg holds the per-experiment run-list payload.
+**Registering experiments.** `problem.add_experiment(key, runner, *, plot=..., reduce=..., **config)` records an entry at `key` (formatted `"suite/experiment"`). The runner is a shared function from `mosaic.benchmarks.problems.shared.*` (e.g. `run_agreement`, `run_fd_check`, `run_recovery`, `run_topopt`, …). Everything else in `**config` is passed through to the runner; the `runs=[...]` kwarg holds the per-experiment run-list payload.
 
-Any list-of-primitives that appears **inside a dict kwarg** is auto-detected as a sweep axis. `problem.add` then materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`, `forward/baseline/N_32`, …). The plot is registered once at the parent key.
+Any list-of-primitives that appears **inside a dict kwarg** is auto-detected as a sweep axis. `problem.add_experiment` then materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`, `forward/baseline/N_32`, …). The plot is registered once at the parent key.
 
 **Run-dict structure.** Each entry in `runs=[...]` is a dict with a stable set of sub-keys:
 
@@ -556,7 +556,7 @@ Any list-of-primitives that appears **inside a dict kwarg** is auto-detected as 
 - `sweep` --- `{"key": "N", "values": [...]}` for sweep-driven runners.
 - `reference` --- either a **callable** (analytic) or a `{"solvers": {...}, "dt": ..., "steps": ...}` dict (fine-solver baseline). The runner dispatches by type.
 - `fd` --- finite-difference settings (gradient suite).
-- `optim` --- optimizer settings (optimization suite). Optimizer flavour is selected via the `optimizer=` kwarg on `problem.add(...)` (`"adam"` (default), `"bfgs"`, or `"bfgs_proj"`).
+- `optim` --- optimizer settings (optimization suite). Optimizer flavour is selected via the `optimizer=` kwarg on `problem.add_experiment(...)` (`"adam"` (default), `"bfgs"`, or `"bfgs_proj"`).
 
 ## 6. Add a reference solver
 
@@ -791,7 +791,7 @@ The `mosaic new-domain` command scaffolds all three as stubs. From there, the wo
 
 1. Fill in the schemas (the contract).
 2. Fill in `ics.py` (the IC generators) and `physics.py` (the input factory + diagnostics).
-3. Fill in `experiments.py` (one `problem.add(...)` per experiment).
+3. Fill in `experiments.py` (one `problem.add_experiment(...)` per experiment).
 4. Wire the `Problem` instance together in `__init__.py`.
 5. Add a reference solver (the baseline).
 6. Validate with `mosaic validate-domain`.

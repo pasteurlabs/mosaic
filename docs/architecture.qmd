@@ -86,7 +86,7 @@ Each benchmark domain is configured by a `Problem` dataclass (also in `mosaic/be
 | `plot_fns` | `dict[str, PlotFn]` | Suite/experiment-key → registered plot closure |
 | `descriptions` | `dict[str, str]` | Short, plot-only descriptions keyed by experiment path |
 
-Each problem is a Python package at `mosaic/benchmarks/problems/<slug>/` containing four files: `__init__.py` (builds the canonical `CONFIG = Problem(...)`), `experiments.py` (exposes `register(problem)` which calls `problem.add(...)` per experiment), `ics.py`, and `physics.py`. The package re-exports `CONFIG`; the registry in `mosaic/benchmarks/problems/__init__.py` collects them all.
+Each problem is a Python package at `mosaic/benchmarks/problems/<slug>/` containing four files: `__init__.py` (builds the canonical `CONFIG = Problem(...)`), `experiments.py` (exposes `register(problem)` which calls `problem.add_experiment(...)` per experiment), `ics.py`, and `physics.py`. The package re-exports `CONFIG`; the registry in `mosaic/benchmarks/problems/__init__.py` collects them all.
 
 ## Evaluation protocol
 

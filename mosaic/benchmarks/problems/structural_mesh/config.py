@@ -10,7 +10,7 @@ The problem definition is split across three modules:
 - :mod:`.optimization` — SIMP topology-optimisation runner.
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add(...)`` calls with inline plot
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
 descriptions.
 """
 
@@ -144,7 +144,7 @@ problem.add_ic(
 # ── Experiment registrations ─────────────────────────────────────────────────
 
 # Forward
-problem.add(
+problem.add_experiment(
     "forward/baseline",
     run_agreement,
     plot_description="Structural compliance C = F^T U vs mesh resolution N for each solver, uniform density ρ₀=0.5, full-face downward load.",
@@ -161,7 +161,7 @@ problem.add(
     },
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/agreement",
     run_agreement,
     plot_description="Structural compliance C = F^T U vs density ρ₀ at fixed mesh, sweeping uniform density to span the SIMP stiffness regime.",
@@ -179,7 +179,7 @@ problem.add(
     },
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/physical_laws",
     run_physical_laws,
     plot_description="Diagnostic functionals (compliance, total displacement) vs total load F_total, validating linearity of the SIMP response.",
@@ -200,7 +200,7 @@ problem.add(
 )
 
 # Cost
-problem.add(
+problem.add_experiment(
     "cost/spatial_cost",
     run_spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh resolution N at one assembly step.",
@@ -219,7 +219,7 @@ problem.add(
     },
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/temporal_cost",
     run_temporal_cost,
     plot_description="Forward-pass wall-clock time vs solve count at fixed mesh (single-step assembly is the dominant cost — temporal axis collapses to one point).",
@@ -238,7 +238,7 @@ problem.add(
     },
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/vjp_cost",
     run_vjp_cost,
     plot_description="VJP wall-clock time vs mesh resolution N for differentiable solvers.",
@@ -259,7 +259,7 @@ problem.add(
 )
 
 # Gradient
-problem.add(
+problem.add_experiment(
     "gradient/fd_check",
     run_fd_check,
     plot_description="U-curves of finite-difference gradient error vs perturbation size ε with subspace cosine, validating VJP correctness on a random density.",
@@ -290,7 +290,7 @@ problem.add(
     },
     plot=plot_fd_check,
 )
-problem.add(
+problem.add_experiment(
     "gradient/param_sweep",
     run_param_sweep,
     plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs uniform density ρ₀.",
@@ -312,7 +312,7 @@ problem.add(
     },
     plot=plot_param_sweep,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd",
     run_jacobian_svd,
     plot_description="Singular-value spectrum of the stacked per-solver gradient matrix and pairwise cosine similarity between solver gradient directions.",
@@ -332,7 +332,7 @@ problem.add(
 )
 
 # Optimization
-problem.add(
+problem.add_experiment(
     "optimization/topopt",
     run_topopt,
     plot_description="SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.",
@@ -355,7 +355,7 @@ problem.add(
     optim={"lr": 5e-2, "max_iters": 2500, "patience": 100},
     plot=plot_topopt,
 )
-problem.add(
+problem.add_experiment(
     "optimization/topopt_bfgs",
     run_topopt,
     optimizer="bfgs",

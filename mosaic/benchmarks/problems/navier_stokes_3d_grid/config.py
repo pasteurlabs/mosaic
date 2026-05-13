@@ -11,7 +11,7 @@ The problem definition is split across three modules:
 - :mod:`.optimization` — IC-recovery runner.
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add(...)`` calls with inline plot
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
 descriptions, status checks, and per-experiment exclusions.
 """
 
@@ -187,7 +187,7 @@ problem.add_ic(
 # ── Experiment registrations ─────────────────────────────────────────────────
 
 # Forward
-problem.add(
+problem.add_experiment(
     "forward/baseline",
     run_agreement,
     plot_description="Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across 3D solvers.",
@@ -195,7 +195,7 @@ problem.add(
     physics={"N": [8, 16, 32], "nu": 0.05, "dt": 0.01, "steps": 1},
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/agreement",
     run_agreement,
     plot_description="3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a fine-grid consensus reference.",
@@ -207,17 +207,10 @@ problem.add(
         "steps": 50,
         "lbm_N_base": 16,
     },
-    # ins_jl excluded from the fine-grid reference set: the ins_jl
-    # tesseract container crashes (ContainerDied) when running the
-    # fine-grid reference (steps=250, dt=0.002) on a 16³ grid —
-    # Julia OOM or resource exhaustion mid-computation. Short runs
-    # (steps≤50) work fine; 3D is fully supported. Using only
-    # exponax as the fine-grid reference avoids the crash and
-    # provides a reliable single-solver consensus anchor.
     reference={"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/physical_laws",
     run_physical_laws,
     plot_description="Divergence RMS and kinetic energy vs grid resolution N, step count, and viscosity ν for each solver; diagnoses incompressibility and energy decay in 3D.",
@@ -261,14 +254,14 @@ problem.add(
 )
 
 # Cost
-problem.add(
+problem.add_experiment(
     "cost/spatial_cost",
     run_spatial_cost,
     plot_description="Forward-pass wall-clock time vs grid resolution N for each solver.",
     **_COST_RUNS,
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/temporal_cost",
     run_temporal_cost,
     plot_description="Forward-pass wall-clock time vs number of integration steps for each solver.",
@@ -276,7 +269,7 @@ problem.add(
     plot=plot_cost,
     exclusions={"phiflow": _PHIFLOW_3D_CUDA_OOM},
 )
-problem.add(
+problem.add_experiment(
     "cost/vjp_cost",
     run_vjp_cost,
     plot_description="VJP (gradient) wall-clock time vs grid resolution N for each differentiable solver.",
@@ -296,7 +289,7 @@ problem.exclude(
         )
     },
 )
-problem.add(
+problem.add_experiment(
     "gradient/fd_check",
     run_fd_check,
     plot_description="Finite-difference gradient error U-curves and direction cosine vs perturbation ε for each solver on the 3D Taylor-Green vortex IC.",
@@ -318,7 +311,7 @@ problem.add(
         rel_err_peer_outlier(50.0),
     ],
 )
-problem.add(
+problem.add_experiment(
     "gradient/horizon_sweep",
     run_horizon_sweep,
     plot_description="Gradient norm, finite-difference error, and direction cosine vs rollout horizon T = steps × dt for each solver on the 3D TGV.",
@@ -327,7 +320,7 @@ problem.add(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
     plot=plot_horizon_sweep,
 )
-problem.add(
+problem.add_experiment(
     "gradient/horizon_sweep_limits",
     run_horizon_sweep_limits,
     plot_description="Per-solver rollout-limit table reporting step count at first failure, failure type, and wall time per successful step.",
@@ -340,7 +333,7 @@ problem.add(
     },
     plot=plot_horizon_sweep,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd",
     run_jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian for the 3D TGV IC.",
@@ -349,7 +342,7 @@ problem.add(
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
     plot=plot_jacobian_svd,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd_steps20",
     run_jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at an extended rollout horizon (steps=20).",
@@ -358,7 +351,7 @@ problem.add(
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
     plot=plot_jacobian_svd,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd_steps40",
     run_jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at a long rollout horizon (steps=40).",
@@ -367,7 +360,7 @@ problem.add(
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
     plot=plot_jacobian_svd,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd_nu01",
     run_jacobian_svd,
     plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at higher viscosity (ν=0.01).",
@@ -387,7 +380,7 @@ problem.exclude(
         )
     },
 )
-problem.add(
+problem.add_experiment(
     "optimization/recovery_constant_ic",
     run_recovery,
     optimizer="adam",
@@ -406,7 +399,7 @@ problem.add(
     },
     plot=plot_recovery,
 )
-problem.add(
+problem.add_experiment(
     "optimization/recovery_constant_ic_bfgs",
     run_recovery,
     optimizer="bfgs",
@@ -424,7 +417,7 @@ problem.add(
     },
     plot=plot_recovery,
 )
-problem.add(
+problem.add_experiment(
     "optimization/recovery_constant_ic_bfgs_proj",
     run_recovery,
     optimizer="bfgs_proj",

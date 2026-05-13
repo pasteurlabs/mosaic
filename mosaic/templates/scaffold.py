@@ -252,9 +252,9 @@ def scaffold_domain(
         f"    from mosaic.benchmarks.core.config import Problem\n\n\n"
         f"def register(problem: Problem) -> None:\n"
         f'    """Populate ``problem.experiments`` / ``problem.plot_fns``."""\n'
-        f"    # TODO: register experiments with problem.add(...).\n"
+        f"    # TODO: register experiments with problem.add_experiment(...).\n"
         f"    #   from mosaic.benchmarks.problems.shared.forward import run_agreement\n"
-        f'    #   problem.add("forward/baseline", run_agreement, runs=[{{...}}])\n\n'
+        f'    #   problem.add_experiment("forward/baseline", run_agreement, runs=[{{...}}])\n\n'
         f"    # TODO: register IC visualisations:\n"
         f"    #   for ic_name, ic_spec in problem.make_ic.items():\n"
         f"    #       problem.add_ic(ic_name, ic_spec.plot_params)\n"

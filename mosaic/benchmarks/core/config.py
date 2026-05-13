@@ -173,7 +173,7 @@ class Problem:
     # TGV3D for ns-3d-grid), not the experiment.
     reference: Callable | None = None
 
-    # ── Registries (filled by .add / .add_ic / .add_extra_plot) ─────────
+    # ── Registries (filled by .add_experiment / .add_ic / .add_extra_plot) ─────────
     experiments: dict[str, Experiment] = field(default_factory=dict)
     plot_fns: dict[str, PlotFn] = field(default_factory=dict)
 
@@ -272,7 +272,7 @@ class Problem:
             "reference": self.reference,
         }
 
-    def add(
+    def add_experiment(
         self,
         key: str,
         runner: Callable,
@@ -330,25 +330,20 @@ class Problem:
         # form (``sweep={"key": k, "values": [...]}`` + scalar override).
         config = self._normalize_run_shorthand(config)
 
-        sweep_axes = self._collect_sweep_axes(config)
-
-        if not sweep_axes:
-            # No sweep — a single leaf experiment at ``key``.
-            self._register_one_experiment(
-                key,
-                runner,
-                config,
-                plot_description=plot_description,
-                status_check=status_check,
-            )
-            sub_keys = [key]
-        else:
-            n_subs = self._validate_axes(sweep_axes)
+        # Variant fan-out: when ``runs=[...]`` (from explicit kwarg or
+        # shorthand list-of-dicts expansion) has >1 element, register
+        # each variant as its own sub-experiment at ``<key>/<variant_name>``.
+        # The runner is called with ``runs=[single_variant]`` so n_runs==1
+        # always — subdir naming lives here at the sweep layer, not in
+        # each runner.
+        runs = config.get("runs")
+        if isinstance(runs, list) and len(runs) > 1:
             sub_keys = []
-            for i in range(n_subs):
-                sub_config, suffix = self._materialize_one(config, sweep_axes, i)
-                sub_key = f"{key}/{suffix}"
+            for variant in runs:
+                variant_name = self._derive_variant_name(variant, key)
+                sub_key = f"{key}/{variant_name}"
                 sub_keys.append(sub_key)
+                sub_config = {**config, "runs": [variant]}
                 self._register_one_experiment(
                     sub_key,
                     runner,
@@ -356,12 +351,62 @@ class Problem:
                     plot_description=plot_description,
                     status_check=status_check,
                 )
+        else:
+            sweep_axes = self._collect_sweep_axes(config)
+            if not sweep_axes:
+                # No sweep — a single leaf experiment at ``key``.
+                self._register_one_experiment(
+                    key,
+                    runner,
+                    config,
+                    plot_description=plot_description,
+                    status_check=status_check,
+                )
+                sub_keys = [key]
+            else:
+                n_subs = self._validate_axes(sweep_axes)
+                sub_keys = []
+                for i in range(n_subs):
+                    sub_config, suffix = self._materialize_one(config, sweep_axes, i)
+                    sub_key = f"{key}/{suffix}"
+                    sub_keys.append(sub_key)
+                    self._register_one_experiment(
+                        sub_key,
+                        runner,
+                        sub_config,
+                        plot_description=plot_description,
+                        status_check=status_check,
+                    )
 
         if plot is not None:
             self._register_plot(key, plot, sub_keys, reduce)
 
+    @staticmethod
+    def _derive_variant_name(variant: dict, parent_key: str) -> str:
+        """Pick a sub-experiment name for a variant.
+
+        Order: explicit ``variant["name"]`` → ``variant["ic"]["name"]`` →
+        error. This matches the de-facto convention previously scattered
+        across runners (``run_name = run.get("name", ic_name)``).
+        """
+        explicit = variant.get("name")
+        if explicit:
+            return str(explicit)
+        ic_name = (
+            variant.get("ic", {}).get("name")
+            if isinstance(variant.get("ic"), dict)
+            else None
+        )
+        if ic_name:
+            return str(ic_name)
+        raise ValueError(
+            f".add_experiment({parent_key!r}): multi-variant runs= without a "
+            f"derivable name (no 'name' field, no ic.name). Add a 'name' "
+            f"field to each variant."
+        )
+
     def _normalize_run_shorthand(self, config: dict) -> dict:
-        """Convert ``.add()`` shorthand into the canonical runner payload.
+        """Convert ``.add_experiment()`` shorthand into the canonical runner payload.
 
         Two accepted input forms (in order of precedence):
 
@@ -389,7 +434,7 @@ class Problem:
             runs = config["runs"]
             if not isinstance(runs, list):
                 raise TypeError(
-                    f".add(runs=...): expected a list, got {type(runs).__name__}"
+                    f".add_experiment(runs=...): expected a list, got {type(runs).__name__}"
                 )
         else:
             # Collect known run-payload keys into a synthetic single run.
@@ -425,7 +470,7 @@ class Problem:
                         f"{k}=len {len(run_dict[k])}" for k in fanout_keys
                     )
                     raise ValueError(
-                        f".add: fan-out fields have mismatched lengths "
+                        f".add_experiment: fan-out fields have mismatched lengths "
                         f"({sketch}); parallel-zip requires equal-length lists."
                     )
                 n = lengths.pop()
@@ -522,7 +567,7 @@ class Problem:
         if len(lengths) > 1:
             sketch = ", ".join(f"{'.'.join(p)}=len {len(v)}" for p, v in axes)
             raise ValueError(
-                f"Problem.add: sweep axes have mismatched lengths ({sketch}); "
+                f"Problem.add_experiment: sweep axes have mismatched lengths ({sketch}); "
                 f"parallel-zip requires equal-length lists. Found "
                 f"{sorted(lengths)}."
             )
@@ -669,8 +714,8 @@ class Problem:
         Use for suite-level entries (e.g. ``key="gradient"`` to block a
         solver from every ``gradient/*`` experiment) or per-IC sub-keys
         (e.g. ``key="forward/agreement/tgv"`` to block a single IC variant
-        of a multi-IC ``.add(runs=[...])`` call). Per-experiment exclusions
-        should use :meth:`add` ``exclusions=`` kwarg instead.
+        of a multi-IC ``.add_experiment(runs=[...])`` call). Per-experiment exclusions
+        should use :meth:`add_experiment` ``exclusions=`` kwarg instead.
         """
         for solver_name, excl in exclusions.items():
             self.exclusions.setdefault(solver_name, {})[key] = excl

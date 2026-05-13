@@ -11,7 +11,7 @@ The problem definition is split across three modules:
 - :mod:`.optimization` — drag-minimisation runner.
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add(...)`` calls with inline plot
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
 descriptions, status checks, and per-experiment exclusions.
 """
 
@@ -94,7 +94,7 @@ _SOLVERS["jax_cfd"].input_overrides = {
 # ── Reusable Exclusion constants ─────────────────────────────────────────────
 # Several exclusions share the same root cause across multiple experiments
 # (e.g. the staggered MAC double-interpolation bias hits both jax_cfd and
-# ins_jl on forward/baseline). Factoring them out keeps each ``.add()`` call
+# ins_jl on forward/baseline). Factoring them out keeps each ``.add_experiment()`` call
 # short while making the cross-references explicit.
 
 _STAGGERED_MAC_BIAS = Exclusion(
@@ -163,7 +163,7 @@ problem = Problem(
     domain_extent=2 * float(jnp.pi),
     status_checks={
         # Suite-level defaults — apply to every `<suite>/*` experiment unless
-        # overridden by an inline `status_check=` on the `.add()` call.
+        # overridden by an inline `status_check=` on the `.add_experiment()` call.
         "forward": [median_k(3.0), max_error(0.5)],
         "cost": [max_peer_k(20.0)],
         # Per-IC override (the `forward/agreement` parent run-list contains
@@ -220,7 +220,7 @@ problem.add_ic(
 # ── Experiment registrations ─────────────────────────────────────────────────
 
 # Forward
-problem.add(
+problem.add_experiment(
     "forward/baseline",
     run_agreement,
     plot_description="Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across solvers.",
@@ -239,7 +239,7 @@ problem.add(
         "xlb": _XLB_MA_FLOOR,
     },
 )
-problem.add(
+problem.add_experiment(
     "forward/agreement",
     run_agreement,
     plot_description="Relative error vs viscosity ν for each IC, with vorticity field snapshots compared against a fine-solver reference.",
@@ -272,7 +272,7 @@ problem.exclude(
         ),
     },
 )
-problem.add(
+problem.add_experiment(
     "forward/tgv_nu_sweep",
     run_agreement,
     plot_description="Relative error vs viscosity ν for each solver at a fixed TGV initial condition.",
@@ -287,7 +287,7 @@ problem.add(
     plot=plot_agreement,
     exclusions={"xlb": _XLB_DX2_FLOOR},
 )
-problem.add(
+problem.add_experiment(
     "forward/physical_laws",
     run_physical_laws,
     plot_description="Divergence RMS, kinetic energy, and analytic error vs N, steps, and ν for each solver.",
@@ -316,7 +316,7 @@ problem.add(
     ],
     plot=plot_physical_laws,
 )
-problem.add(
+problem.add_experiment(
     "forward/cylinder",
     run_agreement,
     plot_description="Vorticity snapshots and kinetic-energy evolution vs time for each solver across a sweep of viscosities.",
@@ -342,7 +342,7 @@ problem.add(
 )
 
 # Cost
-problem.add(
+problem.add_experiment(
     "cost/spatial_cost",
     run_spatial_cost,
     plot_description="Forward-pass wall-clock time vs grid resolution N at fixed step count for all solvers.",
@@ -354,7 +354,7 @@ problem.add(
     },
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/temporal_cost",
     run_temporal_cost,
     plot_description="Forward-pass wall-clock time vs step count at fixed N for all solvers.",
@@ -366,7 +366,7 @@ problem.add(
     },
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/vjp_cost",
     run_vjp_cost,
     plot_description="VJP wall-clock time vs N and step count for differentiable solvers.",
@@ -392,7 +392,7 @@ problem.exclude(
         ),
     },
 )
-problem.add(
+problem.add_experiment(
     "gradient/fd_check",
     run_fd_check,
     plot_description="U-curves of finite-difference gradient error vs perturbation size ε together with subspace cosine; validates VJP correctness.",
@@ -406,7 +406,7 @@ problem.add(
         rel_err_peer_outlier(50.0),
     ],
 )
-problem.add(
+problem.add_experiment(
     "gradient/param_sweep",
     run_param_sweep,
     plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
@@ -415,7 +415,7 @@ problem.add(
     fd={"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 15},
     plot=plot_param_sweep,
 )
-problem.add(
+problem.add_experiment(
     "gradient/horizon_sweep",
     run_horizon_sweep,
     plot_description="Gradient norm, FD error, and direction cosine vs rollout horizon T = steps*dt.",
@@ -424,40 +424,36 @@ problem.add(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
     plot=plot_horizon_sweep,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd",
     run_jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
-    jacobian={},
     plot=plot_jacobian_svd,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd_steps20",
     run_jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at an extended rollout horizon.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
-    jacobian={},
     plot=plot_jacobian_svd,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd_steps40",
     run_jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at a long rollout horizon.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
-    jacobian={},
     plot=plot_jacobian_svd,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd_nu01",
     run_jacobian_svd,
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at higher viscosity.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
-    jacobian={},
     plot=plot_jacobian_svd,
 )
 
@@ -472,7 +468,7 @@ problem.exclude(
         ),
     },
 )
-problem.add(
+problem.add_experiment(
     "optimization/drag_opt",
     run_drag_opt,
     plot_description="Drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
@@ -508,7 +504,7 @@ problem.add(
         "warp_ns": _WARP_NS_NO_OBSTACLE,
     },
 )
-problem.add(
+problem.add_experiment(
     "optimization/drag_opt_bfgs",
     run_drag_opt,
     optimizer="bfgs",

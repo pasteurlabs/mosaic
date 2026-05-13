@@ -146,7 +146,7 @@ def _lookup_check(cfg: Problem, suite: str, experiment: str) -> list:
          ``cfg.status_checks[<suite>/<leading>]`` — per-experiment / per-IC
          overrides from the Problem-level dict
       3. ``cfg.experiments[full].params["status_check"]`` — inline overrides
-         set on the ``.add(..., status_check=[...])`` call
+         set on the ``.add_experiment(..., status_check=[...])`` call
 
     Each source may be either a list of callables (canonical) or a legacy
     threshold dict; both are normalized via :func:`status_checks.normalize`.

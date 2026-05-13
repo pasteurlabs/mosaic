@@ -16,7 +16,7 @@ Why functions and not a dict-of-thresholds: extensibility. Adding a new
 threshold to the dict-form required editing both every problem config
 *and* the classifier in :mod:`status` to teach it the new key. With
 function-form, a user adds a new check by writing it next to the
-``.add(status_check=[...])`` call — no core-code edits needed.
+``.add_experiment(status_check=[...])`` call — no core-code edits needed.
 """
 
 from __future__ import annotations

@@ -10,7 +10,7 @@ The problem definition is split across three modules:
 - :mod:`.optimization` — conductivity-recovery runner.
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add(...)`` calls with inline plot
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
 descriptions.
 """
 
@@ -180,7 +180,7 @@ problem.add_ic(
 # ── Experiment registrations ─────────────────────────────────────────────────
 
 # Forward
-problem.add(
+problem.add_experiment(
     "forward/baseline",
     run_agreement,
     plot_description="Thermal compliance C vs mesh resolution N with random density; compares FV and FEM solvers across refinements.",
@@ -195,7 +195,7 @@ problem.add(
     },
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/agreement",
     run_agreement,
     plot_description="Thermal compliance C vs uniform element density ρ₀ at fixed N; compares solvers on a log scale.",
@@ -212,7 +212,7 @@ problem.add(
     },
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/physical_laws",
     run_physical_laws,
     plot_description="Thermal compliance C vs total heat flux Q_total at fixed N and ρ₀ with a hot-spot BC; shown on log-log axes.",
@@ -230,7 +230,7 @@ problem.add(
     },
     plot=plot_physical_laws,
 )
-problem.add(
+problem.add_experiment(
     "forward/source_baseline",
     run_agreement,
     plot_description="Thermal compliance C vs mesh resolution N with a Gaussian source field; compares solvers across refinements.",
@@ -246,7 +246,7 @@ problem.add(
     },
     plot=plot_agreement,
 )
-problem.add(
+problem.add_experiment(
     "forward/source_linearity",
     run_agreement,
     plot_description="Thermal compliance C vs source amplitude at fixed mesh; compares solvers on log-log axes.",
@@ -266,7 +266,7 @@ problem.add(
 )
 
 # Cost
-problem.add(
+problem.add_experiment(
     "cost/spatial_cost",
     run_spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
@@ -283,7 +283,7 @@ problem.add(
     },
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/temporal_cost",
     run_temporal_cost,
     plot_description="Forward-pass wall-clock time vs time-axis size for all solvers.",
@@ -300,7 +300,7 @@ problem.add(
     },
     plot=plot_cost,
 )
-problem.add(
+problem.add_experiment(
     "cost/vjp_cost",
     run_vjp_cost,
     plot_description="VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
@@ -319,7 +319,7 @@ problem.add(
 )
 
 # Gradient
-problem.add(
+problem.add_experiment(
     "gradient/fd_check",
     run_fd_check,
     plot_description="FD gradient error vs step size ε (U-curves), AD/FD direction cosine, and gradient magnitude field panels.",
@@ -336,7 +336,7 @@ problem.add(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_fd_check,
 )
-problem.add(
+problem.add_experiment(
     "gradient/param_sweep",
     run_param_sweep,
     plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs element density ρ₀.",
@@ -354,7 +354,7 @@ problem.add(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_param_sweep,
 )
-problem.add(
+problem.add_experiment(
     "gradient/jacobian_svd",
     run_jacobian_svd,
     plot_description="Singular-value spectrum of stacked per-solver gradients and pairwise cosine similarity between solver gradient directions.",
@@ -375,7 +375,7 @@ problem.add(
 # Source-identification gradient experiments.
 # Use source as the differentiable input and identification_error as the
 # objective; per-run ``ic_key`` / ``output_key`` overrides the global defaults.
-problem.add(
+problem.add_experiment(
     "gradient/source_fd_check",
     run_fd_check,
     plot_description="FD gradient error vs ε, AD/FD direction cosine, and gradient field panels for d(identification_error)/d(source).",
@@ -396,7 +396,7 @@ problem.add(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_fd_check,
 )
-problem.add(
+problem.add_experiment(
     "gradient/source_width_sweep",
     run_param_sweep,
     plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs source width σ.",
@@ -421,7 +421,7 @@ problem.add(
 )
 
 # Optimization
-problem.add(
+problem.add_experiment(
     "optimization/conductivity_recovery",
     run_conductivity_recovery,
     plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using gradient descent.",
@@ -444,7 +444,7 @@ problem.add(
     optim={"lr": 1e-2, "max_iters": 2000, "patience": 200},
     plot=plot_conductivity_recovery,
 )
-problem.add(
+problem.add_experiment(
     "optimization/conductivity_recovery_bfgs",
     run_conductivity_recovery,
     optimizer="bfgs",
