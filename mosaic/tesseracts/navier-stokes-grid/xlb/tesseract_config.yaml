@@ -20,7 +20,7 @@ description: |
   Interface: v0 (nx, ny, 1, 2) or (nx, ny, nz, 3) → result same shape.
 
 build_config:
-  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu22.04"
+  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
   custom_build_steps:
     - 'ENV XLA_FLAGS="--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"'

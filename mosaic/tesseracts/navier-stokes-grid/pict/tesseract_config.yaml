@@ -63,6 +63,7 @@ build_config:
       RUN apt-get update && apt-get install -y --no-install-recommends \
           cuda-nvcc-12-1 cuda-cudart-dev-12-1 libcublas-dev-12-1 \
           libcusparse-dev-12-1 libcusolver-dev-12-1 \
+          libcudnn8 libcudnn8-dev \
         && rm -rf /var/lib/apt/lists/*
     - "ENV CUDA_HOME=/usr/local/cuda"
     - "ENV PATH=/usr/local/cuda/bin:${PATH}"
@@ -81,6 +82,7 @@ build_config:
     - |
       RUN apt-get remove -y cuda-nvcc-12-1 cuda-cudart-dev-12-1 \
           libcublas-dev-12-1 libcusparse-dev-12-1 libcusolver-dev-12-1 \
+          libcudnn8-dev \
         && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
         && pip cache purge 2>/dev/null || true
 
