@@ -64,7 +64,8 @@ build_config:
         && wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb \
         && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
         && apt-get update \
-        && apt-get install -y --no-install-recommends cuda-nvcc-12-3 cuda-cudart-dev-12-3 \
+        && apt-get install -y --no-install-recommends \
+           cuda-nvcc-12-3 cuda-cudart-dev-12-3 libcublas-dev-12-3 \
         && rm -rf /var/lib/apt/lists/*
     - "ENV CUDA_HOME=/usr/local/cuda"
     - "ENV PATH=/usr/local/cuda/bin:${PATH}"
