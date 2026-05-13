@@ -130,31 +130,42 @@ def compute_score(cells: list[Cell]) -> tuple[float | None, int]:
     return total / n, n
 
 
-def _lookup_check(cfg: Problem, suite: str, experiment: str) -> dict:
-    """Return the status_checks entry for (suite, experiment), merging suite
-    defaults with experiment-specific overrides. Later keys win.
+def _lookup_check(cfg: Problem, suite: str, experiment: str) -> list:
+    """Return the merged list of check callables for (suite, experiment).
 
-    Sources, in order of increasing precedence:
+    Sources are accumulated in order of increasing specificity; suite-level
+    defaults come first so per-experiment checks can override them by
+    short-circuiting (the classifier walks the list and stops on the first
+    ``anom``, so more-specific entries should appear *later* — placing them
+    at the tail ensures they're consulted last and thus have the final say
+    only when earlier checks pass).
+
+    Sources:
       1. ``cfg.status_checks[suite]`` — suite-level defaults
-      2. ``cfg.status_checks[full]`` / ``cfg.status_checks[leading]`` — legacy
-         per-experiment / per-IC overrides from the Problem-level dict
+      2. ``cfg.status_checks[<suite>/<experiment>]`` /
+         ``cfg.status_checks[<suite>/<leading>]`` — per-experiment / per-IC
+         overrides from the Problem-level dict
       3. ``cfg.experiments[full].params["status_check"]`` — inline overrides
-         set on the ``.add(..., status_check={...})`` call
+         set on the ``.add(..., status_check=[...])`` call
+
+    Each source may be either a list of callables (canonical) or a legacy
+    threshold dict; both are normalized via :func:`status_checks.normalize`.
     """
+    from .status_checks import normalize
+
     checks = cfg.status_checks
-    merged: dict = {}
-    merged.update(checks.get(suite, {}) or {})
+    merged: list = []
+    merged.extend(normalize(checks.get(suite)))
     # experiment labels may include an IC sub-dir (e.g. "agreement/tgv");
     # match both the full label and the leading token.
     for key in (f"{suite}/{experiment}", f"{suite}/{experiment.split('/', 1)[0]}"):
-        merged.update(checks.get(key, {}) or {})
+        merged.extend(normalize(checks.get(key)))
         exp = cfg.experiments.get(key)
         if exp is not None:
             inline = (
                 exp.params.get("status_check") if isinstance(exp.params, dict) else None
             )
-            if inline:
-                merged.update(inline)
+            merged.extend(normalize(inline))
     return merged
 
 
@@ -373,19 +384,17 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
 
 
 def _classify_from_by_param(
-    data: dict, solvers: list[str], checks: dict
+    data: dict, solvers: list[str], checks: list
 ) -> dict[str, Cell]:
     """Forward-suite layout: ``by_param[value][solver] = {error, valid}``.
 
-    Reads thresholds from *checks*:
-      - ``median_k``:  anomaly if error > median_k × median peer error on at
-                       least half of the valid sweep points
-      - ``max_error``: anomaly if error > max_error (absolute) on any point
-
-    If neither threshold is set, cells can only be OK/FAILED/NOT_RUN.
+    Walks the supplied ``checks`` list (callables built from
+    :mod:`.status_checks`) — first ``anom`` wins. Checks receive a
+    :class:`ForwardSummary` per solver. Cells are NOT_RUN if the solver
+    didn't report on any sweep point, FAILED if every point failed, OK
+    otherwise (unless a check fires).
     """
-    median_k = checks.get("median_k")
-    max_error = checks.get("max_error")
+    from .status_checks import ForwardSummary
 
     cells: dict[str, Cell] = {}
     by_param = data.get("by_param", {})
@@ -428,45 +437,38 @@ def _classify_from_by_param(
         if not per_solver_valid[solver]:
             cells[solver] = Cell(NOT_RUN)
             continue
-        any_valid = any(per_solver_valid[solver])
-        if not any_valid:
+        if not any(per_solver_valid[solver]):
             cells[solver] = Cell(
                 FAILED, per_solver_reason[solver] or "all sweep points failed"
             )
             continue
-        # Absolute-error check.
-        if max_error is not None:
-            bad_abs = [
-                (pval, err)
-                for pval, err in solver_errs_by_pval[solver].items()
-                if err > max_error
-            ]
-            if bad_abs:
-                worst = max(bad_abs, key=lambda t: t[1])
-                cells[solver] = Cell(
-                    ANOMALY,
-                    f"error {worst[1]:.3g} at sweep={worst[0]} > max_error={max_error}",
-                )
-                continue
-        # Peer-median check.
-        if median_k is not None:
-            bad_points: list[tuple[Any, float, float]] = []
-            for pval, err in solver_errs_by_pval[solver].items():
-                med = peer_medians.get(pval, 0.0)
-                if med > 0 and err > median_k * med:
-                    bad_points.append((pval, err, med))
-            n_valid = len(solver_errs_by_pval[solver])
-            if bad_points and len(bad_points) >= max(1, n_valid // 2):
-                worst = max(bad_points, key=lambda t: t[1] / max(t[2], 1e-300))
-                ratio = worst[1] / max(worst[2], 1e-300)
-                cells[solver] = Cell(
-                    ANOMALY,
-                    f"error {worst[1]:.3g} at sweep={worst[0]} is {ratio:.1f}× peer median "
-                    f"({len(bad_points)}/{n_valid} points)",
-                )
-                continue
-        cells[solver] = Cell(OK)
+        summary = ForwardSummary(
+            errs_by_pval=solver_errs_by_pval[solver],
+            peer_medians_by_pval=peer_medians,
+            n_valid_points=len(solver_errs_by_pval[solver]),
+        )
+        verdict = _run_checks(checks, summary)
+        cells[solver] = Cell(*verdict) if verdict else Cell(OK)
     return cells
+
+
+def _run_checks(checks: list, summary: Any) -> tuple[str, str] | None:
+    """Walk a check list against a summary; return first ``anom`` or ``None``.
+
+    Checks whose signature doesn't match the summary type (e.g. a gradient
+    check passed to a forward classifier) raise ``TypeError`` /
+    ``AttributeError`` when reading absent fields — we swallow those so a
+    suite-level check list can mix entries that apply to different suites
+    without crashing the classifier.
+    """
+    for check in checks:
+        try:
+            result = check(summary)
+        except (AttributeError, TypeError):
+            continue
+        if result and result[0] == ANOMALY:
+            return result
+    return None
 
 
 def _classify_from_by_N(data: dict, solvers: list[str], key: str) -> dict[str, Cell]:
@@ -527,15 +529,16 @@ def _median(values: list[float]) -> float:
     return vs[mid] if len(vs) % 2 else 0.5 * (vs[mid - 1] + vs[mid])
 
 
-def _refine_cost(data: dict, cells: dict[str, Cell], checks: dict) -> None:
-    """Anomaly check for cost-suite experiments (spatial_cost, temporal_cost, vjp_cost).
+def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
+    """Walk ``checks`` against per-solver :class:`CostSummary` instances.
 
-    Applies ``max_peer_k``: flags a solver as anomaly if its median wall-clock
-    time across all measured N/steps values exceeds ``max_peer_k × peer median``.
-    Requires at least 2 OK solvers to compute a meaningful peer comparison.
+    Solver-medians and peer-median are computed once across OK solvers (need
+    ≥2 to form a meaningful peer comparison), then each check function is
+    given a CostSummary per solver. First anomaly wins.
     """
-    max_peer_k = checks.get("max_peer_k")
-    if not max_peer_k:
+    from .status_checks import CostSummary
+
+    if not checks:
         return
     key = "by_N" if "by_N" in data else "by_steps" if "by_steps" in data else None
     if not key:
@@ -559,14 +562,13 @@ def _refine_cost(data: dict, cells: dict[str, Cell], checks: dict) -> None:
     if peer_median <= 0:
         return
     for solver, med in solver_medians.items():
-        if med > max_peer_k * peer_median:
-            cells[solver] = Cell(
-                ANOMALY,
-                f"median time {med:.1f}s is {med / peer_median:.0f}× peer median ({peer_median:.2f}s)",
-            )
+        summary = CostSummary(solver_median_time=med, peer_median_time=peer_median)
+        verdict = _run_checks(checks, summary)
+        if verdict:
+            cells[solver] = Cell(*verdict)
 
 
-def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: dict) -> None:
+def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
     """Anomaly checks for fd_check / source_fd_check.
 
     For each solver we compute ``best_rel`` = the minimum across ε of the
@@ -585,10 +587,9 @@ def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: dict) -> None:
 
     Absent keys skip that check.
     """
-    min_cosine = checks.get("min_cosine")
-    max_rel = checks.get("max_rel_err")
-    peer_k = checks.get("rel_err_peer_k")
-    if min_cosine is None and max_rel is None and peer_k is None:
+    from .status_checks import FdCheckSummary
+
+    if not checks:
         return
 
     by_solver = data.get("by_solver", {})
@@ -626,29 +627,14 @@ def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: dict) -> None:
     for solver, (best_cos, best_rel) in stats_per_solver.items():
         if solver not in cells or cells[solver].status != OK:
             continue
-        if min_cosine is not None and best_cos is not None and best_cos < min_cosine:
-            cells[solver] = Cell(
-                ANOMALY, f"best FD cosine {best_cos:.4f} < {min_cosine}"
-            )
-            continue
-        if max_rel is not None and best_rel is not None and best_rel > max_rel:
-            cells[solver] = Cell(
-                ANOMALY,
-                f"best-ε median FD rel_err {best_rel:.2e} > max_rel_err={max_rel:.0e}",
-            )
-            continue
-        if (
-            peer_k is not None
-            and peer_median is not None
-            and best_rel is not None
-            and peer_median > 0
-            and best_rel > peer_k * peer_median
-        ):
-            ratio = best_rel / peer_median
-            cells[solver] = Cell(
-                ANOMALY,
-                f"median FD rel_err {best_rel:.2e} is {ratio:.0f}× peer median ({peer_median:.2e})",
-            )
+        summary = FdCheckSummary(
+            best_cosine=best_cos,
+            best_rel_err=best_rel,
+            peer_rel_err_median=peer_median,
+        )
+        verdict = _run_checks(checks, summary)
+        if verdict:
+            cells[solver] = Cell(*verdict)
 
 
 def _is_sweep_key(k: Any) -> bool:
@@ -712,28 +698,6 @@ def _peer_finals_at(top: dict, sweep_k: str) -> dict[str, float]:
     return peer_finals
 
 
-def _apply_peer_final_loss(top: dict, cells: dict[str, Cell], peer_k: float) -> None:
-    """For each sweep value, flag any OK solver whose final_loss is more
-    than K× the minimum final_loss across all peers with finite results."""
-    for sweep_k in _collect_sweep_keys(top):
-        peer_finals = _peer_finals_at(top, sweep_k)
-        if len(peer_finals) < 2:
-            continue
-        best_final = min(peer_finals.values())
-        if best_final <= 0:
-            continue
-        for solver, fl in peer_finals.items():
-            if solver not in cells or cells[solver].status != OK:
-                continue
-            ratio = fl / best_final
-            if ratio > peer_k:
-                cells[solver] = Cell(
-                    ANOMALY,
-                    f"final_loss at sweep={sweep_k} is {ratio:.1f}× best peer"
-                    f" ({fl:.3g} vs {best_final:.3g}, threshold {peer_k}×)",
-                )
-
-
 def _worst_case_trajectory(entry: dict) -> list[float] | None:
     """Pick the worst-case (highest initial loss) trajectory from a
     numeric-sweep dict, or fall back to a direct trajectory lookup when the
@@ -761,45 +725,65 @@ def _worst_case_trajectory(entry: dict) -> list[float] | None:
     return series
 
 
-def _apply_max_final_ratio(top: dict, cells: dict[str, Cell], max_ratio: float) -> None:
-    """Flag OK solvers whose final/initial trajectory ratio exceeds *max_ratio*."""
-    for solver, entry in top.items():
-        if solver not in cells or cells[solver].status != OK:
-            continue
-        series = _worst_case_trajectory(entry) if isinstance(entry, dict) else None
-        if not series:
-            continue
-        initial = abs(series[0])
-        final = abs(series[-1])
-        if initial <= 0 or not math.isfinite(final):
-            continue
-        ratio = final / initial
-        if ratio > max_ratio:
-            cells[solver] = Cell(
-                ANOMALY, f"final/initial = {ratio:.2f} (> {max_ratio})"
-            )
+def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
+    """Walk ``checks`` against per-solver :class:`OptimizationSummary` instances.
 
+    Builds two metrics per solver: ``final_initial_ratio`` (from the
+    worst-case trajectory) and ``peer_final_loss_by_sweep`` (per-sweep
+    ratio to the best peer final loss). Then iterates each solver's check
+    list — first anomaly wins.
 
-def _refine_recovery(data: dict, cells: dict[str, Cell], checks: dict) -> None:
-    """Flag recovery solvers whose final_error / initial_error exceeds
-    ``max_final_ratio``. Walks both ``by_solver`` and ``by_sweep`` layouts.
-
-    Also supports ``peer_final_loss_k`` for numeric-sweep experiments: for
-    each sweep value, flag any OK solver whose final_loss is
-    more than K× the minimum final_loss across all solvers with finite results
-    at that value.  Both categorically-excluded and non-excluded solvers are
-    used as peers since their loss values represent valid self-consistent
-    optimizations.
+    Note that peer values include categorically-excluded solvers since
+    their loss values still represent self-consistent optimisations.
     """
+    from .status_checks import OptimizationSummary
+
+    if not checks:
+        return
     top = data.get("by_solver") or data.get("by_sweep") or {}
     if not isinstance(top, dict):
         return
-    peer_k = checks.get("peer_final_loss_k")
-    if peer_k is not None:
-        _apply_peer_final_loss(top, cells, peer_k)
-    max_ratio = checks.get("max_final_ratio")
-    if max_ratio is not None:
-        _apply_max_final_ratio(top, cells, max_ratio)
+
+    # Per-sweep peer-min final losses (used for peer_final_loss_k checks).
+    peer_min_by_sweep: dict[Any, float] = {}
+    sweep_keys = _collect_sweep_keys(top)
+    for sweep_k in sweep_keys:
+        peer_finals = _peer_finals_at(top, sweep_k)
+        if len(peer_finals) >= 2:
+            best = min(peer_finals.values())
+            if best > 0:
+                peer_min_by_sweep[sweep_k] = best
+
+    for solver in list(cells):
+        if cells[solver].status != OK:
+            continue
+        entry = top.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        # final_initial_ratio from the worst-case trajectory.
+        series = _worst_case_trajectory(entry)
+        ratio: float | None = None
+        if series:
+            initial = abs(series[0])
+            final = abs(series[-1])
+            if initial > 0 and math.isfinite(final):
+                ratio = final / initial
+        # Per-sweep ratios to peer-min final.
+        per_sweep: dict[Any, float] = {}
+        for sweep_k, peer_min in peer_min_by_sweep.items():
+            sub = _sweep_sub_entry(entry, sweep_k)
+            if not isinstance(sub, dict):
+                continue
+            fl = sub.get("final_loss")
+            if isinstance(fl, (int, float)) and math.isfinite(fl):
+                per_sweep[sweep_k] = float(fl) / peer_min
+        summary = OptimizationSummary(
+            final_initial_ratio=ratio,
+            peer_final_loss_by_sweep=per_sweep,
+        )
+        verdict = _run_checks(checks, summary)
+        if verdict:
+            cells[solver] = Cell(*verdict)
 
 
 def _find_trajectory(entry: Any) -> list[float] | None:
@@ -822,7 +806,7 @@ def _find_trajectory(entry: Any) -> list[float] | None:
     return None
 
 
-def _classify_result(data: dict, solvers: list[str], checks: dict) -> dict[str, Cell]:
+def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
     """Dispatch to the right classifier based on which top-level key is present."""
     if "by_solver" in data:
         return _classify_from_by_solver(data, solvers, "by_solver")
@@ -926,7 +910,7 @@ def _resolve_tesseract_hash(cfg: Problem, solver: str, cache: dict[str, str]) ->
 
 
 def _refine_for_suite(
-    suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: dict
+    suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: list
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
     if suite == "cost":

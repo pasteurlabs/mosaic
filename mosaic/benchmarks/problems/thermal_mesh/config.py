@@ -3,8 +3,7 @@
 The problem definition is split across three modules:
 
 - :mod:`.ics`         — IC generators (``_zero_source``, ``_uniform``,
-                        ``_random``, ``_gaussian_source``, ``_two_gaussians``)
-                        and the ``MAKE_IC`` registry.
+                        ``_random``, ``_gaussian_source``, ``_two_gaussians``).
 - :mod:`.physics`     — mesh / BC builders, the reference FEM solve for
                         inverse-recovery ground truth, the
                         ``build_make_inputs`` factory, and ``DIAGNOSTICS``.
@@ -17,13 +16,12 @@ descriptions.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from mosaic.benchmarks.core.config import (
     Problem,
     SolverSpec,
     discover_solvers,
 )
+from mosaic.benchmarks.core.status_checks import max_final_ratio
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
     run_spatial_cost,
@@ -47,17 +45,14 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
-from mosaic.benchmarks.problems.shared.plots.optimization import (
-    plot_conductivity_recovery,
-)
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .ics import MAKE_IC
+from .ics import _gaussian_source, _random, _two_gaussians, _uniform, _zero_source
 from .optimization import run_conductivity_recovery
 from .physics import DIAGNOSTICS, build_make_inputs
+from .plots import plot_conductivity_recovery
 
-_GYM_DIR = Path(__file__).parent.parent.parent.parent
-_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "thermal-mesh"
+_TESSERACT_SLUG = "thermal-mesh"
 
 # SIMP material parameters
 _K_MAX = 1.0  # solid thermal conductivity
@@ -66,35 +61,13 @@ _P_EXP = 3.0  # SIMP penalisation exponent
 
 # ── Solver registry ──────────────────────────────────────────────────────────
 
-_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)
-
-# Preserve historical solver key.
-_SOLVERS["torch_fem_thermal"] = _SOLVERS.pop("torch_fem")
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
 
 apply_styles(_SOLVERS)
 
 
 for _key in ("fenics_heat", "dealii_heat", "firedrake_heat", "torch_fem_thermal"):
     _SOLVERS[_key].input_overrides = {"k_max": _K_MAX, "p_exp": _P_EXP}
-
-
-# ── Shared run-lists ─────────────────────────────────────────────────────────
-
-_COST_RUNS = [
-    {
-        "physics": {
-            "Lx": 2.0,
-            "Ly": 1.0,
-            "Lz": 1.0,
-            "Q_total": 1.0,
-            "rho_0": 0.5,
-        },
-        "cost": {
-            "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
-            "n_trials": 3,
-        },
-    }
-]
 
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
@@ -120,15 +93,12 @@ problem = Problem(
         "Neumann (hot-spot): flux concentrated on the central 1/3 stripe in y "
         "(Ly/3 ≤ y ≤ 2Ly/3) at the right face, driving non-trivial topology."
     ),
-    tesseract_dir=_TESSERACT_DIR,
+    tesseract_dir=_TESSERACT_SLUG,
     output_key="thermal_compliance",
     ic_key="rho",
     solvers=_SOLVERS_LIST,
-    make_ic=MAKE_IC,
-    plot_ic=plot_ic,
     make_inputs=build_make_inputs(_SOLVERS_LIST),
     error_fn=l2_error_rel,
-    diagnostics=DIAGNOSTICS,
     domain_extent=2.0,
     resolution_key="nx",
     status_checks={
@@ -136,8 +106,76 @@ problem = Problem(
         # not just complete. Same 50% floor as the other problems — solvers
         # landing at final/initial > 0.5 show up as anom so the status
         # accurately reflects "hasn't converged".
-        "optimization": {"max_final_ratio": 0.5},
+        "optimization": [max_final_ratio(0.5)],
     },
+)
+
+
+# ── Initial conditions ───────────────────────────────────────────────────────
+problem.add_ic(
+    "uniform",
+    fn=_uniform,
+    description=(
+        "Uniform SIMP thermal conductivity density ρ₀ over all hex mesh elements; "
+        "standard homogeneous starting point for heat-conduction topology optimisation."
+    ),
+    plot_params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "random",
+    fn=_random,
+    description=(
+        "Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); "
+        "breaks spatial symmetry to produce non-trivial per-cell gradient sensitivity maps."
+    ),
+    plot_params={
+        "rho_0": 0.5,
+        "noise": 0.3,
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "seed": 0,
+    },
+    plot=plot_ic,
+)
+problem.add_ic(
+    "gaussian_source",
+    fn=_gaussian_source,
+    description=(
+        "Gaussian heat source centred at (cx·Lx, cy·Ly) = (0.5·Lx, 0.5·Ly) with "
+        "width σ·min(Lx,Ly). Used as the control field for source-identification experiments "
+        "(ic_field='source' in physics dict)."
+    ),
+    plot_params={
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "amplitude": 1.0,
+        "cx": 0.5,
+        "cy": 0.5,
+        "sigma": 0.2,
+    },
+    plot=plot_ic,
+)
+problem.add_ic(
+    "zero_source",
+    fn=_zero_source,
+    description=(
+        "Zero volumetric heat source; standard zero-initialisation for source-recovery experiments."
+    ),
+    plot_params={"nx": 16, "ny": 8, "nz": 1},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "two_gaussians",
+    fn=_two_gaussians,
+    description=(
+        "Two-Gaussian volumetric heat source at (0.3·Lx, 0.5·Ly) and (0.7·Lx, 0.5·Ly). "
+        "Ground-truth source for source-recovery experiments."
+    ),
+    plot_params={"nx": 16, "ny": 8, "nz": 1},
+    plot=plot_ic,
 )
 
 
@@ -148,103 +186,84 @@ problem.add(
     "forward/baseline",
     run_agreement,
     plot_description="Thermal compliance C vs mesh resolution N with random density; compares FV and FEM solvers across refinements.",
-    runs=[
-        {
-            "ic": {"name": "random", "seed": 0},
-            "physics": {"nz": 1, "Lx": 2.0, "Ly": 1.0, "Lz": 1.0, "Q_total": 1.0},
-            "sweep": {"key": "N", "values": [2, 3, 4, 6, 8, 12, 16, 24]},
-        }
-    ],
+    ic={"name": "random", "seed": 0},
+    physics={
+        "N": [2, 3, 4, 6, 8, 12, 16, 24],
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+    },
     plot=plot_agreement,
 )
 problem.add(
     "forward/agreement",
     run_agreement,
     plot_description="Thermal compliance C vs uniform element density ρ₀ at fixed N; compares solvers on a log scale.",
-    runs=[
-        {
-            "ic": {"name": "uniform", "seed": 0},
-            "physics": {
-                "nx": 16,
-                "ny": 8,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "Q_total": 1.0,
-            },
-            "sweep": {
-                "key": "rho_0",
-                "values": [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95],
-            },
-        }
-    ],
+    ic={"name": "uniform", "seed": 0},
+    physics={
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+        "rho_0": [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95],
+    },
     plot=plot_agreement,
 )
 problem.add(
     "forward/physical_laws",
     run_physical_laws,
     plot_description="Thermal compliance C vs total heat flux Q_total at fixed N and ρ₀ with a hot-spot BC; shown on log-log axes.",
-    runs=[
-        {
-            "ic": {"name": "uniform", "seed": 0},
-            "physics": {
-                "N": 16,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "rho_0": 0.5,
-                "hot_spot": True,
-            },
-            "sweep": {"key": "Q_total", "values": [0.25, 0.5, 1.0, 2.0, 4.0]},
-        }
-    ],
+    diagnostics=DIAGNOSTICS,
+    ic={"name": "uniform", "seed": 0},
+    physics={
+        "N": 16,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "rho_0": 0.5,
+        "hot_spot": True,
+        "Q_total": [0.25, 0.5, 1.0, 2.0, 4.0],
+    },
     plot=plot_physical_laws,
 )
 problem.add(
     "forward/source_baseline",
     run_agreement,
     plot_description="Thermal compliance C vs mesh resolution N with a Gaussian source field; compares solvers across refinements.",
-    runs=[
-        {
-            "ic": {"name": "gaussian_source"},
-            "physics": {
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "rho_0": 0.5,
-                "ic_field": "source",
-            },
-            "sweep": {"key": "N", "values": [4, 6, 8, 12, 16, 24]},
-        }
-    ],
+    ic={"name": "gaussian_source"},
+    physics={
+        "N": [4, 6, 8, 12, 16, 24],
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "rho_0": 0.5,
+        "ic_field": "source",
+    },
     plot=plot_agreement,
 )
 problem.add(
     "forward/source_linearity",
     run_agreement,
     plot_description="Thermal compliance C vs source amplitude at fixed mesh; compares solvers on log-log axes.",
-    runs=[
-        {
-            "ic": {"name": "gaussian_source"},
-            "physics": {
-                "nx": 16,
-                "ny": 8,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "rho_0": 0.5,
-                "ic_field": "source",
-            },
-            "sweep": {
-                "key": "amplitude",
-                "values": [0.1, 0.25, 0.5, 1.0, 2.0, 4.0],
-            },
-        }
-    ],
+    ic={"name": "gaussian_source"},
+    physics={
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "rho_0": 0.5,
+        "ic_field": "source",
+        "amplitude": [0.1, 0.25, 0.5, 1.0, 2.0, 4.0],
+    },
     plot=plot_agreement,
 )
 
@@ -253,21 +272,51 @@ problem.add(
     "cost/spatial_cost",
     run_spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
-    runs=_COST_RUNS,
+    physics={
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+        "rho_0": 0.5,
+    },
+    cost={
+        "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
+        "n_trials": 3,
+    },
     plot=plot_cost,
 )
 problem.add(
     "cost/temporal_cost",
     run_temporal_cost,
     plot_description="Forward-pass wall-clock time vs time-axis size for all solvers.",
-    runs=_COST_RUNS,
+    physics={
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+        "rho_0": 0.5,
+    },
+    cost={
+        "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
+        "n_trials": 3,
+    },
     plot=plot_cost,
 )
 problem.add(
     "cost/vjp_cost",
     run_vjp_cost,
     plot_description="VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
-    runs=_COST_RUNS,
+    physics={
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+        "rho_0": 0.5,
+    },
+    cost={
+        "N_values": [16, 32, 64, 128, 256, 512, 1024, 2048, 4500],
+        "n_trials": 3,
+    },
     plot=plot_cost,
 )
 
@@ -276,64 +325,52 @@ problem.add(
     "gradient/fd_check",
     run_fd_check,
     plot_description="FD gradient error vs step size ε (U-curves), AD/FD direction cosine, and gradient magnitude field panels.",
-    runs=[
-        {
-            "ic": {"name": "random", "seed": 0},
-            "physics": {
-                "nx": 8,
-                "ny": 4,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "Q_total": 1.0,
-            },
-            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
-        }
-    ],
+    ic={"name": "random", "seed": 0},
+    physics={
+        "nx": 8,
+        "ny": 4,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+    },
+    fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_fd_check,
 )
 problem.add(
     "gradient/param_sweep",
     run_param_sweep,
     plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs element density ρ₀.",
-    runs=[
-        {
-            "ic": {"name": "uniform", "seed": 0},
-            "physics": {
-                "nx": 8,
-                "ny": 4,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "Q_total": 1.0,
-            },
-            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
-            "sweep": {"key": "rho_0", "values": [0.1, 0.2, 0.4, 0.6, 0.8]},
-        }
-    ],
+    ic={"name": "uniform", "seed": 0},
+    physics={
+        "nx": 8,
+        "ny": 4,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+        "rho_0": [0.1, 0.2, 0.4, 0.6, 0.8],
+    },
+    fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_param_sweep,
 )
 problem.add(
     "gradient/jacobian_svd",
     run_jacobian_svd,
     plot_description="Singular-value spectrum of stacked per-solver gradients and pairwise cosine similarity between solver gradient directions.",
-    runs=[
-        {
-            "ic": {"name": "random", "seed": 0},
-            "physics": {
-                "nx": 8,
-                "ny": 4,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "Q_total": 1.0,
-            },
-            "jacobian": {"n_alphas": 21, "alpha_range": 0.2},
-        }
-    ],
+    ic={"name": "random", "seed": 0},
+    physics={
+        "nx": 8,
+        "ny": 4,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "Q_total": 1.0,
+    },
+    jacobian={"n_alphas": 21, "alpha_range": 0.2},
     plot=plot_jacobian_svd,
 )
 
@@ -344,27 +381,26 @@ problem.add(
     "gradient/source_fd_check",
     run_fd_check,
     plot_description="FD gradient error vs ε, AD/FD direction cosine, and gradient field panels for d(identification_error)/d(source).",
-    runs=[
-        {
-            "ic": {"name": "gaussian_source"},
-            "ic_key": "source",
-            "output_key": "identification_error",
-            "physics": {
-                "nx": 8,
-                "ny": 4,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "rho_0": 0.5,
-                "target_from_two_gaussians": True,
-                "ic_field": "source",
-            },
-            "fd": {"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
-        }
-    ],
+    ic={"name": "gaussian_source"},
+    ic_key="source",
+    output_key="identification_error",
+    physics={
+        "nx": 8,
+        "ny": 4,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "rho_0": 0.5,
+        "target_from_two_gaussians": True,
+        "ic_field": "source",
+    },
+    fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_fd_check,
 )
+# ``ic_sweep: True`` is a sweep-config flag that lives only inside the sweep
+# dict; the auto-detect shorthand cannot express it, so this experiment keeps
+# the explicit ``runs=[{...}]`` form.
 problem.add(
     "gradient/source_width_sweep",
     run_param_sweep,
@@ -398,27 +434,23 @@ problem.add(
     "optimization/conductivity_recovery",
     run_conductivity_recovery,
     plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using gradient descent.",
-    runs=[
-        {
-            "ic": {"name": "uniform", "seed": 0},
-            "physics": {
-                "nx": 16,
-                "ny": 8,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "rho_0": 0.5,
-                "Q_total": 1.0,
-                "compliance_key": "identification_error",
-                "penalty_weight": 0.0,
-                "x_min": 1e-3,
-                "snap_interval": 20,
-                "target_rho_from_two_gaussians": True,
-            },
-            "optim": {"lr": 1e-2, "max_iters": 2000, "patience": 200},
-        }
-    ],
+    ic={"name": "uniform", "seed": 0},
+    physics={
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "rho_0": 0.5,
+        "Q_total": 1.0,
+        "compliance_key": "identification_error",
+        "penalty_weight": 0.0,
+        "x_min": 1e-3,
+        "snap_interval": 20,
+        "target_rho_from_two_gaussians": True,
+    },
+    optim={"lr": 1e-2, "max_iters": 2000, "patience": 200},
     plot=plot_conductivity_recovery,
 )
 problem.add(
@@ -426,27 +458,23 @@ problem.add(
     run_conductivity_recovery,
     optimizer="bfgs",
     plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using L-BFGS.",
-    runs=[
-        {
-            "ic": {"name": "uniform", "seed": 0},
-            "physics": {
-                "nx": 16,
-                "ny": 8,
-                "nz": 1,
-                "Lx": 2.0,
-                "Ly": 1.0,
-                "Lz": 1.0,
-                "rho_0": 0.5,
-                "Q_total": 1.0,
-                "compliance_key": "identification_error",
-                "penalty_weight": 0.0,
-                "x_min": 1e-3,
-                "snap_interval": 10,
-                "target_rho_from_two_gaussians": True,
-            },
-            "optim": {"max_iters": 200, "patience": 30},
-        }
-    ],
+    ic={"name": "uniform", "seed": 0},
+    physics={
+        "nx": 16,
+        "ny": 8,
+        "nz": 1,
+        "Lx": 2.0,
+        "Ly": 1.0,
+        "Lz": 1.0,
+        "rho_0": 0.5,
+        "Q_total": 1.0,
+        "compliance_key": "identification_error",
+        "penalty_weight": 0.0,
+        "x_min": 1e-3,
+        "snap_interval": 10,
+        "target_rho_from_two_gaussians": True,
+    },
+    optim={"max_iters": 200, "patience": 30},
     plot=plot_conductivity_recovery,
 )
 

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from mosaic.benchmarks.core.config import IcSpec
-
 
 def _uniform(
     rho_0: float = 0.5,
@@ -113,33 +111,3 @@ def _two_density_bumps(
     # Tile across y: (nz, ny, nx)
     peak_field = np.broadcast_to(peak2d[:, None, :], (nz, ny, nx)).copy()
     return np.clip(peak_field.ravel(), 0.05, 1.0).astype(np.float32)
-
-
-MAKE_IC: dict[str, IcSpec] = {
-    "uniform": IcSpec(
-        fn=_uniform,
-        description=(
-            "Uniform SIMP material density ρ₀ over all hex mesh elements; standard "
-            "homogeneous starting point for topology optimisation of the cantilever beam."
-        ),
-        plot_params={"rho_0": 0.5, "nx": 16},
-    ),
-    "random": IcSpec(
-        fn=_random,
-        description=(
-            "Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); "
-            "breaks spatial symmetry so gradient experiments see non-trivial per-cell sensitivity."
-        ),
-        plot_params={},
-    ),
-    "two_density_bumps": IcSpec(
-        fn=_two_density_bumps,
-        description=(
-            "Ground-truth density with two stiff Gaussian pillars (ρ_peak=0.95, σ=0.12·min(Lx,Lz)) "
-            "at (0.35·Lx, 0.5·Ly, 0.5·Lz) and (0.75·Lx, 0.5·Ly, 0.5·Lz) on a soft ρ_bg=0.1 "
-            "background; analog of thermal-mesh ``two_gaussians`` for the load-recovery inverse "
-            "experiment (recover density from displacement observations)."
-        ),
-        plot_params={"nx": 16, "ny": 2, "nz": 8},
-    ),
-}

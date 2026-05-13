@@ -90,7 +90,6 @@ def _make_cfg(
         make_ic={},
         make_inputs=lambda *a, **k: {},
         error_fn=lambda *a, **k: 0.0,
-        diagnostics={},
     )
 
 

@@ -1,11 +1,9 @@
-"""Initial conditions, IC registry, and the analytic TGV reference."""
+"""Initial conditions and the analytic TGV reference."""
 
 from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
-
-from mosaic.benchmarks.core.config import IcSpec
 
 
 def _multimode(N: int, L: float = 2 * jnp.pi, seed: int = 42, **_) -> jax.Array:
@@ -61,40 +59,3 @@ def _tgv_analytic(
     vx = jnp.sin(X) * jnp.cos(Y) * decay
     vy = -jnp.cos(X) * jnp.sin(Y) * decay
     return jnp.stack([vx, vy], axis=-1)[:, :, None, :].astype(jnp.float32)
-
-
-MAKE_IC: dict[str, IcSpec] = {
-    "multimode": IcSpec(
-        fn=_multimode,
-        description=(
-            "Incompressible velocity field with energy concentrated in a ring at "
-            "wavenumber k=2 (σ_k=0.5); supports multi-scale turbulent development."
-        ),
-        plot_params={"N": 64},
-    ),
-    "tgv": IcSpec(
-        fn=_tgv,
-        description=(
-            "Taylor–Green vortex u=sin(x)cos(y), v=−cos(x)sin(y); has a closed-form "
-            "analytic solution for viscous decay, enabling solver verification."
-        ),
-        plot_params={"N": 64},
-    ),
-    "uniform": IcSpec(
-        fn=_uniform_flow,
-        description=(
-            "Uniform rightward flow u=(U, 0) — background flow for cylinder-wake "
-            "(Kármán vortex street) experiments. Obstacle specified separately via "
-            "the physics.obstacle field."
-        ),
-        plot_params={"N": 64, "U": 1.0},
-    ),
-    "flat_inflow": IcSpec(
-        fn=_flat_inflow,
-        description=(
-            "Flat 1-D inlet velocity profile u_x(y) = U, shape (N,). "
-            "Starting point for inflow-profile drag-optimisation experiments."
-        ),
-        plot_params={"N": 64, "U": 0.5},
-    ),
-}

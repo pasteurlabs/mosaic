@@ -1,10 +1,8 @@
-"""Initial conditions and IC registry for the thermal-mesh problem."""
+"""Initial conditions for the thermal-mesh problem."""
 
 from __future__ import annotations
 
 import numpy as np
-
-from mosaic.benchmarks.core.config import IcSpec
 
 
 def _zero_source(
@@ -154,62 +152,3 @@ def _two_gaussians(
         Ly=Ly,
     )
     return (s1 + s2).astype(np.float32)
-
-
-MAKE_IC: dict[str, IcSpec] = {
-    "uniform": IcSpec(
-        fn=_uniform,
-        description=(
-            "Uniform SIMP thermal conductivity density ρ₀ over all hex mesh elements; "
-            "standard homogeneous starting point for heat-conduction topology optimisation."
-        ),
-        plot_params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
-    ),
-    "random": IcSpec(
-        fn=_random,
-        description=(
-            "Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); "
-            "breaks spatial symmetry to produce non-trivial per-cell gradient sensitivity maps."
-        ),
-        plot_params={
-            "rho_0": 0.5,
-            "noise": 0.3,
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "seed": 0,
-        },
-    ),
-    "gaussian_source": IcSpec(
-        fn=_gaussian_source,
-        description=(
-            "Gaussian heat source centred at (cx·Lx, cy·Ly) = (0.5·Lx, 0.5·Ly) with "
-            "width σ·min(Lx,Ly). Used as the control field for source-identification experiments "
-            "(ic_field='source' in physics dict)."
-        ),
-        plot_params={
-            "nx": 16,
-            "ny": 8,
-            "nz": 1,
-            "amplitude": 1.0,
-            "cx": 0.5,
-            "cy": 0.5,
-            "sigma": 0.2,
-        },
-    ),
-    "zero_source": IcSpec(
-        fn=_zero_source,
-        description=(
-            "Zero volumetric heat source; standard zero-initialisation for source-recovery experiments."
-        ),
-        plot_params={"nx": 16, "ny": 8, "nz": 1},
-    ),
-    "two_gaussians": IcSpec(
-        fn=_two_gaussians,
-        description=(
-            "Two-Gaussian volumetric heat source at (0.3·Lx, 0.5·Ly) and (0.7·Lx, 0.5·Ly). "
-            "Ground-truth source for source-recovery experiments."
-        ),
-        plot_params={"nx": 16, "ny": 8, "nz": 1},
-    ),
-}

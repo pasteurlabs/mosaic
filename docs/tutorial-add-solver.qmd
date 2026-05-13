@@ -349,7 +349,7 @@ jax[cuda12]>=0.4.13
 The relative path `../../../tesseract_shared` is resolved at build time relative to your solver directory. It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
 
 ::: {.callout-note}
-For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `incompressible-navier-stokes-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
+For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `ins-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
 :::
 
 ## 6. Build and verify

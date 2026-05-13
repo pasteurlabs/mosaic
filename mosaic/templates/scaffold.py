@@ -272,29 +272,26 @@ def scaffold_domain(
         f"per-solver overrides live here. ``experiments.register(CONFIG)`` then\n"
         f'populates the experiment/plot registries on it."""\n\n'
         f"from __future__ import annotations\n\n"
-        f"from pathlib import Path\n\n"
         f"from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers\n"
         f"from mosaic.benchmarks.core.utils import l2_error_rel\n"
         f"from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles\n\n"
         f"from .experiments import register as _register_experiments\n"
         f"from .ics import MAKE_IC\n"
         f"from .physics import DIAGNOSTICS, build_make_inputs\n\n"
-        f"_GYM_DIR = Path(__file__).parent.parent.parent.parent\n"
-        f'_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "{domain_name}"\n\n\n'
+        f'_TESSERACT_SLUG = "{domain_name}"\n\n\n'
         f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
-        f"_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_DIR)\n"
+        f"_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)\n"
         f"apply_styles(_SOLVERS)\n\n"
         f"# Merge domain-specific overrides here, e.g.:\n"
         f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n'
         f"_SOLVERS_LIST = list(_SOLVERS.values())\n\n"
         f"problem = Problem(\n"
         f'    name="{domain_name}",\n'
-        f"    tesseract_dir=_TESSERACT_DIR,\n"
+        f"    tesseract_dir=_TESSERACT_SLUG,\n"
         f"    solvers=_SOLVERS_LIST,\n"
         f"    make_ic=MAKE_IC,\n"
         f"    make_inputs=build_make_inputs(_SOLVERS_LIST),\n"
         f"    error_fn=l2_error_rel,\n"
-        f"    diagnostics=DIAGNOSTICS,\n"
         f'    output_key="{tpl.output_key}",\n'
         f'    ic_key="{tpl.ic_key}",\n'
         f"    domain_extent={tpl.domain_extent},\n"

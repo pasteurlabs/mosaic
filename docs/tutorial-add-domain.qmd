@@ -345,7 +345,8 @@ from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
 from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
-from mosaic.benchmarks.problems.shared.plots.optimization import plot_recovery
+
+from .plots import plot_recovery  # per-problem plot module (see 5d below)
 
 if TYPE_CHECKING:
     from mosaic.benchmarks.core.config import Problem

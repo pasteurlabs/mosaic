@@ -12,6 +12,14 @@ from typing import Any, Protocol
 log = logging.getLogger(__name__)
 
 
+# Filesystem root for tesseract solver directories. Derived from this file's
+# location so per-problem configs don't have to repeat
+# ``Path(__file__).parent.parent.parent.parent / "tesseracts" / <slug>``.
+# Relative ``tesseract_dir`` values on :class:`Problem` are resolved against
+# this in :meth:`Problem.__post_init__`.
+TESSERACTS_DIR: Path = Path(__file__).resolve().parents[2] / "tesseracts"
+
+
 class ExclusionCategory(str, Enum):
     """Why a solver does not run for a given experiment.
 
@@ -149,7 +157,7 @@ class Problem:
     solvers: list[SolverSpec] = field(default_factory=list)
     make_inputs: Callable | None = None  # (solver_name, ic, **physics) → dict
     exclusions: dict[str, dict[str, Exclusion]] = field(default_factory=dict)
-    status_checks: dict[str, dict] = field(default_factory=dict)
+    status_checks: dict[str, dict | list] = field(default_factory=dict)
 
     # ── Experiment-time deps (threaded into Experiment.fn closures) ─────
     make_ic: dict = field(default_factory=dict)
@@ -159,28 +167,23 @@ class Problem:
     domain_extent: float = 1.0
     resolution_key: str = "N"
     reference: Callable | None = None
-    diagnostics: dict = field(default_factory=dict)
 
-    # Plot function used for every auto-registered ``ics/<name>`` experiment.
-    # When set, every IC in :attr:`make_ic` is registered as a runnable
-    # ``ics/<name>`` experiment at :meth:`__post_init__` time, with
-    # ``plot_params`` read from the entry's :class:`IcSpec`.
-    plot_ic: Callable | None = None
-
-    # ── Registries (filled by .add / .add_extra_plot + __post_init__) ───
+    # ── Registries (filled by .add / .add_ic / .add_extra_plot) ─────────
     experiments: dict[str, Experiment] = field(default_factory=dict)
     plot_fns: dict[str, PlotFn] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Auto-register one ``ics/<name>`` experiment per entry in
-        :attr:`make_ic` using :attr:`plot_ic` as the plot function.
+        """Resolve a relative :attr:`tesseract_dir` against the central
+        :data:`TESSERACTS_DIR` (so configs can pass just a slug like
+        ``"navier-stokes-grid"``).
 
-        ``IcSpec.plot_params`` provides the kwarg bag for the IC generator;
-        if the entry isn't an :class:`IcSpec` (plain callable) it's skipped.
+        ICs are registered explicitly via :meth:`add_ic` after construction —
+        no auto-registration from :attr:`make_ic` happens here.
         """
-        for ic_name, ic in self.make_ic.items():
-            if isinstance(ic, IcSpec):
-                self._register_ic(ic_name, ic.plot_params, plot=self.plot_ic)
+        if isinstance(self.tesseract_dir, str):
+            self.tesseract_dir = Path(self.tesseract_dir)
+        if self.tesseract_dir.parts and not self.tesseract_dir.is_absolute():
+            self.tesseract_dir = TESSERACTS_DIR / self.tesseract_dir
 
     # ── Solver lookup ────────────────────────────────────────────────────
 
@@ -245,7 +248,6 @@ class Problem:
             "domain_extent": self.domain_extent,
             "resolution_key": self.resolution_key,
             "reference": self.reference,
-            "diagnostics": self.diagnostics,
         }
 
     def add(
@@ -256,7 +258,7 @@ class Problem:
         plot: Callable | None = None,
         plot_description: str = "",
         reduce: Callable | None = None,
-        status_check: dict | None = None,
+        status_check: dict | list | None = None,
         exclusions: dict[str, Exclusion] | None = None,
         **config,
     ) -> None:
@@ -281,10 +283,13 @@ class Problem:
         ``plot_description`` is stored on every sub-experiment's params for
         introspection (e.g. ``mosaic status``).
 
-        ``status_check`` (optional) is a dict of thresholds (``median_k``,
-        ``max_error``, ``min_cosine``, …) attached to every sub-experiment's
-        params. It is merged on top of any suite-level defaults from
-        :attr:`status_checks` when the status pipeline classifies a result.
+        ``status_check`` (optional) is a list of check callables (built via
+        the factories in :mod:`mosaic.benchmarks.core.status_checks` —
+        ``median_k(k)``, ``max_error(t)``, ``min_cosine(t)``, …) attached to
+        every sub-experiment's params. Legacy dict-of-thresholds form is
+        still accepted and normalised at lookup time. It is merged on top
+        of any suite-level defaults from :attr:`status_checks` when the
+        status pipeline classifies a result.
 
         ``exclusions`` (optional) is a ``{solver_name: Exclusion}`` dict.
         Each entry is pushed into :attr:`exclusions` at this experiment's
@@ -298,6 +303,11 @@ class Problem:
         if exclusions:
             for solver_name, excl in exclusions.items():
                 self.exclusions.setdefault(solver_name, {})[key] = excl
+
+        # Shorthand: ``run=dict`` wraps into ``runs=[dict]`` and list-valued
+        # fields in the run get auto-converted into the runner's sweep dict
+        # form (``sweep={"key": k, "values": [...]}`` + scalar override).
+        config = self._normalize_run_shorthand(config)
 
         sweep_axes = self._collect_sweep_axes(config)
 
@@ -328,6 +338,87 @@ class Problem:
 
         if plot is not None:
             self._register_plot(key, plot, sub_keys, reduce)
+
+    def _normalize_run_shorthand(self, config: dict) -> dict:
+        """Convert ``.add()`` shorthand into the canonical runner payload.
+
+        Three accepted input forms (in order of precedence):
+
+        1. ``runs=[{...}, ...]`` (legacy multi-element): pass through, only
+           applying sweep-auto-detection to each run dict that lacks an
+           explicit ``"sweep"`` key.
+        2. ``run={...}`` (singular): wrapped into ``runs=[{...}]``.
+        3. Bare run-dict fields (``ic=``, ``physics=``, ``fd=``, ``optim=``,
+           ``jacobian=``, ``reference=``) at the top level: collected into a
+           single run dict, then wrapped.
+
+        After collection, each run dict is scanned for list-valued fields
+        (nested one level inside ``physics``/``fd``/``optim``/etc.). The
+        first list found becomes the sweep axis: ``sweep={"key": k, "values":
+        [...]}`` is added and the field is replaced with its first value (a
+        placeholder; the runner overwrites it per sweep iteration).
+        """
+        # ── Step 1: collect run dict(s) ─────────────────────────────────
+        if "runs" in config:
+            runs = config["runs"]
+            if not isinstance(runs, list):
+                raise TypeError(
+                    f".add(runs=...): expected a list, got {type(runs).__name__}"
+                )
+        elif "run" in config:
+            runs = [config.pop("run")]
+            config["runs"] = runs
+        else:
+            # Collect known run-payload keys into a synthetic single run.
+            payload_keys = {
+                "ic",
+                "physics",
+                "fd",
+                "optim",
+                "jacobian",
+                "reference",
+                "cost",
+                "ic_key",
+                "output_key",
+            }
+            run_dict = {k: config.pop(k) for k in list(config) if k in payload_keys}
+            if run_dict:
+                config["runs"] = [run_dict]
+                runs = config["runs"]
+            else:
+                # No run payload at all (e.g. an IC-registration call); leave
+                # config untouched.
+                return config
+
+        # ── Step 2: auto-detect sweep in each run dict ─────────────────
+        for run in runs:
+            if not isinstance(run, dict):
+                continue
+            if "sweep" in run:
+                continue
+            sweep_axis = self._find_first_list_axis(run)
+            if sweep_axis is None:
+                continue
+            parent_key, sub_key, values = sweep_axis
+            run["sweep"] = {"key": sub_key, "values": values}
+            # Replace the list with a placeholder scalar; the runner will
+            # override this per sweep iteration. Use the first value as a
+            # representative default.
+            run[parent_key][sub_key] = values[0]
+        return config
+
+    @staticmethod
+    def _find_first_list_axis(run: dict) -> tuple[str, str, list] | None:
+        """Locate the first list-valued field nested one level inside a
+        dict-valued kwarg of ``run``. Returns ``(parent_key, sub_key, values)``
+        or ``None`` when no sweep axis is present."""
+        for parent_key, parent_val in run.items():
+            if not isinstance(parent_val, dict):
+                continue
+            for sub_key, sub_val in parent_val.items():
+                if isinstance(sub_val, list) and Problem._is_sweep_list(sub_val):
+                    return parent_key, sub_key, sub_val
+        return None
 
     def _collect_sweep_axes(self, config: dict) -> list:
         """Return ``[(path_tuple, list_values), ...]`` for every list-of-primitives
@@ -418,7 +509,7 @@ class Problem:
         config: dict,
         *,
         plot_description: str = "",
-        status_check: dict | None = None,
+        status_check: dict | list | None = None,
     ) -> None:
         """Build the Experiment lambda for a single (scalar) config and store it."""
         import inspect
@@ -440,40 +531,61 @@ class Problem:
         # status/docs actually read (plot blurb + per-experiment thresholds).
         params: dict = {"plot_description": plot_description}
         if status_check:
-            params["status_check"] = dict(status_check)
+            params["status_check"] = (
+                list(status_check)
+                if isinstance(status_check, list)
+                else dict(status_check)
+            )
         self.experiments[key] = Experiment(fn=fn, params=params)
 
-    def _register_ic(
+    def add_ic(
         self,
-        ic_name: str,
-        plot_params: dict,
+        name: str,
+        fn: Callable,
         *,
+        description: str = "",
+        plot_params: dict | None = None,
         plot: Callable | None = None,
     ) -> None:
-        """Register an ``ics/<ic_name>`` entry. Called from :meth:`__post_init__`.
+        """Register an initial-condition generator.
 
-        ``plot_params`` is the kwarg bag handed to the IC generator (e.g.
-        ``{"N": 64, "U": 1.0}``) — sourced from the entry's
-        :class:`IcSpec.plot_params`. Captured into the Experiment closure AND
-        stored on ``Experiment.params`` for introspection.
+        Side effects:
+          1. Inserts an :class:`IcSpec` into :attr:`make_ic` at ``name``
+             (the runtime registry that runners and runners read from).
+          2. Registers an ``ics/<name>`` Experiment that, when run, calls
+             the IC generator with ``plot_params`` and saves a snapshot
+             plus a plot.
+          3. If ``plot`` is given, registers it at ``ics/<name>`` in
+             :attr:`plot_fns`.
+
+        ``plot_params`` is the kwarg bag handed to ``fn`` at IC generation
+        time (e.g. ``{"N": 64, "U": 1.0}``); the runner overrides ``L`` and
+        ``seed`` itself.
         """
         from mosaic.benchmarks.problems.shared.ics import run_ic
 
+        plot_params = dict(plot_params) if plot_params else {}
+        self.make_ic[name] = IcSpec(
+            fn=fn, description=description, plot_params=plot_params
+        )
+
         make_ic = self.make_ic
 
-        def fn(
+        def _exp_fn(
             cfg,
             tags,
-            _name=ic_name,
+            _name=name,
             _params=plot_params,
             _make_ic=make_ic,
             **_kw,
         ):
             return run_ic(cfg, _name, make_ic=_make_ic, params=_params)
 
-        self.experiments[f"ics/{ic_name}"] = Experiment(fn=fn, params=dict(plot_params))
+        self.experiments[f"ics/{name}"] = Experiment(
+            fn=_exp_fn, params=dict(plot_params)
+        )
         if plot is not None:
-            self.plot_fns[f"ics/{ic_name}"] = plot
+            self.plot_fns[f"ics/{name}"] = plot
 
     def add_extra_plot(self, key: str, plot: Callable) -> None:
         """Register a ``_extra/<suite>/<name>`` plot not tied to an experiment."""
@@ -680,7 +792,7 @@ class SolverSpec:
             self.ad_strategy = AdStrategy(self.ad_strategy)
 
 
-def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
+def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
     """Auto-discover solvers from ``tesseract_config.yaml`` files.
 
     Scans *tesseract_dir* for subdirectories containing a
@@ -719,12 +831,19 @@ def discover_solvers(tesseract_dir: Path) -> dict[str, SolverSpec]:
     applied to each spec by ``apply_styles()`` after discovery.
 
     Returns a dict keyed by a normalised solver name (directory name with
-    hyphens replaced by underscores). Problem configs can re-key (e.g.
-    ``incompressible_navier_stokes_jl`` → ``ins_jl``) and apply per-(solver,
+    hyphens replaced by underscores). Problem configs can apply per-(solver,
     problem) overrides (``input_overrides``, ``exclusions``,
     ``explained_anomalies``) before publishing the spec dict.
+
+    ``tesseract_dir`` may be a slug string (resolved against
+    :data:`TESSERACTS_DIR`) or an absolute :class:`~pathlib.Path`.
     """
     import yaml
+
+    if isinstance(tesseract_dir, str):
+        tesseract_dir = Path(tesseract_dir)
+    if not tesseract_dir.is_absolute():
+        tesseract_dir = TESSERACTS_DIR / tesseract_dir
 
     solvers: dict[str, SolverSpec] = {}
     if not tesseract_dir.is_dir():

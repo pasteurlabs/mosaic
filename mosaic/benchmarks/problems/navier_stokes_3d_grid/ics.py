@@ -1,11 +1,9 @@
-"""Initial conditions, IC registry, and the analytic 3D TGV reference."""
+"""Initial conditions and the analytic 3D TGV reference."""
 
 from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
-
-from mosaic.benchmarks.core.config import IcSpec
 
 
 def _tgv3d(N: int, L: float = 2 * jnp.pi, seed: int = 0, **_) -> jax.Array:
@@ -118,36 +116,3 @@ def _tgv3d_analytic(
     vy = -jnp.cos(X) * jnp.sin(Y) * jnp.cos(Z) * decay
     vz = jnp.zeros_like(vx)
     return jnp.stack([vx, vy, vz], axis=-1).astype(jnp.float32)
-
-
-MAKE_IC: dict[str, IcSpec] = {
-    "tgv3d": IcSpec(
-        fn=_tgv3d,
-        description=(
-            "3D Taylor–Green vortex u=sin(x)cos(y)cos(z), v=−cos(x)sin(y)cos(z), w=0; "
-            "divergence-free IC that develops turbulent vortex structures and a "
-            "peak dissipation rate around t≈9/ν. Shape (N,N,N,3)."
-        ),
-        plot_params={"N": 32},
-    ),
-    "abc": IcSpec(
-        fn=_abc_flow,
-        description=(
-            "Arnold–Beltrami–Childress flow — a 3D Beltrami field that is a steady "
-            "Euler solution with non-zero helicity. Particle trajectories are chaotic "
-            "for A≈B≈C≈1, making it a demanding test for gradient signal at long horizons. "
-            "Shape (N,N,N,3)."
-        ),
-        plot_params={"N": 32},
-    ),
-    "rand_div_free": IcSpec(
-        fn=_rand_div_free_3d,
-        description=(
-            "Random divergence-free 3D velocity field generated via curl of a spectral "
-            "vector potential (energy ring at |k|=2, width 1). Seed-controlled, "
-            "evolves non-trivially under NS dynamics — unlike ABC flow it has no "
-            "near-steady-state structure. Shape (N,N,N,3)."
-        ),
-        plot_params={"N": 32},
-    ),
-}

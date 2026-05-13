@@ -854,7 +854,7 @@ def print_effort_table(results: list[SolverStats]) -> None:
 
 _SOLVER_DISPLAY: dict[str, str] = {
     # navier-stokes-grid
-    "incompressible-navier-stokes-jl": r"ins\_jl~\cite{agdestein2024ins}",
+    "ins-jl": r"ins\_jl~\cite{agdestein2024ins}",
     "warp-ns": r"Warp-NS~\cite{macklin2024warp}",
     "xlb": r"XLB~\cite{ataei2024xlb}",
     "exponax": r"Exponax~\cite{koehler2024apebench}",
