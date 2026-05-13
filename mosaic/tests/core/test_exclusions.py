@@ -27,9 +27,23 @@ from mosaic.benchmarks.core.utils import (
 
 @dataclass
 class _FakeSpec:
-    """Minimal stand-in for ``SolverSpec``."""
+    """Minimal stand-in for ``SolverSpec``.
+
+    ``dir`` mirrors ``name`` by default — the production lookup derives the
+    exclusion-dict key from ``spec.key`` (``dir`` with hyphens replaced by
+    underscores), and these tests pass slug-form names so the two coincide.
+    """
 
     name: str = ""
+    dir: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.dir:
+            self.dir = self.name
+
+    @property
+    def key(self) -> str:
+        return self.dir.replace("-", "_")
 
 
 @dataclass

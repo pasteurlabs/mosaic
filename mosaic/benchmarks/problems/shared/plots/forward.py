@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -234,61 +232,21 @@ def _agreement_error_fields(
     return fig_err
 
 
-def _agreement_convergence(
-    cfg,
-    data,
-    solver_names,
-    sweep_key,
-    styles,
-    reference_label,
-    exp_key,
-    out_dir,
-    save,
-    *,
-    units: dict | None,
-):
-    """Error vs sweep param line chart (baseline: convergence; agreement: error vs ν)."""
-    by_param = data.get("by_param", {})
-    if not by_param:
-        return
-    fig_conv, ax_conv = plt.subplots(figsize=(6, 5))
-    param_vals = sorted(by_param.keys(), key=lambda v: float(v))
-    all_errs: list[float] = []
-    for name in solver_names:
-        style = styles.get(name, {})
-        xs, ys = [], []
-        for pv in param_vals:
-            entry = by_param[pv].get(name, {})
-            if entry.get("valid") and entry.get("error") is not None:
-                xs.append(float(pv))
-                ys.append(float(entry["error"]))
-                all_errs.append(float(entry["error"]))
-        if xs:
-            ax_conv.plot(
-                xs, ys, label=style.get("label", name), **solver_plot_props(style)
-            )
-    if all_errs:
-        ax_conv.set_yscale("log")
-        if exp_key == "baseline":
-            with contextlib.suppress(Exception):
-                ax_conv.set_xscale("log")
-    ref_desc = (
-        "analytic solution" if reference_label == "analytic" else "solver consensus"
+def _agreement_convergence(cfg, exp_key, suffix, save):
+    """Error vs sweep param line chart — delegated to the paper module.
+
+    Renders the canonical single-experiment paper-styled figure
+    (``agreement.pdf`` next to ``result.json``) so the per-experiment plot
+    and the paper figure share one implementation. The previous
+    ``convergence.png`` / ``errors.png`` shared-style files are now
+    superseded by this paper-styled output.
+    """
+    from mosaic.benchmarks.plots.paper import agreement as paper_agreement
+
+    fig = paper_agreement.plot_experiment(
+        cfg, exp_key=exp_key, suffix=suffix, save=save
     )
-    ax_conv.set_xlabel(unit_label(sweep_key, units))
-    ax_conv.set_ylabel(f"Relative L₂ error vs {ref_desc}")
-    title = (
-        f"{cfg.name} — spatial convergence (steps=1)"
-        if exp_key == "baseline"
-        else f"{cfg.name} — inter-solver agreement vs {sweep_key} (ref: {ref_desc})"
-    )
-    ax_conv.set_title(title)
-    ax_conv.grid(True, alpha=0.3, which="both")
-    fig_shared_legend(fig_conv, [ax_conv])
-    if save:
-        save_fig(
-            fig_conv, "convergence" if exp_key == "baseline" else "errors", out_dir
-        )
+    plt.close(fig)
 
 
 def _agreement_power_spectra(
@@ -431,18 +389,7 @@ def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
         field_cmap=field_cmap,
         field_symmetric=field_symmetric,
     )
-    _agreement_convergence(
-        cfg,
-        data,
-        solver_names,
-        sweep_key,
-        styles,
-        reference_label,
-        exp_key,
-        out_dir,
-        save,
-        units=units,
-    )
+    _agreement_convergence(cfg, exp_key, suffix, save)
     _agreement_power_spectra(
         cfg,
         npz,
@@ -461,100 +408,25 @@ def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
 # ── physical_laws ──────────────────────────────────────────────────────────────
 
 
-def _plot_physical_laws_single(cfg, data, out_dir, styles, save, *, units: dict | None):
-    """Render one physical-laws sweep result (one sweep key)."""
-    by_param = data.get("by_param", {})
-    sweep_key = data.get("sweep_key", "param")
-    vals = sorted(by_param.keys(), key=float)
-    if not vals:
-        return None
-
-    diag_names: list[str] = []
-    for val in vals:
-        for solver_data in by_param[val].values():
-            if isinstance(solver_data, dict):
-                diag_names = list(solver_data.keys())
-                break
-        if diag_names:
-            break
-
-    if not diag_names:
-        return None
-
-    x = np.array([float(v) for v in vals])
-    n_diags = len(diag_names)
-    fig, axes = subplots_grid(n_diags, panel_w=5, panel_h=4)
-    if not isinstance(axes, (list, np.ndarray)):
-        axes = [axes]
-
-    for ax, dname in zip(axes, diag_names, strict=False):
-        for spec in cfg.solvers:
-            name = spec.name
-            y = []
-            for val in vals:
-                sd = by_param[val].get(name)
-                y.append(sd.get(dname, np.nan) if isinstance(sd, dict) else np.nan)
-            y = np.array(y, dtype=float)
-            style = styles.get(name, {})
-            if not np.all(np.isnan(y)):
-                ax.plot(
-                    x,
-                    y,
-                    label=style.get("label", name),
-                    **solver_plot_props(style),
-                )
-        ax.set_xlabel(unit_label(sweep_key, units))
-        ax.set_ylabel(dname)
-        ax.set_title(f"{dname} vs {sweep_key}")
-        if np.any(x > 0):
-            ax.set_xscale("log")
-
-    fig.suptitle(f"{cfg.name} — physical laws ({sweep_key} sweep)")
-    fig_shared_legend(fig, axes)
-    if save:
-        save_fig(fig, "physical_laws", out_dir)
-    return fig
-
-
 def plot_physical_laws(
     cfg: Problem,
     *,
-    units: dict | None = None,
     save: bool = True,
     suffix: str = "",
+    exp_key: str = "physical_laws",
     **_kw,
 ):
-    """One subplot per diagnostic: value vs sweep parameter for each solver.
+    """Per-experiment physical-laws figure (paper styling).
 
-    Supports both single-run layout (result.json at top level) and multi-run
-    layout (one named subdir per sweep, each with its own result.json).
-    Also plots analytic_error vs sweep parameter when available.
+    Delegates to
+    :func:`mosaic.benchmarks.plots.paper.physical_accuracy.plot_experiment`
+    so the on-disk per-experiment PDF and the paper appendix figure stay
+    byte-identical in layout.
     """
-    out_dir = results_dir() / cfg.name / _SUITE / f"physical_laws{suffix}"
-    styles = solver_styles(cfg)
+    from mosaic.benchmarks.plots.paper import (
+        physical_accuracy as paper_physical_accuracy,
+    )
 
-    # Single-run layout: result.json directly in out_dir
-    try:
-        data = load_json(out_dir / "result.json")
-    except FileNotFoundError:
-        data = None
-    if data is not None:
-        return _plot_physical_laws_single(cfg, data, out_dir, styles, save, units=units)
-
-    # Multi-run layout: one named subdir per sweep
-    figs = []
-    if out_dir.is_dir():
-        for sub in sorted(out_dir.iterdir()):
-            if not sub.is_dir():
-                continue
-            try:
-                sub_data = load_json(sub / "result.json")
-            except FileNotFoundError:
-                continue
-            if sub_data is not None:
-                fig = _plot_physical_laws_single(
-                    cfg, sub_data, sub, styles, save, units=units
-                )
-                if fig is not None:
-                    figs.append(fig)
-    return figs if figs else None
+    return paper_physical_accuracy.plot_experiment(
+        cfg, exp_key=exp_key, suffix=suffix, save=save
+    )

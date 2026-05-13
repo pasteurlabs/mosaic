@@ -54,9 +54,13 @@ def apply_style() -> None:
 # ── Save helper ───────────────────────────────────────────────────────────────
 
 
-def unit_label(name: str, units: dict[str, str]) -> str:
-    """Return 'name  [unit]' when a unit is registered, else 'name'."""
-    unit = units.get(name, "")
+def unit_label(name: str, units: dict[str, str] | None) -> str:
+    """Return 'name  [unit]' when a unit is registered, else 'name'.
+
+    Tolerates ``units=None`` so problems that don't define a units dict can
+    pass it through directly without each call site having to guard.
+    """
+    unit = (units or {}).get(name, "")
     return f"{name}  [{unit}]" if unit else name
 
 

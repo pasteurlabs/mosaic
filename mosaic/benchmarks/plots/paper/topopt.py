@@ -1,11 +1,21 @@
-"""Generate Figure: Topology optimisation convergence and density fields.
+"""Topology-optimisation single-experiment + paper-figure generator.
 
-Structural and thermal domains.
-Outputs:
-  structural_topopt_convergence.pdf
-  thermal_topopt_convergence.pdf
-  structural_topopt_fields.pdf     (only when topopt_fields.npz present)
-  thermal_topopt_fields.pdf        (only when topopt_fields.npz present)
+Two public entry points:
+
+  * :func:`plot_experiment(cfg, *, exp_key, suffix, save)` — the canonical
+    single-experiment paper figure: compliance vs iteration + final
+    optimised density volumes (one 3-D voxel panel per solver) for one
+    problem (e.g. structural-mesh). Reads ``result.json`` from
+    ``<results>/<cfg.name>/optimization/<exp_key><suffix>/`` and writes a
+    paper-quality PDF in the same directory.
+    Used both as the per-experiment plot delegate (called from
+    :func:`mosaic.benchmarks.problems.structural_mesh.plots.plot_topopt`)
+    and as the source figure for the paper-output pipeline.
+  * :func:`generate(out_dir)` — paper-output entry point. Produces
+    ``topopt_convergence.pdf`` (structural+thermal combined),
+    ``conductivity_recovery.pdf``, and per-domain ``*_topopt_fields.pdf``
+    files for the build pipeline, plus the canonical single-experiment
+    figure for structural-mesh.
 """
 
 from __future__ import annotations
@@ -19,14 +29,228 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    load_json,
+    results_dir,
+    try_load_npz,
+)
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import (
     RCPARAMS,
     SOLVER_STYLES,
     STRUCTURAL_ORDER,
     THERMAL_ORDER,
+    dedup_handles,
+    make_handle,
+    solver_props,
 )
+
+# ── 3-D voxel rendering helpers (shared) ─────────────────────────────────────
+
+_THRESH = 0.35
+_ELEV = 22
+_AZIM = 35
+_CLR_FIXED = "#888888"
+_CLR_LOAD = "#FF1744"
+
+
+def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+    """Overlay fixed-face patch and load arrow on a voxel Axes3D."""
+    wall = Poly3DCollection(
+        [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
+        alpha=0.55,
+        facecolor=_CLR_FIXED,
+        edgecolor="#333333",
+        linewidth=0.8,
+    )
+    ax.add_collection3d(wall)
+
+    corner_z_high = ph.get("corner_z_high", False)
+    corner_y_high = ph.get("corner_y_high", False)
+    load_axis = ph.get("load_axis", "z")
+    ly = (ny - 0.5) if corner_y_high else 0.5
+    lz = (nz - 0.5) if corner_z_high else 0.5
+
+    arrow_len = nz * 0.65
+    if load_axis == "y":
+        y_sign = -1 if corner_y_high else 1
+        dx, dy_a, dz_a = 0, y_sign * arrow_len, 0
+    else:
+        z_sign = -1 if corner_z_high else 1
+        dx, dy_a, dz_a = 0, 0, z_sign * arrow_len
+
+    ox = nx + 0.6 if load_axis != "y" else nx
+    ax.quiver(
+        ox,
+        ly,
+        lz,
+        dx,
+        dy_a,
+        dz_a,
+        color=_CLR_LOAD,
+        linewidth=2.5,
+        arrow_length_ratio=0.28,
+    )
+
+
+def _voxel_facecolors(
+    rho_xyz: np.ndarray,
+    filled: np.ndarray,
+    base_color: str,
+) -> np.ndarray:
+    """Return RGBA facecolor array; empty voxels are fully transparent."""
+    import matplotlib.colors as mcolors
+
+    r, g, b, _ = mcolors.to_rgba(base_color)
+    fc = np.zeros((*rho_xyz.shape, 4))
+    norm = np.where(filled, (rho_xyz - _THRESH) / (1.0 - _THRESH), 0.0)
+    fc[..., 0] = r + (1 - r) * (1 - norm) * 0.45
+    fc[..., 1] = g + (1 - g) * (1 - norm) * 0.45
+    fc[..., 2] = b + (1 - b) * (1 - norm) * 0.45
+    fc[..., 3] = filled.astype(float)
+    return fc
+
+
+# ── Single-experiment canonical figure ───────────────────────────────────────
+
+
+def _solver_order_for(cfg_name: str) -> list[str]:
+    """Best-effort solver-ordering pick based on problem name."""
+    if "structural" in cfg_name:
+        return STRUCTURAL_ORDER
+    if "thermal" in cfg_name:
+        return THERMAL_ORDER
+    return STRUCTURAL_ORDER
+
+
+def plot_experiment(
+    cfg: Problem,
+    *,
+    exp_key: str = "topopt",
+    suffix: str = "",
+    save: bool = True,
+    **_kw,
+) -> plt.Figure | None:
+    """Single-experiment topopt figure (compliance convergence + final fields).
+
+    Layout: two-row composite —
+      * top row spans full width: compliance vs iteration per solver
+      * bottom row: 3-D voxel renders of the final optimised density,
+        one panel per solver (only when ``topopt_fields.npz`` is present)
+
+    Reads ``result.json`` (+ optional ``topopt_fields.npz``,
+    ``params.json``) from the experiment directory and writes
+    ``<exp_key>.pdf`` next to them when ``save`` is True.
+    """
+    out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
+    result_path = out_dir / "result.json"
+    if not result_path.exists():
+        print(f"[topopt] {result_path} not found — skipping")
+        return None
+
+    plt.rcParams.update(RCPARAMS)
+    data = load_json(result_path)
+    by_solver = data.get("by_solver", {})
+
+    solver_order = _solver_order_for(cfg.name)
+
+    # Optional fields npz + physics params
+    fields_path = out_dir / "topopt_fields.npz"
+    params_path = out_dir / "params.json"
+    npz = try_load_npz(fields_path) if fields_path.exists() else None
+    params = load_json(params_path) if params_path.exists() else None
+    ph = (params or data.get("params", {}) or {}).get("physics", {}) or {}
+
+    have_fields = (
+        npz is not None
+        and "solver_names" in npz
+        and ph.get("nx")
+        and ph.get("ny")
+        and ph.get("nz")
+    )
+
+    if have_fields:
+        npz_solvers = list(npz["solver_names"])
+        n_field_panels = len(npz_solvers)
+        ncols = max(1, n_field_panels)
+        fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.62), dpi=300)
+        gs = fig.add_gridspec(
+            2, ncols, height_ratios=[1.0, 1.35], hspace=0.45, top=0.93, bottom=0.18
+        )
+        ax_c = fig.add_subplot(gs[0, :])
+        field_axes = [
+            fig.add_subplot(gs[1, i], projection="3d") for i in range(n_field_panels)
+        ]
+    else:
+        fig, ax_c = plt.subplots(figsize=(TEXTWIDTH, TEXTWIDTH * 0.38), dpi=300)
+        fig.subplots_adjust(bottom=0.32, top=0.92)
+        field_axes = []
+        npz_solvers = []
+
+    # ── Compliance vs iteration ──────────────────────────────────────────────
+    present: set[str] = set()
+    for solver, sdata in by_solver.items():
+        _label, color, ls, _mk = solver_props(solver)
+        compliances = sdata.get("compliances", [])
+        if compliances:
+            ax_c.semilogy(
+                range(len(compliances)),
+                compliances,
+                color=color,
+                linestyle=ls,
+                linewidth=1.6,
+            )
+            present.add(solver)
+
+    ax_c.set_title(f"Compliance — {cfg.category_label or cfg.name}")
+    ax_c.set_xlabel("Iteration")
+    ax_c.set_ylabel("Compliance")
+
+    # ── 3-D voxel field panels ───────────────────────────────────────────────
+    if have_fields:
+        nx, ny, nz = int(ph["nx"]), int(ph["ny"]), int(ph["nz"])
+        for i, sname in enumerate(npz_solvers):
+            ax = field_axes[i]
+            rho_flat = npz[f"rho_final_{i}"]
+            rho_xyz = rho_flat.reshape(nz, ny, nx).transpose(2, 1, 0)
+            filled = rho_xyz > _THRESH
+
+            _label, color, _ls, _mk = solver_props(sname)
+            fc = _voxel_facecolors(rho_xyz, filled, color)
+            ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)
+            _add_bcs(ax, nx, ny, nz, ph)
+
+            label = SOLVER_STYLES.get(sname, (sname,))[0]
+            ax.set_title(label, fontsize=7.5, pad=-4)
+            ax.view_init(elev=_ELEV, azim=_AZIM)
+            ax.set_axis_off()
+            present.add(sname)
+
+    # ── Legend ───────────────────────────────────────────────────────────────
+    handles = dedup_handles(
+        [make_handle(s) for s in solver_order if s in present and s in SOLVER_STYLES]
+    )
+    if handles:
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(len(handles), 5),
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
+
+    if save:
+        out = out_dir / f"{exp_key}.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
+
+
+# ── Cross-paper combined convergence figure ──────────────────────────────────
 
 
 def _plot_combined_convergence(out_path: Path) -> None:
@@ -116,78 +340,6 @@ def _plot_combined_convergence(out_path: Path) -> None:
     print(f"Saved {out_path}")
 
 
-_THRESH = 0.35
-_ELEV = 22
-_AZIM = 35
-_CLR_FIXED = "#888888"
-_CLR_LOAD = "#FF1744"
-
-
-def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
-    """Overlay fixed-face patch and load arrow on a voxel Axes3D.
-
-    Voxel axes are (x=length, y=width, z=height) after transpose.
-    Fixed: x=0 face.  Load: right-face corner, direction from params.
-    """
-    # Fixed face — semi-transparent gray wall at x=0
-    wall = Poly3DCollection(
-        [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
-        alpha=0.55,
-        facecolor=_CLR_FIXED,
-        edgecolor="#333333",
-        linewidth=0.8,
-    )
-    ax.add_collection3d(wall)
-
-    # Load point in voxel coords (first cell of the relevant corner)
-    corner_z_high = ph.get("corner_z_high", False)
-    corner_y_high = ph.get("corner_y_high", False)
-    load_axis = ph.get("load_axis", "z")
-    ly = (ny - 0.5) if corner_y_high else 0.5
-    lz = (nz - 0.5) if corner_z_high else 0.5
-
-    arrow_len = nz * 0.65
-    if load_axis == "y":
-        y_sign = -1 if corner_y_high else 1
-        dx, dy_a, dz_a = 0, y_sign * arrow_len, 0
-    else:
-        z_sign = -1 if corner_z_high else 1
-        dx, dy_a, dz_a = 0, 0, z_sign * arrow_len
-
-    # Arrow originates at the load surface and points in the force direction
-    ox = nx + 0.6 if load_axis != "y" else nx
-    ax.quiver(
-        ox,
-        ly,
-        lz,
-        dx,
-        dy_a,
-        dz_a,
-        color=_CLR_LOAD,
-        linewidth=2.5,
-        arrow_length_ratio=0.28,
-    )
-
-
-def _voxel_facecolors(
-    rho_xyz: np.ndarray,
-    filled: np.ndarray,
-    base_color: str,
-) -> np.ndarray:
-    """Return RGBA facecolor array; empty voxels are fully transparent."""
-    import matplotlib.colors as mcolors
-
-    r, g, b, _ = mcolors.to_rgba(base_color)
-    fc = np.zeros((*rho_xyz.shape, 4))
-    norm = np.where(filled, (rho_xyz - _THRESH) / (1.0 - _THRESH), 0.0)
-    # Lighten low-density voxels slightly toward white
-    fc[..., 0] = r + (1 - r) * (1 - norm) * 0.45
-    fc[..., 1] = g + (1 - g) * (1 - norm) * 0.45
-    fc[..., 2] = b + (1 - b) * (1 - norm) * 0.45
-    fc[..., 3] = filled.astype(float)
-    return fc
-
-
 def _plot_fields(
     domain_label: str,
     fields_path: Path,
@@ -214,13 +366,11 @@ def _plot_fields(
         ax = fig.add_subplot(nrows, ncols, i + 1, projection="3d")
 
         rho_flat = npz[f"rho_final_{i}"]
-        # reshape to (nz, ny, nx) then transpose to (nx, ny, nz) = (x, y, z)
         rho_xyz = rho_flat.reshape(nz, ny, nx).transpose(2, 1, 0)
         filled = rho_xyz > _THRESH
 
         _, color, _, _ = SOLVER_STYLES.get(sname, (sname, "#555555", "-", "o"))
         fc = _voxel_facecolors(rho_xyz, filled, color)
-        # edgecolors matching face keeps grid lines invisible while shade=True works
         ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)
         _add_bcs(ax, nx, ny, nz, params["physics"])
 
@@ -252,6 +402,10 @@ def _plot_conductivity_recovery(out_path: Path) -> None:
         / "conductivity_recovery"
         / "conductivity_recovery_fields.png"
     )
+
+    if not result_path.exists():
+        print(f"[topopt] {result_path} not found — skipping conductivity recovery")
+        return
 
     data = load_json(result_path)
     by_solver = data["by_solver"]
@@ -320,6 +474,9 @@ def _plot_conductivity_recovery(out_path: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Paper-output entry point: cross-domain combined + per-domain field figures."""
+    from mosaic.benchmarks.problems import get_config
+
     with plt.rc_context(RCPARAMS):
         _plot_combined_convergence(out_path=out_dir / "topopt_convergence.pdf")
         _plot_conductivity_recovery(out_path=out_dir / "conductivity_recovery.pdf")
@@ -351,3 +508,12 @@ def generate(out_dir: Path) -> None:
             / "params.json",
             out_path=out_dir / "thermal_topopt_fields.pdf",
         )
+
+        # Canonical single-experiment figure (structural-mesh).
+        try:
+            cfg = get_config("structural-mesh")
+        except Exception:
+            return
+        fig = plot_experiment(cfg, exp_key="topopt", suffix="", save=False)
+        if fig is not None:
+            plt.close(fig)

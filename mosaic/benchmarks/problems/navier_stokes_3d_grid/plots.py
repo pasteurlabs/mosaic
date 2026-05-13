@@ -488,7 +488,20 @@ def plot_recovery(
     exp_key: str = "optimization",
     **_kw,
 ):
-    """Three files: error vs horizon + failure bars, loss curves, IC field comparison.
+    """Recovery per-experiment plot — paper figure + extras.
+
+    The canonical paper-styled IC-recovery convergence figure is
+    delegated to
+    :func:`mosaic.benchmarks.plots.paper.recovery.plot_experiment` so the
+    polished paper styling lands on the experiment results dir too. This
+    wrapper additionally produces:
+
+      * ``optimization`` — recovery improvement + min-loss summary panel.
+      * ``convergence_curves`` — per-sweep-value loss curves grid.
+      * ``recovery_fields`` — per-solver true/perturbed/recovered/residual.
+      * ``recovery_final_states`` — GT vs recovered rollout panels.
+      * ``recovery_sigma_<v>`` — all-solvers-per-sigma grid.
+      * ``recovery_evolution_<solver>.gif`` — IC reconstruction animation.
 
     When results live in per-IC subdirectories (from
     ``--experiments <suite>/<exp>/<ic>`` runs), pass ``ic`` to select a specific
@@ -496,6 +509,8 @@ def plot_recovery(
     ``result.json`` is not found, the function automatically falls back to the
     first available IC subdirectory.
     """
+    from mosaic.benchmarks.plots.paper import recovery as paper_recovery
+
     base_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     out_dir = _resolve_recovery_out_dir(base_dir, ic)
 
@@ -518,6 +533,14 @@ def plot_recovery(
     fallback_ic_error_init = _compute_fallback_ic_error_init(
         out_dir, by_sweep, sweep_vals, sweep_key
     )
+
+    # ── Canonical paper figure (delegated) ────────────────────────────────────
+    # When the experiment lives in a per-IC subdir, reflect the suffix so the
+    # paper figure lands next to result.json in the IC subdir.
+    paper_suffix = suffix
+    if out_dir != base_dir and out_dir.name != base_dir.name:
+        paper_suffix = f"{suffix}/{out_dir.name}"
+    paper_recovery.plot_experiment(cfg, exp_key=exp_key, suffix=paper_suffix, save=save)
 
     # ── recovery.png: 2 panels ─────────────────────────────────────────────────
     fig_r = _plot_recovery_summary(

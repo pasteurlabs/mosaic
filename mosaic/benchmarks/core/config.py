@@ -317,7 +317,15 @@ class Problem:
         # Shorthand: ``run=dict`` wraps into ``runs=[dict]`` and list-valued
         # fields in the run get auto-converted into the runner's sweep dict
         # form (``sweep={"key": k, "values": [...]}`` + scalar override).
-        config = self._normalize_run_shorthand(config)
+        # The kernel's ``sweep_mode`` decides whether auto-sweep detection
+        # applies — kernels declared ``sweep_mode="none"`` consume list-valued
+        # config fields directly off ``ctx.run`` (e.g. ``fd_check`` iterating
+        # ``fd.eps_values``), so we must not collapse those lists into
+        # ``sweep=`` + scalar placeholder.
+        from mosaic.benchmarks.core.experiment import get_kernel_config
+
+        kernel_sweep_mode = get_kernel_config(kernel).get("sweep_mode", "none")
+        config = self._normalize_run_shorthand(config, sweep_mode=kernel_sweep_mode)
 
         # Variant fan-out: when ``runs=[...]`` (from explicit kwarg or
         # shorthand list-of-dicts expansion) has >1 element, register
@@ -394,7 +402,9 @@ class Problem:
             f"field to each variant."
         )
 
-    def _normalize_run_shorthand(self, config: dict) -> dict:
+    def _normalize_run_shorthand(
+        self, config: dict, *, sweep_mode: str = "default"
+    ) -> dict:
         """Convert ``.add_experiment()`` shorthand into the canonical runner payload.
 
         Two accepted input forms (in order of precedence):
@@ -417,6 +427,12 @@ class Problem:
         [...]}`` is added and the field is replaced with its first value (a
         placeholder; the runner overwrites it per sweep iteration). When an
         explicit ``sweep=`` is supplied via shorthand, auto-detect is skipped.
+
+        ``sweep_mode`` mirrors the kernel decorator's ``sweep_mode``. When it
+        is ``"none"`` the runner ignores the ``sweep=`` block entirely, so
+        list-valued fields on the run dict are kernel inputs (e.g. ``fd_check``
+        iterating ``fd.eps_values``) — auto-sweep detection is skipped so we
+        don't substitute the original list with a scalar placeholder.
         """
         # ── Step 1: collect run dict(s) ─────────────────────────────────
         if "runs" in config:
@@ -480,6 +496,11 @@ class Problem:
             config["runs"] = runs
 
         # ── Step 2: auto-detect sweep in each run dict ─────────────────
+        # Skip entirely for ``sweep_mode="none"`` kernels — they consume any
+        # list-valued config fields directly off ``ctx.run`` and the runner
+        # ignores ``sweep=`` for them anyway.
+        if sweep_mode == "none":
+            return config
         for run in runs:
             if not isinstance(run, dict):
                 continue
@@ -739,7 +760,27 @@ class Problem:
             fn=_exp_fn, params=dict(plot_params)
         )
         if plot is not None:
-            self.plot_fns[f"ics/{name}"] = plot
+            # The runner invokes registered plots as ``plot_fn(cfg, suffix=...)``,
+            # but :func:`plot_ic` expects ``(cfg, ic_name, ic, out_dir, ...)``.
+            # Wrap it: regenerate the IC from ``make_ic`` + ``plot_params``,
+            # resolve the per-IC output dir, then forward to the user-supplied
+            # ``plot`` with all required args.
+            def _ic_plot_dispatch(
+                cfg,
+                *,
+                suffix: str = "",
+                _name=name,
+                _params=plot_params,
+                _plot=plot,
+                **_kw,
+            ):
+                from mosaic.benchmarks.core.io import results_dir
+
+                out_dir = results_dir() / cfg.name / "ics" / _name
+                ic = cfg.make_ic[_name](**_params)
+                _plot(cfg, _name, ic, out_dir, make_ic=cfg.make_ic)
+
+            self.plot_fns[f"ics/{name}"] = _ic_plot_dispatch
 
     def add_extra_plot(self, key: str, plot: Callable) -> None:
         """Register a ``_extra/<suite>/<name>`` plot not tied to an experiment."""
@@ -954,6 +995,18 @@ class SolverSpec:
             self.ad_strategy, AdStrategy
         ):
             self.ad_strategy = AdStrategy(self.ad_strategy)
+
+    @property
+    def key(self) -> str:
+        """Underscore-normalised slug for this solver (e.g. ``"ins_jl"``).
+
+        Derived from ``self.dir`` by replacing hyphens with underscores. This
+        is the key under which the solver appears in
+        :func:`discover_solvers`'s return dict and in
+        ``Problem.exclusions`` / ``Problem.explained_anomalies`` — display
+        names (``self.name``) are not used as lookup keys anywhere.
+        """
+        return self.dir.replace("-", "_")
 
 
 def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:

@@ -197,13 +197,39 @@ def harness_fn_hash(fn) -> str:
 
 
 class _NumpyEncoder(json.JSONEncoder):
-    """JSON encoder that handles numpy / JAX scalars and arrays."""
+    """JSON encoder that handles numpy / JAX scalars and arrays.
+
+    Non-finite floats (``inf`` / ``-inf`` / ``nan``) are coerced to
+    ``None``: Python's default writer emits the bare tokens ``Infinity``
+    / ``NaN`` which are valid Python but **not** valid strict JSON, so
+    downstream consumers (browsers, ``jq``, third-party SDKs) reject the
+    file. ``None`` is a stable, lossy-but-safe representation that every
+    JSON reader accepts. Callers that need the original numeric value
+    should keep it on the NPZ side, not in ``result.json``.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # ``allow_nan=False`` makes the stdlib encoder raise ``ValueError``
+        # on non-finite floats, which we intercept in ``iterencode`` to
+        # emit ``null`` instead. Setting it at construction time keeps the
+        # bare ``json.dumps(...)`` fallback strict too if someone reuses
+        # this class outside ``save_json``.
+        kwargs.setdefault("allow_nan", True)
+        super().__init__(*args, **kwargs)
 
     def default(self, obj):
         if isinstance(obj, (np.ndarray, jax.Array)):
-            return obj.tolist()
+            # ``.tolist()`` produces native Python floats; the C-level
+            # encoder handles those inline (never calls ``default``), so
+            # walk the converted list and replace non-finite values now.
+            return _strict_float_safe(obj.tolist())
         if isinstance(obj, (np.floating, np.integer)):
-            return obj.item()
+            val = obj.item()
+            # ``np.float32(np.inf).item()`` → ``inf`` (Python float);
+            # the parent encoder would emit ``Infinity``. Trap it here.
+            if isinstance(val, float) and not math_isfinite(val):
+                return None
+            return val
         if isinstance(obj, np.bool_):
             return bool(obj)
         if isinstance(obj, set):
@@ -216,6 +242,30 @@ class _NumpyEncoder(json.JSONEncoder):
         if callable(obj) or isinstance(obj, type):
             return f"<callable {getattr(obj, '__qualname__', repr(obj))}>"
         return super().default(obj)
+
+    def iterencode(self, o, _one_shot: bool = False):
+        # Intercept native Python floats before stdlib's tokeniser turns
+        # ``inf`` / ``nan`` into ``Infinity`` / ``NaN``. ``default()`` is
+        # never consulted for floats (they're handled inline by the C
+        # encoder), so the trap has to live one level up.
+        return super().iterencode(_strict_float_safe(o), _one_shot=_one_shot)
+
+
+def _strict_float_safe(obj):
+    """Recursively replace non-finite Python floats with ``None``."""
+    if isinstance(obj, float) and not math_isfinite(obj):
+        return None
+    if isinstance(obj, dict):
+        return {k: _strict_float_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        coerced = [_strict_float_safe(v) for v in obj]
+        return type(obj)(coerced) if isinstance(obj, tuple) else coerced
+    return obj
+
+
+# Local alias so the encoder module isn't importing ``math`` at import time
+# just for one check (keeps top-of-file imports stable).
+from math import isfinite as math_isfinite  # noqa: E402
 
 
 def save_json(data, path: str | Path) -> None:

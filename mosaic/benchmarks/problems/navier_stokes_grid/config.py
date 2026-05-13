@@ -20,8 +20,6 @@ from __future__ import annotations
 import jax.numpy as jnp
 
 from mosaic.benchmarks.core.config import (
-    Exclusion,
-    ExclusionCategory,
     Problem,
     SolverSpec,
     discover_solvers,
@@ -61,6 +59,7 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
+from .exclusions import register as _register_exclusions
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
@@ -88,52 +87,6 @@ _SOLVERS["jax_cfd"].input_overrides = {
     "density": jnp.array([1.0], dtype=jnp.float32),
     "inner_steps": 1,
 }
-
-
-# ── Reusable Exclusion constants ─────────────────────────────────────────────
-# Several exclusions share the same root cause across multiple experiments
-# (e.g. the staggered MAC double-interpolation bias hits both jax_cfd and
-# ins_jl on forward/baseline). Factoring them out keeps each ``.add_experiment()`` call
-# short while making the cross-references explicit.
-
-_STAGGERED_MAC_BIAS = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "staggered MAC grid double-interpolation: collocated TGV IC -> "
-    "staggered faces -> collocated output gives sin^2(pi/N) round-trip "
-    "error at all N; 35-40x above collocated peers",
-)
-_JAX_CFD_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "periodic FFT pressure solve + IBM volume penalization is incompatible "
-    "with cylinder obstacle channel BCs",
-)
-_INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "no IBM or volume penalization — the cylinder obstacle cannot be "
-    "represented in INS.jl; spectral/LU pressure projection is also "
-    "periodic-only",
-)
-_WARP_NS_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "warp-ns is periodic-only; obstacle/inflow flows are not supported",
-)
-_OPENFOAM_NO_VJP = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "standard icoFoam has no VJP to benchmark",
-)
-_XLB_MA_FLOOR = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "irreducible O(Ma²) LBM compressibility error floor: at fixed "
-    "dt=0.01, Ma=u·dt/dx grows with N; at N=128 Ma~0.2 giving ~0.007 "
-    "error floor (230× peers); anomalous at all N",
-)
-_XLB_DX2_FLOOR = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "same root cause as forward/agreement/tgv — automatic k=9 sub-stepping reduces Ma 0.88→0.098 "
-    "but residual O(dx²) LBM spatial discretization gives 11-24× peer errors "
-    "at all nu values (0.0001–0.05); 0.0309 at nu=0.05 is 12.0× peer median; "
-    "not reducible by further sub-stepping (tested k=9..27); valid=True",
-)
 
 
 # ── Problem assembly ─────────────────────────────────────────────────────────
@@ -233,14 +186,6 @@ problem.add_experiment(
     },
     plot=plot_agreement,
 )
-problem.exclude(
-    "forward/baseline",
-    {
-        "jax_cfd": _STAGGERED_MAC_BIAS,
-        "ins_jl": _STAGGERED_MAC_BIAS,
-        "xlb": _XLB_MA_FLOOR,
-    },
-)
 problem.add_experiment(
     "forward/agreement",
     agreement,
@@ -254,25 +199,6 @@ problem.add_experiment(
     },
     reference={"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
     plot=plot_agreement,
-)
-# Per-IC overrides for the multi-IC forward/agreement fan-out above:
-problem.exclude(
-    "forward/agreement/tgv",
-    {
-        "phiflow": Exclusion(
-            ExclusionCategory.ANOMALY_EXPLAINED,
-            "phiflow's double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude "
-            "damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average "
-            "output conversion fix worsened error 9×; upstream library change required",
-        ),
-        "xlb": Exclusion(
-            ExclusionCategory.ANOMALY_EXPLAINED,
-            "automatic k=9 sub-steps reduce Ma 0.88→0.098 (81× Ma² reduction); "
-            "errors drop from 0.216-0.278 → 0.026-0.031 (11-24× peers); "
-            "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
-            "by further sub-stepping (tested k=9..27); valid=True",
-        ),
-    },
 )
 problem.add_experiment(
     "forward/tgv_nu_sweep",
@@ -288,7 +214,6 @@ problem.add_experiment(
     reference={"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
     plot=plot_agreement,
 )
-problem.exclude("forward/tgv_nu_sweep", {"xlb": _XLB_DX2_FLOOR})
 problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
@@ -337,15 +262,6 @@ problem.add_experiment(
     plot=plot_agreement,
     status_check=[median_k(50.0), max_error(0.5)],
 )
-problem.exclude(
-    "forward/cylinder",
-    {
-        "jax_cfd": _JAX_CFD_NO_OBSTACLE,
-        "ins_jl": _INS_JL_NO_OBSTACLE,
-        "warp_ns": _WARP_NS_NO_OBSTACLE,
-    },
-)
-
 # Cost
 problem.add_experiment(
     "cost/spatial_cost",
@@ -386,20 +302,7 @@ problem.add_experiment(
     ],
     plot=plot_cost,
 )
-problem.exclude("cost/vjp_cost", {"openfoam": _OPENFOAM_NO_VJP})
-
 # Gradient
-# Suite-level exclusion: covers every gradient/* experiment below.
-problem.exclude(
-    "gradient",
-    {
-        "openfoam": Exclusion(
-            ExclusionCategory.CATEGORICAL,
-            "standard icoFoam is non-differentiable (C++, no AD path); "
-            "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
-        ),
-    },
-)
 problem.add_experiment(
     "gradient/fd_check",
     fd_check,
@@ -466,16 +369,6 @@ problem.add_experiment(
 )
 
 # Optimization
-# Suite-level exclusion: covers every optimization/* experiment below.
-problem.exclude(
-    "optimization",
-    {
-        "openfoam": Exclusion(
-            ExclusionCategory.CATEGORICAL,
-            "standard icoFoam is non-differentiable forward-only solver",
-        ),
-    },
-)
 problem.add_experiment(
     "optimization/drag_opt",
     drag_opt,
@@ -507,14 +400,6 @@ problem.add_experiment(
     },
     plot=plot_drag_opt,
 )
-problem.exclude(
-    "optimization/drag_opt",
-    {
-        "jax_cfd": _JAX_CFD_NO_OBSTACLE,
-        "ins_jl": _INS_JL_NO_OBSTACLE,
-        "warp_ns": _WARP_NS_NO_OBSTACLE,
-    },
-)
 problem.add_experiment(
     "optimization/drag_opt_bfgs",
     drag_opt,
@@ -542,19 +427,15 @@ problem.add_experiment(
     },
     plot=plot_drag_opt,
 )
-problem.exclude(
-    "optimization/drag_opt_bfgs",
-    {
-        "jax_cfd": _JAX_CFD_NO_OBSTACLE,
-        "ins_jl": _INS_JL_NO_OBSTACLE,
-        "warp_ns": _WARP_NS_NO_OBSTACLE,
-    },
-)
 
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(
     "_extra/gradient/jacobian_svd_comparison",
     plot_jacobian_svd_comparison,
 )
+
+# All per-solver exclusions live in :mod:`.exclusions`; one call attaches the
+# whole table to the canonical :class:`Problem` instance.
+_register_exclusions(problem)
 
 __all__ = ["problem"]

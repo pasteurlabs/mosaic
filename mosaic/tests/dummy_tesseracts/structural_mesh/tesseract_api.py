@@ -34,6 +34,7 @@ if str(_TESSERACTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESSERACTS_DIR))
 
 import numpy as np
+from pydantic import ConfigDict
 from tesseract_core.runtime import ShapeDType
 from tesseract_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -50,7 +51,10 @@ from tesseract_shared.types import make_differentiable
 # tesseract-jax's :class:`Jaxeract` introspects lands at the expected key
 # ``Apply_InputSchema`` rather than ``Apply_DifferentiableInputSchema``.
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
-    pass
+    # Real solvers (jax-fem, topopt-jl, dealii-structural, …) accept extra
+    # SIMP material parameters (``E``, ``E_max``, ``nu``, ``xmin``) via
+    # per-solver ``input_overrides``. Accept-and-ignore them on the dummy.
+    model_config = ConfigDict(extra="ignore")
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):

@@ -35,6 +35,7 @@ if str(_TESSERACTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESSERACTS_DIR))
 
 import numpy as np
+from pydantic import ConfigDict
 from tesseract_core.runtime import ShapeDType
 from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
@@ -54,7 +55,10 @@ class InputSchema(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
     )
 ):
-    pass
+    # Real solvers accept extra per-solver tuning kwargs via
+    # ``input_overrides`` (``density``, ``inner_steps``, ``order``, …).
+    # Accept-and-ignore them on the dummy.
+    model_config = ConfigDict(extra="ignore")
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):

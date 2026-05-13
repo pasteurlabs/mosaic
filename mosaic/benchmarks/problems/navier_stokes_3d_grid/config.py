@@ -20,8 +20,6 @@ from __future__ import annotations
 import jax.numpy as jnp
 
 from mosaic.benchmarks.core.config import (
-    Exclusion,
-    ExclusionCategory,
     Problem,
     SolverSpec,
     discover_solvers,
@@ -59,6 +57,7 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
+from .exclusions import register as _register_exclusions
 from .ics import _abc_flow, _rand_div_free_3d, _tgv3d, _tgv3d_analytic
 from .optimization import recovery
 from .physics import DIAGNOSTICS, make_inputs
@@ -86,20 +85,6 @@ _SOLVERS["exponax"].input_overrides = {
     "injection_mode": 4,
     "injection_scale": jnp.array([1.0], dtype=jnp.float32),
 }
-
-
-# ── Reusable Exclusion constants ─────────────────────────────────────────────
-
-_PHIFLOW_3D_CUDA_OOM = Exclusion(
-    ExclusionCategory.INFEASIBLE,
-    "CUDA OOM during JAX CUDA graph profiling in 3D cost benchmark "
-    "(allocate 16.09MiB failed); xla_gpu_autotune_level=0 fix deployed "
-    "— pending re-run to confirm resolved",
-)
-_OPENFOAM_NO_VJP = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "standard icoFoam has no VJP to benchmark",
-)
 
 
 # ── Shared run-lists ─────────────────────────────────────────────────────────
@@ -268,7 +253,6 @@ problem.add_experiment(
     cost=_COST_TRIALS,
     plot=plot_cost,
 )
-problem.exclude("cost/temporal_cost", {"phiflow": _PHIFLOW_3D_CUDA_OOM})
 problem.add_experiment(
     "cost/vjp_cost",
     vjp_cost,
@@ -295,19 +279,7 @@ problem.add_experiment(
     ],
     plot=plot_cost,
 )
-problem.exclude("cost/vjp_cost", {"openfoam": _OPENFOAM_NO_VJP})
-
 # Gradient
-problem.exclude(
-    "gradient",
-    {
-        "openfoam": Exclusion(
-            ExclusionCategory.CATEGORICAL,
-            "standard icoFoam is non-differentiable (C++, no AD path); "
-            "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
-        )
-    },
-)
 problem.add_experiment(
     "gradient/fd_check",
     fd_check,
@@ -390,15 +362,6 @@ problem.add_experiment(
 )
 
 # Optimization — single runner, optimizer choice as a config kwarg.
-problem.exclude(
-    "optimization",
-    {
-        "openfoam": Exclusion(
-            ExclusionCategory.CATEGORICAL,
-            "standard icoFoam is non-differentiable forward-only solver",
-        )
-    },
-)
 problem.add_experiment(
     "optimization/recovery_constant_ic",
     recovery,
@@ -467,5 +430,8 @@ problem.add_extra_plot(
     "_extra/gradient/jacobian_svd_comparison",
     plot_jacobian_svd_comparison,
 )
+
+# All per-solver exclusions live in :mod:`.exclusions`.
+_register_exclusions(problem)
 
 __all__ = ["problem"]

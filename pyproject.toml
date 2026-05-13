@@ -48,9 +48,10 @@ exclude = ["tests*", "docs*"]
 
 [tool.pytest.ini_options]
 testpaths = ["mosaic/tests"]
-addopts = "-v --tb=short -m 'not integration'"
+addopts = "-v --tb=short -m 'not integration and not slow'"
 markers = [
     "integration: requires Docker and a built Tesseract container (deselected by default)",
+    "slow: builds the full dummy-result corpus (every experiment runs once); deselected by default. Run with `pytest -m slow` for the plot/paper-plot tests.",
 ]
 
 [tool.ruff]
@@ -118,7 +119,7 @@ max-complexity = 20     # default 10
 # each file is refactored. Snapshot: 2026-05-11.
 "mosaic/benchmarks/suites/optimization.py"           = ["C901", "PLR0912", "PLR0913", "PLR0915", "PLR1702"]
 "mosaic/benchmarks/core/status.py"                   = ["C901", "PLR0911", "PLR0912", "PLR0915"]
-"mosaic/benchmarks/cli.py"                           = ["C901", "PLR0912", "PLR0913", "PLR0915"]
+"mosaic/benchmarks/cli/run.py"                       = ["PLR0913"]
 "mosaic/tesseracts/thermal-mesh/fenics-heat/tesseract_api.py" = [
     "F403",   # star import from dolfin/dolfin_adjoint — required by FEniCS conventions
     "F405",   # may be from star import — dolfin exports are only available via star import

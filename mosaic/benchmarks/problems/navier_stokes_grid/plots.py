@@ -12,10 +12,8 @@ from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
-    fig_shared_legend,
     imshow_with_cbar,
     save_fig,
-    solver_plot_props,
     solver_styles,
 )
 
@@ -28,80 +26,47 @@ def plot_drag_opt(
     exp_key: str = "drag_opt",
     **_kw,
 ) -> list:
-    """Two-panel plot per run: drag convergence curves + optimised inflow profiles.
+    """Drag-optimisation per-experiment plot — paper figure + extras.
 
-    Also produces a separate figure (drag_opt_fields) showing velocity magnitude
-    and vorticity of the final simulated flow field for each solver, when a
-    ``flow_fields.npz`` file is present in the result directory.  Poor results
-    (high drag, non-converged) are visually obvious as disordered flow patterns.
+    The canonical drag-reduction / optimised-profile / profile-history figure
+    is delegated to
+    :func:`mosaic.benchmarks.plots.paper.drag_opt.plot_experiment` so the
+    polished paper styling lands on the experiment results dir too. This
+    wrapper additionally produces:
+
+      * ``drag_opt_fields`` — per-solver flow field panels (u_x, u_y) when
+        ``flow_fields.npz`` is present.
+      * ``drag_opt_evolution_<solver>.gif`` — one inflow-profile animation
+        per solver when ``profiles.npz`` carries ``profile_history_*``.
 
     Supports both single-run (drag_opt/result.json) and multi-run
     (drag_opt/<name>/result.json) layouts.
     """
+    from mosaic.benchmarks.plots.paper import drag_opt as paper_drag_opt
+
     base_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     styles = solver_styles(cfg)
-    figs = []
+    figs: list = []
 
-    def _plot_one(data, profiles_path, out_dir):
+    def _plot_one(data, profiles_path, out_dir, *, paper_exp_key, paper_suffix):
         by_solver = data.get("by_solver", {})
         if not by_solver:
             return
         run_name = data.get("run_name", "")
         title_suffix = f" — {run_name}" if run_name else ""
 
+        # ── Canonical paper figure (delegated) ────────────────────────────────
+        fig = paper_drag_opt.plot_experiment(
+            cfg,
+            exp_key=paper_exp_key,
+            suffix=paper_suffix,
+            save=save,
+        )
+        if fig is not None:
+            figs.append(fig)
+
         profiles = try_load_npz(profiles_path) if profiles_path.exists() else {}
         solver_names = list(by_solver.keys())
-
-        # ── Panel 1: drag reduction over initial drag ─────────────────────────
-        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-        ax_drag, ax_prof = axes
-
-        for name in solver_names:
-            d = by_solver[name]
-            drags = d.get("drags", [])
-            sty = styles.get(name, {})
-            if drags and drags[0] and not np.isnan(drags[0]) and drags[0] != 0:
-                drag_0 = drags[0]
-                step = 5
-                indices = list(range(0, len(drags), step))
-                if (len(drags) - 1) % step != 0:
-                    indices.append(len(drags) - 1)
-                ax_drag.plot(
-                    indices,
-                    [drags[i] / drag_0 for i in indices],
-                    label=sty.get("label", name),
-                    **solver_plot_props(sty),
-                )
-        ax_drag.axhline(1.0, color="gray", lw=0.8, ls="--")
-        ax_drag.set_xlabel("iteration")
-        ax_drag.set_ylabel("drag / drag₀")
-        ax_drag.set_title(f"Drag reduction{title_suffix}")
-
-        # ── Panel 2: inlet profiles ───────────────────────────────────────────
-        if "initial" in profiles:
-            N = len(profiles["initial"])
-            y = np.linspace(0, 1, N, endpoint=False) + 0.5 / N
-            ax_prof.plot(profiles["initial"], y, "k--", lw=1.5, label="initial")
-            for name in solver_names:
-                key = f"final_{name}"
-                sty = styles.get(name, {})
-                if key in profiles:
-                    ax_prof.plot(
-                        profiles[key],
-                        y,
-                        label=sty.get("label", name),
-                        **solver_plot_props(sty),
-                    )
-        ax_prof.set_xlabel("u_x")
-        ax_prof.set_ylabel("y")
-        ax_prof.set_title(f"Inlet profile{title_suffix}")
-
-        fig_shared_legend(fig, list(axes))
-        fig.suptitle(f"{cfg.name} — drag optimisation{title_suffix}")
-        fig.tight_layout()
-        if save:
-            save_fig(fig, "drag_opt", out_dir)
-        figs.append(fig)
 
         # ── Flow field visualisation (velocity + vorticity) ───────────────────
         _plot_drag_opt_fields(data, out_dir, run_name, title_suffix, styles, save, figs)
@@ -112,19 +77,31 @@ def plot_drag_opt(
                 profiles, out_dir, solver_names, styles, run_name
             )
 
-    # Single-run layout
+    # Single-run layout — paper figure resolves the experiment dir from cfg.
     single_path = base_dir / "result.json"
     single_result = load_json(single_path) if single_path.exists() else None
     if single_result is not None:
-        _plot_one(single_result, base_dir / "profiles.npz", base_dir)
+        _plot_one(
+            single_result,
+            base_dir / "profiles.npz",
+            base_dir,
+            paper_exp_key=exp_key,
+            paper_suffix=suffix,
+        )
         return figs
 
-    # Multi-run layout
+    # Multi-run layout: one canonical paper figure per run subdir.
     if base_dir.is_dir():
         for sub in sorted(base_dir.iterdir()):
             sub_data = load_json(sub / "result.json")
             if sub_data is not None:
-                _plot_one(sub_data, sub / "profiles.npz", sub)
+                _plot_one(
+                    sub_data,
+                    sub / "profiles.npz",
+                    sub,
+                    paper_exp_key=f"{exp_key}/{sub.name}",
+                    paper_suffix=suffix,
+                )
     return figs
 
 

@@ -236,7 +236,9 @@ def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally i
         Lx,
         Ly,
         Lz,
-        solver_name=spec.name,
+        # ``_traction_solvers`` keys are slug-form ("jax_fem", "ins_jl"); pass
+        # the canonical slug so the traction-vs-node-force dispatch matches.
+        solver_name=spec.key,
         F_total=F_total,
         corner_load=corner_load,
         corner_y_high=corner_y_high,

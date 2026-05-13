@@ -1,6 +1,8 @@
 """Generate Figure: F2 cylinder-flow forward accuracy vs viscosity + flow fields.
 
-Left: consensus error vs ν for each valid solver.
+Left: consensus error vs ν for each valid solver (shared with
+:func:`mosaic.benchmarks.plots.paper.agreement.plot_experiment` — same
+panel rendering, so per-experiment and paper figures stay byte-equivalent).
 Right: 2×2 vorticity fields at ν=0.01 for phiflow, openfoam, pict, xlb.
 
 Output: appendix_cylinder.pdf
@@ -17,6 +19,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
+from mosaic.benchmarks.plots.paper.agreement import _plot_curves
 from mosaic.benchmarks.plots.paper.style import (
     NS_ORDER,
     RCPARAMS,
@@ -39,6 +42,58 @@ def _vorticity(field: np.ndarray, L: float = 1.0) -> np.ndarray:
     dv_dx = np.gradient(v, L / nx, axis=0)
     du_dy = np.gradient(u, L / ny, axis=1)
     return dv_dx - du_dy
+
+
+def _style_cylinder_line(ax_line, nu_vals: list[float]) -> None:
+    """Apply the cylinder-specific axis styling to the error-line subplot.
+
+    Distinct from :func:`agreement._style_axis` because the cylinder figure
+    uses linear-y consensus error (not log) and pins the x ticks to the
+    actual ν grid for readability at four well-separated values.
+    """
+    ax_line.set_xscale("log")
+    ax_line.set_yscale("linear")
+    ax_line.set_xlabel(r"$\nu$")
+    ax_line.set_ylabel("Consensus error")
+    ax_line.xaxis.set_major_formatter(mticker.ScalarFormatter())
+    ax_line.xaxis.set_major_locator(mticker.FixedLocator(nu_vals))
+    ax_line.set_xlim(min(nu_vals) * 0.65, max(nu_vals) * 1.5)
+    ax_line.tick_params(axis="x", labelsize=7.5, rotation=30)
+    ax_line.yaxis.set_major_locator(mticker.MultipleLocator(0.05))
+
+
+def _render_vorticity_panels(field_axes, fields_data: dict | None, nu_show) -> None:
+    """Draw the 2×2 vorticity field panels (with annotated solver labels)."""
+    for ax, solver in zip(field_axes, _FIELD_SOLVERS, strict=False):
+        label, color, _, _ = solver_props(solver)
+        if fields_data is not None:
+            key = f"{solver}_{_NU_IDX}"
+            if key in fields_data:
+                omega = _vorticity(fields_data[key])
+                vmax = float(np.abs(omega).max()) or 1.0
+                ax.imshow(
+                    omega.T,
+                    origin="lower",
+                    cmap="RdBu_r",
+                    vmin=-vmax,
+                    vmax=vmax,
+                    aspect="equal",
+                    interpolation="bilinear",
+                )
+        # label inside the panel, top-left corner
+        ax.text(
+            0.04,
+            0.96,
+            label,
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=7.0,
+            color=color,
+            bbox={"fc": "white", "ec": "none", "alpha": 0.7, "pad": 1.0},
+        )
+        ax.axis("off")
+    del nu_show  # only used for the figure-level caption set by the caller
 
 
 def generate(out_dir: Path) -> None:
@@ -82,39 +137,12 @@ def generate(out_dir: Path) -> None:
             fig.add_subplot(gs[1, 2]),
         ]
 
-        # ── Error line plot ──────────────────────────────────────────────────
+        # ── Error line plot (shared paper curves helper) ─────────────────────
         seen: set[str] = set()
-        for solver in NS_ORDER:
-            _, color, ls, mk = solver_props(solver)
-            xs, ys = [], []
-            for p in params:
-                entry = by_param[p].get(solver)
-                if isinstance(entry, dict):
-                    err = entry.get("error")
-                    if isinstance(err, float) and np.isfinite(err) and err > 0:
-                        xs.append(float(p))
-                        ys.append(err)
-            if xs:
-                ax_line.plot(
-                    xs,
-                    ys,
-                    color=color,
-                    linestyle=ls,
-                    marker=mk,
-                    markersize=4,
-                    markeredgewidth=0,
-                    linewidth=1.6,
-                )
-                seen.add(solver)
-
-        ax_line.set_xscale("log")
-        ax_line.set_xlabel(r"$\nu$")
-        ax_line.set_ylabel("Consensus error")
-        ax_line.xaxis.set_major_formatter(mticker.ScalarFormatter())
-        ax_line.xaxis.set_major_locator(mticker.FixedLocator(nu_vals))
-        ax_line.set_xlim(min(nu_vals) * 0.65, max(nu_vals) * 1.5)
-        ax_line.tick_params(axis="x", labelsize=7.5, rotation=30)
-        ax_line.yaxis.set_major_locator(mticker.MultipleLocator(0.05))
+        _plot_curves(ax_line, data, seen)
+        # The shared helper uses ``semilogy`` — cylinder figure pins the y-axis
+        # back to linear for readability of the small consensus-error spread.
+        _style_cylinder_line(ax_line, nu_vals)
 
         # legend inside the line plot (upper left, away from x-axis ticks)
         handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in seen])
@@ -134,35 +162,7 @@ def generate(out_dir: Path) -> None:
         )
         nu_label = f"$\\nu$ = {nu_show:.3g}" if nu_show is not None else ""
 
-        for ax, solver in zip(field_axes, _FIELD_SOLVERS, strict=False):
-            label, color, _, _ = solver_props(solver)
-            if fields_data is not None:
-                key = f"{solver}_{_NU_IDX}"
-                if key in fields_data:
-                    omega = _vorticity(fields_data[key])
-                    vmax = float(np.abs(omega).max()) or 1.0
-                    ax.imshow(
-                        omega.T,
-                        origin="lower",
-                        cmap="RdBu_r",
-                        vmin=-vmax,
-                        vmax=vmax,
-                        aspect="equal",
-                        interpolation="bilinear",
-                    )
-            # label inside the panel, top-left corner
-            ax.text(
-                0.04,
-                0.96,
-                label,
-                transform=ax.transAxes,
-                ha="left",
-                va="top",
-                fontsize=7.0,
-                color=color,
-                bbox={"fc": "white", "ec": "none", "alpha": 0.7, "pad": 1.0},
-            )
-            ax.axis("off")
+        _render_vorticity_panels(field_axes, fields_data, nu_show)
 
         # shared title above the field panel block, placed relative to fig.transFigure
         fig.text(

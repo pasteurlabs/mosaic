@@ -34,6 +34,7 @@ if str(_TESSERACTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESSERACTS_DIR))
 
 import numpy as np
+from pydantic import ConfigDict
 from tesseract_core.runtime import ShapeDType
 from tesseract_shared.problems.thermal_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -50,7 +51,12 @@ from tesseract_shared.types import make_differentiable
 # tesseract-jax's :class:`Jaxeract` introspects lands at the expected key
 # ``Apply_InputSchema`` rather than ``Apply_DifferentiableInputSchema``.
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
-    pass
+    # The real thermal-mesh solvers (jax-fem, fenics-heat, dealii-heat,
+    # firedrake-heat, torch-fem-thermal) accept SIMP material parameters
+    # ``k_max`` and ``p_exp`` via per-solver ``input_overrides``. Those
+    # extras are not in the canonical schema, so accept-and-ignore them
+    # here rather than rejecting on validation.
+    model_config = ConfigDict(extra="ignore")
 
 
 class OutputSchema(

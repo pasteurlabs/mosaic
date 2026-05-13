@@ -46,6 +46,7 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
+from .exclusions import register as _register_exclusions
 from .ics import _random, _two_density_bumps, _uniform
 from .optimization import topopt
 from .physics import DIAGNOSTICS, make_inputs
@@ -364,5 +365,12 @@ problem.add_experiment(
     optim={"max_iters": 100, "patience": 20},
     plot=plot_topopt,
 )
+
+
+# ── Exclusions ───────────────────────────────────────────────────────────────
+# Per-solver exclusions live in ``exclusions.py``; the register call here
+# wires them into the same longest-prefix lookup ``mosaic status`` uses.
+_register_exclusions(problem)
+
 
 __all__ = ["problem"]

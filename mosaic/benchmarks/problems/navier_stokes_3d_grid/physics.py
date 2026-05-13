@@ -30,7 +30,7 @@ def make_inputs(
     N = ic.shape[0]
     _dt, _steps = dt, steps
 
-    if spec.name in _LBM_SOLVERS and lbm_N_base is not None:
+    if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
         _dt = dt * (lbm_N_base / N)
         _steps = max(1, round(steps * (N / lbm_N_base)))
 

@@ -1,10 +1,21 @@
-"""Generate Figure: Jacobian SVD spectra for 2D and 3D NS.
+"""Jacobian SVD spectra figures — single-experiment + cross-variant comparison.
 
-One panel per solver, one line per (nu, T) configuration.
-Produces:
-  appendix_jacobian_svd_2d.pdf
-  appendix_jacobian_svd_3d.pdf
-  jacobian_svd_comparison.pdf / .png
+Three public entry points:
+
+  * :func:`plot_experiment(cfg, exp_key)` — single-experiment per-solver
+    spectrum grid (paper styling). One panel per solver, one line for the
+    variant defined by ``(cfg, exp_key+suffix)``. Used as the canonical
+    mosaic experiment plot (registered via ``plot=`` on
+    :meth:`Problem.add_experiment`) and as an inner helper for the
+    cross-variant comparison figure.
+  * :func:`generate(out_dir)` — paper figures: 3D NS main-paper +
+    2D NS appendix variant-overlay (one panel per solver, one line per
+    physics variant).
+
+Sharing the per-experiment helper between the experiment-plot registry
+and the paper-figure registry means the styling stays in lockstep —
+edits to the polished paper version land automatically on the
+``mosaic run --plots-only`` output and vice versa.
 """
 
 from __future__ import annotations
@@ -17,20 +28,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from mosaic.benchmarks.core.io import load_json, results_dir
+from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.io import experiment_dir, load_json, results_dir
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
 from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES
-
-NS_ORDER_2D = [
-    "jax_cfd",
-    "phiflow",
-    "ins_jl",
-    "xlb",
-    "pict",
-    "warp_ns",
-    "openfoam",
-]
-NS_ORDER_3D = ["exponax", "phiflow", "xlb", "ins_jl", "warp_ns", "pict", "openfoam"]
 
 VARIANT_STYLES = [
     {"color": "#0077BB", "linestyle": "-"},
@@ -69,11 +70,12 @@ def _piecewise_log_inverse(t):
 
 
 def _variant_label(phys: dict) -> str:
-    nu = phys["nu"]
-    steps = phys["steps"]
-    dt = phys["dt"]
+    nu = phys.get("nu")
+    steps = phys.get("steps")
+    dt = phys.get("dt")
+    if nu is None or steps is None or dt is None:
+        return ""
     t = steps * dt
-    # Human-readable: low/high viscosity, short/long rollout
     visc = "low ν" if nu <= 0.001 else "high ν"
     horizon = f"T={t:.2g}s"
     return f"{visc}, {horizon}"
@@ -174,33 +176,42 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
     return legend_handles
 
 
-def _plot_svd_figure(
-    subdir: str,
-    experiments: list[str],
-    n_show: int,
-    solver_order: list[str],
-    out_path: Path,
-) -> None:
-    variants: list[tuple[str, dict]] = []
-    for exp_key in experiments:
-        path = results_dir() / subdir / "gradient" / exp_key / "result.json"
-        if not path.exists():
-            continue
-        data = load_json(path)
-        if data.get("per_solver_spectra"):
-            variants.append((exp_key, data))
+def plot_experiment(
+    cfg: Problem,
+    *,
+    exp_key: str = "jacobian_svd",
+    suffix: str = "",
+    save: bool = True,
+    n_show: int | None = None,
+    **_kw,
+) -> plt.Figure | None:
+    """Single-experiment jacobian_svd figure for ``(cfg, exp_key)``.
 
-    if not variants:
-        print(f"No data found for {subdir}")
-        return
+    Registered as the per-experiment plot via ``plot=`` on
+    :meth:`Problem.add_experiment`. Reads
+    ``<results>/<cfg.name>/gradient/<exp_key>{suffix}/result.json`` and
+    writes a per-solver spectrum grid PDF (``jacobian_svd.pdf``) next to
+    it. One panel per solver, one line for this single variant.
 
-    _NS_EXCLUDED = {"fenics_ns", "su2"}
-    all_solver_sets = [set(d["per_solver_spectra"].keys()) for _, d in variants]
-    solvers = [s for s in solver_order if any(s in ss for ss in all_solver_sets)]
-    for ss in all_solver_sets:
-        for s in sorted(ss):
-            if s not in solvers and s not in _NS_EXCLUDED:
-                solvers.append(s)
+    Returns ``None`` when ``per_solver_spectra`` is missing (e.g. scalar
+    outputs) so callers can fall back to alternate diagnostics.
+    """
+    plt.rcParams.update(RCPARAMS)
+
+    out_dir = experiment_dir(results_dir(), cfg.name, "gradient", exp_key + suffix)
+    data = load_json(out_dir / "result.json")
+
+    per_solver_spectra = data.get("per_solver_spectra") or {}
+    if not per_solver_spectra:
+        return None
+
+    variants = [(exp_key + suffix, data)]
+    # Preserve declaration order from result.json.
+    solvers = list(per_solver_spectra.keys())
+
+    # Pick the longest spectrum to size the x-axis when n_show isn't set.
+    if n_show is None:
+        n_show = max(len(v) for v in per_solver_spectra.values())
 
     n_solvers = len(solvers)
     ncols = min(3, n_solvers)
@@ -213,10 +224,11 @@ def _plot_svd_figure(
         figsize=(TEXTWIDTH, panel_h * nrows + 0.3),
         squeeze=False,
         sharex=True,
+        dpi=300,
     )
     fig.subplots_adjust(hspace=0.45, wspace=0.35, bottom=0.18)
 
-    handles = _svd_panels(fig, axes, variants, solvers, n_show)
+    _handles = _svd_panels(fig, axes, variants, solvers, n_show)
 
     for row in range(nrows - 1):
         for col in range(ncols):
@@ -226,21 +238,11 @@ def _plot_svd_figure(
     for idx in range(n_solvers, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
-    ncols_leg = min(len(handles), 4)
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.01),
-        ncol=ncols_leg,
-        fontsize=7.5,
-        framealpha=0.9,
-        edgecolor="0.8",
-        handlelength=2.5,
-    )
-
-    fig.savefig(out_path)
-    plt.close(fig)
-    print(f"Saved {out_path}")
+    if save:
+        out = out_dir / "jacobian_svd.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
 
 
 def _svd_comparison(

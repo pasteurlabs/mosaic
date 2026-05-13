@@ -40,45 +40,30 @@ def plot_fd_check(
     exp_key: str = "fd_check",
     **_kw,
 ):
-    """Two files: FD error + subspace cosine curves, and gradient magnitude field panels."""
+    """FD-check experiment plot: curves (paper styling) + gradient-magnitude fields.
+
+    The rel-error / cosine curves are produced by
+    :func:`mosaic.benchmarks.plots.paper.fd_check.plot_experiment` so the
+    per-experiment figure and the paper figure stay byte-identical in
+    layout. The gradient-magnitude field panels are this problem's
+    extra: they need ``ic_to_2d`` / ``diagnostic_fields`` flags that
+    don't fit the cross-domain paper layout, so they live here.
+    """
+    from mosaic.benchmarks.plots.paper import fd_check as paper_fd_check
+
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
-    data = load_json(out_dir / "result.json")
-    styles = solver_styles(cfg)
 
-    # ── error / cosine curves ─────────────────────────────────────────────────
-    fig_c, axes = plt.subplots(1, 2, figsize=(11, 4))
-    all_cosines: list[float] = []
-    for name, solver_data in data["by_solver"].items():
-        eps_sweep = solver_data["eps_sweep"]
-        epsilons = sorted(eps_sweep.keys(), key=float)
-        eps_f = [float(e) for e in epsilons]
-        props = solver_plot_props(styles[name])
-
-        rel_mean = np.array([np.mean(eps_sweep[e]["rel_error"]) for e in epsilons])
-        # "cosine" is now a scalar subspace cosine per eps value
-        cos_vals = np.array([eps_sweep[e]["cosine"] for e in epsilons])
-        all_cosines.extend(cos_vals.tolist())
-
-        axes[0].loglog(eps_f, rel_mean, label=styles[name]["label"], **props)
-        axes[1].semilogx(eps_f, cos_vals, label=styles[name]["label"], **props)
-
-    axes[0].set_xlabel("ε (relative to IC RMS)")
-    axes[0].set_ylabel("Relative FD error")
-    axes[0].set_title("G0 — gradient verification")
-    axes[1].set_xlabel("ε (relative to IC RMS)")
-    axes[1].set_ylabel("Subspace cosine similarity")
-    axes[1].set_title("G0 — direction accuracy")
-    # Zoom y-axis when all cosines are near 1 — minimum span 0.003 to avoid noise zoom
-    min_cos = min(all_cosines) if all_cosines else 0.0
-    if min_cos > 0.8:
-        axes[1].set_ylim(min(min_cos, 0.999) - 0.001, 1.001)
-    else:
-        axes[1].set_ylim(-0.05, 1.05)
-    fig_shared_legend(fig_c, axes)
-    if save:
-        save_fig(fig_c, "fd_check", out_dir)
+    # ── error / cosine curves (delegated to paper module) ────────────────────
+    fig_c = paper_fd_check.plot_experiment(
+        cfg, exp_key=exp_key, suffix=suffix, save=save
+    )
 
     # ── gradient magnitude fields ─────────────────────────────────────────────
+    # The field panels only need per-solver display labels; that's a
+    # presentation concern local to this problem (paper plots don't
+    # produce field grids), so we keep the lightweight per-suite
+    # ``solver_styles`` here rather than depend on paper-side styling.
+    styles = solver_styles(cfg)
     fields_path = out_dir / "gradient_fields.npz"
     if not fields_path.exists():
         return fig_c
@@ -432,24 +417,26 @@ def plot_jacobian_svd(
     exp_key: str = "jacobian_svd",
     **_kw,
 ):
-    """Three files:
-    - jacobian_svd.png: singular spectrum + explained variance + cosine heatmap
-    - landscape.png: 1-D loss slice along the top singular direction
-    - gradient_fields.png: IC and per-solver gradient magnitude panels
+    """Jacobian-SVD experiment plot: paper spectra grid + cross-cosine + fields.
+
+    The per-solver singular spectrum grid is produced by
+    :func:`mosaic.benchmarks.plots.paper.jacobian_svd.plot_experiment` so
+    the per-experiment figure and the paper figure stay byte-identical in
+    layout. The cross-solver cosine heatmap, scalar-output gradient-norm
+    bar chart, and gradient-field panels are this problem's extras: they
+    don't fit the cross-domain paper layout, so they live here as
+    additional ``save_fig`` calls.
     """
+    from mosaic.benchmarks.plots.paper import jacobian_svd as paper_jacobian_svd
+
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
     solver_names = data["solver_names"]
-    S_norm = data["singular_values"]
-    cond = data["condition_number"]
     cross_cos = np.array(data["cross_cosine"])
 
-    n_modes = len(S_norm)
-    modes = list(range(1, n_modes + 1))
     per_solver_spectra: dict = data.get("per_solver_spectra", {})
-    per_solver_eff_rank: dict = data.get("per_solver_eff_rank", {})
     per_solver_grad_norm: dict = data.get("per_solver_grad_norm", {})
 
     # Detect scalar output: all per-solver spectra have exactly 1 singular value.
@@ -457,12 +444,16 @@ def plot_jacobian_svd(
         len(v) == 1 for v in per_solver_spectra.values()
     )
 
-    # ── Figure 1: per-solver spectra + cross-cosine heatmap ──────────────────
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+    # ── Singular-value spectra grid (delegated to paper module) ──────────────
+    # For scalar outputs the per-solver spectrum is trivially [1.0] and
+    # the paper helper short-circuits returning None; we fall back to a
+    # per-solver gradient-norm bar chart in that case.
+    fig_c = paper_jacobian_svd.plot_experiment(
+        cfg, exp_key=exp_key, suffix=suffix, save=save
+    )
 
-    ax = axes[0]
     if _scalar_output:
-        # Scalar output: spectrum is trivially [1.0]. Show gradient norm bar chart.
+        fig_bar, ax = plt.subplots(figsize=(6, 4))
         names = list(per_solver_grad_norm or per_solver_spectra)
         norms = [per_solver_grad_norm.get(n, float("nan")) for n in names]
         colors = [styles.get(n, {}).get("color", "#888888") for n in names]
@@ -471,50 +462,17 @@ def plot_jacobian_svd(
         ax.set_xticks(range(len(names)))
         ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=9)
         ax.set_ylabel("‖∇L‖  (gradient norm)")
-        ax.set_title("G3 — per-solver gradient norm")
+        ax.set_title(f"{cfg.name} — G3 per-solver gradient norm")
         ax.set_yscale("log")
         ax.grid(True, axis="y", alpha=0.3)
-    elif per_solver_spectra:
-        # Vector output: plot normalised singular value spectra (projection vs LBM).
-        for name, spec in per_solver_spectra.items():
-            style = styles.get(name, {})
-            n_i = len(spec)
-            m_i = list(range(1, n_i + 1))
-            er = per_solver_eff_rank.get(name, float("nan"))
-            label = f"{style.get('label', name)}  (r_eff={er:.1f})"
-            mk = "o" if n_i <= 32 else ""
-            ax.semilogy(
-                m_i,
-                spec,
-                f"{mk}-",
-                color=style.get("color", "#888888"),
-                markersize=4 if mk else 0,
-                linewidth=1.5,
-                label=label,
-            )
-        ax.set_xlabel("Mode index i")
-        ax.set_ylabel("σᵢ / σ₁  (log scale)")
-        ax.set_title("G3 — per-solver singular value spectra")
-        ax.legend(fontsize=8)
-    else:
-        # Fallback: stacked-Jacobian spectrum
-        marker = "o" if n_modes <= 32 else ""
-        ax.semilogy(
-            modes,
-            S_norm,
-            f"{marker}-",
-            color="steelblue",
-            markersize=5 if marker else 0,
-            linewidth=1.5,
-            label=f"stacked  κ={cond:.1f}",
-        )
-        ax.set_xlabel("Mode index i")
-        ax.set_ylabel("σᵢ / σ₁  (log scale)")
-        ax.set_title("G3 — per-solver singular value spectra")
-        ax.legend(fontsize=8)
+        fig_bar.tight_layout()
+        if save:
+            save_fig(fig_bar, "gradient_norms", out_dir)
+        if fig_c is None:
+            fig_c = fig_bar
 
-    # Panel 1: cross-solver cosine similarity heatmap
-    ax = axes[1]
+    # ── Cross-solver cosine similarity heatmap ───────────────────────────────
+    fig_h, ax = plt.subplots(figsize=(6, 5))
     n = len(solver_names)
     im = ax.imshow(cross_cos, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
     ax.set_xticks(range(n))
@@ -522,18 +480,18 @@ def plot_jacobian_svd(
     short_labels = [styles.get(s, {}).get("label", s) for s in solver_names]
     ax.set_xticklabels(short_labels, rotation=45, ha="right", fontsize=9)
     ax.set_yticklabels(short_labels, fontsize=9)
-    ax.set_title("G3 — cross-solver cosine similarity")
+    ax.set_title(f"{cfg.name} — G3 cross-solver cosine similarity")
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-
-    fig.suptitle(f"{cfg.name} — G3 Jacobian SVD", fontsize=10)
-    fig.tight_layout()
+    fig_h.tight_layout()
     if save:
-        save_fig(fig, "jacobian_svd", out_dir)
+        save_fig(fig_h, "cross_cosine", out_dir)
+    if fig_c is None:
+        fig_c = fig_h
 
     # ── Figure 2: IC + per-solver gradient magnitude + top singular direction ─
     fields_path = out_dir / "jacobian_svd.npz"
     if not fields_path.exists():
-        return fig
+        return fig_c
 
     npz = try_load_npz(fields_path)
     npz_solvers = npz["solver_names"].tolist()
@@ -546,7 +504,7 @@ def plot_jacobian_svd(
     else:
         f_ic = None
     if f_ic is None:
-        return fig
+        return fig_c
 
     ic_arr = f_ic(ic)
     if ic_arr.min() >= -1e-6:
@@ -605,7 +563,7 @@ def plot_jacobian_svd(
     )
     if save:
         save_fig(fig_g, "gradient_fields", out_dir)
-    return fig
+    return fig_c
 
 
 # ── G2c: horizon sweep ────────────────────────────────────────────────────────
@@ -616,41 +574,28 @@ def plot_horizon_sweep(
     *,
     save: bool = True,
     suffix: str = "",
+    exp_key: str = "horizon_sweep",
     **_kw,
 ):
-    """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid,
-    plus gradient field panels."""
-    out_dir = results_dir() / cfg.name / _SUITE / f"horizon_sweep{suffix}"
+    """Horizon-sweep experiment plot: paper curves + auxiliary diagnostics.
+
+    The grad-norm / best-ε error / cosine curves are produced by
+    :func:`mosaic.benchmarks.plots.paper.horizon_sweep.plot_experiment`
+    so the per-experiment figure and the paper figure stay
+    byte-identical in layout. The U-curve grid, per-solver error
+    panels and gradient-magnitude field panels are this problem's
+    extras and live here.
+    """
+    from mosaic.benchmarks.plots.paper import horizon_sweep as paper_horizon_sweep
+
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
-    # ── summary curves ────────────────────────────────────────────────────────
-    fig_c, axes = plt.subplots(1, 3, figsize=(15, 4))
-    for name, h_results in data["by_solver"].items():
-        step_keys = sorted(h_results.keys(), key=int)
-        steps_f = [int(s) for s in step_keys]
-        norms = [h_results[s]["grad_norm"] for s in step_keys]
-        re_mean = _best_eps_series(h_results, step_keys, "rel_error_mean")
-        cosines = _best_eps_series(h_results, step_keys, "cosine_mean")
-        props = solver_plot_props(styles[name])
-
-        axes[0].semilogy(steps_f, norms, label=styles[name]["label"], **props)
-        axes[1].semilogy(steps_f, re_mean, label=styles[name]["label"], **props)
-        axes[2].plot(steps_f, cosines, label=styles[name]["label"], **props)
-
-    axes[0].set_xlabel("Steps")
-    axes[0].set_ylabel("Gradient norm")
-    axes[0].set_title("G2c — gradient norm vs horizon")
-    axes[1].set_xlabel("Steps")
-    axes[1].set_ylabel("Relative FD error (best ε)")
-    axes[1].set_title("G2c — FD error vs horizon")
-    axes[2].set_xlabel("Steps")
-    axes[2].set_ylabel("Subspace cosine (best ε)")
-    axes[2].set_title("G2c — direction accuracy vs horizon")
-    axes[2].set_ylim(-0.05, 1.05)
-    fig_shared_legend(fig_c, axes)
-    if save:
-        save_fig(fig_c, "horizon_sweep", out_dir)
+    # ── summary curves (delegated to paper module) ───────────────────────────
+    fig_c = paper_horizon_sweep.plot_experiment(
+        cfg, exp_key=exp_key, suffix=suffix, save=save
+    )
 
     # ── U-curve overlay: all solvers per horizon ─────────────────────────────
     step_keys = sorted(next(iter(data["by_solver"].values())).keys(), key=int)

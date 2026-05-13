@@ -1,11 +1,18 @@
-"""Generate Figure: Drag optimisation at Re=20.
+"""Drag-optimisation single-experiment + paper-figure generator.
 
-Layout: 3-column figure
-  col 0  — drag reduction (%) vs iteration  [spans full height]
-  col 1  — final + initial inlet profiles   [spans full height]
-  col 2  — profile evolution imshow         [3 rows, one per solver]
+Two public entry points:
 
-Output: drag_opt_re20.pdf
+  * :func:`plot_experiment(cfg, *, exp_key, suffix, save)` — the canonical
+    single-experiment 3-column figure (drag reduction, optimised inlet
+    profile, profile history) produced in paper styling. Reads
+    ``<results>/<cfg.name>/optimization/<exp_key><suffix>/result.json``
+    and writes a paper-quality PDF in the same experiment directory.
+    Used both as the per-experiment plot delegate (called from
+    :func:`mosaic.benchmarks.problems.navier_stokes_grid.plots.plot_drag_opt`)
+    and as the source figure for the paper-output pipeline.
+  * :func:`generate(out_dir)` — thin wrapper that resolves the ns-grid
+    cfg and dispatches to ``plot_experiment``, then copies the PDF to
+    *out_dir* under the canonical paper filename for the build pipeline.
 """
 
 from __future__ import annotations
@@ -17,33 +24,67 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    load_json,
+    results_dir,
+    try_load_npz,
+)
 from mosaic.benchmarks.plots.paper import TEXTWIDTH
-from mosaic.benchmarks.plots.paper.style import RCPARAMS, SOLVER_STYLES, solver_props
+from mosaic.benchmarks.plots.paper.style import (
+    NS_ORDER,
+    RCPARAMS,
+    SOLVER_STYLES,
+    dedup_handles,
+    make_handle,
+    solver_props,
+)
 
-SOLVER_ORDER = ["xlb", "phiflow", "pict"]
+# Solvers shown in the drag_opt panel, in display order.
+_SOLVER_ORDER = ["xlb", "phiflow", "pict"]
 
 
-def _plot_re(re_tag: str, out_dir: Path) -> None:
-    base = results_dir() / "ns-grid" / "optimization" / "drag_opt" / re_tag
-    result_path = base / "result.json"
-    profiles_path = base / "profiles.npz"
+def plot_experiment(
+    cfg: Problem,
+    *,
+    exp_key: str = "drag_opt",
+    suffix: str = "",
+    save: bool = True,
+    **_kw,
+) -> plt.Figure | None:
+    """Single-experiment paper-styled drag-optimisation figure.
+
+    Layout (3-column GridSpec):
+      * col 0 — drag reduction (%) vs iteration
+      * col 1 — final + initial inlet profiles
+      * col 2 — profile-history imshow, one row per solver
+
+    Reads ``result.json`` (+ optional ``profiles.npz``) from the
+    experiment directory and writes ``<exp_key>.pdf`` next to them when
+    ``save`` is True.
+    """
+    out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
+    result_path = out_dir / "result.json"
+    profiles_path = out_dir / "profiles.npz"
 
     if not result_path.exists():
         print(f"[drag_opt] {result_path} not found — skipping")
-        return
+        return None
+
+    plt.rcParams.update(RCPARAMS)
 
     data = load_json(result_path)
     profiles = try_load_npz(profiles_path) if profiles_path.exists() else None
 
     hist_solvers = [
         s
-        for s in SOLVER_ORDER
+        for s in _SOLVER_ORDER
         if profiles is not None and f"profile_history_{s}" in profiles
     ]
     n_rows = max(len(hist_solvers), 1)
 
-    fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * (0.14 + 0.13 * n_rows)))
+    fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * (0.14 + 0.13 * n_rows)), dpi=300)
     gs = gridspec.GridSpec(
         n_rows,
         3,
@@ -64,11 +105,11 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     present: set[str] = set()
 
     # ── Drag reduction panel ─────────────────────────────────────────────────
-    for solver in SOLVER_ORDER:
+    for solver in _SOLVER_ORDER:
         sdata = data["by_solver"].get(solver)
         if sdata is None:
             continue
-        drags = sdata["drags"]
+        drags = sdata.get("drags", [])
         if not drags or not drags[0] or np.isnan(drags[0]) or drags[0] == 0:
             continue
         drag_0 = drags[0]
@@ -80,7 +121,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
 
         reductions = [(drag_0 - drags[i]) / drag_0 * 100 for i in indices]
 
-        label, color, ls, _ = solver_props(solver)
+        _label, color, ls, _mk = solver_props(solver)
         ax_drag.plot(indices, reductions, color=color, linestyle=ls, linewidth=1.6)
         present.add(solver)
 
@@ -90,15 +131,15 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     ax_drag.set_ylim(bottom=0)
 
     # ── Final inlet profiles panel ───────────────────────────────────────────
-    if profiles is not None:
+    if profiles is not None and "initial" in profiles:
         y_arr = np.linspace(0, 1, profiles["initial"].shape[0])
         ax_prof.plot(
             profiles["initial"], y_arr, color="#999999", linestyle="--", linewidth=1.4
         )
-        for solver in SOLVER_ORDER:
+        for solver in _SOLVER_ORDER:
             if f"final_{solver}" not in profiles:
                 continue
-            label, color, ls, _ = solver_props(solver)
+            _label, color, ls, _mk = solver_props(solver)
             ax_prof.plot(
                 profiles[f"final_{solver}"],
                 y_arr,
@@ -112,10 +153,10 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     ax_prof.set_xlabel(r"$u_x$")
     ax_prof.set_ylabel("$y$")
 
-    # ── Profile history imshow panels ─────────────────────────────────────────
+    # ── Profile history imshow panels ────────────────────────────────────────
     for idx, (ax_im, solver) in enumerate(zip(imshow_axes, hist_solvers, strict=False)):
         hist = profiles[f"profile_history_{solver}"]  # (n_snaps, ny)
-        label, color, _, _ = solver_props(solver)
+        label, color, _ls, _mk = solver_props(solver)
 
         ax_im.imshow(
             hist.T,
@@ -153,7 +194,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
         else:
             ax_im.set_xlabel("Iteration", fontsize=7.0)
 
-    # hide unused imshow rows
+    # Hide unused imshow rows
     for ax_im in imshow_axes[len(hist_solvers) :]:
         ax_im.set_visible(False)
 
@@ -161,18 +202,10 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     handles = [
         mlines.Line2D(
             [], [], color="#999999", linestyle="--", linewidth=1.4, label="Initial"
-        )
-    ] + [
-        mlines.Line2D(
-            [],
-            [],
-            color=SOLVER_STYLES[s][1],
-            linestyle=SOLVER_STYLES[s][2],
-            linewidth=1.6,
-            label=SOLVER_STYLES[s][0],
-        )
-        for s in SOLVER_ORDER
-        if s in present and s in SOLVER_STYLES
+        ),
+        *dedup_handles(
+            [make_handle(s) for s in NS_ORDER if s in present and s in SOLVER_STYLES]
+        ),
     ]
 
     fig.legend(
@@ -186,15 +219,26 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
         handlelength=2.0,
     )
 
-    out = out_dir / f"drag_opt_{re_tag}.pdf"
-    fig.savefig(out)
-    plt.close(fig)
-    print(f"Saved {out}")
+    if save:
+        out = out_dir / f"{exp_key}.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
 
 
 def generate(out_dir: Path) -> None:
+    """Paper-output entry point: ns-grid drag_opt figure → ``drag_opt_re20.pdf``."""
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
     with plt.rc_context(RCPARAMS):
-        _plot_re("re20", out_dir)
+        fig = plot_experiment(cfg, exp_key="drag_opt", suffix="", save=False)
+        if fig is None:
+            return
+        out = out_dir / "drag_opt_re20.pdf"
+        fig.savefig(out)
+        plt.close(fig)
+        print(f"Saved {out}")
 
 
 if __name__ == "__main__":

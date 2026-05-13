@@ -41,8 +41,14 @@ def _merge_rho_fields_npz(
         payload["rho_truth"] = rho_truth
     for sname in solver_names:
         payload[f"rho_final_{sname}"] = rho_snaps[sname]
-        if rho_histories.get(sname):
-            payload[f"rho_history_{sname}"] = np.asarray(rho_histories[sname])
+        hist = rho_histories.get(sname)
+        # ``rho_histories[sname]`` is a list of per-snapshot arrays under
+        # Adam (or ``None`` / empty when ``snap_interval=0``). After the
+        # has_aux collapse it may also arrive as an already-stacked ndarray;
+        # ``len(...) > 0`` works for both without tripping numpy's
+        # ambiguous-truth-value check on multi-element arrays.
+        if hist is not None and len(hist) > 0:
+            payload[f"rho_history_{sname}"] = np.asarray(hist)
     # Keep peer-solver entries from prior runs plus prior rho_truth (only when
     # the caller didn't compute a fresh one).
     new_keys = set(payload.keys())

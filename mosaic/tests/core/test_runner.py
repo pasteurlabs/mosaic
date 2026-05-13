@@ -473,3 +473,114 @@ def test_per_solver_loop_catch_false_reraises(monkeypatch):
 
     with pytest.raises(RuntimeError, match="fatal"):
         runner.per_solver_loop(cfg, tags, ["x"], work)
+
+
+# ── Problem.add_experiment: auto-sweep vs sweep_mode="none" ──────────────────
+
+
+def _extract_runs_from_experiment(exp) -> list[dict]:
+    """Pull the ``runs`` payload baked into the registered experiment's closure.
+
+    ``Problem._register_one_experiment`` stashes the per-experiment kwargs
+    (after :meth:`_normalize_run_shorthand`) into the registered closure as
+    the ``_kw`` default argument; reading that back is the easiest way to
+    assert what the kernel will see at ``ctx.run`` without spinning up a
+    real solver.
+    """
+    import inspect
+
+    sig = inspect.signature(exp.fn)
+    kw = sig.parameters["_kw"].default
+    return kw["runs"]
+
+
+def test_add_experiment_sweep_mode_none_preserves_list_payload(tmp_path):
+    """A ``sweep_mode="none"`` kernel sees its list-valued config field intact.
+
+    Regression for the auto-sweep bug: ``_normalize_run_shorthand`` used to
+    auto-detect any list nested one level inside a dict kwarg as a sweep
+    axis, replace it with a scalar placeholder, and stash the original list
+    under ``run["sweep"]``. The runner ignores ``run["sweep"]`` for
+    ``sweep_mode="none"`` kernels, so the kernel would read the placeholder
+    scalar at ``ctx.run["fd"]["eps_values"]`` and crash on
+    ``for eps in 5.0``. The list must be passed through verbatim.
+    """
+    from mosaic.benchmarks.core.config import Problem
+    from mosaic.benchmarks.core.experiment import kernel
+
+    @kernel(sweep_mode="none")
+    def fake_fd_check(t, ctx):  # pragma: no cover — not invoked
+        return {"metrics": {}}
+
+    problem = Problem.__new__(Problem)
+    problem.experiments = {}
+    problem.make_ic = {}
+    problem.error_fn = lambda *a, **kw: 0.0
+    problem.output_key = "result"
+    problem.ic_key = "v0"
+    problem.domain_extent = 1.0
+    problem.resolution_key = "N"
+    problem.reference = None
+
+    problem.add_experiment(
+        "gradient/fd_check",
+        fake_fd_check,
+        ic={"name": "multimode", "seed": 42},
+        physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": 20},
+        fd={"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 20},
+    )
+
+    runs = _extract_runs_from_experiment(problem.experiments["gradient/fd_check"])
+    assert len(runs) == 1
+    run = runs[0]
+    # The kernel reads eps_values off ctx.run["fd"]["eps_values"] — must stay a list.
+    assert run["fd"]["eps_values"] == [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], (
+        "sweep_mode='none' kernel had its list-valued fd.eps_values replaced "
+        f"with a scalar placeholder: {run['fd']['eps_values']!r}"
+    )
+    # And no synthetic sweep block should be injected — the runner ignores it
+    # for sweep_mode='none' anyway, but a stray entry implies the placeholder
+    # substitution ran and would silently shadow the list.
+    assert "sweep" not in run, (
+        f"sweep_mode='none' kernel got an auto-injected sweep block: {run.get('sweep')!r}"
+    )
+
+
+def test_add_experiment_sweep_mode_default_still_auto_sweeps(tmp_path):
+    """``sweep_mode="default"`` kernels keep the auto-sweep behaviour.
+
+    Companion to the regression above: the fix must be scoped to
+    ``sweep_mode="none"`` kernels — auto-sweep is the documented happy path
+    for ``sweep_mode="default"`` / ``"limits"`` kernels (``param_sweep``,
+    ``horizon_sweep_limits``).
+    """
+    from mosaic.benchmarks.core.config import Problem
+    from mosaic.benchmarks.core.experiment import kernel
+
+    @kernel(sweep_mode="default")
+    def fake_param_sweep(t, ctx):  # pragma: no cover — not invoked
+        return {"metrics": {}}
+
+    problem = Problem.__new__(Problem)
+    problem.experiments = {}
+    problem.make_ic = {}
+    problem.error_fn = lambda *a, **kw: 0.0
+    problem.output_key = "result"
+    problem.ic_key = "v0"
+    problem.domain_extent = 1.0
+    problem.resolution_key = "N"
+    problem.reference = None
+
+    problem.add_experiment(
+        "gradient/param_sweep",
+        fake_param_sweep,
+        ic={"name": "multimode", "seed": 42},
+        physics={"N": 16, "dt": 0.05, "steps": 200, "nu": [0.05, 0.01, 0.005, 0.001]},
+    )
+
+    runs = _extract_runs_from_experiment(problem.experiments["gradient/param_sweep"])
+    assert len(runs) == 1
+    run = runs[0]
+    # Auto-sweep: physics.nu list collapses to scalar placeholder + sweep block.
+    assert run["physics"]["nu"] == 0.05
+    assert run["sweep"] == {"key": "nu", "values": [0.05, 0.01, 0.005, 0.001]}

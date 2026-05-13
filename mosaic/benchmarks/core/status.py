@@ -987,8 +987,7 @@ def _apply_exclusions(
     """
     for spec in cfg.solvers:
         name = spec.name
-        slug = spec.dir.replace("-", "_")
-        match = exclusion_lookup(cfg.exclusions.get(slug, {}), suite, exp_label)
+        match = exclusion_lookup(cfg.exclusions.get(spec.key, {}), suite, exp_label)
         if match is None:
             continue
         _key, value = match
@@ -1010,8 +1009,7 @@ def _apply_explained_anomalies(
     """
     for spec in cfg.solvers:
         name = spec.name
-        slug = spec.dir.replace("-", "_")
-        match = exclusion_lookup(cfg.exclusions.get(slug, {}), suite, exp_label)
+        match = exclusion_lookup(cfg.exclusions.get(spec.key, {}), suite, exp_label)
         if match is None:
             continue
         _key, value = match
@@ -1070,6 +1068,11 @@ def _build_row(
         data = load_json(result_path)
     except Exception as exc:
         row.cells = {s: Cell(FAILED, f"unreadable result.json: {exc}") for s in solvers}
+        # Even when the file is corrupted, exclusions still take precedence —
+        # a solver that's categorically excluded shouldn't be reported as
+        # ``fail`` just because the JSON for solvers that DID run is broken.
+        _apply_exclusions(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
         return row
     checks = _lookup_check(cfg, suite, exp_label)
     row.cells = _classify_result(data, solvers, checks)
@@ -1093,6 +1096,7 @@ def collect_status(cfg: Problem, suites: list[str] | None = None) -> ProblemStat
     harness_hash_cache: dict[str, str | None] = {}
 
     rows: list[ExperimentRow] = []
+    seen: set[tuple[str, str]] = set()
     for suite in suites:
         suite_dir = root / suite
         allowed = _suite_filter(cfg, suite)
@@ -1109,6 +1113,34 @@ def collect_status(cfg: Problem, suites: list[str] | None = None) -> ProblemStat
                 harness_hash_cache,
             )
             rows.append(row)
+            seen.add((suite, exp_label))
+
+    # Inject rows for registered experiments that have no on-disk result yet,
+    # so an experiment is visible in the status table as soon as it's added
+    # to the Problem — its cells render as ``missing`` (the NOT_RUN status).
+    # ``ics/`` registrations are IC visualisations, not benchmark experiments,
+    # so they're filtered out here.
+    for full_key in sorted(cfg.experiments):
+        suite, _, exp_label = full_key.partition("/")
+        if not exp_label or suite == "ics" or suite not in suites:
+            continue
+        if (suite, exp_label) in seen:
+            continue
+        allowed = _suite_filter(cfg, suite)
+        if allowed and exp_label.split("/")[0] not in allowed:
+            continue
+        row = _build_row(
+            cfg,
+            suite,
+            exp_label,
+            None,
+            solvers,
+            tesseract_hash_cache,
+            harness_hash_cache,
+        )
+        rows.append(row)
+        seen.add((suite, exp_label))
+
     return ProblemStatus(problem=cfg.name, solvers=solvers, rows=rows)
 
 

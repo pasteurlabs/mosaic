@@ -15,9 +15,7 @@ from mosaic.benchmarks.problems.shared.plots.optimization import (
     _save_animation,
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
-    fig_shared_legend,
     save_fig,
-    solver_plot_props,
     solver_styles,
 )
 
@@ -30,38 +28,35 @@ def plot_topopt(
     exp_key: str = "topopt",
     **_kw,
 ):
-    """Two files: compliance + volume fraction convergence; initial + final density fields."""
+    """Topopt per-experiment plot — paper figure + extras.
+
+    The canonical compliance-convergence + 3-D voxel paper figure is
+    delegated to
+    :func:`mosaic.benchmarks.plots.paper.topopt.plot_experiment` so the
+    polished paper styling lands on the experiment results dir too. This
+    wrapper additionally produces:
+
+      * ``topopt_fields`` — initial + per-solver final 2-D density panels.
+      * ``topopt_evolution_<solver>.gif`` — density-field animation per solver.
+      * ``topopt_3d_<solver>.png`` — interactive-style 3-D voxel render per solver.
+    """
+    from mosaic.benchmarks.plots.paper import topopt as paper_topopt
+
     out_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=False)
-    # params is the full run dict {ic, physics, optim, ...}; look for v_frac in
-    # physics sub-dict first (structural-mesh layout), then directly at top level.
+    # params is the full run dict {ic, physics, optim, ...}; v_frac lives in
+    # physics sub-dict (structural-mesh layout) or directly at top level.
     _params_raw = data.get("params", {}) or {}
     _phys = _params_raw.get("physics", {}) or {}
-    v_frac = _phys.get("v_frac") or _params_raw.get("v_frac", 0.5)
     # For field visualisation (_rho_to_2d), pass the physics sub-dict so that
     # nx/ny/nz are found at the correct nesting level.
     params_all = _phys if _phys else _params_raw
 
     by_solver = data["by_solver"]
 
-    # ── compliance + volume fraction convergence ──────────────────────────────
-    fig_c, (ax_c, ax_v) = plt.subplots(1, 2, figsize=(12, 4))
-    for name, res in by_solver.items():
-        kw = solver_plot_props(styles[name], marker=False)
-        ax_c.semilogy(res["compliances"], label=styles[name]["label"], **kw)
-        ax_v.plot(res["vol_fracs"], label=styles[name]["label"], **kw)
-    ax_c.set_xlabel("Iteration")
-    ax_c.set_ylabel("Compliance")
-    ax_c.set_title("T1 — compliance minimisation")
-    ax_v.axhline(v_frac, color="gray", ls="--", lw=1, label=f"target={v_frac}")
-    ax_v.set_xlabel("Iteration")
-    ax_v.set_ylabel("Volume fraction")
-    ax_v.set_title("T1 — volume fraction")
-    fig_c.suptitle(f"{cfg.name} — topology optimisation")
-    fig_shared_legend(fig_c, [ax_c, ax_v])
-    if save:
-        save_fig(fig_c, "topopt_convergence", out_dir)
+    # ── Canonical paper figure (delegated) ────────────────────────────────────
+    fig_c = paper_topopt.plot_experiment(cfg, exp_key=exp_key, suffix=suffix, save=save)
 
     # ── density field panels ──────────────────────────────────────────────────
     fields_path = out_dir / "topopt_fields.npz"
