@@ -262,10 +262,12 @@ def scaffold_domain(
 
     init_path = pkg_dir / "__init__.py"
     init_path.write_text(
-        f'"""Problem package for {domain_name}, generated from template: {tpl.name}.\n\n'
-        f"Solver discovery, the canonical :class:`Problem` instance, and any\n"
-        f"per-solver overrides live here. ``experiments.register(CONFIG)`` then\n"
-        f'populates the experiment/plot registries on it."""\n\n'
+        f'"""Problem package for {domain_name}, generated from template: {tpl.name}. See :mod:`.config`."""\n'
+    )
+
+    config_path = pkg_dir / "config.py"
+    config_path.write_text(
+        f'"""Solver discovery, canonical :class:`Problem`, and per-solver overrides for {domain_name}."""\n\n'
         f"from __future__ import annotations\n\n"
         f"from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers\n"
         f"from mosaic.benchmarks.core.utils import l2_error_rel\n"
@@ -292,10 +294,10 @@ def scaffold_domain(
         f'    resolution_key="{tpl.resolution_key}",\n'
         f'    description="{tpl.description.strip()}",\n'
         f")\n\n"
-        f"_register_experiments(problem)\n\n"
-        f'__all__ = ["problem"]\n'
+        f"_register_experiments(problem)\n"
     )
-    created["problem_config"] = init_path
+    created["problem_init"] = init_path
+    created["problem_config"] = config_path
     created["problem_pkg"] = pkg_dir
 
     return created

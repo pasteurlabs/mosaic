@@ -130,15 +130,12 @@ def test_scaffold_creates_files(tmp_path):
     assert created["tesseracts_dir"].is_dir()
     assert created["problem_config"].exists()
 
-    # The problem package must contain the canonical 4-file layout.
-    # config.py was collapsed into __init__.py; plot registration happens via
-    # ``problem.add(..., plot=...)`` inside ``experiments.py``.
+    # The problem package must contain the canonical 5-file layout: a minimal
+    # ``__init__.py`` (docstring only) + ``config.py`` (Problem assembly) +
+    # ``ics.py`` + ``physics.py`` + ``experiments.py``.
     pkg = created["problem_pkg"]
-    for name in ("__init__.py", "ics.py", "physics.py", "experiments.py"):
+    for name in ("__init__.py", "config.py", "ics.py", "physics.py", "experiments.py"):
         assert (pkg / name).exists(), f"missing scaffolded file: {name}"
-    assert not (pkg / "config.py").exists(), (
-        "config.py should be collapsed into __init__.py"
-    )
 
 
 def test_scaffold_generates_valid_python(tmp_path):
@@ -179,14 +176,23 @@ def test_scaffold_produces_loadable_config(tmp_path):
     # not on sys.path.
     pkg_dir = created["problem_pkg"]
     pkg_name = "test_domain_pkg"
-    spec = importlib.util.spec_from_file_location(
+    # Load the package shell first so relative imports inside ``config.py``
+    # (``from .experiments import register``) resolve against the tmp dir.
+    pkg_spec = importlib.util.spec_from_file_location(
         pkg_name,
         pkg_dir / "__init__.py",
         submodule_search_locations=[str(pkg_dir)],
     )
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
+    pkg_mod = importlib.util.module_from_spec(pkg_spec)
+    sys.modules[pkg_spec.name] = pkg_mod
+    pkg_spec.loader.exec_module(pkg_mod)
+    # Then load the .config submodule that holds ``problem``.
+    cfg_spec = importlib.util.spec_from_file_location(
+        f"{pkg_name}.config", pkg_dir / "config.py"
+    )
+    mod = importlib.util.module_from_spec(cfg_spec)
+    sys.modules[cfg_spec.name] = mod
+    cfg_spec.loader.exec_module(mod)
 
     assert hasattr(mod, "problem"), "Generated module must define problem"
     cfg = mod.problem
