@@ -115,6 +115,37 @@ def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
     return v_df.astype(u.dtype)
 
 
+def _project_divergence_free_jax(u: jax.Array, domain_extent: float) -> jax.Array:
+    """JAX-traceable variant of :func:`_project_divergence_free`.
+
+    Used as ``grad_proj_fn`` inside the JIT-compiled L-BFGS step so the
+    whole iteration is one trace.
+    """
+    nd = u.shape[-1]
+    squeeze = u.ndim > nd + 1
+    v = u.reshape((*u.shape[:nd], nd)) if squeeze else u
+
+    N = v.shape[0]
+    k1d = jnp.fft.fftfreq(N) * N * (2.0 * jnp.pi / domain_extent)
+    grids = jnp.meshgrid(*([k1d] * nd), indexing="ij")
+    k2 = sum(k**2 for k in grids)
+    k2_safe = jnp.where(k2 == 0.0, 1.0, k2)
+
+    spatial_axes = tuple(range(nd))
+    v_hat = jnp.fft.fftn(v, axes=spatial_axes)
+
+    k_dot_u = sum(grids[i] * v_hat[..., i] for i in range(nd))
+
+    v_hat_df = jnp.stack(
+        [v_hat[..., i] - grids[i] * k_dot_u / k2_safe for i in range(nd)],
+        axis=-1,
+    )
+
+    v_df = jnp.fft.ifftn(v_hat_df, axes=spatial_axes).real
+    v_df = v_df.reshape(u.shape) if squeeze else v_df
+    return v_df.astype(u.dtype)
+
+
 def _project_ic_with_log(
     raw: jax.Array,
     label: str,
@@ -808,7 +839,7 @@ def recovery(t, ctx: KernelContext) -> dict:
     # Gradient projection: Helmholtz-project onto ∇·g = 0 before handing to
     # the optimiser. Only meaningful for velocity fields; ignored otherwise.
     grad_proj_fn = (
-        (lambda g: _project_divergence_free(g, domain_extent))
+        (lambda g: _project_divergence_free_jax(g, domain_extent))
         if (project_grads and is_vel)
         else None
     )
