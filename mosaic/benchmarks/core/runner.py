@@ -228,7 +228,15 @@ def build_all(
             raise RuntimeError(
                 f"{name}: could not parse tesseract build output: {last_line!r}"
             ) from exc
-        image_tag = built_tags[0]
+        # tesseract build always tags the image with both ``:latest`` and
+        # ``:<version>``; their order in the JSON output isn't guaranteed,
+        # so prefer ``:latest`` deterministically rather than picking
+        # ``built_tags[0]`` (which made some solvers log a version-pinned
+        # tag while others showed ``:latest``).
+        image_tag = next(
+            (t for t in built_tags if t.endswith(":latest")),
+            built_tags[0],
+        )
         console.print(
             f"  [cyan]{name:<16}[/cyan] → {image_tag}  [dim]({elapsed:.1f}s)[/dim]"
         )
@@ -333,6 +341,17 @@ def run_suite(
             if verbose_errors:
                 console.print_exception()
             print_warn(f"{name} failed: {exc}")
+        finally:
+            # Drop JAX's compiled-program cache between experiments to bound
+            # process memory. Heavy optim runs (e.g. L-BFGS) can otherwise
+            # leak enough XLA staging memory to make all later JIT compiles
+            # fail with ``Cannot allocate memory``.
+            try:
+                import jax
+
+                jax.clear_caches()
+            except Exception:
+                pass
 
     if plots and plot_fns:
         print_rule("plots")
