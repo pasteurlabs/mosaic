@@ -284,6 +284,12 @@ def image_tags_no_build(cfg: Problem) -> dict[str, str]:
                 tags[name] = f"{image_name}:latest"
             else:
                 tags[name] = f"{spec.dir}:latest"
+
+    registry = os.environ.get("MOSAIC_IMAGE_REGISTRY", "")
+    if registry:
+        registry = registry.rstrip("/")
+        tags = {name: f"{registry}/{tag}" for name, tag in tags.items()}
+
     return tags
 
 
