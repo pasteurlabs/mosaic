@@ -17,6 +17,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.problems.shared.plots.cost_overview import plot_cost_overview
 from mosaic.benchmarks.problems.shared.plots.style import (
     PAPER_RCPARAMS,
     TEXTWIDTH,
@@ -189,6 +190,19 @@ def _conductivity_overview_plot(cfg: Problem, **_kw) -> None:
     _conductivity_overview_generate(out_dir)
 
 
+def _plot_cost_overview(cfg: Problem, **_kw) -> None:
+    out_dir = results_dir() / cfg.name / "_extra"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plot_cost_overview(
+        out_dir,
+        subdir="thermal-mesh",
+        domain_label="Thermal",
+        solver_order=THERMAL_ORDER,
+        steady_state=True,
+    )
+
+
 def register(problem: Problem) -> None:
     """Attach cross-experiment extras to *problem*."""
     problem.add_extra_plot("_extra/conductivity_overview", _conductivity_overview_plot)
+    problem.add_extra_plot("_extra/cost_overview", _plot_cost_overview)

@@ -260,7 +260,18 @@ def _agreement_math_label(sweep_key: str) -> str:
     return _AGREEMENT_MATH_LABELS.get(sweep_key, f"${sweep_key}$")
 
 
-def _agreement_paper_plot_curves(ax, data: dict, seen: set[str]) -> None:
+def _alias_to_display_name(cfg) -> dict[str, str]:
+    """Map ``SOLVER_STYLES`` alias keys → ``cfg.solvers[i].name`` display names.
+
+    ``result.json`` keys per-solver entries by the display name (``spec.name``),
+    but ``NS_ORDER`` / ``FEM_ORDER`` are alias-keyed (``spec.dir.replace("-","_")``).
+    Bridge the two so the paper plots can iterate the canonical order while
+    looking up by the on-disk key.
+    """
+    return {s.dir.replace("-", "_"): s.name for s in cfg.solvers}
+
+
+def _agreement_paper_plot_curves(ax, data: dict, seen: set[str], cfg) -> None:
     """Plot per-solver error-vs-sweep curves onto ``ax``.
 
     Walks :data:`NS_ORDER`, drawing every solver that produced at least
@@ -271,12 +282,16 @@ def _agreement_paper_plot_curves(ax, data: dict, seen: set[str]) -> None:
     if not by_param:
         return
     params = sorted(by_param.keys(), key=float)
+    alias_to_name = _alias_to_display_name(cfg)
 
     for solver in NS_ORDER:
+        display_name = alias_to_name.get(solver)
+        if display_name is None:
+            continue
         _label, color, ls, mk = solver_props(solver)
         xs, ys = [], []
         for p in params:
-            entry = by_param[p].get(solver)
+            entry = by_param[p].get(display_name)
             if isinstance(entry, dict):
                 err = entry.get("error")
                 if (
@@ -358,7 +373,7 @@ def _agreement_paper_figure(
     fig.subplots_adjust(bottom=0.30, left=0.18, right=0.95, top=0.88)
 
     seen: set[str] = set()
-    _agreement_paper_plot_curves(ax, data, seen)
+    _agreement_paper_plot_curves(ax, data, seen, cfg)
 
     x_label = _agreement_math_label(sweep_key)
     _agreement_paper_style_axis(
@@ -561,6 +576,80 @@ def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
     return fig_err
 
 
+def plot_forward_fields(
+    cfg: Problem,
+    *,
+    field_to_2d=None,
+    domain_extent: float = 2 * np.pi,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+    power_spectrum_fn=None,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "cylinder",
+    **_kw,
+):
+    """Field grids (rows=solvers × cols=sweep values) + optional power spectra.
+
+    Like :func:`plot_agreement` but without the convergence-vs-sweep
+    figure — for experiments where the sweep is a per-physics
+    visualization knob (e.g. cylinder wake at several viscosities)
+    rather than a quantitative convergence axis.
+    """
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    fields_path = out_dir / "fields.npz"
+    data = load_json(out_dir / "result.json")
+    sweep_key = data.get("sweep_key", "param")
+    reference_label = data.get("reference_label", "consensus")
+    styles = solver_styles(cfg)
+    f2d = _resolve_field_to_2d(field_to_2d)
+
+    npz = try_load_npz(fields_path)
+    sweep_vals = npz["sweep_values"].tolist()
+    solver_names = npz["solver_names"].tolist()
+
+    _agreement_raw_fields(
+        cfg,
+        npz,
+        solver_names,
+        sweep_vals,
+        sweep_key,
+        styles,
+        f2d,
+        out_dir,
+        save,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
+    )
+    fig_err = _agreement_error_fields(
+        cfg,
+        npz,
+        solver_names,
+        sweep_vals,
+        sweep_key,
+        styles,
+        reference_label,
+        f2d,
+        out_dir,
+        save,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
+    )
+    _agreement_power_spectra(
+        cfg,
+        npz,
+        solver_names,
+        sweep_vals,
+        sweep_key,
+        styles,
+        out_dir,
+        save,
+        power_spectrum_fn=power_spectrum_fn,
+        domain_extent=domain_extent,
+    )
+    return fig_err
+
+
 # ── physical_laws ──────────────────────────────────────────────────────────────
 
 # Shared sweep / metric constants for the NS 3×3 grid.
@@ -678,7 +767,7 @@ def _pa_plot_ns_row(
     log_x: bool,
     use_elements: bool,
     data: dict,
-    subdir: str,
+    cfg,
     ns_seen: set[str],
     row_is_top: bool,
 ) -> None:
@@ -686,12 +775,15 @@ def _pa_plot_ns_row(
     by_param = data["by_param"]
     params = sorted(by_param.keys(), key=float)
     phys = data.get("params", {}).get("physics", {})
+    subdir = cfg.name
 
+    alias_to_name = _alias_to_display_name(cfg)
+    name_to_alias = {v: k for k, v in alias_to_name.items()}
     _EXCLUDED = {"fenics_ns", "su2"}
     all_solvers: list[str] = []
     for pdata in by_param.values():
         for s in pdata:
-            if s not in all_solvers and s not in _EXCLUDED:
+            if s not in all_solvers and name_to_alias.get(s) not in _EXCLUDED:
                 all_solvers.append(s)
 
     for col, (metric_key, metric_label, log_y) in enumerate(_PA_METRICS):
@@ -699,7 +791,8 @@ def _pa_plot_ns_row(
         x_all: list[float] = []
 
         for solver in all_solvers:
-            _label, color, ls, mk = solver_props(solver)
+            alias = name_to_alias.get(solver, solver)
+            _label, color, ls, mk = solver_props(alias)
             kw = {
                 "color": color,
                 "linestyle": ls,
@@ -725,8 +818,8 @@ def _pa_plot_ns_row(
                 )
                 plot_fn(xs, ys, **kw)
                 x_all.extend(xs)
-                if solver in NS_ORDER:
-                    ns_seen.add(solver)
+                if alias in NS_ORDER:
+                    ns_seen.add(alias)
 
         if metric_key == "kinetic_energy":
             ke_ref = _pa_ke_analytic(sweep_key, params, phys, subdir)
@@ -752,7 +845,7 @@ def _pa_plot_ns_row(
 
 
 def _pa_plot_ns_grid(
-    cfg_name: str,
+    cfg,
     sweeps_data: dict[str, dict],
     domain_title: str,
     out_path: Path | None,
@@ -776,7 +869,7 @@ def _pa_plot_ns_grid(
             log_x,
             use_elements,
             data,
-            cfg_name,
+            cfg,
             ns_seen,
             row_is_top=(row == 0),
         )
@@ -799,6 +892,7 @@ def _pa_plot_ns_grid(
 
 
 def _pa_plot_fem_single(
+    cfg,
     data: dict,
     spec: dict,
     out_path: Path | None,
@@ -811,6 +905,9 @@ def _pa_plot_fem_single(
     by_param = data["by_param"]
     params = sorted(by_param.keys(), key=float)
     x_vals = np.array([float(p) for p in params])
+
+    alias_to_name = _alias_to_display_name(cfg)
+    name_to_alias = {v: k for k, v in alias_to_name.items()}
 
     all_solvers: list[str] = []
     for pdata in by_param.values():
@@ -840,7 +937,8 @@ def _pa_plot_fem_single(
         )
 
     for solver in all_solvers:
-        _label, color, ls, mk = solver_props(solver)
+        alias = name_to_alias.get(solver, solver)
+        _label, color, ls, mk = solver_props(alias)
         kw = {
             "color": color,
             "linestyle": ls,
@@ -857,8 +955,8 @@ def _pa_plot_fem_single(
                 ys.append(float(val))
         if xs:
             ax.loglog(xs, ys, **kw)
-            if solver in FEM_ORDER:
-                fem_seen.add(solver)
+            if alias in FEM_ORDER:
+                fem_seen.add(alias)
 
     ax.set_title(spec["title"])
     ax.set_xlabel(spec["xlabel"])
@@ -915,7 +1013,7 @@ def plot_physical_laws(
         spec = _PA_FEM_SPECS.get(cfg.name)
         if spec is not None:
             return _pa_plot_fem_single(
-                data, spec, out_dir / "physical_accuracy.pdf" if save else None
+                cfg, data, spec, out_dir / "physical_accuracy.pdf" if save else None
             )
         # NS sub-experiment (one sweep variant): render a 1×3 row.
         sweep_key = (exp_key + suffix).rsplit("/", 1)[-1] or "vs_param"
@@ -936,7 +1034,7 @@ def plot_physical_laws(
             sweep_meta[1],
             sweep_meta[2],
             data,
-            cfg.name,
+            cfg,
             ns_seen,
             row_is_top=True,
         )
@@ -974,7 +1072,7 @@ def plot_physical_laws(
         f"{cfg.category_label or cfg.name} — physical accuracy",
     )
     return _pa_plot_ns_grid(
-        cfg.name,
+        cfg,
         sweeps_data,
         title,
         out_dir / "physical_accuracy.pdf" if save else None,

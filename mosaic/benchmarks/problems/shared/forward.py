@@ -168,6 +168,7 @@ def _agreement_aggregate(
 
     reference_label = "consensus"
     solver_names = [s.name for s in cfg.solvers]
+    reference_solver = run.get("reference_solver")
 
     for i, val in enumerate(sweep_values):
         comparable = outputs_per_val.get(val, {})
@@ -196,6 +197,9 @@ def _agreement_aggregate(
                 solver_name_for_inputs=cfg.solvers[0].name,
             )
             reference_label = "analytic"
+        elif reference_solver is not None and reference_solver in comparable:
+            reference = np.asarray(comparable[reference_solver])
+            reference_label = f"solver:{reference_solver}"
         else:
             reference = trimmed_mean(list(comparable.values()))
             reference_label = "consensus"

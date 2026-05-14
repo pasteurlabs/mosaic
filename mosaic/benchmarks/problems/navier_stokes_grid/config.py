@@ -47,6 +47,7 @@ from mosaic.benchmarks.problems.shared.gradient import (
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
     plot_agreement,
+    plot_forward_fields,
     plot_physical_laws,
 )
 from mosaic.benchmarks.problems.shared.plots.gradient import (
@@ -260,7 +261,8 @@ problem.add_experiment(
         },
         "nu": [0.05, 0.02, 0.01, 0.005],
     },
-    plot=plot_agreement,
+    reference_solver="openfoam",
+    plot=plot_forward_fields,
     status_check=[median_k(50.0), max_error(0.5)],
 )
 # Cost
@@ -439,9 +441,9 @@ problem.add_extra_plot(
 # whole table to the canonical :class:`Problem` instance.
 _register_exclusions(problem)
 
-# Cross-domain ``_extra/`` aggregator plots (cost overview, scaling, ucurves,
-# IC figures, domain illustrations, visual abstract) live in :mod:`.extras`;
-# the runner picks them up by scanning ``plot_fns`` for ``_extra/`` keys.
+# Per-domain ``_extra/`` aggregator plots (cost overview, scaling, ucurves)
+# live in :mod:`.extras`; the runner picks them up by scanning ``plot_fns``
+# for ``_extra/`` keys.
 _register_extras(problem)
 
 __all__ = ["problem"]
