@@ -190,27 +190,44 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
         )
 
     solver = optax.lbfgs()
-    opt_state = solver.init(init_x)
-    x = init_x
-    losses: list[float] = []
-    grad_norms: list[float] = []
-    _probe("init", -1)
-    for i in range(max_iters):
+
+    # Wrap one full L-BFGS step in a single jit. This is critical: the
+    # default linesearch (``scale_by_zoom_linesearch``) builds a fresh
+    # ``functools.partial`` body for its ``jax.lax.while_loop`` every
+    # call, and the while_loop trace cache keys off body identity. Driving
+    # the loop in Python therefore re-traces the linesearch every iter,
+    # accumulating compiled XLA modules until the host runs out of memory.
+    # JIT-ing the whole step gives the linesearch a stable identity inside
+    # one cached trace — recompilation happens once per (x.shape, dtype).
+    def _step_body(x, opt_state):
         if has_aux:
             (value, aux), grad = vg(x)
-            _append_aux(aux_history, aux)
         else:
             value, grad = vg(x)
-        _probe("after-vg", i)
+            aux = None
         if grad_proj_fn is not None:
-            grad = jnp.array(grad_proj_fn(np.asarray(grad)))
-        grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
+            grad = grad_proj_fn(grad)
+        grad_norm = jnp.linalg.norm(grad.ravel())
         updates, opt_state = solver.update(
             grad, opt_state, x, value=value, grad=grad, value_fn=_scalar_loss
         )
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:
             x = clip_fn(x)
+        return x, opt_state, value, grad_norm, aux
+
+    step = jax.jit(_step_body)
+
+    opt_state = solver.init(init_x)
+    x = init_x
+    losses: list[float] = []
+    grad_norms: list[float] = []
+    _probe("init", -1)
+    for i in range(max_iters):
+        x, opt_state, value, grad_norm, aux = step(x, opt_state)
+        if has_aux:
+            _append_aux(aux_history, aux)
+        grad_norms.append(float(grad_norm))
         loss_val = float(value)
         losses.append(loss_val)
         _probe("after-step", i)
