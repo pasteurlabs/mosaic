@@ -132,10 +132,16 @@ def test_validate_domain_known_problem_runs():
 
 def test_new_domain_requires_from_template():
     """`new-domain <name>` without --from-template is a usage error."""
+    import re
+
     result = runner.invoke(app, ["new-domain", "my-test-domain"])
     assert result.exit_code != 0
-    # typer reports the missing option in stderr (mixed into output by default)
-    assert "from-template" in result.output or "from_template" in result.output
+    # typer reports the missing option in stderr (mixed into output by
+    # default). Strip ANSI escapes — under ``--color=always`` Rich inserts
+    # them mid-token (``-from\x1b[0m\x1b[1;36m-template``) and a naive
+    # substring check misses the split.
+    clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", result.output)
+    assert "from-template" in clean or "from_template" in clean
 
 
 def test_new_domain_unknown_template_errors():
