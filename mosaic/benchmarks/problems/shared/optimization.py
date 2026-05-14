@@ -172,17 +172,36 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
         _scalar_loss = loss_fn
         vg = jax.value_and_grad(loss_fn)
 
+    import os
+    import resource
+
+    _mosaic_lbfgs_diag = os.environ.get("MOSAIC_LBFGS_DIAG", "0") == "1"
+
+    def _probe(label: str, i: int) -> None:
+        if not _mosaic_lbfgs_diag:
+            return
+        rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        try:
+            live = len(jax.live_arrays())
+        except Exception:
+            live = -1
+        print(
+            f"[lbfgs-diag] iter={i:3d} {label:10s} RSS={rss_kb / 1024:.1f}MiB live_arrays={live}"
+        )
+
     solver = optax.lbfgs()
     opt_state = solver.init(init_x)
     x = init_x
     losses: list[float] = []
     grad_norms: list[float] = []
+    _probe("init", -1)
     for i in range(max_iters):
         if has_aux:
             (value, aux), grad = vg(x)
             _append_aux(aux_history, aux)
         else:
             value, grad = vg(x)
+        _probe("after-vg", i)
         if grad_proj_fn is not None:
             grad = jnp.array(grad_proj_fn(np.asarray(grad)))
         grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
@@ -194,6 +213,7 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
             x = clip_fn(x)
         loss_val = float(value)
         losses.append(loss_val)
+        _probe("after-step", i)
         if snap_interval > 0 and (i + 1) % snap_interval == 0:
             if history is not None:
                 history.append(np.asarray(x))

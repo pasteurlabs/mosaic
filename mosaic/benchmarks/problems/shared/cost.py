@@ -37,6 +37,8 @@ Run from the terminal:
 
 from __future__ import annotations
 
+import os
+
 import jax.numpy as jnp
 import numpy as np
 
@@ -89,6 +91,13 @@ def _axis_key(sweep_key: str) -> str:
     return "by_N" if sweep_key != "steps" else "by_steps"
 
 
+_CI_ISOLATION_NOTE = (
+    "Wall-clock times measured on dedicated per-suite VM in CI."
+    " Relative rankings reliable; absolute times may vary"
+    " ±10-15% across runs."
+)
+
+
 def _cost_aggregate(by_solver, *, cfg, run, sweep_values, sweep_key, **_) -> dict:
     """Build ``{by_N or by_steps: {solver: {val: metrics}}, hardware, params}``.
 
@@ -99,11 +108,14 @@ def _cost_aggregate(by_solver, *, cfg, run, sweep_values, sweep_key, **_) -> dic
     by_axis: dict = {s.name: {} for s in cfg.solvers}
     for name, smetrics in by_solver.items():
         by_axis[name] = smetrics
-    return {
+    result = {
         out_key: by_axis,
         "hardware": get_hardware_info(),
         "params": run,
     }
+    if os.environ.get("CI"):
+        result["_isolation_note"] = _CI_ISOLATION_NOTE
+    return result
 
 
 def _vjp_cost_aggregate(
@@ -135,11 +147,14 @@ def _vjp_cost_aggregate(
             prefixes=snapshot_prefixes,
         )
 
-    return {
+    result = {
         out_key: by_axis,
         "hardware": get_hardware_info(),
         "params": run,
     }
+    if os.environ.get("CI"):
+        result["_isolation_note"] = _CI_ISOLATION_NOTE
+    return result
 
 
 # ── Kernels ──────────────────────────────────────────────────────────────────

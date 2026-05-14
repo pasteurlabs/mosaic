@@ -946,6 +946,24 @@ def save_experiment(
         if isinstance(result, dict) and "environment" not in result:
             result["environment"] = _environment_metadata()
 
+        # CI provenance — latest write always wins. Same fields as the
+        # main-side `_run_meta` shipped in commit 822cbdd; ported here
+        # because the I/O code moved from utils.py to io.py in the refactor.
+        if isinstance(result, dict):
+            import datetime as _dt
+            import platform as _platform
+
+            result["_run_meta"] = {
+                "timestamp": _dt.datetime.now(_dt.timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+                "ci": bool(os.environ.get("CI")),
+                "runner": os.environ.get("RUNNER_NAME", ""),
+                "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+                "github_sha": os.environ.get("GITHUB_SHA", ""),
+                "platform": _platform.platform(),
+            }
+
         _write_artifacts(result, result_path, out_dir, csv_rows)
 
     # Flock held > 60 s is anomalous — solvers listed here are strong suspects
