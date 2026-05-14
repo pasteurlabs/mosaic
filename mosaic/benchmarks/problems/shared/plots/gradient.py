@@ -3,19 +3,30 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.problems.shared.plots.style import (
+    FEM_ORDER,
+    NS_ORDER,
+    PAPER_RCPARAMS,
+    SOLVER_STYLES,
+    TEXTWIDTH,
     apply_style,
+    dedup_handles,
     field_grid,
     fig_shared_legend,
     grad_magnitude_2d,
+    make_handle,
     save_fig,
     solver_plot_props,
+    solver_props,
     solver_styles,
     unit_label,
     vorticity_2d,
@@ -24,6 +35,483 @@ from mosaic.benchmarks.problems.shared.plots.style import (
 apply_style()
 
 _SUITE = "gradient"
+
+
+# ── fd_check helpers ──────────────────────────────────────────────────────────
+
+# Solvers blacklisted from FD-check figures (e.g. variants that don't
+# implement VJP at all and would just clutter the legend).
+_FD_CHECK_BLACKLIST = {"fenics_ns", "su2"}
+
+
+def _fd_check_plot_curves(ax_err, ax_cos, data: dict, seen: dict[str, set]) -> None:
+    """Plot per-solver rel-error + cosine curves into ``ax_err``/``ax_cos``."""
+    for solver, sdata in data["by_solver"].items():
+        if solver in _FD_CHECK_BLACKLIST:
+            continue
+        eps_sweep = sdata.get("eps_sweep") or {}
+        if not eps_sweep:
+            continue
+        epsilons = sorted(eps_sweep.keys(), key=float)
+        eps_f = [float(e) for e in epsilons]
+
+        rel_mean = [float(np.mean(eps_sweep[e]["rel_error"])) for e in epsilons]
+        # ``1 - cosine`` makes a 4-decade log scale meaningful when most
+        # solvers cluster near 1; clamp the noise floor to 1e-9.
+        cos_vals = [max(1 - float(eps_sweep[e]["cosine"]), 1e-9) for e in epsilons]
+
+        _label, color, ls, mk = solver_props(solver)
+        kw: dict[str, Any] = {
+            "color": color,
+            "linestyle": ls,
+            "marker": mk,
+            "markersize": 4,
+            "markeredgewidth": 0,
+            "linewidth": 1.6,
+        }
+        ax_err.loglog(eps_f, rel_mean, **kw)
+        ax_cos.loglog(eps_f, cos_vals, **kw)
+
+        if solver in NS_ORDER:
+            seen["ns"].add(solver)
+        if solver in FEM_ORDER:
+            seen["fem"].add(solver)
+
+
+def _fd_check_style_axes(ax_err, ax_cos, *, title: str, ylabel_left: bool) -> None:
+    """Apply consistent axis labels / ticks to one (err, cos) column."""
+    ax_err.set_title(title)
+    ax_err.set_xlabel(r"Perturbation size $\varepsilon$")
+    ax_err.set_ylabel("Relative FD error" if ylabel_left else "")
+    ax_err.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+    ax_err.yaxis.set_minor_locator(mticker.NullLocator())
+
+    ax_cos.set_xlabel(r"Perturbation size $\varepsilon$")
+    ax_cos.set_ylabel(
+        r"$1 - \cos(\nabla_\mathrm{AD},\, \nabla_\mathrm{FD})$" if ylabel_left else ""
+    )
+    ax_cos.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+    ax_cos.yaxis.set_minor_locator(mticker.NullLocator())
+
+
+def _fd_check_paper_figure(
+    cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir
+) -> plt.Figure:
+    """Paper-styled 1×2 rel-error + cosine figure for a single fd_check run."""
+    plt.rcParams.update(PAPER_RCPARAMS)
+
+    data = load_json(out_dir / "result.json")
+
+    fig, (ax_err, ax_cos) = plt.subplots(
+        1, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.3), dpi=300
+    )
+    fig.subplots_adjust(bottom=0.38, wspace=0.45)
+
+    seen = {"ns": set(), "fem": set()}
+    _fd_check_plot_curves(ax_err, ax_cos, data, seen)
+    _fd_check_style_axes(
+        ax_err,
+        ax_cos,
+        title=f"FD check — {cfg.category_label or cfg.name}",
+        ylabel_left=True,
+    )
+
+    handles = dedup_handles(
+        [make_handle(s) for s in NS_ORDER if s in seen["ns"] and s in SOLVER_STYLES]
+        + [make_handle(s) for s in FEM_ORDER if s in seen["fem"] and s in SOLVER_STYLES]
+    )
+    if handles:
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(len(handles), 7),
+            fontsize=6.0,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
+
+    if save:
+        out = out_dir / "fd_check.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
+
+
+# ── jacobian_svd helpers ──────────────────────────────────────────────────────
+
+_SVD_VARIANT_STYLES = [
+    {"color": "#0077BB", "linestyle": "-"},
+    {"color": "#CC3311", "linestyle": "--"},
+    {"color": "#009988", "linestyle": "-."},
+    {"color": "#EE7733", "linestyle": ":"},
+]
+
+# Piecewise-log y-scale: normal log above this threshold, compressed log below.
+_SVD_YSCALE_THRESHOLD = 1e-3
+_SVD_YSCALE_COMPRESS = 0.18
+
+
+def _svd_piecewise_log_forward(y):
+    y = np.asarray(y, dtype=float)
+    log_thresh = np.log10(_SVD_YSCALE_THRESHOLD)
+    safe = np.where(y > 0, y, 1e-30)
+    log_y = np.log10(safe)
+    return np.where(
+        log_y >= log_thresh,
+        log_y,
+        log_thresh + _SVD_YSCALE_COMPRESS * (log_y - log_thresh),
+    )
+
+
+def _svd_piecewise_log_inverse(t):
+    t = np.asarray(t, dtype=float)
+    log_thresh = np.log10(_SVD_YSCALE_THRESHOLD)
+    return np.where(
+        t >= log_thresh,
+        np.power(10.0, t),
+        np.power(10.0, log_thresh + (t - log_thresh) / _SVD_YSCALE_COMPRESS),
+    )
+
+
+def _svd_variant_label(phys: dict) -> str:
+    nu = phys.get("nu")
+    steps = phys.get("steps")
+    dt = phys.get("dt")
+    if nu is None or steps is None or dt is None:
+        return ""
+    t = steps * dt
+    visc = "low ν" if nu <= 0.001 else "high ν"
+    horizon = f"T={t:.2g}s"
+    return f"{visc}, {horizon}"
+
+
+def _svd_solver_color_label(solver: str) -> tuple[str, str]:
+    entry = SOLVER_STYLES.get(solver)
+    if entry:
+        return entry[1], entry[0]
+    return "#888888", solver
+
+
+def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
+    """Fill axes panels; return legend handles for the variant lines."""
+    legend_handles: list[mlines.Line2D] = []
+    legend_built = False
+
+    ncols = axes.shape[1]
+
+    for idx, solver in enumerate(solvers):
+        ax = axes[idx // ncols][idx % ncols]
+        _color, label = _svd_solver_color_label(solver)
+        y_min_data = np.inf
+
+        for vi, (_, data) in enumerate(variants):
+            spectra = data["per_solver_spectra"]
+            phys = data["params"]["physics"]
+
+            if solver not in spectra:
+                continue
+
+            sv = np.array(spectra[solver], dtype=float)
+            sv_norm = sv / sv[0] if sv[0] > 0 else sv
+            n = min(n_show, len(sv_norm))
+            modes = np.arange(1, n + 1)
+
+            vstyle = _SVD_VARIANT_STYLES[vi % len(_SVD_VARIANT_STYLES)]
+            vlabel = _svd_variant_label(phys)
+
+            mk = "o" if n <= 32 else ""
+            (_line,) = ax.plot(
+                modes,
+                sv_norm[:n],
+                f"{mk}{vstyle['linestyle']}",
+                color=vstyle["color"],
+                markersize=3 if mk else 0,
+                linewidth=1.5,
+                label=vlabel,
+            )
+
+            if not legend_built:
+                legend_handles.append(
+                    mlines.Line2D(
+                        [],
+                        [],
+                        color=vstyle["color"],
+                        linestyle=vstyle["linestyle"],
+                        linewidth=1.5,
+                        label=vlabel,
+                    )
+                )
+
+            pos = sv_norm[:n][sv_norm[:n] > 0]
+            if len(pos):
+                y_min_data = min(y_min_data, float(pos.min()))
+
+        legend_built = True  # only collect handles from the first solver panel
+
+        ax.set_yscale(
+            "function",
+            functions=(_svd_piecewise_log_forward, _svd_piecewise_log_inverse),
+        )
+        if np.isfinite(y_min_data) and y_min_data > 0:
+            y_floor = 10 ** (np.floor(np.log10(y_min_data)) - 0.5)
+            ax.set_ylim(bottom=y_floor, top=2.0)
+        # Faint divider at the scale-break to flag the change.
+        ax.axhline(
+            _SVD_YSCALE_THRESHOLD,
+            color="0.7",
+            linestyle=":",
+            linewidth=0.6,
+            zorder=0,
+        )
+
+        ax.set_title(label)
+        ax.set_xlabel("Mode index $i$")
+        if idx % ncols == 0:
+            ax.set_ylabel(r"$\sigma_i\,/\,\sigma_1$")
+        else:
+            ax.set_ylabel("")
+
+        ax.yaxis.set_major_locator(mticker.FixedLocator([1.0, 1e-3, 1e-6, 1e-9]))
+        ax.yaxis.set_major_formatter(mticker.LogFormatterSciNotation())
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=4, integer=True))
+        ax.xaxis.set_minor_locator(mticker.NullLocator())
+
+    return legend_handles
+
+
+def _jacobian_svd_paper_figure(
+    cfg: Problem,
+    *,
+    exp_key: str,
+    suffix: str,
+    save: bool,
+    out_dir,
+    n_show: int | None = None,
+) -> plt.Figure | None:
+    """Paper-styled per-solver SVD spectrum grid for a single jacobian_svd run.
+
+    Returns ``None`` when ``per_solver_spectra`` is missing (e.g. scalar
+    outputs) so callers can fall back to alternate diagnostics.
+    """
+    plt.rcParams.update(PAPER_RCPARAMS)
+
+    data = load_json(out_dir / "result.json")
+
+    per_solver_spectra = data.get("per_solver_spectra") or {}
+    if not per_solver_spectra:
+        return None
+
+    variants = [(exp_key + suffix, data)]
+    solvers = list(per_solver_spectra.keys())
+
+    if n_show is None:
+        n_show = max(len(v) for v in per_solver_spectra.values())
+
+    n_solvers = len(solvers)
+    ncols = min(3, n_solvers)
+    nrows = math.ceil(n_solvers / ncols)
+
+    panel_h = TEXTWIDTH / ncols * 0.85
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(TEXTWIDTH, panel_h * nrows + 0.3),
+        squeeze=False,
+        sharex=True,
+        dpi=300,
+    )
+    fig.subplots_adjust(hspace=0.45, wspace=0.35, bottom=0.18)
+
+    _handles = _svd_panels(fig, axes, variants, solvers, n_show)
+
+    for row in range(nrows - 1):
+        for col in range(ncols):
+            axes[row][col].set_xlabel("")
+            axes[row][col].tick_params(labelbottom=False)
+
+    for idx in range(n_solvers, nrows * ncols):
+        axes[idx // ncols][idx % ncols].set_visible(False)
+
+    if save:
+        out = out_dir / "jacobian_svd.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
+
+
+# ── horizon_sweep helpers ─────────────────────────────────────────────────────
+
+_HORIZON_FAILURE_MARKER = "X"
+_HORIZON_FAILURE_LABEL = "NaN gradient"
+_HORIZON_JITTER_LOG = 0.04
+
+# Solvers blacklisted from horizon-sweep figures.
+_HORIZON_EXCLUDED = {"fenics_ns", "su2", "openfoam"}
+
+
+def _horizon_plot_curves(axes, data: dict, seen: set[str]) -> bool:
+    """Plot per-solver grad-norm / best-ε FD error / cosine into ``axes``."""
+    from collections import defaultdict
+
+    ax_gn, ax_err, ax_cos = axes
+    by_solver = data["by_solver"]
+    ordered = [s for s in NS_ORDER if s in by_solver and s not in _HORIZON_EXCLUDED]
+
+    fail_at_step: dict[int, list[str]] = defaultdict(list)
+    for solver in ordered:
+        sv = by_solver[solver]
+        for k, v in sv.items():
+            gn = v.get("grad_norm", 1.0)
+            if not np.isfinite(gn) or gn <= 0:
+                fail_at_step[int(k)].append(solver)
+
+    jitter_x: dict[tuple[str, int], float] = {}
+    for step, solvers_here in fail_at_step.items():
+        n = len(solvers_here)
+        for i, sv in enumerate(solvers_here):
+            if n == 1:
+                jitter_x[(sv, step)] = float(step)
+            else:
+                log_off = (2 * i / (n - 1) - 1) * _HORIZON_JITTER_LOG
+                jitter_x[(sv, step)] = step * 10**log_off
+
+    failure_seen = False
+
+    for solver in ordered:
+        sv = by_solver[solver]
+        _label, color, ls, _mk = solver_props(solver)
+
+        step_keys = sorted(sv.keys(), key=int)
+        ok_steps, ok_gn, ok_err, ok_cos = [], [], [], []
+        fail_steps = []
+
+        for k in step_keys:
+            v = sv[k]
+            gn = v.get("grad_norm", float("nan"))
+            eps_sweep = v.get("eps_sweep", {})
+            if eps_sweep:
+                best_err = min(float(e["rel_error_mean"]) for e in eps_sweep.values())
+                best_cos = max(float(e["cosine_mean"]) for e in eps_sweep.values())
+            else:
+                best_err = float("nan")
+                best_cos = float("nan")
+
+            if np.isfinite(gn) and gn > 0 and np.isfinite(best_err) and best_err > 0:
+                ok_steps.append(int(k))
+                ok_gn.append(gn)
+                ok_err.append(best_err)
+                ok_cos.append(best_cos)
+            else:
+                fail_steps.append(int(k))
+
+        kw = {
+            "color": color,
+            "linestyle": ls,
+            "marker": "o",
+            "markersize": 4,
+            "markeredgewidth": 0,
+            "linewidth": 1.6,
+            "zorder": 3,
+        }
+
+        ok_cos_defect = [max(1.0 - c, 1e-12) for c in ok_cos]
+
+        if ok_steps:
+            ax_gn.loglog(ok_steps, ok_gn, **kw)
+            ax_err.loglog(ok_steps, ok_err, **kw)
+            ax_cos.loglog(ok_steps, ok_cos_defect, **kw)
+            seen.add(solver)
+
+        for fs in fail_steps:
+            jx = jitter_x.get((solver, fs), float(fs))
+            mk_kw = {
+                "marker": _HORIZON_FAILURE_MARKER,
+                "color": color,
+                "markersize": 9,
+                "markeredgewidth": 1.2,
+                "markeredgecolor": "white",
+                "linestyle": "none",
+                "zorder": 6,
+            }
+            if ok_gn:
+                ax_gn.loglog([jx], [ok_gn[-1]], **mk_kw)
+                ax_err.loglog([jx], [ok_err[-1]], **mk_kw)
+                ax_cos.loglog([jx], [ok_cos_defect[-1]], **mk_kw)
+            failure_seen = True
+
+    return failure_seen
+
+
+def _horizon_style_axes(axes) -> None:
+    """Apply consistent titles / labels to (ax_gn, ax_err, ax_cos)."""
+    ax_gn, ax_err, ax_cos = axes
+    ax_gn.set_title("Gradient norm")
+    ax_gn.set_xlabel("Rollout steps $T$")
+    ax_gn.set_ylabel(r"$\|\nabla\mathcal{L}\|$")
+
+    ax_err.set_title("FD relative error (best $\\varepsilon$)")
+    ax_err.set_xlabel("Rollout steps $T$")
+    ax_err.set_ylabel("Relative FD error")
+
+    ax_cos.set_title("Cosine similarity (best $\\varepsilon$)")
+    ax_cos.set_xlabel("Rollout steps $T$")
+    ax_cos.set_ylabel("$1 -$ cosine")
+
+
+def _horizon_attach_legend(fig, seen: set[str], failure_seen: bool) -> None:
+    """Build the solver legend (plus an optional × failure handle)."""
+    handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in seen])
+    if failure_seen:
+        handles.append(
+            mlines.Line2D(
+                [],
+                [],
+                marker=_HORIZON_FAILURE_MARKER,
+                color="0.4",
+                linestyle="none",
+                markersize=7,
+                markeredgewidth=1.0,
+                markeredgecolor="white",
+                label=_HORIZON_FAILURE_LABEL,
+            )
+        )
+    if not handles:
+        return
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncol=min(len(handles), 6),
+        fontsize=7.5,
+        framealpha=0.7,
+        edgecolor="0.8",
+        handlelength=2.0,
+    )
+
+
+def _horizon_sweep_paper_figure(
+    cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir
+) -> plt.Figure:
+    """Paper-styled 1×3 grad-norm / FD-error / cosine figure."""
+    plt.rcParams.update(PAPER_RCPARAMS)
+
+    data = load_json(out_dir / "result.json")
+
+    fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.42), dpi=300)
+    fig.subplots_adjust(bottom=0.32, wspace=0.58, left=0.09, right=0.98, top=0.91)
+
+    seen: set[str] = set()
+    failure_seen = _horizon_plot_curves(axes, data, seen)
+    _horizon_style_axes(axes)
+    _horizon_attach_legend(fig, seen, failure_seen)
+
+    if save:
+        out = out_dir / "horizon_sweep.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
 
 
 # ── G0: finite-difference check ───────────────────────────────────────────────
@@ -42,20 +530,18 @@ def plot_fd_check(
 ):
     """FD-check experiment plot: curves (paper styling) + gradient-magnitude fields.
 
-    The rel-error / cosine curves are produced by
-    :func:`mosaic.benchmarks.plots.paper.fd_check.plot_experiment` so the
-    per-experiment figure and the paper figure stay byte-identical in
-    layout. The gradient-magnitude field panels are this problem's
-    extra: they need ``ic_to_2d`` / ``diagnostic_fields`` flags that
-    don't fit the cross-domain paper layout, so they live here.
+    The rel-error / cosine curves use the inlined paper-styling helpers
+    (:func:`_fd_check_paper_figure`) so the per-experiment ``fd_check.pdf``
+    and the paper-figure renderer stay in lockstep. The
+    gradient-magnitude field panels are this problem's extra: they need
+    ``ic_to_2d`` / ``diagnostic_fields`` flags that don't fit the
+    cross-domain paper layout, so they live here.
     """
-    from mosaic.benchmarks.plots.paper import fd_check as paper_fd_check
-
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
 
-    # ── error / cosine curves (delegated to paper module) ────────────────────
-    fig_c = paper_fd_check.plot_experiment(
-        cfg, exp_key=exp_key, suffix=suffix, save=save
+    # ── error / cosine curves (paper styling) ────────────────────────────────
+    fig_c = _fd_check_paper_figure(
+        cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
     # ── gradient magnitude fields ─────────────────────────────────────────────
@@ -419,16 +905,14 @@ def plot_jacobian_svd(
 ):
     """Jacobian-SVD experiment plot: paper spectra grid + cross-cosine + fields.
 
-    The per-solver singular spectrum grid is produced by
-    :func:`mosaic.benchmarks.plots.paper.jacobian_svd.plot_experiment` so
-    the per-experiment figure and the paper figure stay byte-identical in
-    layout. The cross-solver cosine heatmap, scalar-output gradient-norm
-    bar chart, and gradient-field panels are this problem's extras: they
-    don't fit the cross-domain paper layout, so they live here as
-    additional ``save_fig`` calls.
+    The per-solver singular spectrum grid uses the inlined paper-styling
+    helpers (:func:`_jacobian_svd_paper_figure`) so the per-experiment
+    ``jacobian_svd.pdf`` stays in lockstep with the paper-figure
+    renderer. The cross-solver cosine heatmap, scalar-output
+    gradient-norm bar chart, and gradient-field panels are this
+    problem's extras: they don't fit the cross-domain paper layout, so
+    they live here as additional ``save_fig`` calls.
     """
-    from mosaic.benchmarks.plots.paper import jacobian_svd as paper_jacobian_svd
-
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
@@ -444,12 +928,12 @@ def plot_jacobian_svd(
         len(v) == 1 for v in per_solver_spectra.values()
     )
 
-    # ── Singular-value spectra grid (delegated to paper module) ──────────────
+    # ── Singular-value spectra grid (paper styling) ──────────────────────────
     # For scalar outputs the per-solver spectrum is trivially [1.0] and
-    # the paper helper short-circuits returning None; we fall back to a
+    # the helper short-circuits returning None; we fall back to a
     # per-solver gradient-norm bar chart in that case.
-    fig_c = paper_jacobian_svd.plot_experiment(
-        cfg, exp_key=exp_key, suffix=suffix, save=save
+    fig_c = _jacobian_svd_paper_figure(
+        cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
     if _scalar_output:
@@ -579,22 +1063,20 @@ def plot_horizon_sweep(
 ):
     """Horizon-sweep experiment plot: paper curves + auxiliary diagnostics.
 
-    The grad-norm / best-ε error / cosine curves are produced by
-    :func:`mosaic.benchmarks.plots.paper.horizon_sweep.plot_experiment`
-    so the per-experiment figure and the paper figure stay
-    byte-identical in layout. The U-curve grid, per-solver error
-    panels and gradient-magnitude field panels are this problem's
-    extras and live here.
+    The grad-norm / best-ε error / cosine curves use the inlined
+    paper-styling helpers (:func:`_horizon_sweep_paper_figure`) so the
+    per-experiment ``horizon_sweep.pdf`` stays in lockstep with the
+    paper-figure renderer. The U-curve grid, per-solver error panels
+    and gradient-magnitude field panels are this problem's extras and
+    live here.
     """
-    from mosaic.benchmarks.plots.paper import horizon_sweep as paper_horizon_sweep
-
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
-    # ── summary curves (delegated to paper module) ───────────────────────────
-    fig_c = paper_horizon_sweep.plot_experiment(
-        cfg, exp_key=exp_key, suffix=suffix, save=save
+    # ── summary curves (paper styling) ───────────────────────────────────────
+    fig_c = _horizon_sweep_paper_figure(
+        cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
     # ── U-curve overlay: all solvers per horizon ─────────────────────────────

@@ -1,11 +1,9 @@
-"""Generate Figure: Thermal conductivity recovery overview — Adam vs L-BFGS.
+"""Cross-experiment extra plots for thermal-mesh.
 
-Layout:
-  Row 0: identification error history — loglog, all solvers × both methods
-  Row 1: Adam recovered conductivity profiles, all solvers + truth
-  Row 2: L-BFGS recovered conductivity profiles, all solvers + truth
-
-Output: conductivity_recovery_overview.pdf
+Registered on the :class:`Problem` via :meth:`Problem.add_extra_plot` from
+:mod:`thermal_mesh.config`. Each plot is wrapped to take the standard
+``(cfg, **kw)`` signature used by the runner and writes its outputs under
+``results/<cfg.name>/_extra/``.
 """
 
 from __future__ import annotations
@@ -17,24 +15,16 @@ import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.plots.paper import TEXTWIDTH
-from mosaic.benchmarks.plots.paper.style import (
-    RCPARAMS,
+from mosaic.benchmarks.problems.shared.plots.style import (
+    PAPER_RCPARAMS,
+    TEXTWIDTH,
     THERMAL_ORDER,
     dedup_handles,
     make_handle,
     solver_props,
 )
-
-
-def _methods():
-    base = results_dir() / "thermal-mesh" / "optimization"
-    return {
-        "adam": ("Adam", "-", base / "conductivity_recovery"),
-        "bfgs": ("L-BFGS", "--", base / "conductivity_recovery_bfgs"),
-    }
-
 
 # See note in recovery_overview.py: optax L-BFGS averages ~3 grad evaluations
 # per outer iteration (zoom line search), Adam exactly 1.
@@ -42,9 +32,24 @@ _GRAD_EVALS_PER_ITER: dict[str, int] = {"adam": 1, "bfgs": 3}
 _GRAD_EVAL_LABEL = "Gradient evaluations"
 
 
-def generate(out_dir: Path) -> None:
+def _conductivity_methods() -> dict[str, tuple]:
+    base = results_dir() / "thermal-mesh" / "optimization"
+    return {
+        "adam": ("Adam", "-", base / "conductivity_recovery"),
+        "bfgs": ("L-BFGS", "--", base / "conductivity_recovery_bfgs"),
+    }
+
+
+def _conductivity_overview_generate(out_dir: Path) -> None:
+    """Generate ``conductivity_recovery_overview.pdf`` into *out_dir*.
+
+    Layout:
+      Row 0: identification error history — loglog, all solvers × both methods
+      Row 1: Adam recovered conductivity profiles, all solvers + truth
+      Row 2: L-BFGS recovered conductivity profiles, all solvers + truth
+    """
     loaded: dict[str, tuple] = {}
-    for key, (*_, path) in _methods().items():
+    for key, (*_, path) in _conductivity_methods().items():
         rp = path / "result.json"
         fp = path / "rho_fields.npz"
         if not rp.exists():
@@ -56,7 +61,7 @@ def generate(out_dir: Path) -> None:
     if not loaded:
         return
 
-    with plt.rc_context(RCPARAMS):
+    with plt.rc_context(PAPER_RCPARAMS):
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 1.10))
         outer = gridspec.GridSpec(
             3,
@@ -76,7 +81,7 @@ def generate(out_dir: Path) -> None:
         seen_solvers: set[str] = set()
 
         # ── Convergence — all solvers × both methods ──────────────────────
-        for key, (_m_label, m_ls, *_) in _methods().items():
+        for key, (_m_label, m_ls, *_) in _conductivity_methods().items():
             if key not in loaded:
                 continue
             result, _ = loaded[key]
@@ -174,5 +179,16 @@ def generate(out_dir: Path) -> None:
         print(f"Saved {out}")
 
 
-if __name__ == "__main__":
-    generate(Path(__file__).parent.parent.parent.parent.parent / "paper" / "figures")
+# ── Adapter + registration ────────────────────────────────────────────────────
+
+
+def _conductivity_overview_plot(cfg: Problem, **_kw) -> None:
+    """Runner-facing adapter: writes ``conductivity_recovery_overview.pdf``."""
+    out_dir = results_dir() / cfg.name / "_extra"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    _conductivity_overview_generate(out_dir)
+
+
+def register(problem: Problem) -> None:
+    """Attach cross-experiment extras to *problem*."""
+    problem.add_extra_plot("_extra/conductivity_overview", _conductivity_overview_plot)

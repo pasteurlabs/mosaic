@@ -36,6 +36,10 @@ Solver behavior can be adjusted at three levels:
    mosaic run -p <problem> --suites gradient,optimization -s <solver>
    ```
 
+   After an edit, `mosaic run --only failed,stale -s <solver>` re-runs
+   only the cells that aren't already fresh-ok, leaving the rest of the
+   campaign untouched.
+
 3. Compare against the baseline:
    ```bash
    mosaic status --format json > after.json

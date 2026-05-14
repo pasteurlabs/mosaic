@@ -18,6 +18,7 @@ from mosaic.benchmarks.cli._helpers import (
     _run_validate_suites,
     _suite_components,
 )
+from mosaic.benchmarks.core.cell_filter import build_filter, set_active
 from mosaic.benchmarks.core.console import console, print_rule, print_warn
 from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
 from mosaic.benchmarks.core.runner import run_suite
@@ -94,6 +95,14 @@ def run(
         "On a fresh worker machine 4-8 is usually faster.",
         min=1,
     ),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Re-run only cells matching one or more comma-separated states: "
+        "failed, anom, missing, stale, excluded. Skips fresh-ok cells. "
+        "Combine with -p / --suites / -e / -s for finer scoping. "
+        "Example: --only failed,stale re-runs anything that isn't currently fresh-ok.",
+    ),
 ):
     """Run benchmark suites across problems.
 
@@ -147,6 +156,10 @@ def run(
     # status[(problem, suite)] = ("ok" | "partial" | "skip" | "error", detail)
     run_status: dict[tuple[str, str], tuple[str, str]] = {}
 
+    requested_states: set[str] | None = (
+        {s.strip() for s in only.split(",") if s.strip()} if only else None
+    )
+
     for problem in problem_list:
         print_rule(f"problem: {problem}")
         try:
@@ -167,47 +180,107 @@ def run(
                 run_status[(problem, suite)] = ("error", msg)
             continue
 
-        for suite in suite_list:
-            print_rule(f"  suite: {suite}")
+        # ``--only`` builds a per-(experiment, solver) filter from the
+        # problem's current on-disk status and installs it for the suite
+        # loop. ``run_experiment`` consults it after ``selector_fn`` to
+        # prune the active solver list to cells matching the requested
+        # state(s). Cleared in ``finally`` so it doesn't leak across
+        # problems.
+        if requested_states is not None:
             try:
-                exps, plot_fns_fn = _suite_components(suite, cfg=cfg)
-                if plots_only:
-                    _plots_only(
-                        cfg, to_run, plot_fns_fn(), suite, verbose_errors=traceback
-                    )
-                    run_status[(problem, suite)] = ("ok", "plots-only")
-                    continue
-                _overrides = _run_build_overrides(
-                    cfg,
-                    exps,
-                    debug=debug,
-                    gpus=gpus,
-                    experiment=experiments,
-                )
-                results = run_suite(
-                    cfg,
-                    tags,
-                    exps,
-                    to_run=to_run,
-                    plots=not no_plots,
-                    plot_fns=plot_fns_fn() if not no_plots else None,
-                    suite_name=suite,
-                    verbose_errors=traceback,
-                    overrides=_overrides or None,
-                )
-                n_total = len(exps)
-                n_ok = len(results)
-                if n_ok == n_total:
-                    run_status[(problem, suite)] = ("ok", "")
-                elif n_ok > 0:
-                    run_status[(problem, suite)] = ("partial", f"{n_ok}/{n_total}")
-                else:
-                    run_status[(problem, suite)] = ("skip", "no experiments ran")
-            except Exception as exc:
-                if traceback:
-                    console.print_exception()
-                run_status[(problem, suite)] = ("error", str(exc))
-                print_warn(f"{suite} failed: {exc}")
+                filter_map = build_filter(cfg, suite_list, requested_states)
+            except ValueError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(1) from exc
+            set_active(filter_map)
+            n_cells = len(filter_map)
+            n_solvers = len({s for _, s in filter_map})
+            console.print(
+                f"  [dim]--only={only}: {n_cells} cell(s) across "
+                f"{n_solvers} solver(s) to re-run[/]"
+            )
+            if n_cells == 0:
+                console.print("  [yellow]no cells match --only filter; skipping[/]")
+                set_active(None)
+                for suite in suite_list:
+                    run_status[(problem, suite)] = ("skip", "no cells match --only")
+                continue
+
+        try:
+            _run_suites_for_problem(
+                problem,
+                suite_list,
+                cfg,
+                tags,
+                to_run,
+                plots_only=plots_only,
+                no_plots=no_plots,
+                traceback=traceback,
+                debug=debug,
+                gpus=gpus,
+                experiments=experiments,
+                run_status=run_status,
+            )
+        finally:
+            if requested_states is not None:
+                set_active(None)
 
     # ── summary table ─────────────────────────────────────────────────────────
     _run_print_summary(problem_list, suite_list, run_status)
+
+
+def _run_suites_for_problem(
+    problem: str,
+    suite_list: list[str],
+    cfg,
+    tags: dict[str, str],
+    to_run: list[str] | None,
+    *,
+    plots_only: bool,
+    no_plots: bool,
+    traceback: bool,
+    debug: bool,
+    gpus: str | None,
+    experiments: str,
+    run_status: dict[tuple[str, str], tuple[str, str]],
+) -> None:
+    """Inner per-problem loop: runs every suite for one prepared problem."""
+    for suite in suite_list:
+        print_rule(f"  suite: {suite}")
+        try:
+            exps, plot_fns_fn = _suite_components(suite, cfg=cfg)
+            if plots_only:
+                _plots_only(cfg, to_run, plot_fns_fn(), suite, verbose_errors=traceback)
+                run_status[(problem, suite)] = ("ok", "plots-only")
+                continue
+            _overrides = _run_build_overrides(
+                cfg,
+                exps,
+                debug=debug,
+                gpus=gpus,
+                experiment=experiments,
+            )
+            results = run_suite(
+                cfg,
+                tags,
+                exps,
+                to_run=to_run,
+                plots=not no_plots,
+                plot_fns=plot_fns_fn() if not no_plots else None,
+                suite_name=suite,
+                verbose_errors=traceback,
+                overrides=_overrides or None,
+            )
+            n_total = len(exps)
+            n_ok = len(results)
+            if n_ok == n_total:
+                run_status[(problem, suite)] = ("ok", "")
+            elif n_ok > 0:
+                run_status[(problem, suite)] = ("partial", f"{n_ok}/{n_total}")
+            else:
+                run_status[(problem, suite)] = ("skip", "no experiments ran")
+        except Exception as exc:
+            if traceback:
+                console.print_exception()
+            run_status[(problem, suite)] = ("error", str(exc))
+            print_warn(f"{suite} failed: {exc}")

@@ -7,17 +7,230 @@ from pathlib import Path
 import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    load_json,
+    results_dir,
+    try_load_npz,
+)
 from mosaic.benchmarks.problems.shared.plots.optimization import (
     _rho_to_2d,
     _save_animation,
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
+    PAPER_RCPARAMS,
+    SOLVER_STYLES,
+    STRUCTURAL_ORDER,
+    TEXTWIDTH,
+    THERMAL_ORDER,
+    dedup_handles,
+    make_handle,
     save_fig,
+    solver_props,
     solver_styles,
 )
+
+# ── 3-D voxel rendering helpers (paper figure) ───────────────────────────────
+
+_THRESH = 0.35
+_ELEV = 22
+_AZIM = 35
+_CLR_FIXED = "#888888"
+_CLR_LOAD = "#FF1744"
+
+
+def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+    """Overlay fixed-face patch and load arrow on a voxel Axes3D."""
+    wall = Poly3DCollection(
+        [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
+        alpha=0.55,
+        facecolor=_CLR_FIXED,
+        edgecolor="#333333",
+        linewidth=0.8,
+    )
+    ax.add_collection3d(wall)
+
+    corner_z_high = ph.get("corner_z_high", False)
+    corner_y_high = ph.get("corner_y_high", False)
+    load_axis = ph.get("load_axis", "z")
+    ly = (ny - 0.5) if corner_y_high else 0.5
+    lz = (nz - 0.5) if corner_z_high else 0.5
+
+    arrow_len = nz * 0.65
+    if load_axis == "y":
+        y_sign = -1 if corner_y_high else 1
+        dx, dy_a, dz_a = 0, y_sign * arrow_len, 0
+    else:
+        z_sign = -1 if corner_z_high else 1
+        dx, dy_a, dz_a = 0, 0, z_sign * arrow_len
+
+    ox = nx + 0.6 if load_axis != "y" else nx
+    ax.quiver(
+        ox,
+        ly,
+        lz,
+        dx,
+        dy_a,
+        dz_a,
+        color=_CLR_LOAD,
+        linewidth=2.5,
+        arrow_length_ratio=0.28,
+    )
+
+
+def _voxel_facecolors(
+    rho_xyz: np.ndarray,
+    filled: np.ndarray,
+    base_color: str,
+) -> np.ndarray:
+    """Return RGBA facecolor array; empty voxels are fully transparent."""
+    import matplotlib.colors as mcolors
+
+    r, g, b, _ = mcolors.to_rgba(base_color)
+    fc = np.zeros((*rho_xyz.shape, 4))
+    norm = np.where(filled, (rho_xyz - _THRESH) / (1.0 - _THRESH), 0.0)
+    fc[..., 0] = r + (1 - r) * (1 - norm) * 0.45
+    fc[..., 1] = g + (1 - g) * (1 - norm) * 0.45
+    fc[..., 2] = b + (1 - b) * (1 - norm) * 0.45
+    fc[..., 3] = filled.astype(float)
+    return fc
+
+
+def _solver_order_for(cfg_name: str) -> list[str]:
+    """Best-effort solver-ordering pick based on problem name."""
+    if "structural" in cfg_name:
+        return STRUCTURAL_ORDER
+    if "thermal" in cfg_name:
+        return THERMAL_ORDER
+    return STRUCTURAL_ORDER
+
+
+def _plot_topopt_paper(
+    cfg: Problem,
+    *,
+    exp_key: str = "topopt",
+    suffix: str = "",
+    save: bool = True,
+) -> plt.Figure | None:
+    """Canonical single-experiment topopt paper figure.
+
+    Layout: two-row composite —
+      * top row spans full width: compliance vs iteration per solver
+      * bottom row: 3-D voxel renders of the final optimised density,
+        one panel per solver (only when ``topopt_fields.npz`` is present)
+
+    Reads ``result.json`` (+ optional ``topopt_fields.npz``,
+    ``params.json``) from the experiment directory and writes
+    ``<exp_key>.pdf`` next to them when ``save`` is True.
+    """
+    out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
+    result_path = out_dir / "result.json"
+    if not result_path.exists():
+        print(f"[topopt] {result_path} not found — skipping")
+        return None
+
+    plt.rcParams.update(PAPER_RCPARAMS)
+    data = load_json(result_path)
+    by_solver = data.get("by_solver", {})
+
+    solver_order = _solver_order_for(cfg.name)
+
+    # Optional fields npz + physics params
+    fields_path = out_dir / "topopt_fields.npz"
+    params_path = out_dir / "params.json"
+    npz = try_load_npz(fields_path) if fields_path.exists() else None
+    params = load_json(params_path) if params_path.exists() else None
+    ph = (params or data.get("params", {}) or {}).get("physics", {}) or {}
+
+    have_fields = (
+        npz is not None
+        and "solver_names" in npz
+        and ph.get("nx")
+        and ph.get("ny")
+        and ph.get("nz")
+    )
+
+    if have_fields:
+        npz_solvers = list(npz["solver_names"])
+        n_field_panels = len(npz_solvers)
+        ncols = max(1, n_field_panels)
+        fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.62), dpi=300)
+        gs = fig.add_gridspec(
+            2, ncols, height_ratios=[1.0, 1.35], hspace=0.45, top=0.93, bottom=0.18
+        )
+        ax_c = fig.add_subplot(gs[0, :])
+        field_axes = [
+            fig.add_subplot(gs[1, i], projection="3d") for i in range(n_field_panels)
+        ]
+    else:
+        fig, ax_c = plt.subplots(figsize=(TEXTWIDTH, TEXTWIDTH * 0.38), dpi=300)
+        fig.subplots_adjust(bottom=0.32, top=0.92)
+        field_axes = []
+        npz_solvers = []
+
+    # ── Compliance vs iteration ──────────────────────────────────────────────
+    present: set[str] = set()
+    for solver, sdata in by_solver.items():
+        _label, color, ls, _mk = solver_props(solver)
+        compliances = sdata.get("compliances", [])
+        if compliances:
+            ax_c.semilogy(
+                range(len(compliances)),
+                compliances,
+                color=color,
+                linestyle=ls,
+                linewidth=1.6,
+            )
+            present.add(solver)
+
+    ax_c.set_title(f"Compliance — {cfg.category_label or cfg.name}")
+    ax_c.set_xlabel("Iteration")
+    ax_c.set_ylabel("Compliance")
+
+    # ── 3-D voxel field panels ───────────────────────────────────────────────
+    if have_fields:
+        nx, ny, nz = int(ph["nx"]), int(ph["ny"]), int(ph["nz"])
+        for i, sname in enumerate(npz_solvers):
+            ax = field_axes[i]
+            rho_flat = npz[f"rho_final_{i}"]
+            rho_xyz = rho_flat.reshape(nz, ny, nx).transpose(2, 1, 0)
+            filled = rho_xyz > _THRESH
+
+            _label, color, _ls, _mk = solver_props(sname)
+            fc = _voxel_facecolors(rho_xyz, filled, color)
+            ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)
+            _add_bcs(ax, nx, ny, nz, ph)
+
+            label = SOLVER_STYLES.get(sname, (sname,))[0]
+            ax.set_title(label, fontsize=7.5, pad=-4)
+            ax.view_init(elev=_ELEV, azim=_AZIM)
+            ax.set_axis_off()
+            present.add(sname)
+
+    # ── Legend ───────────────────────────────────────────────────────────────
+    handles = dedup_handles(
+        [make_handle(s) for s in solver_order if s in present and s in SOLVER_STYLES]
+    )
+    if handles:
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(len(handles), 5),
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
+
+    if save:
+        out = out_dir / f"{exp_key}.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
 
 
 def plot_topopt(
@@ -30,18 +243,13 @@ def plot_topopt(
 ):
     """Topopt per-experiment plot — paper figure + extras.
 
-    The canonical compliance-convergence + 3-D voxel paper figure is
-    delegated to
-    :func:`mosaic.benchmarks.plots.paper.topopt.plot_experiment` so the
-    polished paper styling lands on the experiment results dir too. This
-    wrapper additionally produces:
+    Produces a paper-quality compliance-convergence + 3-D voxel figure
+    (``<exp_key>.pdf``) plus:
 
       * ``topopt_fields`` — initial + per-solver final 2-D density panels.
       * ``topopt_evolution_<solver>.gif`` — density-field animation per solver.
       * ``topopt_3d_<solver>.png`` — interactive-style 3-D voxel render per solver.
     """
-    from mosaic.benchmarks.plots.paper import topopt as paper_topopt
-
     out_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg, differentiable_only=False)
@@ -55,8 +263,8 @@ def plot_topopt(
 
     by_solver = data["by_solver"]
 
-    # ── Canonical paper figure (delegated) ────────────────────────────────────
-    fig_c = paper_topopt.plot_experiment(cfg, exp_key=exp_key, suffix=suffix, save=save)
+    # ── Canonical paper figure ────────────────────────────────────────────────
+    fig_c = _plot_topopt_paper(cfg, exp_key=exp_key, suffix=suffix, save=save)
 
     # ── density field panels ──────────────────────────────────────────────────
     fields_path = out_dir / "topopt_fields.npz"
@@ -64,11 +272,14 @@ def plot_topopt(
         return fig_c
 
     npz = try_load_npz(fields_path)
+    if "solver_names" not in npz:
+        return fig_c
     solver_names = npz["solver_names"].tolist()
     n_panels = 1 + len(solver_names)
     fig_f, axes = plt.subplots(1, n_panels, figsize=(n_panels * 3, 3), squeeze=False)
 
-    panels = [("Initial ρ", npz["rho_init"])] + [
+    initial_panels = [("Initial ρ", npz["rho_init"])] if "rho_init" in npz else []
+    panels = initial_panels + [
         (styles.get(n, {}).get("label", n) + " final", npz[f"rho_final_{j}"])
         for j, n in enumerate(solver_names)
         if f"rho_final_{j}" in npz
@@ -127,7 +338,6 @@ def _plot_topopt_3d(
 
     Works for any problem using a 2:1:1 hex mesh (structural-mesh, thermal-mesh, …).
     """
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
 
     params = params or {}
     corner_load = params.get("corner_load", False)
@@ -250,9 +460,11 @@ def _render_topopt_evolution_gifs(
     Shared ``vmin=0/vmax=1`` keeps colouring comparable across frames.
     Silently skips solvers whose ``rho_history_<j>`` key is missing.
     """
+    # ``try_load_npz`` returns a plain dict; tolerate both dict and NpzFile.
+    npz_keys = npz.files if hasattr(npz, "files") else set(npz.keys())
     for j, name in enumerate(solver_names):
         hist_key = f"rho_history_{j}"
-        if hist_key not in npz.files:
+        if hist_key not in npz_keys:
             continue
         history = np.asarray(npz[hist_key])  # (n_frames, n_cells)
         if history.size == 0 or history.shape[0] == 0:

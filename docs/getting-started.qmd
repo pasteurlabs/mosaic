@@ -94,6 +94,7 @@ mosaic run -p thermal-mesh --suites optimization
 | `--no-plots` | Skip plot generation |
 | `--plots-only` | Regenerate plots from existing results |
 | `--gpus 0,1,2` | Distribute solvers across multiple GPUs |
+| `--only <state[,…]>` | Re-run only cells matching one of `failed,anom,missing,stale,excluded` (skips fresh-ok). Combinable. |
 
 ## Running everything
 
@@ -102,6 +103,25 @@ mosaic run                                           # all suites, all problems
 mosaic run --problems ns-grid,structural-mesh        # filter problems
 mosaic run --suites forward,gradient                 # filter suites
 ```
+
+## Re-running a subset by status
+
+After an initial run, ``--only`` re-executes only the cells in a given
+state, leaving fresh-ok cells untouched (the merge-aware result writer
+keeps their entries intact). Useful for iterating on a single solver or
+recovering from a partial failure without redoing everything.
+
+```bash
+mosaic run --only failed                  # re-run only failed cells
+mosaic run --only failed,stale            # plus anything stale
+mosaic run --only missing                 # first-time runs only
+mosaic run --only failed,missing,stale    # everything that isn't fresh-ok
+mosaic run -s phiflow --only excluded     # re-check after dropping an exclusion
+```
+
+States: `failed`, `anom`, `missing`, `stale`, `excluded`. Compose
+multiple with commas. Combinable with `-p / --suites / -e / -s` for
+finer scoping.
 
 ::: {.callout-warning}
 `mosaic run` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. The container images add up to **dozens of GB** on disk. Consider starting with a single problem (`mosaic run --problems thermal-mesh`) to validate your setup before committing the time and storage.

@@ -261,6 +261,13 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
             )
 
         selected = selector_fn(cfg, suite, exp_key)
+        # ``mosaic run --only failed,stale,…`` installs a per-cell filter
+        # before the experiment loop. When set, prune the active solver
+        # list to cells matching the requested state(s); when unset this
+        # is a no-op pass-through.
+        from .cell_filter import filter_solvers
+
+        selected = filter_solvers(f"{suite}/{exp_key}", selected)
         by_solver: dict = {}
         snapshots: dict[str, dict[str, np.ndarray]] = {}
         shared_extras: dict[str, np.ndarray] = {}

@@ -1,4 +1,16 @@
-"""Shared matplotlib style and utilities for all benchmark plots."""
+"""Shared matplotlib style and utilities for all benchmark plots.
+
+Single :data:`RCPARAMS` profile — publication-quality, sized for the
+target venue's main column (``TEXTWIDTH`` inches wide), 8-pt sans-serif,
+``pdf.fonttype = 42`` so glyphs embed as Type 42 (TrueType) for editable
+/ searchable PDFs.
+
+Every plot in the suite (per-experiment plots registered via
+``plot=...`` on :meth:`Problem.add_experiment`, plus the cross-domain
+``_extra/*`` aggregators registered via :meth:`Problem.add_extra_plot`)
+uses this single profile, so figures match whether they're produced
+during ``mosaic run --plots-only`` or saved off-line.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +18,7 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
@@ -17,19 +30,27 @@ from mosaic.benchmarks.core.console import print_saved
 if TYPE_CHECKING:
     from mosaic.benchmarks.core.config import Problem
 
+# ── NeurIPS-paper layout constant ─────────────────────────────────────────────
+
+# Width of a single column in the target venue (NeurIPS uses 5.5 inches for the
+# main column). Imported by the per-experiment paper-styled plots to size their
+# figures so the PDF embeds at print width without scaling.
+TEXTWIDTH = 5.5
+
+
 # ── rcParams ──────────────────────────────────────────────────────────────────
 
 RCPARAMS: dict = {
     "font.family": "sans-serif",
-    "font.size": 11,
+    "font.size": 8,
     "pdf.fonttype": 42,
     "ps.fonttype": 42,
-    "axes.titlesize": 12,
+    "axes.titlesize": 8.5,
     "axes.titleweight": "bold",
-    "axes.labelsize": 11,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "legend.fontsize": 10,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7.5,
+    "ytick.labelsize": 7.5,
+    "legend.fontsize": 7.5,
     "legend.framealpha": 0.7,
     "legend.edgecolor": "0.8",
     "axes.spines.top": False,
@@ -37,18 +58,135 @@ RCPARAMS: dict = {
     "axes.grid": True,
     "grid.color": "0.88",
     "grid.linewidth": 0.5,
-    "lines.linewidth": 2.0,
-    "lines.markersize": 6,
-    "figure.dpi": 100,
+    "lines.linewidth": 1.6,
+    "lines.markersize": 4,
     "savefig.dpi": 300,
     "savefig.bbox": "tight",
     "savefig.pad_inches": 0.08,
 }
 
+# Back-compat alias for callers that imported the paper-specific name during
+# the figures-merge work — points at the single canonical RCPARAMS so edits
+# to the style automatically propagate.
+PAPER_RCPARAMS: dict = RCPARAMS
+
 
 def apply_style() -> None:
     """Apply the shared benchmark style globally (call once at module import)."""
     plt.rcParams.update(RCPARAMS)
+
+
+def rc_context():
+    """Return ``plt.rc_context(RCPARAMS)`` — context manager for scoped use."""
+    return plt.rc_context(RCPARAMS)
+
+
+# Back-compat alias.
+paper_rc_context = rc_context
+
+
+# ── Paper-style solver palette (per-solver display label + colour cycle) ──────
+#
+# Used by the experiment plots that double as paper figures. The cycle is
+# Paul Tol Vibrant (distinguishable under all forms of colour-blindness +
+# greyscale) extended with a couple of muted tones for reference / excluded
+# solvers. ``apply_solver_styles`` in solver_styles.py overrides these with
+# per-cfg ``SolverSpec.color`` for interactive inspection; the paper plots
+# read these directly.
+
+SOLVER_STYLES: dict[str, tuple] = {
+    # ── Fluid / NS ──────────────────────────────────────────────────────────
+    "jax_cfd": ("JAX-CFD", "#0077BB", "-", "o"),
+    "phiflow": ("PhiFlow", "#CC3311", "--", "s"),
+    "ins_jl": ("INS.jl", "#33BBEE", "-.", "^"),
+    "pict": ("PICT", "#EE3377", ":", "D"),
+    "xlb": ("XLB", "#CCBB44", (0, (4, 1)), "v"),
+    "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),
+    "exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),
+    "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),
+    # ── FEM / Structural ────────────────────────────────────────────────────
+    "jax_fem": ("JAX-FEM", "#0077BB", "-", "o"),
+    "topopt_jl": ("TopOpt.jl", "#009988", "--", "s"),
+    "dealii_structural": ("deal.II", "#DDCC77", "-.", "^"),
+    "fenics_structural": ("FEniCS", "#CC3311", ":", "D"),
+    "firedrake_structural": ("Firedrake", "#EE7733", (0, (3, 1)), "v"),
+    # ── FEM / Thermal ───────────────────────────────────────────────────────
+    "dealii_heat": ("deal.II", "#DDCC77", "-.", "^"),
+    "fenics_heat": ("FEniCS", "#CC3311", ":", "D"),
+    "firedrake_heat": ("Firedrake", "#EE7733", (0, (3, 1)), "v"),
+    "torch_fem_thermal": ("TorchFEM", "#009988", (0, (5, 1, 1, 1)), "<"),
+}
+
+# Canonical solver ordering — drives legend construction so multi-panel figures
+# show solvers in the same order even when individual panels are subsets.
+NS_ORDER: list[str] = [
+    "jax_cfd",
+    "phiflow",
+    "ins_jl",
+    "xlb",
+    "pict",
+    "warp_ns",
+    "exponax",
+    "openfoam",
+]
+FEM_ORDER: list[str] = [
+    "jax_fem",
+    "topopt_jl",
+    "dealii_structural",
+    "fenics_structural",
+    "firedrake_structural",
+    "dealii_heat",
+    "fenics_heat",
+    "firedrake_heat",
+    "torch_fem_thermal",
+]
+STRUCTURAL_ORDER: list[str] = [
+    "jax_fem",
+    "topopt_jl",
+    "dealii_structural",
+    "fenics_structural",
+    "firedrake_structural",
+]
+THERMAL_ORDER: list[str] = [
+    "firedrake_heat",
+    "jax_fem",
+    "fenics_heat",
+    "dealii_heat",
+    "torch_fem_thermal",
+]
+
+
+def solver_props(name: str) -> tuple:
+    """``(label, color, linestyle, marker)`` for *name*, with grey fallback."""
+    return SOLVER_STYLES.get(name, (name, "#888888", "-", "o"))
+
+
+def make_handle(solver: str) -> mlines.Line2D:
+    """Legend ``Line2D`` proxy for *solver* — used for shared cross-panel legends."""
+    label, color, ls, mk = SOLVER_STYLES[solver]
+    return mlines.Line2D(
+        [],
+        [],
+        color=color,
+        linestyle=ls,
+        marker=mk,
+        markersize=5,
+        markeredgewidth=0,
+        linewidth=1.6,
+        label=label,
+    )
+
+
+def dedup_handles(handles: list) -> list:
+    """Drop duplicate-label legend handles (first occurrence wins)."""
+    seen: set[str] = set()
+    out = []
+    for h in handles:
+        lbl = h.get_label()
+        if lbl not in seen:
+            out.append(h)
+            seen.add(lbl)
+    return out
 
 
 # ── Save helper ───────────────────────────────────────────────────────────────

@@ -47,6 +47,7 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .exclusions import register as _register_exclusions
+from .extras import register as _register_extras
 from .ics import _random, _two_density_bumps, _uniform
 from .optimization import topopt
 from .physics import DIAGNOSTICS, make_inputs
@@ -365,6 +366,12 @@ problem.add_experiment(
     optim={"max_iters": 100, "patience": 20},
     plot=plot_topopt,
 )
+
+
+# ── Cross-experiment extras ──────────────────────────────────────────────────
+# Aggregator plots that span multiple experiments live in ``extras.py``; the
+# register call wires them into ``problem.plot_fns`` under ``_extra/...``.
+_register_extras(problem)
 
 
 # ── Exclusions ───────────────────────────────────────────────────────────────

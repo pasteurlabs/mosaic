@@ -26,7 +26,6 @@ SUBCOMMANDS = [
     "status",
     "compare",
     "tesseracts",
-    "paper-plots",
     "validate-domain",
     "new-domain",
     "validate-template",

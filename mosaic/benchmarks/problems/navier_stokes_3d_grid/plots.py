@@ -6,20 +6,37 @@ from pathlib import Path
 
 import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.io import (
+    experiment_dir,
+    load_json,
+    results_dir,
+    try_load_npz,
+)
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
+    NS_ORDER,
+    PAPER_RCPARAMS,
+    STRUCTURAL_ORDER,
+    TEXTWIDTH,
+    THERMAL_ORDER,
+    dedup_handles,
     fig_shared_legend,
     imshow_with_cbar,
+    make_handle,
     save_fig,
     solver_plot_props,
+    solver_props,
     solver_styles,
     subplots_grid,
     vorticity_2d,
 )
+
+# Default perturb_sigma to highlight on the single-experiment NS paper figure.
+_PAPER_NS_SIGMA = "0.1"
 
 
 def _resolve_recovery_out_dir(base_dir: Path, ic: str | None) -> Path:
@@ -476,6 +493,132 @@ def _plot_per_sigma_grid(
             save_fig(fig_sg, f"recovery_sigma_{sv_str}", out_dir)
 
 
+def _solver_order_for(cfg_name: str) -> list[str]:
+    """Heuristic solver-ordering pick by problem name (paper figure)."""
+    if "ns" in cfg_name:
+        return NS_ORDER
+    if "structural" in cfg_name:
+        return STRUCTURAL_ORDER
+    if "thermal" in cfg_name:
+        return THERMAL_ORDER
+    return NS_ORDER
+
+
+def _paper_plot_ns_recovery(
+    ax, data: dict, solver_order: list[str], title: str, seen: set[str]
+) -> None:
+    """Draw NS-style by_sweep convergence into *ax* from ``data``."""
+    by_sweep = data.get("by_sweep") or data.get("by_horizon", {})
+
+    for solver in solver_order:
+        if solver not in by_sweep:
+            continue
+        sweep = by_sweep[solver]
+        if not sweep:
+            continue
+        sigma_key = (
+            _PAPER_NS_SIGMA
+            if _PAPER_NS_SIGMA in sweep
+            else sorted(sweep.keys())[len(sweep) // 2]
+        )
+        errors = sweep[sigma_key].get("errors") or sweep[sigma_key].get(
+            "ic_error_history", []
+        )
+        if not errors:
+            continue
+        _label, color, ls, _mk = solver_props(solver)
+        ax.semilogy(
+            range(len(errors)), errors, color=color, linestyle=ls, linewidth=1.6
+        )
+        seen.add(solver)
+
+    ax.set_title(title)
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("IC error")
+    ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+    ax.yaxis.set_minor_locator(mticker.NullLocator())
+
+
+def _plot_paper_recovery_experiment(
+    cfg: Problem,
+    *,
+    exp_key: str,
+    suffix: str,
+    save: bool,
+) -> plt.Figure | None:
+    """Single-experiment paper-styled IC-recovery convergence figure.
+
+    Draws per-solver IC-error vs iteration on a log scale (using the
+    representative sigma slice, see ``_PAPER_NS_SIGMA``). Reads
+    ``result.json`` from the experiment directory and writes
+    ``<exp_key>.pdf`` next to it when ``save`` is True.
+    """
+    out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
+    result_path = out_dir / "result.json"
+    if not result_path.exists():
+        print(f"[recovery] {result_path} not found — skipping")
+        return None
+
+    plt.rcParams.update(PAPER_RCPARAMS)
+    data = load_json(result_path)
+
+    fig, ax = plt.subplots(figsize=(TEXTWIDTH, TEXTWIDTH * 0.45), dpi=300)
+    fig.subplots_adjust(bottom=0.36, top=0.90, left=0.13, right=0.96)
+
+    seen: set[str] = set()
+    solver_order = _solver_order_for(cfg.name)
+
+    if "by_sweep" in data or "by_horizon" in data:
+        _paper_plot_ns_recovery(
+            ax,
+            data,
+            solver_order,
+            f"IC recovery — {cfg.category_label or cfg.name}",
+            seen,
+        )
+    else:
+        # FEM-style by_solver layout (errors / losses per solver).
+        by_solver = data.get("by_solver", {})
+        error_key = (
+            "errors" if any("errors" in v for v in by_solver.values()) else "losses"
+        )
+        for solver in solver_order:
+            sdata = by_solver.get(solver)
+            if not sdata:
+                continue
+            vals = sdata.get(error_key, [])
+            if not vals:
+                continue
+            _label, color, ls, _mk = solver_props(solver)
+            ax.semilogy(
+                range(len(vals)), vals, color=color, linestyle=ls, linewidth=1.6
+            )
+            seen.add(solver)
+        ax.set_title(f"Recovery — {cfg.category_label or cfg.name}")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Error" if error_key == "errors" else "Loss")
+        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+
+    handles = dedup_handles([make_handle(s) for s in solver_order if s in seen])
+    if handles:
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(len(handles), 5),
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
+        )
+
+    if save:
+        out = out_dir / f"{exp_key}.pdf"
+        fig.savefig(out)
+        print(f"Saved {out}")
+    return fig
+
+
 def plot_recovery(
     cfg: Problem,
     threshold: float | None = None,
@@ -490,11 +633,10 @@ def plot_recovery(
 ):
     """Recovery per-experiment plot — paper figure + extras.
 
-    The canonical paper-styled IC-recovery convergence figure is
-    delegated to
-    :func:`mosaic.benchmarks.plots.paper.recovery.plot_experiment` so the
-    polished paper styling lands on the experiment results dir too. This
-    wrapper additionally produces:
+    The canonical paper-styled IC-recovery convergence figure is generated
+    inline by :func:`_plot_paper_recovery_experiment` so the polished paper
+    styling lands on the experiment results dir too. This wrapper
+    additionally produces:
 
       * ``optimization`` — recovery improvement + min-loss summary panel.
       * ``convergence_curves`` — per-sweep-value loss curves grid.
@@ -509,8 +651,6 @@ def plot_recovery(
     ``result.json`` is not found, the function automatically falls back to the
     first available IC subdirectory.
     """
-    from mosaic.benchmarks.plots.paper import recovery as paper_recovery
-
     base_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     out_dir = _resolve_recovery_out_dir(base_dir, ic)
 
@@ -534,13 +674,15 @@ def plot_recovery(
         out_dir, by_sweep, sweep_vals, sweep_key
     )
 
-    # ── Canonical paper figure (delegated) ────────────────────────────────────
+    # ── Canonical paper figure (inlined) ──────────────────────────────────────
     # When the experiment lives in a per-IC subdir, reflect the suffix so the
     # paper figure lands next to result.json in the IC subdir.
     paper_suffix = suffix
     if out_dir != base_dir and out_dir.name != base_dir.name:
         paper_suffix = f"{suffix}/{out_dir.name}"
-    paper_recovery.plot_experiment(cfg, exp_key=exp_key, suffix=paper_suffix, save=save)
+    _plot_paper_recovery_experiment(
+        cfg, exp_key=exp_key, suffix=paper_suffix, save=save
+    )
 
     # ── recovery.png: 2 panels ─────────────────────────────────────────────────
     fig_r = _plot_recovery_summary(

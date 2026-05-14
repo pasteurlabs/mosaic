@@ -98,6 +98,23 @@ mosaic status --format md > report.md
 mosaic status --format json > snap.json
 ```
 
+### Re-run a subset
+
+After an initial pass, `mosaic run --only <state[,…]>` re-executes only
+the cells currently in the given state and leaves fresh-ok cells alone.
+Useful for iterating on a single solver or recovering from a partial
+failure without redoing everything.
+
+```bash
+mosaic run --only failed              # re-run only failed cells
+mosaic run --only failed,stale        # plus anything the harness/source has invalidated
+mosaic run --only missing             # first-time runs only
+mosaic run -s phiflow --only excluded # re-check after dropping an exclusion
+```
+
+States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combinable
+with `-p / --suites / -e / -s` for finer scoping.
+
 ---
 
 ## Use Tesseracts in your own code

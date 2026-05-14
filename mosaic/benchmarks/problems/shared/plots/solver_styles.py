@@ -4,13 +4,8 @@ These attributes are presentation-only — they don't affect solver capability,
 schemes, or differentiability — so they live here rather than in each solver's
 ``tesseract_config.yaml`` or in the problem config's ``SolverSpec`` definitions.
 
-Day-to-day harness plots use this registry via :func:`apply_styles`, which is
-called from each problem config after :func:`discover_solvers` populates the
-spec dict.
-
-Paper figures use a separate (colorblind-friendly) palette in
-``mosaic/benchmarks/plots/paper/style.py`` — it intentionally diverges from
-this default and is unaffected by edits here.
+Harness plots use this registry via :func:`apply_styles`, which is called from
+each problem config after :func:`discover_solvers` populates the spec dict.
 
 Keys match the solver-key aliases used across the codebase
 (e.g. ``ins_jl``, ``dealii_structural``) — not the raw tesseract directory

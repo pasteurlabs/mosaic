@@ -1,15 +1,9 @@
-"""Generate Figure: Topology optimisation overview — structural domain.
+"""Cross-domain / cross-experiment extra plots for structural-mesh.
 
-Layout:
-  Left column (split vertically):
-    Top  : 2×2 3-D voxel panels (one per solver)
-    Bottom: engineering plan views (front / top / right) with BC symbols
-            + a 4-solver 2-D projection strip
-  Right column:
-    Top   : compliance convergence  (log x, linear y)
-    Bottom: volume-fraction history (log x, linear y, target dashed)
-
-Output: topopt_overview.pdf
+Registered on the :class:`Problem` via :meth:`Problem.add_extra_plot` from
+:mod:`structural_mesh.config`. Each plot is wrapped to take the standard
+``(cfg, **kw)`` signature used by the runner and writes its outputs under
+``results/<cfg.name>/_extra/``.
 """
 
 from __future__ import annotations
@@ -23,27 +17,19 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.plots.paper import TEXTWIDTH
-from mosaic.benchmarks.plots.paper.style import (
-    RCPARAMS,
+from mosaic.benchmarks.problems.shared.plots.style import (
+    PAPER_RCPARAMS,
     SOLVER_STYLES,
     STRUCTURAL_ORDER,
+    TEXTWIDTH,
     dedup_handles,
     make_handle,
 )
-
-
-def _opt_methods():
-    base = results_dir() / "structural-mesh" / "optimization"
-    return {
-        "adam": ("-", "Adam", base / "topopt" / "result.json"),
-        "mma": ("--", "MMA", base / "topopt_mma" / "result.json"),
-    }
-
 
 _THRESH = 0.35
 _ELEV = 22
@@ -362,14 +348,27 @@ def _plot_convergence(
     ax.set_ylabel(ylabel)
 
 
-# ── Main entry point ──────────────────────────────────────────────────────────
+# ── topopt_overview generate body ─────────────────────────────────────────────
 
 
-def generate(out_dir: Path) -> None:
-    BASE = results_dir() / "structural-mesh" / "optimization" / "topopt"
-    OPT_METHODS = _opt_methods()
+def _topopt_overview_generate(out_dir: Path) -> None:
+    """Generate ``topopt_overview.pdf`` into *out_dir*.
 
-    result_path = BASE / "result.json"
+    Layout:
+      Left column (split vertically):
+        Top  : 2×2 3-D voxel panels (one per solver)
+        Bottom: engineering plan views (front / top / right) with BC symbols
+      Right column:
+        Top   : compliance convergence  (log x, linear y)
+        Bottom: volume-fraction history (log x, linear y, target dashed)
+    """
+    base = results_dir() / "structural-mesh" / "optimization"
+    opt_methods = {
+        "adam": ("-", "Adam", base / "topopt" / "result.json"),
+        "mma": ("--", "MMA", base / "topopt_mma" / "result.json"),
+    }
+
+    result_path = base / "topopt" / "result.json"
     if not result_path.exists():
         print(f"[topopt_overview] {result_path} not found — skipping")
         return
@@ -379,7 +378,7 @@ def generate(out_dir: Path) -> None:
 
     # Load additional optimizer results where available
     opt_datasets: list[tuple[str, dict]] = []
-    for key, (m_ls, _m_label, rp) in OPT_METHODS.items():
+    for key, (m_ls, _m_label, rp) in opt_methods.items():
         if rp.exists():
             opt_datasets.append((m_ls, load_json(rp)["by_solver"]))
         else:
@@ -387,8 +386,8 @@ def generate(out_dir: Path) -> None:
     if not opt_datasets:
         opt_datasets = [("-", by_solver)]
 
-    fields_path = BASE / "topopt_fields.npz"
-    params_path = BASE / "params.json"
+    fields_path = base / "topopt" / "topopt_fields.npz"
+    params_path = base / "topopt" / "params.json"
     has_fields = fields_path.exists() and params_path.exists()
 
     if has_fields:
@@ -403,7 +402,7 @@ def generate(out_dir: Path) -> None:
 
     n_field = len(field_solvers)
 
-    with plt.rc_context(RCPARAMS):
+    with plt.rc_context(PAPER_RCPARAMS):
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.72))
         outer = gridspec.GridSpec(
             1,
@@ -544,7 +543,7 @@ def generate(out_dir: Path) -> None:
             mlines.Line2D(
                 [], [], color="0.3", linestyle=m_ls, linewidth=1.5, label=m_label
             )
-            for _, (m_ls, m_label, rp) in OPT_METHODS.items()
+            for _, (m_ls, m_label, rp) in opt_methods.items()
             if rp.exists()
         ]
         solver_handles = dedup_handles(
@@ -565,5 +564,16 @@ def generate(out_dir: Path) -> None:
         print(f"Saved {out}")
 
 
-if __name__ == "__main__":
-    generate(Path(__file__).parent.parent.parent.parent.parent / "paper" / "figures")
+# ── Adapter + registration ────────────────────────────────────────────────────
+
+
+def _topopt_overview_plot(cfg: Problem, **_kw) -> None:
+    """Runner-facing adapter: writes ``topopt_overview.pdf`` under ``_extra/``."""
+    out_dir = results_dir() / cfg.name / "_extra"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    _topopt_overview_generate(out_dir)
+
+
+def register(problem: Problem) -> None:
+    """Attach cross-experiment extras to *problem*."""
+    problem.add_extra_plot("_extra/topopt_overview", _topopt_overview_plot)
