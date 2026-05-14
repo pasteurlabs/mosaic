@@ -59,7 +59,7 @@ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 tesseract run exponax_navier_stokes_grid apply '{}'
 
 # Run the forward accuracy suite for just this solver
-mosaic run -p ns-3d-grid --suites forward -s exponax
+mosaic run -p ns-3d-grid --suites forward -s Exponax
 ```
 
 This builds one container (~2 min), runs a single forward simulation, and produces accuracy plots in `mosaic-results/ns-3d-grid/forward/`.
@@ -86,7 +86,7 @@ mosaic run -p thermal-mesh --suites optimization
 
 | Flag | Effect |
 |:-----|:-------|
-| `-s <solver>` | Run only one solver |
+| `-s <solver,…>` | Restrict to listed solvers. A flat CSV is a union set: each problem keeps only the listed solvers that exist there, problems with zero matches are skipped. Per-problem overrides via `<problem>=<csv>;…`. |
 | `-e <suite>/<exp>` | Run only one experiment within a suite |
 | `-e <suite>/<exp>/<ic>` | Pin one initial condition (e.g. `forward/agreement/tgv`) |
 | `--debug` | Small problem size for quick iteration |
@@ -104,6 +104,25 @@ mosaic run --problems ns-grid,structural-mesh        # filter problems
 mosaic run --suites forward,gradient                 # filter suites
 ```
 
+## Selecting solvers
+
+``-s`` (alias ``--solvers``) accepts two forms:
+
+```bash
+# Flat CSV — a union set applied to every problem in -p.
+# Each problem keeps only the listed solvers that exist there; problems
+# with zero matches are skipped (not silently expanded to "run all").
+mosaic run -s OpenFOAM,XLB,deal.II,JAX-FEM
+
+# Per-problem map — explicit picks per domain. Problems not listed in
+# the map pass through unchanged (all solvers).
+mosaic run -s "ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM"
+```
+
+Names must match the display form exactly (`XLB`, `OpenFOAM`, `deal.II`,
+`JAX-FEM`, …). A name not in any registered problem aborts the run with
+a "Did you mean…?" hint before any image build.
+
 ## Re-running a subset by status
 
 After an initial run, ``--only`` re-executes only the cells in a given
@@ -116,7 +135,7 @@ mosaic run --only failed                  # re-run only failed cells
 mosaic run --only failed,stale            # plus anything stale
 mosaic run --only missing                 # first-time runs only
 mosaic run --only failed,missing,stale    # everything that isn't fresh-ok
-mosaic run -s phiflow --only excluded     # re-check after dropping an exclusion
+mosaic run -s PhiFlow --only excluded     # re-check after dropping an exclusion
 ```
 
 States: `failed`, `anom`, `missing`, `stale`, `excluded`. Compose

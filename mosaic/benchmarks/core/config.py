@@ -198,12 +198,19 @@ class Problem:
             self.tesseract_dir = TESSERACTS_DIR / self.tesseract_dir
 
         if self.make_inputs is not None:
-            _user_fn = self.make_inputs
+            # __post_init__ also runs when ``dataclasses.replace(cfg, solvers=...)``
+            # builds a filtered copy (CLI -s filter, --hardware filter, etc.).
+            # Unwrap to the original user function before re-wrapping, otherwise
+            # the second pass nests `wrapper(wrapper(...))` and the inner call
+            # receives a SolverSpec where it expected a name → ``TypeError:
+            # unhashable type: 'SolverSpec'``.
+            _user_fn = getattr(self.make_inputs, "_mosaic_raw", self.make_inputs)
             _spec_by_name = {s.name: s for s in self.solvers}
 
             def _by_name(name: str, ic, **physics):
                 return _user_fn(_spec_by_name[name], ic, **physics)
 
+            _by_name._mosaic_raw = _user_fn
             self.make_inputs = _by_name
 
     # ── Solver lookup ────────────────────────────────────────────────────
@@ -450,6 +457,7 @@ class Problem:
                 "optim",
                 "jacobian",
                 "reference",
+                "reference_solver",
                 "cost",
                 "ic_key",
                 "output_key",

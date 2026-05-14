@@ -60,24 +60,72 @@ def _suite_components(suite: str, cfg) -> tuple[dict, callable]:
 
 
 def _apply_solver_filter(cfg, solvers_csv: str | None):
-    """Return cfg restricted to the requested comma-separated solver names.
+    """Return cfg restricted to the requested solver names, or ``None`` to
+    signal "skip this problem entirely".
 
-    Unknown names are warned about and skipped. If solvers_csv is None/empty
-    the original cfg is returned unchanged. Applied BEFORE build_all so that
-    excluded/broken solvers (e.g. openfoam, pict) are not built when the user
-    passes -s to restrict the run.
+    Accepts two forms:
+
+    * **Flat CSV** — ``"XLB,jax-cfd,Firedrake"`` — a union set applied to
+      every problem. Each problem keeps only the solvers whose name is in
+      the set. A name that doesn't exist on the current problem is fine
+      (it presumably belongs to another problem) and is silently ignored;
+      a name that doesn't exist on *any* problem still surfaces upstream
+      as a typo via :func:`_validate_solver_names`. A problem with zero
+      matches is **skipped**, not run with all solvers.
+    * **Per-problem map** — ``"<problem>=<csv>;<problem>=<csv>"`` — looks
+      up ``cfg.name`` in the map and filters to that problem's list.
+      Problems not listed in the map pass through unchanged (all solvers
+      kept), so you only spell out the problems you want to restrict.
+
+    Empty/None passes through unchanged. Applied BEFORE build_all so that
+    excluded or broken solvers aren't built when the user passes -s to
+    restrict the run.
     """
     if not solvers_csv:
         return cfg
-    requested = {s.strip() for s in solvers_csv.split(",") if s.strip()}
-    unknown = requested - cfg.solver_names
-    if unknown:
-        print_warn(f"unknown solver(s): {', '.join(sorted(unknown))} — skipping")
+    if "=" in solvers_csv:
+        per_problem = _parse_per_problem_solver_map(solvers_csv)
+        if cfg.name not in per_problem:
+            return cfg
+        requested = set(per_problem[cfg.name])
+        # Per-problem map: an unknown name *is* a typo, because the user
+        # explicitly addressed this problem.
+        unknown = requested - set(cfg.solver_names)
+        if unknown:
+            print_warn(
+                f"{cfg.name}: unknown solver(s) in -s map: "
+                f"{', '.join(sorted(unknown))} — skipping"
+            )
+    else:
+        requested = {s.strip() for s in solvers_csv.split(",") if s.strip()}
+        # Flat CSV: silently ignore names that don't apply here — they
+        # presumably belong to another problem.
     keep = [s for s in cfg.solvers if s.name in requested]
     if not keep:
-        print_warn("no matching solvers after filtering — running all")
-        return cfg
+        print_warn(f"{cfg.name}: no solvers in -s match this problem — skipping")
+        return None
     return dataclasses.replace(cfg, solvers=keep)
+
+
+def _parse_per_problem_solver_map(s: str) -> dict[str, list[str]]:
+    """Parse ``"<problem>=<csv>;<problem>=<csv>"`` into ``{problem: [solvers]}``.
+
+    Raises ``ValueError`` on malformed entries (missing ``=``); empty
+    segments between ``;`` are skipped.
+    """
+    out: dict[str, list[str]] = {}
+    for entry in s.split(";"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        if "=" not in entry:
+            raise ValueError(
+                f"--solvers per-problem entry missing '=': {entry!r}. "
+                f"Expected '<problem>=<solver,solver,...>'."
+            )
+        prob, csv = entry.split("=", 1)
+        out[prob.strip()] = [v.strip() for v in csv.split(",") if v.strip()]
+    return out
 
 
 def _resolve_gpu_pool(cfg, gpus: str | None):
@@ -173,8 +221,13 @@ def _resolve_cfg_and_tags(
     cfg, gpus = _resolve_gpu_pool(cfg, gpus)
     # Restrict cfg to requested solvers BEFORE build so that excluded/broken
     # solvers are never built (prevents e.g. openfoam/pict buildx storms when
-    # running `-s ins_jl,lettuce` on ns-grid).
+    # running `-s ins_jl,lettuce` on ns-grid). ``_apply_solver_filter``
+    # returns ``None`` when -s leaves zero solvers for this problem — we
+    # propagate that as the same skip-signal triple so the caller can mark
+    # the problem skipped without entering the build step.
     cfg = _apply_solver_filter(cfg, solvers_csv)
+    if cfg is None:
+        return None, {}, gpus
     # --plots-only must never trigger an image build: the operation is purely
     # filesystem-level (load result.json, re-render PNG/PDF), so a rebuild is
     # pure overhead and can wedge the process behind a multi-minute docker
@@ -276,6 +329,8 @@ def _run_prepare_problem(
             hardware=hardware,
             max_build_workers=jobs,
         )
+        if cfg is None:
+            return None, {}, gpus
         cfg, tags = _filter_solvers(cfg, tags, solvers)
         return cfg, tags, gpus
     cfg = get_config(problem)
@@ -287,7 +342,45 @@ def _run_prepare_problem(
     cfg, gpus = _resolve_gpu_pool(cfg, gpus)
     if solvers:
         cfg = _apply_solver_filter(cfg, solvers)
+        if cfg is None:
+            return None, {}, gpus
     return cfg, {}, gpus
+
+
+def _validate_solver_csv(solvers_csv: str | None, problem_list: list[str]) -> None:
+    """Up-front typo check: every name in a flat -s CSV must exist on at
+    least one of the problems in *problem_list*. Raises ``typer.Exit(1)``
+    when an unknown name is found so the user gets immediate feedback
+    instead of "no solvers matched" warnings on every problem.
+
+    Per-problem maps (``<problem>=<csv>;...``) skip this check — the
+    per-problem dispatcher already warns about unknown names against the
+    specific cfg.
+    """
+    if not solvers_csv or "=" in solvers_csv:
+        return
+    requested = {s.strip() for s in solvers_csv.split(",") if s.strip()}
+    if not requested:
+        return
+    all_names: set[str] = set()
+    for problem in problem_list:
+        try:
+            all_names |= set(get_config(problem).solver_names)
+        except Exception:
+            # Skip problems that fail to import — they'll surface as
+            # "build failed" later in the loop and aren't relevant to a
+            # name-typo check.
+            continue
+    unknown = requested - all_names
+    if unknown:
+        from difflib import get_close_matches
+
+        for name in sorted(unknown):
+            suggestion = get_close_matches(name, sorted(all_names), n=1, cutoff=0.5)
+            hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
+            console.print(f"[red]Unknown solver {name!r}.{hint}[/red]")
+        console.print(f"Available solvers: {', '.join(sorted(all_names))}")
+        raise typer.Exit(1)
 
 
 def _parse_experiments_path(

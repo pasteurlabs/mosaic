@@ -17,6 +17,7 @@ from mosaic.benchmarks.cli._helpers import (
     _run_print_summary,
     _run_validate_suites,
     _suite_components,
+    _validate_solver_csv,
 )
 from mosaic.benchmarks.core.cell_filter import build_filter, set_active
 from mosaic.benchmarks.core.console import console, print_rule, print_warn
@@ -64,7 +65,11 @@ def run(
         None,
         "--solvers",
         "-s",
-        help="Comma-separated solver names to run (default: all)",
+        help="Restrict the run to specific solvers. Accepts a flat CSV applied "
+        "to every problem (e.g. 'XLB,jax-cfd'), or a per-problem map "
+        "'<problem>=<csv>;<problem>=<csv>' (e.g. "
+        "'ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM'). "
+        "Problems absent from the map keep all solvers.",
     ),
     gpus: str | None = typer.Option(
         None,
@@ -150,6 +155,9 @@ def run(
 
     # Validate suite names early — before any builds start.
     _run_validate_suites(suite_list)
+    # Same fast-fail for ``-s`` typos: a name in a flat CSV must exist on
+    # at least one problem in -p (per-problem maps validate downstream).
+    _validate_solver_csv(solvers, problem_list)
 
     to_run = [exp_seg] if exp_seg is not None else None
 
@@ -178,6 +186,14 @@ def run(
             console.print(f"  [red]{msg}[/]")
             for suite in suite_list:
                 run_status[(problem, suite)] = ("error", msg)
+            continue
+
+        # ``-s`` may leave zero solvers for this problem; the helpers
+        # signal that with ``cfg is None``. Skip without entering the
+        # suite loop.
+        if cfg is None:
+            for suite in suite_list:
+                run_status[(problem, suite)] = ("skip", "no solvers matched -s")
             continue
 
         # ``--only`` builds a per-(experiment, solver) filter from the

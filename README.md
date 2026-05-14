@@ -98,6 +98,24 @@ mosaic status --format md > report.md
 mosaic status --format json > snap.json
 ```
 
+### Pick which solvers run
+
+`-s` (alias `--solvers`) takes either a flat CSV applied as a union
+across every problem, or a per-problem map for finer control:
+
+```bash
+# Flat CSV — each problem keeps only the listed solvers that exist
+# there; problems with zero matches are skipped.
+mosaic run -s OpenFOAM,XLB,deal.II,JAX-FEM
+
+# Per-problem map — explicit picks per domain.
+mosaic run -s "ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM"
+```
+
+Names must match the display form exactly (`XLB`, `OpenFOAM`, `deal.II`,
+`JAX-FEM`, …). A typo aborts the run with a "Did you mean…?" hint
+before any image build.
+
 ### Re-run a subset
 
 After an initial pass, `mosaic run --only <state[,…]>` re-executes only
@@ -109,7 +127,7 @@ failure without redoing everything.
 mosaic run --only failed              # re-run only failed cells
 mosaic run --only failed,stale        # plus anything the harness/source has invalidated
 mosaic run --only missing             # first-time runs only
-mosaic run -s phiflow --only excluded # re-check after dropping an exclusion
+mosaic run -s PhiFlow --only excluded # re-check after dropping an exclusion
 ```
 
 States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combinable
