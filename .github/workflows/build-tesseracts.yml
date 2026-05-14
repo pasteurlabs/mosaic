@@ -147,7 +147,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build dealii-root base image
-        run: bash mosaic/tesseracts/structural-mesh/dealii/build_base.sh
+        # ``structural-mesh/dealii-structural`` and ``thermal-mesh/dealii-heat``
+        # both ship an identical ``build_base.sh`` that produces
+        # ``dealii-root:latest`` (the comment at the top of each script
+        # documents the duplication). Pick one — the structural one is
+        # canonical.
+        run: bash mosaic/tesseracts/structural-mesh/dealii-structural/build_base.sh
 
       - name: Tag and push dealii-root to GHCR
         run: |
@@ -212,7 +217,9 @@ jobs:
 
           if [[ "$BASE_IMAGE" == "dealii-root:latest" ]]; then
             echo "Building dealii-root base image locally for PR validation"
-            bash mosaic/tesseracts/structural-mesh/dealii/build_base.sh
+            # Use the per-matrix script (detect-changes only marks
+            # NEEDS_DEALII when this file exists, so it's guaranteed here).
+            bash "mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/build_base.sh"
           fi
 
       - name: Build Tesseract image
