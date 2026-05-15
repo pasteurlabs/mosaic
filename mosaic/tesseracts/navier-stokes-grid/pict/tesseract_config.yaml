@@ -74,8 +74,7 @@ build_config:
     - |
       RUN TORCH_LIB=$(python -c "import torch; print(torch.__path__[0])")/lib \
         && echo "${TORCH_LIB}" > /etc/ld.so.conf.d/torch.conf && ldconfig
-    - "ADD https://github.com/tum-pbs/PICT/archive/72a6e86ef3b5.tar.gz /opt/"
-    - "RUN mv /opt/PICT-* /opt/pict"
+    - "RUN wget -qO /tmp/pict.tar.gz https://github.com/tum-pbs/PICT/archive/72a6e86ef3b5.tar.gz && tar -xzf /tmp/pict.tar.gz -C /opt && mv /opt/PICT-* /opt/pict && rm /tmp/pict.tar.gz"
     - "RUN pip install setuptools wheel"
     # Limit nvcc parallelism to 1 thread — PICT's setup.py uses
     # --threads=os.cpu_count() which OOMs on memory-constrained CI runners.
