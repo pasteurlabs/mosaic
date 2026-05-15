@@ -125,7 +125,7 @@ jobs:
     name: "Build ${{ matrix.domain }}/${{ matrix.solver }}"
     needs: detect-changes
     if: needs.detect-changes.outputs.has_solvers == 'true'
-    runs-on: "mosaic-bench-cpu"
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
