@@ -29,7 +29,7 @@ description: |
     Outputs: thermal_compliance (scalar), temperature (n_vertices,)
 
 build_config:
-  base_image: "condaforge/miniforge3:4.14.0-0"
+  base_image: "condaforge/miniforge3:26.1.1-3"
   requirements:
     provider: conda
   package_data:
