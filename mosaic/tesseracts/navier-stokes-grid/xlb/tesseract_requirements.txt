@@ -1,4 +1,4 @@
-jax[cuda12-local]>=0.8.0
-equinox
+jax[cuda12-local]==0.10.0
+equinox==0.13.8
 xlb==0.3.1
 ../../../mosaic_shared
