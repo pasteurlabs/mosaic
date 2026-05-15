@@ -27,6 +27,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     fig_shared_legend,
     imshow_with_cbar,
     make_handle,
+    resolve_solver_alias,
     save_fig,
     solver_plot_props,
     solver_props,
@@ -510,10 +511,18 @@ def _paper_plot_ns_recovery(
     """Draw NS-style by_sweep convergence into *ax* from ``data``."""
     by_sweep = data.get("by_sweep") or data.get("by_horizon", {})
 
-    for solver in solver_order:
-        if solver not in by_sweep:
+    # ``by_sweep`` is keyed by spec.name (display form); build alias→display.
+    alias_to_display: dict[str, str] = {}
+    for display_name in by_sweep:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            alias_to_display[a] = display_name
+
+    for alias in solver_order:
+        display_name = alias_to_display.get(alias)
+        if display_name is None:
             continue
-        sweep = by_sweep[solver]
+        sweep = by_sweep[display_name]
         if not sweep:
             continue
         sigma_key = (
@@ -526,11 +535,11 @@ def _paper_plot_ns_recovery(
         )
         if not errors:
             continue
-        _label, color, ls, _mk = solver_props(solver)
+        _label, color, ls, _mk = solver_props(alias)
         ax.semilogy(
             range(len(errors)), errors, color=color, linestyle=ls, linewidth=1.6
         )
-        seen.add(solver)
+        seen.add(alias)
 
     ax.set_title(title)
     ax.set_xlabel("Iteration")
@@ -582,18 +591,27 @@ def _plot_paper_recovery_experiment(
         error_key = (
             "errors" if any("errors" in v for v in by_solver.values()) else "losses"
         )
-        for solver in solver_order:
-            sdata = by_solver.get(solver)
+        # ``by_solver`` keyed by spec.name; bridge to alias for ordering.
+        alias_to_display: dict[str, str] = {}
+        for display_name in by_solver:
+            a = resolve_solver_alias(display_name)
+            if a is not None:
+                alias_to_display[a] = display_name
+        for alias in solver_order:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            sdata = by_solver.get(display_name)
             if not sdata:
                 continue
             vals = sdata.get(error_key, [])
             if not vals:
                 continue
-            _label, color, ls, _mk = solver_props(solver)
+            _label, color, ls, _mk = solver_props(alias)
             ax.semilogy(
                 range(len(vals)), vals, color=color, linestyle=ls, linewidth=1.6
             )
-            seen.add(solver)
+            seen.add(alias)
         ax.set_title(f"Recovery — {cfg.category_label or cfg.name}")
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Error" if error_key == "errors" else "Loss")

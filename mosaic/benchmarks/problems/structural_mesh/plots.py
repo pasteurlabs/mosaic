@@ -29,6 +29,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     THERMAL_ORDER,
     dedup_handles,
     make_handle,
+    resolve_solver_alias,
     save_fig,
     solver_props,
     solver_styles,
@@ -175,7 +176,8 @@ def _plot_topopt_paper(
     # ── Compliance vs iteration ──────────────────────────────────────────────
     present: set[str] = set()
     for solver, sdata in by_solver.items():
-        _label, color, ls, _mk = solver_props(solver)
+        alias = resolve_solver_alias(solver)
+        _label, color, ls, _mk = solver_props(alias or solver)
         compliances = sdata.get("compliances", [])
         if compliances:
             ax_c.semilogy(
@@ -185,7 +187,8 @@ def _plot_topopt_paper(
                 linestyle=ls,
                 linewidth=1.6,
             )
-            present.add(solver)
+            if alias is not None:
+                present.add(alias)
 
     ax_c.set_title(f"Compliance — {cfg.category_label or cfg.name}")
     ax_c.set_xlabel("Iteration")
@@ -200,16 +203,18 @@ def _plot_topopt_paper(
             rho_xyz = rho_flat.reshape(nz, ny, nx).transpose(2, 1, 0)
             filled = rho_xyz > _THRESH
 
-            _label, color, _ls, _mk = solver_props(sname)
+            alias = resolve_solver_alias(sname)
+            _label, color, _ls, _mk = solver_props(alias or sname)
             fc = _voxel_facecolors(rho_xyz, filled, color)
             ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)
             _add_bcs(ax, nx, ny, nz, ph)
 
-            label = SOLVER_STYLES.get(sname, (sname,))[0]
+            label = SOLVER_STYLES.get(alias or sname, (sname,))[0]
             ax.set_title(label, fontsize=7.5, pad=-4)
             ax.view_init(elev=_ELEV, azim=_AZIM)
             ax.set_axis_off()
-            present.add(sname)
+            if alias is not None:
+                present.add(alias)
 
     # ── Legend ───────────────────────────────────────────────────────────────
     handles = dedup_handles(

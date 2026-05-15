@@ -25,6 +25,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     dedup_handles,
     make_handle,
     paper_rc_context,
+    resolve_solver_alias,
     solver_props,
 )
 
@@ -95,13 +96,25 @@ def _scaling_impl(out_dir: Path) -> None:
     all_els: set[int] = set()
     seen: set[str] = set()
 
-    for solver in NS_ORDER:
-        fwd_pts = fwd_data.get(solver, {})
-        vjp_pts = vjp_data.get(solver, {})
+    # ``fwd_data`` / ``vjp_data`` are keyed by spec.name (display form);
+    # build an alias→display map so we can iterate NS_ORDER (alias form).
+    _display_names = set(fwd_data) | set(vjp_data)
+    alias_to_display: dict[str, str] = {}
+    for display_name in _display_names:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            alias_to_display[a] = display_name
+
+    for alias in NS_ORDER:
+        display_name = alias_to_display.get(alias)
+        if display_name is None:
+            continue
+        fwd_pts = fwd_data.get(display_name, {})
+        vjp_pts = vjp_data.get(display_name, {})
         if not fwd_pts and not vjp_pts:
             continue
 
-        _label, color, ls, mk = solver_props(solver)
+        _label, color, ls, mk = solver_props(alias)
         kw = {
             "color": color,
             "linestyle": ls,
@@ -130,7 +143,7 @@ def _scaling_impl(out_dir: Path) -> None:
             ax_ratio.loglog(els_c, ratios, **kw)
             all_els.update(els_c)
 
-        seen.add(solver)
+        seen.add(alias)
 
     ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
 
@@ -223,12 +236,22 @@ def _plot_ucurve_domain(cfg_dict: dict, out_dir: Path) -> None:
 
     seen: set[str] = set()
 
+    # ``by_solver`` is keyed by spec.name (display form); build alias→display.
+    alias_to_display: dict[str, str] = {}
+    for display_name in by_solver:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            alias_to_display[a] = display_name
+
     for idx, steps in enumerate(all_steps):
         row, col = divmod(idx, ncols)
         ax = fig.add_subplot(gs[row, col])
 
-        for solver in NS_ORDER:
-            sv = by_solver.get(solver)
+        for alias in NS_ORDER:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            sv = by_solver.get(display_name)
             if sv is None:
                 continue
             entry = sv.get(str(steps))
@@ -252,7 +275,7 @@ def _plot_ucurve_domain(cfg_dict: dict, out_dir: Path) -> None:
                     continue
                 xs, ys = zip(*pairs, strict=False)
 
-            _, color, ls, mk = solver_props(solver)
+            _, color, ls, mk = solver_props(alias)
             ax.loglog(
                 xs,
                 ys,
@@ -263,7 +286,7 @@ def _plot_ucurve_domain(cfg_dict: dict, out_dir: Path) -> None:
                 markeredgewidth=0,
                 linewidth=1.4,
             )
-            seen.add(solver)
+            seen.add(alias)
 
         ax.set_title(f"$T={steps}$", fontsize=8)
         ax.set_xlabel(r"$\varepsilon$", fontsize=7.5)

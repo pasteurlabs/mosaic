@@ -137,6 +137,12 @@ jobs:
       && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache /usr/local/lib/android /opt/microsoft
+          sudo docker system prune -af
+          df -h /
+
       - uses: actions/checkout@v4
 
       - name: Log in to GHCR
@@ -177,6 +183,12 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache /usr/local/lib/android /opt/microsoft
+          sudo docker system prune -af
+          df -h /
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5

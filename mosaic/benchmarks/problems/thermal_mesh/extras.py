@@ -24,6 +24,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     THERMAL_ORDER,
     dedup_handles,
     make_handle,
+    resolve_solver_alias,
     solver_props,
 )
 
@@ -86,14 +87,24 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
             if key not in loaded:
                 continue
             result, _ = loaded[key]
-            for solver in THERMAL_ORDER:
-                sdata = result["by_solver"].get(solver)
+            # ``by_solver`` keyed by spec.name; bridge to alias.
+            by_solver_d = result["by_solver"]
+            alias_to_display: dict[str, str] = {}
+            for display_name in by_solver_d:
+                a = resolve_solver_alias(display_name)
+                if a is not None:
+                    alias_to_display[a] = display_name
+            for alias in THERMAL_ORDER:
+                display_name = alias_to_display.get(alias)
+                if display_name is None:
+                    continue
+                sdata = by_solver_d.get(display_name)
                 if sdata is None:
                     continue
                 errors = sdata.get("errors", [])
                 if not errors:
                     continue
-                _, s_color, _, _ = solver_props(solver)
+                _, s_color, _, _ = solver_props(alias)
                 f = _GRAD_EVALS_PER_ITER.get(key, 1)
                 xs = [(i + 1) * f for i in range(len(errors))]
                 ax_conv.loglog(
@@ -104,7 +115,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
                     linewidth=1.3,
                     alpha=0.9,
                 )
-                seen_solvers.add(solver)
+                seen_solvers.add(alias)
 
         ax_conv.set_title("Thermal conductivity recovery")
         ax_conv.set_xlabel(_GRAD_EVAL_LABEL)
@@ -144,13 +155,27 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
                 zorder=3,
             )
 
-            for solver in THERMAL_ORDER:
-                rho_key = f"rho_final_{solver}"
-                if rho_key not in npz.files:
+            # ``rho_final_<name>`` keys use spec.name (display form); build
+            # alias→display from the npz keys.
+            npz_keys = npz.files if hasattr(npz, "files") else list(npz.keys())
+            _display_names = [
+                k[len("rho_final_") :] for k in npz_keys if k.startswith("rho_final_")
+            ]
+            alias_to_display: dict[str, str] = {}
+            for display_name in _display_names:
+                a = resolve_solver_alias(display_name)
+                if a is not None:
+                    alias_to_display[a] = display_name
+            for alias in THERMAL_ORDER:
+                display_name = alias_to_display.get(alias)
+                if display_name is None:
                     continue
-                _, s_color, _, _ = solver_props(solver)
+                rho_key = f"rho_final_{display_name}"
+                if rho_key not in npz_keys:
+                    continue
+                _, s_color, _, _ = solver_props(alias)
                 ax.plot(xs, npz[rho_key], color=s_color, linewidth=1.1, alpha=0.85)
-                seen_solvers.add(solver)
+                seen_solvers.add(alias)
 
             ax.set_title(title)
             ax.set_xlabel("Node index")

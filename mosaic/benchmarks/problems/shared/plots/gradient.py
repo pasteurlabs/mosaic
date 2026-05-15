@@ -24,6 +24,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     fig_shared_legend,
     grad_magnitude_2d,
     make_handle,
+    resolve_solver_alias,
     save_fig,
     solver_plot_props,
     solver_props,
@@ -47,7 +48,11 @@ _FD_CHECK_BLACKLIST = {"fenics_ns", "su2"}
 def _fd_check_plot_curves(ax_err, ax_cos, data: dict, seen: dict[str, set]) -> None:
     """Plot per-solver rel-error + cosine curves into ``ax_err``/``ax_cos``."""
     for solver, sdata in data["by_solver"].items():
-        if solver in _FD_CHECK_BLACKLIST:
+        alias = resolve_solver_alias(solver)
+        # Blacklist accepts both display-name and alias forms.
+        if solver in _FD_CHECK_BLACKLIST or (
+            alias is not None and alias in _FD_CHECK_BLACKLIST
+        ):
             continue
         eps_sweep = sdata.get("eps_sweep") or {}
         if not eps_sweep:
@@ -60,7 +65,7 @@ def _fd_check_plot_curves(ax_err, ax_cos, data: dict, seen: dict[str, set]) -> N
         # solvers cluster near 1; clamp the noise floor to 1e-9.
         cos_vals = [max(1 - float(eps_sweep[e]["cosine"]), 1e-9) for e in epsilons]
 
-        _label, color, ls, mk = solver_props(solver)
+        _label, color, ls, mk = solver_props(alias or solver)
         kw: dict[str, Any] = {
             "color": color,
             "linestyle": ls,
@@ -72,10 +77,10 @@ def _fd_check_plot_curves(ax_err, ax_cos, data: dict, seen: dict[str, set]) -> N
         ax_err.loglog(eps_f, rel_mean, **kw)
         ax_cos.loglog(eps_f, cos_vals, **kw)
 
-        if solver in NS_ORDER:
-            seen["ns"].add(solver)
-        if solver in FEM_ORDER:
-            seen["fem"].add(solver)
+        if alias is not None and alias in NS_ORDER:
+            seen["ns"].add(alias)
+        if alias is not None and alias in FEM_ORDER:
+            seen["fem"].add(alias)
 
 
 def _fd_check_style_axes(ax_err, ax_cos, *, title: str, ylabel_left: bool) -> None:
@@ -357,15 +362,24 @@ def _horizon_plot_curves(axes, data: dict, seen: set[str]) -> bool:
 
     ax_gn, ax_err, ax_cos = axes
     by_solver = data["by_solver"]
-    ordered = [s for s in NS_ORDER if s in by_solver and s not in _HORIZON_EXCLUDED]
+    # ``by_solver`` is keyed by spec.name (display form); build an
+    # alias→display map and iterate NS_ORDER (alias-keyed) against it.
+    alias_to_display: dict[str, str] = {}
+    for display_name in by_solver:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            alias_to_display[a] = display_name
+    ordered = [
+        a for a in NS_ORDER if a in alias_to_display and a not in _HORIZON_EXCLUDED
+    ]
 
     fail_at_step: dict[int, list[str]] = defaultdict(list)
-    for solver in ordered:
-        sv = by_solver[solver]
+    for alias in ordered:
+        sv = by_solver[alias_to_display[alias]]
         for k, v in sv.items():
             gn = v.get("grad_norm", 1.0)
             if not np.isfinite(gn) or gn <= 0:
-                fail_at_step[int(k)].append(solver)
+                fail_at_step[int(k)].append(alias)
 
     jitter_x: dict[tuple[str, int], float] = {}
     for step, solvers_here in fail_at_step.items():
@@ -379,9 +393,9 @@ def _horizon_plot_curves(axes, data: dict, seen: set[str]) -> bool:
 
     failure_seen = False
 
-    for solver in ordered:
-        sv = by_solver[solver]
-        _label, color, ls, _mk = solver_props(solver)
+    for alias in ordered:
+        sv = by_solver[alias_to_display[alias]]
+        _label, color, ls, _mk = solver_props(alias)
 
         step_keys = sorted(sv.keys(), key=int)
         ok_steps, ok_gn, ok_err, ok_cos = [], [], [], []
@@ -422,10 +436,10 @@ def _horizon_plot_curves(axes, data: dict, seen: set[str]) -> bool:
             ax_gn.loglog(ok_steps, ok_gn, **kw)
             ax_err.loglog(ok_steps, ok_err, **kw)
             ax_cos.loglog(ok_steps, ok_cos_defect, **kw)
-            seen.add(solver)
+            seen.add(alias)
 
         for fs in fail_steps:
-            jx = jitter_x.get((solver, fs), float(fs))
+            jx = jitter_x.get((alias, fs), float(fs))
             mk_kw = {
                 "marker": _HORIZON_FAILURE_MARKER,
                 "color": color,

@@ -30,6 +30,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     TEXTWIDTH,
     dedup_handles,
     make_handle,
+    resolve_solver_alias,
 )
 
 _THRESH = 0.35
@@ -321,14 +322,23 @@ def _plot_convergence(
     x_jitter: multiplicative x offset per line to separate overlapping curves on log scale."""
     line_n = 0
     for m_ls, by_solver in datasets:
-        for solver in STRUCTURAL_ORDER:
-            sdata = by_solver.get(solver)
+        # ``by_solver`` keyed by spec.name (display form); bridge to alias.
+        alias_to_display: dict[str, str] = {}
+        for display_name in by_solver:
+            a = resolve_solver_alias(display_name)
+            if a is not None:
+                alias_to_display[a] = display_name
+        for alias in STRUCTURAL_ORDER:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            sdata = by_solver.get(display_name)
             if sdata is None:
                 continue
             vals = sdata.get(key, [])
             if not vals:
                 continue
-            _, color, _, _ = SOLVER_STYLES.get(solver, (solver, "#888", "-", "o"))
+            _, color, _, _ = SOLVER_STYLES.get(alias, (alias, "#888", "-", "o"))
             step = max(1, len(vals) // 300)
             idx = list(range(0, len(vals), step))
             if idx and idx[-1] != len(vals) - 1:
@@ -342,7 +352,7 @@ def _plot_convergence(
                 linewidth=1.5,
                 alpha=0.9,
             )
-            seen_solvers.add(solver)
+            seen_solvers.add(alias)
             seen_methods.add(m_ls)
             line_n += 1
     ax.set_xlabel("Iteration")
@@ -396,10 +406,19 @@ def _topopt_overview_generate(out_dir: Path) -> None:
         ph = load_json(params_path)["physics"]
         nx, ny, nz = ph["nx"], ph["ny"], ph["nz"]
         npz_solvers = list(npz["solver_names"])
-        field_solvers = [s for s in STRUCTURAL_ORDER if s in npz_solvers]
+        # ``npz_solvers`` are spec.names (display form); ``STRUCTURAL_ORDER``
+        # is alias-keyed.  Build alias→display, then keep alias entries in
+        # canonical order while resolving back to the npz key when needed.
+        _npz_alias_to_display: dict[str, str] = {}
+        for display_name in npz_solvers:
+            a = resolve_solver_alias(display_name)
+            if a is not None:
+                _npz_alias_to_display[a] = display_name
+        field_solvers = [s for s in STRUCTURAL_ORDER if s in _npz_alias_to_display]
     else:
         field_solvers = []
         ph = {}
+        _npz_alias_to_display = {}
 
     n_field = len(field_solvers)
 
@@ -436,28 +455,27 @@ def _topopt_overview_generate(out_dir: Path) -> None:
                 wspace=0.0,
                 hspace=-0.05,
             )
-            for panel_i, solver in enumerate(field_solvers[:4]):
+            for panel_i, alias in enumerate(field_solvers[:4]):
                 r, c = divmod(panel_i, 2)
                 ax3d = fig.add_subplot(top_gs[r, c], projection="3d")
 
-                npz_i = npz_solvers.index(solver)
+                display_name = _npz_alias_to_display[alias]
+                npz_i = npz_solvers.index(display_name)
                 rho_xyz = (
                     npz[f"rho_final_{npz_i}"].reshape(nz, ny, nx).transpose(2, 1, 0)
                 )
                 filled = rho_xyz > _THRESH
 
-                _, color, _, _ = SOLVER_STYLES.get(
-                    solver, (solver, "#555555", "-", "o")
-                )
+                _, color, _, _ = SOLVER_STYLES.get(alias, (alias, "#555555", "-", "o"))
                 fc = _voxel_facecolors(rho_xyz, filled, color)
                 ax3d.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)
                 _add_bcs(ax3d, nx, ny, nz, ph)
 
-                label = SOLVER_STYLES.get(solver, (solver,))[0]
+                label = SOLVER_STYLES.get(alias, (alias,))[0]
                 ax3d.set_title(label, fontsize=7.0, pad=-4)
                 ax3d.view_init(elev=_ELEV, azim=_AZIM)
                 ax3d.set_axis_off()
-                seen3d.add(solver)
+                seen3d.add(alias)
 
         # ── Bottom: 3 ortho views ─────────────────────────────────────────
         if n_field > 0:
@@ -470,7 +488,8 @@ def _topopt_overview_generate(out_dir: Path) -> None:
             )
 
             # representative solution (first solver) for BC-view overlay
-            npz_i0 = npz_solvers.index(field_solvers[0])
+            _rep_display = _npz_alias_to_display[field_solvers[0]]
+            npz_i0 = npz_solvers.index(_rep_display)
             rho_rep = npz[f"rho_final_{npz_i0}"].reshape(nz, ny, nx).transpose(2, 1, 0)
 
             for col_i, view in enumerate(["front", "top", "right"]):

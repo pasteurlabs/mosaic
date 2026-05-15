@@ -32,8 +32,25 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     dedup_handles,
     make_handle,
     paper_rc_context,
+    resolve_solver_alias,
     solver_props,
 )
+
+
+def _alias_to_display_from_by_sweep(by_sweep: dict) -> dict[str, str]:
+    """Build alias→display-name map from a ``by_sweep`` dict's keys.
+
+    ``by_sweep`` is keyed by ``spec.name`` (display form) but the canonical
+    ordering lists (``NS_ORDER`` etc.) are alias-keyed; this map bridges the
+    two so plot loops can iterate aliases in canonical order.
+    """
+    out: dict[str, str] = {}
+    for display_name in by_sweep:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            out[a] = display_name
+    return out
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared helpers
@@ -140,25 +157,29 @@ def _ro_generate_overview(loaded, out_path: Path) -> None:
         by_sweep = result["by_sweep"]
         snap = _ro_snap_interval(result)
 
-        for solver in NS_ORDER:
-            entry = by_sweep.get(solver, {}).get(_RO_STEP_KEY)
+        alias_to_display = _alias_to_display_from_by_sweep(by_sweep)
+        for alias in NS_ORDER:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            entry = by_sweep.get(display_name, {}).get(_RO_STEP_KEY)
             if entry is None:
                 continue
             hist = entry.get("ic_error_history")
             if not hist:
                 continue
-            _, s_color, _, _ = solver_props(solver)
+            _, s_color, _, _ = solver_props(alias)
             kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.3, "alpha": 0.9}
 
             ax_conv.loglog(_ro_x_snapshot(key, len(hist), snap), list(hist), **kw)
-            seen_solvers.add(solver)
+            seen_solvers.add(alias)
 
             errors = entry.get("errors")
             if errors:
                 ax_loss.loglog(_ro_x_per_iter(key, len(errors)), list(errors), **kw)
 
             if npz is not None:
-                idx = _ro_solver_idx(npz, solver)
+                idx = _ro_solver_idx(npz, display_name)
                 if idx is not None:
                     h = npz[f"ic_history_{idx}"]
                     dys = [max(_ro_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
@@ -207,7 +228,12 @@ def _ro_generate_overview(loaded, out_path: Path) -> None:
     fkey = _RO_FIELD_METHOD if _RO_FIELD_METHOD in loaded else list(loaded.keys())[-1]
     _, npz_f = loaded[fkey]
     if npz_f is not None:
-        idx_f = _ro_solver_idx(npz_f, _RO_FIELD_SOLVER)
+        # ``_RO_FIELD_SOLVER`` is an alias; npz["solver_names"] holds display
+        # names. Resolve via the by_sweep map for the chosen method.
+        _f_by_sweep = loaded[fkey][0].get("by_sweep", {})
+        _f_a2d = _alias_to_display_from_by_sweep(_f_by_sweep)
+        _f_display = _f_a2d.get(_RO_FIELD_SOLVER, _RO_FIELD_SOLVER)
+        idx_f = _ro_solver_idx(npz_f, _f_display)
         if idx_f is not None:
 
             def _sl(f: np.ndarray) -> np.ndarray:
@@ -280,25 +306,29 @@ def _ro_generate_adam_proj(loaded, out_path: Path) -> None:
         _, m_ls, _ = _ro_methods()[key]
         by_sweep = result["by_sweep"]
         snap = _ro_snap_interval(result)
-        for solver in NS_ORDER:
-            entry = by_sweep.get(solver, {}).get(_RO_STEP_KEY)
+        alias_to_display = _alias_to_display_from_by_sweep(by_sweep)
+        for alias in NS_ORDER:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            entry = by_sweep.get(display_name, {}).get(_RO_STEP_KEY)
             if entry is None:
                 continue
             hist = entry.get("ic_error_history")
             if not hist:
                 continue
-            _, s_color, _, _ = solver_props(solver)
+            _, s_color, _, _ = solver_props(alias)
             kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.3, "alpha": 0.9}
 
             ax_conv.plot(_ro_x_snapshot(key, len(hist), snap), list(hist), **kw)
-            seen_solvers.add(solver)
+            seen_solvers.add(alias)
 
             errors = entry.get("errors")
             if errors:
                 ax_loss.plot(_ro_x_per_iter(key, len(errors)), list(errors), **kw)
 
             if npz is not None:
-                idx = _ro_solver_idx(npz, solver)
+                idx = _ro_solver_idx(npz, display_name)
                 if idx is not None:
                     h = npz[f"ic_history_{idx}"]
                     dys = [max(_ro_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
@@ -370,25 +400,29 @@ def _ro_generate_main_subset(loaded, out_path: Path) -> None:
         by_sweep = result["by_sweep"]
         snap = _ro_snap_interval(result)
 
-        for solver in _RO_MAIN_SUBSET:
-            entry = by_sweep.get(solver, {}).get(_RO_STEP_KEY)
+        alias_to_display = _alias_to_display_from_by_sweep(by_sweep)
+        for alias in _RO_MAIN_SUBSET:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            entry = by_sweep.get(display_name, {}).get(_RO_STEP_KEY)
             if entry is None:
                 continue
             hist = entry.get("ic_error_history")
             if not hist:
                 continue
-            _, s_color, _, _ = solver_props(solver)
+            _, s_color, _, _ = solver_props(alias)
             kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.4, "alpha": 0.9}
 
             ax_conv.loglog(_ro_x_snapshot(key, len(hist), snap), list(hist), **kw)
-            seen_solvers.add(solver)
+            seen_solvers.add(alias)
 
             errors = entry.get("errors")
             if errors:
                 ax_loss.loglog(_ro_x_per_iter(key, len(errors)), list(errors), **kw)
 
             if npz is not None:
-                idx = _ro_solver_idx(npz, solver)
+                idx = _ro_solver_idx(npz, display_name)
                 if idx is not None:
                     h = npz[f"ic_history_{idx}"]
                     dys = [max(_ro_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
@@ -516,15 +550,19 @@ def _gd_plot_panel(
         _m_label, m_ls, _ = methods[key]
         by_sweep = result.get("by_sweep", {})
         f = _GD_GRAD_EVALS_PER_ITER.get(key, 1)
-        for solver in NS_ORDER:
-            entry = by_sweep.get(solver, {}).get(_GD_STEP_KEY)
+        alias_to_display = _alias_to_display_from_by_sweep(by_sweep)
+        for alias in NS_ORDER:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            entry = by_sweep.get(display_name, {}).get(_GD_STEP_KEY)
             vals = _gd_series(entry, field)
             if vals is None:
                 continue
-            _, color, _, _ = solver_props(solver)
+            _, color, _, _ = solver_props(alias)
             xs = np.array([(i + 1) * f for i in range(len(vals))])
             ax.loglog(xs, vals, color=color, linestyle=m_ls, linewidth=1.3, alpha=0.9)
-            seen_solvers.add(solver)
+            seen_solvers.add(alias)
             seen_methods.add(key)
     ax.set_xlabel(_GD_GRAD_EVAL_LABEL)
 
@@ -662,7 +700,14 @@ def _hsl_openfoam_fd_vjp_estimate(
     if not _temporal_cost_path.exists():
         return {}
     td = load_json(_temporal_cost_path)
-    of_data = td.get("by_steps", {}).get("openfoam", {})
+    # ``by_steps`` is keyed by spec.name (display form); find the entry that
+    # resolves to the ``openfoam`` alias.
+    by_steps = td.get("by_steps", {}) or {}
+    of_data: dict = {}
+    for display_name, vals in by_steps.items():
+        if resolve_solver_alias(display_name) == "openfoam":
+            of_data = vals or {}
+            break
     pts = sorted(
         [
             (int(s), v["mean"])
@@ -1142,7 +1187,16 @@ def _plot_horizon_sweep_limits(cfg: Problem, **_kw):
         print(f"[horizon_sweep_limits] {path} not found — skipping")
         return None
     data = load_json(path)
-    by_solver = data["by_solver"]
+    # ``by_solver`` from result.json is keyed by spec.name (display form).
+    # Re-key to canonical aliases up-front so downstream helpers (which
+    # compare against _HSL_SOLVER_ORDER / SOLVER_STYLES, both alias-keyed)
+    # match correctly. Drop unresolved entries silently — they would not
+    # appear in any ordering list anyway.
+    _raw_by_solver = data["by_solver"]
+    by_solver: dict = {}
+    for display_name, sv in _raw_by_solver.items():
+        a = resolve_solver_alias(display_name)
+        by_solver[a if a is not None else display_name] = sv
 
     with plt.rc_context(PAPER_RCPARAMS):
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.27), dpi=300)
@@ -1222,20 +1276,25 @@ def _plot_lid_cavity(cfg: Problem, **_kw) -> None:
         for col, sv in enumerate(_LC_SWEEP_VALS):
             ax = axes[col]
 
-            for solver, sweep_data in by_sweep.items():
-                if solver in {"fenics_ns", "su2"}:
+            for display_name, sweep_data in by_sweep.items():
+                alias = resolve_solver_alias(display_name)
+                if alias in {"fenics_ns", "su2"} or display_name in {
+                    "fenics_ns",
+                    "su2",
+                }:
                     continue
                 if sv not in sweep_data:
                     continue
                 _label, color, ls, _mk = SOLVER_STYLES.get(
-                    solver, (solver, "#888888", "-", "o")
+                    alias or display_name, (display_name, "#888888", "-", "o")
                 )
 
                 losses = sweep_data[sv]["losses"]
                 iters = list(range(len(losses)))
                 kw = {"color": color, "linestyle": ls, "marker": "", "linewidth": 1.6}
                 ax.semilogy(iters, losses, **kw)
-                present.add(solver)
+                if alias is not None:
+                    present.add(alias)
 
             ax.set_title(f"$U_x^\\mathrm{{true}} = {sv}$")
             ax.set_xlabel("Iteration")
@@ -1331,13 +1390,24 @@ def _plot_scaling(cfg: Problem, **_kw) -> None:
     all_els: set[int] = set()
     seen: set[str] = set()
 
-    for solver in NS_ORDER:
-        fwd_pts = fwd_data.get(solver, {})
-        vjp_pts = vjp_data.get(solver, {})
+    # ``fwd_data`` / ``vjp_data`` are keyed by spec.name (display form).
+    _display_names = set(fwd_data) | set(vjp_data)
+    alias_to_display: dict[str, str] = {}
+    for display_name in _display_names:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            alias_to_display[a] = display_name
+
+    for alias in NS_ORDER:
+        display_name = alias_to_display.get(alias)
+        if display_name is None:
+            continue
+        fwd_pts = fwd_data.get(display_name, {})
+        vjp_pts = vjp_data.get(display_name, {})
         if not fwd_pts and not vjp_pts:
             continue
 
-        _label, color, ls, mk = solver_props(solver)
+        _label, color, ls, mk = solver_props(alias)
         kw = {
             "color": color,
             "linestyle": ls,
@@ -1366,7 +1436,7 @@ def _plot_scaling(cfg: Problem, **_kw) -> None:
             ax_ratio.loglog(els_c, ratios, **kw)
             all_els.update(els_c)
 
-        seen.add(solver)
+        seen.add(alias)
 
     ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
 
@@ -1453,12 +1523,22 @@ def _plot_ucurve_3d(cfg_dict: dict, out_dir: Path) -> None:
 
     seen: set[str] = set()
 
+    # ``by_solver`` is keyed by spec.name (display form); build alias→display.
+    alias_to_display: dict[str, str] = {}
+    for display_name in by_solver:
+        a = resolve_solver_alias(display_name)
+        if a is not None:
+            alias_to_display[a] = display_name
+
     for idx, steps in enumerate(all_steps):
         row, col = divmod(idx, ncols)
         ax = fig.add_subplot(gs[row, col])
 
-        for solver in NS_ORDER:
-            sv = by_solver.get(solver)
+        for alias in NS_ORDER:
+            display_name = alias_to_display.get(alias)
+            if display_name is None:
+                continue
+            sv = by_solver.get(display_name)
             if sv is None:
                 continue
             entry = sv.get(str(steps))
@@ -1482,7 +1562,7 @@ def _plot_ucurve_3d(cfg_dict: dict, out_dir: Path) -> None:
                     continue
                 xs, ys = zip(*pairs, strict=False)
 
-            _, color, ls, mk = solver_props(solver)
+            _, color, ls, mk = solver_props(alias)
             ax.loglog(
                 xs,
                 ys,
@@ -1493,7 +1573,7 @@ def _plot_ucurve_3d(cfg_dict: dict, out_dir: Path) -> None:
                 markeredgewidth=0,
                 linewidth=1.4,
             )
-            seen.add(solver)
+            seen.add(alias)
 
         ax.set_title(f"$T={steps}$", fontsize=8)
         ax.set_xlabel(r"$\varepsilon$", fontsize=7.5)

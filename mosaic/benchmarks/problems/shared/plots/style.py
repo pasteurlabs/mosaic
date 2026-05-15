@@ -156,14 +156,48 @@ THERMAL_ORDER: list[str] = [
 ]
 
 
+def _norm_solver_name(s: str) -> str:
+    """Case-insensitive, separator-insensitive normaliser for solver names."""
+    return s.lower().replace("-", "").replace("_", "").replace(".", "").replace(" ", "")
+
+
+def resolve_solver_alias(name: str) -> str | None:
+    """Map a solver string to its canonical alias in :data:`SOLVER_STYLES`.
+
+    Handles three forms:
+      * the alias key itself (``"openfoam"``)        → returned as-is
+      * the display label  (``"OpenFOAM"``)          → resolved via styles
+      * the spec.name from YAML (``"jax-cfd"``)      → resolved via normalisation
+
+    Returns ``None`` if no entry matches. Used to bridge ``result.json``
+    keys (which are ``spec.name``) and ``NS_ORDER`` / ``FEM_ORDER`` /
+    ``SOLVER_STYLES`` (which are alias-keyed).
+    """
+    if name in SOLVER_STYLES:
+        return name
+    target = _norm_solver_name(name)
+    for k, v in SOLVER_STYLES.items():
+        if _norm_solver_name(k) == target or _norm_solver_name(v[0]) == target:
+            return k
+    return None
+
+
 def solver_props(name: str) -> tuple:
-    """``(label, color, linestyle, marker)`` for *name*, with grey fallback."""
-    return SOLVER_STYLES.get(name, (name, "#888888", "-", "o"))
+    """``(label, color, linestyle, marker)`` for *name*, with grey fallback.
+
+    Accepts either an alias key (``"openfoam"``), a display label
+    (``"OpenFOAM"``), or a spec.name (``"jax-cfd"``). Falls back to a
+    neutral grey when no match is found.
+    """
+    alias = resolve_solver_alias(name)
+    if alias is not None:
+        return SOLVER_STYLES[alias]
+    return (name, "#888888", "-", "o")
 
 
 def make_handle(solver: str) -> mlines.Line2D:
     """Legend ``Line2D`` proxy for *solver* — used for shared cross-panel legends."""
-    label, color, ls, mk = SOLVER_STYLES[solver]
+    label, color, ls, mk = solver_props(solver)
     return mlines.Line2D(
         [],
         [],

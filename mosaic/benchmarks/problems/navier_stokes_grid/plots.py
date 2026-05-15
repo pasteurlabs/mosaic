@@ -26,6 +26,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     dedup_handles,
     imshow_with_cbar,
     make_handle,
+    resolve_solver_alias,
     save_fig,
     solver_props,
     solver_styles,
@@ -117,6 +118,121 @@ def plot_drag_opt(
     return figs
 
 
+def _drag_alias_to_display(prefix: str, container) -> dict[str, str]:
+    """Build an alias→display-name map from npz/dict keys matching *prefix*."""
+    if container is None:
+        return {}
+    keys = container.files if hasattr(container, "files") else container.keys()
+    out: dict[str, str] = {}
+    for k in keys:
+        if not k.startswith(prefix):
+            continue
+        display = k[len(prefix) :]
+        alias = resolve_solver_alias(display)
+        if alias is not None:
+            out[alias] = display
+    return out
+
+
+def _drag_panel_drag_reduction(
+    ax, data: dict, alias_to_display: dict, present: set[str]
+):
+    """Draw the drag-reduction-vs-iteration panel; updates ``present`` aliases."""
+    for alias in _DRAG_OPT_SOLVER_ORDER:
+        display_name = alias_to_display.get(alias, alias)
+        sdata = data["by_solver"].get(display_name)
+        if sdata is None:
+            continue
+        drags = sdata.get("drags", [])
+        if not drags or not drags[0] or np.isnan(drags[0]) or drags[0] == 0:
+            continue
+        drag_0 = drags[0]
+        step = max(1, len(drags) // 50)
+        indices = list(range(0, len(drags), step))
+        if indices[-1] != len(drags) - 1:
+            indices.append(len(drags) - 1)
+        reductions = [(drag_0 - drags[i]) / drag_0 * 100 for i in indices]
+        _label, color, ls, _mk = solver_props(alias)
+        ax.plot(indices, reductions, color=color, linestyle=ls, linewidth=1.6)
+        present.add(alias)
+
+    ax.set_title("Drag reduction")
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Drag reduction (%)")
+    ax.set_ylim(bottom=0)
+
+
+def _drag_panel_profiles(ax, profiles, alias_to_display: dict, present: set[str]):
+    """Draw the initial + final inlet profiles panel; updates ``present`` aliases."""
+    if profiles is not None and "initial" in profiles:
+        y_arr = np.linspace(0, 1, profiles["initial"].shape[0])
+        ax.plot(
+            profiles["initial"], y_arr, color="#999999", linestyle="--", linewidth=1.4
+        )
+        for alias in _DRAG_OPT_SOLVER_ORDER:
+            display_name = alias_to_display.get(alias, alias)
+            if f"final_{display_name}" not in profiles:
+                continue
+            _label, color, ls, _mk = solver_props(alias)
+            ax.plot(
+                profiles[f"final_{display_name}"],
+                y_arr,
+                color=color,
+                linestyle=ls,
+                linewidth=1.6,
+            )
+            present.add(alias)
+
+    ax.set_title("Optimised profile")
+    ax.set_xlabel(r"$u_x$")
+    ax.set_ylabel("$y$")
+
+
+def _drag_panel_history(
+    imshow_axes, hist_solvers, hist_alias_to_display, profiles, data
+):
+    """Draw the profile-history imshow panels (one per solver row)."""
+    for idx, (ax_im, alias) in enumerate(zip(imshow_axes, hist_solvers, strict=False)):
+        display_name = hist_alias_to_display.get(alias, alias)
+        hist = profiles[f"profile_history_{display_name}"]
+        label, color, _ls, _mk = solver_props(alias)
+        ax_im.imshow(
+            hist.T,
+            origin="lower",
+            aspect="auto",
+            cmap="viridis",
+            interpolation="bilinear",
+        )
+        n_snaps = hist.shape[0]
+        n_iters = len(data["by_solver"].get(display_name, {}).get("drags", [1]))
+        snap_step = n_iters / max(n_snaps - 1, 1)
+        tick_pos = [0, n_snaps // 2, n_snaps - 1]
+        ax_im.set_xticks(tick_pos)
+        ax_im.set_xticklabels([f"{int(t * snap_step)}" for t in tick_pos], fontsize=6.5)
+        ax_im.tick_params(labelsize=6.5)
+        ax_im.set_yticks([])
+        ax_im.text(
+            0.03,
+            0.95,
+            label,
+            transform=ax_im.transAxes,
+            ha="left",
+            va="top",
+            fontsize=7.0,
+            color=color,
+            bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0},
+        )
+        if idx == 0:
+            ax_im.set_title("Profile history")
+        if idx < len(hist_solvers) - 1:
+            ax_im.tick_params(labelbottom=False)
+        else:
+            ax_im.set_xlabel("Iteration", fontsize=7.0)
+
+    for ax_im in imshow_axes[len(hist_solvers) :]:
+        ax_im.set_visible(False)
+
+
 def _paper_drag_opt_figure(
     cfg: Problem,
     *,
@@ -130,10 +246,6 @@ def _paper_drag_opt_figure(
       * col 0 — drag reduction (%) vs iteration
       * col 1 — final + initial inlet profiles
       * col 2 — profile-history imshow, one row per solver
-
-    Reads ``result.json`` (+ optional ``profiles.npz``) from the
-    experiment directory and writes ``<exp_key>.pdf`` next to them when
-    ``save`` is True.
     """
     out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
     result_path = out_dir / "result.json"
@@ -148,11 +260,19 @@ def _paper_drag_opt_figure(
     data = load_json(result_path)
     profiles = try_load_npz(profiles_path) if profiles_path.exists() else None
 
-    hist_solvers = [
-        s
-        for s in _DRAG_OPT_SOLVER_ORDER
-        if profiles is not None and f"profile_history_{s}" in profiles
-    ]
+    # Both ``by_solver`` and ``profiles`` are keyed by spec.name (display form).
+    # Build alias→display maps so the alias-ordered _DRAG_OPT_SOLVER_ORDER loop
+    # can index display-keyed data.
+    hist_alias_to_display = _drag_alias_to_display("profile_history_", profiles)
+    final_alias_to_display = _drag_alias_to_display("final_", profiles)
+    by_solver_alias_to_display: dict[str, str] = {}
+    for name in data.get("by_solver", {}):
+        alias = resolve_solver_alias(name)
+        if alias is not None:
+            by_solver_alias_to_display[alias] = name
+    alias_to_display = {**by_solver_alias_to_display, **final_alias_to_display}
+
+    hist_solvers = [s for s in _DRAG_OPT_SOLVER_ORDER if s in hist_alias_to_display]
     n_rows = max(len(hist_solvers), 1)
 
     fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * (0.14 + 0.13 * n_rows)), dpi=300)
@@ -168,108 +288,17 @@ def _paper_drag_opt_figure(
         hspace=0.12,
         wspace=0.45,
     )
-
     ax_drag = fig.add_subplot(gs[:, 0])
     ax_prof = fig.add_subplot(gs[:, 1])
     imshow_axes = [fig.add_subplot(gs[r, 2]) for r in range(n_rows)]
 
     present: set[str] = set()
+    _drag_panel_drag_reduction(ax_drag, data, alias_to_display, present)
+    _drag_panel_profiles(ax_prof, profiles, alias_to_display, present)
+    _drag_panel_history(
+        imshow_axes, hist_solvers, hist_alias_to_display, profiles, data
+    )
 
-    # ── Drag reduction panel ─────────────────────────────────────────────────
-    for solver in _DRAG_OPT_SOLVER_ORDER:
-        sdata = data["by_solver"].get(solver)
-        if sdata is None:
-            continue
-        drags = sdata.get("drags", [])
-        if not drags or not drags[0] or np.isnan(drags[0]) or drags[0] == 0:
-            continue
-        drag_0 = drags[0]
-
-        step = max(1, len(drags) // 50)
-        indices = list(range(0, len(drags), step))
-        if indices[-1] != len(drags) - 1:
-            indices.append(len(drags) - 1)
-
-        reductions = [(drag_0 - drags[i]) / drag_0 * 100 for i in indices]
-
-        _label, color, ls, _mk = solver_props(solver)
-        ax_drag.plot(indices, reductions, color=color, linestyle=ls, linewidth=1.6)
-        present.add(solver)
-
-    ax_drag.set_title("Drag reduction")
-    ax_drag.set_xlabel("Iteration")
-    ax_drag.set_ylabel("Drag reduction (%)")
-    ax_drag.set_ylim(bottom=0)
-
-    # ── Final inlet profiles panel ───────────────────────────────────────────
-    if profiles is not None and "initial" in profiles:
-        y_arr = np.linspace(0, 1, profiles["initial"].shape[0])
-        ax_prof.plot(
-            profiles["initial"], y_arr, color="#999999", linestyle="--", linewidth=1.4
-        )
-        for solver in _DRAG_OPT_SOLVER_ORDER:
-            if f"final_{solver}" not in profiles:
-                continue
-            _label, color, ls, _mk = solver_props(solver)
-            ax_prof.plot(
-                profiles[f"final_{solver}"],
-                y_arr,
-                color=color,
-                linestyle=ls,
-                linewidth=1.6,
-            )
-            present.add(solver)
-
-    ax_prof.set_title("Optimised profile")
-    ax_prof.set_xlabel(r"$u_x$")
-    ax_prof.set_ylabel("$y$")
-
-    # ── Profile history imshow panels ────────────────────────────────────────
-    for idx, (ax_im, solver) in enumerate(zip(imshow_axes, hist_solvers, strict=False)):
-        hist = profiles[f"profile_history_{solver}"]  # (n_snaps, ny)
-        label, color, _ls, _mk = solver_props(solver)
-
-        ax_im.imshow(
-            hist.T,
-            origin="lower",
-            aspect="auto",
-            cmap="viridis",
-            interpolation="bilinear",
-        )
-
-        n_snaps = hist.shape[0]
-        n_iters = len(data["by_solver"].get(solver, {}).get("drags", [1]))
-        snap_step = n_iters / max(n_snaps - 1, 1)
-        tick_pos = [0, n_snaps // 2, n_snaps - 1]
-        ax_im.set_xticks(tick_pos)
-        ax_im.set_xticklabels([f"{int(t * snap_step)}" for t in tick_pos], fontsize=6.5)
-        ax_im.tick_params(labelsize=6.5)
-        ax_im.set_yticks([])
-
-        ax_im.text(
-            0.03,
-            0.95,
-            label,
-            transform=ax_im.transAxes,
-            ha="left",
-            va="top",
-            fontsize=7.0,
-            color=color,
-            bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0},
-        )
-
-        if idx == 0:
-            ax_im.set_title("Profile history")
-        if idx < len(hist_solvers) - 1:
-            ax_im.tick_params(labelbottom=False)
-        else:
-            ax_im.set_xlabel("Iteration", fontsize=7.0)
-
-    # Hide unused imshow rows
-    for ax_im in imshow_axes[len(hist_solvers) :]:
-        ax_im.set_visible(False)
-
-    # ── Legend ───────────────────────────────────────────────────────────────
     handles = [
         mlines.Line2D(
             [], [], color="#999999", linestyle="--", linewidth=1.4, label="Initial"
@@ -278,7 +307,6 @@ def _paper_drag_opt_figure(
             [make_handle(s) for s in NS_ORDER if s in present and s in SOLVER_STYLES]
         ),
     ]
-
     fig.legend(
         handles=handles,
         loc="lower center",
