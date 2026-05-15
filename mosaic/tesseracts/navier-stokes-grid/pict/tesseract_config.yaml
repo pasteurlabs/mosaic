@@ -71,14 +71,14 @@ build_config:
     - "ENV PATH=/usr/local/cuda/bin:${PATH}"
     - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
     - |
-      RUN TORCH_LIB=$(python3 -c "import torch; print(torch.__path__[0])")/lib \
+      RUN TORCH_LIB=$(python -c "import torch; print(torch.__path__[0])")/lib \
         && echo "${TORCH_LIB}" > /etc/ld.so.conf.d/torch.conf && ldconfig
     - "RUN git -c http.sslVerify=false clone https://github.com/tum-pbs/PICT.git /opt/pict"
     - "RUN pip install setuptools wheel"
-    - "RUN cd /opt/pict/extensions && pip install . --no-build-isolation --no-deps"
-    - |
-      RUN SITE=$(python3 -c "import site; print(site.getsitepackages()[0])") \
-        && echo '/opt/pict' > "${SITE}/pict.pth"
+    # Limit nvcc parallelism to 1 thread — PICT's setup.py uses
+    # --threads=os.cpu_count() which OOMs on memory-constrained CI runners.
+    - "RUN sed -i 's/os.cpu_count()/1/g' /opt/pict/extensions/setup.py"
+    - "RUN cd /opt/pict/extensions && MAX_JOBS=2 pip install . --no-build-isolation --no-deps"
 
 metadata:
   mosaic:
