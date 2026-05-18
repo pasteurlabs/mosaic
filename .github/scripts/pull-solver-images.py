@@ -43,8 +43,16 @@ import urllib.request
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
 
-def _pull(remote: str) -> tuple[bool, str]:
-    r = subprocess.run(["docker", "pull", remote], capture_output=True, text=True)
+def _pull(remote: str, *, timeout_s: int = 900) -> tuple[bool, str]:
+    try:
+        r = subprocess.run(
+            ["docker", "pull", remote],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"docker pull timed out after {timeout_s}s"
     return r.returncode == 0, (r.stderr or r.stdout).strip()
 
 
@@ -58,6 +66,9 @@ def _pull_with_wait(
     start = time.monotonic()
     last_err = ""
     attempt = 0
+    # Heartbeat at most every 60s so GHA's UI shows progress instead of
+    # looking frozen during long polls.
+    next_heartbeat = 60.0
     while True:
         attempt += 1
         ok, err = _pull(remote)
@@ -68,7 +79,18 @@ def _pull_with_wait(
         if elapsed + poll_s > timeout_s:
             return False, elapsed, last_err
         if attempt == 1:
-            print(f"  pending — polling for {timeout_s}s (last: {last_err[:120]})")
+            print(
+                f"  pending — polling for {timeout_s}s (last: {last_err[:120]})",
+                flush=True,
+            )
+        elif elapsed >= next_heartbeat:
+            remaining = max(0, timeout_s - int(elapsed))
+            print(
+                f"  still polling — {int(elapsed)}s elapsed, "
+                f"{remaining}s left (last: {last_err[:120]})",
+                flush=True,
+            )
+            next_heartbeat = elapsed + 60.0
         time.sleep(poll_s)
 
 
@@ -236,17 +258,25 @@ def main() -> None:
             # we know are being built for this commit; everything else goes
             # straight to ``:latest``.
             candidates: list[tuple[str, int]] = []
-            if args.tag and (building is None or spec.dir in building):
+            if args.tag and building is not None and spec.dir in building:
+                # Confirmed in the build matrix — wait the full budget for
+                # the build to publish its ``:<sha>`` image.
                 candidates.append(
                     (f"{registry}/{image_name}:{args.tag}", args.per_image_timeout)
                 )
+            elif args.tag and building is None:
+                # Couldn't determine the matrix (API failure / race with the
+                # build workflow). Try ``:<sha>`` briefly so a recently-pushed
+                # image still wins, but don't burn 90 min per solver waiting
+                # for an image that may never appear.
+                candidates.append((f"{registry}/{image_name}:{args.tag}", 60))
             # ``:latest`` fallback: short poll budget — if it's not in the
             # registry now it almost certainly never will be.
             candidates.append((f"{registry}/{image_name}:latest", 60))
 
             pulled_remote = None
             for remote, budget in candidates:
-                print(f"Pulling {remote}")
+                print(f"Pulling {remote}", flush=True)
                 ok, elapsed, last_err = _pull_with_wait(
                     remote,
                     timeout_s=budget,
@@ -254,10 +284,13 @@ def main() -> None:
                 )
                 if ok:
                     subprocess.run(["docker", "tag", remote, local_tag])
-                    print(f"  Tagged as {local_tag} ({elapsed:.0f}s)")
+                    print(f"  Tagged as {local_tag} ({elapsed:.0f}s)", flush=True)
                     pulled_remote = remote
                     break
-                print(f"  miss after {elapsed:.0f}s (last error: {last_err[:160]})")
+                print(
+                    f"  miss after {elapsed:.0f}s (last error: {last_err[:160]})",
+                    flush=True,
+                )
 
             if pulled_remote is None:
                 failed.append(f"{registry}/{image_name}")
