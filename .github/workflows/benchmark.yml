@@ -166,6 +166,53 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Wait for build-tesseracts to finish (same SHA)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          REPO="${{ github.repository }}"
+
+          # Wait up to 2 min for a build-tesseracts run to appear; if none, proceed.
+          FIND_DEADLINE=$(( $(date +%s) + 120 ))
+          RUN_ID=""
+          while true; do
+            RUN_JSON=$(gh run list --repo "$REPO" \
+              --workflow=build-tesseracts.yml \
+              --commit="$SHA" --limit=1 \
+              --json status,databaseId)
+            if [[ "$(echo "$RUN_JSON" | jq 'length')" -gt 0 ]]; then
+              RUN_ID=$(echo "$RUN_JSON" | jq -r '.[0].databaseId')
+              echo "Found build-tesseracts run: $RUN_ID"
+              break
+            fi
+            if [[ $(date +%s) -gt $FIND_DEADLINE ]]; then
+              echo "No build-tesseracts run for SHA $SHA — proceeding"
+              exit 0
+            fi
+            echo "Waiting for build-tesseracts to start..."
+            sleep 15
+          done
+
+          # Wait up to 60 min for the run to complete.
+          FINISH_DEADLINE=$(( $(date +%s) + 3600 ))
+          while true; do
+            RUN_JSON=$(gh run view "$RUN_ID" --repo "$REPO" --json status,conclusion)
+            STATUS=$(echo "$RUN_JSON" | jq -r '.status')
+            if [[ "$STATUS" == "completed" ]]; then
+              CONCLUSION=$(echo "$RUN_JSON" | jq -r '.conclusion')
+              echo "build-tesseracts completed: $CONCLUSION"
+              break
+            fi
+            if [[ $(date +%s) -gt $FINISH_DEADLINE ]]; then
+              echo "Timed out waiting for build-tesseracts" >&2
+              exit 1
+            fi
+            echo "build-tesseracts status: $STATUS — sleeping 30s"
+            sleep 30
+          done
+
       - name: Pull pre-built solver images from GHCR
         run: |
           uv run python .github/scripts/pull-solver-images.py \
