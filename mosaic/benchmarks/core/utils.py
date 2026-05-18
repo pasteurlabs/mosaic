@@ -12,7 +12,9 @@ import inspect
 import json
 import logging
 import os
+import platform
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import jax
@@ -972,6 +974,17 @@ def save_experiment(
         # Environment metadata: set on initial save, preserve on merge.
         if isinstance(result, dict) and "environment" not in result:
             result["environment"] = _environment_metadata()
+
+        # Run metadata: CI provenance — latest write always wins.
+        if isinstance(result, dict):
+            result["_run_meta"] = {
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "ci": bool(os.environ.get("CI")),
+                "runner": os.environ.get("RUNNER_NAME", ""),
+                "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+                "github_sha": os.environ.get("GITHUB_SHA", ""),
+                "platform": platform.platform(),
+            }
 
         save_json(result, result_path)
         if "params" in result:
