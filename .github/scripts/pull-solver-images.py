@@ -39,6 +39,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass, field
 
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
@@ -56,42 +57,25 @@ def _pull(remote: str, *, timeout_s: int = 900) -> tuple[bool, str]:
     return r.returncode == 0, (r.stderr or r.stdout).strip()
 
 
-def _pull_with_wait(
-    remote: str, *, timeout_s: int, poll_s: int
-) -> tuple[bool, float, str]:
-    """Pull ``remote``, polling with ``poll_s`` cadence until ``timeout_s``.
+@dataclass
+class _PullTask:
+    """One image to pull, with a list of (remote, budget_s) candidates.
 
-    Returns (succeeded, elapsed_s, last_error_line).
+    The round-robin scheduler advances through ``candidates`` per task: each
+    candidate has its own time budget (e.g. wait the full per-image timeout
+    for a known-building ``:<sha>`` image, then fall back to ``:latest`` for
+    60s). The scheduler tries every pending task once per pass and sleeps
+    between passes, so a fast-finishing build is pulled the moment its
+    image lands rather than after every preceding solver is resolved.
     """
-    start = time.monotonic()
-    last_err = ""
-    attempt = 0
-    # Heartbeat at most every 60s so GHA's UI shows progress instead of
-    # looking frozen during long polls.
-    next_heartbeat = 60.0
-    while True:
-        attempt += 1
-        ok, err = _pull(remote)
-        elapsed = time.monotonic() - start
-        if ok:
-            return True, elapsed, ""
-        last_err = err.splitlines()[-1] if err else ""
-        if elapsed + poll_s > timeout_s:
-            return False, elapsed, last_err
-        if attempt == 1:
-            print(
-                f"  pending — polling for {timeout_s}s (last: {last_err[:120]})",
-                flush=True,
-            )
-        elif elapsed >= next_heartbeat:
-            remaining = max(0, timeout_s - int(elapsed))
-            print(
-                f"  still polling — {int(elapsed)}s elapsed, "
-                f"{remaining}s left (last: {last_err[:120]})",
-                flush=True,
-            )
-            next_heartbeat = elapsed + 60.0
-        time.sleep(poll_s)
+
+    local_tag: str
+    image_name: str
+    candidates: list[tuple[str, int]]
+    idx: int = 0
+    candidate_started: float = field(default_factory=time.monotonic)
+    last_err: str = ""
+    announced: bool = False
 
 
 # ── GitHub API: discover which solvers are in the build-tesseracts matrix ──
@@ -147,6 +131,140 @@ def _building_solvers_for_sha(
         if m:
             solver_dirs.add(m.group(2))
     return solver_dirs
+
+
+def _build_candidates(
+    *,
+    registry: str,
+    image_name: str,
+    solver_dir: str,
+    tag: str | None,
+    per_image_timeout: int,
+    building: set[str] | None,
+) -> list[tuple[str, int]]:
+    """Build the ordered list of (remote, budget_s) candidates for an image.
+
+    Prefer ``:<sha>`` for solvers known to be building (full budget) or when
+    matrix discovery failed (short budget — don't wait 90 min for an image
+    that may never appear). Always fall back to ``:latest`` with a short
+    budget.
+    """
+    candidates: list[tuple[str, int]] = []
+    if tag and building is not None and solver_dir in building:
+        candidates.append((f"{registry}/{image_name}:{tag}", per_image_timeout))
+    elif tag and building is None:
+        candidates.append((f"{registry}/{image_name}:{tag}", 60))
+    candidates.append((f"{registry}/{image_name}:latest", 60))
+    return candidates
+
+
+def _build_tasks(
+    problem_list: list[str],
+    hardware: str,
+    registry: str,
+    tag: str | None,
+    per_image_timeout: int,
+    building: set[str] | None,
+) -> list[_PullTask]:
+    seen: set[str] = set()
+    tasks: list[_PullTask] = []
+    for p in problem_list:
+        try:
+            cfg = get_config(p)
+        except Exception:
+            continue
+        # cfg.solvers is a list[SolverSpec] on the docs branch (was a dict
+        # under the legacy ProblemConfig); iterate the list directly.
+        for spec in cfg.solvers:
+            uses_gpu = getattr(spec, "uses_gpu", True)
+            if hardware == "gpu" and not uses_gpu:
+                continue
+            if hardware == "cpu" and uses_gpu:
+                continue
+            local_tag = spec.image_tag or f"{spec.dir}:latest"
+            if local_tag in seen:
+                continue
+            seen.add(local_tag)
+            image_name = local_tag.rsplit(":", 1)[0]
+            tasks.append(
+                _PullTask(
+                    local_tag=local_tag,
+                    image_name=image_name,
+                    candidates=_build_candidates(
+                        registry=registry,
+                        image_name=image_name,
+                        solver_dir=spec.dir,
+                        tag=tag,
+                        per_image_timeout=per_image_timeout,
+                        building=building,
+                    ),
+                )
+            )
+    return tasks
+
+
+def _step_task(task: _PullTask, registry: str) -> str:
+    """Attempt one pull for ``task``. Returns "done" | "fail" | "pending"."""
+    remote, budget = task.candidates[task.idx]
+    if not task.announced:
+        print(f"Trying {remote}", flush=True)
+        task.announced = True
+    ok, err = _pull(remote)
+    if ok:
+        subprocess.run(["docker", "tag", remote, task.local_tag])
+        elapsed = time.monotonic() - task.candidate_started
+        print(f"  ✓ {task.local_tag} <- {remote} ({elapsed:.0f}s)", flush=True)
+        return "done"
+    task.last_err = err.splitlines()[-1] if err else ""
+    elapsed = time.monotonic() - task.candidate_started
+    if elapsed < budget:
+        return "pending"
+    print(
+        f"  miss {remote} after {elapsed:.0f}s (last error: {task.last_err[:160]})",
+        flush=True,
+    )
+    task.idx += 1
+    if task.idx >= len(task.candidates):
+        return "fail"
+    task.candidate_started = time.monotonic()
+    task.announced = False
+    return "pending"
+
+
+def _run_pull_loop(
+    tasks: list[_PullTask], registry: str, poll_interval: int
+) -> list[str]:
+    """Round-robin: try each pending task once per pass, sleep between passes.
+
+    The moment any task's image is published it gets pulled — no head-of-line
+    blocking by a slow build. Returns the list of remote names that exhausted
+    all candidates.
+    """
+    failed: list[str] = []
+    pending: list[_PullTask] = list(tasks)
+    print(f"Pulling {len(pending)} image(s) (round-robin polling)", flush=True)
+    last_heartbeat = time.monotonic()
+    while pending:
+        still_pending: list[_PullTask] = []
+        for task in pending:
+            status = _step_task(task, registry)
+            if status == "pending":
+                still_pending.append(task)
+            elif status == "fail":
+                failed.append(f"{registry}/{task.image_name}")
+        pending = still_pending
+        now = time.monotonic()
+        if pending and now - last_heartbeat >= 60:
+            print(
+                f"  [heartbeat] {len(pending)} image(s) still pending: "
+                f"{', '.join(t.image_name for t in pending[:5])}"
+                f"{' …' if len(pending) > 5 else ''}",
+                flush=True,
+            )
+            last_heartbeat = now
+        if pending:
+            time.sleep(poll_interval)
+    return failed
 
 
 def main() -> None:
@@ -233,67 +351,15 @@ def main() -> None:
                         "— using :latest for all solvers"
                     )
 
-    seen: set[str] = set()
-    failed: list[str] = []
-    for p in problem_list:
-        try:
-            cfg = get_config(p)
-        except Exception:
-            continue
-        # cfg.solvers is a list[SolverSpec] on the docs branch (was a dict
-        # under the legacy ProblemConfig); iterate the list directly.
-        for spec in cfg.solvers:
-            if args.hardware == "gpu" and not getattr(spec, "uses_gpu", True):
-                continue
-            if args.hardware == "cpu" and getattr(spec, "uses_gpu", True):
-                continue
-            local_tag = spec.image_tag or f"{spec.dir}:latest"
-            if local_tag in seen:
-                continue
-            seen.add(local_tag)
-            # local_tag = "<image_name>:latest" — split into name + suffix
-            image_name = local_tag.rsplit(":", 1)[0]
-
-            # Build the remote candidate list: prefer ``:<sha>`` for solvers
-            # we know are being built for this commit; everything else goes
-            # straight to ``:latest``.
-            candidates: list[tuple[str, int]] = []
-            if args.tag and building is not None and spec.dir in building:
-                # Confirmed in the build matrix — wait the full budget for
-                # the build to publish its ``:<sha>`` image.
-                candidates.append(
-                    (f"{registry}/{image_name}:{args.tag}", args.per_image_timeout)
-                )
-            elif args.tag and building is None:
-                # Couldn't determine the matrix (API failure / race with the
-                # build workflow). Try ``:<sha>`` briefly so a recently-pushed
-                # image still wins, but don't burn 90 min per solver waiting
-                # for an image that may never appear.
-                candidates.append((f"{registry}/{image_name}:{args.tag}", 60))
-            # ``:latest`` fallback: short poll budget — if it's not in the
-            # registry now it almost certainly never will be.
-            candidates.append((f"{registry}/{image_name}:latest", 60))
-
-            pulled_remote = None
-            for remote, budget in candidates:
-                print(f"Pulling {remote}", flush=True)
-                ok, elapsed, last_err = _pull_with_wait(
-                    remote,
-                    timeout_s=budget,
-                    poll_s=args.poll_interval,
-                )
-                if ok:
-                    subprocess.run(["docker", "tag", remote, local_tag])
-                    print(f"  Tagged as {local_tag} ({elapsed:.0f}s)", flush=True)
-                    pulled_remote = remote
-                    break
-                print(
-                    f"  miss after {elapsed:.0f}s (last error: {last_err[:160]})",
-                    flush=True,
-                )
-
-            if pulled_remote is None:
-                failed.append(f"{registry}/{image_name}")
+    tasks = _build_tasks(
+        problem_list,
+        args.hardware,
+        registry,
+        args.tag,
+        args.per_image_timeout,
+        building,
+    )
+    failed = _run_pull_loop(tasks, registry, args.poll_interval)
 
     if failed:
         print(f"\n{len(failed)} image(s) failed to pull:", file=sys.stderr)
@@ -301,7 +367,7 @@ def main() -> None:
             print(f"  - {f}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\nPulled {len(seen)} image(s) successfully")
+    print(f"\nPulled {len(tasks)} image(s) successfully")
 
 
 if __name__ == "__main__":
