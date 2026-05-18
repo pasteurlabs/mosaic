@@ -14,7 +14,7 @@ WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 cat > "$WORKDIR/Dockerfile" <<'EOF'
-FROM dealii/dealii:latest
+FROM dealii/dealii:v9.7.1-jammy
 USER root
 EOF
 
