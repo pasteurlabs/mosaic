@@ -11,11 +11,28 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from mosaic.benchmarks.cli import app
 
 runner = CliRunner()
+
+# ``validate-template`` imports the template's ``schema_module``
+# (e.g. ``tesseract_shared.problems.navier_stokes_grid``). Those modules are
+# only importable when ``tesseract_shared`` is installed as a top-level
+# package — true inside the tesseract runtime / a full dev environment, not
+# in a minimal test environment. Mirror the gate used in test_schemas.py.
+_missing_runtime_deps = False
+try:
+    import tesseract_shared.types  # noqa: F401
+except ModuleNotFoundError:
+    _missing_runtime_deps = True
+
+needs_runtime = pytest.mark.skipif(
+    _missing_runtime_deps,
+    reason="tesseract_shared not installed as a top-level package",
+)
 
 
 # ── compare ───────────────────────────────────────────────────────────────────
@@ -73,6 +90,7 @@ def test_validate_template_unknown_name_exits_nonzero():
     assert isinstance(result.exception, FileNotFoundError)
 
 
+@needs_runtime
 def test_validate_template_known_template_succeeds():
     """A built-in template passes validation."""
     result = runner.invoke(app, ["validate-template", "ns-periodic"])

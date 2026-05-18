@@ -416,7 +416,7 @@ def test_per_solver_loop_records_wall_times_for_each_solver(monkeypatch):
     tags = {"a": "a:latest", "b": "b:latest"}
     seen: list[str] = []
 
-    def _fake_pool(solver_names, _tags, fn, gpu_ids=None):
+    def _fake_pool(solver_names, _tags, fn, gpu_ids=None, on_error=None):
         for n in solver_names:
             fn(n, object())
 
@@ -440,7 +440,7 @@ def test_per_solver_loop_catch_swallows_exceptions(monkeypatch):
     cfg = _make_dummy_cfg(["good", "bad"])
     tags = {"good": "g:latest", "bad": "b:latest"}
 
-    def _fake_pool(solver_names, _tags, fn, gpu_ids=None):
+    def _fake_pool(solver_names, _tags, fn, gpu_ids=None, on_error=None):
         for n in solver_names:
             fn(n, object())
 
@@ -462,7 +462,7 @@ def test_per_solver_loop_catch_false_reraises(monkeypatch):
     cfg = _make_dummy_cfg(["x"])
     tags = {"x": "x:latest"}
 
-    def _fake_pool(solver_names, _tags, fn, gpu_ids=None):
+    def _fake_pool(solver_names, _tags, fn, gpu_ids=None, on_error=None):
         for n in solver_names:
             fn(n, object())
 

@@ -43,7 +43,14 @@ members = ["mosaic/tesseracts/tesseract_shared"]
 tesseract-shared = { workspace = true }
 
 [tool.setuptools.packages.find]
-where = ["."]
+# Two discovery roots:
+#   "."                      → the mosaic.* tree (CLI, harness, problem packages)
+#   "mosaic/tesseracts"      → exposes mosaic/tesseracts/tesseract_shared/ as the
+#                              top-level ``tesseract_shared`` package. ``uv`` already
+#                              wires this via [tool.uv.sources]; this entry makes
+#                              plain ``pip install -e .`` install it too.
+where = [".", "mosaic/tesseracts"]
+include = ["mosaic*", "tesseract_shared*"]
 exclude = ["tests*", "docs*"]
 
 [tool.pytest.ini_options]
