@@ -174,17 +174,22 @@ jobs:
           set -euo pipefail
           SHA="${{ github.event.pull_request.head.sha || github.sha }}"
           REPO="${{ github.repository }}"
+          API="https://api.github.com/repos/${REPO}/actions/workflows/build-tesseracts.yml/runs?head_sha=${SHA}&per_page=1"
+
+          api_get() {
+            curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" "$1"
+          }
 
           # Wait up to 2 min for a build-tesseracts run to appear; if none, proceed.
           FIND_DEADLINE=$(( $(date +%s) + 120 ))
           RUN_ID=""
           while true; do
-            RUN_JSON=$(gh run list --repo "$REPO" \
-              --workflow=build-tesseracts.yml \
-              --commit="$SHA" --limit=1 \
-              --json status,databaseId)
-            if [[ "$(echo "$RUN_JSON" | jq 'length')" -gt 0 ]]; then
-              RUN_ID=$(echo "$RUN_JSON" | jq -r '.[0].databaseId')
+            RESP=$(api_get "$API")
+            COUNT=$(echo "$RESP" | jq '.workflow_runs | length')
+            if [[ "$COUNT" -gt 0 ]]; then
+              RUN_ID=$(echo "$RESP" | jq -r '.workflow_runs[0].id')
               echo "Found build-tesseracts run: $RUN_ID"
               break
             fi
@@ -198,11 +203,12 @@ jobs:
 
           # Wait up to 60 min for the run to complete.
           FINISH_DEADLINE=$(( $(date +%s) + 3600 ))
+          RUN_API="https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}"
           while true; do
-            RUN_JSON=$(gh run view "$RUN_ID" --repo "$REPO" --json status,conclusion)
-            STATUS=$(echo "$RUN_JSON" | jq -r '.status')
+            RESP=$(api_get "$RUN_API")
+            STATUS=$(echo "$RESP" | jq -r '.status')
             if [[ "$STATUS" == "completed" ]]; then
-              CONCLUSION=$(echo "$RUN_JSON" | jq -r '.conclusion')
+              CONCLUSION=$(echo "$RESP" | jq -r '.conclusion')
               echo "build-tesseracts completed: $CONCLUSION"
               break
             fi
