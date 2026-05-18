@@ -65,6 +65,33 @@ _BREAK_LOG = 3.0  # end of fine-grained region
 _WT_YMIN = 0.0  # bottom of wall time y-axis (log10 seconds, i.e. start at 1 s)
 _WT_BREAK_LOG = 2.0  # log10(seconds) transition point (~100 s)
 
+# Piecewise log x-axis (Rollout steps T) for wall-time and gradient-norm panels:
+# normal log up to 10**_X_BREAK_LOG (~316), compressed log above so that
+# very-long-rollout failures don't push the points of interest into a corner.
+_X_BREAK_LOG = 2.5
+_X_UPPER_FACTOR = 0.4
+
+
+def _x_log_forward(steps):
+    steps = np.asarray(steps, dtype=float)
+    log_x = np.log10(np.maximum(steps, 1e-10))
+    return np.where(
+        log_x <= _X_BREAK_LOG,
+        log_x,
+        _X_BREAK_LOG + (log_x - _X_BREAK_LOG) * _X_UPPER_FACTOR,
+    )
+
+
+def _x_log_inverse(disp):
+    disp = np.asarray(disp, dtype=float)
+    log_x = np.where(
+        disp <= _X_BREAK_LOG,
+        disp,
+        _X_BREAK_LOG + (disp - _X_BREAK_LOG) / _X_UPPER_FACTOR,
+    )
+    return np.power(10.0, log_x)
+
+
 # Half-spread in log10 units for jittering coincident failure markers.
 # 0.04 → factor of ~1.10, so 3 markers at step=160 land at ≈145, 160, 176.
 _JITTER_LOG = 0.04
@@ -420,6 +447,31 @@ def generate(out_dir: Path) -> None:
         ax_gn.set_yticklabels([rf"$10^{{{v}}}$" for v in _all_gn_ticks])
         _gn_ymax = _gn_display(_max_log10)
         ax_gn.set_ylim(_GN_YMIN, _gn_ymax + 0.05)
+
+        # ── Piecewise log x-axis on wall-time and gradient-norm panels ────────
+        _x_min_data = min(_all_sweep_steps) if _all_sweep_steps else 1
+        _x_max_data = max(_all_sweep_steps) if _all_sweep_steps else 1e4
+        # Small log-space padding so tick labels at the edges aren't clipped.
+        _x_pad = 0.06 * (np.log10(_x_max_data) - np.log10(_x_min_data))
+        _x_lim_lo = 10 ** (np.log10(_x_min_data) - _x_pad)
+        _x_lim_hi = 10 ** (np.log10(_x_max_data) + _x_pad)
+        for _ax in (ax_wt, ax_gn):
+            _ax.set_xscale(
+                "function",
+                functions=(_x_log_forward, _x_log_inverse),
+            )
+            _ax.set_xticks([10, 100, 1000, 10000])
+            _ax.set_xticklabels([r"$10^{1}$", r"$10^{2}$", r"$10^{3}$", r"$10^{4}$"])
+            _ax.axvline(
+                10**_X_BREAK_LOG,
+                color="0.7",
+                linestyle=":",
+                linewidth=0.6,
+                zorder=0,
+            )
+            _ax.set_xlim(_x_lim_lo, _x_lim_hi)
+        # Match VRAM panel x-range to actual data, too.
+        ax_vr.set_xlim(_x_lim_lo, _x_lim_hi)
 
         # ── Legend ────────────────────────────────────────────────────────────
         _dummy = mlines.Line2D(

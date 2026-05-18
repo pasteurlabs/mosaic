@@ -33,7 +33,7 @@ description: |
     Outputs: compliance (scalar)
 
 build_config:
-  base_image: "firedrakeproject/firedrake:2024.11.0"
+  base_image: "firedrakeproject/firedrake:2026.4.0"
   skip_checks: true
   package_data:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]

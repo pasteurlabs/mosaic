@@ -49,7 +49,7 @@ def get_experiments(cfg: ProblemConfig) -> dict[str, object]:
         params = dict(cfg.get_ic_plot_params(ic_name))
 
         def _make(name: str = ic_name, p: dict = params):
-            def exp(cfg: ProblemConfig, _tags: dict) -> dict:
+            def exp(cfg: ProblemConfig, _tags: dict, **_kwargs) -> dict:
                 return _run_ic(cfg, name, p)
 
             exp.__name__ = name

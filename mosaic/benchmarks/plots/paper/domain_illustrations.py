@@ -395,7 +395,7 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
     gap = 1.3
 
     # --- render 3D scene to buffer ---
-    fig3d = plt.figure(figsize=(TEXTWIDTH * 0.4, TEXTWIDTH * 0.26), dpi=800)
+    fig3d = plt.figure(figsize=(TEXTWIDTH * 0.4, TEXTWIDTH * 0.26), dpi=400)
     ax = fig3d.add_axes((0.0, 0.0, 1.0, 1.0), projection="3d")
     ax.view_init(elev=20, azim=-55)
     ax.set_proj_type("persp", focal_length=0.35)
@@ -445,6 +445,7 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
         color=PHYS_COLOR,
         ha="center",
         fontweight="bold",
+        zorder=12,
     )
 
     total_w = 2 * box_size + gap
@@ -458,7 +459,7 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
     ax.set_axis_off()
 
     buf = BytesIO()
-    fig3d.savefig(buf, format="png", dpi=800, facecolor="white")
+    fig3d.savefig(buf, format="png", dpi=400, facecolor="white")
     buf.seek(0)
     plt.close(fig3d)
 

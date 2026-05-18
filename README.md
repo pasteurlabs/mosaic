@@ -36,9 +36,8 @@ git clone https://github.com/pasteurlabs/mosaic && cd mosaic
 uv sync              # uv (recommended)
 pip install -e .     # pip
 
-# Download the paper's benchmark results
-wget -qO- https://github.com/pasteurlabs/mosaic/releases/download/v1.0.0/benchmark-results.tar.gz \
-  | tar xz            # creates mosaic-results/
+# Download the paper's benchmark results (Zenodo: https://zenodo.org/records/20067888, ~443 MB)
+wget -qO- 'https://zenodo.org/records/20067888/files/mosaic-results.tar?download=1' | tar x
 
 # Regenerate per-suite plots (PNG/PDF alongside each result.json)
 mosaic run --plots-only
@@ -67,6 +66,8 @@ mosaic paper-plots
 ```
 
 A full run builds 14 solver containers and executes 5 suites across 4 domains. Expect several hours on a machine with a modern GPU. CPU-only solvers can be run separately with `mosaic run --hardware cpu`.
+
+> **Platform note:** x86-64 Linux with Docker Engine (not Docker Desktop) is strongly recommended. Docker Desktop adds a virtualisation layer that significantly increases overhead on macOS and Windows. Some solver images (notably the Julia-based solvers) do not build on ARM/Apple Silicon. For full reproducibility, an NVIDIA GPU with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) is required.
 
 For an environment that exactly matches published results:
 
@@ -131,12 +132,12 @@ t = Tesseract.from_tesseract_api(
 outputs = t.apply(inputs)
 ```
 
-### Option B: Via container (supports `jax.grad`)
+### Option B: Via container (required Docker, fully isolated)
 
 Works for every solver regardless of language. Build the image once, then use it from JAX:
 
 ```bash
-tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+$ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 ```
 
 ```python
@@ -156,7 +157,7 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     ))(inputs["v0"])
 ```
 
-See [Standalone Usage](docs/standalone.qmd) for the full guide — solver catalog with image names, GPU usage, mesh-based solvers, and common gotchas.
+See [Standalone Usage](docs/standalone.qmd) for the full guide, including solver catalog with image names, GPU usage, mesh-based solvers, and common gotchas.
 
 ### Programmatic API
 
@@ -206,24 +207,25 @@ A solver is three files in `mosaic/tesseracts/<domain>/<solver-name>/`:
 | File                         | Purpose                                                              |
 | :--------------------------- | :------------------------------------------------------------------- |
 | `tesseract_api.py`           | `apply`, `abstract_eval`, and (optionally) `vector_jacobian_product` |
-| `tesseract_config.yaml`      | Metadata with a `mosaic:` block for auto-discovery                   |
+| `tesseract_config.yaml`      | Metadata with a `metadata.mosaic:` block for auto-discovery          |
 | `tesseract_requirements.txt` | Python dependencies                                                  |
 
-The `mosaic:` block in the config is all the harness needs — no Python registration step:
+The `metadata.mosaic:` block in the config is all the harness needs — no Python registration step:
 
 ```yaml
 name: my-solver
 version: 0.1.0
 description: Short description.
 
-mosaic:
-  name: "My Solver"
-  backend: jax
-  scheme: "FEM HEX8"
-  color: "#1f77b4"
-  ad_strategy: autodiff
-  differentiable: true
-  uses_gpu: true
+metadata:
+  mosaic:
+    name: "My Solver"
+    backend: jax
+    scheme: "FEM HEX8"
+    color: "#1f77b4"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
 ```
 
 Build, test, and run:

@@ -51,9 +51,9 @@ SOLVER_STYLES: dict[str, tuple] = {
     "phiflow": ("PhiFlow", "#CC3311", "--", "s"),  # Vibrant red
     "ins_jl": ("INS.jl", "#33BBEE", "-.", "^"),  # Vibrant cyan
     "pict": ("PICT", "#EE3377", ":", "D"),  # Vibrant magenta
-    "xlb": ("XLB", "#009988", (0, (4, 1)), "v"),  # Vibrant teal
+    "xlb": ("XLB", "#CCBB44", (0, (4, 1)), "v"),  # Muted yellow
     "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),  # Vibrant orange
-    "exponax": ("Exponax", "#CCBB44", (0, (5, 1)), "<"),  # Muted yellow
+    "exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),  # Vibrant teal
     # Reference / excluded solvers — muted tones
     "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),  # Muted sand
     # ── FEM / Structural ────────────────────────────────────────────────────

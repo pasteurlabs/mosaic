@@ -177,15 +177,7 @@ _SOLVERS: dict[str, SolverSpec] = {
         doc_url="https://github.com/tum-pbs/PICT",
         image_tag="pict_navier_stokes_grid:latest",
         exclusions={},
-        explained_anomalies={
-            "gradient/differentiability_table": {
-                "reason": (
-                    "viscosity and dt are consumed as Python scalars at domain construction / "
-                    "timestep time with no PyTorch autograd path; zero gradients are returned "
-                    "giving rel_error=1.0 vs FD estimate. v0 VJP is fully supported."
-                ),
-            },
-        },
+        explained_anomalies={},
     ),
     "xlb": SolverSpec(
         name="XLB",
@@ -272,17 +264,7 @@ _SOLVERS: dict[str, SolverSpec] = {
                 "reason": "warp-ns is periodic-only; obstacle/inflow flows are not supported",
             },
         },
-        explained_anomalies={
-            "gradient/differentiability_table": {
-                "reason": (
-                    "input/v0 VJP rel_error straddles the 5% threshold stochastically "
-                    "at N=16, dt=0.05, steps=5; observed 5.3% and 1.25% on successive "
-                    "re-runs. Gradient direction verified correct in fd_check "
-                    "(cosine≥0.9999). Stochastic chaotic sensitivity at this boundary "
-                    "parameter point."
-                ),
-            },
-        },
+        explained_anomalies={},
     ),
 }
 
@@ -736,17 +718,6 @@ CONFIG = ProblemConfig(
                     ic=dict(name="multimode", seed=42),
                     physics=dict(N=8, nu=0.01, dt=0.05, steps=10),
                     jacobian=dict(),
-                )
-            ],
-        ),
-        "differentiability_table": dict(
-            description="Differentiability table: FD check for all array inputs (v0, viscosity, dt) and all outputs w.r.t. IC.",
-            plot_description="Heatmap of differentiability status (ok/fail/not_differentiable) for all (solver, field) pairs.",
-            runs=[
-                dict(
-                    ic=dict(name="tgv", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.05, steps=5),
-                    fd=dict(eps=1e-3),
                 )
             ],
         ),

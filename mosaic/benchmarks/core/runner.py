@@ -204,12 +204,27 @@ def build_all(
         return name, image_tag
 
     images: dict[str, str] = {}
+    failed: list[str] = []
     with make_build_progress() as progress:
         task = progress.add_task("building solver images...", total=len(cfg.solvers))
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            for name, img_tag in pool.map(_build, cfg.solvers.items()):
-                images[name] = img_tag
+            futures = {
+                pool.submit(_build, item): item[0] for item in cfg.solvers.items()
+            }
+            for future in concurrent.futures.as_completed(futures):
+                solver_name = futures[future]
+                try:
+                    name, img_tag = future.result()
+                    images[name] = img_tag
+                except Exception as exc:
+                    failed.append(solver_name)
+                    print_warn(f"BUILD FAILED: {solver_name} — {exc}")
                 progress.advance(task)
+    if failed:
+        console.print(
+            f"\n[bold yellow]⚠ {len(failed)} solver(s) failed to build and will "
+            f"be skipped: {', '.join(sorted(failed))}[/bold yellow]\n"
+        )
     return images
 
 
@@ -231,6 +246,12 @@ def image_tags_no_build(cfg: ProblemConfig) -> dict[str, str]:
                 tags[name] = f"{image_name}:latest"
             else:
                 tags[name] = f"{spec.dir}:latest"
+
+    registry = os.environ.get("MOSAIC_IMAGE_REGISTRY", "")
+    if registry:
+        registry = registry.rstrip("/")
+        tags = {name: f"{registry}/{tag}" for name, tag in tags.items()}
+
     return tags
 
 
@@ -425,6 +446,9 @@ def run_with_gpu_pool(
     no GPU flags — for --gpus none / CPU-only hosts).
     When gpu_ids is given (non-empty), runs solvers in parallel; each container
     is pinned to a GPU from the pool (wraps round-robin if #solvers > #GPUs).
+
+    Solvers whose image tag is missing from *tags* (e.g. because the build
+    failed) are skipped with a warning.
     """
     # --no-healthcheck prevents Azure's c3-progenitor from killing containers
     # that are mid-computation when the health probe fires (~4 s interval).
@@ -433,6 +457,15 @@ def run_with_gpu_pool(
     # (use: docker ps -q --filter label=mosaic-problem=<name>).
     _problem_label = _current_problem or "mosaic"
     _NO_HC = ["--no-healthcheck", "--label", f"mosaic-problem={_problem_label}"]
+
+    # Filter out solvers with no built image.
+    missing = [n for n in solver_names if n not in tags]
+    if missing:
+        print_warn(
+            f"skipping {len(missing)} solver(s) with no built image: "
+            f"{', '.join(missing)}"
+        )
+    solver_names = [n for n in solver_names if n in tags]
 
     if gpu_ids is None or gpu_ids == []:
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])

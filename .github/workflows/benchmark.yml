@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  packages: read
 
 concurrency:
   group: benchmark-${{ github.event.pull_request.number || github.ref }}
@@ -40,6 +41,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic (for problem registry)
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
       - id: decide
         name: Decide what to run
         run: |
@@ -60,37 +68,17 @@ jobs:
             IS_MAIN="true"
             SHOULD_RUN="true"
 
-            # Detect changed problem domains from the diff
-            CHANGED_PROBLEMS=""
             DIFF_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-            for file in $DIFF_FILES; do
-              case "$file" in
-                mosaic/tesseracts/navier-stokes-grid/*)
-                  # Shared tesseract dir — triggers both 2D and 3D NS problems
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid,ns-3d-grid" ;;
-                mosaic/benchmarks/problems/navier_stokes_grid.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-grid" ;;
-                mosaic/benchmarks/problems/navier_stokes_3d_grid.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}ns-3d-grid" ;;
-                mosaic/tesseracts/structural-mesh/*|mosaic/benchmarks/problems/structural_mesh.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}structural-mesh" ;;
-                mosaic/tesseracts/thermal-mesh/*|mosaic/benchmarks/problems/thermal_mesh.py)
-                  CHANGED_PROBLEMS="${CHANGED_PROBLEMS:+$CHANGED_PROBLEMS,}thermal-mesh" ;;
-                mosaic/benchmarks/core/*|mosaic/benchmarks/suites/*|mosaic/mosaic_shared/*)
-                  # Core harness change: run everything
-                  CHANGED_PROBLEMS="all"
-                  break ;;
-              esac
-            done
 
-            # Deduplicate
-            if [[ -n "$CHANGED_PROBLEMS" && "$CHANGED_PROBLEMS" != "all" ]]; then
-              PROBLEMS=$(echo "$CHANGED_PROBLEMS" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
-            elif [[ "$CHANGED_PROBLEMS" == "all" ]]; then
-              PROBLEMS="all"
-            else
+            # Use the problem registry to dynamically map changed files → problems.
+            PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
+
+            if [[ -z "$PROBLEMS" ]]; then
               # No solver/harness changes — skip benchmark
               SHOULD_RUN="false"
+              PROBLEMS="all"
+            elif [[ "$PROBLEMS" == "all" ]]; then
+              PROBLEMS="all"
             fi
           fi
 
@@ -109,77 +97,11 @@ jobs:
 
           echo "Plan: should_run=$SHOULD_RUN problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN"
 
-  # ── Run GPU solvers ────────────────────────────────────────────────────
-  run-gpu:
-    name: Benchmark (GPU solvers)
+  # ── Generate initial conditions (lightweight, no Docker) ─────────────────
+  ics:
+    name: Generate ICs
     needs: plan
     if: needs.plan.outputs.should_run == 'true'
-    runs-on: mosaic-bench-gpu
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Run GPU solvers
-        run: |
-          ARGS=""
-          PROBLEMS="${{ needs.plan.outputs.problems }}"
-          SUITES="${{ needs.plan.outputs.suites }}"
-          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
-          if [[ "$SUITES" != "all" ]]; then ARGS="$ARGS --suites $SUITES"; fi
-
-          uv run mosaic run $ARGS --hardware gpu
-        timeout-minutes: 240
-
-      - name: Upload GPU results
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-gpu
-          path: mosaic-results/
-
-  # ── Run CPU solvers ────────────────────────────────────────────────────
-  run-cpu:
-    name: Benchmark (CPU solvers)
-    needs: plan
-    if: needs.plan.outputs.should_run == 'true'
-    runs-on: mosaic-bench-cpu
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Run CPU solvers
-        run: |
-          ARGS=""
-          PROBLEMS="${{ needs.plan.outputs.problems }}"
-          SUITES="${{ needs.plan.outputs.suites }}"
-          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
-          if [[ "$SUITES" != "all" ]]; then ARGS="$ARGS --suites $SUITES"; fi
-
-          uv run mosaic run $ARGS --hardware cpu
-        timeout-minutes: 240
-
-      - name: Upload CPU results
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-cpu
-          path: mosaic-results/
-
-  # ── Merge results, report, publish ─────────────────────────────────────
-  report:
-    name: Report & publish
-    needs: [plan, run-gpu, run-cpu]
-    if: always() && needs.plan.outputs.should_run == 'true' && (needs.run-gpu.result == 'success' || needs.run-cpu.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -191,19 +113,113 @@ jobs:
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
-      - name: Download GPU results
-        uses: actions/download-artifact@v4
-        with:
-          name: results-gpu
-          path: mosaic-results/
-        continue-on-error: true
+      - name: Run ICs suite
+        run: |
+          ARGS="--suites ics"
+          PROBLEMS="${{ needs.plan.outputs.problems }}"
+          SUITES="${{ needs.plan.outputs.suites }}"
 
-      - name: Download CPU results
+          # If plan specified specific suites and ics isn't in the list, skip
+          if [[ "$SUITES" != "all" ]]; then
+            if ! echo ",$SUITES," | grep -q ",ics,"; then
+              echo "Suite ics not in requested suites ($SUITES), skipping"
+              exit 0
+            fi
+          fi
+
+          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
+          uv run mosaic run $ARGS
+        timeout-minutes: 15
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-ics
+          path: mosaic-results/
+          if-no-files-found: ignore
+
+  # ── Run solver suites (matrix: suite × hardware) ────────────────────────
+  run:
+    name: "${{ matrix.suite }} (${{ matrix.hardware }})"
+    needs: plan
+    if: needs.plan.outputs.should_run == 'true'
+    runs-on: ${{ matrix.hardware == 'gpu' && 'mosaic-bench-gpu' || 'mosaic-bench-cpu' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [forward, cost, gradient, optimization]
+        hardware: [gpu, cpu]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull pre-built solver images from GHCR
+        run: |
+          uv run python .github/scripts/pull-solver-images.py \
+            --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
+            --problems "${{ needs.plan.outputs.problems }}" \
+            --hardware "${{ matrix.hardware }}"
+
+      - name: Run ${{ matrix.suite }} (${{ matrix.hardware }})
+        run: |
+          ARGS="--suites ${{ matrix.suite }} --hardware ${{ matrix.hardware }} --no-build"
+          PROBLEMS="${{ needs.plan.outputs.problems }}"
+          SUITES="${{ needs.plan.outputs.suites }}"
+
+          # If plan specified specific suites and this cell's suite isn't in the list, skip
+          if [[ "$SUITES" != "all" ]]; then
+            if ! echo ",$SUITES," | grep -q ",${{ matrix.suite }},"; then
+              echo "Suite ${{ matrix.suite }} not in requested suites ($SUITES), skipping"
+              exit 0
+            fi
+          fi
+
+          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
+          uv run mosaic run $ARGS
+        timeout-minutes: 120
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-${{ matrix.suite }}-${{ matrix.hardware }}
+          path: mosaic-results/
+          if-no-files-found: ignore
+
+  # ── Merge results, report, publish ─────────────────────────────────────
+  report:
+    name: Report & publish
+    needs: [plan, ics, run]
+    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Download all results
         uses: actions/download-artifact@v4
         with:
-          name: results-cpu
+          pattern: results-*
           path: mosaic-results/
-        continue-on-error: true
+          merge-multiple: true
 
       - name: Fetch baseline snapshot from results branch
         id: baseline
