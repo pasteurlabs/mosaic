@@ -388,7 +388,7 @@ def _parse_experiments_path(
 ) -> tuple[str | None, str | None, str | None]:
     """Split an ``--experiments`` value into (suite, exp, ic) segments.
 
-    The flag accepts up to three slash-separated segments:
+    The flag accepts:
 
       * ``"all"`` → ``(None, None, None)``: run everything.
       * ``"<suite>"`` → ``(suite, None, None)``: suite-wide (no exp filter).
@@ -396,22 +396,61 @@ def _parse_experiments_path(
       * ``"<suite>/<exp>/<ic>"`` → ``(suite, exp, ic)``: pick one experiment
         and filter its runs to the named IC.
 
-    The third segment is interpreted as an IC-name filter that is fed to
-    :func:`mosaic.benchmarks.core.utils.iter_runs` via the
+    Experiment names themselves can contain ``/`` (e.g. sub-experiments like
+    ``physical_laws/vs_N``). For ≥3-segment inputs, the suite is the first
+    segment and the *remainder* is returned as ``exp`` verbatim — callers
+    that need to disambiguate "deep experiment name" vs "exp + IC" use
+    :func:`_resolve_experiment_target` with the problem's experiment
+    registry to pick the right interpretation.
+
+    The third segment, when present, is interpreted as an IC-name filter
+    that is fed to :func:`mosaic.benchmarks.core.utils.iter_runs` via the
     ``cli_overrides["ic_names"]`` channel.
     """
     if experiment == "all":
         return None, None, None
-    parts = experiment.split("/")
+    parts = experiment.split(
+        "/", 2
+    )  # at most: suite, exp, ic (exp may itself contain '/')
     if len(parts) == 1:
         return parts[0], None, None
     if len(parts) == 2:
         return parts[0], parts[1], None
-    if len(parts) == 3:
-        return parts[0], parts[1], parts[2]
-    raise ValueError(
-        f"--experiments expects at most 3 segments (suite/exp/ic); got {experiment!r}"
-    )
+    return parts[0], parts[1], parts[2]
+
+
+def _resolve_experiment_target(
+    experiment: str, exps: dict
+) -> tuple[list[str] | None, str | None]:
+    """Resolve ``--experiments`` against an experiment registry.
+
+    Returns ``(to_run, ic_name)``:
+
+      * ``to_run`` — list of experiment keys to pass to ``run_suite``, or
+        ``None`` to run the whole suite.
+      * ``ic_name`` — single IC name filter, or ``None`` for no IC narrowing.
+
+    A literal multi-segment experiment name (e.g. ``physical_laws/vs_N``) is
+    matched against the registry first; only when that key isn't registered
+    does the parser fall back to the ``suite/exp/ic`` interpretation. This
+    lets users target nested experiments by their literal slash-separated
+    name without losing the IC-filter ergonomics of the 3-segment form.
+    """
+    if experiment == "all":
+        return None, None
+    _, exp, ic = _parse_experiments_path(experiment)
+    if exp is None:
+        return None, None
+    # Try the literal "exp[/ic]" form against the registry first.
+    literal = f"{exp}/{ic}" if ic else exp
+    if literal in exps:
+        return [literal], None
+    if ic is None:
+        # 2-segment form: caller still wants an exp filter even if the key
+        # isn't in this suite's registry (run_suite emits an "unknown
+        # experiment" warning, preserving current behaviour).
+        return [exp], None
+    return [exp], ic
 
 
 def _run_build_overrides(
@@ -435,7 +474,7 @@ def _run_build_overrides(
         overrides["gpu_ids"] = []
     elif gpus:
         overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
-    _, _, ic_segment = _parse_experiments_path(experiment)
+    _, ic_segment = _resolve_experiment_target(experiment, exps)
     if ic_segment:
         if ic_segment not in cfg.make_ic:
             print_warn(f"unknown IC(s): {ic_segment} — skipping")

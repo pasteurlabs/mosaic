@@ -271,6 +271,14 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
         by_solver: dict = {}
         snapshots: dict[str, dict[str, np.ndarray]] = {}
         shared_extras: dict[str, np.ndarray] = {}
+        # Solvers whose Tesseract container failed to start (or whose work
+        # raised). Forwarded into the result so the status classifier marks
+        # them FAILED instead of NOT_RUN — otherwise a broken container is
+        # silently indistinguishable from a solver that wasn't selected.
+        solver_failures: dict[str, str] = {}
+
+        def _on_solver_error(name: str, exc: Exception) -> None:
+            solver_failures[name] = f"{type(exc).__name__}: {exc}"[:300]
 
         def _ctx(name: str, val: Any) -> KernelContext:
             _ic = ic_per_val[val] if ic_per_val is not None else base_ic
@@ -452,6 +460,7 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
             # catch would swallow programming errors silently.
             catch=catch and sweep_mode != "limits",
             catch_label=catch_label,
+            on_error=_on_solver_error,
         )
 
         exp_subdir = exp_key
@@ -508,6 +517,13 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
                 snapshot_prefixes=snapshot_prefixes,
                 horizons_shared=horizons_shared,
             )
+
+        # Propagate solver-level failures (container start failed, work raised)
+        # so the status classifier marks them FAILED rather than NOT_RUN.
+        if solver_failures and isinstance(result, dict):
+            existing = result.get("_solver_failures") or {}
+            existing.update(solver_failures)
+            result["_solver_failures"] = existing
 
         save_harness_result(
             result,

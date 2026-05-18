@@ -261,12 +261,27 @@ def _run_suites_for_problem(
     run_status: dict[tuple[str, str], tuple[str, str]],
 ) -> None:
     """Inner per-problem loop: runs every suite for one prepared problem."""
+    from ._helpers import _resolve_experiment_target
+
     for suite in suite_list:
         print_rule(f"  suite: {suite}")
         try:
             exps, plot_fns_fn = _suite_components(suite, cfg=cfg)
+            # Resolve --experiments against this suite's registry: a literal
+            # multi-segment name (e.g. "physical_laws/vs_N") wins over the
+            # legacy "<suite>/<exp>/<ic>" interpretation when it matches.
+            resolved_to_run, _ = _resolve_experiment_target(experiments, exps)
+            effective_to_run = (
+                resolved_to_run if resolved_to_run is not None else to_run
+            )
             if plots_only:
-                _plots_only(cfg, to_run, plot_fns_fn(), suite, verbose_errors=traceback)
+                _plots_only(
+                    cfg,
+                    effective_to_run,
+                    plot_fns_fn(),
+                    suite,
+                    verbose_errors=traceback,
+                )
                 run_status[(problem, suite)] = ("ok", "plots-only")
                 continue
             _overrides = _run_build_overrides(
@@ -280,7 +295,7 @@ def _run_suites_for_problem(
                 cfg,
                 tags,
                 exps,
-                to_run=to_run,
+                to_run=effective_to_run,
                 plots=not no_plots,
                 plot_fns=plot_fns_fn() if not no_plots else None,
                 suite_name=suite,
