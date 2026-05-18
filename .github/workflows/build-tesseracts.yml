@@ -182,6 +182,11 @@ jobs:
         # Tolerate auth failure (fork PRs lack package:write); the benchmark
         # then falls back to :latest.
         continue-on-error: ${{ github.event_name == 'pull_request' }}
+        env:
+          # On `pull_request`, ``github.sha`` is the GH-generated merge
+          # commit, not the PR HEAD. The benchmark workflow polls for the
+          # PR HEAD's SHA, so push under that to keep the two in sync.
+          IMAGE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
           IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
@@ -193,9 +198,9 @@ jobs:
           GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
 
           # Always tag and push :<sha>
-          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${{ github.sha }}"
-          docker push "${GHCR_BASE}:${{ github.sha }}"
-          echo "Pushed ${GHCR_BASE}:${{ github.sha }}"
+          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${IMAGE_SHA}"
+          docker push "${GHCR_BASE}:${IMAGE_SHA}"
+          echo "Pushed ${GHCR_BASE}:${IMAGE_SHA}"
 
           # :latest tracks main only.
           IS_MAIN_PUSH='${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}'
