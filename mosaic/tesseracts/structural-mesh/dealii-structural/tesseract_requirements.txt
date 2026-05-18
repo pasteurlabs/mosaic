@@ -1,2 +1,2 @@
-numpy
-pydantic
+numpy==1.26.4
+pydantic==2.13.4

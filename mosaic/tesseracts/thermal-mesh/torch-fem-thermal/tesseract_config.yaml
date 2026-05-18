@@ -6,9 +6,9 @@ description: >
   solve; GPU-native.
 build_config:
   package_data: []
-  # CUDA 12.1 runtime image is enough (no nvcc needed, pure-pip deps).
-  # CUDA 12.1 requires driver >= 525.60; host driver is compatible.
-  base_image: "nvidia/cuda:12.1.1-runtime-ubuntu22.04"
+  # No CUDA base image needed: the cu121 torch wheel installs its own CUDA
+  # runtime via nvidia-* pip packages. The GPU driver is injected at runtime
+  # by nvidia-container-toolkit on the host.
   custom_build_steps:
     - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
     - "ENV LD_LIBRARY_PATH=/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"

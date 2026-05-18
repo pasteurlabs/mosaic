@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
@@ -39,6 +40,7 @@ def main() -> None:
     )
 
     seen: set[str] = set()
+    failed: list[str] = []
     for p in problem_list:
         try:
             cfg = get_config(p)
@@ -64,7 +66,16 @@ def main() -> None:
                 subprocess.run(["docker", "tag", remote, tag])
                 print(f"  Tagged as {tag}")
             else:
-                print(f"  WARN: {remote} not found in registry")
+                print(f"  FAIL: {remote} not found in registry")
+                failed.append(remote)
+
+    if failed:
+        print(f"\n{len(failed)} image(s) failed to pull:", file=sys.stderr)
+        for f in failed:
+            print(f"  - {f}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\nPulled {len(seen)} image(s) successfully")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-exponax
-jax[cuda12]>=0.4.13
-equinox
+exponax==0.2.0
+jax[cuda12-local]==0.10.0
+equinox==0.13.8
 ../../tesseract_shared

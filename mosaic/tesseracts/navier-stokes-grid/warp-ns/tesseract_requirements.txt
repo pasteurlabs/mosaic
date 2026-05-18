@@ -1,2 +1,2 @@
-numpy
-warp-lang>=1.0.0
+numpy==2.4.4
+warp-lang==1.13.0

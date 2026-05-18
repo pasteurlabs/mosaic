@@ -1,5 +1,5 @@
 numpy==1.26.4
 jax-cfd==0.2.1
-jax[cuda12]==0.6.0
-equinox
+jax[cuda12-local]==0.6.0
+equinox==0.13.8
 ../../tesseract_shared

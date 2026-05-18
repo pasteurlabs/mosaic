@@ -46,7 +46,7 @@ jobs:
         run: uv run pytest
 
       - name: Validate all problem configs
-        run: uv run python -c "from mosaic.benchmarks.problems import PROBLEMS, get_config; [get_config(p).validate() for p in PROBLEMS]; print(f'Validated {len(PROBLEMS)} problem configs')"
+        run: uv run python .github/scripts/validate-problem-configs.py
 
   validate-tesseracts:
     name: Validate tesseract configs
@@ -66,57 +66,26 @@ jobs:
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Validate all tesseract_config.yaml files
+        run: uv run python .github/scripts/validate-tesseract-configs.py
+
+  # ── Merge gate ─────────────────────────────────────────────────────────
+  all-ok:
+    name: All checks passed
+    if: always()
+    needs: [lint, test, validate-tesseracts]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide status
         run: |
-          uv run python - <<'PYEOF'
-          import sys, yaml
-          from pathlib import Path
+          # Fail if any dependency was not successful.
+          # "result" is one of: success, failure, cancelled, skipped.
+          echo "lint: ${{ needs.lint.result }}"
+          echo "test: ${{ needs.test.result }}"
+          echo "validate-tesseracts: ${{ needs.validate-tesseracts.result }}"
 
-          errors = []
-          configs = sorted(Path("mosaic/tesseracts").rglob("tesseract_config.yaml"))
-          if not configs:
-              print("ERROR: no tesseract_config.yaml files found")
-              sys.exit(1)
-
-          for p in configs:
-              try:
-                  with open(p) as f:
-                      doc = yaml.safe_load(f)
-                  if not isinstance(doc, dict):
-                      errors.append(f"{p}: not a YAML mapping")
-                      continue
-                  if "name" not in doc:
-                      errors.append(f"{p}: missing 'name' field")
-                  metadata = doc.get("metadata")
-                  if not isinstance(metadata, dict):
-                      errors.append(f"{p}: missing 'metadata' block")
-                      continue
-                  mosaic_meta = metadata.get("mosaic")
-                  if not isinstance(mosaic_meta, dict):
-                      errors.append(f"{p}: missing 'metadata.mosaic' block")
-                      continue
-                  if not mosaic_meta.get("name"):
-                      errors.append(f"{p}: mosaic.name is required")
-                  if not mosaic_meta.get("backend"):
-                      errors.append(f"{p}: mosaic.backend is required")
-                  ad = mosaic_meta.get("ad_strategy")
-                  if ad is not None and ad not in ("autodiff", "adjoint", "hybrid", "null"):
-                      errors.append(f"{p}: mosaic.ad_strategy={ad!r} not in (autodiff, adjoint, hybrid, null)")
-                  color = mosaic_meta.get("color")
-                  if color is not None:
-                      import re as _re
-                      if not _re.match(r'^#[0-9a-fA-F]{6}$', color):
-                          errors.append(f"{p}: mosaic.color={color!r} is not valid hex (#RRGGBB)")
-                  for bool_field in ("uses_gpu", "differentiable"):
-                      val = mosaic_meta.get(bool_field)
-                      if val is not None and not isinstance(val, bool):
-                          errors.append(f"{p}: mosaic.{bool_field}={val!r} must be a boolean")
-              except Exception as e:
-                  errors.append(f"{p}: {e}")
-
-          print(f"Checked {len(configs)} tesseract configs")
-          if errors:
-              for e in errors:
-                  print(f"  ERROR: {e}", file=sys.stderr)
-              sys.exit(1)
-          print("All valid.")
-          PYEOF
+          if [[ "${{ needs.lint.result }}" != "success" \
+             || "${{ needs.test.result }}" != "success" \
+             || "${{ needs.validate-tesseracts.result }}" != "success" ]]; then
+            echo "::error::One or more required checks did not succeed."
+            exit 1
+          fi
