@@ -9,6 +9,7 @@ import queue
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import jax
@@ -407,6 +408,7 @@ def per_solver_loop(
     print_done: bool = True,
     catch: bool = False,
     catch_label: str = "work failed",
+    on_error: Callable[[str, Exception], None] | None = None,
 ) -> dict[str, float]:
     """Run ``work_one(name, t)`` for each solver, returning ``{name: wall_seconds}``.
 
@@ -439,13 +441,15 @@ def per_solver_loop(
             console.print(
                 f"  [{color}]{name}[/] [yellow]SKIP ({catch_label}: {exc})[/]"
             )
+            if on_error is not None:
+                on_error(name, exc)
             return
         elapsed = time.perf_counter() - t0
         wall_times[name] = elapsed
         if print_done:
             console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
-    run_with_gpu_pool(solver_names, tags, _wrapper, gpu_ids=gpu_ids)
+    run_with_gpu_pool(solver_names, tags, _wrapper, gpu_ids=gpu_ids, on_error=on_error)
     return wall_times
 
 
@@ -549,6 +553,7 @@ def run_with_gpu_pool(
     tags: dict[str, str],
     fn,
     gpu_ids: list[str] | None = None,
+    on_error: Callable[[str, Exception], None] | None = None,
 ) -> None:
     """Open one Tesseract per solver and call fn(name, t).
 
@@ -560,6 +565,11 @@ def run_with_gpu_pool(
 
     Solvers whose image tag is missing from *tags* (e.g. because the build
     failed) are skipped with a warning.
+
+    on_error(name, exc) is invoked when opening the Tesseract container or
+    running fn(name, t) raises. Lets callers record the failure so the status
+    classifier can mark the solver as FAILED rather than NOT_RUN (which would
+    silently hide a broken container).
     """
     # --no-healthcheck prevents Azure's c3-progenitor from killing containers
     # that are mid-computation when the health probe fires (~4 s interval).
@@ -606,6 +616,8 @@ def run_with_gpu_pool(
                     fn(name, t)
             except Exception as exc:
                 print_warn(f"{name} failed: {exc}")
+                if on_error is not None:
+                    on_error(name, exc)
         return
 
     # If gpu_ids=[] was handled above (cpu-only), we never reach here.
@@ -623,6 +635,8 @@ def run_with_gpu_pool(
                 fn(name, t)
         except Exception as exc:
             print_warn(f"{name} failed: {exc}")
+            if on_error is not None:
+                on_error(name, exc)
         finally:
             gpu_q.put(gid)
 
