@@ -80,6 +80,12 @@ build_config:
     # --threads=os.cpu_count() which OOMs on memory-constrained CI runners.
     - "RUN sed -i 's/os.cpu_count()/1/g' /opt/pict/extensions/setup.py"
     - "RUN cd /opt/pict/extensions && MAX_JOBS=2 pip install . --no-build-isolation --no-deps"
+    # PISOtorch_simulation.py / PISOtorch_diff.py / lib/ live at the PICT repo
+    # root and aren't pip-installable. Drop a .pth file into site-packages so
+    # they're on sys.path for every Python invocation.
+    - |
+      RUN PY_SITE=$(python -c "import site; print(site.getsitepackages()[0])") \
+        && echo /opt/pict > "${PY_SITE}/pict.pth"
 
 metadata:
   mosaic:
