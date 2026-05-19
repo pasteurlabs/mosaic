@@ -39,9 +39,9 @@ from pathlib import Path
 from unittest import mock
 
 from mosaic.benchmarks.core import status as status_mod
-from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.config import Problem, SolverSpec
+from mosaic.benchmarks.core.io import save_experiment
 from mosaic.benchmarks.core.status import OK, collect_status
-from mosaic.benchmarks.core.utils import save_experiment
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,8 +73,8 @@ def _make_cfg(
     solver_name: str,
     solver_subdir: str,
     problem_name: str = "test_problem",
-) -> ProblemConfig:
-    """Minimal ProblemConfig sufficient for status walking."""
+) -> Problem:
+    """Minimal Problem sufficient for status walking."""
     spec = SolverSpec(
         dir=solver_subdir,
         color="#000000",
@@ -82,15 +82,14 @@ def _make_cfg(
         scheme="test",
         backend="python",
     )
-    return ProblemConfig(
+    return Problem(
         name=problem_name,
         tesseract_dir=tesseract_dir,
         output_key="result",
-        solvers={solver_name: spec},
+        solvers=[spec],
         make_ic={},
         make_inputs=lambda *a, **k: {},
         error_fn=lambda *a, **k: 0.0,
-        diagnostics={},
     )
 
 
@@ -153,7 +152,7 @@ class HarnessRoundtripTests(_StalenessRoundtripBase):
 
     def _write_fn(self, src: str):
         mod = _make_module(self.mod_root, self.modname, src)
-        return getattr(mod, "run_baseline")
+        return mod.run_baseline
 
     def _save_once(self, fn) -> None:
         result = {

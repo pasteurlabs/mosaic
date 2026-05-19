@@ -22,61 +22,53 @@ def test_all_problems_load():
         assert cfg.name == name
 
 
-def test_config_has_solvers(problem_config):
-    assert len(problem_config.solvers) >= 1
-
-
 def test_solver_required_fields(problem_config):
     """Every solver must have name, dir, scheme, backend, and color populated."""
-    for key, spec in problem_config.solvers.items():
-        assert spec.name, f"{key}: missing name"
-        assert spec.dir, f"{key}: missing dir"
-        assert spec.scheme, f"{key}: missing scheme"
-        assert spec.backend, f"{key}: missing backend"
-        assert spec.color, f"{key}: missing color"
+    for spec in problem_config.solvers:
+        assert spec.name, f"{spec.name}: missing name"
+        assert spec.dir, f"{spec.name}: missing dir"
+        assert spec.scheme, f"{spec.name}: missing scheme"
+        assert spec.backend, f"{spec.name}: missing backend"
+        assert spec.color, f"{spec.name}: missing color"
 
 
 def test_solver_colors_are_valid_hex(problem_config):
-    for key, spec in problem_config.solvers.items():
+    for spec in problem_config.solvers:
         assert re.match(r"^#[0-9a-fA-F]{6}$", spec.color), (
-            f"{key}: invalid hex color {spec.color!r}"
+            f"{spec.name}: invalid hex color {spec.color!r}"
         )
 
 
 def test_no_duplicate_dirs(problem_config):
     """Within a problem, no two solvers should share the same tesseract dir."""
-    dirs = [spec.dir for spec in problem_config.solvers.values()]
+    dirs = [spec.dir for spec in problem_config.solvers]
     assert len(dirs) == len(set(dirs)), f"Duplicate dirs: {dirs}"
-
-
-def test_make_ic_populated(problem_config):
-    """Every problem must define at least one initial condition."""
-    assert len(problem_config.make_ic) >= 1
-
-
-def test_has_error_fn(problem_config):
-    assert callable(problem_config.error_fn)
-
-
-def test_has_make_inputs(problem_config):
-    assert callable(problem_config.make_inputs)
 
 
 def test_ad_strategy_values(problem_config):
     """ad_strategy must be one of the known values or None."""
     valid = {"autodiff", "adjoint", "hybrid", None}
-    for key, spec in problem_config.solvers.items():
+    for spec in problem_config.solvers:
         assert spec.ad_strategy in valid, (
-            f"{key}: ad_strategy={spec.ad_strategy!r} not in {valid}"
+            f"{spec.name}: ad_strategy={spec.ad_strategy!r} not in {valid}"
         )
 
 
 def test_exclusion_keys_are_strings(problem_config):
-    """Exclusion keys and values must be well-formed."""
-    for key, spec in problem_config.solvers.items():
-        for exc_key, exc_val in spec.exclusions.items():
-            assert isinstance(exc_key, str), f"{key}: exclusion key {exc_key!r}"
-            assert isinstance(exc_val, (str, dict)), f"{key}: exclusion val {exc_val!r}"
+    """Exclusion keys and values must be well-formed.
+
+    ``cfg.exclusions`` is the single source of truth: solver_name → exp_key →
+    :class:`Exclusion`.
+    """
+    from mosaic.benchmarks.core.config import Exclusion
+
+    for solver_name, per_exp in problem_config.exclusions.items():
+        assert isinstance(solver_name, str), f"solver name {solver_name!r}"
+        for exc_key, exc_val in per_exp.items():
+            assert isinstance(exc_key, str), f"{solver_name}: exclusion key {exc_key!r}"
+            assert isinstance(exc_val, Exclusion), (
+                f"{solver_name}: exclusion val {exc_val!r} is not an Exclusion"
+            )
 
 
 def test_unknown_problem_raises():

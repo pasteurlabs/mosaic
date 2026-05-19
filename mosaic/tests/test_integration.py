@@ -59,7 +59,11 @@ def test_vjp_returns_finite_gradient(built_solver):
 
         result = np.asarray(out["result"])
         cotangent = {"result": np.ones_like(result)}
-        grad = t.vector_jacobian_product({}, cotangent)
+        # tesseract_core's VJP endpoint takes ``(inputs, vjp_inputs,
+        # vjp_outputs, cotangent_vector)`` — the two ``vjp_*`` lists pick
+        # which input/output pair the gradient is computed against. Lists
+        # rather than sets because the SDK serialises them over JSON.
+        grad = t.vector_jacobian_product({}, ["v0"], ["result"], cotangent)
         assert "v0" in grad, f"Missing 'v0' gradient. Got: {list(grad.keys())}"
         g = np.asarray(grad["v0"])
         assert g.size > 0, "gradient is empty"

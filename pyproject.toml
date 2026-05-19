@@ -20,6 +20,9 @@ dependencies = [
     "tesseract-jax",
     "psutil",
     "pyyaml",
+    "filelock>=3",
+    "nvidia-ml-py",
+    "docker>=6",
 ]
 
 [project.optional-dependencies]
@@ -27,27 +30,35 @@ dev = [
     "pytest",
     "ruff",
     "pre-commit",
-    "mosaic-shared",
+    "tesseract-shared",
 ]
 
 [project.scripts]
 mosaic = "mosaic.benchmarks.cli:app"
 
 [tool.uv.workspace]
-members = ["mosaic/mosaic_shared"]
+members = ["mosaic/tesseracts/tesseract_shared"]
 
 [tool.uv.sources]
-mosaic-shared = { workspace = true }
+tesseract-shared = { workspace = true }
 
 [tool.setuptools.packages.find]
-where = ["."]
+# Two discovery roots:
+#   "."                      → the mosaic.* tree (CLI, harness, problem packages)
+#   "mosaic/tesseracts"      → exposes mosaic/tesseracts/tesseract_shared/ as the
+#                              top-level ``tesseract_shared`` package. ``uv`` already
+#                              wires this via [tool.uv.sources]; this entry makes
+#                              plain ``pip install -e .`` install it too.
+where = [".", "mosaic/tesseracts"]
+include = ["mosaic*", "tesseract_shared*"]
 exclude = ["tests*", "docs*"]
 
 [tool.pytest.ini_options]
 testpaths = ["mosaic/tests"]
-addopts = "-v --tb=short -m 'not integration'"
+addopts = "-v --tb=short -m 'not integration and not slow'"
 markers = [
     "integration: requires Docker and a built Tesseract container (deselected by default)",
+    "slow: builds the full dummy-result corpus (every experiment runs once); deselected by default. Run with `pytest -m slow` for the plot/paper-plot tests.",
 ]
 
 [tool.ruff]
@@ -55,15 +66,67 @@ line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+preview = true
+explicit-preview-rules = true  # only opt into preview rules we name explicitly
+select = [
+    "E", "F", "I", "UP", "B", "SIM", "RUF", "C4",
+    # complexity / nesting (tesseracts exempted via per-file-ignores below):
+    "C901",    # mccabe cyclomatic complexity (default >10)
+    "PLR0911", # too-many-return-statements (default >6)
+    "PLR0912", # too-many-branches (default >12)
+    "PLR0913", # too-many-arguments (default >5)
+    "PLR0915", # too-many-statements (default >50)
+    "PLR1702", # too-many-nested-blocks (default >5) — preview rule
+]
 ignore = [
     "E501",   # line too long (formatter handles this)
     "E731",   # lambda assignment — used for local type predicates in abstract_eval boilerplate
     "E741",   # ambiguous variable name — `I` is conventional for identity matrices in math code
-    "E702",   # multiple statements on one line — common in notebook plot cells
+    "B008",   # function call in default arg — common/intentional with Typer (typer.Option, typer.Argument)
+    "B023",   # function-uses-loop-variable — load-bearing invariant: closures passed to
+              # run_with_gpu_pool (mosaic/benchmarks/core/runner.py) are fully drained via
+              # `list(pool.map(...))` before the outer loop advances, so the late-binding race
+              # never materializes. If run_with_gpu_pool ever becomes truly async (no drain
+              # before return) or a closure is stashed for later use, drop this ignore and audit.
+    "SIM108", # ternary instead of if/else — frequently less readable for non-trivial branches
+    "SIM117", # combine nested with — multi-line with-stmts are often clearer separated
+    "RUF001", # ambiguous unicode in string — Greek letters (ρ, π, ∂) are intentional in math code
+    "RUF002", # ambiguous unicode in docstring — same
+    "RUF003", # ambiguous unicode in comment — same
+    "RUF012", # mutable class attrs annotated with ClassVar — too invasive for dataclass-heavy code
 ]
 
+# Complexity-rule thresholds — set lenient to flag genuinely-egregious outliers rather
+# than routine matplotlib plot helpers / benchmark orchestration. Lower over time as
+# functions get refactored. Defaults shown in comments for reference.
+[tool.ruff.lint.pylint]
+max-args = 12           # default 5
+max-branches = 25       # default 12
+max-statements = 150    # default 50
+max-returns = 12        # default 6
+max-nested-blocks = 6   # default 5
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20     # default 10
+
 [tool.ruff.lint.per-file-ignores]
+# Tesseract solvers wrap third-party FEM/CFD libraries whose APIs force long
+# parameter lists and many branches (BC types, mesh kinds, AD modes). Exempt
+# from complexity rules — they're complex by necessity, not by neglect.
+"mosaic/tesseracts/**" = [
+    "C901",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR1702",
+]
+# Grandfather list — files with current complexity violations under the thresholds
+# above. The rules act as regression gates everywhere else; drop entries here as
+# each file is refactored. Snapshot: 2026-05-11.
+"mosaic/benchmarks/suites/optimization.py"           = ["C901", "PLR0912", "PLR0913", "PLR0915", "PLR1702"]
+"mosaic/benchmarks/core/status.py"                   = ["C901", "PLR0911", "PLR0912", "PLR0915"]
+"mosaic/benchmarks/cli/run.py"                       = ["PLR0913"]
 "mosaic/tesseracts/thermal-mesh/fenics-heat/tesseract_api.py" = [
     "F403",   # star import from dolfin/dolfin_adjoint — required by FEniCS conventions
     "F405",   # may be from star import — dolfin exports are only available via star import

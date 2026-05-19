@@ -4,13 +4,13 @@ import numpy as np
 import PISOtorch
 import PISOtorch_simulation
 import torch
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import BCType, make_differentiable
+from tesseract_shared.types import BCType, make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "inflow_profile"])):
@@ -1112,7 +1112,7 @@ def _run_pict(  # mosaic:physics
                     domain, out_bounds, adv_velm, ts
                 )
 
-        def _post_step(domain, time_step, **_kw):  # noqa: ARG001
+        def _post_step(domain, time_step, **_kw):
             # Collect per-step drag after the PISO corrector has converged.
             # drag_assembler reads pressure/velocity from block boundaries which
             # are already updated at this point.
@@ -1197,7 +1197,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=False)
 
-    result_t, drag_t, domain = _run_pict(
+    result_t, drag_t, _domain = _run_pict(
         v0_tensor=v0_t,
         viscosity_val=nu_pict,
         dt_val=dt_pict,
@@ -1367,7 +1367,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
             grad_outputs=grad_outputs,
             allow_unused=True,
         )
-        for key, g in zip(grad_keys, grads):
+        for key, g in zip(grad_keys, grads, strict=False):
             if key == "v0":
                 out[key] = (
                     _pict_to_v0(g, N, ndim).cpu().numpy()

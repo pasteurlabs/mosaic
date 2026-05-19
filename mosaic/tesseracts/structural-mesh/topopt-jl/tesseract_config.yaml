@@ -1,39 +1,20 @@
 name: topopt_jl_structural_grid
 version: "0.1.0"
-description: |
-  Differentiable 3-D structural topology optimisation on an arbitrary hexahedral
-  mesh, using TopOpt.jl (Julia) + Ferrite.jl.
-
-  Solves compliance minimisation (C = F^T U, maximum stiffness) with the Solid
-  Isotropic Material with Penalisation (SIMP) model.  A direct sparse Cholesky
-  solver is used for the linear FEA system.
-
-  The gradient ∂compliance/∂ρ is the analytical SIMP adjoint:
-    dC/dρ_e = -u_e^T K_e u_e * dρ̃_e/dρ_e
-  stored in comp.grad immediately after the forward solve — no separate adjoint
-  PDE is required.
-
-  The mesh is provided as a HexMesh (8-node hexahedral C3D8 elements). Boundary
-  conditions are encoded via per-node masks matching the convention of the
-  structural-mesh/jax-fem tesseract:
-    - dirichlet_mask     : zero-displacement (clamped) nodes, by group
-    - von_neumann_mask / von_neumann_values : concentrated nodal forces, by group
-
-  Interface:
-    Inputs : rho (n_cells,), hex_mesh (HexMesh),
-             dirichlet_mask (n_nodes,), von_neumann_mask (n_nodes,),
-             von_neumann_values (n_load_groups, 3),
-             E (float), nu (float), xmin (float)
-    Outputs: compliance (scalar)
-
+description: >
+  TopOpt.jl HEX8 FEM linear-elasticity solver with SIMP penalisation, Julia + Ferrite.jl
+  backend. Gradient ∂C/∂ρ via analytical SIMP adjoint sensitivity computed alongside the
+  forward solve.
 build_config:
   custom_build_steps:
     - "ENV JULIA_PROJECT=/app/julia_env PYTHON_JULIAPKG_PROJECT=/app/julia_env JULIA_DEPOT_PATH=/app/julia_depot JULIA_CPU_TARGET=generic JULIA_EXECUTABLE=/usr/local/bin/julia"
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates libpython3.11 gcc g++ && rm -rf /var/lib/apt/lists/*"
     - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
-    - 'RUN mkdir -p /app/julia_env /app/julia_depot && JULIA_PYTHONCALL_LIB=$(find /usr/lib -name ''libpython3*.so.1.0'' 2>/dev/null | head -1) && echo "Using JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB" && JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="TopOpt", version="0.11.0"), Pkg.PackageSpec(name="Nonconvex", version="2.2.0"), Pkg.PackageSpec(name="NonconvexMMA", version="1.1.1"), Pkg.PackageSpec(name="Zygote", version="0.6.77"), Pkg.PackageSpec(name="ChainRulesCore", version="1.26.1"), Pkg.PackageSpec(name="PackageCompiler", version="2.3.0"), Pkg.PackageSpec(name="PythonCall", version="0.9.31")]); Pkg.precompile()'''
-    - 'RUN julia --project=/app/julia_env -e ''using PackageCompiler; create_sysimage(["TopOpt", "Zygote", "ChainRulesCore", "Nonconvex", "NonconvexMMA"], sysimage_path="/app/julia_sysimage.so", project="/app/julia_env", cpu_target="generic"); println("Sysimage built")'''
-    - "ENV PYTHON_JULIACALL_SYSIMAGE=/app/julia_sysimage.so"
+    # PackageCompiler.create_sysimage(...) used to bake an AOT system image
+    # but was 30-60 min on CI for this dep tree. The benchmark reuses one
+    # container across many calls, so a one-time JIT cost on first call is a
+    # net win over paying the sysimage build cost every push. Removed
+    # PackageCompiler from the package list — it's no longer imported.
+    - 'RUN mkdir -p /app/julia_env /app/julia_depot && JULIA_PYTHONCALL_LIB=$(find /usr/lib -name ''libpython3*.so.1.0'' 2>/dev/null | head -1) && echo "Using JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB" && JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="TopOpt", version="0.11.0"), Pkg.PackageSpec(name="Nonconvex", version="2.2.0"), Pkg.PackageSpec(name="NonconvexMMA", version="1.1.1"), Pkg.PackageSpec(name="Zygote", version="0.6.77"), Pkg.PackageSpec(name="ChainRulesCore", version="1.26.1"), Pkg.PackageSpec(name="PythonCall", version="0.9.31")]); Pkg.precompile()'''
     - "RUN chmod -R 777 /app"
 
 metadata:
@@ -42,12 +23,10 @@ metadata:
     backend: julia
     family: fem
     scheme: "FEM HEX8 linear elasticity (SIMP, analytical adjoint)"
-    color: "#228833"
-    linestyle: ":"
-    marker: "s"
+    discretization: FE
+    numerics: "Direct (CHOLMOD)"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
     internal_dtype: float64
-    description: "TopOpt.jl HEX8 FEM solver; analytical SIMP adjoint implemented in Julia."
     doc_url: "https://github.com/JuliaTopOpt/TopOpt.jl"
