@@ -1,6 +1,11 @@
 project:
   type: website
   output-dir: _site
+  pre-render:
+    # docs/solvers.qmd is auto-generated from each tesseract_config.yaml's
+    # metadata.mosaic block. It's gitignored, so regenerate it on every
+    # render/preview to keep navbar links live and the catalog up to date.
+    - python docs/generate.py
   render:
     - docs/index.qmd
     - docs/getting-started.qmd
@@ -9,7 +14,12 @@ project:
     - docs/solvers.qmd
     - docs/tutorial-add-solver.qmd
     - docs/tutorial-add-domain.qmd
+    - docs/contributing.qmd
     - docs/results_*.qmd
+  resources:
+    # Quarto can't resolve `{{< include ../CONTRIBUTING.md >}}` unless the
+    # source file is whitelisted as a project resource.
+    - CONTRIBUTING.md
 
 website:
   title: Mosaic
@@ -29,6 +39,8 @@ website:
         file: docs/solvers.qmd
       - text: Contributing
         menu:
+          - text: "Contributing guide"
+            file: docs/contributing.qmd
           - text: "Add a Solver (Tutorial)"
             file: docs/tutorial-add-solver.qmd
           - text: "Add a Domain (Tutorial)"

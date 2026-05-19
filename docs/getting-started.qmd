@@ -8,7 +8,7 @@ This guide walks through setting up Mosaic, running your first benchmark, and un
 
 - **Python >= 3.10**
 - **Docker** --- must be running. All solvers execute inside Docker containers.
-- **~20 GB disk space** for building all solver containers (each is 1--4 GB).
+- **Several dozen GB of disk space** for building all solver containers; individual images range from ~1 GB to ~10 GB.
 - **RAM**: 16 GB minimum; 32 GB recommended for 3D fluid problems.
 
 ### GPU support (optional)
@@ -32,8 +32,12 @@ CPU-only solvers (FEniCS, Firedrake, INS.jl, TopOpt.jl, deal.II, OpenFOAM) work 
 ```bash
 git clone https://github.com/pasteurlabs/mosaic
 cd mosaic
-pip install -e ".[dev]"
-pre-commit install   # optional: enables lint checks on commit
+
+# Pick one
+uv sync --extra dev        # uv (recommended)
+pip install -e ".[dev]"    # pip
+
+pre-commit install         # optional: enables lint checks on commit
 ```
 
 Verify the installation:
@@ -55,7 +59,7 @@ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 tesseract run exponax_navier_stokes_grid apply '{}'
 
 # Run the forward accuracy suite for just this solver
-mosaic run -p ns-3d-grid --suites forward -s exponax
+mosaic run -p ns-3d-grid --suites forward -s Exponax
 ```
 
 This builds one container (~2 min), runs a single forward simulation, and produces accuracy plots in `mosaic-results/ns-3d-grid/forward/`.
@@ -69,7 +73,7 @@ Each suite can target a specific problem and (optionally) a specific solver:
 mosaic run -p ns-grid --suites forward
 
 # Gradient quality check for a single solver (quick debug mode)
-mosaic run -p ns-grid --suites gradient -e fd_check --debug
+mosaic run -p ns-grid -e gradient/fd_check --debug
 
 # Cost scaling for structural mechanics
 mosaic run -p structural-mesh --suites cost
@@ -82,14 +86,15 @@ mosaic run -p thermal-mesh --suites optimization
 
 | Flag | Effect |
 |:-----|:-------|
-| `-s <solver>` | Run only one solver |
-| `-e <experiment>` | Run only one experiment within a suite |
-| `--ics <name>` | Use a specific initial condition (e.g. `tgv`, `multimode`) |
+| `-s <solver,…>` | Restrict to listed solvers. A flat CSV is a union set: each problem keeps only the listed solvers that exist there, problems with zero matches are skipped. Per-problem overrides via `<problem>=<csv>;…`. |
+| `-e <suite>/<exp>` | Run only one experiment within a suite |
+| `-e <suite>/<exp>/<ic>` | Pin one initial condition (e.g. `forward/agreement/tgv`) |
 | `--debug` | Small problem size for quick iteration |
 | `--no-build` | Skip container builds (use existing images) |
 | `--no-plots` | Skip plot generation |
 | `--plots-only` | Regenerate plots from existing results |
 | `--gpus 0,1,2` | Distribute solvers across multiple GPUs |
+| `--only <state[,…]>` | Re-run only cells matching one of `failed,anom,missing,stale,excluded` (skips fresh-ok). Combinable. |
 
 ## Running everything
 
@@ -99,8 +104,46 @@ mosaic run --problems ns-grid,structural-mesh        # filter problems
 mosaic run --suites forward,gradient                 # filter suites
 ```
 
+## Selecting solvers
+
+``-s`` (alias ``--solvers``) accepts two forms:
+
+```bash
+# Flat CSV — a union set applied to every problem in -p.
+# Each problem keeps only the listed solvers that exist there; problems
+# with zero matches are skipped (not silently expanded to "run all").
+mosaic run -s OpenFOAM,XLB,deal.II,JAX-FEM
+
+# Per-problem map — explicit picks per domain. Problems not listed in
+# the map pass through unchanged (all solvers).
+mosaic run -s "ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM"
+```
+
+Names must match the display form exactly (`XLB`, `OpenFOAM`, `deal.II`,
+`JAX-FEM`, …). A name not in any registered problem aborts the run with
+a "Did you mean…?" hint before any image build.
+
+## Re-running a subset by status
+
+After an initial run, ``--only`` re-executes only the cells in a given
+state, leaving fresh-ok cells untouched (the merge-aware result writer
+keeps their entries intact). Useful for iterating on a single solver or
+recovering from a partial failure without redoing everything.
+
+```bash
+mosaic run --only failed                  # re-run only failed cells
+mosaic run --only failed,stale            # plus anything stale
+mosaic run --only missing                 # first-time runs only
+mosaic run --only failed,missing,stale    # everything that isn't fresh-ok
+mosaic run -s PhiFlow --only excluded     # re-check after dropping an exclusion
+```
+
+States: `failed`, `anom`, `missing`, `stale`, `excluded`. Compose
+multiple with commas. Combinable with `-p / --suites / -e / -s` for
+finer scoping.
+
 ::: {.callout-warning}
-`mosaic run` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. Consider starting with a single problem (`mosaic run --problems thermal-mesh`) to validate your setup.
+`mosaic run` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. The container images add up to **dozens of GB** on disk. Consider starting with a single problem (`mosaic run --problems thermal-mesh`) to validate your setup before committing the time and storage.
 :::
 
 ## Understanding output
