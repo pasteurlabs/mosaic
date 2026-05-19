@@ -240,6 +240,37 @@ def _plots_only(cfg, to_run, plot_fns, suite: str, verbose_errors: bool = False)
             print_warn(f"{name}: {exc}")
 
 
+def _parse_experiments_path(
+    experiment: str,
+) -> tuple[str | None, str | None, str | None]:
+    """Split an ``--experiments`` value into (suite, exp, ic) segments.
+
+    The flag accepts up to three slash-separated segments:
+
+      * ``"all"`` → ``(None, None, None)``: run everything.
+      * ``"<suite>"`` → ``(suite, None, None)``: suite-wide (no exp filter).
+      * ``"<suite>/<exp>"`` → ``(suite, exp, None)``: pick one experiment.
+      * ``"<suite>/<exp>/<ic>"`` → ``(suite, exp, ic)``: pick one experiment
+        and filter its runs to the named IC.
+
+    The third segment is interpreted as an IC-name filter that is fed to
+    :func:`mosaic.benchmarks.core.utils.iter_runs` via the
+    ``cli_overrides["ic_names"]`` channel.
+    """
+    if experiment == "all":
+        return None, None, None
+    parts = experiment.split("/")
+    if len(parts) == 1:
+        return parts[0], None, None
+    if len(parts) == 2:
+        return parts[0], parts[1], None
+    if len(parts) == 3:
+        return parts[0], parts[1], parts[2]
+    raise ValueError(
+        f"--experiments expects at most 3 segments (suite/exp/ic); got {experiment!r}"
+    )
+
+
 @app.command()
 def run(
     problems: str = typer.Option(
@@ -248,12 +279,14 @@ def run(
     suites: str = typer.Option(
         "all", "--suites", help="Comma-separated suites or 'all'"
     ),
-    experiment: str = typer.Option(
+    experiments: str = typer.Option(
         "all",
-        "--experiment",
+        "--experiments",
         "-e",
-        help="Experiment to run within each suite (default: all). "
-        "Use 'drag_opt/re20' for sub-run filtering.",
+        help="Experiment selector (default: 'all'). Accepts up to three "
+        "slash-separated segments: '<suite>', '<suite>/<exp>', or "
+        "'<suite>/<exp>/<ic>'. The third segment, when present, filters the "
+        "experiment's runs to the named initial condition.",
     ),
     no_plots: bool = typer.Option(False, "--no-plots", help="Skip plot generation"),
     plots_only: bool = typer.Option(
@@ -292,12 +325,6 @@ def run(
         "--hardware",
         help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
-    ics: str | None = typer.Option(
-        None,
-        "--ics",
-        help="Comma-separated IC names to run (default: use config default). "
-        "Results land in {experiment}/{ic_name}/ when multiple ICs are given.",
-    ),
     output_dir: Path | None = typer.Option(
         None,
         "--output-dir",
@@ -324,9 +351,9 @@ def run(
     Examples::
 
         mosaic run -p ns-grid --suites forward
-        mosaic run -p ns-grid --suites gradient -e fd_check
+        mosaic run -p ns-grid -e gradient/fd_check
         mosaic run --plots-only
-        mosaic run -p ns-grid --suites optimization -e drag_opt/re20
+        mosaic run -p ns-grid -e forward/agreement/tgv
         mosaic run -o /tmp/bench-results -p ns-grid --suites forward
 
     Summary table legend:
@@ -342,9 +369,23 @@ def run(
     problem_list = (
         PROBLEMS if problems == "all" else [p.strip() for p in problems.split(",")]
     )
-    suite_list = (
-        _ALL_SUITES if suites == "all" else [s.strip() for s in suites.split(",")]
-    )
+
+    # Parse the unified --experiments selector. When suite/exp segments are
+    # present they implicitly narrow --suites and pin the experiment within
+    # each suite; the third segment, if present, populates ic_names below.
+    try:
+        suite_seg, exp_seg, _ = _parse_experiments_path(experiments)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    if suite_seg is not None:
+        # --experiments takes precedence over --suites for suite selection.
+        suite_list = [suite_seg]
+    else:
+        suite_list = (
+            _ALL_SUITES if suites == "all" else [s.strip() for s in suites.split(",")]
+        )
 
     # Validate suite names early — before any builds start.
     unknown_suites = [s for s in suite_list if s not in SUITE_REGISTRY]
@@ -358,7 +399,7 @@ def run(
         console.print(f"Available suites: {', '.join(_ALL_SUITES)}")
         raise typer.Exit(1)
 
-    to_run = None if experiment == "all" else [experiment]
+    to_run = [exp_seg] if exp_seg is not None else None
 
     # status[(problem, suite)] = ("ok" | "partial" | "skip" | "error", detail)
     run_status: dict[tuple[str, str], tuple[str, str]] = {}
@@ -416,22 +457,12 @@ def run(
                     _overrides["gpu_ids"] = []
                 elif gpus:
                     _overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
-                if ics:
-                    requested = [s.strip() for s in ics.split(",") if s.strip()]
-                    unknown = [ic for ic in requested if ic not in cfg.make_ic]
-                    if unknown:
-                        print_warn(
-                            f"unknown IC(s): {', '.join(sorted(unknown))} — skipping"
-                        )
-                    valid = [ic for ic in requested if ic in cfg.make_ic]
-                    if valid:
-                        _overrides["ic_names"] = valid
-                # Sub-run path filtering (e.g. "drag_opt/re20").
-                if experiment != "all" and "/" in experiment:
-                    _parts = experiment.split("/", 1)
-                    _top, _sub = _parts[0], _parts[1]
-                    if _top in exps and experiment in exps:
-                        _overrides["run_names"] = [_sub]
+                _, _, ic_segment = _parse_experiments_path(experiments)
+                if ic_segment:
+                    if ic_segment not in cfg.make_ic:
+                        print_warn(f"unknown IC(s): {ic_segment} — skipping")
+                    else:
+                        _overrides["ic_names"] = [ic_segment]
                 results = run_suite(
                     cfg,
                     tags,
