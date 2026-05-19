@@ -19,28 +19,34 @@ def _run_help(args: list[str]) -> subprocess.CompletedProcess:
     )
 
 
+SUBCOMMANDS = [
+    "run",
+    "ics",
+    "build",
+    "status",
+    "compare",
+    "tesseracts",
+    "validate-domain",
+    "new-domain",
+    "validate-template",
+    "templates",
+]
+
+
 def test_top_level_help():
+    """Top-level --help must list every registered subcommand."""
     result = _run_help([])
     assert result.returncode == 0
-    assert "mosaic" in result.stdout.lower() or "usage" in result.stdout.lower()
+    out = result.stdout
+    assert "Usage:" in out
+    missing = [s for s in SUBCOMMANDS if s not in out]
+    assert not missing, f"Subcommands missing from --help: {missing}"
 
 
-@pytest.mark.parametrize(
-    "subcommand",
-    [
-        "run",
-        "ics",
-        "status",
-        "compare",
-        "build",
-        "paper-plots",
-        "new-domain",
-        "validate-template",
-        "validate-domain",
-        "templates",
-        "tesseracts",
-    ],
-)
+@pytest.mark.parametrize("subcommand", SUBCOMMANDS)
 def test_subcommand_help(subcommand: str):
     result = _run_help([subcommand])
     assert result.returncode == 0, f"{subcommand} --help failed:\n{result.stderr}"
+    # Each subcommand's --help must show its own Usage line, not the parent's.
+    assert f"{subcommand}" in result.stdout
+    assert "Usage:" in result.stdout

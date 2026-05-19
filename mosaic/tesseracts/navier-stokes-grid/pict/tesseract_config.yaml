@@ -1,44 +1,9 @@
 name: pict_navier_stokes_grid
 version: "0.1.0"
-description: |
-  Differentiable 2D incompressible Navier-Stokes solver using PICT
-  (Physics-Informed Continuous-Time) from TU Munich's Physics-Based
-  Simulation group, backed by custom CUDA kernels wrapped with PyTorch autograd.
-
-  PICT implements a validated 2nd-order PISO (Pressure-Implicit with Splitting
-  of Operators) algorithm on structured multi-block Cartesian grids.  The
-  solver is fully differentiable: running with differentiable=True switches the
-  backend to PISOtorch_diff, which preserves the PyTorch computational graph
-  through every advection step, pressure solve, and velocity-correction step,
-  enabling backpropagation through the entire time loop via torch.autograd.
-
-  Domain setup: a single N×N block with uniform Cartesian mesh is created.
-  All four faces are left at their default boundary condition, which in PICT
-  is periodic — matching the canonical InputSchema requirement that
-  boundary_conditions be fully periodic.
-
-  Physical ↔ solver mapping:
-    The block is created with CreateBlockWithSize(N, N) so each cell has
-    unit lattice size 1.  A uniform vertex-coordinate grid is constructed
-    to represent the physical domain_extent×domain_extent square, scaling
-    the cell size to dx = domain_extent / N.  Velocities are set directly
-    via block.setVelocity() and extracted via block.velocity.
-
-  VJP flows through torch.autograd backprop across the differentiable PISO
-  time loop.  PISOtorch_diff tracks VELOCITY, BOUNDARY_VELOCITY, and
-  VISCOSITY gradient chains, so v0 and inflow_profile receive non-zero grads
-  when passed as live torch leaves.  viscosity and dt are consumed as Python
-  scalars and their grads remain zero.  After each
-  backward pass opt_domain.Detach() is called to break the cyclic reference
-  that would otherwise cause a memory leak.
-
-  Requirements: CUDA-capable GPU (PICT is GPU-only; the PISOtorch C++
-  extension targets CUDA).
-
-  Interface:
-    Input:  v0 (N, N, 1, 2) — initial velocity field in physical units
-    Output: result — same shape — final velocity in physical units
-
+description: >
+  GPU-accelerated differentiable PISO solver built on PyTorch with custom CUDA kernels
+  (PISOtorch). VJP w.r.t. v0 and inflow_profile through the time loop via torch.autograd;
+  viscosity and dt are static scalars without gradients.
 build_config:
   package_data: []
   target_platform: "linux/amd64"
@@ -80,6 +45,12 @@ build_config:
     # --threads=os.cpu_count() which OOMs on memory-constrained CI runners.
     - "RUN sed -i 's/os.cpu_count()/1/g' /opt/pict/extensions/setup.py"
     - "RUN cd /opt/pict/extensions && MAX_JOBS=2 pip install . --no-build-isolation --no-deps"
+    # PISOtorch_simulation.py / PISOtorch_diff.py / lib/ live at the PICT repo
+    # root and aren't pip-installable. Drop a .pth file into site-packages so
+    # they're on sys.path for every Python invocation.
+    - |
+      RUN PY_SITE=$(python -c "import site; print(site.getsitepackages()[0])") \
+        && echo /opt/pict > "${PY_SITE}/pict.pth"
 
 metadata:
   mosaic:
@@ -87,17 +58,10 @@ metadata:
     backend: pytorch
     family: projection
     scheme: "PISO (2nd-order)"
-    color: "#AA44AA"
-    linestyle: "(0, (5, 1))"
-    marker: "v"
+    discretization: FV
+    numerics: "PISO, BDF1"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
     internal_dtype: float32
-    description: >
-      PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch
-      autograd. VJP w.r.t. v0 is fully supported through the differentiable PISO
-      time loop. Gradients w.r.t. viscosity and dt are not available: those
-      parameters are consumed as Python scalars at domain construction / timestep
-      time and have no autograd path; zero gradients are returned for them.
     doc_url: "https://github.com/tum-pbs/PICT"

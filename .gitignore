@@ -50,3 +50,5 @@ mosaic-results/
 .env
 .claude/
 uv.lock
+
+/.quarto/

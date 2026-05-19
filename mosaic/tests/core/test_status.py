@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import unittest
 
+from mosaic.benchmarks.core.config import ExclusionCategory
 from mosaic.benchmarks.core.status import (
     ANOMALY,
-    EXCL_CATEGORICAL,
-    EXCL_INFEASIBLE,
     EXCLUDED,
     FAILED,
     NOT_RUN,
@@ -37,6 +36,11 @@ from mosaic.benchmarks.core.status import (
     weight_color,
     weight_emoji,
 )
+
+# Shorthand: Cell.category stores the raw string value of an ExclusionCategory
+# enum member, so tests can reference categories via the enum members.
+EXCL_CATEGORICAL = ExclusionCategory.CATEGORICAL.value
+EXCL_INFEASIBLE = ExclusionCategory.INFEASIBLE.value
 
 
 def _status_from_cells(cells_by_solver: dict[str, Cell]) -> ProblemStatus:
@@ -157,7 +161,7 @@ class TestCategoricalExclusions(unittest.TestCase):
     def test_categorical_excluded_from_denominator(self) -> None:
         """A categorical-excluded cell doesn't shift the score."""
         base = [Cell(OK), Cell(OK), Cell(FAILED)]
-        with_cat = base + [Cell(EXCLUDED, category=EXCL_CATEGORICAL)]
+        with_cat = [*base, Cell(EXCLUDED, category=EXCL_CATEGORICAL)]
         s_base, n_base = compute_score(base)
         s_with, n_with = compute_score(with_cat)
         self.assertAlmostEqual(s_base, s_with)
@@ -170,7 +174,7 @@ class TestCategoricalExclusions(unittest.TestCase):
         the score down.
         """
         base = [Cell(OK), Cell(OK), Cell(OK)]
-        with_slow = base + [Cell(EXCLUDED, category=EXCL_INFEASIBLE)]
+        with_slow = [*base, Cell(EXCLUDED, category=EXCL_INFEASIBLE)]
         s_base, n_base = compute_score(base)
         s_with, n_with = compute_score(with_slow)
         self.assertEqual(n_with, n_base + 1)
