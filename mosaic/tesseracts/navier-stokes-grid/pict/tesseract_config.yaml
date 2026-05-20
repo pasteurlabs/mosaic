@@ -81,11 +81,16 @@ build_config:
     - "RUN sed -i 's/os.cpu_count()/1/g' /opt/pict/extensions/setup.py"
     - "RUN cd /opt/pict/extensions && MAX_JOBS=2 pip install . --no-build-isolation --no-deps"
     # PISOtorch_simulation.py / PISOtorch_diff.py / lib/ live at the PICT repo
-    # root and aren't pip-installable. Drop a .pth file into site-packages so
-    # they're on sys.path for every Python invocation.
+    # root and aren't pip-installable. Drop a .pth file into the tesseract
+    # runtime's site-packages so they're on sys.path at container start.
+    # Target /python-env explicitly — ``python -c "import site"`` on PATH at
+    # build time may resolve to a different interpreter (uv-managed / system),
+    # which would land the .pth in a site-packages that the runtime never sees.
     - |
-      RUN PY_SITE=$(python -c "import site; print(site.getsitepackages()[0])") \
-        && echo /opt/pict > "${PY_SITE}/pict.pth"
+      RUN PY_SITE=$(ls -d /python-env/lib/python*/site-packages | head -n1) \
+        && echo /opt/pict > "${PY_SITE}/pict.pth" \
+        && echo "Wrote pict.pth to ${PY_SITE}" \
+        && ls -la /opt/pict/PISOtorch_simulation.py
 
 metadata:
   mosaic:
