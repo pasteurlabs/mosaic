@@ -209,18 +209,30 @@ def _run_lbfgs(
     x = init_x
     losses: list[float] = []
     grad_norms: list[float] = []
-    value_and_grad = optax.value_and_grad_from_state(loss_fn)
-    for i in range(max_iters):
-        value, grad = value_and_grad(x, state=opt_state)
-        if grad_proj_fn is not None:
-            grad = grad_proj_fn(grad)
-        grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
+
+    # JIT the LBFGS update so optax's zoom linesearch is traced once per
+    # (x.shape, dtype) instead of per-iter (see #15 for the retrace storm).
+    # Split from value_and_grad so grad_proj_fn (the Helmholtz projection)
+    # can still run between them.
+    vg = jax.jit(jax.value_and_grad(loss_fn))
+
+    def _update_from_grad(x, opt_state, value, grad):
         updates, opt_state = solver.update(
             grad, opt_state, x, value=value, grad=grad, value_fn=loss_fn
         )
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:
             x = clip_fn(x)
+        return x, opt_state
+
+    update_step = jax.jit(_update_from_grad)
+
+    for i in range(max_iters):
+        value, grad = vg(x)
+        if grad_proj_fn is not None:
+            grad = grad_proj_fn(grad)
+        grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
+        x, opt_state = update_step(x, opt_state, value, grad)
         loss_val = float(value)
         losses.append(loss_val)
         if snap_interval > 0 and (i + 1) % snap_interval == 0:
