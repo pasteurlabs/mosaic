@@ -207,21 +207,10 @@ def _run_lbfgs(
     losses: list[float] = []
     grad_norms: list[float] = []
 
-    # Wrap the L-BFGS update + linesearch in a single jit. This is
-    # critical: the default linesearch (``scale_by_zoom_linesearch``)
-    # builds a fresh ``functools.partial`` body for its
-    # ``jax.lax.while_loop`` every call, and the while_loop trace cache
-    # keys off body identity. Driving the loop in Python therefore
-    # re-traces the linesearch every iter, accumulating compiled XLA
-    # modules until the host runs out of memory. JIT-ing the step gives
-    # the linesearch a stable identity inside one cached trace —
-    # recompilation happens once per (x.shape, dtype). We split the step
-    # in two so the host-side ``grad_proj_fn`` (numpy in/out, used by the
-    # Helmholtz divergence-free projection) can still run between the
-    # forward+grad and the LBFGS update. We drop
-    # ``optax.value_and_grad_from_state`` (which reuses the value
-    # computed inside the line search to save one forward pass per iter);
-    # the jit-cache speedup dominates by >10× on retrace-heavy runs.
+    # JIT the LBFGS update so optax's zoom linesearch is traced once per
+    # (x.shape, dtype) instead of per-iter (see #15 for the retrace storm).
+    # Split from value_and_grad so the host-side grad_proj_fn (numpy in/out)
+    # can still run between them.
     vg = jax.jit(jax.value_and_grad(loss_fn))
 
     def _update_from_grad(x, opt_state, value, grad):
