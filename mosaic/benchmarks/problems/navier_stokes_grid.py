@@ -169,10 +169,11 @@ _SOLVERS: dict[str, SolverSpec] = {
         scheme="PISO (2nd-order)",
         description=(
             "PISOtorch PISO solver with CUDA kernels; differentiable via PyTorch autograd. "
-            "VJP w.r.t. v0 is fully supported through the differentiable PISO time loop. "
-            "Gradients w.r.t. viscosity and dt are not available: those parameters are "
-            "consumed as Python scalars at domain construction / timestep time and have "
-            "no autograd path; zero gradients are returned for them."
+            "VJP w.r.t. v0, inflow_profile, and viscosity flows through the differentiable "
+            "PISO time loop (PISOtorch_diff tracks VELOCITY, BOUNDARY_VELOCITY, and "
+            "VISCOSITY gradients). Gradients w.r.t. dt are not available: dt is consumed "
+            "as a Python scalar at construction time and has no autograd path; zero "
+            "gradients are returned for it."
         ),
         doc_url="https://github.com/tum-pbs/PICT",
         image_tag="pict_navier_stokes_grid:latest",
