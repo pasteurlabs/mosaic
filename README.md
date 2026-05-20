@@ -79,6 +79,14 @@ cp production.uv.lock uv.lock && uv sync --frozen
 pip install -r requirements.txt && pip install -e .
 ```
 
+> **CPU-only hosts:** long optimization runs on CPU JAX can hit XLA's LLVM JIT with `Cannot allocate memory` / `can't start new thread` errors. These come from per-process VMA / thread limits, not RAM. Bump the kernel limit and rerun:
+>
+> ```bash
+> sudo sysctl -w vm.max_map_count=1048576
+> ulimit -u 65535
+> export JAX_COMPILATION_CACHE_DIR=$HOME/.cache/jax
+> ```
+
 ### Continuous benchmarking
 
 After the initial paper release, all results are generated automatically by CI:
