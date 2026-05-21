@@ -2,9 +2,10 @@ name: Benchmark
 
 on:
   pull_request:
-    types: [labeled, synchronize]
+    types: [opened, synchronize, labeled]
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       problems:
@@ -36,6 +37,8 @@ jobs:
       problems: ${{ steps.decide.outputs.problems }}
       suites: ${{ steps.decide.outputs.suites }}
       is_main: ${{ steps.decide.outputs.is_main }}
+      is_release: ${{ steps.decide.outputs.is_release }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,6 +55,7 @@ jobs:
         name: Decide what to run
         run: |
           IS_MAIN="false"
+          IS_RELEASE="false"
           SHOULD_RUN="false"
           PROBLEMS="all"
           SUITES="all"
@@ -82,6 +86,14 @@ jobs:
             fi
           fi
 
+          # Release tag: run everything
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
+            IS_RELEASE="true"
+            SHOULD_RUN="true"
+            PROBLEMS="all"
+            SUITES="all"
+          fi
+
           # PR with 'benchmark' label
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             HAS_LABEL=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | grep -c '"benchmark"' || true)
@@ -94,8 +106,32 @@ jobs:
           echo "problems=$PROBLEMS" >> "$GITHUB_OUTPUT"
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
           echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
+          echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN"
+          echo "Plan: should_run=$SHOULD_RUN problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE"
+
+      - id: matrix
+        name: Generate (suite, problem, hardware) matrix
+        if: steps.decide.outputs.should_run == 'true'
+        run: |
+          MATRIX=$(uv run python .github/scripts/generate-benchmark-matrix.py \
+            --problems "${{ steps.decide.outputs.problems }}" \
+            --suites "${{ steps.decide.outputs.suites }}")
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "Matrix: $MATRIX"
+
+  # ── Build changed solver images → GHCR :<sha> ─────────────────────────
+  # Runs on every PR (even without the benchmark label) so that solver
+  # builds are verified as part of the merge gate.  When no tesseracts
+  # changed, detect-changes inside build-tesseracts finds nothing and
+  # the build matrix is empty — cost is one lightweight ubuntu job.
+  build:
+    name: Build solver images
+    uses: ./.github/workflows/build-tesseracts.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
 
   # ── Generate initial conditions (lightweight, no Docker) ─────────────────
   ics:
@@ -138,17 +174,15 @@ jobs:
           path: mosaic-results/
           if-no-files-found: ignore
 
-  # ── Run solver suites (matrix: suite × hardware) ────────────────────────
+  # ── Run solver suites (matrix: suite × problem × hardware) ──────────────
   run:
-    name: "${{ matrix.suite }} (${{ matrix.hardware }})"
-    needs: plan
-    if: needs.plan.outputs.should_run == 'true'
+    name: "${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})"
+    needs: [plan, build]
+    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ${{ matrix.hardware == 'gpu' && 'mosaic-bench-gpu' || 'mosaic-bench-cpu' }}
     strategy:
       fail-fast: false
-      matrix:
-        suite: [forward, cost, gradient, optimization]
-        hardware: [gpu, cpu]
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -166,35 +200,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull pre-built solver images from GHCR
+      - name: Pull solver images from GHCR
         run: |
           uv run python .github/scripts/pull-solver-images.py \
             --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
-            --problems "${{ needs.plan.outputs.problems }}" \
-            --hardware "${{ matrix.hardware }}"
+            --problems "${{ matrix.problem }}" \
+            --hardware "${{ matrix.hardware }}" \
+            --tag "${{ github.sha }}"
 
-      - name: Run ${{ matrix.suite }} (${{ matrix.hardware }})
+      - name: Run ${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})
         run: |
-          ARGS="--suites ${{ matrix.suite }} --hardware ${{ matrix.hardware }} --no-build"
-          PROBLEMS="${{ needs.plan.outputs.problems }}"
-          SUITES="${{ needs.plan.outputs.suites }}"
-
-          # If plan specified specific suites and this cell's suite isn't in the list, skip
-          if [[ "$SUITES" != "all" ]]; then
-            if ! echo ",$SUITES," | grep -q ",${{ matrix.suite }},"; then
-              echo "Suite ${{ matrix.suite }} not in requested suites ($SUITES), skipping"
-              exit 0
-            fi
-          fi
-
-          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
-          uv run mosaic run $ARGS
-        timeout-minutes: 120
+          uv run mosaic run \
+            --suites ${{ matrix.suite }} \
+            --problems ${{ matrix.problem }} \
+            --hardware ${{ matrix.hardware }} \
+            --no-build
+        timeout-minutes: ${{ needs.plan.outputs.is_release == 'true' && 180 || 120 }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: results-${{ matrix.suite }}-${{ matrix.hardware }}
+          name: results-${{ matrix.suite }}-${{ matrix.problem }}-${{ matrix.hardware }}
           path: mosaic-results/
           if-no-files-found: ignore
 
@@ -264,14 +290,26 @@ jobs:
             "${{ github.event.pull_request.number }}" \
             status-report.md
 
-      # ── Publish to results branch (main only) ─────────────────────────
+      # ── Attach to GitHub Release (release tags only) ───────────────────
+      - name: Attach results to release
+        if: needs.plan.outputs.is_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tar czf benchmark-results.tar.gz mosaic-results/ snapshot.json status-report.md
+          gh release upload "${{ github.ref_name }}" \
+            benchmark-results.tar.gz \
+            snapshot.json \
+            status-report.md \
+            --clobber
+
+      # ── Publish to results branch (main + release) ─────────────────────
       - name: Publish results to results branch
-        if: needs.plan.outputs.is_main == 'true'
+        if: needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true'
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
           SHORT_SHA="${SHA:0:8}"
-          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -288,8 +326,14 @@ jobs:
             git commit -m "Initialize results branch"
           fi
 
-          # Copy results into a timestamped directory
-          DEST="runs/${TIMESTAMP}_${SHORT_SHA}"
+          # Release tags go under releases/<tag>, main pushes under runs/<timestamp>
+          if [[ "${{ needs.plan.outputs.is_release }}" == "true" ]]; then
+            DEST="releases/${{ github.ref_name }}"
+          else
+            TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+            DEST="runs/${TIMESTAMP}_${SHORT_SHA}"
+          fi
+
           mkdir -p "$DEST"
           cp snapshot.json "$DEST/"
           cp status-report.md "$DEST/"
@@ -310,3 +354,33 @@ jobs:
           Suites: ${{ needs.plan.outputs.suites }}"
 
           git push origin "$RESULTS_BRANCH"
+
+  # ── Merge gate ─────────────────────────────────────────────────────────
+  bench-ok:
+    name: Benchmark checks passed
+    if: always()
+    needs: [plan, build, ics, run, report]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide status
+        run: |
+          # build must succeed (runs on every PR).
+          # ics, run, report may be skipped on unlabeled PRs — that's OK.
+          echo "plan: ${{ needs.plan.result }}"
+          echo "build: ${{ needs.build.result }}"
+          echo "ics: ${{ needs.ics.result }}"
+          echo "run: ${{ needs.run.result }}"
+          echo "report: ${{ needs.report.result }}"
+
+          if [[ "${{ needs.plan.result }}" != "success" \
+             || "${{ needs.build.result }}" != "success" ]]; then
+            echo "::error::Required job failed."
+            exit 1
+          fi
+
+          for result in "${{ needs.ics.result }}" "${{ needs.run.result }}" "${{ needs.report.result }}"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "::error::Benchmark job failed."
+              exit 1
+            fi
+          done

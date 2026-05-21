@@ -1,13 +1,7 @@
 name: Build Tesseracts
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "mosaic/tesseracts/**"
-  pull_request:
-    paths:
-      - "mosaic/tesseracts/**"
+  workflow_call:
   workflow_dispatch:
     inputs:
       domain:
@@ -26,7 +20,7 @@ permissions:
 
 concurrency:
   group: build-tesseracts-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   # ── Detect which solvers need building ──────────────────────────────────
@@ -120,8 +114,8 @@ jobs:
           echo "Changed solvers (${#CHANGED[@]}): ${CHANGED[*]:-none}"
           echo "Matrix: ${MATRIX_JSON}"
 
-  # ── Build and push each Tesseract solver ────────────────────────────────
-  build-and-push:
+  # ── Build each Tesseract solver ────────────────────────────────────────
+  build:
     name: "Build ${{ matrix.domain }}/${{ matrix.solver }}"
     needs: detect-changes
     if: needs.detect-changes.outputs.has_solvers == 'true'
@@ -148,7 +142,6 @@ jobs:
         run: pip install tesseract-core
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -172,25 +165,24 @@ jobs:
           SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
-      - name: Extract image name and push to GHCR
-        if: github.event_name != 'pull_request'
+      - name: Push to GHCR
         run: |
           CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
           IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
 
           echo "Tesseract image name: ${IMAGE_NAME}"
 
-          # The tesseract build produces an image named <name>:latest
           LOCAL_IMAGE="${IMAGE_NAME}:latest"
           GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
 
-          # Tag with :latest and :<sha>
-          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
+          # Always push :<sha> so benchmark can pin to this exact build
           docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${{ github.sha }}"
-
-          # Push both tags
-          docker push "${GHCR_BASE}:latest"
           docker push "${GHCR_BASE}:${{ github.sha }}"
-
-          echo "Pushed ${GHCR_BASE}:latest"
           echo "Pushed ${GHCR_BASE}:${{ github.sha }}"
+
+          # On main, also update :latest for external consumers
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
+            docker push "${GHCR_BASE}:latest"
+            echo "Pushed ${GHCR_BASE}:latest"
+          fi

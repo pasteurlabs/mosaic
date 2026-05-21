@@ -9,7 +9,8 @@ Usage (in CI):
     python .github/scripts/pull-solver-images.py \
         --registry ghcr.io/org/mosaic \
         --problems all \
-        --hardware gpu
+        --hardware gpu \
+        --tag abc123f
 """
 
 from __future__ import annotations
@@ -29,6 +30,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--hardware", required=True, choices=["gpu", "cpu"], help="Hardware target"
+    )
+    parser.add_argument(
+        "--tag",
+        default=None,
+        help="Registry tag to pull (e.g. a commit SHA). Tries this first, "
+        "falls back to 'latest' for images that weren't built at this tag.",
     )
     args = parser.parse_args()
 
@@ -55,17 +62,33 @@ def main() -> None:
             if tag in seen:
                 continue
             seen.add(tag)
-            remote = f"{registry}/{tag}"
-            print(f"Pulling {remote}")
-            r = subprocess.run(
-                ["docker", "pull", remote], capture_output=True, text=True
+
+            # Local short name is always the :latest form (what the runner expects).
+            local_tag = tag
+            image_name = tag.rsplit(":", 1)[0]
+
+            # Try --tag first (e.g. :<sha>), fall back to :latest.
+            candidates = (
+                [f"{registry}/{image_name}:{args.tag}", f"{registry}/{tag}"]
+                if args.tag
+                else [f"{registry}/{tag}"]
             )
-            if r.returncode == 0:
-                subprocess.run(["docker", "tag", remote, tag])
-                print(f"  Tagged as {tag}")
-            else:
-                print(f"  FAIL: {remote} not found in registry")
-                failed.append(remote)
+            pulled = False
+            for remote in candidates:
+                print(f"Pulling {remote}")
+                r = subprocess.run(
+                    ["docker", "pull", remote], capture_output=True, text=True
+                )
+                if r.returncode == 0:
+                    subprocess.run(["docker", "tag", remote, local_tag])
+                    print(f"  Tagged as {local_tag}")
+                    pulled = True
+                    break
+                if args.tag:
+                    print("  Not found, trying :latest fallback...")
+            if not pulled:
+                print(f"  FAIL: no image found for {image_name}")
+                failed.append(image_name)
 
     if failed:
         print(f"\n{len(failed)} image(s) failed to pull:", file=sys.stderr)
