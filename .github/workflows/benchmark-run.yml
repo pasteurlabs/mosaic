@@ -1,0 +1,116 @@
+name: Run benchmarks
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        description: 'JSON object with "include" key for (suite, problem, hardware) matrix'
+        type: string
+        required: true
+      problems:
+        description: "Comma-separated problems (or 'all') — used for IC generation"
+        type: string
+        default: "all"
+      suites:
+        description: "Comma-separated suites (or 'all') — used for IC suite filter"
+        type: string
+        default: "all"
+      image_tag:
+        description: "GHCR image tag to pull (typically a commit SHA)"
+        type: string
+        required: true
+      timeout:
+        description: "Per-job timeout in minutes"
+        type: number
+        default: 120
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # ── Generate initial conditions (lightweight, no Docker) ─────────────────
+  ics:
+    name: Generate ICs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Run ICs suite
+        run: |
+          ARGS="--suites ics"
+          PROBLEMS="${{ inputs.problems }}"
+          SUITES="${{ inputs.suites }}"
+
+          if [[ "$SUITES" != "all" ]]; then
+            if ! echo ",$SUITES," | grep -q ",ics,"; then
+              echo "Suite ics not in requested suites ($SUITES), skipping"
+              exit 0
+            fi
+          fi
+
+          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
+          uv run mosaic run $ARGS
+        timeout-minutes: 15
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-ics
+          path: mosaic-results/
+          if-no-files-found: ignore
+
+  # ── Run solver suites (matrix: suite × problem × hardware) ──────────────
+  run:
+    name: "${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})"
+    runs-on: ${{ matrix.hardware == 'gpu' && 'mosaic-bench-gpu' || 'mosaic-bench-cpu' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull solver images from GHCR
+        run: |
+          uv run python .github/scripts/pull-solver-images.py \
+            --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
+            --problems "${{ matrix.problem }}" \
+            --hardware "${{ matrix.hardware }}" \
+            --tag "${{ inputs.image_tag }}"
+
+      - name: Run ${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})
+        run: |
+          uv run mosaic run \
+            --suites ${{ matrix.suite }} \
+            --problems ${{ matrix.problem }} \
+            --hardware ${{ matrix.hardware }} \
+            --no-build
+        timeout-minutes: ${{ inputs.timeout }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-${{ matrix.suite }}-${{ matrix.problem }}-${{ matrix.hardware }}
+          path: mosaic-results/
+          if-no-files-found: ignore

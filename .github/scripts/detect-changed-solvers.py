@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Detect changed Tesseract solvers from a git diff.
+
+Reads changed file paths from stdin (one per line) and prints a JSON
+matrix of ``[{"domain": "...", "solver": "..."}]`` entries for solvers
+whose directories contain changed files.
+
+Prints ``[]`` if nothing changed.
+
+Usage (in CI):
+    git diff --name-only BASE HEAD | python .github/scripts/detect-changed-solvers.py
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+TESSERACTS_DIR = Path("mosaic/tesseracts")
+
+
+def main() -> None:
+    diff_files = [line.strip() for line in sys.stdin if line.strip()]
+    if not diff_files:
+        print("[]")
+        return
+
+    # Discover all solver dirs (any dir with tesseract_config.yaml)
+    solver_dirs: list[str] = []
+    for cfg in sorted(TESSERACTS_DIR.rglob("tesseract_config.yaml")):
+        rel = str(cfg.parent.relative_to(TESSERACTS_DIR))
+        solver_dirs.append(rel)
+
+    # Match changed files to solver directories
+    changed: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for solver_rel in solver_dirs:
+        prefix = f"mosaic/tesseracts/{solver_rel}/"
+        if any(f.startswith(prefix) for f in diff_files) and solver_rel not in seen:
+            seen.add(solver_rel)
+            parts = solver_rel.split("/", 1)
+            if len(parts) == 2:
+                changed.append({"domain": parts[0], "solver": parts[1]})
+            else:
+                # Top-level solver (no domain subdirectory)
+                changed.append({"domain": parts[0], "solver": parts[0]})
+
+    json.dump(changed, sys.stdout)
+    print()
+
+
+if __name__ == "__main__":
+    main()

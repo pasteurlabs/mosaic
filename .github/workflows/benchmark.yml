@@ -34,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
+      solvers_changed: ${{ steps.decide.outputs.solvers_changed }}
+      solver_matrix: ${{ steps.decide.outputs.solver_matrix }}
       problems: ${{ steps.decide.outputs.problems }}
       suites: ${{ steps.decide.outputs.suites }}
       is_main: ${{ steps.decide.outputs.is_main }}
@@ -59,6 +61,30 @@ jobs:
           SHOULD_RUN="false"
           PROBLEMS="all"
           SUITES="all"
+          SOLVERS_CHANGED="false"
+          SOLVER_MATRIX="[]"
+
+          # Detect changed solvers (all triggers except workflow_dispatch)
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [[ -n "${BASE_SHA:-}" && -n "${HEAD_SHA:-}" ]]; then
+            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+              BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "")"
+            fi
+            if [[ -n "$BASE_SHA" ]]; then
+              DIFF_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
+              SOLVER_MATRIX=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-solvers.py)
+              if [[ "$SOLVER_MATRIX" != "[]" ]]; then
+                SOLVERS_CHANGED="true"
+              fi
+            fi
+          fi
 
           # Manual dispatch: always run with provided inputs
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -72,13 +98,10 @@ jobs:
             IS_MAIN="true"
             SHOULD_RUN="true"
 
-            DIFF_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-
             # Use the problem registry to dynamically map changed files → problems.
             PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
 
             if [[ -z "$PROBLEMS" ]]; then
-              # No solver/harness changes — skip benchmark
               SHOULD_RUN="false"
               PROBLEMS="all"
             elif [[ "$PROBLEMS" == "all" ]]; then
@@ -103,12 +126,14 @@ jobs:
           fi
 
           echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+          echo "solvers_changed=$SOLVERS_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "solver_matrix=$SOLVER_MATRIX" >> "$GITHUB_OUTPUT"
           echo "problems=$PROBLEMS" >> "$GITHUB_OUTPUT"
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
           echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
           echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE"
+          echo "Plan: should_run=$SHOULD_RUN solvers_changed=$SOLVERS_CHANGED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE"
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
@@ -121,113 +146,39 @@ jobs:
           echo "Matrix: $MATRIX"
 
   # ── Build changed solver images → GHCR :<sha> ─────────────────────────
-  # Runs on every PR (even without the benchmark label) so that solver
-  # builds are verified as part of the merge gate.  When no tesseracts
-  # changed, detect-changes inside build-tesseracts finds nothing and
-  # the build matrix is empty — cost is one lightweight ubuntu job.
   build:
     name: Build solver images
+    needs: plan
+    if: needs.plan.outputs.should_run == 'true' && needs.plan.outputs.solvers_changed == 'true'
     uses: ./.github/workflows/build-tesseracts.yml
+    with:
+      matrix: ${{ needs.plan.outputs.solver_matrix }}
     permissions:
       contents: read
       packages: write
     secrets: inherit
 
-  # ── Generate initial conditions (lightweight, no Docker) ─────────────────
-  ics:
-    name: Generate ICs
-    needs: plan
-    if: needs.plan.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Run ICs suite
-        run: |
-          ARGS="--suites ics"
-          PROBLEMS="${{ needs.plan.outputs.problems }}"
-          SUITES="${{ needs.plan.outputs.suites }}"
-
-          # If plan specified specific suites and ics isn't in the list, skip
-          if [[ "$SUITES" != "all" ]]; then
-            if ! echo ",$SUITES," | grep -q ",ics,"; then
-              echo "Suite ics not in requested suites ($SUITES), skipping"
-              exit 0
-            fi
-          fi
-
-          if [[ "$PROBLEMS" != "all" ]]; then ARGS="$ARGS --problems $PROBLEMS"; fi
-          uv run mosaic run $ARGS
-        timeout-minutes: 15
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: results-ics
-          path: mosaic-results/
-          if-no-files-found: ignore
-
-  # ── Run solver suites (matrix: suite × problem × hardware) ──────────────
-  run:
-    name: "${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})"
+  # ── Run benchmarks (ics + solver suites) ───────────────────────────────
+  benchmarks:
+    name: Run benchmarks
     needs: [plan, build]
     if: always() && needs.plan.outputs.should_run == 'true' && !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    runs-on: ${{ matrix.hardware == 'gpu' && 'mosaic-bench-gpu' || 'mosaic-bench-cpu' }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull solver images from GHCR
-        run: |
-          uv run python .github/scripts/pull-solver-images.py \
-            --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
-            --problems "${{ matrix.problem }}" \
-            --hardware "${{ matrix.hardware }}" \
-            --tag "${{ github.sha }}"
-
-      - name: Run ${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})
-        run: |
-          uv run mosaic run \
-            --suites ${{ matrix.suite }} \
-            --problems ${{ matrix.problem }} \
-            --hardware ${{ matrix.hardware }} \
-            --no-build
-        timeout-minutes: ${{ needs.plan.outputs.is_release == 'true' && 180 || 120 }}
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: results-${{ matrix.suite }}-${{ matrix.problem }}-${{ matrix.hardware }}
-          path: mosaic-results/
-          if-no-files-found: ignore
+    uses: ./.github/workflows/benchmark-run.yml
+    with:
+      matrix: ${{ needs.plan.outputs.matrix }}
+      problems: ${{ needs.plan.outputs.problems }}
+      suites: ${{ needs.plan.outputs.suites }}
+      image_tag: ${{ github.sha }}
+      timeout: ${{ needs.plan.outputs.is_release == 'true' && 180 || 120 }}
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
 
   # ── Merge results, report, publish ─────────────────────────────────────
   report:
     name: Report & publish
-    needs: [plan, ics, run]
+    needs: [plan, benchmarks]
     if: always() && needs.plan.outputs.should_run == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -326,7 +277,6 @@ jobs:
             git commit -m "Initialize results branch"
           fi
 
-          # Release tags go under releases/<tag>, main pushes under runs/<timestamp>
           if [[ "${{ needs.plan.outputs.is_release }}" == "true" ]]; then
             DEST="releases/${{ github.ref_name }}"
           else
@@ -339,7 +289,6 @@ jobs:
           cp status-report.md "$DEST/"
           cp -r mosaic-results/* "$DEST/" 2>/dev/null || true
 
-          # Update latest with full results (consumed by docs workflow)
           rm -rf latest
           mkdir -p latest
           cp snapshot.json latest/
@@ -359,28 +308,35 @@ jobs:
   bench-ok:
     name: Benchmark checks passed
     if: always()
-    needs: [plan, build, ics, run, report]
+    needs: [plan, build, benchmarks, report]
     runs-on: ubuntu-latest
     steps:
       - name: Decide status
         run: |
-          # build must succeed (runs on every PR).
-          # ics, run, report may be skipped on unlabeled PRs — that's OK.
           echo "plan: ${{ needs.plan.result }}"
           echo "build: ${{ needs.build.result }}"
-          echo "ics: ${{ needs.ics.result }}"
-          echo "run: ${{ needs.run.result }}"
+          echo "benchmarks: ${{ needs.benchmarks.result }}"
           echo "report: ${{ needs.report.result }}"
 
-          if [[ "${{ needs.plan.result }}" != "success" \
-             || "${{ needs.build.result }}" != "success" ]]; then
-            echo "::error::Required job failed."
+          # plan must always succeed
+          if [[ "${{ needs.plan.result }}" != "success" ]]; then
+            echo "::error::plan failed."
             exit 1
           fi
 
-          for result in "${{ needs.ics.result }}" "${{ needs.run.result }}" "${{ needs.report.result }}"; do
-            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-              echo "::error::Benchmark job failed."
-              exit 1
-            fi
-          done
+          # If solvers changed on a PR without the benchmark label, block merge.
+          if [[ "${{ needs.plan.outputs.solvers_changed }}" == "true" \
+             && "${{ needs.plan.outputs.should_run }}" != "true" ]]; then
+            echo "::error::Solver code changed but the 'benchmark' label is missing. Add the label to trigger builds and benchmarks."
+            exit 1
+          fi
+
+          # When benchmarks were requested, all downstream jobs must succeed
+          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
+            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}"; do
+              if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+                echo "::error::Benchmark job failed."
+                exit 1
+              fi
+            done
+          fi
