@@ -854,7 +854,7 @@ CONFIG = ProblemConfig(
     extra_plots={
         "gradient": [
             lambda cfg: __import__(
-                "benchmarks.plots.gradient",
+                "mosaic.benchmarks.plots.gradient",
                 fromlist=["plot_jacobian_svd_comparison"],
             ).plot_jacobian_svd_comparison(cfg),
         ],
