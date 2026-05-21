@@ -740,61 +740,61 @@ CONFIG = ProblemConfig(
         ),
     },
     inverse_defaults={
-        "recovery_constant_ic": dict(
-            description=(
-                "IC recovery from a zero initial guess (cold start). "
-                "Optimizer starts from u=0 rather than a perturbed IC, "
-                "testing gradient signal without any warm initialisation. "
-                "Fixed rollout steps=100, rand_div_free IC, 3 seeds."
-            ),
-            plot_description=(
-                "Final IC recovery error from zero-initialised optimisation "
-                "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
-            ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        lr=1e-3,
-                        max_iters=500,
-                        patience=50,
-                        failure_threshold=2.0,
-                        snap_interval=20,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
-            ],
-        ),
-        "recovery_constant_ic_bfgs": dict(
-            description=(
-                "IC recovery with L-BFGS (cold start). Same setup as recovery_constant_ic "
-                "but using L-BFGS with zoom line search instead of Adam."
-            ),
-            plot_description=(
-                "Final IC recovery error from zero-initialised L-BFGS optimisation "
-                "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
-            ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        max_iters=100,
-                        patience=20,
-                        failure_threshold=2.0,
-                        snap_interval=5,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
-            ],
-        ),
+        # "recovery_constant_ic": dict(
+        # description=(
+        # "IC recovery from a zero initial guess (cold start). "
+        # "Optimizer starts from u=0 rather than a perturbed IC, "
+        # "testing gradient signal without any warm initialisation. "
+        # "Fixed rollout steps=100, rand_div_free IC, 3 seeds."
+        # ),
+        # plot_description=(
+        # "Final IC recovery error from zero-initialised optimisation "
+        # "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
+        # ),
+        # runs=[
+        # dict(
+        # ic=dict(name="rand_div_free", seed=0),
+        # physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
+        # sweep=dict(key="steps", values=[100]),
+        # optim=dict(
+        # ic_init_type="zeros",
+        # lr=1e-3,
+        # max_iters=500,
+        # patience=50,
+        # failure_threshold=2.0,
+        # snap_interval=20,
+        # ic_seeds=[0, 1, 2],
+        # record_diagnostics=True,
+        # ),
+        # )
+        # ],
+        # ),
+        # "recovery_constant_ic_bfgs": dict(
+        # description=(
+        # "IC recovery with L-BFGS (cold start). Same setup as recovery_constant_ic "
+        # "but using L-BFGS with zoom line search instead of Adam."
+        # ),
+        # plot_description=(
+        # "Final IC recovery error from zero-initialised L-BFGS optimisation "
+        # "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
+        # ),
+        # runs=[
+        # dict(
+        # ic=dict(name="rand_div_free", seed=0),
+        # physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
+        # sweep=dict(key="steps", values=[100]),
+        # optim=dict(
+        # ic_init_type="zeros",
+        # max_iters=100,
+        # patience=20,
+        # failure_threshold=2.0,
+        # snap_interval=5,
+        # ic_seeds=[0, 1, 2],
+        # record_diagnostics=True,
+        # ),
+        # )
+        # ],
+        # ),
         "recovery_constant_ic_bfgs_proj": dict(
             description=(
                 "IC recovery with L-BFGS + divergence-free gradient projection (cold start). "
@@ -822,34 +822,34 @@ CONFIG = ProblemConfig(
                 )
             ],
         ),
-        "recovery_constant_ic_proj": dict(
-            description=(
-                "IC recovery with Adam + divergence-free gradient projection (cold start). "
-                "Same as recovery_constant_ic but gradients are projected onto the "
-                "divergence-free subspace before each Adam update."
-            ),
-            plot_description=(
-                "Final IC recovery error from zero-initialised Adam+projection optimisation "
-                "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
-            ),
-            runs=[
-                dict(
-                    ic=dict(name="rand_div_free", seed=0),
-                    physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
-                    sweep=dict(key="steps", values=[100]),
-                    optim=dict(
-                        ic_init_type="zeros",
-                        lr=1e-3,
-                        max_iters=500,
-                        patience=50,
-                        failure_threshold=2.0,
-                        snap_interval=20,
-                        ic_seeds=[0, 1, 2],
-                        record_diagnostics=True,
-                    ),
-                )
-            ],
-        ),
+        # "recovery_constant_ic_proj": dict(
+        # description=(
+        # "IC recovery with Adam + divergence-free gradient projection (cold start). "
+        # "Same as recovery_constant_ic but gradients are projected onto the "
+        # "divergence-free subspace before each Adam update."
+        # ),
+        # plot_description=(
+        # "Final IC recovery error from zero-initialised Adam+projection optimisation "
+        # "(N=16, ν=0.01, dt=0.02, steps=100, rand_div_free seeds 0-2)."
+        # ),
+        # runs=[
+        # dict(
+        # ic=dict(name="rand_div_free", seed=0),
+        # physics=dict(N=16, nu=0.01, dt=0.02, steps=100),
+        # sweep=dict(key="steps", values=[100]),
+        # optim=dict(
+        # ic_init_type="zeros",
+        # lr=1e-3,
+        # max_iters=500,
+        # patience=50,
+        # failure_threshold=2.0,
+        # snap_interval=20,
+        # ic_seeds=[0, 1, 2],
+        # record_diagnostics=True,
+        # ),
+        # )
+        # ],
+        # ),
     },
     extra_plots={
         "gradient": [
