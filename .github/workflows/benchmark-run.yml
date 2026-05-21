@@ -22,7 +22,7 @@ on:
       timeout:
         description: "Per-job timeout in minutes"
         type: number
-        default: 120
+        default: 600
 
 permissions:
   contents: read
@@ -69,7 +69,7 @@ jobs:
 
   # ── Run solver suites (matrix: suite × problem × hardware) ──────────────
   run:
-    name: "${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})"
+    name: "${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}"
     runs-on: ${{ matrix.hardware == 'gpu' && 'mosaic-bench-gpu' || 'mosaic-bench-cpu' }}
     strategy:
       fail-fast: false
@@ -99,7 +99,7 @@ jobs:
             --hardware "${{ matrix.hardware }}" \
             --tag "${{ inputs.image_tag }}"
 
-      - name: Run ${{ matrix.suite }} / ${{ matrix.problem }} (${{ matrix.hardware }})
+      - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
         run: |
           uv run mosaic run \
             --suites ${{ matrix.suite }} \
