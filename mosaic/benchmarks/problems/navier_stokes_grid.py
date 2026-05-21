@@ -723,43 +723,43 @@ CONFIG = ProblemConfig(
         ),
     },
     inverse_defaults={
-        # "drag_opt": dict(
-        # description=(
-        # "Inflow profile optimisation: minimise cylinder drag at Re=20 (steady Stokes-like regime). "
-        # "Control variable is the 1-D inlet profile u_x(y); constraint is fixed mean flow rate "
-        # "(flow-rate penalty). Geometry: cylinder at [0.5, 0.5], radius=0.05, domain [0,1]²."
-        # ),
-        # plot_description=(
-        # "Drag convergence curves per solver at Re=20; "
-        # "optimised vs initial inflow profiles; final drag coefficient comparison."
-        # ),
-        # runs=[
-        # dict(
-        # name="re20",
-        # ic=dict(name="flat_inflow", seed=0),
-        # physics=dict(
-        # N=32,
-        # # Re = U·D/ν = 0.5·0.1/0.0025 = 20
-        # # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
-        # # projection divergence at N=64 (discontinuity at obstacle boundary
-        # # overwhelms the periodic Poisson solve at step ~20).
-        # nu=0.0025,
-        # dt=0.02,
-        # steps=400,
-        # domain_extent=1.0,
-        # U_mean=0.5,
-        # obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),
-        # ),
-        # optim=dict(
-        # lr=5e-4,
-        # max_iters=500,
-        # patience=100,
-        # flow_penalty_weight=50.0,
-        # snap_interval=20,
-        # ),
-        # ),
-        # ],
-        # ),
+        "drag_opt": dict(
+            description=(
+                "Inflow profile optimisation: minimise cylinder drag at Re=20 (steady Stokes-like regime). "
+                "Control variable is the 1-D inlet profile u_x(y); constraint is fixed mean flow rate "
+                "(flow-rate penalty). Geometry: cylinder at [0.5, 0.5], radius=0.05, domain [0,1]²."
+            ),
+            plot_description=(
+                "Drag convergence curves per solver at Re=20; "
+                "optimised vs initial inflow profiles; final drag coefficient comparison."
+            ),
+            runs=[
+                dict(
+                    name="re20",
+                    ic=dict(name="flat_inflow", seed=0),
+                    physics=dict(
+                        N=32,
+                        # Re = U·D/ν = 0.5·0.1/0.0025 = 20
+                        # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
+                        # projection divergence at N=64 (discontinuity at obstacle boundary
+                        # overwhelms the periodic Poisson solve at step ~20).
+                        nu=0.0025,
+                        dt=0.02,
+                        steps=400,
+                        domain_extent=1.0,
+                        U_mean=0.5,
+                        obstacle=dict(shape="cylinder", center=[0.5, 0.5], radius=0.05),
+                    ),
+                    optim=dict(
+                        lr=5e-4,
+                        max_iters=500,
+                        patience=100,
+                        flow_penalty_weight=50.0,
+                        snap_interval=20,
+                    ),
+                ),
+            ],
+        ),
         # "drag_opt_bfgs": dict(
         # description=(
         # "Inflow profile optimisation with L-BFGS: minimise cylinder drag at Re=20. "

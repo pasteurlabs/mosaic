@@ -1016,33 +1016,33 @@ CONFIG = ProblemConfig(
         # )
         # ],
         # ),
-        # "conductivity_recovery_bfgs": dict(
-        # description=(
-        # "Recover a two-Gaussian conductivity field with L-BFGS. Same setup as "
-        # "conductivity_recovery but using L-BFGS with zoom line search."
-        # ),
-        # runs=[
-        # dict(
-        # ic=dict(name="uniform", seed=0),
-        # physics=dict(
-        # nx=16,
-        # ny=8,
-        # nz=1,
-        # Lx=2.0,
-        # Ly=1.0,
-        # Lz=1.0,
-        # rho_0=0.5,
-        # Q_total=1.0,
-        # compliance_key="identification_error",
-        # penalty_weight=0.0,
-        # x_min=1e-3,
-        # snap_interval=10,
-        # target_rho_from_two_gaussians=True,
-        # ),
-        # optim=dict(max_iters=200, patience=30),
-        # )
-        # ],
-        # ),
+        "conductivity_recovery_bfgs": dict(
+            description=(
+                "Recover a two-Gaussian conductivity field with L-BFGS. Same setup as "
+                "conductivity_recovery but using L-BFGS with zoom line search."
+            ),
+            runs=[
+                dict(
+                    ic=dict(name="uniform", seed=0),
+                    physics=dict(
+                        nx=16,
+                        ny=8,
+                        nz=1,
+                        Lx=2.0,
+                        Ly=1.0,
+                        Lz=1.0,
+                        rho_0=0.5,
+                        Q_total=1.0,
+                        compliance_key="identification_error",
+                        penalty_weight=0.0,
+                        x_min=1e-3,
+                        snap_interval=10,
+                        target_rho_from_two_gaussians=True,
+                    ),
+                    optim=dict(max_iters=200, patience=30),
+                )
+            ],
+        ),
     },
     status_checks={
         # Recovery / optimisation experiments must actually reduce loss,
