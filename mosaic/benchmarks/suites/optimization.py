@@ -73,11 +73,14 @@ def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
     return float(np.max(np.abs(div)))
 
 
-def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
+def _project_divergence_free(u, domain_extent: float):
     """Helmholtz-project a periodic velocity field onto ∇·u = 0.
 
-    Spectral projection: û_df_i = û_i − k_i (k·û) / |k|²
-    Handles both 2D (N, N, 1, 2) and 3D (N, N, N, 3) shapes.
+    Spectral projection: û_df_i = û_i − k_i (k·û) / |k|².
+    Handles both 2D (N, N, 1, 2) and 3D (N, N, N, 3) shapes. Implemented
+    in ``jax.numpy`` so it composes inside jit boundaries (e.g. the
+    L-BFGS step in :func:`_run_lbfgs`); accepts numpy or jax input and
+    returns a ``jax.Array``.
     """
     nd = u.shape[-1]
     squeeze = u.ndim > nd + 1  # True for (N,N,1,2); False for (N,N,N,3)
@@ -85,22 +88,22 @@ def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
 
     N = v.shape[0]
     # Physical wavenumbers for a periodic box of size domain_extent.
-    k1d = np.fft.fftfreq(N) * N * (2.0 * np.pi / domain_extent)
-    grids = np.meshgrid(*([k1d] * nd), indexing="ij")  # nd arrays, each (N,...,N)
+    k1d = jnp.fft.fftfreq(N) * N * (2.0 * jnp.pi / domain_extent)
+    grids = jnp.meshgrid(*([k1d] * nd), indexing="ij")  # nd arrays, each (N,...,N)
     k2 = sum(k**2 for k in grids)
-    k2_safe = np.where(k2 == 0.0, 1.0, k2)  # avoid ÷0 at k=0
+    k2_safe = jnp.where(k2 == 0.0, 1.0, k2)  # avoid ÷0 at k=0
 
     spatial_axes = tuple(range(nd))
-    v_hat = np.fft.fftn(v, axes=spatial_axes)  # (..., nd), complex
+    v_hat = jnp.fft.fftn(v, axes=spatial_axes)  # (..., nd), complex
 
     k_dot_u = sum(grids[i] * v_hat[..., i] for i in range(nd))  # scalar field
 
-    v_hat_df = np.stack(
+    v_hat_df = jnp.stack(
         [v_hat[..., i] - grids[i] * k_dot_u / k2_safe for i in range(nd)],
         axis=-1,
     )
 
-    v_df = np.fft.ifftn(v_hat_df, axes=spatial_axes).real
+    v_df = jnp.fft.ifftn(v_hat_df, axes=spatial_axes).real
     v_df = v_df.reshape(u.shape) if squeeze else v_df
     return v_df.astype(u.dtype)
 
@@ -206,18 +209,30 @@ def _run_lbfgs(
     x = init_x
     losses: list[float] = []
     grad_norms: list[float] = []
-    value_and_grad = optax.value_and_grad_from_state(loss_fn)
-    for i in range(max_iters):
-        value, grad = value_and_grad(x, state=opt_state)
-        if grad_proj_fn is not None:
-            grad = jnp.array(grad_proj_fn(np.asarray(grad)))
-        grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
+
+    # JIT the LBFGS update so optax's zoom linesearch is traced once per
+    # (x.shape, dtype) instead of per-iter (see #15 for the retrace storm).
+    # Split from value_and_grad so grad_proj_fn (the Helmholtz projection)
+    # can still run between them.
+    vg = jax.jit(jax.value_and_grad(loss_fn))
+
+    def _update_from_grad(x, opt_state, value, grad):
         updates, opt_state = solver.update(
             grad, opt_state, x, value=value, grad=grad, value_fn=loss_fn
         )
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:
             x = clip_fn(x)
+        return x, opt_state
+
+    update_step = jax.jit(_update_from_grad)
+
+    for i in range(max_iters):
+        value, grad = vg(x)
+        if grad_proj_fn is not None:
+            grad = grad_proj_fn(grad)
+        grad_norms.append(float(jnp.linalg.norm(grad.ravel())))
+        x, opt_state = update_step(x, opt_state, value, grad)
         loss_val = float(value)
         losses.append(loss_val)
         if snap_interval > 0 and (i + 1) % snap_interval == 0:
@@ -308,15 +323,14 @@ def _run_recovery_long_impl(
             """Project to divergence-free and log; no-op for non-velocity fields."""
             if not is_vel:
                 return raw
-            raw_np = np.asarray(raw)
-            div_before = _max_divergence(raw_np, cfg.domain_extent)
-            projected = _project_divergence_free(raw_np, cfg.domain_extent)
-            div_after = _max_divergence(projected, cfg.domain_extent)
+            div_before = _max_divergence(np.asarray(raw), cfg.domain_extent)
+            projected = _project_divergence_free(raw, cfg.domain_extent)
+            div_after = _max_divergence(np.asarray(projected), cfg.domain_extent)
             console.print(
                 f"  [dim]{label}[/dim]  "
                 f"max|∇·u| {div_before:.2e} → {div_after:.2e} (after projection)"
             )
-            return jnp.asarray(projected)
+            return projected
 
         # ── Build per-seed IC true + perturbed IC ─────────────────────────────
         # Each ic_seed gives a different ground-truth IC.
