@@ -880,9 +880,7 @@ CONFIG = ProblemConfig(
         runs=[
             dict(
                 physics=dict(Lx=2.0, Ly=1.0, Lz=1.0, Q_total=1.0, rho_0=0.5),
-                cost=dict(
-                    N_values=[16, 32, 64, 128, 256, 512, 1024, 2048, 4500], n_trials=3
-                ),
+                cost=dict(N_values=[16, 32, 64, 128, 256, 512, 1024], n_trials=3),
             )
         ],
     ),
