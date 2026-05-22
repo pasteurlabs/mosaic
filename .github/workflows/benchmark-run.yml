@@ -22,7 +22,7 @@ on:
       timeout:
         description: "Per-job timeout in minutes"
         type: number
-        default: 600
+        default: 120
 
 permissions:
   contents: read

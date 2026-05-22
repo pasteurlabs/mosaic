@@ -169,7 +169,7 @@ jobs:
       problems: ${{ needs.plan.outputs.problems }}
       suites: ${{ needs.plan.outputs.suites }}
       image_tag: ${{ github.sha }}
-      timeout: ${{ needs.plan.outputs.is_release == 'true' && 180 || 120 }}
+      timeout: 600
     permissions:
       contents: read
       packages: read
@@ -195,8 +195,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: results-*
-          path: mosaic-results/
-          merge-multiple: true
+          path: staging-results/
+
+      - name: Merge results from CPU/GPU artifacts
+        run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Fetch baseline snapshot from results branch
         id: baseline

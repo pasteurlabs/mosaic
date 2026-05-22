@@ -113,6 +113,7 @@ from .console import (  # noqa: E402
     print_skip,
     print_warn,
 )
+from .resources import container_memory_args  # noqa: E402
 
 _tl = threading.local()  # thread-local state (image_tag, gpu_id, last_apply_error)
 
@@ -474,6 +475,7 @@ def run_with_gpu_pool(
     # (use: docker ps -q --filter label=mosaic-problem=<name>).
     _problem_label = _current_problem or "mosaic"
     _NO_HC = ["--no-healthcheck", "--label", f"mosaic-problem={_problem_label}"]
+    _NO_HC.extend(container_memory_args())
 
     # Filter out solvers with no built image.
     missing = [n for n in solver_names if n not in tags]
