@@ -18,8 +18,11 @@ import numpy as np
 
 from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.problems.shared.plots.style import (
+    NS_ORDER,
     PAPER_RCPARAMS,
+    STRUCTURAL_ORDER,
     TEXTWIDTH,
+    THERMAL_ORDER,
     dedup_handles,
     make_handle,
     solver_props,
@@ -330,3 +333,40 @@ def plot_cost_overview(  # noqa: C901 — paper-fig assembler; refactor tracked 
     fig.savefig(out)
     plt.close(fig)
     print(f"Saved {out}")
+
+
+# Default solver-order lookup keyed by ``Problem.name``. Lets the helper
+# below auto-pick the right ordering without each domain importing the
+# style module to thread the constant through.
+_DEFAULT_ORDER_BY_PROBLEM: dict[str, list[str]] = {
+    "ns-grid": NS_ORDER,
+    "ns-3d-grid": NS_ORDER,
+    "structural-mesh": STRUCTURAL_ORDER,
+    "thermal-mesh": THERMAL_ORDER,
+}
+
+
+def plot_cost_overview_for(
+    cfg,
+    *,
+    steady_state: bool,
+    solver_order: list[str] | None = None,
+) -> None:
+    """Render the cost-overview figure for ``cfg`` into its ``_extra`` dir.
+
+    Reads ``cfg.tesseract_dir.name`` as the results subdirectory and
+    ``cfg.category_label`` (with ``cfg.name`` fallback) as the panel
+    label. ``solver_order`` defaults to the per-domain entry in
+    ``_DEFAULT_ORDER_BY_PROBLEM`` keyed by ``cfg.name``.
+    """
+    out_dir = results_dir() / cfg.name / "_extra"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if solver_order is None:
+        solver_order = _DEFAULT_ORDER_BY_PROBLEM.get(cfg.name, cfg.solver_names)
+    plot_cost_overview(
+        out_dir,
+        subdir=cfg.tesseract_dir.name,
+        domain_label=cfg.category_label or cfg.name,
+        solver_order=solver_order,
+        steady_state=steady_state,
+    )

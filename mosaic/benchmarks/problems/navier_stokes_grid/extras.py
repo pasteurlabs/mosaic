@@ -17,7 +17,9 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir
-from mosaic.benchmarks.problems.shared.plots.cost_overview import plot_cost_overview
+from mosaic.benchmarks.problems.shared.plots.cost_overview import (
+    plot_cost_overview_for,
+)
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
     PAPER_RCPARAMS,
@@ -46,13 +48,7 @@ def _n_to_elements_2d(N: int) -> int:
 
 
 def _plot_cost_overview(cfg: Problem, **_kw) -> None:
-    plot_cost_overview(
-        _extra_dir(cfg),
-        subdir="ns-grid",
-        domain_label="2D NS",
-        solver_order=NS_ORDER,
-        steady_state=False,
-    )
+    plot_cost_overview_for(cfg, steady_state=False)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
