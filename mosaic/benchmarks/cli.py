@@ -345,9 +345,8 @@ def run(
         False,
         "--continue",
         help="Resume a previous run: skip experiments whose result.json already "
-        "exists in the output directory. Within sweep-based experiments (forward "
-        "suite), per-solver caches let a mid-flight crash resume from the next "
-        "solver instead of restarting the sweep.",
+        "exists in the output directory. Granularity is per experiment — a "
+        "single experiment that crashed mid-flight will be re-run from the start.",
     ),
 ):
     """Run benchmark suites across problems.
@@ -465,10 +464,6 @@ def run(
                     _overrides["gpu_ids"] = []
                 elif gpus:
                     _overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
-                if continue_:
-                    # Suites that support sub-experiment resume (e.g. forward via
-                    # solver_sweep checkpoints) read this flag from overrides.
-                    _overrides["resume"] = True
                 _, _, ic_segment = _parse_experiments_path(experiments)
                 if ic_segment:
                     if ic_segment not in cfg.make_ic:

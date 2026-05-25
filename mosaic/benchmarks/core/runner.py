@@ -5,12 +5,10 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import os
-import pickle
 import queue
 import subprocess
 import threading
 import time
-from pathlib import Path
 
 import jax
 import jax.numpy as jnp
@@ -378,58 +376,6 @@ def run_suite(
 
 # ── Parameter sweeps ─────────────────────────────────────────────────────────
 
-# Sweep-cache file extension. Stored at <checkpoint_dir>/<solver>.pkl after each
-# solver finishes its condition list inside ``solver_sweep``. Format is a pickle
-# of ``{"raw": {cond_key: result}, "wall_time": float}``. Pickle (rather than
-# npz) so arbitrary condition keys and ``None`` failure markers round-trip
-# without bespoke encoding. Caches are best-effort: corrupt or unreadable files
-# are silently re-computed.
-_SWEEP_CACHE_EXT = ".pkl"
-
-
-def _load_sweep_cache(checkpoint_dir: Path) -> tuple[dict, dict]:
-    """Load all ``<solver>.pkl`` files in *checkpoint_dir*.
-
-    Returns ``(raw, wall_times)`` populated with each solver whose cache file
-    parsed successfully. Missing directory or unreadable files return empty
-    dicts — the caller treats this as "nothing cached, re-run everything."
-    """
-    raw: dict[str, dict] = {}
-    wall_times: dict[str, float] = {}
-    if not checkpoint_dir.is_dir():
-        return raw, wall_times
-    for path in checkpoint_dir.glob(f"*{_SWEEP_CACHE_EXT}"):
-        try:
-            with open(path, "rb") as f:
-                payload = pickle.load(f)
-            name = path.stem
-            raw[name] = payload["raw"]
-            wall_times[name] = float(payload["wall_time"])
-        except Exception:
-            # Corrupt / partial / wrong-format → drop the entry; the sweep will
-            # recompute. We don't delete the file: the next successful write
-            # overwrites it atomically via rename.
-            continue
-    return raw, wall_times
-
-
-def _save_solver_cache(
-    checkpoint_dir: Path, name: str, raw_entry: dict, wall_time: float
-) -> None:
-    """Atomically persist one solver's sweep entry to *checkpoint_dir*.
-
-    Writes to ``<name>.pkl.tmp`` then ``os.replace``s to ``<name>.pkl`` so a
-    crash mid-write can never leave a half-written cache file that would be
-    loaded on the next resume.
-    """
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    final = checkpoint_dir / f"{name}{_SWEEP_CACHE_EXT}"
-    tmp = checkpoint_dir / f"{name}{_SWEEP_CACHE_EXT}.tmp"
-    payload = {"raw": raw_entry, "wall_time": float(wall_time)}
-    with open(tmp, "wb") as f:
-        pickle.dump(payload, f)
-    os.replace(tmp, final)
-
 
 def solver_sweep(
     cfg: ProblemConfig,
@@ -443,7 +389,6 @@ def solver_sweep(
     key_fn=None,
     auto_status: bool = True,
     gpu_ids: list[str] | None = None,
-    checkpoint_dir: Path | None = None,
 ) -> dict[str, dict]:
     """Open one Tesseract per solver; call fn(name, t, cond) for each condition.
 
@@ -461,11 +406,6 @@ def solver_sweep(
                    its own per-condition output (e.g. chunk-level progress).
     gpu_ids        if given, run each solver container in parallel, each pinned to
                    a GPU from the list (wraps round-robin if #solvers > #GPUs).
-    checkpoint_dir if given, enables per-solver resume. At entry, any
-                   ``<dir>/<solver>.pkl`` is loaded and its solver skipped from
-                   the dispatch. After each solver finishes its full condition
-                   list, its raw entry + wall time is atomically written here.
-                   Powers ``mosaic run --continue`` for sweep-based suites.
 
     Returns: ({solver_name: {key: result}}, {solver_name: wall_seconds})
     """
@@ -473,26 +413,8 @@ def solver_sweep(
 
     conditions = list(conditions)
     names = active_solvers(cfg, suite, experiment)
-
-    # ── resume: load any per-solver caches and filter completed solvers ───────
     raw: dict[str, dict] = {name: {} for name in names}
     wall_times: dict[str, float] = {}
-    if checkpoint_dir is not None:
-        cached_raw, cached_wall = _load_sweep_cache(checkpoint_dir)
-        # Only honour cached entries for solvers that are still in the active
-        # set — keeps the cache from re-introducing a solver the user filtered
-        # out via -s or an exclusion key.
-        active = set(names)
-        resumed = sorted(set(cached_raw) & active)
-        if resumed:
-            console.print(
-                f"  [dim]resume: {len(resumed)} solver(s) loaded from cache: "
-                f"{', '.join(resumed)}[/dim]"
-            )
-            for name in resumed:
-                raw[name] = cached_raw[name]
-                wall_times[name] = cached_wall.get(name, 0.0)
-        names = [n for n in names if n not in resumed]
 
     n_solvers = len(names)
     n_conds = len(conditions)
@@ -539,13 +461,6 @@ def solver_sweep(
             elapsed = time.perf_counter() - t0
             wall_times[name] = elapsed
             console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
-            if checkpoint_dir is not None:
-                try:
-                    _save_solver_cache(checkpoint_dir, name, raw[name], elapsed)
-                except Exception as exc:
-                    # Cache write failure must not break the sweep. Worst case
-                    # the user re-runs this solver on next --continue.
-                    print_warn(f"sweep cache write failed for {name}: {exc}")
 
         run_with_gpu_pool(names, tags, _per_solver, gpu_ids=gpu_ids)
     return raw, wall_times
