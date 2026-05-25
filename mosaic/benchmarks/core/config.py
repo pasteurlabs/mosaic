@@ -69,13 +69,28 @@ class PlotFn(Protocol):
     def __call__(self, cfg: Problem, **kw: Any) -> Any: ...
 
 
+@dataclass(frozen=True)
+class Goal:
+    """Per-experiment success predicate.
+
+    ``check(result_dict) -> bool``. Evaluated after the run; the boolean
+    is persisted into ``result.json`` under ``result["goals"][name]``.
+    A raising check is recorded as ``False``.
+    """
+
+    name: str
+    description: str
+    check: Callable[[dict], bool]
+
+
 @dataclass
 class Experiment:
-    """Registered experiment: runner closure, introspection manifest, sweep coords."""
+    """Registered experiment: runner closure, params, coords, success criteria."""
 
     fn: ExperimentFn
     params: dict = field(default_factory=dict)
     coords: dict[str, Any] = field(default_factory=dict)
+    goals: list[Goal] = field(default_factory=list)
 
 
 @dataclass
@@ -215,6 +230,7 @@ class Problem:
         reduce: Callable | None = None,
         status_check: list | None = None,
         coords: dict[str, Any] | None = None,
+        goals: list[Goal] | None = None,
         **config,
     ) -> None:
         """Register an experiment at ``key``.
@@ -236,6 +252,10 @@ class Problem:
         Persisted into ``result.json`` so aggregator plots can find each
         cell's coordinates without parsing the experiment name.
 
+        ``goals`` is a list of :class:`Goal` success predicates. Each
+        ``check(result_dict) -> bool`` is evaluated after the run and the
+        boolean lands in ``result["goals"][goal.name]``.
+
         Per-(solver, experiment) exclusions are attached via
         ``problem.exclude(key, {solver_name: Exclusion, ...})``.
         """
@@ -251,6 +271,7 @@ class Problem:
         # always — subdir naming lives here at the sweep layer, not in
         # each runner.
         user_coords: dict[str, Any] = dict(coords or {})
+        user_goals: list[Goal] = list(goals or [])
 
         runs = config.get("runs")
         if isinstance(runs, list) and len(runs) > 1:
@@ -271,6 +292,7 @@ class Problem:
                     plot_description=plot_description,
                     status_check=status_check,
                     coords=sub_coords,
+                    goals=user_goals,
                 )
         else:
             sweep_axes = self._collect_sweep_axes(config)
@@ -283,6 +305,7 @@ class Problem:
                     plot_description=plot_description,
                     status_check=status_check,
                     coords=user_coords,
+                    goals=user_goals,
                 )
                 sub_keys = [key]
             else:
@@ -304,6 +327,7 @@ class Problem:
                         plot_description=plot_description,
                         status_check=status_check,
                         coords=sub_coords,
+                        goals=user_goals,
                     )
 
         if plot is not None:
@@ -569,6 +593,7 @@ class Problem:
         plot_description: str = "",
         status_check: list | None = None,
         coords: dict[str, Any] | None = None,
+        goals: list[Goal] | None = None,
     ) -> None:
         """Build the Experiment lambda for a single (scalar) config and store it.
 
@@ -640,7 +665,10 @@ class Problem:
         if status_check:
             params["status_check"] = list(status_check)
         self.experiments[key] = Experiment(
-            fn=fn, params=params, coords=dict(coords or {})
+            fn=fn,
+            params=params,
+            coords=dict(coords or {}),
+            goals=list(goals or []),
         )
 
     def add_ic(
