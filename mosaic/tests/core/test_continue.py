@@ -16,11 +16,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec
+from mosaic.benchmarks.core.config import Problem, SolverSpec
 from mosaic.benchmarks.core.runner import run_suite
 
 
-def _make_cfg(tesseract_dir: Path) -> ProblemConfig:
+def _make_cfg(tesseract_dir: Path) -> Problem:
     spec = SolverSpec(
         dir="dummy",
         color="#000000",
@@ -28,15 +28,14 @@ def _make_cfg(tesseract_dir: Path) -> ProblemConfig:
         scheme="test",
         backend="python",
     )
-    return ProblemConfig(
+    return Problem(
         name="test_problem",
         tesseract_dir=tesseract_dir,
         output_key="result",
-        solvers={"dummy": spec},
+        solvers=[spec],
         make_ic={},
         make_inputs=lambda *a, **k: {},
         error_fn=lambda *a, **k: 0.0,
-        diagnostics={},
     )
 
 

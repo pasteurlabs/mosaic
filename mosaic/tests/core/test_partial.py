@@ -38,13 +38,15 @@ class WritePartialTests(unittest.TestCase):
         write_partial(self.tmp / "exp", payload)
         path = self.tmp / "exp" / "result_partial.json"
         self.assertTrue(path.exists())
-        self.assertEqual(json.load(open(path)), payload)
+        with open(path) as f:
+            self.assertEqual(json.load(f), payload)
 
     def test_overwrites_existing(self) -> None:
         d = self.tmp / "exp"
         write_partial(d, {"by_solver": {"a": {}}, "round": 1})
         write_partial(d, {"by_solver": {"a": {}, "b": {}}, "round": 2})
-        data = json.load(open(d / "result_partial.json"))
+        with open(d / "result_partial.json") as f:
+            data = json.load(f)
         self.assertEqual(data["round"], 2)
         self.assertEqual(set(data["by_solver"]), {"a", "b"})
 
@@ -70,7 +72,8 @@ class WritePartialTests(unittest.TestCase):
             t.join()
 
         # The final file should be parseable JSON with all three solvers.
-        data = json.load(open(d / "result_partial.json"))
+        with open(d / "result_partial.json") as f:
+            data = json.load(f)
         self.assertEqual(set(data["by_solver"]), {"a", "b", "c"})
 
 

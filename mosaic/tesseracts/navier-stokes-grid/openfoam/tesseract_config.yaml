@@ -1,11 +1,8 @@
 name: openfoam_navier_stokes_grid
 version: "0.1.0"
-description: |
-  Incompressible Navier-Stokes on a periodic Cartesian grid via OpenFOAM icoFoam.
-  Accepts the canonical navier-stokes-grid interface (v0, viscosity, dt, steps,
-  domain_extent). Mesh is generated internally with blockMesh (N×N, cyclic x/y,
-  empty z). Forward-only; no VJP/JVP.
-
+description: >
+  OpenFOAM icoFoam PISO solver run as a forward-only reference baseline (C++ subprocess). No
+  reverse-mode AD; used to anchor cross-solver comparisons.
 build_config:
   package_data: []
 
@@ -31,12 +28,10 @@ metadata:
     backend: cpp
     family: projection
     scheme: "icoFoam PISO"
-    color: "#DDAA33"
-    linestyle: ":"
-    marker: "D"
+    discretization: FV
+    numerics: "PISO/PIMPLE, Euler"
     ad_strategy: null
     differentiable: false
     uses_gpu: false
     internal_dtype: float64
-    description: "OpenFOAM icoFoam; forward-only non-differentiable reference baseline."
     doc_url: "https://www.openfoam.com/documentation/overview"
