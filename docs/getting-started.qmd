@@ -146,6 +146,30 @@ finer scoping.
 `mosaic run` builds ~20 Docker containers and runs the complete evaluation. Expect **several hours** on a machine with a modern GPU, or **much longer** on CPU only. The container images add up to **dozens of GB** on disk. Consider starting with a single problem (`mosaic run --problems thermal-mesh`) to validate your setup before committing the time and storage.
 :::
 
+## Resuming after a crash
+
+A long run may get killed mid-experiment by an OOM, host reboot, or
+SIGKILL. ``--continue`` resumes from where the prior invocation left
+off, at two granularities:
+
+* **Per experiment.** Experiments whose ``result.json`` already exists
+  under the output directory are skipped entirely. Multi-IC
+  experiments count as done once every IC subdir has a ``result.json``.
+* **Per solver.** Within a partially-completed experiment, each
+  harness writes ``result_partial.json`` after each solver finishes;
+  on resume, solvers already recorded there are filtered out so the
+  remaining ones can pick up the work.
+
+```bash
+mosaic run --continue                       # resume all problems / suites
+mosaic run -p ns-grid --continue            # scope to one problem
+mosaic run --only failed --continue         # only retry failed cells, skip ok
+```
+
+``--continue`` composes with ``--only`` — useful when a long sweep
+mostly succeeded but a few cells timed out: ``--only failed --continue``
+re-runs just those without restarting fresh-ok cells.
+
 ## Understanding output
 
 Results are organized by problem and suite:
@@ -175,6 +199,17 @@ mosaic status --format json > snap.json   # machine-readable snapshot
 ```
 
 ## Troubleshooting
+
+### Container start failures
+
+A solver whose container fails to start — broken image, missing CUDA
+runtime, or an import error inside the API module — surfaces as a
+`failed` cell with the underlying exception message in
+``mosaic status -f``. (Previously these dropped silently as
+``NOT_RUN``, indistinguishable from "wasn't selected"; the runner now
+records them via an ``on_error`` callback so the status pipeline can
+classify the cell as FAILED.) Retry the cell with
+``mosaic run --only failed`` once the container is fixed.
 
 ### Container build failures
 
