@@ -148,7 +148,10 @@ jobs:
         run: pip install tesseract-core
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        # PR runs need to push too so the benchmark workflow can pull
+        # PR-specific images by SHA. Fork PRs lack package:write on the
+        # default token and will skip push naturally (the push step
+        # tolerates auth failure; the benchmark falls back to :latest).
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -173,7 +176,17 @@ jobs:
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
       - name: Extract image name and push to GHCR
-        if: github.event_name != 'pull_request'
+        # Always push :<sha> (PR or push) so the benchmark workflow can pull
+        # the exact image built for this commit. Only push :latest on
+        # push-to-main so PR builds don't bump main's latest pointer.
+        # Tolerate auth failure (fork PRs lack package:write); the benchmark
+        # then falls back to :latest.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        env:
+          # On `pull_request`, ``github.sha`` is the GH-generated merge
+          # commit, not the PR HEAD. The benchmark workflow polls for the
+          # PR HEAD's SHA, so push under that to keep the two in sync.
+          IMAGE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
           IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
@@ -184,13 +197,17 @@ jobs:
           LOCAL_IMAGE="${IMAGE_NAME}:latest"
           GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
 
-          # Tag with :latest and :<sha>
-          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
-          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${{ github.sha }}"
+          # Always tag and push :<sha>
+          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${IMAGE_SHA}"
+          docker push "${GHCR_BASE}:${IMAGE_SHA}"
+          echo "Pushed ${GHCR_BASE}:${IMAGE_SHA}"
 
-          # Push both tags
-          docker push "${GHCR_BASE}:latest"
-          docker push "${GHCR_BASE}:${{ github.sha }}"
-
-          echo "Pushed ${GHCR_BASE}:latest"
-          echo "Pushed ${GHCR_BASE}:${{ github.sha }}"
+          # :latest tracks main only.
+          IS_MAIN_PUSH='${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}'
+          if [[ "${IS_MAIN_PUSH}" == "true" ]]; then
+            docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
+            docker push "${GHCR_BASE}:latest"
+            echo "Pushed ${GHCR_BASE}:latest"
+          else
+            echo "Skipping :latest tag — only main pushes update :latest"
+          fi
