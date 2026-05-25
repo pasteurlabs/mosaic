@@ -59,12 +59,16 @@ databricks-sdk==0.106.0
     # via mlflow-skinny
 debugpy==1.8.20
     # via tesseract-core
+docker==7.1.0
+    # via mosaic-bench
 exceptiongroup==1.3.1 ; python_full_version < '3.11'
     # via anyio
 fastapi==0.136.1
     # via
     #   mlflow-skinny
     #   tesseract-core
+filelock==3.29.0
+    # via mosaic-bench
 fonttools==4.62.1
     # via matplotlib
 frozenlist==1.8.0
@@ -161,6 +165,8 @@ numpy==2.4.4 ; python_full_version >= '3.11'
     #   pandas
     #   scipy
     #   tesseract-core
+nvidia-ml-py==13.595.45
+    # via mosaic-bench
 opentelemetry-api==1.41.1
     # via
     #   mlflow-skinny
@@ -231,6 +237,8 @@ python-dotenv==1.2.2
     # via mlflow-skinny
 pytz==2026.2 ; python_full_version < '3.11'
     # via pandas
+pywin32==311 ; sys_platform == 'win32'
+    # via docker
 pyyaml==6.0.3
     # via
     #   mlflow-skinny
@@ -239,6 +247,7 @@ pyyaml==6.0.3
 requests==2.33.1
     # via
     #   databricks-sdk
+    #   docker
     #   mlflow-skinny
     #   tesseract-core
 rich==15.0.0
@@ -303,6 +312,7 @@ tzdata==2026.2 ; python_full_version < '3.11' or sys_platform == 'emscripten' or
 urllib3==2.6.3
     # via
     #   botocore
+    #   docker
     #   requests
 uvicorn==0.46.0
     # via

@@ -3,14 +3,6 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from mosaic_shared.problems.navier_stokes_grid import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.navier_stokes_grid import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.problems.navier_stokes_grid import drag_jax
-from mosaic_shared.types import make_differentiable
 from phi.jax.flow import (
     Box,
     CenteredGrid,
@@ -25,6 +17,14 @@ from phi.jax.flow import (
 )
 from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+from tesseract_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.navier_stokes_grid import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.problems.navier_stokes_grid import drag_jax
+from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(
@@ -118,7 +118,7 @@ def _make_obstacle_mask_phiflow(  # mosaic:init
 
 
 # Drag is computed via the shared canonical surface integral
-# (mosaic_shared.problems.navier_stokes_grid.drag_jax).
+# (tesseract_shared.problems.navier_stokes_grid.drag_jax).
 
 
 def phiflow_fwd(  # mosaic:physics
@@ -376,7 +376,7 @@ def phiflow_fwd(  # mosaic:physics
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
     result, drag = phiflow_fwd(**inputs)
-    out = dict(result=result)
+    out = {"result": result}
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out
 
@@ -433,11 +433,9 @@ def abstract_eval(abstract_inputs):
     }
     obstacle_raw = raw.get("obstacle") or {}
     _has_obstacle = bool(
-        (
-            obstacle_raw.get("shape")
-            if isinstance(obstacle_raw, dict)
-            else getattr(obstacle_raw, "shape", None)
-        )
+        obstacle_raw.get("shape")
+        if isinstance(obstacle_raw, dict)
+        else getattr(obstacle_raw, "shape", None)
     )
     _has_inflow = raw.get("inflow_profile") is not None
     _ndim = v0_shape[-1] if v0_shape else 0

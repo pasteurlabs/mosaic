@@ -19,10 +19,10 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 

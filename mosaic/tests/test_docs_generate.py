@@ -35,7 +35,13 @@ def test_generate_produces_valid_qmd():
 
 
 def test_solver_specs_loaded():
-    """SolverSpec metadata should enrich the generated output."""
+    """SolverSpec metadata should enrich the generated output.
+
+    Every discovered solver must carry the metadata that the generated page
+    relies on: a non-empty scheme, a non-empty description, a known backend
+    language, and one of the documented AD strategies. A missing value on any
+    solver means that solver's card would render with placeholder text.
+    """
     import sys
 
     sys.path.insert(0, str(ROOT))
@@ -44,9 +50,19 @@ def test_solver_specs_loaded():
     categories = collect_solvers()
     all_solvers = [s for solvers in categories.values() for s in solvers]
 
-    # At least some solvers should have enriched data
-    with_scheme = [s for s in all_solvers if s.get("scheme")]
-    assert len(with_scheme) >= 10, "Most solvers should have scheme metadata"
+    assert all_solvers, "collect_solvers returned no solvers at all"
 
-    with_narrative = [s for s in all_solvers if s.get("narrative")]
-    assert len(with_narrative) >= 10, "Most solvers should have narrative docs"
+    valid_ad = {"autodiff", "adjoint", "hybrid", None}
+    missing: list[str] = []
+    for s in all_solvers:
+        ident = f"{s['physics']}/{s['backend']}"
+        if not s.get("scheme"):
+            missing.append(f"{ident}: empty scheme")
+        if not s.get("description"):
+            missing.append(f"{ident}: empty description")
+        if not s.get("backend_lang"):
+            missing.append(f"{ident}: empty backend_lang")
+        if s.get("ad_strategy") not in valid_ad:
+            missing.append(f"{ident}: invalid ad_strategy {s.get('ad_strategy')!r}")
+
+    assert not missing, "Solver metadata gaps:\n  " + "\n  ".join(missing)

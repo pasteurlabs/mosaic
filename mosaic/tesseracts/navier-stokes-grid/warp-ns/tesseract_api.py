@@ -9,14 +9,14 @@ from typing import Any
 
 import numpy as np
 import warp as wp
-from mosaic_shared.problems.navier_stokes_grid import (
+from pydantic import Field
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
-from pydantic import Field
+from tesseract_shared.types import make_differentiable
 
 wp.init()
 
@@ -1000,7 +1000,7 @@ def _tentative_vel_2d_tape(  # mosaic:grad:v0:adjoint
         _scalar_arrays.append(dt_wp)
     tape.record_func(
         backward=_tentative_vel_2d_backward,
-        arrays=[ux_wp, uy_wp, ux_star_wp, uy_star_wp] + _scalar_arrays,
+        arrays=[ux_wp, uy_wp, ux_star_wp, uy_star_wp, *_scalar_arrays],
     )
     return ux_star_wp, uy_star_wp
 

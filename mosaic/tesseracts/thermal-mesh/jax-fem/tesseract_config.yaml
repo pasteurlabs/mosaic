@@ -1,23 +1,18 @@
 name: jax_fem_thermal_mesh
 version: "0.1.0"
-description: |
-  Tesseract that wraps jax-fem for thermal (heat conduction) analysis.
-
-  Accepts a gridded density field as input and computes the thermal compliance of the structure.
-  The density field is expected to be a 2D numpy array with values between 0 and 1,
-  where 1 represents fully conductive material and 0 represents void (low conductivity).
-
-  Uses SIMP interpolation for conductivity: k(θ) = k_min + (k_max - k_min) * θ^penal
-
+description: >
+  JAX-FEM HEX8 steady-state heat-conduction solver with SIMP conductivity and optional
+  volumetric source. Gradients ∂C/∂ρ and ∂C/∂source via JAX autodiff through the linear FE
+  solve (hybrid implicit-function-theorem adjoint).
 build_config:
   target_platform: "native"
   base_image: "condaforge/miniforge3:26.1.1-3"
   requirements:
     provider: conda
   package_data:
-    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../tesseract_shared", "/tmp/tesseract_shared"]
   custom_build_steps:
-    - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+    - "RUN /python-env/bin/pip install /tmp/tesseract_shared"
 
 metadata:
   mosaic:
@@ -25,19 +20,10 @@ metadata:
     backend: jax
     family: fem
     scheme: "FEM HEX8 heat conduction (SIMP, adjoint AD)"
-    color: "#4477AA"
-    linestyle: "-."
-    marker: "o"
+    discretization: FE
+    numerics: "Direct (UMFPACK)"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true
     internal_dtype: float32
-    description: >
-      JAX-FEM HEX8 (8-node hexahedral) steady-state heat-conduction solver. SIMP
-      conductivity k(ρ) = k_min + (k_max − k_min)·ρ^penal on a structured HexMesh
-      with optional volumetric heat source. Outputs thermal compliance C =
-      ∫ T·q dΩ alongside the temperature field. Gradients ∂C/∂ρ and ∂C/∂source
-      via JAX automatic differentiation through the linear FE solve (hybrid
-      adjoint: JAX autodiff with implicit-function-theorem rewrite of the linear
-      system at the solve boundary). GPU-native via JAX/XLA.
     doc_url: "https://github.com/deepmodeling/jax-fem"

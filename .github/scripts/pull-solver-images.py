@@ -46,7 +46,7 @@ def main() -> None:
             cfg = get_config(p)
         except Exception:
             continue
-        for name, spec in cfg.solvers.items():
+        for spec in cfg.solvers:
             if args.hardware == "gpu" and not getattr(spec, "uses_gpu", True):
                 continue
             if args.hardware == "cpu" and getattr(spec, "uses_gpu", True):
