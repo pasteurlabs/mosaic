@@ -391,6 +391,21 @@ def _run_generic_param_sweep(
         gpu_ids = overrides.get("gpu_ids")
         _wall_times: dict[str, float] = {}
 
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        diff_solvers = filter_resumable_solvers(diff_solvers, out_dir, overrides)
+        _partial_lock = threading.Lock()
+        _horizons = np.array(
+            [float(v) * float(phys.get("dt", 1.0)) for v in sweep_values]
+            if sweep_key == "steps"
+            else [float(v) for v in sweep_values]
+        )
+
         def _param_work(
             name: str,
             t,
@@ -425,6 +440,30 @@ def _run_generic_param_sweep(
                 grad_snaps[name] = solver_grads
                 elapsed = time.perf_counter() - t0
                 _wall_times[name] = elapsed
+                # Persist this solver's per-sweep-value grad snapshots and the
+                # by_solver entry immediately so a crash in the next solver
+                # doesn't lose them.
+                save_gradient_fields_npz(
+                    out_dir,
+                    [name],
+                    {
+                        name: {
+                            str(k): solver_grads[v]
+                            for k, v in enumerate(sweep_values)
+                            if v in solver_grads
+                        }
+                    },
+                    shared_arrays={"ic": np.asarray(ic), "horizons": _horizons},
+                )
+                write_partial(
+                    out_dir,
+                    {
+                        "by_solver": dict(results),
+                        "sweep_key": sweep_key,
+                        "params": run,
+                    },
+                    _partial_lock,
+                )
                 console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
             except Exception as exc:
                 console.print(
@@ -432,39 +471,6 @@ def _run_generic_param_sweep(
                 )
 
         run_with_gpu_pool(diff_solvers, tags, _param_work, gpu_ids=gpu_ids)
-
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-
-        # Save gradient field snapshots per sweep value (needed by plot_horizon_sweep)
-        if grad_snaps:
-            solver_names = list(grad_snaps.keys())
-            # Build per_solver_arrays: suffix = str index of sweep value
-            per_solver: dict[str, dict[str, np.ndarray]] = {}
-            for sname in solver_names:
-                per_solver[sname] = {
-                    str(k): grad_snaps[sname][v]
-                    for k, v in enumerate(sweep_values)
-                    if v in grad_snaps[sname]
-                }
-            save_gradient_fields_npz(
-                out_dir,
-                solver_names,
-                per_solver,
-                shared_arrays={
-                    "ic": np.asarray(ic),
-                    "horizons": np.array(
-                        [float(v) * float(phys.get("dt", 1.0)) for v in sweep_values]
-                        if sweep_key == "steps"
-                        else [float(v) for v in sweep_values]
-                    ),
-                },
-            )
 
         result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
         save_experiment(
@@ -757,6 +763,21 @@ def run_horizon_sweep_limits(
         grad_snaps: dict = {}
         _wall_times: dict[str, float] = {}
 
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        diff_solvers = filter_resumable_solvers(diff_solvers, out_dir, overrides)
+        _partial_lock = threading.Lock()
+        _horizons = np.array(
+            [float(v) * float(phys.get("dt", 1.0)) for v in sweep_values]
+            if sweep_key == "steps"
+            else [float(v) for v in sweep_values]
+        )
+
         def _limits_work(
             name: str,
             t,
@@ -872,40 +893,27 @@ def run_horizon_sweep_limits(
                 grad_snaps[name] = solver_grads
             elapsed = time.perf_counter() - t0
             _wall_times[name] = elapsed
+            if solver_grads:
+                save_gradient_fields_npz(
+                    out_dir,
+                    [name],
+                    {
+                        name: {
+                            str(k): solver_grads[v]
+                            for k, v in enumerate(sweep_values)
+                            if v in solver_grads
+                        }
+                    },
+                    shared_arrays={"ic": np.asarray(ic), "horizons": _horizons},
+                )
+            write_partial(
+                out_dir,
+                {"by_solver": dict(results), "sweep_key": sweep_key, "params": run},
+                _partial_lock,
+            )
             console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
         run_with_gpu_pool(diff_solvers, tags, _limits_work, gpu_ids=gpu_ids)
-
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"{exp_key}/{ic_subdir}" if ic_subdir else exp_key,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-
-        if grad_snaps:
-            solver_names = list(grad_snaps.keys())
-            per_solver: dict[str, dict[str, np.ndarray]] = {}
-            for sname in solver_names:
-                per_solver[sname] = {
-                    str(k): grad_snaps[sname][v]
-                    for k, v in enumerate(sweep_values)
-                    if v in grad_snaps[sname]
-                }
-            save_gradient_fields_npz(
-                out_dir,
-                solver_names,
-                per_solver,
-                shared_arrays={
-                    "ic": np.asarray(ic),
-                    "horizons": np.array(
-                        [float(v) * float(phys.get("dt", 1.0)) for v in sweep_values]
-                        if sweep_key == "steps"
-                        else [float(v) for v in sweep_values]
-                    ),
-                },
-            )
 
         result = {"by_solver": results, "sweep_key": sweep_key, "params": run}
         save_experiment(
@@ -983,6 +991,17 @@ def run_jacobian_svd(
         gpu_ids = overrides.get("gpu_ids")
         _wall_times: dict[str, float] = {}
 
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        diff_solvers = filter_resumable_solvers(diff_solvers, out_dir, overrides)
+        _partial_lock = threading.Lock()
+        _completed: dict = {}  # name → {jacobian_computed: True, wall_time_s: …}
+
         # ── Pass 1: full Jacobian via jacrev ──────────────────────────────────
         # jax.jacrev computes ∂output[i]/∂ic[j] for all (i,j), giving the full
         # (D_out, D_in) Jacobian with D_out VJP calls — tractable for small N.
@@ -1027,6 +1046,32 @@ def run_jacobian_svd(
                 base_inputs_snap[name] = (dict(base_inputs), np.array(base_ic))
                 elapsed = time.perf_counter() - t0
                 _wall_times[name] = elapsed
+                # Persist this solver's Jacobian + grad to the shared npz so a
+                # crash in the next solver doesn't lose it; merge logic below
+                # already knows how to reload these on resume. The partial
+                # by_solver entry signals --continue to skip this solver.
+                save_gradient_fields_npz(
+                    out_dir,
+                    [name],
+                    {
+                        name: {
+                            "grad:": np.asarray(grad_snaps[name]),
+                            "jac:": np.asarray(jacobians[name]),
+                        }
+                    },
+                    shared_arrays={"ic": np.array(ic)},
+                    filename="jacobian_svd.npz",
+                    prefixes=("grad", "jac"),
+                )
+                _completed[name] = {
+                    "jacobian_computed": True,
+                    "wall_time_s": elapsed,
+                }
+                write_partial(
+                    out_dir,
+                    {"by_solver": dict(_completed), "params": run},
+                    _partial_lock,
+                )
                 console.print(
                     f"  [{color}]{name}[/] J {J_mat.shape} done in {elapsed:.1f}s"
                 )
@@ -1046,14 +1091,7 @@ def run_jacobian_svd(
         # set rather than just the current subset.  The NPZ stores each solver's
         # full Jacobian matrix under the positional key ``jac_j`` (see save
         # below).  Per-solver entries already computed this run take precedence.
-        out_dir_for_merge = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        _existing_npz = out_dir_for_merge / "jacobian_svd.npz"
+        _existing_npz = out_dir / "jacobian_svd.npz"
         if _existing_npz.exists():
             try:
                 _npz = np.load(str(_existing_npz), allow_pickle=True)
@@ -1173,11 +1211,9 @@ def run_jacobian_svd(
             run_with_gpu_pool(landscape_solvers, tags, _landscape_work, gpu_ids=gpu_ids)
 
         # ── Save NPZ ──────────────────────────────────────────────────────────
-        out_dir = out_dir_for_merge  # already computed above for merge lookup
-        # Build per-solver payload: grad_{j} (1-D gradient) and jac_{j} (full
-        # Jacobian matrix).  The ``jac`` prefix enables future partial runs to
-        # reload existing Jacobians and recompute aggregate statistics without
-        # re-running all solvers (see merge block above).
+        # Per-solver grad + jac arrays were already written inside _svd_work for
+        # crash safety; this final pass re-asserts them alongside the aggregate
+        # singular_values / singular_vectors that need the full solver set.
         _per_solver_npz: dict[str, dict[str, np.ndarray]] = {}
         for _sname in solver_names:
             _per_solver_npz[_sname] = {
