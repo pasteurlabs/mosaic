@@ -46,6 +46,7 @@ Run from the terminal:
 from __future__ import annotations
 
 import os
+import threading
 import time
 import traceback
 
@@ -55,6 +56,10 @@ import numpy as np
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.hardware import ResourceSampler, get_hardware_info
+from mosaic.benchmarks.core.partial import (
+    filter_resumable_solvers,
+    write_partial,
+)
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
 from mosaic.benchmarks.core.utils import (
     _diff_solvers,
@@ -147,6 +152,22 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
 
     _classify_failure = _classify_failure_import()
 
+    # Compute out_dir up-front so _spatial_work can checkpoint per-solver
+    # completion to result_partial.json. On --continue, solvers that finished
+    # every N value are skipped; partial sweeps are conservatively re-run.
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        _SUITE,
+        "spatial_cost",
+        suffix="_debug" if overrides.get("debug") else "",
+    )
+    solver_names = filter_resumable_solvers(
+        active_solvers(cfg, "cost", "spatial_cost"), out_dir, overrides
+    )
+    _partial_lock = threading.Lock()
+    _completed: dict = {}
+
     def _spatial_work(name: str, t) -> None:
         color = cfg.solvers[name].color
         t_solver = time.perf_counter()
@@ -221,14 +242,18 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
 
         elapsed = time.perf_counter() - t_solver
         _wall_times[name] = elapsed
+        # Snapshot this solver as complete so --continue can skip it next time.
+        # by_N stays in result.json (its on-disk schema); the partial uses
+        # by_solver (the schema interpreted by done_solvers_in_partial).
+        _completed[name] = {"wall_time_s": elapsed}
+        write_partial(
+            out_dir,
+            {"by_solver": dict(_completed), "params": run},
+            _partial_lock,
+        )
         console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
-    run_with_gpu_pool(
-        active_solvers(cfg, "cost", "spatial_cost"),
-        tags,
-        _spatial_work,
-        gpu_ids=gpu_ids,
-    )
+    run_with_gpu_pool(solver_names, tags, _spatial_work, gpu_ids=gpu_ids)
 
     result = {"by_N": by_N, "params": run, "hardware": hardware}
     if os.environ.get("CI"):
@@ -237,13 +262,6 @@ def run_spatial_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> d
             " Relative rankings reliable; absolute times may vary"
             " \u00b110-15% across runs."
         )
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        "spatial_cost",
-        suffix="_debug" if overrides.get("debug") else "",
-    )
     save_experiment(
         result,
         out_dir,
@@ -300,6 +318,19 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
     gpu_ids = overrides.get("gpu_ids")
 
     _classify_failure = _classify_failure_import()
+
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        _SUITE,
+        "temporal_cost",
+        suffix="_debug" if overrides.get("debug") else "",
+    )
+    solver_names = filter_resumable_solvers(
+        active_solvers(cfg, "cost", "temporal_cost"), out_dir, overrides
+    )
+    _partial_lock = threading.Lock()
+    _completed: dict = {}
 
     def _temporal_work(name: str, t) -> None:
         color = cfg.solvers[name].color
@@ -372,14 +403,15 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
 
         elapsed = time.perf_counter() - t_solver
         _wall_times[name] = elapsed
+        _completed[name] = {"wall_time_s": elapsed}
+        write_partial(
+            out_dir,
+            {"by_solver": dict(_completed), "params": run},
+            _partial_lock,
+        )
         console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
-    run_with_gpu_pool(
-        active_solvers(cfg, "cost", "temporal_cost"),
-        tags,
-        _temporal_work,
-        gpu_ids=gpu_ids,
-    )
+    run_with_gpu_pool(solver_names, tags, _temporal_work, gpu_ids=gpu_ids)
 
     result = {"by_steps": by_steps, "params": run, "hardware": hardware}
     if os.environ.get("CI"):
@@ -388,13 +420,6 @@ def run_temporal_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
             " Relative rankings reliable; absolute times may vary"
             " \u00b110-15% across runs."
         )
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        "temporal_cost",
-        suffix="_debug" if overrides.get("debug") else "",
-    )
     save_experiment(
         result,
         out_dir,
@@ -477,6 +502,17 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
     diff_solver_names_list = [name for name, _ in diff_solvers]
 
     _classify_failure = _classify_failure_import()
+
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        _SUITE,
+        "vjp_cost",
+        suffix="_debug" if overrides.get("debug") else "",
+    )
+    solver_names = filter_resumable_solvers(diff_solver_names_list, out_dir, overrides)
+    _partial_lock = threading.Lock()
+    _completed: dict = {}
 
     def _vjp_work(name: str, t) -> None:
         color = cfg.solvers[name].color
@@ -635,9 +671,28 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
         elapsed = time.perf_counter() - t_solver
         _wall_times[name] = elapsed
+        # Persist this solver's grad snapshots immediately so a crash in the
+        # next solver doesn't lose them; save_gradient_fields_npz merges
+        # under its own flock so concurrent per-solver writes are safe.
+        if grad_snaps_N[name] and N_values:
+            save_gradient_fields_npz(
+                out_dir,
+                solver_names=[name],
+                per_solver_arrays={
+                    name: {f"N{res}": arr for res, arr in grad_snaps_N[name].items()}
+                },
+                shared_arrays={"N_values": np.array(N_values)},
+                prefixes=("grad",),
+            )
+        _completed[name] = {"wall_time_s": elapsed}
+        write_partial(
+            out_dir,
+            {"by_solver": dict(_completed), "params": run},
+            _partial_lock,
+        )
         console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
-    run_with_gpu_pool(diff_solver_names_list, tags, _vjp_work, gpu_ids=gpu_ids)
+    run_with_gpu_pool(solver_names, tags, _vjp_work, gpu_ids=gpu_ids)
 
     result = {"by_N": by_N, "by_steps": by_steps, "params": run, "hardware": hardware}
     if os.environ.get("CI"):
@@ -646,13 +701,6 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
             " Relative rankings reliable; absolute times may vary"
             " \u00b110-15% across runs."
         )
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        _SUITE,
-        "vjp_cost",
-        suffix="_debug" if overrides.get("debug") else "",
-    )
     save_experiment(
         result,
         out_dir,
@@ -661,23 +709,6 @@ def run_vjp_cost(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         harness_fn=run_vjp_cost,
         wall_time_s=_wall_times,
     )
-
-    # Save gradient field snapshots (one per solver per N, from last trial)
-    any_grads = any(snaps for snaps in grad_snaps_N.values())
-    if any_grads and N_values:
-        per_solver = {
-            name: {f"N{res}": arr for res, arr in snaps.items()}
-            for name, snaps in grad_snaps_N.items()
-            if snaps
-        }
-        save_gradient_fields_npz(
-            out_dir,
-            solver_names=[n for n, _ in diff_solvers],
-            per_solver_arrays=per_solver,
-            shared_arrays={"N_values": np.array(N_values)},
-            prefixes=("grad",),
-        )
-        console.print(f"  Saved gradient fields → {out_dir / 'gradient_fields.npz'}")
 
     return result
 
