@@ -341,6 +341,13 @@ def run(
         "On a fresh worker machine 4-8 is usually faster.",
         min=1,
     ),
+    continue_: bool = typer.Option(
+        False,
+        "--continue",
+        help="Resume a previous run: skip experiments whose result.json already "
+        "exists in the output directory. Granularity is per experiment — a "
+        "single experiment that crashed mid-flight will be re-run from the start.",
+    ),
 ):
     """Run benchmark suites across problems.
 
@@ -488,6 +495,7 @@ def run(
                     suite_name=suite,
                     verbose_errors=traceback,
                     overrides=_overrides or None,
+                    skip_completed=continue_,
                 )
                 n_total = len(exps)
                 n_ok = len(results)

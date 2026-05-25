@@ -259,6 +259,30 @@ def image_tags_no_build(cfg: ProblemConfig) -> dict[str, str]:
 # ── Suite orchestration ───────────────────────────────────────────────────────
 
 
+def _experiment_already_complete(suite_dir, name: str) -> bool:
+    """True if a prior run wrote artifacts for *name* under *suite_dir*.
+
+    Matches two on-disk layouts:
+      1. ``<suite_dir>/<name>/result.json`` — most experiments.
+      2. ``<suite_dir>/<name>/*/result.json`` — multi-IC experiments
+         (forward.agreement with several ICs). Considered complete when at
+         least one IC subdir has a ``result.json`` and every subdir has one.
+
+    Note that this is a coarse signal: a partially-completed multi-IC
+    experiment that didn't get to write any ICs is not detected and will
+    re-run from scratch under ``--continue``.
+    """
+    exp_dir = suite_dir / name
+    if not exp_dir.is_dir():
+        return False
+    if (exp_dir / "result.json").exists():
+        return True
+    subdirs = [p for p in exp_dir.iterdir() if p.is_dir()]
+    if subdirs and all((p / "result.json").exists() for p in subdirs):
+        return True
+    return False
+
+
 def run_suite(
     cfg: ProblemConfig,
     tags: dict[str, str],
@@ -269,6 +293,7 @@ def run_suite(
     suite_name: str = "",
     verbose_errors: bool = False,
     overrides: dict | None = None,
+    skip_completed: bool = False,
 ) -> dict[str, dict]:
     """Run a set of named experiments and optionally generate plots.
 
@@ -282,15 +307,21 @@ def run_suite(
         suite_name:      name of the suite (e.g. "calibration") used to look up
                          cfg.extra_plots for problem-specific plot hooks.
         verbose_errors:  if True, print full traceback on experiment/plot failures.
+        skip_completed:  if True, experiments whose result.json already exists
+                         on disk are skipped (drives ``mosaic run --continue``).
 
     Returns:
         {experiment_name: results_dict}
     """
+    from .utils import results_dir
+
     global _current_problem
     _current_problem = (
         cfg.name
     )  # label containers so cleanup only kills this problem's containers
     to_run = to_run or list(experiments)
+    suffix = "_debug" if (overrides or {}).get("debug") else ""
+    suite_dir = results_dir() / cfg.name / suite_name
     n_experiments = len(to_run)
     n_solvers = len(cfg.solvers)
     console.print(
@@ -305,6 +336,12 @@ def run_suite(
             )
             continue
         print_rule(f"experiment: {name} [{ei}/{n_experiments}]")
+        if skip_completed and _experiment_already_complete(
+            suite_dir, f"{name}{suffix}"
+        ):
+            print_skip(f"{name}: existing results found — re-use under --continue")
+            results[name] = {"status": "skipped_continue"}
+            continue
         try:
             results[name] = experiments[name](cfg, tags, **(overrides or {}))
         except NotImplementedError as exc:
@@ -316,7 +353,6 @@ def run_suite(
 
     if plots and plot_fns:
         print_rule("plots")
-        suffix = "_debug" if (overrides or {}).get("debug") else ""
         # Use the full (unfiltered) config for plot generation so all solvers
         # appear in plots even when this run targeted only a subset via --solvers.
         try:

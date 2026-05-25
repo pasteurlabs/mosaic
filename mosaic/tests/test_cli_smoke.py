@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 
 import pytest
 
 MOSAIC = [sys.executable, "-m", "mosaic.benchmarks.cli"]
+
+# Disable Rich/Click colour output so substring assertions against --help
+# stdout aren't broken by ANSI escapes splitting flag names (Rich renders
+# ``--flag`` as ``-\x1b[…m-flag`` in narrow non-TTY environments like CI).
+_NO_COLOR_ENV = {**os.environ, "NO_COLOR": "1", "TERM": "dumb"}
 
 
 def _run_help(args: list[str]) -> subprocess.CompletedProcess:
@@ -16,6 +22,7 @@ def _run_help(args: list[str]) -> subprocess.CompletedProcess:
         capture_output=True,
         text=True,
         timeout=30,
+        env=_NO_COLOR_ENV,
     )
 
 
@@ -44,3 +51,17 @@ def test_top_level_help():
 def test_subcommand_help(subcommand: str):
     result = _run_help([subcommand])
     assert result.returncode == 0, f"{subcommand} --help failed:\n{result.stderr}"
+
+
+def test_run_help_exposes_continue_flag():
+    """`mosaic run --continue` is the resume-after-crash entrypoint.
+
+    Regression guard: the flag must stay discoverable in --help output so the
+    24h-OOM recovery path remains visible to users (and to CI scripts that
+    grep for it).
+    """
+    result = _run_help(["run"])
+    assert result.returncode == 0
+    assert "--continue" in result.stdout, (
+        f"--continue flag missing from `mosaic run --help`:\n{result.stdout}"
+    )
