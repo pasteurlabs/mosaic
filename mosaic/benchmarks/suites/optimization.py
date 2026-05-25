@@ -18,6 +18,10 @@ import numpy as np
 import optax
 
 from mosaic.benchmarks.core.config import ProblemConfig
+from mosaic.benchmarks.core.partial import (
+    filter_resumable_solvers,
+    write_partial,
+)
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
 
 # JAX-traced loss_fn closures capture this reference at trace time;
@@ -34,7 +38,6 @@ from mosaic.benchmarks.core.utils import (
     results_dir,
     save_experiment,
     save_gradient_fields_npz,
-    save_json,
 )
 
 _SUITE = "optimization"
@@ -436,15 +439,22 @@ def _run_recovery_long_impl(
             suffix="_debug" if overrides.get("debug") else "",
         )
         _partial_lock = threading.Lock()
+        # Solvers whose sweep finished completely; populated at end of each
+        # _recovery_long_work call and serialised under the `by_solver` key
+        # so done_solvers_in_partial can pick them up on --continue.
+        _completed: dict = {}
 
         def _write_partial() -> None:
-            partial = {
+            # by_sweep carries the partial mid-flight state for crash-recovery
+            # diagnostics; by_solver is the canonical completion marker that
+            # filter_resumable_solvers consults on --continue.
+            payload = {
                 "sweep_key": sweep_key,
+                "by_solver": dict(_completed),
                 "by_sweep": by_sweep,
                 "params": run,
             }
-            with _partial_lock:
-                save_json(partial, out_dir / "result_partial.json")
+            write_partial(out_dir, payload, _partial_lock)
 
         def _recovery_long_work(name: str, t) -> None:
             from mosaic.benchmarks.core.console import console
@@ -771,10 +781,19 @@ def _run_recovery_long_impl(
                         _fp_stack.append(np.zeros_like(np.asarray(ic_true)))
                 if _fp_stack:
                     all_final_perturbed_snaps[name] = np.stack(_fp_stack)
-            _wall_times[name] = time.perf_counter() - _t0
+            elapsed_solver = time.perf_counter() - _t0
+            _wall_times[name] = elapsed_solver
+            # Mark this solver as fully done so filter_resumable_solvers skips
+            # it on the next --continue. by_sweep stays under its own key for
+            # crash-recovery diagnostics.
+            _completed[name] = {"wall_time_s": elapsed_solver}
+            _write_partial()
 
+        solver_list = filter_resumable_solvers(
+            _diff_solvers(cfg, "optimization", exp_key), out_dir, overrides
+        )
         run_with_gpu_pool(
-            _diff_solvers(cfg, "optimization", exp_key),
+            solver_list,
             tags,
             _recovery_long_work,
             gpu_ids=gpu_ids,
@@ -980,6 +999,16 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         _wall_times: dict[str, float] = {}
         gpu_ids = overrides.get("gpu_ids")
 
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"topopt/{ic_subdir}" if ic_subdir else "topopt",
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        solver_list = filter_resumable_solvers(_topopt_solvers(cfg), out_dir, overrides)
+        _partial_lock = threading.Lock()
+
         def _topopt_work(name: str, t) -> None:
             _t0 = time.perf_counter()
             rho_opt = rho_init
@@ -1027,16 +1056,15 @@ def run_topopt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 "grad_norms": grad_norms,
             }
             _wall_times[name] = time.perf_counter() - _t0
+            # Snapshot per-solver completion so --continue can skip on resume.
+            write_partial(
+                out_dir,
+                {"by_solver": dict(by_solver), "params": run},
+                _partial_lock,
+            )
 
-        run_with_gpu_pool(_topopt_solvers(cfg), tags, _topopt_work, gpu_ids=gpu_ids)
+        run_with_gpu_pool(solver_list, tags, _topopt_work, gpu_ids=gpu_ids)
 
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"topopt/{ic_subdir}" if ic_subdir else "topopt",
-            suffix="_debug" if overrides.get("debug") else "",
-        )
         solver_names = list(rho_snaps.keys())
         per_solver: dict[str, dict[str, np.ndarray]] = {}
         for sname in solver_names:
@@ -1140,6 +1168,8 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
 
             Mirrors the recovery_constant_ic harness so an interrupted drag_opt
             (long PICT runs in particular) preserves per-iteration progress.
+            Solvers carry ``in_progress: True`` while their optimisation loop
+            is still running; done_solvers_in_partial honours that flag.
             """
             if not by_solver:
                 return
@@ -1149,8 +1179,7 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
                 "U_mean": U_mean,
                 "params": run,
             }
-            with _partial_lock:
-                save_json(payload, partial_out_dir / "result_partial.json")
+            write_partial(partial_out_dir, payload, _partial_lock)
 
         def _drag_opt_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1306,7 +1335,11 @@ def run_drag_opt(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> dict:
         # Pass the run-specific sub-key so per-run exclusions (e.g.
         # "recovery/drag_opt/re20") are honoured at solver-selection time.
         _drag_exp = f"drag_opt/{run_name}" if run_name else "drag_opt"
-        drag_opt_solvers = _diff_solvers(cfg, "optimization", _drag_exp)
+        drag_opt_solvers = filter_resumable_solvers(
+            _diff_solvers(cfg, "optimization", _drag_exp),
+            partial_out_dir,
+            overrides,
+        )
         run_with_gpu_pool(
             drag_opt_solvers,
             tags,
@@ -1434,6 +1467,16 @@ def run_topopt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> di
         _wall_times: dict[str, float] = {}
         gpu_ids = overrides.get("gpu_ids")
 
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"topopt_bfgs/{ic_subdir}" if ic_subdir else "topopt_bfgs",
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        solver_list = filter_resumable_solvers(_topopt_solvers(cfg), out_dir, overrides)
+        _partial_lock = threading.Lock()
+
         def _topopt_bfgs_work(name: str, t) -> None:
             _t0 = time.perf_counter()
             rho_opt = rho_init
@@ -1484,18 +1527,14 @@ def run_topopt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> di
                 "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
             }
             _wall_times[name] = time.perf_counter() - _t0
+            write_partial(
+                out_dir,
+                {"by_solver": dict(by_solver), "params": run},
+                _partial_lock,
+            )
 
-        run_with_gpu_pool(
-            _topopt_solvers(cfg), tags, _topopt_bfgs_work, gpu_ids=gpu_ids
-        )
+        run_with_gpu_pool(solver_list, tags, _topopt_bfgs_work, gpu_ids=gpu_ids)
 
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"topopt_bfgs/{ic_subdir}" if ic_subdir else "topopt_bfgs",
-            suffix="_debug" if overrides.get("debug") else "",
-        )
         solver_names = list(rho_snaps.keys())
         per_solver: dict[str, dict[str, np.ndarray]] = {}
         for sname in solver_names:
@@ -1562,6 +1601,19 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
         flow_init_snaps: dict = {}
         flow_snaps: dict = {}
         _wall_times: dict[str, float] = {}
+
+        _dbg = "_debug" if overrides.get("debug") else ""
+        if ic_subdir:
+            _parent = experiment_dir(
+                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
+            )
+            out_dir = _parent / ic_subdir
+            out_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            out_dir = experiment_dir(
+                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
+            )
+        _partial_lock = threading.Lock()
 
         def _drag_opt_bfgs_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1656,22 +1708,23 @@ def run_drag_opt_bfgs(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                 "grad_norms": (lbfgs_diag or {}).get("grad_norms"),
             }
             _wall_times[name] = time.perf_counter() - _t0
+            write_partial(
+                out_dir,
+                {
+                    "by_solver": dict(by_solver),
+                    "run_name": run_name,
+                    "U_mean": U_mean,
+                    "params": run,
+                },
+                _partial_lock,
+            )
 
         _drag_exp = f"drag_opt_bfgs/{run_name}" if run_name else "drag_opt_bfgs"
-        drag_opt_solvers = _diff_solvers(cfg, "optimization", _drag_exp)
+        drag_opt_solvers = filter_resumable_solvers(
+            _diff_solvers(cfg, "optimization", _drag_exp), out_dir, overrides
+        )
         run_with_gpu_pool(drag_opt_solvers, tags, _drag_opt_bfgs_work, gpu_ids=gpu_ids)
 
-        _dbg = "_debug" if overrides.get("debug") else ""
-        if ic_subdir:
-            _parent = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
-            )
-            out_dir = _parent / ic_subdir
-            out_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            out_dir = experiment_dir(
-                results_dir(), cfg.name, _SUITE, "drag_opt_bfgs", suffix=_dbg
-            )
         result = {
             "by_solver": by_solver,
             "run_name": run_name,
@@ -1811,7 +1864,18 @@ def run_conductivity_recovery(
         rho_histories: dict = {}
         _wall_times: dict[str, float] = {}
 
-        candidate_solvers = _diff_solvers(cfg, "optimization", _exp_key)
+        _dbg = "_debug" if overrides.get("debug") else ""
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
+            suffix=_dbg,
+        )
+        candidate_solvers = filter_resumable_solvers(
+            _diff_solvers(cfg, "optimization", _exp_key), out_dir, overrides
+        )
+        _partial_lock = threading.Lock()
 
         def _conductivity_recovery_work(name: str, t) -> None:
             _t0 = time.perf_counter()
@@ -1915,18 +1979,14 @@ def run_conductivity_recovery(
                 else grad_norms_adam,
             }
             _wall_times[name] = time.perf_counter() - _t0
+            write_partial(
+                out_dir,
+                {"by_solver": dict(by_solver), "params": run},
+                _partial_lock,
+            )
 
         run_with_gpu_pool(
             candidate_solvers, tags, _conductivity_recovery_work, gpu_ids=gpu_ids
-        )
-
-        _dbg = "_debug" if overrides.get("debug") else ""
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key,
-            suffix=_dbg,
         )
 
         solver_names = list(rho_snaps.keys())
