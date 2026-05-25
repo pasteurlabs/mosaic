@@ -1,28 +1,18 @@
 """Background-polled memory sampler for GPU VRAM and container RAM.
 
-This module owns three concerns that previously lived inside the gradient
-suite:
+* :func:`sample_vram_mib` — single-shot NVML query.
+* :func:`sample_container_ram_mib` — single-shot Docker-SDK query.
+* :func:`container_id_from_tesseract` — pull the container name from a
+  served Tesseract handle.
+* :class:`MemoryPoller` — context manager that records **peak** observed
+  VRAM and RAM. Use it when the container may be OOM-killed mid-call so
+  the last sample before the kill captures the threshold;
+  :class:`~mosaic.benchmarks.core.hardware.ResourceSampler` is the cheaper
+  delta variant for healthy steady-state workloads.
 
-  * Single-shot memory queries — :func:`sample_vram_mib` (via NVML) and
-    :func:`sample_container_ram_mib` (via the Docker SDK).
-  * Tesseract → container-id extraction — :func:`container_id_from_tesseract`,
-    which understands both modern (``_serve_context``) and legacy
-    (``_container`` / ``_service`` / ``_backend``) layouts.
-  * A polling sampler — :class:`MemoryPoller`, used as a context manager,
-    that records the **peak** observed VRAM and RAM across the lifetime of
-    the block. This is the right tool for failure-boundary experiments
-    such as horizon_sweep_limits, where the container can be OOM-killed
-    mid-call: the last sample taken before the kill captures the
-    ~OOM threshold (a final-delta read would either be 0 or fail).
-
-Both single-shot queries are best-effort: they return ``None`` on any
-failure (no NVIDIA driver, no Docker socket, container gone, …) so
-callers degrade gracefully on CPU-only / no-Docker hosts.
-
-The complementary tool, :class:`mosaic.benchmarks.core.hardware.ResourceSampler`,
-is a cheaper *before/after delta* sampler. Pick the poller when you need
-absolute peak or expect the container to die; pick ResourceSampler when
-you only want the workload's incremental cost in the steady state.
+Single-shot queries are best-effort (no NVIDIA driver, no Docker socket,
+container gone → ``None``) so callers degrade gracefully on CPU-only
+hosts.
 """
 
 from __future__ import annotations
@@ -119,30 +109,15 @@ def sample_container_ram_mib(container_id: str) -> float | None:
 
 
 def container_id_from_tesseract(t) -> str | None:
-    """Extract a Docker container name/ID from a Tesseract instance.
+    """Extract the container name/ID from a served Tesseract handle.
 
-    Prefers ``_serve_context['container_name']`` (tesseract_core ≥ 0.9),
-    then falls back to scanning legacy Docker-SDK Container object
-    attributes. Returns ``None`` if neither path yields an ID.
+    Reads ``_serve_context['container_name']``; returns ``None`` when the
+    handle has no serve context (e.g. ``from_tesseract_api`` rather than
+    ``from_image``).
     """
-    try:
-        ctx = getattr(t, "_serve_context", None)
-        if isinstance(ctx, dict):
-            name = ctx.get("container_name") or ctx.get("container_id")
-            if name:
-                return name
-    except Exception:
-        pass
-    for attr in ("_container", "container", "_service", "_backend"):
-        try:
-            obj = getattr(t, attr, None)
-            if obj is None:
-                continue
-            cid = getattr(obj, "id", None) or getattr(obj, "short_id", None)
-            if isinstance(cid, str) and len(cid) >= 12:
-                return cid[:12]
-        except Exception:
-            continue
+    ctx = getattr(t, "_serve_context", None)
+    if isinstance(ctx, dict):
+        return ctx.get("container_name") or ctx.get("container_id")
     return None
 
 
