@@ -13,11 +13,13 @@ This guide walks through setting up Mosaic, running your first benchmark, and un
 
 ### GPU support (optional)
 
-GPU-accelerated solvers (JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, JAX-FEM, torch-fem) require:
+GPU-enabled solvers (marked **GPU** in the [Solver Reference](solvers.qmd)) run efficiently on a CUDA-capable NVIDIA GPU. To enable that path you'll need:
 
 - An NVIDIA GPU with CUDA support
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed and configured
 - Docker configured to use the `nvidia` runtime
+
+Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
 
 Test your setup:
 

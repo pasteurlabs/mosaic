@@ -85,7 +85,7 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     grad_v0 = jax.grad(loss)(inputs["v0"])
 ```
 
-The `from_image` context manager starts and tears down the container. For GPU solvers (marked **GPU** in the [Solver Reference](solvers.qmd)), pass `gpus=["0"]` to `from_image`; CPU-only solvers ignore the argument. Warp and XLB may fail entirely without a GPU.
+The `from_image` context manager starts and tears down the container. For GPU solvers (marked **GPU** in the [Solver Reference](solvers.qmd)), pass `gpus=["0"]` to `from_image`; CPU-only solvers ignore the argument. A CUDA-capable GPU is recommended for the GPU-enabled solvers to run efficiently. Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
 
 ## Mesh solvers
 
@@ -105,9 +105,3 @@ print("Compliance:", t.apply(inputs)["compliance"])
 ```
 
 The thermal domain follows the same pattern with `thermal_mesh.make_default_inputs(...)`.
-
-## Gotchas
-
-- **Scalars are 1-element arrays.** `viscosity`, `dt`, drag coefficients etc. are typed `Array[(1,), Float32]`, not Python floats. Pass `np.array([0.01], dtype=np.float32)`.
-- **Julia / FEniCS solvers require Option B.** Their native dependencies (Julia runtime, PETSc, FEniCS/Firedrake stack) are impractical to install manually.
-- Per-field shapes, dtypes, and differentiability flags are documented per-solver in the [Solver Reference](solvers.qmd).
