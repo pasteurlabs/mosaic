@@ -46,4 +46,23 @@ Each benchmark domain is configured by a `Problem` dataclass:
 
 Per-experiment descriptions live on each `Experiment.params` dict, read by `cfg.get_plot_description(suite, experiment)` rather than from a problem-level field.
 
-Each problem is a Python package at `mosaic/benchmarks/problems/<slug>/` with `config.py` as the single entry point — it instantiates `Problem(...)`, calls `problem.add_ic(...)` per IC, then `problem.add_experiment(...)` per experiment. Companion modules (`physics.py`, `ics.py`, optionally `optimization.py`) provide the callables passed in. The package re-exports `problem`; the registry in `mosaic/benchmarks/problems/__init__.py` collects them all.
+Each problem is a Python package at `mosaic/benchmarks/problems/<slug>/` with `config.py` as the single entry point — it instantiates `Problem(...)`, calls `problem.add_ic(...)` per IC, then `problem.add_experiment(...)` per experiment. Small domains keep everything in `config.py`; larger ones split into `ics.py` / `physics.py` / `experiments.py` by hand. The package re-exports `problem`; the registry in `mosaic/benchmarks/problems/__init__.py` collects them all.
+
+## `Experiment`
+
+Returned by every `Problem.add_experiment(...)` call, stored on `problem.experiments[key]`:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `fn` | `Callable` | Runner closure; the framework calls `fn(cfg, tags, **overrides) -> dict` |
+| `params` | `dict` | Introspection manifest (plot description, status checks, …) read by `mosaic status` and the docs build |
+| `coords` | `dict[str, Any]` | Typed sweep position, e.g. `{"N": 32, "regime": "diffusive"}`. Variant fan-out auto-tags with `{"variant": <name>}`. Persisted into `result.json` so aggregator plots find each cell. |
+| `goals` | `list[Goal]` | Success predicates; each `Goal.check(result) -> bool` is evaluated after the run and the boolean lands in `result["goals"][goal.name]` |
+
+## `Goal`
+
+A frozen dataclass `(name: str, description: str, check: Callable[[dict], bool])`. Predicates run after the experiment completes; a raising check records `False` rather than crashing the run.
+
+## Aggregator plots (`add_sweep_plot`)
+
+`Problem.add_sweep_plot(name, fn, *, group_by=..., filter=...)` registers a plot under `_extra/sweep/<name>`. At render time the framework walks every experiment with non-empty `coords`, applies `filter` (each `coord_key=value` must match exactly), partitions the survivors by `group_by`, and calls `fn(payload, group)` once per partition. `payload` is `list[{"coords": ..., "exp_key": str, "result": dict}]` with `group_by` keys removed (they're constant in the partition; `group` carries them).

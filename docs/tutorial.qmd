@@ -625,19 +625,16 @@ This creates:
 ```
 mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/
   __init__.py                    # re-exports InputSchema, OutputSchema
-  schemas.py                     # InputSchema / OutputSchema with `# TODO` placeholders
+  schemas.py                     # InputSchema / OutputSchema (empty bodies + TODOs)
 
 mosaic/tesseracts/diffusion-1d/  # empty directory, ready for solver subdirs
 
 mosaic/benchmarks/problems/diffusion_1d/
   __init__.py                    # one-line docstring; the registry imports config.py
-  config.py                      # canonical Problem(...) + problem.add_ic(...) + _register_experiments(problem)
-  ics.py                         # IC generator functions (TODO stubs)
-  physics.py                     # make_inputs(spec, ic, **physics) + DIAGNOSTICS (TODO stubs)
-  experiments.py                 # register(problem) — calls problem.add_experiment(...) per experiment (TODO)
+  config.py                      # IC fn + make_inputs + Problem + problem.add_ic + experiment TODOs
 ```
 
-The `InputSchema` / `OutputSchema` bodies are empty (you'll fill them in next); the `Problem` instance in `config.py` is wired up but the IC function, `make_inputs`, and the `register()` body are TODO stubs.
+`config.py` is the single Problem-package file the scaffold emits — the `Problem` instance is wired up, but the IC generator, `make_inputs`, and `problem.add_experiment(...)` registrations are TODO stubs (the template's suggested experiments are inlined as `# TODO:` comments listing the suggested ic / physics / fd / optim payloads). Once the file grows past comfortably navigable, split it by hand into `ics.py` / `physics.py` / `experiments.py` — but don't bother for small domains.
 
 Try validating right away --- it will fail because there are no solvers yet and the empty `OutputSchema` doesn't define `output_key`:
 
@@ -750,31 +747,40 @@ __all__ = ["InputSchema", "OutputSchema", "make_gaussian_ic"]
 
 ## 5. Configure the problem
 
-The problem package tells the harness how to generate inputs, compare outputs, and which experiments to run. It lives at `mosaic/benchmarks/problems/diffusion_1d/` and is split across these files:
+The problem package tells the harness how to generate inputs, compare outputs, and which experiments to run. The scaffold emits **everything in one file** — `mosaic/benchmarks/problems/diffusion_1d/config.py` — so you can see the whole domain on one page. The `__init__.py` is a one-line stub.
 
-| File | Responsibility |
-|:-----|:---------------|
-| `config.py` | Solver discovery, the canonical `Problem` instance (`problem = Problem(...)`), per-solver overrides, `problem.add_ic(...)` per IC, and the call to `_register_experiments(problem)`. |
-| `ics.py` | IC generator functions, signature `(L, seed, **physics) -> array`. No module-level registry — ICs are registered via `problem.add_ic(...)` in `config.py`. |
-| `physics.py` | `make_inputs(spec, ic, **physics) -> dict`, mesh / BC builders, and the `DIAGNOSTICS` registry. `Problem.__post_init__` wraps the user-supplied callable so runners see `(solver_name, ic, **physics) -> dict`. |
-| `experiments.py` | `_DESCRIPTIONS` dict plus `register(problem)` which calls `problem.add_experiment(...)` once per experiment. |
+`config.py` contains, in order:
 
-The package's `__init__.py` just re-exports `problem` from `config.py`.
+1. The IC generator function(s).
+2. `make_inputs(spec, ic, **physics) -> dict` — assembles each solver's input dict.
+3. `discover_solvers(...)` + the `Problem(...)` instance with all the metadata.
+4. `problem.add_ic(...)` per IC.
+5. `problem.add_experiment(...)` per experiment (the scaffold leaves these as `# TODO:` comments listing each template-suggested entry).
 
-### 5a. Fill in `ics.py`
+Edit the file to fill in the bodies. Here's a complete `config.py` for diffusion-1d:
 
 ```python
-"""Initial-condition generators for diffusion-1d.
-
-Each generator has signature ``(L: float, seed: int, **physics) -> array``.
-ICs are registered onto the ``Problem`` via ``problem.add_ic(...)`` in
-``config.py``.
-"""
+"""Problem definition for diffusion-1d."""
 
 from __future__ import annotations
 
 import numpy as np
 
+from mosaic.benchmarks.core.config import (
+    Goal, Problem, SolverSpec, discover_solvers,
+)
+from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.problems.shared.cost import spatial_cost, temporal_cost
+from mosaic.benchmarks.problems.shared.forward import agreement
+from mosaic.benchmarks.problems.shared.gradient import fd_check
+from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
+from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
+from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
+from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
+
+
+# ── Initial conditions ───────────────────────────────────────────────────────
 
 def _gaussian(L: float = 1.0, seed: int = 0, N: int = 128, **_) -> np.ndarray:
     """Gaussian bump centred at L/2."""
@@ -784,58 +790,25 @@ def _gaussian(L: float = 1.0, seed: int = 0, N: int = 128, **_) -> np.ndarray:
 
 
 def _sine(L: float = 1.0, seed: int = 0, N: int = 128, k: int = 2, **_) -> np.ndarray:
-    """Sine wave with wavenumber k (has a known analytic solution)."""
+    """Sine wave with wavenumber k (analytic solution available)."""
     x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
     return np.sin(2.0 * np.pi * k * x / L).astype(np.float32)
 
 
-def _sine_analytic(
-    L: float = 1.0,
-    seed: int = 0,
-    N: int = 128,
-    k: int = 2,
-    alpha: float = 0.01,
-    dt: float = 0.001,
-    steps: int = 100,
-    **_,
-) -> np.ndarray:
-    """Analytic solution of du/dt = alpha * d^2u/dx^2 for a sine IC."""
+def _sine_analytic(L=1.0, seed=0, N=128, k=2, alpha=0.01, dt=0.001, steps=100, **_):
+    """Analytic solution of du/dt = alpha · d²u/dx² for a sine IC."""
     x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
     t = dt * steps
     decay = np.exp(-alpha * (2.0 * np.pi * k / L) ** 2 * t)
     return (np.sin(2.0 * np.pi * k * x / L) * decay).astype(np.float32)
-```
-
-### 5b. Fill in `physics.py`
-
-```python
-"""Input factory + diagnostics for diffusion-1d."""
-
-from __future__ import annotations
-
-import numpy as np
-
-from mosaic.benchmarks.core.config import SolverSpec
 
 
-def make_inputs(
-    spec: SolverSpec,
-    ic: np.ndarray,
-    *,
-    N: int | None = None,
-    alpha: float = 0.01,
-    dt: float = 0.001,
-    steps: int = 100,
-    L: float = 1.0,
-    **_,
-) -> dict:
-    """Build the solver input dict from IC + physics parameters.
+# ── make_inputs ──────────────────────────────────────────────────────────────
+# Problem.__post_init__ wraps this to expose (solver_name, ic, **physics) → dict
+# to runners. Per-solver ``input_overrides`` merge into the returned dict.
 
-    ``Problem.__post_init__`` wraps this to expose
-    ``(solver_name, ic, **physics) -> dict`` to runners — they pass a name,
-    the framework looks the ``SolverSpec`` up here. Per-solver
-    ``input_overrides`` are merged into the returned dict.
-    """
+def make_inputs(spec: SolverSpec, ic: np.ndarray, *, alpha=0.01, dt=0.001,
+                steps=100, L=1.0, **_) -> dict:
     base = {
         "u0": ic,
         "alpha": np.array([alpha], dtype=np.float32),
@@ -846,217 +819,119 @@ def make_inputs(
     return {**base, **spec.input_overrides}
 
 
-# No problem-specific diagnostics for diffusion-1d.
-DIAGNOSTICS: dict = {}
-```
-
-### 5c. Fill in `experiments.py`
-
-This is where each experiment is registered onto the `Problem` instance. Each call is `problem.add_experiment(key, kernel, ic={...}, physics={...}, plot=..., plot_description=...)`. The kernel is one of the shared kernels from `mosaic.benchmarks.problems.shared.*` (`agreement`, `physical_laws`, `fd_check`, `param_sweep`, `jacobian_svd`, `spatial_cost`, `temporal_cost`, `vjp_cost`) or a per-problem kernel decorated with `@kernel(...)`. Plot descriptions are passed inline per call via `plot_description=`.
-
-Any list-valued entry inside a dict kwarg (e.g. `physics={"N": [16, 32, 64]}`) is auto-detected as a sweep axis: `problem.add_experiment` materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`). The plot is registered once at the parent key.
-
-```python
-"""Experiment + plot registrations for diffusion-1d."""
-
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-from mosaic.benchmarks.problems.shared.cost import spatial_cost, temporal_cost
-from mosaic.benchmarks.problems.shared.forward import agreement
-from mosaic.benchmarks.problems.shared.gradient import fd_check
-from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
-from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
-from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
-
-if TYPE_CHECKING:
-    from mosaic.benchmarks.core.config import Problem
-
-
-def register(problem: Problem) -> None:
-    """Populate ``problem.experiments`` / ``problem.plot_fns``."""
-
-    # Forward
-    problem.add_experiment(
-        "forward/baseline",
-        agreement,
-        plot_description=(
-            "Resolution convergence: relative L2 error vs grid size N with a "
-            "Gaussian bump IC."
-        ),
-        ic={"name": "gaussian", "seed": 0},
-        physics={"alpha": 0.01, "dt": 0.001, "steps": 100, "N": [16, 32, 64, 128, 256]},
-        plot=plot_agreement,
-    )
-    problem.add_experiment(
-        "forward/agreement",
-        agreement,
-        plot_description=(
-            "Solver-to-solver agreement: relative L2 error vs diffusivity α "
-            "at fixed N."
-        ),
-        ic={"name": "sine", "seed": 0},
-        physics={"N": 128, "dt": 0.001, "steps": 100, "alpha": [0.001, 0.005, 0.01, 0.05, 0.1]},
-        # ``reference`` is threaded automatically from
-        # ``Problem(reference=...)``. To pin a fine-solver baseline instead:
-        #     reference={"solvers": {"numpy_spectral"}, "dt": 1e-4, "steps": 1000}
-        plot=plot_agreement,
-    )
-
-    # Cost
-    problem.add_experiment(
-        "cost/spatial_cost",
-        spatial_cost,
-        plot_description="Forward-pass wall-clock time vs grid resolution N.",
-        physics={"alpha": 0.01, "dt": 0.001, "steps": 100, "N": [32, 64, 128, 256, 512]},
-        cost={"n_trials": 3},
-        plot=plot_cost,
-    )
-    problem.add_experiment(
-        "cost/temporal_cost",
-        temporal_cost,
-        plot_description="Forward-pass wall-clock time vs step count at fixed N.",
-        physics={"alpha": 0.01, "dt": 0.001, "N": 128, "steps": [10, 50, 100, 500, 1000]},
-        cost={"n_trials": 3},
-        plot=plot_cost,
-    )
-
-    # Gradient
-    problem.add_experiment(
-        "gradient/fd_check",
-        fd_check,
-        plot_description=(
-            "U-curves of finite-difference gradient error vs perturbation size ε "
-            "with subspace cosine; validates VJP correctness."
-        ),
-        ic={"name": "gaussian", "seed": 0},
-        physics={"N": 32, "alpha": 0.01, "dt": 0.01, "steps": 10},
-        fd={"eps_values": [1.0, 0.1, 0.01, 1e-3, 1e-4], "n_dirs": 10},
-        plot=plot_fd_check,
-    )
-
-    # (ICs themselves are registered in config.py via problem.add_ic — not here.
-    #  Optimization kernels are per-problem, not in shared/ — write one with
-    #  @kernel(...) when you need one; see the navier_stokes_grid /
-    #  structural_mesh / thermal_mesh optimization.py modules for templates.)
-```
-
-### 5d. Wire it up in `config.py`
-
-```python
-"""Solver discovery + canonical Problem instance for diffusion-1d."""
-
-from __future__ import annotations
-
-from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers
-from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
-from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
-
-from .experiments import register as _register_experiments
-from .ics import _gaussian, _sine, _sine_analytic
-from .physics import DIAGNOSTICS, make_inputs
-
+# ── Solver discovery ─────────────────────────────────────────────────────────
 _TESSERACT_SLUG = "diffusion-1d"
-
-
-# ── Solver registry ──────────────────────────────────────────────────────────
-# Per-solver fields (name, scheme, backend, ad_strategy, …) live in each
-# tesseract's ``tesseract_config.yaml`` under ``metadata.mosaic``.
-# Only per-(solver, problem) overrides (input_overrides / exclusions) are
-# applied here.
-
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
 apply_styles(_SOLVERS)
 
-# Example per-solver overrides:
+# Per-solver overrides:
 # _SOLVERS["my_solver"].input_overrides = {"some_param": 1.0}
 
 
+# ── Problem ──────────────────────────────────────────────────────────────────
 problem = Problem(
     name="diffusion-1d",
-    description=(
-        "1-D periodic diffusion equation du/dt = alpha * d^2u/dx^2. "
-        "Solvers evolve an initial temperature profile forward in time. "
-        "The sine-wave IC has a known analytic solution: "
-        "u(x,t) = sin(2*pi*k*x/L) * exp(-alpha*(2*pi*k/L)^2 * t)."
-    ),
     category_label="Diffusion (1D)",
+    description="1-D periodic diffusion equation du/dt = alpha · d²u/dx².",
     tesseract_dir=_TESSERACT_SLUG,
+    solvers=list(_SOLVERS.values()),
+    make_inputs=make_inputs,
+    error_fn=l2_error_rel,
+    reference=_sine_analytic,
     output_key="result",
     ic_key="u0",
-    solvers=list(_SOLVERS.values()),
-    make_inputs=make_inputs,         # (spec, ic, **physics) → dict; wrapped in __post_init__
-    error_fn=l2_error_rel,
-    reference=_sine_analytic,        # analytic baseline used by forward/agreement
     domain_extent=1.0,
     resolution_key="N",
 )
 
+problem.add_ic("gaussian", fn=_gaussian, description="Gaussian bump centred at L/2.",
+               plot_params={"N": 128, "L": 1.0}, plot=plot_ic)
+problem.add_ic("sine", fn=_sine, description="Sine wave with k=2 (analytic available).",
+               plot_params={"N": 128, "L": 1.0, "k": 2}, plot=plot_ic)
 
-# ── Initial conditions ─────────────────────────────────────────────────────────
-problem.add_ic(
-    "gaussian",
-    fn=_gaussian,
-    description="Gaussian bump centred at L/2.",
-    plot_params={"N": 128, "L": 1.0},
-    plot=plot_ic,
-)
-problem.add_ic(
-    "sine",
-    fn=_sine,
-    description="Sine wave with wavenumber k=2 (analytic solution available).",
-    plot_params={"N": 128, "L": 1.0, "k": 2},
-    plot=plot_ic,
+
+# ── Experiments ──────────────────────────────────────────────────────────────
+problem.add_experiment(
+    "forward/baseline", agreement,
+    plot_description="Resolution convergence: rel L2 vs N (Gaussian IC).",
+    ic={"name": "gaussian", "seed": 0},
+    physics={"alpha": 0.01, "dt": 0.001, "steps": 100,
+             "N": [16, 32, 64, 128, 256]},
+    plot=plot_agreement,
 )
 
-_register_experiments(problem)
+problem.add_experiment(
+    "gradient/fd_check", fd_check,
+    plot_description="FD gradient error vs ε U-curve; validates VJP correctness.",
+    ic={"name": "gaussian", "seed": 0},
+    physics={"N": 32, "alpha": 0.01, "dt": 0.01, "steps": 10},
+    fd={"eps_values": [1.0, 0.1, 0.01, 1e-3, 1e-4], "n_dirs": 10},
+    coords={"regime": "diffusive"},
+    goals=[
+        Goal("fd_cosine_above_99pc", "max FD/VJP cosine > 0.99",
+             check=lambda r: max(s.get("fd_cosine_max", 0.0)
+                                 for s in r.get("by_solver", {}).values()) > 0.99),
+    ],
+    plot={
+        "u_curve":   plot_fd_check,
+        # add more views as a dict of view-name → callable
+    },
+)
+
+problem.add_experiment(
+    "cost/spatial_cost", spatial_cost,
+    plot_description="Forward wall-time vs N.",
+    physics={"alpha": 0.01, "dt": 0.001, "steps": 100, "N": [32, 64, 128, 256, 512]},
+    cost={"n_trials": 3},
+    plot=plot_cost,
+)
+
+# Optimization kernels are per-problem (drag_opt, topopt, conductivity_recovery,
+# …). Write your own @kernel(...) function for diffusion-1d when you need one;
+# see e.g. mosaic.benchmarks.problems.structural_mesh.optimization.topopt.
+
+
+# ── Cross-experiment aggregator plots (optional) ─────────────────────────────
+# problem.add_sweep_plot(
+#     name="by_regime",
+#     fn=lambda payload, group: ...,  # one figure per regime
+#     group_by="regime",
+# )
 
 __all__ = ["problem"]
 ```
 
-The package's `__init__.py` is just `from .config import problem` (single line).
+### `problem.add_experiment(...)` reference
 
-### Anatomy of the `Problem` dataclass
+Each call records an experiment at `key` (formatted `"suite/experiment"`). The kernel is either a shared one from `mosaic.benchmarks.problems.shared.*` (`agreement`, `physical_laws`, `fd_check`, `param_sweep`, `jacobian_svd`, `spatial_cost`, `temporal_cost`, `vjp_cost`) or a per-problem function decorated with `@kernel(...)`.
 
-`Problem` (defined in `mosaic/benchmarks/core/config.py`) is the single source of truth for your domain. The fields you'll touch most often:
+| Argument | Purpose |
+|----------|---------|
+| `key` | `"<suite>/<experiment>"` slug — `"forward/baseline"`, `"gradient/fd_check"`, etc. |
+| `kernel` | `@kernel`-decorated callable; the framework drives it via `run_experiment`. |
+| `plot` | Either a single callable or `{view_name: callable, ...}` for multiple views per experiment. |
+| `plot_description` | One-line blurb shown by `mosaic status` and the docs build. |
+| `coords` | Typed sweep position, e.g. `{"N": 32, "regime": "diffusive"}` — persisted into `result.json` so aggregator plots can find each cell. Variant fan-out auto-tags with `{"variant": <name>}`. |
+| `goals` | List of `Goal(name, description, check)` success predicates; each `check(result_dict) -> bool` is evaluated after the run and recorded under `result["goals"]`. |
+| `status_check` | List of per-cell status callables (factories in `mosaic.benchmarks.core.status_checks`). |
+| `**config` (`ic=`, `physics=`, `fd=`, `optim=`, `cost=`, `jacobian=`, `reference=`, `runs=`) | Forwarded to the kernel. |
 
-| Field | Purpose |
-|:------|:--------|
-| `name` | CLI slug (`"diffusion-1d"`, `"ns-grid"`, …). |
-| `description` / `bc_description` / `category_label` | Human-readable text used by `mosaic status`, the docs build, and paper tables. |
-| `tesseract_dir` | Filesystem path containing one solver subdirectory per backend. |
-| `output_key` / `ic_key` | Field names on `OutputSchema` / `InputSchema` extracted for comparison / IC injection. |
-| `solvers` | List of `SolverSpec` instances, typically populated by `discover_solvers(...)`. |
-| `make_ic` | `dict[str, IcSpec]` of named IC generators — populated incrementally by `problem.add_ic(name, fn, ...)`, not passed to the constructor. The harness calls `cfg.make_ic["gaussian"](L=1.0, seed=0, N=128)`. |
-| `make_inputs` | Pass `(spec: SolverSpec, ic, **physics) → dict`. `Problem.__post_init__` wraps it to expose `(solver_name, ic, **physics) → dict` to runners. |
-| `error_fn` | `(pred, ref) → float` — typically `l2_error_rel`. |
-| `reference` | Optional callable for an analytic / fine-solver baseline (used by forward experiments). |
-| `exclusions` | `dict[solver_name, dict[exp_key, Exclusion]]` — see existing problems for the most-specific-first match semantics. |
-| `experiments` | Filled in by `problem.add_experiment(...)` calls; maps `"suite/exp"` → `Experiment`. |
-| `plot_fns` | Filled in by `problem.add_experiment(..., plot=...)`; maps `"suite/exp"` → callable. |
+**Sweeps.** Any list-of-primitives inside a dict kwarg (e.g. `physics={"N": [16, 32, 64]}`) is auto-detected as a sweep axis. The framework substitutes a scalar placeholder and lets the runner iterate.
 
-Per-experiment plot descriptions are passed inline via `plot_description=` on each `.add_experiment(...)` call — they live on `Experiment.params` (read via `cfg.get_plot_description(suite, exp)`), not in a problem-level dict.
+**Variant fan-out.** `runs=[{"name": "tgv", ...}, {"name": "mm", ...}]` registers one sub-experiment per variant at `<key>/<variant>`. Use this when variants have structurally different payloads (e.g. different swept keys per run — `physical_laws` in `ns-grid` has `vs_N`, `vs_steps`, `vs_nu`).
 
-**Registering experiments.** `problem.add_experiment(key, kernel, *, plot=..., plot_description=..., reduce=..., status_check=..., **config)` records an entry at `key` (formatted `"suite/experiment"`). The kernel is either a shared kernel from `mosaic.benchmarks.problems.shared.*` (`agreement`, `physical_laws`, `fd_check`, `param_sweep`, `jacobian_svd`, `spatial_cost`, `temporal_cost`, `vjp_cost`) or a per-problem function decorated with `@kernel(...)` (typical for optimisation runners). Everything else in `**config` is passed through to the kernel.
+**Aggregator plots.** Use `problem.add_sweep_plot(name, fn, group_by=..., filter=...)` to register one plot fn that the framework dispatches once per partition of cells sharing a `coords` value. The fn receives `(payload, group)` where `payload` is a list of `{"coords": ..., "exp_key": ..., "result": ...}` entries and `group` is the partition's coord values.
 
-**Shorthand vs. explicit `runs=[...]`.** Two equivalent input forms:
-
-- **Bare shorthand:** pass `ic={...}`, `physics={...}`, `fd={...}`, `optim={...}`, `reference=...`, `sweep={...}` at the top level. The framework collects them into a single run dict.
-- **Explicit multi-variant:** pass `runs=[{...}, {...}, ...]` when variants have structurally different payloads (e.g. different swept keys per run — see `forward/physical_laws` in `ns-grid` with `vs_N`, `vs_steps`, `vs_nu`). Each variant fans out to its own sub-experiment at `<key>/<variant_name>`.
-
-Any list-of-primitives that appears **inside a dict kwarg** (e.g. `physics={"N": [16, 32, 64]}` or `physics={"nu": [0.001, 0.005, 0.01]}`) is auto-detected as a sweep axis. `problem.add_experiment` materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`). Multiple sweep axes in the same call must have matching lengths (parallel-zip).
+Per-experiment plot descriptions live on `Experiment.params` (read via `cfg.get_plot_description(suite, exp)`); they're passed inline via `plot_description=` on each `.add_experiment(...)` call. For the per-field anatomy of `Problem` / `SolverSpec` / `Experiment`, see [Internals](internals.qmd).
 
 **Run-dict sub-keys** (in shorthand or inside `runs=[...]`):
 
-- `ic` --- which IC to use, e.g. `{"name": "gaussian", "seed": 0}`.
-- `physics` --- keyword arguments passed through to `make_inputs`.
-- `sweep` --- explicit `{"key": "N", "values": [...]}` (skip when using auto-detect).
-- `reference` --- either a **callable** (analytic) or a `{"solvers": {...}, "dt": ..., "steps": ...}` dict (fine-solver baseline). The kernel dispatches by type. The `Problem(reference=...)` callable is threaded in automatically when omitted.
-- `fd` --- finite-difference settings (gradient suite).
-- `optim` --- optimizer settings (optimization suite).
-- Extra top-level kwargs (e.g. `optimizer="bfgs"`, `diagnostics=DIAGNOSTICS`) are folded into every run dict so kernels and aggregates can read them off `ctx.run`.
+- `ic` — which IC to use, e.g. `{"name": "gaussian", "seed": 0}`.
+- `physics` — keyword arguments passed through to `make_inputs`.
+- `sweep` — explicit `{"key": "N", "values": [...]}` (skip when using auto-detect).
+- `reference` — a callable (analytic) or `{"solvers": {...}, "dt": ..., "steps": ...}` (fine-solver baseline). The `Problem(reference=...)` callable is threaded in automatically when omitted.
+- `fd` / `optim` / `cost` / `jacobian` — kernel-specific config blocks.
+- Extra top-level kwargs (e.g. `optimizer="bfgs"`) are folded into every run dict so kernels can read them off `ctx.run`.
 
 **Registering exclusions.** After `add_experiment(...)`, call `problem.exclude(key, {solver_name: Exclusion(...)})` to skip a solver for that experiment. Suite-level keys (e.g. `key="gradient"`) match every `gradient/*` experiment via longest-prefix lookup.
 

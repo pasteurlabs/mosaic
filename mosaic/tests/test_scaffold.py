@@ -130,12 +130,17 @@ def test_scaffold_creates_files(tmp_path):
     assert created["tesseracts_dir"].is_dir()
     assert created["problem_config"].exists()
 
-    # The problem package must contain the canonical 5-file layout: a minimal
-    # ``__init__.py`` (docstring only) + ``config.py`` (Problem assembly) +
-    # ``ics.py`` + ``physics.py`` + ``experiments.py``.
+    # The problem package is a two-file scaffold: a minimal __init__.py
+    # (docstring only) + config.py (Problem + IC fn + make_inputs + experiment
+    # TODOs all inline). The user can split into ics.py / physics.py /
+    # experiments.py later when the file grows.
     pkg = created["problem_pkg"]
-    for name in ("__init__.py", "config.py", "ics.py", "physics.py", "experiments.py"):
-        assert (pkg / name).exists(), f"missing scaffolded file: {name}"
+    assert (pkg / "__init__.py").exists()
+    assert (pkg / "config.py").exists()
+    # The old multi-file layout (ics.py / physics.py / experiments.py) is
+    # intentionally not generated.
+    for name in ("ics.py", "physics.py", "experiments.py"):
+        assert not (pkg / name).exists(), f"unexpected scaffolded file: {name}"
 
 
 def test_scaffold_generates_valid_python(tmp_path):
