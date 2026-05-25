@@ -341,6 +341,14 @@ def run(
         "On a fresh worker machine 4-8 is usually faster.",
         min=1,
     ),
+    continue_: bool = typer.Option(
+        False,
+        "--continue",
+        help="Resume a previous run: skip experiments whose result.json already "
+        "exists in the output directory. Within sweep-based experiments (forward "
+        "suite), per-solver caches let a mid-flight crash resume from the next "
+        "solver instead of restarting the sweep.",
+    ),
 ):
     """Run benchmark suites across problems.
 
@@ -457,6 +465,10 @@ def run(
                     _overrides["gpu_ids"] = []
                 elif gpus:
                     _overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
+                if continue_:
+                    # Suites that support sub-experiment resume (e.g. forward via
+                    # solver_sweep checkpoints) read this flag from overrides.
+                    _overrides["resume"] = True
                 _, _, ic_segment = _parse_experiments_path(experiments)
                 if ic_segment:
                     if ic_segment not in cfg.make_ic:
@@ -473,6 +485,7 @@ def run(
                     suite_name=suite,
                     verbose_errors=traceback,
                     overrides=_overrides or None,
+                    skip_completed=continue_,
                 )
                 n_total = len(exps)
                 n_ok = len(results)

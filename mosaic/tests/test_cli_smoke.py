@@ -44,3 +44,17 @@ def test_top_level_help():
 def test_subcommand_help(subcommand: str):
     result = _run_help([subcommand])
     assert result.returncode == 0, f"{subcommand} --help failed:\n{result.stderr}"
+
+
+def test_run_help_exposes_continue_flag():
+    """`mosaic run --continue` is the resume-after-crash entrypoint.
+
+    Regression guard: the flag must stay discoverable in --help output so the
+    24h-OOM recovery path remains visible to users (and to CI scripts that
+    grep for it).
+    """
+    result = _run_help(["run"])
+    assert result.returncode == 0
+    assert "--continue" in result.stdout, (
+        f"--continue flag missing from `mosaic run --help`:\n{result.stdout}"
+    )

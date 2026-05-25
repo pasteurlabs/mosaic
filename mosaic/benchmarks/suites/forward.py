@@ -122,18 +122,6 @@ def run_agreement(
             norm = cfg.solvers[name].normalize_output
             return norm(result) if (norm is not None and result is not None) else result
 
-        raw, _wall_times = solver_sweep(
-            cfg,
-            tags,
-            sweep_values,
-            _apply,
-            experiment=_exp_key,
-            label_fn=lambda v: f"{sweep_key}={v}",
-            gpu_ids=overrides.get("gpu_ids"),
-        )
-
-        transform = cfg.agreement_transform
-        xaxis_fn = cfg.agreement_xaxis
         exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
         out_dir = experiment_dir(
             results_dir(),
@@ -142,6 +130,24 @@ def run_agreement(
             exp_subdir,
             suffix="_debug" if overrides.get("debug") else "",
         )
+        # ``--continue`` (overrides["resume"]) wires through here so a sweep
+        # that died mid-flight can pick up where it left off — solver_sweep
+        # writes one ``.pkl`` per solver into this dir after each solver's
+        # condition list completes.
+        _ckpt = out_dir / ".sweep_cache" if overrides.get("resume") else None
+        raw, _wall_times = solver_sweep(
+            cfg,
+            tags,
+            sweep_values,
+            _apply,
+            experiment=_exp_key,
+            label_fn=lambda v: f"{sweep_key}={v}",
+            gpu_ids=overrides.get("gpu_ids"),
+            checkpoint_dir=_ckpt,
+        )
+
+        transform = cfg.agreement_transform
+        xaxis_fn = cfg.agreement_xaxis
         fsnap: dict = {
             "sweep_values": np.array([float(v) for v in sweep_values]),
             "solver_names": np.array(list(cfg.solvers)),
@@ -395,6 +401,14 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
             norm = cfg.solvers[name].normalize_output
             return norm(out) if (norm is not None and out is not None) else out
 
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            f"physical_laws/{ic_subdir}" if ic_subdir else "physical_laws",
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        _ckpt = out_dir / ".sweep_cache" if overrides.get("resume") else None
         raw, _wall_times = solver_sweep(
             cfg,
             tags,
@@ -403,6 +417,7 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
             experiment="physical_laws",
             label_fn=lambda v: f"{sweep_key}={v}",
             gpu_ids=overrides.get("gpu_ids"),
+            checkpoint_dir=_ckpt,
         )
 
         # Analytic signature inspection done once.
@@ -466,13 +481,6 @@ def run_physical_laws(cfg: ProblemConfig, tags: dict[str, str], **overrides) -> 
                         }
                     )
 
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            f"physical_laws/{ic_subdir}" if ic_subdir else "physical_laws",
-            suffix="_debug" if overrides.get("debug") else "",
-        )
         result = {"by_param": by_param, "sweep_key": sweep_key, "params": run}
         save_experiment(
             result,
