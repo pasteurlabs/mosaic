@@ -809,20 +809,33 @@ def _find_trajectory(entry: Any) -> list[float] | None:
 def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
     """Dispatch to the right classifier based on which top-level key is present."""
     if "by_solver" in data:
-        return _classify_from_by_solver(data, solvers, "by_solver")
-    if "by_sweep" in data:
-        return _classify_from_by_solver(data, solvers, "by_sweep")
-    if "by_param" in data:
-        return _classify_from_by_param(data, solvers, checks)
-    if "by_N" in data:
-        return _classify_from_by_N(data, solvers, "by_N")
-    if "by_steps" in data:
-        return _classify_from_by_N(data, solvers, "by_steps")
-    if any(k.startswith("per_solver_") for k in data) or "solver_names" in data:
-        return _classify_from_per_solver_prefix(data, solvers)
-    # Unknown layout — mark everything as "not_run" so the user knows we didn't
-    # find per-solver data to inspect.
-    return {s: Cell(NOT_RUN) for s in solvers}
+        cells = _classify_from_by_solver(data, solvers, "by_solver")
+    elif "by_sweep" in data:
+        cells = _classify_from_by_solver(data, solvers, "by_sweep")
+    elif "by_param" in data:
+        cells = _classify_from_by_param(data, solvers, checks)
+    elif "by_N" in data:
+        cells = _classify_from_by_N(data, solvers, "by_N")
+    elif "by_steps" in data:
+        cells = _classify_from_by_N(data, solvers, "by_steps")
+    elif any(k.startswith("per_solver_") for k in data) or "solver_names" in data:
+        cells = _classify_from_per_solver_prefix(data, solvers)
+    else:
+        # Unknown layout — mark everything as "not_run" so the user knows we
+        # didn't find per-solver data to inspect.
+        cells = {s: Cell(NOT_RUN) for s in solvers}
+
+    # Solvers whose Tesseract container failed to start (or whose work raised)
+    # before any result was recorded are absent from the data layout above and
+    # would otherwise classify as NOT_RUN. The harness records them in
+    # ``_solver_failures``; promote those to FAILED so broken containers are
+    # surfaced rather than indistinguishable from "wasn't selected".
+    failures = data.get("_solver_failures") or {}
+    if isinstance(failures, dict):
+        for solver, reason in failures.items():
+            if solver in cells and cells[solver].status == NOT_RUN:
+                cells[solver] = Cell(FAILED, str(reason) or "solver failed")
+    return cells
 
 
 # ── filesystem enumeration ───────────────────────────────────────────────────
