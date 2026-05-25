@@ -126,10 +126,19 @@ class Experiment:
     ``params`` is the introspection manifest — what configuration the closure
     captured. The runner only invokes ``fn``; ``params`` is read by status,
     documentation, and result-saving for provenance.
+
+    ``coords`` is this experiment's position in a sweep's parameter space
+    (e.g. ``{"N": 32, "nu": 0.01}``), borrowed from asie's ``Campaign`` API.
+    Auto-populated from list-valued ``physics={...}`` / top-level kwargs by
+    :meth:`Problem.add_experiment`, or set explicitly via the ``coords=``
+    kwarg. Empty ``{}`` means "not part of any sweep" — fully optional.
+    Persisted into ``result.json`` so aggregator plots can find every cell's
+    coordinates without parsing the experiment name.
     """
 
     fn: ExperimentFn
     params: dict = field(default_factory=dict)
+    coords: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -287,6 +296,7 @@ class Problem:
         plot_description: str = "",
         reduce: Callable | None = None,
         status_check: list | None = None,
+        coords: dict[str, Any] | None = None,
         **config,
     ) -> None:
         """Register an experiment at ``key`` with optional sweep + plot + reduce.
@@ -329,6 +339,15 @@ class Problem:
         Per-experiment exclusions are attached via :meth:`exclude` — call
         ``problem.exclude(key, {solver_name: Exclusion, ...})`` immediately
         after this method to register them at the same key.
+
+        ``coords`` (optional) is this experiment's position in a sweep's
+        parameter space — e.g. ``coords={"N": 32, "regime": "diffusive"}``.
+        Auto-populated from list-valued config entries (the sweep axes)
+        for each sub-experiment; the ``coords`` kwarg adds extra dimensions
+        that the sweep itself doesn't cover (e.g. a regime label that's
+        constant across the sweep). Persisted into ``result.json`` so
+        aggregator plots can find each cell's coordinates without parsing
+        the experiment name.
         """
         # Shorthand: ``run=dict`` wraps into ``runs=[dict]`` and list-valued
         # fields in the run get auto-converted into the runner's sweep dict
@@ -349,6 +368,8 @@ class Problem:
         # The runner is called with ``runs=[single_variant]`` so n_runs==1
         # always — subdir naming lives here at the sweep layer, not in
         # each runner.
+        user_coords: dict[str, Any] = dict(coords or {})
+
         runs = config.get("runs")
         if isinstance(runs, list) and len(runs) > 1:
             sub_keys = []
@@ -357,12 +378,17 @@ class Problem:
                 sub_key = f"{key}/{variant_name}"
                 sub_keys.append(sub_key)
                 sub_config = {**config, "runs": [variant]}
+                # Variant fan-out: tag each sub with ``variant=<name>`` so
+                # aggregator plots can pick subs out by variant without
+                # re-parsing the sub-key. User coords win on collision.
+                sub_coords = {"variant": variant_name, **user_coords}
                 self._register_one_experiment(
                     sub_key,
                     kernel,
                     sub_config,
                     plot_description=plot_description,
                     status_check=status_check,
+                    coords=sub_coords,
                 )
         else:
             sweep_axes = self._collect_sweep_axes(config)
@@ -374,21 +400,28 @@ class Problem:
                     config,
                     plot_description=plot_description,
                     status_check=status_check,
+                    coords=user_coords,
                 )
                 sub_keys = [key]
             else:
                 n_subs = self._validate_axes(sweep_axes)
                 sub_keys = []
                 for i in range(n_subs):
-                    sub_config, suffix = self._materialize_one(config, sweep_axes, i)
+                    sub_config, suffix, axis_coords = self._materialize_one(
+                        config, sweep_axes, i
+                    )
                     sub_key = f"{key}/{suffix}"
                     sub_keys.append(sub_key)
+                    # Auto-derived axis position + any user-supplied
+                    # constant-across-the-sweep coords (e.g. ``regime``).
+                    sub_coords = {**axis_coords, **user_coords}
                     self._register_one_experiment(
                         sub_key,
                         kernel,
                         sub_config,
                         plot_description=plot_description,
                         status_check=status_check,
+                        coords=sub_coords,
                     )
 
         if plot is not None:
@@ -603,8 +636,14 @@ class Problem:
         return lengths.pop()
 
     @staticmethod
-    def _materialize_one(config: dict, axes: list, i: int) -> tuple[dict, str]:
-        """Build the i-th sub-experiment's config + an auto-derived path suffix."""
+    def _materialize_one(config: dict, axes: list, i: int) -> tuple[dict, str, dict]:
+        """Build the i-th sub-experiment's config + path suffix + axis coords.
+
+        The auto-derived ``coords`` dict maps each axis's leaf key to its
+        i-th value (``{"N": 32, "nu": 0.01}`` for a parallel-zipped
+        ``physics={"N": [...], "nu": [...]}`` sweep). Nested-axis names
+        use the leaf key only, matching the suffix convention.
+        """
         sub_config: dict = {}
         for k, v in config.items():
             if isinstance(v, dict):
@@ -612,6 +651,7 @@ class Problem:
             else:
                 sub_config[k] = v
         parts: list[str] = []
+        coords: dict[str, Any] = {}
         for path, vals in axes:
             v_i = vals[i]
             if len(path) == 1:
@@ -622,8 +662,9 @@ class Problem:
                 sub_config[k][sub_k] = v_i
                 name = sub_k
             parts.append(f"{name}_{Problem._fmt_val(v_i)}")
+            coords[name] = v_i
         suffix = "_".join(parts)
-        return sub_config, suffix
+        return sub_config, suffix, coords
 
     @staticmethod
     def _fmt_val(value) -> str:
@@ -660,6 +701,7 @@ class Problem:
         *,
         plot_description: str = "",
         status_check: list | None = None,
+        coords: dict[str, Any] | None = None,
     ) -> None:
         """Build the Experiment lambda for a single (scalar) config and store it.
 
@@ -730,7 +772,9 @@ class Problem:
         params: dict = {"plot_description": plot_description}
         if status_check:
             params["status_check"] = list(status_check)
-        self.experiments[key] = Experiment(fn=fn, params=params)
+        self.experiments[key] = Experiment(
+            fn=fn, params=params, coords=dict(coords or {})
+        )
 
     def add_ic(
         self,
