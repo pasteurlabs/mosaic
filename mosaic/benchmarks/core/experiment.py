@@ -116,25 +116,11 @@ def kernel(
     snapshot_filename: str = "gradient_fields.npz",
     snapshot_prefixes: tuple[str, ...] = ("grad",),
 ):
-    """Decorator: tag a function as an experiment kernel and attach its framework config.
+    """Decorator: tag a ``(t, ctx) -> dict`` function as an experiment kernel.
 
-    The decorated function is still a plain ``(t, ctx) -> dict`` — the
-    decorator just attaches a ``_mosaic_kernel_config`` attribute so
-    :meth:`Problem.add_experiment` can recognise it and route the registration
-    through :func:`run_experiment` automatically.
-
-    Example::
-
-        @kernel(sweep_mode="default", horizons_shared=True)
-        def param_sweep(t, ctx):
-            ...
-
-        problem.add_experiment(
-            "gradient/horizon_sweep",
-            param_sweep,        # ← kernel, not a wrapper
-            physics={"steps": [10, 20, 40, 80]},
-            ...,
-        )
+    Attaches a ``_mosaic_kernel_config`` attribute that
+    :meth:`Problem.add_experiment` reads to route registration through
+    :func:`run_experiment`.
     """
 
     def decorate(fn):
@@ -196,14 +182,9 @@ def run_experiment(  # noqa: C901, PLR0913, PLR0915 — generic harness, refacto
 ) -> dict:
     """Generic per-solver experiment driver.
 
-    Most callers won't invoke this directly — they decorate a kernel with
-    :func:`experiment` and pass it to :meth:`Problem.add_experiment`, which
-    routes through here. The signature is exposed for direct programmatic
-    use (one-off runs, tests).
-
-    Staleness: :func:`save_harness_result` is called with
-    ``harness_fn=kernel_fn`` so editing the kernel correctly invalidates
-    cached results.
+    Called from the closure :meth:`Problem.add_experiment` builds; not
+    typically invoked directly. ``save_harness_result`` is called with
+    ``harness_fn=kernel_fn`` so editing the kernel invalidates cached results.
     """
     if sweep_mode not in ("none", "default", "limits"):
         raise ValueError(

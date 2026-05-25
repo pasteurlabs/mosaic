@@ -148,8 +148,8 @@ def _lookup_check(cfg: Problem, suite: str, experiment: str) -> list:
       3. ``cfg.experiments[full].params["status_check"]`` — inline overrides
          set on the ``.add_experiment(..., status_check=[...])`` call
 
-    Each source may be either a list of callables (canonical) or a legacy
-    threshold dict; both are normalized via :func:`status_checks.normalize`.
+    Each source is a list of callables (or a single callable); both shapes
+    are normalised via :func:`status_checks.normalize`.
     """
     from .status_checks import normalize
 
@@ -940,7 +940,7 @@ def _refine_for_suite(
 def _row_harness_stale(data: dict, harness_hash_cache: dict[str, str | None]) -> bool:
     """Whether the result's stored harness hash matches the current source.
 
-    Missing-or-empty stored hash → stale (strict legacy policy).
+    Missing-or-empty stored hash → stale.
     """
     stored_harness_hash = data.get("harness_hash")
     stored_harness_fn = data.get("harness_fn")
@@ -961,9 +961,9 @@ def _apply_staleness(
     """Mark row-level (harness) and cell-level (tesseract) staleness on cells.
 
     Row-level: if the stored harness hash differs from the current on-disk
-    source (or nothing was stored, per the strict legacy policy), every
-    non-excluded cell gets ``*``. Cell-level: mismatch or missing tesseract
-    hash flags that solver alone even if the row as a whole isn't stale.
+    source (or no hash was stored), every non-excluded cell gets ``*``.
+    Cell-level: mismatch or missing tesseract hash flags that solver alone
+    even if the row as a whole isn't stale.
     """
     row_stale = _row_harness_stale(data, harness_hash_cache)
     stored_tess = data.get("tesseract_hashes") or {}
