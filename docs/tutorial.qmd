@@ -725,7 +725,7 @@ class OutputSchema(BaseModel):
 
 ### Key design decisions
 
-**`Differentiable` annotation.** Fields that the benchmark harness should be able to differentiate through are wrapped in `Differentiable[...]`. In our example, `u0`, `alpha`, and `dt` are differentiable; `steps` and `domain_extent` are not (they are integers or floats that control the problem setup, not the physics).
+**`Differentiable` annotation.** Fields that the benchmark harness should be able to differentiate through are wrapped in [`Differentiable[...]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#differentiability). In our example, `u0`, `alpha`, and `dt` are differentiable; `steps` and `domain_extent` are not (they are integers or floats that control the problem setup, not the physics).
 
 ::: {.callout-tip}
 Two equivalent ways to declare differentiable fields:
@@ -734,7 +734,7 @@ Two equivalent ways to declare differentiable fields:
 * **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `tesseract_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
 :::
 
-**`Array` type hints.** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).
+**[`Array` type hints](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema).** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).
 
 **All fields must have defaults.** This is a Tesseract requirement --- the container must be callable with `apply '{}'`. Use `default_factory` for array fields and `default` for scalars.
 

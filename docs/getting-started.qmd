@@ -21,14 +21,6 @@ GPU-enabled solvers (marked **GPU** in the [Solver Reference](solvers.qmd)) run 
 
 Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
 
-Test your setup:
-
-```bash
-docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
-```
-
-CPU-only solvers (FEniCS, Firedrake, INS.jl, TopOpt.jl, deal.II, OpenFOAM) work without GPU support.
-
 ## Installation
 
 ```bash
@@ -51,7 +43,7 @@ mosaic status        # shows all problems and solvers (no Docker needed)
 
 ## Running a single solver (smoke test)
 
-The fastest way to verify everything works is to build one solver and run a quick forward check:
+The fastest way to verify everything works is to build one solver and run a quick forward check. The first two commands come straight from tesseract-core ([`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build), [`tesseract run`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-run)) — Mosaic adds nothing on top.
 
 ```bash
 # Build the Exponax solver (small, fast, JAX-only)
@@ -215,7 +207,7 @@ classify the cell as FAILED.) Retry the cell with
 
 ### Container build failures
 
-If `tesseract build` fails:
+If [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) fails:
 
 1. Check Docker is running: `docker info`
 2. Check disk space: `docker system df`

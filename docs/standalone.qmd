@@ -6,16 +6,16 @@ You do not need the full benchmark harness to use a Mosaic solver. This page int
 
 ## How Tesseracts work
 
-Each solver is wrapped as a **Tesseract**: a Docker container exposing two entry points:
+Each solver is wrapped as a **Tesseract**: a Docker container exposing two entry points (see [endpoint contract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html)):
 
-- `apply(inputs) -> outputs` --- run the forward simulation.
-- `vector_jacobian_product(inputs, cotangents) -> vjp` --- compute the reverse-mode gradient.
+- [`apply(inputs) -> outputs`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#apply) --- run the forward simulation.
+- [`vector_jacobian_product(inputs, cotangents) -> vjp`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#vector-jacobian-product) --- compute the reverse-mode gradient.
 
 The container isolates all dependencies (language, libraries, GPU runtime). A Python client calls the container over a local socket via [tesseract-core](https://github.com/pasteurlabs/tesseract-core); [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax) wraps those calls as native JAX functions with full `jit` and `grad` support. Containerization adds a fixed per-call overhead (a few ms of IPC) that is independent of solver complexity.
 
 Forward-only solvers (OpenFOAM, deal.II) implement `apply` only. Mosaic's finite-difference-through-Tesseract mode provides gradients automatically at O(N) cost.
 
-Each domain defines a canonical `InputSchema` / `OutputSchema` (Pydantic, all fields with defaults) in `mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`. Solvers subclass it and may add solver-specific parameters:
+Each domain defines a canonical `InputSchema` / `OutputSchema` (Pydantic, all fields with defaults) in `mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`. Field shapes use the [`Array[(shape,), dtype]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema) annotation and the [`Differentiable[...]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#differentiability) wrapper from tesseract-core. Solvers subclass the canonical schema and may add solver-specific parameters:
 
 ```python
 from tesseract_shared.problems.navier_stokes_grid import InputSchema as _Base
@@ -41,7 +41,7 @@ pip install tesseract-core tesseract-jax jax
 
 ## Option A: Local usage (no Docker)
 
-Point `tesseract-core` at the solver's `tesseract_api.py` and call it directly --- no container, no build step. Requires the solver's native dependencies, so this path is limited to Python-only solvers (no Julia, no C++).
+Point [`Tesseract.from_tesseract_api`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-api.html#tesseract_core.Tesseract.from_tesseract_api) at the solver's `tesseract_api.py` and call it directly --- no container, no build step. Requires the solver's native dependencies, so this path is limited to Python-only solvers (no Julia, no C++).
 
 ```python
 import numpy as np
@@ -61,8 +61,10 @@ outputs = t.apply(inputs)
 
 The canonical path: works for every solver regardless of language, pins all dependencies, integrates with `jax.grad` through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax).
 
+[`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) compiles the solver into a Docker image (one-time):
+
 ```bash
-tesseract build mosaic/tesseracts/navier-stokes-grid/exponax  # one-time
+tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 ```
 
 ```python
@@ -85,7 +87,7 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     grad_v0 = jax.grad(loss)(inputs["v0"])
 ```
 
-The `from_image` context manager starts and tears down the container. For GPU solvers (marked **GPU** in the [Solver Reference](solvers.qmd)), pass `gpus=["0"]` to `from_image`; CPU-only solvers ignore the argument. A CUDA-capable GPU is recommended for the GPU-enabled solvers to run efficiently. Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
+[`Tesseract.from_image`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-api.html#tesseract_core.Tesseract.from_image) starts and tears down the container. For GPU solvers (marked **GPU** in the [Solver Reference](solvers.qmd)), pass `gpus=["0"]` to `from_image`; CPU-only solvers ignore the argument. A CUDA-capable GPU is recommended for the GPU-enabled solvers to run efficiently. Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
 
 ## Mesh solvers
 
