@@ -337,7 +337,6 @@ def scaffold_domain(
         f"# Each problem.add_experiment(key, kernel, ...) call takes:\n"
         f"#   plot=callable | {{view: callable, ...}}\n"
         f"#   coords={{...}}                   typed sweep position\n"
-        f"#   goals=[Goal(name, doc, check)]  per-experiment success predicates\n"
         f"#   status_check=[...]              cell-status callables\n"
         f"# Aggregator plots that partition cells by coord are registered via\n"
         f"# problem.add_sweep_plot(name, fn, group_by=..., filter=...).\n"

@@ -57,11 +57,6 @@ Returned by every `Problem.add_experiment(...)` call, stored on `problem.experim
 | `fn` | `Callable` | Runner closure; the framework calls `fn(cfg, tags, **overrides) -> dict` |
 | `params` | `dict` | Introspection manifest (plot description, status checks, …) read by `mosaic status` and the docs build |
 | `coords` | `dict[str, Any]` | Typed sweep position, e.g. `{"N": 32, "regime": "diffusive"}`. Variant fan-out auto-tags with `{"variant": <name>}`. Persisted into `result.json` so aggregator plots find each cell. |
-| `goals` | `list[Goal]` | Success predicates; each `Goal.check(result) -> bool` is evaluated after the run and the boolean lands in `result["goals"][goal.name]` |
-
-## `Goal`
-
-A frozen dataclass `(name: str, description: str, check: Callable[[dict], bool])`. Predicates run after the experiment completes; a raising check records `False` rather than crashing the run.
 
 ## Aggregator plots (`add_sweep_plot`)
 

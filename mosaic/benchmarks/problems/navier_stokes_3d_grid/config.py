@@ -382,9 +382,9 @@ problem.add_experiment(
     plot=plot_recovery,
 )
 
-# Per-IC sub-plot key (single-IC agreement run keeps its dedicated plot
-# entry so re-plot flows targeting ``forward/agreement/tgv3d`` resolve).
-problem.plot_fns["forward/agreement/tgv3d"] = plot_agreement
+# Single-IC agreement run gets its own plot entry so re-plot flows targeting
+# ``forward/agreement/tgv3d`` resolve.
+problem.add_extra_plot("forward/agreement/tgv3d", plot_agreement)
 
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

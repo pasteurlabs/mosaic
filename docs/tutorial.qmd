@@ -766,9 +766,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mosaic.benchmarks.core.config import (
-    Goal, Problem, SolverSpec, discover_solvers,
-)
+from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import spatial_cost, temporal_cost
 from mosaic.benchmarks.problems.shared.forward import agreement
@@ -867,11 +865,7 @@ problem.add_experiment(
     physics={"N": 32, "alpha": 0.01, "dt": 0.01, "steps": 10},
     fd={"eps_values": [1.0, 0.1, 0.01, 1e-3, 1e-4], "n_dirs": 10},
     coords={"regime": "diffusive"},
-    goals=[
-        Goal("fd_cosine_above_99pc", "max FD/VJP cosine > 0.99",
-             check=lambda r: max(s.get("fd_cosine_max", 0.0)
-                                 for s in r.get("by_solver", {}).values()) > 0.99),
-    ],
+    status_check=[min_cosine(0.99), max_rel_err(1e-3)],
     plot={
         "u_curve":   plot_fd_check,
         # add more views as a dict of view-name → callable
@@ -912,8 +906,7 @@ Each call records an experiment at `key` (formatted `"suite/experiment"`). The k
 | `plot` | Either a single callable or `{view_name: callable, ...}` for multiple views per experiment. |
 | `plot_description` | One-line blurb shown by `mosaic status` and the docs build. |
 | `coords` | Typed sweep position, e.g. `{"N": 32, "regime": "diffusive"}` — persisted into `result.json` so aggregator plots can find each cell. Variant fan-out auto-tags with `{"variant": <name>}`. |
-| `goals` | List of `Goal(name, description, check)` success predicates; each `check(result_dict) -> bool` is evaluated after the run and recorded under `result["goals"]`. |
-| `status_check` | List of per-cell status callables (factories in `mosaic.benchmarks.core.status_checks`). |
+| `status_check` | List of per-cell status callables (factories in `mosaic.benchmarks.core.status_checks` — `min_cosine`, `max_rel_err`, `rel_err_peer_outlier`, etc.). Drives the `anom` axis in `mosaic status`. |
 | `**config` (`ic=`, `physics=`, `fd=`, `optim=`, `cost=`, `jacobian=`, `reference=`, `runs=`) | Forwarded to the kernel. |
 
 **Sweeps.** Any list-of-primitives inside a dict kwarg (e.g. `physics={"N": [16, 32, 64]}`) is auto-detected as a sweep axis. The framework substitutes a scalar placeholder and lets the runner iterate.

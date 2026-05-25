@@ -128,28 +128,13 @@ def _build_sweep_plot_runner(
     return _runner
 
 
-@dataclass(frozen=True)
-class Goal:
-    """Per-experiment success predicate.
-
-    ``check(result_dict) -> bool``. Evaluated after the run; the boolean
-    is persisted into ``result.json`` under ``result["goals"][name]``.
-    A raising check is recorded as ``False``.
-    """
-
-    name: str
-    description: str
-    check: Callable[[dict], bool]
-
-
 @dataclass
 class Experiment:
-    """Registered experiment: runner closure, params, coords, success criteria."""
+    """Registered experiment: runner closure, params, sweep coords."""
 
     fn: ExperimentFn
     params: dict = field(default_factory=dict)
     coords: dict[str, Any] = field(default_factory=dict)
-    goals: list[Goal] = field(default_factory=list)
 
 
 @dataclass
@@ -289,7 +274,6 @@ class Problem:
         reduce: Callable | None = None,
         status_check: list | None = None,
         coords: dict[str, Any] | None = None,
-        goals: list[Goal] | None = None,
         **config,
     ) -> None:
         """Register an experiment at ``key``.
@@ -311,10 +295,6 @@ class Problem:
         Persisted into ``result.json`` so aggregator plots can find each
         cell's coordinates without parsing the experiment name.
 
-        ``goals`` is a list of :class:`Goal` success predicates. Each
-        ``check(result_dict) -> bool`` is evaluated after the run and the
-        boolean lands in ``result["goals"][goal.name]``.
-
         Per-(solver, experiment) exclusions are attached via
         ``problem.exclude(key, {solver_name: Exclusion, ...})``.
         """
@@ -323,14 +303,7 @@ class Problem:
         kernel_sweep_mode = get_kernel_config(kernel).get("sweep_mode", "none")
         config = self._normalize_run_shorthand(config, sweep_mode=kernel_sweep_mode)
 
-        # Variant fan-out: when ``runs=[...]`` (from explicit kwarg or
-        # shorthand list-of-dicts expansion) has >1 element, register
-        # each variant as its own sub-experiment at ``<key>/<variant_name>``.
-        # The runner is called with ``runs=[single_variant]`` so n_runs==1
-        # always — subdir naming lives here at the sweep layer, not in
-        # each runner.
         user_coords: dict[str, Any] = dict(coords or {})
-        user_goals: list[Goal] = list(goals or [])
 
         runs = config.get("runs")
         if isinstance(runs, list) and len(runs) > 1:
@@ -340,9 +313,7 @@ class Problem:
                 sub_key = f"{key}/{variant_name}"
                 sub_keys.append(sub_key)
                 sub_config = {**config, "runs": [variant]}
-                # Variant fan-out: tag each sub with ``variant=<name>`` so
-                # aggregator plots can pick subs out by variant without
-                # re-parsing the sub-key. User coords win on collision.
+                # User coords win on collision with the auto-tag.
                 sub_coords = {"variant": variant_name, **user_coords}
                 self._register_one_experiment(
                     sub_key,
@@ -351,12 +322,10 @@ class Problem:
                     plot_description=plot_description,
                     status_check=status_check,
                     coords=sub_coords,
-                    goals=user_goals,
                 )
         else:
             sweep_axes = self._collect_sweep_axes(config)
             if not sweep_axes:
-                # No sweep — a single leaf experiment at ``key``.
                 self._register_one_experiment(
                     key,
                     kernel,
@@ -364,7 +333,6 @@ class Problem:
                     plot_description=plot_description,
                     status_check=status_check,
                     coords=user_coords,
-                    goals=user_goals,
                 )
                 sub_keys = [key]
             else:
@@ -376,8 +344,6 @@ class Problem:
                     )
                     sub_key = f"{key}/{suffix}"
                     sub_keys.append(sub_key)
-                    # Auto-derived axis position + any user-supplied
-                    # constant-across-the-sweep coords (e.g. ``regime``).
                     sub_coords = {**axis_coords, **user_coords}
                     self._register_one_experiment(
                         sub_key,
@@ -386,7 +352,6 @@ class Problem:
                         plot_description=plot_description,
                         status_check=status_check,
                         coords=sub_coords,
-                        goals=user_goals,
                     )
 
         if plot is not None:
@@ -652,7 +617,6 @@ class Problem:
         plot_description: str = "",
         status_check: list | None = None,
         coords: dict[str, Any] | None = None,
-        goals: list[Goal] | None = None,
     ) -> None:
         """Build the Experiment lambda for a single (scalar) config and store it.
 
@@ -727,7 +691,6 @@ class Problem:
             fn=fn,
             params=params,
             coords=dict(coords or {}),
-            goals=list(goals or []),
         )
 
     def add_ic(
@@ -800,7 +763,13 @@ class Problem:
             self.plot_fns[f"ics/{name}"] = _ic_plot_dispatch
 
     def add_extra_plot(self, key: str, plot: Callable) -> None:
-        """Register a ``_extra/<suite>/<name>`` plot not tied to an experiment."""
+        """Register a plot callable at ``key``.
+
+        Use for cross-experiment aggregator plots (idiomatic key:
+        ``"_extra/<name>"``) or for per-IC sub-plot aliases of an existing
+        experiment's plot. The single API entry point for any plot not
+        attached to an ``add_experiment(plot=...)`` call.
+        """
         self.plot_fns[key] = plot
 
     def add_sweep_plot(
