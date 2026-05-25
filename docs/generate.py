@@ -171,15 +171,22 @@ _CANONICAL_CACHE: dict[str, str] = {}
 def _canonical_schema_source(physics_dir: str) -> str | None:
     """Return the source text of the canonical schemas.py for a physics domain.
 
-    The schema module follows the convention ``tesseract_shared/problems/<dir
-    with hyphens swapped for underscores>/schemas.py``.
+    The schema module follows the convention
+    ``mosaic/tesseracts/tesseract_shared/problems/<dir with hyphens swapped
+    for underscores>/schemas.py``.
     """
     module = physics_dir.replace("-", "_") if physics_dir else None
     if module is None:
         return None
     if module not in _CANONICAL_CACHE:
         schema_path = (
-            ROOT / "mosaic" / "tesseract_shared" / "problems" / module / "schemas.py"
+            ROOT
+            / "mosaic"
+            / "tesseracts"
+            / "tesseract_shared"
+            / "problems"
+            / module
+            / "schemas.py"
         )
         if not schema_path.exists():
             _CANONICAL_CACHE[module] = ""

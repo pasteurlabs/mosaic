@@ -1,0 +1,49 @@
+---
+title: Internals
+---
+
+Data structures defined in `mosaic/benchmarks/core/config.py` that the runner, status pipeline, and per-problem packages all read from. Contributors writing a new domain (see [Add a Backend](tutorial.qmd)) need to know these field-by-field; the [Tesseract interface](standalone.qmd#how-tesseracts-work) is documented separately because its audience extends past Mosaic itself.
+
+## `SolverSpec`
+
+Each solver backend is described by a `SolverSpec` dataclass:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `dir` | `str` | Subdirectory under the domain's `tesseracts/` folder |
+| `name` | `str` | Display name for plots and tables |
+| `scheme` | `str` | Numerical scheme (e.g. "LBM BGK", "semi-Lagrangian + projection") |
+| `backend` | `str` | Runtime / language: `"jax"`, `"pytorch"`, `"julia"`, `"cpp"` |
+| `ad_strategy` | `str \| None` | How gradients are computed: `"autodiff"`, `"adjoint"`, `"hybrid"`, or `None` |
+| `family` | `str` | Solver family for grouped styling: `"projection"`, `"lbm"`, `"spectral"`, `"fem"` |
+| `color` | `str` | Hex color for plots |
+| `uses_gpu` | `bool` | Whether this solver targets GPU |
+| `internal_dtype` | `str` | `"float32"` or `"float64"` |
+| `differentiable` | `bool \| None` | Explicit VJP flag; `None` = runtime detection |
+| `description` | `str` | One-sentence solver description |
+| `doc_url` | `str` | Link to upstream documentation |
+| `image_tag` | `str \| None` | `<image_name>:latest`, populated by `discover_solvers()` |
+| `input_overrides` | `dict` | Per-solver default overrides merged into `cfg.make_inputs` for this solver |
+
+Per-(solver, problem) exclusions and anomaly annotations are *not* stored on `SolverSpec` — they live on the `Problem` (`problem.exclusions[key][solver_name] = Exclusion(...)`, registered via `problem.exclude(key, {solver_name: Exclusion(...)})`).
+
+## `Problem`
+
+Each benchmark domain is configured by a `Problem` dataclass:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `name` | `str` | CLI name (e.g. `"ns-grid"`) |
+| `tesseract_dir` | `Path` | Path to the domain's `tesseracts/` directory |
+| `output_key` | `str` | Field name to compare across solvers |
+| `solvers` | `list[SolverSpec]` | Registered solver backends |
+| `make_ic` | `dict[str, IcSpec]` | Named initial condition generators, populated incrementally by `problem.add_ic(...)` |
+| `make_inputs` | `Callable` | Builds solver inputs from IC and physics parameters; user-provided `(spec, ic, **physics) -> dict` is wrapped at `__post_init__` time to expose `(solver_name, ic, **physics) -> dict` |
+| `error_fn` | `Callable` | Computes the objective from solver outputs |
+| `reference` | `Callable \| None` | Analytic reference solution `(ic, t, L, **physics) → arr`, when one exists |
+| `experiments` | `dict[str, Experiment]` | Suite/experiment-key → registered runner closure, populated by `.add_experiment(...)` |
+| `plot_fns` | `dict[str, PlotFn]` | Suite/experiment-key → registered plot closure |
+
+Per-experiment descriptions live on each `Experiment.params` dict, read by `cfg.get_plot_description(suite, experiment)` rather than from a problem-level field.
+
+Each problem is a Python package at `mosaic/benchmarks/problems/<slug>/` with `config.py` as the single entry point — it instantiates `Problem(...)`, calls `problem.add_ic(...)` per IC, then `problem.add_experiment(...)` per experiment. Companion modules (`physics.py`, `ics.py`, optionally `optimization.py`) provide the callables passed in. The package re-exports `problem`; the registry in `mosaic/benchmarks/problems/__init__.py` collects them all.
