@@ -345,8 +345,9 @@ def run(
         False,
         "--continue",
         help="Resume a previous run: skip experiments whose result.json already "
-        "exists in the output directory. Granularity is per experiment — a "
-        "single experiment that crashed mid-flight will be re-run from the start.",
+        "exists, and within partially-completed experiments skip individual "
+        "solvers already recorded in result_partial.json (written incrementally "
+        "during the work loop).",
     ),
 ):
     """Run benchmark suites across problems.
@@ -479,6 +480,12 @@ def run(
                     _overrides["gpu_ids"] = []
                 elif gpus:
                     _overrides["gpu_ids"] = [g.strip() for g in gpus.split(",")]
+                if continue_:
+                    # Harnesses read this to (a) filter already-completed solvers
+                    # from their solver list at entry via done_solvers_in_partial,
+                    # and (b) decide whether to write result_partial.json
+                    # checkpoints during the work loop.
+                    _overrides["resume"] = True
                 _, _, ic_segment = _parse_experiments_path(experiments)
                 if ic_segment:
                     if ic_segment not in cfg.make_ic:
