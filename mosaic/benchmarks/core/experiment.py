@@ -506,14 +506,24 @@ def run_experiment(  # noqa: C901, PLR0913, PLR0915 — generic harness, refacto
             existing.update(solver_failures)
             result["_solver_failures"] = existing
 
-        # Persist this experiment's sweep coordinates so aggregator plots
-        # (and downstream readers) don't need to re-parse the experiment
-        # name to discover its position in parameter space.
+        # Persist this experiment's sweep coordinates and evaluate its
+        # success predicates so the status pipeline can read both from
+        # ``result.json``.
         if isinstance(result, dict):
             _full_key = f"{suite}/{exp_key}"
             _exp = cfg.experiments.get(_full_key)
             if _exp is not None and _exp.coords:
                 result.setdefault("coords", dict(_exp.coords))
+            if _exp is not None and _exp.goals:
+                goal_results: dict[str, bool] = {}
+                for _goal in _exp.goals:
+                    try:
+                        goal_results[_goal.name] = bool(_goal.check(result))
+                    except Exception:
+                        # A raising check is recorded as failure rather than
+                        # crashing the run — goals are diagnostics, not gates.
+                        goal_results[_goal.name] = False
+                result.setdefault("goals", goal_results)
 
         save_harness_result(
             result,
