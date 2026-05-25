@@ -23,7 +23,9 @@ from matplotlib.transforms import blended_transform_factory
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
-from mosaic.benchmarks.problems.shared.plots.cost_overview import plot_cost_overview
+from mosaic.benchmarks.problems.shared.plots.cost_overview import (
+    plot_cost_overview_for,
+)
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
     PAPER_RCPARAMS,
@@ -1336,13 +1338,7 @@ def _plot_lid_cavity(cfg: Problem, **_kw) -> None:
 
 
 def _plot_cost_overview(cfg: Problem, **_kw) -> None:
-    plot_cost_overview(
-        _extra_out_dir(cfg),
-        subdir="ns-3d-grid",
-        domain_label="3D NS",
-        solver_order=NS_ORDER,
-        steady_state=False,
-    )
+    plot_cost_overview_for(cfg, steady_state=False)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
