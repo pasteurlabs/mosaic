@@ -275,7 +275,7 @@ _THERMAL_PHYS = {
     "Q_total": 1.0,
     "rho_0": 0.5,
 }
-_THERMAL_NX = [16, 32, 64, 128, 256, 512, 1024, 2048, 4500]
+_THERMAL_NX = [16, 32, 64, 128, 256, 512, 1024]
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,

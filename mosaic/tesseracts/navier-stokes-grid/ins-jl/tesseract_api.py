@@ -14,7 +14,9 @@ from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(
-    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
 ):
     pass
 
