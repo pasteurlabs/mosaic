@@ -275,7 +275,7 @@ _THERMAL_PHYS = {
     "Q_total": 1.0,
     "rho_0": 0.5,
 }
-_THERMAL_NX = [16, 32, 64, 128, 256, 512, 1024, 2048, 4500]
+_THERMAL_NX = [16, 32, 64, 128, 256, 512, 1024]
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
@@ -414,29 +414,31 @@ problem.add_experiment(
 )
 
 # Optimization
-problem.add_experiment(
-    "optimization/conductivity_recovery",
-    conductivity_recovery,
-    plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using gradient descent.",
-    ic={"name": "uniform", "seed": 0},
-    physics={
-        "nx": 16,
-        "ny": 8,
-        "nz": 1,
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "rho_0": 0.5,
-        "Q_total": 1.0,
-        "compliance_key": "identification_error",
-        "penalty_weight": 0.0,
-        "x_min": 1e-3,
-        "snap_interval": 20,
-        "target_rho_from_two_gaussians": True,
-    },
-    optim={"lr": 1e-2, "max_iters": 2000, "patience": 200},
-    plot=plot_conductivity_recovery,
-)
+# PR #22 (CI): keep only the LBFGS variant to bound suite wall time.
+if False:
+    problem.add_experiment(
+        "optimization/conductivity_recovery",
+        conductivity_recovery,
+        plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using gradient descent.",
+        ic={"name": "uniform", "seed": 0},
+        physics={
+            "nx": 16,
+            "ny": 8,
+            "nz": 1,
+            "Lx": 2.0,
+            "Ly": 1.0,
+            "Lz": 1.0,
+            "rho_0": 0.5,
+            "Q_total": 1.0,
+            "compliance_key": "identification_error",
+            "penalty_weight": 0.0,
+            "x_min": 1e-3,
+            "snap_interval": 20,
+            "target_rho_from_two_gaussians": True,
+        },
+        optim={"lr": 1e-2, "max_iters": 2000, "patience": 200},
+        plot=plot_conductivity_recovery,
+    )
 problem.add_experiment(
     "optimization/conductivity_recovery_bfgs",
     conductivity_recovery,

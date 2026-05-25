@@ -2,8 +2,10 @@ name: pict_navier_stokes_grid
 version: "0.1.0"
 description: >
   GPU-accelerated differentiable PISO solver built on PyTorch with custom CUDA kernels
-  (PISOtorch). VJP w.r.t. v0 and inflow_profile through the time loop via torch.autograd;
-  viscosity and dt are static scalars without gradients.
+  (PISOtorch). VJP w.r.t. v0, inflow_profile, and viscosity flows through the PISO
+  time loop via PISOtorch_diff (tracks VELOCITY, BOUNDARY_VELOCITY, and VISCOSITY
+  gradients). dt is a Python scalar consumed at construction time; zero gradients
+  are returned for it.
 build_config:
   package_data: []
   target_platform: "linux/amd64"

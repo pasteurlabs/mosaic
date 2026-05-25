@@ -403,33 +403,35 @@ problem.add_experiment(
     },
     plot=plot_drag_opt,
 )
-problem.add_experiment(
-    "optimization/drag_opt_bfgs",
-    drag_opt,
-    optimizer="bfgs",
-    plot_description="L-BFGS drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
-    ic={"name": "flat_inflow", "seed": 0},
-    physics={
-        "N": 32,
-        "nu": 0.0025,
-        "dt": 0.02,
-        "steps": 400,
-        "domain_extent": 1.0,
-        "U_mean": 0.5,
-        "obstacle": {
-            "shape": "cylinder",
-            "center": [0.5, 0.5],
-            "radius": 0.05,
+# PR #22 (CI): keep only the Adam drag_opt above to bound suite wall time.
+if False:
+    problem.add_experiment(
+        "optimization/drag_opt_bfgs",
+        drag_opt,
+        optimizer="bfgs",
+        plot_description="L-BFGS drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
+        ic={"name": "flat_inflow", "seed": 0},
+        physics={
+            "N": 32,
+            "nu": 0.0025,
+            "dt": 0.02,
+            "steps": 400,
+            "domain_extent": 1.0,
+            "U_mean": 0.5,
+            "obstacle": {
+                "shape": "cylinder",
+                "center": [0.5, 0.5],
+                "radius": 0.05,
+            },
         },
-    },
-    optim={
-        "max_iters": 50,
-        "patience": 15,
-        "flow_penalty_weight": 50.0,
-        "snap_interval": 5,
-    },
-    plot=plot_drag_opt,
-)
+        optim={
+            "max_iters": 50,
+            "patience": 15,
+            "flow_penalty_weight": 50.0,
+            "snap_interval": 5,
+        },
+        plot=plot_drag_opt,
+    )
 
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

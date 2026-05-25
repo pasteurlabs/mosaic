@@ -64,21 +64,26 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
         label = cfg.category_label
         if label and not _CATEGORY_LABELS.get(domain_dir):
             _CATEGORY_LABELS[domain_dir] = label
-        for spec in cfg.solvers:
-            solver_name = spec.name
-            key = (domain_dir, spec.dir)
-            # cfg.exclusions stores Exclusion instances; split them into the
-            # legacy two-dict shape (exclusions vs. explained_anomalies) that
-            # the docs template renders.
-            per_solver = cfg.exclusions.get(solver_name, {})
-            exc_dict: dict[str, dict] = {}
-            anom_dict: dict[str, dict] = {}
-            for exp_key, exc in per_solver.items():
+
+        # cfg.exclusions is keyed by ``<experiment>``→``<solver_name>``→
+        # ``Exclusion``. Pivot to a per-solver view so the docs template
+        # can render one section per solver.
+        per_solver_excl: dict[str, dict[str, dict]] = {}
+        per_solver_anom: dict[str, dict[str, dict]] = {}
+        for exp_key, by_solver in cfg.exclusions.items():
+            for sname, exc in by_solver.items():
                 payload = {"category": exc.category.value, "reason": exc.reason}
-                if exc.category.value == "anomaly_explained":
-                    anom_dict[exp_key] = payload
-                else:
-                    exc_dict[exp_key] = payload
+                target = (
+                    per_solver_anom
+                    if exc.category.value == "anomaly_explained"
+                    else per_solver_excl
+                )
+                target.setdefault(sname, {})[exp_key] = payload
+
+        for spec in cfg.solvers:
+            key = (domain_dir, spec.dir)
+            exc_dict = per_solver_excl.get(spec.name, {})
+            anom_dict = per_solver_anom.get(spec.name, {})
             _SOLVER_SPECS[key] = {
                 "name": spec.name,
                 "scheme": spec.scheme,

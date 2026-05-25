@@ -18,6 +18,7 @@ permissions:
   contents: write
   pull-requests: write
   packages: read
+  actions: read
 
 concurrency:
   group: benchmark-${{ github.event.pull_request.number || github.ref }}
@@ -167,11 +168,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull pre-built solver images from GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           uv run python .github/scripts/pull-solver-images.py \
             --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
             --problems "${{ needs.plan.outputs.problems }}" \
-            --hardware "${{ matrix.hardware }}"
+            --hardware "${{ matrix.hardware }}" \
+            --tag "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --build-workflow build-tesseracts.yml
 
       - name: Run ${{ matrix.suite }} (${{ matrix.hardware }})
         run: |
