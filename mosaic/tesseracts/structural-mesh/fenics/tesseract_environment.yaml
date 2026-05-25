@@ -1,0 +1,12 @@
+name: fenics-structural-env
+channels:
+  - conda-forge
+dependencies:
+  - python==3.10
+  - numpy==1.26.4
+  - scipy==1.14.1
+  - meshio==5.3.5
+  - fenics==2019.1.0
+  - dolfin-adjoint==2019.1.0
+  - pip
+  - pip:

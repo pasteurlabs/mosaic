@@ -1,0 +1,65 @@
+name: dealii_structural_mesh
+version: "0.1.0"
+description: |
+  deal.II Q1 trilinear hexahedral FEM for linear elasticity + SIMP topology optimisation.
+  UMFPACK direct solver. Analytic SIMP compliance gradient dC/drho.
+  C++ solver subprocess wrapped in Python tesseract interface.
+
+  Solves 3-D linear elasticity on a structured hexahedral mesh:
+    −∇·σ(u) = 0    in Ω
+
+  SIMP stiffness:
+    E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal    (E_min = xmin·E_max)
+
+  Lame parameters (per element via SIMP):
+    λ_e = E_e · ν / ((1+ν)(1−2ν))
+    μ_e = E_e / (2(1+ν))
+
+  Structural compliance objective:
+    C = F^T U
+
+  Gradient ∂C/∂ρ_e via analytic self-adjoint SIMP sensitivity (no adjoint solve needed):
+    dC/dρ_e = −(1−xmin)·E_max·penal·ρ_e^(penal−1) / E_e · local_compliance_e
+
+  Mesh : structured HexMesh (8-node Q1 hexahedral elements, GridGenerator::subdivided_hyper_rectangle).
+  FE   : FESystem<3>(FE_Q<3>(1), 3) — trilinear Q1 displacement (3 DOFs per node).
+  BCs  : per-node Dirichlet displacement groups and per-node Neumann traction groups.
+  Solver: SparseDirectUMFPACK (robust direct solver for moderate mesh sizes).
+
+build_config:
+  # NOTE: the upstream `dealii/dealii:latest` image defaults to USER `dealii`,
+  # so the tesseract template's hardcoded apt-get steps fail with EACCES on
+  # /var/lib/apt/lists/partial. Use the locally-built `dealii-root:latest`
+  # wrapper (shared with thermal-mesh/dealii-heat); `mosaic build` auto-runs
+  # `build_base.sh` in this directory before the tesseract build, so the
+  # wrapper is always fresh.
+  base_image: "dealii-root:latest"
+  extra_packages:
+    - nlohmann-json3-dev
+  package_data:
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["./src", "/opt/dealii_struct/src"]
+    - ["./CMakeLists.txt", "/opt/dealii_struct/CMakeLists.txt"]
+  custom_build_steps:
+    - "RUN pip install /tmp/mosaic_shared"
+    - "RUN cd /opt/dealii_struct && cmake -B build -DCMAKE_BUILD_TYPE=Release . && cmake --build build -j4"
+
+metadata:
+  mosaic:
+    name: "deal.II"
+    backend: cpp
+    family: fem
+    scheme: "FEM Q1 linear elasticity (SIMP, analytic self-adjoint gradient)"
+    color: "#CCBB44"
+    linestyle: "-"
+    marker: "X"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    description: >
+      deal.II Q1 (trilinear hexahedral) FEM linear-elasticity solver via C++
+      subprocess. SIMP stiffness E(ρ) = xmin·E_max + (1−xmin)·E_max·ρ^penal. UMFPACK
+      direct solver. Gradient ∂C/∂ρ via analytic self-adjoint SIMP sensitivity.
+      Reference C++ implementation for cross-framework validation.
+    doc_url: "https://www.dealii.org/"

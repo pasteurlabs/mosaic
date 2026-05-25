@@ -363,45 +363,47 @@ problem.add_experiment(
 )
 
 # Optimization — single runner, optimizer choice as a config kwarg.
-problem.add_experiment(
-    "optimization/recovery_constant_ic",
-    recovery,
-    optimizer="adam",
-    _exp_key="recovery_constant_ic",
-    plot_description="Final IC recovery error per solver from zero-initialised gradient-descent optimisation.",
-    ic={"name": "rand_div_free", "seed": 0},
-    physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
-    optim={
-        "ic_init_type": "zeros",
-        "lr": 1e-3,
-        "max_iters": 500,
-        "patience": 50,
-        "failure_threshold": 2.0,
-        "snap_interval": 20,
-        "ic_seeds": [0, 1, 2],
-        "record_diagnostics": True,
-    },
-    plot=plot_recovery,
-)
-problem.add_experiment(
-    "optimization/recovery_constant_ic_bfgs",
-    recovery,
-    optimizer="bfgs",
-    _exp_key="recovery_constant_ic_bfgs",
-    plot_description="Final IC recovery error per solver from zero-initialised L-BFGS optimisation.",
-    ic={"name": "rand_div_free", "seed": 0},
-    physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
-    optim={
-        "ic_init_type": "zeros",
-        "max_iters": 100,
-        "patience": 20,
-        "failure_threshold": 2.0,
-        "snap_interval": 5,
-        "ic_seeds": [0, 1, 2],
-        "record_diagnostics": True,
-    },
-    plot=plot_recovery,
-)
+# PR #22 (CI): keep only the LBFGS+projection variant to bound suite wall time.
+if False:
+    problem.add_experiment(
+        "optimization/recovery_constant_ic",
+        recovery,
+        optimizer="adam",
+        _exp_key="recovery_constant_ic",
+        plot_description="Final IC recovery error per solver from zero-initialised gradient-descent optimisation.",
+        ic={"name": "rand_div_free", "seed": 0},
+        physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
+        optim={
+            "ic_init_type": "zeros",
+            "lr": 1e-3,
+            "max_iters": 500,
+            "patience": 50,
+            "failure_threshold": 2.0,
+            "snap_interval": 20,
+            "ic_seeds": [0, 1, 2],
+            "record_diagnostics": True,
+        },
+        plot=plot_recovery,
+    )
+    problem.add_experiment(
+        "optimization/recovery_constant_ic_bfgs",
+        recovery,
+        optimizer="bfgs",
+        _exp_key="recovery_constant_ic_bfgs",
+        plot_description="Final IC recovery error per solver from zero-initialised L-BFGS optimisation.",
+        ic={"name": "rand_div_free", "seed": 0},
+        physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
+        optim={
+            "ic_init_type": "zeros",
+            "max_iters": 100,
+            "patience": 20,
+            "failure_threshold": 2.0,
+            "snap_interval": 5,
+            "ic_seeds": [0, 1, 2],
+            "record_diagnostics": True,
+        },
+        plot=plot_recovery,
+    )
 problem.add_experiment(
     "optimization/recovery_constant_ic_bfgs_proj",
     recovery,

@@ -319,29 +319,31 @@ problem.add_experiment(
 )
 
 # Optimization
-problem.add_experiment(
-    "optimization/topopt",
-    topopt,
-    plot_description="SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.",
-    ic={"name": "uniform", "seed": 0},
-    physics={
-        "nx": 16,
-        "ny": 2,
-        "nz": 8,
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "F_total": 1.0,
-        "corner_load": True,
-        "v_frac": 0.5,
-        "compliance_key": "compliance",
-        "penalty_weight": 50.0,
-        "x_min": 1e-3,
-        "snap_interval": 10,
-    },
-    optim={"lr": 5e-2, "max_iters": 2500, "patience": 100},
-    plot=plot_topopt,
-)
+# PR #22 (CI): keep only the LBFGS variant to bound suite wall time.
+if False:
+    problem.add_experiment(
+        "optimization/topopt",
+        topopt,
+        plot_description="SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.",
+        ic={"name": "uniform", "seed": 0},
+        physics={
+            "nx": 16,
+            "ny": 2,
+            "nz": 8,
+            "Lx": 2.0,
+            "Ly": 1.0,
+            "Lz": 1.0,
+            "F_total": 1.0,
+            "corner_load": True,
+            "v_frac": 0.5,
+            "compliance_key": "compliance",
+            "penalty_weight": 50.0,
+            "x_min": 1e-3,
+            "snap_interval": 10,
+        },
+        optim={"lr": 5e-2, "max_iters": 2500, "patience": 100},
+        plot=plot_topopt,
+    )
 problem.add_experiment(
     "optimization/topopt_bfgs",
     topopt,
