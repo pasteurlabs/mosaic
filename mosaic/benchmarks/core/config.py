@@ -23,25 +23,9 @@ TESSERACTS_DIR: Path = Path(__file__).resolve().parents[2] / "tesseracts"
 class ExclusionCategory(str, Enum):
     """Why a solver does not run for a given experiment.
 
-    The ``(str, Enum)`` mixin means each member *is* a string (e.g.
-    ``ExclusionCategory.CATEGORICAL == "categorical"``), so the on-disk
-    serialisation of an :class:`Exclusion` lands as a plain string — no
-    schema change vs. the legacy free-form strings.
-
-    Members:
-      * ``CATEGORICAL`` — method-intrinsic limitation (e.g. FFT-only solver
-        on non-periodic BCs; non-differentiable C++ solver). Permanent;
-        excluded from the campaign score denominator.
-      * ``INFEASIBLE`` — would run but the result is not meaningful.
-      * ``NOT_IMPLEMENTED`` — could in principle run but the support hasn't
-        been wired yet. Counts in the score as "work to do".
-      * ``UNSTABLE`` — runs but blows up; same as NOT_IMPLEMENTED in scoring.
-      * ``UPSTREAM_BUG`` — failure attributable to a tracked upstream issue.
-      * ``WIP`` — temporarily skipped while work is in progress.
-      * ``UNSPECIFIED`` — fallback for legacy / un-categorised entries.
-      * ``ANOMALY_EXPLAINED`` — the solver runs and produces output that's
-        anomalous for documented method-intrinsic reasons; not a runtime
-        skip, only a display annotation.
+    ``CATEGORICAL`` is permanent (excluded from the campaign-score denominator);
+    all others count as "work to do". ``ANOMALY_EXPLAINED`` is a display-only
+    annotation — the solver still runs.
     """
 
     CATEGORICAL = "categorical"
@@ -54,8 +38,7 @@ class ExclusionCategory(str, Enum):
     ANOMALY_EXPLAINED = "anomaly_explained"
 
 
-# Categories that are *permanent* — these stay out of the campaign score
-# denominator. Everything else counts as "work to do" at the neutral weight.
+# Categories that are permanent — out of the score denominator.
 EXCL_PERMANENT: frozenset[ExclusionCategory] = frozenset(
     {ExclusionCategory.CATEGORICAL}
 )
@@ -64,20 +47,7 @@ EXCL_PERMANENT: frozenset[ExclusionCategory] = frozenset(
 class AdStrategy(str, Enum):
     """How a solver computes gradients.
 
-    Same ``(str, Enum)`` mixin as :class:`ExclusionCategory` — members
-    serialise to plain strings on disk (e.g. ``AdStrategy.AUTODIFF == "autodiff"``).
-
-    Members:
-      * ``AUTODIFF`` — native reverse-mode AD traces through the forward pass
-        (``jax.vjp``, ``torch.autograd``, ``Zygote``, ``wp.Tape``).
-      * ``ADJOINT``  — explicitly formulated adjoint equations
-        (dolfin-adjoint, pyadjoint, analytic self-adjoint SIMP sensitivity).
-      * ``HYBRID``   — analytic gradient rules combined with autodiff
-        (implicit-function theorem, custom VJP rules that call autodiff internally).
-
-    The ``None`` sentinel represents *non-differentiable*; it is not a
-    member of the enum (so ``ad_strategy: AdStrategy | None`` carries the
-    "no gradient support" case explicitly).
+    ``None`` (the absence of an :class:`AdStrategy`) means non-differentiable.
     """
 
     AUTODIFF = "autodiff"
@@ -85,22 +55,8 @@ class AdStrategy(str, Enum):
     HYBRID = "hybrid"
 
 
-# ── New experiment/plot abstractions ─────────────────────────────────────────
-#
-# These are the canonical types for the closure-style refactor. They live
-# above ``Problem`` so the dataclass annotation below can reference
-# them. See plan: `~/.claude/plans/i-want-to-make-encapsulated-token.md`.
-
-
 class ExperimentFn(Protocol):
-    """Callable that runs one experiment.
-
-    Signature: ``(cfg, tags, **overrides) -> dict``. Experiments capture
-    problem-specific state (``make_ic``, ``make_inputs``, ``error_fn``,
-    per-experiment params, …) in their closures so the runner doesn't need
-    to know about it. Returns a result dict saved by
-    :func:`mosaic.benchmarks.core.io.save_experiment`.
-    """
+    """``(cfg, tags, **overrides) -> dict`` — runs one experiment."""
 
     def __call__(
         self, cfg: Problem, tags: dict[str, str], **overrides: Any
@@ -108,25 +64,14 @@ class ExperimentFn(Protocol):
 
 
 class PlotFn(Protocol):
-    """Callable that renders the plots for one experiment.
-
-    Signature: ``(cfg, **kw) -> Any``. Like :class:`ExperimentFn`, plot
-    functions close over problem-specific presentation state (colormap,
-    axis labels, ``field_to_2d``, ``agreement_transform``, …) so the cfg
-    surface stays small.
-    """
+    """``(cfg, **kw) -> Any`` — renders the plots for one experiment."""
 
     def __call__(self, cfg: Problem, **kw: Any) -> Any: ...
 
 
 @dataclass
 class Experiment:
-    """An experiment is a closure plus the params it was built with.
-
-    ``params`` is the introspection manifest — what configuration the closure
-    captured. The runner only invokes ``fn``; ``params`` is read by status,
-    documentation, and result-saving for provenance.
-    """
+    """Registered experiment: its runner closure plus an introspection manifest."""
 
     fn: ExperimentFn
     params: dict = field(default_factory=dict)
@@ -134,15 +79,12 @@ class Experiment:
 
 @dataclass
 class Problem:
-    """The single per-problem definition: closure deps + metadata +
-    registries + builder methods.
+    """A benchmark domain definition.
 
-    Each problem's ``config.py`` instantiates one ``Problem`` (with closure
-    deps: ``make_ic``, ``error_fn``, ``output_key``, …), then
-    :meth:`add_experiment` / :meth:`add_ic` / :meth:`add_extra_plot`
-    register experiments + ICs + plot fns at ``"<suite>/<name>"`` keys.
-    The runner / status / CLI consume ``Problem`` directly — there is no
-    separate "config" wrapper.
+    Each problem's ``config.py`` instantiates one ``Problem`` with the
+    domain's closure deps (``make_ic``, ``error_fn``, ``output_key``, …)
+    and then calls :meth:`add_experiment` / :meth:`add_ic` /
+    :meth:`add_extra_plot` to populate the registries.
     """
 
     # ── Metadata ─────────────────────────────────────────────────────────
@@ -165,11 +107,8 @@ class Problem:
     ic_key: str = ""
     domain_extent: float = 1.0
     resolution_key: str = "N"
-    # Analytic reference solution callable (e.g. TGV viscous decay). Threaded
-    # into runner closures as the cfg-level fallback when per-run ``reference``
-    # is a fine-grid spec dict rather than a callable. Lives at Problem level
-    # because the analytic is tied to the problem (TGV analytic for ns-grid,
-    # TGV3D for ns-3d-grid), not the experiment.
+    # Cfg-level fallback for per-run ``reference`` when the run dict specifies
+    # a fine-grid spec rather than a callable.
     reference: Callable | None = None
 
     # ── Registries (filled by .add_experiment / .add_ic / .add_extra_plot) ─────────
@@ -177,20 +116,11 @@ class Problem:
     plot_fns: dict[str, PlotFn] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Setup that can't be expressed declaratively:
+        """Resolve ``tesseract_dir`` and wrap ``make_inputs`` to look up specs by name.
 
-        - Resolve a relative :attr:`tesseract_dir` against
-          :data:`TESSERACTS_DIR` (so configs can pass a slug string like
-          ``"navier-stokes-grid"``).
-        - Wrap :attr:`make_inputs` so it looks up the :class:`SolverSpec`
-          from the solver name. The user-provided callable has signature
-          ``(spec: SolverSpec, ic, **physics) -> dict``; the wrapped
-          version exposed as ``cfg.make_inputs`` has signature
-          ``(name: str, ic, **physics) -> dict``. This drops the
-          per-problem ``build_make_inputs(solvers)`` closure factory.
-
-        ICs are registered explicitly via :meth:`add_ic` after construction —
-        no auto-registration from :attr:`make_ic` happens here.
+        The user-provided ``make_inputs`` has signature
+        ``(spec: SolverSpec, ic, **physics) -> dict``; the wrapped version
+        exposed as ``cfg.make_inputs`` takes a ``name: str`` instead.
         """
         if isinstance(self.tesseract_dir, str):
             self.tesseract_dir = Path(self.tesseract_dir)
@@ -198,12 +128,8 @@ class Problem:
             self.tesseract_dir = TESSERACTS_DIR / self.tesseract_dir
 
         if self.make_inputs is not None:
-            # __post_init__ also runs when ``dataclasses.replace(cfg, solvers=...)``
-            # builds a filtered copy (CLI -s filter, --hardware filter, etc.).
-            # Unwrap to the original user function before re-wrapping, otherwise
-            # the second pass nests `wrapper(wrapper(...))` and the inner call
-            # receives a SolverSpec where it expected a name → ``TypeError:
-            # unhashable type: 'SolverSpec'``.
+            # ``dataclasses.replace(cfg, solvers=...)`` re-runs ``__post_init__``;
+            # unwrap to the original user fn so we don't double-wrap.
             _user_fn = getattr(self.make_inputs, "_mosaic_raw", self.make_inputs)
             _spec_by_name = {s.name: s for s in self.solvers}
 
@@ -289,55 +215,22 @@ class Problem:
         status_check: list | None = None,
         **config,
     ) -> None:
-        """Register an experiment at ``key`` with optional sweep + plot + reduce.
+        """Register an experiment at ``key``.
 
-        Any value inside ``**config`` (top-level or nested inside a dict
-        kwarg) that is a list-of-primitives is treated as a **sweep axis**.
-        Multiple sweep axes must have matching lengths; the framework
-        parallel-zips them and registers one sub-experiment per zipped
-        tuple, keyed at ``<key>/<auto-suffix>``. The suffix is derived
-        from the differing key→value pairs (e.g. ``steps_10_nu_0p001``).
+        List-valued entries in ``**config`` (nested one level inside dict
+        kwargs like ``physics={"N": [...]}``) become sweep axes; multi-axis
+        sweeps are parallel-zipped. Variant fan-out via ``runs=[{...}, ...]``
+        registers one sub-experiment per variant under ``<key>/<variant>``.
 
-        If no sweep axes are present, a single experiment is registered
-        at ``key`` exactly.
+        ``plot`` accepts a single callable or a ``{view: callable, ...}`` dict
+        (each view runs independently; an exception in one is logged and
+        skipped). ``status_check`` adds per-experiment status callables on
+        top of suite-level defaults. ``plot_description`` is stored on the
+        experiment's params for ``mosaic status`` to display.
 
-        ``plot`` (optional) is registered once at the **parent** ``key`` —
-        it runs after all sub-experiments complete and receives either the
-        list of per-sub-experiment result dicts (if ``reduce is None``) or
-        ``reduce(results)`` otherwise. Plots that need ``exp_key=`` get it
-        wrapped in automatically.
-
-        Pass a ``dict[str, callable]`` instead of a single callable to
-        attach **multiple views** to one experiment (mirrors the asie
-        ``plot={"view": fn, ...}`` shape). Each entry runs independently;
-        an exception in one view is logged but does not skip the others.
-        Each view receives the same ``(cfg, exp_key=..., sub_keys=...)``
-        kwargs the single-callable form would — a view's signature
-        decides which of those it sees, exactly like the single-callable
-        case.
-
-        ``plot_description`` is stored on every sub-experiment's params for
-        introspection (e.g. ``mosaic status``).
-
-        ``status_check`` (optional) is a list of check callables (built via
-        the factories in :mod:`mosaic.benchmarks.core.status_checks` —
-        ``median_k(k)``, ``max_error(t)``, ``min_cosine(t)``, …) attached to
-        every sub-experiment's params. Merged on top of any suite-level
-        defaults from :attr:`status_checks` when the status pipeline
-        classifies a result.
-
-        Per-experiment exclusions are attached via :meth:`exclude` — call
-        ``problem.exclude(key, {solver_name: Exclusion, ...})`` immediately
-        after this method to register them at the same key.
+        Per-(solver, experiment) exclusions are attached via
+        ``problem.exclude(key, {solver_name: Exclusion, ...})``.
         """
-        # Shorthand: ``run=dict`` wraps into ``runs=[dict]`` and list-valued
-        # fields in the run get auto-converted into the runner's sweep dict
-        # form (``sweep={"key": k, "values": [...]}`` + scalar override).
-        # The kernel's ``sweep_mode`` decides whether auto-sweep detection
-        # applies — kernels declared ``sweep_mode="none"`` consume list-valued
-        # config fields directly off ``ctx.run`` (e.g. ``fd_check`` iterating
-        # ``fd.eps_values``), so we must not collapse those lists into
-        # ``sweep=`` + scalar placeholder.
         from mosaic.benchmarks.core.experiment import get_kernel_config
 
         kernel_sweep_mode = get_kernel_config(kernel).get("sweep_mode", "none")
@@ -425,32 +318,17 @@ class Problem:
     ) -> dict:
         """Convert ``.add_experiment()`` shorthand into the canonical runner payload.
 
-        Two accepted input forms (in order of precedence):
+        Two input shapes are accepted: ``runs=[{...}, ...]`` (passed through),
+        or bare run-dict fields (``ic=``, ``physics=``, ``fd=``, ``optim=``,
+        ``jacobian=``, ``reference=``, ``sweep=``) which are collected into a
+        single run dict. A list-of-dicts in any field fans out to one variant
+        per element (parallel-zipped across fields).
 
-        1. ``runs=[{...}, ...]`` (explicit multi-variant): pass through.
-           Use this when variants have **structurally different** payloads
-           — e.g. different swept keys per variant (``physical_laws``:
-           ``vs_N``, ``vs_steps``, ``vs_nu``).
-        2. Bare run-dict fields (``ic=``, ``physics=``, ``fd=``, ``optim=``,
-           ``jacobian=``, ``reference=``, ``sweep=``) at the top level:
-           collected into a single run dict, then wrapped into
-           ``runs=[{...}]``. When any payload field is a **list of dicts**
-           (e.g. ``ic=[{tgv}, {multimode}]``), it fans out: each element
-           becomes one variant, with shared fields broadcast. Multiple
-           list-of-dicts fields parallel-zip (same length required).
-
-        After collection, each run dict is scanned for list-valued fields
-        (nested one level inside ``physics``/``fd``/``optim``/etc.). The
-        first list found becomes the sweep axis: ``sweep={"key": k, "values":
-        [...]}`` is added and the field is replaced with its first value (a
-        placeholder; the runner overwrites it per sweep iteration). When an
-        explicit ``sweep=`` is supplied via shorthand, auto-detect is skipped.
-
-        ``sweep_mode`` mirrors the kernel decorator's ``sweep_mode``. When it
-        is ``"none"`` the runner ignores the ``sweep=`` block entirely, so
-        list-valued fields on the run dict are kernel inputs (e.g. ``fd_check``
-        iterating ``fd.eps_values``) — auto-sweep detection is skipped so we
-        don't substitute the original list with a scalar placeholder.
+        Each run dict is then scanned for the first list-valued field nested
+        one level inside a dict kwarg — that becomes the sweep axis
+        (``sweep={"key": k, "values": [...]}``). For ``sweep_mode="none"``
+        kernels auto-detection is skipped: the kernel consumes the list
+        directly off ``ctx.run``.
         """
         # ── Step 1: collect run dict(s) ─────────────────────────────────
         if "runs" in config:

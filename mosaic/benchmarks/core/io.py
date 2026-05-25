@@ -56,16 +56,7 @@ RESULTS_DIR_ENV = "MOSAIC_RESULTS_DIR"
 
 
 def results_dir() -> Path:
-    """Return the root results directory, respecting env-var overrides.
-
-    Priority:
-      1. ``MOSAIC_RESULTS_DIR`` env var (set by ``--output-dir`` or the shell).
-      2. ``Path.cwd() / "mosaic-results"`` otherwise.
-
-    The legacy behaviour wrote inside the git tree (``mosaic/results``); that
-    broke read-only installs and made the output location invisible to the
-    caller.
-    """
+    """Root results directory: ``$MOSAIC_RESULTS_DIR`` if set, else ``./mosaic-results``."""
     if d := os.environ.get(RESULTS_DIR_ENV):
         return Path(d)
     return Path.cwd() / "mosaic-results"
