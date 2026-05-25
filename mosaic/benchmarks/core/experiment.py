@@ -155,7 +155,7 @@ def get_kernel_config(fn) -> dict:
     return getattr(fn, _KERNEL_CONFIG_ATTR, {})
 
 
-def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked separately
+def run_experiment(  # noqa: C901, PLR0913, PLR0915 — generic harness, refactor tracked separately
     cfg: Problem,
     tags: dict[str, str],
     kernel_fn: Kernel,
@@ -505,6 +505,15 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
             existing = result.get("_solver_failures") or {}
             existing.update(solver_failures)
             result["_solver_failures"] = existing
+
+        # Persist this experiment's sweep coordinates so aggregator plots
+        # (and downstream readers) don't need to re-parse the experiment
+        # name to discover its position in parameter space.
+        if isinstance(result, dict):
+            _full_key = f"{suite}/{exp_key}"
+            _exp = cfg.experiments.get(_full_key)
+            if _exp is not None and _exp.coords:
+                result.setdefault("coords", dict(_exp.coords))
 
         save_harness_result(
             result,
