@@ -2,7 +2,48 @@
 title: Standalone Usage
 ---
 
-Each Tesseract in Mosaic is a self-contained differentiable solver with a standard `apply` / `vjp` interface. You do not need the full benchmark harness to use them. There are two ways to call a Tesseract:
+You do not need the full benchmark harness to use a Mosaic solver. This page walks through the Tesseract interface that every solver exposes, then shows the two ways to call one from your own code.
+
+## How Tesseracts work
+
+Each solver is wrapped as a **Tesseract**: a Docker container exposing two entry points:
+
+- `apply(inputs) -> outputs` --- run the forward simulation.
+- `vector_jacobian_product(inputs, cotangents) -> vjp` --- compute the reverse-mode gradient.
+
+The container isolates all dependencies (language, libraries, GPU runtime). A Python client calls the container over a local socket via [tesseract-core](https://github.com/pasteurlabs/tesseract-core), so the benchmark harness never imports solver code directly. [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax) wraps these calls as native JAX functions with full `jit` and `grad` support.
+
+Containerization adds a fixed per-call overhead (serialization and IPC, typically a few milliseconds) that is independent of solver complexity and negligible relative to solver runtimes.
+
+Forward-only solvers (OpenFOAM, deal.II) implement `apply` only. Mosaic's finite-difference-through-Tesseract mode provides gradients automatically at O(N) cost, serving as the solver-agnostic reference.
+
+```
+Benchmark harness (JAX)
+
+    loss_fn = lambda ic: error(tesseract.apply(make_inputs(ic)))
+    grad_fn = jax.grad(loss_fn)       # traces through VJP
+
+    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+    │ PhiFlow      │  │ JAX-CFD      │  │ FEniCS       │ ...
+    │ (container)  │  │ (container)  │  │ (container)  │
+    │ apply / vjp  │  │ apply / vjp  │  │ apply / vjp  │
+    └──────────────┘  └──────────────┘  └──────────────┘
+```
+
+### Task-specific schemas
+
+Because solver APIs differ too widely for a single generic wrapper, each benchmark domain defines a **task-specific interface schema** (`InputSchema`, `OutputSchema`) that multiple solvers implement. Schemas live in `mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py` and use Pydantic models. All fields must have defaults (Tesseract requirement).
+
+Solvers import the canonical schema and may subclass it to add solver-specific parameters:
+
+```python
+from tesseract_shared.problems.navier_stokes_grid import InputSchema as _Base, OutputSchema
+
+class InputSchema(_Base):
+    inner_steps: int = Field(default=1, description="Sub-steps per outer step")
+```
+
+## Two ways to call a Tesseract
 
 - **Option A: Local (no Docker)** --- call the solver directly via `tesseract-core`; fastest for development but requires the solver's native dependencies.
 - **Option B: Via the Tesseract container** --- reproducible, language-agnostic, and supports `jax.grad` through the container boundary via `tesseract-jax`.

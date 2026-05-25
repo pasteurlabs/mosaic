@@ -4,7 +4,7 @@ Mosaic grows as the community adds solver backends, improves configurations, and
 
 ## Adding a solver backend
 
-A solver backend is a Tesseract wrapper that implements the forward map and (optionally) its VJP for an existing benchmark domain. The full walkthrough — directory layout, schemas, `apply` / `abstract_eval` / `vector_jacobian_product`, the `metadata.mosaic:` config block, and domain-specific overrides (exclusions, input_overrides, explained_anomalies) — is in the [Add a Solver tutorial](https://pasteurlabs.github.io/mosaic/tutorial-add-solver.html) (source: [`docs/tutorial-add-solver.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial-add-solver.qmd)). It uses a short pseudo-spectral solver on the ns-grid domain as a running example.
+A solver backend is a Tesseract wrapper that implements the forward map and (optionally) its VJP for an existing benchmark domain. The full walkthrough — directory layout, schemas, `apply` / `abstract_eval` / `vector_jacobian_product`, the `metadata.mosaic:` config block, and domain-specific overrides (exclusions, input_overrides, explained_anomalies) — is in [Part A of the Add a Backend tutorial](https://pasteurlabs.github.io/mosaic/tutorial.html#part-a--add-a-solver-to-an-existing-domain) (source: [`docs/tutorial.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial.qmd)). It uses a short pseudo-spectral solver on the ns-grid domain as a running example.
 
 ## Tuning an existing solver
 
@@ -54,7 +54,7 @@ Solver behavior can be adjusted at three levels:
 
 ## Adding a benchmark domain
 
-A new domain bundles canonical schemas (`mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`), a `Problem` package (`mosaic/benchmarks/problems/<domain>/`, split into `config.py`, `ics.py`, `physics.py`, plus any per-problem `optimization.py` / `plots.py`), and at least one reference solver. The fastest way to start is `mosaic new-domain <name> --from-template <template>`, which scaffolds the file tree from a built-in template. The end-to-end walkthrough — schemas, suite defaults, IC generators, error functions, and a working reference solver — is in the [Add a Domain tutorial](https://pasteurlabs.github.io/mosaic/tutorial-add-domain.html) (source: [`docs/tutorial-add-domain.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial-add-domain.qmd)).
+A new domain bundles canonical schemas (`mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`), a `Problem` package (`mosaic/benchmarks/problems/<domain>/`, split into `config.py`, `ics.py`, `physics.py`, plus any per-problem `optimization.py` / `plots.py`), and at least one reference solver. The fastest way to start is `mosaic new-domain <name> --from-template <template>`, which scaffolds the file tree from a built-in template. The end-to-end walkthrough — schemas, suite defaults, IC generators, error functions, and a working reference solver — is in [Part B of the Add a Backend tutorial](https://pasteurlabs.github.io/mosaic/tutorial.html#part-b--add-a-new-benchmark-domain) (source: [`docs/tutorial.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial.qmd)).
 
 ## Building the docs
 

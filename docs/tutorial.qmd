@@ -1,0 +1,1236 @@
+---
+title: "Add a Backend"
+---
+
+This tutorial covers two contribution paths end-to-end. Pick the one that matches what you're adding:
+
+- **Part A: Add a solver backend to an existing domain.** You have a new physics solver (PyTorch, Julia, C++, ...) and want it wrapped as a Tesseract that the benchmark harness picks up automatically and runs against every evaluation suite. Uses **ns-grid** (2D Navier--Stokes) as the running example.
+- **Part B: Add a new benchmark domain.** You want to extend Mosaic with a new physics problem (its own schemas, ICs, error function). Uses a 1D diffusion equation (`diffusion-1d`) as the running example. The domain you scaffold needs at least one reference solver, so Part B ends with a condensed solver walkthrough that links back to Part A.
+
+Both paths share the same prerequisites and Mosaic-vs-Tesseract framing — read those once, then jump to your part.
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- **Python >= 3.10**
+- **Docker** installed and running (`docker info` should succeed)
+- **Tesseract CLI** --- installed with Mosaic (`pip install -e ".[dev]"` provides it)
+- **~4 GB free disk space** for building one solver container
+- **(Optional) NVIDIA GPU + Container Toolkit** --- needed only if your solver targets GPU
+
+Clone the repository and install in development mode:
+
+```bash
+git clone https://github.com/pasteurlabs/mosaic
+cd mosaic
+pip install -e ".[dev]"
+pre-commit install   # enables lint checks on commit
+```
+
+Verify the installation:
+
+```bash
+mosaic --help
+mosaic status        # lists all problems and registered solvers
+```
+
+## How Mosaic relates to Tesseract
+
+Mosaic does **not** define its own container format or runtime. Every Mosaic solver is a plain Tesseract, and the entire base layer — container build, HTTP API, schema validation, `tesseract build` / `tesseract run`, `tesseract init` recipes — comes from [tesseract-core](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/) unchanged.
+
+What Mosaic adds is a thin convention layer on top so the same Tesseract slots into a benchmark suite:
+
+| Layer | What it provides | Where it lives |
+|:------|:-----------------|:---------------|
+| **Base Tesseract** (tesseract-core) | Container build (`tesseract_config.yaml` → Docker image), HTTP server, the `apply` / `abstract_eval` / `vector_jacobian_product` endpoint contract, Pydantic `InputSchema` / `OutputSchema` with `Differentiable[...]` types, `tesseract init` scaffolding. | `tesseract-core` package; configured per-solver via the `name`, `version`, `description`, and `build_config:` keys in `tesseract_config.yaml`, and per-solver endpoint code in `tesseract_api.py`. |
+| **Mosaic layer** | A `metadata.mosaic:` block in `tesseract_config.yaml` for solver discovery; **canonical per-domain `InputSchema` / `OutputSchema`** in `tesseract_shared.problems.<domain>` that every solver in a domain subclasses (so cross-solver comparison is well-defined); per-(solver, problem) overrides (exclusions, input_overrides) declared in `mosaic/benchmarks/problems/<domain>/config.py`; plot styling in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. | `mosaic` package — but the per-solver surface area is just **one extra YAML block** and **subclassing the canonical schema**. |
+
+# Part A — Add a Solver to an Existing Domain
+
+This part walks through wrapping a new solver as a Tesseract that the harness discovers automatically. By the end you will have a working backend that runs against every evaluation suite and is ready for a pull request.
+
+We use the **ns-grid** (2D Navier--Stokes) domain as the running example and build a pseudo-spectral solver called `my-spectral-solver` — viscous diffusion in Fourier space is a one-line update, which keeps the focus on integration plumbing.
+## 2. Create the solver directory
+
+Each solver lives in its own subdirectory under the domain's `tesseracts/` folder. Create the directory with three files:
+
+```bash
+mkdir -p mosaic/tesseracts/navier-stokes-grid/my-spectral-solver
+touch mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/tesseract_config.yaml
+touch mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/tesseract_api.py
+touch mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/tesseract_requirements.txt
+```
+
+Your directory should look like:
+
+```
+mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/
+  tesseract_config.yaml       # metadata and build configuration
+  tesseract_api.py            # solver implementation (apply, abstract_eval, vjp)
+  tesseract_requirements.txt  # Python dependencies
+```
+
+This is the only directory structure the framework requires. No Python registration step is needed --- the harness discovers solvers by scanning for `tesseract_config.yaml` files with a `metadata.mosaic:` block.
+
+::: {.callout-tip}
+Prefer to scaffold from a working template? `tesseract init --recipe jax` (or `--recipe pytorch`) generates a starter `tesseract_api.py` with apply / abstract_eval / VJP boilerplate you can edit in place. See [Initialize a new Tesseract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html).
+:::
+
+## 3. Write `tesseract_config.yaml`
+
+This file straddles both layers. The top-level fields (`name`, `version`, `description`, `build_config`) are the **base Tesseract** schema enforced by tesseract-core; the `metadata.mosaic:` block is the **Mosaic layer** — tesseract-core ignores it, Mosaic discovers solvers by reading it.
+
+```yaml
+name: my_spectral_solver_navier_stokes_grid
+version: "0.1.0"
+description: >
+  Pseudo-spectral viscous-diffusion solver for 2D incompressible Navier–Stokes
+  on a periodic domain, backed by JAX FFTs.
+  Gradients via JAX source-transformation AD through the spectral update.
+
+build_config:
+  package_data: []
+  custom_build_steps:
+    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+
+metadata:
+  mosaic:
+    name: "My Spectral"
+    backend: jax
+    family: spectral
+    scheme: "Pseudo-spectral viscous step (periodic)"
+    discretization: Spectral
+    numerics: "Exponential diffusion"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    doc_url: "https://github.com/yourname/my-spectral-solver"
+```
+
+Here is what each field means:
+
+### Top-level fields *(base Tesseract)*
+
+These are the standard tesseract-core keys; Mosaic doesn't extend them.
+
+| Field | Purpose |
+|:------|:--------|
+| `name` | Docker image name. Convention: `<solver>_<domain>` with underscores. Must be unique across all Tesseracts. |
+| `version` | Semantic version of your solver wrapper. |
+| `description` | Two-sentence solver summary. Used both by `tesseract info` and as the body of the Mosaic Solver Reference card. |
+
+### `build_config` block *(base Tesseract)*
+
+Standard tesseract-core build options.
+
+| Field | Purpose |
+|:------|:--------|
+| `package_data` | Extra files to copy into the container (e.g. model weights). Usually `[]`. |
+| `custom_build_steps` | Extra `Dockerfile` directives run during the build. Useful for environment variables (e.g. XLA flags) or system packages (`RUN apt-get install ...`). |
+
+The full schema (extra packages, base images, sandboxed-build options) is documented at [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). For more worked configurations — non-Python runtimes, custom base images, package installation patterns — browse the [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repository.
+
+### `metadata.mosaic:` block *(Mosaic layer)*
+
+The single Mosaic-specific extension to the YAML. tesseract-core ignores this block (it's nested under the free-form `metadata` key); Mosaic's `discover_solvers()` reads it to build a `SolverSpec`. Only `name` is strictly required; the rest have sensible defaults.
+
+| Field | Type | Purpose |
+|:------|:-----|:--------|
+| `name` | `str` | Display name for plots and tables (e.g. "My Spectral"). **Required.** |
+| `backend` | `str` | Runtime / language: `jax`, `pytorch`, `julia`, `cpp`, `warp`, `fenics`, `firedrake`, etc. |
+| `family` | `str` | Solver family for grouped styling: `projection`, `lbm`, `spectral`, `fd`, `fv`, `fem`. |
+| `scheme` | `str` | Verbose label for the numerical scheme (appears in some plot legends). |
+| `discretization` | `str` | Paper Table 2 discretization code: `FD`, `FV`, `FE`, `LBM`, or `Spectral`. |
+| `numerics` | `str` | Paper Table 2 numerics column, e.g. `"Projection, semi-implicit"`, `"Direct (UMFPACK)"`, `"Streaming"`. |
+| `ad_strategy` | `str` | How gradients are computed: `autodiff`, `adjoint`, `hybrid`, or `null`. |
+| `differentiable` | `bool` | Whether the solver implements `vector_jacobian_product`. |
+| `uses_gpu` | `bool` | `true` if the solver runs on GPU, `false` for CPU-only. |
+| `internal_dtype` | `str` | `"float32"` or `"float64"` --- the precision used internally. |
+| `doc_url` | `str` | Link to upstream documentation or repository. |
+
+::: {.callout-note}
+Plot styling (`color`, `linestyle`, `marker`) is **not** declared in the YAML. It lives in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. After adding your solver, register its style in the `SOLVER_STYLES` dict there using the solver key (typically the directory name with hyphens replaced by underscores).
+:::
+
+## 4. Implement `tesseract_api.py`
+
+This is the core of your contribution. The file's structure is fixed by **base Tesseract** — it must define `apply` and the `InputSchema` / `OutputSchema` Pydantic models (plus optional `abstract_eval` and `vector_jacobian_product`). The full endpoint contract is documented in [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html).
+
+The **Mosaic** addition is that your `InputSchema` and `OutputSchema` subclass the *canonical* schemas published by `tesseract_shared.problems.<domain>`, so every solver in the domain reads and writes the same fields. That's what makes cross-solver comparison well-defined.
+
+### 4.1 Import the canonical schemas
+
+Every domain defines a shared `InputSchema` and `OutputSchema` in `mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`. Your solver imports these and can optionally subclass them to add solver-specific parameters.
+
+```python
+from tesseract_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+    OutputSchema as _CanonicalOutputSchema,
+)
+```
+
+::: {.callout-note}
+The import path uses `tesseract_shared.problems.navier_stokes_grid`, not a relative import. Inside the container, `tesseract_shared` is installed as a package (via `tesseract_requirements.txt`).
+:::
+
+### 4.2 Define `InputSchema` and `OutputSchema`
+
+Subclass the canonical schemas and declare which fields your solver can differentiate through. Mosaic provides `make_differentiable(base, [...])`, which returns a new Pydantic class with the listed fields wrapped in `Differentiable[...]` (preserving every other field as-is):
+
+```python
+from tesseract_shared.types import make_differentiable
+
+
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
+    """Solver inputs; v0 and viscosity carry gradients, the rest do not."""
+
+
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+    """Solver outputs; `result` carries the cotangent during VJP."""
+```
+
+If your solver uses the canonical interface exactly and doesn't differentiate anything, just re-export:
+
+```python
+class InputSchema(_CanonicalInputSchema):
+    pass
+
+
+class OutputSchema(_CanonicalOutputSchema):
+    pass
+```
+
+If you need solver-specific parameters, add them as fields with defaults *on top of* the `make_differentiable` wrapper:
+
+```python
+from pydantic import Field
+
+
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
+    dealias: bool = Field(default=True, description="Apply 2/3 dealiasing rule.")
+```
+
+All fields **must** have defaults --- this is a Tesseract requirement (the container must be callable with `apply '{}'`).
+
+### 4.3 Implement `apply`
+
+The `apply` function runs the forward simulation. It receives an `InputSchema` instance and must return a dict matching `OutputSchema`. The physics here is one line: each Fourier mode of the velocity decays as `exp(-ν |k|² t)` over the total time `t = dt · steps`.
+
+```python
+import jax
+import jax.numpy as jnp
+
+
+def _spectral_step(v0, viscosity, dt, steps, domain_extent):
+    """Evolve v(x, 0) -> v(x, dt·steps) under 2D viscous diffusion.
+
+    Pure spectral update on a periodic [0, L]² grid:
+        v̂(k, t) = v̂(k, 0) · exp(-ν |k|² t)
+
+    Args:
+        v0:  shape (N, N, 1, 2) — initial velocity field.
+        viscosity: scalar ν.
+        dt, steps: timestep and number of steps; only their product matters here.
+        domain_extent: side length L of the periodic square.
+
+    Returns:
+        Final velocity field, same shape as v0.
+    """
+    N = v0.shape[0]
+    k = jnp.fft.fftfreq(N, d=domain_extent / N) * 2 * jnp.pi
+    kx, ky = jnp.meshgrid(k, k, indexing="ij")
+    decay = jnp.exp(-viscosity * (kx**2 + ky**2) * dt * steps)
+    v_hat = jnp.fft.fft2(v0[:, :, 0, :], axes=(0, 1))  # (N, N, 2)
+    v_new = jnp.fft.ifft2(v_hat * decay[..., None], axes=(0, 1)).real
+    return v_new[:, :, None, :].astype(jnp.float32)
+
+
+def apply(inputs: InputSchema) -> OutputSchema:
+    d = inputs.model_dump()
+    result = _spectral_step(
+        v0=d["v0"],
+        viscosity=float(d["viscosity"][0]),
+        dt=float(d["dt"][0]),
+        steps=int(d["steps"]),
+        domain_extent=float(d["domain_extent"]),
+    )
+    return {"result": result}
+```
+
+Key points:
+
+- The function signature is `apply(inputs: InputSchema) -> OutputSchema`. The return value can be a dict --- Tesseract handles serialization.
+- Use `inputs.model_dump()` to convert the Pydantic model to a plain dict.
+- Scalar physics parameters (`viscosity`, `dt`) arrive as 1-element arrays (`shape (1,)`); unpack them to Python floats before passing to JIT-compiled code.
+- The output `result` must match the shape of the input `v0` (here `(N, N, 1, 2)`).
+
+### 4.4 Implement `abstract_eval`
+
+`abstract_eval` returns output shapes and dtypes without running any computation. The Tesseract runtime uses it for JIT tracing and shape inference. For this solver `result` has the same shape as `v0`:
+
+```python
+def abstract_eval(abstract_inputs):
+    v0_info = abstract_inputs.v0
+    shape = tuple(v0_info["shape"]) if isinstance(v0_info, dict) else v0_info.shape
+    return {"result": {"shape": shape, "dtype": "float32"}}
+```
+
+Array fields on `abstract_inputs` are either `jax.ShapeDtypeStruct` objects or dicts with `"shape"` / `"dtype"` keys — handle both. For the full endpoint signatures (when `abstract_eval` is required vs. optional, JIT-tracing rules, return types) see [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html).
+
+### 4.5 Implement `vector_jacobian_product`
+
+If your solver is differentiable (`differentiable: true` in the config), implement the VJP. For JAX-based solvers, wrap `jax.vjp` around your forward function — the `make_differentiable` annotation on `InputSchema` tells the framework which fields to route cotangents to:
+
+```python
+from typing import Any
+
+
+def vector_jacobian_product(
+    inputs: InputSchema,
+    vjp_inputs: set[str],
+    vjp_outputs: set[str],
+    cotangent_vector: dict[str, Any],
+):
+    """Reverse-mode VJP w.r.t. v0 and viscosity."""
+    d = inputs.model_dump()
+    v0 = jnp.asarray(d["v0"])
+    viscosity = jnp.asarray(d["viscosity"])
+    dt = float(d["dt"][0])
+    steps = int(d["steps"])
+    L = float(d["domain_extent"])
+
+    def fwd(v0, viscosity):
+        return _spectral_step(v0, viscosity[0], dt, steps, L)
+
+    _, vjp_fn = jax.vjp(fwd, v0, viscosity)
+    g_v0, g_visc = vjp_fn(cotangent_vector["result"])
+
+    out: dict[str, Any] = {}
+    if "v0" in vjp_inputs:
+        out["v0"] = g_v0
+    if "viscosity" in vjp_inputs:
+        out["viscosity"] = jnp.atleast_1d(g_visc)  # schema expects shape (1,)
+    return out
+```
+
+The VJP function signature is fixed by the Tesseract protocol:
+
+- `inputs` --- the primal inputs (same as `apply`).
+- `vjp_inputs` --- set of input field names to differentiate with respect to (e.g. `{"v0", "viscosity"}`).
+- `vjp_outputs` --- set of output field names whose cotangents are provided (e.g. `{"result"}`).
+- `cotangent_vector` --- dict mapping output field names to cotangent arrays.
+
+::: {.callout-tip}
+If your solver is **not differentiable** (e.g. a C++ reference solver), set `differentiable: false` in the config and omit `vector_jacobian_product` entirely. The gradient and optimization suites will **skip** that solver; the forward and cost suites still run normally, and it can be used as a reference baseline (FD reference gradients in `fd_check` are computed from the *differentiable* solvers' own forward passes, not as a substitute for missing VJPs).
+:::
+
+::: {.callout-note}
+For a working JAX VJP template you can copy from, run `tesseract init --recipe jax` in an empty directory: it scaffolds a `tesseract_api.py` with auto-generated `vector_jacobian_product` / `jacobian_vector_product` endpoints derived from your forward function. See [Initialize a new Tesseract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html) in the tesseract-core docs.
+:::
+
+### Complete file
+
+Putting it all together, your `tesseract_api.py` should have this structure:
+
+```
+# Imports
+# Schema classes (InputSchema, OutputSchema) — subclass via make_differentiable
+# Solver internals (_spectral_step)
+# apply(inputs) -> OutputSchema
+# abstract_eval(abstract_inputs) -> dict
+# vector_jacobian_product(inputs, vjp_inputs, vjp_outputs, cotangent_vector) -> dict
+```
+
+## 5. Write `tesseract_requirements.txt`
+
+This file is **base Tesseract**: tesseract-core consumes it as the pip-install manifest for the container. List your solver's Python dependencies one per line. The Mosaic-specific bit is the last line, which makes the canonical domain schemas available inside the container:
+
+```
+jax[cuda12]>=0.4.13
+../../tesseract_shared
+```
+
+The relative path `../../tesseract_shared` is resolved at build time relative to your solver directory (`mosaic/tesseracts/<domain>/<solver>/` → `mosaic/tesseracts/tesseract_shared/`). It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
+
+::: {.callout-note}
+For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `ins-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
+:::
+
+## 6. Build and verify
+
+### Build the container
+
+```bash
+tesseract build mosaic/tesseracts/navier-stokes-grid/my-spectral-solver
+```
+
+This builds a Docker image named `my_spectral_solver_navier_stokes_grid:latest`. The first build takes a few minutes (downloading base images, installing dependencies). Subsequent builds are faster thanks to Docker layer caching.
+
+### Smoke-test with a default forward call
+
+```bash
+tesseract run my_spectral_solver_navier_stokes_grid apply '{}'
+```
+
+This calls `apply` with all-default inputs (the 64x64 random vortex IC defined in `InputSchema`). You should see JSON output with a `result` key containing the velocity field. If you see an error, check:
+
+1. **Import errors** --- missing dependency in `tesseract_requirements.txt`.
+2. **Shape mismatches** --- verify your output has the same shape as the input `v0`.
+3. **Schema validation** --- all `InputSchema` fields must have defaults.
+
+### Inspect the output
+
+```bash
+tesseract run my_spectral_solver_navier_stokes_grid apply '{}' | python -c "
+import sys, json, numpy as np
+data = json.load(sys.stdin)
+arr = np.array(data['result'])
+print(f'Shape: {arr.shape}, min: {arr.min():.4f}, max: {arr.max():.4f}')
+"
+```
+
+You should see `Shape: (64, 64, 1, 2)` and finite (non-NaN) values.
+
+## 7. Run against the benchmark
+
+Now that your solver builds and runs, plug it into the Mosaic benchmark harness. The `--no-build` flag skips rebuilding (you already built in the previous step).
+
+### Forward accuracy
+
+```bash
+mosaic run -p ns-grid --suites forward -s my_spectral_solver --no-build
+```
+
+This runs the full forward evaluation suite (baseline resolution sweep, inter-solver agreement, physical laws checks) for your solver only. Results are saved to `mosaic-results/ns-grid/forward/`.
+
+### Gradient quality
+
+```bash
+mosaic run -p ns-grid -e gradient/fd_check -s my_spectral_solver --no-build
+```
+
+This runs the finite-difference gradient check, comparing your VJP against central finite differences along random perturbation directions. Look for cosine similarity > 0.99 and relative error < 0.01.
+
+### Full evaluation
+
+```bash
+mosaic run -p ns-grid -s my_spectral_solver --no-build
+```
+
+This runs all suites (forward, gradient, cost, optimization) for your solver. Expect this to take 30--60 minutes depending on hardware.
+
+::: {.callout-tip}
+Use `--debug` for faster iteration --- it uses smaller problem sizes:
+
+```bash
+mosaic run -p ns-grid --suites forward -s my_spectral_solver --debug --no-build
+```
+:::
+
+## 8. Check status
+
+After running the benchmarks, use `mosaic status` to see how your solver compares:
+
+```bash
+mosaic status -p ns-grid -f
+```
+
+The `-f` flag shows failure reasons for any experiments that did not succeed. Your solver should appear in the table alongside the existing solvers (jax-cfd, PhiFlow, XLB, etc.).
+
+For a machine-readable snapshot:
+
+```bash
+mosaic status -p ns-grid --format json > status.json
+```
+
+If your solver does not appear in the status output, check:
+
+1. Your `tesseract_config.yaml` has a `metadata.mosaic:` block with at least a `name` field.
+2. Your solver directory is under the correct domain path (`mosaic/tesseracts/navier-stokes-grid/`).
+3. The YAML is valid (`python -c "import yaml; yaml.safe_load(open('path/to/tesseract_config.yaml'))"` should not raise).
+
+## 9. Add domain-specific overrides (optional) *(Mosaic layer)*
+
+Most solvers work with the default problem configuration out of the box. These overrides live entirely in `mosaic/benchmarks/problems/<domain>/config.py` — they're per-(solver, problem) and have no analogue in base Tesseract:
+
+### Exclusions
+
+If your solver cannot run certain experiments (e.g. periodic-only solver on a channel domain), declare exclusions so the harness skips them gracefully instead of crashing.
+
+Open `mosaic/benchmarks/problems/navier_stokes_grid/config.py` and add a `problem.exclude(...)` call after the matching `problem.add_experiment(...)`:
+
+```python
+from mosaic.benchmarks.core.config import Exclusion, ExclusionCategory
+
+problem.exclude(
+    "forward/cylinder",
+    {
+        "my_spectral_solver": Exclusion(
+            ExclusionCategory.CATEGORICAL,
+            "periodic-only lattice; channel BCs not implemented",
+        ),
+    },
+)
+problem.exclude(
+    "optimization/drag_opt",
+    {
+        "my_spectral_solver": Exclusion(
+            ExclusionCategory.CATEGORICAL,
+            "same: no channel BC support",
+        ),
+    },
+)
+```
+
+`problem.exclude(key, ...)` does longest-prefix matching, so a single suite-level entry (e.g. `key="gradient"`) blocks every `gradient/*` experiment for that solver. The full taxonomy is in `ExclusionCategory`:
+
+- `CATEGORICAL` — method-intrinsic limitation (permanent; excluded from the campaign score denominator).
+- `INFEASIBLE` — would run but the result is not meaningful.
+- `NOT_IMPLEMENTED` — could in principle run but not wired yet.
+- `UNSTABLE` — runs but blows up.
+- `UPSTREAM_BUG`, `WIP`, `UNSPECIFIED` — see the enum docstring for the rest.
+- `ANOMALY_EXPLAINED` — solver runs and produces anomalous-but-documented output (display-only, not a runtime skip).
+
+### Input overrides
+
+If your solver needs different default values for shared schema fields (e.g. a specific density or inner step count), set them on the `SolverSpec` returned by `discover_solvers()`:
+
+```python
+_SOLVERS["my_spectral_solver"].input_overrides = {
+    "density": jnp.array([1.0], dtype=jnp.float32),
+}
+```
+
+These overrides are merged into every call to `cfg.make_inputs(...)` for your solver, after the per-solver `make_inputs(spec, ic, **physics)` callable returns its base dict.
+
+### Explained anomalies
+
+Use `ExclusionCategory.ANOMALY_EXPLAINED` via the same `problem.exclude(...)` API — the result still runs and appears in plots, but the status table flags it as a documented anomaly rather than an unexplained outlier:
+
+```python
+problem.exclude(
+    "forward/cylinder",
+    {
+        "my_spectral_solver": Exclusion(
+            ExclusionCategory.ANOMALY_EXPLAINED,
+            "spectral pressure solve requires periodic BCs; channel runs "
+            "deviate from the no-slip reference",
+        ),
+    },
+)
+```
+
+::: {.callout-note}
+If your solver needs none of these overrides, you do not need to edit the problem config at all. The `discover_solvers()` function in `mosaic/benchmarks/core/config.py` auto-generates a `SolverSpec` from your `tesseract_config.yaml` for you.
+:::
+
+## 10. Submit your PR
+
+### Pre-submission checklist
+
+1. **Lint passes:** `ruff check --fix && ruff format`
+2. **Tests pass:** `pytest`
+3. **Config is valid:** CI validates all `tesseract_config.yaml` files automatically.
+4. **Forward suite runs:** `mosaic run -p ns-grid --suites forward -s my_spectral_solver` completes without errors.
+5. **Status looks right:** `mosaic status -p ns-grid -f` shows your solver with expected results.
+
+### What CI checks
+
+When you open a pull request, CI runs automatically:
+
+| Check | What it does |
+|:------|:-------------|
+| **Lint** | `pre-commit` hooks (ruff check, ruff format) |
+| **Test** | `pytest` on Python 3.10 and 3.12 |
+| **Validate tesseracts** | Parses every `tesseract_config.yaml` and checks required fields |
+
+These checks run on every push to the PR branch.
+
+### The benchmark label flow
+
+Full benchmark runs require GPU runners and take significant time, so they are triggered on demand:
+
+1. Open your PR with the solver code.
+2. CI runs lint, tests, and config validation.
+3. A maintainer reviews the code and adds the **`benchmark`** label to the PR.
+4. This triggers the full benchmark workflow on GPU infrastructure, which:
+   - Builds your solver container.
+   - Runs all evaluation suites (forward, gradient, cost, optimization).
+   - Posts the results as a comment on the PR.
+5. If the benchmark passes, the maintainer merges the PR.
+
+### PR description
+
+Include the following in your PR description:
+
+- What solver / method you are adding and a brief description.
+- The output of `mosaic status -p <domain> -f` showing your solver's results.
+- Any exclusions or anomalies you have documented and why.
+
+---
+
+# Part B — Add a New Benchmark Domain
+
+This part walks through adding an entirely new physics domain to Mosaic: schemas, initial conditions, a `Problem` instance, and a reference solver. The reference-solver step is condensed because the full version is **Part A** above — read Part A first if Tesseract internals (`apply`, `abstract_eval`, `vector_jacobian_product`) are unfamiliar.
+
+We will use a **1D diffusion** equation as the running example and build a domain called `diffusion-1d`.
+## 2. Choose a template
+
+Mosaic provides built-in templates that scaffold the file structure for common domain types. List the available templates:
+
+```bash
+mosaic templates
+```
+
+You will see something like:
+
+```
+  ns-periodic      Incompressible Navier-Stokes on a periodic square/cube grid. ...
+  structural-steady  Linear elasticity with SIMP topology optimisation on a hexahedral mesh. ...
+  thermal-steady   Steady-state heat conduction with SIMP topology optimisation on a hexahedral mesh. ...
+
+  Use --show <name> for full details.
+```
+
+To inspect a template's physics defaults, IC configuration, and suite structure:
+
+```bash
+mosaic templates --show ns-periodic
+```
+
+This prints the template's schema module, output key, IC key, resolution key, default physics parameters, and the experiments defined for each suite (forward, gradient, cost, optimization).
+
+**Which template to use:**
+
+| Template | Best for |
+|:---------|:---------|
+| `ns-periodic` | Time-dependent PDEs on regular grids with periodic boundaries. IC is a vector field; the main output is the evolved field. |
+| `thermal-steady` | Steady-state scalar PDEs on hex meshes. IC is a per-cell density; main output is a scalar objective (compliance). |
+| `structural-steady` | Same as `thermal-steady` but for vector (displacement) fields and structural compliance. |
+
+For our 1D diffusion example, `ns-periodic` is the closest match: we have a time-dependent PDE on a regular grid with an initial condition that evolves forward.
+
+## 3. Scaffold the domain
+
+Run the scaffolding command:
+
+```bash
+mosaic new-domain diffusion-1d --from-template ns-periodic
+```
+
+This creates:
+
+```
+mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/
+  __init__.py                    # re-exports InputSchema, OutputSchema
+  schemas.py                     # InputSchema / OutputSchema with `# TODO` placeholders
+
+mosaic/tesseracts/diffusion-1d/  # empty directory, ready for solver subdirs
+
+mosaic/benchmarks/problems/diffusion_1d/
+  __init__.py                    # one-line docstring; the registry imports config.py
+  config.py                      # canonical Problem(...) + problem.add_ic(...) + _register_experiments(problem)
+  ics.py                         # IC generator functions (TODO stubs)
+  physics.py                     # make_inputs(spec, ic, **physics) + DIAGNOSTICS (TODO stubs)
+  experiments.py                 # register(problem) — calls problem.add_experiment(...) per experiment (TODO)
+```
+
+The `InputSchema` / `OutputSchema` bodies are empty (you'll fill them in next); the `Problem` instance in `config.py` is wired up but the IC function, `make_inputs`, and the `register()` body are TODO stubs.
+
+Try validating right away --- it will fail because there are no solvers yet and the empty `OutputSchema` doesn't define `output_key`:
+
+```bash
+mosaic validate-domain diffusion-1d
+```
+
+```
+FAIL  Problem.validate():
+  Problem 'diffusion-1d' validation failed:
+    - no solvers registered
+FAIL  output_key 'result' not in OutputSchema fields: []
+
+2 of 2 checks failed for 'diffusion-1d'.
+```
+
+This is expected. We will fill in the schemas, problem package, and a reference solver in the next steps.
+
+## 4. Define the schemas
+
+The schemas are the contract between the benchmark harness and every solver in your domain. All solvers import the same `InputSchema` and `OutputSchema`, so get these right first.
+
+Edit `mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/schemas.py`:
+
+```python
+"""Canonical InputSchema / OutputSchema for diffusion-1d tesseracts.
+
+All solvers receive a 1-D temperature profile u0(x) and evolve it forward
+in time under the diffusion equation du/dt = alpha * d^2u/dx^2 with
+periodic boundary conditions.
+"""
+
+import numpy as np
+from pydantic import BaseModel, Field
+from tesseract_core.runtime import Array, Differentiable, Float32
+
+
+def make_gaussian_ic(N: int = 128, L: float = 1.0, seed: int = 0) -> np.ndarray:
+    """Gaussian bump centred at L/2.
+
+    Returns:
+        shape (N,), float32.
+    """
+    x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
+    sigma = L / 10.0
+    u0 = np.exp(-0.5 * ((x - L / 2.0) / sigma) ** 2)
+    return u0.astype(np.float32)
+
+
+class InputSchema(BaseModel):
+    """Inputs for diffusion-1d solvers."""
+
+    u0: Differentiable[Array[(None,), Float32]] = Field(
+        default_factory=make_gaussian_ic,
+        description=(
+            "Initial temperature profile, shape (N,). "
+            "Default: Gaussian bump centred at L/2 with N=128."
+        ),
+    )
+    alpha: Differentiable[Array[(1,), Float32]] = Field(
+        default_factory=lambda: np.array([0.01], dtype=np.float32),
+        description="Thermal diffusivity.",
+    )
+    dt: Differentiable[Array[(1,), Float32]] = Field(
+        default_factory=lambda: np.array([0.001], dtype=np.float32),
+        description="Timestep size.",
+    )
+    steps: int = Field(
+        default=100,
+        description="Number of timesteps. Total simulated time = steps * dt.",
+    )
+    domain_extent: float = Field(
+        default=1.0,
+        description="Length of the 1-D periodic domain.",
+    )
+
+
+class OutputSchema(BaseModel):
+    """Outputs for diffusion-1d solvers."""
+
+    result: Differentiable[Array[(None,), Float32]] = Field(
+        description="Final temperature profile, same shape as u0.",
+    )
+```
+
+### Key design decisions
+
+**`Differentiable` annotation.** Fields that the benchmark harness should be able to differentiate through are wrapped in `Differentiable[...]`. In our example, `u0`, `alpha`, and `dt` are differentiable; `steps` and `domain_extent` are not (they are integers or floats that control the problem setup, not the physics).
+
+::: {.callout-tip}
+Two equivalent ways to declare differentiable fields:
+
+* **Inline (shown above):** wrap each field's type with `Differentiable[...]` directly.
+* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `tesseract_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
+:::
+
+**`Array` type hints.** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).
+
+**All fields must have defaults.** This is a Tesseract requirement --- the container must be callable with `apply '{}'`. Use `default_factory` for array fields and `default` for scalars.
+
+**`result` as output key.** The harness uses the `output_key` field from `Problem` to extract the main output for solver-to-solver comparison. We use `result` here by convention.
+
+Now update the `__init__.py` to re-export the schemas and the IC factory:
+
+```python
+from .schemas import InputSchema, OutputSchema, make_gaussian_ic
+
+__all__ = ["InputSchema", "OutputSchema", "make_gaussian_ic"]
+```
+
+## 5. Configure the problem
+
+The problem package tells the harness how to generate inputs, compare outputs, and which experiments to run. It lives at `mosaic/benchmarks/problems/diffusion_1d/` and is split across these files:
+
+| File | Responsibility |
+|:-----|:---------------|
+| `config.py` | Solver discovery, the canonical `Problem` instance (`problem = Problem(...)`), per-solver overrides, `problem.add_ic(...)` per IC, and the call to `_register_experiments(problem)`. |
+| `ics.py` | IC generator functions, signature `(L, seed, **physics) -> array`. No module-level registry — ICs are registered via `problem.add_ic(...)` in `config.py`. |
+| `physics.py` | `make_inputs(spec, ic, **physics) -> dict`, mesh / BC builders, and the `DIAGNOSTICS` registry. `Problem.__post_init__` wraps the user-supplied callable so runners see `(solver_name, ic, **physics) -> dict`. |
+| `experiments.py` | `_DESCRIPTIONS` dict plus `register(problem)` which calls `problem.add_experiment(...)` once per experiment. |
+
+The package's `__init__.py` just re-exports `problem` from `config.py`.
+
+### 5a. Fill in `ics.py`
+
+```python
+"""Initial-condition generators for diffusion-1d.
+
+Each generator has signature ``(L: float, seed: int, **physics) -> array``.
+ICs are registered onto the ``Problem`` via ``problem.add_ic(...)`` in
+``config.py``.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+
+def _gaussian(L: float = 1.0, seed: int = 0, N: int = 128, **_) -> np.ndarray:
+    """Gaussian bump centred at L/2."""
+    x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
+    sigma = L / 10.0
+    return np.exp(-0.5 * ((x - L / 2.0) / sigma) ** 2).astype(np.float32)
+
+
+def _sine(L: float = 1.0, seed: int = 0, N: int = 128, k: int = 2, **_) -> np.ndarray:
+    """Sine wave with wavenumber k (has a known analytic solution)."""
+    x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
+    return np.sin(2.0 * np.pi * k * x / L).astype(np.float32)
+
+
+def _sine_analytic(
+    L: float = 1.0,
+    seed: int = 0,
+    N: int = 128,
+    k: int = 2,
+    alpha: float = 0.01,
+    dt: float = 0.001,
+    steps: int = 100,
+    **_,
+) -> np.ndarray:
+    """Analytic solution of du/dt = alpha * d^2u/dx^2 for a sine IC."""
+    x = np.linspace(0, L, N, endpoint=False, dtype=np.float32)
+    t = dt * steps
+    decay = np.exp(-alpha * (2.0 * np.pi * k / L) ** 2 * t)
+    return (np.sin(2.0 * np.pi * k * x / L) * decay).astype(np.float32)
+```
+
+### 5b. Fill in `physics.py`
+
+```python
+"""Input factory + diagnostics for diffusion-1d."""
+
+from __future__ import annotations
+
+import numpy as np
+
+from mosaic.benchmarks.core.config import SolverSpec
+
+
+def make_inputs(
+    spec: SolverSpec,
+    ic: np.ndarray,
+    *,
+    N: int | None = None,
+    alpha: float = 0.01,
+    dt: float = 0.001,
+    steps: int = 100,
+    L: float = 1.0,
+    **_,
+) -> dict:
+    """Build the solver input dict from IC + physics parameters.
+
+    ``Problem.__post_init__`` wraps this to expose
+    ``(solver_name, ic, **physics) -> dict`` to runners — they pass a name,
+    the framework looks the ``SolverSpec`` up here. Per-solver
+    ``input_overrides`` are merged into the returned dict.
+    """
+    base = {
+        "u0": ic,
+        "alpha": np.array([alpha], dtype=np.float32),
+        "dt": np.array([dt], dtype=np.float32),
+        "steps": int(steps),
+        "domain_extent": float(L),
+    }
+    return {**base, **spec.input_overrides}
+
+
+# No problem-specific diagnostics for diffusion-1d.
+DIAGNOSTICS: dict = {}
+```
+
+### 5c. Fill in `experiments.py`
+
+This is where each experiment is registered onto the `Problem` instance. Each call is `problem.add_experiment(key, kernel, ic={...}, physics={...}, plot=..., plot_description=...)`. The kernel is one of the shared kernels from `mosaic.benchmarks.problems.shared.*` (`agreement`, `physical_laws`, `fd_check`, `param_sweep`, `jacobian_svd`, `spatial_cost`, `temporal_cost`, `vjp_cost`) or a per-problem kernel decorated with `@kernel(...)`. Plot descriptions are passed inline per call via `plot_description=`.
+
+Any list-valued entry inside a dict kwarg (e.g. `physics={"N": [16, 32, 64]}`) is auto-detected as a sweep axis: `problem.add_experiment` materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`). The plot is registered once at the parent key.
+
+```python
+"""Experiment + plot registrations for diffusion-1d."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from mosaic.benchmarks.problems.shared.cost import spatial_cost, temporal_cost
+from mosaic.benchmarks.problems.shared.forward import agreement
+from mosaic.benchmarks.problems.shared.gradient import fd_check
+from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
+from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
+from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
+
+if TYPE_CHECKING:
+    from mosaic.benchmarks.core.config import Problem
+
+
+def register(problem: Problem) -> None:
+    """Populate ``problem.experiments`` / ``problem.plot_fns``."""
+
+    # Forward
+    problem.add_experiment(
+        "forward/baseline",
+        agreement,
+        plot_description=(
+            "Resolution convergence: relative L2 error vs grid size N with a "
+            "Gaussian bump IC."
+        ),
+        ic={"name": "gaussian", "seed": 0},
+        physics={"alpha": 0.01, "dt": 0.001, "steps": 100, "N": [16, 32, 64, 128, 256]},
+        plot=plot_agreement,
+    )
+    problem.add_experiment(
+        "forward/agreement",
+        agreement,
+        plot_description=(
+            "Solver-to-solver agreement: relative L2 error vs diffusivity α "
+            "at fixed N."
+        ),
+        ic={"name": "sine", "seed": 0},
+        physics={"N": 128, "dt": 0.001, "steps": 100, "alpha": [0.001, 0.005, 0.01, 0.05, 0.1]},
+        # ``reference`` is threaded automatically from
+        # ``Problem(reference=...)``. To pin a fine-solver baseline instead:
+        #     reference={"solvers": {"numpy_spectral"}, "dt": 1e-4, "steps": 1000}
+        plot=plot_agreement,
+    )
+
+    # Cost
+    problem.add_experiment(
+        "cost/spatial_cost",
+        spatial_cost,
+        plot_description="Forward-pass wall-clock time vs grid resolution N.",
+        physics={"alpha": 0.01, "dt": 0.001, "steps": 100, "N": [32, 64, 128, 256, 512]},
+        cost={"n_trials": 3},
+        plot=plot_cost,
+    )
+    problem.add_experiment(
+        "cost/temporal_cost",
+        temporal_cost,
+        plot_description="Forward-pass wall-clock time vs step count at fixed N.",
+        physics={"alpha": 0.01, "dt": 0.001, "N": 128, "steps": [10, 50, 100, 500, 1000]},
+        cost={"n_trials": 3},
+        plot=plot_cost,
+    )
+
+    # Gradient
+    problem.add_experiment(
+        "gradient/fd_check",
+        fd_check,
+        plot_description=(
+            "U-curves of finite-difference gradient error vs perturbation size ε "
+            "with subspace cosine; validates VJP correctness."
+        ),
+        ic={"name": "gaussian", "seed": 0},
+        physics={"N": 32, "alpha": 0.01, "dt": 0.01, "steps": 10},
+        fd={"eps_values": [1.0, 0.1, 0.01, 1e-3, 1e-4], "n_dirs": 10},
+        plot=plot_fd_check,
+    )
+
+    # (ICs themselves are registered in config.py via problem.add_ic — not here.
+    #  Optimization kernels are per-problem, not in shared/ — write one with
+    #  @kernel(...) when you need one; see the navier_stokes_grid /
+    #  structural_mesh / thermal_mesh optimization.py modules for templates.)
+```
+
+### 5d. Wire it up in `config.py`
+
+```python
+"""Solver discovery + canonical Problem instance for diffusion-1d."""
+
+from __future__ import annotations
+
+from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers
+from mosaic.benchmarks.core.utils import l2_error_rel
+from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
+from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
+
+from .experiments import register as _register_experiments
+from .ics import _gaussian, _sine, _sine_analytic
+from .physics import DIAGNOSTICS, make_inputs
+
+_TESSERACT_SLUG = "diffusion-1d"
+
+
+# ── Solver registry ──────────────────────────────────────────────────────────
+# Per-solver fields (name, scheme, backend, ad_strategy, …) live in each
+# tesseract's ``tesseract_config.yaml`` under ``metadata.mosaic``.
+# Only per-(solver, problem) overrides (input_overrides / exclusions) are
+# applied here.
+
+_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
+apply_styles(_SOLVERS)
+
+# Example per-solver overrides:
+# _SOLVERS["my_solver"].input_overrides = {"some_param": 1.0}
+
+
+problem = Problem(
+    name="diffusion-1d",
+    description=(
+        "1-D periodic diffusion equation du/dt = alpha * d^2u/dx^2. "
+        "Solvers evolve an initial temperature profile forward in time. "
+        "The sine-wave IC has a known analytic solution: "
+        "u(x,t) = sin(2*pi*k*x/L) * exp(-alpha*(2*pi*k/L)^2 * t)."
+    ),
+    category_label="Diffusion (1D)",
+    tesseract_dir=_TESSERACT_SLUG,
+    output_key="result",
+    ic_key="u0",
+    solvers=list(_SOLVERS.values()),
+    make_inputs=make_inputs,         # (spec, ic, **physics) → dict; wrapped in __post_init__
+    error_fn=l2_error_rel,
+    reference=_sine_analytic,        # analytic baseline used by forward/agreement
+    domain_extent=1.0,
+    resolution_key="N",
+)
+
+
+# ── Initial conditions ─────────────────────────────────────────────────────────
+problem.add_ic(
+    "gaussian",
+    fn=_gaussian,
+    description="Gaussian bump centred at L/2.",
+    plot_params={"N": 128, "L": 1.0},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "sine",
+    fn=_sine,
+    description="Sine wave with wavenumber k=2 (analytic solution available).",
+    plot_params={"N": 128, "L": 1.0, "k": 2},
+    plot=plot_ic,
+)
+
+_register_experiments(problem)
+
+__all__ = ["problem"]
+```
+
+The package's `__init__.py` is just `from .config import problem` (single line).
+
+### Anatomy of the `Problem` dataclass
+
+`Problem` (defined in `mosaic/benchmarks/core/config.py`) is the single source of truth for your domain. The fields you'll touch most often:
+
+| Field | Purpose |
+|:------|:--------|
+| `name` | CLI slug (`"diffusion-1d"`, `"ns-grid"`, …). |
+| `description` / `bc_description` / `category_label` | Human-readable text used by `mosaic status`, the docs build, and paper tables. |
+| `tesseract_dir` | Filesystem path containing one solver subdirectory per backend. |
+| `output_key` / `ic_key` | Field names on `OutputSchema` / `InputSchema` extracted for comparison / IC injection. |
+| `solvers` | List of `SolverSpec` instances, typically populated by `discover_solvers(...)`. |
+| `make_ic` | `dict[str, IcSpec]` of named IC generators — populated incrementally by `problem.add_ic(name, fn, ...)`, not passed to the constructor. The harness calls `cfg.make_ic["gaussian"](L=1.0, seed=0, N=128)`. |
+| `make_inputs` | Pass `(spec: SolverSpec, ic, **physics) → dict`. `Problem.__post_init__` wraps it to expose `(solver_name, ic, **physics) → dict` to runners. |
+| `error_fn` | `(pred, ref) → float` — typically `l2_error_rel`. |
+| `reference` | Optional callable for an analytic / fine-solver baseline (used by forward experiments). |
+| `exclusions` | `dict[solver_name, dict[exp_key, Exclusion]]` — see existing problems for the most-specific-first match semantics. |
+| `experiments` | Filled in by `problem.add_experiment(...)` calls; maps `"suite/exp"` → `Experiment`. |
+| `plot_fns` | Filled in by `problem.add_experiment(..., plot=...)`; maps `"suite/exp"` → callable. |
+
+Per-experiment plot descriptions are passed inline via `plot_description=` on each `.add_experiment(...)` call — they live on `Experiment.params` (read via `cfg.get_plot_description(suite, exp)`), not in a problem-level dict.
+
+**Registering experiments.** `problem.add_experiment(key, kernel, *, plot=..., plot_description=..., reduce=..., status_check=..., **config)` records an entry at `key` (formatted `"suite/experiment"`). The kernel is either a shared kernel from `mosaic.benchmarks.problems.shared.*` (`agreement`, `physical_laws`, `fd_check`, `param_sweep`, `jacobian_svd`, `spatial_cost`, `temporal_cost`, `vjp_cost`) or a per-problem function decorated with `@kernel(...)` (typical for optimisation runners). Everything else in `**config` is passed through to the kernel.
+
+**Shorthand vs. explicit `runs=[...]`.** Two equivalent input forms:
+
+- **Bare shorthand:** pass `ic={...}`, `physics={...}`, `fd={...}`, `optim={...}`, `reference=...`, `sweep={...}` at the top level. The framework collects them into a single run dict.
+- **Explicit multi-variant:** pass `runs=[{...}, {...}, ...]` when variants have structurally different payloads (e.g. different swept keys per run — see `forward/physical_laws` in `ns-grid` with `vs_N`, `vs_steps`, `vs_nu`). Each variant fans out to its own sub-experiment at `<key>/<variant_name>`.
+
+Any list-of-primitives that appears **inside a dict kwarg** (e.g. `physics={"N": [16, 32, 64]}` or `physics={"nu": [0.001, 0.005, 0.01]}`) is auto-detected as a sweep axis. `problem.add_experiment` materialises one sub-experiment per zipped value, keyed `<key>/<auto-suffix>` (e.g. `forward/baseline/N_16`). Multiple sweep axes in the same call must have matching lengths (parallel-zip).
+
+**Run-dict sub-keys** (in shorthand or inside `runs=[...]`):
+
+- `ic` --- which IC to use, e.g. `{"name": "gaussian", "seed": 0}`.
+- `physics` --- keyword arguments passed through to `make_inputs`.
+- `sweep` --- explicit `{"key": "N", "values": [...]}` (skip when using auto-detect).
+- `reference` --- either a **callable** (analytic) or a `{"solvers": {...}, "dt": ..., "steps": ...}` dict (fine-solver baseline). The kernel dispatches by type. The `Problem(reference=...)` callable is threaded in automatically when omitted.
+- `fd` --- finite-difference settings (gradient suite).
+- `optim` --- optimizer settings (optimization suite).
+- Extra top-level kwargs (e.g. `optimizer="bfgs"`, `diagnostics=DIAGNOSTICS`) are folded into every run dict so kernels and aggregates can read them off `ctx.run`.
+
+**Registering exclusions.** After `add_experiment(...)`, call `problem.exclude(key, {solver_name: Exclusion(...)})` to skip a solver for that experiment. Suite-level keys (e.g. `key="gradient"`) match every `gradient/*` experiment via longest-prefix lookup.
+
+## 6. Add a reference solver
+
+Your domain needs at least one solver for `mosaic validate-domain` to pass. Follow **Part A** of this tutorial — the same `tesseract_config.yaml` / `tesseract_api.py` / `tesseract_requirements.txt` workflow applies, with two differences for a fresh domain:
+
+1. **The solver directory lives under your new domain**: `mosaic/tesseracts/diffusion-1d/numpy-spectral/` instead of `mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/`.
+2. **`tesseract_requirements.txt`** references the shared package with `../../tesseract_shared` (still one level up — `mosaic/tesseracts/<your-domain>/<solver>/` to `mosaic/tesseracts/tesseract_shared/`).
+
+::: {.callout-note}
+Reference solvers can be **forward-only** (e.g. an analytic / spectral baseline). Set `differentiable: false` in the YAML and skip `vector_jacobian_product`; the `gradient` and `optimization` suites will skip the solver, and it still participates in `forward` and `cost` suites as a baseline. To add a differentiable solver later, implement `vector_jacobian_product` per Part A §4.5.
+:::
+
+For the diffusion-1d example, a 30-line spectral (FFT) `apply` is enough:
+
+```python
+import numpy as np
+from tesseract_shared.problems.diffusion_1d import (
+    InputSchema as _Base, OutputSchema as _BaseOut,
+)
+
+
+class InputSchema(_Base):
+    pass
+
+
+class OutputSchema(_BaseOut):
+    pass
+
+
+def _diffusion_forward(u0, alpha, dt, steps, L):
+    N = len(u0)
+    u_hat = np.fft.rfft(u0)
+    k = np.fft.rfftfreq(N, d=L / N) * 2.0 * np.pi
+    for _ in range(steps):
+        u_hat = u_hat + dt * alpha * (-(k**2)) * u_hat
+    return np.fft.irfft(u_hat, n=N).astype(np.float32)
+
+
+def apply(inputs):
+    u0 = np.asarray(inputs.u0, dtype=np.float64)
+    result = _diffusion_forward(
+        u0,
+        float(inputs.alpha[0]),
+        float(inputs.dt[0]),
+        int(inputs.steps),
+        float(inputs.domain_extent),
+    )
+    return {"result": result}
+
+
+def abstract_eval(abstract_inputs):
+    info = abstract_inputs.u0
+    shape = tuple(info["shape"]) if isinstance(info, dict) else info.shape
+    return {"result": {"shape": shape, "dtype": "float32"}}
+```
+
+Build and smoke-test:
+
+```bash
+tesseract build mosaic/tesseracts/diffusion-1d/numpy-spectral
+tesseract run numpy_spectral_diffusion_1d apply '{}'
+```
+
+You should see JSON output with a `result` key containing 128 float values.
+
+## 7. Run the benchmark
+
+Now validate the domain and run the forward suite:
+
+```bash
+mosaic validate-domain diffusion-1d
+```
+
+```
+  OK  Problem.validate()
+  OK  solver dir: numpy-spectral/
+  OK  output_key 'result' in OutputSchema
+
+All 3 checks passed for 'diffusion-1d'.
+```
+
+Run the forward suite in debug mode (smaller problem sizes, faster iteration):
+
+```bash
+mosaic run -p diffusion-1d --suites forward -s numpy_spectral --debug
+```
+
+Expected output:
+
+```
+ ── diffusion-1d / forward ──
+  baseline   sweep N=[16, 32, 64, 128, 256]
+    numpy_spectral ... ok (5 runs)
+  agreement  sweep alpha=[0.001, 0.005, 0.01, 0.05, 0.1]
+    numpy_spectral ... ok (5 runs)
+```
+
+Results are saved to `mosaic-results/diffusion-1d/forward/`.
+
+To pin to a single experiment (and optionally a single IC) use the unified `-e <suite>/<exp>/<ic>` selector:
+
+```bash
+# Run only the agreement experiment with the sine IC
+mosaic run -p diffusion-1d -e forward/agreement/sine -s numpy_spectral
+```
+
+To run all suites:
+
+```bash
+mosaic run -p diffusion-1d -s numpy_spectral --debug
+```
+
+Check the status table:
+
+```bash
+mosaic status -p diffusion-1d -f
+```
+
+## 8. Submit a PR
+
+### Pre-submission checklist
+
+1. **Lint passes:** `ruff check --fix && ruff format`
+2. **Tests pass:** `pytest`
+3. **Domain validates:** `mosaic validate-domain diffusion-1d` passes all checks
+4. **Forward suite runs:** `mosaic run -p diffusion-1d --suites forward -s numpy_spectral` completes without errors
+5. **Status looks right:** `mosaic status -p diffusion-1d -f` shows your solver with expected results
+
+### Files to include in your PR
+
+```
+mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/
+  __init__.py                         # re-exports schemas
+  schemas.py                          # InputSchema + OutputSchema
+
+mosaic/benchmarks/problems/diffusion_1d/
+  __init__.py                         # package marker / one-line docstring
+  config.py                           # canonical Problem + problem.add_ic(...) + _register_experiments(problem)
+  ics.py                              # IC generator functions
+  physics.py                          # make_inputs(spec, ic, **physics) + DIAGNOSTICS
+  experiments.py                      # register(problem) — one problem.add_experiment per experiment
+
+mosaic/tesseracts/diffusion-1d/
+  numpy-spectral/
+    tesseract_config.yaml             # build + mosaic metadata
+    tesseract_api.py                  # solver implementation
+    tesseract_requirements.txt        # dependencies
+```
+
+### What CI checks
+
+| Check | What it does |
+|:------|:-------------|
+| **Lint** | `pre-commit` hooks (ruff check, ruff format) |
+| **Test** | `pytest` on Python 3.10 and 3.12 |
+| **Validate tesseracts** | Parses every `tesseract_config.yaml` and checks required fields |
+
+Full benchmark runs are triggered by a maintainer adding the **`benchmark`** label to your PR. See [CONTRIBUTING.md](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md) for the complete workflow.
+
+### PR description
+
+Include in your PR:
+
+- What physics domain you are adding and why it is a useful benchmark.
+- A brief description of the canonical interface (what goes in, what comes out).
+- The output of `mosaic status -p <domain> -f` showing your solver's results.
+- Any design decisions that reviewers should know about (choice of output key, IC generators, experiment parameters).
+
+---
+
+## Summary
+
+**Part A (solver to an existing domain).** Write one directory under `mosaic/tesseracts/<domain>/<solver>/` with three files (`tesseract_config.yaml`, `tesseract_api.py`, `tesseract_requirements.txt`). Subclass the canonical `InputSchema` / `OutputSchema` from `tesseract_shared`. Implement `apply` (always) and `vector_jacobian_product` (if you want gradients). Add a `metadata.mosaic:` block so the harness picks up your solver. Register plot styling in `solver_styles.py`. Add per-problem exclusions in the problem's `config.py` if needed.
+
+**Part B (new domain).** Scaffold from `mosaic templates` to get the file tree, define canonical schemas in `tesseract_shared/problems/<domain>/`, fill in `ics.py` / `physics.py` / `experiments.py` / `config.py` under `mosaic/benchmarks/problems/<domain>/`, then add a reference solver via Part A.
