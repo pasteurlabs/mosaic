@@ -113,6 +113,7 @@ from .console import (  # noqa: E402
     print_skip,
     print_warn,
 )
+from .resources import container_memory_args  # noqa: E402
 
 _tl = threading.local()  # thread-local state (image_tag, gpu_id, last_apply_error)
 
@@ -290,15 +291,20 @@ def run_suite(
         cfg.name
     )  # label containers so cleanup only kills this problem's containers
     to_run = to_run or list(experiments)
+    n_experiments = len(to_run)
+    n_solvers = len(cfg.solvers)
+    console.print(
+        f"  [dim]{n_experiments} experiment(s) queued, {n_solvers} solver(s) registered[/dim]"
+    )
     results: dict[str, dict] = {}
-    for name in to_run:
+    for ei, name in enumerate(to_run, 1):
         if name not in experiments:
             available = sorted(experiments.keys())
             print_warn(
                 f"unknown experiment {name!r}. Available for this suite: {available}"
             )
             continue
-        print_rule(name)
+        print_rule(f"experiment: {name} [{ei}/{n_experiments}]")
         try:
             results[name] = experiments[name](cfg, tags, **(overrides or {}))
         except NotImplementedError as exc:
@@ -393,32 +399,44 @@ def solver_sweep(
         f"  [dim]sweep: {n_solvers} solver(s) x {n_conds} condition(s)"
         f" = {n_total} calls[/dim]"
     )
+    console.print(f"  [dim]solvers: {', '.join(names)}[/dim]")
 
-    # _progress_lock guards the Rich Progress bar advance() calls in the
-    # multi-GPU parallel path where _per_solver runs on multiple threads.
+    # _progress_lock guards the Rich Progress bar advance() calls and the
+    # completed-call counter in the multi-GPU parallel path where _per_solver
+    # runs on multiple threads.
     _progress_lock = threading.Lock()
+    _calls_done = 0
 
     with make_sweep_progress(total=n_total) as progress:
         task = progress.add_task("running sweep...", total=n_total)
 
         def _per_solver(name: str, t) -> None:
+            nonlocal _calls_done
+            si = names.index(name) + 1
             color = cfg.solvers[name].color
+            console.print(f"  [{color}]{name}[/] [dim]solver {si}/{n_solvers}[/dim]")
             t0 = time.perf_counter()
-            for ci, cond in enumerate(conditions):
-                label = cond_labels[ci]
+            for ci, cond in enumerate(conditions, 1):
+                label = cond_labels[ci - 1]
                 key = key_fn(cond) if key_fn else cond
                 tc = time.perf_counter()
                 result = fn(name, t, cond)
                 dt = time.perf_counter() - tc
                 raw[name][key] = result
+                with _progress_lock:
+                    _calls_done += 1
+                    done = _calls_done
                 if auto_status:
+                    step = f"[dim]step {ci}/{n_conds}  [{done}/{n_total} total][/dim]"
                     if result is None:
                         console.print(
                             f"  [{color}]{name:<16}[/] {label:<12} [red]FAIL[/] ({dt:.1f}s)"
+                            f"  {step}"
                         )
                     else:
                         console.print(
                             f"  [{color}]{name:<16}[/] {label:<12} [green]ok[/]   ({dt:.1f}s)"
+                            f"  {step}"
                         )
                 with _progress_lock:
                     progress.advance(task)
@@ -457,6 +475,7 @@ def run_with_gpu_pool(
     # (use: docker ps -q --filter label=mosaic-problem=<name>).
     _problem_label = _current_problem or "mosaic"
     _NO_HC = ["--no-healthcheck", "--label", f"mosaic-problem={_problem_label}"]
+    _NO_HC.extend(container_memory_args())
 
     # Filter out solvers with no built image.
     missing = [n for n in solver_names if n not in tags]
