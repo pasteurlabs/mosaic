@@ -108,6 +108,14 @@ def run(
         "Combine with -p / --suites / -e / -s for finer scoping. "
         "Example: --only failed,stale re-runs anything that isn't currently fresh-ok.",
     ),
+    continue_: bool = typer.Option(
+        False,
+        "--continue",
+        help="Resume a previous run: skip experiments whose result.json already "
+        "exists, and within partially-completed experiments skip individual "
+        "solvers already recorded in result_partial.json (written incrementally "
+        "during the work loop).",
+    ),
 ):
     """Run benchmark suites across problems.
 
@@ -236,6 +244,7 @@ def run(
                 gpus=gpus,
                 experiments=experiments,
                 run_status=run_status,
+                continue_=continue_,
             )
         finally:
             if requested_states is not None:
@@ -259,6 +268,7 @@ def _run_suites_for_problem(
     gpus: str | None,
     experiments: str,
     run_status: dict[tuple[str, str], tuple[str, str]],
+    continue_: bool = False,
 ) -> None:
     """Inner per-problem loop: runs every suite for one prepared problem."""
     from ._helpers import _resolve_experiment_target
@@ -291,6 +301,12 @@ def _run_suites_for_problem(
                 gpus=gpus,
                 experiment=experiments,
             )
+            if continue_:
+                # Harnesses read this to (a) filter already-completed solvers
+                # from their solver list at entry via done_solvers_in_partial,
+                # and (b) decide whether to write result_partial.json
+                # checkpoints during the work loop.
+                _overrides["resume"] = True
             results = run_suite(
                 cfg,
                 tags,
@@ -301,6 +317,7 @@ def _run_suites_for_problem(
                 suite_name=suite,
                 verbose_errors=traceback,
                 overrides=_overrides or None,
+                skip_completed=continue_,
             )
             n_total = len(exps)
             n_ok = len(results)

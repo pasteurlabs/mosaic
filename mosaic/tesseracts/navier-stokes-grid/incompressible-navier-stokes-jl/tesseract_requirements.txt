@@ -1,0 +1,3 @@
+juliacall==0.9.32
+numpy==2.4.4
+../../../mosaic_shared

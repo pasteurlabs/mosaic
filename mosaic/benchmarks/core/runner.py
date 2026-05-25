@@ -9,6 +9,7 @@ import queue
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import jax
@@ -114,6 +115,7 @@ from .console import (  # noqa: E402
     print_skip,
     print_warn,
 )
+from .resources import container_memory_args  # noqa: E402
 
 _tl = threading.local()  # thread-local state (image_tag, gpu_id, last_apply_error)
 
@@ -296,6 +298,28 @@ def image_tags_no_build(cfg: Problem) -> dict[str, str]:
 # ── Suite orchestration ───────────────────────────────────────────────────────
 
 
+def _experiment_already_complete(suite_dir, name: str) -> bool:
+    """True if a prior run wrote artifacts for *name* under *suite_dir*.
+
+    Matches two on-disk layouts:
+      1. ``<suite_dir>/<name>/result.json`` — most experiments.
+      2. ``<suite_dir>/<name>/*/result.json`` — multi-IC experiments
+         (forward.agreement with several ICs). Considered complete when at
+         least one IC subdir has a ``result.json`` and every subdir has one.
+
+    Note that this is a coarse signal: a partially-completed multi-IC
+    experiment that didn't get to write any ICs is not detected and will
+    re-run from scratch under ``--continue``.
+    """
+    exp_dir = suite_dir / name
+    if not exp_dir.is_dir():
+        return False
+    if (exp_dir / "result.json").exists():
+        return True
+    subdirs = [p for p in exp_dir.iterdir() if p.is_dir()]
+    return bool(subdirs and all((p / "result.json").exists() for p in subdirs))
+
+
 def run_suite(
     cfg: Problem,
     tags: dict[str, str],
@@ -306,6 +330,7 @@ def run_suite(
     suite_name: str = "",
     verbose_errors: bool = False,
     overrides: dict | None = None,
+    skip_completed: bool = False,
 ) -> dict[str, dict]:
     """Run a set of named experiments and optionally generate plots.
 
@@ -321,24 +346,41 @@ def run_suite(
                          per-experiment plots, regardless of which experiments ran.
         suite_name:      name of the suite (e.g. "forward"), passed for display.
         verbose_errors:  if True, print full traceback on experiment/plot failures.
+        skip_completed:  if True, experiments whose result.json already exists
+                         on disk are skipped (drives ``mosaic run --continue``).
 
     Returns:
         {experiment_name: results_dict}
     """
+    from .io import results_dir
+
     global _current_problem
     _current_problem = (
         cfg.name
     )  # label containers so cleanup only kills this problem's containers
     to_run = to_run or list(experiments)
+    suffix = "_debug" if (overrides or {}).get("debug") else ""
+    suite_dir = results_dir() / cfg.name / suite_name
+    n_experiments = len(to_run)
+    n_solvers = len(cfg.solvers)
+    console.print(
+        f"  [dim]{n_experiments} experiment(s) queued, {n_solvers} solver(s) registered[/dim]"
+    )
     results: dict[str, dict] = {}
-    for name in to_run:
+    for ei, name in enumerate(to_run, 1):
         if name not in experiments:
             available = sorted(experiments.keys())
             print_warn(
                 f"unknown experiment {name!r}. Available for this suite: {available}"
             )
             continue
-        print_rule(name)
+        print_rule(f"experiment: {name} [{ei}/{n_experiments}]")
+        if skip_completed and _experiment_already_complete(
+            suite_dir, f"{name}{suffix}"
+        ):
+            print_skip(f"{name}: existing results found — re-use under --continue")
+            results[name] = {"status": "skipped_continue"}
+            continue
         try:
             results[name] = experiments[name](cfg, tags, **(overrides or {}))
         except NotImplementedError as exc:
@@ -361,7 +403,6 @@ def run_suite(
 
     if plots and plot_fns:
         print_rule("plots")
-        suffix = "_debug" if (overrides or {}).get("debug") else ""
         # Use the full (unfiltered) config for plot generation so all solvers
         # appear in plots even when this run targeted only a subset via --solvers.
         try:
@@ -407,6 +448,7 @@ def per_solver_loop(
     print_done: bool = True,
     catch: bool = False,
     catch_label: str = "work failed",
+    on_error: Callable[[str, Exception], None] | None = None,
 ) -> dict[str, float]:
     """Run ``work_one(name, t)`` for each solver, returning ``{name: wall_seconds}``.
 
@@ -439,13 +481,15 @@ def per_solver_loop(
             console.print(
                 f"  [{color}]{name}[/] [yellow]SKIP ({catch_label}: {exc})[/]"
             )
+            if on_error is not None:
+                on_error(name, exc)
             return
         elapsed = time.perf_counter() - t0
         wall_times[name] = elapsed
         if print_done:
             console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
 
-    run_with_gpu_pool(solver_names, tags, _wrapper, gpu_ids=gpu_ids)
+    run_with_gpu_pool(solver_names, tags, _wrapper, gpu_ids=gpu_ids, on_error=on_error)
     return wall_times
 
 
@@ -504,32 +548,44 @@ def solver_sweep(
         f"  [dim]sweep: {n_solvers} solver(s) x {n_conds} condition(s)"
         f" = {n_total} calls[/dim]"
     )
+    console.print(f"  [dim]solvers: {', '.join(names)}[/dim]")
 
-    # _progress_lock guards the Rich Progress bar advance() calls in the
-    # multi-GPU parallel path where _per_solver runs on multiple threads.
+    # _progress_lock guards the Rich Progress bar advance() calls and the
+    # completed-call counter in the multi-GPU parallel path where _per_solver
+    # runs on multiple threads.
     _progress_lock = threading.Lock()
+    _calls_done = 0
 
     with make_sweep_progress(total=n_total) as progress:
         task = progress.add_task("running sweep...", total=n_total)
 
         def _per_solver(name: str, t) -> None:
+            nonlocal _calls_done
+            si = names.index(name) + 1
             color = cfg.solver(name).color
+            console.print(f"  [{color}]{name}[/] [dim]solver {si}/{n_solvers}[/dim]")
             t0 = time.perf_counter()
-            for ci, cond in enumerate(conditions):
-                label = cond_labels[ci]
+            for ci, cond in enumerate(conditions, 1):
+                label = cond_labels[ci - 1]
                 key = key_fn(cond) if key_fn else cond
                 tc = time.perf_counter()
                 result = fn(name, t, cond)
                 dt = time.perf_counter() - tc
                 raw[name][key] = result
+                with _progress_lock:
+                    _calls_done += 1
+                    done = _calls_done
                 if auto_status:
+                    step = f"[dim]step {ci}/{n_conds}  [{done}/{n_total} total][/dim]"
                     if result is None:
                         console.print(
                             f"  [{color}]{name:<16}[/] {label:<12} [red]FAIL[/] ({dt:.1f}s)"
+                            f"  {step}"
                         )
                     else:
                         console.print(
                             f"  [{color}]{name:<16}[/] {label:<12} [green]ok[/]   ({dt:.1f}s)"
+                            f"  {step}"
                         )
                 with _progress_lock:
                     progress.advance(task)
@@ -549,6 +605,7 @@ def run_with_gpu_pool(
     tags: dict[str, str],
     fn,
     gpu_ids: list[str] | None = None,
+    on_error: Callable[[str, Exception], None] | None = None,
 ) -> None:
     """Open one Tesseract per solver and call fn(name, t).
 
@@ -560,6 +617,11 @@ def run_with_gpu_pool(
 
     Solvers whose image tag is missing from *tags* (e.g. because the build
     failed) are skipped with a warning.
+
+    on_error(name, exc) is invoked when opening the Tesseract container or
+    running fn(name, t) raises. Lets callers record the failure so the status
+    classifier can mark the solver as FAILED rather than NOT_RUN (which would
+    silently hide a broken container).
     """
     # --no-healthcheck prevents Azure's c3-progenitor from killing containers
     # that are mid-computation when the health probe fires (~4 s interval).
@@ -568,6 +630,7 @@ def run_with_gpu_pool(
     # (use: docker ps -q --filter label=mosaic-problem=<name>).
     _problem_label = _current_problem or "mosaic"
     _NO_HC = ["--no-healthcheck", "--label", f"mosaic-problem={_problem_label}"]
+    _NO_HC.extend(container_memory_args())
 
     # Filter out solvers with no built image.
     missing = [n for n in solver_names if n not in tags]
@@ -606,6 +669,8 @@ def run_with_gpu_pool(
                     fn(name, t)
             except Exception as exc:
                 print_warn(f"{name} failed: {exc}")
+                if on_error is not None:
+                    on_error(name, exc)
         return
 
     # If gpu_ids=[] was handled above (cpu-only), we never reach here.
@@ -623,6 +688,8 @@ def run_with_gpu_pool(
                 fn(name, t)
         except Exception as exc:
             print_warn(f"{name} failed: {exc}")
+            if on_error is not None:
+                on_error(name, exc)
         finally:
             gpu_q.put(gid)
 
