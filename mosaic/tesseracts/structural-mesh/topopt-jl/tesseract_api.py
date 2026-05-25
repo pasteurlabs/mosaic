@@ -49,31 +49,31 @@ from pathlib import Path
 from typing import Any
 
 import filelock
-import mosaic_shared
 import numpy as np
-from mosaic_shared.problems.structural_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.structural_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
+import tesseract_shared
 from pydantic import Field  # still needed for InputSchema fields
 from tesseract_core.runtime import ShapeDType
+from tesseract_shared.problems.structural_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.structural_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 _jl = None
 _julia_init_lock = filelock.FileLock("/tmp/julia_init.lock", timeout=600)
 
 # Initialise Julia synchronously at import time (serialised across workers).
 with _julia_init_lock:
-    import juliacall  # noqa: PLC0415
+    import juliacall
 
     _jl_mod = juliacall.newmodule("topopt_jl")
     _jl_mod.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
     _jl_mod.seval("using TopOpt, Printf")
     _jl_mod.include(
         str(
-            Path(mosaic_shared.__file__).parent
+            Path(tesseract_shared.__file__).parent
             / "problems"
             / "structural_mesh"
             / "topopt_solver.jl"
@@ -114,7 +114,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 
 def _to_julia(arr: np.ndarray):  # mosaic:io
     """Convert a numpy array to a Julia array (zero-copy when contiguous)."""
-    import juliacall  # noqa: PLC0415 — deferred until worker is initialised
+    import juliacall
 
     jl = _get_jl()
     return juliacall.convert(jl.Array, np.ascontiguousarray(arr))

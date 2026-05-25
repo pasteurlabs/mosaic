@@ -1,12 +1,14 @@
 name: jax_cfd_navier_stokes_grid
 version: "0.1.0"
-description: |
-  Tesseract that runs a differentiable 3D Navier Stokes simulation on a 3D grid.
-
+description: >
+  JAX-native incompressible Navier–Stokes solver on a staggered MAC grid with
+  finite-difference advection and spectral FFT pressure projection. Gradients via JAX
+  source-transformation AD through the time loop.
 build_config:
-  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu22.04"
+  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
   custom_build_steps:
+    - 'ENV XLA_FLAGS="--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"'
     - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
     - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.6"
 
@@ -16,12 +18,10 @@ metadata:
     backend: jax
     family: projection
     scheme: "MAC FD + projection"
-    color: "#4477AA"
-    linestyle: "-"
-    marker: "o"
+    discretization: FD
+    numerics: "Projection, semi-implicit"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
     internal_dtype: float32
-    description: "Staggered MAC grid with pressure projection and finite-difference advection."
     doc_url: "https://github.com/google/jax-cfd"

@@ -269,7 +269,24 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
         except Exception:
             continue
         domain_dir = domain_dir_map.get(prob, prob)
-        for _solver_key, spec in cfg.solvers.items():
+        # Exclusions and explained anomalies live on ``Problem.exclusions``
+        # keyed by ``<experiment>``→``<solver_name>``→``Exclusion``. Pivot
+        # to a per-solver view: ``{experiment_key: reason}`` so downstream
+        # docs templates can render one section per solver.
+        from mosaic.benchmarks.core.config import ExclusionCategory
+
+        per_solver_excl: dict[str, dict[str, str]] = {}
+        per_solver_anom: dict[str, dict[str, str]] = {}
+        for exp_key, by_solver in cfg.exclusions.items():
+            for solver_name, excl in by_solver.items():
+                target = (
+                    per_solver_anom
+                    if excl.category == ExclusionCategory.ANOMALY_EXPLAINED
+                    else per_solver_excl
+                )
+                target.setdefault(solver_name, {})[exp_key] = excl.reason
+
+        for spec in cfg.solvers:
             key = (domain_dir, spec.dir)
             _SOLVER_SPECS[key] = {
                 "name": spec.name,
@@ -282,8 +299,8 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
                 "uses_gpu": spec.uses_gpu,
                 "differentiable": spec.differentiable,
                 "internal_dtype": spec.internal_dtype,
-                "exclusions": spec.exclusions,
-                "explained_anomalies": spec.explained_anomalies,
+                "exclusions": per_solver_excl.get(spec.name, {}),
+                "explained_anomalies": per_solver_anom.get(spec.name, {}),
             }
     return _SOLVER_SPECS
 
