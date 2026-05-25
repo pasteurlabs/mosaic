@@ -283,7 +283,7 @@ class Problem:
         key: str,
         kernel: Callable,
         *,
-        plot: Callable | None = None,
+        plot: Callable | dict[str, Callable] | None = None,
         plot_description: str = "",
         reduce: Callable | None = None,
         status_check: list | None = None,
@@ -306,6 +306,15 @@ class Problem:
         list of per-sub-experiment result dicts (if ``reduce is None``) or
         ``reduce(results)`` otherwise. Plots that need ``exp_key=`` get it
         wrapped in automatically.
+
+        Pass a ``dict[str, callable]`` instead of a single callable to
+        attach **multiple views** to one experiment (mirrors the asie
+        ``plot={"view": fn, ...}`` shape). Each entry runs independently;
+        an exception in one view is logged but does not skip the others.
+        Each view receives the same ``(cfg, exp_key=..., sub_keys=...)``
+        kwargs the single-callable form would — a view's signature
+        decides which of those it sees, exactly like the single-callable
+        case.
 
         ``plot_description`` is stored on every sub-experiment's params for
         introspection (e.g. ``mosaic status``).
@@ -383,6 +392,8 @@ class Problem:
                     )
 
         if plot is not None:
+            if isinstance(plot, dict):
+                plot = self._compose_plot_views(key, plot)
             self._register_plot(key, plot, sub_keys, reduce)
 
     @staticmethod
@@ -813,6 +824,66 @@ class Problem:
         """
         for solver_name, excl in exclusions.items():
             self.exclusions.setdefault(solver_name, {})[key] = excl
+
+    @staticmethod
+    def _compose_plot_views(key: str, views: dict[str, Callable]) -> Callable:
+        """Collapse ``plot={"view": fn, ...}`` into one callable.
+
+        The returned callable accepts the same ``(cfg, exp_key=..., sub_keys=...,
+        suffix=...)`` keyword set the runner passes to a registered plot fn,
+        and dispatches to each view with only the kwargs that view's
+        signature actually declares. An exception in one view is logged
+        (with the view name + experiment key) and does not abort the others.
+
+        The composite's own signature is synthesised so :meth:`_register_plot`'s
+        ``inspect.signature(plot).parameters`` sees the union of params the
+        underlying views care about — the wrappers it adds (``exp_key=``,
+        ``sub_keys=``) then forward correctly.
+        """
+        import inspect
+
+        union_params: set[str] = set()
+        view_sigs: dict[str, set[str]] = {}
+        for view_name, fn in views.items():
+            try:
+                sig_params = set(inspect.signature(fn).parameters)
+            except (TypeError, ValueError):
+                sig_params = set()
+            view_sigs[view_name] = sig_params
+            union_params.update(sig_params)
+
+        def _composite(cfg, **kw):
+            from mosaic.benchmarks.core.console import print_warn
+
+            for view_name, fn in views.items():
+                sig_params = view_sigs[view_name]
+                # Forward only kwargs this view declares — matches the
+                # single-callable behaviour and stops a view that doesn't
+                # take ``suffix=`` from receiving one.
+                fn_kw = {k: v for k, v in kw.items() if k in sig_params}
+                try:
+                    fn(cfg, **fn_kw)
+                except Exception as exc:
+                    print_warn(f"plot {key}#{view_name}: {type(exc).__name__}: {exc}")
+
+        # Synthesise a signature so _register_plot's inspect sees the
+        # union of params (cfg + whichever of {exp_key, sub_keys, suffix}
+        # any view declares).
+        synth_params = [
+            inspect.Parameter("cfg", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        for name in ("exp_key", "sub_keys", "results", "suffix"):
+            if name in union_params:
+                synth_params.append(
+                    inspect.Parameter(
+                        name,
+                        inspect.Parameter.KEYWORD_ONLY,
+                        default=None,
+                    )
+                )
+        _composite.__signature__ = inspect.Signature(synth_params)
+        _composite.__name__ = f"_composite_plot[{', '.join(views)}]"
+        return _composite
 
     def _register_plot(
         self,
