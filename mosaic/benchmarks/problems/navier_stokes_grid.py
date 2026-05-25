@@ -110,7 +110,11 @@ _SOLVERS: dict[str, SolverSpec] = {
             },
             "optimization/drag_opt": {
                 "category": "categorical",
-                "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented; inflow_profile VJP works only in periodic/channel mode without obstacles",
+                "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented",
+            },
+            "optimization/drag_opt_bfgs": {
+                "category": "categorical",
+                "reason": "no IBM or volume penalization — the cylinder obstacle cannot be represented",
             },
         },
         explained_anomalies={
@@ -795,7 +799,7 @@ CONFIG = ProblemConfig(
     extra_plots={
         "gradient": [
             lambda cfg: __import__(
-                "benchmarks.plots.gradient",
+                "mosaic.benchmarks.plots.gradient",
                 fromlist=["plot_jacobian_svd_comparison"],
             ).plot_jacobian_svd_comparison(cfg),
         ],

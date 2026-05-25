@@ -411,8 +411,20 @@ def run(
     # status[(problem, suite)] = ("ok" | "partial" | "skip" | "error", detail)
     run_status: dict[tuple[str, str], tuple[str, str]] = {}
 
-    for problem in problem_list:
-        print_rule(f"problem: {problem}")
+    n_problems = len(problem_list)
+    n_suites = len(suite_list)
+    total_pairs = n_problems * n_suites
+    console.print(
+        f"\n[bold]Benchmark plan:[/bold] {n_problems} problem(s) x "
+        f"{n_suites} suite(s) = {total_pairs} (problem, suite) pair(s)"
+    )
+    console.print(
+        f"  problems: {', '.join(problem_list)}\n  suites:   {', '.join(suite_list)}\n"
+    )
+
+    pair_idx = 0
+    for pi, problem in enumerate(problem_list, 1):
+        print_rule(f"problem: {problem} [{pi}/{n_problems}]")
         _needs_build = (not plots_only) and any(s != "ics" for s in suite_list)
         try:
             if _needs_build:
@@ -447,8 +459,11 @@ def run(
                 run_status[(problem, suite)] = ("error", msg)
             continue
 
-        for suite in suite_list:
-            print_rule(f"  suite: {suite}")
+        for si, suite in enumerate(suite_list, 1):
+            pair_idx += 1
+            print_rule(
+                f"  suite: {suite} [{si}/{n_suites}] (overall {pair_idx}/{total_pairs})"
+            )
             try:
                 exps, plot_fns_fn = _suite_components(suite, cfg=cfg)
                 if plots_only:
