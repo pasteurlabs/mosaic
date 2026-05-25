@@ -867,15 +867,15 @@ _SOLVER_DISPLAY: dict[str, str] = {
     "openfoam": r"OpenFOAM~\cite{weller1998tensorial}",
     # structural-mesh
     "topopt-jl": r"TopOpt.jl~\cite{huang2021topoptjl}",
-    "dealii": r"deal.II~\cite{bangerth2007dealii}",
-    "firedrake": r"Firedrake~\cite{rathgeber2016firedrake}",
-    "fenics": r"FEniCS~\cite{farrell2013automated}",
+    "dealii-structural": r"deal.II~\cite{bangerth2007dealii}",
+    "firedrake-structural": r"Firedrake~\cite{rathgeber2016firedrake}",
+    "fenics-structural": r"FEniCS~\cite{farrell2013automated}",
     "jax-fem": r"JAX-FEM~\cite{xue2023jaxfem}",
     # thermal-mesh
     "dealii-heat": r"deal.II~\cite{bangerth2007dealii}",
     "fenics-heat": r"FEniCS~\cite{farrell2013automated}",
     "firedrake-heat": r"Firedrake~\cite{rathgeber2016firedrake}",
-    "torch-fem": r"torch-fem",
+    "torch-fem-thermal": r"torch-fem",
 }
 
 _VAR_DISPLAY: dict[str, str] = {
