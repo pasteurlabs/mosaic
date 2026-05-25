@@ -1,17 +1,20 @@
 """Quasi-2D steady heat-conduction compliance / source-identification benchmark.
 
-The problem definition is split across three modules:
+The problem definition is split across these modules:
 
-- :mod:`.ics`         — IC generators (``_zero_source``, ``_uniform``,
-                        ``_random``, ``_gaussian_source``, ``_two_gaussians``).
-- :mod:`.physics`     — mesh / BC builders, the reference FEM solve for
-                        inverse-recovery ground truth, the
-                        ``make_inputs`` factory, and ``DIAGNOSTICS``.
+- :mod:`.ics`          — IC generators.
+- :mod:`.physics`      — heated-block BC builder, reference FEM solve for
+                         inverse-recovery ground truth, ``make_inputs``, and
+                         ``DIAGNOSTICS``. The HEX8 mesh builder is shared
+                         via :mod:`mosaic.benchmarks.problems.shared.mesh`.
 - :mod:`.optimization` — conductivity-recovery runner.
+- :mod:`.plots`        — per-experiment plot fns wired in below.
+- :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
+- :mod:`.extras`       — cross-experiment aggregator plots.
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
-descriptions.
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with
+inline plot descriptions.
 """
 
 from __future__ import annotations

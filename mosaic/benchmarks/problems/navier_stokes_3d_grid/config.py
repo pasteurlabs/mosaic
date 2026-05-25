@@ -1,18 +1,19 @@
 """3D incompressible Navier-Stokes on a triply-periodic grid.
 
-The problem definition is split across three modules:
+The problem definition is split across these modules:
 
-- :mod:`.ics`         — IC generators (``_tgv3d``, ``_abc_flow``,
-                        ``_rand_div_free_3d``) and the ``_tgv3d_analytic``
-                        reference solution.
-- :mod:`.physics`     — input factory (``make_inputs``) and diagnostic
-                        functions (``_divergence_rms``, ``_kinetic_energy``,
-                        ``_energy_spectrum``).
+- :mod:`.ics`          — IC generators and the ``_tgv3d_analytic`` reference.
+- :mod:`.physics`      — input factory (``make_inputs``); ``DIAGNOSTICS`` is
+                         re-exported from
+                         :mod:`mosaic.benchmarks.problems.shared.diagnostics`.
 - :mod:`.optimization` — IC-recovery runner.
+- :mod:`.plots`        — per-experiment plot fns wired in below.
+- :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
+- :mod:`.extras`       — cross-experiment aggregator plots (paper figures).
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
-descriptions, status checks, and per-experiment exclusions.
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with
+inline plot descriptions, status checks, and per-experiment exclusions.
 """
 
 from __future__ import annotations

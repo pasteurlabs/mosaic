@@ -1,17 +1,20 @@
 """3D linear-elasticity SIMP topology optimisation on a cantilever beam.
 
-The problem definition is split across three modules:
+The problem definition is split across these modules:
 
-- :mod:`.ics`         — IC generators (``_uniform``, ``_random``,
-                        ``_two_density_bumps``).
-- :mod:`.physics`     — mesh and BC builders, input factory
-                        (``make_inputs``), the ``_infer_mesh_dims``
-                        helper, and the ``DIAGNOSTICS`` registry.
+- :mod:`.ics`          — IC generators.
+- :mod:`.physics`      — cantilever BC builder, input factory
+                         (``make_inputs``), ``_infer_mesh_dims`` helper, and
+                         ``DIAGNOSTICS``. The HEX8 mesh builder is shared
+                         via :mod:`mosaic.benchmarks.problems.shared.mesh`.
 - :mod:`.optimization` — SIMP topology-optimisation runner.
+- :mod:`.plots`        — per-experiment plot fns wired in below.
+- :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
+- :mod:`.extras`       — cross-experiment aggregator plots.
 
 This module performs solver discovery, the canonical :class:`Problem`
-assembly, and the per-suite ``problem.add_experiment(...)`` calls with inline plot
-descriptions.
+assembly, and the per-suite ``problem.add_experiment(...)`` calls with
+inline plot descriptions.
 """
 
 from __future__ import annotations
