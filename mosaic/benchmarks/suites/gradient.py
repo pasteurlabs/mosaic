@@ -15,6 +15,10 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import ProblemConfig
 from mosaic.benchmarks.core.console import console
+from mosaic.benchmarks.core.partial import (
+    filter_resumable_solvers,
+    write_partial,
+)
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
 
 # JAX-traced closures capture this reference at trace time; using the
@@ -112,6 +116,20 @@ def run_fd_check(
         gpu_ids = overrides.get("gpu_ids")
         _wall_times: dict[str, float] = {}
 
+        # Compute out_dir up-front so the per-solver checkpoint + sidecar npz
+        # writes inside _fd_work can target it. --continue uses
+        # result_partial.json under this dir to skip already-completed solvers.
+        exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            _SUITE,
+            exp_subdir,
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+        diff_solvers = filter_resumable_solvers(diff_solvers, out_dir, overrides)
+        _partial_lock = threading.Lock()
+
         def _fd_work(
             name: str, t, _run_ic_key=run_ic_key, _run_output_key=run_output_key
         ) -> None:
@@ -173,6 +191,22 @@ def run_fd_check(
                 results[name] = {"ic_scale": ic_scale, "eps_sweep": solver_results}
                 elapsed = time.perf_counter() - t0
                 _wall_times[name] = elapsed
+                # Persist this solver's grad snapshot immediately so a crash
+                # in the next solver doesn't lose the sidecar field. The
+                # save_gradient_fields_npz helper merges under its own flock,
+                # so concurrent per-solver writes from the parallel-GPU
+                # dispatch path are safe.
+                save_gradient_fields_npz(
+                    out_dir,
+                    [name],
+                    {name: {"": np.asarray(grad_snaps[name]["grad"])}},
+                    shared_arrays={"ic": np.asarray(grad_snaps[name]["ic"])},
+                )
+                write_partial(
+                    out_dir,
+                    {"by_solver": dict(results), "params": run},
+                    _partial_lock,
+                )
                 console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
             except Exception as exc:
                 console.print(
@@ -180,23 +214,6 @@ def run_fd_check(
                 )
 
         run_with_gpu_pool(diff_solvers, tags, _fd_work, gpu_ids=gpu_ids)
-
-        exp_subdir = f"{_exp_key}/{ic_subdir}" if ic_subdir else _exp_key
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            _SUITE,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
-        )
-        solver_names = list(grad_snaps.keys())
-        saved_ic = grad_snaps[solver_names[0]]["ic"] if grad_snaps else ic
-        save_gradient_fields_npz(
-            out_dir,
-            solver_names,
-            {name: {"": np.asarray(grad_snaps[name]["grad"])} for name in solver_names},
-            shared_arrays={"ic": np.asarray(saved_ic)},
-        )
 
         result = {"by_solver": results, "params": run}
         save_experiment(
