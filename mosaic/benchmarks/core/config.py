@@ -69,6 +69,65 @@ class PlotFn(Protocol):
     def __call__(self, cfg: Problem, **kw: Any) -> Any: ...
 
 
+def _build_sweep_plot_runner(
+    fn: Callable,
+    *,
+    group_keys: tuple[str, ...],
+    filter_dict: dict[str, Any],
+) -> Callable:
+    """Build the wrapper that ``add_sweep_plot`` registers under ``_extra/sweep/...``.
+
+    The wrapper is invoked as ``runner(cfg)`` by the regular plot loop; it
+    reads each cell's ``result.json`` off disk, filters and partitions, then
+    dispatches to the user's ``fn`` once per partition.
+    """
+
+    def _runner(cfg) -> None:
+        from .io import load_experiment_result, results_dir
+
+        cells: list[dict] = []
+        for exp_key, exp in cfg.experiments.items():
+            if not exp.coords:
+                continue
+            if filter_dict and any(
+                exp.coords.get(k) != v for k, v in filter_dict.items()
+            ):
+                continue
+            suite, _, rest = exp_key.partition("/")
+            out_dir = results_dir() / cfg.name / suite / rest
+            result = load_experiment_result(out_dir)
+            if result is None:
+                continue
+            cells.append(
+                {"coords": dict(exp.coords), "exp_key": exp_key, "result": result}
+            )
+
+        if not group_keys:
+            fn(cells, {})
+            return
+
+        # Partition by the group_by keys; drop those keys from each entry's
+        # coords since they're constant within the partition.
+        groups: dict[tuple, list[dict]] = {}
+        for cell in cells:
+            try:
+                group_vals = tuple(cell["coords"][k] for k in group_keys)
+            except KeyError:
+                continue  # cell doesn't have all the group keys
+            stripped_coords = {
+                k: v for k, v in cell["coords"].items() if k not in group_keys
+            }
+            groups.setdefault(group_vals, []).append(
+                {**cell, "coords": stripped_coords}
+            )
+
+        for group_vals, payload in groups.items():
+            group = dict(zip(group_keys, group_vals, strict=False))
+            fn(payload, group)
+
+    return _runner
+
+
 @dataclass(frozen=True)
 class Goal:
     """Per-experiment success predicate.
@@ -743,6 +802,40 @@ class Problem:
     def add_extra_plot(self, key: str, plot: Callable) -> None:
         """Register a ``_extra/<suite>/<name>`` plot not tied to an experiment."""
         self.plot_fns[key] = plot
+
+    def add_sweep_plot(
+        self,
+        name: str,
+        fn: Callable,
+        *,
+        group_by: str | tuple[str, ...] | list[str] = (),
+        filter: dict[str, Any] | None = None,
+    ) -> None:
+        """Register an aggregator plot that partitions cells by ``coords``.
+
+        At render time, the framework walks every experiment with non-empty
+        :attr:`Experiment.coords`, loads each cell's ``result.json``, applies
+        ``filter`` (each ``coord_key=value`` must match exactly), partitions
+        the survivors by ``group_by``, and calls ``fn(payload, group)`` once
+        per partition. ``payload`` is a list of
+        ``{"coords": {...}, "exp_key": str, "result": {...}}`` entries; the
+        ``group_by`` coord keys are removed from each entry's ``coords``
+        (they're identical within the partition). ``group`` is the
+        partition's coord values (``{}`` when ``group_by=()``).
+
+        Output paths: registered under ``_extra/sweep/<name>`` (so the runner
+        fires it once per render), and ``fn`` is responsible for saving its
+        own figures.
+        """
+        if isinstance(group_by, str):
+            group_keys: tuple[str, ...] = (group_by,)
+        else:
+            group_keys = tuple(group_by)
+        filter_dict = dict(filter or {})
+
+        self.plot_fns[f"_extra/sweep/{name}"] = _build_sweep_plot_runner(
+            fn, group_keys=group_keys, filter_dict=filter_dict
+        )
 
     def exclude(self, key: str, exclusions: dict[str, Exclusion]) -> None:
         """Attach exclusions at ``key``.
