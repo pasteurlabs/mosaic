@@ -43,6 +43,7 @@ any NPZ writing.
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -63,6 +64,7 @@ from mosaic.benchmarks.core.io import (
     save_harness_result,
 )
 from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
+from mosaic.benchmarks.core.partial import filter_resumable_solvers, write_partial
 from mosaic.benchmarks.core.runner import current_worker_context, per_solver_loop
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
@@ -244,6 +246,17 @@ def run_experiment(
                 "GPUs. Pass --gpu-ids 0 1 2 3 for isolated per-GPU OOM measurements."
             )
 
+        # Compute out_dir early so filter_resumable_solvers and
+        # write_partial can use it before/during the solver loop.
+        exp_subdir = exp_key
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            suite,
+            exp_subdir,
+            suffix="_debug" if overrides.get("debug") else "",
+        )
+
         selected = selector_fn(cfg, suite, exp_key)
         # ``mosaic run --only failed,stale,…`` installs a per-cell filter
         # before the experiment loop. When set, prune the active solver
@@ -252,6 +265,9 @@ def run_experiment(
         from .cell_filter import filter_solvers
 
         selected = filter_solvers(f"{suite}/{exp_key}", selected)
+        # On --continue, drop solvers already recorded as complete in a
+        # prior partial checkpoint so they are not re-run.
+        selected = filter_resumable_solvers(selected, out_dir, overrides)
         by_solver: dict = {}
         snapshots: dict[str, dict[str, np.ndarray]] = {}
         shared_extras: dict[str, np.ndarray] = {}
@@ -340,6 +356,29 @@ def run_experiment(
                     metrics.setdefault(k, v)
             return out
 
+        # Partial-result checkpointing: after each solver finishes its
+        # work, snapshot ``by_solver`` to ``result_partial.json`` so a
+        # crash between solvers doesn't lose completed work. On the next
+        # ``mosaic run --continue``, filter_resumable_solvers (above)
+        # reads this file and skips solvers already recorded as done.
+        _partial_lock = threading.Lock()
+
+        def _checkpoint_solver(
+            name: str,
+            _out_dir: Any = out_dir,
+            _by_solver: dict = by_solver,
+            _run: dict = run,
+            _lock: threading.Lock = _partial_lock,
+        ) -> None:
+            write_partial(
+                _out_dir,
+                {
+                    "by_solver": {n: {} for n in _by_solver if _by_solver[n]},
+                    "params": _run,
+                },
+                _lock,
+            )
+
         def _work(
             name: str,
             t: Any,
@@ -355,6 +394,7 @@ def run_experiment(
                 _absorb(out, solver_snaps, "")
                 if solver_snaps:
                     _snapshots[name] = solver_snaps
+                _checkpoint_solver(name)
                 return
 
             if warmup and _sweep_values:
@@ -391,6 +431,7 @@ def run_experiment(
                 _by_solver[name] = solver_results
                 if solver_snaps:
                     _snapshots[name] = solver_snaps
+                _checkpoint_solver(name)
                 return
 
             # sweep_mode == "limits"
@@ -460,6 +501,7 @@ def run_experiment(
             _by_solver[name] = solver_results
             if solver_snaps:
                 _snapshots[name] = solver_snaps
+            _checkpoint_solver(name)
 
         wall_times = per_solver_loop(
             cfg,
@@ -472,15 +514,6 @@ def run_experiment(
             catch=catch and sweep_mode != "limits",
             catch_label=catch_label,
             on_error=_on_solver_error,
-        )
-
-        exp_subdir = exp_key
-        out_dir = experiment_dir(
-            results_dir(),
-            cfg.name,
-            suite,
-            exp_subdir,
-            suffix="_debug" if overrides.get("debug") else "",
         )
 
         # Aggregate is responsible for both the final result dict and any
