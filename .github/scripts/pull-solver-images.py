@@ -48,15 +48,17 @@ def main() -> None:
 
     seen: set[str] = set()
     failed: list[str] = []
+    pulled_count = 0
     for p in problem_list:
         try:
             cfg = get_config(p)
         except Exception:
             continue
-        for name, spec in cfg.solvers.items():
-            if args.hardware == "gpu" and not getattr(spec, "uses_gpu", True):
+        for spec in cfg.solvers:
+            uses_gpu = getattr(spec, "uses_gpu", True)
+            if args.hardware == "gpu" and not uses_gpu:
                 continue
-            if args.hardware == "cpu" and getattr(spec, "uses_gpu", True):
+            if args.hardware == "cpu" and uses_gpu:
                 continue
             tag = spec.image_tag or f"{spec.dir}:latest"
             if tag in seen:
@@ -83,6 +85,7 @@ def main() -> None:
                     subprocess.run(["docker", "tag", remote, local_tag])
                     print(f"  Tagged as {local_tag}")
                     pulled = True
+                    pulled_count += 1
                     break
                 if args.tag:
                     print("  Not found, trying :latest fallback...")
@@ -96,7 +99,7 @@ def main() -> None:
             print(f"  - {f}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\nPulled {len(seen)} image(s) successfully")
+    print(f"\nPulled {pulled_count} image(s) successfully")
 
 
 if __name__ == "__main__":

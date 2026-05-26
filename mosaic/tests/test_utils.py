@@ -5,12 +5,14 @@ from __future__ import annotations
 import jax.numpy as jnp
 import pytest
 
-from mosaic.benchmarks.core.utils import (
-    is_valid,
-    l2_error_rel,
+from mosaic.benchmarks.core.io import (
     load_json,
     save_json,
     tesseract_content_hash,
+)
+from mosaic.benchmarks.core.utils import (
+    is_valid,
+    l2_error_rel,
 )
 
 

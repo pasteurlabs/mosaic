@@ -194,7 +194,7 @@ from mosaic.benchmarks.problems import (  # noqa: E402
 
 
 def _plot_description(problem: str, suite: str, experiment: str) -> str:
-    """Return the plot description for (suite, experiment) from ProblemConfig."""
+    """Return the plot description for (suite, experiment) from Problem."""
     try:
         cfg = _get_config(problem)
         if suite == "ics":
@@ -205,7 +205,7 @@ def _plot_description(problem: str, suite: str, experiment: str) -> str:
 
 
 def _experiment_description(problem: str, suite: str, experiment: str) -> str:
-    """Return the short experiment description (what it measures) from ProblemConfig."""
+    """Return the short experiment description (what it measures) from Problem."""
     try:
         return _get_config(problem).get_experiment_description(suite, experiment)
     except Exception:
@@ -213,7 +213,7 @@ def _experiment_description(problem: str, suite: str, experiment: str) -> str:
 
 
 def _problem_description(problem: str) -> str:
-    """Return problem-level description from ProblemConfig."""
+    """Return problem-level description from Problem."""
     try:
         desc = _get_config(problem).description
         if desc:
@@ -224,7 +224,7 @@ def _problem_description(problem: str) -> str:
 
 
 def _bc_description(problem: str) -> str:
-    """Return boundary-condition description from ProblemConfig."""
+    """Return boundary-condition description from Problem."""
     try:
         bc = _get_config(problem).bc_description
         if bc:

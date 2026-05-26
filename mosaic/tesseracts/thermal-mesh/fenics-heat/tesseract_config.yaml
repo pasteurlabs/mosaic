@@ -1,41 +1,16 @@
 name: fenics_heat_thermal_mesh
 version: "0.1.0"
-description: |
-  Differentiable 3-D thermal topology optimisation on an unstructured hexahedral
-  mesh, using FEniCS/DOLFIN 2019.1.0 and dolfin-adjoint.
-
-  Solves steady-state heat conduction with SIMP conductivity interpolation:
-    -∇·(k(ρ) ∇T) = 0    in Ω
-    k(ρ) = k_min + (k_max − k_min) · ρ^p    (k_min = 1e-3·k_max, p = 3)
-
-  The objective is the thermal compliance (total dissipated power):
-    C = ∮_Γ_N q_n · T dΓ
-
-  The gradient ∂C/∂ρ is computed via the adjoint method using dolfin-adjoint,
-  which records the forward solve on a tape and automatically derives and solves
-  the adjoint heat equation to obtain element-wise sensitivities.
-
-  Mesh : arbitrary HexMesh (8-node hexahedral elements), supplied by caller.
-         Converted to FEniCS format via meshio at solve time.
-  FE   : P1 Lagrange (linear) for temperature.
-  BCs  : per-node Dirichlet temperature groups (dirichlet_mask / dirichlet_values)
-         and per-node Neumann heat flux groups (von_neumann_mask / von_neumann_values),
-         matching the convention of thermal-mesh/jax-fem.
-
-  Interface:
-    Inputs : rho (n_cells,), hex_mesh (HexMesh), dirichlet_mask (n_nodes,),
-             dirichlet_values (n_groups, 1), von_neumann_mask (n_nodes,),
-             von_neumann_values (n_groups, 1), k_max (float), p_exp (float)
-    Outputs: thermal_compliance (scalar), temperature (n_vertices,)
-
+description: >
+  FEniCS P1 FEM heat-conduction solver with SIMP penalisation. Gradients (∂C/∂ρ, ∂C/∂source)
+  via dolfin-adjoint tape replay.
 build_config:
   base_image: "condaforge/miniforge3:26.1.1-3"
   requirements:
     provider: conda
   package_data:
-    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../tesseract_shared", "/tmp/tesseract_shared"]
   custom_build_steps:
-    - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+    - "RUN /python-env/bin/pip install /tmp/tesseract_shared"
 
 metadata:
   mosaic:
@@ -43,14 +18,10 @@ metadata:
     backend: fenics
     family: fem
     scheme: "FEM P1 heat conduction (SIMP, dolfin-adjoint)"
-    color: "#AA3377"
-    linestyle: "--"
-    marker: "v"
+    discretization: FE
+    numerics: "GMRES+AMG"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
     internal_dtype: float64
-    description: >
-      FEniCS P1 FEM heat-conduction solver; dolfin-adjoint tape for both rho and
-      source gradients.
     doc_url: "https://fenicsproject.org/"

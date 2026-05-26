@@ -19,6 +19,7 @@ permissions:
   contents: write
   pull-requests: write
   packages: read
+  actions: read
 
 concurrency:
   group: benchmark-${{ github.event.pull_request.number || github.ref }}
