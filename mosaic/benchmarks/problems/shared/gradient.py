@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Gradient evaluation suite: FD verification, parameter sweep, Jacobian SVD.
 
 Only runs solvers where ``SolverSpec.differentiable`` is True.
@@ -19,6 +22,8 @@ per-solver Jacobian phase.
 
 from __future__ import annotations
 
+from typing import Any
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -39,14 +44,14 @@ from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 # ── Science primitives ───────────────────────────────────────────────────────
 
 
-def _vjp_grad(t, inputs: dict, output_key: str, ic_key: str) -> jax.Array:
+def _vjp_grad(t: Any, inputs: dict, output_key: str, ic_key: str) -> jax.Array:
     """Gradient of sum(output**2) w.r.t. inputs[ic_key] via jax.grad.
 
     Uses kinetic-energy-like loss rather than sum(output) so that the gradient
     is non-trivial for divergence-free / momentum-conserving solvers.
     """
 
-    def f(ic):
+    def f(ic: jax.Array) -> jax.Array:
         out = apply_tesseract(t, {**inputs, ic_key: ic})[output_key]
         return jnp.sum(out**2)
 
@@ -54,8 +59,10 @@ def _vjp_grad(t, inputs: dict, output_key: str, ic_key: str) -> jax.Array:
 
 
 def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
-    """Subspace cosine: angle between fd and vjp directional-derivative vectors
-    across all random directions.  1 = perfectly aligned, 0 = orthogonal."""
+    """Subspace cosine between fd and vjp directional-derivative vectors.
+
+    Computed across all random directions. 1 = perfectly aligned, 0 = orthogonal.
+    """
     return float(
         np.dot(fd_arr, vjp_arr)
         / (np.linalg.norm(fd_arr) * np.linalg.norm(vjp_arr) + 1e-30)
@@ -67,7 +74,7 @@ _FD_CHECK_DEFAULT_EPS = [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4]
 
 
 def _fd_vjp_arrays(
-    t,
+    t: Any,
     ctx: KernelContext,
     eps_values: list,
     n_dirs: int,
@@ -124,7 +131,7 @@ def _fd_vjp_arrays(
 
 
 @kernel(sweep_mode="none", catch_label="VJP failed")
-def fd_check(t, ctx: KernelContext) -> dict:
+def fd_check(t: Any, ctx: KernelContext) -> dict:
     """One FD-verification point: VJP grad + central-FD over ``eps_values``.
 
     Records per-direction rel_error (not aggregated) so that downstream
@@ -160,7 +167,7 @@ def fd_check(t, ctx: KernelContext) -> dict:
 
 
 @kernel(sweep_mode="default", horizons_shared=True, catch_label="VJP failed")
-def param_sweep(t, ctx: KernelContext) -> dict:
+def param_sweep(t: Any, ctx: KernelContext) -> dict:
     """One sweep point for a parameter sweep: grad_norm + per-eps mean/std/cosine.
 
     ``sweep.key`` / ``sweep.values`` on the run dict pick the parameter
@@ -197,7 +204,7 @@ def param_sweep(t, ctx: KernelContext) -> dict:
     horizons_shared=True,
     catch_label="VJP failed",
 )
-def horizon_sweep_limits(t, ctx: KernelContext) -> dict:
+def horizon_sweep_limits(t: Any, ctx: KernelContext) -> dict:
     """One VJP attempt for the rollout-limit sweep — no FD check.
 
     Raises on non-finite gradient so the framework's per-step try/except
@@ -241,23 +248,23 @@ def horizon_sweep_limits(t, ctx: KernelContext) -> dict:
 # ── Jacobian SVD ─────────────────────────────────────────────────────────────
 
 
-def _jacobian_svd_aggregate(  # noqa: PLR0913 — aggregate signature mirrors the kernel's extras
-    by_solver,
+def _jacobian_svd_aggregate(
+    by_solver: Any,
     *,
-    run,
-    cfg,
-    tags,
-    out_dir,
-    selected,
-    gpu_ids,
-    snapshots,
-    shared_extras,
-    ic,
-    sweep_values,
-    sweep_key,
-    snapshot_filename,
-    snapshot_prefixes,
-    horizons_shared,
+    run: Any,
+    cfg: Any,
+    tags: Any,
+    out_dir: Any,
+    selected: Any,
+    gpu_ids: Any,
+    snapshots: Any,
+    shared_extras: Any,
+    ic: Any,
+    sweep_values: Any,
+    sweep_key: Any,
+    snapshot_filename: Any,
+    snapshot_prefixes: Any,
+    horizons_shared: Any,
 ) -> dict:
     """Cross-solver SVD + optional loss-landscape pass.
 
@@ -379,7 +386,7 @@ def _jacobian_svd_aggregate(  # noqa: PLR0913 — aggregate signature mirrors th
         d_top_jax = jnp.array(d_top)
         domain_extent = cfg.domain_extent
 
-        def _landscape_work(name: str, t) -> None:
+        def _landscape_work(name: str, t: Any) -> None:
             color = cfg.solver(name).color
             base_inputs = cfg.make_inputs(
                 name, base_ic_jax, domain_extent=domain_extent, **phys
@@ -461,7 +468,7 @@ def _jacobian_svd_aggregate(  # noqa: PLR0913 — aggregate signature mirrors th
     snapshot_filename="jacobian_svd.npz",
     snapshot_prefixes=("grad", "jac"),
 )
-def jacobian_svd(t, ctx: KernelContext) -> dict:
+def jacobian_svd(t: Any, ctx: KernelContext) -> dict:
     """Full per-solver Jacobian via sequential VJP — one column per output element.
 
     ``jax.jacrev`` would use ``vmap`` which tesseract doesn't support, so we
@@ -473,7 +480,7 @@ def jacobian_svd(t, ctx: KernelContext) -> dict:
     base_inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     base_ic = jnp.array(base_inputs[ctx.ic_key])
 
-    def fwd(ic_arr):
+    def fwd(ic_arr: jax.Array) -> jax.Array:
         return apply_tesseract(t, {**base_inputs, ctx.ic_key: ic_arr})[ctx.output_key]
 
     out, vjp_fn = jax.vjp(fwd, base_ic)

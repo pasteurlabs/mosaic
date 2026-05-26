@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Canonical InputSchema / OutputSchema for thermal-mesh tesseracts.
 
 All solvers perform SIMP thermal topology optimisation on a padded hexahedral
@@ -96,8 +99,12 @@ def make_default_inputs(
     ``apply_tesseract()``.
 
     Args:
-        nx, ny, nz: Number of elements in each direction.
-        Lx, Ly, Lz: Domain dimensions.
+        nx: Number of elements in the x direction.
+        ny: Number of elements in the y direction.
+        nz: Number of elements in the z direction.
+        Lx: Domain length in the x direction.
+        Ly: Domain length in the y direction.
+        Lz: Domain length in the z direction.
         rho_0: Uniform density (0 = insulating, 1 = conducting).
         Q_total: Total heat flux on the right face.
 
@@ -112,7 +119,7 @@ def make_default_inputs(
     Z, Y, X = np.meshgrid(zs, ys, xs, indexing="ij")
     points = np.stack([X.ravel(), Y.ravel(), Z.ravel()], axis=-1)
 
-    def _nid(ix, iy, iz):
+    def _nid(ix: int, iy: int, iz: int) -> int:
         return iz * (nx + 1) * (ny + 1) + iy * (nx + 1) + ix
 
     cells = np.array(

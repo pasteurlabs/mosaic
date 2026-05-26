@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generic optimizer primitives — :func:`_run_optim` (Adam) and :func:`_run_lbfgs`.
 
 Problem-specific optimisation harnesses (drag-opt, IC recovery, SIMP
@@ -23,13 +26,15 @@ error-vs-target trajectories without writing their own loop.
 
 from __future__ import annotations
 
+from typing import Any
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
 
 
-def _append_aux(aux_history: dict | None, aux) -> None:
+def _append_aux(aux_history: dict | None, aux: Any) -> None:
     """Append every (label, float) in ``aux`` to ``aux_history[label]``.
 
     ``aux`` must be a dict of JAX scalars (the convention for
@@ -42,26 +47,26 @@ def _append_aux(aux_history: dict | None, aux) -> None:
         aux_history.setdefault(label, []).append(float(val))
 
 
-def _run_optim(  # noqa: PLR0913 — explicit-deps signature
-    loss_fn,
-    init_x,
+def _run_optim(
+    loss_fn: Any,
+    init_x: Any,
     lr: float,
     max_iters: int,
     patience: int,
     *,
     has_aux: bool = False,
     aux_history: dict | None = None,
-    clip_fn=None,
+    clip_fn: Any = None,
     snap_interval: int = 0,
     history: list | None = None,
-    snap_error_fn=None,
+    snap_error_fn: Any = None,
     error_history: list | None = None,
-    log_fn=None,
+    log_fn: Any = None,
     log_interval: int = 20,
     record_diagnostics: bool = False,
-    div_fn=None,
-    grad_proj_fn=None,
-):
+    div_fn: Any = None,
+    grad_proj_fn: Any = None,
+) -> tuple:
     """Adam with patience-based early stopping.
 
     When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)`` and each
@@ -121,26 +126,26 @@ def _run_optim(  # noqa: PLR0913 — explicit-deps signature
     return x, losses, diag
 
 
-def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
-    loss_fn,
-    init_x,
-    lr=None,
+def _run_lbfgs(
+    loss_fn: Any,
+    init_x: Any,
+    lr: Any = None,
     max_iters: int = 100,
-    patience=None,
+    patience: Any = None,
     *,
     has_aux: bool = False,
     aux_history: dict | None = None,
-    clip_fn=None,
+    clip_fn: Any = None,
     record_diagnostics: bool = False,
-    div_fn=None,
+    div_fn: Any = None,
     snap_interval: int = 0,
     history: list | None = None,
-    snap_error_fn=None,
+    snap_error_fn: Any = None,
     error_history: list | None = None,
-    log_fn=None,
+    log_fn: Any = None,
     log_interval: int = 10,
-    grad_proj_fn=None,
-):
+    grad_proj_fn: Any = None,
+) -> tuple:
     """L-BFGS with zoom line-search.
 
     When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)``; we
@@ -164,7 +169,7 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
     """
     if has_aux:
 
-        def _scalar_loss(x):
+        def _scalar_loss(x: Any) -> Any:
             return loss_fn(x)[0]
 
         vg = jax.value_and_grad(loss_fn, has_aux=True)
@@ -199,7 +204,7 @@ def _run_lbfgs(  # noqa: PLR0913 — explicit-deps signature
     # accumulating compiled XLA modules until the host runs out of memory.
     # JIT-ing the whole step gives the linesearch a stable identity inside
     # one cached trace — recompilation happens once per (x.shape, dtype).
-    def _step_body(x, opt_state):
+    def _step_body(x: Any, opt_state: Any) -> tuple:
         if has_aux:
             (value, aux), grad = vg(x)
         else:

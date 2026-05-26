@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Cross-experiment extra plots for thermal-mesh.
 
 Registered on the :class:`Problem` via :meth:`Problem.add_extra_plot` from
@@ -9,6 +12,7 @@ Registered on the :class:`Problem` via :meth:`Problem.add_extra_plot` from
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
@@ -210,14 +214,14 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
 # ── Adapter + registration ────────────────────────────────────────────────────
 
 
-def _conductivity_overview_plot(cfg: Problem, **_kw) -> None:
+def _conductivity_overview_plot(cfg: Problem, **_kw: Any) -> None:
     """Runner-facing adapter: writes ``conductivity_recovery_overview.pdf``."""
     out_dir = results_dir() / cfg.name / "_extra"
     out_dir.mkdir(parents=True, exist_ok=True)
     _conductivity_overview_generate(out_dir)
 
 
-def _plot_cost_overview(cfg: Problem, **_kw) -> None:
+def _plot_cost_overview(cfg: Problem, **_kw: Any) -> None:
     plot_cost_overview_for(cfg, steady_state=True)
 
 

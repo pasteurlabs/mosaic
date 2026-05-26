@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: FD U-curves (relative error vs ε) for F2 and F3 NS domains.
 
 For each rollout length (horizon), plots relative FD error vs perturbation size ε
@@ -102,10 +105,14 @@ def _plot_domain(cfg: dict, out_dir: Path) -> None:
 
             if not all(np.isfinite(y) and y > 0 for y in ys):
                 # drop non-finite points
-                pairs = [(x, y) for x, y in zip(xs, ys) if np.isfinite(y) and y > 0]
+                pairs = [
+                    (x, y)
+                    for x, y in zip(xs, ys, strict=False)
+                    if np.isfinite(y) and y > 0
+                ]
                 if not pairs:
                     continue
-                xs, ys = zip(*pairs)
+                xs, ys = zip(*pairs, strict=False)
 
             _, color, ls, mk = solver_props(solver)
             ax.loglog(
@@ -154,6 +161,7 @@ def _plot_domain(cfg: dict, out_dir: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate U-curves figures for all benchmark domains."""
     with plt.rc_context(RCPARAMS):
         for cfg in _configs().values():
             _plot_domain(cfg, out_dir)

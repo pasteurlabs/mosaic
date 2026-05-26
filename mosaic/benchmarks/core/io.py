@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """All filesystem I/O for the benchmark framework.
 
 This module is the single home for every function that reads from or writes
@@ -134,7 +137,7 @@ def tesseract_content_hash(tesseract_dir: Path) -> str:
     return h.hexdigest()[:16]
 
 
-def harness_fn_hash(fn) -> str:
+def harness_fn_hash(fn: object) -> str:
     """SHA-256 (first 16 hex chars) of a function's normalised AST.
 
     Detects when the ``run_<experiment>`` function that produced a
@@ -162,7 +165,7 @@ def harness_fn_hash(fn) -> str:
     for node in ast.walk(tree):
         if isinstance(
             node,
-            (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+            ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
         ):
             body = getattr(node, "body", None)
             if (
@@ -199,7 +202,7 @@ class _NumpyEncoder(json.JSONEncoder):
     should keep it on the NPZ side, not in ``result.json``.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         # ``allow_nan=False`` makes the stdlib encoder raise ``ValueError``
         # on non-finite floats, which we intercept in ``iterencode`` to
         # emit ``null`` instead. Setting it at construction time keeps the
@@ -208,13 +211,13 @@ class _NumpyEncoder(json.JSONEncoder):
         kwargs.setdefault("allow_nan", True)
         super().__init__(*args, **kwargs)
 
-    def default(self, obj):
-        if isinstance(obj, (np.ndarray, jax.Array)):
+    def default(self, obj: object) -> object:
+        if isinstance(obj, np.ndarray | jax.Array):
             # ``.tolist()`` produces native Python floats; the C-level
             # encoder handles those inline (never calls ``default``), so
             # walk the converted list and replace non-finite values now.
             return _strict_float_safe(obj.tolist())
-        if isinstance(obj, (np.floating, np.integer)):
+        if isinstance(obj, np.floating | np.integer):
             val = obj.item()
             # ``np.float32(np.inf).item()`` → ``inf`` (Python float);
             # the parent encoder would emit ``Infinity``. Trap it here.
@@ -234,7 +237,7 @@ class _NumpyEncoder(json.JSONEncoder):
             return f"<callable {getattr(obj, '__qualname__', repr(obj))}>"
         return super().default(obj)
 
-    def iterencode(self, o, _one_shot: bool = False):
+    def iterencode(self, o: object, _one_shot: bool = False) -> object:
         # Intercept native Python floats before stdlib's tokeniser turns
         # ``inf`` / ``nan`` into ``Infinity`` / ``NaN``. ``default()`` is
         # never consulted for floats (they're handled inline by the C
@@ -242,13 +245,13 @@ class _NumpyEncoder(json.JSONEncoder):
         return super().iterencode(_strict_float_safe(o), _one_shot=_one_shot)
 
 
-def _strict_float_safe(obj):
+def _strict_float_safe(obj: object) -> object:
     """Recursively replace non-finite Python floats with ``None``."""
     if isinstance(obj, float) and not math_isfinite(obj):
         return None
     if isinstance(obj, dict):
         return {k: _strict_float_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         coerced = [_strict_float_safe(v) for v in obj]
         return type(obj)(coerced) if isinstance(obj, tuple) else coerced
     return obj
@@ -259,7 +262,7 @@ def _strict_float_safe(obj):
 from math import isfinite as math_isfinite  # noqa: E402
 
 
-def save_json(data, path: str | Path) -> None:
+def save_json(data: object, path: str | Path) -> None:
     """Pretty-print ``data`` as JSON to ``path``; creates parent dirs.
 
     Serialises to a string first, then writes atomically via a ``.tmp``
@@ -278,8 +281,10 @@ def save_json(data, path: str | Path) -> None:
 
 
 def load_json(path: str | Path) -> dict:
-    """Read JSON from ``path``. Raises on missing/malformed (use
-    :func:`try_load_json` for the no-prior-state semantics)."""
+    """Read JSON from ``path``, raising on missing/malformed files.
+
+    Use :func:`try_load_json` for the no-prior-state semantics.
+    """
     with open(path) as f:
         return json.load(f)
 
@@ -321,7 +326,7 @@ def save_npz_merged(
     path: str | Path,
     new_arrays: dict[str, np.ndarray],
     *,
-    keep_old=None,
+    keep_old: object = None,
 ) -> None:
     """Atomically merge-save an npz file.
 
@@ -412,6 +417,7 @@ class PartialResultWriter:
         self._base_payload = dict(base_payload or {})
 
     def write(self, name: str, entry: dict | None) -> None:
+        """Merge *entry* for *name* into the on-disk partial result; no-op if ``None``."""
         if entry is None:
             return
         with FileLock(self._lock_path):
@@ -679,7 +685,7 @@ def _environment_metadata() -> dict:
 _SCHEDULING_KEYS = {"gpu_ids"}
 
 
-def _normalise_for_compare(v):
+def _normalise_for_compare(v: object) -> object:
     """Recursively normalise a value for params equality comparison.
 
     JSON round-trips convert Python sets to sorted lists (via _NumpyEncoder).
@@ -693,12 +699,12 @@ def _normalise_for_compare(v):
         return sorted(v)
     if isinstance(v, dict):
         return {k: _normalise_for_compare(val) for k, val in v.items()}
-    if isinstance(v, (list, tuple)):
+    if isinstance(v, list | tuple):
         return [_normalise_for_compare(x) for x in v]
     return v
 
 
-def _physics_params(p):
+def _physics_params(p: object) -> object:
     """Strip scheduling-only keys and normalise for equality comparison."""
     if not isinstance(p, dict):
         return _normalise_for_compare(p)
@@ -708,9 +714,10 @@ def _physics_params(p):
 
 
 def _solvers_in_result(res: dict, known_solvers: set[str] | None = None) -> set[str]:
-    """Collect solver names appearing in any known top-level map or in a
-    custom schema (e.g. ``per_solver_spectra``, ``grad_norms``,
-    ``landscape.by_solver``).
+    """Collect solver names appearing in any known top-level map or in a custom schema.
+
+    Custom schemas include ``per_solver_spectra``, ``grad_norms``,
+    ``landscape.by_solver``.
     """
     names: set[str] = set()
     for key in ("by_solver", "by_sweep", "by_N", "by_steps"):
@@ -728,7 +735,7 @@ def _solvers_in_result(res: dict, known_solvers: set[str] | None = None) -> set[
 
 
 def _scan_known_solvers(
-    node, known_solvers: set[str], names: set[str], depth: int
+    node: object, known_solvers: set[str], names: set[str], depth: int
 ) -> None:
     """Recurse into ``node`` collecting dict keys that overlap ``known_solvers``."""
     if depth < 0 or not isinstance(node, dict):
@@ -761,7 +768,7 @@ def _compute_tesseract_hashes(result: dict, cfg: Problem | None) -> dict[str, st
     return hashes
 
 
-def _compute_harness_info(harness_fn) -> tuple[str, str]:
+def _compute_harness_info(harness_fn: object) -> tuple[str, str]:
     """Return ``(harness_hash, module.qualname)`` for an optional harness fn."""
     if harness_fn is None:
         return "", ""
@@ -889,7 +896,7 @@ def save_experiment(
     out_dir: Path,
     csv_rows: list[dict] | None = None,
     cfg: Problem | None = None,
-    harness_fn=None,
+    harness_fn: object = None,
     wall_time_s: dict[str, float] | None = None,
 ) -> None:
     """Save ``result.json``, ``params.json``, and optionally ``result.csv``.
@@ -975,7 +982,7 @@ def save_harness_result(
     cfg: Problem,
     suite: str,
     exp_subdir: str,
-    harness_fn,
+    harness_fn: object,
     wall_time_s: dict[str, float] | None = None,
     csv_rows: list[dict] | None = None,
     debug: bool = False,

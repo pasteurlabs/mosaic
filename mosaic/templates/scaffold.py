@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Template loader, validator, and scaffolding for new benchmark domains.
 
 Usage (via CLI)::

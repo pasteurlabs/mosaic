@@ -1,6 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Plots for the cost suite (forward and VJP wall-clock timing + peak (V)RAM)."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -79,7 +84,7 @@ def _first_failure(row: dict, keys: list) -> tuple[str | None, str | None]:
 
 
 def _draw_failure(
-    ax,
+    ax: Any,
     x_arr: np.ndarray,
     keys: list,
     fail_k: str,
@@ -131,7 +136,7 @@ def _first_nonempty_keys(top: dict) -> list[str]:
     return []
 
 
-def _load_cost_inputs(suite_dir, suffix: str):
+def _load_cost_inputs(suite_dir: Any, suffix: str) -> tuple:
     """Load the four result.json files; return (data_dicts, hw_str) or (None, "").
 
     ``vjp_cost`` is registered as two sub-experiments — ``vjp_cost/by_N``
@@ -226,7 +231,7 @@ def _build_columns(
     return columns
 
 
-def _column_x(panel_id: str, keys: list, n_to_cells, xlabel: str):
+def _column_x(panel_id: str, keys: list, n_to_cells: Any, xlabel: str) -> tuple:
     """Compute x-axis array and display label for a column."""
     is_N_panel = panel_id in ("spatial_N", "vjp_N")
     if is_N_panel and n_to_cells is not None:
@@ -237,8 +242,8 @@ def _column_x(panel_id: str, keys: list, n_to_cells, xlabel: str):
 
 
 def _draw_solver_series(
-    ax_time,
-    ax_mem,
+    ax_time: Any,
+    ax_mem: Any,
     x_arr: np.ndarray,
     keys: list,
     row: dict,
@@ -281,14 +286,14 @@ def _draw_solver_series(
 
 
 def _draw_column(
-    axes_grid,
+    axes_grid: Any,
     col: int,
     col_spec: tuple,
     cfg: Problem,
     styles: dict,
     failure_types_seen: set[str],
     *,
-    n_to_cells,
+    n_to_cells: Any,
 ) -> bool:
     """Draw all solvers on one column. Return True if any memory series was drawn."""
     panel_id, by_data, xlabel, title, keys = col_spec
@@ -320,7 +325,7 @@ def _draw_column(
     return col_has_mem
 
 
-def _add_failure_legend_entries(ax, failure_types_seen: set[str]) -> None:
+def _add_failure_legend_entries(ax: Any, failure_types_seen: set[str]) -> None:
     """Add phantom plots for failure markers so fig_shared_legend picks them up."""
     for ft in ["OOM", "nan", "error", "timeout"]:
         if ft in failure_types_seen:
@@ -340,12 +345,12 @@ def _add_failure_legend_entries(ax, failure_types_seen: set[str]) -> None:
 def plot_cost(
     cfg: Problem,
     *,
-    n_to_cells=None,
+    n_to_cells: Any = None,
     resolution_key: str = "N",
     save: bool = True,
     suffix: str = "",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Cost plots: wall-clock timing + peak (V)RAM (log-log), 2 rows × N columns.
 
     Row 0 — wall-clock time.  Row 1 — peak GPU VRAM (or RAM for CPU solvers).

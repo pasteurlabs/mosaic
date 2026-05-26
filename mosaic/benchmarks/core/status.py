@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Experiment-completion status discovery for the `mosaic status` CLI.
 
 Walks ``<results_dir>/<problem>/<suite>/<experiment>/`` on disk, parses
@@ -31,7 +34,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .config import Problem
+from .config import (
+    EXCL_PERMANENT,
+    Exclusion,
+    ExclusionCategory,
+    Problem,
+)
 from .io import (
     harness_fn_hash,
     load_json,
@@ -56,11 +64,6 @@ EXCLUDED = "excluded"
 # else is "work to do" at the neutral weight. ``Cell.category`` stores the
 # raw string value (str-Enum), so existing comparisons against ``"categorical"``
 # / ``"explained"`` etc. continue to work unchanged.
-from mosaic.benchmarks.core.config import (  # noqa: E402
-    EXCL_PERMANENT,
-    Exclusion,
-    ExclusionCategory,
-)
 
 # Permanent categories as a set of raw strings (for ``cell.category in …``
 # checks where the cell's category is a plain string).
@@ -171,6 +174,8 @@ def _lookup_check(cfg: Problem, suite: str, experiment: str) -> list:
 
 @dataclass
 class Cell:
+    """A single (experiment × solver) status cell."""
+
     status: str
     reason: str = ""
     # Only populated when status == EXCLUDED. One of the EXCL_* constants.
@@ -184,6 +189,8 @@ class Cell:
 
 @dataclass
 class ExperimentRow:
+    """One row in a :class:`ProblemStatus` table (one suite × experiment pair)."""
+
     suite: str
     experiment: str  # may be "<name>" or "<name>/<ic_name>" for IC-sub-dirs
     result_path: Path | None  # None when result.json is missing
@@ -191,11 +198,14 @@ class ExperimentRow:
 
     @property
     def label(self) -> str:
+        """Return the fully-qualified ``<suite>/<experiment>`` label."""
         return f"{self.suite}/{self.experiment}"
 
 
 @dataclass
 class ProblemStatus:
+    """Status summary for a single benchmark problem."""
+
     problem: str
     solvers: list[str]
     rows: list[ExperimentRow]
@@ -215,11 +225,11 @@ def _has_any_finite(obj: Any) -> bool:
     """Return True if obj contains at least one finite numeric value."""
     if isinstance(obj, bool):
         return False
-    if isinstance(obj, (int, float)):
+    if isinstance(obj, int | float):
         return not _is_nan(obj) and math.isfinite(obj)
     if isinstance(obj, dict):
         return any(_has_any_finite(v) for v in obj.values())
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         return any(_has_any_finite(v) for v in obj)
     return False
 
@@ -243,12 +253,12 @@ _TRAJECTORY_KEYS = ("errors", "drags", "flow_rates", "loss", "losses")
 
 def _finite_floats(values: Any) -> list[float]:
     """Return the subset of *values* that are finite real numbers."""
-    if not isinstance(values, (list, tuple)):
+    if not isinstance(values, list | tuple):
         return []
     return [
         float(v)
         for v in values
-        if isinstance(v, (int, float))
+        if isinstance(v, int | float)
         and not (isinstance(v, float) and math.isnan(v))
         and math.isfinite(v)
     ]
@@ -256,7 +266,7 @@ def _finite_floats(values: Any) -> list[float]:
 
 def _is_numeric_key(k: Any) -> bool:
     """True if *k* parses as a float (used to spot numeric-keyed sweep dicts)."""
-    if isinstance(k, (int, float)):
+    if isinstance(k, int | float):
         return True
     if isinstance(k, str):
         try:
@@ -292,8 +302,9 @@ def _check_named_trajectory(entry: dict) -> tuple[str, str] | None:
 
 
 def _check_numeric_sweep(entry: dict) -> tuple[str, str] | None:
-    """Reject numeric-keyed sweep dicts whose every non-trivial sub-entry is
-    bad (non-finite final loss across the board, or a flat sub-trajectory).
+    """Reject numeric-keyed sweep dicts whose every non-trivial sub-entry is bad.
+
+    "Bad" means non-finite final loss across the board, or a flat sub-trajectory.
     """
     numeric_subs = [
         (k, v) for k, v in entry.items() if _is_numeric_key(k) and isinstance(v, dict)
@@ -303,7 +314,7 @@ def _check_numeric_sweep(entry: dict) -> tuple[str, str] | None:
     non_trivial = [
         (k, v)
         for k, v in numeric_subs
-        if isinstance(v.get("initial_loss"), (int, float))
+        if isinstance(v.get("initial_loss"), int | float)
         and math.isfinite(float(v.get("initial_loss", 0)))
         and float(v.get("initial_loss", 0)) > 0
     ]
@@ -313,7 +324,7 @@ def _check_numeric_sweep(entry: dict) -> tuple[str, str] | None:
         (k, v)
         for k, v in non_trivial
         if not (
-            isinstance(v.get("final_loss"), (int, float))
+            isinstance(v.get("final_loss"), int | float)
             and math.isfinite(float(v.get("final_loss", float("nan"))))
         )
     ]
@@ -330,8 +341,9 @@ def _check_numeric_sweep(entry: dict) -> tuple[str, str] | None:
 
 
 def _check_eps_sweep(entry: dict) -> tuple[str, str] | None:
-    """Reject fd_check / source_fd_check entries whose eps_sweep is entirely
-    non-finite across cosine and rel_error.
+    """Reject fd_check / source_fd_check entries whose eps_sweep is entirely non-finite.
+
+    Checks both cosine and rel_error fields.
     """
     sweep = entry.get("eps_sweep")
     if not (isinstance(sweep, dict) and sweep):
@@ -340,10 +352,10 @@ def _check_eps_sweep(entry: dict) -> tuple[str, str] | None:
         if not isinstance(st, dict):
             continue
         cos = st.get("cosine")
-        if isinstance(cos, (int, float)) and math.isfinite(cos):
+        if isinstance(cos, int | float) and math.isfinite(cos):
             return None
         for r in st.get("rel_error", []) or []:
-            if isinstance(r, (int, float)) and math.isfinite(r):
+            if isinstance(r, int | float) and math.isfinite(r):
                 return None
     return FAILED, "eps_sweep produced all non-finite values"
 
@@ -374,11 +386,11 @@ def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
         return FAILED, ""
     if isinstance(entry, dict):
         return _classify_dict_entry(entry)
-    if isinstance(entry, (list, tuple)):
+    if isinstance(entry, list | tuple):
         if not entry or not _has_any_finite(entry):
             return FAILED, "no finite values"
         return OK, ""
-    if isinstance(entry, (int, float)):
+    if isinstance(entry, int | float):
         return (OK, "") if _has_any_finite(entry) else (FAILED, "non-finite value")
     return OK, ""
 
@@ -419,7 +431,7 @@ def _classify_from_by_param(
             )
             per_solver_valid[solver].append(is_valid)
             err = entry.get("error")
-            if is_valid and isinstance(err, (int, float)) and math.isfinite(err):
+            if is_valid and isinstance(err, int | float) and math.isfinite(err):
                 solver_errs_by_pval[solver][pval] = float(err)
                 peer_errors.append(float(err))
             elif not is_valid and not per_solver_reason[solver]:
@@ -503,8 +515,10 @@ def _classify_from_by_solver(
 
 
 def _classify_from_per_solver_prefix(data: dict, solvers: list[str]) -> dict[str, Cell]:
-    """jacobian_svd-style layout: top-level ``per_solver_*`` dicts keyed by solver,
-    plus a ``solver_names`` list enumerating solvers that were attempted."""
+    """jacobian_svd-style layout: top-level ``per_solver_*`` dicts plus a ``solver_names`` list.
+
+    Keys are keyed by solver; ``solver_names`` enumerates solvers that were attempted.
+    """
     attempted = set(data.get("solver_names", []) or [])
     per_solver_dicts = [
         v
@@ -608,12 +622,12 @@ def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
             if not isinstance(st, dict):
                 continue
             c = st.get("cosine")
-            if isinstance(c, (int, float)) and math.isfinite(c):
+            if isinstance(c, int | float) and math.isfinite(c):
                 best_cos = c if best_cos is None else max(best_cos, c)
             vals = [
                 r
                 for r in (st.get("rel_error") or [])
-                if isinstance(r, (int, float)) and math.isfinite(r)
+                if isinstance(r, int | float) and math.isfinite(r)
             ]
             if not vals:
                 continue
@@ -638,10 +652,8 @@ def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
 
 
 def _is_sweep_key(k: Any) -> bool:
-    """True for keys that look like numeric sweep values (int/float, or a
-    string that parses as float). Mirrors the local ``_is_num`` from the
-    original ``_refine_recovery`` body."""
-    if isinstance(k, (int, float)):
+    """True for keys that look like numeric sweep values (int/float, or a string that parses as float)."""
+    if isinstance(k, int | float):
         return True
     if isinstance(k, str):
         try:
@@ -653,8 +665,7 @@ def _is_sweep_key(k: Any) -> bool:
 
 
 def _sweep_sub_entry(entry: dict, sweep_k: str) -> Any:
-    """Look up a sweep sub-entry by string key, falling back to a float key
-    when the string parses as a plain number."""
+    """Look up a sweep sub-entry by string key, falling back to a float key when the string parses as a plain number."""
     sub = entry.get(sweep_k)
     if sub is not None:
         return sub
@@ -676,8 +687,10 @@ def _collect_sweep_keys(top: dict) -> set[str]:
 
 
 def _peer_finals_at(top: dict, sweep_k: str) -> dict[str, float]:
-    """Gather non-trivial, finite final_loss values across all solvers at
-    sweep value *sweep_k*. Trivial points (initial_loss <= 0) are skipped."""
+    """Gather non-trivial, finite final_loss values across all solvers at sweep value *sweep_k*.
+
+    Trivial points (initial_loss <= 0) are skipped.
+    """
     peer_finals: dict[str, float] = {}
     for solver, entry in top.items():
         if not isinstance(entry, dict):
@@ -688,10 +701,10 @@ def _peer_finals_at(top: dict, sweep_k: str) -> dict[str, float]:
         fl = sub.get("final_loss")
         il = sub.get("initial_loss", 0.0)
         if (
-            isinstance(fl, (int, float))
+            isinstance(fl, int | float)
             and math.isfinite(fl)
             and fl >= 0
-            and isinstance(il, (int, float))
+            and isinstance(il, int | float)
             and float(il) > 0
         ):
             peer_finals[solver] = float(fl)
@@ -699,9 +712,9 @@ def _peer_finals_at(top: dict, sweep_k: str) -> dict[str, float]:
 
 
 def _worst_case_trajectory(entry: dict) -> list[float] | None:
-    """Pick the worst-case (highest initial loss) trajectory from a
-    numeric-sweep dict, or fall back to a direct trajectory lookup when the
-    entry isn't numeric-keyed.
+    """Pick the worst-case (highest initial loss) trajectory from a numeric-sweep dict.
+
+    Falls back to a direct trajectory lookup when the entry isn't numeric-keyed.
 
     Without this, ``_find_trajectory`` would return the all-zero trajectory
     of a trivial sweep value first and the caller would bail on
@@ -775,7 +788,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
             if not isinstance(sub, dict):
                 continue
             fl = sub.get("final_loss")
-            if isinstance(fl, (int, float)) and math.isfinite(fl):
+            if isinstance(fl, int | float) and math.isfinite(fl):
                 per_sweep[sweep_k] = float(fl) / peer_min
         summary = OptimizationSummary(
             final_initial_ratio=ratio,
@@ -795,7 +808,7 @@ def _find_trajectory(entry: Any) -> list[float] | None:
         if (
             isinstance(val, list)
             and len(val) >= 2
-            and all(isinstance(v, (int, float)) for v in val)
+            and all(isinstance(v, int | float) for v in val)
         ):
             return [float(v) for v in val]
     # Nested (e.g. by_sweep[solver][sigma_val][errors]).
@@ -876,9 +889,10 @@ def _results_dir(cfg: Problem) -> Path:
 
 
 def _resolve_harness_hash(qualname: str, cache: dict[str, str | None]) -> str | None:
-    """Resolve ``module.qualname`` and hash via the AST-normalised
-    ``harness_fn_hash`` (must match the writer in ``save_experiment``).
-    Returns ``None`` on any failure; results are memoised in *cache*.
+    """Resolve ``module.qualname`` and hash via the AST-normalised harness_fn_hash.
+
+    Must match the writer in ``save_experiment``. Returns ``None`` on any
+    failure; results are memoised in *cache*.
     """
     if qualname in cache:
         return cache[qualname]
@@ -1012,10 +1026,11 @@ def _apply_exclusions(
 def _apply_explained_anomalies(
     cfg: Problem, suite: str, exp_label: str, cells: dict[str, Cell]
 ) -> None:
-    """Mark explained-anomaly solvers. These override OK cells only — the
-    solver runs and produces finite results, but underperforms peers for
-    documented method-intrinsic reasons. FAILED and EXCLUDED cells are never
-    downgraded by this pass.
+    """Mark explained-anomaly solvers.
+
+    These override OK cells only — the solver runs and produces finite
+    results, but underperforms peers for documented method-intrinsic reasons.
+    FAILED and EXCLUDED cells are never downgraded by this pass.
 
     Reads ``cfg.exclusions[name]`` filtered to entries with
     ``Exclusion.category == "anomaly_explained"``.
@@ -1040,8 +1055,9 @@ def _apply_explained_anomalies(
 
 
 def _suite_filter(cfg: Problem, suite: str) -> set[str]:
-    """Return the set of allowed experiment-head names for *suite*, or an
-    empty set if no filter applies (every experiment is admitted).
+    """Return the set of allowed experiment-head names for *suite*.
+
+    Returns an empty set when no filter applies (every experiment is admitted).
 
     Walks ``cfg.experiments`` and returns the *first* path segment after the
     suite prefix for every entry that has a non-empty ``params`` payload —
@@ -1247,8 +1263,7 @@ def snapshot_to_dict(statuses: list[ProblemStatus]) -> dict:
 
 
 def tally(st: ProblemStatus) -> dict[str, int]:
-    """Return per-state counts for *st*, plus split excluded counts, stale
-    counts, %-ok, and the weighted campaign-health score.
+    """Return per-state counts for *st*, split excluded/stale counts, and the health score.
 
     ``excl_perm`` counts categorical (permanent) exclusions that don't count
     toward the %-ok denominator; ``excl_work`` counts every other exclusion
@@ -1469,8 +1484,11 @@ def score_color(score: float | None) -> str:
 
 
 def _md_score_cell(score: float | None) -> str:
-    """Markdown score cell. GFM doesn't support inline colour, so we use
-    bolding + a colour-coded glyph prefix to convey the gradient."""
+    """Markdown score cell.
+
+    GFM doesn't support inline colour, so we use bolding + a colour-coded
+    glyph prefix to convey the gradient.
+    """
     if score is None:
         return "—"
     return f"{weight_emoji(score)} **{score:.2f}**"
@@ -1671,7 +1689,7 @@ def render_diff_markdown(diff: dict) -> str:
         if not isinstance(snap, dict):
             return None
         s = snap.get("score")
-        return float(s) if isinstance(s, (int, float)) else None
+        return float(s) if isinstance(s, int | float) else None
 
     # Threaded through diff_snapshots' closure via module-level access to
     # the raw snapshots is awkward; instead look the scores up from any

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Forward suite: agreement, physical laws.
 
 Two kernels, each paired with an aggregate function that builds the
@@ -15,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -39,9 +43,11 @@ _SUITE = "forward"
 
 
 def _agreement_phys(ctx: KernelContext) -> dict:
-    """Resolve per-solver physics: apply the fine-grid override when the
-    solver is named in the run's ``reference={"solvers": {...}, "dt", "steps"}``
-    spec, otherwise pass through.
+    """Resolve per-solver physics: apply the fine-grid override when appropriate.
+
+    When the solver is named in the run's
+    ``reference={"solvers": {...}, "dt", "steps"}`` spec, override dt/steps;
+    otherwise pass through.
     """
     ref = ctx.run.get("reference")
     if not isinstance(ref, dict):
@@ -61,13 +67,13 @@ def _analytic_reference(
     ic_name: str,
     seed: int,
     phys: dict,
-    val,
+    val: Any,
     sweep_key: str,
     analytic_params: set[str],
-    make_ic,
-    make_inputs,
+    make_ic: Any,
+    make_inputs: Any,
     domain_extent: float,
-    analytic,
+    analytic: Any,
     solver_name_for_inputs: str,
 ) -> np.ndarray:
     """Compute the analytic reference field at one sweep value.
@@ -95,19 +101,19 @@ def _analytic_reference(
 
 
 def _agreement_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    cfg,
-    tags,
-    run,
-    snapshots,
-    ic,
-    sweep_values,
-    sweep_key,
-    out_dir,
-    snapshot_filename,
-    snapshot_prefixes,
-    **_,
+    cfg: Any,
+    tags: Any,
+    run: Any,
+    snapshots: Any,
+    ic: Any,
+    sweep_values: Any,
+    sweep_key: Any,
+    out_dir: Any,
+    snapshot_filename: Any,
+    snapshot_prefixes: Any,
+    **_: Any,
 ) -> dict:
     """Cross-solver reference + per-solver error pass for agreement.
 
@@ -277,7 +283,7 @@ def _agreement_aggregate(
     snapshot_prefixes=("sweep_values", "ic", "consensus_", "x_axis"),
     aggregate_fn=_agreement_aggregate,
 )
-def agreement(t, ctx: KernelContext) -> dict:
+def agreement(t: Any, ctx: KernelContext) -> dict:
     """Run one solver at one sweep value. Aggregate forms the reference and computes errors.
 
     The kernel returns the normalised output array as a snapshot plus a
@@ -316,15 +322,15 @@ def agreement(t, ctx: KernelContext) -> dict:
 
 
 def _physical_laws_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    cfg,
-    run,
-    snapshots,
-    sweep_values,
-    sweep_key,
-    out_dir,
-    **_,
+    cfg: Any,
+    run: Any,
+    snapshots: Any,
+    sweep_values: Any,
+    sweep_key: Any,
+    out_dir: Any,
+    **_: Any,
 ) -> dict:
     """Compute physical diagnostics + analytic-error per (solver, sweep-value)."""
     diagnostics = run.get("diagnostics") or {}
@@ -372,7 +378,7 @@ def _physical_laws_aggregate(
             for dname, fn in diagnostics.items():
                 with contextlib.suppress(Exception):
                     r = fn(out, **diag_ctx, **curr_phys)
-                    if isinstance(r, (int, float)):
+                    if isinstance(r, int | float):
                         diag[dname] = float(r)
             if analytic_ref is not None:
                 with contextlib.suppress(Exception):
@@ -412,7 +418,7 @@ def _physical_laws_aggregate(
     snapshot_prefixes=("sweep_values", "ic"),
     aggregate_fn=_physical_laws_aggregate,
 )
-def physical_laws(t, ctx: KernelContext) -> dict:
+def physical_laws(t: Any, ctx: KernelContext) -> dict:
     """Run one solver at one sweep value; aggregate computes diagnostics.
 
     The kernel just returns the normalised output array; the aggregate

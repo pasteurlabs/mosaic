@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Hardware detection and resource sampling utilities."""
 
 from __future__ import annotations
@@ -104,7 +107,7 @@ class ResourceSampler:
 
     def __init__(
         self,
-        gpu_id=None,
+        gpu_id: int | str | None = None,
         interval: float = 0.5,
         image_tag: str | None = None,
     ) -> None:
@@ -117,7 +120,7 @@ class ResourceSampler:
         self._baseline_vram_mib = sample_vram_mib(self.gpu_id)
         return self
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_: object) -> None:
         self._final_vram_mib = sample_vram_mib(self.gpu_id)
         try:
             import psutil

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Validate all tesseract_config.yaml files under mosaic/tesseracts/.
 
 Checks required fields, value constraints, and basic structure.

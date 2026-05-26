@@ -1,5 +1,9 @@
-"""`mosaic` template / domain commands: validate-domain, new-domain,
-validate-template, templates.
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+"""`mosaic` template / domain commands: validate-domain, new-domain, validate-template, templates.
+
+Commands for scaffolding and validating benchmark domains and task templates.
 """
 
 from __future__ import annotations

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Detect changed Tesseract solvers from a git diff.
 
 Reads changed file paths from stdin (one per line) and prints a JSON

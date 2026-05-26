@@ -1,9 +1,13 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate domain illustration figures for all benchmark domains."""
 
 from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
@@ -19,12 +23,12 @@ from mosaic.benchmarks.plots.paper import TEXTWIDTH
 CONTROL_COLOR = "#2471a3"  # blue — marks control variables
 OBJECTIVE_COLOR = "#c0392b"  # red — marks objectives / loads / targets
 PHYS_COLOR = "#333333"  # dark gray — governing eqns, physical labels
-OBJ_BOX_KW = dict(
-    boxstyle="round,pad=0.3",
-    facecolor="#F2F2F2",
-    edgecolor="#AAAAAA",
-    lw=0.6,
-)
+OBJ_BOX_KW = {
+    "boxstyle": "round,pad=0.3",
+    "facecolor": "#F2F2F2",
+    "edgecolor": "#AAAAAA",
+    "lw": 0.6,
+}
 OBJ_FONTSIZE = 5
 CTRL_FONTSIZE = 4.5
 LABEL_FONTSIZE = 4.5
@@ -39,7 +43,7 @@ def _make_domain1(out_dir: Path) -> None:
     ax.set_aspect("equal")
     ax.axis("off")
 
-    font_kw = dict(fontfamily="sans-serif")
+    font_kw = {"fontfamily": "sans-serif"}
 
     chan_x0, chan_x1 = 0.0, 6.5
     chan_y0, chan_y1 = 0.0, 2.0
@@ -115,11 +119,11 @@ def _make_domain1(out_dir: Path) -> None:
         "",
         xy=(drag_arrow_x - 0.7, cyl_cy),
         xytext=(drag_arrow_x, cyl_cy),
-        arrowprops=dict(
-            arrowstyle="->,head_width=0.08,head_length=0.06",
-            color=OBJECTIVE_COLOR,
-            lw=0.8,
-        ),
+        arrowprops={
+            "arrowstyle": "->,head_width=0.08,head_length=0.06",
+            "color": OBJECTIVE_COLOR,
+            "lw": 0.8,
+        },
         zorder=6,
     )
     ax.text(
@@ -145,11 +149,11 @@ def _make_domain1(out_dir: Path) -> None:
             "",
             xy=(chan_x0 + length, y),
             xytext=(chan_x0 - 0.05, y),
-            arrowprops=dict(
-                arrowstyle="->,head_width=0.08,head_length=0.06",
-                color=CONTROL_COLOR,
-                lw=0.6,
-            ),
+            arrowprops={
+                "arrowstyle": "->,head_width=0.08,head_length=0.06",
+                "color": CONTROL_COLOR,
+                "lw": 0.6,
+            },
             zorder=4,
         )
 
@@ -170,11 +174,11 @@ def _make_domain1(out_dir: Path) -> None:
             "",
             xy=(chan_x1 + 0.35, y),
             xytext=(chan_x1 - 0.15, y),
-            arrowprops=dict(
-                arrowstyle="->,head_width=0.08,head_length=0.06",
-                color=CONTROL_COLOR,
-                lw=0.6,
-            ),
+            arrowprops={
+                "arrowstyle": "->,head_width=0.08,head_length=0.06",
+                "color": CONTROL_COLOR,
+                "lw": 0.6,
+            },
             zorder=4,
         )
     # ax.text(
@@ -193,7 +197,7 @@ def _make_domain1(out_dir: Path) -> None:
     amplitudes = [0.18, 0.14, 0.14, 0.06, 0.06]
     phases = [0.0, np.pi, 0.0, np.pi / 2, -np.pi / 2]
 
-    for off, amp, ph in zip(offsets, amplitudes, phases):
+    for off, amp, ph in zip(offsets, amplitudes, phases, strict=False):
         local_amp = amp * np.clip(
             (xs_stream - xs_stream[0]) / (xs_stream[-1] - xs_stream[0]), 0, 1
         )
@@ -243,11 +247,11 @@ def _make_domain1(out_dir: Path) -> None:
             "",
             xy=(arc_x[-1], arc_y[-1]),
             xytext=(arc_x[-3], arc_y[-3]),
-            arrowprops=dict(
-                arrowstyle="->,head_width=0.05,head_length=0.04",
-                color=vortex_colors[i % 2],
-                lw=0.6,
-            ),
+            arrowprops={
+                "arrowstyle": "->,head_width=0.05,head_length=0.04",
+                "color": vortex_colors[i % 2],
+                "lw": 0.6,
+            },
             zorder=3,
         )
 
@@ -290,13 +294,13 @@ def _make_domain1(out_dir: Path) -> None:
 def _make_domain2a_ic_recovery(out_dir: Path) -> None:
     """Domain 2A: 3D Initial Condition Recovery."""
 
-    def taylor_green_vorticity(n=80):
+    def taylor_green_vorticity(n: int = 80) -> np.ndarray:
         x = np.linspace(0, 2 * np.pi, n)
         y = np.linspace(0, 2 * np.pi, n)
         X, Y = np.meshgrid(x, y)
         return -2 * np.sin(X) * np.sin(Y)
 
-    def decayed_vorticity(n=80):
+    def decayed_vorticity(n: int = 80) -> np.ndarray:
         x = np.linspace(0, 2 * np.pi, n)
         y = np.linspace(0, 2 * np.pi, n)
         X, Y = np.meshgrid(x, y)
@@ -306,7 +310,15 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
         Yr = -sa * X + ca * Y
         return 0.55 * (-2) * np.sin(Xr) * np.sin(Yr)
 
-    def paint_face(ax, vort, face, origin, size, cmap, vmax):
+    def paint_face(
+        ax: Any,
+        vort: np.ndarray,
+        face: str,
+        origin: Any,
+        size: float,
+        cmap: str,
+        vmax: float,
+    ) -> None:
         n = vort.shape[0]
         o = np.array(origin, dtype=float)
         s = size
@@ -322,31 +334,31 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
                 dj = coords[min(j + step, n - 1)] - cj
                 if face == "xy_bottom":
                     verts = [
-                        o + [ci, cj, 0],
-                        o + [ci + di, cj, 0],
-                        o + [ci + di, cj + dj, 0],
-                        o + [ci, cj + dj, 0],
+                        [*o, ci, cj, 0],
+                        [*o, ci + di, cj, 0],
+                        [*o, ci + di, cj + dj, 0],
+                        [*o, ci, cj + dj, 0],
                     ]
                 elif face == "xz_front":
                     verts = [
-                        o + [ci, 0, cj],
-                        o + [ci + di, 0, cj],
-                        o + [ci + di, 0, cj + dj],
-                        o + [ci, 0, cj + dj],
+                        [*o, ci, 0, cj],
+                        [*o, ci + di, 0, cj],
+                        [*o, ci + di, 0, cj + dj],
+                        [*o, ci, 0, cj + dj],
                     ]
                 elif face == "yz_left":
                     verts = [
-                        o + [0, ci, cj],
-                        o + [0, ci + di, cj],
-                        o + [0, ci + di, cj + dj],
-                        o + [0, ci, cj + dj],
+                        [*o, 0, ci, cj],
+                        [*o, 0, ci + di, cj],
+                        [*o, 0, ci + di, cj + dj],
+                        [*o, 0, ci, cj + dj],
                     ]
                 poly = Poly3DCollection([verts], alpha=0.75, zorder=2)
                 poly.set_facecolor(cm(norm(val)))
                 poly.set_edgecolor("none")
                 ax.add_collection3d(poly)
 
-    def draw_box_edges(ax, origin, size):
+    def draw_box_edges(ax: Any, origin: Any, size: float) -> None:
         o = np.array(origin)
         s = size
         corners = (
@@ -380,7 +392,7 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
         ]
         for i, j in edges:
             ax.plot(
-                *zip(corners[i], corners[j]),
+                *zip(corners[i], corners[j], strict=False),
                 color="0.5",
                 linewidth=0.5,
                 linestyle="-",
@@ -536,8 +548,6 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
 
 def _make_domain2a_cavity(out_dir: Path) -> None:
     """Domain 2A: 3D Lid-Driven Cavity — Lid Velocity Optimization."""
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
     fig = plt.figure(figsize=(8, 7), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
     ax.view_init(elev=25, azim=-50)
@@ -569,7 +579,6 @@ def _make_domain2a_cavity(out_dir: Path) -> None:
     )
     ax.add_collection3d(top_face)
 
-    np.random.seed(42)
     n_arrows = 6
     gx = np.linspace(0.15, 0.85, n_arrows)
     gy = np.linspace(0.15, 0.85, n_arrows)
@@ -610,7 +619,7 @@ def _make_domain2a_cavity(out_dir: Path) -> None:
     )
     ax.add_collection3d(meas_plane)
 
-    def draw_curve(ax, pts, color="#888888", lw=1.0):
+    def draw_curve(ax: Any, pts: Any, color: str = "#888888", lw: float = 1.0) -> None:
         pts = np.array(pts)
         t = np.linspace(0, 1, len(pts))
         t_fine = np.linspace(0, 1, 88)
@@ -741,8 +750,6 @@ def _make_domain2a_cavity(out_dir: Path) -> None:
 
 def _make_domain2b_topology(out_dir: Path) -> None:
     """Domain 2B: 3D Topology Optimization for Flow Devices."""
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
     fig = plt.figure(figsize=(10, 7), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
 
@@ -752,7 +759,9 @@ def _make_domain2b_topology(out_dir: Path) -> None:
     x_design_end = 2.4
     x_outlet = 3.0
 
-    def box_faces(x0, x1, y0, y1, z0, z1):
+    def box_faces(
+        x0: float, x1: float, y0: float, y1: float, z0: float, z1: float
+    ) -> list:
         return [
             [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0)],
             [(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)],
@@ -790,7 +799,17 @@ def _make_domain2b_topology(out_dir: Path) -> None:
         )
     )
 
-    def draw_ellipsoid(ax, cx, cy, cz, rx, ry, rz, color="#555555", alpha=0.7):
+    def draw_ellipsoid(
+        ax: Any,
+        cx: float,
+        cy: float,
+        cz: float,
+        rx: float,
+        ry: float,
+        rz: float,
+        color: str = "#555555",
+        alpha: float = 0.7,
+    ) -> None:
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 15)
         x = cx + rx * np.outer(np.cos(u), np.sin(v))
@@ -931,9 +950,12 @@ def _make_domain2b_topology(out_dir: Path) -> None:
         va="top",
         color="#37474F",
         fontstyle="italic",
-        bbox=dict(
-            boxstyle="round,pad=0.3", facecolor="white", edgecolor="#90A4AE", alpha=0.85
-        ),
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": "white",
+            "edgecolor": "#90A4AE",
+            "alpha": 0.85,
+        },
     )
     ax.text(
         1.5, -0.05, 1.02, "wall", fontsize=7, ha="center", color="#607D8B", alpha=0.7
@@ -1024,7 +1046,7 @@ def _make_domain3(out_dir: Path) -> None:
                 density = max(density, 0.9)
             rho[j, i] = density
 
-    def smooth_2d(arr, n=3):
+    def smooth_2d(arr: np.ndarray, n: int = 3) -> np.ndarray:
         out = arr.copy()
         for _ in range(n):
             padded = np.pad(out, 1, mode="edge")
@@ -1108,9 +1130,12 @@ def _make_domain3(out_dir: Path) -> None:
         "",
         xy=(load_x + 0.15, load_y - arrow_len),
         xytext=(load_x + 0.15, load_y + 0.05),
-        arrowprops=dict(
-            arrowstyle="->", color=OBJECTIVE_COLOR, lw=1.0, mutation_scale=6
-        ),
+        arrowprops={
+            "arrowstyle": "->",
+            "color": OBJECTIVE_COLOR,
+            "lw": 1.0,
+            "mutation_scale": 6,
+        },
     )
     ax.text(
         load_x + 0.45,
@@ -1179,7 +1204,15 @@ def _make_domain4(out_dir: Path) -> None:
     y = np.linspace(0, 1, N)
     X, Y = np.meshgrid(x, y)
 
-    def gaussian(X, Y, cx, cy, sx, sy, amp):
+    def gaussian(
+        X: np.ndarray,
+        Y: np.ndarray,
+        cx: float,
+        cy: float,
+        sx: float,
+        sy: float,
+        amp: float,
+    ) -> np.ndarray:
         return amp * np.exp(
             -((X - cx) ** 2) / (2 * sx**2) - (Y - cy) ** 2 / (2 * sy**2)
         )
@@ -1268,13 +1301,13 @@ def _make_domain4(out_dir: Path) -> None:
             xy=(1.17, yy),
             xytext=(1.12, yy),
             annotation_clip=False,
-            arrowprops=dict(
-                arrowstyle="-|>,head_width=0.14,head_length=0.14",
-                color="darkorange",
-                lw=0.75,
-                shrinkA=0,
-                shrinkB=0,
-            ),
+            arrowprops={
+                "arrowstyle": "-|>,head_width=0.14,head_length=0.14",
+                "color": "darkorange",
+                "lw": 0.75,
+                "shrinkA": 0,
+                "shrinkB": 0,
+            },
         )
     # ax.text(
     #    1.16,
@@ -1304,9 +1337,11 @@ def _make_domain4(out_dir: Path) -> None:
         xy=(1.70, 0.62),
         xytext=(1.10, 0.62),
         xycoords="axes fraction",
-        arrowprops=dict(
-            arrowstyle="-|>,head_width=0.14,head_length=0.18", color="black", lw=1
-        ),
+        arrowprops={
+            "arrowstyle": "-|>,head_width=0.14,head_length=0.18",
+            "color": "black",
+            "lw": 1,
+        },
     )
     ax.text(
         1.40,
@@ -1367,11 +1402,11 @@ def _make_domain4(out_dir: Path) -> None:
         xy=(-0.60, 0.38),
         xytext=(0.00, 0.38),
         xycoords="axes fraction",
-        arrowprops=dict(
-            arrowstyle="-|>,head_width=0.14,head_length=0.18",
-            color=OBJECTIVE_COLOR,
-            lw=1,
-        ),
+        arrowprops={
+            "arrowstyle": "-|>,head_width=0.14,head_length=0.18",
+            "color": OBJECTIVE_COLOR,
+            "lw": 1,
+        },
     )
     ax.text(
         -0.30,
@@ -1408,6 +1443,7 @@ def _make_domain4(out_dir: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate domain illustration figures for all benchmark domains."""
     _make_domain1(out_dir)
     _make_domain2a_ic_recovery(out_dir)
     _make_domain2a_cavity(out_dir)

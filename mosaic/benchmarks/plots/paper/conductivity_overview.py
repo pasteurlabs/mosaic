@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Thermal conductivity recovery overview — Adam vs L-BFGS.
 
 Layout:
@@ -44,6 +47,7 @@ _GRAD_EVAL_LABEL = "Gradient evaluations"
 
 
 def generate(out_dir: Path) -> None:
+    """Generate thermal conductivity recovery overview figure."""
     loaded: dict[str, tuple] = {}
     for key, (*_, path) in _methods().items():
         rp = path / "result.json"
@@ -77,7 +81,7 @@ def generate(out_dir: Path) -> None:
         seen_solvers: set[str] = set()
 
         # ── Convergence — all solvers × both methods ──────────────────────
-        for key, (m_label, m_ls, *_) in _methods().items():
+        for key, (_m_label, m_ls, *_) in _methods().items():
             if key not in loaded:
                 continue
             result, _ = loaded[key]
@@ -159,7 +163,7 @@ def generate(out_dir: Path) -> None:
             [make_handle(s) for s in THERMAL_ORDER if s in seen_solvers]
         )
         fig.legend(
-            handles=[truth_handle] + solver_handles,
+            handles=[truth_handle, *solver_handles],
             loc="lower center",
             bbox_to_anchor=(0.5, 0.0),
             ncol=5,

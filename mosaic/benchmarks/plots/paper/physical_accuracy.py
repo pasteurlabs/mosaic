@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Physical accuracy across all four benchmark domains.
 
 Produces:
@@ -60,8 +63,8 @@ def _n_to_elements(N: int, subdir: str) -> int:
 
 
 def _set_axis_ticks(
-    ax, vals: list, is_log_x: bool, is_log_y: bool, is_elements: bool = False
-):
+    ax: plt.Axes, vals: list, is_log_x: bool, is_log_y: bool, is_elements: bool = False
+) -> None:
     tick_x = sorted(set(vals))
     if len(tick_x) > 4:
         idx = np.round(np.linspace(0, len(tick_x) - 1, 4)).astype(int)
@@ -141,15 +144,15 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
             x_all: list[float] = []
 
             for solver in all_solvers:
-                label, color, ls, mk = solver_props(solver)
-                kw = dict(
-                    color=color,
-                    linestyle=ls,
-                    marker=mk,
-                    markersize=4,
-                    markeredgewidth=0,
-                    linewidth=1.6,
-                )
+                _label, color, ls, mk = solver_props(solver)
+                kw = {
+                    "color": color,
+                    "linestyle": ls,
+                    "marker": mk,
+                    "markersize": 4,
+                    "markeredgewidth": 0,
+                    "linewidth": 1.6,
+                }
                 xs, ys = [], []
                 for p in params:
                     entry = by_param[p].get(solver)
@@ -214,6 +217,7 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate physical accuracy figures across all benchmark domains."""
     plt.rcParams.update(RCPARAMS)
 
     _plot_ns_domain(
@@ -279,17 +283,17 @@ def generate(out_dir: Path) -> None:
         )
 
         for solver in all_solvers:
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.6,
+            }
             xs, ys = [], []
-            for px, p in zip(x_vals, params):
+            for px, p in zip(x_vals, params, strict=False):
                 val = by_param[p].get(solver, {}).get(metric)
                 if val is not None:
                     xs.append(px)

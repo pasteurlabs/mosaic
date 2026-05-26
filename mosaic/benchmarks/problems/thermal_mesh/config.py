@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Quasi-2D steady heat-conduction compliance / source-identification benchmark.
 
 The problem definition is split across these modules:
@@ -188,7 +191,10 @@ problem.add_ic(
 problem.add_experiment(
     "forward/baseline",
     agreement,
-    plot_description="Thermal compliance C vs mesh resolution N with random density; compares FV and FEM solvers across refinements.",
+    plot_description=(
+        "Thermal compliance C vs mesh resolution N with random density; "
+        "compares FV and FEM solvers across refinements."
+    ),
     ic={"name": "random", "seed": 0},
     physics={
         "N": [2, 3, 4, 6, 8, 12, 16, 24],
@@ -220,7 +226,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
-    plot_description="Thermal compliance C vs total heat flux Q_total at fixed N and ρ₀ with a hot-spot BC; shown on log-log axes.",
+    plot_description=(
+        "Thermal compliance C vs total heat flux Q_total at fixed N and "
+        "ρ₀ with a hot-spot BC; shown on log-log axes."
+    ),
     diagnostics=DIAGNOSTICS,
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -238,7 +247,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/source_baseline",
     agreement,
-    plot_description="Thermal compliance C vs mesh resolution N with a Gaussian source field; compares solvers across refinements.",
+    plot_description=(
+        "Thermal compliance C vs mesh resolution N with a Gaussian source "
+        "field; compares solvers across refinements."
+    ),
     ic={"name": "gaussian_source"},
     physics={
         "N": [4, 6, 8, 12, 16, 24],
@@ -318,7 +330,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/fd_check",
     fd_check,
-    plot_description="FD gradient error vs step size ε (U-curves), AD/FD direction cosine, and gradient magnitude field panels.",
+    plot_description=(
+        "FD gradient error vs step size ε (U-curves), AD/FD direction "
+        "cosine, and gradient magnitude field panels."
+    ),
     ic={"name": "random", "seed": 0},
     physics={
         "nx": 8,
@@ -353,7 +368,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd",
     jacobian_svd,
-    plot_description="Singular-value spectrum of stacked per-solver gradients and pairwise cosine similarity between solver gradient directions.",
+    plot_description=(
+        "Singular-value spectrum of stacked per-solver gradients and "
+        "pairwise cosine similarity between solver gradient directions."
+    ),
     ic={"name": "random", "seed": 0},
     physics={
         "nx": 8,
@@ -374,7 +392,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/source_fd_check",
     fd_check,
-    plot_description="FD gradient error vs ε, AD/FD direction cosine, and gradient field panels for d(identification_error)/d(source).",
+    plot_description=(
+        "FD gradient error vs ε, AD/FD direction cosine, and gradient "
+        "field panels for d(identification_error)/d(source)."
+    ),
     ic={"name": "gaussian_source"},
     ic_key="source",
     output_key="identification_error",
@@ -422,7 +443,11 @@ if False:
     problem.add_experiment(
         "optimization/conductivity_recovery",
         conductivity_recovery,
-        plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using gradient descent.",
+        plot_description=(
+            "Optimisation traces (loss vs iteration) and recovered "
+            "conductivity fields vs the two-Gaussian ground truth, "
+            "using gradient descent."
+        ),
         ic={"name": "uniform", "seed": 0},
         physics={
             "nx": 16,
@@ -446,7 +471,11 @@ problem.add_experiment(
     "optimization/conductivity_recovery_bfgs",
     conductivity_recovery,
     optimizer="bfgs",
-    plot_description="Optimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using L-BFGS.",
+    plot_description=(
+        "Optimisation traces (loss vs iteration) and recovered "
+        "conductivity fields vs the two-Gaussian ground truth, "
+        "using L-BFGS."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "nx": 16,

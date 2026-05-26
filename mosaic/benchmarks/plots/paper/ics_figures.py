@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Initial conditions overview across all four benchmark domains.
 
 Fields are computed directly in NumPy — no JAX / solver dependencies.
@@ -32,19 +35,21 @@ RCPARAMS = {
 # ---------------------------------------------------------------------------
 
 
-def _vorticity(u, v, N, L=2 * np.pi):
+def _vorticity(
+    u: np.ndarray, v: np.ndarray, N: int, L: float = 2 * np.pi
+) -> np.ndarray:
     kn = np.fft.fftfreq(N, d=L / (2 * np.pi * N))
     KX, KY = np.meshgrid(kn, kn, indexing="ij")
     return np.real(np.fft.ifft2(1j * KX * np.fft.fft2(v) - 1j * KY * np.fft.fft2(u)))
 
 
-def _ic_tgv(N=64, L=2 * np.pi):
+def _ic_tgv(N: int = 64, L: float = 2 * np.pi) -> np.ndarray:
     x = np.linspace(0, L, N, endpoint=False)
     X, Y = np.meshgrid(x, x, indexing="ij")
     return _vorticity(np.sin(X) * np.cos(Y), -np.cos(X) * np.sin(Y), N, L)
 
 
-def _ic_multimode(N=64, L=2 * np.pi, seed=42):
+def _ic_multimode(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndarray:
     rng = np.random.default_rng(seed)
     kn = np.fft.fftfreq(N, d=1.0 / N)
     KX, KY = np.meshgrid(kn, kn, indexing="ij")
@@ -60,7 +65,7 @@ def _ic_multimode(N=64, L=2 * np.pi, seed=42):
     return _vorticity(u, v, N, L)
 
 
-def _ic_tgv3d_slice(N=32, L=2 * np.pi):
+def _ic_tgv3d_slice(N: int = 32, L: float = 2 * np.pi) -> np.ndarray:
     x = np.linspace(0, L, N, endpoint=False)
     X, Y = np.meshgrid(x, x, indexing="ij")
     u = np.sin(X) * np.cos(Y)
@@ -68,7 +73,9 @@ def _ic_tgv3d_slice(N=32, L=2 * np.pi):
     return _vorticity(u, v, N, L)
 
 
-def _ic_abc_slice(N=32, L=2 * np.pi, A=1.0, B=1.0, C=1.0):
+def _ic_abc_slice(
+    N: int = 32, L: float = 2 * np.pi, A: float = 1.0, B: float = 1.0, C: float = 1.0
+) -> np.ndarray:
     x = np.linspace(0, L, N, endpoint=False)
     X, Y = np.meshgrid(x, x, indexing="ij")
     u = A * np.sin(0) + C * np.cos(Y)
@@ -76,15 +83,15 @@ def _ic_abc_slice(N=32, L=2 * np.pi, A=1.0, B=1.0, C=1.0):
     return _vorticity(u, v, N, L)
 
 
-def _ic_struct_uniform(nx=48, ny=24, rho_0=0.5):
+def _ic_struct_uniform(nx: int = 48, ny: int = 24, rho_0: float = 0.5) -> np.ndarray:
     return np.full((nx, ny), rho_0)
 
 
-def _ic_struct_random(nx=48, ny=24, seed=0):
+def _ic_struct_random(nx: int = 48, ny: int = 24, seed: int = 0) -> np.ndarray:
     return np.clip(np.random.default_rng(seed).normal(0.5, 0.3, (nx, ny)), 0.05, 0.95)
 
 
-def _ic_struct_two_bumps(nx=48, ny=24):
+def _ic_struct_two_bumps(nx: int = 48, ny: int = 24) -> np.ndarray:
     Lx, Ly = 2.0, 1.0
     x = np.linspace(0, Lx, nx)
     y = np.linspace(0, Ly, ny)
@@ -98,15 +105,15 @@ def _ic_struct_two_bumps(nx=48, ny=24):
     return np.clip(rho, 0.05, 0.95)
 
 
-def _ic_thermal_uniform(nx=48, ny=24, rho_0=0.5):
+def _ic_thermal_uniform(nx: int = 48, ny: int = 24, rho_0: float = 0.5) -> np.ndarray:
     return np.full((nx, ny), rho_0)
 
 
-def _ic_thermal_random(nx=48, ny=24, seed=0):
+def _ic_thermal_random(nx: int = 48, ny: int = 24, seed: int = 0) -> np.ndarray:
     return np.clip(np.random.default_rng(seed).normal(0.5, 0.3, (nx, ny)), 0.05, 0.95)
 
 
-def _ic_thermal_gaussian(nx=48, ny=24, sigma=0.2):
+def _ic_thermal_gaussian(nx: int = 48, ny: int = 24, sigma: float = 0.2) -> np.ndarray:
     Lx, Ly = 2.0, 1.0
     x = np.linspace(0, Lx, nx)
     y = np.linspace(0, Ly, ny)
@@ -122,7 +129,7 @@ def _ic_thermal_gaussian(nx=48, ny=24, sigma=0.2):
 # ---------------------------------------------------------------------------
 
 
-def _imshow_sym(ax, field, cmap="RdBu_r"):
+def _imshow_sym(ax: plt.Axes, field: np.ndarray, cmap: str = "RdBu_r") -> None:
     vmax = float(np.abs(field).max()) or 1.0
     ax.imshow(
         field.T,
@@ -136,7 +143,7 @@ def _imshow_sym(ax, field, cmap="RdBu_r"):
     ax.axis("off")
 
 
-def _imshow_pos(ax, field, cmap="viridis"):
+def _imshow_pos(ax: plt.Axes, field: np.ndarray, cmap: str = "viridis") -> None:
     ax.imshow(
         field.T,
         origin="lower",
@@ -155,6 +162,7 @@ def _imshow_pos(ax, field, cmap="viridis"):
 
 
 def generate(out_dir: Path) -> None:
+    """Generate initial conditions overview figure across all benchmark domains."""
     plt.rcParams.update(RCPARAMS)
 
     # Combined NS (2D + 3D) — 4 columns
@@ -163,7 +171,7 @@ def generate(out_dir: Path) -> None:
     fields_ns = [_ic_tgv(), _ic_multimode(), _ic_tgv3d_slice(), _ic_abc_slice()]
     fig, axes = plt.subplots(1, 4, figsize=(TEXTWIDTH, _PH4))
     fig.subplots_adjust(wspace=0.05)
-    for ax, field, lbl in zip(axes, fields_ns, labels_ns):
+    for ax, field, lbl in zip(axes, fields_ns, labels_ns, strict=False):
         _imshow_sym(ax, field)
         ax.set_title(lbl, fontsize=8, pad=3)
     fig.savefig(out_dir / "appendix_ics_ns_combined.pdf")
@@ -177,7 +185,7 @@ def generate(out_dir: Path) -> None:
     _imshow_pos(axes[0], _ic_struct_uniform())
     _imshow_pos(axes[1], _ic_struct_random())
     _imshow_pos(axes[2], _ic_struct_two_bumps())
-    for ax, lbl in zip(axes, labels_struct):
+    for ax, lbl in zip(axes, labels_struct, strict=False):
         ax.set_title(lbl, fontsize=8, pad=3)
     fig.savefig(out_dir / "appendix_ics_structural_mesh.pdf")
     plt.close(fig)
@@ -192,7 +200,7 @@ def generate(out_dir: Path) -> None:
     ]
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, _PH3))
     fig.subplots_adjust(wspace=0.05)
-    for ax, field, lbl in zip(axes, fields_thermal, labels_thermal):
+    for ax, field, lbl in zip(axes, fields_thermal, labels_thermal, strict=False):
         _imshow_pos(ax, field, cmap="hot")
         ax.set_title(lbl, fontsize=8, pad=3)
     fig.savefig(out_dir / "appendix_ics_thermal_mesh.pdf")

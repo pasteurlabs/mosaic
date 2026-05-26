@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared toolbox of run_* harnesses and plot helpers.
 
 This module is a *library*, not a framework. Each problem in

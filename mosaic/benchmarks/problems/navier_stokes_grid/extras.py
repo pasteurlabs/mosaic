@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-domain ``_extra/`` aggregator plots for ns-grid.
 
 Each ``_plot_<name>`` function has the signature ``(cfg, **kw) -> None``
@@ -9,6 +12,7 @@ this single domain (2D NS).
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -47,7 +51,7 @@ def _n_to_elements_2d(N: int) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _plot_cost_overview(cfg: Problem, **_kw) -> None:
+def _plot_cost_overview(cfg: Problem, **_kw: Any) -> None:
     plot_cost_overview_for(cfg, steady_state=False)
 
 
@@ -188,7 +192,7 @@ def _scaling_impl(out_dir: Path) -> None:
     print(f"Saved {out}")
 
 
-def _plot_scaling(cfg: Problem, **_kw) -> None:
+def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
     _scaling_impl(_extra_dir(cfg))
 
 
@@ -316,7 +320,7 @@ def _plot_ucurve_domain(cfg_dict: dict, out_dir: Path) -> None:
     print(f"Saved {out}")
 
 
-def _plot_ucurves(cfg: Problem, **_kw) -> None:
+def _plot_ucurves(cfg: Problem, **_kw: Any) -> None:
     out_dir = _extra_dir(cfg)
     cfg_dict = {
         "path": results_dir()

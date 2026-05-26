@@ -1,6 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Mesh, BC, input factory, and diagnostics for structural-mesh."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -14,7 +19,7 @@ from mosaic.tesseracts.tesseract_shared.types import (
 )
 
 
-def _cantilever_bcs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
+def _cantilever_bcs(
     points: np.ndarray,
     nx: int,
     ny: int,
@@ -28,7 +33,7 @@ def _cantilever_bcs(  # noqa: PLR0913 — physics/geometry knobs are intentional
     corner_y_high: bool = False,
     corner_z_high: bool = False,
     load_axis: str = "z",
-    **_,
+    **_: Any,
 ) -> MeshBC:
     """Cantilever BCs: clamp left face, apply Neumann load on right side.
 
@@ -121,7 +126,7 @@ def _infer_mesh_dims(n_cells: int) -> tuple[int, int, int]:
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 
-def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
+def make_inputs(
     spec: SolverSpec,
     ic: np.ndarray,
     *,
@@ -138,7 +143,7 @@ def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally i
     corner_y_high: bool = False,
     corner_z_high: bool = False,
     load_axis: str = "z",
-    **_,
+    **_: Any,
 ) -> dict:
     """Build solver input dict from density IC and geometry parameters.
 
@@ -218,7 +223,7 @@ def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally i
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
 
-def _get_compliance(compliance: np.ndarray, **_) -> float:
+def _get_compliance(compliance: np.ndarray, **_: Any) -> float:
     """Structural compliance C = F^T U (scalar)."""
     return float(compliance)
 

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Cross-domain / cross-experiment paper figures for ns-3d-grid.
 
 Registered as ``_extra/<name>`` plots on the per-problem ``Problem`` instance
@@ -12,6 +15,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
@@ -86,7 +90,7 @@ _HSL_X_BREAK_LOG = 2.5
 _HSL_X_UPPER_FACTOR = 0.4
 
 
-def _hsl_x_log_forward(steps):
+def _hsl_x_log_forward(steps: Any) -> Any:
     steps = np.asarray(steps, dtype=float)
     log_x = np.log10(np.maximum(steps, 1e-10))
     return np.where(
@@ -96,7 +100,7 @@ def _hsl_x_log_forward(steps):
     )
 
 
-def _hsl_x_log_inverse(disp):
+def _hsl_x_log_inverse(disp: Any) -> Any:
     disp = np.asarray(disp, dtype=float)
     log_x = np.where(
         disp <= _HSL_X_BREAK_LOG,
@@ -268,7 +272,7 @@ def _hsl_compute_jitter(
     return jitter_x
 
 
-def _hsl_plot_vram_panel(ax_vr, d: dict, kw: dict, kw_line: dict) -> None:
+def _hsl_plot_vram_panel(ax_vr: Any, d: dict, kw: dict, kw_line: dict) -> None:
     ok_steps = d["ok_steps"]
     fail_step = d["fail_step"]
     if not d["cpu_only"]:
@@ -291,7 +295,9 @@ def _hsl_plot_vram_panel(ax_vr, d: dict, kw: dict, kw_line: dict) -> None:
         ax_vr.loglog([], [], **kw)
 
 
-def _hsl_plot_wt_panel(ax_wt, d: dict, kw: dict, kw_line: dict, wt_display) -> None:
+def _hsl_plot_wt_panel(
+    ax_wt: Any, d: dict, kw: dict, kw_line: dict, wt_display: Any
+) -> None:
     ok_steps = d["ok_steps"]
     ok_wall = d["ok_wall"]
     fail_step = d["fail_step"]
@@ -309,7 +315,7 @@ def _hsl_plot_wt_panel(ax_wt, d: dict, kw: dict, kw_line: dict, wt_display) -> N
 
 
 def _hsl_plot_gn_panel(
-    ax_gn, d: dict, kw: dict, kw_line: dict, gn_display, jx: float | None
+    ax_gn: Any, d: dict, kw: dict, kw_line: dict, gn_display: Any, jx: float | None
 ) -> None:
     ok_steps = d["ok_steps"]
     ok_gnorm = d["ok_gnorm"]
@@ -337,7 +343,7 @@ def _hsl_plot_gn_panel(
 
 
 def _hsl_plot_failure_markers(
-    ax_vr, ax_wt, d: dict, color: str, jx: float | None, wt_display
+    ax_vr: Any, ax_wt: Any, d: dict, color: str, jx: float | None, wt_display: Any
 ) -> None:
     fail_ft = d["fail_ft"]
     fm = _HSL_FAILURE_MARKER.get(fail_ft, "D")
@@ -360,8 +366,8 @@ def _hsl_plot_solvers(
     solver_data: dict[str, dict],
     ordered: list[str],
     jitter_x: dict[tuple[str, int], float],
-    gn_display,
-    wt_display,
+    gn_display: Any,
+    wt_display: Any,
 ) -> set[str]:
     ax_vr, ax_wt, ax_gn = axes
     failure_types_seen: set[str] = set()
@@ -403,7 +409,7 @@ def _hsl_plot_solvers(
     return failure_types_seen
 
 
-def _hsl_plot_openfoam_fd(ax_wt, of_fd: dict[int, float], wt_display) -> None:
+def _hsl_plot_openfoam_fd(ax_wt: Any, of_fd: dict[int, float], wt_display: Any) -> None:
     if not of_fd:
         return
     of_steps = sorted(of_fd)
@@ -422,7 +428,7 @@ def _hsl_plot_openfoam_fd(ax_wt, of_fd: dict[int, float], wt_display) -> None:
     )
 
 
-def _hsl_decorate_vram_panel(ax_vr) -> None:
+def _hsl_decorate_vram_panel(ax_vr: Any) -> None:
     ax_vr.axhline(
         _HSL_VRAM_LIMIT_MIB, color="0.35", linestyle="--", linewidth=1.0, zorder=2
     )
@@ -443,7 +449,7 @@ def _hsl_decorate_vram_panel(ax_vr) -> None:
     ax_vr.set_ylabel("MiB")
 
 
-def _hsl_set_panel_titles(ax_wt, ax_gn) -> None:
+def _hsl_set_panel_titles(ax_wt: Any, ax_gn: Any) -> None:
     ax_wt.set_title("Wall time")
     ax_wt.set_xlabel("Rollout steps $T$")
     ax_wt.set_ylabel("Seconds")
@@ -454,7 +460,7 @@ def _hsl_set_panel_titles(ax_wt, ax_gn) -> None:
 
 
 def _hsl_set_wt_yticks(
-    ax_wt, max_wt_log10: float, wt_upper_factor: float, wt_upper_data: float
+    ax_wt: Any, max_wt_log10: float, wt_upper_factor: float, wt_upper_data: float
 ) -> None:
     wt_below_ticks = [v for v in [0, 1, 2] if v >= _HSL_WT_YMIN]
     wt_above_ticks = [v for v in [4, 6, 8] if v <= max_wt_log10 + 0.5]
@@ -468,7 +474,7 @@ def _hsl_set_wt_yticks(
     ax_wt.set_ylim(_HSL_WT_YMIN, wt_ymax + 0.1)
 
 
-def _hsl_set_gn_yticks(ax_gn, gn_display, max_log10: float) -> None:
+def _hsl_set_gn_yticks(ax_gn: Any, gn_display: Any, max_log10: float) -> None:
     lower_ticks = [v for v in [1] if _HSL_GN_YMIN <= v < _HSL_GN_LOWER_BREAK]
     middle_ticks = [2, 3]
     above_ticks = [v for v in [5, 7, 9] if v <= max_log10 + 0.5]
@@ -480,7 +486,9 @@ def _hsl_set_gn_yticks(ax_gn, gn_display, max_log10: float) -> None:
     ax_gn.set_ylim(_HSL_GN_YMIN, gn_ymax + 0.05)
 
 
-def _hsl_set_piecewise_x_axis(ax_vr, ax_wt, ax_gn, all_sweep_steps: list[int]) -> None:
+def _hsl_set_piecewise_x_axis(
+    ax_vr: Any, ax_wt: Any, ax_gn: Any, all_sweep_steps: list[int]
+) -> None:
     x_min_data = min(all_sweep_steps) if all_sweep_steps else 1
     x_max_data = max(all_sweep_steps) if all_sweep_steps else 1e4
     x_pad = 0.06 * (np.log10(x_max_data) - np.log10(x_min_data))
@@ -565,7 +573,7 @@ def _hsl_build_failure_handles(failure_types_seen: set[str]) -> list:
 
 
 def _hsl_attach_legend(
-    fig, present: set[str], of_fd: dict[int, float], failure_types_seen: set[str]
+    fig: Any, present: set[str], of_fd: dict[int, float], failure_types_seen: set[str]
 ) -> None:
     solver_handles = _hsl_build_solver_handles(present, of_fd)
     failure_handles = _hsl_build_failure_handles(failure_types_seen)
@@ -589,14 +597,14 @@ def _hsl_attach_legend(
     )
 
 
-def _hsl_save_figure(fig, out_dir: Path) -> None:
+def _hsl_save_figure(fig: Any, out_dir: Path) -> None:
     for ext in ("pdf", "png"):
         out = out_dir / f"horizon_sweep_limits.{ext}"
         fig.savefig(out)
         print(f"Saved {out}")
 
 
-def _plot_horizon_sweep_limits(cfg: Problem, **_kw):
+def _plot_horizon_sweep_limits(cfg: Problem, **_kw: Any) -> Any:
     """``_extra/horizon_sweep_limits`` — VJP rollout-length limit figure."""
     out_dir = _extra_out_dir(cfg)
     path = (
@@ -676,7 +684,7 @@ def _plot_horizon_sweep_limits(cfg: Problem, **_kw):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _plot_cost_overview(cfg: Problem, **_kw) -> None:
+def _plot_cost_overview(cfg: Problem, **_kw: Any) -> None:
     plot_cost_overview_for(cfg, steady_state=False)
 
 
@@ -705,7 +713,7 @@ def _scaling_load_cost(experiment: str) -> dict[str, dict[int, float]]:
     return {s: _scaling_extract(nd) for s, nd in data.get("by_N", {}).items()}
 
 
-def _plot_scaling(cfg: Problem, **_kw) -> None:
+def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
     out_dir = _extra_out_dir(cfg)
     plt.rcParams.update(PAPER_RCPARAMS)
 
@@ -942,7 +950,7 @@ def _plot_ucurve_3d(cfg_dict: dict, out_dir: Path) -> None:
     print(f"Saved {out}")
 
 
-def _plot_ucurves(cfg: Problem, **_kw) -> None:
+def _plot_ucurves(cfg: Problem, **_kw: Any) -> None:
     out_dir = _extra_out_dir(cfg)
     cfg_dict = {
         "path": results_dir()

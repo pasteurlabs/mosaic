@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Cross-solver agreement and baseline convergence for NS domains.
 
 2 rows (F2 top, F3 bottom) × 3 columns:
@@ -29,7 +32,7 @@ from mosaic.benchmarks.plots.paper.style import (
 
 
 def _configs():
-    """(row, col, path, x_label, log_x, title, y_label)"""
+    """(row, col, path, x_label, log_x, title, y_label)."""
     R = results_dir()
     return [
         (
@@ -81,6 +84,7 @@ def _configs():
 
 
 def generate(out_dir: Path) -> None:
+    """Generate cross-solver agreement and baseline convergence figure."""
     with plt.rc_context(RCPARAMS):
         fig, axes = plt.subplots(
             2,

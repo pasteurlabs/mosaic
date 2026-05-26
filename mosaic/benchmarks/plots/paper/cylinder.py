@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: F2 cylinder-flow forward accuracy vs viscosity + flow fields.
 
 Left: consensus error vs ν for each valid solver.
@@ -43,6 +46,7 @@ def _vorticity(field: np.ndarray, L: float = 1.0) -> np.ndarray:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate cylinder-flow forward accuracy figure."""
     _base = results_dir() / "ns-grid" / "forward" / "cylinder"
     _path = _base / "result.json"
     _fields = _base / "fields.npz"
@@ -135,7 +139,7 @@ def generate(out_dir: Path) -> None:
         )
         nu_label = f"$\\nu$ = {nu_show:.3g}" if nu_show is not None else ""
 
-        for ax, solver in zip(field_axes, _FIELD_SOLVERS):
+        for ax, solver in zip(field_axes, _FIELD_SOLVERS, strict=False):
             label, color, _, _ = solver_props(solver)
             if fields_data is not None:
                 key = f"{solver}_{_NU_IDX}"
@@ -161,7 +165,7 @@ def generate(out_dir: Path) -> None:
                 va="top",
                 fontsize=7.0,
                 color=color,
-                bbox=dict(fc="white", ec="none", alpha=0.7, pad=1.0),
+                bbox={"fc": "white", "ec": "none", "alpha": 0.7, "pad": 1.0},
             )
             ax.axis("off")
 

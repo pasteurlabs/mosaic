@@ -1,8 +1,12 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Plots for the forward suite (agreement, physical_laws)."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -41,7 +45,7 @@ def _smooth(arr: np.ndarray, sigma: float = 2.0) -> np.ndarray:
     return np.convolve(arr, k, mode="same")
 
 
-def _resolve_field_to_2d(field_to_2d):
+def _resolve_field_to_2d(field_to_2d: Any) -> Any:
     """Return the field→2D callable, falling back to vorticity_2d."""
     return field_to_2d if field_to_2d is not None else vorticity_2d
 
@@ -63,18 +67,18 @@ _SUITE = "forward"
 
 
 def _agreement_plot_scalar(
-    cfg,
-    npz,
-    solver_names,
-    sweep_vals,
-    sweep_key,
-    styles,
-    out_dir,
-    save,
+    cfg: Any,
+    npz: Any,
+    solver_names: Any,
+    sweep_vals: Any,
+    sweep_key: Any,
+    styles: Any,
+    out_dir: Any,
+    save: Any,
     *,
     output_key: str,
     units: dict | None,
-):
+) -> Any:
     """Scalar-output agreement: plot the scalar value vs sweep parameter."""
     n_vals = len(sweep_vals)
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -106,7 +110,9 @@ def _agreement_plot_scalar(
     return fig
 
 
-def _agreement_curve_panel(ax_top, ax_bot, x, npz, solver_names, i, styles):
+def _agreement_curve_panel(
+    ax_top: Any, ax_bot: Any, x: Any, npz: Any, solver_names: Any, i: Any, styles: Any
+) -> None:
     """Render one column (one sweep value) of the curve-mode agreement grid."""
     cons_key = f"consensus_{i}"
     consensus = _smooth(npz[cons_key]) if cons_key in npz else None
@@ -126,19 +132,19 @@ def _agreement_curve_panel(ax_top, ax_bot, x, npz, solver_names, i, styles):
 
 
 def _agreement_plot_curves(
-    cfg,
-    npz,
-    sample_consensus,
-    solver_names,
-    sweep_vals,
-    sweep_key,
-    styles,
-    out_dir,
-    save,
+    cfg: Any,
+    npz: Any,
+    sample_consensus: Any,
+    solver_names: Any,
+    sweep_vals: Any,
+    sweep_key: Any,
+    styles: Any,
+    out_dir: Any,
+    save: Any,
     *,
     agreement_xlabel: str,
     agreement_ylabel: str,
-):
+) -> Any:
     """1-D observable agreement (RDF g(r), P(k), etc.) with residual row."""
     n_vals = len(sweep_vals)
     x = npz["x_axis"] if "x_axis" in npz else np.arange(len(sample_consensus))
@@ -167,19 +173,19 @@ def _agreement_plot_curves(
 
 
 def _agreement_raw_fields(
-    cfg,
-    npz,
-    solver_names,
-    sweep_vals,
-    sweep_key,
-    styles,
-    f2d,
-    out_dir,
-    save,
+    cfg: Any,
+    npz: Any,
+    solver_names: Any,
+    sweep_vals: Any,
+    sweep_key: Any,
+    styles: Any,
+    f2d: Any,
+    out_dir: Any,
+    save: Any,
     *,
     field_cmap: str,
     field_symmetric: bool,
-):
+) -> None:
     """Raw field grid: rows=solvers, cols=sweep values."""
     raw_panels = []
     for name in solver_names:
@@ -202,20 +208,20 @@ def _agreement_raw_fields(
 
 
 def _agreement_error_fields(
-    cfg,
-    npz,
-    solver_names,
-    sweep_vals,
-    sweep_key,
-    styles,
-    reference_label,
-    f2d,
-    out_dir,
-    save,
+    cfg: Any,
+    npz: Any,
+    solver_names: Any,
+    sweep_vals: Any,
+    sweep_key: Any,
+    styles: Any,
+    reference_label: Any,
+    f2d: Any,
+    out_dir: Any,
+    save: Any,
     *,
     field_cmap: str,
     field_symmetric: bool,
-):
+) -> Any:
     """Field error grid: rows=solvers, cols=sweep values."""
     panels = []
     for name in solver_names:
@@ -260,7 +266,7 @@ def _agreement_math_label(sweep_key: str) -> str:
     return _AGREEMENT_MATH_LABELS.get(sweep_key, f"${sweep_key}$")
 
 
-def _alias_to_display_name(cfg) -> dict[str, str]:
+def _alias_to_display_name(cfg: Any) -> dict[str, str]:
     """Map ``SOLVER_STYLES`` alias keys → ``cfg.solvers[i].name`` display names.
 
     ``result.json`` keys per-solver entries by the display name (``spec.name``),
@@ -271,7 +277,7 @@ def _alias_to_display_name(cfg) -> dict[str, str]:
     return {s.dir.replace("-", "_"): s.name for s in cfg.solvers}
 
 
-def _agreement_paper_plot_curves(ax, data: dict, seen: set[str], cfg) -> None:
+def _agreement_paper_plot_curves(ax: Any, data: dict, seen: set[str], cfg: Any) -> None:
     """Plot per-solver error-vs-sweep curves onto ``ax``.
 
     Walks :data:`NS_ORDER`, drawing every solver that produced at least
@@ -318,7 +324,7 @@ def _agreement_paper_plot_curves(ax, data: dict, seen: set[str], cfg) -> None:
 
 
 def _agreement_paper_style_axis(
-    ax,
+    ax: Any,
     *,
     title: str,
     x_label: str,
@@ -406,7 +412,9 @@ def _agreement_paper_figure(
     return fig
 
 
-def _agreement_convergence(cfg, exp_key, suffix, save, out_dir):
+def _agreement_convergence(
+    cfg: Any, exp_key: Any, suffix: Any, save: Any, out_dir: Any
+) -> None:
     """Error vs sweep param line chart (paper styling).
 
     Renders the canonical single-experiment paper-styled figure
@@ -421,18 +429,18 @@ def _agreement_convergence(cfg, exp_key, suffix, save, out_dir):
 
 
 def _agreement_power_spectra(
-    cfg,
-    npz,
-    solver_names,
-    sweep_vals,
-    sweep_key,
-    styles,
-    out_dir,
-    save,
+    cfg: Any,
+    npz: Any,
+    solver_names: Any,
+    sweep_vals: Any,
+    sweep_key: Any,
+    styles: Any,
+    out_dir: Any,
+    save: Any,
     *,
-    power_spectrum_fn,
+    power_spectrum_fn: Any,
     domain_extent: float,
-):
+) -> None:
     """Power spectra (one subplot per sweep value, all solvers overlaid)."""
     if power_spectrum_fn is None:
         return
@@ -461,10 +469,10 @@ def _agreement_power_spectra(
         save_fig(fig_ps, "power_spectra", out_dir)
 
 
-def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
+def plot_agreement(
     cfg: Problem,
     *,
-    field_to_2d=None,
+    field_to_2d: Any = None,
     output_key: str = "output",
     domain_extent: float = 2 * np.pi,
     resolution_key: str = "N",
@@ -476,12 +484,12 @@ def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
     field_cmap: str = "RdBu_r",
     field_symmetric: bool = True,
     diagnostic_fields: bool = True,
-    power_spectrum_fn=None,
+    power_spectrum_fn: Any = None,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "agreement",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Field-error grid (rows=solvers × cols=sweep values) + optional power spectra."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
@@ -579,16 +587,16 @@ def plot_agreement(  # noqa: PLR0913 — explicit-deps signature
 def plot_forward_fields(
     cfg: Problem,
     *,
-    field_to_2d=None,
+    field_to_2d: Any = None,
     domain_extent: float = 2 * np.pi,
     field_cmap: str = "RdBu_r",
     field_symmetric: bool = True,
-    power_spectrum_fn=None,
+    power_spectrum_fn: Any = None,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "cylinder",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Field grids (rows=solvers × cols=sweep values) + optional power spectra.
 
     Like :func:`plot_agreement` but without the convergence-vs-sweep
@@ -708,8 +716,8 @@ def _pa_n_to_elements(N: int, subdir: str) -> int:
 
 
 def _pa_set_axis_ticks(
-    ax, vals: list, is_log_x: bool, is_log_y: bool, is_elements: bool = False
-):
+    ax: Any, vals: list, is_log_x: bool, is_log_y: bool, is_elements: bool = False
+) -> None:
     tick_x = sorted(set(vals))
     if len(tick_x) > 4:
         idx = np.round(np.linspace(0, len(tick_x) - 1, 4)).astype(int)
@@ -736,7 +744,7 @@ def _pa_set_axis_ticks(
     ax.tick_params(axis="y", labelsize=7.5)
 
 
-def _pa_ke_analytic(sweep_key: str, params: list[str], phys: dict, subdir: str):
+def _pa_ke_analytic(sweep_key: str, params: list[str], phys: dict, subdir: str) -> Any:
     if subdir != "ns-grid":
         return None
     dt = float(phys.get("dt", 0.01))
@@ -762,12 +770,12 @@ def _pa_ke_analytic(sweep_key: str, params: list[str], phys: dict, subdir: str):
 
 
 def _pa_plot_ns_row(
-    axes_row,
+    axes_row: Any,
     sweep_key: str,
     log_x: bool,
     use_elements: bool,
     data: dict,
-    cfg,
+    cfg: Any,
     ns_seen: set[str],
     row_is_top: bool,
 ) -> None:
@@ -845,7 +853,7 @@ def _pa_plot_ns_row(
 
 
 def _pa_plot_ns_grid(
-    cfg,
+    cfg: Any,
     sweeps_data: dict[str, dict],
     domain_title: str,
     out_path: Path | None,
@@ -892,7 +900,7 @@ def _pa_plot_ns_grid(
 
 
 def _pa_plot_fem_single(
-    cfg,
+    cfg: Any,
     data: dict,
     spec: dict,
     out_path: Path | None,
@@ -986,8 +994,8 @@ def plot_physical_laws(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "physical_laws",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Per-experiment physical-laws figure (paper styling).
 
     Reads ``<results>/<cfg.name>/forward/<exp_key>{suffix}/result.json``

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Plots for the gradient evaluation suite (fd_check, param_sweep, jacobian_svd)."""
 
 from __future__ import annotations
@@ -45,7 +48,9 @@ _SUITE = "gradient"
 _FD_CHECK_BLACKLIST = {"fenics_ns", "su2"}
 
 
-def _fd_check_plot_curves(ax_err, ax_cos, data: dict, seen: dict[str, set]) -> None:
+def _fd_check_plot_curves(
+    ax_err: Any, ax_cos: Any, data: dict, seen: dict[str, set]
+) -> None:
     """Plot per-solver rel-error + cosine curves into ``ax_err``/``ax_cos``."""
     for solver, sdata in data["by_solver"].items():
         alias = resolve_solver_alias(solver)
@@ -83,7 +88,9 @@ def _fd_check_plot_curves(ax_err, ax_cos, data: dict, seen: dict[str, set]) -> N
             seen["fem"].add(alias)
 
 
-def _fd_check_style_axes(ax_err, ax_cos, *, title: str, ylabel_left: bool) -> None:
+def _fd_check_style_axes(
+    ax_err: Any, ax_cos: Any, *, title: str, ylabel_left: bool
+) -> None:
     """Apply consistent axis labels / ticks to one (err, cos) column."""
     ax_err.set_title(title)
     ax_err.set_xlabel(r"Perturbation size $\varepsilon$")
@@ -100,7 +107,7 @@ def _fd_check_style_axes(ax_err, ax_cos, *, title: str, ylabel_left: bool) -> No
 
 
 def _fd_check_paper_figure(
-    cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir
+    cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Any
 ) -> plt.Figure:
     """Paper-styled 1×2 rel-error + cosine figure for a single fd_check run."""
     plt.rcParams.update(PAPER_RCPARAMS)
@@ -157,7 +164,7 @@ _SVD_YSCALE_THRESHOLD = 1e-3
 _SVD_YSCALE_COMPRESS = 0.18
 
 
-def _svd_piecewise_log_forward(y):
+def _svd_piecewise_log_forward(y: Any) -> Any:
     y = np.asarray(y, dtype=float)
     log_thresh = np.log10(_SVD_YSCALE_THRESHOLD)
     safe = np.where(y > 0, y, 1e-30)
@@ -169,7 +176,7 @@ def _svd_piecewise_log_forward(y):
     )
 
 
-def _svd_piecewise_log_inverse(t):
+def _svd_piecewise_log_inverse(t: Any) -> Any:
     t = np.asarray(t, dtype=float)
     log_thresh = np.log10(_SVD_YSCALE_THRESHOLD)
     return np.where(
@@ -198,7 +205,7 @@ def _svd_solver_color_label(solver: str) -> tuple[str, str]:
     return "#888888", solver
 
 
-def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
+def _svd_panels(fig: Any, axes: Any, variants: Any, solvers: Any, n_show: Any) -> list:
     """Fill axes panels; return legend handles for the variant lines."""
     legend_handles: list[mlines.Line2D] = []
     legend_built = False
@@ -292,7 +299,7 @@ def _jacobian_svd_paper_figure(
     exp_key: str,
     suffix: str,
     save: bool,
-    out_dir,
+    out_dir: Any,
     n_show: int | None = None,
 ) -> plt.Figure | None:
     """Paper-styled per-solver SVD spectrum grid for a single jacobian_svd run.
@@ -356,7 +363,7 @@ _HORIZON_JITTER_LOG = 0.04
 _HORIZON_EXCLUDED = {"fenics_ns", "su2", "openfoam"}
 
 
-def _horizon_plot_curves(axes, data: dict, seen: set[str]) -> bool:
+def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
     """Plot per-solver grad-norm / best-ε FD error / cosine into ``axes``."""
     from collections import defaultdict
 
@@ -458,7 +465,7 @@ def _horizon_plot_curves(axes, data: dict, seen: set[str]) -> bool:
     return failure_seen
 
 
-def _horizon_style_axes(axes) -> None:
+def _horizon_style_axes(axes: Any) -> None:
     """Apply consistent titles / labels to (ax_gn, ax_err, ax_cos)."""
     ax_gn, ax_err, ax_cos = axes
     ax_gn.set_title("Gradient norm")
@@ -474,7 +481,7 @@ def _horizon_style_axes(axes) -> None:
     ax_cos.set_ylabel("$1 -$ cosine")
 
 
-def _horizon_attach_legend(fig, seen: set[str], failure_seen: bool) -> None:
+def _horizon_attach_legend(fig: Any, seen: set[str], failure_seen: bool) -> None:
     """Build the solver legend (plus an optional × failure handle)."""
     handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in seen])
     if failure_seen:
@@ -506,7 +513,7 @@ def _horizon_attach_legend(fig, seen: set[str], failure_seen: bool) -> None:
 
 
 def _horizon_sweep_paper_figure(
-    cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir
+    cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Any
 ) -> plt.Figure:
     """Paper-styled 1×3 grad-norm / FD-error / cosine figure."""
     plt.rcParams.update(PAPER_RCPARAMS)
@@ -534,14 +541,14 @@ def _horizon_sweep_paper_figure(
 def plot_fd_check(
     cfg: Problem,
     *,
-    ic_to_2d=None,
+    ic_to_2d: Any = None,
     ic_key: str = "ic",
     diagnostic_fields: bool = True,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "fd_check",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """FD-check experiment plot: curves (paper styling) + gradient-magnitude fields.
 
     The rel-error / cosine curves use the inlined paper-styling helpers
@@ -637,8 +644,8 @@ def _plot_error_per_solver(
     by_solver: dict,
     styles: dict,
     title_prefix: str,
-    x_keys,
-    x_to_float,
+    x_keys: Any,
+    x_to_float: Any,
     x_label: str,
     x_scale: str = "linear",
 ) -> plt.Figure:
@@ -705,8 +712,8 @@ def _plot_best_eps_overlay(
     by_solver: dict,
     styles: dict,
     title: str,
-    x_keys,
-    x_to_float,
+    x_keys: Any,
+    x_to_float: Any,
     x_label: str,
     x_scale: str = "linear",
 ) -> plt.Figure:
@@ -747,7 +754,7 @@ def _plot_best_eps_overlay(
 # ── shared U-curve helper ─────────────────────────────────────────────────────
 
 
-def _best_eps_series(param_results: dict, param_keys, metric: str) -> list[float]:
+def _best_eps_series(param_results: dict, param_keys: Any, metric: str) -> list[float]:
     """For each param key pick the best-ε value of `metric` across the eps sweep."""
     return [
         min(param_results[k]["eps_sweep"].values(), key=lambda v: v["rel_error_mean"])[
@@ -759,7 +766,7 @@ def _best_eps_series(param_results: dict, param_keys, metric: str) -> list[float
 
 def _plot_ucurve_overlay(
     by_solver: dict,
-    sweep_keys,
+    sweep_keys: Any,
     sweep_label: str,
     styles: dict,
     title_prefix: str,
@@ -817,8 +824,8 @@ def plot_param_sweep(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "param_sweep",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
@@ -909,14 +916,14 @@ def plot_param_sweep(
 def plot_jacobian_svd(
     cfg: Problem,
     *,
-    ic_to_2d=None,
+    ic_to_2d: Any = None,
     ic_key: str = "ic",
     diagnostic_fields: bool = True,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "jacobian_svd",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Jacobian-SVD experiment plot: paper spectra grid + cross-cosine + fields.
 
     The per-solver singular spectrum grid uses the inlined paper-styling
@@ -1073,8 +1080,8 @@ def plot_horizon_sweep(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "horizon_sweep",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Horizon-sweep experiment plot: paper curves + auxiliary diagnostics.
 
     The grad-norm / best-ε error / cosine curves use the inlined
@@ -1170,8 +1177,8 @@ def plot_jacobian_svd_comparison(
     *,
     save: bool = True,
     out_name: str = "jacobian_svd_comparison",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Overlay per-solver singular value spectra across multiple jacobian_svd variants.
 
     One subplot per solver; one line per variant (e.g. different nu or steps).

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """IC-recovery kernel for the ns-3d-grid problem.
 
 The IC-recovery pipeline used to be a bespoke ``run_recovery`` harness that
@@ -29,6 +32,8 @@ suites.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -151,7 +156,7 @@ def _project_ic_with_log(
     label: str,
     is_vel: bool,
     domain_extent: float,
-    console,
+    console: Any,
 ) -> jax.Array:
     """Project to divergence-free and log; no-op for non-velocity fields."""
     if not is_vel:
@@ -173,9 +178,9 @@ def _build_per_seed_ics(
     phys: dict,
     perturb_sigma: float,
     ic_init_type: str,
-    console,
+    console: Any,
     *,
-    make_ic,
+    make_ic: Any,
     domain_extent: float,
 ) -> tuple[dict, dict, dict]:
     """Build per-seed (true IC, initial IC, max divergence) dicts.
@@ -225,7 +230,7 @@ def _build_sigma_perturbed_ic(
     sigma_val: float,
     seed: int,
     is_vel: bool,
-    console,
+    console: Any,
     *,
     domain_extent: float,
 ) -> jax.Array:
@@ -240,14 +245,14 @@ def _build_sigma_perturbed_ic(
 def _compute_targets_for_val(
     name: str,
     exp_key: str,
-    val,
+    val: Any,
     sweep_key: str,
     ic_seeds: list[int],
     ic_true_dict: dict,
     phys: dict,
-    t,
+    t: Any,
     *,
-    make_inputs,
+    make_inputs: Any,
     output_key: str,
     domain_extent: float,
 ) -> dict:
@@ -281,13 +286,13 @@ def _compute_targets_for_val(
 def _aggregate_trial_results(
     trial_results: list[dict],
     primary_ic_err_hist: list[float],
-    val,
+    val: Any,
     perturb_sigma: float,
     is_sigma_sweep: bool,
     is_multi_seed: bool,
     failure_threshold: float,
-    max_div,
-    ic_true,
+    max_div: Any,
+    ic_true: Any,
 ) -> dict:
     """Aggregate per-seed trial results into a single by_sweep entry."""
     all_fice = [r["final_ic_error"] for r in trial_results]
@@ -347,33 +352,33 @@ def _compute_recovery_failure_values(by_sweep: dict, sweep_values: list) -> dict
 # ── Per-seed trial body ───────────────────────────────────────────────────────
 
 
-def _run_one_seed_trial(  # noqa: PLR0913 — explicit-deps signature
+def _run_one_seed_trial(
     *,
     name: str,
-    t,
+    t: Any,
     color: str,
-    val,
+    val: Any,
     s: int,
-    ic_init_k,
-    ic_true_k,
-    target_k,
+    ic_init_k: Any,
+    ic_true_k: Any,
+    target_k: Any,
     is_primary: bool,
     phys: dict,
     sweep_key: str,
     is_sigma_sweep: bool,
     is_multi_seed: bool,
     is_vel: bool,
-    rep_val,
+    rep_val: Any,
     snap_interval: int,
     lr: float,
     max_iters: int,
     patience: int,
     record_diagnostics: bool,
-    optim_fn,
-    div_fn,
-    grad_proj_fn,
-    make_inputs,
-    error_fn,
+    optim_fn: Any,
+    div_fn: Any,
+    grad_proj_fn: Any,
+    make_inputs: Any,
+    error_fn: Any,
     output_key: str,
     domain_extent: float,
     exp_key: str,
@@ -381,7 +386,7 @@ def _run_one_seed_trial(  # noqa: PLR0913 — explicit-deps signature
     """Run a single per-seed optimisation trial; returns a result dict or None."""
     from mosaic.benchmarks.core.console import console
 
-    def loss_fn(ic, _t=t, _target=target_k, _val=val):
+    def loss_fn(ic: Any, _t: Any = t, _target: Any = target_k, _val: Any = val) -> Any:
         _phys_kw = phys if is_sigma_sweep else {**phys, sweep_key: _val}
         inp = make_inputs(
             name,
@@ -402,7 +407,14 @@ def _run_one_seed_trial(  # noqa: PLR0913 — explicit-deps signature
         f"optim start (init_err={ic_error_init:.4g})"
     )
 
-    def _log_iter(i, loss, _n=name, _c=color, _v=val, _st=seed_tag):
+    def _log_iter(
+        i: Any,
+        loss: Any,
+        _n: Any = name,
+        _c: Any = color,
+        _v: Any = val,
+        _st: Any = seed_tag,
+    ) -> None:
         console.print(
             f"  [{_c}]{_n}[/] {sweep_key}={_v}{_st} iter {i}/{max_iters} loss={loss:.4g}"
         )
@@ -458,14 +470,14 @@ def _run_one_seed_trial(  # noqa: PLR0913 — explicit-deps signature
 def _precompute_sigma_target(
     *,
     name: str,
-    t,
-    ic_true,
+    t: Any,
+    ic_true: Any,
     phys: dict,
-    make_inputs,
+    make_inputs: Any,
     output_key: str,
     domain_extent: float,
     exp_key: str,
-):
+) -> Any:
     """For sigma sweep: forward the primary true IC to produce the shared target.
 
     Returns the target array, or ``None`` if forward failed or output invalid.
@@ -520,7 +532,7 @@ def _build_solver_snap_layout(
     sweep_values: list,
     by_sweep_name: dict,
     failure_threshold: float,
-    rep_val,
+    rep_val: Any,
     fallback_ic: np.ndarray,
     is_sigma_sweep: bool,
 ) -> dict[str, np.ndarray]:
@@ -598,19 +610,19 @@ def _build_solver_snap_layout(
 
 
 def _recovery_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    run,
-    cfg,
-    out_dir,
-    snapshots,
-    shared_extras,
-    ic,
-    sweep_values,
-    sweep_key,
-    snapshot_filename,
-    snapshot_prefixes,
-    **_,
+    run: Any,
+    cfg: Any,
+    out_dir: Any,
+    snapshots: Any,
+    shared_extras: Any,
+    ic: Any,
+    sweep_values: Any,
+    sweep_key: Any,
+    snapshot_filename: Any,
+    snapshot_prefixes: Any,
+    **_: Any,
 ) -> dict:
     """Cross-solver post-pass: failure_values + per-solver NPZ + result dict.
 
@@ -731,7 +743,7 @@ def _recovery_aggregate(
         "final_perturbed",
     ),
 )
-def recovery(t, ctx: KernelContext) -> dict:
+def recovery(t: Any, ctx: KernelContext) -> dict:
     """One (solver, sweep-value) IC-recovery point.
 
     Builds per-seed (true, perturbed) ICs, computes the target for the

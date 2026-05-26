@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Problem and SolverSpec dataclasses — the only shared abstraction."""
 
 from __future__ import annotations
@@ -58,15 +61,17 @@ class AdStrategy(str, Enum):
 class ExperimentFn(Protocol):
     """``(cfg, tags, **overrides) -> dict`` — runs one experiment."""
 
-    def __call__(
-        self, cfg: Problem, tags: dict[str, str], **overrides: Any
-    ) -> dict: ...
+    def __call__(self, cfg: Problem, tags: dict[str, str], **overrides: Any) -> dict:
+        """Run one experiment and return results."""
+        ...
 
 
 class PlotFn(Protocol):
     """``(cfg, **kw) -> Any`` — renders the plots for one experiment."""
 
-    def __call__(self, cfg: Problem, **kw: Any) -> Any: ...
+    def __call__(self, cfg: Problem, **kw: Any) -> Any:
+        """Render plots for one experiment."""
+        ...
 
 
 def _build_sweep_plot_runner(
@@ -82,7 +87,7 @@ def _build_sweep_plot_runner(
     dispatches to the user's ``fn`` once per partition.
     """
 
-    def _runner(cfg) -> None:
+    def _runner(cfg: Problem) -> None:
         from .io import load_experiment_result, results_dir
 
         cells: list[dict] = []
@@ -193,7 +198,7 @@ class Problem:
             _user_fn = getattr(self.make_inputs, "_mosaic_raw", self.make_inputs)
             _spec_by_name = {s.name: s for s in self.solvers}
 
-            def _by_name(name: str, ic, **physics):
+            def _by_name(name: str, ic: Any, **physics: Any) -> Any:
                 return _user_fn(_spec_by_name[name], ic, **physics)
 
             _by_name._mosaic_raw = _user_fn
@@ -216,10 +221,12 @@ class Problem:
     # ── IC / experiment introspection ────────────────────────────────────
 
     def get_ic_description(self, ic_name: str) -> str:
+        """Return the description for the IC registered under *ic_name*."""
         ic = self.make_ic.get(ic_name)
         return ic.description if isinstance(ic, IcSpec) else ""
 
     def get_ic_plot_params(self, ic_name: str) -> dict:
+        """Return the plot params for the IC registered under *ic_name*."""
         ic = self.make_ic.get(ic_name)
         return ic.plot_params if isinstance(ic, IcSpec) else {}
 
@@ -274,7 +281,7 @@ class Problem:
         reduce: Callable | None = None,
         status_check: list | None = None,
         coords: dict[str, Any] | None = None,
-        **config,
+        **config: Any,
     ) -> None:
         """Register an experiment at ``key``.
 
@@ -486,9 +493,11 @@ class Problem:
 
     @staticmethod
     def _find_first_list_axis(run: dict) -> tuple[str, str, list] | None:
-        """Locate the first list-valued field nested one level inside a
-        dict-valued kwarg of ``run``. Returns ``(parent_key, sub_key, values)``
-        or ``None`` when no sweep axis is present."""
+        """Locate the first list-valued field nested one level inside a dict-valued kwarg of ``run``.
+
+        Returns ``(parent_key, sub_key, values)``
+        or ``None`` when no sweep axis is present.
+        """
         for parent_key, parent_val in run.items():
             if not isinstance(parent_val, dict):
                 continue
@@ -498,8 +507,7 @@ class Problem:
         return None
 
     def _collect_sweep_axes(self, config: dict) -> list:
-        """Return ``[(path_tuple, list_values), ...]`` for every list-of-primitives
-        nested one level inside a dict kwarg.
+        """Return ``[(path_tuple, list_values), ...]`` for every list-of-primitives nested inside a dict kwarg.
 
         Sweeps are detected **only inside dict kwargs** (e.g.
         ``physics={"nu": [...]}``), not at the top level — ``runs=[...]``
@@ -535,7 +543,7 @@ class Problem:
         # Treat numbers / strings / dicts as sweep elements. Skip nested lists
         # (they're presumed to be already-list-valued single elements like
         # ``[16, 32, 64]`` for sweep keys).
-        return isinstance(head, (int, float, str, bool, dict))
+        return isinstance(head, int | float | str | bool | dict)
 
     @staticmethod
     def _validate_axes(axes: list) -> int:
@@ -582,7 +590,7 @@ class Problem:
         return sub_config, suffix, coords
 
     @staticmethod
-    def _fmt_val(value) -> str:
+    def _fmt_val(value: object) -> str:
         """Filesystem-safe formatting of a sweep value (no dots, no slashes).
 
         Floats outside the readable decimal range (``< 1e-3`` or ``>= 1e6``)
@@ -660,15 +668,15 @@ class Problem:
             }
 
         def fn(
-            cfg,
-            tags,
-            _kernel=kernel,
-            _kw=run_kwargs,
-            _kcfg=kcfg,
-            _suite=suite,
-            _exp=exp_key_str or suite,
-            **call_kw,
-        ):
+            cfg: Problem,
+            tags: dict[str, str],
+            _kernel: Callable = kernel,
+            _kw: dict = run_kwargs,
+            _kcfg: dict = kcfg,
+            _suite: str = suite,
+            _exp: str = exp_key_str or suite,
+            **call_kw: Any,
+        ) -> dict:
             return run_experiment(
                 cfg,
                 tags,
@@ -727,13 +735,13 @@ class Problem:
         make_ic = self.make_ic
 
         def _exp_fn(
-            cfg,
-            tags,
-            _name=name,
-            _params=plot_params,
-            _make_ic=make_ic,
-            **_kw,
-        ):
+            cfg: Problem,
+            tags: dict[str, str],
+            _name: str = name,
+            _params: dict = plot_params,
+            _make_ic: dict = make_ic,
+            **_kw: Any,
+        ) -> dict:
             return run_ic(cfg, _name, make_ic=_make_ic, params=_params)
 
         self.experiments[f"ics/{name}"] = Experiment(
@@ -746,14 +754,14 @@ class Problem:
             # resolve the per-IC output dir, then forward to the user-supplied
             # ``plot`` with all required args.
             def _ic_plot_dispatch(
-                cfg,
+                cfg: Problem,
                 *,
                 suffix: str = "",
-                _name=name,
-                _params=plot_params,
-                _plot=plot,
-                **_kw,
-            ):
+                _name: str = name,
+                _params: dict = plot_params,
+                _plot: Callable = plot,
+                **_kw: Any,
+            ) -> None:
                 from mosaic.benchmarks.core.io import results_dir
 
                 out_dir = results_dir() / cfg.name / "ics" / _name
@@ -853,7 +861,7 @@ class Problem:
             view_sigs[view_name] = sig_params
             union_params.update(sig_params)
 
-        def _composite(cfg, **kw):
+        def _composite(cfg: Problem, **kw: Any) -> None:
             from mosaic.benchmarks.core.console import print_warn
 
             for view_name, fn in views.items():
@@ -935,7 +943,13 @@ class Problem:
             # variants like jacobian_svd). The plot reads from its own dir.
             wants_exp_key = "exp_key" in plot_sig
 
-            def _multi(cfg, _p=plot, _subs=sub_keys, _wants=wants_exp_key, **kw):
+            def _multi(
+                cfg: Problem,
+                _p: Callable = plot,
+                _subs: list[str] = sub_keys,
+                _wants: bool = wants_exp_key,
+                **kw: Any,
+            ) -> None:
                 for sub_key in _subs:
                     if _wants:
                         _, _, exp_key_str = sub_key.partition("/")
@@ -1008,7 +1022,8 @@ class IcSpec:
     description: str = ""
     plot_params: dict = field(default_factory=dict)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Call the wrapped IC generator function."""
         return self.fn(*args, **kwargs)
 
 
@@ -1186,10 +1201,10 @@ def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
 
         backend = meta.get("backend", "")
 
-        def _txt(key: str, default: str = "") -> str:
+        def _txt(key: str, default: str = "", _meta: dict = meta) -> str:
             # YAML block scalars (``description: >`` / ``narrative: >``) yield
             # a trailing newline that callers don't want. Strip it.
-            val = meta.get(key, default)
+            val = _meta.get(key, default)
             return val.strip() if isinstance(val, str) else val
 
         # Color / linestyle / marker are presentation-only; they live in

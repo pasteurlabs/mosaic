@@ -1,3 +1,7 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: F405
+
 """Thermal topology optimisation on an arbitrary hexahedral mesh.
 
 Uses FEniCS (DOLFIN 2019.1.0) + dolfin-adjoint to solve steady-state heat
@@ -14,8 +18,8 @@ from typing import Any
 
 import meshio
 import numpy as np
-from dolfin import *
-from dolfin_adjoint import *
+from dolfin import *  # noqa: F403
+from dolfin_adjoint import *  # noqa: F403
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
@@ -46,7 +50,7 @@ class OutputSchema(
         _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
     )
 ):
-    pass
+    """FEniCS thermal solver output schema."""
 
 
 # ---------------------------------------------------------------------------

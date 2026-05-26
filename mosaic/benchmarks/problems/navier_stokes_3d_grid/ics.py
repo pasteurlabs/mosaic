@@ -1,12 +1,17 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Initial conditions and the analytic 3D TGV reference."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import jax
 import jax.numpy as jnp
 
 
-def _tgv3d(N: int, L: float = 2 * jnp.pi, seed: int = 0, **_) -> jax.Array:
+def _tgv3d(N: int, L: float = 2 * jnp.pi, seed: int = 0, **_: Any) -> jax.Array:
     """3D Taylor-Green vortex: u=sin(x)cos(y)cos(z), v=-cos(x)sin(y)cos(z), w=0.
 
     Divergence-free initial condition for the canonical 3D TGV benchmark.
@@ -32,7 +37,7 @@ def _abc_flow(
     B: float = 0.8165,  # sqrt(2/3)
     C: float = 0.5774,  # sqrt(1/3)
     seed: int = 0,
-    **_,
+    **_: Any,
 ) -> jax.Array:
     """Arnold-Beltrami-Childress (ABC) flow — a 3D Beltrami field.
 
@@ -64,7 +69,7 @@ def _rand_div_free_3d(
     seed: int = 0,
     k_peak: float = 2.0,
     k_width: float = 1.0,
-    **_,
+    **_: Any,
 ) -> jax.Array:
     """Random divergence-free 3D velocity field via curl of a spectral vector potential.
 

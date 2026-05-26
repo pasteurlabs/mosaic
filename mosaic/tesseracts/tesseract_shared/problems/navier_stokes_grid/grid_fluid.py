@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Numpy utilities for 2D grid-based fluid dynamics problems.
 
 All functions operate on raw numpy arrays with shape convention (N, N, 1, 2)

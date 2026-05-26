@@ -1,3 +1,7 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: ANN001
+
 """GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
 
 Periodic-only IPCS (tentative velocity → pressure Poisson → velocity correction)
@@ -62,7 +66,7 @@ def tentative_vel_2d_kernel(  # mosaic:physics
     inv_2h: float,
     inv_h2: float,
     nu: float,
-):
+) -> None:
     """2-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u).
 
     [2D-only function]
@@ -100,7 +104,7 @@ def divergence_2d_kernel(  # mosaic:physics
     uy: wp.array2d(dtype=wp.float32),
     div: wp.array2d(dtype=wp.float32),
     inv_2h_over_dt: float,
-):
+) -> None:
     """Compute ∇·u*/dt for 2-D pressure Poisson RHS.
 
     [2D-only function]
@@ -123,7 +127,7 @@ def pressure_correct_2d_kernel(  # mosaic:physics
     uy_new: wp.array2d(dtype=wp.float32),
     dt: float,
     inv_2h: float,
-):
+) -> None:
     """u^(n+1) = u* - dt·∇p for 2-D IPCS.
 
     [2D-only function]
@@ -157,7 +161,7 @@ def tentative_vel_3d_kernel(  # mosaic:physics
     inv_2h: float,
     inv_h2: float,
     nu: float,
-):
+) -> None:
     """3-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u)."""
     i, j, k = wp.tid()
     n = ux.shape[0]
@@ -231,7 +235,7 @@ def divergence_3d_kernel(  # mosaic:physics
     uz: wp.array3d(dtype=wp.float32),
     div: wp.array3d(dtype=wp.float32),
     inv_2h_over_dt: float,
-):
+) -> None:
     """Compute ∇·u*/dt for pressure Poisson RHS (periodic BCs in all directions)."""
     i, j, k = wp.tid()
     n = ux.shape[0]
@@ -259,7 +263,7 @@ def pressure_correct_3d_kernel(  # mosaic:physics
     uz_new: wp.array3d(dtype=wp.float32),
     dt: float,
     inv_2h: float,
-):
+) -> None:
     """u^(n+1) = u* - dt·∇p (periodic BCs in all directions)."""
     i, j, k = wp.tid()
     n = p.shape[0]
@@ -1078,7 +1082,9 @@ def ns2d_solve(  # mosaic:physics
     domain_extent: float,
     num_iters_poisson: int,
     device: str = "cpu",
-):
+) -> tuple[
+    np.ndarray, wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array
+]:
     """Run periodic 2-D incompressible NS via IPCS (Chorin-Temam).
 
     [2D-only function]
@@ -1386,7 +1392,9 @@ def ns3d_solve(  # mosaic:physics
     num_iters_poisson_3d: int,
     device: str = "cpu",
     adjoint_grad_clip: float | None = None,
-):
+) -> tuple[
+    np.ndarray, wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array
+]:
     """Run 3-D incompressible NS via IPCS (Chorin-Temam).
 
     Returns:
@@ -1652,6 +1660,8 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
 class InputSchema(
     make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
 ):
+    """Warp NS solver input schema."""
+
     num_iters_poisson: int = Field(
         default=500,
         description=(
@@ -1672,7 +1682,7 @@ class InputSchema(
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
-    pass
+    """Warp NS solver output schema."""
 
 
 # ============================================================
@@ -1709,6 +1719,7 @@ def _check_periodic(inputs: InputSchema) -> None:
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
+    """Run the Warp NS forward solver (2-D or 3-D) and return the result."""
     _check_periodic(inputs)
     v0 = np.asarray(inputs.v0, dtype=np.float32)
     nu = float(inputs.viscosity[0])

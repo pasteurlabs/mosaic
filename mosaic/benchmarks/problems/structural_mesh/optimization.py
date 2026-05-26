@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """SIMP topology-optimization kernel for the structural-mesh problem.
 
 This module hosts the topology-optimization kernel (:func:`topopt`). The
@@ -11,6 +14,8 @@ optimization helpers are imported from the shared module.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -29,17 +34,17 @@ from mosaic.benchmarks.problems.shared.optimization import (
 
 
 def _topopt_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    run,
-    cfg,
-    out_dir,
-    snapshots,
-    shared_extras,
-    ic,
-    snapshot_filename,
-    snapshot_prefixes,
-    **_,
+    run: Any,
+    cfg: Any,
+    out_dir: Any,
+    snapshots: Any,
+    shared_extras: Any,
+    ic: Any,
+    snapshot_filename: Any,
+    snapshot_prefixes: Any,
+    **_: Any,
 ) -> dict:
     """Aggregate per-solver topopt output → result dict + NPZ.
 
@@ -68,7 +73,7 @@ def _topopt_aggregate(
     snapshot_filename="topopt_fields.npz",
     snapshot_prefixes=("rho_final", "rho_history"),
 )
-def topopt(t, ctx: KernelContext) -> dict:
+def topopt(t: Any, ctx: KernelContext) -> dict:
     """One solver's full topology-optimisation run.
 
     Builds the initial density from the IC factory, then runs either Adam
@@ -105,7 +110,7 @@ def topopt(t, ctx: KernelContext) -> dict:
     # max_iters=100. Each branch reads its own knobs from optim_cfg with
     # those defaults so callers don't need to know which optimiser is in
     # use.
-    def loss_components(rho, _t):
+    def loss_components(rho: Any, _t: Any) -> Any:
         inp = ctx.make_inputs(ctx.name, rho, **phys)
         compliance = apply_tesseract(_t, inp)[compliance_key]
         vol_penalty = penalty_weight * (jnp.mean(rho) - v_frac) ** 2
@@ -114,7 +119,7 @@ def topopt(t, ctx: KernelContext) -> dict:
             "vol_frac": jnp.mean(rho),
         }
 
-    def loss_with_aux(rho, _t=t):
+    def loss_with_aux(rho: Any, _t: Any = t) -> Any:
         return loss_components(rho, _t)
 
     aux_history: dict = {}
@@ -124,7 +129,9 @@ def topopt(t, ctx: KernelContext) -> dict:
     if optimizer == "bfgs":
         max_iters = int(optim_cfg.get("max_iters", 100))
 
-        def _log_iter(i, loss_val, _n=ctx.name, _m=max_iters):
+        def _log_iter(
+            i: Any, loss_val: Any, _n: Any = ctx.name, _m: Any = max_iters
+        ) -> None:
             from mosaic.benchmarks.core.console import console
 
             console.print(

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Explicit, extensible status checks for per-experiment classification.
 
 A status check is a callable ``(summary) -> tuple[str, str] | None`` where
@@ -89,8 +92,7 @@ class OptimizationSummary:
 
 
 def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if the solver's error exceeds ``k × peer-median`` on at least
-    half of the sweep points where it produced valid results."""
+    """Anomaly if the solver's error exceeds ``k × peer-median`` on at least half of valid sweep points."""
 
     def _check(s: ForwardSummary) -> CheckOutcome:
         bad: list[tuple[Any, float, float]] = []
@@ -171,8 +173,7 @@ def max_rel_err(threshold: float) -> Callable[[FdCheckSummary], CheckOutcome]:
 
 
 def rel_err_peer_outlier(k: float) -> Callable[[FdCheckSummary], CheckOutcome]:
-    """Gradient fd_check: anomaly if best-ε rel_err > ``k × peer median``
-    (requires ≥3 valid peers; otherwise the check is skipped)."""
+    """Gradient fd_check: anomaly if best-ε rel_err > ``k × peer median`` (requires ≥3 valid peers)."""
 
     def _check(s: FdCheckSummary) -> CheckOutcome:
         if s.best_rel_err is None or s.peer_rel_err_median is None:
@@ -192,8 +193,10 @@ def rel_err_peer_outlier(k: float) -> Callable[[FdCheckSummary], CheckOutcome]:
 
 
 def max_final_ratio(threshold: float) -> Callable[[OptimizationSummary], CheckOutcome]:
-    """Optimization suite: anomaly if final/initial loss ratio > ``threshold``
-    (i.e. the optimiser didn't reduce loss by at least ``1 - threshold``)."""
+    """Optimization suite: anomaly if final/initial loss ratio > ``threshold``.
+
+    Fires when the optimiser didn't reduce loss sufficiently.
+    """
 
     def _check(s: OptimizationSummary) -> CheckOutcome:
         if s.final_initial_ratio is None or s.final_initial_ratio <= threshold:
@@ -207,8 +210,10 @@ def max_final_ratio(threshold: float) -> Callable[[OptimizationSummary], CheckOu
 
 
 def peer_final_loss_k(k: float) -> Callable[[OptimizationSummary], CheckOutcome]:
-    """Optimization suite (sweeps only): anomaly if at any sweep value this
-    solver's final loss is more than ``k×`` the best peer final loss."""
+    """Optimization suite (sweeps only): anomaly if final loss exceeds ``k×`` the best peer.
+
+    Fires when any sweep value has this solver's final loss above the threshold.
+    """
 
     def _check(s: OptimizationSummary) -> CheckOutcome:
         if not s.peer_final_loss_by_sweep:

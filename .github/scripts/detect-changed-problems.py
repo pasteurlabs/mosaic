@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Map git-diff file paths to Mosaic problem names.
 
 Reads changed file paths from stdin (one per line) and prints a

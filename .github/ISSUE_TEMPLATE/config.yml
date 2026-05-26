@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Tesseract community
+    url: https://si-tesseract.discourse.group/
+    about: General questions, support, or discussion about Mosaic and Tesseract.

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared visual style for all Mosaic paper figures.
 
 Import RCPARAMS, SOLVER_STYLES, solver ordering lists, and helper
@@ -5,6 +8,8 @@ functions from here rather than duplicating them across plot scripts.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
@@ -160,6 +165,6 @@ def dedup_handles(handles: list) -> list:
     return out
 
 
-def rc_context():
+def rc_context() -> Any:
     """Return ``plt.rc_context(RCPARAMS)`` for use as a context manager."""
     return plt.rc_context(RCPARAMS)

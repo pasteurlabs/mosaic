@@ -1,8 +1,12 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-problem plots for the navier-stokes-3d-grid recovery experiments."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
@@ -169,7 +173,7 @@ def _plot_recovery_summary(
 
 
 def _draw_convergence_panel(
-    ax, v, by_sweep: dict, styles: dict, sweep_key: str
+    ax: Any, v: Any, by_sweep: dict, styles: dict, sweep_key: str
 ) -> None:
     """Draw one convergence-curve panel for sweep value *v*."""
     for name, s_results in by_sweep.items():
@@ -242,7 +246,9 @@ def _plot_convergence_curves(
         save_fig(fig_lc, "convergence_curves", out_dir)
 
 
-def _imshow_panel(ax, fig, arr, v_use, cmap="RdBu_r") -> None:
+def _imshow_panel(
+    ax: Any, fig: Any, arr: Any, v_use: Any, cmap: str = "RdBu_r"
+) -> None:
     """Wrap ``imshow_with_cbar`` with the recovery plots' shared options."""
     imshow_with_cbar(
         ax,
@@ -258,11 +264,11 @@ def _imshow_panel(ax, fig, arr, v_use, cmap="RdBu_r") -> None:
 
 def _plot_ic_field_comparison(
     cfg: Problem,
-    npz,
+    npz: Any,
     solver_names: list,
     ic_true: np.ndarray,
     ic_init: np.ndarray,
-    f_ic,
+    f_ic: Any,
     styles: dict,
     sweep_key: str,
     rep_horizon_str: str,
@@ -322,9 +328,9 @@ def _plot_ic_field_comparison(
 
 def _plot_final_state_comparison(
     cfg: Problem,
-    npz,
+    npz: Any,
     solver_names: list,
-    f_out,
+    f_out: Any,
     styles: dict,
     sweep_key: str,
     rep_horizon: float,
@@ -378,13 +384,13 @@ def _plot_final_state_comparison(
 
 
 def _draw_per_sigma_row(
-    axes_sg,
-    fig_sg,
+    axes_sg: Any,
+    fig_sg: Any,
     j: int,
     si: int,
     name: str,
-    npz,
-    f_vis,
+    npz: Any,
+    f_vis: Any,
     styles: dict,
     shared: dict,
 ) -> None:
@@ -428,10 +434,10 @@ def _draw_per_sigma_row(
 
 def _plot_per_sigma_grid(
     cfg: Problem,
-    npz,
+    npz: Any,
     solver_names: list,
     ic_true: np.ndarray,
-    f_vis,
+    f_vis: Any,
     styles: dict,
     sweep_key: str,
     out_dir: Path,
@@ -506,7 +512,7 @@ def _solver_order_for(cfg_name: str) -> list[str]:
 
 
 def _paper_plot_ns_recovery(
-    ax, data: dict, solver_order: list[str], title: str, seen: set[str]
+    ax: Any, data: dict, solver_order: list[str], title: str, seen: set[str]
 ) -> None:
     """Draw NS-style by_sweep convergence into *ax* from ``data``."""
     by_sweep = data.get("by_sweep") or data.get("by_horizon", {})
@@ -641,14 +647,14 @@ def plot_recovery(
     cfg: Problem,
     threshold: float | None = None,
     *,
-    field_to_2d=None,
-    ic_to_2d=None,
+    field_to_2d: Any = None,
+    ic_to_2d: Any = None,
     save: bool = True,
     suffix: str = "",
     ic: str | None = None,
     exp_key: str = "optimization",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Recovery per-experiment plot — paper figure + extras.
 
     The canonical paper-styled IC-recovery convergence figure is generated
@@ -788,12 +794,12 @@ def plot_recovery(
 
 def _render_recovery_evolution_gifs(
     out_dir: Path,
-    npz,
+    npz: Any,
     solver_names: list,
-    f_ic,
+    f_ic: Any,
     styles: dict,
     sweep_key: str,
-    rep_horizon,
+    rep_horizon: Any,
 ) -> None:
     """Write ``recovery_evolution_<solver>.gif`` per solver from ``ic_history_<j>``.
 
@@ -834,15 +840,15 @@ def _render_recovery_evolution_gifs(
         fig.tight_layout()
 
         def _update(
-            idx,
-            _im=im,
-            _title=title,
-            _frames=frames_2d,
-            _label=label,
-            _n=n_frames,
-            _sk=sweep_key,
-            _sv=rep_horizon,
-        ):
+            idx: Any,
+            _im: Any = im,
+            _title: Any = title,
+            _frames: Any = frames_2d,
+            _label: Any = label,
+            _n: Any = n_frames,
+            _sk: Any = sweep_key,
+            _sv: Any = rep_horizon,
+        ) -> Any:
             _im.set_data(_frames[idx].T)
             _title.set_text(f"{_label} — snapshot {idx + 1} / {_n}  ({_sk}={_sv})")
             return _im, _title

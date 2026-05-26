@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate the Mosaic visual abstract (teaser / Figure 1).
 
 Four-section horizontal flow:
@@ -65,7 +68,16 @@ def _load_flow_data() -> dict | None:
     }
 
 
-def _card(ax, cx, cy, w, h, name, fs, alpha=0.85) -> None:
+def _card(
+    ax: plt.Axes,
+    cx: float,
+    cy: float,
+    w: float,
+    h: float,
+    name: str,
+    fs: float,
+    alpha: float = 0.85,
+) -> None:
     ax.add_patch(
         FancyBboxPatch(
             (cx - w / 2, cy - h / 2),
@@ -93,7 +105,7 @@ def _card(ax, cx, cy, w, h, name, fs, alpha=0.85) -> None:
     )
 
 
-def _section_title(ax, text: str) -> None:
+def _section_title(ax: plt.Axes, text: str) -> None:
     ax.text(
         0.50,
         1.05,
@@ -107,7 +119,7 @@ def _section_title(ax, text: str) -> None:
     )
 
 
-def _flow_arrow(fig, x0, y0, x1, y1) -> None:
+def _flow_arrow(fig: plt.Figure, x0: float, y0: float, x1: float, y1: float) -> None:
     fig.patches.append(
         FancyArrowPatch(
             (x0, y0),
@@ -123,7 +135,9 @@ def _flow_arrow(fig, x0, y0, x1, y1) -> None:
     )
 
 
-def _colored_arrow(fig, x0, y0, x1, y1, color) -> None:
+def _colored_arrow(
+    fig: plt.Figure, x0: float, y0: float, x1: float, y1: float, color: str
+) -> None:
     rad = -0.15 if y1 > y0 else 0.15
     conn = f"arc3,rad={rad}"
     style = "->,head_width=5,head_length=4"
@@ -157,7 +171,9 @@ def _colored_arrow(fig, x0, y0, x1, y1, color) -> None:
     )
 
 
-def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
+def _draw_flow_panel(
+    ax: plt.Axes, flow_field: np.ndarray, profile: np.ndarray, border_color: str
+) -> None:
     ux = flow_field[:, :, 0]
     uy = flow_field[:, :, 1]
     speed = np.sqrt(ux**2 + uy**2)
@@ -191,7 +207,7 @@ def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
     else:
         p_norm = np.ones_like(profile)
 
-    for y, pn in list(zip(ys, p_norm))[::2]:
+    for y, pn in list(zip(ys, p_norm, strict=False))[::2]:
         length = max_arrow_len * max(pn, 0.05)
         x_tip = length
         x_tail = -0.01
@@ -235,7 +251,7 @@ def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
     ax.axis("off")
 
 
-def _draw_backends(ax) -> None:
+def _draw_backends(ax: plt.Axes) -> None:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
@@ -263,7 +279,7 @@ _FWD_LABEL_FIG: tuple[float, float] | None = None
 _VJP_LABEL_FIG: tuple[float, float] | None = None
 
 
-def _draw_interface(ax) -> None:
+def _draw_interface(ax: plt.Axes) -> None:
     global _FWD_LABEL_FIG, _VJP_LABEL_FIG
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -324,7 +340,7 @@ def _draw_interface(ax) -> None:
     _VJP_LABEL_FIG = (tcx + tw / 2 - 0.02, tcy - 0.08)
 
 
-def _draw_tasks(ax, data) -> None:
+def _draw_tasks(ax: plt.Axes, data: dict | None) -> None:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
@@ -376,7 +392,7 @@ def _draw_tasks(ax, data) -> None:
     )
 
 
-def _draw_results(ax) -> None:
+def _draw_results(ax: plt.Axes) -> None:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
@@ -454,6 +470,7 @@ def _draw_results(ax) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate the Mosaic visual abstract figure."""
     data = _load_flow_data()
 
     with plt.rc_context(_RCPARAMS):
@@ -470,7 +487,7 @@ def generate(out_dir: Path) -> None:
             x += w + gap
 
         axes = []
-        for pos, w in zip(positions, widths):
+        for pos, w in zip(positions, widths, strict=False):
             axes.append(fig.add_axes([pos, bottom, w, h]))
 
         _draw_backends(axes[0])

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """3D incompressible Navier-Stokes on a triply-periodic grid.
 
 The problem definition is split across these modules:
@@ -175,7 +178,10 @@ problem.add_ic(
 problem.add_experiment(
     "forward/baseline",
     agreement,
-    plot_description="Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across 3D solvers.",
+    plot_description=(
+        "Relative error vs grid resolution N at steps=1; validates single-step forward"
+        " accuracy across 3D solvers."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": [8, 16, 32], "nu": 0.05, "dt": 0.01, "steps": 1},
     plot=plot_agreement,
@@ -183,7 +189,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/agreement",
     agreement,
-    plot_description="3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a fine-grid consensus reference.",
+    plot_description=(
+        "3D velocity magnitude fields and kinetic energy spectra per solver, swept over"
+        " viscosity \u03bd, compared against a fine-grid consensus reference."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={
         "N": 16,
@@ -198,7 +207,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
-    plot_description="Divergence RMS and kinetic energy vs grid resolution N, step count, and viscosity ν for each solver; diagnoses incompressibility and energy decay in 3D.",
+    plot_description=(
+        "Divergence RMS and kinetic energy vs grid resolution N, step count, and"
+        " viscosity \u03bd for each solver; diagnoses incompressibility and energy decay in 3D."
+    ),
     diagnostics=DIAGNOSTICS,
     runs=[
         {
@@ -285,7 +297,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/fd_check",
     fd_check,
-    plot_description="Finite-difference gradient error U-curves and direction cosine vs perturbation ε for each solver on the 3D Taylor-Green vortex IC.",
+    plot_description=(
+        "Finite-difference gradient error U-curves and direction cosine vs perturbation"
+        " \u03b5 for each solver on the 3D Taylor-Green vortex IC."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": 10},
     fd={
@@ -307,7 +322,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/horizon_sweep",
     param_sweep,
-    plot_description="Gradient norm, finite-difference error, and direction cosine vs rollout horizon T = steps × dt for each solver on the 3D TGV.",
+    plot_description=(
+        "Gradient norm, finite-difference error, and direction cosine vs rollout"
+        " horizon T = steps \u00d7 dt for each solver on the 3D TGV."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": [10, 20, 40, 80, 160]},
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
@@ -316,7 +334,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/horizon_sweep_limits",
     horizon_sweep_limits,
-    plot_description="Per-solver rollout-limit table reporting step count at first failure, failure type, and wall time per successful step.",
+    plot_description=(
+        "Per-solver rollout-limit table reporting step count at first failure,"
+        " failure type, and wall time per successful step."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={
         "N": 20,
@@ -329,7 +350,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd",
     jacobian_svd,
-    plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian for the 3D TGV IC.",
+    plot_description=(
+        "Per-solver singular value spectra and cross-solver cosine similarity of the"
+        " Jacobian for the 3D TGV IC."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
@@ -338,7 +362,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
     jacobian_svd,
-    plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at an extended rollout horizon (steps=20).",
+    plot_description=(
+        "Per-solver singular value spectra and cross-solver cosine similarity of the"
+        " Jacobian at an extended rollout horizon (steps=20)."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
@@ -347,7 +374,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
     jacobian_svd,
-    plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at a long rollout horizon (steps=40).",
+    plot_description=(
+        "Per-solver singular value spectra and cross-solver cosine similarity of the"
+        " Jacobian at a long rollout horizon (steps=40)."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
@@ -356,7 +386,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
     jacobian_svd,
-    plot_description="Per-solver singular value spectra and cross-solver cosine similarity of the Jacobian at higher viscosity (ν=0.01).",
+    plot_description=(
+        "Per-solver singular value spectra and cross-solver cosine similarity of the"
+        " Jacobian at higher viscosity (\u03bd=0.01)."
+    ),
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
@@ -368,7 +401,10 @@ problem.add_experiment(
     recovery,
     optimizer="bfgs_proj",
     _exp_key="recovery_constant_ic_bfgs_proj",
-    plot_description="Final IC recovery error per solver from zero-initialised L-BFGS optimisation with divergence-free projection.",
+    plot_description=(
+        "Final IC recovery error per solver from zero-initialised L-BFGS optimisation"
+        " with divergence-free projection."
+    ),
     ic={"name": "rand_div_free", "seed": 0},
     physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
     optim={

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-domain ``_extra/cost_overview`` rendering.
 
 A single-column figure showing per-N cost metrics (forward time, VJP time,
@@ -10,6 +13,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from typing import Any
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
@@ -75,7 +79,13 @@ def _extract_fail(by_n: dict) -> tuple[int | None, str | None]:
 
 
 def _add_failure(
-    ax, last_el: float, fail_el: float, last_val: float, ft: str, color: str, ls: str
+    ax: Any,
+    last_el: float,
+    fail_el: float,
+    last_val: float,
+    ft: str,
+    color: str,
+    ls: str,
 ) -> None:
     """Draw horizontal connector + failure marker from last ok point to fail N."""
     fm = _FAILURE_MARKER.get(ft, "D")
@@ -113,7 +123,7 @@ def _n_to_elements(N: int, subdir: str) -> int:
     return N
 
 
-def plot_cost_overview(  # noqa: C901 — paper-fig assembler; refactor tracked separately
+def plot_cost_overview(
     out_dir: Path,
     *,
     subdir: str,
@@ -143,7 +153,7 @@ def plot_cost_overview(  # noqa: C901 — paper-fig assembler; refactor tracked 
     all_solvers = sorted(set(fwd_data) | set(vjp_data))
 
     # Pre-detect which rows will have data so the figure can size to fit.
-    def _any_pts(data, extractor):
+    def _any_pts(data: Any, extractor: Any) -> bool:
         return any(extractor(data.get(s, {})) for s in all_solvers)
 
     want_fwd = _any_pts(fwd_data, _extract_by_n)
@@ -347,7 +357,7 @@ _DEFAULT_ORDER_BY_PROBLEM: dict[str, list[str]] = {
 
 
 def plot_cost_overview_for(
-    cfg,
+    cfg: Any,
     *,
     steady_state: bool,
     solver_order: list[str] | None = None,

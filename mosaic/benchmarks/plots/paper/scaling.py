@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Solver scaling — forward time, VJP time, gradient overhead ratio vs DOFs.
 
 One figure per domain (4 total):
@@ -108,15 +111,15 @@ def _make_domain_fig(domain_label: str, subdir: str, order: list[str]):
         if not fwd_pts and not vjp_pts:
             continue
 
-        label, color, ls, mk = solver_props(solver)
-        kw = dict(
-            color=color,
-            linestyle=ls,
-            marker=mk,
-            markersize=4,
-            markeredgewidth=0,
-            linewidth=1.5,
-        )
+        _label, color, ls, mk = solver_props(solver)
+        kw = {
+            "color": color,
+            "linestyle": ls,
+            "marker": mk,
+            "markersize": 4,
+            "markeredgewidth": 0,
+            "linewidth": 1.5,
+        }
 
         if fwd_pts:
             ns_f = sorted(fwd_pts)
@@ -231,15 +234,15 @@ def _make_ns_combined_fig() -> plt.Figure:
             if not fwd_pts and not vjp_pts:
                 continue
 
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.5,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.5,
+            }
 
             if fwd_pts:
                 ns_f = sorted(fwd_pts)
@@ -321,8 +324,11 @@ _DEALII_SOLVERS: frozenset[str] = frozenset({"dealii_structural", "dealii_heat"}
 
 
 def _make_fem_combined_fig() -> plt.Figure:
-    """Structural (top) and Thermal (bottom) with a single shared legend.
-    deal.II VJP data is suppressed (no native adjoint)."""
+    """Make combined Structural (top) and Thermal (bottom) figure.
+
+    deal.II VJP data is suppressed (no native adjoint). A single shared legend
+    is used.
+    """
     plt.rcParams.update(RCPARAMS)
 
     fem_domains = [
@@ -359,15 +365,15 @@ def _make_fem_combined_fig() -> plt.Figure:
             if not fwd_pts and not vjp_pts:
                 continue
 
-            label, color, ls, mk = solver_props(solver)
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.5,
-            )
+            _label, color, ls, mk = solver_props(solver)
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": mk,
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.5,
+            }
 
             if fwd_pts:
                 ns_f = sorted(fwd_pts)
@@ -447,6 +453,7 @@ def _make_fem_combined_fig() -> plt.Figure:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate scaling figures for NS and FEM domains."""
     # Combined NS figure (2D + 3D, shared legend)
     fig = _make_ns_combined_fig()
     for ext in ("pdf", "png"):

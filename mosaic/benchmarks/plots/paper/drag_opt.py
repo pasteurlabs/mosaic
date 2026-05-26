@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Drag optimisation at Re=20.
 
 Layout: 3-column figure
@@ -114,7 +117,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
     ax_prof.set_ylabel("$y$")
 
     # ── Profile history imshow panels ─────────────────────────────────────────
-    for idx, (ax_im, solver) in enumerate(zip(imshow_axes, hist_solvers)):
+    for idx, (ax_im, solver) in enumerate(zip(imshow_axes, hist_solvers, strict=False)):
         hist = profiles[f"profile_history_{solver}"]  # (n_snaps, ny)
         label, color, _, _ = solver_props(solver)
 
@@ -144,7 +147,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
             va="top",
             fontsize=7.0,
             color=color,
-            bbox=dict(fc="white", ec="none", alpha=0.75, pad=1.0),
+            bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1.0},
         )
 
         if idx == 0:
@@ -194,6 +197,7 @@ def _plot_re(re_tag: str, out_dir: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate drag optimisation figure."""
     with plt.rc_context(RCPARAMS):
         _plot_re("re20", out_dir)
 

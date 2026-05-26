@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared matplotlib style and utilities for all benchmark plots.
 
 Single :data:`RCPARAMS` profile — publication-quality, sized for the
@@ -16,14 +19,13 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
 
 from mosaic.benchmarks.core.console import print_saved
 
@@ -76,7 +78,7 @@ def apply_style() -> None:
     plt.rcParams.update(RCPARAMS)
 
 
-def rc_context():
+def rc_context() -> object:
     """Return ``plt.rc_context(RCPARAMS)`` — context manager for scoped use."""
     return plt.rc_context(RCPARAMS)
 
@@ -251,7 +253,7 @@ def save_fig(fig: Figure, stem: str, out_dir: Path) -> None:
 
 def fig_shared_legend(
     fig: Figure,
-    axes,
+    axes: Any,
     *,
     ncol: int | None = None,
     bottom: float = 0.12,
@@ -309,7 +311,7 @@ def subplots_grid(
     *,
     panel_w: float = 4.0,
     panel_h: float = 4.0,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[Figure, list]:
     """Create a balanced grid of *n* subplots, wrapping after *ncols* columns.
 
@@ -354,7 +356,7 @@ _FAMILY_PALETTE: dict[str, list[str]] = {
 
 
 def solver_line_props(idx: int, color: str, *, marker: bool = True) -> dict:
-    """kwargs for ax.plot/loglog/semilogy that keep N solvers distinguishable.
+    """Kwargs for ax.plot/loglog/semilogy that keep N solvers distinguishable.
 
     Legacy API: idx selects linestyle from the global cycle; color is fixed.
     Prefer solver_plot_props() when solver_styles() is already available.
@@ -511,11 +513,10 @@ def density_projection_2d(rho: np.ndarray) -> np.ndarray:
 
 
 def grad_magnitude_2d(g: np.ndarray) -> np.ndarray:
-    """Gradient magnitude slice. Handles multiple shapes:
-    - 2-D velocity gradient  (N, N, 1, 2) → sqrt(gx² + gy²)
-    - 3-D velocity gradient  (N, N, N, 3) → |curl(z=0 slice)| via vorticity_2d
-    - 3-D scalar gradient    (N, N, N)    → |g| at the middle-z slice
-    - 1-D flat field         (N,)         → reshape assuming nx²/4 cells, mid-y slice
+    """Gradient magnitude slice for multiple field shapes.
+
+    Handles: 2-D velocity (N,N,1,2), 3-D velocity (N,N,N,3),
+    3-D scalar (N,N,N), and 1-D flat field (N,).
     """
     if g.ndim == 4 and g.shape[-1] == 2:
         return np.sqrt(g[:, :, 0, 0] ** 2 + g[:, :, 0, 1] ** 2)
@@ -537,8 +538,10 @@ def grad_magnitude_2d(g: np.ndarray) -> np.ndarray:
 # ── imshow + colorbar ─────────────────────────────────────────────────────────
 
 
-def imshow_with_cbar(ax, fig: Figure, data: np.ndarray, **imshow_kwargs):
-    """imshow with a locatable colorbar matched to the axes height."""
+def imshow_with_cbar(
+    ax: Any, fig: Figure, data: np.ndarray, **imshow_kwargs: Any
+) -> Any:
+    """Imshow with a locatable colorbar matched to the axes height."""
     im = ax.imshow(data, **imshow_kwargs)
     cax = make_axes_locatable(ax).append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im, cax=cax)

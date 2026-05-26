@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate a JSON matrix of (suite, problem, hardware) combos for CI.
 
 Outputs a JSON object with a single key ``include`` whose value is a list of

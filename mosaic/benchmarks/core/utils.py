@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Array math, run iteration, and solver-filtering utilities.
 
 Filesystem I/O (JSON/CSV/NPZ helpers, ``save_experiment``,
@@ -12,6 +15,8 @@ contains the non-I/O utilities that don't fit anywhere more specific:
 """
 
 from __future__ import annotations
+
+from collections.abc import Iterator
 
 import jax
 import jax.numpy as jnp
@@ -38,21 +43,22 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
     return (stacked * mask).sum(axis=0) / count
 
 
-def l2_error_rel(pred, ref) -> float:
+def l2_error_rel(pred: object, ref: object) -> float:
     """Relative L2 error ||pred-ref|| / ||ref||."""
     return float(
         jnp.sqrt(jnp.mean((pred - ref) ** 2)) / (jnp.sqrt(jnp.mean(ref**2)) + 1e-30)
     )
 
 
-def is_valid(arr) -> bool:
+def is_valid(arr: object) -> bool:
+    """Return True iff *arr* is not None and contains only finite values."""
     return arr is not None and bool(jnp.all(jnp.isfinite(arr)))
 
 
 # ── Run iteration ─────────────────────────────────────────────────────────────
 
 
-def iter_runs(runs: list[dict] | None, cli_overrides: dict):
+def iter_runs(runs: list[dict] | None, cli_overrides: dict) -> Iterator[dict]:
     """Yield run configs from a runs list, applying debug and IC filters.
 
     Each run dict has named sub-groups: ic, physics, sweep, fd, optim, jacobian,

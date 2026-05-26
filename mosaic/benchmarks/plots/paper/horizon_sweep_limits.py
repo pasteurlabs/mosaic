@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: VJP rollout-length limit sweep for ns-3d-grid.
 
 2-row layout:
@@ -72,7 +75,7 @@ _X_BREAK_LOG = 2.5
 _X_UPPER_FACTOR = 0.4
 
 
-def _x_log_forward(steps):
+def _x_log_forward(steps: np.ndarray) -> np.ndarray:
     steps = np.asarray(steps, dtype=float)
     log_x = np.log10(np.maximum(steps, 1e-10))
     return np.where(
@@ -82,7 +85,7 @@ def _x_log_forward(steps):
     )
 
 
-def _x_log_inverse(disp):
+def _x_log_inverse(disp: np.ndarray) -> np.ndarray:
     disp = np.asarray(disp, dtype=float)
     log_x = np.where(
         disp <= _X_BREAK_LOG,
@@ -137,6 +140,7 @@ def _openfoam_fd_vjp_estimate(
 
 
 def generate(out_dir: Path) -> None:
+    """Generate VJP rollout-length limit sweep figure for ns-3d-grid."""
     path = (
         results_dir()
         / "ns-3d-grid"
@@ -165,7 +169,7 @@ def generate(out_dir: Path) -> None:
 
         # ── Phase 0: pre-compute OpenFOAM FD estimate ────────────────────────
         _all_sweep_steps = sorted(
-            {int(k) for sv in data["by_solver"].values() for k in sv.keys()}
+            {int(k) for sv in data["by_solver"].values() for k in sv}
         )
         _of_fd = _openfoam_fd_vjp_estimate(_all_sweep_steps, N_sweep=20)
 
@@ -195,20 +199,20 @@ def generate(out_dir: Path) -> None:
             cpu_only = all(v == 0.0 for v in ok_vram) and bool(ok_vram)
             has_ram = any(r is not None and r > 0 for r in ok_ram)
 
-            solver_data[solver] = dict(
-                ok_steps=ok_steps,
-                ok_vram=ok_vram,
-                ok_wall=ok_wall,
-                ok_gnorm=ok_gnorm,
-                ok_ram=ok_ram,
-                cpu_only=cpu_only,
-                has_ram=has_ram,
-                fail_step=fail_step,
-                fail_vram=fail_vram,
-                fail_wall=fail_wall,
-                fail_ram=fail_ram,
-                fail_ft=fail_ft,
-            )
+            solver_data[solver] = {
+                "ok_steps": ok_steps,
+                "ok_vram": ok_vram,
+                "ok_wall": ok_wall,
+                "ok_gnorm": ok_gnorm,
+                "ok_ram": ok_ram,
+                "cpu_only": cpu_only,
+                "has_ram": has_ram,
+                "fail_step": fail_step,
+                "fail_vram": fail_vram,
+                "fail_wall": fail_wall,
+                "fail_ram": fail_ram,
+                "fail_ft": fail_ft,
+            }
 
         # ── Phase 1b: piecewise y-scale parameters ────────────────────────────
         _all_log10 = [
@@ -284,19 +288,23 @@ def generate(out_dir: Path) -> None:
 
             jx = jitter_x.get((solver, fail_step)) if fail_step is not None else None
 
-            kw = dict(
-                color=color,
-                linestyle=ls,
-                marker="o",
-                markersize=4,
-                markeredgewidth=0,
-                linewidth=1.6,
-                label=label,
-                zorder=3,
-            )
-            kw_line = dict(
-                color=color, linestyle=ls, marker="none", linewidth=1.6, zorder=3
-            )
+            kw = {
+                "color": color,
+                "linestyle": ls,
+                "marker": "o",
+                "markersize": 4,
+                "markeredgewidth": 0,
+                "linewidth": 1.6,
+                "label": label,
+                "zorder": 3,
+            }
+            kw_line = {
+                "color": color,
+                "linestyle": ls,
+                "marker": "none",
+                "linewidth": 1.6,
+                "zorder": 3,
+            }
 
             if ok_steps:
                 # ── (V)RAM ───────────────────────────────────────────────────
@@ -361,15 +369,15 @@ def generate(out_dir: Path) -> None:
             # ── Failure markers on VRAM and wall-time axes ────────────────────
             if fail_step is not None:
                 fm = _FAILURE_MARKER.get(fail_ft, "D")
-                mk_kw = dict(
-                    marker=fm,
-                    color=color,
-                    markersize=9,
-                    markeredgewidth=1.2,
-                    markeredgecolor="white",
-                    linestyle="none",
-                    zorder=6,
-                )
+                mk_kw = {
+                    "marker": fm,
+                    "color": color,
+                    "markersize": 9,
+                    "markeredgewidth": 1.2,
+                    "markeredgecolor": "white",
+                    "linestyle": "none",
+                    "zorder": 6,
+                }
                 if not cpu_only:
                     ax_vr.loglog([jx], [max(fail_vram, 1)], **mk_kw)
                 ax_wt.semilogx(

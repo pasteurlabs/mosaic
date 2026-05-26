@@ -1,6 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Mesh / BC builders, reference FEM solve, input factory, and diagnostics."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -244,7 +249,7 @@ def _compute_K_ref_simple(dx: float, dy: float, dz: float) -> np.ndarray:
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
 
-def _get_thermal_compliance(thermal_compliance: np.ndarray, **_) -> float:
+def _get_thermal_compliance(thermal_compliance: np.ndarray, **_: Any) -> float:
     """Thermal compliance C = ∮ q_n T dΓ (work done by heat flux on temperature field)."""
     return float(thermal_compliance)
 
@@ -252,7 +257,7 @@ def _get_thermal_compliance(thermal_compliance: np.ndarray, **_) -> float:
 # ── Input factory ─────────────────────────────────────────────────────────────
 
 
-def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally individual kwargs
+def make_inputs(
     spec: SolverSpec,
     ic: np.ndarray,
     *,
@@ -269,7 +274,7 @@ def make_inputs(  # noqa: PLR0913 — physics/geometry knobs are intentionally i
     ic_field: str = "rho",
     target_from_two_gaussians: bool = False,
     target_rho_from_two_gaussians: bool = False,
-    **_,
+    **_: Any,
 ) -> dict:
     """Build solver input dict from IC and geometry parameters.
 

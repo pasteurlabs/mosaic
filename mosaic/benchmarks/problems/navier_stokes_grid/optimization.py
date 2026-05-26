@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Drag-optimisation kernel and helpers for the navier-stokes grid problem.
 
 This module hosts the ``drag_opt`` kernel and its private helpers, which
@@ -12,6 +15,8 @@ The two inner optimisation primitives ``_run_optim`` (Adam) and
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -37,11 +42,11 @@ _SUITE = "optimization"
 
 def _drag_capture_flow(
     name: str,
-    t,
-    profile,
+    t: Any,
+    profile: Any,
     phys: dict,
     *,
-    make_inputs,
+    make_inputs: Any,
     domain_extent: float,
 ) -> np.ndarray | None:
     """Forward the (initial or final) profile and return the velocity field if any."""
@@ -95,12 +100,12 @@ def _drag_build_solver_entry(
 
 def _drag_bfgs_final_drag(
     name: str,
-    t,
-    profile,
+    t: Any,
+    profile: Any,
     phys: dict,
     losses: list,
     *,
-    make_inputs,
+    make_inputs: Any,
     domain_extent: float,
 ) -> tuple[float, np.ndarray | None]:
     """Forward the final profile to get the drag scalar and velocity field.
@@ -125,8 +130,8 @@ def _drag_bfgs_final_drag(
 
 
 def _merge_drag_profiles_npz(
-    out_dir,
-    profile_init,
+    out_dir: Any,
+    profile_init: Any,
     profile_snaps: dict,
     profile_histories: dict,
 ) -> None:
@@ -144,7 +149,7 @@ def _merge_drag_profiles_npz(
 
 
 def _merge_drag_flow_fields_npz(
-    out_dir,
+    out_dir: Any,
     flow_init_snaps: dict,
     flow_snaps: dict,
 ) -> None:
@@ -168,10 +173,10 @@ def _merge_drag_flow_fields_npz(
 # ── drag_opt: shared body, Adam vs L-BFGS as an argument ─────────────────────
 
 
-def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
+def _drag_opt_adam_loop(
     name: str,
-    t,
-    profile_init,
+    t: Any,
+    profile_init: Any,
     phys: dict,
     *,
     lr: float = 1e-3,
@@ -181,8 +186,8 @@ def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
     snap_interval: int = 0,
     U_mean: float = 0.5,
     by_solver: dict,
-    write_partial,
-    make_inputs,
+    write_partial: Any,
+    make_inputs: Any,
     domain_extent: float,
 ) -> tuple[jax.Array, list, dict]:
     """Adam loop for drag_opt; supports per-iter partial-checkpoint flushes.
@@ -196,7 +201,7 @@ def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
     Returns ``(profile_final, profile_history, by_solver_entry)``.
     """
 
-    def loss_fn(p, _t=t):
+    def loss_fn(p: Any, _t: Any = t) -> Any:
         # domain_extent may already be inside phys (drag_opt sets it to 1.0);
         # avoid passing it twice by letting phys take precedence.
         _de = phys.get("domain_extent", domain_extent)
@@ -222,7 +227,7 @@ def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
     aux_history: dict = {}
     profile_history: list = []
 
-    def _log_iter(_i, _loss_val):
+    def _log_iter(_i: Any, _loss_val: Any) -> None:
         # ``_run_optim`` invokes us every ``log_interval`` iters. Rebuild
         # the cross-solver shim entry from the live aux traces and flush a
         # partial result. Grad-norms are kept inside ``_run_optim``'s local
@@ -271,17 +276,17 @@ def _drag_opt_adam_loop(  # noqa: PLR0913 — explicit-deps signature
 
 def _drag_opt_lbfgs_loop(
     name: str,
-    t,
-    profile_init,
+    t: Any,
+    profile_init: Any,
     phys: dict,
     *,
     max_iters: int = 50,
     flow_penalty_weight: float = 50.0,
     snap_interval: int = 0,
     U_mean: float = 0.5,
-    make_inputs,
+    make_inputs: Any,
     domain_extent: float,
-    **_unused,  # absorb Adam-only kwargs (by_solver, write_partial, lr, patience)
+    **_unused: Any,  # absorb Adam-only kwargs (by_solver, write_partial, lr, patience)
 ) -> tuple[jax.Array, list, dict]:
     """L-BFGS loop for drag_opt; no partial checkpointing.
 
@@ -293,7 +298,7 @@ def _drag_opt_lbfgs_loop(
     del _unused  # signature-parity slot, intentionally discarded
     profile_history: list = []
 
-    def loss_fn(p, _t=t):
+    def loss_fn(p: Any, _t: Any = t) -> Any:
         _de = phys.get("domain_extent", domain_extent)
         inp = make_inputs(
             name,
@@ -308,7 +313,7 @@ def _drag_opt_lbfgs_loop(
         flow_penalty = flow_penalty_weight * (jnp.mean(p) - U_mean) ** 2
         return jnp.abs(jnp.squeeze(drag_val)) + flow_penalty
 
-    def _log_iter(i, loss_val, _n=name):
+    def _log_iter(i: Any, loss_val: Any, _n: Any = name) -> None:
         from mosaic.benchmarks.core.console import console
 
         console.print(
@@ -357,14 +362,14 @@ def _drag_opt_lbfgs_loop(
 
 
 def _drag_opt_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    run,
-    cfg,
-    out_dir,
-    snapshots,
-    shared_extras,
-    **_,
+    run: Any,
+    cfg: Any,
+    out_dir: Any,
+    snapshots: Any,
+    shared_extras: Any,
+    **_: Any,
 ) -> dict:
     """Aggregate per-solver drag_opt output → result dict + profiles/flow npz.
 
@@ -448,7 +453,7 @@ def _drag_opt_aggregate(
         "flow_final",
     ),
 )
-def drag_opt(t, ctx: KernelContext) -> dict:
+def drag_opt(t: Any, ctx: KernelContext) -> dict:
     """One solver's full inflow-profile drag optimisation.
 
     Builds the initial 1-D inlet velocity profile from the IC factory,

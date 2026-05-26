@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Paper figure generators for the Mosaic benchmark paper.
 
 Each module exposes a ``generate(out_dir: Path) -> None`` function that
@@ -7,15 +10,15 @@ one or more PDF/PNG figures to *out_dir*.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 # NeurIPS textwidth in inches — change here when targeting a different venue.
 TEXTWIDTH = 5.5
 
 
 def pw(frac: float = 1.0) -> float:
-    """Return print width in inches for a figure included at *frac* × \\linewidth."""
+    r"""Return print width in inches for a figure included at *frac* × \\linewidth."""
     return TEXTWIDTH * frac
 
 
@@ -46,10 +49,12 @@ _REGISTRY: dict[str, str] = {
 
 
 def all_names() -> list[str]:
+    """Return names of all registered paper figure generators."""
     return list(_REGISTRY.keys())
 
 
 def get_generate_fn(name: str) -> Callable[[Path], None]:
+    """Return the generate function for the named figure module."""
     import importlib
 
     module_path = _REGISTRY[name]

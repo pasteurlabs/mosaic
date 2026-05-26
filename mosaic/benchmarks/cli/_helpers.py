@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Cross-command helpers for the mosaic CLI.
 
 Helpers live here when they're either (a) used by more than one subcommand
@@ -10,6 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -26,7 +30,7 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def _suite_components(suite: str, cfg) -> tuple[dict, callable]:
+def _suite_components(suite: str, cfg: Any) -> tuple[dict, callable]:
     """Return (experiments_dict, plot_fns_factory) for ``suite`` in ``cfg``.
 
     Filters ``cfg.experiments`` and ``cfg.plot_fns`` to the entries whose
@@ -59,9 +63,8 @@ def _suite_components(suite: str, cfg) -> tuple[dict, callable]:
     return exps, lambda: plot_fns
 
 
-def _apply_solver_filter(cfg, solvers_csv: str | None):
-    """Return cfg restricted to the requested solver names, or ``None`` to
-    signal "skip this problem entirely".
+def _apply_solver_filter(cfg: Any, solvers_csv: str | None) -> Any:
+    """Return cfg restricted to the requested solver names, or ``None`` to signal "skip".
 
     Accepts two forms:
 
@@ -128,7 +131,7 @@ def _parse_per_problem_solver_map(s: str) -> dict[str, list[str]]:
     return out
 
 
-def _resolve_gpu_pool(cfg, gpus: str | None):
+def _resolve_gpu_pool(cfg: Any, gpus: str | None) -> tuple[Any, str | None]:
     """Translate a `--gpus` string into a (cfg, gpus_csv) pair.
 
     Special value ``"none"`` (or ``"cpu"``): filter cfg to solvers with
@@ -151,7 +154,7 @@ def _resolve_gpu_pool(cfg, gpus: str | None):
     return cfg, gpus
 
 
-def _filter_hardware(cfg, hardware: str | None):
+def _filter_hardware(cfg: Any, hardware: str | None) -> Any:
     """Filter solvers by hardware target.
 
     Returns a (possibly filtered) cfg.  ``hardware`` is one of:
@@ -239,10 +242,12 @@ def _resolve_cfg_and_tags(
     return cfg, tags, gpus
 
 
-def _filter_solvers(cfg, tags: dict, solvers_csv: str | None):
-    """Backward-compat wrapper: cfg is already filtered by _resolve_cfg_and_tags,
-    but callers may still invoke this to get matching tags. A no-op when cfg
-    is already narrowed."""
+def _filter_solvers(cfg: Any, tags: dict, solvers_csv: str | None) -> tuple[Any, dict]:
+    """Backward-compat wrapper: returns (cfg, filtered_tags).
+
+    cfg is already filtered by _resolve_cfg_and_tags, but callers may still
+    invoke this to get matching tags. A no-op when cfg is already narrowed.
+    """
     if not solvers_csv:
         return cfg, tags
     keep_names = set(cfg.solver_names)
@@ -250,7 +255,13 @@ def _filter_solvers(cfg, tags: dict, solvers_csv: str | None):
     return cfg, filtered_tags
 
 
-def _plots_only(cfg, to_run, plot_fns, suite: str, verbose_errors: bool = False):
+def _plots_only(
+    cfg: Any,
+    to_run: list | None,
+    plot_fns: dict | None,
+    suite: str,
+    verbose_errors: bool = False,
+) -> None:
     if plot_fns is None:
         console.print("No plot functions registered for this suite.")
         return
@@ -348,10 +359,10 @@ def _run_prepare_problem(
 
 
 def _validate_solver_csv(solvers_csv: str | None, problem_list: list[str]) -> None:
-    """Up-front typo check: every name in a flat -s CSV must exist on at
-    least one of the problems in *problem_list*. Raises ``typer.Exit(1)``
-    when an unknown name is found so the user gets immediate feedback
-    instead of "no solvers matched" warnings on every problem.
+    """Up-front typo check: every name in a flat -s CSV must exist on at least one problem.
+
+    Raises ``typer.Exit(1)`` when an unknown name is found so the user gets
+    immediate feedback instead of "no solvers matched" warnings on every problem.
 
     Per-problem maps (``<problem>=<csv>;...``) skip this check — the
     per-problem dispatcher already warns about unknown names against the
@@ -454,7 +465,7 @@ def _resolve_experiment_target(
 
 
 def _run_build_overrides(
-    cfg,
+    cfg: Any,
     exps: dict,
     *,
     debug: bool,

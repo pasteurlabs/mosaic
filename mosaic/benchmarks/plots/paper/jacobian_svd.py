@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Jacobian SVD spectra for 2D and 3D NS.
 
 One panel per solver, one line per (nu, T) configuration.
@@ -47,7 +50,7 @@ _YSCALE_THRESHOLD = 1e-3
 _YSCALE_COMPRESS = 0.18
 
 
-def _piecewise_log_forward(y):
+def _piecewise_log_forward(y: np.ndarray) -> np.ndarray:
     y = np.asarray(y, dtype=float)
     log_thresh = np.log10(_YSCALE_THRESHOLD)
     safe = np.where(y > 0, y, 1e-30)
@@ -59,7 +62,7 @@ def _piecewise_log_forward(y):
     )
 
 
-def _piecewise_log_inverse(t):
+def _piecewise_log_inverse(t: np.ndarray) -> np.ndarray:
     t = np.asarray(t, dtype=float)
     log_thresh = np.log10(_YSCALE_THRESHOLD)
     return np.where(
@@ -87,7 +90,9 @@ def _solver_color_label(solver: str) -> tuple[str, str]:
     return "#888888", solver
 
 
-def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
+def _svd_panels(
+    fig: plt.Figure, axes: np.ndarray, variants: list, solvers: list, n_show: int
+) -> list:
     """Fill axes panels; return legend handles for the variant lines."""
     legend_handles: list[mlines.Line2D] = []
     legend_built = False
@@ -96,7 +101,7 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
 
     for idx, solver in enumerate(solvers):
         ax = axes[idx // ncols][idx % ncols]
-        color, label = _solver_color_label(solver)
+        _color, label = _solver_color_label(solver)
         y_min_data = np.inf
 
         for vi, (_, data) in enumerate(variants):
@@ -115,7 +120,7 @@ def _svd_panels(fig, axes, variants, solvers, n_show) -> list:
             vlabel = _variant_label(phys)
 
             mk = "o" if n <= 32 else ""
-            (line,) = ax.plot(
+            (_line,) = ax.plot(
                 modes,
                 sv_norm[:n],
                 f"{mk}{vstyle['linestyle']}",
@@ -344,6 +349,7 @@ _EXPERIMENTS = [
 
 
 def generate(out_dir: Path) -> None:
+    """Generate Jacobian SVD spectra figures for 2D and 3D NS."""
     with plt.rc_context(RCPARAMS):
         # 3D NS — main paper figure
         _svd_comparison(

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Cross-domain / cross-experiment extra plots for structural-mesh.
 
 Registered on the :class:`Problem` via :meth:`Problem.add_extra_plot` from
@@ -9,6 +12,7 @@ Registered on the :class:`Problem` via :meth:`Problem.add_extra_plot` from
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.colors as mcolors
 import matplotlib.gridspec as gridspec
@@ -17,7 +21,6 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.config import Problem
@@ -45,7 +48,7 @@ _CLR_LOAD = "#FF1744"
 # ── 3-D helpers ───────────────────────────────────────────────────────────────
 
 
-def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+def _add_bcs(ax: Any, nx: int, ny: int, nz: int, ph: dict) -> None:
     wall = Poly3DCollection(
         [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
         alpha=0.55,
@@ -139,7 +142,7 @@ def _voxel_facecolors(
 
 
 def _draw_fixed_support(
-    ax, x0: float, y0: float, y1: float, size: float, orient: str = "left"
+    ax: Any, x0: float, y0: float, y1: float, size: float, orient: str = "left"
 ) -> None:
     """Hatch marks representing a clamped edge."""
     ax.plot(
@@ -171,7 +174,7 @@ def _draw_fixed_support(
 
 
 def _draw_load_arrow(
-    ax, x: float, y: float, dx: float, dy: float, length: float, ref: float = 1.0
+    ax: Any, x: float, y: float, dx: float, dy: float, length: float, ref: float = 1.0
 ) -> None:
     """Arrow in screen-space size so it renders clearly regardless of data aspect."""
     ax.annotate(
@@ -189,7 +192,7 @@ def _draw_load_arrow(
 
 
 def _ortho_view(
-    ax,
+    ax: Any,
     nx: int,
     ny: int,
     nz: int,
@@ -197,8 +200,7 @@ def _ortho_view(
     view: str,
     rho_xyz: np.ndarray | None = None,
 ) -> None:
-    """
-    Draw one orthographic projection of the cantilever domain with BCs.
+    """Draw one orthographic projection of the cantilever domain with BCs.
 
     view: 'front' = XZ plane (looking from −y, the main elevation)
           'top'   = XY plane (looking from +z, plan view)
@@ -312,7 +314,7 @@ def _ortho_view(
 
 
 def _plot_convergence(
-    ax,
+    ax: Any,
     datasets: list[tuple[str, dict]],
     key: str,
     ylabel: str,
@@ -320,8 +322,11 @@ def _plot_convergence(
     seen_methods: set,
     x_jitter: float = 1.06,
 ) -> None:
-    """Overlay multiple optimizer datasets on ax. datasets = [(m_ls, by_solver), ...]
-    x_jitter: multiplicative x offset per line to separate overlapping curves on log scale."""
+    """Overlay multiple optimizer datasets on ax.
+
+    datasets = [(m_ls, by_solver), ...]
+    x_jitter: multiplicative x offset per line to separate overlapping curves on log scale.
+    """
     line_n = 0
     for m_ls, by_solver in datasets:
         # ``by_solver`` keyed by spec.name (display form); bridge to alias.
@@ -589,14 +594,14 @@ def _topopt_overview_generate(out_dir: Path) -> None:
 # ── Adapter + registration ────────────────────────────────────────────────────
 
 
-def _topopt_overview_plot(cfg: Problem, **_kw) -> None:
+def _topopt_overview_plot(cfg: Problem, **_kw: Any) -> None:
     """Runner-facing adapter: writes ``topopt_overview.pdf`` under ``_extra/``."""
     out_dir = results_dir() / cfg.name / "_extra"
     out_dir.mkdir(parents=True, exist_ok=True)
     _topopt_overview_generate(out_dir)
 
 
-def _plot_cost_overview(cfg: Problem, **_kw) -> None:
+def _plot_cost_overview(cfg: Problem, **_kw: Any) -> None:
     plot_cost_overview_for(cfg, steady_state=True)
 
 

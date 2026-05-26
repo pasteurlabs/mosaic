@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Topology optimisation overview — structural domain.
 
 Layout:
@@ -24,7 +27,6 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.utils import results_dir
@@ -56,7 +58,8 @@ _CLR_LOAD = "#FF1744"
 # ── 3-D helpers ───────────────────────────────────────────────────────────────
 
 
-def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+def _add_bcs(ax: plt.Axes, nx: int, ny: int, nz: int, ph: dict) -> None:
+    """Overlay boundary condition markers on a 3D voxel axes."""
     wall = Poly3DCollection(
         [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
         alpha=0.55,
@@ -150,7 +153,7 @@ def _voxel_facecolors(
 
 
 def _draw_fixed_support(
-    ax, x0: float, y0: float, y1: float, size: float, orient: str = "left"
+    ax: plt.Axes, x0: float, y0: float, y1: float, size: float, orient: str = "left"
 ) -> None:
     """Hatch marks representing a clamped edge."""
     ax.plot(
@@ -182,25 +185,31 @@ def _draw_fixed_support(
 
 
 def _draw_load_arrow(
-    ax, x: float, y: float, dx: float, dy: float, length: float, ref: float = 1.0
+    ax: plt.Axes,
+    x: float,
+    y: float,
+    dx: float,
+    dy: float,
+    length: float,
+    ref: float = 1.0,
 ) -> None:
     """Arrow in screen-space size so it renders clearly regardless of data aspect."""
     ax.annotate(
         "",
         xy=(x + dx * length, y + dy * length),
         xytext=(x, y),
-        arrowprops=dict(
-            arrowstyle="simple",
-            facecolor=_CLR_LOAD,
-            edgecolor=_CLR_LOAD,
-            mutation_scale=16,
-        ),
+        arrowprops={
+            "arrowstyle": "simple",
+            "facecolor": _CLR_LOAD,
+            "edgecolor": _CLR_LOAD,
+            "mutation_scale": 16,
+        },
         zorder=5,
     )
 
 
 def _ortho_view(
-    ax,
+    ax: plt.Axes,
     nx: int,
     ny: int,
     nz: int,
@@ -208,8 +217,7 @@ def _ortho_view(
     view: str,
     rho_xyz: np.ndarray | None = None,
 ) -> None:
-    """
-    Draw one orthographic projection of the cantilever domain with BCs.
+    """Draw one orthographic projection of the cantilever domain with BCs.
 
     view: 'front' = XZ plane (looking from −y, the main elevation)
           'top'   = XY plane (looking from +z, plan view)
@@ -323,7 +331,7 @@ def _ortho_view(
 
 
 def _plot_convergence(
-    ax,
+    ax: plt.Axes,
     datasets: list[tuple[str, dict]],
     key: str,
     ylabel: str,
@@ -331,8 +339,11 @@ def _plot_convergence(
     seen_methods: set,
     x_jitter: float = 1.06,
 ) -> None:
-    """Overlay multiple optimizer datasets on ax. datasets = [(m_ls, by_solver), ...]
-    x_jitter: multiplicative x offset per line to separate overlapping curves on log scale."""
+    """Overlay multiple optimizer datasets on ax.
+
+    datasets = [(m_ls, by_solver), ...].
+    x_jitter: multiplicative x offset per line to separate overlapping curves on log scale.
+    """
     line_n = 0
     for m_ls, by_solver in datasets:
         for solver in STRUCTURAL_ORDER:
@@ -367,6 +378,7 @@ def _plot_convergence(
 
 
 def generate(out_dir: Path) -> None:
+    """Generate topology optimisation overview figure for the structural domain."""
     BASE = results_dir() / "structural-mesh" / "optimization" / "topopt"
     OPT_METHODS = _opt_methods()
 
@@ -380,7 +392,7 @@ def generate(out_dir: Path) -> None:
 
     # Load additional optimizer results where available
     opt_datasets: list[tuple[str, dict]] = []
-    for key, (m_ls, m_label, rp) in OPT_METHODS.items():
+    for key, (m_ls, _m_label, rp) in OPT_METHODS.items():
         if rp.exists():
             opt_datasets.append((m_ls, json.loads(rp.read_text())["by_solver"]))
         else:

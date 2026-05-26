@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """IC suite primitives: generate one IC, save a 2-D projection.
 
 Unlike the solver suites (forward, gradient, optimization, cost), this suite
@@ -14,6 +17,8 @@ Results land at ``<results>/{problem}/ics/{ic_name}/``:
 
 from __future__ import annotations
 
+from typing import Any
+
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import results_dir, save_json
 
@@ -24,7 +29,7 @@ def run_ic(
     cfg: Problem,
     ic_name: str,
     *,
-    make_ic,
+    make_ic: Any,
     params: dict,
 ) -> dict:
     """Generate one IC, save a visualisation plot and params.json."""
@@ -40,7 +45,7 @@ def run_ic(
     return {"ic_name": ic_name, "shape": list(ic.shape)}
 
 
-def plot_ic_only(cfg: Problem, ic_name: str, *, make_ic, params: dict) -> None:
+def plot_ic_only(cfg: Problem, ic_name: str, *, make_ic: Any, params: dict) -> None:
     """Regenerate the IC plot without saving params.json (re-plot flow)."""
     from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 

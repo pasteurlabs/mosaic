@@ -1,3 +1,7 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: F405
+
 """Linear elasticity + SIMP topology optimisation on an arbitrary hexahedral mesh.
 
 Uses Firedrake + firedrake-adjoint to solve 3-D linear elasticity with SIMP
@@ -9,16 +13,14 @@ that it can monkey-patch solve/assemble and record operations on the adjoint
 tape.
 """
 
-# ruff: noqa: F403, F405
-
 import os
 import tempfile
 from typing import Any
 
 import meshio
 import numpy as np
-from firedrake import *
-from firedrake.adjoint import *
+from firedrake import *  # noqa: F403
+from firedrake.adjoint import *  # noqa: F403
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
@@ -57,7 +59,7 @@ class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
-    pass
+    """Firedrake structural solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +212,7 @@ def _build_firedrake_mesh(  # mosaic:init
 
 
 def _cell_reorder_map(
-    pts: np.ndarray, input_cells: np.ndarray, fd_mesh
+    pts: np.ndarray, input_cells: np.ndarray, fd_mesh: Any
 ) -> np.ndarray:  # mosaic:util
     """Build Firedrake-cell-index → input-cell-index permutation via centroid matching.
 
@@ -244,7 +246,7 @@ def _cell_reorder_map(
 # ---------------------------------------------------------------------------
 
 
-def _extract_dirichlet(bc) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
+def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     """Extract Dirichlet mask and values arrays from a MeshBC object.
 
     When ``dirichlet.values`` is ``None`` (homogeneous BCs), the number of
@@ -271,7 +273,7 @@ def _extract_dirichlet(bc) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     return mask, values
 
 
-def _extract_neumann(bc) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
+def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     """Extract Neumann mask and values arrays from a MeshBC object.
 
     Returns:
@@ -372,10 +374,10 @@ def _solve_elasticity(  # mosaic:physics
     mu_c = E_field / (2 * (1 + nu_c))
 
     # ---- Strain and stress operators -------------------------------------
-    def epsilon(w):
+    def epsilon(w: Any) -> Any:
         return 0.5 * (grad(w) + grad(w).T)
 
-    def sigma(w):
+    def sigma(w: Any) -> Any:
         return lam * tr(epsilon(w)) * Identity(3) + 2 * mu_c * epsilon(w)
 
     # ---- Variational form ------------------------------------------------

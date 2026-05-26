@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Topology optimisation convergence and density fields.
 
 Structural and thermal domains.
@@ -17,7 +20,6 @@ from pathlib import Path
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.utils import results_dir
@@ -54,7 +56,9 @@ def _plot_combined_convergence(out_path: Path) -> None:
     all_present: set[str] = set()
     all_order: list[str] = []
 
-    for ax, (domain_label, result_path, solver_order) in zip(axes, domains):
+    for ax, (domain_label, result_path, solver_order) in zip(
+        axes, domains, strict=False
+    ):
         if not result_path.exists():
             print(f"[topopt] {result_path} not found — skipping {domain_label}")
             ax.set_title(f"{domain_label} (no data)")
@@ -64,7 +68,7 @@ def _plot_combined_convergence(out_path: Path) -> None:
         by_solver = data["by_solver"]
 
         for solver, sdata in by_solver.items():
-            label, color, ls, mk = SOLVER_STYLES.get(
+            _label, color, ls, _mk = SOLVER_STYLES.get(
                 solver, (solver, "#888888", "-", "o")
             )
             compliances = sdata.get("compliances", [])
@@ -122,7 +126,7 @@ _CLR_FIXED = "#888888"
 _CLR_LOAD = "#FF1744"
 
 
-def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+def _add_bcs(ax: plt.Axes, nx: int, ny: int, nz: int, ph: dict) -> None:
     """Overlay fixed-face patch and load arrow on a voxel Axes3D.
 
     Voxel axes are (x=length, y=width, z=height) after transpose.
@@ -271,7 +275,7 @@ def _plot_conductivity_recovery(out_path: Path) -> None:
         errors = sdata.get("errors", [])
         if not errors:
             continue
-        label, color, ls, mk = SOLVER_STYLES.get(solver, (solver, "#888888", "-", "o"))
+        label, color, ls, _mk = SOLVER_STYLES.get(solver, (solver, "#888888", "-", "o"))
         ax_conv.semilogy(
             range(len(errors)),
             errors,
@@ -319,6 +323,7 @@ def _plot_conductivity_recovery(out_path: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate topology optimisation convergence and density field figures."""
     with plt.rc_context(RCPARAMS):
         _plot_combined_convergence(out_path=out_dir / "topopt_convergence.pdf")
         _plot_conductivity_recovery(out_path=out_dir / "conductivity_recovery.pdf")

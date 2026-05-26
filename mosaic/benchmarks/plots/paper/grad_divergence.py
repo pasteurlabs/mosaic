@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: gradient divergence over the 3D NS IC optimization.
 
 For each optimizer (Adam, Adam+proj, L-BFGS, L-BFGS+proj) and each NS solver,
@@ -72,7 +75,7 @@ def _series(entry: dict, field: str) -> list[float] | None:
 
 
 def _plot_panel(
-    ax,
+    ax: plt.Axes,
     results: dict[str, dict],
     field: str,
     seen_solvers: set[str],
@@ -80,7 +83,7 @@ def _plot_panel(
 ) -> None:
     methods = _methods()
     for key, result in results.items():
-        m_label, m_ls, _ = methods[key]
+        _m_label, m_ls, _ = methods[key]
         by_sweep = result.get("by_sweep", {})
         f = _GRAD_EVALS_PER_ITER.get(key, 1)
         for solver in NS_ORDER:
@@ -97,6 +100,7 @@ def _plot_panel(
 
 
 def generate(out_dir: Path) -> None:
+    """Generate gradient divergence figure for 3D NS IC optimization."""
     results = _load_results()
     if not results:
         print("[grad_divergence] no recovery results found — skipping")

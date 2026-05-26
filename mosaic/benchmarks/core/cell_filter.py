@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Status-based per-(experiment, solver) filter for ``mosaic run --only``.
 
 The CLI builds a filter via :func:`build_filter` from a fresh
@@ -89,12 +92,12 @@ def build_filter(
 
 
 def set_active(filter_map: dict[tuple[str, str], bool] | None) -> None:
-    """Install *filter_map* as the active per-cell filter, or clear it
-    with ``None``."""
+    """Install *filter_map* as the active per-cell filter, or clear it with ``None``."""
     _state.filter = filter_map
 
 
 def get_active() -> dict[tuple[str, str], bool] | None:
+    """Return the active per-cell filter, or ``None`` if no filter is set."""
     return getattr(_state, "filter", None)
 
 

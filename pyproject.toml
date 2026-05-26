@@ -1,13 +1,17 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs", "setuptools-scm!=9.0.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "mosaic-bench"
-version = "0.1.0"
 description = "A benchmark suite for differentiable physics solvers"
+readme = "README.md"
+authors = [
+    {name = "The Mosaic team @ Pasteur Labs + OSS contributors", email = "info@simulation.science"},
+]
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
+dynamic = ["version"]
 dependencies = [
     "rich>=13.0",
     "typer>=0.12",
@@ -33,8 +37,29 @@ dev = [
     "tesseract-shared",
 ]
 
+[project.urls]
+Homepage = "https://github.com/pasteurlabs/mosaic"
+Documentation = "https://docs.pasteurlabs.ai/projects/mosaic/latest"
+
 [project.scripts]
 mosaic = "mosaic.benchmarks.cli:app"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "mosaic/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mosaic"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "mosaic/",
+    "requirements.txt",
+    "README.md",
+    "LICENSE",
+]
 
 [tool.uv.workspace]
 members = ["mosaic/tesseracts/tesseract_shared"]
@@ -42,19 +67,8 @@ members = ["mosaic/tesseracts/tesseract_shared"]
 [tool.uv.sources]
 tesseract-shared = { workspace = true }
 
-[tool.setuptools.packages.find]
-# Two discovery roots:
-#   "."                      → the mosaic.* tree (CLI, harness, problem packages)
-#   "mosaic/tesseracts"      → exposes mosaic/tesseracts/tesseract_shared/ as the
-#                              top-level ``tesseract_shared`` package. ``uv`` already
-#                              wires this via [tool.uv.sources]; this entry makes
-#                              plain ``pip install -e .`` install it too.
-where = [".", "mosaic/tesseracts"]
-include = ["mosaic*", "tesseract_shared*"]
-exclude = ["tests*", "docs*"]
-
 [tool.pytest.ini_options]
-testpaths = ["mosaic/tests"]
+testpaths = ["tests"]
 addopts = "-v --tb=short -m 'not integration and not slow'"
 markers = [
     "integration: requires Docker and a built Tesseract container (deselected by default)",
@@ -62,78 +76,65 @@ markers = [
 ]
 
 [tool.ruff]
-line-length = 88
+# Set to the lowest supported Python version.
 target-version = "py310"
 
+# Set the target line length for formatting.
+line-length = 88
+
+# Exclude a variety of commonly ignored directories.
+extend-exclude = [
+    ".venv",
+    "_version.py",
+]
+
+# Also lint/format Jupyter Notebooks.
+extend-include = ["*.ipynb"]
+
+src = ["."]
+
 [tool.ruff.lint]
-preview = true
-explicit-preview-rules = true  # only opt into preview rules we name explicitly
-select = [
-    "E", "F", "I", "UP", "B", "SIM", "RUF", "C4",
-    # complexity / nesting (tesseracts exempted via per-file-ignores below):
-    "C901",    # mccabe cyclomatic complexity (default >10)
-    "PLR0911", # too-many-return-statements (default >6)
-    "PLR0912", # too-many-branches (default >12)
-    "PLR0913", # too-many-arguments (default >5)
-    "PLR0915", # too-many-statements (default >50)
-    "PLR1702", # too-many-nested-blocks (default >5) — preview rule
+# Select and/or ignore rules for linting.
+# Full list of available rules: https://docs.astral.sh/ruff/rules/
+extend-select = [
+    "ANN", # Type annotations
+    "B",   # Flake8 bugbear
+    "D",   # Pydocstyle
+    "E",   # Pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # Isort
+    "NPY", # Numpy
+    "RUF", # Ruff-specific rules
+    "UP",  # Pyupgrade
+    "W",   # Pycodestyle warnings
 ]
 ignore = [
-    "E501",   # line too long (formatter handles this)
-    "E731",   # lambda assignment — used for local type predicates in abstract_eval boilerplate
-    "E741",   # ambiguous variable name — `I` is conventional for identity matrices in math code
-    "B008",   # function call in default arg — common/intentional with Typer (typer.Option, typer.Argument)
-    "B023",   # function-uses-loop-variable — load-bearing invariant: closures passed to
-              # run_with_gpu_pool (mosaic/benchmarks/core/runner.py) are fully drained via
-              # `list(pool.map(...))` before the outer loop advances, so the late-binding race
-              # never materializes. If run_with_gpu_pool ever becomes truly async (no drain
-              # before return) or a closure is stashed for later use, drop this ignore and audit.
-    "SIM108", # ternary instead of if/else — frequently less readable for non-trivial branches
-    "SIM117", # combine nested with — multi-line with-stmts are often clearer separated
-    "RUF001", # ambiguous unicode in string — Greek letters (ρ, π, ∂) are intentional in math code
-    "RUF002", # ambiguous unicode in docstring — same
-    "RUF003", # ambiguous unicode in comment — same
-    "RUF012", # mutable class attrs annotated with ClassVar — too invasive for dataclass-heavy code
+    "E731",   # Do not assign a lambda expression, use a def
+    "D100",   # Pydocstyle: missing docstring in public module
+    "D104",   # Pydocstyle: missing docstring in public package
+    "D105",   # Pydocstyle: missing docstring in magic method
+    "D107",   # Pydocstyle: missing docstring in __init__
+    "D203",   # Pydocstyle: one blank line before class' docstring. Conflicts with D211
+    "D213",   # Pydocstyle: multiline docstring summary start on 2nd line. Conflicts with D212
+    "ANN202", # Type annotations: allow missing return type for private functions
+    "ANN401", # Type annotations: allow Any
+    "RUF001", # Ambiguous unicode in string — Greek letters (ρ, π, ∂) are intentional in math code
+    "RUF002", # Ambiguous unicode in docstring — same
+    "RUF003", # Ambiguous unicode in comment — same
 ]
 
-# Complexity-rule thresholds — set lenient to flag genuinely-egregious outliers rather
-# than routine matplotlib plot helpers / benchmark orchestration. Lower over time as
-# functions get refactored. Defaults shown in comments for reference.
-[tool.ruff.lint.pylint]
-max-args = 12           # default 5
-max-branches = 25       # default 12
-max-statements = 150    # default 50
-max-returns = 12        # default 6
-max-nested-blocks = 6   # default 5
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
-[tool.ruff.lint.mccabe]
-max-complexity = 20     # default 10
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120  # allow some flexibility in line lengths: up to 120 cols
+max-doc-length = 120
 
-[tool.ruff.lint.per-file-ignores]
-# Tesseract solvers wrap third-party FEM/CFD libraries whose APIs force long
-# parameter lists and many branches (BC types, mesh kinds, AD modes). Exempt
-# from complexity rules — they're complex by necessity, not by neglect.
-"mosaic/tesseracts/**" = [
-    "C901",
-    "PLR0911",
-    "PLR0912",
-    "PLR0913",
-    "PLR0915",
-    "PLR1702",
-]
-# Grandfather list — files with current complexity violations under the thresholds
-# above. The rules act as regression gates everywhere else; drop entries here as
-# each file is refactored. Snapshot: 2026-05-11.
-"mosaic/benchmarks/suites/optimization.py"           = ["C901", "PLR0912", "PLR0913", "PLR0915", "PLR1702"]
-"mosaic/benchmarks/core/status.py"                   = ["C901", "PLR0911", "PLR0912", "PLR0915"]
-"mosaic/benchmarks/cli/run.py"                       = ["PLR0913"]
-"mosaic/tesseracts/thermal-mesh/fenics-heat/tesseract_api.py" = [
-    "F403",   # star import from dolfin/dolfin_adjoint — required by FEniCS conventions
-    "F405",   # may be from star import — dolfin exports are only available via star import
-]
-"mosaic/tesseracts/navier-stokes-grid/xlb/tesseract_api.py" = [
-    "E402",   # schema classes defined before late runtime imports required by xlb init order
-]
-"mosaic/tesseracts/navier-stokes-grid/phiflow/tesseract_api.py" = [
-    "E402",   # XLA_FLAGS must be set before jax imports; os imported early for build-guard
-]
+[tool.ruff.format]
+# Enable reformatting of code snippets in docstrings.
+docstring-code-format = true
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**" = ["D", "ANN"]
+"docs/**" = ["D", "ANN"]
+".github/**" = ["D", "ANN"]

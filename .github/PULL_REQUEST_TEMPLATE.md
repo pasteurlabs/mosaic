@@ -1,3 +1,8 @@
+<!--
+Please use a PR title that conforms to *conventional commits*: "<commit_type>: Describe your change"; for example: "fix: prevent race condition". Some other commit types are: fix, feat, ci, doc, refactor...
+For a full list of commit types visit https://www.conventionalcommits.org/en/v1.0.0/
+-->
+
 ## Summary
 
 <!-- What does this PR do? 1-3 sentences. -->

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 
 import equinox as eqx
@@ -19,6 +22,8 @@ from tesseract_shared.types import make_differentiable
 class InputSchema(
     make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
 ):
+    """Input schema for jax-cfd Navier-Stokes solver."""
+
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
     )
@@ -53,7 +58,7 @@ class InputSchema(
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
-    pass
+    """Output schema for jax-cfd Navier-Stokes solver."""
 
 
 def _jaxcfd_bc(  # mosaic:io
@@ -186,7 +191,9 @@ def _compute_drag(  # mosaic:physics
     return jnp.reshape(drag, (1,))
 
 
-def _extract_pressure_jaxcfd(v_grid, grid, bc):  # mosaic:physics
+def _extract_pressure_jaxcfd(
+    v_grid: Any, grid: Any, bc: Any
+) -> jnp.ndarray:  # mosaic:physics
     """Extract pressure from the final velocity field via one Poisson solve.
 
     Uses cfd.pressure.solve_fast_diag which returns a GridArray of pressure
@@ -209,7 +216,7 @@ def cfd_fwd(  # mosaic:physics
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> tuple[jax.Array, jax.Array | None]:
     """Compute the final velocity field using the semi-implicit Navier-Stokes equations.
 
@@ -246,10 +253,10 @@ def cfd_fwd(  # mosaic:physics
         obs_mask = None
 
     # --- staggered grid helper -------------------------------------------
-    def interp_to_face(v_comp, own_axis):
+    def interp_to_face(v_comp: Any, own_axis: int) -> Any:
         return 0.5 * (v_comp + jnp.roll(v_comp, -1, axis=own_axis))
 
-    def make_grid_vars(v_2d):
+    def make_grid_vars(v_2d: jnp.ndarray) -> Any:
         return tuple(
             cfd.grids.GridVariable(
                 cfd.grids.GridArray(
@@ -262,7 +269,7 @@ def cfd_fwd(  # mosaic:physics
             for i in range(ndim)
         )
 
-    def interp_to_coloc(v_stag, own_axis):
+    def interp_to_coloc(v_stag: Any, own_axis: int) -> Any:
         return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
 
     # --- NS step function ------------------------------------------------
@@ -288,7 +295,7 @@ def cfd_fwd(  # mosaic:physics
 
         # Run step-by-step with lax.scan, applying inflow override after each step.
         # The staggered u_x component lives at x-faces; face i=0 corresponds to x=0.
-        def step_with_inflow(v_stag, _):
+        def step_with_inflow(v_stag: Any, _: Any) -> tuple[Any, None]:
             v_stag = step_fn(v_stag)
             # IBM volume-penalization: zero velocity inside obstacle cells.
             # obs_mask shape is (nx, ny); staggered face arrays have the same shape
@@ -332,7 +339,7 @@ def cfd_fwd(  # mosaic:physics
         if obs_mask is not None:
             orig_step_fn = step_fn
 
-            def step_fn_with_obs(v):
+            def step_fn_with_obs(v: Any) -> Any:
                 v = orig_step_fn(v)
                 new_comps = []
                 for i in range(ndim):
@@ -386,6 +393,7 @@ def cfd_fwd(  # mosaic:physics
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
+    """JIT-compiled apply: run jax-cfd forward and return result with drag."""
     result, drag = cfd_fwd(**inputs)
     out = {"result": result}
     if drag is not None:
@@ -405,6 +413,7 @@ def _unpack_scalars(d: dict) -> dict:  # mosaic:io
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
+    """Run the jax-cfd Navier-Stokes solver on the given inputs."""
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
@@ -413,7 +422,8 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,density:autodiff
     vjp_inputs: set[str],
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
-):
+) -> dict:
+    """Compute the vector-Jacobian product for jax-cfd via autodiff."""
     return vjp_jit(
         _unpack_scalars(inputs.model_dump()),
         tuple(vjp_inputs),
@@ -422,7 +432,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,density:autodiff
     )
 
 
-def abstract_eval(abstract_inputs):
+def abstract_eval(abstract_inputs: InputSchema) -> dict:
     """Calculate output shape of apply from the shape of its inputs.
 
     For jax-cfd the output ``result`` always has the same shape as ``v0``,
@@ -449,7 +459,8 @@ def vjp_jit(
     vjp_inputs: tuple[str],
     vjp_outputs: tuple[str],
     cotangent_vector: dict,
-):
+) -> dict:
+    """JIT-compiled VJP: compute gradients via JAX autodiff."""
     filtered_apply = filter_func(apply_jit, inputs, vjp_outputs)
     _, vjp_func = jax.vjp(
         filtered_apply, flatten_with_paths(inputs, include_paths=vjp_inputs)

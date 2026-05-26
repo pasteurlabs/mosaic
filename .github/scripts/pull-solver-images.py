@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Pull pre-built Tesseract solver images from a container registry.
 
 For each solver matching the requested problems and hardware target,

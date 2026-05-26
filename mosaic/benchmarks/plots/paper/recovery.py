@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Source / IC recovery convergence across all four domains.
 
 2×2 grid:
@@ -33,7 +36,7 @@ _NS_SIGMA = "0.1"
 
 
 def _plot_ns_recovery(
-    ax, subdir: str, solver_order: list[str], title: str, seen: set[str]
+    ax: plt.Axes, subdir: str, solver_order: list[str], title: str, seen: set[str]
 ) -> None:
     path = results_dir() / subdir / "optimization" / "optimization" / "result.json"
     if not path.exists():
@@ -56,7 +59,7 @@ def _plot_ns_recovery(
         )
         if not errors:
             continue
-        label, color, ls, mk = solver_props(solver)
+        _label, color, ls, _mk = solver_props(solver)
         ax.semilogy(
             range(len(errors)), errors, color=color, linestyle=ls, linewidth=1.6
         )
@@ -70,7 +73,7 @@ def _plot_ns_recovery(
 
 
 def _plot_fem_recovery(
-    ax,
+    ax: plt.Axes,
     result_path: Path,
     error_key: str,
     solver_order: list[str],
@@ -90,7 +93,7 @@ def _plot_fem_recovery(
         vals = by_solver[solver].get(error_key, [])
         if not vals:
             continue
-        label, color, ls, mk = solver_props(solver)
+        _label, color, ls, _mk = solver_props(solver)
         ax.semilogy(range(len(vals)), vals, color=color, linestyle=ls, linewidth=1.6)
         seen.add(solver)
 
@@ -102,6 +105,7 @@ def _plot_fem_recovery(
 
 
 def generate(out_dir: Path) -> None:
+    """Generate recovery convergence figure for all benchmark domains."""
     with plt.rc_context(RCPARAMS):
         fig, axes = plt.subplots(2, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.80))
         fig.subplots_adjust(hspace=0.50, wspace=0.38, bottom=0.20)
@@ -147,7 +151,7 @@ def generate(out_dir: Path) -> None:
             [make_handle(s) for s in FEM_ORDER if s in fem_seen]
         )
 
-        legend_kw = dict(fontsize=7.5, framealpha=0.7, handlelength=2.0)
+        legend_kw = {"fontsize": 7.5, "framealpha": 0.7, "handlelength": 2.0}
         fig.legend(
             handles=ns_handles,
             loc="lower left",

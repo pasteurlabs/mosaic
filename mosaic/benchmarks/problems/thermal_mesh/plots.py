@@ -1,8 +1,12 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-problem plots for the thermal-mesh conductivity recovery experiments."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
@@ -24,8 +28,8 @@ def plot_conductivity_recovery(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "conductivity_recovery",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Two outputs: loss curves + final-error bar; recovered conductivity field comparison.
 
     Files written to ``results/<problem>/optimization/conductivity_recovery<suffix>/``:
@@ -225,8 +229,13 @@ def _render_conductivity_recovery_evolution_gifs(
         fig.tight_layout()
 
         def _update(
-            idx, _line=line, _title=title, _hist=hist, _label=label, _n=n_frames
-        ):
+            idx: Any,
+            _line: Any = line,
+            _title: Any = title,
+            _hist: Any = hist,
+            _label: Any = label,
+            _n: Any = n_frames,
+        ) -> Any:
             _line.set_ydata(_hist[idx])
             _title.set_text(f"{_label} — snapshot {idx + 1} / {_n}")
             return _line, _title

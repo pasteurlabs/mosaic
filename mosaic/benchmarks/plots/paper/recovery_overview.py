@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figures: IC recovery overview — Adam vs L-BFGS vs L-BFGS+proj.
 
 Figure 1 (recovery_overview.pdf):
@@ -13,6 +16,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
@@ -68,7 +72,7 @@ def _div_rms(field: np.ndarray) -> float:
     return float(np.sqrt(np.mean(div**2)))
 
 
-def _solver_idx(npz, name: str) -> int | None:
+def _solver_idx(npz: Any, name: str) -> int | None:
     names = list(npz["solver_names"])
     return names.index(name) if name in names else None
 
@@ -78,7 +82,7 @@ def _snap_xs(n: int) -> list[int]:
 
 
 def _snap_interval(result: dict) -> int:
-    return int((result.get("params", {}).get("optim", {}).get("snap_interval") or 1))
+    return int(result.get("params", {}).get("optim", {}).get("snap_interval") or 1)
 
 
 def _x_per_iter(key: str, n: int) -> list[float]:
@@ -91,8 +95,8 @@ def _x_snapshot(key: str, n: int, snap_interval: int) -> list[float]:
     return [(i + 1) * snap_interval * f for i in range(n)]
 
 
-def _generate_overview(loaded, out_path: Path) -> None:
-    ref_npz = (loaded.get(_FIELD_METHOD) or list(loaded.values())[0])[1]
+def _generate_overview(loaded: dict[str, Any], out_path: Path) -> None:
+    ref_npz = (loaded.get(_FIELD_METHOD) or next(iter(loaded.values())))[1]
     ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
 
     fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.80))
@@ -117,7 +121,7 @@ def _generate_overview(loaded, out_path: Path) -> None:
 
     seen_solvers: set[str] = set()
 
-    for key, (m_label, m_ls, _) in _methods().items():
+    for key, (_m_label, m_ls, _) in _methods().items():
         if key == "adam_proj":
             continue  # shown separately in recovery_adam_proj.pdf
         if key not in loaded:
@@ -134,7 +138,7 @@ def _generate_overview(loaded, out_path: Path) -> None:
             if not hist:
                 continue
             _, s_color, _, _ = solver_props(solver)
-            kw = dict(color=s_color, linestyle=m_ls, linewidth=1.3, alpha=0.9)
+            kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.3, "alpha": 0.9}
 
             ax_conv.loglog(_x_snapshot(key, len(hist), snap), list(hist), **kw)
             seen_solvers.add(solver)
@@ -214,6 +218,7 @@ def _generate_overview(loaded, out_path: Path) -> None:
                     (fin_rec, "Final state"),
                     (fin_gt, "Final true"),
                 ],
+                strict=False,
             ):
                 last_im = ax.imshow(
                     data.T,
@@ -243,7 +248,7 @@ def _generate_overview(loaded, out_path: Path) -> None:
     print(f"Saved {out_path}")
 
 
-def _generate_adam_proj(loaded, out_path: Path) -> None:
+def _generate_adam_proj(loaded: dict[str, Any], out_path: Path) -> None:
     """Focused Adam vs Adam+proj comparison across all solvers."""
     keys = ("adam", "adam_proj")
     if not all(k in loaded for k in keys):
@@ -273,7 +278,7 @@ def _generate_adam_proj(loaded, out_path: Path) -> None:
             if not hist:
                 continue
             _, s_color, _, _ = solver_props(solver)
-            kw = dict(color=s_color, linestyle=m_ls, linewidth=1.3, alpha=0.9)
+            kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.3, "alpha": 0.9}
 
             ax_conv.plot(_x_snapshot(key, len(hist), snap), list(hist), **kw)
             seen_solvers.add(solver)
@@ -335,10 +340,13 @@ def _generate_adam_proj(loaded, out_path: Path) -> None:
 _MAIN_SUBSET = ["pict", "ins_jl", "xlb"]
 
 
-def _generate_main_subset(loaded, out_path: Path) -> None:
-    """Slim version for the main paper: only the top row (IC error, IC
-    divergence, optimisation loss) and only the ``_MAIN_SUBSET`` solvers."""
-    ref_npz = (loaded.get(_FIELD_METHOD) or list(loaded.values())[0])[1]
+def _generate_main_subset(loaded: dict[str, Any], out_path: Path) -> None:
+    """Slim version for the main paper.
+
+    Only the top row (IC error, IC divergence, optimisation loss) and only the
+    ``_MAIN_SUBSET`` solvers are shown.
+    """
+    ref_npz = (loaded.get(_FIELD_METHOD) or next(iter(loaded.values())))[1]
     ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
 
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.36))
@@ -347,7 +355,7 @@ def _generate_main_subset(loaded, out_path: Path) -> None:
 
     seen_solvers: set[str] = set()
 
-    for key, (m_label, m_ls, _) in _methods().items():
+    for key, (_m_label, m_ls, _) in _methods().items():
         if key == "adam_proj":
             continue
         if key not in loaded:
@@ -364,7 +372,7 @@ def _generate_main_subset(loaded, out_path: Path) -> None:
             if not hist:
                 continue
             _, s_color, _, _ = solver_props(solver)
-            kw = dict(color=s_color, linestyle=m_ls, linewidth=1.4, alpha=0.9)
+            kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.4, "alpha": 0.9}
 
             ax_conv.loglog(_x_snapshot(key, len(hist), snap), list(hist), **kw)
             seen_solvers.add(solver)
@@ -425,6 +433,7 @@ def _generate_main_subset(loaded, out_path: Path) -> None:
 
 
 def generate(out_dir: Path) -> None:
+    """Generate IC recovery overview figures — Adam vs L-BFGS vs L-BFGS+proj."""
     loaded: dict[str, tuple] = {}
     for key, (*_, path) in _methods().items():
         rp = path / "result.json"

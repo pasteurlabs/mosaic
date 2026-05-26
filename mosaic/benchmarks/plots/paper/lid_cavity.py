@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Figure: Lid-cavity 3D convergence for ns-3d-grid.
 
 1×3 panels, one per sweep val (U_x_true in {0.5, 1.0, 2.0}).
@@ -23,6 +26,7 @@ SWEEP_VALS = ["0.5", "1.0", "2.0"]
 
 
 def generate(out_dir: Path) -> None:
+    """Generate lid-cavity 3D convergence figure for ns-3d-grid."""
     path = results_dir() / "ns-3d-grid" / "optimization" / "lid_cavity" / "result.json"
     if not path.exists():
         print(f"[lid_cavity] {path} not found — skipping")
@@ -44,13 +48,13 @@ def generate(out_dir: Path) -> None:
                     continue
                 if sv not in sweep_data:
                     continue
-                label, color, ls, mk = SOLVER_STYLES.get(
+                _label, color, ls, _mk = SOLVER_STYLES.get(
                     solver, (solver, "#888888", "-", "o")
                 )
 
                 losses = sweep_data[sv]["losses"]
                 iters = list(range(len(losses)))
-                kw = dict(color=color, linestyle=ls, marker="", linewidth=1.6)
+                kw = {"color": color, "linestyle": ls, "marker": "", "linewidth": 1.6}
                 ax.semilogy(iters, losses, **kw)
                 present.add(solver)
 

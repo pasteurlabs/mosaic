@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 from pathlib import Path
 from typing import Any
 
@@ -18,11 +21,11 @@ class InputSchema(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
     )
 ):
-    pass
+    """Input schema for the incompressible Navier-Stokes Julia solver."""
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
-    pass
+    """Output schema for the incompressible Navier-Stokes Julia solver."""
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +55,7 @@ def _to_julia(arr: np.ndarray):  # mosaic:util
     return juliacall.convert(jl.Array, np.ascontiguousarray(arr))
 
 
-def _to_numpy(jl_arr) -> np.ndarray:  # mosaic:util
+def _to_numpy(jl_arr: Any) -> np.ndarray:  # mosaic:util
     """Convert a Julia array back to numpy."""
     return np.asarray(jl_arr).copy()
 
@@ -404,6 +407,7 @@ def _obstacle_dict_ins(inputs: "InputSchema") -> dict | None:  # mosaic:io
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
+    """Run the forward incompressible Navier-Stokes simulation."""
     result, drag = _run(
         np.asarray(inputs.v0),
         float(inputs.viscosity[0]),
@@ -429,11 +433,12 @@ def _drag_cotangent_to_result(  # mosaic:grad:v0,viscosity,dt:adjoint
     obstacle: dict,
     viscosity: float,
 ) -> np.ndarray:
-    """Back-propagate the drag cotangent through _compute_drag_numpy into a
-    cotangent on ``result`` (shape v0_shape). Since pressure is forced to zero
-    in our drag computation, only the viscous term contributes and the drag is
-    linear in ux; the Jacobian is a fixed mask determined by the obstacle
-    surface layout.
+    """Back-propagate the drag cotangent into a cotangent on ``result``.
+
+    Propagates through _compute_drag_numpy (shape v0_shape). Since pressure is
+    forced to zero in our drag computation, only the viscous term contributes
+    and the drag is linear in ux; the Jacobian is a fixed mask determined by the
+    obstacle surface layout.
 
     v0_shape: (N, N, 1, 2).
     """
@@ -465,6 +470,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:adjoint
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
+    """Compute vector-Jacobian products for the Navier-Stokes solver."""
     ct_result = cotangent_vector.get("result")
     ct_drag = cotangent_vector.get("drag")
 
@@ -536,6 +542,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:adjoint
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
+    """Return output shapes and dtypes without running the solver."""
     raw = abstract_inputs.model_dump()
 
     v0 = raw["v0"]

@@ -1,6 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Input factory and diagnostics for ns-grid."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -24,7 +29,7 @@ def make_inputs(
     lbm_N_base: int | None = None,
     obstacle: dict | None = None,
     U_mean: float = 0.5,
-    **_,
+    **_: Any,
 ) -> dict:
     """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
 

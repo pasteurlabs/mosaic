@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """3D linear-elasticity SIMP topology optimisation on a cantilever beam.
 
 The problem definition is split across these modules:
@@ -152,7 +155,10 @@ problem.add_ic(
 problem.add_experiment(
     "forward/baseline",
     agreement,
-    plot_description="Structural compliance C = F^T U vs mesh resolution N for each solver, uniform density ρ₀=0.5, full-face downward load.",
+    plot_description=(
+        "Structural compliance C = F^T U vs mesh resolution N for each solver, "
+        "uniform density ρ₀=0.5, full-face downward load."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "N": [4, 6, 8, 12, 16],
@@ -169,7 +175,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/agreement",
     agreement,
-    plot_description="Structural compliance C = F^T U vs density ρ₀ at fixed mesh, sweeping uniform density to span the SIMP stiffness regime.",
+    plot_description=(
+        "Structural compliance C = F^T U vs density ρ₀ at fixed mesh, "
+        "sweeping uniform density to span the SIMP stiffness regime."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "nx": 8,
@@ -187,7 +196,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
-    plot_description="Diagnostic functionals (compliance, total displacement) vs total load F_total, validating linearity of the SIMP response.",
+    plot_description=(
+        "Diagnostic functionals (compliance, total displacement) vs total load F_total, "
+        "validating linearity of the SIMP response."
+    ),
     diagnostics=DIAGNOSTICS,
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -224,7 +236,11 @@ problem.add_experiment(
 problem.add_experiment(
     "cost/temporal_cost",
     temporal_cost,
-    plot_description="Forward-pass wall-clock time vs solve count at fixed mesh (single-step assembly is the dominant cost — temporal axis collapses to one point).",
+    plot_description=(
+        "Forward-pass wall-clock time vs solve count at fixed mesh "
+        "(single-step assembly is the dominant cost — temporal axis "
+        "collapses to one point)."
+    ),
     physics={**_MESH_PHYS, "nx": 8, "steps": [1]},
     cost={"n_trials": 3},
     plot=plot_cost,
@@ -252,7 +268,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/fd_check",
     fd_check,
-    plot_description="U-curves of finite-difference gradient error vs perturbation size ε with subspace cosine, validating VJP correctness on a random density.",
+    plot_description=(
+        "U-curves of finite-difference gradient error vs perturbation size ε "
+        "with subspace cosine, validating VJP correctness on a random density."
+    ),
     ic={"name": "random", "seed": 0},
     physics={
         "nx": 8,
@@ -305,7 +324,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd",
     jacobian_svd,
-    plot_description="Singular-value spectrum of the stacked per-solver gradient matrix and pairwise cosine similarity between solver gradient directions.",
+    plot_description=(
+        "Singular-value spectrum of the stacked per-solver gradient matrix "
+        "and pairwise cosine similarity between solver gradient directions."
+    ),
     ic={"name": "random", "seed": 0},
     physics={
         "nx": 8,
@@ -325,7 +347,11 @@ problem.add_experiment(
     "optimization/topopt_bfgs",
     topopt,
     optimizer="bfgs",
-    plot_description="SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.",
+    plot_description=(
+        "SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: "
+        "compliance C = F^T U and density field evolution under a "
+        "50% volume-fraction constraint."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "nx": 16,
