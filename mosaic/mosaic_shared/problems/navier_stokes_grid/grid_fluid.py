@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Numpy utilities for 2D grid-based fluid dynamics problems.
 
 All functions operate on raw numpy arrays with shape convention (N, N, 1, 2)
@@ -54,7 +57,7 @@ def energy_spectrum(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     KX, KY = np.meshgrid(kn, kn, indexing="ij")
     K = np.sqrt(KX**2 + KY**2)
     k_bins = np.arange(1, n // 2)
-    E_k = np.array([E_hat[(K >= k - 0.5) & (K < k + 0.5)].sum() for k in k_bins])
+    E_k = np.array([E_hat[(k - 0.5 <= K) & (k + 0.5 > K)].sum() for k in k_bins])
     return k_bins, E_k
 
 

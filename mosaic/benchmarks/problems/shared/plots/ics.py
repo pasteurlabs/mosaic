@@ -1,8 +1,12 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """IC visualisation: one PNG per initial condition, saved to results/{problem}/ics/."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,12 +28,12 @@ def plot_ic(
     ic: np.ndarray,
     out_dir: Path,
     *,
-    make_ic=None,
-    field_to_2d=None,
-    ic_to_2d=None,
+    make_ic: Any = None,
+    field_to_2d: Any = None,
+    ic_to_2d: Any = None,
     field_cmap: str = "RdBu_r",
     field_symmetric: bool = True,
-    **_kw,
+    **_kw: Any,
 ) -> None:
     """Save one IC visualisation as ic.png (and ic.pdf) under out_dir.
 

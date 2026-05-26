@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Cost suite: forward and VJP wall-clock timing sweeps.
 
 Three kernels:
@@ -38,6 +41,7 @@ Run from the terminal:
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -53,12 +57,14 @@ from mosaic.benchmarks.problems.shared.gradient import _vjp_grad
 _SPATIAL_WALL_S = 1000
 
 
-def _timed_kernel(t, ctx: KernelContext, *, timed_call, capture_value=False) -> dict:
-    """Shared body for every cost kernel — run ``timed_call`` under
-    :func:`run_timed_trials`, return the standard ``mean/std/...`` record,
-    optionally capture the last call's value as a snapshot, and signal
-    ``stop_sweep`` on wall-limit-hit / failure so the framework marks
-    remaining sweep values as None for this solver.
+def _timed_kernel(
+    t: Any, ctx: KernelContext, *, timed_call: Any, capture_value: bool = False
+) -> dict:
+    """Shared body for every cost kernel — run ``timed_call`` under :func:`run_timed_trials`.
+
+    Return the standard ``mean/std/...`` record, optionally capture the last
+    call's value as a snapshot, and signal ``stop_sweep`` on wall-limit-hit /
+    failure so the framework marks remaining sweep values as None for this solver.
     """
     cost_cfg = ctx.run.get("cost", {})
     n_trials = cost_cfg.get("n_trials", 3)
@@ -98,7 +104,9 @@ _CI_ISOLATION_NOTE = (
 )
 
 
-def _cost_aggregate(by_solver, *, cfg, run, sweep_values, sweep_key, **_) -> dict:
+def _cost_aggregate(
+    by_solver: Any, *, cfg: Any, run: Any, sweep_values: Any, sweep_key: Any, **_: Any
+) -> dict:
     """Build ``{by_N or by_steps: {solver: {val: metrics}}, hardware, params}``.
 
     Pre-allocates an empty dict for every ``cfg.solver`` so excluded ones
@@ -119,17 +127,17 @@ def _cost_aggregate(by_solver, *, cfg, run, sweep_values, sweep_key, **_) -> dic
 
 
 def _vjp_cost_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    cfg,
-    run,
-    sweep_values,
-    sweep_key,
-    out_dir,
-    snapshots,
-    snapshot_filename,
-    snapshot_prefixes,
-    **_,
+    cfg: Any,
+    run: Any,
+    sweep_values: Any,
+    sweep_key: Any,
+    out_dir: Any,
+    snapshots: Any,
+    snapshot_filename: Any,
+    snapshot_prefixes: Any,
+    **_: Any,
 ) -> dict:
     """Like :func:`_cost_aggregate` plus a gradient-field NPZ save."""
     out_key = _axis_key(sweep_key)
@@ -167,7 +175,7 @@ def _vjp_cost_aggregate(
     catch=False,  # cost owns its own failure handling via stop_sweep
     aggregate_fn=_cost_aggregate,
 )
-def spatial_cost(t, ctx: KernelContext) -> dict:
+def spatial_cost(t: Any, ctx: KernelContext) -> dict:
     """Forward-pass wall-clock timing at one (solver, N) point.
 
     Returns ``{"metrics": {mean, std, trials_s, vram_peak_mib, ram_peak_mib},
@@ -185,7 +193,7 @@ def spatial_cost(t, ctx: KernelContext) -> dict:
     catch=False,
     aggregate_fn=_cost_aggregate,
 )
-def temporal_cost(t, ctx: KernelContext) -> dict:
+def temporal_cost(t: Any, ctx: KernelContext) -> dict:
     """Forward-pass wall-clock timing at one (solver, steps) point.
 
     ``ic_sweep=False``: IC shape is independent of ``steps``, so the
@@ -205,7 +213,7 @@ def temporal_cost(t, ctx: KernelContext) -> dict:
     snapshot_filename="gradient_fields.npz",
     snapshot_prefixes=("grad",),
 )
-def vjp_cost(t, ctx: KernelContext) -> dict:
+def vjp_cost(t: Any, ctx: KernelContext) -> dict:
     """VJP wall-clock timing + gradient snapshot at one (solver, sweep-value) point.
 
     Registered twice in each problem config — once as a ``by_N`` variant

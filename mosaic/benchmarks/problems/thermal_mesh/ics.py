@@ -1,6 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Initial conditions for the thermal-mesh problem."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -10,7 +15,7 @@ def _zero_source(
     ny: int | None = None,
     nz: int = 1,
     N: int | None = None,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Zero volumetric source field, shape (nx·ny·nz,). Starting point for source recovery."""
     if N is not None:
@@ -26,7 +31,7 @@ def _uniform(
     ny: int | None = None,
     nz: int = 1,
     N: int | None = None,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Uniform density ρ₀ over the mesh, shape (nx·ny·nz,).
 
@@ -47,7 +52,7 @@ def _random(
     nz: int = 1,
     seed: int = 0,
     N: int | None = None,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Random density field centred at ρ₀ with Gaussian noise, clipped to [0.05, 0.95].
 
@@ -81,7 +86,7 @@ def _gaussian_source(
     sigma: float = 0.2,
     Lx: float = 2.0,
     Ly: float = 1.0,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Gaussian heat source centred at (cx*Lx, cy*Ly) with width sigma*min(Lx,Ly).
 
@@ -118,7 +123,7 @@ def _two_gaussians(
     sigma: float = 0.15,
     Lx: float = 2.0,
     Ly: float = 1.0,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Two Gaussian sources at (0.3*Lx, 0.5*Ly) and (0.7*Lx, 0.5*Ly).
 

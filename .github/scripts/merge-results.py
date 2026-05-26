@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Merge benchmark results from multiple CI artifact directories.
 
 In CI, the GPU and CPU jobs for the same (suite, problem) write to
@@ -111,9 +115,7 @@ def _merge_result_pair(existing: dict, new: dict) -> dict:
         if isinstance(new.get(key), dict) and isinstance(existing.get(key), dict):
             merged_k: dict = {**existing[key]}
             for sname, svals in new[key].items():
-                if isinstance(svals, dict) and svals:
-                    merged_k[sname] = svals
-                elif sname not in merged_k:
+                if (isinstance(svals, dict) and svals) or sname not in merged_k:
                     merged_k[sname] = svals
             result[key] = merged_k
 

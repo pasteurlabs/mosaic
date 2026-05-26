@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from collections.abc import Callable
 from typing import Any
@@ -22,7 +25,7 @@ crt_file_path = os.path.dirname(__file__)
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
-    pass
+    """JAX-FEM thermal solver input schema."""
 
 
 class OutputSchema(
@@ -30,7 +33,7 @@ class OutputSchema(
         _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
     )
 ):
-    pass
+    """JAX-FEM thermal solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +108,7 @@ class HeatConduction(Problem):  # mosaic:physics
         """
         return self.von_neumann_value_fns
 
-    def set_params(self, params) -> None:
+    def set_params(self, params: Any) -> None:
         """Set density and optional source parameters.
 
         Args:
@@ -114,7 +117,7 @@ class HeatConduction(Problem):  # mosaic:physics
                 rho has shape (n_flex_cells, 1) and source has shape
                 (n_cells,) for source-identification mode.
         """
-        if isinstance(params, (tuple, list)):
+        if isinstance(params, tuple | list):
             rho, source_flat = params
         else:
             rho = params
@@ -133,7 +136,7 @@ class HeatConduction(Problem):  # mosaic:physics
         )  # (num_cells, num_quads, 1)
         self.internal_vars = [thetas, src_quads]
 
-    def get_mass_map(self):
+    def get_mass_map(self) -> Any:
         """Body-force (volumetric heat source) contribution.
 
         Returns a mass map f(u, x, theta, src) = -src so that the mass
@@ -329,6 +332,7 @@ def jacobian_vector_product(  # mosaic:grad:rho,source:autodiff
     jvp_outputs: set[str],
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
+    """Compute the Jacobian-vector product for the thermal solver."""
     assert jvp_inputs <= {"rho", "source"}
     assert jvp_outputs <= {"thermal_compliance", "identification_error"}
 

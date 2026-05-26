@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """2D incompressible Navier-Stokes on a periodic grid.
 
 The problem definition is split across these modules:
@@ -178,7 +181,10 @@ problem.add_ic(
 problem.add_experiment(
     "forward/baseline",
     agreement,
-    plot_description="Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across solvers.",
+    plot_description=(
+        "Relative error vs grid resolution N at steps=1; validates single-step forward"
+        " accuracy across solvers."
+    ),
     ic={"name": "tgv", "seed": 0},
     physics={
         "N": [16, 32, 64, 128],
@@ -192,7 +198,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/agreement",
     agreement,
-    plot_description="Relative error vs viscosity ν for each IC, with vorticity field snapshots compared against a fine-solver reference.",
+    plot_description=(
+        "Relative error vs viscosity ν for each IC, with vorticity field snapshots"
+        " compared against a fine-solver reference."
+    ),
     ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
     physics={
         "N": 64,
@@ -249,7 +258,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/cylinder",
     agreement,
-    plot_description="Vorticity snapshots and kinetic-energy evolution vs time for each solver across a sweep of viscosities.",
+    plot_description=(
+        "Vorticity snapshots and kinetic-energy evolution vs time for each solver"
+        " across a sweep of viscosities."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "N": 64,
@@ -310,7 +322,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/fd_check",
     fd_check,
-    plot_description="U-curves of finite-difference gradient error vs perturbation size ε together with subspace cosine; validates VJP correctness.",
+    plot_description=(
+        "U-curves of finite-difference gradient error vs perturbation size ε together"
+        " with subspace cosine; validates VJP correctness."
+    ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": 20},
     fd={"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 20},
@@ -350,7 +365,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
     jacobian_svd,
-    plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at an extended rollout horizon.",
+    plot_description=(
+        "Singular-value spectrum and pairwise cross-solver cosine similarity of"
+        " gradient subspaces at an extended rollout horizon."
+    ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
     plot=plot_jacobian_svd,
@@ -358,7 +376,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
     jacobian_svd,
-    plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at a long rollout horizon.",
+    plot_description=(
+        "Singular-value spectrum and pairwise cross-solver cosine similarity of"
+        " gradient subspaces at a long rollout horizon."
+    ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
     plot=plot_jacobian_svd,
@@ -366,7 +387,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
     jacobian_svd,
-    plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces at higher viscosity.",
+    plot_description=(
+        "Singular-value spectrum and pairwise cross-solver cosine similarity of"
+        " gradient subspaces at higher viscosity."
+    ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
     plot=plot_jacobian_svd,
@@ -376,7 +400,10 @@ problem.add_experiment(
 problem.add_experiment(
     "optimization/drag_opt",
     drag_opt,
-    plot_description="Drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.",
+    plot_description=(
+        "Drag convergence curves per solver, optimised vs initial inflow profiles,"
+        " and final drag coefficient comparison."
+    ),
     ic={"name": "flat_inflow", "seed": 0},
     physics={
         # Re = U·D/ν = 0.5·0.1/0.0025 = 20

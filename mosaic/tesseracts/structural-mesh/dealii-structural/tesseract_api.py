@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Linear elasticity topology optimisation on a structured hexahedral mesh.
 
 Uses deal.II Q1 finite elements (Step-8 pattern) as a C++ subprocess.
@@ -63,7 +66,7 @@ class InputSchema(_CanonicalInputSchema):
 
 
 class OutputSchema(_CanonicalOutputSchema):
-    pass
+    """Deal.II structural solver output schema."""
 
 
 # ---------------------------------------------------------------------------

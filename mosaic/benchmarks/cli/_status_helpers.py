@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Private helpers for the ``status`` and ``compare`` commands.
 
 Split out of :mod:`mosaic.benchmarks.cli.status` to keep that module under the
@@ -6,6 +9,8 @@ have no external callers.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import typer
 
@@ -63,7 +68,7 @@ def _status_emit_snapshot(
     typer.echo("\n".join(out_parts))
 
 
-def _status_render_cell(cell) -> str:
+def _status_render_cell(cell: Any) -> str:
     """Render a single status cell as a coloured rich-markup label."""
     from mosaic.benchmarks.core.status import (
         ANOMALY,
@@ -94,7 +99,7 @@ def _status_render_cell(cell) -> str:
     return f"[{cell_color(cell)}]{label}[/]"
 
 
-def _status_tally_problem(st) -> tuple[dict, list]:
+def _status_tally_problem(st: Any) -> tuple[dict, list]:
     """Count cells per category for one problem's status snapshot.
 
     Returns ``(counts, all_cells)`` where ``counts`` has keys
@@ -153,7 +158,9 @@ def _status_tally_problem(st) -> tuple[dict, list]:
     return counts, all_cells
 
 
-def _status_print_problem_table(problem: str, st, counts: dict, score, score_n) -> None:
+def _status_print_problem_table(
+    problem: str, st: Any, counts: dict, score: Any, score_n: Any
+) -> None:
     """Render the per-problem rule + experiment x solver table."""
     from rich.table import Table
 
@@ -191,7 +198,7 @@ def _status_print_problem_table(problem: str, st, counts: dict, score, score_n) 
     console.print(table)
 
 
-def _status_collect_failures(problem: str, st) -> list[tuple]:
+def _status_collect_failures(problem: str, st: Any) -> list[tuple]:
     """Build the (problem, row, solver, status, reason, stale) records for failures/anomalies."""
     from mosaic.benchmarks.core.status import ANOMALY, FAILED
 

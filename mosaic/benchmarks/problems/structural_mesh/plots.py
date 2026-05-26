@@ -1,13 +1,16 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-problem plots for the structural-mesh topology optimisation experiments."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.animation as manimation
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 – registers 3d projection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.config import Problem
@@ -44,7 +47,7 @@ _CLR_FIXED = "#888888"
 _CLR_LOAD = "#FF1744"
 
 
-def _add_bcs(ax, nx: int, ny: int, nz: int, ph: dict) -> None:
+def _add_bcs(ax: Any, nx: int, ny: int, nz: int, ph: dict) -> None:
     """Overlay fixed-face patch and load arrow on a voxel Axes3D."""
     wall = Poly3DCollection(
         [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
@@ -244,8 +247,8 @@ def plot_topopt(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "topopt",
-    **_kw,
-):
+    **_kw: Any,
+) -> Any:
     """Topopt per-experiment plot — paper figure + extras.
 
     Produces a paper-quality compliance-convergence + 3-D voxel figure
@@ -321,7 +324,7 @@ def plot_topopt(
 
 def _plot_topopt_3d(
     cfg: Problem,
-    npz,
+    npz: Any,
     solver_names: list,
     by_solver: dict,
     out_dir: Path,
@@ -343,7 +346,6 @@ def _plot_topopt_3d(
 
     Works for any problem using a 2:1:1 hex mesh (structural-mesh, thermal-mesh, …).
     """
-
     params = params or {}
     corner_load = params.get("corner_load", False)
 
@@ -454,7 +456,7 @@ def _plot_topopt_3d(
 
 def _render_topopt_evolution_gifs(
     out_dir: Path,
-    npz,
+    npz: Any,
     solver_names: list,
     params_all: dict,
     styles: dict,
@@ -492,14 +494,14 @@ def _render_topopt_evolution_gifs(
         fig.tight_layout()
 
         def _update(
-            idx,
-            _im=im,
-            _title=title,
-            _hist=history,
-            _params=params_all,
-            _label=label,
-            _n=n_frames,
-        ):
+            idx: Any,
+            _im: Any = im,
+            _title: Any = title,
+            _hist: Any = history,
+            _params: Any = params_all,
+            _label: Any = label,
+            _n: Any = n_frames,
+        ) -> Any:
             _im.set_data(_rho_to_2d(_hist[idx], _params))
             _title.set_text(f"{_label} — iter {idx + 1} / {_n}")
             return _im, _title

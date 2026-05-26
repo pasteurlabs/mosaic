@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Plots for the recovery suite (R1, R2, R3)."""
 
 from __future__ import annotations

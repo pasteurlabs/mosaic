@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Registry of available problem configs, keyed by CLI name.
 
 Problem modules are auto-discovered. Each problem lives either as a top-level
@@ -62,6 +65,7 @@ def _registry() -> dict[str, Problem]:
 
 
 def get_config(name: str) -> Problem:
+    """Return the Problem config registered under *name*."""
     reg = _registry()
     if name not in reg:
         raise ValueError(f"Unknown problem {name!r}. Choose from: {list(reg)}")

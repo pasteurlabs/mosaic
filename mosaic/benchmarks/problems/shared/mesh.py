@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared mesh-construction helpers for hex-mesh problem domains.
 
 Used by ``structural_mesh`` and ``thermal_mesh`` (both consume the same

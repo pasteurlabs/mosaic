@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Background-polled memory sampler for GPU VRAM and container RAM.
 
 * :func:`sample_vram_mib` — single-shot NVML query.
@@ -108,7 +111,7 @@ def sample_container_ram_mib(container_id: str) -> float | None:
         return None
 
 
-def container_id_from_tesseract(t) -> str | None:
+def container_id_from_tesseract(t: object) -> str | None:
     """Extract the container name/ID from a served Tesseract handle.
 
     Reads ``_serve_context['container_name']``; returns ``None`` when the
@@ -138,7 +141,7 @@ class MemoryPoller:
             try:
                 run_workload()
             except Exception:
-                ...                                # poller still stops cleanly
+                ...  # poller still stops cleanly
         mem = poller.summary
         # {"vram_peak_mib": float | None, "ram_peak_mib": float | None}
 
@@ -169,7 +172,7 @@ class MemoryPoller:
         self._thread.start()
         return self
 
-    def __exit__(self, *_exc_info) -> None:
+    def __exit__(self, *_exc_info: object) -> None:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=6.0)

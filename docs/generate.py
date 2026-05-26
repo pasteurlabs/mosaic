@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate docs/solvers.qmd from tesseract source files and SolverSpec metadata.
 
 Usage:
@@ -201,8 +205,7 @@ def _extract_make_differentiable_fields(source: str, class_name: str) -> set[str
 
     Looks for patterns like::
 
-        class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
-            ...
+        class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])): ...
 
     The second argument is collected literally so the wrapped fields are
     marked differentiable in the merged schema even though the solver's own
@@ -225,7 +228,7 @@ def _extract_make_differentiable_fields(source: str, class_name: str) -> set[str
             ):
                 continue
             field_list = base.args[1]
-            if isinstance(field_list, (ast.List, ast.Tuple)):
+            if isinstance(field_list, ast.List | ast.Tuple):
                 for elt in field_list.elts:
                     if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
                         fields.add(elt.value)

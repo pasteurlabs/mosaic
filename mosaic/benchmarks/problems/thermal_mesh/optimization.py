@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Conductivity-recovery kernel + helpers for thermal-mesh.
 
 Recovers the SIMP density field ``rho`` from temperature observations by
@@ -12,6 +15,8 @@ generic gradient-descent / L-BFGS primitives it depends on (``_run_optim``,
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -28,9 +33,9 @@ from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_opti
 
 
 def _merge_rho_fields_npz(
-    out_dir,
-    rho_init,
-    rho_truth,
+    out_dir: Any,
+    rho_init: Any,
+    rho_truth: Any,
     solver_names: list[str],
     rho_snaps: dict,
     rho_histories: dict,
@@ -63,13 +68,13 @@ def _merge_rho_fields_npz(
 
 
 def _conductivity_recovery_aggregate(
-    by_solver,
+    by_solver: Any,
     *,
-    run,
-    out_dir,
-    snapshots,
-    shared_extras,
-    **_,
+    run: Any,
+    out_dir: Any,
+    snapshots: Any,
+    shared_extras: Any,
+    **_: Any,
 ) -> dict:
     """Aggregate per-solver conductivity-recovery output → result dict + NPZ.
 
@@ -115,7 +120,7 @@ def _conductivity_recovery_aggregate(
     snapshot_filename="rho_fields.npz",
     snapshot_prefixes=("rho_final", "rho_history"),
 )
-def conductivity_recovery(t, ctx: KernelContext) -> dict:
+def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     """One solver's full conductivity-recovery optimisation.
 
     Recovers the SIMP density field ``rho`` (clipped to ``[x_min, 1]``) from
@@ -174,7 +179,7 @@ def conductivity_recovery(t, ctx: KernelContext) -> dict:
 
     _loss_phys = {k: v for k, v in phys.items() if k != "rho_0"}
 
-    def loss_components(rho, _t=t):
+    def loss_components(rho: Any, _t: Any = t) -> Any:
         inp = ctx.make_inputs(ctx.name, rho, **_loss_phys)
         out = apply_tesseract(_t, inp)
         err = out.get(compliance_key)

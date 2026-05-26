@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 
 import equinox as eqx
@@ -32,6 +35,8 @@ class InputSchema(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
     )
 ):
+    """PhiFlow Navier-Stokes input schema with differentiable velocity and physics params."""
+
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
         supported = {"periodic", "no_slip", "neumann", "dirichlet"}
@@ -45,7 +50,7 @@ class InputSchema(
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
-    pass
+    """PhiFlow Navier-Stokes output schema with differentiable result and drag."""
 
 
 def _phiflow_extrapolation(bc_dict: dict, ndim: int):  # mosaic:io
@@ -143,6 +148,7 @@ def phiflow_fwd(  # mosaic:physics
         dt: Timestep size.
         steps: Number of simulation steps.
         domain_extent: Side length of the periodic square/cubic domain (isotropic grid).
+        boundary_conditions: Dict mapping face keys to BC type/value dicts.
         obstacle: Optional obstacle dict.
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
 
@@ -240,7 +246,7 @@ def phiflow_fwd(  # mosaic:physics
     # Spatial axis name list for named-dual stacking (2D: ['x','y'], 3D: ['x','y','z'])
     _spatial_names = spatial_str.split(",")
 
-    def faces_to_staggered(face_arr):
+    def faces_to_staggered(face_arr: jnp.ndarray) -> StaggeredGrid:
         """Face-centred (ndim, *spatial) carry → StaggeredGrid.
 
         Resizes each component from _cell_shape to the BC-dependent staggered
@@ -257,7 +263,7 @@ def phiflow_fwd(  # mosaic:physics
         staggered_tensor = math.stack(component_tensors, dim=math.dual("vector"))
         return StaggeredGrid(staggered_tensor, ext, bounds=bounds, **grid_kwargs)
 
-    def staggered_to_faces(vel):
+    def staggered_to_faces(vel: StaggeredGrid) -> jnp.ndarray:
         """StaggeredGrid → face-centred (ndim, *spatial) carry of shape _cell_shape.
 
         Phiflow allocates BC-dependent face counts (N+1 for neumann, N-1 for
@@ -282,7 +288,9 @@ def phiflow_fwd(  # mosaic:physics
         else:
             ux_inflow = inflow_profile  # (ny,)
 
-        def step(face_arr, _):
+        def step(
+            face_arr: jnp.ndarray, _: None
+        ) -> tuple[jnp.ndarray, tuple[jnp.ndarray, jnp.ndarray]]:
             vel = faces_to_staggered(face_arr)
             vel = advect.semi_lagrangian(vel, vel, dt)
             vel = diffuse.explicit(vel, viscosity, dt)
@@ -305,7 +313,7 @@ def phiflow_fwd(  # mosaic:physics
         # periodic path to prevent adjoint-side residual bias in fd_check.
         _cg_solve = math.Solve("CG", 1e-10, 1e-10)
 
-        def step(face_arr, _):
+        def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
             vel = faces_to_staggered(face_arr)
             # Use explicit Euler differential advection to
             # fix VJP gradient magnitude bias and prevent NaN from semi-Lagrangian
@@ -375,6 +383,7 @@ def phiflow_fwd(  # mosaic:physics
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
+    """JIT-compiled forward pass returning result and drag arrays."""
     result, drag = phiflow_fwd(**inputs)
     out = {"result": result}
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
@@ -392,7 +401,8 @@ def _unpack_scalars(d: dict) -> dict:  # mosaic:io
     return d
 
 
-def apply(inputs: InputSchema) -> OutputSchema:
+def apply(inputs: InputSchema) -> dict[str, Any]:
+    """Run the PhiFlow Navier-Stokes forward simulation."""
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
@@ -401,7 +411,8 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
     vjp_inputs: set[str],
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
-):
+) -> dict[str, Any]:
+    """Compute the vector-Jacobian product via JAX autodiff."""
     return vjp_jit(
         _unpack_scalars(inputs.model_dump()),
         tuple(vjp_inputs),
@@ -410,7 +421,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
     )
 
 
-def abstract_eval(abstract_inputs):
+def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
     """Calculate output shape of apply from the shape of its inputs.
 
     For phiflow the output ``result`` always has the same shape as ``v0``,
@@ -448,7 +459,8 @@ def vjp_jit(
     vjp_inputs: tuple[str],
     vjp_outputs: tuple[str],
     cotangent_vector: dict,
-):
+) -> dict[str, Any]:
+    """JIT-compiled vector-Jacobian product computation."""
     filtered_apply = filter_func(apply_jit, inputs, vjp_outputs)
     _, vjp_func = jax.vjp(
         filtered_apply, flatten_with_paths(inputs, include_paths=vjp_inputs)

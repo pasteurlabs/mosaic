@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Partial-result checkpointing for crash-resumable experiments.
 
 Long benchmark runs that OOM, hit a host reboot, or take a SIGKILL can leave

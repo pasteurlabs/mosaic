@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Thermal topology optimisation on a structured hexahedral mesh.
 
 Uses deal.II Q1 finite elements as a C++ subprocess.  Python writes JSON +

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 
 # Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
@@ -9,25 +12,25 @@ if "--xla_gpu_autotune_level" not in _xla_flags:
     os.environ["XLA_FLAGS"] = (_xla_flags + " --xla_gpu_autotune_level=0").strip()
 del _xla_flags
 
-from typing import Any
+from typing import Any  # noqa: E402
 
-import equinox as eqx
-import jax
-import jax.numpy as jnp
-import xlb
-import xlb.velocity_set
+import equinox as eqx  # noqa: E402
+import jax  # noqa: E402
+import jax.numpy as jnp  # noqa: E402
+import xlb  # noqa: E402
+import xlb.velocity_set  # noqa: E402
 
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
 jax.config.update("jax_enable_x64", True)
-from tesseract_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (  # noqa: E402
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from tesseract_shared.types import make_differentiable  # noqa: E402
 
 
 class InputSchema(
@@ -35,28 +38,28 @@ class InputSchema(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
     )
 ):
-    pass
+    """XLB solver input schema with differentiable fields."""
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
-    pass
+    """XLB solver output schema with differentiable fields."""
 
 
-from xlb.compute_backend import ComputeBackend
+from xlb.compute_backend import ComputeBackend  # noqa: E402
 
 # XLB operator imports
-from xlb.operator.collision import BGK, KBC
-from xlb.operator.equilibrium import QuadraticEquilibrium
-from xlb.operator.macroscopic import Macroscopic
-from xlb.operator.stream import Stream
-from xlb.precision_policy import PrecisionPolicy
+from xlb.operator.collision import BGK, KBC  # noqa: E402
+from xlb.operator.equilibrium import QuadraticEquilibrium  # noqa: E402
+from xlb.operator.macroscopic import Macroscopic  # noqa: E402
+from xlb.operator.stream import Stream  # noqa: E402
+from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # XLB one-time initialisation (needed to instantiate velocity sets)
 # ---------------------------------------------------------------------------
 
 
-def _make_ops(vset, pp, cb, fdtype, kind: str):  # mosaic:init
+def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):  # mosaic:init
     """Build the XLB operator bundle for a given (ndim, precision, collision kind).
 
     `kind` selects the collision operator: "bgk" (default, fast) or "kbc"
@@ -179,7 +182,7 @@ _OPS: dict[tuple[int, bool, str], dict] = {
 # Concrete (non-JAX) components of the D2Q9 lattice velocities extracted at
 # module load time, before any JAX tracing.  Used in _compute_drag_lbm for
 # Python-level branching, which must not operate on traced JAX arrays.
-import numpy as _np
+import numpy as _np  # noqa: E402
 
 _D2Q9_C: list[tuple[int, int]] = [
     (int(cx), int(cy))
@@ -361,11 +364,16 @@ def xlb_fwd(  # mosaic:physics
         dt:            Physical timestep size.
         steps:         Number of LBM timesteps.
         domain_extent: Side length of the isotropic domain.
+        boundary_conditions: Optional dict of boundary condition specs (e.g. no-slip walls).
+        obstacle:      Optional dict describing an immersed obstacle (shape, center, radius).
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x=0 each step.
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
                        especially near omega≈2 where small perturbations amplify rapidly.
+        _sub_k:        Pre-computed sub-step count. If None, computed automatically from Ma.
+        _collision_kind_override: Pre-computed collision kind ("bgk" or "kbc"). If None,
+                       selected automatically from omega and obstacle presence.
 
     Returns:
         (result, drag): result same shape as v0; drag shape (1,) or None.
@@ -492,7 +500,7 @@ def xlb_fwd(  # mosaic:physics
         u_in_lb = jnp.concatenate([ux_in_2d, uy_in_2d], axis=0)  # (2, 1, ny)
         f_inflow = xlb_eq(rho_in, u_in_lb)  # (9, 1, ny)
 
-        def body(f, _):
+        def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
             # Stream using XLB Stream operator
             f_s = xlb_stream(f)
             # Compute macroscopic quantities
@@ -525,7 +533,7 @@ def xlb_fwd(  # mosaic:physics
     else:
         _nx_g, _ny_g = spatial[0], spatial[1]
 
-        def body(f, _):
+        def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
             # Stream using XLB Stream operator
             f_s = xlb_stream(f)
             # Compute macroscopic quantities
@@ -593,6 +601,7 @@ def xlb_fwd(  # mosaic:physics
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:io
+    """JIT-compiled forward pass for the XLB solver."""
     result, drag = xlb_fwd(**inputs)
     out = {"result": result}
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
@@ -604,12 +613,13 @@ def _unpack_scalars(d: dict) -> dict:  # mosaic:io
     for key in ("viscosity", "dt"):
         if key in d:
             val = d[key]
-            if not isinstance(val, (int, float)):
+            if not isinstance(val, int | float):
                 d[key] = float(val[0])
     return d
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
+    """Run the XLB forward solver on the given inputs."""
     d = _unpack_scalars(inputs.model_dump())
     # Run forward pass in float64 so apply() and vjp_jit() compute the same
     # function. Without this the FD check calls apply() in float32 while
@@ -625,7 +635,8 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
     vjp_inputs: set[str],
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
-):
+) -> dict:
+    """Compute the vector-Jacobian product for the XLB solver."""
     return vjp_jit(
         _unpack_scalars(inputs.model_dump()),
         tuple(vjp_inputs),
@@ -634,7 +645,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
     )
 
 
-def abstract_eval(abstract_inputs):
+def abstract_eval(abstract_inputs: Any) -> dict:
     """Output shape equals input v0 shape; drag is always shape (1,)."""
     v0_info = abstract_inputs.v0
     if isinstance(v0_info, dict):
@@ -689,7 +700,7 @@ _DIFF_INPUT_KEYS: tuple[str, ...] = (
 _vjp_compiled_cache: dict = {}
 
 
-def _scalar_f64(x):  # mosaic:util
+def _scalar_f64(x: Any):  # mosaic:util
     """Coerce a scalar-like (Python float, 0-D / 1-D array) to a float64 scalar."""
     if hasattr(x, "astype"):
         return jnp.asarray(x, dtype=jnp.float64)
@@ -814,7 +825,7 @@ def vjp_jit(
     vjp_inputs: tuple[str],
     vjp_outputs: tuple[str],
     cotangent_vector: dict,
-):
+) -> dict:
     """Reverse-mode VJP over any subset of diff inputs.
 
     Returns a dict keyed by the requested `vjp_inputs` paths.  Scalar grads
@@ -848,7 +859,7 @@ def vjp_jit(
         _inputs_frozen = inputs
         _vjp_outputs_frozen = vjp_outputs
 
-        def _fwd_static(bundle):
+        def _fwd_static(bundle: dict) -> dict:
             result, drag = _run_forward_f64(_inputs_frozen, bundle)
             out = {}
             if "result" in _vjp_outputs_frozen:
@@ -860,7 +871,7 @@ def vjp_jit(
             return out
 
         @jax.jit
-        def _vjp_compiled(bundle, cotan):
+        def _vjp_compiled(bundle: dict, cotan: dict) -> dict:
             _, vjp_func = jax.vjp(_fwd_static, bundle)
             return vjp_func(cotan)[0]
 

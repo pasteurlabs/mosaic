@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """`mosaic status` and `mosaic compare` — report and diff benchmark status."""
 
 from __future__ import annotations
@@ -51,13 +54,13 @@ def status(
         help="Path to a JSON snapshot (produced by --format json). When set with --format md, "
         "prepend a diff section (regressions, improvements, new/removed rows) before the full tables.",
     ),
-    output_dir: Path | None = typer.Option(
+    output_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--output-dir",
         "-o",
         help="Root directory for benchmark results (must match the directory used by 'mosaic run').",
     ),
-):
+) -> None:
     """Report per-solver completion status of every experiment on disk.
 
     Walks ``<results>/<problem>/<suite>/<experiment>/`` and, for each
@@ -146,16 +149,16 @@ def status(
 
 @app.command("compare")
 def compare(
-    before: Path = typer.Argument(
+    before: Path = typer.Argument(  # noqa: B008
         ...,
         help="Path to the 'before' JSON snapshot (from `mosaic status --format json`).",
     ),
-    after: Path = typer.Argument(
+    after: Path = typer.Argument(  # noqa: B008
         ...,
         help="Path to the 'after' JSON snapshot (from `mosaic status --format json`).",
     ),
-):
-    """Compare two status snapshots and print a diff.
+) -> None:
+    r"""Compare two status snapshots and print a diff.
 
     Typical workflow:
 

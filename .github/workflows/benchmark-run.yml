@@ -34,7 +34,7 @@ jobs:
     name: Generate ICs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -60,7 +60,7 @@ jobs:
           uv run mosaic run $ARGS
         timeout-minutes: 15
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: results-ics
@@ -75,7 +75,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -108,7 +108,7 @@ jobs:
             --no-build
         timeout-minutes: ${{ inputs.timeout }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: results-${{ matrix.suite }}-${{ matrix.problem }}-${{ matrix.hardware }}

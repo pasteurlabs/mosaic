@@ -1,151 +1,53 @@
-name: Generate & Deploy Docs
+name: Docs preview (PR only)
 
 on:
-  push:
-    branches: [main, benchmark-results]
   pull_request:
-  workflow_dispatch: # allows: gh workflow run docs.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-  actions: read # needed on PRs to poll & download benchmark workflow artifacts
 
 concurrency:
-  group: pages
+  group: docs-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build docs
+    name: Build docs preview
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          # For PRs, check out the PR head so the preview reflects PR changes.
-          # For push events, fall back to main (so benchmark-results pushes still
-          # build docs from main's content).
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version-file: "pyproject.toml"
 
       - uses: quarto-dev/quarto-actions/setup@v2
 
       - name: Install Python dependencies
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
-      # ── PR path: wait for the PR's benchmark run, download its artifact ──
-      - name: Wait for PR's benchmark run
-        if: github.event_name == 'pull_request'
-        id: pr_bench
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          SHA="${{ github.event.pull_request.head.sha }}"
-          REPO="${{ github.repository }}"
-          LIST_API="https://api.github.com/repos/${REPO}/actions/workflows/benchmark.yml/runs?head_sha=${SHA}&per_page=1"
-
-          api_get() {
-            curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" "$1"
-          }
-
-          # Discover: up to 2 min for the benchmark run to register.
-          FIND_DEADLINE=$(( $(date +%s) + 120 ))
-          RUN_ID=""
-          while true; do
-            RESP=$(api_get "$LIST_API")
-            COUNT=$(echo "$RESP" | jq '.workflow_runs | length')
-            if [[ "$COUNT" -gt 0 ]]; then
-              RUN_ID=$(echo "$RESP" | jq -r '.workflow_runs[0].id')
-              echo "Found benchmark run: $RUN_ID"
-              break
-            fi
-            if [[ $(date +%s) -gt $FIND_DEADLINE ]]; then
-              echo "No benchmark run for SHA $SHA — will fall back to main's results"
-              echo "run_id=" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "Waiting for benchmark to start..."
-            sleep 15
-          done
-
-          # Wait for completion (cap at 3 h — benchmark run has 120 min timeout per cell).
-          RUN_API="https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}"
-          FINISH_DEADLINE=$(( $(date +%s) + 10800 ))
-          while true; do
-            RESP=$(api_get "$RUN_API")
-            STATUS=$(echo "$RESP" | jq -r '.status')
-            if [[ "$STATUS" == "completed" ]]; then
-              CONCLUSION=$(echo "$RESP" | jq -r '.conclusion')
-              echo "benchmark completed: $CONCLUSION"
-              break
-            fi
-            if [[ $(date +%s) -gt $FINISH_DEADLINE ]]; then
-              echo "Timed out — falling back to main's results" >&2
-              echo "run_id=" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "benchmark status: $STATUS — sleeping 60s"
-            sleep 60
-          done
-
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Download PR's benchmark artifact
-        if: github.event_name == 'pull_request' && steps.pr_bench.outputs.run_id != ''
-        continue-on-error: true
-        id: pr_artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-results-${{ github.event.pull_request.head.sha }}
-          path: pr-bench/
-          run-id: ${{ steps.pr_bench.outputs.run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Stage PR benchmark results
-        if: github.event_name == 'pull_request' && steps.pr_bench.outputs.run_id != ''
-        id: stage_pr
-        run: |
-          set -euo pipefail
-          if [ -d pr-bench/mosaic-results ] && [ "$(ls pr-bench/mosaic-results/)" ]; then
-            mkdir -p mosaic-results
-            cp -r pr-bench/mosaic-results/* mosaic-results/
-            echo "got_pr=true" >> "$GITHUB_OUTPUT"
-            echo "Using PR's benchmark results:"
-            ls -la mosaic-results/
-          else
-            echo "got_pr=false" >> "$GITHUB_OUTPUT"
-            echo "PR benchmark artifact missing or empty — will fall back to main's results"
-          fi
-
-      # ── Fallback (push events, or PR with no benchmark artifact) ──
+      # ── Fetch benchmark results (best-effort) ──
+      # Try the results branch first; this always has the latest baseline.
+      # On PRs, a completed benchmark run's artifact takes precedence if available.
       - name: Fetch benchmark results from results branch
-        if: github.event_name != 'pull_request' || steps.stage_pr.outputs.got_pr != 'true'
         run: |
           if git fetch origin benchmark-results 2>/dev/null; then
-            # Checkout result plots/JSON into the working tree without switching branches
             git checkout origin/benchmark-results -- latest/ 2>/dev/null || true
             if [ -d latest ]; then
-              # Overlay result data into the location generate_results.py expects
               mkdir -p mosaic-results
               for domain_dir in latest/*/; do
                 domain=$(basename "$domain_dir")
-                # Skip non-domain files (snapshot.json, status-report.md)
                 [ -d "$domain_dir" ] || continue
                 cp -r "$domain_dir" "mosaic-results/$domain"
               done
               echo "Restored benchmark results from results branch"
-              ls -la mosaic-results/
             else
               echo "No results directory on benchmark-results branch"
             fi
@@ -167,29 +69,9 @@ jobs:
       - name: Render site
         run: quarto render
 
-      - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site/
-
       - name: Upload PR preview artifact
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: docs-preview-pr-${{ github.event.pull_request.number }}
+          name: docs-preview-pr-${{ github.event.pull_request.number || 'manual' }}
           path: _site/
           retention-days: 14
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - name: Deploy
-        id: deploy
-        uses: actions/deploy-pages@v4

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from collections.abc import Callable
 from typing import Any
@@ -25,11 +28,11 @@ data_dir = os.path.join(crt_file_path, "data")
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
-    pass
+    """JAX-FEM structural solver input schema."""
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
-    pass
+    """JAX-FEM structural solver output schema."""
 
 
 #
@@ -307,6 +310,7 @@ def jacobian_vector_product(  # mosaic:grad:rho:autodiff
     jvp_outputs: set[str],
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
+    """Compute the Jacobian-vector product for the structural solver."""
     assert jvp_inputs <= {"rho"}
     assert jvp_outputs <= {"compliance"}
 

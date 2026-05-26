@@ -1,10 +1,18 @@
 # Contributing to Mosaic
 
-Mosaic grows as the community adds solver backends, improves configurations, and extends to new domains. This guide covers the contribution paths and the local tooling you need.
+Mosaic grows as the community adds solver backends, improves configurations, and extends to new domains. This guide covers the contribution paths and the local tooling you need. Any contributions you make are greatly appreciated.
+
+## Code of Conduct
+
+Ensure your contributions adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Code
+
+Mosaic is developed under the [Apache 2.0](LICENSE) license. By contributing to the Mosaic project you agree that your code contributions are governed by this license. We require you to sign our [Contributor License Agreement](https://github.com/pasteurlabs/pasteur-oss-cla/blob/main/README.md) to state so.
 
 ## Adding a solver backend
 
-A solver backend is a Tesseract wrapper that implements the forward map and (optionally) its VJP for an existing benchmark domain. The full walkthrough — directory layout, schemas, `apply` / `abstract_eval` / `vector_jacobian_product`, the `metadata.mosaic:` config block, and domain-specific overrides (exclusions, input_overrides, explained_anomalies) — is in [Part A of the Add a Backend tutorial](https://pasteurlabs.github.io/mosaic/tutorial.html#part-a--add-a-solver-to-an-existing-domain) (source: [`docs/tutorial.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial.qmd)). It uses a short pseudo-spectral solver on the ns-grid domain as a running example.
+A solver backend is a Tesseract wrapper that implements the forward map and (optionally) its VJP for an existing benchmark domain. The full walkthrough — directory layout, schemas, `apply` / `abstract_eval` / `vector_jacobian_product`, the `metadata.mosaic:` config block, and domain-specific overrides (exclusions, input_overrides, explained_anomalies) — is in [Part A of the Add a Backend tutorial](https://docs.pasteurlabs.ai/projects/mosaic/latest/tutorial.html#part-a--add-a-solver-to-an-existing-domain) (source: [`docs/tutorial.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial.qmd)). It uses a short pseudo-spectral solver on the ns-grid domain as a running example.
 
 ## Tuning an existing solver
 
@@ -54,11 +62,11 @@ Solver behavior can be adjusted at three levels:
 
 ## Adding a benchmark domain
 
-A new domain bundles canonical schemas (`mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`), a `Problem` package (`mosaic/benchmarks/problems/<domain>/`, split into `config.py`, `ics.py`, `physics.py`, plus any per-problem `optimization.py` / `plots.py`), and at least one reference solver. The fastest way to start is `mosaic new-domain <name> --from-template <template>`, which scaffolds the file tree from a built-in template. The end-to-end walkthrough — schemas, suite defaults, IC generators, error functions, and a working reference solver — is in [Part B of the Add a Backend tutorial](https://pasteurlabs.github.io/mosaic/tutorial.html#part-b--add-a-new-benchmark-domain) (source: [`docs/tutorial.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial.qmd)).
+A new domain bundles canonical schemas (`mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`), a `Problem` package (`mosaic/benchmarks/problems/<domain>/`, split into `config.py`, `ics.py`, `physics.py`, plus any per-problem `optimization.py` / `plots.py`), and at least one reference solver. The fastest way to start is `mosaic new-domain <name> --from-template <template>`, which scaffolds the file tree from a built-in template. The end-to-end walkthrough — schemas, suite defaults, IC generators, error functions, and a working reference solver — is in [Part B of the Add a Backend tutorial](https://docs.pasteurlabs.ai/projects/mosaic/latest/tutorial.html#part-b--add-a-new-benchmark-domain) (source: [`docs/tutorial.qmd`](https://github.com/pasteurlabs/mosaic/blob/main/docs/tutorial.qmd)).
 
 ## Building the docs
 
-The Quarto site at <https://pasteurlabs.github.io/mosaic> is generated from `docs/*.qmd` plus two auto-generated files: `docs/solvers.qmd` (gitignored) and `docs/results_*.qmd`.
+The Quarto site at <https://docs.pasteurlabs.ai/projects/mosaic/latest> is generated from `docs/*.qmd` plus two auto-generated files: `docs/solvers.qmd` (gitignored) and `docs/results_*.qmd`.
 
 **Install the Quarto CLI** — this is a standalone binary, _not_ a pip package. Grab it from <https://quarto.org/docs/get-started/> (the page autodetects your OS) or:
 
@@ -96,9 +104,63 @@ Quarto will error with a missing-file message if you run `quarto render` before 
 - Pre-commit hooks enforce formatting on every commit
 - Run tests with `pytest`
 
+## Local development setup
+
+Clone the repository and install the dependencies with [pre-commit](https://pre-commit.com/) hooks:
+
+```console
+$ git clone git@github.com:pasteurlabs/mosaic.git
+$ cd mosaic
+$ python -m venv venv
+$ . venv/bin/activate
+$ pip install -e .[dev]
+$ pre-commit install
+```
+
 ## Pull request workflow
 
-1. Fork the repository and create a feature branch
-2. Make your changes, ensuring `ruff check` and `pytest` pass
-3. Open a pull request with a clear description of what you're adding
-4. CI runs lint, tests, and tesseract config validation on every PR. Full benchmark runs (which require GPU runners) are triggered by adding the `benchmark` label to the PR
+1. Fork the repository and create a feature branch.
+2. Make your changes, ensuring `ruff check` and `pytest` pass.
+3. Open a pull request with a clear description of what you're adding.
+4. CI runs lint, tests, and tesseract config validation on every PR. Full benchmark runs (which require GPU runners) are triggered by adding the `benchmark` label to the PR.
+
+## Commit and pull request message guidelines
+
+We follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification for all commits that reach the `main` branch. Each commit is crafted from a pull request that is squash-merged. The commit title and message comes from the pull request title and message, respectively. As such, they should be structured following the specification.
+
+The title consists of a _type_, an optional _scope_, and a short _description_: `type[(scope)]: description`. The types we use are:
+
+- `chore`: for changes that affect the build system, external dependencies, or general housekeeping.
+- `ci`: for changes in the CI.
+- `doc`: for documentation only changes.
+- `feat`: for a new feature.
+- `fix`: for fixing a bug.
+- `perf`: for a code change that improves performance.
+- `refactor`: for a code change that neither adds a feature nor fixes a bug.
+- `security`: for a change that fixes a security issue.
+- `test`: for adding new tests or fixing existing ones.
+
+The scopes we use are:
+
+- `harness`: for changes that affect the benchmark harness or CLI.
+- `solver`: for changes to solver backends.
+- `domain`: for changes to benchmark domains.
+- `deps`: for changes in the dependencies.
+
+In case there are breaking changes in your code, this should be indicated in the message either by appending an exclamation mark (`!`) after the type/scope or by adding a `BREAKING CHANGE:` trailer to the message.
+
+## Versioning
+
+Mosaic follows [semantic versioning](https://semver.org).
+
+## Release process
+
+(code owners only)
+
+Releases are done via GitHub Actions, which automatically build the release artifacts and publish them to PyPI. To create a new release:
+
+1. Make sure the code is in a good state, all tests pass, and the documentation is up to date.
+2. Trigger the release workflow through the [GitHub UI](https://github.com/pasteurlabs/mosaic/actions/workflows/release.yml). This opens a new pull request with the release notes and the version number.
+3. Add any additional release notes to the pull request message.
+4. Once the pull request is ready, merge it into `main`.
+5. GitHub Actions will then automatically release the new version. Verify that the release artifacts are correctly built and published.

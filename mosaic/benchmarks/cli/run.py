@@ -1,9 +1,13 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """`mosaic run` — execute benchmark suites across problems."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -84,7 +88,7 @@ def run(
         "--hardware",
         help="Filter solvers by hardware target: 'cpu', 'gpu', or 'all' (default).",
     ),
-    output_dir: Path | None = typer.Option(
+    output_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--output-dir",
         "-o",
@@ -116,7 +120,7 @@ def run(
         "solvers already recorded in result_partial.json (written incrementally "
         "during the work loop).",
     ),
-):
+) -> None:
     """Run benchmark suites across problems.
 
     Build each problem's solver images once, then run all requested suites in
@@ -257,7 +261,7 @@ def run(
 def _run_suites_for_problem(
     problem: str,
     suite_list: list[str],
-    cfg,
+    cfg: Any,
     tags: dict[str, str],
     to_run: list[str] | None,
     *,

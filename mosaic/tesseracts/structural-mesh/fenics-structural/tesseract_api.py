@@ -1,3 +1,7 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: F405
+
 """Linear elasticity topology optimisation on an arbitrary hexahedral mesh.
 
 Uses FEniCS (DOLFIN 2019.1.0) + dolfin-adjoint to solve 3-D linear elasticity
@@ -8,16 +12,14 @@ CRITICAL import order: dolfin_adjoint must immediately follow dolfin so that
 it can monkey-patch solve/assemble and record operations on the adjoint tape.
 """
 
-# ruff: noqa: F403, F405
-
 import os
 import tempfile
 from typing import Any
 
 import meshio
 import numpy as np
-from dolfin import *
-from dolfin_adjoint import *
+from dolfin import *  # noqa: F403
+from dolfin_adjoint import *  # noqa: F403
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
@@ -52,7 +54,7 @@ class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
-    pass
+    """FEniCS structural solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -248,10 +250,10 @@ def _solve_elasticity(  # mosaic:physics
     mu = E / (2 * (1 + nu_c))
 
     # ---- Strain / stress helpers -----------------------------------------
-    def eps(w):
+    def eps(w: Any) -> Any:
         return 0.5 * (grad(w) + grad(w).T)
 
-    def sig(w):
+    def sig(w: Any) -> Any:
         return lam * tr(eps(w)) * Identity(3) + 2 * mu * eps(w)
 
     # ---- Neumann facet markers and traction linear form ------------------

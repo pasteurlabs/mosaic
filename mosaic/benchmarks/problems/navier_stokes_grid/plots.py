@@ -1,8 +1,12 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-problem plots for the navier-stokes-grid drag-optimisation experiments."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib.animation as manimation
 import matplotlib.gridspec as gridspec
@@ -42,7 +46,7 @@ def plot_drag_opt(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "drag_opt",
-    **_kw,
+    **_kw: Any,
 ) -> list:
     """Drag-optimisation per-experiment plot — paper figure + extras.
 
@@ -61,7 +65,14 @@ def plot_drag_opt(
     styles = solver_styles(cfg)
     figs: list = []
 
-    def _plot_one(data, profiles_path, out_dir, *, paper_exp_key, paper_suffix):
+    def _plot_one(
+        data: Any,
+        profiles_path: Any,
+        out_dir: Any,
+        *,
+        paper_exp_key: Any,
+        paper_suffix: Any,
+    ) -> None:
         by_solver = data.get("by_solver", {})
         if not by_solver:
             return
@@ -118,7 +129,7 @@ def plot_drag_opt(
     return figs
 
 
-def _drag_alias_to_display(prefix: str, container) -> dict[str, str]:
+def _drag_alias_to_display(prefix: str, container: Any) -> dict[str, str]:
     """Build an alias→display-name map from npz/dict keys matching *prefix*."""
     if container is None:
         return {}
@@ -135,8 +146,8 @@ def _drag_alias_to_display(prefix: str, container) -> dict[str, str]:
 
 
 def _drag_panel_drag_reduction(
-    ax, data: dict, alias_to_display: dict, present: set[str]
-):
+    ax: Any, data: dict, alias_to_display: dict, present: set[str]
+) -> None:
     """Draw the drag-reduction-vs-iteration panel; updates ``present`` aliases."""
     for alias in _DRAG_OPT_SOLVER_ORDER:
         display_name = alias_to_display.get(alias, alias)
@@ -162,7 +173,9 @@ def _drag_panel_drag_reduction(
     ax.set_ylim(bottom=0)
 
 
-def _drag_panel_profiles(ax, profiles, alias_to_display: dict, present: set[str]):
+def _drag_panel_profiles(
+    ax: Any, profiles: Any, alias_to_display: dict, present: set[str]
+) -> None:
     """Draw the initial + final inlet profiles panel; updates ``present`` aliases."""
     if profiles is not None and "initial" in profiles:
         y_arr = np.linspace(0, 1, profiles["initial"].shape[0])
@@ -189,8 +202,12 @@ def _drag_panel_profiles(ax, profiles, alias_to_display: dict, present: set[str]
 
 
 def _drag_panel_history(
-    imshow_axes, hist_solvers, hist_alias_to_display, profiles, data
-):
+    imshow_axes: Any,
+    hist_solvers: Any,
+    hist_alias_to_display: Any,
+    profiles: Any,
+    data: Any,
+) -> None:
     """Draw the profile-history imshow panels (one per solver row)."""
     for idx, (ax_im, alias) in enumerate(zip(imshow_axes, hist_solvers, strict=False)):
         display_name = hist_alias_to_display.get(alias, alias)
@@ -335,7 +352,7 @@ def _vel_components_2d(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def _plot_drag_opt_fields(
     data: dict,
-    out_dir,
+    out_dir: Any,
     run_name: str,
     title_suffix: str,
     styles: dict,
@@ -470,8 +487,8 @@ def _plot_drag_opt_fields(
 
 
 def _render_drag_opt_evolution_gifs(
-    profiles,
-    out_dir,
+    profiles: Any,
+    out_dir: Any,
     solver_names: list,
     styles: dict,
     run_name: str,
@@ -529,14 +546,14 @@ def _render_drag_opt_evolution_gifs(
         fig.tight_layout()
 
         def _update(
-            idx,
-            _line=line,
-            _title=title,
-            _hist=hist,
-            _label=label,
-            _n=n_frames,
-            _rn=run_name,
-        ):
+            idx: Any,
+            _line: Any = line,
+            _title: Any = title,
+            _hist: Any = hist,
+            _label: Any = label,
+            _n: Any = n_frames,
+            _rn: Any = run_name,
+        ) -> Any:
             _line.set_xdata(_hist[idx])
             _title.set_text(
                 f"{_label} — snapshot {idx + 1} / {_n}" + (f"  ({_rn})" if _rn else "")

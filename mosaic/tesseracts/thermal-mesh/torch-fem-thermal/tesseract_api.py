@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Thermal topology optimisation on a structured hexahedral mesh via torch-fem.
 
 Uses Meyer-Nils/torch-fem `SolidHeat` (HEX8 Galerkin) with PyTorch autograd
@@ -52,7 +55,7 @@ class OutputSchema(
         _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
     )
 ):
-    pass
+    """Torch-FEM thermal solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -110,8 +113,15 @@ _ORIG_SPARSE_SOLVE = _tfem_sparse.sparse_solve
 
 
 def _sparse_solve_device_safe(  # mosaic:util
-    A, b, B=None, stol=1e-10, device=None, method=None, M=None, x0=None
-):
+    A: Any,
+    b: Any,
+    B: Any = None,
+    stol: float = 1e-10,
+    device: Any = None,
+    method: Any = None,
+    M: Any = None,
+    x0: Any = None,
+) -> Any:
     if device is not None:
         if B is not None and hasattr(B, "to"):
             B = B.to(device)

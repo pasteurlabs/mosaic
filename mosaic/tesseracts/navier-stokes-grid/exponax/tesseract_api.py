@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 
 import equinox as eqx
@@ -21,6 +24,8 @@ class InputSchema(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
     )
 ):
+    """Exponax solver input schema with spectral-specific parameters."""
+
     drag: Differentiable[Array[(1,), Float32]] = Field(
         description="Linear drag coefficient",
         default_factory=lambda: np.array([0.0], dtype=np.float32),
@@ -51,7 +56,7 @@ class InputSchema(
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
-    pass
+    """Exponax solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +120,7 @@ def exponax_fwd(  # mosaic:physics
     injection_mode: int,
     injection_scale: float,
     boundary_conditions: dict | None = None,
-    **_kwargs,
+    **_kwargs: Any,
 ) -> jnp.ndarray:
     """Run 2D or 3D incompressible Navier-Stokes using exponax.
 
@@ -136,6 +141,7 @@ def exponax_fwd(  # mosaic:physics
         kolmogorov_forcing: Enable Kolmogorov body forcing.
         injection_mode: Forcing wavenumber.
         injection_scale: Forcing amplitude.
+        boundary_conditions: Boundary condition config (must be fully periodic).
 
     Returns:
         Final velocity field, same shape as v0.
@@ -176,7 +182,7 @@ def exponax_fwd(  # mosaic:physics
                 num_spatial_dims=2, **stepper_kwargs
             )
 
-        def step_fn(carry, _):
+        def step_fn(carry: Any, _: Any) -> tuple[Any, None]:
             return stepper(carry).astype(carry.dtype), None
 
         result_vort, _ = jax.lax.scan(step_fn, vort, None, length=steps)
@@ -201,7 +207,7 @@ def exponax_fwd(  # mosaic:physics
                 num_spatial_dims=3, **stepper_kwargs
             )
 
-        def step_fn(carry, _):
+        def step_fn(carry: Any, _: Any) -> tuple[Any, None]:
             return stepper(carry).astype(carry.dtype), None
 
         result_cf, _ = jax.lax.scan(step_fn, v0_cf, None, length=steps)
@@ -217,6 +223,7 @@ def exponax_fwd(  # mosaic:physics
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:  # mosaic:physics
+    """JIT-compiled forward pass for the Exponax solver."""
     return {"result": exponax_fwd(**inputs)}
 
 
@@ -232,6 +239,7 @@ def _unpack_scalars(d: dict) -> dict:  # mosaic:io
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
+    """Run the exponax forward solver."""
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
@@ -303,7 +311,8 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,drag,injection_scale
     vjp_inputs: set[str],
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
-):
+) -> dict[str, Any]:
+    """Compute reverse-mode vector-Jacobian product for differentiable inputs."""
     return vjp_jit(
         _unpack_scalars(inputs.model_dump()),
         tuple(vjp_inputs),
@@ -312,12 +321,12 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,drag,injection_scale
     )
 
 
-def abstract_eval(abstract_inputs):
+def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     """Calculate output shape from input shapes."""
     is_shapedtype_dict = lambda x: type(x) is dict and (x.keys() == {"shape", "dtype"})
     is_shapedtype_struct = lambda x: isinstance(x, jax.ShapeDtypeStruct)
 
-    def to_jax(x):
+    def to_jax(x: Any) -> Any:
         if not is_shapedtype_dict(x):
             return x
         s = jax.ShapeDtypeStruct(**x)
@@ -334,7 +343,7 @@ def abstract_eval(abstract_inputs):
         jaxified_inputs, filter_spec=is_shapedtype_struct
     )
 
-    def wrapped_apply(dynamic_inputs):
+    def wrapped_apply(dynamic_inputs: Any) -> dict:
         inputs = eqx.combine(static_inputs, dynamic_inputs)
         return apply_jit(inputs)
 
@@ -353,7 +362,7 @@ def vjp_jit(
     vjp_inputs: tuple[str],
     vjp_outputs: tuple[str],
     cotangent_vector: dict,
-):
+) -> dict:
     """Reverse-mode VJP over any subset of diff inputs."""
     present = tuple(
         k for k in vjp_inputs if k in _DIFF_INPUT_KEYS and inputs.get(k) is not None
@@ -371,7 +380,7 @@ def vjp_jit(
         _inputs_frozen = inputs
         _vjp_outputs_frozen = vjp_outputs
 
-        def _fwd_static(bundle):
+        def _fwd_static(bundle: dict) -> dict:
             result = _run_forward(_inputs_frozen, bundle)
             out = {}
             if "result" in _vjp_outputs_frozen:
@@ -379,7 +388,7 @@ def vjp_jit(
             return out
 
         @jax.jit
-        def _vjp_compiled(bundle, cotan):
+        def _vjp_compiled(bundle: dict, cotan: dict) -> dict:
             _, vjp_func = jax.vjp(_fwd_static, bundle)
             return vjp_func(cotan)[0]
 

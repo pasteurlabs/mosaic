@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 
 import numpy as np
@@ -16,11 +19,11 @@ from tesseract_shared.types import BCType, make_differentiable
 class InputSchema(
     make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "inflow_profile"])
 ):
-    pass
+    """Differentiable input schema for the PICT Navier-Stokes solver."""
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
-    pass
+    """Differentiable output schema for the PICT Navier-Stokes solver."""
 
 
 # ---------------------------------------------------------------------------
@@ -78,8 +81,10 @@ def _make_uniform_rect_grid(  # mosaic:init
     Args:
         nx: Number of cells in x.
         ny: Number of cells in y.
-        x0, y0: Lower-left corner coordinates.
-        x1, y1: Upper-right corner coordinates.
+        x0: Lower-left corner x-coordinate.
+        y0: Lower-left corner y-coordinate.
+        x1: Upper-right corner x-coordinate.
+        y1: Upper-right corner y-coordinate.
         dtype: Torch dtype.
 
     Returns:
@@ -113,7 +118,8 @@ def _make_arc_block_grid(  # mosaic:init
         nx: Number of cells in x.
         ny: Number of cells in y.
         outer_rect: (x0, y0, x1, y1) bounding box of the block in cell coords.
-        arc_cx, arc_cy: Circle centre in cell coords.
+        arc_cx: Circle centre x-coordinate in cell coords.
+        arc_cy: Circle centre y-coordinate in cell coords.
         arc_r: Circle radius in cell coords.
         arc_face: Which face of the block is the arc: "-y" (bottom), "+y" (top),
             "-x" (left), "+x" (right).  The *opposite* face stays rectangular.
@@ -231,7 +237,8 @@ def _make_corner_block_grid(  # mosaic:init
         nx: Number of cells in x.
         ny: Number of cells in y.
         outer_rect: (x0, y0, x1, y1) bounding box of the block in cell coords.
-        arc_cx, arc_cy: Circle centre in cell coords.
+        arc_cx: Circle centre x-coordinate in cell coords.
+        arc_cy: Circle centre y-coordinate in cell coords.
         arc_r: Circle radius in cell coords.
         arc_corner: Which corner of the block faces the obstacle:
             "bl" (bottom-left), "br" (bottom-right),
@@ -518,6 +525,8 @@ def _make_domain_cylinder(  # mosaic:init
             (``Bbl``, ``Bml``, ``Btl``).
         phys_scale: ``N/L`` scaling factor applied to ``inflow_profile_t`` to
             convert physical velocities to PICT unit-cell coordinates.
+        y_walls_noslip: If ``True``, close the top/bottom domain faces with
+            no-slip walls; otherwise use periodic boundary conditions.
 
     Returns:
         ``(domain, out_bounds, adv_velm, v0_setter, assembler, drag_assembler)``
@@ -1037,6 +1046,8 @@ def _run_pict(  # mosaic:physics
             converting physical boundary velocities to PICT units.
         obstacle: Optional obstacle dict (keys ``"shape"``, ``"center"``,
             ``"radius"``).  When provided, triggers 8-block ring topology.
+        y_walls_noslip: If ``True``, apply no-slip walls on the top/bottom
+            domain faces; otherwise use periodic boundary conditions.
 
     Returns:
         ``(result_tensor, drag_tensor, domain)`` where result_tensor is the
@@ -1102,7 +1113,7 @@ def _run_pict(  # mosaic:physics
     prep_fn = None
     if out_bounds or inflow_setter is not None or drag_assembler is not None:
 
-        def _pre_step(domain, time_step, **_kw):
+        def _pre_step(domain: PISOtorch.Domain, time_step: Any, **_kw: Any) -> None:
             # Re-apply inflow BC first (keep inflow_profile_t in autograd graph).
             if inflow_setter is not None:
                 inflow_setter()
@@ -1115,7 +1126,7 @@ def _run_pict(  # mosaic:physics
                     domain, out_bounds, adv_velm, ts
                 )
 
-        def _post_step(domain, time_step, **_kw):
+        def _post_step(domain: PISOtorch.Domain, time_step: Any, **_kw: Any) -> None:
             # Collect per-step drag after the PISO corrector has converged.
             # drag_assembler reads pressure/velocity from block boundaries which
             # are already updated at this point.
@@ -1427,7 +1438,8 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,inflow_profile:autodiff
     return out
 
 
-def abstract_eval(abstract_inputs: InputSchema):
+def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
+    """Return output shapes and dtypes without running the simulation."""
     v0_info = abstract_inputs.v0
     if isinstance(v0_info, dict):
         shape = v0_info["shape"]

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """`mosaic ics` — generate initial-condition visualisations."""
 
 from __future__ import annotations
@@ -26,13 +29,13 @@ def ics(
     traceback: bool = typer.Option(
         False, "--traceback", "--tb", help="Print full traceback on failure"
     ),
-    output_dir: Path | None = typer.Option(
+    output_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--output-dir",
         "-o",
         help="Root directory for benchmark results.",
     ),
-):
+) -> None:
     """Generate initial-condition visualisations (no solver builds needed)."""
     if output_dir is not None:
         os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())

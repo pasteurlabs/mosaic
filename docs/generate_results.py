@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate per-domain docs/results_<slug>.qmd files from benchmark result plots.
 
 Usage:

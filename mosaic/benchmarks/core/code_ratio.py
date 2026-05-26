@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Measures solver-specific vs. boilerplate code ratio in tesseract implementations.
 
 Classifies top-level AST nodes in each tesseract_api.py:
@@ -55,6 +58,8 @@ VALID_GRAD_TYPES = {"autodiff", "adjoint", "analytic", "zero"}
 
 @dataclass
 class SolverStats:
+    """Per-solver code statistics collected by :func:`analyse`."""
+
     problem: str
     solver: str
     tier: int
@@ -84,6 +89,7 @@ class SolverStats:
 
     @property
     def total_solver(self) -> int:
+        """Total solver lines: Python solver logic plus external (C++/Julia) code."""
         return self.py_solver + self.ext_solver
 
     @property
@@ -135,7 +141,7 @@ def _extract_tag(
 def _inline_grad_vars(
     lines: list[str], start: int, end: int
 ) -> tuple[dict[str, int], dict[str, str]]:
-    """Scan lines[start:end] for standalone ``# mosaic:grad:<vars>[:<type>]`` markers.
+    r"""Scan lines[start:end] for standalone ``# mosaic:grad:<vars>[:<type>]`` markers.
 
     A standalone marker is a line where the only non-whitespace content is the
     comment (i.e. ``^\\s*#``), distinguishing it from a function-level tag which
@@ -295,7 +301,7 @@ def classify_python(
 
     for node in ast.iter_child_nodes(tree):
         span = _node_span(node)
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
+        if isinstance(node, ast.Import | ast.ImportFrom):
             imports += span
         elif isinstance(node, ast.ClassDef):
             i_delta, s_delta = _classify_class(
@@ -303,7 +309,7 @@ def classify_python(
             )
             interface += i_delta
             solver += s_delta
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             i_delta, s_delta = _classify_function(
                 node, lines, solver_by_category, grad_by_variable, grad_variable_type
             )
@@ -432,6 +438,7 @@ def find_tesseract_shared_jl(
 
 
 def detect_tier(tesseract_dir: Path, has_ext: bool) -> tuple[int, str]:
+    """Return ``(tier, note)`` for a tesseract directory."""
     if has_ext:
         return 2, ""
     config = tesseract_dir / "tesseract_config.yaml"
@@ -449,6 +456,7 @@ def analyse(
     tesseract_dir: Path,
     tesseract_shared_root: Path | None = None,
 ) -> SolverStats:
+    """Analyse a single tesseract directory and return its :class:`SolverStats`."""
     ext_lines, ext_files, ext_by_cat, ext_grad_vars, ext_grad_types = count_external(
         tesseract_dir
     )
@@ -507,6 +515,7 @@ def collect(
     problem_filter: str | None = None,
     tesseract_shared_root: Path | None = None,
 ) -> list[SolverStats]:
+    """Walk *tesseracts_root* and return :class:`SolverStats` for every solver found."""
     results: list[SolverStats] = []
     for problem_dir in sorted(tesseracts_root.iterdir()):
         if not problem_dir.is_dir():
@@ -572,6 +581,7 @@ def _category_bar(
 
 
 def print_rich(results: list[SolverStats]) -> None:
+    """Render *results* as Rich-formatted tables to stdout."""
     from rich import box
     from rich.console import Console
     from rich.table import Table
@@ -623,8 +633,8 @@ def print_rich(results: list[SolverStats]) -> None:
                     )
             bar = _category_bar(cat_with_ext, max_bespoke)
 
-            def _cat(name: str) -> str:
-                v = cat_with_ext.get(name, 0)
+            def _cat(name: str, _cwe: dict = cat_with_ext) -> str:
+                v = _cwe.get(name, 0)
                 return str(v) if v else "[dim]—[/dim]"
 
             table.add_row(
@@ -1177,6 +1187,7 @@ _CSV_CATEGORIES = ["physics", "io", "init", "grad", "util", "unknown"]
 
 
 def print_csv(results: list[SolverStats]) -> None:
+    """Render *results* as CSV to stdout."""
     # Collect all variable names that appear across any solver (stable sort order)
     all_vars: list[str] = sorted({var for s in results for var in s.grad_by_variable})
 

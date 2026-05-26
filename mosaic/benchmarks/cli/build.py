@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """`mosaic build` — build solver images for one or more problems."""
 
 from __future__ import annotations
@@ -33,7 +36,7 @@ def build(
         "On a fresh worker machine 4-8 is usually faster.",
         min=1,
     ),
-):
+) -> None:
     """Build solver images for one or more problems.
 
     Useful to pre-warm tesseract images on a fresh machine. Cached images are

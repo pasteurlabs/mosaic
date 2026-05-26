@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import glob
 import os
 import sys
@@ -104,7 +107,7 @@ class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
-    pass
+    """TopOpt.jl structural solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +123,7 @@ def _to_julia(arr: np.ndarray):  # mosaic:io
     return juliacall.convert(jl.Array, np.ascontiguousarray(arr))
 
 
-def _to_numpy(jl_arr) -> np.ndarray:  # mosaic:io
+def _to_numpy(jl_arr: Any) -> np.ndarray:  # mosaic:io
     """Convert a Julia array to a numpy array."""
     return np.asarray(jl_arr).copy()
 

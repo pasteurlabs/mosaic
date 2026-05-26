@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared diagnostic functions for fluid-velocity ``DIAGNOSTICS`` dicts.
 
 Used by both ``navier_stokes_grid`` (2D, shape ``(N, N, 1, 2)``) and
@@ -7,12 +10,16 @@ read ``arr.shape[-1]`` and switch internally.
 
 from __future__ import annotations
 
+from typing import Any
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 
 
-def divergence_rms(arr: jax.Array, domain_extent: float = 2 * jnp.pi, **_) -> float:
+def divergence_rms(
+    arr: jax.Array, domain_extent: float = 2 * jnp.pi, **_: Any
+) -> float:
     """RMS divergence ∇·u for periodic velocity fields.
 
     Handles 2D ``(N, N, 1, 2)`` and 3D ``(N, N, N, 3)``.
@@ -26,12 +33,12 @@ def divergence_rms(arr: jax.Array, domain_extent: float = 2 * jnp.pi, **_) -> fl
     return float(jnp.sqrt(jnp.mean(div**2)))
 
 
-def kinetic_energy(arr: jax.Array, **_) -> float:
+def kinetic_energy(arr: jax.Array, **_: Any) -> float:
     """Mean kinetic energy ½ ⟨|u|²⟩."""
     return float(0.5 * jnp.mean(jnp.sum(arr**2, axis=-1)))
 
 
-def energy_spectrum(arr: jax.Array, **_) -> dict:
+def energy_spectrum(arr: jax.Array, **_: Any) -> dict:
     """Isotropic 1-D energy spectrum E(k).
 
     Handles 2D ``(N, N, 1, 2)`` and 3D ``(N, N, N, 3)``.

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-solver plot styling (color, linestyle, marker).
 
 These attributes are presentation-only — they don't affect solver capability,

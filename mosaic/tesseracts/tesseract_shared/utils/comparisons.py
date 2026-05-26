@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generic factory functions for multi-solver comparison plots.
 
 All factories return callables compatible with ComparisonPlot.fn:

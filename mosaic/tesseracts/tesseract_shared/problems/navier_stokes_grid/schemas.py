@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Canonical InputSchema / OutputSchema for navier-stokes-grid tesseracts.
 
 The base schemas carry plain (non-`Differentiable`) array types.  Each solver
@@ -58,6 +61,8 @@ def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndar
 
 
 class InputSchema(BaseModel):
+    """Canonical inputs for navier-stokes-grid tesseracts."""
+
     v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
         description=(
@@ -109,6 +114,8 @@ class InputSchema(BaseModel):
 
 
 class OutputSchema(BaseModel):
+    """Canonical outputs for navier-stokes-grid tesseracts."""
+
     result: GridVectorField = Field(
         description="Final velocity field, same shape as v0."
     )

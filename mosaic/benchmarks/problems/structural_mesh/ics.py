@@ -1,6 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Initial conditions and IC registry for structural-mesh."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -11,7 +16,7 @@ def _uniform(
     ny: int | None = None,
     nz: int | None = None,
     N: int | None = None,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Uniform density ρ₀ over the mesh, shape (nx·ny·nz,).
 
@@ -37,7 +42,7 @@ def _random(
     nz: int | None = None,
     N: int | None = None,
     seed: int = 0,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Gaussian-noise density field centred at ρ₀, clipped to [0.05, 0.95].
 
@@ -67,7 +72,7 @@ def _two_density_bumps(
     Lx: float = 2.0,
     Ly: float = 1.0,
     Lz: float = 1.0,
-    **_,
+    **_: Any,
 ) -> np.ndarray:
     """Ground-truth density with two stiff Gaussian bumps on a soft background.
 

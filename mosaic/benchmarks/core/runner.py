@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Solver invocation helpers."""
 
 from __future__ import annotations
@@ -61,9 +64,7 @@ _MOSAIC_TESSERACT_CONNECT_TIMEOUT: float = 30.0
 
 
 def _install_tesseract_http_timeout() -> None:
-    """Patch tesseract_core.sdk.tesseract.HTTPClient.__init__ so every
-    HTTPClient instance carries a requests.Session whose ``request`` method
-    always applies a (connect, read) timeout.
+    """Patch tesseract_core HTTPClient so every request carries a (connect, read) timeout.
 
     Idempotent: repeated calls are no-ops (the patched ``__init__`` carries a
     ``_mosaic_timeout_patched`` attribute).  Safe to call from tests.
@@ -86,7 +87,7 @@ def _install_tesseract_http_timeout() -> None:
     if getattr(orig_init, "_mosaic_timeout_patched", False):
         return
 
-    def _patched_init(self, *args, **kwargs):
+    def _patched_init(self: object, *args: object, **kwargs: object) -> None:
         orig_init(self, *args, **kwargs)
         session = getattr(self, "_session", None)
         if session is None:
@@ -94,7 +95,7 @@ def _install_tesseract_http_timeout() -> None:
         _orig_request = session.request
         _timeout = (_MOSAIC_TESSERACT_CONNECT_TIMEOUT, MOSAIC_TESSERACT_TIMEOUT)
 
-        def _request_with_timeout(method, url, **kw):
+        def _request_with_timeout(method: str, url: str, **kw: object) -> object:
             kw.setdefault("timeout", _timeout)
             return _orig_request(method, url, **kw)
 
@@ -172,7 +173,7 @@ def build_all(
     """
     import yaml
 
-    def _resolve_tag(name: str, spec) -> str:
+    def _resolve_tag(name: str, spec: object) -> str:
         """Derive the expected image tag for a solver without building."""
         if spec.image_tag:
             return spec.image_tag
@@ -184,8 +185,8 @@ def build_all(
             return f"{image_name}:{tag}"
         return f"{spec.dir}:{tag}"
 
-    def _build(spec):
-        name = spec.name
+    def _build(spec: object) -> tuple[str, str]:
+        name = spec.name  # type: ignore[attr-defined]
         # Run any adjacent build_base.sh first — lets tesseracts ship a
         # locally-built base-image wrapper (e.g. dealii-root:latest that
         # switches the upstream dealii/dealii image to USER root so the
@@ -268,8 +269,11 @@ def build_all(
 
 
 def image_tags_no_build(cfg: Problem) -> dict[str, str]:
-    """Return name → image_tag without building, using SolverSpec.image_tag
-    if set, otherwise deriving the image name from the tesseract_config.yaml."""
+    """Return name → image_tag without building.
+
+    Uses ``SolverSpec.image_tag`` if set, otherwise derives the image name
+    from the ``tesseract_config.yaml``.
+    """
     import yaml
 
     tags = {}
@@ -298,7 +302,7 @@ def image_tags_no_build(cfg: Problem) -> dict[str, str]:
 # ── Suite orchestration ───────────────────────────────────────────────────────
 
 
-def _experiment_already_complete(suite_dir, name: str) -> bool:
+def _experiment_already_complete(suite_dir: object, name: str) -> bool:
     """True if a prior run wrote artifacts for *name* under *suite_dir*.
 
     Matches two on-disk layouts:
@@ -346,6 +350,7 @@ def run_suite(
                          per-experiment plots, regardless of which experiments ran.
         suite_name:      name of the suite (e.g. "forward"), passed for display.
         verbose_errors:  if True, print full traceback on experiment/plot failures.
+        overrides:       extra keyword arguments forwarded to each experiment callable.
         skip_completed:  if True, experiments whose result.json already exists
                          on disk are skipped (drives ``mosaic run --continue``).
 
@@ -442,7 +447,7 @@ def per_solver_loop(
     cfg: Problem,
     tags: dict[str, str],
     solver_names: list[str],
-    work_one,
+    work_one: Callable,
     *,
     gpu_ids: list[str] | None = None,
     print_done: bool = True,
@@ -470,7 +475,7 @@ def per_solver_loop(
     """
     wall_times: dict[str, float] = {}
 
-    def _wrapper(name: str, t) -> None:
+    def _wrapper(name: str, t: object) -> None:
         color = cfg.solver(name).color
         t0 = time.perf_counter()
         try:
@@ -500,12 +505,12 @@ def solver_sweep(
     cfg: Problem,
     tags: dict[str, str],
     conditions: list,
-    fn,
+    fn: Callable,
     *,
     suite: str = "forward",
     experiment: str | None = None,
-    label_fn=None,
-    key_fn=None,
+    label_fn: Callable | None = None,
+    key_fn: Callable | None = None,
     auto_status: bool = True,
     gpu_ids: list[str] | None = None,
 ) -> dict[str, dict]:
@@ -559,7 +564,7 @@ def solver_sweep(
     with make_sweep_progress(total=n_total) as progress:
         task = progress.add_task("running sweep...", total=n_total)
 
-        def _per_solver(name: str, t) -> None:
+        def _per_solver(name: str, t: object) -> None:
             nonlocal _calls_done
             si = names.index(name) + 1
             color = cfg.solver(name).color
@@ -603,7 +608,7 @@ def solver_sweep(
 def run_with_gpu_pool(
     solver_names: list[str],
     tags: dict[str, str],
-    fn,
+    fn: Callable,
     gpu_ids: list[str] | None = None,
     on_error: Callable[[str, Exception], None] | None = None,
 ) -> None:
@@ -641,13 +646,13 @@ def run_with_gpu_pool(
         )
     solver_names = [n for n in solver_names if n in tags]
 
-    def _open_tesseract(tag: str, gpus, docker_args):
+    def _open_tesseract(tag: str, gpus: object, docker_args: object) -> object:
         """Pick the right loader for ``tag``.
 
         Tags prefixed with ``inprocess:`` use
         :meth:`Tesseract.from_tesseract_api` (no Docker, just imports a
         ``tesseract_api.py``) — meant for end-to-end framework tests
-        with the dummy tesseracts in ``mosaic/tests/dummy_tesseracts/``.
+        with the dummy tesseracts in ``tests/dummy_tesseracts/``.
         Every other tag is a Docker image and goes through
         :meth:`Tesseract.from_image`.
         """

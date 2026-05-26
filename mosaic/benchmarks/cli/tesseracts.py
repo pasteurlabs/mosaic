@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """`mosaic tesseracts` — code-ratio report across tesseract solver modules."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Per-solver exclusions for structural-mesh.
 
 Mirrors the ns-grid layout (:mod:`mosaic.benchmarks.problems.navier_stokes_grid.exclusions`):

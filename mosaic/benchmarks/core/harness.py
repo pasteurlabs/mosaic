@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Reusable timing harness for benchmark suites.
 
 Centralises the warmup + repeated-trial pattern that appears in every
@@ -19,8 +22,8 @@ Typical use::
         image_tag=image_tag,
     )
     if result.failure is not None:
-        ...                                 # record failure, stop sweep
-    record = result.as_record()             # {"mean", "std", "vram_peak_mib", ...}
+        ...  # record failure, stop sweep
+    record = result.as_record()  # {"mean", "std", "vram_peak_mib", ...}
 """
 
 from __future__ import annotations
@@ -95,9 +98,10 @@ class TimedResult:
 
     @property
     def succeeded(self) -> bool:
+        """True if the timed run produced no failure."""
         return self.failure is None
 
-    def as_record(self, **extra) -> dict:
+    def as_record(self, **extra: object) -> dict:
         """Return a dict suitable for inserting into a suite result.
 
         On success: ``{"mean", "std", "trials_s", **mem, **extra}``.

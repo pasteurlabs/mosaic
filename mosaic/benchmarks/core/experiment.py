@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Generic harness scaffold for per-solver experiments with optional sweeps.
 
 The core of every benchmark experiment is the same skeleton: walk the runs
@@ -115,7 +118,7 @@ def kernel(
     selector_fn: Callable[..., list[str]] = active_differentiable_solvers,
     snapshot_filename: str = "gradient_fields.npz",
     snapshot_prefixes: tuple[str, ...] = ("grad",),
-):
+) -> Callable:
     """Decorator: tag a ``(t, ctx) -> dict`` function as an experiment kernel.
 
     Attaches a ``_mosaic_kernel_config`` attribute that
@@ -123,7 +126,7 @@ def kernel(
     :func:`run_experiment`.
     """
 
-    def decorate(fn):
+    def decorate(fn: Callable) -> Callable:
         setattr(
             fn,
             _KERNEL_CONFIG_ATTR,
@@ -145,26 +148,26 @@ def kernel(
     return decorate
 
 
-def is_kernel(fn) -> bool:
+def is_kernel(fn: object) -> bool:
     """True iff ``fn`` was decorated with :func:`kernel`."""
     return hasattr(fn, _KERNEL_CONFIG_ATTR)
 
 
-def get_kernel_config(fn) -> dict:
+def get_kernel_config(fn: object) -> dict:
     """Return the framework config attached by :func:`kernel` (or empty)."""
     return getattr(fn, _KERNEL_CONFIG_ATTR, {})
 
 
-def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked separately
+def run_experiment(
     cfg: Problem,
     tags: dict[str, str],
     kernel_fn: Kernel,
     *,
     suite: str,
     exp_key: str,
-    runs,
-    make_ic,
-    make_inputs,
+    runs: Any,
+    make_ic: Any,
+    make_inputs: Any,
     output_key: str,
     ic_key: str,
     domain_extent: float,
@@ -178,7 +181,7 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
     snapshot_filename: str = "gradient_fields.npz",
     snapshot_prefixes: tuple[str, ...] = ("grad",),
     horizons_shared: bool = False,
-    **overrides,
+    **overrides: Any,
 ) -> dict:
     """Generic per-solver experiment driver.
 
@@ -258,31 +261,49 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
         # silently indistinguishable from a solver that wasn't selected.
         solver_failures: dict[str, str] = {}
 
-        def _on_solver_error(name: str, exc: Exception) -> None:
-            solver_failures[name] = f"{type(exc).__name__}: {exc}"[:300]
+        def _on_solver_error(
+            name: str,
+            exc: Exception,
+            _sf: dict[str, str] = solver_failures,
+        ) -> None:
+            _sf[name] = f"{type(exc).__name__}: {exc}"[:300]
 
-        def _ctx(name: str, val: Any) -> KernelContext:
-            _ic = ic_per_val[val] if ic_per_val is not None else base_ic
-            phys = {**base_phys, "domain_extent": domain_extent}
-            if sweep_key is not None:
-                phys[sweep_key] = val
+        def _ctx(
+            name: str,
+            val: Any,
+            _ic_per_val: dict | None = ic_per_val,
+            _base_ic: Any = base_ic,
+            _base_phys: dict = base_phys,
+            _sweep_key: str | None = sweep_key,
+            _run_ic_key: str = run_ic_key,
+            _run_output_key: str = run_output_key,
+            _run: dict = run,
+            _seed: int = seed,
+        ) -> KernelContext:
+            _ic = _ic_per_val[val] if _ic_per_val is not None else _base_ic
+            phys = {**_base_phys, "domain_extent": domain_extent}
+            if _sweep_key is not None:
+                phys[_sweep_key] = val
             return KernelContext(
                 name=name,
                 cfg=cfg,
                 ic=_ic,
                 phys=phys,
-                sweep_key=sweep_key,
+                sweep_key=_sweep_key,
                 sweep_value=val,
-                ic_key=run_ic_key,
-                output_key=run_output_key,
+                ic_key=_run_ic_key,
+                output_key=_run_output_key,
                 make_inputs=make_inputs,
                 domain_extent=domain_extent,
-                run=run,
-                seed=seed,
+                run=_run,
+                seed=_seed,
             )
 
         def _absorb(
-            out: dict, solver_snaps: dict[str, np.ndarray], idx_suffix: str
+            out: dict,
+            solver_snaps: dict[str, np.ndarray],
+            idx_suffix: str,
+            _shared_extras: dict[str, np.ndarray] = shared_extras,
         ) -> None:
             """Fold one kernel return into ``solver_snaps`` and ``shared_extras``.
 
@@ -298,9 +319,9 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
             for prefix, arr in multi.items():
                 solver_snaps[f"{prefix}:{idx_suffix}"] = np.asarray(arr)
             for k, v in (out.get("shared") or {}).items():
-                shared_extras.setdefault(k, np.asarray(v))
+                _shared_extras.setdefault(k, np.asarray(v))
 
-        def _call_with_sampler(name: str, t, val):
+        def _call_with_sampler(name: str, t: Any, val: Any) -> dict:
             """Run one kernel invocation with a cheap before/after VRAM+RAM sampler.
 
             The sampler's ``vram_peak_mib`` / ``ram_peak_mib`` get merged into
@@ -319,20 +340,27 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
                     metrics.setdefault(k, v)
             return out
 
-        def _work(name: str, t) -> None:
+        def _work(
+            name: str,
+            t: Any,
+            _by_solver: dict = by_solver,
+            _snapshots: dict[str, dict[str, np.ndarray]] = snapshots,
+            _sweep_values: list = sweep_values,
+            _sweep_key: str | None = sweep_key,
+        ) -> None:
             if sweep_mode == "none":
                 out = _call_with_sampler(name, t, None)
-                by_solver[name] = out.get("metrics", {})
+                _by_solver[name] = out.get("metrics", {})
                 solver_snaps: dict[str, np.ndarray] = {}
                 _absorb(out, solver_snaps, "")
                 if solver_snaps:
-                    snapshots[name] = solver_snaps
+                    _snapshots[name] = solver_snaps
                 return
 
-            if warmup and sweep_values:
+            if warmup and _sweep_values:
                 color = cfg.solver(name).color
                 try:
-                    kernel_fn(t, _ctx(name, sweep_values[0]))
+                    kernel_fn(t, _ctx(name, _sweep_values[0]))
                     console.print(f"  [{color}]{name}[/] warmup ok")
                 except Exception as wex:
                     console.print(
@@ -344,7 +372,7 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
 
             if sweep_mode == "default":
                 stopped_at: int | None = None
-                for idx, val in enumerate(sweep_values):
+                for idx, val in enumerate(_sweep_values):
                     out = _call_with_sampler(name, t, val)
                     solver_results[val] = out.get("metrics", {})
                     _absorb(out, solver_snaps, str(idx))
@@ -358,11 +386,11 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
                         stopped_at = idx
                         break
                 if stopped_at is not None:
-                    for remaining in sweep_values[stopped_at + 1 :]:
+                    for remaining in _sweep_values[stopped_at + 1 :]:
                         solver_results[remaining] = None
-                by_solver[name] = solver_results
+                _by_solver[name] = solver_results
                 if solver_snaps:
-                    snapshots[name] = solver_snaps
+                    _snapshots[name] = solver_snaps
                 return
 
             # sweep_mode == "limits"
@@ -372,7 +400,7 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
             failed = False
             fail_reason = ""
 
-            for idx, val in enumerate(sweep_values):
+            for idx, val in enumerate(_sweep_values):
                 if failed:
                     solver_results[val] = {"status": "skipped", "reason": fail_reason}
                     continue
@@ -407,7 +435,7 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
                     gn = metrics.get("grad_norm")
                     gn_str = f" grad_norm={gn:.3g}" if isinstance(gn, float) else ""
                     console.print(
-                        f"  [{color}]{name}[/] {sweep_key}={val} ok"
+                        f"  [{color}]{name}[/] {_sweep_key}={val} ok"
                         f"{gn_str}{vram_str}{ram_str} ({step_wall:.1f}s)"
                     )
                 else:
@@ -420,16 +448,18 @@ def run_experiment(  # noqa: C901, PLR0913 — generic harness, refactor tracked
                         "wall_time_s": step_wall,
                         **mem,
                     }
-                    fail_reason = f"first failure at {sweep_key}={val} ({failure_type})"
+                    fail_reason = (
+                        f"first failure at {_sweep_key}={val} ({failure_type})"
+                    )
                     failed = True
                     console.print(
-                        f"  [{color}]{name}[/] [red]FAIL[/] {sweep_key}={val} "
+                        f"  [{color}]{name}[/] [red]FAIL[/] {_sweep_key}={val} "
                         f"({failure_type}){vram_str}: {err_short[:80]} ({step_wall:.1f}s)"
                     )
 
-            by_solver[name] = solver_results
+            _by_solver[name] = solver_results
             if solver_snaps:
-                snapshots[name] = solver_snaps
+                _snapshots[name] = solver_snaps
 
         wall_times = per_solver_loop(
             cfg,
