@@ -31,7 +31,9 @@ jobs:
       - uses: quarto-dev/quarto-actions/setup@v2
 
       - name: Install Python dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen
+        run: |
+          cp production.uv.lock uv.lock
+          uv sync --frozen --extra dev
 
       # ── Fetch benchmark results (best-effort) ──
       # Try the results branch first; this always has the latest baseline.

@@ -1687,6 +1687,7 @@ dependencies = [
 dev = [
     { name = "pre-commit" },
     { name = "pytest" },
+    { name = "pyyaml" },
     { name = "ruff" },
     { name = "tesseract-shared" },
 ]
@@ -1705,6 +1706,7 @@ requires-dist = [
     { name = "psutil" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pyyaml" },
+    { name = "pyyaml", marker = "extra == 'dev'" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "tesseract-core", extras = ["runtime"] },
