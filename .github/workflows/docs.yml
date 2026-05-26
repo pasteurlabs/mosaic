@@ -69,7 +69,7 @@ jobs:
           fi
 
       - name: Render site
-        run: quarto render
+        run: uv run quarto render
 
       - name: Upload PR preview artifact
         uses: actions/upload-artifact@v7

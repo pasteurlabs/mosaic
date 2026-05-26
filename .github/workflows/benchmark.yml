@@ -355,7 +355,7 @@ jobs:
           fi
 
       - name: Render site
-        run: quarto render
+        run: uv run quarto render
 
       - name: Upload docs artifact
         uses: actions/upload-artifact@v7
