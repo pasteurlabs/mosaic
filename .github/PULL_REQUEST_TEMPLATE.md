@@ -16,11 +16,6 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 - [ ] Documentation
 - [ ] Bug fix
 
-## Checklist
-
-- [ ] `ruff check --fix && ruff format` passes
-- [ ] `pytest` passes (unit tests, no Docker required)
-
 ### For new solvers
 
 - [ ] `tesseract_config.yaml` has a `metadata.mosaic:` block with at least `name` and `backend`
