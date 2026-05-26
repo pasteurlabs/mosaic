@@ -23,7 +23,7 @@ import numpy as np
 from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     STRUCTURAL_ORDER,
     TEXTWIDTH,
     THERMAL_ORDER,
@@ -142,7 +142,7 @@ def plot_cost_overview(
     Steady-state problems drop the temporal-cost row (kept rows are
     spatial forward/VJP + their memory).
     """
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     cost_dir = results_dir() / subdir / "cost"
     fwd_path = cost_dir / "spatial_cost" / "result.json"

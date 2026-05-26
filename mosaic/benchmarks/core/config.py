@@ -1130,8 +1130,8 @@ def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
             backend: jax                        # runtime: jax, pytorch, julia, cpp, warp, fenics, firedrake
             family: fem                         # solver family for grouped styling
             scheme: "FEM HEX8"                  # numerical scheme tag
-            discretization: FE                  # paper Table 2: FD | FV | FE | LBM | Spectral
-            numerics: "Direct (UMFPACK)"        # paper Table 2 numerics column
+            discretization: FE                  # FD | FV | FE | LBM | Spectral
+            numerics: "Direct (UMFPACK)"        # short numerics description
             ad_strategy: autodiff               # autodiff | adjoint | hybrid | null
             differentiable: true                # explicit VJP flag
             uses_gpu: true

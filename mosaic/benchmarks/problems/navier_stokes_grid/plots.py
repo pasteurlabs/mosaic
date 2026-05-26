@@ -24,7 +24,7 @@ from mosaic.benchmarks.core.io import (
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     SOLVER_STYLES,
     TEXTWIDTH,
     dedup_handles,
@@ -272,7 +272,7 @@ def _paper_drag_opt_figure(
         print(f"[drag_opt] {result_path} not found — skipping")
         return None
 
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     data = load_json(result_path)
     profiles = try_load_npz(profiles_path) if profiles_path.exists() else None

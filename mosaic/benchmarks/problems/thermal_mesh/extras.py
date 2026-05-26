@@ -25,7 +25,7 @@ from mosaic.benchmarks.problems.shared.plots.cost_overview import (
     plot_cost_overview_for,
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
-    PAPER_RCPARAMS,
+    RCPARAMS,
     TEXTWIDTH,
     THERMAL_ORDER,
     dedup_handles,
@@ -69,7 +69,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
     if not loaded:
         return
 
-    with plt.rc_context(PAPER_RCPARAMS):
+    with plt.rc_context(RCPARAMS):
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 1.10))
         outer = gridspec.GridSpec(
             3,

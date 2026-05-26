@@ -13,81 +13,25 @@ Mosaic measures gradient quality, computational cost, and solver compatibility a
 
 ---
 
+> **Paper reproduction:** if you're here to reproduce the results from [our paper](https://arxiv.org/abs/XXXX.XXXXX), see the [`v1+paper`](https://github.com/pasteurlabs/mosaic/tree/v1+paper) tag which contains the figure-generation code, pinned dependencies, and step-by-step instructions.
+
 **Jump to your use case:**
 
-- [Reproduce paper results](#reproduce-paper-results) — reviewer or reader wanting to verify figures and claims
+- [Run the benchmarks](#run-the-benchmarks) — run solvers and inspect results
 - [Use Tesseracts in your own code](#use-tesseracts-in-your-own-code) — researcher building on Mosaic solvers
 - [Contribute](#contribute) — add a solver, tune a configuration, or extend to a new domain
 
 ---
 
-## Reproduce paper results
+## Run the benchmarks
 
-Two paths, from fastest to most thorough. Both require Python >= 3.10.
-
-### Regenerate figures from published data (no Docker, no GPU)
-
-Download the result artifacts and regenerate every figure in the paper without re-running any solver.
+Requires Python >= 3.10, Docker, and (for GPU solvers) the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
 
 ```bash
 git clone https://github.com/pasteurlabs/mosaic && cd mosaic
-
-# Install (pick one)
-uv sync              # uv (recommended)
-pip install -e .     # pip
-
-# Download the paper's benchmark results (Zenodo: https://zenodo.org/records/20067888, ~443 MB)
-wget -qO- 'https://zenodo.org/records/20067888/files/mosaic-results.tar?download=1' | tar x
-
-# Regenerate per-suite plots (PNG/PDF alongside each result.json)
-mosaic run --plots-only
-
-# Regenerate the publication figures used in the paper
-mosaic paper-plots                          # writes to mosaic-results/figures/
-mosaic paper-plots --only scaling,fd_check  # or just specific figures
+uv sync          # or: pip install -e .
+mosaic run       # builds containers, runs experiments, generates plots
 ```
-
-### Re-run all experiments from scratch
-
-Re-run every solver on every benchmark task. Requires Docker and (for GPU solvers) an NVIDIA GPU with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
-
-```bash
-git clone https://github.com/pasteurlabs/mosaic && cd mosaic
-
-# Install (pick one)
-uv sync              # uv (recommended)
-pip install -e .     # pip
-
-# Build all solver containers and run the full suite
-mosaic run                    # builds containers, runs experiments, generates plots
-
-# Generate publication figures from fresh results
-mosaic paper-plots
-```
-
-A full run builds 14 solver containers and executes 5 suites across 4 domains. Expect several hours on a machine with a modern GPU. CPU-only solvers can be run separately with `mosaic run --hardware cpu`.
-
-> **Platform note:** x86-64 Linux with Docker Engine (not Docker Desktop) is strongly recommended. Docker Desktop adds a virtualisation layer that significantly increases overhead on macOS and Windows. Some solver images (notably the Julia-based solvers) do not build on ARM/Apple Silicon. For full reproducibility, an NVIDIA GPU with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) is required.
-
-For an environment that exactly matches published results:
-
-```bash
-# With uv (recommended)
-cp production.uv.lock uv.lock && uv sync --frozen
-
-# Or with pip
-pip install -r requirements.txt && pip install -e .
-```
-
-### Continuous benchmarking
-
-After the initial paper release, all results are generated automatically by CI:
-
-- **Every push to `main`** that touches a solver or the harness triggers a benchmark run on dedicated GPU and CPU runners. Results are published to the [`benchmark-results`](https://github.com/pasteurlabs/mosaic/tree/benchmark-results) branch along with a machine-readable snapshot and a diff against the previous baseline.
-- **Tagged releases** (`v*`) run the full suite across all domains and attach `benchmark-results.tar.gz` to the GitHub release — same archive format used in the "regenerate figures" step above.
-- **Pull requests** labelled `benchmark` get a full evaluation run; CI posts a status comparison as a PR comment.
-
-This means published results stay up-to-date as solvers evolve and new backends land, without manual re-runs.
 
 ### Inspect results
 
@@ -242,7 +186,7 @@ mosaic/
     core/                 # runner, config, hardware detection, solver auto-discovery
     problems/             # per-domain packages (ns-grid, ns-3d-grid, structural-mesh, thermal-mesh)
       shared/             # cross-domain suite kernels (forward, gradient, cost, optimization) + plots
-    plots/paper/          # paper figure generation
+    plots/                # plotting infrastructure
   templates/              # task templates for scaffolding new domains
   tesseracts/             # solver backends (each is a Tesseract container)
     tesseract_shared/     # shared Tesseract interface schemas (also pip-installable)

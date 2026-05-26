@@ -18,7 +18,7 @@ from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     SOLVER_STYLES,
     TEXTWIDTH,
     apply_style,
@@ -110,7 +110,7 @@ def _fd_check_paper_figure(
     cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Any
 ) -> plt.Figure:
     """Paper-styled 1×2 rel-error + cosine figure for a single fd_check run."""
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     data = load_json(out_dir / "result.json")
 
@@ -307,7 +307,7 @@ def _jacobian_svd_paper_figure(
     Returns ``None`` when ``per_solver_spectra`` is missing (e.g. scalar
     outputs) so callers can fall back to alternate diagnostics.
     """
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     data = load_json(out_dir / "result.json")
 
@@ -516,7 +516,7 @@ def _horizon_sweep_paper_figure(
     cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Any
 ) -> plt.Figure:
     """Paper-styled 1×3 grad-norm / FD-error / cosine figure."""
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     data = load_json(out_dir / "result.json")
 

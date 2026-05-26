@@ -142,8 +142,8 @@ The single Mosaic-specific extension to the YAML. tesseract-core ignores this bl
 | `backend` | `str` | Runtime / language: `jax`, `pytorch`, `julia`, `cpp`, `warp`, `fenics`, `firedrake`, etc. |
 | `family` | `str` | Solver family for grouped styling: `projection`, `lbm`, `spectral`, `fd`, `fv`, `fem`. |
 | `scheme` | `str` | Verbose label for the numerical scheme (appears in some plot legends). |
-| `discretization` | `str` | Paper Table 2 discretization code: `FD`, `FV`, `FE`, `LBM`, or `Spectral`. |
-| `numerics` | `str` | Paper Table 2 numerics column, e.g. `"Projection, semi-implicit"`, `"Direct (UMFPACK)"`, `"Streaming"`. |
+| `discretization` | `str` | Discretization code: `FD`, `FV`, `FE`, `LBM`, or `Spectral`. |
+| `numerics` | `str` | Short numerics description, e.g. `"Projection, semi-implicit"`, `"Direct (UMFPACK)"`, `"Streaming"`. |
 | `ad_strategy` | `str` | How gradients are computed: `autodiff`, `adjoint`, `hybrid`, or `null`. |
 | `differentiable` | `bool` | Whether the solver implements `vector_jacobian_product`. |
 | `uses_gpu` | `bool` | `true` if the solver runs on GPU, `false` for CPU-only. |

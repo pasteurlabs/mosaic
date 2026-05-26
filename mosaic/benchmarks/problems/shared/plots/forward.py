@@ -17,7 +17,7 @@ from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     SOLVER_STYLES,
     TEXTWIDTH,
     apply_style,
@@ -368,7 +368,7 @@ def _agreement_paper_figure(
     per-solver error vs the sweep parameter (sweep_key inferred from the
     result file), styled with the paper palette + rcParams.
     """
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     data = load_json(out_dir / "result.json")
     sweep_key = data.get("sweep_key", "param")
@@ -1010,7 +1010,7 @@ def plot_physical_laws(
         NS grid covering both axes (sweep × metric).
       * If neither, returns ``None`` (no data available).
     """
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     out_dir = results_dir() / cfg.name / "forward" / f"{exp_key}{suffix}"
 

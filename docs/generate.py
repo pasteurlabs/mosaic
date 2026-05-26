@@ -344,8 +344,8 @@ AD_LABELS = {
     None: "AD: forward-only",
 }
 
-# Expand the paper Table-2 discretization codes for the plain-text "Numerics:"
-# line that appears on every solver card.
+# Expand discretization codes for the plain-text "Numerics:" line that appears
+# on every solver card.
 _DISCR_FULL = {
     "FD": "Finite Difference",
     "FV": "Finite Volume",
@@ -474,7 +474,7 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
         f"The \u2202 column marks fields that support automatic differentiation "
         f"(VJP/JVP).\n\n"
         f"**Legend.** Each card shows a **Numerics:** line — the discretization "
-        f"followed by the numerics column from Table 2 of the paper — and three "
+        f"followed by the numerical method — and three "
         f"badge categories: "
         f"{_badge('language', _LANG_BADGE_CLASS)} (backend / runtime), "
         f"{_badge('AD: strategy', _AD_BADGE_CLASS)} "

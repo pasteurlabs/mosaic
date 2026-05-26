@@ -32,11 +32,10 @@ from mosaic.benchmarks.core.console import print_saved
 if TYPE_CHECKING:
     from mosaic.benchmarks.core.config import Problem
 
-# ── NeurIPS-paper layout constant ─────────────────────────────────────────────
+# ── Layout constant ───────────────────────────────────────────────────────────
 
-# Width of a single column in the target venue (NeurIPS uses 5.5 inches for the
-# main column). Imported by the per-experiment paper-styled plots to size their
-# figures so the PDF embeds at print width without scaling.
+# Target figure width in inches (5.5" = single column at standard venues).
+# Imported by per-experiment plots so PDFs embed at print width without scaling.
 TEXTWIDTH = 5.5
 
 
@@ -67,11 +66,6 @@ RCPARAMS: dict = {
     "savefig.pad_inches": 0.08,
 }
 
-# Back-compat alias for callers that imported the paper-specific name during
-# the figures-merge work — points at the single canonical RCPARAMS so edits
-# to the style automatically propagate.
-PAPER_RCPARAMS: dict = RCPARAMS
-
 
 def apply_style() -> None:
     """Apply the shared benchmark style globally (call once at module import)."""
@@ -83,18 +77,11 @@ def rc_context() -> object:
     return plt.rc_context(RCPARAMS)
 
 
-# Back-compat alias.
-paper_rc_context = rc_context
-
-
-# ── Paper-style solver palette (per-solver display label + colour cycle) ──────
+# ── Solver palette (per-solver display label + colour cycle) ──────────────────
 #
-# Used by the experiment plots that double as paper figures. The cycle is
 # Paul Tol Vibrant (distinguishable under all forms of colour-blindness +
 # greyscale) extended with a couple of muted tones for reference / excluded
-# solvers. ``apply_solver_styles`` in solver_styles.py overrides these with
-# per-cfg ``SolverSpec.color`` for interactive inspection; the paper plots
-# read these directly.
+# solvers.
 
 SOLVER_STYLES: dict[str, tuple] = {
     # ── Fluid / NS ──────────────────────────────────────────────────────────

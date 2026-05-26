@@ -218,14 +218,14 @@ def _all_experiments():
 # Building the corpus is the dominant cost in this file — every experiment
 # runs through the framework, which pays a JAX warmup tax per kernel.
 # Session-scoping the fixture means we build the corpus once, then all the
-# per-experiment / per-plot / per-paper-plot tests below read from it.
+# per-experiment / per-plot tests below read from it.
 
 
 @pytest.fixture(scope="session")
 def dummy_corpus(tmp_path_factory):
     """Run every (problem, exp_key) once against the dummy, yield the shared results dir.
 
-    Session-scoped so the per-experiment, per-plot, and per-paper-plot tests
+    Session-scoped so the per-experiment and per-plot tests
     all share the same corpus. Individual experiment failures are captured
     on a ``ran_ok`` dict (keyed by ``(problem, exp_key)``) so the
     parametrized ``test_experiment_runs_with_dummy`` below can re-raise the
@@ -326,7 +326,7 @@ def test_plot_runs_on_dummy_results(problem, plot_key, dummy_corpus):
 
     Plot output may be trivial (NaN errors, empty curves) because the
     dummy returns constants, but the plot pipeline itself must execute
-    without raising. Paper plots are tested separately below.
+    without raising.
     """
     import matplotlib
 
