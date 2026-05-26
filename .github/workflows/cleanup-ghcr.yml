@@ -1,0 +1,30 @@
+name: Cleanup GHCR images
+
+on:
+  schedule:
+    - cron: "0 3 * * 0" # Weekly, Sunday 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: "Delete SHA tags older than this many days"
+        default: "7"
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    name: Delete stale SHA tags
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts/cleanup-ghcr-tags.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Cleanup old SHA-tagged images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/cleanup-ghcr-tags.sh \
+            "${{ inputs.max_age_days || '7' }}"

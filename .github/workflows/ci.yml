@@ -69,7 +69,7 @@ jobs:
         run: uv run python .github/scripts/validate-tesseract-configs.py
 
   # ── Merge gate ─────────────────────────────────────────────────────────
-  all-ok:
+  ci-ok:
     name: All checks passed
     if: always()
     needs: [lint, test, validate-tesseracts]
