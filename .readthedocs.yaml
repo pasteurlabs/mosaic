@@ -18,7 +18,7 @@ build:
       - uv venv
     install:
       - cp production.uv.lock uv.lock
-      - uv sync --frozen
+      - uv sync --frozen --extra dev
       # Quarto CLI (not a Python package)
       - wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.7.31/quarto-1.7.31-linux-amd64.deb -O /tmp/quarto.deb
       - dpkg -x /tmp/quarto.deb /tmp/quarto
@@ -44,4 +44,4 @@ build:
             uv run python docs/generate_results.py
           fi
         # Render with Quarto
-        - /tmp/quarto/opt/quarto/bin/quarto render --output-dir $READTHEDOCS_OUTPUT/html
+        - uv run /tmp/quarto/opt/quarto/bin/quarto render --output-dir $READTHEDOCS_OUTPUT/html
