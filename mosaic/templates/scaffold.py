@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Template loader, validator, and scaffolding for new benchmark domains.
 
 Usage (via CLI)::
@@ -36,6 +39,8 @@ class DomainTemplate:
     ic_key: str = "ic"
     domain_extent: float = 1.0
     resolution_key: str = "N"
+    category_label: str = ""
+    bc_description: str = ""
     physics_defaults: dict[str, Any] = field(default_factory=dict)
     ic_defaults: dict[str, Any] = field(default_factory=dict)
     forward: dict[str, Any] = field(default_factory=dict)
@@ -83,6 +88,8 @@ def load_template(name_or_path: str) -> DomainTemplate:
         ic_key=doc.get("ic_key", "ic"),
         domain_extent=doc.get("domain_extent", 1.0),
         resolution_key=doc.get("resolution_key", "N"),
+        category_label=doc.get("category_label", ""),
+        bc_description=doc.get("bc_description", ""),
         physics_defaults=doc.get("physics_defaults", {}),
         ic_defaults=doc.get("ic_defaults", {}),
         forward=doc.get("forward", {}),
@@ -138,6 +145,7 @@ def validate_template(tpl: DomainTemplate) -> list[str]:
         ("forward", tpl.forward),
         ("gradient", tpl.gradient),
         ("optimization", tpl.optimization),
+        ("cost", tpl.cost),
     ]:
         for exp_name, exp_runs in suite_defaults.items():
             if not isinstance(exp_runs, list):
@@ -149,35 +157,75 @@ def validate_template(tpl: DomainTemplate) -> list[str]:
     return errors
 
 
+# ── Codegen helpers ──────────────────────────────────────────────────────────
+
+
+def _render_experiment_todos(tpl: DomainTemplate) -> str:
+    """Emit a ``# TODO:`` block per experiment in the template.
+
+    Each entry shows the suggested ``ic`` / ``physics`` / ``fd`` / ``optim``
+    payload from the template as a comment, so the user can copy-paste it
+    into a real ``problem.add_experiment(...)`` call.
+    """
+    lines: list[str] = []
+    for suite_name, suite_data in [
+        ("forward", tpl.forward),
+        ("gradient", tpl.gradient),
+        ("cost", tpl.cost),
+        ("optimization", tpl.optimization),
+    ]:
+        if not suite_data:
+            continue
+        lines.append(f"# {suite_name}/")
+        for exp_name, runs in suite_data.items():
+            lines.append(f"#   TODO: add_experiment({suite_name}/{exp_name})")
+            for run in runs:
+                for k, v in run.items():
+                    lines.append(f"#       {k} = {v!r}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+# ── Scaffold entry point ─────────────────────────────────────────────────────
+
+
 def scaffold_domain(
     domain_name: str,
     tpl: DomainTemplate,
     *,
     target_dir: Path = Path("mosaic"),
 ) -> dict[str, Path]:
-    """Generate files for a new benchmark domain from a template.
+    """Generate the minimum file tree for a new benchmark domain.
 
     Creates:
-    - ``mosaic_shared/problems/<domain>/schemas.py`` (stub)
-    - ``mosaic_shared/problems/<domain>/__init__.py``
-    - ``tesseracts/<domain>/`` (empty, ready for solver dirs)
-    - ``benchmarks/problems/<domain>.py`` (ProblemConfig stub)
+
+    * ``tesseracts/tesseract_shared/problems/<domain>/{schemas,__init__}.py``
+      — schema stubs (where solvers import their canonical InputSchema /
+      OutputSchema).
+    * ``tesseracts/<domain>/`` — empty, ready for solver dirs.
+    * ``benchmarks/problems/<domain>/{__init__,config}.py`` — the
+      ``Problem`` instance, the IC generator, the ``make_inputs`` callable,
+      and ``# TODO:`` blocks per template experiment, all in ``config.py``.
+
+    Two-file Problem packages keep the scaffold lean; once the domain
+    grows, ``config.py`` can be split into ``ics.py`` / ``physics.py`` /
+    ``experiments.py`` by hand.
 
     Returns a dict of generated file paths keyed by role.
     """
     slug = domain_name.replace("-", "_")
     created: dict[str, Path] = {}
 
-    # 1. Schema stubs
-    schema_dir = target_dir / "mosaic_shared" / "problems" / slug
+    # 1. Schema stubs under ``tesseract_shared/problems/<slug>``.
+    schema_dir = target_dir / "tesseracts" / "tesseract_shared" / "problems" / slug
     schema_dir.mkdir(parents=True, exist_ok=True)
 
-    init_path = schema_dir / "__init__.py"
-    init_path.write_text(
+    schema_init = schema_dir / "__init__.py"
+    schema_init.write_text(
         '__all__ = ["InputSchema", "OutputSchema"]\n\n'
         "from .schemas import InputSchema, OutputSchema\n"
     )
-    created["schema_init"] = init_path
+    created["schema_init"] = schema_init
 
     schema_path = schema_dir / "schemas.py"
     schema_path.write_text(
@@ -185,67 +233,121 @@ def scaffold_domain(
         f"\n"
         f"Generated from template: {tpl.name}\n"
         f'"""\n\n'
-        f"from pydantic import BaseModel, Field\n"
-        f"from tesseract_core.runtime import Array, Differentiable, Float32\n\n\n"
+        f"from pydantic import BaseModel\n\n\n"
+        f"# TODO: declare your domain's canonical fields here. Every solver\n"
+        f"# subclasses these so cross-solver comparison is well-defined. See\n"
+        f"# docs/tutorial.qmd Part B §4 for the Array / Differentiable typing.\n"
         f"class InputSchema(BaseModel):\n"
         f'    """Inputs for {domain_name} solvers."""\n\n'
-        f"    # TODO: define input fields\n"
         f"    pass\n\n\n"
         f"class OutputSchema(BaseModel):\n"
         f'    """Outputs for {domain_name} solvers."""\n\n'
-        f"    # TODO: define output fields\n"
         f"    pass\n"
     )
     created["schemas"] = schema_path
 
-    # 2. Tesseract directory
+    # 2. Empty tesseract directory — solver subdirs land here.
     tess_dir = target_dir / "tesseracts" / domain_name
     tess_dir.mkdir(parents=True, exist_ok=True)
     created["tesseracts_dir"] = tess_dir
 
-    # 3. Problem config stub
-    problems_dir = target_dir / "benchmarks" / "problems"
-    config_path = problems_dir / f"{slug}.py"
+    # 3. Two-file Problem package: __init__ stub + everything in config.py.
+    pkg_dir = target_dir / "benchmarks" / "problems" / slug
+    pkg_dir.mkdir(parents=True, exist_ok=True)
+
+    pkg_init = pkg_dir / "__init__.py"
+    pkg_init.write_text(
+        f'"""Problem package for {domain_name}, generated from template: {tpl.name}. See :mod:`.config`."""\n'
+    )
+    created["problem_init"] = pkg_init
+
+    n_default = tpl.physics_defaults.get("N", 8)
+    ic_default_name = tpl.ic_defaults.get("name", "default")
+    category_label = tpl.category_label or domain_name
+    description = tpl.description.strip()
+    bc_description = tpl.bc_description.strip()
+    experiment_todos = _render_experiment_todos(tpl)
+    experiment_todos_block = (
+        "# Template-suggested experiments (uncomment + flesh out as you wire each one up):\n"
+        + "\n".join(
+            f"# {line[2:] if line.startswith('# ') else line}"
+            for line in experiment_todos.splitlines()
+        )
+        if experiment_todos.strip()
+        else "# (template has no suite defaults; add experiments as you implement them.)"
+    )
+
+    config_path = pkg_dir / "config.py"
     config_path.write_text(
-        f'"""Problem config for {domain_name}, generated from template: {tpl.name}."""\n\n'
+        f'"""Problem definition for {domain_name} (generated from template: {tpl.name}).\n'
+        f"\n"
+        f"Holds the IC generator, ``make_inputs``, the :class:`Problem` instance,\n"
+        f"and the per-experiment ``problem.add_experiment(...)`` registrations.\n"
+        f"Split into ``ics.py`` / ``physics.py`` / ``experiments.py`` when the\n"
+        f"file gets too large to navigate.\n"
+        f'"""\n\n'
         f"from __future__ import annotations\n\n"
-        f"from pathlib import Path\n\n"
         f"import numpy as np\n\n"
-        f"from mosaic.benchmarks.core.config import ProblemConfig, SolverSpec, discover_solvers\n"
-        f"from mosaic.benchmarks.core.utils import l2_error_rel\n\n"
-        f"_GYM_DIR = Path(__file__).parent.parent.parent\n"
-        f'_TESSERACT_DIR = _GYM_DIR / "tesseracts" / "{domain_name}"\n\n\n'
-        f"# Auto-discover solvers from tesseract_config.yaml metadata.mosaic blocks.\n"
-        f"_SOLVERS = discover_solvers(_TESSERACT_DIR)\n\n"
-        f"# Merge domain-specific overrides here, e.g.:\n"
-        f'# _SOLVERS["my_solver"].exclusions = {{...}}\n'
-        f'# _SOLVERS["my_solver"].input_overrides = {{...}}\n\n\n'
-        f"def _make_ic(seed: int = 0, **physics) -> np.ndarray:\n"
-        f'    """Generate an initial condition. TODO: implement."""\n'
-        f"    N = physics.get('N', {tpl.physics_defaults.get('N', 8)})\n"
+        f"from mosaic.benchmarks.core.config import Problem, SolverSpec, discover_solvers\n"
+        f"from mosaic.benchmarks.core.utils import l2_error_rel\n"
+        f"from mosaic.benchmarks.problems.shared.plots.ics import plot_ic\n"
+        f"from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles\n\n"
+        f"_TESSERACT_SLUG = {domain_name!r}\n\n\n"
+        f"# ── Initial conditions ───────────────────────────────────────────────\n"
+        f"# TODO: replace this stub with the canonical IC generator(s) for\n"
+        f"# {domain_name}. Each generator has signature\n"
+        f"# ``(L: float, seed: int, **physics) -> array``.\n"
+        f"def _default_ic(L: float = 1.0, seed: int = 0, **physics) -> np.ndarray:\n"
+        f"    N = physics.get('N', {n_default})\n"
         f"    return np.zeros(N, dtype=np.float32)\n\n\n"
-        f"def _make_inputs(solver_name: str, ic: np.ndarray, **physics) -> dict:\n"
-        f'    """Build solver inputs from IC and physics parameters. TODO: implement."""\n'
-        f'    return {{"{tpl.ic_key}": ic}}\n\n\n'
-        f"CONFIG = ProblemConfig(\n"
-        f'    name="{domain_name}",\n'
-        f"    tesseract_dir=_TESSERACT_DIR,\n"
-        f'    output_key="{tpl.output_key}",\n'
-        f"    solvers=_SOLVERS,\n"
-        f'    make_ic={{"default": _make_ic}},\n'
-        f"    make_inputs=_make_inputs,\n"
+        f"# ── make_inputs ──────────────────────────────────────────────────────\n"
+        f"# TODO: assemble the dict passed to each solver's ``apply`` from the IC\n"
+        f"# and physics parameters. Per-solver overrides come from\n"
+        f"# ``spec.input_overrides``.\n"
+        f"def make_inputs(spec: SolverSpec, ic: np.ndarray, **physics) -> dict:\n"
+        f"    base = {{{tpl.ic_key!r}: ic}}\n"
+        f"    return {{**base, **spec.input_overrides}}\n\n\n"
+        f"# ── Solver discovery ─────────────────────────────────────────────────\n"
+        f"# tesseract_config.yaml files under mosaic/tesseracts/{domain_name}/<solver>/\n"
+        f"# are the source of truth; plot styling is applied to each spec.\n"
+        f"_SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)\n"
+        f"apply_styles(_SOLVERS)\n"
+        f"# TODO: merge any per-(solver, problem) overrides here, e.g.:\n"
+        f'#   _SOLVERS["my_solver"].input_overrides = {{...}}\n\n\n'
+        f"# ── Problem ──────────────────────────────────────────────────────────\n"
+        f"problem = Problem(\n"
+        f"    name={domain_name!r},\n"
+        f"    category_label={category_label!r},\n"
+        f"    description={description!r},\n"
+        f"    bc_description={bc_description!r},\n"
+        f"    tesseract_dir=_TESSERACT_SLUG,\n"
+        f"    solvers=list(_SOLVERS.values()),\n"
+        f"    make_inputs=make_inputs,\n"
         f"    error_fn=l2_error_rel,\n"
-        f"    diagnostics={{}},\n"
-        f'    ic_key="{tpl.ic_key}",\n'
+        f"    output_key={tpl.output_key!r},\n"
+        f"    ic_key={tpl.ic_key!r},\n"
         f"    domain_extent={tpl.domain_extent},\n"
-        f'    resolution_key="{tpl.resolution_key}",\n'
-        f"    forward_defaults={tpl.forward!r},\n"
-        f"    gradient_defaults={tpl.gradient!r},\n"
-        f"    cost_defaults={tpl.cost!r},\n"
-        f"    inverse_defaults={tpl.optimization!r},\n"
-        f'    description="{tpl.description.strip()}",\n'
-        f")\n"
+        f"    resolution_key={tpl.resolution_key!r},\n"
+        f")\n\n"
+        f"problem.add_ic(\n"
+        f"    {ic_default_name!r},\n"
+        f"    fn=_default_ic,\n"
+        f'    description="TODO: describe this initial condition.",\n'
+        f'    plot_params={{"N": {n_default}}},\n'
+        f"    plot=plot_ic,\n"
+        f")\n\n\n"
+        f"# ── Experiments ──────────────────────────────────────────────────────\n"
+        f"# Each problem.add_experiment(key, kernel, ...) call takes:\n"
+        f"#   plot=callable | {{view: callable, ...}}\n"
+        f"#   coords={{...}}                   typed sweep position\n"
+        f"#   status_check=[...]              cell-status callables\n"
+        f"# Aggregator plots that partition cells by coord are registered via\n"
+        f"# problem.add_sweep_plot(name, fn, group_by=..., filter=...).\n"
+        f"#\n"
+        f"{experiment_todos_block}\n\n\n"
+        f'__all__ = ["problem"]\n'
     )
     created["problem_config"] = config_path
+    created["problem_pkg"] = pkg_dir
 
     return created

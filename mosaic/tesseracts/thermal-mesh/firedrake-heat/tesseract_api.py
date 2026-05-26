@@ -1,3 +1,7 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: F405
+
 """Thermal heat conduction on an arbitrary hexahedral mesh.
 
 Uses Firedrake + firedrake-adjoint to solve steady-state heat conduction with
@@ -9,26 +13,24 @@ CRITICAL import order: firedrake.adjoint must immediately follow firedrake so
 that it can monkey-patch solve/assemble and record operations on the adjoint tape.
 """
 
-# ruff: noqa: F403, F405
-
 import os
 import tempfile
 from typing import Any
 
 import meshio
 import numpy as np
-from firedrake import *
-from firedrake.adjoint import *
-from mosaic_shared.problems.thermal_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.thermal_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
+from firedrake import *  # noqa: F403
+from firedrake.adjoint import *  # noqa: F403
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
+from tesseract_shared.problems.thermal_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.thermal_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 # ---------------------------------------------------------------------------
 # Schema — extends canonical with material parameters
@@ -53,7 +55,7 @@ class OutputSchema(
         _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
     )
 ):
-    pass
+    """Firedrake thermal solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -105,9 +107,9 @@ def _build_firedrake_mesh(  # mosaic:init
         d_uniq = set(d_groups)
         n_uniq = set(n_groups_)
         if len(d_uniq) == 1 and d_uniq != {0}:
-            tag = list(d_uniq)[0]
+            tag = next(iter(d_uniq))
         elif len(n_uniq) == 1 and n_uniq != {0}:
-            tag = neumann_offset + list(n_uniq)[0]
+            tag = neumann_offset + next(iter(n_uniq))
         else:
             tag = 0
         boundary_quads.append(raw)
@@ -130,10 +132,10 @@ def _build_firedrake_mesh(  # mosaic:init
             extra_cells.append(("quad", boundary_arr[mask0]))
             extra_phys.append(np.zeros(int(mask0.sum()), dtype=np.int32))
         hex_phys = np.full(len(cells), 999, dtype=np.int32)
-        phys_data = [hex_phys] + extra_phys
+        phys_data = [hex_phys, *extra_phys]
         mio_mesh = meshio.Mesh(
             points=pts.astype(np.float64),
-            cells=[("hexahedron", cells.astype(np.int64))] + extra_cells,
+            cells=[("hexahedron", cells.astype(np.int64)), *extra_cells],
             cell_data={"gmsh:physical": phys_data},
         )
     else:
@@ -171,7 +173,7 @@ def _build_firedrake_mesh(  # mosaic:init
 
 
 def _cell_reorder_map(
-    pts: np.ndarray, input_cells: np.ndarray, fd_mesh
+    pts: np.ndarray, input_cells: np.ndarray, fd_mesh: Any
 ) -> np.ndarray:  # mosaic:util
     """Build Firedrake-cell-index → input-cell-index permutation via centroid matching."""
     input_centroids = pts[input_cells].mean(axis=1)
@@ -183,7 +185,7 @@ def _cell_reorder_map(
     return fd_to_input
 
 
-def _node_reorder_map(pts: np.ndarray, fd_mesh) -> np.ndarray:  # mosaic:util
+def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:  # mosaic:util
     """Build Firedrake-node-index → input-node-index permutation via coordinate matching."""
     fd_coords = fd_mesh.coordinates.dat.data_ro
     tree = cKDTree(pts)

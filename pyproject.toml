@@ -1,13 +1,17 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs", "setuptools-scm!=9.0.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "mosaic-bench"
-version = "0.1.0"
 description = "A benchmark suite for differentiable physics solvers"
+readme = "README.md"
+authors = [
+    {name = "The Mosaic team @ Pasteur Labs + OSS contributors", email = "info@simulation.science"},
+]
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
+dynamic = ["version"]
 dependencies = [
     "rich>=13.0",
     "typer>=0.12",
@@ -20,6 +24,9 @@ dependencies = [
     "tesseract-jax",
     "psutil",
     "pyyaml",
+    "filelock>=3",
+    "nvidia-ml-py",
+    "docker>=6",
 ]
 
 [project.optional-dependencies]
@@ -27,50 +34,108 @@ dev = [
     "pytest",
     "ruff",
     "pre-commit",
-    "mosaic-shared",
+    "pyyaml",
+    "tesseract-shared",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pasteurlabs/mosaic"
+Documentation = "https://docs.pasteurlabs.ai/projects/mosaic/latest"
 
 [project.scripts]
 mosaic = "mosaic.benchmarks.cli:app"
 
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "mosaic/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mosaic"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "mosaic/",
+    "requirements.txt",
+    "README.md",
+    "LICENSE",
+]
+
 [tool.uv.workspace]
-members = ["mosaic/mosaic_shared"]
+members = ["mosaic/tesseracts/tesseract_shared"]
 
 [tool.uv.sources]
-mosaic-shared = { workspace = true }
-
-[tool.setuptools.packages.find]
-where = ["."]
-exclude = ["tests*", "docs*"]
+tesseract-shared = { workspace = true }
 
 [tool.pytest.ini_options]
-testpaths = ["mosaic/tests"]
-addopts = "-v --tb=short -m 'not integration'"
+testpaths = ["tests"]
+addopts = "-v --tb=short -m 'not integration and not slow'"
 markers = [
     "integration: requires Docker and a built Tesseract container (deselected by default)",
+    "slow: builds the full dummy-result corpus (every experiment runs once); deselected by default. Run with `pytest -m slow` for the plot tests.",
 ]
 
 [tool.ruff]
-line-length = 88
+# Set to the lowest supported Python version.
 target-version = "py310"
 
-[tool.ruff.lint]
-select = ["E", "F", "I"]
-ignore = [
-    "E501",   # line too long (formatter handles this)
-    "E731",   # lambda assignment — used for local type predicates in abstract_eval boilerplate
-    "E741",   # ambiguous variable name — `I` is conventional for identity matrices in math code
-    "E702",   # multiple statements on one line — common in notebook plot cells
+# Set the target line length for formatting.
+line-length = 88
+
+# Exclude a variety of commonly ignored directories.
+extend-exclude = [
+    ".venv",
+    "_version.py",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"mosaic/tesseracts/thermal-mesh/fenics-heat/tesseract_api.py" = [
-    "F403",   # star import from dolfin/dolfin_adjoint — required by FEniCS conventions
-    "F405",   # may be from star import — dolfin exports are only available via star import
+# Also lint/format Jupyter Notebooks.
+extend-include = ["*.ipynb"]
+
+src = ["."]
+
+[tool.ruff.lint]
+# Select and/or ignore rules for linting.
+# Full list of available rules: https://docs.astral.sh/ruff/rules/
+extend-select = [
+    "ANN", # Type annotations
+    "B",   # Flake8 bugbear
+    "D",   # Pydocstyle
+    "E",   # Pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # Isort
+    "NPY", # Numpy
+    "RUF", # Ruff-specific rules
+    "UP",  # Pyupgrade
+    "W",   # Pycodestyle warnings
 ]
-"mosaic/tesseracts/navier-stokes-grid/xlb/tesseract_api.py" = [
-    "E402",   # schema classes defined before late runtime imports required by xlb init order
+ignore = [
+    "E731",   # Do not assign a lambda expression, use a def
+    "D100",   # Pydocstyle: missing docstring in public module
+    "D104",   # Pydocstyle: missing docstring in public package
+    "D105",   # Pydocstyle: missing docstring in magic method
+    "D107",   # Pydocstyle: missing docstring in __init__
+    "D203",   # Pydocstyle: one blank line before class' docstring. Conflicts with D211
+    "D213",   # Pydocstyle: multiline docstring summary start on 2nd line. Conflicts with D212
+    "ANN202", # Type annotations: allow missing return type for private functions
+    "ANN401", # Type annotations: allow Any
+    "RUF001", # Ambiguous unicode in string — Greek letters (ρ, π, ∂) are intentional in math code
+    "RUF002", # Ambiguous unicode in docstring — same
+    "RUF003", # Ambiguous unicode in comment — same
 ]
-"mosaic/tesseracts/navier-stokes-grid/phiflow/tesseract_api.py" = [
-    "E402",   # XLA_FLAGS must be set before jax imports; os imported early for build-guard
-]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120  # allow some flexibility in line lengths: up to 120 cols
+max-doc-length = 120
+
+[tool.ruff.format]
+# Enable reformatting of code snippets in docstrings.
+docstring-code-format = true
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**" = ["D", "ANN"]
+"docs/**" = ["D", "ANN"]
+".github/**" = ["D", "ANN"]

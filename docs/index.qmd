@@ -6,66 +6,49 @@ title: ""
 
 An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput. Built on [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which wraps each solver in a Docker container exposing a uniform `apply` / `vjp` interface, and [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), which calls those containers as native JAX functions (with full JIT and `grad` support) from the benchmark harness. This enables comparison across incompatible AD backends (JAX, PyTorch, Julia Zygote, C++) without shared dependencies.
 
-## Install
-
-**Prerequisites:** Python >= 3.10 and Docker.
-
-```bash
-git clone https://github.com/pasteurlabs/mosaic
-cd mosaic
-pip install -e ".[dev]"
-```
-
 ## Benchmark domains
 
 | ID | Domain | Optimization task | Control dim. | Backends |
 |:---|:-------|:------------------|:-------------|:---------|
-| **H** | Heat transfer | Conductivity inversion | 128 | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem |
-| **S** | Structural mechanics | Compliance minimization (SIMP) | 256 | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl |
-| **F2** | Incompressible fluids (2D) | Inflow optimization for drag min. | 32 | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
-| **F3** | 3D Navier-Stokes | Initial condition recovery | 12k | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+| **H** | Heat transfer | Conductivity inversion | 128 | [deal.II](solvers.qmd#thermal-mesh-dealii-heat), [FEniCS](solvers.qmd#thermal-mesh-fenics-heat), [Firedrake](solvers.qmd#thermal-mesh-firedrake-heat), [JAX-FEM](solvers.qmd#thermal-mesh-jax-fem), [torch-fem](solvers.qmd#thermal-mesh-torch-fem-thermal) |
+| **S** | Structural mechanics | Compliance minimization (SIMP) | 2048 | [deal.II](solvers.qmd#structural-mesh-dealii-structural), [FEniCS](solvers.qmd#structural-mesh-fenics-structural), [Firedrake](solvers.qmd#structural-mesh-firedrake-structural), [JAX-FEM](solvers.qmd#structural-mesh-jax-fem), [TopOpt.jl](solvers.qmd#structural-mesh-topopt-jl) |
+| **F2** | Incompressible fluids (2D) | Inflow optimization for drag min. | 32 | [JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd), [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow), [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl), [XLB](solvers.qmd#navier-stokes-grid-xlb), [PICT](solvers.qmd#navier-stokes-grid-pict), [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns), [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) |
+| **F3** | 3D Navier-Stokes | Initial condition recovery | 12288 | [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow), [XLB](solvers.qmd#navier-stokes-grid-xlb), [PICT](solvers.qmd#navier-stokes-grid-pict), [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns), [Exponax](solvers.qmd#navier-stokes-grid-exponax), [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl), [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) |
+
+The full catalog — per-solver numerical scheme, AD strategy, image name, schema fields, and known limitations — is on the [Solver Reference](solvers.qmd) page.
 
 ## Evaluation protocol
 
-Suites (`--suites`): `forward` (`baseline`, `agreement`, `physical_laws`), `cost` (`spatial_cost`, `temporal_cost`, `vjp_cost`), `gradient` (`fd_check`, `param_sweep`, `horizon_sweep`, `jacobian_svd`), `optimization` (`topopt`, `drag_opt`, `recovery`).
+All metrics are computed uniformly across solvers through the Tesseract interface. The protocol is solver-agnostic: it operates on `apply` and `vjp` and never inspects solver internals.
 
-Results land in `mosaic-results/<problem>/<suite>/` as JSON, NPZ, and PNG/PDF plots.
+**Setup compatibility.** For each solver--task pair: whether the solver produces a usable gradient, fails numerically, or cannot run due to structural constraints (e.g. periodic-only BCs on a channel domain). Structural incompatibilities are declared via `problem.exclude(key, {solver_name: Exclusion(...)})`; the matching is longest-prefix (e.g. `key="gradient"` blocks every `gradient/*` experiment).
 
-## Running benchmarks
+**Gradient accuracy.** Central finite differences through the Tesseract interface serve as the solver-agnostic reference. Directional derivatives are evaluated along K random perturbation vectors (K = 6--20) and reported as:
 
-```bash
-mosaic run                                        # all suites, all problems
-mosaic run --problems ns-grid,structural-mesh     # filter problems
-mosaic run --suites forward,gradient              # filter suites
-mosaic run --no-build                             # skip container builds
-mosaic run --plots-only                           # regenerate plots from existing results
+- **Cosine similarity** between AD gradient and FD gradient
+- **Relative L2 error**: `||g_ad - g_fd|| / ||g_fd||`
 
-mosaic run -p <problem> --suites forward          # forward accuracy
-mosaic run -p <problem> --suites cost             # wall-clock scaling
-mosaic run -p <problem> --suites gradient         # gradient quality
-mosaic run -p <problem> --suites optimization     # optimization convergence
+The FD step size is swept over epsilon in {1e-6, ..., 1e-1} and the minimum error is reported, avoiding both truncation and roundoff regimes. For Navier--Stokes problems (F2, F3), the full Jacobian is additionally computed and its singular value spectrum is inspected.
 
-mosaic paper-plots                                # generate all paper figures
-mosaic paper-plots --only scaling,fd_check        # specific figures only
-```
+**Performance.** Forward and VJP wall-clock time, their ratio, and peak memory, measured on each solver's intended hardware target across 3--4 problem sizes. All timings are averaged over 3 runs after 1 warmup iteration (to pre-populate JIT caches and stabilize memory allocation).
 
-## Solver backends
+**Forward accuracy.** Resolution sweep against a reference solver (OpenFOAM for fluids, deal.II for structures/thermal). Where an analytical solution exists (Taylor--Green vortex), precision is also measured against it. Physical law adherence (e.g. divergence-free velocity) is checked where applicable.
 
-Each solver is wrapped as a Tesseract: a containerized component exposing `apply(inputs) -> outputs` and `vector_jacobian_product(inputs, cotangents) -> vjp`. The container isolates all dependencies (language, libraries, GPU runtime).
+**Optimization convergence.** Adam with each solver's gradients on each benchmark task for a fixed iteration budget (500 iterations for H, F2, F3; 2500 for S). Success is defined as reaching a final objective within 1% of the best solution achieved across all solvers within the budget.
 
-| Solver | Language / AD | Strategy | Discretization | GPU | Domains |
-|:-------|:-------------|:---------|:---------------|:---:|:--------|
-| JAX-CFD | Py/JAX | Auto | FD, Projection | Y | F2 |
-| PhiFlow | Py/JAX | Auto+An. | FD, Semi-Lagrangian | Y | F2, F3 |
-| INS.jl | Julia/Zygote | Auto | FD, Projection/RK4 | | F2, F3 |
-| XLB | Py/JAX | Auto | LBM, Streaming | Y | F2, F3 |
-| PICT | Py/PyTorch | Auto | FV, PISO/BDF1 | Y | F2 |
-| Warp-NS | Py/Warp | Auto | FD, IPCS/SSP-RK3 | Y | F2, F3 |
-| Exponax | Py/JAX | Auto | Spectral, ETDRK | Y | F3 |
-| OpenFOAM | C++ | --- | FV, PISO/PIMPLE | | F2, F3 |
-| FEniCS | Py/UFL | Sym.+Auto | FE, GMRES+AMG | | H, S |
-| Firedrake | Py/UFL | Sym.+Auto | FE, GMRES+AMG | | H, S |
-| JAX-FEM | Py/JAX | Auto+An. | FE, Direct | Y | H, S |
-| TopOpt.jl | Julia | Analytic | FE, Direct | | S |
-| torch-fem | Py/PyTorch | Auto+An. | FE, Direct | Y | H |
-| deal.II | C++ | Analytic | FE, Direct | | H, S |
+## Benchmark suites
+
+The CLI exposes four suites, each running a set of experiments:
+
+| Suite | CLI command | Experiments | What it measures |
+|:------|:-----------|:------------|:-----------------|
+| **forward** | `mosaic run --suites forward` | `baseline`, `agreement`, `physical_laws` | Forward accuracy vs. reference and analytic solutions |
+| **cost** | `mosaic run --suites cost` | `spatial_cost`, `temporal_cost`, `vjp_cost` | Wall-clock scaling with problem size |
+| **gradient** | `mosaic run --suites gradient` | `fd_check`, `param_sweep`, `horizon_sweep`, `jacobian_svd` | Gradient correctness and conditioning |
+| **optimization** | `mosaic run --suites optimization` | domain-specific (e.g. `recovery`, `drag_opt`, `topopt`) | End-to-end optimization convergence |
+
+Results are saved to `mosaic-results/<problem>/<suite>/` as JSON (metrics), NPZ (arrays), and PNG/PDF (plots). Per-domain breakdowns with embedded plots live under the **Results** menu.
+
+---
+
+→ Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference. To call a Mosaic solver from your own code without the harness, see **[Standalone Usage](standalone.qmd)**.

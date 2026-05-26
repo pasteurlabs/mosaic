@@ -1,0 +1,28 @@
+name: torch_fem_thermal_mesh
+version: "0.1.0"
+description: >
+  torch-fem SolidHeat HEX8 heat-conduction solver with IsotropicConductivity3D SIMP material
+  — the first PyTorch backend in thermal-mesh. Gradients via PyTorch autograd through the FE
+  solve; GPU-native.
+build_config:
+  package_data: []
+  # No CUDA base image needed: the cu121 torch wheel installs its own CUDA
+  # runtime via nvidia-* pip packages. The GPU driver is injected at runtime
+  # by nvidia-container-toolkit on the host.
+  custom_build_steps:
+    - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
+    - "ENV LD_LIBRARY_PATH=/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"
+
+metadata:
+  mosaic:
+    name: "torch-fem"
+    backend: pytorch
+    family: fem
+    scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
+    discretization: FE
+    numerics: "Direct (spsolve)"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float64
+    doc_url: "https://github.com/meyer-nils/torch-fem"

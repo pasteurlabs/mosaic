@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Thin wrapper around ``tesseract_jax.apply_tesseract``.
 
 Deadline enforcement is done by the HTTP timeout monkey-patch in

@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Partial-result checkpointing for crash-resumable experiments.
 
 Long benchmark runs that OOM, hit a host reboot, or take a SIGKILL can leave
@@ -31,7 +34,9 @@ import json
 import threading
 from pathlib import Path
 
-from .utils import _file_lock, save_json
+from filelock import FileLock
+
+from .io import save_json
 
 
 def write_partial(
@@ -51,7 +56,7 @@ def write_partial(
     if lock is not None:
         lock.acquire()
     try:
-        with _file_lock(out_dir / ".save_experiment.lock"):
+        with FileLock(out_dir / ".save_experiment.lock"):
             save_json(payload, out_dir / "result_partial.json")
     finally:
         if lock is not None:

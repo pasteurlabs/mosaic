@@ -1,62 +1,111 @@
-# Template: Steady-state thermal conduction on a hexahedral mesh (SIMP topology optimisation)
+# Template: Steady-state thermal conduction on a hexahedral mesh (SIMP topology
+# optimisation).
 #
 # Based on the thermal-mesh domain. Extend to new geometries by modifying the
-# mesh, boundary conditions, and objective function.
+# mesh, boundary conditions, and objective in the generated physics.py.
 
 name: thermal-steady
 description: >
   Steady-state heat conduction with SIMP topology optimisation on a hexahedral
-  mesh.  The solver takes a per-cell density field and returns the temperature
-  field and thermal compliance.
+  mesh. The solver takes a per-cell density field and returns the temperature
+  field and thermal compliance C = ∮ q_n·T dΓ. Also supports source-identification
+  experiments via the identification_error = ||T − T_target||² objective.
 
-# Schema module to import InputSchema / OutputSchema from.
-schema_module: mosaic_shared.problems.thermal_mesh
+category_label: Heat Conduction
+bc_description: >
+  Quasi-2D heated slab on domain [0, Lx]×[0, Ly] (single HEX8 layer in z).
+  Dirichlet: all nodes at x=0 held at T=0. Neumann: uniform heat flux Q_total
+  on the right face (x=Lx), or a centred 1/3 hot-spot stripe (Ly/3 ≤ y ≤ 2Ly/3)
+  for topology-optimisation runs.
 
-# Which output field is used for solver-to-solver comparison.
+schema_module: tesseract_shared.problems.thermal_mesh
 output_key: thermal_compliance
-
-# Key in the input dict that holds the optimisation variable.
 ic_key: rho
+domain_extent: 2.0
+resolution_key: nx
 
-# Physical domain
-domain_extent: 1.0
-
-# Default resolution parameter (N controls mesh size).
-resolution_key: N
-
-# Default physics parameters for a minimal smoke test.
 physics_defaults:
-  N: 8
-  mesh_level: 1
+  nx: 8
+  ny: 4
+  nz: 1
+  Lx: 2.0
+  Ly: 1.0
+  Lz: 0.1
+  Q_total: 1.0
+  rho_0: 0.5
+  hot_spot: false
 
-# Initial condition: uniform density field.
 ic_defaults:
-  name: uniform
+  name: default
   seed: 0
 
-# Forward suite defaults
 forward:
+  baseline:
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: [4, 6, 8, 12, 16]
+        ny: 4
+        nz: 1
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 0.1
+        Q_total: 1.0
+        hot_spot: false
   agreement:
-    - ic: { name: uniform, seed: 0 }
-      physics: { N: 8 }
-      sweep: { key: N, values: [4, 8, 12, 16] }
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: 8
+        ny: 4
+        nz: 1
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 0.1
+        Q_total: 1.0
+        hot_spot: false
+        rho_0: [0.2, 0.4, 0.5, 0.7, 0.9]
 
-# Gradient suite defaults
 gradient:
   fd_check:
-    - ic: { name: uniform, seed: 0 }
-      physics: { N: 8 }
-      fd: { eps_values: [1.0, 0.1, 0.01, 0.001], n_dirs: 10 }
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: 8
+        ny: 4
+        nz: 1
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 0.1
+        Q_total: 1.0
+        hot_spot: true
+      fd:
+        eps_values: [1.0, 0.1, 0.01, 0.001]
+        n_dirs: 10
 
-# Cost suite defaults
 cost:
-  cost:
-    n_trials: 3
-    N_values: [4, 8, 12, 16]
+  spatial_cost:
+    - physics:
+        nx: [4, 6, 8, 12, 16]
+        ny: 4
+        nz: 1
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 0.1
+        Q_total: 1.0
+        rho_0: 0.5
+        hot_spot: false
+        steps: 1
+      cost: { n_trials: 3 }
 
-# Optimization suite defaults
 optimization:
   recovery:
-    - ic: { name: uniform, seed: 0 }
-      physics: { N: 8 }
-      optim: { lr: 0.01, steps: 100, patience: 20 }
+    - ic: { name: default, seed: 0 }
+      physics:
+        nx: 16
+        ny: 8
+        nz: 1
+        Lx: 2.0
+        Ly: 1.0
+        Lz: 0.1
+        Q_total: 1.0
+        hot_spot: true
+        v_frac: 0.5
+      optim: { lr: 0.01, max_iters: 100, patience: 20 }

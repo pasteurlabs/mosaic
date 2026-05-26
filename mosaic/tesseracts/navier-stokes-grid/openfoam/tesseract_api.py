@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """OpenFOAM icoFoam tesseract for incompressible NS on periodic Cartesian grids.
 
 Wraps OpenFOAM icoFoam (transient, laminar, incompressible) with:
@@ -19,10 +22,10 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 
@@ -31,10 +34,14 @@ _OF_BASHRC = "/opt/openfoam12/etc/bashrc"
 
 
 class InputSchema(_CanonicalInputSchema):
+    """Input schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
+
     pass
 
 
 class OutputSchema(_CanonicalOutputSchema):
+    """Output schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
+
     pass
 
 
@@ -462,7 +469,7 @@ boundaryField
 def _write_block_mesh_dict_channel(
     system_dir: Path, N: int, L: float
 ) -> None:  # mosaic:init
-    """blockMeshDict for a 2-D channel: INLET/OUTLET in x, cyclic y, empty z.
+    """BlockMeshDict for a 2-D channel: INLET/OUTLET in x, cyclic y, empty z.
 
     Vertex numbering matches the periodic case (same hex block):
       0=(0,0,0)  1=(L,0,0)  2=(L,L,0)  3=(0,L,0)
@@ -939,6 +946,7 @@ def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:  # mos
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
+    """Run OpenFOAM icoFoam and return the final velocity and drag."""
     if inputs.inflow_profile is not None:
         raise NotImplementedError(
             "openfoam does not support inflow_profile. "
@@ -1027,7 +1035,8 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return out
 
 
-def abstract_eval(abstract_inputs) -> dict:
+def abstract_eval(abstract_inputs: InputSchema) -> dict:
+    """Return output shapes and dtypes without running the solver."""
     v0 = abstract_inputs.v0
     shape = v0["shape"] if isinstance(v0, dict) else tuple(v0.shape)
     return {

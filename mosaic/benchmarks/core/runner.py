@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Solver invocation helpers."""
 
 from __future__ import annotations
@@ -9,6 +12,8 @@ import queue
 import subprocess
 import threading
 import time
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -59,9 +64,7 @@ _MOSAIC_TESSERACT_CONNECT_TIMEOUT: float = 30.0
 
 
 def _install_tesseract_http_timeout() -> None:
-    """Patch tesseract_core.sdk.tesseract.HTTPClient.__init__ so every
-    HTTPClient instance carries a requests.Session whose ``request`` method
-    always applies a (connect, read) timeout.
+    """Patch tesseract_core HTTPClient so every request carries a (connect, read) timeout.
 
     Idempotent: repeated calls are no-ops (the patched ``__init__`` carries a
     ``_mosaic_timeout_patched`` attribute).  Safe to call from tests.
@@ -84,7 +87,7 @@ def _install_tesseract_http_timeout() -> None:
     if getattr(orig_init, "_mosaic_timeout_patched", False):
         return
 
-    def _patched_init(self, *args, **kwargs):
+    def _patched_init(self: object, *args: object, **kwargs: object) -> None:
         orig_init(self, *args, **kwargs)
         session = getattr(self, "_session", None)
         if session is None:
@@ -92,7 +95,7 @@ def _install_tesseract_http_timeout() -> None:
         _orig_request = session.request
         _timeout = (_MOSAIC_TESSERACT_CONNECT_TIMEOUT, MOSAIC_TESSERACT_TIMEOUT)
 
-        def _request_with_timeout(method, url, **kw):
+        def _request_with_timeout(method: str, url: str, **kw: object) -> object:
             kw.setdefault("timeout", _timeout)
             return _orig_request(method, url, **kw)
 
@@ -104,7 +107,7 @@ def _install_tesseract_http_timeout() -> None:
 
 _install_tesseract_http_timeout()
 
-from .config import ProblemConfig  # noqa: E402
+from .config import Problem  # noqa: E402
 from .console import (  # noqa: E402
     console,
     make_build_progress,
@@ -117,6 +120,36 @@ from .resources import container_memory_args  # noqa: E402
 
 _tl = threading.local()  # thread-local state (image_tag, gpu_id, last_apply_error)
 
+
+@dataclass(frozen=True)
+class WorkerContext:
+    """Per-thread context set by :func:`run_with_gpu_pool`.
+
+    Suites can read this inside their work callback (passed to
+    ``run_with_gpu_pool``) to discover which GPU they were assigned and
+    which image tag is serving — useful for ResourceSampler / MemoryPoller
+    construction.
+
+    Both fields are ``None`` when no GPU pool is active (e.g. serial mode
+    or when called outside a runner-managed thread).
+    """
+
+    gpu_id: int | str | None
+    image_tag: str | None
+
+
+def current_worker_context() -> WorkerContext:
+    """Return the :class:`WorkerContext` for the calling thread.
+
+    Always returns a :class:`WorkerContext`; fields are ``None`` when the
+    runner has not set them.
+    """
+    return WorkerContext(
+        gpu_id=getattr(_tl, "gpu_id", None),
+        image_tag=getattr(_tl, "image_tag", None),
+    )
+
+
 # Problem name set by run_suite so that run_with_gpu_pool can label containers.
 # Docker label scoping prevents concurrent runs on different problems from
 # killing each other's containers during cleanup.
@@ -126,7 +159,7 @@ _current_problem: str = ""
 
 
 def build_all(
-    cfg: ProblemConfig, tag: str = "latest", max_workers: int = 2
+    cfg: Problem, tag: str = "latest", max_workers: int = 2
 ) -> dict[str, str]:
     """Build all solver images in parallel. Returns name → image_tag.
 
@@ -140,7 +173,7 @@ def build_all(
     """
     import yaml
 
-    def _resolve_tag(name: str, spec) -> str:
+    def _resolve_tag(name: str, spec: object) -> str:
         """Derive the expected image tag for a solver without building."""
         if spec.image_tag:
             return spec.image_tag
@@ -152,8 +185,8 @@ def build_all(
             return f"{image_name}:{tag}"
         return f"{spec.dir}:{tag}"
 
-    def _build(item):
-        name, spec = item
+    def _build(spec: object) -> tuple[str, str]:
+        name = spec.name  # type: ignore[attr-defined]
         # Run any adjacent build_base.sh first — lets tesseracts ship a
         # locally-built base-image wrapper (e.g. dealii-root:latest that
         # switches the upstream dealii/dealii image to USER root so the
@@ -198,7 +231,15 @@ def build_all(
             raise RuntimeError(
                 f"{name}: could not parse tesseract build output: {last_line!r}"
             ) from exc
-        image_tag = built_tags[0]
+        # tesseract build always tags the image with both ``:latest`` and
+        # ``:<version>``; their order in the JSON output isn't guaranteed,
+        # so prefer ``:latest`` deterministically rather than picking
+        # ``built_tags[0]`` (which made some solvers log a version-pinned
+        # tag while others showed ``:latest``).
+        image_tag = next(
+            (t for t in built_tags if t.endswith(":latest")),
+            built_tags[0],
+        )
         console.print(
             f"  [cyan]{name:<16}[/cyan] → {image_tag}  [dim]({elapsed:.1f}s)[/dim]"
         )
@@ -209,9 +250,7 @@ def build_all(
     with make_build_progress() as progress:
         task = progress.add_task("building solver images...", total=len(cfg.solvers))
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {
-                pool.submit(_build, item): item[0] for item in cfg.solvers.items()
-            }
+            futures = {pool.submit(_build, spec): spec.name for spec in cfg.solvers}
             for future in concurrent.futures.as_completed(futures):
                 solver_name = futures[future]
                 try:
@@ -229,13 +268,17 @@ def build_all(
     return images
 
 
-def image_tags_no_build(cfg: ProblemConfig) -> dict[str, str]:
-    """Return name → image_tag without building, using SolverSpec.image_tag
-    if set, otherwise deriving the image name from the tesseract_config.yaml."""
+def image_tags_no_build(cfg: Problem) -> dict[str, str]:
+    """Return name → image_tag without building.
+
+    Uses ``SolverSpec.image_tag`` if set, otherwise derives the image name
+    from the ``tesseract_config.yaml``.
+    """
     import yaml
 
     tags = {}
-    for name, spec in cfg.solvers.items():
+    for spec in cfg.solvers:
+        name = spec.name
         if spec.image_tag:
             tags[name] = spec.image_tag
         else:
@@ -259,7 +302,7 @@ def image_tags_no_build(cfg: ProblemConfig) -> dict[str, str]:
 # ── Suite orchestration ───────────────────────────────────────────────────────
 
 
-def _experiment_already_complete(suite_dir, name: str) -> bool:
+def _experiment_already_complete(suite_dir: object, name: str) -> bool:
     """True if a prior run wrote artifacts for *name* under *suite_dir*.
 
     Matches two on-disk layouts:
@@ -278,13 +321,11 @@ def _experiment_already_complete(suite_dir, name: str) -> bool:
     if (exp_dir / "result.json").exists():
         return True
     subdirs = [p for p in exp_dir.iterdir() if p.is_dir()]
-    if subdirs and all((p / "result.json").exists() for p in subdirs):
-        return True
-    return False
+    return bool(subdirs and all((p / "result.json").exists() for p in subdirs))
 
 
 def run_suite(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     experiments: dict,
     to_run: list[str] | None = None,
@@ -298,22 +339,25 @@ def run_suite(
     """Run a set of named experiments and optionally generate plots.
 
     Args:
-        cfg:             ProblemConfig instance.
+        cfg:             Problem instance.
         tags:            solver name → image tag mapping.
         experiments:     {name: callable(cfg, tags) → dict}
         to_run:          subset of names to run; None runs all.
         plots:           if True, call matching entries in plot_fns after experiments.
-        plot_fns:        {name: callable(cfg)} for plot generation; None skips plots.
-        suite_name:      name of the suite (e.g. "calibration") used to look up
-                         cfg.extra_plots for problem-specific plot hooks.
+        plot_fns:        {name: callable(cfg)} for plot generation; None skips
+                         plots. Entries whose name starts with ``"_extra/"`` are
+                         suite-wide bonus plots — fired unconditionally after the
+                         per-experiment plots, regardless of which experiments ran.
+        suite_name:      name of the suite (e.g. "forward"), passed for display.
         verbose_errors:  if True, print full traceback on experiment/plot failures.
+        overrides:       extra keyword arguments forwarded to each experiment callable.
         skip_completed:  if True, experiments whose result.json already exists
                          on disk are skipped (drives ``mosaic run --continue``).
 
     Returns:
         {experiment_name: results_dict}
     """
-    from .utils import results_dir
+    from .io import results_dir
 
     global _current_problem
     _current_problem = (
@@ -350,6 +394,17 @@ def run_suite(
             if verbose_errors:
                 console.print_exception()
             print_warn(f"{name} failed: {exc}")
+        finally:
+            # Drop JAX's compiled-program cache between experiments to bound
+            # process memory. Heavy optim runs (e.g. L-BFGS) can otherwise
+            # leak enough XLA staging memory to make all later JIT compiles
+            # fail with ``Cannot allocate memory``.
+            try:
+                import jax
+
+                jax.clear_caches()
+            except Exception:
+                pass
 
     if plots and plot_fns:
         print_rule("plots")
@@ -361,6 +416,7 @@ def run_suite(
             _plot_cfg = _get_cfg(cfg.name)
         except Exception:
             _plot_cfg = cfg
+        # Regular per-experiment plots: only fire when the matching experiment ran.
         for name in to_run:
             if name in plot_fns and name in results:
                 try:
@@ -369,30 +425,92 @@ def run_suite(
                     if verbose_errors:
                         console.print_exception()
                     print_warn(f"plot_{name} failed: {exc}")
-        for fn in _plot_cfg.extra_plots.get(suite_name, []):
+        # Suite-wide bonus plots ("_extra/<name>") — fire unconditionally.
+        for key, fn in plot_fns.items():
+            if not key.startswith("_extra/"):
+                continue
+            short_name = key[len("_extra/") :]
             try:
                 fn(_plot_cfg)
             except Exception as exc:
                 if verbose_errors:
                     console.print_exception()
-                print_warn(f"{fn.__name__} failed: {exc}")
+                print_warn(f"{short_name} failed: {exc}")
 
     return results
+
+
+# ── Per-solver loop ───────────────────────────────────────────────────────────
+
+
+def per_solver_loop(
+    cfg: Problem,
+    tags: dict[str, str],
+    solver_names: list[str],
+    work_one: Callable,
+    *,
+    gpu_ids: list[str] | None = None,
+    print_done: bool = True,
+    catch: bool = False,
+    catch_label: str = "work failed",
+    on_error: Callable[[str, Exception], None] | None = None,
+) -> dict[str, float]:
+    """Run ``work_one(name, t)`` for each solver, returning ``{name: wall_seconds}``.
+
+    Centralises the per-solver bookkeeping that every harness used to repeat
+    inline:
+
+      * ``t0 = time.perf_counter()`` start / ``elapsed = ... - t0`` end
+      * Records ``elapsed`` in the returned ``wall_times`` dict
+      * Optionally prints ``  {color}{name}[/] done in {elapsed:.1f}s`` after
+        each solver completes (``print_done=True``, default)
+      * Optionally swallows worker exceptions and prints a one-line SKIP marker
+        in the solver's color (``catch=True`` — used by gradient harnesses
+        that want one failing solver to not abort the others)
+
+    The framework runs solver workers either serially (one Tesseract at a time)
+    or in parallel across a GPU pool — see :func:`run_with_gpu_pool`. This
+    helper sits on top of that loop and adds nothing more than the
+    bookkeeping common to every existing harness.
+    """
+    wall_times: dict[str, float] = {}
+
+    def _wrapper(name: str, t: object) -> None:
+        color = cfg.solver(name).color
+        t0 = time.perf_counter()
+        try:
+            work_one(name, t)
+        except Exception as exc:
+            if not catch:
+                raise
+            console.print(
+                f"  [{color}]{name}[/] [yellow]SKIP ({catch_label}: {exc})[/]"
+            )
+            if on_error is not None:
+                on_error(name, exc)
+            return
+        elapsed = time.perf_counter() - t0
+        wall_times[name] = elapsed
+        if print_done:
+            console.print(f"  [{color}]{name}[/] done in {elapsed:.1f}s")
+
+    run_with_gpu_pool(solver_names, tags, _wrapper, gpu_ids=gpu_ids, on_error=on_error)
+    return wall_times
 
 
 # ── Parameter sweeps ─────────────────────────────────────────────────────────
 
 
 def solver_sweep(
-    cfg: ProblemConfig,
+    cfg: Problem,
     tags: dict[str, str],
     conditions: list,
-    fn,
+    fn: Callable,
     *,
     suite: str = "forward",
     experiment: str | None = None,
-    label_fn=None,
-    key_fn=None,
+    label_fn: Callable | None = None,
+    key_fn: Callable | None = None,
     auto_status: bool = True,
     gpu_ids: list[str] | None = None,
 ) -> dict[str, dict]:
@@ -446,10 +564,10 @@ def solver_sweep(
     with make_sweep_progress(total=n_total) as progress:
         task = progress.add_task("running sweep...", total=n_total)
 
-        def _per_solver(name: str, t) -> None:
+        def _per_solver(name: str, t: object) -> None:
             nonlocal _calls_done
             si = names.index(name) + 1
-            color = cfg.solvers[name].color
+            color = cfg.solver(name).color
             console.print(f"  [{color}]{name}[/] [dim]solver {si}/{n_solvers}[/dim]")
             t0 = time.perf_counter()
             for ci, cond in enumerate(conditions, 1):
@@ -490,8 +608,9 @@ def solver_sweep(
 def run_with_gpu_pool(
     solver_names: list[str],
     tags: dict[str, str],
-    fn,
+    fn: Callable,
     gpu_ids: list[str] | None = None,
+    on_error: Callable[[str, Exception], None] | None = None,
 ) -> None:
     """Open one Tesseract per solver and call fn(name, t).
 
@@ -503,6 +622,11 @@ def run_with_gpu_pool(
 
     Solvers whose image tag is missing from *tags* (e.g. because the build
     failed) are skipped with a warning.
+
+    on_error(name, exc) is invoked when opening the Tesseract container or
+    running fn(name, t) raises. Lets callers record the failure so the status
+    classifier can mark the solver as FAILED rather than NOT_RUN (which would
+    silently hide a broken container).
     """
     # --no-healthcheck prevents Azure's c3-progenitor from killing containers
     # that are mid-computation when the health probe fires (~4 s interval).
@@ -522,6 +646,22 @@ def run_with_gpu_pool(
         )
     solver_names = [n for n in solver_names if n in tags]
 
+    def _open_tesseract(tag: str, gpus: object, docker_args: object) -> object:
+        """Pick the right loader for ``tag``.
+
+        Tags prefixed with ``inprocess:`` use
+        :meth:`Tesseract.from_tesseract_api` (no Docker, just imports a
+        ``tesseract_api.py``) — meant for end-to-end framework tests
+        with the dummy tesseracts in ``tests/dummy_tesseracts/``.
+        Every other tag is a Docker image and goes through
+        :meth:`Tesseract.from_image`.
+        """
+        if tag.startswith("inprocess:"):
+            return Tesseract.from_tesseract_api(tag[len("inprocess:") :])
+        return Tesseract.from_image(
+            tag, gpus=gpus, docker_args=docker_args, num_workers=1
+        )
+
     if gpu_ids is None or gpu_ids == []:
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])
         # gpu_ids=[]    → --gpus none/cpu, CPU-only host (gpus=None, no GPU flags)
@@ -530,12 +670,12 @@ def run_with_gpu_pool(
             _tl.image_tag = tags[name]
             _tl.gpu_id = None  # all GPUs available
             try:
-                with Tesseract.from_image(
-                    tags[name], gpus=_gpus, docker_args=_NO_HC, num_workers=1
-                ) as t:
+                with _open_tesseract(tags[name], _gpus, _NO_HC) as t:
                     fn(name, t)
             except Exception as exc:
                 print_warn(f"{name} failed: {exc}")
+                if on_error is not None:
+                    on_error(name, exc)
         return
 
     # If gpu_ids=[] was handled above (cpu-only), we never reach here.
@@ -549,12 +689,12 @@ def run_with_gpu_pool(
         try:
             _tl.image_tag = tags[name]
             _tl.gpu_id = gid
-            with Tesseract.from_image(
-                tags[name], gpus=[gid], docker_args=_NO_HC, num_workers=1
-            ) as t:
+            with _open_tesseract(tags[name], [gid], _NO_HC) as t:
                 fn(name, t)
         except Exception as exc:
             print_warn(f"{name} failed: {exc}")
+            if on_error is not None:
+                on_error(name, exc)
         finally:
             gpu_q.put(gid)
 
@@ -566,17 +706,36 @@ def run_with_gpu_pool(
 
 
 def safe_apply(t: Tesseract, inputs: dict, output_key: str) -> jax.Array | None:
-    """Forward pass with exception handling and finiteness check. Returns None on failure.
+    """Forward pass with exception handling and finiteness check.
 
-    On failure the exception message is stored in _tl.last_apply_error so callers
-    can surface it (e.g. forward.py writes it to the JSON 'error' field).
+    Returns the output array on success, ``None`` on any failure (exception
+    raised, missing output key, non-finite values).
+
+    **Out-of-band error reporting**: on failure the exception message is
+    written to thread-local state and must be retrieved via
+    :func:`get_last_apply_error`. The pattern is::
+
+        arr = safe_apply(t, inputs, output_key)
+        if arr is None:
+            err_msg = get_last_apply_error()  # may be None if cleared
+            ...
+
+    Each call overwrites the previous thread's last error; callers that
+    interleave multiple ``safe_apply`` invocations should read the error
+    immediately after each failure. The same convention applies to
+    :func:`safe_apply_with_extras`.
     """
     arr, _, _ = safe_apply_with_extras(t, inputs, output_key, [], [])
     return arr
 
 
 def get_last_apply_error() -> str | None:
-    """Return the error message from the most recent failed safe_apply call on this thread."""
+    """Return the last :func:`safe_apply` failure message for this thread.
+
+    Returns ``None`` if no :func:`safe_apply` / :func:`safe_apply_with_extras`
+    call has failed on this thread, or if a successful call has overwritten
+    the slot.
+    """
     return getattr(_tl, "last_apply_error", None)
 
 
@@ -594,7 +753,7 @@ def safe_apply_with_extras(
     inputs: dict,
     output_key: str,
     extra_scalar_keys: list[str],
-    state_keys: list[str] = [],
+    state_keys: list[str] | None = None,
 ) -> tuple[jax.Array | None, dict[str, float], dict[str, jax.Array]]:
     """Forward pass returning (primary array, scalar extras, array state).
 
@@ -604,6 +763,8 @@ def safe_apply_with_extras(
 
     Returns (None, {}, {}) on failure.
     """
+    if state_keys is None:
+        state_keys = []
     try:
         out = _apply_tesseract_with_deadline(t, inputs)
         if output_key not in out:

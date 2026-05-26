@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Rich console singleton and terminal output helpers."""
 
 from __future__ import annotations
@@ -46,16 +49,20 @@ def make_sweep_progress(total: int) -> Progress:
 
 
 def print_rule(title: str) -> None:
+    """Print a horizontal rule with a centred title."""
     console.print(Rule(title))
 
 
 def print_warn(msg: str) -> None:
+    """Print a yellow warning message."""
     console.print(f"[yellow][WARN] {msg}[/yellow]")
 
 
 def print_skip(msg: str) -> None:
+    """Print a dimmed skip message."""
     console.print(f"[dim][SKIP] {msg}[/dim]")
 
 
-def print_saved(path) -> None:
+def print_saved(path: object) -> None:
+    """Print a cyan confirmation that a file was saved at *path*."""
     console.print(f"[cyan]  Saved \u2192 {path}[/cyan]")

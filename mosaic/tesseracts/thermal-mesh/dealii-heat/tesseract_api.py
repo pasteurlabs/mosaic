@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Thermal topology optimisation on a structured hexahedral mesh.
 
 Uses deal.II Q1 finite elements as a C++ subprocess.  Python writes JSON +
@@ -19,14 +22,14 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from mosaic_shared.problems.thermal_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.thermal_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
 from pydantic import Field
 from tesseract_core.runtime import ShapeDType
+from tesseract_shared.problems.thermal_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.thermal_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
 
 # ---------------------------------------------------------------------------
 # Binary path
