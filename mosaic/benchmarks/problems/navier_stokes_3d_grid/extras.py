@@ -1,4 +1,4 @@
-"""Cross-domain / cross-experiment paper figures for ns-3d-grid.
+"""Cross-domain / cross-experiment aggregator plots for ns-3d-grid.
 
 Registered as ``_extra/<name>`` plots on the per-problem ``Problem`` instance
 so ``mosaic run --plots-only`` invokes them automatically.
@@ -28,12 +28,12 @@ from mosaic.benchmarks.problems.shared.plots.cost_overview import (
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     SOLVER_STYLES,
     TEXTWIDTH,
     dedup_handles,
     make_handle,
-    paper_rc_context,
+    rc_context,
     resolve_solver_alias,
     solver_props,
 )
@@ -621,7 +621,7 @@ def _plot_horizon_sweep_limits(cfg: Problem, **_kw):
         a = resolve_solver_alias(display_name)
         by_solver[a if a is not None else display_name] = sv
 
-    with plt.rc_context(PAPER_RCPARAMS):
+    with plt.rc_context(RCPARAMS):
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.27), dpi=300)
         gs = GridSpec(1, 3, figure=fig)
         gs.update(hspace=0.38, wspace=0.5, bottom=0.19, top=0.93, left=0.09, right=0.97)
@@ -707,7 +707,7 @@ def _scaling_load_cost(experiment: str) -> dict[str, dict[int, float]]:
 
 def _plot_scaling(cfg: Problem, **_kw) -> None:
     out_dir = _extra_out_dir(cfg)
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     fwd_data = _scaling_load_cost("spatial_cost")
     vjp_data = _scaling_load_cost("vjp_cost")
@@ -953,7 +953,7 @@ def _plot_ucurves(cfg: Problem, **_kw) -> None:
         "out": "ucurves.pdf",
         "ncols": 5,
     }
-    with paper_rc_context():
+    with rc_context():
         _plot_ucurve_3d(cfg_dict, out_dir)
 
 
@@ -963,7 +963,7 @@ def _plot_ucurves(cfg: Problem, **_kw) -> None:
 
 
 def register(problem: Problem) -> None:
-    """Register all paper-figure extras as ``_extra/<key>`` plot fns."""
+    """Register cross-experiment extras as ``_extra/<key>`` plot fns."""
     problem.add_extra_plot("_extra/horizon_sweep_limits", _plot_horizon_sweep_limits)
     problem.add_extra_plot("_extra/cost_overview", _plot_cost_overview)
     problem.add_extra_plot("_extra/scaling", _plot_scaling)

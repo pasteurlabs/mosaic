@@ -22,7 +22,7 @@ from mosaic.benchmarks.problems.shared.plots.optimization import (
     _save_animation,
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
-    PAPER_RCPARAMS,
+    RCPARAMS,
     SOLVER_STYLES,
     STRUCTURAL_ORDER,
     TEXTWIDTH,
@@ -134,7 +134,7 @@ def _plot_topopt_paper(
         print(f"[topopt] {result_path} not found — skipping")
         return None
 
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
     data = load_json(result_path)
     by_solver = data.get("by_solver", {})
 

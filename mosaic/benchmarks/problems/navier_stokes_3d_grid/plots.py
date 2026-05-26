@@ -19,7 +19,7 @@ from mosaic.benchmarks.core.io import (
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     STRUCTURAL_ORDER,
     TEXTWIDTH,
     THERMAL_ORDER,
@@ -568,7 +568,7 @@ def _plot_paper_recovery_experiment(
         print(f"[recovery] {result_path} not found — skipping")
         return None
 
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
     data = load_json(result_path)
 
     fig, ax = plt.subplots(figsize=(TEXTWIDTH, TEXTWIDTH * 0.45), dpi=300)

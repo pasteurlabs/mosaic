@@ -9,7 +9,7 @@ The problem definition is split across these modules:
 - :mod:`.optimization` — IC-recovery runner.
 - :mod:`.plots`        — per-experiment plot fns wired in below.
 - :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
-- :mod:`.extras`       — cross-experiment aggregator plots (paper figures).
+- :mod:`.extras`       — cross-experiment aggregator plots.
 
 This module performs solver discovery, the canonical :class:`Problem`
 assembly, and the per-suite ``problem.add_experiment(...)`` calls with
@@ -396,7 +396,7 @@ problem.add_extra_plot(
 # All per-solver exclusions live in :mod:`.exclusions`.
 _register_exclusions(problem)
 
-# Cross-domain / cross-experiment paper figures (registered as _extra/<key>).
+# Cross-domain / cross-experiment aggregator plots (registered as _extra/<key>).
 _register_extras(problem)
 
 __all__ = ["problem"]

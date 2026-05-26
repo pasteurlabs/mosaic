@@ -26,7 +26,7 @@ from mosaic.benchmarks.problems.shared.plots.cost_overview import (
     plot_cost_overview_for,
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
-    PAPER_RCPARAMS,
+    RCPARAMS,
     SOLVER_STYLES,
     STRUCTURAL_ORDER,
     TEXTWIDTH,
@@ -424,7 +424,7 @@ def _topopt_overview_generate(out_dir: Path) -> None:
 
     n_field = len(field_solvers)
 
-    with plt.rc_context(PAPER_RCPARAMS):
+    with plt.rc_context(RCPARAMS):
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.72))
         outer = gridspec.GridSpec(
             1,

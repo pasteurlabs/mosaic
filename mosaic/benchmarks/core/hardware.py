@@ -13,7 +13,7 @@ def _gpu_descriptions() -> list[str]:
     Returns an empty list on any failure (no driver, NVML init error).
     Format mirrors the previous ``nvidia-smi --query-gpu=name,memory.total
     --format=csv,noheader`` output so existing consumers (status display,
-    paper plot captions) don't change.
+    plot captions) don't change.
     """
     nvml = _nvml_ready()
     if nvml is None:

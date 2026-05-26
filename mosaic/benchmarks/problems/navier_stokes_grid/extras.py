@@ -22,11 +22,11 @@ from mosaic.benchmarks.problems.shared.plots.cost_overview import (
 )
 from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
-    PAPER_RCPARAMS,
+    RCPARAMS,
     TEXTWIDTH,
     dedup_handles,
     make_handle,
-    paper_rc_context,
+    rc_context,
     resolve_solver_alias,
     solver_props,
 )
@@ -73,7 +73,7 @@ def _load_cost(subdir: str, experiment: str) -> dict[str, dict[int, float]]:
 
 
 def _scaling_impl(out_dir: Path) -> None:
-    plt.rcParams.update(PAPER_RCPARAMS)
+    plt.rcParams.update(RCPARAMS)
 
     subdir = "ns-grid"
     fwd_data = _load_cost(subdir, "spatial_cost")
@@ -327,7 +327,7 @@ def _plot_ucurves(cfg: Problem, **_kw) -> None:
         "out": "ucurves.pdf",
         "ncols": 4,
     }
-    with paper_rc_context():
+    with rc_context():
         _plot_ucurve_domain(cfg_dict, out_dir)
 
 
