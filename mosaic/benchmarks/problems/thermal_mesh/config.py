@@ -37,7 +37,6 @@ from mosaic.benchmarks.problems.shared.cost import (
 from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
     fd_check,
-    jacobian_svd,
     param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
@@ -47,7 +46,6 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 )
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
-    plot_jacobian_svd,
     plot_param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
@@ -365,27 +363,6 @@ problem.add_experiment(
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
     plot=plot_param_sweep,
 )
-problem.add_experiment(
-    "gradient/jacobian_svd",
-    jacobian_svd,
-    plot_description=(
-        "Singular-value spectrum of stacked per-solver gradients and "
-        "pairwise cosine similarity between solver gradient directions."
-    ),
-    ic={"name": "random", "seed": 0},
-    physics={
-        "nx": 8,
-        "ny": 4,
-        "nz": 1,
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "Q_total": 1.0,
-    },
-    jacobian={"n_alphas": 21, "alpha_range": 0.2},
-    plot=plot_jacobian_svd,
-)
-
 # Source-identification gradient experiments.
 # Use source as the differentiable input and identification_error as the
 # objective; per-run ``ic_key`` / ``output_key`` overrides the global defaults.

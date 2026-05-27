@@ -29,7 +29,6 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     solver_plot_props,
     solver_props,
     solver_styles,
-    subplots_grid,
     unit_label,
     vorticity_2d,
 )
@@ -205,48 +204,6 @@ def _agreement_raw_fields(
     )
     if save:
         save_fig(fig_raw, "fields_raw", out_dir)
-
-
-def _agreement_error_fields(
-    cfg: Any,
-    npz: Any,
-    solver_names: Any,
-    sweep_vals: Any,
-    sweep_key: Any,
-    styles: Any,
-    reference_label: Any,
-    f2d: Any,
-    out_dir: Any,
-    save: Any,
-    *,
-    field_cmap: str,
-    field_symmetric: bool,
-) -> Any:
-    """Field error grid: rows=solvers, cols=sweep values."""
-    panels = []
-    for name in solver_names:
-        for i, val in enumerate(sweep_vals):
-            key_s = f"{name}_{i}"
-            key_c = f"consensus_{i}"
-            if key_s not in npz or key_c not in npz:
-                continue
-            if not _is_field(npz[key_s]) or not _is_field(npz[key_c]):
-                continue
-            err = f2d(npz[key_s]) - f2d(npz[key_c])
-            label = f"{styles.get(name, {}).get('label', name)}\n{sweep_key}={val:.3g}"
-            panels.append((label, err))
-    if not panels:
-        return None
-    _ref_desc = "analytic solution" if reference_label == "analytic" else "consensus"
-    fig_err = field_grid(
-        panels,
-        f"{cfg.name} — field error vs {_ref_desc}",
-        ncols=len(sweep_vals),
-        **_field_grid_kw(field_cmap, field_symmetric),
-    )
-    if save:
-        save_fig(fig_err, "fields", out_dir)
-    return fig_err
 
 
 # Greek-letter sweep keys → LaTeX math; everything else is wrapped in $…$.
@@ -428,85 +385,35 @@ def _agreement_convergence(
     plt.close(fig)
 
 
-def _agreement_power_spectra(
-    cfg: Any,
-    npz: Any,
-    solver_names: Any,
-    sweep_vals: Any,
-    sweep_key: Any,
-    styles: Any,
-    out_dir: Any,
-    save: Any,
-    *,
-    power_spectrum_fn: Any,
-    domain_extent: float,
-) -> None:
-    """Power spectra (one subplot per sweep value, all solvers overlaid)."""
-    if power_spectrum_fn is None:
-        return
-    n_vals = len(sweep_vals)
-    fig_ps, axes = subplots_grid(n_vals, panel_w=4, panel_h=4, sharey=True)
-    for i, (val, ax) in enumerate(zip(sweep_vals, axes, strict=False)):
-        for name in solver_names:
-            key_s = f"{name}_{i}"
-            if key_s not in npz or not _is_field(npz[key_s]):
-                continue
-            k, Pk = power_spectrum_fn(npz[key_s], domain_extent=domain_extent)
-            style = styles.get(name, {})
-            ax.loglog(
-                k,
-                Pk,
-                label=style.get("label", name),
-                **solver_plot_props(style, marker=False),
-            )
-        ax.set_title(f"{sweep_key}={val:.3g}")
-        ax.set_xlabel("k  [h/Mpc]")
-        if i == 0:
-            ax.set_ylabel("P(k)  [(Mpc/h)³]")
-    fig_ps.suptitle(f"{cfg.name} — matter power spectrum")
-    fig_shared_legend(fig_ps, axes)
-    if save:
-        save_fig(fig_ps, "power_spectra", out_dir)
-
-
 def plot_agreement(
     cfg: Problem,
     *,
-    field_to_2d: Any = None,
     output_key: str = "output",
-    domain_extent: float = 2 * np.pi,
-    resolution_key: str = "N",
     units: dict | None = None,
     agreement_xlabel: str = "x",
     agreement_ylabel: str = "value",
-    pairwise_xlabel: str = "k",
-    pairwise_ylabels: dict | None = None,
-    field_cmap: str = "RdBu_r",
-    field_symmetric: bool = True,
-    diagnostic_fields: bool = True,
-    power_spectrum_fn: Any = None,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "agreement",
     **_kw: Any,
 ) -> Any:
-    """Field-error grid (rows=solvers × cols=sweep values) + optional power spectra."""
+    """Convergence-vs-sweep plot for the agreement experiment.
+
+    Writes a single ``curves.pdf`` (scalar / 1-D outputs) or
+    ``agreement.pdf`` (paper-styled error-vs-sweep, 2-D field outputs).
+    """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
     data = load_json(out_dir / "result.json")
     sweep_key = data.get("sweep_key", "param")
-    reference_label = data.get("reference_label", "consensus")
     styles = solver_styles(cfg)
-    f2d = _resolve_field_to_2d(field_to_2d)
 
     npz = try_load_npz(fields_path)
     sweep_vals = npz["sweep_values"].tolist()
     solver_names = npz["solver_names"].tolist()
 
-    # ── detect comparison type from consensus shape ───────────────────────────
     sample_consensus = npz.get("consensus_0", None)
 
-    # Scalar outputs (ndim == 0): plot the scalar value vs sweep parameter.
     if sample_consensus is not None and sample_consensus.ndim == 0:
         return _agreement_plot_scalar(
             cfg,
@@ -522,11 +429,6 @@ def plot_agreement(
         )
 
     if sample_consensus is not None and sample_consensus.ndim == 1:
-        # 1-D observable agreement (e.g. RDF g(r) vs r, or P(k) vs k)
-        # Layout: row 0 = absolute curves, row 1 = residual (solver − consensus).
-        # The residual row makes %-level differences visible — mandatory in
-        # code-comparison papers (Euclid, HACC, etc.) where the absolute panel
-        # shows everything agreeing.
         return _agreement_plot_curves(
             cfg,
             npz,
@@ -541,74 +443,31 @@ def plot_agreement(
             agreement_ylabel=agreement_ylabel,
         )
 
-    _agreement_raw_fields(
-        cfg,
-        npz,
-        solver_names,
-        sweep_vals,
-        sweep_key,
-        styles,
-        f2d,
-        out_dir,
-        save,
-        field_cmap=field_cmap,
-        field_symmetric=field_symmetric,
-    )
-    fig_err = _agreement_error_fields(
-        cfg,
-        npz,
-        solver_names,
-        sweep_vals,
-        sweep_key,
-        styles,
-        reference_label,
-        f2d,
-        out_dir,
-        save,
-        field_cmap=field_cmap,
-        field_symmetric=field_symmetric,
-    )
     _agreement_convergence(cfg, exp_key, suffix, save, out_dir)
-    _agreement_power_spectra(
-        cfg,
-        npz,
-        solver_names,
-        sweep_vals,
-        sweep_key,
-        styles,
-        out_dir,
-        save,
-        power_spectrum_fn=power_spectrum_fn,
-        domain_extent=domain_extent,
-    )
-    return fig_err
+    return None
 
 
 def plot_forward_fields(
     cfg: Problem,
     *,
     field_to_2d: Any = None,
-    domain_extent: float = 2 * np.pi,
     field_cmap: str = "RdBu_r",
     field_symmetric: bool = True,
-    power_spectrum_fn: Any = None,
     save: bool = True,
     suffix: str = "",
     exp_key: str = "cylinder",
     **_kw: Any,
 ) -> Any:
-    """Field grids (rows=solvers × cols=sweep values) + optional power spectra.
+    """Raw field grid (rows=solvers × cols=sweep values).
 
-    Like :func:`plot_agreement` but without the convergence-vs-sweep
-    figure — for experiments where the sweep is a per-physics
-    visualization knob (e.g. cylinder wake at several viscosities)
-    rather than a quantitative convergence axis.
+    For experiments where the sweep is a per-physics visualization knob
+    (e.g. cylinder wake at several viscosities) rather than a quantitative
+    convergence axis.
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
     data = load_json(out_dir / "result.json")
     sweep_key = data.get("sweep_key", "param")
-    reference_label = data.get("reference_label", "consensus")
     styles = solver_styles(cfg)
     f2d = _resolve_field_to_2d(field_to_2d)
 
@@ -629,33 +488,7 @@ def plot_forward_fields(
         field_cmap=field_cmap,
         field_symmetric=field_symmetric,
     )
-    fig_err = _agreement_error_fields(
-        cfg,
-        npz,
-        solver_names,
-        sweep_vals,
-        sweep_key,
-        styles,
-        reference_label,
-        f2d,
-        out_dir,
-        save,
-        field_cmap=field_cmap,
-        field_symmetric=field_symmetric,
-    )
-    _agreement_power_spectra(
-        cfg,
-        npz,
-        solver_names,
-        sweep_vals,
-        sweep_key,
-        styles,
-        out_dir,
-        save,
-        power_spectrum_fn=power_spectrum_fn,
-        domain_extent=domain_extent,
-    )
-    return fig_err
+    return None
 
 
 # ── physical_laws ──────────────────────────────────────────────────────────────
