@@ -1,4 +1,3 @@
-// mosaic:util
 //
 // deal.II linear elasticity solver for SIMP topology optimisation.
 //
@@ -65,7 +64,6 @@ using namespace dealii;
 // ---------------------------------------------------------------------------
 // Helper: load float32 .npy file
 // ---------------------------------------------------------------------------
-// mosaic:io
 static std::vector<float> load_npy_float32(const std::string &path)
 {
   cnpy::NpyArray arr = cnpy::npy_load(path);
@@ -87,7 +85,6 @@ static std::vector<float> load_npy_float32(const std::string &path)
 // This matches the Z,Y,X lexicographic order of coordinates with
 // x varying fastest, z varying slowest.
 // ---------------------------------------------------------------------------
-// mosaic:init
 static std::vector<Point<3>>
 hex_mesh_node_pts(int nx, int ny, int nz, double Lx, double Ly, double Lz)
 {
@@ -108,7 +105,6 @@ hex_mesh_node_pts(int nx, int ny, int nz, double Lx, double Ly, double Lz)
 // Face IDs (deal.II GridGenerator convention):
 //   0: x=0,  1: x=Lx,  2: y=0,  3: y=Ly,  4: z=0,  5: z=Lz
 // ---------------------------------------------------------------------------
-// mosaic:init
 static int classify_face(const Point<3> &p,
                           double Lx, double Ly, double Lz,
                           double tol)
@@ -133,7 +129,6 @@ static int classify_face(const Point<3> &p,
 //   Must be built with hex_mesh_node_pts(), NOT get_node_support_points(),
 //   because deal.II DOF ordering does not match _hex_mesh_arrays ordering.
 // ---------------------------------------------------------------------------
-// mosaic:init
 static std::map<int, types::boundary_id>
 groups_to_boundary_ids(const std::vector<int> &mask,
                         const std::vector<Point<3>> &node_pts,
@@ -208,7 +203,6 @@ private:
   double              compliance;
 };
 
-// mosaic:io
 StructSolver::StructSolver(const std::string &input_json_path)
   : fe(FE_Q<3>(1), 3)
   , dof_handler(triangulation)
@@ -250,7 +244,6 @@ StructSolver::StructSolver(const std::string &input_json_path)
   rho = load_npy_float32(rho_file);
 }
 
-// mosaic:init
 void StructSolver::setup_system()
 {
   std::vector<unsigned int> subdivisions = {
@@ -276,7 +269,6 @@ void StructSolver::setup_system()
   system_rhs.reinit(dof_handler.n_dofs());
 }
 
-// mosaic:physics
 void StructSolver::assemble_system()
 {
   QGauss<3> quad(2);
@@ -459,7 +451,6 @@ void StructSolver::assemble_system()
     bvals, system_matrix, solution, system_rhs);
 }
 
-// mosaic:physics
 void StructSolver::solve_system()
 {
   SparseDirectUMFPACK direct;
@@ -470,14 +461,12 @@ void StructSolver::solve_system()
   compliance = system_rhs_original * solution;
 }
 
-// mosaic:io
 void StructSolver::write_outputs()
 {
   std::ofstream f(output_dir_ + "/compliance.txt");
   f << std::scientific << std::setprecision(15) << compliance << "\n";
 }
 
-// mosaic:util
 void StructSolver::run()
 {
   setup_system();
@@ -490,7 +479,6 @@ void StructSolver::run()
 // main
 // ---------------------------------------------------------------------------
 
-// mosaic:util
 int main(int argc, char *argv[])
 {
   Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
