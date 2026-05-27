@@ -21,6 +21,8 @@ import json
 import sys
 from pathlib import Path
 
+import yaml
+
 TESSERACTS_DIR = Path("mosaic/tesseracts")
 
 
@@ -44,11 +46,21 @@ def main() -> None:
         if any(f.startswith(prefix) for f in diff_files) and solver_rel not in seen:
             seen.add(solver_rel)
             parts = solver_rel.split("/", 1)
+            entry: dict[str, str]
             if len(parts) == 2:
-                changed.append({"domain": parts[0], "solver": parts[1]})
+                entry = {"domain": parts[0], "solver": parts[1]}
             else:
                 # Top-level solver (no domain subdirectory)
-                changed.append({"domain": parts[0], "solver": parts[0]})
+                entry = {"domain": parts[0], "solver": parts[0]}
+            # Read the display name from tesseract_config.yaml if available.
+            cfg_path = TESSERACTS_DIR / solver_rel / "tesseract_config.yaml"
+            if cfg_path.exists():
+                with open(cfg_path) as f:
+                    tcfg = yaml.safe_load(f) or {}
+                display = (tcfg.get("metadata") or {}).get("mosaic", {}).get("name", "")
+                if display:
+                    entry["display_name"] = display
+            changed.append(entry)
 
     json.dump(changed, sys.stdout)
     print()

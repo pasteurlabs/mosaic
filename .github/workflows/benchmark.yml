@@ -40,6 +40,7 @@ jobs:
       solver_matrix: ${{ steps.decide.outputs.solver_matrix }}
       problems: ${{ steps.decide.outputs.problems }}
       suites: ${{ steps.decide.outputs.suites }}
+      solvers: ${{ steps.decide.outputs.solvers }}
       is_main: ${{ steps.decide.outputs.is_main }}
       is_release: ${{ steps.decide.outputs.is_release }}
       is_release_pr: ${{ steps.decide.outputs.is_release_pr }}
@@ -65,6 +66,7 @@ jobs:
           SHOULD_RUN="false"
           PROBLEMS="all"
           SUITES="all"
+          SOLVERS=""
           MOSAIC_TOUCHED="false"
           LABEL=""
           SOLVER_MATRIX="[]"
@@ -172,6 +174,8 @@ jobs:
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
                   fi
+                  # Extract display name so downstream only pulls/runs this solver
+                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
                 fi
                 ;;
               all)
@@ -201,11 +205,12 @@ jobs:
           echo "solver_matrix=$SOLVER_MATRIX" >> "$GITHUB_OUTPUT"
           echo "problems=$PROBLEMS" >> "$GITHUB_OUTPUT"
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
+          echo "solvers=$SOLVERS" >> "$GITHUB_OUTPUT"
           echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
           echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
           echo "is_release_pr=$IS_RELEASE_PR" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE is_release_pr=$IS_RELEASE_PR"
+          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES solvers=$SOLVERS is_main=$IS_MAIN is_release=$IS_RELEASE is_release_pr=$IS_RELEASE_PR"
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
@@ -240,7 +245,8 @@ jobs:
       matrix: ${{ needs.plan.outputs.matrix }}
       problems: ${{ needs.plan.outputs.problems }}
       suites: ${{ needs.plan.outputs.suites }}
-      image_tag: ${{ github.sha }}
+      solvers: ${{ needs.plan.outputs.solvers }}
+      image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
       timeout: 600
     permissions:
       contents: read
