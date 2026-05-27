@@ -53,8 +53,8 @@ def main() -> None:
     include = []
     for problem in problem_list:
         cfg = get_config(problem)
-        has_gpu = any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
-        has_cpu = any(not getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+        has_gpu = any(getattr(s, "uses_gpu", True) for s in cfg.solvers)
+        has_cpu = any(not getattr(s, "uses_gpu", True) for s in cfg.solvers)
         for suite in suite_list:
             if has_gpu:
                 include.append({"suite": suite, "problem": problem, "hardware": "gpu"})
