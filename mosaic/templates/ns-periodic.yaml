@@ -16,7 +16,7 @@ bc_description: >
   Doubly-periodic square domain [0, 2π]²; incompressibility enforced via pressure
   projection at each time step. No walls or inflow/outflow boundaries.
 
-schema_module: tesseract_shared.problems.navier_stokes_grid
+schema_module: mosaic_shared.problems.navier_stokes_grid
 output_key: result
 ic_key: v0
 domain_extent: 6.283185307179586 # 2π

@@ -20,7 +20,7 @@ def test_load_template():
     """Loading a known template must return a fully-populated DomainTemplate."""
     tpl = load_template("ns-periodic")
     assert tpl.name == "ns-periodic"
-    assert tpl.schema_module == "tesseract_shared.problems.navier_stokes_grid"
+    assert tpl.schema_module == "mosaic_shared.problems.navier_stokes_grid"
     assert tpl.output_key == "result"
     assert tpl.ic_key == "v0"
     assert tpl.source_path is not None

@@ -13,15 +13,15 @@ from jax_fem.generate_mesh import Mesh
 # Import JAX-FEM specific modules
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper
-from tesseract_core.runtime import ShapeDType
-from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
-from tesseract_shared.problems.structural_mesh import (
+from mosaic_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.structural_mesh import (
+from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
+from tesseract_core.runtime import ShapeDType
+from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 crt_file_path = os.path.dirname(__file__)
 data_dir = os.path.join(crt_file_path, "data")

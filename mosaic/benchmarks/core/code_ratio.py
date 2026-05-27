@@ -9,13 +9,13 @@ Classifies top-level AST nodes in each tesseract_api.py:
   solver code — all other functions, classes, and expressions
 
 In-repo external source files (.cpp, .cu, .h, .hpp, .jl) are counted separately
-and added to the solver bucket.  tesseract_shared Julia files referenced by a tesseract
+and added to the solver bucket.  mosaic_shared Julia files referenced by a tesseract
 are detected by scanning the source for known filenames and attributed to that
 solver (labelled "shared:").
 
 Tiers:
   1  pure Python, all physics in tesseract_api.py
-  2  Python + in-repo C++/CUDA/Julia (local src/ or tesseract_shared)
+  2  Python + in-repo C++/CUDA/Julia (local src/ or mosaic_shared)
   3  Python wrapper around an external dep (Julia package, OpenFOAM binary, …)
      — physics is fetched at image build time, not present in this repo
 
@@ -67,7 +67,7 @@ class SolverStats:
     py_imports: int = 0  # import / from-import lines — declarations, not authored logic
     py_interface: int = 0  # tesseract-contract glue (InputSchema, apply, vjp_jit, …)
     py_solver: int = 0  # everything else — would exist without tesseracts
-    ext_solver: int = 0  # in-repo C++/CUDA/Julia (local src/ or tesseract_shared)
+    ext_solver: int = 0  # in-repo C++/CUDA/Julia (local src/ or mosaic_shared)
     ext_files: list[str] = field(default_factory=list)
     solver_by_category: dict[str, int] = field(default_factory=dict)
     ext_by_category: dict[str, int] = field(default_factory=dict)
@@ -406,21 +406,21 @@ def count_external(
     return total, files, by_category, grad_by_variable, grad_variable_type
 
 
-def find_tesseract_shared_jl(
-    api_path: Path, tesseract_shared_root: Path
+def find_mosaic_shared_jl(
+    api_path: Path, mosaic_shared_root: Path
 ) -> list[tuple[Path, str]]:
-    """Return [(path, label)] for tesseract_shared Julia files referenced by the tesseract.
+    """Return [(path, label)] for mosaic_shared Julia files referenced by the tesseract.
 
     Scans the tesseract_api.py source for bare .jl filename strings (e.g.
-    "ns_solver.jl") and resolves them against the tesseract_shared directory tree.
-    Only files that actually exist in tesseract_shared are returned.
+    "ns_solver.jl") and resolves them against the mosaic_shared directory tree.
+    Only files that actually exist in mosaic_shared are returned.
     """
-    if not api_path.exists() or not tesseract_shared_root.exists():
+    if not api_path.exists() or not mosaic_shared_root.exists():
         return []
 
     source = api_path.read_text(encoding="utf-8", errors="replace")
-    # Only bother if this file imports tesseract_shared at all
-    if "tesseract_shared" not in source:
+    # Only bother if this file imports mosaic_shared at all
+    if "mosaic_shared" not in source:
         return []
 
     # Find all .jl filename literals in the source
@@ -430,9 +430,9 @@ def find_tesseract_shared_jl(
 
     results = []
     for name in sorted(jl_names):
-        matches = list(tesseract_shared_root.rglob(name))
+        matches = list(mosaic_shared_root.rglob(name))
         for match in matches:
-            label = f"shared:{match.relative_to(tesseract_shared_root)}"
+            label = f"shared:{match.relative_to(mosaic_shared_root)}"
             results.append((match, label))
     return results
 
@@ -454,17 +454,17 @@ def analyse(
     problem: str,
     solver: str,
     tesseract_dir: Path,
-    tesseract_shared_root: Path | None = None,
+    mosaic_shared_root: Path | None = None,
 ) -> SolverStats:
     """Analyse a single tesseract directory and return its :class:`SolverStats`."""
     ext_lines, ext_files, ext_by_cat, ext_grad_vars, ext_grad_types = count_external(
         tesseract_dir
     )
 
-    # Attribute tesseract_shared Julia files referenced by this tesseract
-    if tesseract_shared_root is not None:
+    # Attribute mosaic_shared Julia files referenced by this tesseract
+    if mosaic_shared_root is not None:
         api = tesseract_dir / "tesseract_api.py"
-        for jl_path, label in find_tesseract_shared_jl(api, tesseract_shared_root):
+        for jl_path, label in find_mosaic_shared_jl(api, mosaic_shared_root):
             text = jl_path.read_text(encoding="utf-8", errors="replace")
             n = text.count("\n") + 1
             ext_lines += n
@@ -513,7 +513,7 @@ def analyse(
 def collect(
     tesseracts_root: Path,
     problem_filter: str | None = None,
-    tesseract_shared_root: Path | None = None,
+    mosaic_shared_root: Path | None = None,
 ) -> list[SolverStats]:
     """Walk *tesseracts_root* and return :class:`SolverStats` for every solver found."""
     results: list[SolverStats] = []
@@ -529,7 +529,7 @@ def collect(
                         problem_dir.name,
                         solver_dir.name,
                         solver_dir,
-                        tesseract_shared_root,
+                        mosaic_shared_root,
                     )
                 )
     return results

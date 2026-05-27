@@ -48,13 +48,11 @@ def cmd_tesseracts(
 
     repo = _repo_root()
     tesseracts_root = repo / "mosaic" / "tesseracts"
-    tesseract_shared_root = repo / "mosaic" / "tesseract_shared"
+    mosaic_shared_root = repo / "mosaic" / "mosaic_shared"
     results = collect(
         tesseracts_root,
         problem_filter=problem,
-        tesseract_shared_root=tesseract_shared_root
-        if tesseract_shared_root.exists()
-        else None,
+        mosaic_shared_root=mosaic_shared_root if mosaic_shared_root.exists() else None,
     )
     if not results:
         console.print("[red]No tesseracts found.[/red]")
