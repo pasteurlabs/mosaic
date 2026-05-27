@@ -6,7 +6,7 @@
 * :func:`sample_vram_mib` — single-shot NVML query.
 * :func:`sample_container_ram_mib` — single-shot Docker-SDK query.
 * :func:`container_id_from_tesseract` — pull the container name from a
-  served Tesseract handle.
+  served Tesseract handle (via ``container_info()``).
 * :class:`MemoryPoller` — context manager that records **peak** observed
   VRAM and RAM. Use it when the container may be OOM-killed mid-call so
   the last sample before the kill captures the threshold;
@@ -114,14 +114,14 @@ def sample_container_ram_mib(container_id: str) -> float | None:
 def container_id_from_tesseract(t: object) -> str | None:
     """Extract the container name/ID from a served Tesseract handle.
 
-    Reads ``_serve_context['container_name']``; returns ``None`` when the
-    handle has no serve context (e.g. ``from_tesseract_api`` rather than
-    ``from_image``).
+    Uses the ``container_info()`` API (tesseract-core ≥ 1.9.0); returns
+    ``None`` when the handle has no Docker container (e.g.
+    ``from_tesseract_api`` or ``from_url``).
     """
-    ctx = getattr(t, "_serve_context", None)
-    if isinstance(ctx, dict):
-        return ctx.get("container_name") or ctx.get("container_id")
-    return None
+    try:
+        return t.container_info().name  # type: ignore[union-attr]
+    except (RuntimeError, AttributeError):
+        return None
 
 
 # ── Polling sampler ──────────────────────────────────────────────────────────

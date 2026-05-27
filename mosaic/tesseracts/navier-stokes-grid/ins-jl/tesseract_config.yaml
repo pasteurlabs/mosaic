@@ -5,7 +5,6 @@ description: >
   CPU-only. Differentiates through the time loop via Zygote.jl reverse-mode AD.
 build_config:
   custom_build_steps:
-    - "ENV JULIA_PROJECT=/app/julia_env PYTHON_JULIAPKG_PROJECT=/app/julia_env JULIA_DEPOT_PATH=/app/julia_depot JULIA_CPU_TARGET=generic JULIA_EXECUTABLE=/usr/local/bin/julia"
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates gcc g++ && rm -rf /var/lib/apt/lists/*"
     - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
     # PackageCompiler.create_sysimage(...) used to bake an AOT system image
@@ -15,6 +14,12 @@ build_config:
     # PackageCompiler from the package list — it's no longer imported.
     - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="4.0.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10")]); Pkg.precompile()'''
     - "RUN chmod -R 777 /app"
+env:
+  JULIA_PROJECT: "/app/julia_env"
+  PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
+  JULIA_DEPOT_PATH: "/app/julia_depot"
+  JULIA_CPU_TARGET: "generic"
+  JULIA_EXECUTABLE: "/usr/local/bin/julia"
 
 metadata:
   mosaic:

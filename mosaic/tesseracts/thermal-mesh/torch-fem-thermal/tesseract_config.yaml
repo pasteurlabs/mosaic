@@ -9,9 +9,13 @@ build_config:
   # No CUDA base image needed: the cu121 torch wheel installs its own CUDA
   # runtime via nvidia-* pip packages. The GPU driver is injected at runtime
   # by nvidia-container-toolkit on the host.
-  custom_build_steps:
-    - "ENV TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0"
-    - "ENV LD_LIBRARY_PATH=/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"
+  #
+  # NOTE: LD_LIBRARY_PATH uses ${LD_LIBRARY_PATH} for Docker variable expansion
+  # to append to any existing value; this works because the env: section renders
+  # as Dockerfile ENV lines which support variable substitution.
+env:
+  TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;9.0"
+  LD_LIBRARY_PATH: "/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"
 
 metadata:
   mosaic:
