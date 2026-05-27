@@ -7,7 +7,7 @@ import types
 from enum import Enum
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, SkipValidation, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from tesseract_core.runtime import Array, Differentiable, Float32, Int32
 
 # ---------------------------------------------------------------------------
@@ -196,44 +196,6 @@ class MeshBC(BaseModel):
     neumann: MeshNeumannBC | None = Field(
         default=None, description="Neumann (prescribed flux / traction) BCs."
     )
-
-
-class TriangularMesh(BaseModel):
-    """Triangular surface mesh."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    points: Array[(None, 3), Float32]
-    faces: Array[(None, 3), Int32]
-    point_data: Annotated[dict[str, Array] | None, SkipValidation()] = None
-    cell_data: Annotated[dict[str, Array] | None, SkipValidation()] = None
-    n_points: int | None = None
-    n_cells: int | None = None
-
-
-class VolumetricMesh(BaseModel):
-    """Unstructured volumetric mesh (tetrahedra, hexahedra, etc.)."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    points: Array[(None, 3), Float32]
-    cell_connectivity: Array[(None,), Int32]
-    cell_types: Array[(None,), Int32]
-    point_data: Annotated[dict[str, Array] | None, SkipValidation()] = None
-    cell_data: Annotated[dict[str, Array] | None, SkipValidation()] = None
-    n_points: int | None = None
-    n_cells: int | None = None
-
-
-class TetMesh(BaseModel):
-    """Tetrahedral mesh (4-node tet elements)."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    points: Array[(None, 3), Float32]
-    faces: Array[(None, 4), Int32]
-    n_points: Int32 = 0
-    n_faces: Int32 = 0
 
 
 class HexMesh(BaseModel):
