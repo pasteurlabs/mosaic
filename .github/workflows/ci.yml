@@ -43,7 +43,19 @@ jobs:
         run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
 
       - name: Run tests
-        run: uv run pytest
+        run: |
+          uv run pytest \
+            --cov=mosaic \
+            --cov-branch \
+            --cov-report=term-missing:skip-covered \
+            --cov-report=xml:coverage.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
 
       - name: Validate all problem configs
         run: uv run python .github/scripts/validate-problem-configs.py
