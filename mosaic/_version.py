@@ -18,7 +18,7 @@ version_tuple: tuple[int | str, ...]
 commit_id: str | None
 __commit_id__: str | None
 
-__version__ = version = '2.dev37+neurips.geafdc2830.d20260526'
-__version_tuple__ = version_tuple = (2, 'dev37', 'neurips.geafdc2830.d20260526')
+__version__ = version = '2.dev44+neurips.g91dee346f.d20260526'
+__version_tuple__ = version_tuple = (2, 'dev44', 'neurips.g91dee346f.d20260526')
 
 __commit_id__ = commit_id = None
