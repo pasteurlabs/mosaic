@@ -42,6 +42,7 @@ jobs:
       suites: ${{ steps.decide.outputs.suites }}
       is_main: ${{ steps.decide.outputs.is_main }}
       is_release: ${{ steps.decide.outputs.is_release }}
+      is_release_pr: ${{ steps.decide.outputs.is_release_pr }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
@@ -60,6 +61,7 @@ jobs:
         run: |
           IS_MAIN="false"
           IS_RELEASE="false"
+          IS_RELEASE_PR="false"
           SHOULD_RUN="false"
           PROBLEMS="all"
           SUITES="all"
@@ -112,12 +114,12 @@ jobs:
             fi
           fi
 
-          # Release tag: run everything
+          # Release tag: results were already computed on the release PR.
+          # The report job will fetch them from the results branch and attach
+          # them to the GitHub release without re-running benchmarks.
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
             IS_RELEASE="true"
-            SHOULD_RUN="true"
-            PROBLEMS="all"
-            SUITES="all"
+            SHOULD_RUN="false"
           fi
 
           # PR: three-label system (benchmark:none / benchmark:solver / benchmark:all)
@@ -182,6 +184,15 @@ jobs:
                 SHOULD_RUN="false"
                 ;;
             esac
+
+            # Release PRs: always run full benchmarks (no label needed)
+            HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+            if [[ "$HEAD_BRANCH" == bot/release/* ]]; then
+              IS_RELEASE_PR="true"
+              SHOULD_RUN="true"
+              PROBLEMS="all"
+              SUITES="all"
+            fi
           fi
 
           echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
@@ -192,8 +203,9 @@ jobs:
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
           echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
           echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "is_release_pr=$IS_RELEASE_PR" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE"
+          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE is_release_pr=$IS_RELEASE_PR"
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
@@ -239,7 +251,7 @@ jobs:
   report:
     name: Report & publish
     needs: [plan, benchmarks]
-    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled()
+    if: always() && (needs.plan.outputs.should_run == 'true' || needs.plan.outputs.is_release == 'true') && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -251,14 +263,43 @@ jobs:
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
+      # ── Fetch results (from artifacts or results branch) ─────────────
       - name: Download all results
+        if: needs.plan.outputs.should_run == 'true'
         uses: actions/download-artifact@v8
         with:
           pattern: results-*
           path: staging-results/
 
       - name: Merge results from CPU/GPU artifacts
+        if: needs.plan.outputs.should_run == 'true'
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
+
+      - name: Fetch pre-computed results from results branch (release tag)
+        if: needs.plan.outputs.is_release == 'true' && needs.plan.outputs.should_run != 'true'
+        run: |
+          set -euo pipefail
+          if ! git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            echo "::error::No results branch found. Cannot attach results to release."
+            exit 1
+          fi
+          # Fetch from releases/pending (written by the release PR benchmark run)
+          mkdir -p mosaic-results
+          git checkout "origin/$RESULTS_BRANCH" -- releases/pending/ 2>/dev/null || true
+          if [ -d releases/pending ]; then
+            cp -r releases/pending/* . 2>/dev/null || true
+            echo "Restored pre-computed results from releases/pending"
+          else
+            # Fall back to latest
+            git checkout "origin/$RESULTS_BRANCH" -- latest/ 2>/dev/null || true
+            if [ -d latest ]; then
+              cp -r latest/* . 2>/dev/null || true
+              echo "::warning::No releases/pending found, fell back to latest results"
+            else
+              echo "::error::No pre-computed results found on results branch."
+              exit 1
+            fi
+          fi
 
       - name: Fetch baseline snapshot from results branch
         id: baseline
@@ -316,9 +357,9 @@ jobs:
             status-report.md \
             --clobber
 
-      # ── Publish to results branch (main + release) ─────────────────────
+      # ── Publish to results branch (main + release + release PR) ────────
       - name: Publish results to results branch
-        if: needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true'
+        if: needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true' || needs.plan.outputs.is_release_pr == 'true'
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
@@ -341,6 +382,8 @@ jobs:
 
           if [[ "${{ needs.plan.outputs.is_release }}" == "true" ]]; then
             DEST="releases/${{ github.ref_name }}"
+          elif [[ "${{ needs.plan.outputs.is_release_pr }}" == "true" ]]; then
+            DEST="releases/pending"
           else
             TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
             DEST="runs/${TIMESTAMP}_${SHORT_SHA}"
@@ -447,8 +490,10 @@ jobs:
           fi
 
           # PR that touches mosaic/ without a benchmark label → block merge
+          # (release PRs are exempt — they always run full benchmarks)
           if [[ "${{ github.event_name }}" == "pull_request" \
              && "${{ needs.plan.outputs.mosaic_touched }}" == "true" \
+             && "${{ needs.plan.outputs.is_release_pr }}" != "true" \
              && -z "${{ needs.plan.outputs.label }}" ]]; then
             echo "::error::This PR modifies mosaic/ code but has no benchmark label."
             echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:all"

@@ -1,0 +1,23 @@
+name: test_spectral_navier_stokes_grid
+version: "0.1.0"
+description: >
+  Minimal pseudo-spectral viscous-diffusion solver for testing CI label logic.
+  Not a real solver — only applies exponential decay in Fourier space.
+
+build_config:
+  package_data: []
+  custom_build_steps:
+    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+
+metadata:
+  mosaic:
+    name: "Test Spectral"
+    backend: jax
+    family: spectral
+    scheme: "Spectral viscous decay"
+    discretization: Spectral
+    numerics: "Exponential diffusion"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
