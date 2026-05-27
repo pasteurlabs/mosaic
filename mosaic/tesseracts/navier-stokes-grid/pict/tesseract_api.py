@@ -1,24 +1,29 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 
 import numpy as np
 import PISOtorch
 import PISOtorch_simulation
 import torch
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import (
+from tesseract_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import BCType, make_differentiable
+from tesseract_shared.types import BCType, make_differentiable
 
 
-class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "inflow_profile"])):
-    pass
+class InputSchema(
+    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "inflow_profile"])
+):
+    """Differentiable input schema for the PICT Navier-Stokes solver."""
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
-    pass
+    """Differentiable output schema for the PICT Navier-Stokes solver."""
 
 
 # ---------------------------------------------------------------------------
@@ -76,8 +81,10 @@ def _make_uniform_rect_grid(  # mosaic:init
     Args:
         nx: Number of cells in x.
         ny: Number of cells in y.
-        x0, y0: Lower-left corner coordinates.
-        x1, y1: Upper-right corner coordinates.
+        x0: Lower-left corner x-coordinate.
+        y0: Lower-left corner y-coordinate.
+        x1: Upper-right corner x-coordinate.
+        y1: Upper-right corner y-coordinate.
         dtype: Torch dtype.
 
     Returns:
@@ -111,7 +118,8 @@ def _make_arc_block_grid(  # mosaic:init
         nx: Number of cells in x.
         ny: Number of cells in y.
         outer_rect: (x0, y0, x1, y1) bounding box of the block in cell coords.
-        arc_cx, arc_cy: Circle centre in cell coords.
+        arc_cx: Circle centre x-coordinate in cell coords.
+        arc_cy: Circle centre y-coordinate in cell coords.
         arc_r: Circle radius in cell coords.
         arc_face: Which face of the block is the arc: "-y" (bottom), "+y" (top),
             "-x" (left), "+x" (right).  The *opposite* face stays rectangular.
@@ -229,7 +237,8 @@ def _make_corner_block_grid(  # mosaic:init
         nx: Number of cells in x.
         ny: Number of cells in y.
         outer_rect: (x0, y0, x1, y1) bounding box of the block in cell coords.
-        arc_cx, arc_cy: Circle centre in cell coords.
+        arc_cx: Circle centre x-coordinate in cell coords.
+        arc_cy: Circle centre y-coordinate in cell coords.
         arc_r: Circle radius in cell coords.
         arc_corner: Which corner of the block faces the obstacle:
             "bl" (bottom-left), "br" (bottom-right),
@@ -314,7 +323,7 @@ def _make_corner_block_grid(  # mosaic:init
 
 
 def _make_domain(  # mosaic:init
-    viscosity_val: float,
+    viscosity_val: torch.Tensor,
     N: int,
     ndim: int,
     dtype: torch.dtype = torch.float32,
@@ -359,10 +368,9 @@ def _make_domain(  # mosaic:init
             y_walls_noslip=y_walls_noslip,
         )
 
-    v = torch.tensor([viscosity_val], dtype=dtype, device=torch.device("cpu"))
     domain = PISOtorch.Domain(
         ndim,
-        v,
+        viscosity_val,
         name="PICTDomain",
         dtype=dtype,
         device=_DEVICE,
@@ -491,7 +499,7 @@ def _make_domain(  # mosaic:init
 
 
 def _make_domain_cylinder(  # mosaic:init
-    viscosity_val: float,
+    viscosity_val: torch.Tensor,
     N: int,
     in_vel: float,
     obstacle: dict,
@@ -517,6 +525,8 @@ def _make_domain_cylinder(  # mosaic:init
             (``Bbl``, ``Bml``, ``Btl``).
         phys_scale: ``N/L`` scaling factor applied to ``inflow_profile_t`` to
             convert physical velocities to PICT unit-cell coordinates.
+        y_walls_noslip: If ``True``, close the top/bottom domain faces with
+            no-slip walls; otherwise use periodic boundary conditions.
 
     Returns:
         ``(domain, out_bounds, adv_velm, v0_setter, assembler, drag_assembler)``
@@ -564,10 +574,9 @@ def _make_domain_cylinder(  # mosaic:init
     # ------------------------------------------------------------------
     # Domain
     # ------------------------------------------------------------------
-    v = torch.tensor([viscosity_val], dtype=dtype, device=torch.device("cpu"))
     domain = PISOtorch.Domain(
         2,
-        v,
+        viscosity_val,
         name="CylinderDomain",
         dtype=dtype,
         device=_DEVICE,
@@ -875,7 +884,7 @@ def _make_domain_cylinder(  # mosaic:init
     #   drag_visc = nu_phys * sum(ux_face_phys) / dx_phys  * dx_phys
     #             = (viscosity_val / phys_scale) * sum(ux_pict / phys_scale)
     #             = viscosity_val * sum(ux_pict) / phys_scale^2
-    def _drag_assembler(viscosity_pict: float, ps: float) -> torch.Tensor:
+    def _drag_assembler(viscosity_pict: torch.Tensor, ps: float) -> torch.Tensor:
         """Compute x-direction drag on the cylinder obstacle.
 
         Args:
@@ -916,7 +925,10 @@ def _make_domain_cylinder(  # mosaic:init
         v_tm = Btm.velocity.contiguous()  # (1, 2, ny_top, nx_mid)
         ux_bm_top = v_bm[:, 0, -1, :]  # (1, nx_mid) — top row of Bbm
         ux_tm_bot = v_tm[:, 0, 0, :]  # (1, nx_mid) — bottom row of Btm
-        nu_phys = viscosity_pict / ps
+        # viscosity_pict is a CPU tensor (PISOtorch requirement); move to the
+        # velocity device for the multiplication so the autograd graph stays
+        # intact and we don't trip a device-mismatch error.
+        nu_phys = viscosity_pict.to(ux_bm_top.device) / ps
         drag_visc_bot = nu_phys * ux_bm_top.sum()
         drag_visc_top = -nu_phys * ux_tm_bot.sum()
 
@@ -1004,7 +1016,7 @@ def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:  # mosaic
 
 def _run_pict(  # mosaic:physics
     v0_tensor: torch.Tensor,
-    viscosity_val: float,
+    viscosity_val: torch.Tensor,
     dt_val: float,
     steps: int,
     N: int,
@@ -1034,6 +1046,8 @@ def _run_pict(  # mosaic:physics
             converting physical boundary velocities to PICT units.
         obstacle: Optional obstacle dict (keys ``"shape"``, ``"center"``,
             ``"radius"``).  When provided, triggers 8-block ring topology.
+        y_walls_noslip: If ``True``, apply no-slip walls on the top/bottom
+            domain faces; otherwise use periodic boundary conditions.
 
     Returns:
         ``(result_tensor, drag_tensor, domain)`` where result_tensor is the
@@ -1099,7 +1113,7 @@ def _run_pict(  # mosaic:physics
     prep_fn = None
     if out_bounds or inflow_setter is not None or drag_assembler is not None:
 
-        def _pre_step(domain, time_step, **_kw):
+        def _pre_step(domain: PISOtorch.Domain, time_step: Any, **_kw: Any) -> None:
             # Re-apply inflow BC first (keep inflow_profile_t in autograd graph).
             if inflow_setter is not None:
                 inflow_setter()
@@ -1112,7 +1126,7 @@ def _run_pict(  # mosaic:physics
                     domain, out_bounds, adv_velm, ts
                 )
 
-        def _post_step(domain, time_step, **_kw):  # noqa: ARG001
+        def _post_step(domain: PISOtorch.Domain, time_step: Any, **_kw: Any) -> None:
             # Collect per-step drag after the PISO corrector has converged.
             # drag_assembler reads pressure/velocity from block boundaries which
             # are already updated at this point.
@@ -1182,6 +1196,9 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # Boundary conditions (optional).  Build live torch tensors (no grad in
     # apply) so the same helper functions work in both apply and VJP paths.
     dtype = torch.float32
+    # Viscosity is passed as a CPU torch tensor (PISOtorch requirement). No
+    # autograd needed in apply().
+    nu_pict_t = torch.tensor([nu_pict], dtype=dtype, device=torch.device("cpu"))
     inflow_profile_t = (
         torch.tensor(
             np.ascontiguousarray(inputs.inflow_profile, dtype=np.float32),
@@ -1197,9 +1214,9 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=False)
 
-    result_t, drag_t, domain = _run_pict(
+    result_t, drag_t, _domain = _run_pict(
         v0_tensor=v0_t,
-        viscosity_val=nu_pict,
+        viscosity_val=nu_pict_t,
         dt_val=dt_pict,
         steps=inputs.steps,
         N=N,
@@ -1221,7 +1238,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return {"result": out_np, "drag": drag_np}
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -1229,9 +1246,10 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
 ) -> dict[str, Any]:
     """VJP via torch.autograd through the differentiable PICT PISO time loop.
 
-    Supports gradients w.r.t. ``v0`` and ``inflow_profile`` through the PISO
-    time loop via PISOtorch_diff autograd.  Gradients w.r.t. ``viscosity`` and
-    ``dt`` are returned as zeros (scalar params).
+    Supports gradients w.r.t. ``v0``, ``inflow_profile``, and ``viscosity``
+    through the PISO time loop via PISOtorch_diff autograd. Gradients w.r.t.
+    ``dt`` are returned as zeros (consumed as a Python scalar at construction
+    time, no autograd path).
 
     ``drag`` output is differentiable when an obstacle is present: drag is
     computed from the pressure/velocity surface integral on the obstacle faces
@@ -1283,13 +1301,21 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
 
     want_v0 = "v0" in vjp_inputs
     want_inflow = "inflow_profile" in vjp_inputs and inflow_profile_np is not None
+    want_viscosity = "viscosity" in vjp_inputs
 
     # PICT's PISOtorch_diff backend tracks VELOCITY, BOUNDARY_VELOCITY, and
-    # VISCOSITY gradients through the PISO time loop.  viscosity and dt are
-    # still passed as Python floats so their grads remain zero, but v0 and
-    # inflow_profile flow through torch.autograd when passed as live tensors
-    # with requires_grad=True.
+    # VISCOSITY gradients through the PISO time loop. v0, inflow_profile, and
+    # viscosity flow through torch.autograd when passed as live tensors with
+    # requires_grad=True. dt is still consumed as a Python float and has no
+    # autograd path.
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=want_v0)
+    # Viscosity must be a CPU tensor (PISOtorch requirement).
+    nu_pict_t = torch.tensor(
+        [nu_pict_val],
+        dtype=dtype,
+        device=torch.device("cpu"),
+        requires_grad=want_viscosity,
+    )
 
     def _to_leaf(arr: np.ndarray, grad: bool) -> torch.Tensor:
         # Build a contiguous leaf tensor on device.  torch.tensor copies the
@@ -1310,7 +1336,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
 
     result_t, drag_t, opt_domain = _run_pict(
         v0_tensor=v0_t,
-        viscosity_val=nu_pict_val,
+        viscosity_val=nu_pict_t,
         dt_val=dt_pict_val,
         steps=inputs.steps,
         N=N,
@@ -1350,7 +1376,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
 
     # Collect all leaf tensors we want gradients for in one backward pass so
     # the autograd graph is only traversed once.
-    # mosaic:grad:v0,inflow_profile:autodiff
+    # mosaic:grad:v0,inflow_profile,viscosity:autodiff
     grad_targets: list[torch.Tensor] = []
     grad_keys: list[str] = []
     if want_v0:
@@ -1359,6 +1385,9 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
     if want_inflow:
         grad_targets.append(inflow_profile_t)
         grad_keys.append("inflow_profile")
+    if want_viscosity:
+        grad_targets.append(nu_pict_t)
+        grad_keys.append("viscosity")
 
     if grad_targets and outputs_for_grad:
         grads = torch.autograd.grad(
@@ -1367,7 +1396,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
             grad_outputs=grad_outputs,
             allow_unused=True,
         )
-        for key, g in zip(grad_keys, grads):
+        for key, g in zip(grad_keys, grads, strict=False):
             if key == "v0":
                 out[key] = (
                     _pict_to_v0(g, N, ndim).cpu().numpy()
@@ -1380,9 +1409,17 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
                     if g is not None
                     else np.zeros_like(inflow_profile_np)
                 )
+            elif key == "viscosity":
+                # nu_pict = nu_phys * phys_scale ⇒ dL/dnu_phys = dL/dnu_pict * phys_scale.
+                out[key] = (
+                    (g.detach().cpu().numpy() * phys_scale).astype(np.float32)
+                    if g is not None
+                    else np.zeros_like(nu_np)
+                )
 
-    # mosaic:grad:viscosity:zero
-    if "viscosity" in vjp_inputs:
+    # Fall-back zero gradients for inputs that weren't actually wired into the
+    # autograd graph but were still requested (allow_unused → g is None).
+    if want_viscosity and "viscosity" not in out:
         out["viscosity"] = np.zeros_like(nu_np)
     # mosaic:grad:dt:zero
     if "dt" in vjp_inputs:
@@ -1401,7 +1438,8 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autod
     return out
 
 
-def abstract_eval(abstract_inputs: InputSchema):
+def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
+    """Return output shapes and dtypes without running the simulation."""
     v0_info = abstract_inputs.v0
     if isinstance(v0_info, dict):
         shape = v0_info["shape"]

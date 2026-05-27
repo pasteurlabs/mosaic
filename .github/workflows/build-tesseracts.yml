@@ -1,13 +1,12 @@
 name: Build Tesseracts
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "mosaic/tesseracts/**"
-  pull_request:
-    paths:
-      - "mosaic/tesseracts/**"
+  workflow_call:
+    inputs:
+      matrix:
+        description: 'JSON array of {"domain", "solver"} objects to build'
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       domain:
@@ -26,112 +25,54 @@ permissions:
 
 concurrency:
   group: build-tesseracts-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
-  # ── Detect which solvers need building ──────────────────────────────────
-  detect-changes:
-    name: Detect changed solvers
+  # ── Discover solvers (workflow_dispatch only) ───────────────────────────
+  discover:
+    name: Discover solvers
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.detect.outputs.matrix }}
-      has_solvers: ${{ steps.detect.outputs.has_solvers }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v6
 
-      - name: Detect changed tesseracts
-        id: detect
+      - id: detect
+        name: Enumerate solvers for domain
         run: |
           set -euo pipefail
-
-          # Discover all solvers from the filesystem (any dir with tesseract_config.yaml)
-          ALL_SOLVERS=()
-          for cfg in mosaic/tesseracts/*/tesseract_config.yaml mosaic/tesseracts/*/*/tesseract_config.yaml; do
-            [[ -f "$cfg" ]] || continue
-            # Strip mosaic/tesseracts/ prefix and /tesseract_config.yaml suffix → domain/solver
-            rel="${cfg#mosaic/tesseracts/}"
-            rel="${rel%/tesseract_config.yaml}"
-            ALL_SOLVERS+=("$rel")
-          done
-
-          CHANGED=()
-
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            DOMAIN="${{ inputs.domain }}"
-            for s in "${ALL_SOLVERS[@]}"; do
-              if [[ "$DOMAIN" == "all" || "$s" == "$DOMAIN/"* ]]; then
-                CHANGED+=("$s")
-              fi
-            done
-          else
-            # Push or PR: diff against the base
-            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              BASE_SHA="${{ github.event.pull_request.base.sha }}"
-              HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-            else
-              BASE_SHA="${{ github.event.before }}"
-              HEAD_SHA="${{ github.sha }}"
-            fi
-
-            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-              BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "")"
-            fi
-
-            DIFF_FILES=""
-            if [[ -n "$BASE_SHA" ]]; then
-              DIFF_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
-            fi
-
-            # Match changed files to discovered solver directories
-            for s in "${ALL_SOLVERS[@]}"; do
-              PREFIX="mosaic/tesseracts/${s}/"
-              if echo "$DIFF_FILES" | grep -q "^${PREFIX}"; then
-                CHANGED+=("$s")
-              fi
-            done
-          fi
-
-          # Build JSON matrix
+          DOMAIN="${{ inputs.domain }}"
           MATRIX_JSON="["
           FIRST=true
-          for s in "${CHANGED[@]}"; do
-            DOMAIN="${s%%/*}"
-            SOLVER="${s#*/}"
-
-            if [[ "$FIRST" == "true" ]]; then
-              FIRST=false
-            else
-              MATRIX_JSON+=","
+          for cfg in mosaic/tesseracts/*/tesseract_config.yaml mosaic/tesseracts/*/*/tesseract_config.yaml; do
+            [[ -f "$cfg" ]] || continue
+            rel="${cfg#mosaic/tesseracts/}"
+            rel="${rel%/tesseract_config.yaml}"
+            if [[ "$DOMAIN" != "all" && "$rel" != "$DOMAIN/"* ]]; then
+              continue
             fi
-            MATRIX_JSON+="{\"domain\":\"${DOMAIN}\",\"solver\":\"${SOLVER}\"}"
+            D="${rel%%/*}"
+            S="${rel#*/}"
+            if [[ "$FIRST" == "true" ]]; then FIRST=false; else MATRIX_JSON+=","; fi
+            MATRIX_JSON+="{\"domain\":\"${D}\",\"solver\":\"${S}\"}"
           done
           MATRIX_JSON+="]"
-
-          HAS_SOLVERS="false"
-          if [[ "${#CHANGED[@]}" -gt 0 ]]; then
-            HAS_SOLVERS="true"
-          fi
-
           echo "matrix=${MATRIX_JSON}" >> "$GITHUB_OUTPUT"
-          echo "has_solvers=${HAS_SOLVERS}" >> "$GITHUB_OUTPUT"
-
-          echo "Changed solvers (${#CHANGED[@]}): ${CHANGED[*]:-none}"
           echo "Matrix: ${MATRIX_JSON}"
 
-  # ── Build and push each Tesseract solver ────────────────────────────────
-  build-and-push:
+  # ── Build each Tesseract solver ────────────────────────────────────────
+  build:
     name: "Build ${{ matrix.domain }}/${{ matrix.solver }}"
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_solvers == 'true'
+    needs: [discover]
+    if: always() && !cancelled()
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+        include: ${{ fromJSON(inputs.matrix || needs.discover.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Free disk space
         run: |
@@ -140,15 +81,18 @@ jobs:
           sudo docker image prune --all --force
           df -h /
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version-file: "pyproject.toml"
 
       - name: Install tesseract-core
         run: pip install tesseract-core
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        # PR runs need to push too so the benchmark workflow can pull
+        # PR-specific images by SHA. Fork PRs lack package:write on the
+        # default token and will skip push naturally (the push step
+        # tolerates auth failure; the benchmark falls back to :latest).
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -173,24 +117,37 @@ jobs:
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
       - name: Extract image name and push to GHCR
-        if: github.event_name != 'pull_request'
+        # Always push :<sha> (PR or push) so the benchmark workflow can pull
+        # the exact image built for this commit. Only push :latest on
+        # push-to-main so PR builds don't bump main's latest pointer.
+        # Tolerate auth failure (fork PRs lack package:write); the benchmark
+        # then falls back to :latest.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        env:
+          # On `pull_request`, ``github.sha`` is the GH-generated merge
+          # commit, not the PR HEAD. The benchmark workflow polls for the
+          # PR HEAD's SHA, so push under that to keep the two in sync.
+          IMAGE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
           IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
 
           echo "Tesseract image name: ${IMAGE_NAME}"
 
-          # The tesseract build produces an image named <name>:latest
           LOCAL_IMAGE="${IMAGE_NAME}:latest"
           GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
 
-          # Tag with :latest and :<sha>
-          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
-          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${{ github.sha }}"
+          # Always tag and push :<sha>
+          docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${IMAGE_SHA}"
+          docker push "${GHCR_BASE}:${IMAGE_SHA}"
+          echo "Pushed ${GHCR_BASE}:${IMAGE_SHA}"
 
-          # Push both tags
-          docker push "${GHCR_BASE}:latest"
-          docker push "${GHCR_BASE}:${{ github.sha }}"
-
-          echo "Pushed ${GHCR_BASE}:latest"
-          echo "Pushed ${GHCR_BASE}:${{ github.sha }}"
+          # :latest tracks main only.
+          IS_MAIN_PUSH='${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}'
+          if [[ "${IS_MAIN_PUSH}" == "true" ]]; then
+            docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
+            docker push "${GHCR_BASE}:latest"
+            echo "Pushed ${GHCR_BASE}:latest"
+          else
+            echo "Skipping :latest tag — only main pushes update :latest"
+          fi

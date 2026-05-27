@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Pull pre-built Tesseract solver images from a container registry.
 
 For each solver matching the requested problems and hardware target,
@@ -9,7 +13,8 @@ Usage (in CI):
     python .github/scripts/pull-solver-images.py \
         --registry ghcr.io/org/mosaic \
         --problems all \
-        --hardware gpu
+        --hardware gpu \
+        --tag abc123f
 """
 
 from __future__ import annotations
@@ -30,6 +35,12 @@ def main() -> None:
     parser.add_argument(
         "--hardware", required=True, choices=["gpu", "cpu"], help="Hardware target"
     )
+    parser.add_argument(
+        "--tag",
+        default=None,
+        help="Registry tag to pull (e.g. a commit SHA). Tries this first, "
+        "falls back to 'latest' for images that weren't built at this tag.",
+    )
     args = parser.parse_args()
 
     registry = args.registry.lower().rstrip("/")
@@ -41,31 +52,50 @@ def main() -> None:
 
     seen: set[str] = set()
     failed: list[str] = []
+    pulled_count = 0
     for p in problem_list:
         try:
             cfg = get_config(p)
         except Exception:
             continue
-        for name, spec in cfg.solvers.items():
-            if args.hardware == "gpu" and not getattr(spec, "uses_gpu", True):
+        for spec in cfg.solvers:
+            uses_gpu = getattr(spec, "uses_gpu", True)
+            if args.hardware == "gpu" and not uses_gpu:
                 continue
-            if args.hardware == "cpu" and getattr(spec, "uses_gpu", True):
+            if args.hardware == "cpu" and uses_gpu:
                 continue
             tag = spec.image_tag or f"{spec.dir}:latest"
             if tag in seen:
                 continue
             seen.add(tag)
-            remote = f"{registry}/{tag}"
-            print(f"Pulling {remote}")
-            r = subprocess.run(
-                ["docker", "pull", remote], capture_output=True, text=True
+
+            # Local short name is always the :latest form (what the runner expects).
+            local_tag = tag
+            image_name = tag.rsplit(":", 1)[0]
+
+            # Try --tag first (e.g. :<sha>), fall back to :latest.
+            candidates = (
+                [f"{registry}/{image_name}:{args.tag}", f"{registry}/{tag}"]
+                if args.tag
+                else [f"{registry}/{tag}"]
             )
-            if r.returncode == 0:
-                subprocess.run(["docker", "tag", remote, tag])
-                print(f"  Tagged as {tag}")
-            else:
-                print(f"  FAIL: {remote} not found in registry")
-                failed.append(remote)
+            pulled = False
+            for remote in candidates:
+                print(f"Pulling {remote}")
+                r = subprocess.run(
+                    ["docker", "pull", remote], capture_output=True, text=True
+                )
+                if r.returncode == 0:
+                    subprocess.run(["docker", "tag", remote, local_tag])
+                    print(f"  Tagged as {local_tag}")
+                    pulled = True
+                    pulled_count += 1
+                    break
+                if args.tag:
+                    print("  Not found, trying :latest fallback...")
+            if not pulled:
+                print(f"  FAIL: no image found for {image_name}")
+                failed.append(image_name)
 
     if failed:
         print(f"\n{len(failed)} image(s) failed to pull:", file=sys.stderr)
@@ -73,7 +103,7 @@ def main() -> None:
             print(f"  - {f}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\nPulled {len(seen)} image(s) successfully")
+    print(f"\nPulled {pulled_count} image(s) successfully")
 
 
 if __name__ == "__main__":

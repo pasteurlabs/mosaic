@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Validate all tesseract_config.yaml files under mosaic/tesseracts/.
 
 Checks required fields, value constraints, and basic structure.
@@ -50,9 +54,8 @@ for p in configs:
                 f"{p}: mosaic.ad_strategy={ad!r} not in (autodiff, adjoint, hybrid, null)"
             )
         color = mosaic_meta.get("color")
-        if color is not None:
-            if not re.match(r"^#[0-9a-fA-F]{6}$", color):
-                errors.append(f"{p}: mosaic.color={color!r} is not valid hex (#RRGGBB)")
+        if color is not None and not re.match(r"^#[0-9a-fA-F]{6}$", color):
+            errors.append(f"{p}: mosaic.color={color!r} is not valid hex (#RRGGBB)")
         for bool_field in ("uses_gpu", "differentiable"):
             val = mosaic_meta.get(bool_field)
             if val is not None and not isinstance(val, bool):

@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Extract a field from a tesseract_config.yaml file.
 
 Supports dotted paths for nested keys (e.g. ``build_config.base_image``).

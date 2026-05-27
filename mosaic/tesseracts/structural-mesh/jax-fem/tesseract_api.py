@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from collections.abc import Callable
 from typing import Any
@@ -10,26 +13,26 @@ from jax_fem.generate_mesh import Mesh
 # Import JAX-FEM specific modules
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper
-from mosaic_shared.problems.structural_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.structural_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
 from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+from tesseract_shared.problems.structural_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.structural_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 crt_file_path = os.path.dirname(__file__)
 data_dir = os.path.join(crt_file_path, "data")
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
-    pass
+    """JAX-FEM structural solver input schema."""
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
-    pass
+    """JAX-FEM structural solver output schema."""
 
 
 #
@@ -133,7 +136,7 @@ _setup_cache: dict = {}
 def setup(  # mosaic:init
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
-    boundary_conditions: dict = None,
+    boundary_conditions: dict | None = None,
 ) -> tuple[Elasticity, Callable]:
     """Setup the elasticity problem and its differentiable solver.
 
@@ -307,6 +310,7 @@ def jacobian_vector_product(  # mosaic:grad:rho:autodiff
     jvp_outputs: set[str],
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
+    """Compute the Jacobian-vector product for the structural solver."""
     assert jvp_inputs <= {"rho"}
     assert jvp_outputs <= {"compliance"}
 

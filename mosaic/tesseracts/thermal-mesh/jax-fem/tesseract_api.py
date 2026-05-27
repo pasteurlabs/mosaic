@@ -1,3 +1,6 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from collections.abc import Callable
 from typing import Any
@@ -8,21 +11,21 @@ import meshio
 from jax_fem.generate_mesh import Mesh
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper
-from mosaic_shared.problems.thermal_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from mosaic_shared.problems.thermal_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from mosaic_shared.types import make_differentiable
 from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+from tesseract_shared.problems.thermal_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from tesseract_shared.problems.thermal_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from tesseract_shared.types import make_differentiable
 
 crt_file_path = os.path.dirname(__file__)
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
-    pass
+    """JAX-FEM thermal solver input schema."""
 
 
 class OutputSchema(
@@ -30,7 +33,7 @@ class OutputSchema(
         _CanonicalOutputSchema, ["thermal_compliance", "identification_error"]
     )
 ):
-    pass
+    """JAX-FEM thermal solver output schema."""
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +108,7 @@ class HeatConduction(Problem):  # mosaic:physics
         """
         return self.von_neumann_value_fns
 
-    def set_params(self, params) -> None:
+    def set_params(self, params: Any) -> None:
         """Set density and optional source parameters.
 
         Args:
@@ -114,7 +117,7 @@ class HeatConduction(Problem):  # mosaic:physics
                 rho has shape (n_flex_cells, 1) and source has shape
                 (n_cells,) for source-identification mode.
         """
-        if isinstance(params, (tuple, list)):
+        if isinstance(params, tuple | list):
             rho, source_flat = params
         else:
             rho = params
@@ -133,7 +136,7 @@ class HeatConduction(Problem):  # mosaic:physics
         )  # (num_cells, num_quads, 1)
         self.internal_vars = [thetas, src_quads]
 
-    def get_mass_map(self):
+    def get_mass_map(self) -> Any:
         """Body-force (volumetric heat source) contribution.
 
         Returns a mass map f(u, x, theta, src) = -src so that the mass
@@ -176,7 +179,7 @@ class HeatConduction(Problem):  # mosaic:physics
 def setup(  # mosaic:init
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
-    boundary_conditions: dict = None,
+    boundary_conditions: dict | None = None,
 ) -> tuple[HeatConduction, Callable]:
     """Setup the heat conduction problem and its differentiable solver.
 
@@ -329,6 +332,7 @@ def jacobian_vector_product(  # mosaic:grad:rho,source:autodiff
     jvp_outputs: set[str],
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
+    """Compute the Jacobian-vector product for the thermal solver."""
     assert jvp_inputs <= {"rho", "source"}
     assert jvp_outputs <= {"thermal_compliance", "identification_error"}
 

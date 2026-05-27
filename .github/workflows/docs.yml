@@ -1,57 +1,55 @@
-name: Generate & Deploy Docs
+name: Docs preview (PR only)
 
 on:
-  push:
-    branches: [main, benchmark-results]
-  workflow_dispatch: # allows: gh workflow run docs.yml
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: docs-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build docs
+    name: Build docs preview
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version-file: "pyproject.toml"
 
       - uses: quarto-dev/quarto-actions/setup@v2
 
       - name: Install Python dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen
+        run: |
+          cp production.uv.lock uv.lock
+          uv sync --frozen --extra dev
 
-      - name: Fetch benchmark results
+      # ── Fetch benchmark results (best-effort) ──
+      # Try the results branch first; this always has the latest baseline.
+      # On PRs, a completed benchmark run's artifact takes precedence if available.
+      - name: Fetch benchmark results from results branch
         run: |
           if git fetch origin benchmark-results 2>/dev/null; then
-            # Checkout result plots/JSON into the working tree without switching branches
             git checkout origin/benchmark-results -- latest/ 2>/dev/null || true
             if [ -d latest ]; then
-              # Overlay result data into the location generate_results.py expects
               mkdir -p mosaic-results
               for domain_dir in latest/*/; do
                 domain=$(basename "$domain_dir")
-                # Skip non-domain files (snapshot.json, status-report.md)
                 [ -d "$domain_dir" ] || continue
                 cp -r "$domain_dir" "mosaic-results/$domain"
               done
               echo "Restored benchmark results from results branch"
-              ls -la mosaic-results/
             else
               echo "No results directory on benchmark-results branch"
             fi
@@ -71,21 +69,11 @@ jobs:
           fi
 
       - name: Render site
-        run: quarto render
+        run: uv run quarto render
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload PR preview artifact
+        uses: actions/upload-artifact@v7
         with:
+          name: docs-preview-pr-${{ github.event.pull_request.number || 'manual' }}
           path: _site/
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - name: Deploy
-        id: deploy
-        uses: actions/deploy-pages@v4
+          retention-days: 14

@@ -1,8 +1,11 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Mesh and boundary condition type definitions."""
 
 import types
 from enum import Enum
-from typing import Annotated, Literal, Union, get_args, get_origin
+from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation, create_model
 from tesseract_core.runtime import Array, Differentiable, Float32, Int32
@@ -78,6 +81,8 @@ class GridBC(BaseModel):
 
 
 class ObstacleShape(str, Enum):
+    """Shape of an embedded obstacle in the flow domain."""
+
     CYLINDER = "cylinder"  # infinite cylinder (circle in 2-D cross-section)
     BOX = "box"  # axis-aligned rectangular box
 
@@ -179,7 +184,7 @@ class MeshBC(BaseModel):
 
         bc = MeshBC(
             dirichlet=MeshDirichletBC(
-                mask=wall_node_mask,           # int32, 1 at wall nodes
+                mask=wall_node_mask,  # int32, 1 at wall nodes
                 values=np.zeros((1, 3), dtype=np.float32),
             )
         )
@@ -242,7 +247,7 @@ class HexMesh(BaseModel):
     n_faces: Int32 = 0
 
 
-def _wrap_differentiable(field_type):
+def _wrap_differentiable(field_type: Any) -> Any:
     """Wrap a field annotation in `Differentiable[...]`, handling Optional and dict."""
     origin = get_origin(field_type)
 
