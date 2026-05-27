@@ -40,7 +40,6 @@ charset-normalizer==3.4.7
 click==8.3.3
     # via
     #   mlflow-skinny
-    #   mosaic-bench
     #   tesseract-core
     #   typer
     #   uvicorn
