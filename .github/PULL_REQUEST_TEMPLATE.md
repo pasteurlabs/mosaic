@@ -37,6 +37,14 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 
 ```
 
+## Benchmark label
+
+<!-- If this PR touches mosaic/ code, CI will block until a maintainer adds one of these labels:
+  - benchmark:none    — skip benchmarks (no answer-changing code)
+  - benchmark:solver  — benchmark only the modified solver (must be isolated to one solver)
+  - benchmark:all     — full benchmark suite from scratch
+-->
+
 ## Notes
 
 <!-- Anything reviewers should know: exclusions, anomalies, GPU requirements, etc. -->
