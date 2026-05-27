@@ -11,7 +11,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import SolverSpec
 from mosaic.benchmarks.problems.shared.mesh import hex_mesh_arrays as _hex_mesh_arrays
-from mosaic.tesseracts.mosaic_shared.types import (
+from mosaic.mosaic_shared.types import (
     HexMesh,
     MeshBC,
     MeshDirichletBC,

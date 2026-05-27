@@ -27,9 +27,9 @@ needs_runtime = pytest.mark.skipif(
 @pytest.mark.parametrize(
     "module",
     [
-        "mosaic.tesseracts.mosaic_shared.problems.navier_stokes_grid",
-        "mosaic.tesseracts.mosaic_shared.problems.structural_mesh",
-        "mosaic.tesseracts.mosaic_shared.problems.thermal_mesh",
+        "mosaic.mosaic_shared.problems.navier_stokes_grid",
+        "mosaic.mosaic_shared.problems.structural_mesh",
+        "mosaic.mosaic_shared.problems.thermal_mesh",
     ],
 )
 def test_domain_schemas_define_input_and_output(module):
@@ -50,7 +50,7 @@ def test_ns_grid_input_declares_canonical_fields():
     """Catches a regression where the NS grid InputSchema loses its standard
     fields. The full canonical set was once silently emptied by a refactor.
     """
-    from mosaic.tesseracts.mosaic_shared.problems.navier_stokes_grid import (
+    from mosaic.mosaic_shared.problems.navier_stokes_grid import (
         InputSchema,
     )
 
