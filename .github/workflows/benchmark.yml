@@ -295,7 +295,16 @@ jobs:
 
       - name: Render results pages only
         run: |
-          RESULT_FILES=$(ls docs/results_*.qmd 2>/dev/null || true)
+          # Only render QMD files for problems that have results (not stale
+          # committed QMDs for problems that weren't part of this run).
+          RESULT_FILES=""
+          for problem_dir in mosaic-results/*/; do
+            slug=$(basename "$problem_dir" | tr '-' '_')
+            qmd="docs/results_${slug}.qmd"
+            if [ -f "$qmd" ]; then
+              RESULT_FILES="$RESULT_FILES $qmd"
+            fi
+          done
           if [ -n "$RESULT_FILES" ]; then
             uv run quarto render $RESULT_FILES
           else
