@@ -34,7 +34,6 @@ from mosaic.benchmarks.core.status import (
     cell_weight,
     cell_weight_key,
     compute_score,
-    score_color,
     tally,
     weight_color,
     weight_emoji,
@@ -282,10 +281,6 @@ class TestWeightColorLadder(unittest.TestCase):
         self.assertEqual(weight_emoji(0.15), "🟠")
         self.assertEqual(weight_emoji(0.0), "🔴")
         self.assertEqual(weight_emoji(None), "—")
-
-    def test_score_color_delegates_to_weight_color(self) -> None:
-        for w in (1.0, 0.67, 0.53, 0.33, 0.17, 0.0, None):
-            self.assertEqual(score_color(w), weight_color(w))
 
     def test_cell_weight_and_color(self) -> None:
         c = Cell(OK)

@@ -76,7 +76,7 @@ class OutputSchema(_CanonicalOutputSchema):
 
 def _infer_grid_dims(
     inputs: InputSchema,
-) -> tuple[int, int, int, float, float, float]:  # mosaic:io
+) -> tuple[int, int, int, float, float, float]:
     """Infer structured grid dimensions from the HexMesh point array.
 
     The benchmark always builds a structured hex mesh from
@@ -109,7 +109,7 @@ def _infer_grid_dims(
 # ---------------------------------------------------------------------------
 
 
-def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
+def _write_inputs(inputs: InputSchema, wd: Path) -> None:
     """Serialise inputs to ``input.json`` and ``rho.npy`` in *wd*."""
     nx, ny, nz, Lx, Ly, Lz = _infer_grid_dims(inputs)
 
@@ -158,7 +158,7 @@ def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
         json.dump(payload, f)
 
 
-def _run_solver(wd: Path) -> None:  # mosaic:physics
+def _run_solver(wd: Path) -> None:
     """Invoke the deal.II struct_solver binary."""
     cmd = [_DEALII_SOLVER, str(wd / "input.json")]
     result = subprocess.run(cmd, cwd=str(wd), capture_output=True, text=True)
@@ -170,7 +170,7 @@ def _run_solver(wd: Path) -> None:  # mosaic:physics
         )
 
 
-def _parse_outputs(wd: Path) -> OutputSchema:  # mosaic:io
+def _parse_outputs(wd: Path) -> OutputSchema:
     """Read compliance.txt written by the C++ solver."""
     with open(wd / "compliance.txt") as f:
         compliance = float(f.read().strip())
