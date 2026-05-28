@@ -17,7 +17,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -37,7 +36,6 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     TEXTWIDTH,
     dedup_handles,
     make_handle,
-    rc_context,
     resolve_solver_alias,
     solver_props,
 )
@@ -827,145 +825,6 @@ def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ucurves — F3 (3D NS) FD U-curves
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def _plot_ucurve_3d(cfg_dict: dict, out_dir: Path) -> None:
-    path: Path = cfg_dict["path"]
-    if not path.exists():
-        print(f"[ucurves] {path} not found — skipping")
-        return
-
-    data = load_json(path)
-    by_solver: dict = data["by_solver"]
-
-    all_steps: list[int] = sorted(
-        {int(s) for sv in by_solver.values() for s in sv},
-        key=int,
-    )
-    ncols: int = cfg_dict["ncols"]
-    nrows: int = int(np.ceil(len(all_steps) / ncols))
-
-    panel_w = TEXTWIDTH / ncols
-    panel_h = panel_w * 0.92
-    fig_h = nrows * panel_h + 0.55
-
-    fig = plt.figure(figsize=(TEXTWIDTH, fig_h))
-    gs = gridspec.GridSpec(
-        nrows,
-        ncols,
-        figure=fig,
-        left=0.10,
-        right=0.98,
-        top=1.0 - 0.12 / fig_h,
-        bottom=0.52 / fig_h,
-        hspace=0.65,
-        wspace=0.40,
-    )
-
-    seen: set[str] = set()
-
-    # ``by_solver`` is keyed by spec.name (display form); build alias→display.
-    alias_to_display: dict[str, str] = {}
-    for display_name in by_solver:
-        a = resolve_solver_alias(display_name)
-        if a is not None:
-            alias_to_display[a] = display_name
-
-    for idx, steps in enumerate(all_steps):
-        row, col = divmod(idx, ncols)
-        ax = fig.add_subplot(gs[row, col])
-
-        for alias in NS_ORDER:
-            display_name = alias_to_display.get(alias)
-            if display_name is None:
-                continue
-            sv = by_solver.get(display_name)
-            if sv is None:
-                continue
-            entry = sv.get(str(steps))
-            if entry is None:
-                continue
-            eps_sweep: dict = entry.get("eps_sweep", {})
-            if not eps_sweep:
-                continue
-
-            eps_vals = sorted(eps_sweep.keys(), key=float)
-            xs = [float(e) for e in eps_vals]
-            ys = [eps_sweep[e]["rel_error_mean"] for e in eps_vals]
-
-            if not all(np.isfinite(y) and y > 0 for y in ys):
-                pairs = [
-                    (x, y)
-                    for x, y in zip(xs, ys, strict=False)
-                    if np.isfinite(y) and y > 0
-                ]
-                if not pairs:
-                    continue
-                xs, ys = zip(*pairs, strict=False)
-
-            _, color, ls, mk = solver_props(alias)
-            ax.loglog(
-                xs,
-                ys,
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=3.5,
-                markeredgewidth=0,
-                linewidth=1.4,
-            )
-            seen.add(alias)
-
-        ax.set_title(f"$T={steps}$", fontsize=8)
-        ax.set_xlabel(r"$\varepsilon$", fontsize=7.5)
-        if col == 0:
-            ax.set_ylabel("Rel. FD error", fontsize=7.5)
-        ax.tick_params(labelsize=7)
-        ax.xaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
-        ax.xaxis.set_minor_locator(mticker.NullLocator())
-        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=5))
-        ax.yaxis.set_minor_locator(mticker.NullLocator())
-
-    for idx in range(len(all_steps), nrows * ncols):
-        row, col = divmod(idx, ncols)
-        fig.add_subplot(gs[row, col]).set_visible(False)
-
-    handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in seen])
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.0),
-        ncol=min(len(handles), 6) if handles else 1,
-        fontsize=7.5,
-        framealpha=0.9,
-        edgecolor="0.8",
-        handlelength=2.0,
-    )
-
-    out = out_dir / cfg_dict["out"]
-    fig.savefig(out)
-    plt.close(fig)
-    print(f"Saved {out}")
-
-
-def _plot_ucurves(cfg: Problem, **_kw: Any) -> None:
-    out_dir = _extra_out_dir(cfg)
-    cfg_dict = {
-        "path": results_dir()
-        / "ns-3d-grid"
-        / "gradient"
-        / "horizon_sweep"
-        / "result.json",
-        "out": "ucurves.pdf",
-        "ncols": 5,
-    }
-    with rc_context():
-        _plot_ucurve_3d(cfg_dict, out_dir)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Registration
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -975,4 +834,3 @@ def register(problem: Problem) -> None:
     problem.add_extra_plot("_extra/horizon_sweep_limits", _plot_horizon_sweep_limits)
     problem.add_extra_plot("_extra/cost_overview", _plot_cost_overview)
     problem.add_extra_plot("_extra/scaling", _plot_scaling)
-    problem.add_extra_plot("_extra/ucurves", _plot_ucurves)

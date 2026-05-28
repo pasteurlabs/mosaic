@@ -45,7 +45,6 @@ from mosaic.benchmarks.problems.shared.gradient import (
     fd_check,
     horizon_sweep_limits,
     jacobian_svd,
-    param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
@@ -55,7 +54,6 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
     plot_horizon_sweep,
-    plot_jacobian_svd,
     plot_jacobian_svd_comparison,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
@@ -320,18 +318,6 @@ problem.add_experiment(
     ],
 )
 problem.add_experiment(
-    "gradient/horizon_sweep",
-    param_sweep,
-    plot_description=(
-        "Gradient norm, finite-difference error, and direction cosine vs rollout"
-        " horizon T = steps \u00d7 dt for each solver on the 3D TGV."
-    ),
-    ic={"name": "tgv3d", "seed": 0},
-    physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": [10, 20, 40, 80, 160]},
-    fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},
-    plot=plot_horizon_sweep,
-)
-problem.add_experiment(
     "gradient/horizon_sweep_limits",
     horizon_sweep_limits,
     plot_description=(
@@ -357,7 +343,6 @@ problem.add_experiment(
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
@@ -369,7 +354,6 @@ problem.add_experiment(
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
@@ -381,7 +365,6 @@ problem.add_experiment(
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
@@ -393,7 +376,6 @@ problem.add_experiment(
     ic={"name": "tgv3d", "seed": 0},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
     jacobian={"n_alphas": 41, "alpha_range": 0.3},
-    plot=plot_jacobian_svd,
 )
 
 problem.add_experiment(

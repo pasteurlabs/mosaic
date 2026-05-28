@@ -57,7 +57,6 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
     plot_horizon_sweep,
-    plot_jacobian_svd,
     plot_jacobian_svd_comparison,
     plot_param_sweep,
 )
@@ -360,7 +359,6 @@ problem.add_experiment(
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
@@ -371,7 +369,6 @@ problem.add_experiment(
     ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
@@ -382,7 +379,6 @@ problem.add_experiment(
     ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
@@ -393,7 +389,6 @@ problem.add_experiment(
     ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
-    plot=plot_jacobian_svd,
 )
 
 # Optimization
