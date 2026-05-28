@@ -294,7 +294,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.plan.outputs.is_release_pr }}" != "true" ]]; then
             echo "PR preview: rendering results pages only"
             cp _quarto.yml _quarto.yml.bak
-            cp _quarto-pr-preview.yml _quarto.yml
+            cp .github/quarto-pr-preview.yml _quarto.yml
             uv run quarto render
             mv _quarto.yml.bak _quarto.yml
           else
