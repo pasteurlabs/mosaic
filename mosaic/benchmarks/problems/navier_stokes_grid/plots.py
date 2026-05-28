@@ -48,9 +48,9 @@ def plot_drag_opt(
     exp_key: str = "drag_opt",
     **_kw: Any,
 ) -> list:
-    """Drag-optimisation per-experiment plot — paper figure + extras.
+    """Drag-optimisation per-experiment plot — styled figure + extras.
 
-    Inlined paper-styled 3-column figure (drag reduction, optimised inlet
+    Inlined styled 3-column figure (drag reduction, optimised inlet
     profile, profile history) plus:
 
       * ``drag_opt_fields`` — per-solver flow field panels (u_x, u_y) when
@@ -79,8 +79,8 @@ def plot_drag_opt(
         run_name = data.get("run_name", "")
         title_suffix = f" — {run_name}" if run_name else ""
 
-        # ── Canonical paper figure (inlined) ─────────────────────────────────
-        fig = _paper_drag_opt_figure(
+        # ── Canonical figure (inlined) ───────────────────────────────────────
+        fig = _drag_opt_figure(
             cfg,
             exp_key=paper_exp_key,
             suffix=paper_suffix,
@@ -101,7 +101,7 @@ def plot_drag_opt(
                 profiles, out_dir, solver_names, styles, run_name
             )
 
-    # Single-run layout — paper figure resolves the experiment dir from cfg.
+    # Single-run layout — figure resolves the experiment dir from cfg.
     single_path = base_dir / "result.json"
     single_result = load_json(single_path) if single_path.exists() else None
     if single_result is not None:
@@ -114,7 +114,7 @@ def plot_drag_opt(
         )
         return figs
 
-    # Multi-run layout: one canonical paper figure per run subdir.
+    # Multi-run layout: one canonical figure per run subdir.
     if base_dir.is_dir():
         for sub in sorted(base_dir.iterdir()):
             sub_data = load_json(sub / "result.json")
@@ -250,14 +250,14 @@ def _drag_panel_history(
         ax_im.set_visible(False)
 
 
-def _paper_drag_opt_figure(
+def _drag_opt_figure(
     cfg: Problem,
     *,
     exp_key: str = "drag_opt",
     suffix: str = "",
     save: bool = True,
 ) -> plt.Figure | None:
-    """Single-experiment paper-styled drag-optimisation figure.
+    """Single-experiment styled drag-optimisation figure.
 
     Layout (3-column GridSpec):
       * col 0 — drag reduction (%) vs iteration

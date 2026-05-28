@@ -3,10 +3,10 @@
 
 """Shared matplotlib style and utilities for all benchmark plots.
 
-Single :data:`RCPARAMS` profile — publication-quality, sized for the
-target venue's main column (``TEXTWIDTH`` inches wide), 8-pt sans-serif,
-``pdf.fonttype = 42`` so glyphs embed as Type 42 (TrueType) for editable
-/ searchable PDFs.
+Single :data:`RCPARAMS` profile — publication-quality, sized for a
+standard single-column layout (``TEXTWIDTH`` inches wide), 8-pt
+sans-serif, ``pdf.fonttype = 42`` so glyphs embed as Type 42 (TrueType)
+for editable / searchable PDFs.
 
 Every plot in the suite (per-experiment plots registered via
 ``plot=...`` on :meth:`Problem.add_experiment`, plus the cross-domain

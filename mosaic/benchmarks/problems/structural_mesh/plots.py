@@ -38,7 +38,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     solver_styles,
 )
 
-# ── 3-D voxel rendering helpers (paper figure) ───────────────────────────────
+# ── 3-D voxel rendering helpers ───────────────────────────────────────────────
 
 _THRESH = 0.35
 _ELEV = 22
@@ -113,14 +113,14 @@ def _solver_order_for(cfg_name: str) -> list[str]:
     return STRUCTURAL_ORDER
 
 
-def _plot_topopt_paper(
+def _plot_topopt_figure(
     cfg: Problem,
     *,
     exp_key: str = "topopt",
     suffix: str = "",
     save: bool = True,
 ) -> plt.Figure | None:
-    """Canonical single-experiment topopt paper figure.
+    """Canonical single-experiment topopt figure.
 
     Layout: two-row composite —
       * top row spans full width: compliance vs iteration per solver
@@ -249,9 +249,9 @@ def plot_topopt(
     exp_key: str = "topopt",
     **_kw: Any,
 ) -> Any:
-    """Topopt per-experiment plot — paper figure + extras.
+    """Topopt per-experiment plot — styled figure + extras.
 
-    Produces a paper-quality compliance-convergence + 3-D voxel figure
+    Produces a publication-quality compliance-convergence + 3-D voxel figure
     (``<exp_key>.pdf``) plus:
 
       * ``topopt_fields`` — initial + per-solver final 2-D density panels.
@@ -271,8 +271,8 @@ def plot_topopt(
 
     by_solver = data["by_solver"]
 
-    # ── Canonical paper figure ────────────────────────────────────────────────
-    fig_c = _plot_topopt_paper(cfg, exp_key=exp_key, suffix=suffix, save=save)
+    # ── Canonical figure ────────────────────────────────────────────────────
+    fig_c = _plot_topopt_figure(cfg, exp_key=exp_key, suffix=suffix, save=save)
 
     # ── density field panels ──────────────────────────────────────────────────
     fields_path = out_dir / "topopt_fields.npz"
