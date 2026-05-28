@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Solver Reference – Mosaic</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-de63f62b328812d8e578a4d74e282472.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-27295069adc3c9fc828198f1f5c85a1b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Mosaic</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../docs/index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../docs/getting-started.html"> 
+<span class="menu-text">Getting Started</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../docs/standalone.html"> 
+<span class="menu-text">Standalone Usage</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../docs/internals.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="../docs/solvers.html" aria-current="page"> 
+<span class="menu-text">Solver Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../docs/tutorial.html"> 
+<span class="menu-text">Add a Backend</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-results" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Results</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-results">    
+        <li>
+    <a class="dropdown-item" href="../docs/results_ns_grid.html">
+ <span class="dropdown-text">Navier–Stokes (2D)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../docs/results_ns_3d_grid.html">
+ <span class="dropdown-text">Navier–Stokes (3D)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../docs/results_structural_mesh.html">
+ <span class="dropdown-text">Structural Mechanics</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../docs/results_thermal_mesh.html">
+ <span class="dropdown-text">Heat Conduction</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/pasteurlabs/mosaic"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#navierstokes-grid" id="toc-navierstokes-grid" class="nav-link active" data-scroll-target="#navierstokes-grid">Navier–Stokes (Grid)</a>
+  <ul class="collapse">
+  <li><a href="#navier-stokes-grid-exponax" id="toc-navier-stokes-grid-exponax" class="nav-link" data-scroll-target="#navier-stokes-grid-exponax">Exponax</a></li>
+  <li><a href="#navier-stokes-grid-ins-jl" id="toc-navier-stokes-grid-ins-jl" class="nav-link" data-scroll-target="#navier-stokes-grid-ins-jl">INS.jl</a></li>
+  <li><a href="#navier-stokes-grid-jax-cfd" id="toc-navier-stokes-grid-jax-cfd" class="nav-link" data-scroll-target="#navier-stokes-grid-jax-cfd">jax-cfd</a></li>
+  <li><a href="#navier-stokes-grid-openfoam" id="toc-navier-stokes-grid-openfoam" class="nav-link" data-scroll-target="#navier-stokes-grid-openfoam">OpenFOAM</a></li>
+  <li><a href="#navier-stokes-grid-phiflow" id="toc-navier-stokes-grid-phiflow" class="nav-link" data-scroll-target="#navier-stokes-grid-phiflow">PhiFlow</a></li>
+  <li><a href="#navier-stokes-grid-pict" id="toc-navier-stokes-grid-pict" class="nav-link" data-scroll-target="#navier-stokes-grid-pict">PICT</a></li>
+  <li><a href="#navier-stokes-grid-test-spectral" id="toc-navier-stokes-grid-test-spectral" class="nav-link" data-scroll-target="#navier-stokes-grid-test-spectral">Test Spectral</a></li>
+  <li><a href="#navier-stokes-grid-warp-ns" id="toc-navier-stokes-grid-warp-ns" class="nav-link" data-scroll-target="#navier-stokes-grid-warp-ns">Warp-NS</a></li>
+  <li><a href="#navier-stokes-grid-xlb" id="toc-navier-stokes-grid-xlb" class="nav-link" data-scroll-target="#navier-stokes-grid-xlb">XLB</a></li>
+  </ul></li>
+  <li><a href="#structural-mechanics" id="toc-structural-mechanics" class="nav-link" data-scroll-target="#structural-mechanics">Structural Mechanics</a>
+  <ul class="collapse">
+  <li><a href="#structural-mesh-dealii-structural" id="toc-structural-mesh-dealii-structural" class="nav-link" data-scroll-target="#structural-mesh-dealii-structural">deal.II</a></li>
+  <li><a href="#structural-mesh-fenics-structural" id="toc-structural-mesh-fenics-structural" class="nav-link" data-scroll-target="#structural-mesh-fenics-structural">FEniCS</a></li>
+  <li><a href="#structural-mesh-firedrake-structural" id="toc-structural-mesh-firedrake-structural" class="nav-link" data-scroll-target="#structural-mesh-firedrake-structural">Firedrake</a></li>
+  <li><a href="#structural-mesh-jax-fem" id="toc-structural-mesh-jax-fem" class="nav-link" data-scroll-target="#structural-mesh-jax-fem">JAX-FEM</a></li>
+  <li><a href="#structural-mesh-topopt-jl" id="toc-structural-mesh-topopt-jl" class="nav-link" data-scroll-target="#structural-mesh-topopt-jl">TopOpt.jl</a></li>
+  </ul></li>
+  <li><a href="#heat-conduction" id="toc-heat-conduction" class="nav-link" data-scroll-target="#heat-conduction">Heat Conduction</a>
+  <ul class="collapse">
+  <li><a href="#thermal-mesh-dealii-heat" id="toc-thermal-mesh-dealii-heat" class="nav-link" data-scroll-target="#thermal-mesh-dealii-heat">deal.II</a></li>
+  <li><a href="#thermal-mesh-fenics-heat" id="toc-thermal-mesh-fenics-heat" class="nav-link" data-scroll-target="#thermal-mesh-fenics-heat">FEniCS</a></li>
+  <li><a href="#thermal-mesh-firedrake-heat" id="toc-thermal-mesh-firedrake-heat" class="nav-link" data-scroll-target="#thermal-mesh-firedrake-heat">Firedrake</a></li>
+  <li><a href="#thermal-mesh-jax-fem" id="toc-thermal-mesh-jax-fem" class="nav-link" data-scroll-target="#thermal-mesh-jax-fem">JAX-FEM</a></li>
+  <li><a href="#thermal-mesh-torch-fem-thermal" id="toc-thermal-mesh-torch-fem-thermal" class="nav-link" data-scroll-target="#thermal-mesh-torch-fem-thermal">torch-fem</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/pasteurlabs/mosaic/edit/main/docs/solvers.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/pasteurlabs/mosaic/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Solver Reference</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Each solver card shows its numerical scheme, AD strategy, and Tesseract schema; per-(solver, problem) exclusions and explained anomalies come from the problem configs and are listed alongside. Click <strong>Inputs / Outputs</strong> on any solver to expand its field tables. The ∂ column marks fields that support automatic differentiation (VJP/JVP).</p>
+<p><strong>Legend.</strong> Each card shows a <strong>Numerics:</strong> line — the discretization followed by the numerical method — and three badge categories: <span class="badge bg-dark">language</span> (backend / runtime), <span class="badge bg-primary">AD: strategy</span> (autodiff / adjoint / hybrid / forward-only), and <span class="badge bg-success">GPU</span> on GPU-capable solvers.</p>
+<section id="navierstokes-grid" class="level2">
+<h2 class="anchored" data-anchor-id="navierstokes-grid">Navier–Stokes (Grid)</h2>
+<section id="navier-stokes-grid-exponax" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-exponax">Exponax</h3>
+<p><strong>Numerics:</strong> Spectral, ETDRK</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://fkoehler.site/exponax/">https://fkoehler.site/exponax/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/exponax</code></p>
+<p><strong>Image:</strong> <code>exponax_navier_stokes_grid</code></p>
+<p>Exponential time-differencing Runge–Kutta (ETDRK) spectral integrator for 3D Navier–Stokes, enforcing incompressibility to machine precision by construction. Gradients via JAX source-transformation AD.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>drag</code></td>
+<td><code>Array[(1,), Float32]</code></td>
+<td>✓</td>
+<td>Linear drag coefficient</td>
+</tr>
+<tr class="even">
+<td><code>order</code></td>
+<td><code>int</code></td>
+<td></td>
+<td>ETDRK time integration order (0-4)</td>
+</tr>
+<tr class="odd">
+<td><code>kolmogorov_forcing</code></td>
+<td><code>bool</code></td>
+<td></td>
+<td>Enable Kolmogorov sinusoidal body forcing for sustained turbulence</td>
+</tr>
+<tr class="even">
+<td><code>injection_mode</code></td>
+<td><code>int</code></td>
+<td></td>
+<td>Wavenumber at which energy is injected (Kolmogorov forcing)</td>
+</tr>
+<tr class="odd">
+<td><code>injection_scale</code></td>
+<td><code>Array[(1,), Float32]</code></td>
+<td>✓</td>
+<td>Amplitude of the Kolmogorov body forcing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-ins-jl" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-ins-jl">INS.jl</h3>
+<p><strong>Numerics:</strong> Finite Difference, Projection, RK4</p>
+<p><span class="badge bg-dark">julia</span> <span class="badge bg-primary">AD: autodiff</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/">https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/ins-jl</code></p>
+<p><strong>Image:</strong> <code>ins_navier_stokes_grid</code></p>
+<p>Julia finite-difference solver with spectral pressure projection and RK4 time integration; CPU-only. Differentiates through the time loop via Zygote.jl reverse-mode AD.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-jax-cfd" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-jax-cfd">jax-cfd</h3>
+<p><strong>Numerics:</strong> Finite Difference, Projection, semi-implicit</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/google/jax-cfd">https://github.com/google/jax-cfd</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/jax-cfd</code></p>
+<p><strong>Image:</strong> <code>jax_cfd_navier_stokes_grid</code></p>
+<p>JAX-native incompressible Navier–Stokes solver on a staggered MAC grid with finite-difference advection and spectral FFT pressure projection. Gradients via JAX source-transformation AD through the time loop.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>density</code></td>
+<td><code>Array[(1,), Float32]</code></td>
+<td>✓</td>
+<td>Density of the fluid</td>
+</tr>
+<tr class="even">
+<td><code>inner_steps</code></td>
+<td><code>int</code></td>
+<td></td>
+<td>Solver sub-iterations per timestep (higher = more accurate pressure solve)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-openfoam" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-openfoam">OpenFOAM</h3>
+<p><strong>Numerics:</strong> Finite Volume, PISO/PIMPLE, Euler</p>
+<p><span class="badge bg-dark">cpp</span> <span class="badge bg-primary">AD: forward-only</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://www.openfoam.com/documentation/overview">https://www.openfoam.com/documentation/overview</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/openfoam</code></p>
+<p><strong>Image:</strong> <code>openfoam_navier_stokes_grid</code></p>
+<p>OpenFOAM icoFoam PISO solver run as a forward-only reference baseline (C++ subprocess). No reverse-mode AD; used to anchor cross-solver comparisons.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-phiflow" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-phiflow">PhiFlow</h3>
+<p><strong>Numerics:</strong> Finite Difference, Semi-Lagrangian, Euler</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: hybrid</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://tum-pbs.github.io/PhiFlow/">https://tum-pbs.github.io/PhiFlow/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/phiflow</code></p>
+<p><strong>Image:</strong> <code>phiflow_navier_stokes_grid</code></p>
+<p>Semi-Lagrangian advection with CG pressure projection, unconditionally stable at large dt. Gradients via JAX autodiff combined with analytic adjoint rules through the same simulation code.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-pict" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-pict">PICT</h3>
+<p><strong>Numerics:</strong> Finite Volume, PISO, BDF1</p>
+<p><span class="badge bg-dark">pytorch</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/tum-pbs/PICT">https://github.com/tum-pbs/PICT</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/pict</code></p>
+<p><strong>Image:</strong> <code>pict_navier_stokes_grid</code></p>
+<p>GPU-accelerated differentiable PISO solver built on PyTorch with custom CUDA kernels (PISOtorch). VJP w.r.t. v0, inflow_profile, and viscosity flows through the PISO time loop via PISOtorch_diff (tracks VELOCITY, BOUNDARY_VELOCITY, and VISCOSITY gradients). dt is a Python scalar consumed at construction time; zero gradients are returned for it.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-test-spectral" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-test-spectral">Test Spectral</h3>
+<p><strong>Numerics:</strong> Spectral, Exponential diffusion</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/test-spectral</code></p>
+<p><strong>Image:</strong> <code>test_spectral_navier_stokes_grid</code></p>
+<p>Minimal pseudo-spectral viscous-diffusion solver for testing CI label logic. Not a real solver — only applies exponential decay in Fourier space.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-warp-ns" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-warp-ns">Warp-NS</h3>
+<p><strong>Numerics:</strong> Finite Difference, IPCS, SSP-RK3</p>
+<p><span class="badge bg-dark">warp</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/NVIDIA/warp">https://github.com/NVIDIA/warp</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/warp-ns</code></p>
+<p><strong>Image:</strong> <code>warp_ns_navier_stokes_grid</code></p>
+<p>IPCS projection scheme implemented in NVIDIA Warp CUDA kernels with FFT pressure Poisson on periodic domains. Gradients via wp.Tape kernel-level VJP.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>num_iters_poisson</code></td>
+<td><code>int</code></td>
+<td></td>
+<td>Minimum number of Jacobi iterations per 2-D streamfunction Poisson solve. The solver auto-scales to max(this value, min(4*N², 8000)) at runtime, so convergence is maintained across grid sizes N=16..128 without manual tuning. For N≥128 with production accuracy, a multigrid or FFT Poisson solver is recommended as Jacobi is capped at 8000 iterations.</td>
+</tr>
+<tr class="even">
+<td><code>num_iters_poisson_3d</code></td>
+<td><code>int</code></td>
+<td></td>
+<td>Number of Jacobi iterations per 3-D pressure Poisson solve. 800 iterations is adequate for N≤32; increase for larger grids.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="navier-stokes-grid-xlb" class="level3">
+<h3 class="anchored" data-anchor-id="navier-stokes-grid-xlb">XLB</h3>
+<p><strong>Numerics:</strong> Lattice Boltzmann, Streaming</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/Autodesk/XLB">https://github.com/Autodesk/XLB</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/navier-stokes-grid/xlb</code></p>
+<p><strong>Image:</strong> <code>xlb_navier_stokes_grid</code></p>
+<p>JAX-accelerated lattice Boltzmann solver (D2Q9 / D3Q19) with BGK or KBC collision, running the streaming/collision loop on GPU. Gradients via source-transformation AD; recovers incompressible Navier–Stokes only to O(Ma²) via Chapman–Enskog expansion.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="structural-mechanics" class="level2">
+<h2 class="anchored" data-anchor-id="structural-mechanics">Structural Mechanics</h2>
+<section id="structural-mesh-dealii-structural" class="level3">
+<h3 class="anchored" data-anchor-id="structural-mesh-dealii-structural">deal.II</h3>
+<p><strong>Numerics:</strong> Finite Element, Direct (spsolve)</p>
+<p><span class="badge bg-dark">cpp</span> <span class="badge bg-primary">AD: forward-only</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://www.dealii.org/">https://www.dealii.org/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/structural-mesh/dealii-structural</code></p>
+<p><strong>Image:</strong> <code>dealii_structural_mesh</code></p>
+<p>deal.II Q1 trilinear hexahedral FEM linear-elasticity solver via C++ subprocess (UMFPACK direct). Forward-only — reference implementation for cross-framework validation.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>E_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Young’s modulus of the fully solid material [MPa].</td>
+</tr>
+<tr class="even">
+<td><code>nu</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Poisson’s ratio.</td>
+</tr>
+<tr class="odd">
+<td><code>xmin</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Void stiffness ratio (E_min = xmin * E_max).</td>
+</tr>
+<tr class="even">
+<td><code>penal</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent (E(ρ) = E_min + (E_max−E_min)·ρ^penal).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="structural-mesh-fenics-structural" class="level3">
+<h3 class="anchored" data-anchor-id="structural-mesh-fenics-structural">FEniCS</h3>
+<p><strong>Numerics:</strong> Finite Element, GMRES+AMG</p>
+<p><span class="badge bg-dark">fenics</span> <span class="badge bg-primary">AD: adjoint</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://fenicsproject.org/">https://fenicsproject.org/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/structural-mesh/fenics-structural</code></p>
+<p><strong>Image:</strong> <code>fenics_structural_mesh</code></p>
+<p>FEniCS/DOLFIN CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient ∂C/∂ρ via dolfin-adjoint tape replay (discrete adjoint derived at the variational level via UFL).</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>E_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Young’s modulus of the fully solid material.</td>
+</tr>
+<tr class="even">
+<td><code>nu</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Poisson’s ratio.</td>
+</tr>
+<tr class="odd">
+<td><code>xmin</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Void stiffness ratio (E_min = xmin * E_max).</td>
+</tr>
+<tr class="even">
+<td><code>penal</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent (E(rho) = E_min + (E_max-E_min)*rho^penal).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="structural-mesh-firedrake-structural" class="level3">
+<h3 class="anchored" data-anchor-id="structural-mesh-firedrake-structural">Firedrake</h3>
+<p><strong>Numerics:</strong> Finite Element, GMRES+AMG</p>
+<p><span class="badge bg-dark">firedrake</span> <span class="badge bg-primary">AD: adjoint</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://www.firedrakeproject.org/">https://www.firedrakeproject.org/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/structural-mesh/firedrake-structural</code></p>
+<p><strong>Image:</strong> <code>firedrake_structural_mesh</code></p>
+<p>Firedrake CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient ∂C/∂ρ via firedrake-adjoint (pyadjoint ReducedFunctional) — an independent tape-based discrete adjoint complement to FEniCS.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>E_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Young’s modulus of the fully solid material.</td>
+</tr>
+<tr class="even">
+<td><code>nu</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Poisson’s ratio.</td>
+</tr>
+<tr class="odd">
+<td><code>xmin</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Void stiffness ratio (E_min = xmin * E_max).</td>
+</tr>
+<tr class="even">
+<td><code>penal</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent (E(rho) = E_min + (E_max-E_min)*rho^penal).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="structural-mesh-jax-fem" class="level3">
+<h3 class="anchored" data-anchor-id="structural-mesh-jax-fem">JAX-FEM</h3>
+<p><strong>Numerics:</strong> Finite Element, Direct (UMFPACK)</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: hybrid</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/deepmodeling/jax-fem">https://github.com/deepmodeling/jax-fem</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/structural-mesh/jax-fem</code></p>
+<p><strong>Image:</strong> <code>jax_fem_structural_mesh</code></p>
+<p>JAX-FEM HEX8 linear-elasticity solver with SIMP stiffness E(ρ) = E_min + (E_max − E_min)·ρ^penal. Gradient ∂C/∂ρ via JAX automatic differentiation through the linear FE solve (hybrid implicit-function-theorem adjoint).</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="structural-mesh-topopt-jl" class="level3">
+<h3 class="anchored" data-anchor-id="structural-mesh-topopt-jl">TopOpt.jl</h3>
+<p><strong>Numerics:</strong> Finite Element, Direct (CHOLMOD)</p>
+<p><span class="badge bg-dark">julia</span> <span class="badge bg-primary">AD: adjoint</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/JuliaTopOpt/TopOpt.jl">https://github.com/JuliaTopOpt/TopOpt.jl</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/structural-mesh/topopt-jl</code></p>
+<p><strong>Image:</strong> <code>topopt_jl_structural_grid</code></p>
+<p>TopOpt.jl HEX8 FEM linear-elasticity solver with SIMP penalisation, Julia + Ferrite.jl backend. Gradient ∂C/∂ρ via analytical SIMP adjoint sensitivity computed alongside the forward solve.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>E</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Young’s modulus of the solid material.</td>
+</tr>
+<tr class="even">
+<td><code>nu</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Poisson’s ratio.</td>
+</tr>
+<tr class="odd">
+<td><code>xmin</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Minimum density (void stiffness) to prevent singular stiffness matrix.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="heat-conduction" class="level2">
+<h2 class="anchored" data-anchor-id="heat-conduction">Heat Conduction</h2>
+<section id="thermal-mesh-dealii-heat" class="level3">
+<h3 class="anchored" data-anchor-id="thermal-mesh-dealii-heat">deal.II</h3>
+<p><strong>Numerics:</strong> Finite Element, Direct (spsolve)</p>
+<p><span class="badge bg-dark">cpp</span> <span class="badge bg-primary">AD: forward-only</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://www.dealii.org/">https://www.dealii.org/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/thermal-mesh/dealii-heat</code></p>
+<p><strong>Image:</strong> <code>dealii_heat_thermal_mesh</code></p>
+<p>deal.II Q1 trilinear hexahedral FEM heat-conduction solver with SIMP conductivity (C++ subprocess, UMFPACK direct). Forward-only — reference implementation for cross-framework validation.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>k_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Maximum thermal conductivity (fully solid material).</td>
+</tr>
+<tr class="even">
+<td><code>p_exp</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="thermal-mesh-fenics-heat" class="level3">
+<h3 class="anchored" data-anchor-id="thermal-mesh-fenics-heat">FEniCS</h3>
+<p><strong>Numerics:</strong> Finite Element, GMRES+AMG</p>
+<p><span class="badge bg-dark">fenics</span> <span class="badge bg-primary">AD: adjoint</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://fenicsproject.org/">https://fenicsproject.org/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/thermal-mesh/fenics-heat</code></p>
+<p><strong>Image:</strong> <code>fenics_heat_thermal_mesh</code></p>
+<p>FEniCS P1 FEM heat-conduction solver with SIMP penalisation. Gradients (∂C/∂ρ, ∂C/∂source) via dolfin-adjoint tape replay.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>k_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Maximum thermal conductivity (fully solid/conducting material).</td>
+</tr>
+<tr class="even">
+<td><code>p_exp</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="thermal-mesh-firedrake-heat" class="level3">
+<h3 class="anchored" data-anchor-id="thermal-mesh-firedrake-heat">Firedrake</h3>
+<p><strong>Numerics:</strong> Finite Element, GMRES+AMG</p>
+<p><span class="badge bg-dark">firedrake</span> <span class="badge bg-primary">AD: adjoint</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://www.firedrakeproject.org/">https://www.firedrakeproject.org/</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/thermal-mesh/firedrake-heat</code></p>
+<p><strong>Image:</strong> <code>firedrake_heat_thermal_mesh</code></p>
+<p>Firedrake P1 FEM heat-conduction solver with SIMP penalisation. Gradients (∂C/∂ρ, ∂C/∂source) via firedrake-adjoint, complementing the FEniCS reference.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>k_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Maximum thermal conductivity (fully solid/conducting material).</td>
+</tr>
+<tr class="even">
+<td><code>p_exp</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="thermal-mesh-jax-fem" class="level3">
+<h3 class="anchored" data-anchor-id="thermal-mesh-jax-fem">JAX-FEM</h3>
+<p><strong>Numerics:</strong> Finite Element, Direct (UMFPACK)</p>
+<p><span class="badge bg-dark">jax</span> <span class="badge bg-primary">AD: hybrid</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/deepmodeling/jax-fem">https://github.com/deepmodeling/jax-fem</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/thermal-mesh/jax-fem</code></p>
+<p><strong>Image:</strong> <code>jax_fem_thermal_mesh</code></p>
+<p>JAX-FEM HEX8 steady-state heat-conduction solver with SIMP conductivity and optional volumetric source. Gradients ∂C/∂ρ and ∂C/∂source via JAX autodiff through the linear FE solve (hybrid implicit-function-theorem adjoint).</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs:</strong> —</p>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+</section>
+<section id="thermal-mesh-torch-fem-thermal" class="level3">
+<h3 class="anchored" data-anchor-id="thermal-mesh-torch-fem-thermal">torch-fem</h3>
+<p><strong>Numerics:</strong> Finite Element, Direct (spsolve)</p>
+<p><span class="badge bg-dark">pytorch</span> <span class="badge bg-primary">AD: autodiff</span> <span class="badge bg-success">GPU</span></p>
+<p><strong>Upstream docs:</strong> <a href="https://github.com/meyer-nils/torch-fem">https://github.com/meyer-nils/torch-fem</a></p>
+<p><strong>Path:</strong> <code>mosaic/tesseracts/thermal-mesh/torch-fem-thermal</code></p>
+<p><strong>Image:</strong> <code>torch_fem_thermal_mesh</code></p>
+<p>torch-fem SolidHeat HEX8 heat-conduction solver with IsotropicConductivity3D SIMP material — the first PyTorch backend in thermal-mesh. Gradients via PyTorch autograd through the FE solve; GPU-native.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Inputs / Outputs
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Inputs</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 10%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>∂</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>k_max</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>Maximum thermal conductivity (fully solid material).</td>
+</tr>
+<tr class="even">
+<td><code>p_exp</code></td>
+<td><code>float</code></td>
+<td></td>
+<td>SIMP penalisation exponent p (k(ρ) = k_min + (k_max−k_min)·ρ^p).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs:</strong> —</p>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+<p>Built with <a href="https://quarto.org">Quarto</a> · <a href="https://github.com/pasteurlabs/mosaic">Mosaic</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/pasteurlabs/mosaic/edit/main/docs/solvers.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/pasteurlabs/mosaic/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
