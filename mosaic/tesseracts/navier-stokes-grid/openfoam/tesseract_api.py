@@ -50,7 +50,7 @@ class OutputSchema(_CanonicalOutputSchema):
 # ---------------------------------------------------------------------------
 
 
-def _run_of(cmd: str, cwd: Path) -> None:  # mosaic:util
+def _run_of(cmd: str, cwd: Path) -> None:
     """Run an OpenFOAM command by sourcing the OF environment first."""
     result = subprocess.run(
         ["bash", "-c", f". {_OF_BASHRC} && {cmd}"],
@@ -70,9 +70,7 @@ def _run_of(cmd: str, cwd: Path) -> None:  # mosaic:util
 # ---------------------------------------------------------------------------
 
 
-def _write_block_mesh_dict(
-    system_dir: Path, N: int, L: float, ndim: int
-) -> None:  # mosaic:init
+def _write_block_mesh_dict(system_dir: Path, N: int, L: float, ndim: int) -> None:
     """blockMeshDict: N×N (2-D) or N×N×N (3-D) Cartesian periodic grid."""
     if ndim == 2:
         # Quasi-2-D: one cell thick in z, empty patches front/back.
@@ -216,7 +214,7 @@ boundary
 
 def _write_control_dict(
     system_dir: Path, dt: float, end_time: float, *, use_foam_run: bool = False
-) -> None:  # mosaic:init
+) -> None:
     n_steps = max(1, round(end_time / dt))
     if use_foam_run:
         # foamRun -solver incompressibleFluid supports fvModels/fvConstraints (OF12).
@@ -252,7 +250,7 @@ runTimeModifiable false;
     (system_dir / "controlDict").write_text(content)
 
 
-def _write_fv_schemes(system_dir: Path) -> None:  # mosaic:init
+def _write_fv_schemes(system_dir: Path) -> None:
     content = """\
 FoamFile
 {
@@ -271,9 +269,7 @@ snGradSchemes   { default corrected; }
     (system_dir / "fvSchemes").write_text(content)
 
 
-def _write_fv_solution(
-    system_dir: Path, *, use_pimple: bool = False
-) -> None:  # mosaic:init
+def _write_fv_solution(system_dir: Path, *, use_pimple: bool = False) -> None:
     # foamRun -solver incompressibleFluid uses PIMPLE; legacy icoFoam uses PISO.
     # PIMPLE (foamRun incompressibleFluid) also requires a UFinal solver entry
     # because the PIMPLE outer-corrector loop solves for UFinal at the last corrector.
@@ -328,7 +324,7 @@ solvers
     (system_dir / "fvSolution").write_text(content)
 
 
-def _write_transport_properties(constant_dir: Path, nu: float) -> None:  # mosaic:init
+def _write_transport_properties(constant_dir: Path, nu: float) -> None:
     content = f"""\
 FoamFile
 {{
@@ -343,7 +339,7 @@ nu              {nu:.10g};
     (constant_dir / "physicalProperties").write_text(content)
 
 
-def _write_turbulence_properties(constant_dir: Path) -> None:  # mosaic:init
+def _write_turbulence_properties(constant_dir: Path) -> None:
     content = """\
 FoamFile
 {
@@ -357,7 +353,7 @@ simulationType  laminar;
     (constant_dir / "turbulenceProperties").write_text(content)
 
 
-def _write_initial_u(case_dir: Path, v0: np.ndarray) -> None:  # mosaic:io
+def _write_initial_u(case_dir: Path, v0: np.ndarray) -> None:
     """Write 0/U from v0 as a nonuniform OpenFOAM internalField.
 
     2-D: v0 shape (N, N, 1, 2) — cell ordering ix + iy*N (x fastest).
@@ -423,7 +419,7 @@ boundaryField
     (case_dir / "0" / "U").write_text(content)
 
 
-def _write_initial_p(case_dir: Path, ndim: int) -> None:  # mosaic:io
+def _write_initial_p(case_dir: Path, ndim: int) -> None:
     if ndim == 2:
         boundary = """\
     x_lo  { type cyclic; }
@@ -466,9 +462,7 @@ boundaryField
 # ---------------------------------------------------------------------------
 
 
-def _write_block_mesh_dict_channel(
-    system_dir: Path, N: int, L: float
-) -> None:  # mosaic:init
+def _write_block_mesh_dict_channel(system_dir: Path, N: int, L: float) -> None:
     """BlockMeshDict for a 2-D channel: INLET/OUTLET in x, cyclic y, empty z.
 
     Vertex numbering matches the periodic case (same hex block):
@@ -553,9 +547,7 @@ boundary
     (system_dir / "blockMeshDict").write_text(content)
 
 
-def _write_initial_u_channel(  # mosaic:io
-    case_dir: Path, v0: np.ndarray, inflow_vel: float
-) -> None:
+def _write_initial_u_channel(case_dir: Path, v0: np.ndarray, inflow_vel: float) -> None:
     """Write 0/U for channel mode (2-D only).
 
     Internal field is taken from v0 (same x-fastest ordering as periodic case).
@@ -604,7 +596,7 @@ boundaryField
     (case_dir / "0" / "U").write_text(content)
 
 
-def _write_initial_p_channel(case_dir: Path) -> None:  # mosaic:io
+def _write_initial_p_channel(case_dir: Path) -> None:
     """Write 0/p for channel mode.
 
     INLET  — zeroGradient (pressure free at inlet)
@@ -637,9 +629,7 @@ boundaryField
     (case_dir / "0" / "p").write_text(content)
 
 
-def _write_topo_set_dict(
-    system_dir: Path, cx: float, cy: float, r: float
-) -> None:  # mosaic:init
+def _write_topo_set_dict(system_dir: Path, cx: float, cy: float, r: float) -> None:
     """Write system/topoSetDict to select cylinder cells as 'obstacleZone'.
 
     ``cx``, ``cy``, ``r`` must be in physical (mesh) coordinates, not normalized.
@@ -670,7 +660,7 @@ actions
     (system_dir / "topoSetDict").write_text(content)
 
 
-def _write_fv_constraints(system_dir: Path) -> None:  # mosaic:init
+def _write_fv_constraints(system_dir: Path) -> None:
     """Write system/fvConstraints with fixedValue constraint on 'obstacleZone'.
 
     OpenFOAM 12 (openfoam.org) separates fvModels (source terms) from
@@ -718,7 +708,7 @@ brinkman
     (system_dir / "fvConstraints").write_text(content)
 
 
-def _run_openfoam_channel(  # mosaic:physics
+def _run_openfoam_channel(
     v0: np.ndarray,
     inflow_vel: float,
     nu: float,
@@ -792,9 +782,7 @@ def _run_openfoam_channel(  # mosaic:physics
 # ---------------------------------------------------------------------------
 
 
-def _read_final_pressure(
-    workdir: Path, N: int, ndim: int
-) -> np.ndarray | None:  # mosaic:io
+def _read_final_pressure(workdir: Path, N: int, ndim: int) -> np.ndarray | None:
     """Read the latest time directory and return pressure as float32 array.
 
     2-D: shape (N, N)   (same x-fastest ordering as _read_final_velocity)
@@ -843,7 +831,7 @@ def _read_final_pressure(
         return flat.reshape(N, N, N).transpose(2, 1, 0).copy()
 
 
-def _compute_drag_numpy_of(  # mosaic:physics
+def _compute_drag_numpy_of(
     ux: np.ndarray,
     pressure: np.ndarray,
     obstacle: dict | None,
@@ -892,7 +880,7 @@ def _compute_drag_numpy_of(  # mosaic:physics
     return np.array([p_drag + visc_drag], dtype=np.float32)
 
 
-def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:  # mosaic:io
+def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
     """Read the latest time directory and return velocity as v0-shaped float32.
 
     2-D cell ordering: cell = ix + iy*N  → flat[k]: ix = k%N, iy = k//N

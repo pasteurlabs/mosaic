@@ -61,7 +61,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Output schema for jax-cfd Navier-Stokes solver."""
 
 
-def _jaxcfd_bc(  # mosaic:io
+def _jaxcfd_bc(
     bc_dict: dict, ndim: int
 ) -> "cfd.boundaries.HomogeneousBoundaryConditions":
     """Map a serialized GridBC dict to jax-cfd HomogeneousBoundaryConditions."""
@@ -86,7 +86,7 @@ def _jaxcfd_bc(  # mosaic:io
     return cfd.boundaries.HomogeneousBoundaryConditions(tuple(dim_bcs))
 
 
-def _make_obstacle_mask_jaxcfd(  # mosaic:init
+def _make_obstacle_mask_jaxcfd(
     obstacle: dict | None, nx: int, ny: int
 ) -> jnp.ndarray | None:
     """Rasterize a 2-D obstacle to a boolean mask of shape (nx, ny).
@@ -109,7 +109,7 @@ def _make_obstacle_mask_jaxcfd(  # mosaic:init
     raise ValueError(f"jax-cfd: unsupported obstacle shape {obstacle['shape']!r}")
 
 
-def _compute_drag(  # mosaic:physics
+def _compute_drag(
     ux: jnp.ndarray,
     pressure: jnp.ndarray,
     solid_mask: jnp.ndarray,
@@ -191,9 +191,7 @@ def _compute_drag(  # mosaic:physics
     return jnp.reshape(drag, (1,))
 
 
-def _extract_pressure_jaxcfd(
-    v_grid: Any, grid: Any, bc: Any
-) -> jnp.ndarray:  # mosaic:physics
+def _extract_pressure_jaxcfd(v_grid: Any, grid: Any, bc: Any) -> jnp.ndarray:
     """Extract pressure from the final velocity field via one Poisson solve.
 
     Uses cfd.pressure.solve_fast_diag which returns a GridArray of pressure
@@ -205,7 +203,7 @@ def _extract_pressure_jaxcfd(
     return q.data.astype(jnp.float32)
 
 
-def cfd_fwd(  # mosaic:physics
+def cfd_fwd(
     v0: jnp.ndarray,
     density: float,
     viscosity: float,
@@ -392,7 +390,7 @@ def cfd_fwd(  # mosaic:physics
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:  # mosaic:io
+def apply_jit(inputs: dict) -> dict:
     """JIT-compiled apply: run jax-cfd forward and return result with drag."""
     result, drag = cfd_fwd(**inputs)
     out = {"result": result}
@@ -404,7 +402,7 @@ def apply_jit(inputs: dict) -> dict:  # mosaic:io
     return out
 
 
-def _unpack_scalars(d: dict) -> dict:  # mosaic:io
+def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in ("density", "viscosity", "dt"):
         if key in d:
@@ -417,7 +415,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,density:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

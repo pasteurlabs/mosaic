@@ -43,7 +43,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # Define constitutive relationship
 # Adapted from JAX-FEM
 # https://github.com/deepmodeling/jax-fem/blob/1bdbf060bb32951d04ed9848c238c9a470fee1b4/demos/topology_optimization/example.py
-class Elasticity(Problem):  # mosaic:physics
+class Elasticity(Problem):
     """Linear elasticity problem with custom constitutive law."""
 
     def custom_init(self, von_neumann_value_fns: list[Callable]) -> None:
@@ -133,7 +133,7 @@ class Elasticity(Problem):  # mosaic:physics
 _setup_cache: dict = {}
 
 
-def setup(  # mosaic:init
+def setup(
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
     boundary_conditions: dict | None = None,
@@ -268,7 +268,7 @@ def setup(  # mosaic:init
     return result
 
 
-def apply_fn(inputs: dict) -> dict:  # mosaic:physics
+def apply_fn(inputs: dict) -> dict:
     """Compute the compliance of the structure given a density field.
 
     Args:
@@ -304,7 +304,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_fn(inputs.model_dump())
 
 
-def jacobian_vector_product(  # mosaic:grad:rho:autodiff
+def jacobian_vector_product(
     inputs: InputSchema,
     jvp_inputs: set[str],
     jvp_outputs: set[str],
@@ -323,7 +323,7 @@ def jacobian_vector_product(  # mosaic:grad:rho:autodiff
     )[1]
 
 
-def vector_jacobian_product(  # mosaic:grad:rho:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

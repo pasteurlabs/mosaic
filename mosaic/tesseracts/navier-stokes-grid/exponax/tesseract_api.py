@@ -64,9 +64,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
 # ---------------------------------------------------------------------------
 
 
-def _velocity_to_vorticity(
-    v: jnp.ndarray, domain_extent: float
-) -> jnp.ndarray:  # mosaic:io
+def _velocity_to_vorticity(v: jnp.ndarray, domain_extent: float) -> jnp.ndarray:
     """(N, N, 2) velocity -> (1, N, N) vorticity via spectral curl.
 
     Uses physical wavenumbers k_phys = k_int * 2π/L so the vorticity values
@@ -83,9 +81,7 @@ def _velocity_to_vorticity(
     return omega[None, :, :]  # (1, N, N)
 
 
-def _vorticity_to_velocity(
-    omega: jnp.ndarray, domain_extent: float
-) -> jnp.ndarray:  # mosaic:io
+def _vorticity_to_velocity(omega: jnp.ndarray, domain_extent: float) -> jnp.ndarray:
     """(1, N, N) vorticity -> (N, N, 2) velocity via spectral Biot-Savart.
 
     Uses physical wavenumbers. Recovers the divergence-free velocity with zero
@@ -108,7 +104,7 @@ def _vorticity_to_velocity(
 # ---------------------------------------------------------------------------
 
 
-def exponax_fwd(  # mosaic:physics
+def exponax_fwd(
     v0: jnp.ndarray,
     dt: float,
     steps: int,
@@ -222,7 +218,7 @@ def exponax_fwd(  # mosaic:physics
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:  # mosaic:physics
+def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass for the Exponax solver."""
     return {"result": exponax_fwd(**inputs)}
 
@@ -230,7 +226,7 @@ def apply_jit(inputs: dict) -> dict:  # mosaic:physics
 _SCALAR_KEYS = ("dt", "viscosity", "drag", "injection_scale")
 
 
-def _unpack_scalars(d: dict) -> dict:  # mosaic:io
+def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
         if key in d:
@@ -261,9 +257,7 @@ _vjp_compiled_cache: dict = {}
 _jvp_compiled_cache: dict = {}
 
 
-def _build_diff_bundle(
-    inputs: dict, include: tuple[str, ...]
-) -> dict:  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
+def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys."""
     bundle: dict = {}
     for k in include:
@@ -279,9 +273,7 @@ def _build_diff_bundle(
     return bundle
 
 
-def _run_forward(
-    inputs: dict, diff_bundle: dict
-) -> jnp.ndarray:  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
+def _run_forward(inputs: dict, diff_bundle: dict) -> jnp.ndarray:
     """Run exponax_fwd with diff inputs overridden from diff_bundle."""
     fwd_kwargs = {}
     for k in (
@@ -306,7 +298,7 @@ def _run_forward(
     return exponax_fwd(**fwd_kwargs)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,drag,injection_scale:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
