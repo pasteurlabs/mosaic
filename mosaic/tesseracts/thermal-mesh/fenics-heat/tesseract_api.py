@@ -20,16 +20,16 @@ import meshio
 import numpy as np
 from dolfin import *  # noqa: F403
 from dolfin_adjoint import *  # noqa: F403
+from mosaic_shared.problems.thermal_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from mosaic_shared.problems.thermal_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.thermal_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from tesseract_shared.problems.thermal_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho", "source"])):
@@ -58,7 +58,7 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
-def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:  # mosaic:init
+def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:
     """Convert numpy hex mesh arrays to a FEniCS Mesh via meshio XDMF.
 
     DOLFIN XML only supports triangles/tetrahedra; XDMF supports hexahedra.
@@ -89,7 +89,7 @@ def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:  # mosaic:in
     return mesh
 
 
-def _cell_reorder_map(  # mosaic:util
+def _cell_reorder_map(
     pts: np.ndarray, input_cells: np.ndarray, fenics_mesh: Mesh
 ) -> np.ndarray:
     """Build FEniCS-cell-index → input-cell-index permutation via centroid matching.
@@ -124,9 +124,7 @@ def _cell_reorder_map(  # mosaic:util
 # ---------------------------------------------------------------------------
 
 
-def _mark_neumann_facets(
-    mesh: Mesh, neumann_mask_vals: np.ndarray
-) -> MeshFunction:  # mosaic:init
+def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunction:
     """Mark boundary facets by Neumann group from a per-node mask.
 
     A boundary facet is assigned group k if ALL of its vertices carry
@@ -163,7 +161,7 @@ def _mark_neumann_facets(
 # ---------------------------------------------------------------------------
 
 
-def _solve_heat(  # mosaic:physics
+def _solve_heat(
     rho_values: np.ndarray,
     pts: np.ndarray,
     cells: np.ndarray,
@@ -465,7 +463,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
 
 
-def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -521,7 +519,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
     # ------------------------------------------------------------------
     # rho → thermal_compliance and/or rho → identification_error gradient
     # ------------------------------------------------------------------
-    # mosaic:grad:rho:adjoint
+
     if want_rho:
         cot_compliance_rho = float(cotangent_vector.get("thermal_compliance", 0.0))
         cot_id_error_rho = float(cotangent_vector.get("identification_error", 0.0))
@@ -558,7 +556,7 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
     # ------------------------------------------------------------------
     # source → identification_error  AND  source → thermal_compliance
     # ------------------------------------------------------------------
-    # mosaic:grad:source:adjoint
+
     if want_source:
         cot_src = float(cotangent_vector.get("identification_error", 0.0))
         cot_tc = float(cotangent_vector.get("thermal_compliance", 0.0))

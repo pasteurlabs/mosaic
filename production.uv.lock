@@ -20,7 +20,7 @@ resolution-markers = [
 [manifest]
 members = [
     "mosaic-bench",
-    "tesseract-shared",
+    "mosaic-shared",
 ]
 
 [[package]]
@@ -1808,7 +1808,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pyyaml" },
     { name = "ruff" },
-    { name = "tesseract-shared" },
+    { name = "mosaic-shared" },
 ]
 
 [package.metadata]
@@ -1831,7 +1831,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "tesseract-core", extras = ["runtime"] },
     { name = "tesseract-jax" },
-    { name = "tesseract-shared", marker = "extra == 'dev'", editable = "mosaic/tesseracts/tesseract_shared" },
+    { name = "mosaic-shared", marker = "extra == 'dev'", editable = "mosaic/mosaic_shared" },
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["dev"]
@@ -3573,9 +3573,9 @@ wheels = [
 ]
 
 [[package]]
-name = "tesseract-shared"
+name = "mosaic-shared"
 version = "0.1.0"
-source = { editable = "mosaic/tesseracts/tesseract_shared" }
+source = { editable = "mosaic/mosaic_shared" }
 dependencies = [
     { name = "pydantic" },
     { name = "tesseract-core", extra = ["runtime"] },

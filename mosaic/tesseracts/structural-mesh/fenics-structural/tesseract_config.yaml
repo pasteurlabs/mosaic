@@ -8,9 +8,9 @@ build_config:
   requirements:
     provider: conda
   package_data:
-    - ["../../tesseract_shared", "/tmp/tesseract_shared"]
+    - ["../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
-    - "RUN /python-env/bin/pip install /tmp/tesseract_shared"
+    - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
 metadata:
   mosaic:

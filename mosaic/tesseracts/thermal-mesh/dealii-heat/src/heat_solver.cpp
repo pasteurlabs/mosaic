@@ -1,4 +1,3 @@
-// mosaic:util
 // heat_solver.cpp
 // deal.II Q1 FEM heat conduction with SIMP conductivity.  Forward-only
 // reference implementation; the Python tesseract is forward-only and never
@@ -64,7 +63,6 @@ using namespace dealii;
 // Python cell index: iz*nx*ny + iy*nx + ix
 // Matches _hex_mesh_arrays in benchmarks/problems/thermal_mesh.py
 // ---------------------------------------------------------------------------
-// mosaic:util
 static inline int node_idx(int ix, int iy, int iz, int nx, int ny) {
     return iz * (nx + 1) * (ny + 1) + iy * (nx + 1) + ix;
 }
@@ -75,7 +73,6 @@ static inline int cell_idx(int ix, int iy, int iz, int nx, int ny) {
 // ---------------------------------------------------------------------------
 // Load a float32 .npy array → vector<double>
 // ---------------------------------------------------------------------------
-// mosaic:io
 static std::vector<double> load_npy_f32(const std::string& path) {
     cnpy::NpyArray arr = cnpy::npy_load(path);
     const float* p = arr.data<float>();
@@ -90,7 +87,6 @@ static inline std::vector<double> load_rho(const std::string& path) {
 // ---------------------------------------------------------------------------
 // Convert a face vertex coordinate to its Python node index
 // ---------------------------------------------------------------------------
-// mosaic:util
 static int coord_to_py_node(const Point<3>& vp, double dx, double dy, double dz,
                              int nx, int ny) {
     int ix = static_cast<int>(std::round(vp[0] / dx));
@@ -103,7 +99,6 @@ static int coord_to_py_node(const Point<3>& vp, double dx, double dy, double dz,
 // Get the Neumann group of a boundary face, or 0 if none.
 // A face belongs to group k > 0 iff ALL 4 corner vertices have n_mask == k.
 // ---------------------------------------------------------------------------
-// mosaic:util
 static int face_neumann_group(
     const DoFHandler<3>::active_cell_iterator& cell,
     unsigned int face_no,
@@ -131,7 +126,7 @@ static int face_neumann_group(
 // ---------------------------------------------------------------------------
 static void run(const std::string& input_path) {
 
-    // mosaic:io
+
     // ---- Parse JSON ---------------------------------------------------------
     std::ifstream fin(input_path);
     if (!fin.is_open())
@@ -185,7 +180,7 @@ static void run(const std::string& input_path) {
     const std::vector<std::vector<double>> n_values =
         j["neumann_values"].get<std::vector<std::vector<double>>>();
 
-    // mosaic:init
+
     // ---- Build deal.II mesh -------------------------------------------------
     Triangulation<3> tria;
     GridGenerator::subdivided_hyper_rectangle(
@@ -248,7 +243,7 @@ static void run(const std::string& input_path) {
     Vector<double>                          cell_rhs_vec(dpc);
     std::vector<types::global_dof_index>    local_dof_idx(dpc);
 
-    // mosaic:physics
+
     // ---- Assembly -----------------------------------------------------------
     int deallii_cell_idx = 0;
     for (const auto& cell : dof_handler.active_cell_iterators()) {
@@ -305,7 +300,7 @@ static void run(const std::string& input_path) {
         ++deallii_cell_idx;
     }
 
-    // mosaic:init
+
     // ---- Apply Dirichlet BCs via MatrixTools --------------------------------
     std::map<types::global_dof_index, double> bv;
     for (int py_node = 0; py_node < static_cast<int>(d_mask.size()); ++py_node) {
@@ -317,7 +312,7 @@ static void run(const std::string& input_path) {
     }
     MatrixTools::apply_boundary_values(bv, system_matrix, solution, system_rhs);
 
-    // mosaic:physics
+
     // ---- Solve CG -----------------------------------------------------------
     SolverControl solver_control(50000, 1e-12 * system_rhs.l2_norm());
     SolverCG<Vector<double>> cg(solver_control);
@@ -346,7 +341,7 @@ static void run(const std::string& input_path) {
         }
     }
 
-    // mosaic:io
+
     // ---- Write temperature.npy (Python node order) -------------------------
     std::vector<float> temp_py(n_dofs, 0.0f);
     for (unsigned int d = 0; d < n_dofs; ++d) {
@@ -368,7 +363,6 @@ static void run(const std::string& input_path) {
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
-// mosaic:io
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: heat_solver <input.json>\n";

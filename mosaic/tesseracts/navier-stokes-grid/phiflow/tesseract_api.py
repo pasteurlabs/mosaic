@@ -6,6 +6,14 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+from mosaic_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+)
+from mosaic_shared.problems.navier_stokes_grid import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from mosaic_shared.problems.navier_stokes_grid import drag_jax
+from mosaic_shared.types import make_differentiable
 from phi.jax.flow import (
     Box,
     CenteredGrid,
@@ -20,14 +28,6 @@ from phi.jax.flow import (
 )
 from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
-from tesseract_shared.problems.navier_stokes_grid import (
-    InputSchema as _CanonicalInputSchema,
-)
-from tesseract_shared.problems.navier_stokes_grid import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from tesseract_shared.problems.navier_stokes_grid import drag_jax
-from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(
@@ -53,7 +53,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"
     """PhiFlow Navier-Stokes output schema with differentiable result and drag."""
 
 
-def _phiflow_extrapolation(bc_dict: dict, ndim: int):  # mosaic:io
+def _phiflow_extrapolation(bc_dict: dict, ndim: int):
     """Map a serialized GridBC dict to a phiflow extrapolation object."""
     if all(bc_dict[k]["type"] == "periodic" for k in bc_dict):
         return extrapolation.PERIODIC
@@ -82,9 +82,7 @@ def _phiflow_extrapolation(bc_dict: dict, ndim: int):  # mosaic:io
     return extrapolation.combine_sides(**kwargs)
 
 
-def _make_phiflow_obstacle(  # mosaic:init
-    obstacle: dict | None, domain_extent: float, ndim: int
-):
+def _make_phiflow_obstacle(obstacle: dict | None, domain_extent: float, ndim: int):
     """Construct a PhiFlow Obstacle from the canonical obstacle dict, or None."""
     if obstacle is None or not obstacle.get("shape"):
         return None
@@ -102,7 +100,7 @@ def _make_phiflow_obstacle(  # mosaic:init
     raise ValueError(f"PhiFlow: unsupported obstacle shape {obstacle['shape']!r}")
 
 
-def _make_obstacle_mask_phiflow(  # mosaic:init
+def _make_obstacle_mask_phiflow(
     obstacle: dict | None, nx: int, ny: int
 ) -> jnp.ndarray | None:
     """Rasterize obstacle to a boolean JAX mask of shape (nx, ny).
@@ -123,10 +121,10 @@ def _make_obstacle_mask_phiflow(  # mosaic:init
 
 
 # Drag is computed via the shared canonical surface integral
-# (tesseract_shared.problems.navier_stokes_grid.drag_jax).
+# (mosaic_shared.problems.navier_stokes_grid.drag_jax).
 
 
-def phiflow_fwd(  # mosaic:physics
+def phiflow_fwd(
     v0: jnp.ndarray,
     viscosity: float,
     dt: float,
@@ -382,7 +380,7 @@ def phiflow_fwd(  # mosaic:physics
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:  # mosaic:io
+def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass returning result and drag arrays."""
     result, drag = phiflow_fwd(**inputs)
     out = {"result": result}
@@ -393,7 +391,7 @@ def apply_jit(inputs: dict) -> dict:  # mosaic:io
 _SCALAR_KEYS = ("viscosity", "dt")
 
 
-def _unpack_scalars(d: dict) -> dict:  # mosaic:io
+def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
         if key in d:
@@ -406,7 +404,7 @@ def apply(inputs: InputSchema) -> dict[str, Any]:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

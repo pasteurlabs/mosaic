@@ -20,16 +20,16 @@ import meshio
 import numpy as np
 from dolfin import *  # noqa: F403
 from dolfin_adjoint import *  # noqa: F403
+from mosaic_shared.problems.structural_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from mosaic_shared.problems.structural_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.structural_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from tesseract_shared.problems.structural_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from tesseract_shared.types import make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["rho"])):
@@ -62,7 +62,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # ---------------------------------------------------------------------------
 
 
-def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:  # mosaic:init
+def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:
     """Convert numpy hex mesh arrays to a FEniCS Mesh via meshio XDMF.
 
     DOLFIN XML only supports triangles/tetrahedra; XDMF supports hexahedra.
@@ -93,7 +93,7 @@ def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:  # mosaic:in
     return mesh
 
 
-def _cell_reorder_map(  # mosaic:util
+def _cell_reorder_map(
     pts: np.ndarray, input_cells: np.ndarray, fenics_mesh: Mesh
 ) -> np.ndarray:
     """Build FEniCS-cell-index to input-cell-index permutation via centroid matching.
@@ -128,9 +128,7 @@ def _cell_reorder_map(  # mosaic:util
 # ---------------------------------------------------------------------------
 
 
-def _mark_neumann_facets(
-    mesh: Mesh, neumann_mask_vals: np.ndarray
-) -> MeshFunction:  # mosaic:init
+def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunction:
     """Mark boundary facets by group from a per-node mask.
 
     A boundary facet is assigned group k if ALL of its vertices carry
@@ -169,7 +167,7 @@ def _mark_neumann_facets(
 # ---------------------------------------------------------------------------
 
 
-def _solve_elasticity(  # mosaic:physics
+def _solve_elasticity(
     rho_values: np.ndarray,
     pts: np.ndarray,
     cells: np.ndarray,
@@ -182,7 +180,7 @@ def _solve_elasticity(  # mosaic:physics
     xmin: float,
     penal: float,
     compute_gradient: bool = False,
-):  # mosaic:physics
+):
     """Solve 3-D linear elasticity topology optimisation problem.
 
     Solves:
@@ -352,7 +350,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(compliance=np.float32(J_val))
 
 
-def vector_jacobian_product(  # mosaic:grad:rho:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
