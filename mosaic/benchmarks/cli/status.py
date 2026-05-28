@@ -17,7 +17,6 @@ from mosaic.benchmarks.cli._status_helpers import (
     _status_print_failures,
     _status_print_problem_table,
     _status_print_summary,
-    _status_tally_problem,
 )
 from mosaic.benchmarks.core.console import print_warn
 from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
@@ -82,9 +81,12 @@ def status(
         os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 
     from mosaic.benchmarks.core.status import (
+        ANOMALY,
+        FAILED,
+        NOT_RUN,
         SUITES,
         collect_status,
-        compute_score,
+        tally,
     )
 
     problem_list = (
@@ -113,26 +115,26 @@ def status(
             continue
         st = collect_status(cfg, suites=suite_list)
 
-        counts, all_cells = _status_tally_problem(st)
-        score, score_n = compute_score(all_cells)
+        t = tally(st)
+        score, score_n = t["score"], t["score_n"]
         per_problem_tally.append(
             (
                 problem,
-                counts["n_ok"],
-                counts["n_anom"],
-                counts["n_fail"],
-                counts["n_missing"],
-                counts["n_excl_work"],
-                counts["n_excl_perm"],
-                counts["n_stale"],
-                counts["n_stale_ok"],
+                t["fresh_ok"],
+                t[ANOMALY],
+                t[FAILED],
+                t[NOT_RUN],
+                t["excl_work"],
+                t["excl_perm"],
+                t["stale"],
+                t["stale_ok"],
                 score,
                 score_n,
             )
         )
 
         if not only_failures:
-            _status_print_problem_table(problem, st, counts, score, score_n)
+            _status_print_problem_table(problem, st, t, score, score_n)
 
         failure_records.extend(_status_collect_failures(problem, st))
 
