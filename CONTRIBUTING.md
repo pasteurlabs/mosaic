@@ -57,7 +57,10 @@ Solver behavior can be adjusted at three levels:
 ### Review expectations
 
 - The change must not regress any other solver's results.
-- CI runs the full evaluation suite when a maintainer adds the `benchmark` label to your PR.
+- CI requires a maintainer to add a benchmark label to any PR that touches `mosaic/` code. The options are:
+  - `benchmark:none` — skip benchmarks (maintainer trusts no answer-changing code).
+  - `benchmark:solver` — run benchmarks only on the modified solver (changes must be isolated to one solver).
+  - `benchmark:all` — run the full benchmark suite from scratch.
 - Include the diff output in your PR description so reviewers can see the impact at a glance.
 
 ## Adding a benchmark domain
@@ -122,7 +125,7 @@ $ pre-commit install
 1. Fork the repository and create a feature branch.
 2. Make your changes, ensuring `ruff check` and `pytest` pass.
 3. Open a pull request with a clear description of what you're adding.
-4. CI runs lint, tests, and tesseract config validation on every PR. Full benchmark runs (which require GPU runners) are triggered by adding the `benchmark` label to the PR.
+4. CI runs lint, tests, and tesseract config validation on every PR. If your PR touches `mosaic/` code, a maintainer will add one of three benchmark labels (`benchmark:none`, `benchmark:solver`, or `benchmark:all`) to control whether and how benchmarks run.
 
 ## Commit and pull request message guidelines
 

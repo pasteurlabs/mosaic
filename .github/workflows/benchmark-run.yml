@@ -19,6 +19,10 @@ on:
         description: "GHCR image tag to pull (typically a commit SHA)"
         type: string
         required: true
+      solvers:
+        description: "Comma-separated solver display names to restrict the run to (or '' for all)"
+        type: string
+        default: ""
       timeout:
         description: "Per-job timeout in minutes"
         type: number
@@ -93,19 +97,23 @@ jobs:
 
       - name: Pull solver images from GHCR
         run: |
+          SOLVERS="${{ inputs.solvers }}"
           uv run python .github/scripts/pull-solver-images.py \
             --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
             --problems "${{ matrix.problem }}" \
             --hardware "${{ matrix.hardware }}" \
-            --tag "${{ inputs.image_tag }}"
+            --tag "${{ inputs.image_tag }}" \
+            ${SOLVERS:+--solvers "$SOLVERS"}
 
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
         run: |
+          SOLVERS="${{ inputs.solvers }}"
           uv run mosaic run \
             --suites ${{ matrix.suite }} \
             --problems ${{ matrix.problem }} \
             --hardware ${{ matrix.hardware }} \
-            --no-build
+            --no-build \
+            ${SOLVERS:+--solvers "$SOLVERS"}
         timeout-minutes: ${{ inputs.timeout }}
 
       - uses: actions/upload-artifact@v7

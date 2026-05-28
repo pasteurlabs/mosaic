@@ -2,10 +2,7 @@ name: Benchmark
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled]
-  push:
-    branches: [main]
-    tags: ["v*"]
+    types: [opened, synchronize, labeled, unlabeled]
   workflow_dispatch:
     inputs:
       problems:
@@ -35,12 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
-      solvers_changed: ${{ steps.decide.outputs.solvers_changed }}
+      mosaic_touched: ${{ steps.decide.outputs.mosaic_touched }}
+      label: ${{ steps.decide.outputs.label }}
       solver_matrix: ${{ steps.decide.outputs.solver_matrix }}
       problems: ${{ steps.decide.outputs.problems }}
       suites: ${{ steps.decide.outputs.suites }}
-      is_main: ${{ steps.decide.outputs.is_main }}
-      is_release: ${{ steps.decide.outputs.is_release }}
+      solvers: ${{ steps.decide.outputs.solvers }}
+      is_release_pr: ${{ steps.decide.outputs.is_release_pr }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
@@ -57,32 +55,25 @@ jobs:
       - id: decide
         name: Decide what to run
         run: |
-          IS_MAIN="false"
-          IS_RELEASE="false"
+          IS_RELEASE_PR="false"
           SHOULD_RUN="false"
           PROBLEMS="all"
           SUITES="all"
-          SOLVERS_CHANGED="false"
+          SOLVERS=""
+          MOSAIC_TOUCHED="false"
+          LABEL=""
           SOLVER_MATRIX="[]"
 
-          # Detect changed solvers (all triggers except workflow_dispatch)
+          # Detect changed files and solvers
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
-          fi
 
-          if [[ -n "${BASE_SHA:-}" && -n "${HEAD_SHA:-}" ]]; then
-            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-              BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "")"
-            fi
-            if [[ -n "$BASE_SHA" ]]; then
+            if [[ -n "$BASE_SHA" && -n "$HEAD_SHA" ]]; then
               DIFF_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
               SOLVER_MATRIX=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-solvers.py)
-              if [[ "$SOLVER_MATRIX" != "[]" ]]; then
-                SOLVERS_CHANGED="true"
+              if echo "$DIFF_FILES" | grep -q '^mosaic/'; then
+                MOSAIC_TOUCHED="true"
               fi
             fi
           fi
@@ -94,55 +85,101 @@ jobs:
             SUITES="${{ github.event.inputs.suites }}"
           fi
 
-          # Push to main: run for changed domains
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            IS_MAIN="true"
-            SHOULD_RUN="true"
-
-            # Use the problem registry to dynamically map changed files → problems.
-            PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
-
-            if [[ -z "$PROBLEMS" ]]; then
-              SHOULD_RUN="false"
-              PROBLEMS="all"
-            elif [[ "$PROBLEMS" == "all" ]]; then
-              PROBLEMS="all"
-            fi
-          fi
-
-          # Release tag: run everything
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
-            IS_RELEASE="true"
-            SHOULD_RUN="true"
-            PROBLEMS="all"
-            SUITES="all"
-          fi
-
-          # PR with 'benchmark' label
+          # PR: three-label system (benchmark:none / benchmark:solver / benchmark:all)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            HAS_LABEL=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | grep -c '"benchmark"' || true)
-            if [[ "$HAS_LABEL" -gt 0 ]]; then
+            LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+            HAS_NONE=$(echo "$LABELS" | grep -c '"benchmark:none"' || true)
+            HAS_SOLVER=$(echo "$LABELS" | grep -c '"benchmark:solver"' || true)
+            HAS_ALL=$(echo "$LABELS" | grep -c '"benchmark:all"' || true)
+            LABEL_COUNT=$((HAS_NONE + HAS_SOLVER + HAS_ALL))
+
+            if [[ "$LABEL_COUNT" -gt 1 ]]; then
+              echo "::error::Multiple benchmark labels found. Use exactly one of: benchmark:none, benchmark:solver, benchmark:all"
+              exit 1
+            fi
+
+            if [[ "$HAS_NONE" -gt 0 ]]; then
+              LABEL="none"
+            elif [[ "$HAS_SOLVER" -gt 0 ]]; then
+              LABEL="solver"
+            elif [[ "$HAS_ALL" -gt 0 ]]; then
+              LABEL="all"
+            fi
+
+            case "$LABEL" in
+              none)
+                SHOULD_RUN="false"
+                ;;
+              solver)
+                # All mosaic/ changes must be under mosaic/tesseracts/
+                NON_SOLVER=$(echo "$DIFF_FILES" | grep '^mosaic/' | grep -v '^mosaic/tesseracts/' || true)
+                # if [[ -n "$NON_SOLVER" ]]; then
+                #   echo "::error::benchmark:solver requires all mosaic/ changes to be under mosaic/tesseracts/. These files violate that:"
+                #   echo "$NON_SOLVER"
+                #   echo "::error::Use benchmark:all instead."
+                #   exit 1
+                # fi
+                # Must be exactly 0 or 1 solver
+                NUM_SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+                if [[ "$NUM_SOLVERS" -gt 1 ]]; then
+                  echo "::error::benchmark:solver requires changes to exactly one solver, but $NUM_SOLVERS solvers changed. Use benchmark:all instead."
+                  exit 1
+                fi
+                if [[ "$NUM_SOLVERS" -eq 0 ]]; then
+                  # No solver actually changed — nothing to do
+                  SHOULD_RUN="false"
+                else
+                  SHOULD_RUN="true"
+                  # Scope problems to the affected solver
+                  PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
+                  if [[ -z "$PROBLEMS" ]]; then
+                    SHOULD_RUN="false"
+                  fi
+                  # Extract display name so downstream only pulls/runs this solver
+                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
+                fi
+                ;;
+              all)
+                SHOULD_RUN="true"
+                PROBLEMS="all"
+                SUITES="all"
+                ;;
+              "")
+                # No label — gate will block if mosaic/ was touched
+                SHOULD_RUN="false"
+                ;;
+            esac
+
+            # Release PRs: always run full benchmarks (no label needed)
+            HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+            if [[ "$HEAD_BRANCH" == bot/release/* ]]; then
+              IS_RELEASE_PR="true"
               SHOULD_RUN="true"
+              PROBLEMS="all"
+              SUITES="all"
             fi
           fi
 
           echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
-          echo "solvers_changed=$SOLVERS_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "mosaic_touched=$MOSAIC_TOUCHED" >> "$GITHUB_OUTPUT"
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
           echo "solver_matrix=$SOLVER_MATRIX" >> "$GITHUB_OUTPUT"
           echo "problems=$PROBLEMS" >> "$GITHUB_OUTPUT"
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
-          echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
-          echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "solvers=$SOLVERS" >> "$GITHUB_OUTPUT"
+          echo "is_release_pr=$IS_RELEASE_PR" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN solvers_changed=$SOLVERS_CHANGED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE"
+          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES solvers=$SOLVERS is_release_pr=$IS_RELEASE_PR"
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
         if: steps.decide.outputs.should_run == 'true'
         run: |
+          SOLVERS="${{ steps.decide.outputs.solvers }}"
           MATRIX=$(uv run python .github/scripts/generate-benchmark-matrix.py \
             --problems "${{ steps.decide.outputs.problems }}" \
-            --suites "${{ steps.decide.outputs.suites }}")
+            --suites "${{ steps.decide.outputs.suites }}" \
+            ${SOLVERS:+--solvers "$SOLVERS"})
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "Matrix: $MATRIX"
 
@@ -150,7 +187,7 @@ jobs:
   build:
     name: Build solver images
     needs: plan
-    if: needs.plan.outputs.should_run == 'true' && needs.plan.outputs.solvers_changed == 'true'
+    if: needs.plan.outputs.should_run == 'true' && needs.plan.outputs.solver_matrix != '[]'
     uses: ./.github/workflows/build-tesseracts.yml
     with:
       matrix: ${{ needs.plan.outputs.solver_matrix }}
@@ -169,7 +206,8 @@ jobs:
       matrix: ${{ needs.plan.outputs.matrix }}
       problems: ${{ needs.plan.outputs.problems }}
       suites: ${{ needs.plan.outputs.suites }}
-      image_tag: ${{ github.sha }}
+      solvers: ${{ needs.plan.outputs.solvers }}
+      image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
       timeout: 600
     permissions:
       contents: read
@@ -184,10 +222,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+
+      - uses: quarto-dev/quarto-actions/setup@v2
 
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
@@ -234,116 +276,9 @@ jobs:
             status-report.md
           retention-days: 90
 
-      # ── Post PR comment ────────────────────────────────────────────────
-      - name: Post status comment on PR
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          .github/scripts/post-status-comment.sh \
-            "${{ github.event.pull_request.number }}" \
-            status-report.md
-
-      # ── Attach to GitHub Release (release tags only) ───────────────────
-      - name: Attach results to release
-        if: needs.plan.outputs.is_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tar czf benchmark-results.tar.gz mosaic-results/ snapshot.json status-report.md
-          gh release upload "${{ github.ref_name }}" \
-            benchmark-results.tar.gz \
-            snapshot.json \
-            status-report.md \
-            --clobber
-
-      # ── Publish to results branch (main + release) ─────────────────────
-      - name: Publish results to results branch
-        if: needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true'
-        run: |
-          set -euo pipefail
-          SHA="${{ github.sha }}"
-          SHORT_SHA="${SHA:0:8}"
-
-          git config user.name "PasteurBot"
-          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
-
-          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            git checkout "$RESULTS_BRANCH"
-          else
-            git checkout --orphan "$RESULTS_BRANCH"
-            git rm -rf . 2>/dev/null || true
-            echo "# Mosaic Benchmark Results" > README.md
-            echo "" >> README.md
-            echo "Automated benchmark results. Do not edit manually." >> README.md
-            git add README.md
-            git commit -m "Initialize results branch"
-          fi
-
-          if [[ "${{ needs.plan.outputs.is_release }}" == "true" ]]; then
-            DEST="releases/${{ github.ref_name }}"
-          else
-            TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-            DEST="runs/${TIMESTAMP}_${SHORT_SHA}"
-          fi
-
-          mkdir -p "$DEST"
-          cp snapshot.json "$DEST/"
-          cp status-report.md "$DEST/"
-          cp -r mosaic-results/* "$DEST/" 2>/dev/null || true
-
-          rm -rf latest
-          mkdir -p latest
-          cp snapshot.json latest/
-          cp status-report.md latest/
-          cp -r mosaic-results/* latest/ 2>/dev/null || true
-
-          git add .
-          git commit -m "Benchmark results for ${SHORT_SHA}
-
-          Source commit: ${SHA}
-          Problems: ${{ needs.plan.outputs.problems }}
-          Suites: ${{ needs.plan.outputs.suites }}"
-
-          git push origin "$RESULTS_BRANCH"
-
-  # ── Build docs with fresh results ──────────────────────────────────────
-  docs:
-    name: Build docs
-    needs: [plan, report]
-    if: always() && needs.report.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
-
-      - uses: quarto-dev/quarto-actions/setup@v2
-
-      - name: Install Python dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Download benchmark results
-        uses: actions/download-artifact@v8
-        with:
-          name: benchmark-results-${{ github.sha }}
-          path: bench-artifact/
-
-      - name: Stage benchmark results
-        run: |
-          if [ -d bench-artifact/mosaic-results ]; then
-            cp -r bench-artifact/mosaic-results .
-          fi
-
+      # ── Build docs & deploy PR preview ─────────────────────────────────
       - name: Generate solver reference
+        if: github.event_name != 'pull_request' || needs.plan.outputs.is_release_pr == 'true'
         run: uv run python docs/generate.py
 
       - name: Generate results pages
@@ -355,20 +290,108 @@ jobs:
           fi
 
       - name: Render site
-        run: uv run quarto render
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.plan.outputs.is_release_pr }}" != "true" ]]; then
+            echo "PR preview: rendering results pages only"
+            cp _quarto.yml _quarto.yml.bak
+            cp .github/quarto-pr-preview.yml _quarto.yml
+            uv run quarto render
+            mv _quarto.yml.bak _quarto.yml
+          else
+            uv run quarto render
+          fi
 
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: docs-${{ github.event.pull_request.number && format('preview-pr-{0}', github.event.pull_request.number) || github.sha }}
-          path: _site/
-          retention-days: 14
+      - name: Append report link to status report
+        if: github.event_name == 'pull_request'
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
+          printf '\n---\n[View full report](%s)\n' "$PREVIEW_URL" >> status-report.md
+
+      # ── Post PR comment ────────────────────────────────────────────────
+      - name: Post status comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+        run: |
+          .github/scripts/post-status-comment.sh \
+            "${{ github.event.pull_request.number }}" \
+            status-report.md
+
+      # ── Publish to results branch (release PRs only) ──────────────────
+      - name: Publish results to results branch
+        if: needs.plan.outputs.is_release_pr == 'true'
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:8}"
+          WORK=$(mktemp -d)
+
+          git config user.name "PasteurBot"
+          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
+
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            git worktree add "$WORK" "$RESULTS_BRANCH"
+          else
+            git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
+            git -C "$WORK" rm -rf . 2>/dev/null || true
+            echo "# Mosaic Benchmark Results" > "$WORK/README.md"
+            echo "" >> "$WORK/README.md"
+            echo "Automated benchmark results. Do not edit manually." >> "$WORK/README.md"
+            git -C "$WORK" add README.md
+            git -C "$WORK" commit -m "Initialize results branch"
+          fi
+
+          DEST="$WORK/releases/pending"
+          mkdir -p "$DEST"
+          cp snapshot.json status-report.md "$DEST/"
+          cp -r mosaic-results/* "$DEST/" 2>/dev/null || true
+
+          rm -rf "$WORK/latest"
+          mkdir -p "$WORK/latest"
+          cp snapshot.json status-report.md "$WORK/latest/"
+          cp -r mosaic-results/* "$WORK/latest/" 2>/dev/null || true
+
+          git -C "$WORK" add .
+          git -C "$WORK" commit -m "Benchmark results for ${SHORT_SHA}
+
+          Source commit: ${SHA}
+          Problems: ${{ needs.plan.outputs.problems }}
+          Suites: ${{ needs.plan.outputs.suites }}"
+
+          git -C "$WORK" push origin "$RESULTS_BRANCH"
+          git worktree remove "$WORK"
+
+      # ── Deploy PR preview to GitHub Pages ──────────────────────────────
+      - name: Deploy PR preview to gh-pages
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+          WORK=$(mktemp -d)
+
+          git config user.name "PasteurBot"
+          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
+
+          if git fetch origin gh-pages 2>/dev/null; then
+            git worktree add "$WORK" gh-pages
+          else
+            git worktree add --orphan "$WORK" gh-pages
+          fi
+
+          rm -rf "$WORK/pr-preview/pr-${PR_NUM}"
+          mkdir -p "$WORK/pr-preview/pr-${PR_NUM}"
+          cp -r _site/* "$WORK/pr-preview/pr-${PR_NUM}/"
+          git -C "$WORK" add pr-preview/
+          git -C "$WORK" commit -m "Deploy docs preview for PR #${PR_NUM}" --allow-empty
+          git -C "$WORK" push origin gh-pages
+          git worktree remove "$WORK"
 
   # ── Merge gate ─────────────────────────────────────────────────────────
   bench-ok:
     name: Benchmark checks passed
     if: always()
-    needs: [plan, build, benchmarks, report, docs]
+    needs: [plan, build, benchmarks, report]
     runs-on: ubuntu-latest
     steps:
       - name: Decide status
@@ -377,26 +400,37 @@ jobs:
           echo "build: ${{ needs.build.result }}"
           echo "benchmarks: ${{ needs.benchmarks.result }}"
           echo "report: ${{ needs.report.result }}"
-          echo "docs: ${{ needs.docs.result }}"
+          echo "label: ${{ needs.plan.outputs.label }}"
+          echo "mosaic_touched: ${{ needs.plan.outputs.mosaic_touched }}"
 
           # plan must always succeed
           if [[ "${{ needs.plan.result }}" != "success" ]]; then
-            echo "::error::plan failed."
+            echo "::error::Plan failed."
             exit 1
           fi
 
-          # If solvers changed on a PR without the benchmark label, block merge.
-          if [[ "${{ needs.plan.outputs.solvers_changed }}" == "true" \
-             && "${{ needs.plan.outputs.should_run }}" != "true" ]]; then
-            echo "::error::Solver code changed but the 'benchmark' label is missing. Add the label to trigger builds and benchmarks."
+          # PR that touches mosaic/ without a benchmark label → block merge
+          # (release PRs are exempt — they always run full benchmarks)
+          if [[ "${{ github.event_name }}" == "pull_request" \
+             && "${{ needs.plan.outputs.mosaic_touched }}" == "true" \
+             && "${{ needs.plan.outputs.is_release_pr }}" != "true" \
+             && -z "${{ needs.plan.outputs.label }}" ]]; then
+            echo "::error::This PR modifies mosaic/ code but has no benchmark label."
+            echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:all"
             exit 1
           fi
 
-          # When benchmarks were requested, all downstream jobs must succeed
+          # benchmark:none → pass immediately
+          if [[ "${{ needs.plan.outputs.label }}" == "none" ]]; then
+            echo "benchmark:none — skipping all benchmark checks"
+            exit 0
+          fi
+
+          # When benchmarks ran, all downstream jobs must succeed (or be skipped)
           if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
-            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}" "${{ needs.docs.result }}"; do
+            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}"; do
               if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-                echo "::error::Benchmark job failed."
+                echo "::error::Benchmark job failed ($result)."
                 exit 1
               fi
             done

@@ -550,16 +550,19 @@ These checks run on every push to the PR branch.
 
 ### The benchmark label flow
 
-Full benchmark runs require GPU runners and take significant time, so they are triggered on demand:
+Full benchmark runs require GPU runners and take significant time, so they are triggered on demand. If your PR touches any code under `mosaic/`, CI will block until a maintainer adds exactly one of these labels:
+
+- **`benchmark:none`** — skip benchmarks entirely (the maintainer trusts no answer-changing code is being merged).
+- **`benchmark:solver`** — build and benchmark only the modified solver. CI enforces that changes are isolated to a single solver directory under `mosaic/tesseracts/`.
+- **`benchmark:all`** — run the full benchmark suite from scratch (all problems, all suites).
+
+The typical flow:
 
 1. Open your PR with the solver code.
 2. CI runs lint, tests, and config validation.
-3. A maintainer reviews the code and adds the **`benchmark`** label to the PR.
-4. This triggers the full benchmark workflow on GPU infrastructure, which:
-   - Builds your solver container.
-   - Runs all evaluation suites (forward, gradient, cost, optimization).
-   - Posts the results as a comment on the PR.
-5. If the benchmark passes, the maintainer merges the PR.
+3. A maintainer reviews the code and adds the appropriate **`benchmark:*`** label.
+4. If benchmarks run, the workflow builds your solver container, runs the evaluation suites, and posts results as a PR comment.
+5. Once everything passes, the maintainer merges the PR.
 
 ### PR description
 
@@ -1084,7 +1087,7 @@ mosaic/tesseracts/diffusion-1d/
 | **Test** | `pytest` on Python 3.10 and 3.12 |
 | **Validate tesseracts** | Parses every `tesseract_config.yaml` and checks required fields |
 
-Full benchmark runs are triggered by a maintainer adding the **`benchmark`** label to your PR. See [CONTRIBUTING.md](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md) for the complete workflow.
+If your PR touches `mosaic/` code, a maintainer must add a benchmark label (`benchmark:none`, `benchmark:solver`, or `benchmark:all`) before it can merge. See [CONTRIBUTING.md](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md) for the complete workflow.
 
 ### PR description
 

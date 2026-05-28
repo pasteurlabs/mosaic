@@ -9,9 +9,13 @@ Outputs a JSON object with a single key ``include`` whose value is a list of
 ``{suite, problem, hardware}`` dicts — ready for ``fromJSON`` in a GitHub
 Actions matrix strategy.
 
+When ``--solvers`` is provided, only problems that contain at least one
+matching solver are included, and the hardware column is scoped to the
+matching solvers' capabilities.
+
 Usage (in CI):
     python .github/scripts/generate-benchmark-matrix.py \
-        --problems all --suites all
+        --problems all --suites all [--solvers "Solver Name"]
 """
 
 from __future__ import annotations
@@ -33,6 +37,12 @@ def main() -> None:
     parser.add_argument(
         "--suites", default="all", help="Comma-separated suites or 'all'"
     )
+    parser.add_argument(
+        "--solvers",
+        default="",
+        help="Comma-separated solver display names. When set, only problems "
+        "that contain at least one matching solver are included.",
+    )
     args = parser.parse_args()
 
     problem_list = (
@@ -49,12 +59,20 @@ def main() -> None:
             if s.strip() and s.strip() in SOLVER_SUITES
         ]
     )
+    solver_filter: set[str] | None = None
+    if args.solvers:
+        solver_filter = {s.strip() for s in args.solvers.split(",") if s.strip()}
 
     include = []
     for problem in problem_list:
         cfg = get_config(problem)
-        has_gpu = any(getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
-        has_cpu = any(not getattr(s, "uses_gpu", True) for s in cfg.solvers.values())
+        solvers = cfg.solvers
+        if solver_filter:
+            solvers = [s for s in solvers if s.name in solver_filter]
+            if not solvers:
+                continue
+        has_gpu = any(getattr(s, "uses_gpu", True) for s in solvers)
+        has_cpu = any(not getattr(s, "uses_gpu", True) for s in solvers)
         for suite in suite_list:
             if has_gpu:
                 include.append({"suite": suite, "problem": problem, "hardware": "gpu"})
