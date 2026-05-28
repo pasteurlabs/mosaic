@@ -45,6 +45,7 @@ jobs:
       suites: ${{ steps.decide.outputs.suites }}
       is_main: ${{ steps.decide.outputs.is_main }}
       is_release: ${{ steps.decide.outputs.is_release }}
+      time_audit: ${{ steps.decide.outputs.time_audit }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
@@ -68,6 +69,7 @@ jobs:
           SUITES="all"
           SOLVERS_CHANGED="false"
           SOLVER_MATRIX="[]"
+          TIME_AUDIT="false"
 
           # Detect changed solvers (all triggers except workflow_dispatch)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -96,6 +98,9 @@ jobs:
             SHOULD_RUN="true"
             PROBLEMS="${{ github.event.inputs.problems }}"
             SUITES="${{ github.event.inputs.suites }}"
+            if [[ "${{ github.event.inputs.time_audit }}" == "true" ]]; then
+              TIME_AUDIT="true"
+            fi
           fi
 
           # Push to main: run for changed domains
@@ -122,11 +127,16 @@ jobs:
             SUITES="all"
           fi
 
-          # PR with 'benchmark' label
+          # PR with 'benchmark' or 'time-audit' label.
+          # 'time-audit' also implies a benchmark run (in --debug mode).
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            HAS_LABEL=$(echo '${{ toJSON(github.event.pull_request.labels.*.name) }}' | grep -c '"benchmark"' || true)
-            if [[ "$HAS_LABEL" -gt 0 ]]; then
+            LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+            if echo "$LABELS" | grep -q '"benchmark"'; then
               SHOULD_RUN="true"
+            fi
+            if echo "$LABELS" | grep -q '"time-audit"'; then
+              SHOULD_RUN="true"
+              TIME_AUDIT="true"
             fi
           fi
 
@@ -137,8 +147,9 @@ jobs:
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
           echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
           echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "time_audit=$TIME_AUDIT" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN solvers_changed=$SOLVERS_CHANGED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE"
+          echo "Plan: should_run=$SHOULD_RUN solvers_changed=$SOLVERS_CHANGED problems=$PROBLEMS suites=$SUITES is_main=$IS_MAIN is_release=$IS_RELEASE time_audit=$TIME_AUDIT"
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
@@ -175,7 +186,7 @@ jobs:
       suites: ${{ needs.plan.outputs.suites }}
       image_tag: ${{ github.sha }}
       timeout: 600
-      time_audit: ${{ github.event_name == 'workflow_dispatch' && inputs.time_audit || false }}
+      time_audit: ${{ needs.plan.outputs.time_audit == 'true' }}
     permissions:
       contents: read
       packages: read
@@ -274,7 +285,7 @@ jobs:
 
       # ── Publish to results branch (main + release; never under time-audit) ──
       - name: Publish results to results branch
-        if: (needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true') && !(github.event_name == 'workflow_dispatch' && inputs.time_audit)
+        if: (needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true') && needs.plan.outputs.time_audit != 'true'
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
