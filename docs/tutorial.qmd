@@ -44,7 +44,7 @@ What Mosaic adds is a thin convention layer on top so the same Tesseract slots i
 | Layer | What it provides | Where it lives |
 |:------|:-----------------|:---------------|
 | **Base Tesseract** (tesseract-core) | Container build (`tesseract_config.yaml` → Docker image), HTTP server, the `apply` / `abstract_eval` / `vector_jacobian_product` endpoint contract, Pydantic `InputSchema` / `OutputSchema` with `Differentiable[...]` types, `tesseract init` scaffolding. | `tesseract-core` package; configured per-solver via the `name`, `version`, `description`, and `build_config:` keys in `tesseract_config.yaml`, and per-solver endpoint code in `tesseract_api.py`. |
-| **Mosaic layer** | A `metadata.mosaic:` block in `tesseract_config.yaml` for solver discovery; **canonical per-domain `InputSchema` / `OutputSchema`** in `tesseract_shared.problems.<domain>` that every solver in a domain subclasses (so cross-solver comparison is well-defined); per-(solver, problem) overrides (exclusions, input_overrides) declared in `mosaic/benchmarks/problems/<domain>/config.py`; plot styling in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. | `mosaic` package — but the per-solver surface area is just **one extra YAML block** and **subclassing the canonical schema**. |
+| **Mosaic layer** | A `metadata.mosaic:` block in `tesseract_config.yaml` for solver discovery; **canonical per-domain `InputSchema` / `OutputSchema`** in `mosaic_shared.problems.<domain>` that every solver in a domain subclasses (so cross-solver comparison is well-defined); per-(solver, problem) overrides (exclusions, input_overrides) declared in `mosaic/benchmarks/problems/<domain>/config.py`; plot styling in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. | `mosaic` package — but the per-solver surface area is just **one extra YAML block** and **subclassing the canonical schema**. |
 
 # Part A — Add a Solver to an Existing Domain
 
@@ -158,21 +158,21 @@ Plot styling (`color`, `linestyle`, `marker`) is **not** declared in the YAML. I
 
 This is the core of your contribution. The file's structure is fixed by **base Tesseract** — it must define `apply` and the `InputSchema` / `OutputSchema` Pydantic models (plus optional `abstract_eval` and `vector_jacobian_product`). The full endpoint contract is documented in [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html).
 
-The **Mosaic** addition is that your `InputSchema` and `OutputSchema` subclass the *canonical* schemas published by `tesseract_shared.problems.<domain>`, so every solver in the domain reads and writes the same fields. That's what makes cross-solver comparison well-defined.
+The **Mosaic** addition is that your `InputSchema` and `OutputSchema` subclass the *canonical* schemas published by `mosaic_shared.problems.<domain>`, so every solver in the domain reads and writes the same fields. That's what makes cross-solver comparison well-defined.
 
 ### 4.1 Import the canonical schemas
 
-Every domain defines a shared `InputSchema` and `OutputSchema` in `mosaic/tesseracts/tesseract_shared/problems/<domain>/schemas.py`. Your solver imports these and can optionally subclass them to add solver-specific parameters.
+Every domain defines a shared `InputSchema` and `OutputSchema` in `mosaic/mosaic_shared/problems/<domain>/schemas.py`. Your solver imports these and can optionally subclass them to add solver-specific parameters.
 
 ```python
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
     OutputSchema as _CanonicalOutputSchema,
 )
 ```
 
 ::: {.callout-note}
-The import path uses `tesseract_shared.problems.navier_stokes_grid`, not a relative import. Inside the container, `tesseract_shared` is installed as a package (via `tesseract_requirements.txt`).
+The import path uses `mosaic_shared.problems.navier_stokes_grid`, not a relative import. Inside the container, `mosaic_shared` is installed as a package (via `tesseract_requirements.txt`).
 :::
 
 ### 4.2 Define `InputSchema` and `OutputSchema`
@@ -180,7 +180,7 @@ The import path uses `tesseract_shared.problems.navier_stokes_grid`, not a relat
 Subclass the canonical schemas and declare which fields your solver can differentiate through. Mosaic provides `make_differentiable(base, [...])`, which returns a new Pydantic class with the listed fields wrapped in `Differentiable[...]` (preserving every other field as-is):
 
 ```python
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
@@ -349,10 +349,10 @@ This file is **base Tesseract**: tesseract-core consumes it as the pip-install m
 
 ```
 jax[cuda12]>=0.4.13
-../../tesseract_shared
+../../mosaic_shared
 ```
 
-The relative path `../../tesseract_shared` is resolved at build time relative to your solver directory (`mosaic/tesseracts/<domain>/<solver>/` → `mosaic/tesseracts/tesseract_shared/`). It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
+The relative path `../../mosaic_shared` is resolved at build time relative to your solver directory (`mosaic/tesseracts/<domain>/<solver>/` → `mosaic/mosaic_shared/`). It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
 
 ::: {.callout-note}
 For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `ins-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
@@ -626,7 +626,7 @@ mosaic new-domain diffusion-1d --from-template ns-periodic
 This creates:
 
 ```
-mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/
+mosaic/mosaic_shared/problems/diffusion_1d/
   __init__.py                    # re-exports InputSchema, OutputSchema
   schemas.py                     # InputSchema / OutputSchema (empty bodies + TODOs)
 
@@ -660,7 +660,7 @@ This is expected. We will fill in the schemas, problem package, and a reference 
 
 The schemas are the contract between the benchmark harness and every solver in your domain. All solvers import the same `InputSchema` and `OutputSchema`, so get these right first.
 
-Edit `mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/schemas.py`:
+Edit `mosaic/mosaic_shared/problems/diffusion_1d/schemas.py`:
 
 ```python
 """Canonical InputSchema / OutputSchema for diffusion-1d tesseracts.
@@ -731,7 +731,7 @@ class OutputSchema(BaseModel):
 Two equivalent ways to declare differentiable fields:
 
 * **Inline (shown above):** wrap each field's type with `Differentiable[...]` directly.
-* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `tesseract_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
+* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `mosaic_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
 :::
 
 **[`Array` type hints](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema).** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).
@@ -936,7 +936,7 @@ Per-experiment plot descriptions live on `Experiment.params` (read via `cfg.get_
 Your domain needs at least one solver for `mosaic validate-domain` to pass. Follow **Part A** of this tutorial — the same `tesseract_config.yaml` / `tesseract_api.py` / `tesseract_requirements.txt` workflow applies, with two differences for a fresh domain:
 
 1. **The solver directory lives under your new domain**: `mosaic/tesseracts/diffusion-1d/numpy-spectral/` instead of `mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/`.
-2. **`tesseract_requirements.txt`** references the shared package with `../../tesseract_shared` (still one level up — `mosaic/tesseracts/<your-domain>/<solver>/` to `mosaic/tesseracts/tesseract_shared/`).
+2. **`tesseract_requirements.txt`** references the shared package with `../../mosaic_shared` (still one level up — `mosaic/tesseracts/<your-domain>/<solver>/` to `mosaic/mosaic_shared/`).
 
 ::: {.callout-note}
 Reference solvers can be **forward-only** (e.g. an analytic / spectral baseline). Set `differentiable: false` in the YAML and skip `vector_jacobian_product`; the `gradient` and `optimization` suites will skip the solver, and it still participates in `forward` and `cost` suites as a baseline. To add a differentiable solver later, implement `vector_jacobian_product` per Part A §4.5.
@@ -946,7 +946,7 @@ For the diffusion-1d example, a 30-line spectral (FFT) `apply` is enough:
 
 ```python
 import numpy as np
-from tesseract_shared.problems.diffusion_1d import (
+from mosaic_shared.problems.diffusion_1d import (
     InputSchema as _Base, OutputSchema as _BaseOut,
 )
 
@@ -1061,7 +1061,7 @@ mosaic status -p diffusion-1d -f
 ### Files to include in your PR
 
 ```
-mosaic/tesseracts/tesseract_shared/problems/diffusion_1d/
+mosaic/mosaic_shared/problems/diffusion_1d/
   __init__.py                         # re-exports schemas
   schemas.py                          # InputSchema + OutputSchema
 
@@ -1102,6 +1102,6 @@ Include in your PR:
 
 ## Summary
 
-**Part A (solver to an existing domain).** Write one directory under `mosaic/tesseracts/<domain>/<solver>/` with three files (`tesseract_config.yaml`, `tesseract_api.py`, `tesseract_requirements.txt`). Subclass the canonical `InputSchema` / `OutputSchema` from `tesseract_shared`. Implement `apply` (always) and `vector_jacobian_product` (if you want gradients). Add a `metadata.mosaic:` block so the harness picks up your solver. Register plot styling in `solver_styles.py`. Add per-problem exclusions in the problem's `config.py` if needed.
+**Part A (solver to an existing domain).** Write one directory under `mosaic/tesseracts/<domain>/<solver>/` with three files (`tesseract_config.yaml`, `tesseract_api.py`, `tesseract_requirements.txt`). Subclass the canonical `InputSchema` / `OutputSchema` from `mosaic_shared`. Implement `apply` (always) and `vector_jacobian_product` (if you want gradients). Add a `metadata.mosaic:` block so the harness picks up your solver. Register plot styling in `solver_styles.py`. Add per-problem exclusions in the problem's `config.py` if needed.
 
-**Part B (new domain).** Scaffold from `mosaic templates` to get the file tree, define canonical schemas in `tesseract_shared/problems/<domain>/`, fill in `ics.py` / `physics.py` / `experiments.py` / `config.py` under `mosaic/benchmarks/problems/<domain>/`, then add a reference solver via Part A.
+**Part B (new domain).** Scaffold from `mosaic templates` to get the file tree, define canonical schemas in `mosaic_shared/problems/<domain>/`, fill in `ics.py` / `physics.py` / `experiments.py` / `config.py` under `mosaic/benchmarks/problems/<domain>/`, then add a reference solver via Part A.

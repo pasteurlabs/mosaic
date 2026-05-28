@@ -4,8 +4,6 @@
 """Unit tests for ``benchmarks.core.runner``.
 
 Covers behaviour reachable without a real Tesseract container:
-- the ``_install_tesseract_http_timeout`` monkey-patch (idempotent; safe with
-  or without tesseract_core installed),
 - the ``MOSAIC_TESSERACT_TIMEOUT`` env-var contract,
 - ``safe_apply`` / ``safe_apply_with_extras`` error handling (missing output
   key, non-finite arrays, exception propagation, TimeoutError messaging,
@@ -51,23 +49,12 @@ def test_connect_timeout_is_short():
     assert runner._MOSAIC_TESSERACT_CONNECT_TIMEOUT == 30.0
 
 
-# ── HTTP timeout monkey-patch ─────────────────────────────────────────────────
-
-
-def test_install_http_timeout_is_idempotent():
-    """Calling _install_tesseract_http_timeout twice must not double-wrap."""
-    # First call (module import already ran it once, this is at least the 2nd).
-    runner._install_tesseract_http_timeout()
-    runner._install_tesseract_http_timeout()
-    runner._install_tesseract_http_timeout()
-    # No exception, no infinite recursion — that's the contract.
-
-
-def test_install_http_timeout_no_op_without_tesseract_core(monkeypatch):
-    """If tesseract_core is None at module scope, the patcher returns silently."""
-    monkeypatch.setattr(runner, "tesseract_core", None)
-    # Must not raise even though there's nothing to patch.
-    runner._install_tesseract_http_timeout()
+def test_timeout_tuple_matches_components():
+    """The pre-built (connect, read) tuple matches the individual constants."""
+    assert runner.MOSAIC_TESSERACT_TIMEOUT_TUPLE == (
+        runner._MOSAIC_TESSERACT_CONNECT_TIMEOUT,
+        runner.MOSAIC_TESSERACT_TIMEOUT,
+    )
 
 
 # ── safe_apply_with_extras: success paths ─────────────────────────────────────

@@ -35,10 +35,6 @@ build_config:
            cuda-nvcc-12-3 cuda-cudart-dev-12-3 libcublas-dev-12-3 libcusparse-dev-12-3 \
         && rm -rf /var/lib/apt/lists/*
     - |
-      ENV CUDA_HOME=/usr/local/cuda \
-          PATH=/usr/local/cuda/bin:${PATH} \
-          TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;9.0
-    - |
       RUN TORCH_LIB=$(python -c "import torch; print(torch.__path__[0])")/lib \
         && echo "${TORCH_LIB}" > /etc/ld.so.conf.d/torch.conf && ldconfig
     - "RUN wget -qO /tmp/pict.tar.gz https://github.com/tum-pbs/PICT/archive/72a6e86ef3b5.tar.gz && tar -xzf /tmp/pict.tar.gz -C /opt && mv /opt/PICT-* /opt/pict && rm /tmp/pict.tar.gz"
@@ -58,6 +54,10 @@ build_config:
         && echo /opt/pict > "${PY_SITE}/pict.pth" \
         && echo "Wrote pict.pth to ${PY_SITE}" \
         && ls -la /opt/pict/PISOtorch_simulation.py
+env:
+  CUDA_HOME: "/usr/local/cuda"
+  PATH: "/usr/local/cuda/bin:${PATH}"
+  TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;9.0"
 
 metadata:
   mosaic:

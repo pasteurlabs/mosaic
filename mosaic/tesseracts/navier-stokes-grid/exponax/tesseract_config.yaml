@@ -7,9 +7,9 @@ description: >
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
-  custom_build_steps:
-    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
-    - "ENV XLA_PYTHON_CLIENT_MEM_FRACTION=0.6"
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.6"
 
 metadata:
   mosaic:

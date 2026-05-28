@@ -24,15 +24,15 @@ from typing import Any
 
 import numpy as np
 import torch
-from pydantic import Field
-from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.thermal_mesh import (
+from mosaic_shared.problems.thermal_mesh import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.thermal_mesh import (
+from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
+from pydantic import Field
+from tesseract_core.runtime import ShapeDType
 from torchfem import SolidHeat
 from torchfem.materials import IsotropicConductivity3D
 
@@ -112,7 +112,7 @@ import torchfem.sparse as _tfem_sparse  # noqa: E402
 _ORIG_SPARSE_SOLVE = _tfem_sparse.sparse_solve
 
 
-def _sparse_solve_device_safe(  # mosaic:util
+def _sparse_solve_device_safe(
     A: Any,
     b: Any,
     B: Any = None,
@@ -150,7 +150,7 @@ _K_MIN_RATIO = 1e-3
 # ---------------------------------------------------------------------------
 
 
-def _build_mesh(  # mosaic:init
+def _build_mesh(
     points_np: np.ndarray, cells_np: np.ndarray
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Convert numpy mesh arrays to torch tensors on the chosen device."""
@@ -159,7 +159,7 @@ def _build_mesh(  # mosaic:init
     return nodes, elements
 
 
-def _build_bc_tensors(  # mosaic:init
+def _build_bc_tensors(
     n_nodes: int,
     n_cells: int,
     points_np: np.ndarray,
@@ -276,7 +276,7 @@ def _build_bc_tensors(  # mosaic:init
     return constraints, displacements, forces
 
 
-def _cell_volume_from_points(points_np: np.ndarray) -> float:  # mosaic:util
+def _cell_volume_from_points(points_np: np.ndarray) -> float:
     """Infer structured-grid cell volume from unique coordinates."""
     xs = np.unique(np.round(points_np[:, 0], 7))
     ys = np.unique(np.round(points_np[:, 1], 7))
@@ -287,7 +287,7 @@ def _cell_volume_from_points(points_np: np.ndarray) -> float:  # mosaic:util
     return dx * dy * dz
 
 
-def _forward_torchfem(  # mosaic:physics
+def _forward_torchfem(
     points_np: np.ndarray,
     cells_np: np.ndarray,
     bc_dict: dict,
@@ -382,7 +382,7 @@ def _forward_torchfem(  # mosaic:physics
     return u_k, f_k, forces_base
 
 
-def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:  # mosaic:physics
+def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:
     """Shared forward solver used by both ``apply`` and ``vector_jacobian_product``.
 
     Args:
@@ -465,7 +465,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     }
 
 
-def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

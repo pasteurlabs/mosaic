@@ -1,2 +1,2 @@
 numpy==2.4.4
-../../tesseract_shared
+../../mosaic_shared
