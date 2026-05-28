@@ -429,8 +429,11 @@ problem.add_experiment(
     },
     optim={
         "lr": 5e-4,
-        "max_iters": 500,
-        "patience": 100,
+        # max_iters=250 keeps the GPU runner under the 6h CI budget; Adam
+        # doesn't converge within either budget here, so 250 just truncates a
+        # non-converging tail.
+        "max_iters": 250,
+        "patience": 50,
         "flow_penalty_weight": 50.0,
         "snap_interval": 20,
     },
