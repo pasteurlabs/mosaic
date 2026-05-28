@@ -22,14 +22,14 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from pydantic import Field
-from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.thermal_mesh import (
+from mosaic_shared.problems.thermal_mesh import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.thermal_mesh import (
+from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from pydantic import Field
+from tesseract_core.runtime import ShapeDType
 
 # ---------------------------------------------------------------------------
 # Binary path
@@ -69,7 +69,7 @@ class OutputSchema(_CanonicalOutputSchema):
 
 def _infer_grid_dims(
     inputs: InputSchema,
-) -> tuple[int, int, int, float, float, float]:  # mosaic:io
+) -> tuple[int, int, int, float, float, float]:
     """Infer structured grid dimensions from the HexMesh point array."""
     hm = inputs.hex_mesh
     pts = np.asarray(hm.points[: hm.n_points], dtype=np.float32)
@@ -94,7 +94,7 @@ def _infer_grid_dims(
 # ---------------------------------------------------------------------------
 
 
-def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
+def _write_inputs(inputs: InputSchema, wd: Path) -> None:
     """Serialise inputs to ``input.json``, ``rho.npy``, and ``source.npy`` in *wd*."""
     nx, ny, nz, Lx, Ly, Lz = _infer_grid_dims(inputs)
 
@@ -146,7 +146,7 @@ def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
         json.dump(payload, f)
 
 
-def _run_solver(wd: Path) -> None:  # mosaic:physics
+def _run_solver(wd: Path) -> None:
     """Invoke the deal.II heat_solver binary."""
     cmd = [_DEALII_SOLVER, str(wd / "input.json")]
     result = subprocess.run(cmd, cwd=str(wd), capture_output=True, text=True)
@@ -158,7 +158,7 @@ def _run_solver(wd: Path) -> None:  # mosaic:physics
         )
 
 
-def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:  # mosaic:io
+def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:
     """Read compliance.txt and (if present) temperature.npy to compute id-error."""
     with open(wd / "compliance.txt") as f:
         compliance = float(f.read().strip())

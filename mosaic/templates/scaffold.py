@@ -199,7 +199,7 @@ def scaffold_domain(
 
     Creates:
 
-    * ``tesseracts/tesseract_shared/problems/<domain>/{schemas,__init__}.py``
+    * ``mosaic_shared/problems/<domain>/{schemas,__init__}.py``
       — schema stubs (where solvers import their canonical InputSchema /
       OutputSchema).
     * ``tesseracts/<domain>/`` — empty, ready for solver dirs.
@@ -216,8 +216,8 @@ def scaffold_domain(
     slug = domain_name.replace("-", "_")
     created: dict[str, Path] = {}
 
-    # 1. Schema stubs under ``tesseract_shared/problems/<slug>``.
-    schema_dir = target_dir / "tesseracts" / "tesseract_shared" / "problems" / slug
+    # 1. Schema stubs under ``mosaic_shared/problems/<slug>``.
+    schema_dir = target_dir / "tesseracts" / "mosaic_shared" / "problems" / slug
     schema_dir.mkdir(parents=True, exist_ok=True)
 
     schema_init = schema_dir / "__init__.py"

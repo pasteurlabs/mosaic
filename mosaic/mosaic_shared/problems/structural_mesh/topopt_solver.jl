@@ -1,4 +1,3 @@
-# mosaic:util
 using TopOpt
 
 # ---------------------------------------------------------------------------
@@ -41,7 +40,6 @@ Core.eval(
 # INP file generation from raw mesh arrays
 # ---------------------------------------------------------------------------
 
-# mosaic:io
 """
     write_inp_hex(filepath, pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu)
 
@@ -141,7 +139,6 @@ end
 # Solver cache (keyed by a hash of the structural problem parameters)
 # ---------------------------------------------------------------------------
 
-# mosaic:init
 const _CACHE = Dict{UInt64, Tuple}()
 
 """Hash the inputs that define the FEA model (not rho) to cache the setup."""
@@ -183,7 +180,6 @@ end
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
-# mosaic:physics
 """
     topopt_forward(rho_in, pts_in, cells_in, dirichlet_mask_in,
                    cload_mask_in, cload_values_in, E, nu, xmin)
@@ -226,7 +222,6 @@ function topopt_forward(
     return Float64(c), Float64.(grad), Float64.(u)
 end
 
-# mosaic:grad:rho:adjoint
 """
     topopt_vjp(rho_in, cotangent, pts_in, cells_in, dirichlet_mask_in,
                cload_mask_in, cload_values_in, E, nu, xmin)

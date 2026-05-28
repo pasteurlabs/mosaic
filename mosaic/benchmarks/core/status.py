@@ -1468,21 +1468,6 @@ def cell_color(cell: Cell) -> str:
     return weight_color(cell_weight(cell))
 
 
-def cell_emoji(cell: Cell) -> str:
-    """GFM emoji for a cell, derived from its weight."""
-    return weight_emoji(cell_weight(cell))
-
-
-# Backwards-compatible alias: score is just a weight, so delegate.
-def score_color(score: float | None) -> str:
-    """Return a rich-markup colour for a score value.
-
-    Alias for ``weight_color`` — scores and cell weights share the same
-    [−0.5, +1.0] range and the same colour ladder.
-    """
-    return weight_color(score)
-
-
 def _md_score_cell(score: float | None) -> str:
     """Markdown score cell.
 

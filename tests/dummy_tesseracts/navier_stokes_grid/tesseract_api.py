@@ -5,7 +5,7 @@
 """Dummy Navier-Stokes tesseract — constant outputs for end-to-end framework tests.
 
 Imports the canonical :class:`InputSchema` / :class:`OutputSchema` from
-:mod:`tesseract_shared.problems.navier_stokes_grid` and wraps them with
+:mod:`mosaic_shared.problems.navier_stokes_grid` and wraps them with
 ``make_differentiable`` for the same fields the real solvers expose
 (``v0`` on input; ``result``, ``drag`` on output). ``apply`` returns a
 zero ``result`` array of the same shape as the incoming ``v0`` and a
@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# ``tesseract_shared`` lives under ``mosaic/tesseracts/`` as a uv-workspace
+# ``mosaic_shared`` lives under ``mosaic/tesseracts/`` as a uv-workspace
 # package. ``Tesseract.from_tesseract_api`` loads this file via
 # ``load_module_from_path``, which bypasses the import machinery that uv
 # wires up — so we have to put the workspace dir on ``sys.path`` ourselves
@@ -38,15 +38,15 @@ if str(_TESSERACTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESSERACTS_DIR))
 
 import numpy as np
-from pydantic import ConfigDict
-from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
+from pydantic import ConfigDict
+from tesseract_core.runtime import ShapeDType
 
 
 # Match the differentiable surface of the real ns-grid solvers (e.g. jax_cfd).

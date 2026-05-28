@@ -31,6 +31,5 @@ from mosaic.benchmarks.cli import ics as _ics  # noqa: E402, F401
 from mosaic.benchmarks.cli import run as _run  # noqa: E402, F401
 from mosaic.benchmarks.cli import status as _status  # noqa: E402, F401
 from mosaic.benchmarks.cli import templates as _templates  # noqa: E402, F401
-from mosaic.benchmarks.cli import tesseracts as _tesseracts  # noqa: E402, F401
 
 __all__ = ["app", "build_all", "image_tags_no_build", "run_suite"]

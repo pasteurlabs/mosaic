@@ -40,7 +40,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     vorticity_2d,
 )
 
-# Default perturb_sigma to highlight on the single-experiment NS paper figure.
+# Default perturb_sigma to highlight on the single-experiment NS figure.
 _PAPER_NS_SIGMA = "0.1"
 
 
@@ -501,7 +501,7 @@ def _plot_per_sigma_grid(
 
 
 def _solver_order_for(cfg_name: str) -> list[str]:
-    """Heuristic solver-ordering pick by problem name (paper figure)."""
+    """Heuristic solver-ordering pick by problem name."""
     if "ns" in cfg_name:
         return NS_ORDER
     if "structural" in cfg_name:
@@ -511,7 +511,7 @@ def _solver_order_for(cfg_name: str) -> list[str]:
     return NS_ORDER
 
 
-def _paper_plot_ns_recovery(
+def _plot_ns_recovery(
     ax: Any, data: dict, solver_order: list[str], title: str, seen: set[str]
 ) -> None:
     """Draw NS-style by_sweep convergence into *ax* from ``data``."""
@@ -554,14 +554,14 @@ def _paper_plot_ns_recovery(
     ax.yaxis.set_minor_locator(mticker.NullLocator())
 
 
-def _plot_paper_recovery_experiment(
+def _plot_recovery_experiment(
     cfg: Problem,
     *,
     exp_key: str,
     suffix: str,
     save: bool,
 ) -> plt.Figure | None:
-    """Single-experiment paper-styled IC-recovery convergence figure.
+    """Single-experiment styled IC-recovery convergence figure.
 
     Draws per-solver IC-error vs iteration on a log scale (using the
     representative sigma slice, see ``_PAPER_NS_SIGMA``). Reads
@@ -584,7 +584,7 @@ def _plot_paper_recovery_experiment(
     solver_order = _solver_order_for(cfg.name)
 
     if "by_sweep" in data or "by_horizon" in data:
-        _paper_plot_ns_recovery(
+        _plot_ns_recovery(
             ax,
             data,
             solver_order,
@@ -655,11 +655,11 @@ def plot_recovery(
     exp_key: str = "optimization",
     **_kw: Any,
 ) -> Any:
-    """Recovery per-experiment plot — paper figure + extras.
+    """Recovery per-experiment plot — styled figure + extras.
 
-    The canonical paper-styled IC-recovery convergence figure is generated
-    inline by :func:`_plot_paper_recovery_experiment` so the polished paper
-    styling lands on the experiment results dir too. This wrapper
+    The canonical styled IC-recovery convergence figure is generated
+    inline by :func:`_plot_recovery_experiment` so the polished styling
+    lands on the experiment results dir too. This wrapper
     additionally produces:
 
       * ``optimization`` — recovery improvement + min-loss summary panel.
@@ -698,15 +698,13 @@ def plot_recovery(
         out_dir, by_sweep, sweep_vals, sweep_key
     )
 
-    # ── Canonical paper figure (inlined) ──────────────────────────────────────
+    # ── Canonical figure (inlined) ────────────────────────────────────────────
     # When the experiment lives in a per-IC subdir, reflect the suffix so the
-    # paper figure lands next to result.json in the IC subdir.
+    # figure lands next to result.json in the IC subdir.
     paper_suffix = suffix
     if out_dir != base_dir and out_dir.name != base_dir.name:
         paper_suffix = f"{suffix}/{out_dir.name}"
-    _plot_paper_recovery_experiment(
-        cfg, exp_key=exp_key, suffix=paper_suffix, save=save
-    )
+    _plot_recovery_experiment(cfg, exp_key=exp_key, suffix=paper_suffix, save=save)
 
     # ── recovery.png: 2 panels ─────────────────────────────────────────────────
     fig_r = _plot_recovery_summary(
