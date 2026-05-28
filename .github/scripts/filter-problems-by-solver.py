@@ -12,7 +12,7 @@ CI path to narrow the matrix when ``detect-changed-problems`` returns
 
 Usage (in CI):
     python .github/scripts/filter-problems-by-solver.py \
-        --problems all --solvers "Test Spectral"
+        --problems all --solvers "Exponax"
 """
 
 from __future__ import annotations
