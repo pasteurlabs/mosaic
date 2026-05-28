@@ -52,3 +52,6 @@ mosaic-results/
 uv.lock
 
 /.quarto/
+
+# Version file (auto-generated)
+mosaic/_version.py

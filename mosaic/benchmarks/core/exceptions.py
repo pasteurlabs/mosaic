@@ -12,9 +12,3 @@ class TesseractTimeout(TimeoutError):
     Subclasses ``TimeoutError`` so existing ``except TimeoutError`` clauses
     continue to work.
     """
-
-
-# Backward-compat aliases.
-WatchdogError = TesseractTimeout
-ContainerDied = TesseractTimeout
-WatchdogTimeout = TesseractTimeout

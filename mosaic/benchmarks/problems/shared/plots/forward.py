@@ -234,7 +234,9 @@ def _alias_to_display_name(cfg: Any) -> dict[str, str]:
     return {s.dir.replace("-", "_"): s.name for s in cfg.solvers}
 
 
-def _agreement_paper_plot_curves(ax: Any, data: dict, seen: set[str], cfg: Any) -> None:
+def _agreement_plot_curves_styled(
+    ax: Any, data: dict, seen: set[str], cfg: Any
+) -> None:
     """Plot per-solver error-vs-sweep curves onto ``ax``.
 
     Walks :data:`NS_ORDER`, drawing every solver that produced at least
@@ -280,7 +282,7 @@ def _agreement_paper_plot_curves(ax: Any, data: dict, seen: set[str], cfg: Any) 
         seen.add(solver)
 
 
-def _agreement_paper_style_axis(
+def _agreement_style_axis(
     ax: Any,
     *,
     title: str,
@@ -316,14 +318,14 @@ def _agreement_paper_style_axis(
     ax.tick_params(axis="x", labelsize=7, rotation=30)
 
 
-def _agreement_paper_figure(
+def _agreement_figure(
     cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Path
 ) -> plt.Figure:
-    """Paper-styled single-experiment agreement figure.
+    """Styled single-experiment agreement figure.
 
     Writes ``agreement.pdf`` next to ``result.json``. Single axis plots
     per-solver error vs the sweep parameter (sweep_key inferred from the
-    result file), styled with the paper palette + rcParams.
+    result file), styled with the shared palette + rcParams.
     """
     plt.rcParams.update(RCPARAMS)
 
@@ -336,10 +338,10 @@ def _agreement_paper_figure(
     fig.subplots_adjust(bottom=0.30, left=0.18, right=0.95, top=0.88)
 
     seen: set[str] = set()
-    _agreement_paper_plot_curves(ax, data, seen, cfg)
+    _agreement_plot_curves_styled(ax, data, seen, cfg)
 
     x_label = _agreement_math_label(sweep_key)
-    _agreement_paper_style_axis(
+    _agreement_style_axis(
         ax,
         title=f"{cfg.category_label or cfg.name} — vs {sweep_key}",
         x_label=x_label,
@@ -372,14 +374,13 @@ def _agreement_paper_figure(
 def _agreement_convergence(
     cfg: Any, exp_key: Any, suffix: Any, save: Any, out_dir: Any
 ) -> None:
-    """Error vs sweep param line chart (paper styling).
+    """Error vs sweep param line chart (styled).
 
-    Renders the canonical single-experiment paper-styled figure
-    (``agreement.pdf`` next to ``result.json``). The previous
-    ``convergence.png`` / ``errors.png`` shared-style files are
-    superseded by this paper-styled output.
+    Renders the canonical single-experiment figure (``agreement.pdf``
+    next to ``result.json``). The previous ``convergence.png`` /
+    ``errors.png`` shared-style files are superseded by this output.
     """
-    fig = _agreement_paper_figure(
+    fig = _agreement_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
     plt.close(fig)
@@ -829,11 +830,11 @@ def plot_physical_laws(
     exp_key: str = "physical_laws",
     **_kw: Any,
 ) -> Any:
-    """Per-experiment physical-laws figure (paper styling).
+    """Per-experiment physical-laws figure (styled).
 
     Reads ``<results>/<cfg.name>/forward/<exp_key>{suffix}/result.json``
     (or its sub-dirs when the experiment is a multi-run sweep) and writes
-    a paper-styled PDF named ``physical_accuracy.pdf`` next to it.
+    a styled PDF named ``physical_accuracy.pdf`` next to it.
 
     Detection:
       * If the experiment dir contains ``result.json``: single FEM panel

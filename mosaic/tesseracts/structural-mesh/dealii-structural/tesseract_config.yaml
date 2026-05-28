@@ -4,21 +4,15 @@ description: >
   deal.II Q1 trilinear hexahedral FEM linear-elasticity solver via C++ subprocess (UMFPACK
   direct). Forward-only — reference implementation for cross-framework validation.
 build_config:
-  # NOTE: the upstream `dealii/dealii:latest` image defaults to USER `dealii`,
-  # so the tesseract template's hardcoded apt-get steps fail with EACCES on
-  # /var/lib/apt/lists/partial. Use the locally-built `dealii-root:latest`
-  # wrapper (shared with thermal-mesh/dealii-heat); `mosaic build` auto-runs
-  # `build_base.sh` in this directory before the tesseract build, so the
-  # wrapper is always fresh.
-  base_image: "dealii-root:latest"
+  base_image: "dealii/dealii:v9.7.1-jammy"
   extra_packages:
     - nlohmann-json3-dev
   package_data:
-    - ["../../tesseract_shared", "/tmp/tesseract_shared"]
+    - ["../../mosaic_shared", "/tmp/mosaic_shared"]
     - ["./src", "/opt/dealii_struct/src"]
     - ["./CMakeLists.txt", "/opt/dealii_struct/CMakeLists.txt"]
   custom_build_steps:
-    - "RUN pip install /tmp/tesseract_shared"
+    - "RUN pip install /tmp/mosaic_shared"
     - "RUN cd /opt/dealii_struct && cmake -B build -DCMAKE_BUILD_TYPE=Release . && cmake --build build -j4"
 
 metadata:

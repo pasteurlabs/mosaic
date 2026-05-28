@@ -17,7 +17,7 @@ bc_description: >
   right face (uniform traction by default; flip `corner_load: True` for a
   concentrated upward corner load).
 
-schema_module: tesseract_shared.problems.structural_mesh
+schema_module: mosaic_shared.problems.structural_mesh
 output_key: compliance
 ic_key: rho
 domain_extent: 2.0

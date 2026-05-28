@@ -405,10 +405,15 @@ problem.add_experiment(
         # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
         # projection divergence at N=64 (discontinuity at obstacle boundary
         # overwhelms the periodic Poisson solve at step ~20).
+        # steps=200 (was 400): at dt=0.02 with U_mean=0.5 in a unit domain,
+        # one flow-through is ~100 steps. 200 steps = 2 flow-throughs, with
+        # the drag tail-window mean averaging over the last 100 steps — long
+        # enough to wash out residual transients at Re=20 (no vortex
+        # shedding). Halves the forward/backward solver wall per opt iter.
         "N": 32,
         "nu": 0.0025,
         "dt": 0.02,
-        "steps": 400,
+        "steps": 200,
         "domain_extent": 1.0,
         "U_mean": 0.5,
         "obstacle": {
@@ -419,8 +424,11 @@ problem.add_experiment(
     },
     optim={
         "lr": 5e-4,
-        "max_iters": 500,
-        "patience": 100,
+        # max_iters=250 keeps the GPU runner under the 6h CI budget; Adam
+        # doesn't converge within either budget here, so 250 just truncates a
+        # non-converging tail.
+        "max_iters": 250,
+        "patience": 50,
         "flow_penalty_weight": 50.0,
         "snap_interval": 20,
     },

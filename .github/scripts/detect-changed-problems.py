@@ -68,12 +68,12 @@ if not diff_files:
 
 # Core harness changes trigger everything. ``problems/shared/`` is the
 # new home of the per-suite runners (forward, gradient, cost, optimization)
-# that used to live under ``suites/``; ``tesseracts/tesseract_shared/``
+# that used to live under ``suites/``; ``mosaic_shared/``
 # is the renamed/relocated ``mosaic_shared/``.
 CORE_PREFIXES = (
     "mosaic/benchmarks/core/",
     "mosaic/benchmarks/problems/shared/",
-    "mosaic/tesseracts/tesseract_shared/",
+    "mosaic/mosaic_shared/",
 )
 if any(f.startswith(CORE_PREFIXES) for f in diff_files):
     print("all")

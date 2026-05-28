@@ -99,82 +99,16 @@ def _status_render_cell(cell: Any) -> str:
     return f"[{cell_color(cell)}]{label}[/]"
 
 
-def _status_tally_problem(st: Any) -> tuple[dict, list]:
-    """Count cells per category for one problem's status snapshot.
-
-    Returns ``(counts, all_cells)`` where ``counts`` has keys
-    ``n_ok``, ``n_anom``, ``n_fail``, ``n_missing``, ``n_excl_work``,
-    ``n_excl_perm``, ``n_stale``, ``n_stale_ok``. ``ok`` is *fresh*-ok only
-    — stale-ok cells contribute to ``stale_ok`` (in score denominator but not
-    numerator). ``all_cells`` is the flat list used for ``compute_score``.
-    """
-    from mosaic.benchmarks.core.status import (
-        ANOMALY,
-        EXCL_PERMANENT,
-        EXCLUDED,
-        FAILED,
-        NOT_RUN,
-        OK,
-    )
-
-    n_ok = n_anom = n_fail = n_missing = n_excl_work = n_excl_perm = 0
-    n_stale = n_stale_ok = 0
-    all_cells = []
-    for row in st.rows:
-        for solver in st.solvers:
-            cell = row.cells.get(solver)
-            if not cell:
-                continue
-            all_cells.append(cell)
-            is_stale = getattr(cell, "stale", False)
-            if is_stale:
-                n_stale += 1
-            if cell.status == OK:
-                if is_stale:
-                    n_stale_ok += 1
-                else:
-                    n_ok += 1
-            elif cell.status == ANOMALY:
-                n_anom += 1
-            elif cell.status == FAILED:
-                n_fail += 1
-            elif cell.status == NOT_RUN:
-                n_missing += 1
-            elif cell.status == EXCLUDED:
-                if cell.category in EXCL_PERMANENT:
-                    n_excl_perm += 1
-                else:
-                    n_excl_work += 1
-    counts = {
-        "n_ok": n_ok,
-        "n_anom": n_anom,
-        "n_fail": n_fail,
-        "n_missing": n_missing,
-        "n_excl_work": n_excl_work,
-        "n_excl_perm": n_excl_perm,
-        "n_stale": n_stale,
-        "n_stale_ok": n_stale_ok,
-    }
-    return counts, all_cells
-
-
 def _status_print_problem_table(
-    problem: str, st: Any, counts: dict, score: Any, score_n: Any
+    problem: str, st: Any, t: dict, score: Any, score_n: Any
 ) -> None:
     """Render the per-problem rule + experiment x solver table."""
     from rich.table import Table
 
     from mosaic.benchmarks.core.status import format_score, weight_color
 
-    n_ok = counts["n_ok"]
-    n_total = (
-        counts["n_ok"]
-        + counts["n_anom"]
-        + counts["n_fail"]
-        + counts["n_missing"]
-        + counts["n_excl_work"]
-        + counts["n_stale_ok"]
-    )
+    n_ok = t["fresh_ok"]
+    n_total = t["total"]
     _hdr_colour = weight_color(score)
     print_rule(
         f"[bold {_hdr_colour}]{problem}[/]  —  {len(st.rows)} experiment(s), "
