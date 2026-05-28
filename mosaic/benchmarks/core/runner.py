@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import atexit
 import concurrent.futures
+import contextlib
 import json
 import os
 import queue
@@ -154,6 +156,77 @@ def current_worker_context() -> WorkerContext:
 # Docker label scoping prevents concurrent runs on different problems from
 # killing each other's containers during cleanup.
 _current_problem: str = ""
+
+
+# ── Container lifecycle tracking ──────────────────────────────────────────────
+#
+# Tesseract.__exit__ calls .teardown() which docker-removes the container.
+# When the process is interrupted (Ctrl-C, SIGTERM, OOM-kill of the Python
+# interpreter) the context-manager __exit__ may never fire — especially in
+# ThreadPoolExecutor worker threads where KeyboardInterrupt is only delivered
+# to the main thread.
+#
+# We track every container name opened by _tracked_tesseract and remove it from
+# the set when the context manager exits normally.  An atexit hook and signal
+# handler force-remove any containers still in the set at shutdown.
+
+_live_containers: set[str] = set()
+_live_containers_lock = threading.Lock()
+
+
+def _force_remove_containers() -> None:
+    """Force-remove all tracked containers.  Best-effort, never raises."""
+    with _live_containers_lock:
+        names = list(_live_containers)
+        _live_containers.clear()
+    for name in names:
+        try:
+            subprocess.run(
+                ["docker", "rm", "-f", name],
+                capture_output=True,
+                timeout=10,
+            )
+        except Exception:
+            pass
+
+
+atexit.register(_force_remove_containers)
+
+
+@contextlib.contextmanager
+def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
+    """Open a Tesseract and track its container for cleanup on crash.
+
+    Tags prefixed with ``inprocess:`` use
+    :meth:`Tesseract.from_tesseract_api` (no Docker, just imports a
+    ``tesseract_api.py``) — meant for end-to-end framework tests
+    with the dummy tesseracts in ``tests/dummy_tesseracts/``.
+    Every other tag is a Docker image and goes through
+    :meth:`Tesseract.from_image`.
+    """
+    if tag.startswith("inprocess:"):
+        with Tesseract.from_tesseract_api(tag[len("inprocess:") :]) as t:
+            yield t
+        return
+
+    t = Tesseract.from_image(tag, gpus=gpus, docker_args=docker_args, num_workers=1)
+    # Entering the context manager starts the container and populates
+    # _serve_context, which contains the container name we need to track.
+    t.__enter__()
+    container_name = (t._serve_context or {}).get("container_name")
+    if container_name:
+        with _live_containers_lock:
+            _live_containers.add(container_name)
+    try:
+        yield t
+    finally:
+        try:
+            t.__exit__(None, None, None)
+        finally:
+            if container_name:
+                with _live_containers_lock:
+                    _live_containers.discard(container_name)
+
 
 # ── Image management ──────────────────────────────────────────────────────────
 
@@ -646,22 +719,6 @@ def run_with_gpu_pool(
         )
     solver_names = [n for n in solver_names if n in tags]
 
-    def _open_tesseract(tag: str, gpus: object, docker_args: object) -> object:
-        """Pick the right loader for ``tag``.
-
-        Tags prefixed with ``inprocess:`` use
-        :meth:`Tesseract.from_tesseract_api` (no Docker, just imports a
-        ``tesseract_api.py``) — meant for end-to-end framework tests
-        with the dummy tesseracts in ``tests/dummy_tesseracts/``.
-        Every other tag is a Docker image and goes through
-        :meth:`Tesseract.from_image`.
-        """
-        if tag.startswith("inprocess:"):
-            return Tesseract.from_tesseract_api(tag[len("inprocess:") :])
-        return Tesseract.from_image(
-            tag, gpus=gpus, docker_args=docker_args, num_workers=1
-        )
-
     if gpu_ids is None or gpu_ids == []:
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])
         # gpu_ids=[]    → --gpus none/cpu, CPU-only host (gpus=None, no GPU flags)
@@ -670,7 +727,7 @@ def run_with_gpu_pool(
             _tl.image_tag = tags[name]
             _tl.gpu_id = None  # all GPUs available
             try:
-                with _open_tesseract(tags[name], _gpus, _NO_HC) as t:
+                with _tracked_tesseract(tags[name], _gpus, _NO_HC) as t:
                     fn(name, t)
             except Exception as exc:
                 print_warn(f"{name} failed: {exc}")
@@ -689,7 +746,7 @@ def run_with_gpu_pool(
         try:
             _tl.image_tag = tags[name]
             _tl.gpu_id = gid
-            with _open_tesseract(tags[name], [gid], _NO_HC) as t:
+            with _tracked_tesseract(tags[name], [gid], _NO_HC) as t:
                 fn(name, t)
         except Exception as exc:
             print_warn(f"{name} failed: {exc}")
