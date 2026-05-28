@@ -695,8 +695,8 @@ class Problem:
         params: dict = {"plot_description": plot_description}
         if status_check:
             params["status_check"] = list(status_check)
-        # Surface reference metadata so CI can detect which solvers are
-        # needed as references (detect-reference-solvers.py).
+        # Surface reference metadata so the runner can auto-include
+        # reference solvers when --solvers narrows the solver list.
         for run_dict in config.get("runs", []):
             if "reference" in run_dict:
                 params.setdefault("reference", run_dict["reference"])

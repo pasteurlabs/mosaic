@@ -97,13 +97,11 @@ jobs:
 
       - name: Pull solver images from GHCR
         run: |
-          SOLVERS="${{ inputs.solvers }}"
           uv run python .github/scripts/pull-solver-images.py \
             --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
             --problems "${{ matrix.problem }}" \
             --hardware "${{ matrix.hardware }}" \
-            --tag "${{ inputs.image_tag }}" \
-            ${SOLVERS:+--solvers "$SOLVERS"}
+            --tag "${{ inputs.image_tag }}"
 
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
         run: |
