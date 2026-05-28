@@ -67,7 +67,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # ---------------------------------------------------------------------------
 
 
-def _build_firedrake_mesh(  # mosaic:init
+def _build_firedrake_mesh(
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask: np.ndarray,
@@ -213,7 +213,7 @@ def _build_firedrake_mesh(  # mosaic:init
 
 def _cell_reorder_map(
     pts: np.ndarray, input_cells: np.ndarray, fd_mesh: Any
-) -> np.ndarray:  # mosaic:util
+) -> np.ndarray:
     """Build Firedrake-cell-index → input-cell-index permutation via centroid matching.
 
     Firedrake may reorder cells when loading from a GMSH file.  This function
@@ -246,7 +246,7 @@ def _cell_reorder_map(
 # ---------------------------------------------------------------------------
 
 
-def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
+def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:
     """Extract Dirichlet mask and values arrays from a MeshBC object.
 
     When ``dirichlet.values`` is ``None`` (homogeneous BCs), the number of
@@ -273,7 +273,7 @@ def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     return mask, values
 
 
-def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
+def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:
     """Extract Neumann mask and values arrays from a MeshBC object.
 
     Returns:
@@ -294,7 +294,7 @@ def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
 # ---------------------------------------------------------------------------
 
 
-def _solve_elasticity(  # mosaic:physics
+def _solve_elasticity(
     rho_values: np.ndarray,
     pts: np.ndarray,
     cells: np.ndarray,
@@ -307,7 +307,7 @@ def _solve_elasticity(  # mosaic:physics
     xmin: float = 1e-3,
     penal: float = 3.0,
     compute_gradient: bool = False,
-):  # mosaic:physics
+):
     """Solve 3-D linear elasticity with SIMP topology optimisation.
 
     Solves:
@@ -476,7 +476,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(compliance=np.float32(J_val))
 
 
-def vector_jacobian_product(  # mosaic:grad:rho:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

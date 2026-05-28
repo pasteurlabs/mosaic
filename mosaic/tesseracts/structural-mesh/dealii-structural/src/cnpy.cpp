@@ -1,4 +1,3 @@
-// mosaic:io
 // cnpy — C++ library for reading/writing NumPy .npy files.
 // MIT License — original by Carl Rogers (https://github.com/rogersce/cnpy).
 
@@ -19,7 +18,6 @@ namespace cnpy {
 // ---------------------------------------------------------------------------
 // Type-map: C++ type → NumPy dtype string
 // ---------------------------------------------------------------------------
-// mosaic:util
 static char BigEndianChar() {
   int x = 1;
   return (*(char*)&x == 1) ? '<' : '>';
@@ -42,7 +40,6 @@ template<> struct TypeStr<uint64_t> { static std::string str() {
 // ---------------------------------------------------------------------------
 // Build .npy header
 // ---------------------------------------------------------------------------
-// mosaic:io
 static std::vector<char> build_npy_header(
   const std::string &dtype_str,
   bool fortran_order,
@@ -86,7 +83,6 @@ static std::vector<char> build_npy_header(
 // ---------------------------------------------------------------------------
 // Parse .npy header
 // ---------------------------------------------------------------------------
-// mosaic:io
 static void parse_npy_header(std::istream &is,
                               size_t &word_size,
                               std::vector<size_t> &shape,
@@ -182,7 +178,6 @@ static void parse_npy_header(std::istream &is,
 // ---------------------------------------------------------------------------
 // npy_load
 // ---------------------------------------------------------------------------
-// mosaic:io
 NpyArray npy_load(const std::string &fname)
 {
   std::ifstream fs(fname, std::ios::binary);
@@ -204,7 +199,6 @@ NpyArray npy_load(const std::string &fname)
 // ---------------------------------------------------------------------------
 // npy_save (template specialisations instantiated here)
 // ---------------------------------------------------------------------------
-// mosaic:io
 template<typename T>
 void npy_save(const std::string &fname, const T *data,
               const std::vector<size_t> &shape,
