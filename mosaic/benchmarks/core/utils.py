@@ -119,7 +119,11 @@ def _debug_run(run: dict) -> None:
                 vals = sane
         sweep["values"] = vals[:2]
     optim = run.get("optim", {})
-    for key, cap in [("max_iters", 50), ("patience", 10)]:
+    # Bare minimum iterations: enough to amortise JAX compile and observe a
+    # few step times, but small enough that even the slowest GPU drag_opt
+    # finishes well inside the CI step timeout. This makes ``--debug`` usable
+    # as a time-audit mode (cf. ``time_audit`` workflow input).
+    for key, cap in [("max_iters", 5), ("patience", 3)]:
         if key in optim:
             optim[key] = min(optim[key], cap)
     cost = run.get("cost", {})

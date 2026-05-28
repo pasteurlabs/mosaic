@@ -23,6 +23,10 @@ on:
         description: "Per-job timeout in minutes"
         type: number
         default: 120
+      time_audit:
+        description: "Pass --debug to 'mosaic run' for a bare-minimum timing audit."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -101,11 +105,16 @@ jobs:
 
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
         run: |
+          DEBUG_FLAG=""
+          if [[ "${{ inputs.time_audit }}" == "true" ]]; then
+            DEBUG_FLAG="--debug"
+            echo "Time-audit mode: passing --debug to 'mosaic run'"
+          fi
           uv run mosaic run \
             --suites ${{ matrix.suite }} \
             --problems ${{ matrix.problem }} \
             --hardware ${{ matrix.hardware }} \
-            --no-build
+            --no-build $DEBUG_FLAG
         timeout-minutes: ${{ inputs.timeout }}
 
       - uses: actions/upload-artifact@v7

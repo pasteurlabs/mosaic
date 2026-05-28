@@ -35,6 +35,7 @@ SUBCOMMANDS = [
     "build",
     "status",
     "compare",
+    "timing-report",
     "validate-domain",
     "new-domain",
     "validate-template",

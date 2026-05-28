@@ -14,6 +14,10 @@ on:
       suites:
         description: "Comma-separated suites to run (or 'all')"
         default: "all"
+      time_audit:
+        description: "Time-audit mode: pass --debug to 'mosaic run' (bare-minimum iterations) and skip publishing results to the results branch. Use for systematic timing measurements."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -171,6 +175,7 @@ jobs:
       suites: ${{ needs.plan.outputs.suites }}
       image_tag: ${{ github.sha }}
       timeout: 600
+      time_audit: ${{ github.event_name == 'workflow_dispatch' && inputs.time_audit || false }}
     permissions:
       contents: read
       packages: read
@@ -224,6 +229,15 @@ jobs:
           fi
           uv run mosaic status --format md $DIFF_FLAG > status-report.md
 
+      - name: Generate timing report (markdown)
+        run: |
+          uv run mosaic timing-report --format md > timing-report.md
+          {
+            echo "# Timing report"
+            echo
+            cat timing-report.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload merged results artifact
         uses: actions/upload-artifact@v7
         with:
@@ -232,6 +246,7 @@ jobs:
             mosaic-results/
             snapshot.json
             status-report.md
+            timing-report.md
           retention-days: 90
 
       # ── Post PR comment ────────────────────────────────────────────────
@@ -257,9 +272,9 @@ jobs:
             status-report.md \
             --clobber
 
-      # ── Publish to results branch (main + release) ─────────────────────
+      # ── Publish to results branch (main + release; never under time-audit) ──
       - name: Publish results to results branch
-        if: needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true'
+        if: (needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true') && !(github.event_name == 'workflow_dispatch' && inputs.time_audit)
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
