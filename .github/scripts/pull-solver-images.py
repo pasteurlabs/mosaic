@@ -41,6 +41,12 @@ def main() -> None:
         help="Registry tag to pull (e.g. a commit SHA). Tries this first, "
         "falls back to 'latest' for images that weren't built at this tag.",
     )
+    parser.add_argument(
+        "--solvers",
+        default=None,
+        help="Comma-separated solver display names to restrict pulling to. "
+        "When set, only matching solvers are pulled; others are skipped.",
+    )
     args = parser.parse_args()
 
     registry = args.registry.lower().rstrip("/")
@@ -49,6 +55,9 @@ def main() -> None:
         if args.problems == "all"
         else [p.strip() for p in args.problems.split(",")]
     )
+    solver_filter: set[str] | None = None
+    if args.solvers:
+        solver_filter = {s.strip() for s in args.solvers.split(",") if s.strip()}
 
     seen: set[str] = set()
     failed: list[str] = []
@@ -59,6 +68,9 @@ def main() -> None:
         except Exception:
             continue
         for spec in cfg.solvers:
+            # --solvers filter: skip solvers not in the requested set
+            if solver_filter and spec.name not in solver_filter:
+                continue
             uses_gpu = getattr(spec, "uses_gpu", True)
             if args.hardware == "gpu" and not uses_gpu:
                 continue

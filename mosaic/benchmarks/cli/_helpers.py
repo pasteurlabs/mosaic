@@ -116,50 +116,6 @@ def _apply_solver_filter(cfg: Any, solvers_csv: str | None) -> Any:
     return dataclasses.replace(cfg, solvers=keep)
 
 
-def _include_reference_solvers(filtered_cfg: Any, full_cfg: Any) -> Any:
-    """Add back solvers needed as experiment references that were removed by ``--solvers``.
-
-    Scans experiment params for ``reference={"solvers": {...}}`` and
-    ``reference_solver=...`` entries.  Any referenced solver that exists in
-    *full_cfg* (i.e. survived the ``--hardware`` filter) but is missing from
-    *filtered_cfg* is silently re-added so the comparison is meaningful.
-    """
-    filtered_names = {s.name for s in filtered_cfg.solvers}
-    full_by_key = {s.key: s for s in full_cfg.solvers}
-    full_by_name = {s.name: s for s in full_cfg.solvers}
-
-    needed: set[str] = set()
-    for exp in filtered_cfg.experiments.values():
-        params = exp.params
-        ref = params.get("reference")
-        if isinstance(ref, dict) and "solvers" in ref:
-            for solver_id in ref["solvers"]:
-                if solver_id in full_by_key:
-                    needed.add(full_by_key[solver_id].name)
-                elif solver_id in full_by_name:
-                    needed.add(solver_id)
-        ref_solver = params.get("reference_solver")
-        if ref_solver:
-            if ref_solver in full_by_key:
-                needed.add(full_by_key[ref_solver].name)
-            elif ref_solver in full_by_name:
-                needed.add(ref_solver)
-
-    missing = needed - filtered_names
-    if not missing:
-        return filtered_cfg
-
-    # Add back from the hardware-filtered full_cfg.
-    extra = [s for s in full_cfg.solvers if s.name in missing]
-    if extra:
-        added = [s.name for s in extra]
-        print_warn(f"auto-including reference solver(s): {', '.join(sorted(added))}")
-        return dataclasses.replace(
-            filtered_cfg, solvers=list(filtered_cfg.solvers) + extra
-        )
-    return filtered_cfg
-
-
 def _parse_per_problem_solver_map(s: str) -> dict[str, list[str]]:
     """Parse ``"<problem>=<csv>;<problem>=<csv>"`` into ``{problem: [solvers]}``.
 
@@ -278,15 +234,9 @@ def _resolve_cfg_and_tags(
     # returns ``None`` when -s leaves zero solvers for this problem — we
     # propagate that as the same skip-signal triple so the caller can mark
     # the problem skipped without entering the build step.
-    hw_cfg = cfg  # snapshot before --solvers narrows the list
     cfg = _apply_solver_filter(cfg, solvers_csv)
     if cfg is None:
         return None, {}, gpus
-    # Auto-include reference solvers required by experiments (e.g. jax-cfd
-    # for fine-grid agreement, OpenFOAM for cylinder reference) that were
-    # dropped by --solvers but survive the --hardware filter.
-    if solvers_csv:
-        cfg = _include_reference_solvers(cfg, hw_cfg)
     # --plots-only must never trigger an image build: the operation is purely
     # filesystem-level (load result.json, re-render PNG/PDF), so a rebuild is
     # pure overhead and can wedge the process behind a multi-minute docker
@@ -410,11 +360,9 @@ def _run_prepare_problem(
         gpus = "none"
     cfg, gpus = _resolve_gpu_pool(cfg, gpus)
     if solvers:
-        hw_cfg = cfg
         cfg = _apply_solver_filter(cfg, solvers)
         if cfg is None:
             return None, {}, gpus
-        cfg = _include_reference_solvers(cfg, hw_cfg)
     return cfg, {}, gpus
 
 

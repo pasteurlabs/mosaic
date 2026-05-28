@@ -695,13 +695,6 @@ class Problem:
         params: dict = {"plot_description": plot_description}
         if status_check:
             params["status_check"] = list(status_check)
-        # Surface reference metadata so the runner can auto-include
-        # reference solvers when --solvers narrows the solver list.
-        for run_dict in config.get("runs", []):
-            if "reference" in run_dict:
-                params.setdefault("reference", run_dict["reference"])
-            if "reference_solver" in run_dict:
-                params.setdefault("reference_solver", run_dict["reference_solver"])
         self.experiments[key] = Experiment(
             fn=fn,
             params=params,

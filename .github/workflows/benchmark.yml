@@ -113,12 +113,12 @@ jobs:
               solver)
                 # All mosaic/ changes must be under mosaic/tesseracts/
                 NON_SOLVER=$(echo "$DIFF_FILES" | grep '^mosaic/' | grep -v '^mosaic/tesseracts/' || true)
-                # if [[ -n "$NON_SOLVER" ]]; then
-                #   echo "::error::benchmark:solver requires all mosaic/ changes to be under mosaic/tesseracts/. These files violate that:"
-                #   echo "$NON_SOLVER"
-                #   echo "::error::Use benchmark:all instead."
-                #   exit 1
-                # fi
+                if [[ -n "$NON_SOLVER" ]]; then
+                  echo "::error::benchmark:solver requires all mosaic/ changes to be under mosaic/tesseracts/. These files violate that:"
+                  echo "$NON_SOLVER"
+                  echo "::error::Use benchmark:all instead."
+                  exit 1
+                fi
                 # Must be exactly 0 or 1 solver
                 NUM_SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
                 if [[ "$NUM_SOLVERS" -gt 1 ]]; then
@@ -135,18 +135,8 @@ jobs:
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
                   fi
-                  # Extract display name so downstream only pulls/runs this solver.
-                  # Reference solvers (needed for agreement comparisons) are
-                  # auto-included by the runner at runtime.
+                  # Extract display name so downstream only pulls/runs this solver
                   SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
-                  # Narrow PROBLEMS to those where the changed solver exists
-                  # (detect-changed-problems may return "all" when core files
-                  # change, but benchmark:solver should only run relevant problems).
-                  PROBLEMS=$(uv run python .github/scripts/filter-problems-by-solver.py \
-                    --problems "$PROBLEMS" --solvers "$SOLVERS")
-                  if [[ -z "$PROBLEMS" ]]; then
-                    SHOULD_RUN="false"
-                  fi
                 fi
                 ;;
               all)
@@ -284,7 +274,10 @@ jobs:
             status-report.md
           retention-days: 90
 
-      # ── Build results-only preview (full docs are built by docs.yml) ───
+      # ── Build docs & deploy PR preview ─────────────────────────────────
+      - name: Generate solver reference
+        run: uv run python docs/generate.py
+
       - name: Generate results pages
         run: |
           if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
@@ -293,30 +286,15 @@ jobs:
             echo "No benchmark results available — skipping results page generation"
           fi
 
-      - name: Render results pages only
-        run: |
-          # Only render QMD files for problems that have results (not stale
-          # committed QMDs for problems that weren't part of this run).
-          RESULT_FILES=""
-          for problem_dir in mosaic-results/*/; do
-            slug=$(basename "$problem_dir" | tr '-' '_')
-            qmd="docs/results_${slug}.qmd"
-            if [ -f "$qmd" ]; then
-              RESULT_FILES="$RESULT_FILES $qmd"
-            fi
-          done
-          if [ -n "$RESULT_FILES" ]; then
-            uv run quarto render $RESULT_FILES
-          else
-            echo "No results pages to render"
-          fi
+      - name: Render site
+        run: uv run quarto render
 
-      - name: Append results link to status report
+      - name: Append report link to status report
         if: github.event_name == 'pull_request'
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
           PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
-          printf '\n> **[:bar_chart: Benchmark results](%s)**\n>\n> Cross-solver comparisons and detailed plots.\n' "$PREVIEW_URL" >> status-report.md
+          printf '\n---\n[View full report](%s)\n' "$PREVIEW_URL" >> status-report.md
 
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
@@ -393,7 +371,7 @@ jobs:
           mkdir -p "$WORK/pr-preview/pr-${PR_NUM}"
           cp -r _site/* "$WORK/pr-preview/pr-${PR_NUM}/"
           git -C "$WORK" add pr-preview/
-          git -C "$WORK" commit -m "Deploy results preview for PR #${PR_NUM}" --allow-empty
+          git -C "$WORK" commit -m "Deploy docs preview for PR #${PR_NUM}" --allow-empty
           git -C "$WORK" push origin gh-pages
           git worktree remove "$WORK"
 
