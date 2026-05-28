@@ -1137,7 +1137,11 @@ def _run_pict(
         domain,
         substeps=1,
         time_step=float(dt_val),
-        corrector_steps=4,
+        # PISO is conventionally run with 2 pressure correctors (Issa 1986);
+        # 4 was a conservative default and roughly doubles per-step wall.
+        # Re=20 cylinder & decaying-TGV regression checks remained within
+        # the existing status_checks bounds, so we run with 2 by default.
+        corrector_steps=2,
         non_orthogonal=False,
         differentiable=differentiable,
         log_dir=None,
