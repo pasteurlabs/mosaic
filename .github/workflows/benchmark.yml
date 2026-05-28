@@ -136,14 +136,21 @@ jobs:
                     SHOULD_RUN="false"
                   fi
                   # Extract display name so downstream only pulls/runs this solver
-                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
-                  # Include reference solvers so comparisons are meaningful
-                  REF_SOLVERS=$(uv run python .github/scripts/detect-reference-solvers.py \
-                    --problems "$PROBLEMS" --changed "$SOLVERS")
-                  if [[ -n "$REF_SOLVERS" ]]; then
-                    SOLVERS="${SOLVERS},${REF_SOLVERS}"
-                    echo "Added reference solvers: $REF_SOLVERS"
+                  CHANGED=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
+                  # Build per-problem solver map: changed + reference solvers,
+                  # scoped to each problem so we don't inject solver names that
+                  # don't exist in a given problem (e.g. jax-cfd not in ns-3d-grid).
+                  SOLVERS=$(uv run python .github/scripts/detect-reference-solvers.py \
+                    --problems "$PROBLEMS" --changed "$CHANGED")
+                  # Narrow PROBLEMS to only those in the solver map (the map
+                  # omits problems where neither the changed solver nor any
+                  # reference exists).
+                  if [[ -n "$SOLVERS" ]]; then
+                    PROBLEMS=$(echo "$SOLVERS" | tr ';' '\n' | cut -d= -f1 | paste -sd, -)
+                  else
+                    SHOULD_RUN="false"
                   fi
+                  echo "Per-problem solver map: $SOLVERS"
                 fi
                 ;;
               all)

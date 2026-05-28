@@ -26,6 +26,32 @@ import sys
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
 
+def _parse_solver_filter(solvers_str: str, problem_list: list[str]) -> set[str] | None:
+    """Parse a solver filter string into a flat set of display names.
+
+    Supports both formats:
+      - Flat CSV: ``"Foo,Bar"`` → ``{"Foo", "Bar"}``
+      - Per-problem map: ``"ns-grid=Foo,Bar;ns-3d-grid=Baz"`` → union of
+        entries matching the requested ``problem_list``.
+
+    Returns ``None`` if the per-problem map has no entries for the
+    requested problems (no filter applied).
+    """
+    if "=" not in solvers_str:
+        return {s.strip() for s in solvers_str.split(",") if s.strip()} or None
+    # Per-problem map format.
+    names: set[str] = set()
+    requested = set(problem_list)
+    for entry in solvers_str.split(";"):
+        entry = entry.strip()
+        if not entry or "=" not in entry:
+            continue
+        prob, csv = entry.split("=", 1)
+        if prob.strip() in requested:
+            names |= {s.strip() for s in csv.split(",") if s.strip()}
+    return names or None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry", required=True, help="Container registry prefix")
@@ -44,7 +70,8 @@ def main() -> None:
     parser.add_argument(
         "--solvers",
         default=None,
-        help="Comma-separated solver display names to restrict pulling to. "
+        help="Solver display names to restrict pulling to. Accepts either a "
+        "flat CSV ('Foo,Bar') or a per-problem map ('p1=Foo;p2=Bar,Baz'). "
         "When set, only matching solvers are pulled; others are skipped.",
     )
     args = parser.parse_args()
@@ -57,7 +84,7 @@ def main() -> None:
     )
     solver_filter: set[str] | None = None
     if args.solvers:
-        solver_filter = {s.strip() for s in args.solvers.split(",") if s.strip()}
+        solver_filter = _parse_solver_filter(args.solvers, problem_list)
 
     seen: set[str] = set()
     failed: list[str] = []
