@@ -57,7 +57,6 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
     plot_horizon_sweep,
-    plot_jacobian_svd,
     plot_jacobian_svd_comparison,
     plot_param_sweep,
 )
@@ -360,7 +359,6 @@ problem.add_experiment(
     plot_description="Singular-value spectrum and pairwise cross-solver cosine similarity of gradient subspaces.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 10},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps20",
@@ -371,7 +369,6 @@ problem.add_experiment(
     ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 20},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_steps40",
@@ -382,7 +379,6 @@ problem.add_experiment(
     ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.001, "dt": 0.05, "steps": 40},
-    plot=plot_jacobian_svd,
 )
 problem.add_experiment(
     "gradient/jacobian_svd_nu01",
@@ -393,7 +389,6 @@ problem.add_experiment(
     ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 8, "nu": 0.01, "dt": 0.05, "steps": 10},
-    plot=plot_jacobian_svd,
 )
 
 # Optimization
@@ -410,10 +405,15 @@ problem.add_experiment(
         # N=32 used (not 64): IBM hard-masking in jax-cfd causes pressure
         # projection divergence at N=64 (discontinuity at obstacle boundary
         # overwhelms the periodic Poisson solve at step ~20).
+        # steps=200 (was 400): at dt=0.02 with U_mean=0.5 in a unit domain,
+        # one flow-through is ~100 steps. 200 steps = 2 flow-throughs, with
+        # the drag tail-window mean averaging over the last 100 steps — long
+        # enough to wash out residual transients at Re=20 (no vortex
+        # shedding). Halves the forward/backward solver wall per opt iter.
         "N": 32,
         "nu": 0.0025,
         "dt": 0.02,
-        "steps": 400,
+        "steps": 200,
         "domain_extent": 1.0,
         "U_mean": 0.5,
         "obstacle": {
@@ -424,8 +424,11 @@ problem.add_experiment(
     },
     optim={
         "lr": 5e-4,
-        "max_iters": 500,
-        "patience": 100,
+        # max_iters=250 keeps the GPU runner under the 6h CI budget; Adam
+        # doesn't converge within either budget here, so 250 just truncates a
+        # non-converging tail.
+        "max_iters": 250,
+        "patience": 50,
         "flow_penalty_weight": 50.0,
         "snap_interval": 20,
     },

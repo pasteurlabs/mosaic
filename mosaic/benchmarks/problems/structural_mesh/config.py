@@ -36,7 +36,6 @@ from mosaic.benchmarks.problems.shared.cost import (
 from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
     fd_check,
-    jacobian_svd,
     param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
@@ -46,7 +45,6 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 )
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
-    plot_jacobian_svd,
     plot_param_sweep,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
@@ -322,33 +320,10 @@ problem.add_experiment(
     plot=plot_param_sweep,
 )
 problem.add_experiment(
-    "gradient/jacobian_svd",
-    jacobian_svd,
-    plot_description=(
-        "Singular-value spectrum of the stacked per-solver gradient matrix "
-        "and pairwise cosine similarity between solver gradient directions."
-    ),
-    ic={"name": "random", "seed": 0},
-    physics={
-        "nx": 8,
-        "ny": 2,
-        "nz": 4,
-        "Lx": 2.0,
-        "Ly": 1.0,
-        "Lz": 1.0,
-        "F_total": 1.0,
-        "corner_load": True,
-    },
-    jacobian={"n_alphas": 21, "alpha_range": 0.2},
-    plot=plot_jacobian_svd,
-)
-
-problem.add_experiment(
-    "optimization/topopt_bfgs",
+    "optimization/topopt",
     topopt,
-    optimizer="bfgs",
     plot_description=(
-        "SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: "
+        "SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): "
         "compliance C = F^T U and density field evolution under a "
         "50% volume-fraction constraint."
     ),
@@ -368,7 +343,7 @@ problem.add_experiment(
         "x_min": 1e-3,
         "snap_interval": 5,
     },
-    optim={"max_iters": 100, "patience": 20},
+    optim={"lr": 5e-2, "max_iters": 2500, "patience": 100},
     plot=plot_topopt,
 )
 

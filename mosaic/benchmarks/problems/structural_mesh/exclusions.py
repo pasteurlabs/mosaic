@@ -60,7 +60,7 @@ def register(problem: Problem) -> None:
     problem.exclude("cost/vjp_cost", {"dealii_structural": DEALII_NO_VJP})
 
     # Gradient — suite-level, covers every gradient/* below
-    # (fd_check, jacobian_svd, param_sweep, …).
+    # (fd_check, param_sweep, …).
     problem.exclude("gradient", {"dealii_structural": DEALII_NO_VJP})
 
     # Optimization — topopt requires a differentiable compliance gradient.
