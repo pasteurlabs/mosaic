@@ -41,9 +41,7 @@ _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # ---------------------------------------------------------------------------
 
 
-def _make_vertex_grid(
-    N: int, ndim: int, dtype: torch.dtype
-) -> torch.Tensor:  # mosaic:init
+def _make_vertex_grid(N: int, ndim: int, dtype: torch.dtype) -> torch.Tensor:
     """Build a uniform vertex-coordinate grid with unit cell spacing.
 
     PICT uses unit cell spacing (dx=1), so vertex coordinates run from 0 to N
@@ -73,7 +71,7 @@ def _make_vertex_grid(
     return grid.contiguous()
 
 
-def _make_uniform_rect_grid(  # mosaic:init
+def _make_uniform_rect_grid(
     nx: int, ny: int, x0: float, y0: float, x1: float, y1: float, dtype: torch.dtype
 ) -> torch.Tensor:
     """Build a uniform orthogonal vertex grid for a rectangular block.
@@ -97,7 +95,7 @@ def _make_uniform_rect_grid(  # mosaic:init
     return grid.contiguous()
 
 
-def _make_arc_block_grid(  # mosaic:init
+def _make_arc_block_grid(
     nx: int,
     ny: int,
     outer_rect: tuple,
@@ -214,7 +212,7 @@ def _make_arc_block_grid(  # mosaic:init
     return grid.contiguous()
 
 
-def _make_corner_block_grid(  # mosaic:init
+def _make_corner_block_grid(
     nx: int,
     ny: int,
     outer_rect: tuple,
@@ -322,7 +320,7 @@ def _make_corner_block_grid(  # mosaic:init
     return grid.contiguous()
 
 
-def _make_domain(  # mosaic:init
+def _make_domain(
     viscosity_val: torch.Tensor,
     N: int,
     ndim: int,
@@ -498,7 +496,7 @@ def _make_domain(  # mosaic:init
     )
 
 
-def _make_domain_cylinder(  # mosaic:init
+def _make_domain_cylinder(
     viscosity_val: torch.Tensor,
     N: int,
     in_vel: float,
@@ -957,7 +955,7 @@ def _make_domain_cylinder(  # mosaic:init
 # ---------------------------------------------------------------------------
 
 
-def _v0_to_pict(  # mosaic:io
+def _v0_to_pict(
     v0_np: np.ndarray,
     device: torch.device,
     dtype: torch.dtype,
@@ -992,7 +990,7 @@ def _v0_to_pict(  # mosaic:io
     return t
 
 
-def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:  # mosaic:io
+def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:
     """Convert PICT channels-first tensor → canonical velocity array.
 
     2-D: NCHW (1, 2, ny, nx) → (nx, ny, 1, 2)
@@ -1014,7 +1012,7 @@ def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:  # mosaic
 # ---------------------------------------------------------------------------
 
 
-def _run_pict(  # mosaic:physics
+def _run_pict(
     v0_tensor: torch.Tensor,
     viscosity_val: torch.Tensor,
     dt_val: float,
@@ -1238,7 +1236,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return {"result": out_np, "drag": drag_np}
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,inflow_profile:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -1376,7 +1374,7 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,inflow_profile:autodiff
 
     # Collect all leaf tensors we want gradients for in one backward pass so
     # the autograd graph is only traversed once.
-    # mosaic:grad:v0,inflow_profile,viscosity:autodiff
+
     grad_targets: list[torch.Tensor] = []
     grad_keys: list[str] = []
     if want_v0:
@@ -1421,12 +1419,12 @@ def vector_jacobian_product(  # mosaic:grad:v0,viscosity,inflow_profile:autodiff
     # autograd graph but were still requested (allow_unused → g is None).
     if want_viscosity and "viscosity" not in out:
         out["viscosity"] = np.zeros_like(nu_np)
-    # mosaic:grad:dt:zero
+
     if "dt" in vjp_inputs:
         out["dt"] = np.zeros_like(dt_np)
     # Requested gradients for BC inputs that weren't differentiated (e.g. no
     # autograd leaf available) come back as zeros to keep the VJP shape valid.
-    # mosaic:grad:inflow_profile:autodiff
+
     if (
         "inflow_profile" in vjp_inputs
         and "inflow_profile" not in out

@@ -31,7 +31,7 @@ wp.init()
 
 
 @wp.func
-def sanitize_float(v: float, clip: float) -> float:  # mosaic:util
+def sanitize_float(v: float, clip: float) -> float:
     """Replace NaN/Inf with 0 and clamp to [-clip, clip].
 
     Extracted as a @wp.func so it can be reused in multiple kernels without
@@ -57,7 +57,7 @@ def sanitize_float(v: float, clip: float) -> float:  # mosaic:util
 
 
 @wp.kernel
-def tentative_vel_2d_kernel(  # mosaic:physics
+def tentative_vel_2d_kernel(
     ux: wp.array2d(dtype=wp.float32),
     uy: wp.array2d(dtype=wp.float32),
     ux_star: wp.array2d(dtype=wp.float32),
@@ -99,7 +99,7 @@ def tentative_vel_2d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def divergence_2d_kernel(  # mosaic:physics
+def divergence_2d_kernel(
     ux: wp.array2d(dtype=wp.float32),
     uy: wp.array2d(dtype=wp.float32),
     div: wp.array2d(dtype=wp.float32),
@@ -119,7 +119,7 @@ def divergence_2d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def pressure_correct_2d_kernel(  # mosaic:physics
+def pressure_correct_2d_kernel(
     ux_star: wp.array2d(dtype=wp.float32),
     uy_star: wp.array2d(dtype=wp.float32),
     p: wp.array2d(dtype=wp.float32),
@@ -150,7 +150,7 @@ def pressure_correct_2d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def tentative_vel_3d_kernel(  # mosaic:physics
+def tentative_vel_3d_kernel(
     ux: wp.array3d(dtype=wp.float32),
     uy: wp.array3d(dtype=wp.float32),
     uz: wp.array3d(dtype=wp.float32),
@@ -229,7 +229,7 @@ def tentative_vel_3d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def divergence_3d_kernel(  # mosaic:physics
+def divergence_3d_kernel(
     ux: wp.array3d(dtype=wp.float32),
     uy: wp.array3d(dtype=wp.float32),
     uz: wp.array3d(dtype=wp.float32),
@@ -253,7 +253,7 @@ def divergence_3d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def pressure_correct_3d_kernel(  # mosaic:physics
+def pressure_correct_3d_kernel(
     ux_star: wp.array3d(dtype=wp.float32),
     uy_star: wp.array3d(dtype=wp.float32),
     uz_star: wp.array3d(dtype=wp.float32),
@@ -282,7 +282,7 @@ def pressure_correct_3d_kernel(  # mosaic:physics
 
 
 @wp.kernel
-def _clip_and_sanitize_3d_kernel(  # mosaic:physics
+def _clip_and_sanitize_3d_kernel(
     arr: wp.array3d(dtype=wp.float32),
     clip: float,
 ):
@@ -297,14 +297,12 @@ def _clip_and_sanitize_3d_kernel(  # mosaic:physics
     arr[i, j, k] = sanitize_float(arr[i, j, k], clip)
 
 
-def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):  # mosaic:util
+def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
     """wp.launch wrapper. block_dim must be an int (Warp 1.12 dropped tuple support)."""
     wp.launch(kernel, dim=dim, inputs=inputs, block_dim=block_dim, device=device)
 
 
-def _spectral_poisson_3d_np(
-    rhs_np: np.ndarray, domain_extent: float
-) -> np.ndarray:  # mosaic:physics
+def _spectral_poisson_3d_np(rhs_np: np.ndarray, domain_extent: float) -> np.ndarray:
     """Solve ∇²p = rhs on a 3-D periodic domain via FFT (exact up to float32).
 
     Returns p (same shape as rhs), mean-free (DC component = 0).
@@ -340,7 +338,7 @@ def _spectral_poisson_3d_np(
     return np.real(np.fft.ifftn(p_hat)).astype(np.float32)
 
 
-def _spectral_poisson_3d_tape(  # mosaic:grad:v0:adjoint
+def _spectral_poisson_3d_tape(
     rhs_wp: wp.array,
     domain_extent: float,
     tape: wp.Tape,
@@ -401,7 +399,7 @@ def _spectral_poisson_3d_tape(  # mosaic:grad:v0:adjoint
 # ============================================================
 
 
-def _tentative_vel_2d_backward_np(  # mosaic:grad:v0:adjoint
+def _tentative_vel_2d_backward_np(
     ux_np: np.ndarray,
     uy_np: np.ndarray,
     adj_ux_star_np: np.ndarray,
@@ -495,7 +493,7 @@ def _tentative_vel_2d_backward_np(  # mosaic:grad:v0:adjoint
     return adj_ux.astype(np.float32), adj_uy.astype(np.float32)
 
 
-def _tentative_vel_3d_backward_np(  # mosaic:grad:v0:adjoint
+def _tentative_vel_3d_backward_np(
     ux_np: np.ndarray,
     uy_np: np.ndarray,
     uz_np: np.ndarray,
@@ -630,7 +628,7 @@ def _tentative_vel_3d_backward_np(  # mosaic:grad:v0:adjoint
     )
 
 
-def _tentative_vel_3d_tape(  # mosaic:grad:v0:adjoint
+def _tentative_vel_3d_tape(
     ux_wp: wp.array,
     uy_wp: wp.array,
     uz_wp: wp.array,
@@ -818,7 +816,7 @@ def _tentative_vel_3d_tape(  # mosaic:grad:v0:adjoint
     return ux_star_wp, uy_star_wp, uz_star_wp
 
 
-def _tentative_vel_2d_tape(  # mosaic:grad:v0:adjoint
+def _tentative_vel_2d_tape(
     ux_wp: wp.array,
     uy_wp: wp.array,
     dt: float,
@@ -1009,9 +1007,7 @@ def _tentative_vel_2d_tape(  # mosaic:grad:v0:adjoint
     return ux_star_wp, uy_star_wp
 
 
-def _spectral_poisson_2d_np(
-    rhs_np: np.ndarray, domain_extent: float
-) -> np.ndarray:  # mosaic:physics
+def _spectral_poisson_2d_np(rhs_np: np.ndarray, domain_extent: float) -> np.ndarray:
     """Solve ∇²p = rhs on a 2-D periodic domain via FFT (exact up to float32).
 
     [2D-only function]
@@ -1030,7 +1026,7 @@ def _spectral_poisson_2d_np(
     return np.real(np.fft.ifft2(p_hat)).astype(np.float32)
 
 
-def _spectral_poisson_2d_tape(  # mosaic:grad:v0:adjoint
+def _spectral_poisson_2d_tape(
     rhs_wp: wp.array,
     domain_extent: float,
     tape: wp.Tape,
@@ -1074,7 +1070,7 @@ def _spectral_poisson_2d_tape(  # mosaic:grad:v0:adjoint
     return p_wp
 
 
-def ns2d_solve(  # mosaic:physics
+def ns2d_solve(
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -1321,7 +1317,7 @@ def ns2d_solve(  # mosaic:physics
     )
 
 
-def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
+def ns2d_vjp(
     tape: wp.Tape,
     ux_final: wp.array,
     uy_final: wp.array,
@@ -1346,7 +1342,6 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
       3. Pressure correction: adj_dt += sum(adj_u_new * (-grad_p))
     All three are registered as record_func backward closures in ns2d_solve.
     """
-    # mosaic:grad:v0:adjoint
     ux_final.grad = wp.array(
         cotangent_np[:, :, 0, 0].astype(np.float32), dtype=wp.float32, device=device
     )
@@ -1362,11 +1357,10 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     if uy_ic.grad is not None:
         grad_v0[:, :, 0, 1] = uy_ic.grad.numpy()
 
-    # mosaic:grad:viscosity:adjoint
     grad_nu = np.zeros(1, dtype=np.float32)
     if nu_wp is not None and nu_wp.grad is not None:
         grad_nu[0] = float(nu_wp.grad.numpy()[0])
-    # mosaic:grad:dt:adjoint
+
     grad_dt = np.zeros(1, dtype=np.float32)
     if dt_wp is not None and dt_wp.grad is not None:
         grad_dt[0] = float(dt_wp.grad.numpy()[0])
@@ -1383,7 +1377,7 @@ def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
 # ============================================================
 
 
-def ns3d_solve(  # mosaic:physics
+def ns3d_solve(
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -1609,7 +1603,7 @@ def ns3d_solve(  # mosaic:physics
     )
 
 
-def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
+def ns3d_vjp(
     tape: wp.Tape,
     ux_final: wp.array,
     uy_final: wp.array,
@@ -1621,7 +1615,6 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     device: str,
 ) -> dict[str, np.ndarray]:
     """Propagate cotangents through the 3-D IPCS tape."""
-    # mosaic:grad:v0:adjoint
     ux_final.grad = wp.array(
         cotangent_np[:, :, :, 0].astype(np.float32), dtype=wp.float32, device=device
     )
@@ -1642,7 +1635,6 @@ def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
     if uz_ic.grad is not None:
         grad_v0[:, :, :, 2] = uz_ic.grad.numpy()
 
-    # mosaic:grad:viscosity,dt:adjoint
     grads: dict[str, np.ndarray] = {
         "v0": grad_v0.astype(np.float32),
         "viscosity": np.zeros(1, dtype=np.float32),
@@ -1690,11 +1682,11 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
 # ============================================================
 
 
-def _warp_device() -> str:  # mosaic:util
+def _warp_device() -> str:
     return "cuda:0" if wp.is_cuda_available() else "cpu"
 
 
-def _is_3d(v0_np: np.ndarray) -> bool:  # mosaic:util
+def _is_3d(v0_np: np.ndarray) -> bool:
     """True if the velocity field is 3-D (shape N,N,N,3 with nz != 1)."""
     return v0_np.ndim == 4 and v0_np.shape[2] != 1 and v0_np.shape[3] == 3
 
@@ -1749,7 +1741,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(result=result, drag=None)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

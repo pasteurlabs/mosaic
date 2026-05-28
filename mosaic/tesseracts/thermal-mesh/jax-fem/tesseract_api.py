@@ -41,7 +41,7 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
-def _compute_identification_error(  # mosaic:physics
+def _compute_identification_error(
     T_nodes: jnp.ndarray, target_temperature: jnp.ndarray
 ) -> jnp.ndarray:
     """Compute ||T - target_temperature||²_2 (scalar, float32).
@@ -64,7 +64,7 @@ def _compute_identification_error(  # mosaic:physics
 #
 
 
-class HeatConduction(Problem):  # mosaic:physics
+class HeatConduction(Problem):
     """Steady-state heat conduction problem with SIMP conductivity interpolation."""
 
     def custom_init(self, von_neumann_value_fns: list[Callable]) -> None:
@@ -176,7 +176,7 @@ class HeatConduction(Problem):  # mosaic:physics
         return val
 
 
-def setup(  # mosaic:init
+def setup(
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
     boundary_conditions: dict | None = None,
@@ -273,7 +273,7 @@ def setup(  # mosaic:init
     return problem, fwd_pred
 
 
-def apply_fn(inputs: dict) -> dict:  # mosaic:physics
+def apply_fn(inputs: dict) -> dict:
     """Compute the thermal compliance given a density field.
 
     Args:
@@ -326,7 +326,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_fn(inputs.model_dump())
 
 
-def jacobian_vector_product(  # mosaic:grad:rho,source:autodiff
+def jacobian_vector_product(
     inputs: InputSchema,
     jvp_inputs: set[str],
     jvp_outputs: set[str],
@@ -345,7 +345,7 @@ def jacobian_vector_product(  # mosaic:grad:rho,source:autodiff
     )[1]
 
 
-def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

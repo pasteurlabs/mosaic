@@ -59,7 +59,7 @@ from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):  # mosaic:init
+def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
     """Build the XLB operator bundle for a given (ndim, precision, collision kind).
 
     `kind` selects the collision operator: "bgk" (default, fast) or "kbc"
@@ -204,7 +204,7 @@ del _np
 # ---------------------------------------------------------------------------
 
 
-def _feq(  # mosaic:physics
+def _feq(
     C: jnp.ndarray, W: jnp.ndarray, rho: jnp.ndarray, u: jnp.ndarray
 ) -> jnp.ndarray:
     """Quadratic equilibrium distribution (used for BCs only).
@@ -225,7 +225,7 @@ def _feq(  # mosaic:physics
     return rho * w * (1.0 + 3.0 * cu + 4.5 * cu**2 - 1.5 * usqr)
 
 
-def _make_obstacle_mask_xlb(  # mosaic:init
+def _make_obstacle_mask_xlb(
     obstacle: dict | None, spatial: tuple
 ) -> jnp.ndarray | None:
     """Rasterize geometric obstacle to a boolean JAX mask, shape (1, *spatial)."""
@@ -249,7 +249,7 @@ def _make_obstacle_mask_xlb(  # mosaic:init
     raise ValueError(f"XLB: unsupported obstacle shape {obstacle['shape']!r}")
 
 
-def _compute_drag_lbm(  # mosaic:physics
+def _compute_drag_lbm(
     f: jnp.ndarray,
     C: jnp.ndarray,
     obs_mask_1: jnp.ndarray,
@@ -329,7 +329,7 @@ def _compute_drag_lbm(  # mosaic:physics
     return jnp.reshape(drag, (1,))
 
 
-def xlb_fwd(  # mosaic:physics
+def xlb_fwd(
     v0: jnp.ndarray,
     viscosity: float,
     dt: float,
@@ -600,7 +600,7 @@ def xlb_fwd(  # mosaic:physics
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:  # mosaic:io
+def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass for the XLB solver."""
     result, drag = xlb_fwd(**inputs)
     out = {"result": result}
@@ -608,7 +608,7 @@ def apply_jit(inputs: dict) -> dict:  # mosaic:io
     return out
 
 
-def _unpack_scalars(d: dict) -> dict:  # mosaic:io
+def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in ("viscosity", "dt"):
         if key in d:
@@ -630,7 +630,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(d)
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -700,16 +700,14 @@ _DIFF_INPUT_KEYS: tuple[str, ...] = (
 _vjp_compiled_cache: dict = {}
 
 
-def _scalar_f64(x: Any):  # mosaic:util
+def _scalar_f64(x: Any):
     """Coerce a scalar-like (Python float, 0-D / 1-D array) to a float64 scalar."""
     if hasattr(x, "astype"):
         return jnp.asarray(x, dtype=jnp.float64)
     return jnp.asarray(x, dtype=jnp.float64)
 
 
-def _run_forward_f64(
-    inputs: dict, diff_bundle: dict
-) -> tuple:  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
+def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
     """Run xlb_fwd in float64 with diff inputs overridden from diff_bundle.
 
     Non-diff inputs (steps, boundary_conditions, obstacle, domain_extent) are
@@ -796,9 +794,7 @@ def _run_forward_f64(
     return result, drag
 
 
-def _build_diff_bundle(
-    inputs: dict, include: tuple[str, ...]
-) -> dict:  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
+def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:
     """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys.
 
     Only includes paths that are actually present (non-None) in the primal

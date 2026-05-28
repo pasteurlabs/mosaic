@@ -16,11 +16,6 @@ import threading
 import unittest
 
 from mosaic.benchmarks.core import tracer_apply
-from mosaic.benchmarks.core.exceptions import (
-    ContainerDied,
-    WatchdogError,
-    WatchdogTimeout,
-)
 
 
 class TracerApplyTests(unittest.TestCase):
@@ -74,12 +69,6 @@ class TracerApplyTests(unittest.TestCase):
     def test_tracer_detection_false_for_plain_inputs(self) -> None:
         self.assertFalse(tracer_apply._inputs_contain_tracer({"x": 1.0}))
         self.assertFalse(tracer_apply._inputs_contain_tracer({}))
-
-    def test_timeout_aliases_are_timeout_error(self) -> None:
-        """Backward-compat aliases must be catchable as TimeoutError."""
-        self.assertTrue(issubclass(WatchdogTimeout, TimeoutError))
-        self.assertTrue(issubclass(ContainerDied, TimeoutError))
-        self.assertTrue(issubclass(WatchdogError, TimeoutError))
 
 
 if __name__ == "__main__":

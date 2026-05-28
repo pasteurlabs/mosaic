@@ -85,7 +85,7 @@ with _julia_init_lock:
     _jl = _jl_mod
 
 
-def _get_jl():  # mosaic:util
+def _get_jl():
     """Return the initialised Julia module."""
     return _jl
 
@@ -115,7 +115,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # ---------------------------------------------------------------------------
 
 
-def _to_julia(arr: np.ndarray):  # mosaic:io
+def _to_julia(arr: np.ndarray):
     """Convert a numpy array to a Julia array (zero-copy when contiguous)."""
     import juliacall
 
@@ -123,12 +123,12 @@ def _to_julia(arr: np.ndarray):  # mosaic:io
     return juliacall.convert(jl.Array, np.ascontiguousarray(arr))
 
 
-def _to_numpy(jl_arr: Any) -> np.ndarray:  # mosaic:io
+def _to_numpy(jl_arr: Any) -> np.ndarray:
     """Convert a Julia array to a numpy array."""
     return np.asarray(jl_arr).copy()
 
 
-def _unpack(inputs: InputSchema):  # mosaic:io
+def _unpack(inputs: InputSchema):
     """Extract active mesh/BC arrays from the padded InputSchema."""
     hm = inputs.hex_mesh
     pts = np.asarray(hm.points[: hm.n_points], dtype=np.float64)
@@ -170,7 +170,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(compliance=np.float32(c))
 
 
-def vector_jacobian_product(  # mosaic:grad:rho:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

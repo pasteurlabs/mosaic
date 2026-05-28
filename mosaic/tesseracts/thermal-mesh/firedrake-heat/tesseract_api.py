@@ -63,7 +63,7 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
-def _build_firedrake_mesh(  # mosaic:init
+def _build_firedrake_mesh(
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask: np.ndarray,
@@ -174,7 +174,7 @@ def _build_firedrake_mesh(  # mosaic:init
 
 def _cell_reorder_map(
     pts: np.ndarray, input_cells: np.ndarray, fd_mesh: Any
-) -> np.ndarray:  # mosaic:util
+) -> np.ndarray:
     """Build Firedrake-cell-index → input-cell-index permutation via centroid matching."""
     input_centroids = pts[input_cells].mean(axis=1)
     coord_arr = fd_mesh.coordinates.dat.data_ro
@@ -185,7 +185,7 @@ def _cell_reorder_map(
     return fd_to_input
 
 
-def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:  # mosaic:util
+def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:
     """Build Firedrake-node-index → input-node-index permutation via coordinate matching."""
     fd_coords = fd_mesh.coordinates.dat.data_ro
     tree = cKDTree(pts)
@@ -198,7 +198,7 @@ def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:  # mosaic:ut
 # ---------------------------------------------------------------------------
 
 
-def _solve_heat(  # mosaic:physics
+def _solve_heat(
     rho_values: np.ndarray,
     source_values: np.ndarray,
     pts: np.ndarray,
@@ -564,7 +564,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
 
 
-def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -639,7 +639,6 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
 
     result: dict[str, Any] = {}
 
-    # mosaic:grad:rho:adjoint
     if want_rho:
         grad_rho = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
         if dJ_drho is not None and cot_compliance != 0.0:
@@ -648,7 +647,6 @@ def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
             grad_rho[: hm.n_faces] += (dI_drho * cot_id_error).astype(np.float32)
         result["rho"] = grad_rho
 
-    # mosaic:grad:source:adjoint
     if want_source:
         grad_source = np.zeros(len(np.asarray(inputs.source)), dtype=np.float32)
         # Add compliance contribution
