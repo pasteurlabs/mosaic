@@ -424,8 +424,16 @@ problem.add_experiment(
     },
     optim={
         "lr": 5e-4,
-        "max_iters": 500,
-        "patience": 100,
+        # CI budget cap (≤ 6h per matrix runner): at N=32 with steps=400 the
+        # slowest registered solver (PICT) takes ~44 s/iter on the GPU runner,
+        # so a 250-iter ceiling keeps `optimization | ns-grid | gpu` under
+        # ~3h45m total wall (PICT 3h05m + PhiFlow 35m + XLB 1m). The
+        # previous max_iters=500 made PICT run ~6h08m and the whole runner
+        # 7h34m — over the workflow's 6h budget. Adam on this problem has
+        # historically not converged within either budget, so the cut just
+        # truncates a non-converging tail.
+        "max_iters": 250,
+        "patience": 50,
         "flow_penalty_weight": 50.0,
         "snap_interval": 20,
     },
