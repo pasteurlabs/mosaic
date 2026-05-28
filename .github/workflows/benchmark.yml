@@ -175,9 +175,11 @@ jobs:
         name: Generate (suite, problem, hardware) matrix
         if: steps.decide.outputs.should_run == 'true'
         run: |
+          SOLVERS="${{ steps.decide.outputs.solvers }}"
           MATRIX=$(uv run python .github/scripts/generate-benchmark-matrix.py \
             --problems "${{ steps.decide.outputs.problems }}" \
-            --suites "${{ steps.decide.outputs.suites }}")
+            --suites "${{ steps.decide.outputs.suites }}" \
+            ${SOLVERS:+--solvers "$SOLVERS"})
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "Matrix: $MATRIX"
 
