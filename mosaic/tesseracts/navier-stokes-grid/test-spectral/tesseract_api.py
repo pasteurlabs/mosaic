@@ -7,13 +7,13 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
