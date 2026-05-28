@@ -109,14 +109,25 @@ jobs:
             echo "No build_base.sh — skipping"
           fi
 
+      - name: Resolve GHCR image path
+        id: image
+        run: |
+          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
+          IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
+          GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "ghcr_base=${GHCR_BASE}" >> "$GITHUB_OUTPUT"
+
       - name: Build Tesseract image
         env:
-          TESSERACT_DOCKER_BUILD_ARGS: "--no-cache"
+          TESSERACT_DOCKER_BUILD_ARGS: >-
+            --cache-from type=registry,ref=${{ steps.image.outputs.ghcr_base }}:buildcache
+            --cache-to type=registry,ref=${{ steps.image.outputs.ghcr_base }}:buildcache,mode=max
         run: |
           SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
-      - name: Extract image name and push to GHCR
+      - name: Push to GHCR
         # Always push :<sha> (PR or push) so the benchmark workflow can pull
         # the exact image built for this commit. Only push :latest on
         # push-to-main so PR builds don't bump main's latest pointer.
@@ -129,13 +140,9 @@ jobs:
           # PR HEAD's SHA, so push under that to keep the two in sync.
           IMAGE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
-          IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
-
-          echo "Tesseract image name: ${IMAGE_NAME}"
-
+          GHCR_BASE="${{ steps.image.outputs.ghcr_base }}"
+          IMAGE_NAME="${{ steps.image.outputs.image_name }}"
           LOCAL_IMAGE="${IMAGE_NAME}:latest"
-          GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
 
           # Always tag and push :<sha>
           docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${IMAGE_SHA}"

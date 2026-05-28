@@ -1479,6 +1479,30 @@ def _md_score_cell(score: float | None) -> str:
     return f"{weight_emoji(score)} **{score:.2f}**"
 
 
+def _md_format_reason(reason: str) -> str:
+    """Format a failure reason for markdown, collapsing long/multiline text.
+
+    Short single-line reasons are shown inline. Multiline or long reasons show
+    the first line as a summary with the full text in a ``<details>`` block.
+    """
+    if not reason:
+        return ""
+    reason_lines = reason.strip().splitlines()
+    summary = reason_lines[0].strip()[:120]
+    is_long = len(reason_lines) > 1 or len(reason) > 120
+    if not is_long:
+        return f" — {summary}"
+    # Wrap the full reason in a collapsible block.
+    # The <details> is indented to stay inside the list item on GitHub.
+    full = reason.strip()
+    return (
+        f" — {summary}…\n"
+        f"  <details><summary>Full traceback</summary>\n\n"
+        f"  ```\n{full}\n  ```\n\n"
+        f"  </details>\n"
+    )
+
+
 def render_markdown(statuses: list[ProblemStatus]) -> str:
     """Render a full status report as GitHub-flavored markdown.
 
@@ -1543,7 +1567,7 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
         lines.append("")
         for problem, label, solver, status, reason in fa:
             glyph = _MD_GLYPHS[status]
-            reason_str = f" — {reason}" if reason else ""
+            reason_str = _md_format_reason(reason)
             lines.append(
                 f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}"
             )
@@ -1714,10 +1738,10 @@ def render_diff_markdown(diff: dict) -> str:
     def _fmt_rec(r: dict) -> str:
         src = _glyph(r["from"], r.get("from_category", ""))
         dst = _glyph(r["to"], r.get("to_category", ""))
-        reason = f" — {r['reason']}" if r.get("reason") else ""
+        reason_str = _md_format_reason(r.get("reason", ""))
         return (
             f"- {src}→{dst} `{r['problem']}` · `{r['label']}` · "
-            f"**{r['solver']}**{reason}"
+            f"**{r['solver']}**{reason_str}"
         )
 
     if diff["regressions"]:

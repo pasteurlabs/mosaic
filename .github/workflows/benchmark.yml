@@ -137,6 +137,13 @@ jobs:
                   fi
                   # Extract display name so downstream only pulls/runs this solver
                   SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
+                  # Include reference solvers so comparisons are meaningful
+                  REF_SOLVERS=$(uv run python .github/scripts/detect-reference-solvers.py \
+                    --problems "$PROBLEMS" --changed "$SOLVERS")
+                  if [[ -n "$REF_SOLVERS" ]]; then
+                    SOLVERS="${SOLVERS},${REF_SOLVERS}"
+                    echo "Added reference solvers: $REF_SOLVERS"
+                  fi
                 fi
                 ;;
               all)
@@ -274,10 +281,7 @@ jobs:
             status-report.md
           retention-days: 90
 
-      # ── Build docs & deploy PR preview ─────────────────────────────────
-      - name: Generate solver reference
-        run: uv run python docs/generate.py
-
+      # ── Build results-only preview (full docs are built by docs.yml) ───
       - name: Generate results pages
         run: |
           if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
@@ -286,15 +290,21 @@ jobs:
             echo "No benchmark results available — skipping results page generation"
           fi
 
-      - name: Render site
-        run: uv run quarto render
+      - name: Render results pages only
+        run: |
+          RESULT_FILES=$(ls docs/results_*.qmd 2>/dev/null || true)
+          if [ -n "$RESULT_FILES" ]; then
+            uv run quarto render $RESULT_FILES
+          else
+            echo "No results pages to render"
+          fi
 
-      - name: Append report link to status report
+      - name: Append results link to status report
         if: github.event_name == 'pull_request'
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
           PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
-          printf '\n---\n[View full report](%s)\n' "$PREVIEW_URL" >> status-report.md
+          printf '\n> **[:bar_chart: Benchmark results](%s)**\n>\n> Cross-solver comparisons and detailed plots.\n' "$PREVIEW_URL" >> status-report.md
 
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
@@ -371,7 +381,7 @@ jobs:
           mkdir -p "$WORK/pr-preview/pr-${PR_NUM}"
           cp -r _site/* "$WORK/pr-preview/pr-${PR_NUM}/"
           git -C "$WORK" add pr-preview/
-          git -C "$WORK" commit -m "Deploy docs preview for PR #${PR_NUM}" --allow-empty
+          git -C "$WORK" commit -m "Deploy results preview for PR #${PR_NUM}" --allow-empty
           git -C "$WORK" push origin gh-pages
           git worktree remove "$WORK"
 
