@@ -1493,13 +1493,14 @@ def _md_format_reason(reason: str) -> str:
     if not is_long:
         return f" — {summary}"
     # Wrap the full reason in a collapsible block.
-    # The <details> is indented to stay inside the list item on GitHub.
+    # The <details> must not be indented — GFM breaks HTML blocks inside
+    # list items when they carry leading whitespace or stray blank lines.
     full = reason.strip()
     return (
         f" — {summary}…\n"
-        f"  <details><summary>Full traceback</summary>\n\n"
-        f"  ```\n{full}\n  ```\n\n"
-        f"  </details>\n"
+        f"<details><summary>Full traceback</summary>\n\n"
+        f"```\n{full}\n```\n\n"
+        f"</details>\n"
     )
 
 
