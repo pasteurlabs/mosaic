@@ -3,9 +3,6 @@ name: Benchmark
 on:
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]
-  push:
-    branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       problems:
@@ -41,8 +38,6 @@ jobs:
       problems: ${{ steps.decide.outputs.problems }}
       suites: ${{ steps.decide.outputs.suites }}
       solvers: ${{ steps.decide.outputs.solvers }}
-      is_main: ${{ steps.decide.outputs.is_main }}
-      is_release: ${{ steps.decide.outputs.is_release }}
       is_release_pr: ${{ steps.decide.outputs.is_release_pr }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -60,8 +55,6 @@ jobs:
       - id: decide
         name: Decide what to run
         run: |
-          IS_MAIN="false"
-          IS_RELEASE="false"
           IS_RELEASE_PR="false"
           SHOULD_RUN="false"
           PROBLEMS="all"
@@ -71,20 +64,12 @@ jobs:
           LABEL=""
           SOLVER_MATRIX="[]"
 
-          # Detect changed files and solvers (all triggers except workflow_dispatch)
+          # Detect changed files and solvers
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
-          fi
 
-          if [[ -n "${BASE_SHA:-}" && -n "${HEAD_SHA:-}" ]]; then
-            if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-              BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "")"
-            fi
-            if [[ -n "$BASE_SHA" ]]; then
+            if [[ -n "$BASE_SHA" && -n "$HEAD_SHA" ]]; then
               DIFF_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
               SOLVER_MATRIX=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-solvers.py)
               if echo "$DIFF_FILES" | grep -q '^mosaic/'; then
@@ -98,30 +83,6 @@ jobs:
             SHOULD_RUN="true"
             PROBLEMS="${{ github.event.inputs.problems }}"
             SUITES="${{ github.event.inputs.suites }}"
-          fi
-
-          # Push to main: run for changed domains
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            IS_MAIN="true"
-            SHOULD_RUN="true"
-
-            # Use the problem registry to dynamically map changed files → problems.
-            PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
-
-            if [[ -z "$PROBLEMS" ]]; then
-              SHOULD_RUN="false"
-              PROBLEMS="all"
-            elif [[ "$PROBLEMS" == "all" ]]; then
-              PROBLEMS="all"
-            fi
-          fi
-
-          # Release tag: results were already computed on the release PR.
-          # The report job will fetch them from the results branch and attach
-          # them to the GitHub release without re-running benchmarks.
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
-            IS_RELEASE="true"
-            SHOULD_RUN="false"
           fi
 
           # PR: three-label system (benchmark:none / benchmark:solver / benchmark:all)
@@ -206,11 +167,9 @@ jobs:
           echo "problems=$PROBLEMS" >> "$GITHUB_OUTPUT"
           echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
           echo "solvers=$SOLVERS" >> "$GITHUB_OUTPUT"
-          echo "is_main=$IS_MAIN" >> "$GITHUB_OUTPUT"
-          echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
           echo "is_release_pr=$IS_RELEASE_PR" >> "$GITHUB_OUTPUT"
 
-          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES solvers=$SOLVERS is_main=$IS_MAIN is_release=$IS_RELEASE is_release_pr=$IS_RELEASE_PR"
+          echo "Plan: should_run=$SHOULD_RUN label=$LABEL mosaic_touched=$MOSAIC_TOUCHED problems=$PROBLEMS suites=$SUITES solvers=$SOLVERS is_release_pr=$IS_RELEASE_PR"
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
@@ -257,7 +216,7 @@ jobs:
   report:
     name: Report & publish
     needs: [plan, benchmarks]
-    if: always() && (needs.plan.outputs.should_run == 'true' || needs.plan.outputs.is_release == 'true') && !cancelled()
+    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -266,46 +225,19 @@ jobs:
         with:
           enable-cache: true
 
+      - uses: quarto-dev/quarto-actions/setup@v2
+
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
-      # ── Fetch results (from artifacts or results branch) ─────────────
       - name: Download all results
-        if: needs.plan.outputs.should_run == 'true'
         uses: actions/download-artifact@v8
         with:
           pattern: results-*
           path: staging-results/
 
       - name: Merge results from CPU/GPU artifacts
-        if: needs.plan.outputs.should_run == 'true'
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
-
-      - name: Fetch pre-computed results from results branch (release tag)
-        if: needs.plan.outputs.is_release == 'true' && needs.plan.outputs.should_run != 'true'
-        run: |
-          set -euo pipefail
-          if ! git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            echo "::error::No results branch found. Cannot attach results to release."
-            exit 1
-          fi
-          # Fetch from releases/pending (written by the release PR benchmark run)
-          mkdir -p mosaic-results
-          git checkout "origin/$RESULTS_BRANCH" -- releases/pending/ 2>/dev/null || true
-          if [ -d releases/pending ]; then
-            cp -r releases/pending/* . 2>/dev/null || true
-            echo "Restored pre-computed results from releases/pending"
-          else
-            # Fall back to latest
-            git checkout "origin/$RESULTS_BRANCH" -- latest/ 2>/dev/null || true
-            if [ -d latest ]; then
-              cp -r latest/* . 2>/dev/null || true
-              echo "::warning::No releases/pending found, fell back to latest results"
-            else
-              echo "::error::No pre-computed results found on results branch."
-              exit 1
-            fi
-          fi
 
       - name: Fetch baseline snapshot from results branch
         id: baseline
@@ -340,32 +272,59 @@ jobs:
             status-report.md
           retention-days: 90
 
+      # ── Build docs & deploy PR preview ─────────────────────────────────
+      - name: Generate solver reference
+        run: uv run python docs/generate.py
+
+      - name: Generate results pages
+        run: |
+          if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
+            uv run python docs/generate_results.py
+          else
+            echo "No benchmark results available — skipping results page generation"
+          fi
+
+      - name: Render site
+        run: uv run quarto render
+
+      - name: Deploy PR preview to gh-pages
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages 2>/dev/null && git checkout gh-pages \
+            || { git checkout --orphan gh-pages; git rm -rf . 2>/dev/null || true; }
+
+          rm -rf "pr-preview/pr-${PR_NUM}"
+          mkdir -p "pr-preview/pr-${PR_NUM}"
+          cp -r _site/* "pr-preview/pr-${PR_NUM}/"
+          git add pr-preview/
+          git commit -m "Deploy docs preview for PR #${PR_NUM}" --allow-empty
+          git push origin gh-pages
+
+      - name: Append report link to status report
+        if: github.event_name == 'pull_request'
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
+          printf '\n---\n[View full report](%s)\n' "$PREVIEW_URL" >> status-report.md
+
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
         if: github.event_name == 'pull_request'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
         run: |
           .github/scripts/post-status-comment.sh \
             "${{ github.event.pull_request.number }}" \
             status-report.md
 
-      # ── Attach to GitHub Release (release tags only) ───────────────────
-      - name: Attach results to release
-        if: needs.plan.outputs.is_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tar czf benchmark-results.tar.gz mosaic-results/ snapshot.json status-report.md
-          gh release upload "${{ github.ref_name }}" \
-            benchmark-results.tar.gz \
-            snapshot.json \
-            status-report.md \
-            --clobber
-
-      # ── Publish to results branch (main + release + release PR) ────────
+      # ── Publish to results branch ────────────────────────────────────
       - name: Publish results to results branch
-        if: needs.plan.outputs.is_main == 'true' || needs.plan.outputs.is_release == 'true' || needs.plan.outputs.is_release_pr == 'true'
+        if: needs.plan.outputs.is_release_pr == 'true'
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
@@ -386,14 +345,7 @@ jobs:
             git commit -m "Initialize results branch"
           fi
 
-          if [[ "${{ needs.plan.outputs.is_release }}" == "true" ]]; then
-            DEST="releases/${{ github.ref_name }}"
-          elif [[ "${{ needs.plan.outputs.is_release_pr }}" == "true" ]]; then
-            DEST="releases/pending"
-          else
-            TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-            DEST="runs/${TIMESTAMP}_${SHORT_SHA}"
-          fi
+          DEST="releases/pending"
 
           mkdir -p "$DEST"
           cp snapshot.json "$DEST/"
@@ -415,68 +367,11 @@ jobs:
 
           git push origin "$RESULTS_BRANCH"
 
-  # ── Build docs with fresh results ──────────────────────────────────────
-  docs:
-    name: Build docs
-    needs: [plan, report]
-    if: always() && needs.report.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
-
-      - uses: quarto-dev/quarto-actions/setup@v2
-
-      - name: Install Python dependencies
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Download benchmark results
-        uses: actions/download-artifact@v8
-        with:
-          name: benchmark-results-${{ github.sha }}
-          path: bench-artifact/
-
-      - name: Stage benchmark results
-        run: |
-          if [ -d bench-artifact/mosaic-results ]; then
-            cp -r bench-artifact/mosaic-results .
-          fi
-
-      - name: Generate solver reference
-        run: uv run python docs/generate.py
-
-      - name: Generate results pages
-        run: |
-          if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
-            uv run python docs/generate_results.py
-          else
-            echo "No benchmark results available — skipping results page generation"
-          fi
-
-      - name: Render site
-        run: uv run quarto render
-
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: docs-${{ github.event.pull_request.number && format('preview-pr-{0}', github.event.pull_request.number) || github.sha }}
-          path: _site/
-          retention-days: 14
-
   # ── Merge gate ─────────────────────────────────────────────────────────
   bench-ok:
     name: Benchmark checks passed
     if: always()
-    needs: [plan, build, benchmarks, report, docs]
+    needs: [plan, build, benchmarks, report]
     runs-on: ubuntu-latest
     steps:
       - name: Decide status
@@ -485,7 +380,6 @@ jobs:
           echo "build: ${{ needs.build.result }}"
           echo "benchmarks: ${{ needs.benchmarks.result }}"
           echo "report: ${{ needs.report.result }}"
-          echo "docs: ${{ needs.docs.result }}"
           echo "label: ${{ needs.plan.outputs.label }}"
           echo "mosaic_touched: ${{ needs.plan.outputs.mosaic_touched }}"
 
@@ -514,7 +408,7 @@ jobs:
 
           # When benchmarks ran, all downstream jobs must succeed (or be skipped)
           if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
-            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}" "${{ needs.docs.result }}"; do
+            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}"; do
               if [[ "$result" != "success" && "$result" != "skipped" ]]; then
                 echo "::error::Benchmark job failed ($result)."
                 exit 1
