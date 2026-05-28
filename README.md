@@ -4,6 +4,12 @@
 
 Mosaic measures gradient quality, computational cost, and solver compatibility across 14 differentiable physics solvers in 4 domains. Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container exposing a uniform `apply` / `vjp` interface, enabling cross-solver comparison regardless of language or AD backend.
 
+### Why Mosaic?
+
+Differentiable physics solvers unlock gradient-based optimization for topology optimization, aerodynamic design, optimal control, and solver-in-the-loop ML. But the practical cost of obtaining correct gradients is largely undocumented: solvers span multiple languages and AD frameworks, runtime overhead varies by orders of magnitude, and subtle numerical issues (ill-conditioned Jacobians, chaotic divergence, floating-point truncation) can silently corrupt gradients. Mosaic provides a standardized, solver-agnostic evaluation that surfaces these practically relevant differences so practitioners can make informed choices.
+
+<p align="center"><img src="visual_abstract.png" width="100%" alt="Overview of Mosaic: diverse solver backends are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains."></p>
+
 | ID     | Domain                     | Optimization task              | Solvers                                                |
 | :----- | :------------------------- | :----------------------------- | :----------------------------------------------------- |
 | **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
@@ -13,7 +19,7 @@ Mosaic measures gradient quality, computational cost, and solver compatibility a
 
 ---
 
-> **Paper reproduction:** if you're here to reproduce the results from [our paper](https://arxiv.org/abs/XXXX.XXXXX), see the [`v1+paper`](https://github.com/pasteurlabs/mosaic/tree/v1+paper) tag which contains the figure-generation code, pinned dependencies, and step-by-step instructions.
+> **Paper reproduction:** if you're here to reproduce the results from [our paper](https://arxiv.org/abs/XXXX.XXXXX), see the [`v0.1+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.1+paper-repro) tag which contains the figure-generation code, pinned dependencies, and step-by-step instructions.
 
 **Jump to your use case:**
 
@@ -27,10 +33,40 @@ Mosaic measures gradient quality, computational cost, and solver compatibility a
 
 Requires Python >= 3.10, Docker, and (for GPU solvers) the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
 
+> **Platform note:** We strongly recommend **Linux with Docker Engine** for the best experience. Docker Desktop on macOS and Windows runs containers inside a VM, which adds significant overhead to solver execution and can surface ARM-related compatibility issues on Apple Silicon. If you're on macOS or Windows, consider using a Linux VM or WSL 2 with Docker Engine installed natively inside it.
+
 ```bash
 git clone https://github.com/pasteurlabs/mosaic && cd mosaic
 uv sync          # or: pip install -e .
 mosaic run       # builds containers, runs experiments, generates plots
+```
+
+A single-problem run with `--debug` (reduced grid sizes) finishes in minutes and is a good way to verify your setup:
+
+```bash
+$ mosaic run -p thermal-mesh --suites forward --debug
+──────────────────────────── problem: thermal-mesh ─────────────────────────────
+──────────────────────────────────── build ─────────────────────────────────────
+  deal.II          → dealii_heat_thermal_mesh:latest     (3.6s)
+  FEniCS           → fenics_heat_thermal_mesh:latest     (3.2s)
+  Firedrake        → firedrake_heat_thermal_mesh:latest  (2.4s)
+  JAX-FEM          → jax_fem_thermal_mesh:latest         (5.1s)
+  torch-fem        → torch_fem_thermal_mesh:latest       (4.8s)
+───────────────────────────────   suite: forward ───────────────────────────────
+  5 experiment(s) queued, 5 solver(s) registered
+────────────────────────── experiment: baseline [1/5] ──────────────────────────
+  deal.II done in 0.8s
+  FEniCS done in 1.2s
+  Firedrake done in 1.5s
+  JAX-FEM done in 2.3s
+  torch-fem done in 1.1s
+...
+─────────────────────────────────── summary ────────────────────────────────────
+┏━━━━━━━━━━━━━━┳━━━━━━━━━┓
+┃ problem      ┃ forward ┃
+┡━━━━━━━━━━━━━━╇━━━━━━━━━┩
+│ thermal-mesh │   ok    │
+└──────────────┴─────────┘
 ```
 
 ### Inspect results
@@ -55,10 +91,6 @@ mosaic run -s OpenFOAM,XLB,deal.II,JAX-FEM
 # Per-problem map — explicit picks per domain.
 mosaic run -s "ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM"
 ```
-
-Names must match the display form exactly (`XLB`, `OpenFOAM`, `deal.II`,
-`JAX-FEM`, …). A typo aborts the run with a "Did you mean…?" hint
-before any image build.
 
 ### Re-run a subset
 
@@ -166,7 +198,7 @@ Mosaic is designed to grow with the community. There are three ways in, roughly 
 - **Add a solver** to an existing domain — three files under `mosaic/tesseracts/<domain>/<solver-name>/`. Walkthrough: [Add a Solver tutorial](docs/tutorial-add-solver.qmd).
 - **Add a benchmark domain** — scaffold with `mosaic new-domain <name> --from-template <template>`. Walkthrough: [Add a Domain tutorial](docs/tutorial-add-domain.qmd).
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers code style, the PR workflow, and how to build the docs locally.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers code style, the PR workflow, and how to build the docs locally. For questions and support, visit the [Tesseract Forum](https://si-tesseract.discourse.group/).
 
 ## Documentation
 
