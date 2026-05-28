@@ -21,16 +21,16 @@ import meshio
 import numpy as np
 from firedrake import *  # noqa: F403
 from firedrake.adjoint import *  # noqa: F403
+from mosaic_shared.problems.thermal_mesh import (
+    InputSchema as _CanonicalInputSchema,
+)
+from mosaic_shared.problems.thermal_mesh import (
+    OutputSchema as _CanonicalOutputSchema,
+)
+from mosaic_shared.types import make_differentiable
 from pydantic import Field
 from scipy.spatial import cKDTree
 from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.thermal_mesh import (
-    InputSchema as _CanonicalInputSchema,
-)
-from tesseract_shared.problems.thermal_mesh import (
-    OutputSchema as _CanonicalOutputSchema,
-)
-from tesseract_shared.types import make_differentiable
 
 # ---------------------------------------------------------------------------
 # Schema — extends canonical with material parameters

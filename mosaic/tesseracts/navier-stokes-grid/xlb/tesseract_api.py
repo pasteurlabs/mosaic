@@ -24,13 +24,13 @@ import xlb.velocity_set  # noqa: E402
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
 jax.config.update("jax_enable_x64", True)
-from tesseract_shared.problems.navier_stokes_grid import (  # noqa: E402
+from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.navier_stokes_grid import (  # noqa: E402
+from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable  # noqa: E402
+from mosaic_shared.types import make_differentiable  # noqa: E402
 
 
 class InputSchema(

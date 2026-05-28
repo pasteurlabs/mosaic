@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for ``tesseract_shared/utils/plotting`` helpers.
+"""Tests for ``mosaic_shared/utils/plotting`` helpers.
 
 Covers:
 - ``plotting.plot_mesh``: writes a non-empty image file at the requested path.
@@ -20,7 +20,7 @@ import pytest
 
 def test_plot_mesh_writes_image_file(tmp_path):
     """plot_mesh saves a PNG with non-zero size when save_path is given."""
-    from mosaic.tesseracts.tesseract_shared.utils.plotting import plot_mesh
+    from mosaic.mosaic_shared.utils.plotting import plot_mesh
 
     # Minimal valid mesh: a single triangle in 3D.
     mesh = {
@@ -41,7 +41,7 @@ def test_plot_mesh_writes_image_file(tmp_path):
 
 def test_plot_mesh_no_save_path_does_not_write(tmp_path, monkeypatch):
     """When save_path is None, plot_mesh shouldn't write any files."""
-    from mosaic.tesseracts.tesseract_shared.utils.plotting import plot_mesh
+    from mosaic.mosaic_shared.utils.plotting import plot_mesh
 
     mesh = {
         "points": np.array(

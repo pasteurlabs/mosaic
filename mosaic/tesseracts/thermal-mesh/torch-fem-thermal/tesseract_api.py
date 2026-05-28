@@ -24,15 +24,15 @@ from typing import Any
 
 import numpy as np
 import torch
-from pydantic import Field
-from tesseract_core.runtime import ShapeDType
-from tesseract_shared.problems.thermal_mesh import (
+from mosaic_shared.problems.thermal_mesh import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.thermal_mesh import (
+from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
+from pydantic import Field
+from tesseract_core.runtime import ShapeDType
 from torchfem import SolidHeat
 from torchfem.materials import IsotropicConductivity3D
 

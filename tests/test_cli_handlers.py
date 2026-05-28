@@ -22,19 +22,19 @@ from mosaic.benchmarks.cli import app
 runner = CliRunner()
 
 # ``validate-template`` imports the template's ``schema_module``
-# (e.g. ``tesseract_shared.problems.navier_stokes_grid``). Those modules are
-# only importable when ``tesseract_shared`` is installed as a top-level
+# (e.g. ``mosaic_shared.problems.navier_stokes_grid``). Those modules are
+# only importable when ``mosaic_shared`` is installed as a top-level
 # package — true inside the tesseract runtime / a full dev environment, not
 # in a minimal test environment. Mirror the gate used in test_schemas.py.
 _missing_runtime_deps = False
 try:
-    import tesseract_shared.types  # noqa: F401
+    import mosaic_shared.types  # noqa: F401
 except ModuleNotFoundError:
     _missing_runtime_deps = True
 
 needs_runtime = pytest.mark.skipif(
     _missing_runtime_deps,
-    reason="tesseract_shared not installed as a top-level package",
+    reason="mosaic_shared not installed as a top-level package",
 )
 
 
