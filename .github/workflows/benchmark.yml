@@ -276,6 +276,7 @@ jobs:
 
       # ── Build docs & deploy PR preview ─────────────────────────────────
       - name: Generate solver reference
+        if: github.event_name != 'pull_request' || needs.plan.outputs.is_release_pr == 'true'
         run: uv run python docs/generate.py
 
       - name: Generate results pages
@@ -287,7 +288,16 @@ jobs:
           fi
 
       - name: Render site
-        run: uv run quarto render
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.plan.outputs.is_release_pr }}" != "true" ]]; then
+            echo "PR preview: rendering results pages only"
+            cp _quarto.yml _quarto.yml.bak
+            cp _quarto-pr-preview.yml _quarto.yml
+            uv run quarto render
+            mv _quarto.yml.bak _quarto.yml
+          else
+            uv run quarto render
+          fi
 
       - name: Append report link to status report
         if: github.event_name == 'pull_request'
