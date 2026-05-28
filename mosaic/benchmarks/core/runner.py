@@ -27,87 +27,32 @@ import jax.numpy as jnp
 # CI hosts where tesseract_core isn't installed. Keep the imports optional so
 # importing the module doesn't trigger a ModuleNotFoundError.
 try:
-    import tesseract_core
     from tesseract_core import Tesseract
     from tesseract_jax import apply_tesseract
 except ImportError:  # pragma: no cover — CI-only path
-    tesseract_core = None  # type: ignore[assignment]
     Tesseract = None  # type: ignore[assignment]
     apply_tesseract = None  # type: ignore[assignment]
 
 
-# ── Socket-read timeout ─────────────────────────────────────────────────────────
+# ── Tesseract HTTP timeout ────────────────────────────────────────────────────
 #
-# tesseract_core.sdk.tesseract.HTTPClient._request calls self._session.request
-# WITHOUT a timeout= argument.  When a tesseract-runtime container dies
-# mid-call (OOM kill, segfault, SIGKILL from Azure health probe) the server
-# side of the TCP socket enters CLOSE_WAIT/half-closed, but requests' blocking
-# read never returns.  /proc/<pid>/wchan shows futex_wait_queue, CPU ~18s over
-# 1h wall.  Pattern observed repeatedly with 3-4 concurrent ns-grid daemons.
-#
-# Fix: monkey-patch HTTPClient._request at runner import time so every HTTP
-# call carries a (connect, read) timeout.  If the read times out, requests
-# raises ReadTimeout, which bubbles up through apply_tesseract and is caught
-# by safe_apply* as a normal failure — the solver cell becomes fail/NaN rather
-# than hanging the entire daemon forever.
-#
-# Timeout is configurable via the MOSAIC_TESSERACT_TIMEOUT env var (seconds).
+# Configurable via MOSAIC_TESSERACT_TIMEOUT env var (seconds).
 # Default 1200 s (20 min) — comfortably above the longest observed healthy
 # tesseract call (~300 s for fenics_ns at N=64) while fast enough that a dead
 # container is detected within one experiment's runtime budget rather than
 # accumulating across an overnight sweep.
+#
+# Connect timeout is always short (30 s) — the tesseract is already serving by
+# the time we call apply (Tesseract.from_image waited for /health), so a slow
+# connect means the container has gone away.
 MOSAIC_TESSERACT_TIMEOUT: float = float(
     os.environ.get("MOSAIC_TESSERACT_TIMEOUT", "1200")
 )
-# Connect timeout is always short — the tesseract is already serving by the
-# time we call apply (Tesseract.from_image waited for /health), so a slow
-# connect means the container has gone away.
 _MOSAIC_TESSERACT_CONNECT_TIMEOUT: float = 30.0
-
-
-def _install_tesseract_http_timeout() -> None:
-    """Patch tesseract_core HTTPClient so every request carries a (connect, read) timeout.
-
-    Idempotent: repeated calls are no-ops (the patched ``__init__`` carries a
-    ``_mosaic_timeout_patched`` attribute).  Safe to call from tests.
-
-    Approach: wrap ``session.request`` per-instance rather than rewriting
-    ``HTTPClient._request``. That keeps us decoupled from upstream's
-    array-decode logic (which has multiple format-specific branches we don't
-    want to re-implement).
-    """
-    if tesseract_core is None:
-        return
-    try:
-        from tesseract_core.sdk import tesseract as _tcore_tess
-    except Exception:
-        return
-    HTTPClient = getattr(_tcore_tess, "HTTPClient", None)
-    if HTTPClient is None:
-        return
-    orig_init = HTTPClient.__init__
-    if getattr(orig_init, "_mosaic_timeout_patched", False):
-        return
-
-    def _patched_init(self: object, *args: object, **kwargs: object) -> None:
-        orig_init(self, *args, **kwargs)
-        session = getattr(self, "_session", None)
-        if session is None:
-            return
-        _orig_request = session.request
-        _timeout = (_MOSAIC_TESSERACT_CONNECT_TIMEOUT, MOSAIC_TESSERACT_TIMEOUT)
-
-        def _request_with_timeout(method: str, url: str, **kw: object) -> object:
-            kw.setdefault("timeout", _timeout)
-            return _orig_request(method, url, **kw)
-
-        session.request = _request_with_timeout  # type: ignore[assignment]
-
-    _patched_init._mosaic_timeout_patched = True  # type: ignore[attr-defined]
-    HTTPClient.__init__ = _patched_init  # type: ignore[assignment]
-
-
-_install_tesseract_http_timeout()
+MOSAIC_TESSERACT_TIMEOUT_TUPLE: tuple[float, float] = (
+    _MOSAIC_TESSERACT_CONNECT_TIMEOUT,
+    MOSAIC_TESSERACT_TIMEOUT,
+)
 
 from .config import Problem  # noqa: E402
 from .console import (  # noqa: E402
@@ -209,7 +154,13 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
             yield t
         return
 
-    t = Tesseract.from_image(tag, gpus=gpus, docker_args=docker_args, num_workers=1)
+    t = Tesseract.from_image(
+        tag,
+        gpus=gpus,
+        docker_args=docker_args,
+        num_workers=1,
+        timeout=MOSAIC_TESSERACT_TIMEOUT_TUPLE,
+    )
     # Entering the context manager starts the container and populates
     # _serve_context, which contains the container name we need to track.
     t.__enter__()
@@ -260,27 +211,7 @@ def build_all(
 
     def _build(spec: object) -> tuple[str, str]:
         name = spec.name  # type: ignore[attr-defined]
-        # Run any adjacent build_base.sh first — lets tesseracts ship a
-        # locally-built base-image wrapper (e.g. dealii-root:latest that
-        # switches the upstream dealii/dealii image to USER root so the
-        # tesseract template's apt-get steps don't fail with EACCES).
         tesseract_path = cfg.tesseract_dir / spec.dir
-        base_script = tesseract_path / "build_base.sh"
-        if base_script.exists():
-            console.print(
-                f"  [cyan]{name:<16}[/cyan] → running build_base.sh  [dim](base-image wrapper)[/dim]"
-            )
-            r = subprocess.run(
-                ["bash", str(base_script)],
-                cwd=str(tesseract_path),
-                capture_output=True,
-                text=True,
-            )
-            if r.returncode != 0:
-                raise RuntimeError(
-                    f"{name}: build_base.sh failed (exit {r.returncode}):\n"
-                    f"stdout: {r.stdout[-2000:]}\nstderr: {r.stderr[-2000:]}"
-                )
         t0 = time.monotonic()
         r = subprocess.run(
             ["tesseract", "build", "--tag", tag, str(tesseract_path)],
@@ -799,8 +730,8 @@ def get_last_apply_error() -> str | None:
 def _apply_tesseract_with_deadline(t: Tesseract, inputs: dict):
     """Call ``apply_tesseract(t, inputs)``.
 
-    Deadline enforcement is handled by the HTTP timeout monkey-patch
-    installed at module import (``_install_tesseract_http_timeout``).
+    Deadline enforcement is handled by the ``timeout`` parameter passed to
+    ``Tesseract.from_image()`` in :func:`run_with_gpu_pool`.
     """
     return apply_tesseract(t, inputs)
 

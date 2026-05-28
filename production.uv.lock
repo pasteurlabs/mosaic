@@ -1829,7 +1829,7 @@ requires-dist = [
     { name = "pyyaml", marker = "extra == 'dev'" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "tesseract-core", extras = ["runtime"] },
+    { name = "tesseract-core", extras = ["runtime"], specifier = ">=1.9.0" },
     { name = "tesseract-jax" },
     { name = "mosaic-shared", marker = "extra == 'dev'", editable = "mosaic/mosaic_shared" },
     { name = "typer", specifier = ">=0.12" },
@@ -3520,9 +3520,10 @@ wheels = [
 
 [[package]]
 name = "tesseract-core"
-version = "1.8.2"
+version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "click" },
     { name = "jinja2" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -3536,9 +3537,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/06/b25fc3bee4fb9ef4cac84bebb639fc21fa9cccfefd492255ee13923abd14/tesseract_core-1.8.2.tar.gz", hash = "sha256:927941230ea8f0e8234d4e81e06155edb60ccc4d9f74f055c1354212f41e2f43", size = 1310798 }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/95/4c197d058dcf5b61a5ac35e0dc901f262539e0824ac67206b37d3016aa7c/tesseract_core-1.9.0.tar.gz", hash = "sha256:82b3a0cb2a7f831aaa338495ca0e22556bba8d721a2a197b9221182e307bda43", size = 1312721 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/d6/083c03c5ae09d3d8eee573904c1c86be671a7a1c010d6f71be3be22ea62b/tesseract_core-1.8.2-py3-none-any.whl", hash = "sha256:55242d5bf1500a36c782e38c211d31be273f1d332b1dcda0d1c18d386d8f59ff", size = 138535 },
+    { url = "https://files.pythonhosted.org/packages/7d/85/37cf811081f3fa18e8f0234f3d9e4e255fff55621a2e1e6aedf8658f3f3b/tesseract_core-1.9.0-py3-none-any.whl", hash = "sha256:10052655503f30c4ae4a3cb42e15a8eadf7545632c87f5dabc26a348e10421cf", size = 140446 },
 ]
 
 [package.optional-dependencies]
