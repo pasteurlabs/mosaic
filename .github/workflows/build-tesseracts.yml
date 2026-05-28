@@ -121,8 +121,8 @@ jobs:
       - name: Build Tesseract image
         env:
           TESSERACT_DOCKER_BUILD_ARGS: >-
-            --cache-from type=registry,ref=${{ steps.image.outputs.ghcr_base }}:buildcache
-            --cache-to type=registry,ref=${{ steps.image.outputs.ghcr_base }}:buildcache,mode=max
+            --cache-from type=registry,ref=${{ steps.image.outputs.ghcr_base }}:latest
+            --cache-to type=inline
         run: |
           SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
