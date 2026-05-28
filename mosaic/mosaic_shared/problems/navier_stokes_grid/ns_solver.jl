@@ -1,11 +1,9 @@
-# mosaic:util
 using IncompressibleNavierStokes
 using Zygote
 
 # ---------------------------------------------------------------------------
 # Setup cache (indexed by (n, L, ndim))
 # ---------------------------------------------------------------------------
-# mosaic:init
 
 const _SETUP_CACHE = Dict{Tuple{Int,Float64,Int}, Tuple}()
 
@@ -52,7 +50,6 @@ end
 # Ghost cell utilities — 2-D  (n,n,2) <-> (n+2,n+2,2)
 # ---------------------------------------------------------------------------
 
-# mosaic:util
 """Add periodic ghost cells: (n,n,2) -> (n+2,n+2,2)."""
 function add_ghosts_2d(u_inner::AbstractArray, n::Int)
     u_x = cat(u_inner[n:n, :, :], u_inner, u_inner[1:1, :, :]; dims=1)
@@ -142,7 +139,6 @@ end
 # Forward passes (RK4, non-mutating, Zygote-differentiable)
 # ---------------------------------------------------------------------------
 
-# mosaic:physics
 """2-D forward: v0 (n,n,2) → v_out (n,n,2)."""
 function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
@@ -190,7 +186,6 @@ end
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
-# mosaic:io
 """
     ns_apply(v0_np, nu, dt, steps, n, L) -> v_out_np
 
@@ -212,7 +207,6 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
     return Float32.(v_out)
 end
 
-# mosaic:grad:v0,viscosity,dt:adjoint
 """
     ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L)
         -> (grad_v0, grad_nu, grad_dt, grad_L)
@@ -295,7 +289,6 @@ end
 #   on poisson() applies correctly in reverse.
 # ---------------------------------------------------------------------------
 
-# mosaic:init
 """Build (or return cached) 2-D channel setup + psolver_transform for n×n grid.
 
 We configure all four boundaries as DirichletBC so that INS.jl builds the
@@ -329,7 +322,6 @@ function get_channel_2d_setup_and_psolver(n::Int, L::Float64)
     return _CHANNEL_2D_SETUP_CACHE[key]
 end
 
-# mosaic:util
 """
     _apply_inflow_ghost_2d(u, inflow_field, mask_inflow, n1, n2)
 
@@ -415,7 +407,6 @@ function _apply_brinkman_2d(u::AbstractArray, obstacle_mask::AbstractArray, n1::
     return u .* (1 .- mask_padded)
 end
 
-# mosaic:physics
 """
     _channel_2d_rhs(u, inflow_field, obstacle_mask, nu, t, setup, psolver, mask_inflow)
 
@@ -535,7 +526,6 @@ function ns_channel_2d_forward(
     return u
 end
 
-# mosaic:io
 """
     ns_apply_channel_2d(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L) -> v_out_np
 
@@ -573,7 +563,6 @@ function ns_apply_channel_2d(
     return Float32.(stag_to_coloc_2d(strip_ghosts_2d(u_full, n), n))
 end
 
-# mosaic:grad:inflow_profile,viscosity,dt:adjoint
 """
     ns_vjp_channel_2d(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L, cotangent_np)
         -> (grad_inflow, grad_nu, grad_dt, grad_L)
@@ -643,7 +632,6 @@ end
 # is differentiated through.
 # ---------------------------------------------------------------------------
 
-# mosaic:physics
 """
     _compute_drag_julia_2d(u_coloc, solid_mask, nu)
 
@@ -680,7 +668,6 @@ function _compute_drag_julia_2d(
     return drag
 end
 
-# mosaic:physics
 """
     ns_channel_2d_forward_with_drag(v0, inflow_field, obstacle_mask, solid_mask,
                                      nu, dt, steps, setup, psolver, mask_inflow)
@@ -755,7 +742,6 @@ function ns_channel_2d_forward_with_drag(
     return u, mean_drag, mean_velocity
 end
 
-# mosaic:io
 """
     ns_apply_channel_2d_drag_window(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L)
         -> (v_out_np, mean_drag, mean_velocity)
@@ -803,7 +789,6 @@ function ns_apply_channel_2d_drag_window(
     return v_out, Float32(mean_drag), Float32.(mean_velocity)
 end
 
-# mosaic:grad:inflow_profile,viscosity,dt:adjoint
 """
     ns_vjp_channel_2d_drag_window(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L,
                                    cotangent_result_np, cotangent_drag)

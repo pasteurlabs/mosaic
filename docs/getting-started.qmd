@@ -232,3 +232,7 @@ Use `--debug` for a smaller problem size, or run with `-s <solver>` to isolate.
 - Silent NaN outputs
 
 Reduce resolution or limit to fewer concurrent solvers via `--gpus`.
+
+## Getting help
+
+If you run into problems not covered here, visit the [Tesseract Forum](https://si-tesseract.discourse.group/) for community support, or [open an issue](https://github.com/pasteurlabs/mosaic/issues) on GitHub.

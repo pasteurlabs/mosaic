@@ -5,15 +5,15 @@ from pathlib import Path
 from typing import Any
 
 import juliacall
+import mosaic_shared
 import numpy as np
-import tesseract_shared
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
-from tesseract_shared.problems.navier_stokes_grid import (
+from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from tesseract_shared.types import make_differentiable
+from mosaic_shared.types import make_differentiable
 
 
 class InputSchema(
@@ -37,7 +37,7 @@ jl.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
 jl.seval("using IncompressibleNavierStokes, Zygote")
 jl.include(
     str(
-        Path(tesseract_shared.__file__).parent
+        Path(mosaic_shared.__file__).parent
         / "problems"
         / "navier_stokes_grid"
         / "ns_solver.jl"
@@ -50,17 +50,17 @@ jl.include(
 # ---------------------------------------------------------------------------
 
 
-def _to_julia(arr: np.ndarray):  # mosaic:util
+def _to_julia(arr: np.ndarray):
     """Convert a numpy array to a Julia array (zero-copy if contiguous)."""
     return juliacall.convert(jl.Array, np.ascontiguousarray(arr))
 
 
-def _to_numpy(jl_arr: Any) -> np.ndarray:  # mosaic:util
+def _to_numpy(jl_arr: Any) -> np.ndarray:
     """Convert a Julia array back to numpy."""
     return np.asarray(jl_arr).copy()
 
 
-def _compute_drag_numpy(  # mosaic:physics
+def _compute_drag_numpy(
     ux: np.ndarray,
     pressure: np.ndarray,
     obstacle: dict | None,
@@ -111,7 +111,7 @@ def _compute_drag_numpy(  # mosaic:physics
     return np.array([p_drag + visc_drag], dtype=np.float32)
 
 
-def _make_obstacle_mask(obstacle: dict, N: int) -> np.ndarray:  # mosaic:init
+def _make_obstacle_mask(obstacle: dict, N: int) -> np.ndarray:
     """Build a binary float32 Brinkman mask of shape (N, N, 2) from obstacle dict.
 
     Obstacle coordinates are normalised fractions of domain_extent, so we
@@ -129,7 +129,7 @@ def _make_obstacle_mask(obstacle: dict, N: int) -> np.ndarray:  # mosaic:init
     return np.stack([solid, solid], axis=-1)
 
 
-def _run(  # mosaic:physics
+def _run(
     v0: np.ndarray,
     viscosity: float,
     dt: float,
@@ -238,7 +238,7 @@ def _run(  # mosaic:physics
         return result, None
 
 
-def _vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
+def _vjp(
     v0: np.ndarray,
     cotangent: np.ndarray,
     viscosity: float,
@@ -395,7 +395,7 @@ def _vjp(  # mosaic:grad:v0,viscosity,dt:adjoint
 # ---------------------------------------------------------------------------
 
 
-def _obstacle_dict_ins(inputs: "InputSchema") -> dict | None:  # mosaic:io
+def _obstacle_dict_ins(inputs: "InputSchema") -> dict | None:
     obs = inputs.obstacle
     if obs is None:
         return None
@@ -427,7 +427,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return out
 
 
-def _drag_cotangent_to_result(  # mosaic:grad:v0,viscosity,dt:adjoint
+def _drag_cotangent_to_result(
     drag_cot: np.ndarray,
     v0_shape: tuple,
     obstacle: dict,
@@ -464,7 +464,7 @@ def _drag_cotangent_to_result(  # mosaic:grad:v0,viscosity,dt:adjoint
     return ct
 
 
-def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt:adjoint
+def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

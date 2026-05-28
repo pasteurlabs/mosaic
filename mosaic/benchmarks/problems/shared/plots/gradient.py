@@ -106,10 +106,10 @@ def _fd_check_style_axes(
     ax_cos.yaxis.set_minor_locator(mticker.NullLocator())
 
 
-def _fd_check_paper_figure(
+def _fd_check_figure(
     cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Any
 ) -> plt.Figure:
-    """Paper-styled 1×2 rel-error + cosine figure for a single fd_check run."""
+    """Styled 1×2 rel-error + cosine figure for a single fd_check run."""
     plt.rcParams.update(RCPARAMS)
 
     data = load_json(out_dir / "result.json")
@@ -293,7 +293,7 @@ def _svd_panels(fig: Any, axes: Any, variants: Any, solvers: Any, n_show: Any) -
     return legend_handles
 
 
-def _jacobian_svd_paper_figure(
+def _jacobian_svd_figure(
     cfg: Problem,
     *,
     exp_key: str,
@@ -302,7 +302,7 @@ def _jacobian_svd_paper_figure(
     out_dir: Any,
     n_show: int | None = None,
 ) -> plt.Figure | None:
-    """Paper-styled per-solver SVD spectrum grid for a single jacobian_svd run.
+    """Styled per-solver SVD spectrum grid for a single jacobian_svd run.
 
     Returns ``None`` when ``per_solver_spectra`` is missing (e.g. scalar
     outputs) so callers can fall back to alternate diagnostics.
@@ -512,10 +512,10 @@ def _horizon_attach_legend(fig: Any, seen: set[str], failure_seen: bool) -> None
     )
 
 
-def _horizon_sweep_paper_figure(
+def _horizon_sweep_figure(
     cfg: Problem, *, exp_key: str, suffix: str, save: bool, out_dir: Any
 ) -> plt.Figure:
-    """Paper-styled 1×3 grad-norm / FD-error / cosine figure."""
+    """Styled 1×3 grad-norm / FD-error / cosine figure."""
     plt.rcParams.update(RCPARAMS)
 
     data = load_json(out_dir / "result.json")
@@ -549,19 +549,19 @@ def plot_fd_check(
     exp_key: str = "fd_check",
     **_kw: Any,
 ) -> Any:
-    """FD-check experiment plot: curves (paper styling) + gradient-magnitude fields.
+    """FD-check experiment plot: curves (styled) + gradient-magnitude fields.
 
-    The rel-error / cosine curves use the inlined paper-styling helpers
-    (:func:`_fd_check_paper_figure`) so the per-experiment ``fd_check.pdf``
-    and the paper-figure renderer stay in lockstep. The
+    The rel-error / cosine curves use the inlined styling helpers
+    (:func:`_fd_check_figure`) so the per-experiment ``fd_check.pdf``
+    and the figure renderer stay in lockstep. The
     gradient-magnitude field panels are this problem's extra: they need
     ``ic_to_2d`` / ``diagnostic_fields`` flags that don't fit the
     cross-domain paper layout, so they live here.
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
 
-    # ── error / cosine curves (paper styling) ────────────────────────────────
-    fig_c = _fd_check_paper_figure(
+    # ── error / cosine curves (styled) ──────────────────────────────────────
+    fig_c = _fd_check_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
@@ -924,12 +924,11 @@ def plot_jacobian_svd(
     exp_key: str = "jacobian_svd",
     **_kw: Any,
 ) -> Any:
-    """Jacobian-SVD experiment plot: paper spectra grid + cross-cosine + fields.
+    """Jacobian-SVD experiment plot: styled spectra grid + cross-cosine + fields.
 
-    The per-solver singular spectrum grid uses the inlined paper-styling
-    helpers (:func:`_jacobian_svd_paper_figure`) so the per-experiment
-    ``jacobian_svd.pdf`` stays in lockstep with the paper-figure
-    renderer. The cross-solver cosine heatmap, scalar-output
+    The per-solver singular spectrum grid uses the inlined styling
+    helpers (:func:`_jacobian_svd_figure`) so the per-experiment
+    ``jacobian_svd.pdf`` stays in lockstep with the figure renderer. The cross-solver cosine heatmap, scalar-output
     gradient-norm bar chart, and gradient-field panels are this
     problem's extras: they don't fit the cross-domain paper layout, so
     they live here as additional ``save_fig`` calls.
@@ -949,11 +948,11 @@ def plot_jacobian_svd(
         len(v) == 1 for v in per_solver_spectra.values()
     )
 
-    # ── Singular-value spectra grid (paper styling) ──────────────────────────
+    # ── Singular-value spectra grid (styled) ────────────────────────────────
     # For scalar outputs the per-solver spectrum is trivially [1.0] and
     # the helper short-circuits returning None; we fall back to a
     # per-solver gradient-norm bar chart in that case.
-    fig_c = _jacobian_svd_paper_figure(
+    fig_c = _jacobian_svd_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
@@ -1082,12 +1081,12 @@ def plot_horizon_sweep(
     exp_key: str = "horizon_sweep",
     **_kw: Any,
 ) -> Any:
-    """Horizon-sweep experiment plot: paper curves + auxiliary diagnostics.
+    """Horizon-sweep experiment plot: styled curves + auxiliary diagnostics.
 
     The grad-norm / best-ε error / cosine curves use the inlined
-    paper-styling helpers (:func:`_horizon_sweep_paper_figure`) so the
+    styling helpers (:func:`_horizon_sweep_figure`) so the
     per-experiment ``horizon_sweep.pdf`` stays in lockstep with the
-    paper-figure renderer. The U-curve grid, per-solver error panels
+    figure renderer. The U-curve grid, per-solver error panels
     and gradient-magnitude field panels are this problem's extras and
     live here.
     """
@@ -1095,8 +1094,8 @@ def plot_horizon_sweep(
     data = load_json(out_dir / "result.json")
     styles = solver_styles(cfg)
 
-    # ── summary curves (paper styling) ───────────────────────────────────────
-    fig_c = _horizon_sweep_paper_figure(
+    # ── summary curves (styled) ─────────────────────────────────────────────
+    fig_c = _horizon_sweep_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 

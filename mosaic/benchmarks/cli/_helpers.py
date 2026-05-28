@@ -56,10 +56,16 @@ def _suite_components(suite: str, cfg: Any) -> tuple[dict, callable]:
         if k.startswith(prefix):
             plot_fns[k[len(prefix) :]] = v
         elif k.startswith(extra_prefix):
-            # Suite-wide bonus plots (formerly cfg.extra_plots) — preserved
-            # under the "_extra/<name>" key so the runner can call them
-            # unconditionally (no associated experiment result needed).
+            # Suite-scoped bonus plots (e.g. "_extra/forward/agreement")
+            # — preserved under the "_extra/<name>" key so the runner can
+            # call them unconditionally (no associated experiment needed).
             plot_fns[f"_extra/{k[len(extra_prefix) :]}"] = v
+        elif k.startswith("_extra/") and not any(
+            k.startswith(f"_extra/{s}/") for s in SUITES
+        ):
+            # Bare extras (e.g. "_extra/cost_overview") — not scoped to any
+            # suite, so include them in every suite's plot set.
+            plot_fns[k] = v
     return exps, lambda: plot_fns
 
 
@@ -272,13 +278,15 @@ def _plots_only(
         # Default: only attempt plots for experiments actually configured for
         # this cfg+suite (avoids noisy [SKIP]s for variants that belong to a
         # different problem, e.g. stokes-only jacobian_svd_mu* on ns-3d-grid).
+        # Also include _extra/* plots unconditionally — they are suite-wide
+        # bonus plots that don't have an associated experiment result.
         prefix = f"{suite}/"
         configured = {
             k[len(prefix) :]
             for k, exp in cfg.experiments.items()
             if k.startswith(prefix) and exp.params
         }
-        names = [n for n in plot_fns if n in configured]
+        names = [n for n in plot_fns if n in configured or n.startswith("_extra/")]
     for name in names:
         if name not in plot_fns:
             print_skip(f"no plot function for '{name}'")

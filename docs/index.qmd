@@ -51,4 +51,4 @@ Results are saved to `mosaic-results/<problem>/<suite>/` as JSON (metrics), NPZ 
 
 ---
 
-→ Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference. To call a Mosaic solver from your own code without the harness, see **[Standalone Usage](standalone.qmd)**.
+→ Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference. To call a Mosaic solver from your own code without the harness, see **[Standalone Usage](standalone.qmd)**. For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)**.

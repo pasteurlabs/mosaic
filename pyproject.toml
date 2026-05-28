@@ -32,10 +32,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-cov",
     "ruff",
     "pre-commit",
     "pyyaml",
-    "tesseract-shared",
+    "mosaic-shared",
 ]
 
 [project.urls]
@@ -63,10 +64,10 @@ include = [
 ]
 
 [tool.uv.workspace]
-members = ["mosaic/tesseracts/tesseract_shared"]
+members = ["mosaic/mosaic_shared"]
 
 [tool.uv.sources]
-tesseract-shared = { workspace = true }
+mosaic-shared = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
