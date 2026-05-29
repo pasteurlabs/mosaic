@@ -5,7 +5,7 @@ description: >
   on periodic domains. Gradients via wp.Tape kernel-level VJP.
 build_config:
   package_data:
-    - ["../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 

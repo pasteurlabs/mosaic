@@ -1,4 +1,4 @@
 phiflow==3.4.0
 jax[cuda12-local]==0.10.0
 equinox==0.13.8
-../../mosaic_shared
+../../../mosaic_shared

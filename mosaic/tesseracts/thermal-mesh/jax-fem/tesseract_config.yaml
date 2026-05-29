@@ -10,7 +10,7 @@ build_config:
   requirements:
     provider: conda
   package_data:
-    - ["../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
