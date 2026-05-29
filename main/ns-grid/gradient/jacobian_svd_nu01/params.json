@@ -1,0 +1,12 @@
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 10
+  }
+}

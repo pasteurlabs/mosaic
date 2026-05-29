@@ -1,0 +1,249 @@
+{
+  "by_param": {
+    "2": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "3": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "4": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "6": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 6.680671305048236e-08,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 6.680671305048236e-08,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 1.3361345452267415e-07,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 6.680672726133707e-08,
+        "valid": true
+      }
+    },
+    "8": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "12": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 2.0049354532147845e-07,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 2.0049354532147845e-07,
+        "valid": true
+      }
+    },
+    "16": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "24": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 6.945231234567473e-08,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 6.945231234567473e-08,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 4.167141014477238e-07,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 4.167141014477238e-07,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "6": 3.3403363630668537e-08,
+    "8": 0.0,
+    "12": 0.0,
+    "16": 0.0,
+    "24": 0.0
+  },
+  "sweep_key": "N",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "random",
+      "seed": 0
+    },
+    "physics": {
+      "N": 2,
+      "nz": 1,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        2,
+        3,
+        4,
+        6,
+        8,
+        12,
+        16,
+        24
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "Firedrake": "d9935251a2270b64",
+    "deal.II": "d00757b164ac0144",
+    "FEniCS": "050aadc98a985619",
+    "JAX-FEM": "7fb58b38b7f05b27",
+    "torch-fem": "b102021693128cf6"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "deal.II": 1.9005577499999617,
+    "FEniCS": 9.48562025199999,
+    "Firedrake": 6.726321572000074,
+    "JAX-FEM": 21.982296381999987,
+    "torch-fem": 2.170373662999964
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:19:09.207271+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:19:09Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446917",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 2,
+    "nz": 8,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "corner_load": true,
+    "v_frac": 0.5,
+    "compliance_key": "compliance",
+    "penalty_weight": 50.0,
+    "x_min": 0.001,
+    "snap_interval": 5
+  },
+  "optim": {
+    "lr": 0.05,
+    "max_iters": 2500,
+    "patience": 100
+  }
+}

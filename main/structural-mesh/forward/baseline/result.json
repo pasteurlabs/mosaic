@@ -1,0 +1,179 @@
+{
+  "by_param": {
+    "4": {
+      "deal.II": {
+        "error": 3.66518239941373e+27,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 3.66518239941373e+27,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 3.66518239941373e+27,
+        "valid": true
+      },
+      "TopOpt.jl": {
+        "error": 3.681464233602949e+27,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "6": {
+      "deal.II": {
+        "error": 5.990326457094852e-08,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 5.990326457094852e-08,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 5.990326457094852e-08,
+        "valid": true
+      },
+      "TopOpt.jl": {
+        "error": 0.005091357976198196,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "8": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "TopOpt.jl": {
+        "error": 0.005530667025595903,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "12": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "TopOpt.jl": {
+        "error": 0.0060629043728113174,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "16": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "TopOpt.jl": {
+        "error": 0.006348176393657923,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "4": null,
+    "6": null,
+    "8": null,
+    "12": null,
+    "16": null
+  },
+  "sweep_key": "N",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "uniform",
+      "seed": 0
+    },
+    "physics": {
+      "N": 4,
+      "ny": 2,
+      "nz": 4,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "F_total": 1.0,
+      "corner_load": false
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        4,
+        6,
+        8,
+        12,
+        16
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "deal.II": "5b94ac02e321acd8",
+    "Firedrake": "1a592c44c7545035",
+    "TopOpt.jl": "85d4a500d6517488",
+    "FEniCS": "f6d5432442bb2ceb",
+    "JAX-FEM": "fea3625aed005089"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "deal.II": 8.054133309000008,
+    "FEniCS": 13.51096310700001,
+    "Firedrake": 12.470181652000065,
+    "TopOpt.jl": 18.67140959799997,
+    "JAX-FEM": 13.016076908000002
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:17:05.387386+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:17:05Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446922",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

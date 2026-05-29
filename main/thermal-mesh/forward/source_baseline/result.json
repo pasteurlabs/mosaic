@@ -1,0 +1,201 @@
+{
+  "by_param": {
+    "4": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.10500803589820862,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.10500803589820862,
+        "valid": true
+      }
+    },
+    "6": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.1250176578760147,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.1250176578760147,
+        "valid": true
+      }
+    },
+    "8": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.12470385432243347,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.12470385432243347,
+        "valid": true
+      }
+    },
+    "12": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.12439998984336853,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.12439998984336853,
+        "valid": true
+      }
+    },
+    "16": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.12427547574043274,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.12427541613578796,
+        "valid": true
+      }
+    },
+    "24": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.12418094277381897,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.1241808831691742,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "4": 0.0,
+    "6": 0.0,
+    "8": 0.0,
+    "12": 0.0,
+    "16": 2.9802322387695312e-08,
+    "24": 2.9802322387695312e-08
+  },
+  "sweep_key": "N",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "gaussian_source"
+    },
+    "physics": {
+      "N": 4,
+      "nz": 1,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "rho_0": 0.5,
+      "ic_field": "source"
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        4,
+        6,
+        8,
+        12,
+        16,
+        24
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "Firedrake": "d9935251a2270b64",
+    "deal.II": "d00757b164ac0144",
+    "FEniCS": "050aadc98a985619",
+    "JAX-FEM": "7fb58b38b7f05b27",
+    "torch-fem": "b102021693128cf6"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "deal.II": 1.477996859999962,
+    "FEniCS": 9.425612012999977,
+    "Firedrake": 6.614808712000013,
+    "JAX-FEM": 18.559422414999972,
+    "torch-fem": 2.0422794950000025
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:20:10.186949+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:20:10Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446917",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

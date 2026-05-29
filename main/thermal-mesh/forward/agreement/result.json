@@ -1,0 +1,227 @@
+{
+  "by_param": {
+    "0.05": {
+      "deal.II": {
+        "error": 6.865692370183751e-08,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 6.865692370183751e-08,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 6.865692370183751e-08,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.1": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.2": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.4": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.6": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.8": {
+      "deal.II": {
+        "error": 6.10933383882184e-08,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 6.10933383882184e-08,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 6.10933383882184e-08,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    },
+    "0.95": {
+      "deal.II": {
+        "error": 0.0,
+        "valid": true
+      },
+      "FEniCS": {
+        "error": 0.0,
+        "valid": true
+      },
+      "Firedrake": {
+        "error": 0.0,
+        "valid": true
+      },
+      "JAX-FEM": {
+        "error": 0.0,
+        "valid": true
+      },
+      "torch-fem": {
+        "error": 0.0,
+        "valid": true
+      }
+    }
+  },
+  "spread": {
+    "0.05": 0.0,
+    "0.1": 0.0,
+    "0.2": 0.0,
+    "0.4": 0.0,
+    "0.6": 0.0,
+    "0.8": 0.0,
+    "0.95": 0.0
+  },
+  "sweep_key": "rho_0",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "uniform",
+      "seed": 0
+    },
+    "physics": {
+      "nx": 16,
+      "ny": 8,
+      "nz": 1,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0,
+      "rho_0": 0.05
+    },
+    "sweep": {
+      "key": "rho_0",
+      "values": [
+        0.05,
+        0.1,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        0.95
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "Firedrake": "d9935251a2270b64",
+    "deal.II": "d00757b164ac0144",
+    "FEniCS": "050aadc98a985619",
+    "JAX-FEM": "7fb58b38b7f05b27",
+    "torch-fem": "b102021693128cf6"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "deal.II": 1.699971595000079,
+    "FEniCS": 9.529037870000025,
+    "Firedrake": 6.708120097999995,
+    "JAX-FEM": 5.325157569999988,
+    "torch-fem": 2.0883743640000034
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:19:25.370723+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:19:25Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446917",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

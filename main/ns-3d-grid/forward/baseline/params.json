@@ -1,0 +1,20 @@
+{
+  "ic": {
+    "name": "tgv3d",
+    "seed": 0
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.05,
+    "dt": 0.01,
+    "steps": 1
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      8,
+      16,
+      32
+    ]
+  }
+}

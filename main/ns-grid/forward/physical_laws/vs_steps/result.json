@@ -1,0 +1,256 @@
+{
+  "by_param": {
+    "5": {
+      "INS.jl": {
+        "divergence_rms": 1.198588392981037e-07,
+        "kinetic_energy": 0.2463240623474121,
+        "analytic_error": 0.002403613179922104
+      },
+      "OpenFOAM": {
+        "divergence_rms": 0.00027723409584723413,
+        "kinetic_energy": 0.2475094497203827,
+        "analytic_error": 0.00019612071628216654
+      },
+      "jax-cfd": {
+        "divergence_rms": 2.2116777472547255e-05,
+        "kinetic_energy": 0.24627260863780975,
+        "analytic_error": 0.0025104270316660404
+      },
+      "PhiFlow": {
+        "divergence_rms": 1.724316120998992e-07,
+        "kinetic_energy": 0.24632275104522705,
+        "analytic_error": 0.0024061023723334074
+      },
+      "PICT": {
+        "divergence_rms": 9.036369738169014e-05,
+        "kinetic_energy": 0.24751442670822144,
+        "analytic_error": 5.7226083299610764e-05
+      },
+      "Warp-NS": {
+        "divergence_rms": 0.0001274467067560181,
+        "kinetic_energy": 0.24751192331314087,
+        "analytic_error": 9.119268361246213e-05
+      },
+      "XLB": {
+        "divergence_rms": 0.04609544202685356,
+        "kinetic_energy": 0.24676308035850525,
+        "analytic_error": 0.03302907198667526
+      }
+    },
+    "10": {
+      "INS.jl": {
+        "divergence_rms": 1.179389883532167e-07,
+        "kinetic_energy": 0.24387508630752563,
+        "analytic_error": 0.0023996324744075537
+      },
+      "OpenFOAM": {
+        "divergence_rms": 0.0003792698262259364,
+        "kinetic_energy": 0.2450464367866516,
+        "analytic_error": 0.0002717172319535166
+      },
+      "jax-cfd": {
+        "divergence_rms": 2.810760634019971e-05,
+        "kinetic_energy": 0.24377375841140747,
+        "analytic_error": 0.002616493497043848
+      },
+      "PhiFlow": {
+        "divergence_rms": 1.7798359408516262e-07,
+        "kinetic_energy": 0.24387255311012268,
+        "analytic_error": 0.0024046110920608044
+      },
+      "PICT": {
+        "divergence_rms": 8.427908323938027e-05,
+        "kinetic_energy": 0.24505357444286346,
+        "analytic_error": 5.752459401264787e-05
+      },
+      "Warp-NS": {
+        "divergence_rms": 0.00012617783795576543,
+        "kinetic_energy": 0.24504834413528442,
+        "analytic_error": 9.089981904253364e-05
+      },
+      "XLB": {
+        "divergence_rms": 0.07643768191337585,
+        "kinetic_energy": 0.2440449595451355,
+        "analytic_error": 0.05506092309951782
+      }
+    },
+    "20": {
+      "INS.jl": {
+        "divergence_rms": 1.1459653848078233e-07,
+        "kinetic_energy": 0.23904982209205627,
+        "analytic_error": 0.002391624730080366
+      },
+      "OpenFOAM": {
+        "divergence_rms": 0.0004292054218240082,
+        "kinetic_energy": 0.24019202589988708,
+        "analytic_error": 0.0003109773970209062
+      },
+      "jax-cfd": {
+        "divergence_rms": 3.1061412300914526e-05,
+        "kinetic_energy": 0.23885318636894226,
+        "analytic_error": 0.0028337787371128798
+      },
+      "PhiFlow": {
+        "divergence_rms": 1.839308652051841e-07,
+        "kinetic_energy": 0.23904499411582947,
+        "analytic_error": 0.002401580335572362
+      },
+      "PICT": {
+        "divergence_rms": 9.407405013917014e-05,
+        "kinetic_energy": 0.2402050793170929,
+        "analytic_error": 6.12262956565246e-05
+      },
+      "Warp-NS": {
+        "divergence_rms": 0.00012368062743917108,
+        "kinetic_energy": 0.24019452929496765,
+        "analytic_error": 9.066981147043407e-05
+      },
+      "XLB": {
+        "divergence_rms": 0.061643559485673904,
+        "kinetic_energy": 0.23710739612579346,
+        "analytic_error": 0.04553009569644928
+      }
+    },
+    "50": {
+      "INS.jl": {
+        "divergence_rms": 1.1375907860156076e-07,
+        "kinetic_energy": 0.22513949871063232,
+        "analytic_error": 0.002367614768445492
+      },
+      "OpenFOAM": {
+        "divergence_rms": 0.00041421232162974775,
+        "kinetic_energy": 0.22619758546352386,
+        "analytic_error": 0.00031141957151703537
+      },
+      "jax-cfd": {
+        "divergence_rms": 3.3125550544355065e-05,
+        "kinetic_energy": 0.22468984127044678,
+        "analytic_error": 0.003477540099993348
+      },
+      "PhiFlow": {
+        "divergence_rms": 1.839749899090748e-07,
+        "kinetic_energy": 0.22512826323509216,
+        "analytic_error": 0.002392521360889077
+      },
+      "PICT": {
+        "divergence_rms": 8.695005089975893e-05,
+        "kinetic_energy": 0.22622793912887573,
+        "analytic_error": 8.024649287108332e-05
+      },
+      "Warp-NS": {
+        "divergence_rms": 0.0001164741042884998,
+        "kinetic_energy": 0.2262026071548462,
+        "analytic_error": 9.215301543008536e-05
+      },
+      "XLB": {
+        "divergence_rms": 0.047705765813589096,
+        "kinetic_energy": 0.22550347447395325,
+        "analytic_error": 0.03477303311228752
+      }
+    },
+    "100": {
+      "INS.jl": {
+        "divergence_rms": 1.1066475025245381e-07,
+        "kinetic_energy": 0.203730970621109,
+        "analytic_error": 0.0023275481071323156
+      },
+      "OpenFOAM": {
+        "divergence_rms": 0.00037486269138753414,
+        "kinetic_energy": 0.20466506481170654,
+        "analytic_error": 0.00030191621044650674
+      },
+      "jax-cfd": {
+        "divergence_rms": 3.798415491473861e-05,
+        "kinetic_energy": 0.20295479893684387,
+        "analytic_error": 0.004407349042594433
+      },
+      "PhiFlow": {
+        "divergence_rms": 1.765017145771708e-07,
+        "kinetic_energy": 0.2037106156349182,
+        "analytic_error": 0.002377366414293647
+      },
+      "PICT": {
+        "divergence_rms": 8.649463416077197e-05,
+        "kinetic_energy": 0.20471754670143127,
+        "analytic_error": 0.00012213336594868451
+      },
+      "Warp-NS": {
+        "divergence_rms": 0.00010538320930209011,
+        "kinetic_energy": 0.2046714425086975,
+        "analytic_error": 9.821231651585549e-05
+      },
+      "XLB": {
+        "divergence_rms": 0.06804929673671722,
+        "kinetic_energy": 0.2037186622619629,
+        "analytic_error": 0.053509023040533066
+      }
+    }
+  },
+  "sweep_key": "steps",
+  "params": {
+    "name": "vs_steps",
+    "ic": {
+      "name": "tgv",
+      "seed": 0
+    },
+    "physics": {
+      "nu": 0.05,
+      "dt": 0.01,
+      "N": 64,
+      "steps": 5
+    },
+    "sweep": {
+      "key": "steps",
+      "values": [
+        5,
+        10,
+        20,
+        50,
+        100
+      ]
+    },
+    "diagnostics": {
+      "divergence_rms": "<callable divergence_rms>",
+      "kinetic_energy": "<callable kinetic_energy>",
+      "energy_spectrum": "<callable energy_spectrum>"
+    }
+  },
+  "coords": {
+    "variant": "vs_steps"
+  },
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "OpenFOAM": "ef19c93f82cf4d0d",
+    "jax-cfd": "d96b542faaddd3bc",
+    "PICT": "9b1e8d5ae4ba922a",
+    "XLB": "48fb8aa8416ca6f5",
+    "PhiFlow": "90446cdcf4373f59",
+    "Warp-NS": "8d0f242f90ecbde8"
+  },
+  "harness_hash": "82d5b53b234b0219",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.physical_laws",
+  "wall_time_s": {
+    "INS.jl": 12.088842896000017,
+    "OpenFOAM": 3.745580586000017,
+    "jax-cfd": 2.122629062000101,
+    "PhiFlow": 7.575181985000086,
+    "PICT": 4.119921063999982,
+    "Warp-NS": 3.061554299000022,
+    "XLB": 1.1133176189999858
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:27:08.954927+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:27:08Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446929",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  },
+  "spread": {}
+}

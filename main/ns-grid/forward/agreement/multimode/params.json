@@ -1,0 +1,29 @@
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 64,
+    "dt": 0.05,
+    "steps": 20,
+    "nu": 0.001
+  },
+  "reference": {
+    "solvers": [
+      "jax_cfd"
+    ],
+    "dt": 0.01,
+    "steps": 100
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.001,
+      0.005,
+      0.01,
+      0.02,
+      0.05
+    ]
+  }
+}

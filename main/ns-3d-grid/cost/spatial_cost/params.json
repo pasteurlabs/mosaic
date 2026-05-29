@@ -1,0 +1,21 @@
+{
+  "physics": {
+    "nu": 0.01,
+    "dt": 0.01,
+    "lbm_N_base": 16,
+    "steps": 50,
+    "N": 16
+  },
+  "cost": {
+    "n_trials": 3
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      16,
+      32,
+      48,
+      64
+    ]
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "by_param": {
+    "0.25": {
+      "deal.II": {
+        "thermal_compliance": 0.6412187814712524
+      },
+      "FEniCS": {
+        "thermal_compliance": 0.6412187814712524
+      },
+      "Firedrake": {
+        "thermal_compliance": 0.6412187814712524
+      },
+      "JAX-FEM": {
+        "thermal_compliance": 0.6412187814712524
+      },
+      "torch-fem": {
+        "thermal_compliance": 0.6412187814712524
+      }
+    },
+    "0.5": {
+      "deal.II": {
+        "thermal_compliance": 2.5648751258850098
+      },
+      "FEniCS": {
+        "thermal_compliance": 2.5648751258850098
+      },
+      "Firedrake": {
+        "thermal_compliance": 2.5648751258850098
+      },
+      "JAX-FEM": {
+        "thermal_compliance": 2.5648751258850098
+      },
+      "torch-fem": {
+        "thermal_compliance": 2.5648751258850098
+      }
+    },
+    "1.0": {
+      "deal.II": {
+        "thermal_compliance": 10.259500503540039
+      },
+      "FEniCS": {
+        "thermal_compliance": 10.259500503540039
+      },
+      "Firedrake": {
+        "thermal_compliance": 10.259500503540039
+      },
+      "JAX-FEM": {
+        "thermal_compliance": 10.259500503540039
+      },
+      "torch-fem": {
+        "thermal_compliance": 10.259500503540039
+      }
+    },
+    "2.0": {
+      "deal.II": {
+        "thermal_compliance": 41.038002014160156
+      },
+      "FEniCS": {
+        "thermal_compliance": 41.038002014160156
+      },
+      "Firedrake": {
+        "thermal_compliance": 41.038002014160156
+      },
+      "JAX-FEM": {
+        "thermal_compliance": 41.038002014160156
+      },
+      "torch-fem": {
+        "thermal_compliance": 41.038002014160156
+      }
+    },
+    "4.0": {
+      "deal.II": {
+        "thermal_compliance": 164.15200805664062
+      },
+      "FEniCS": {
+        "thermal_compliance": 164.15200805664062
+      },
+      "Firedrake": {
+        "thermal_compliance": 164.15200805664062
+      },
+      "JAX-FEM": {
+        "thermal_compliance": 164.15200805664062
+      },
+      "torch-fem": {
+        "thermal_compliance": 164.15200805664062
+      }
+    }
+  },
+  "sweep_key": "Q_total",
+  "params": {
+    "ic": {
+      "name": "uniform",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nz": 1,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "rho_0": 0.5,
+      "hot_spot": true,
+      "Q_total": 0.25
+    },
+    "sweep": {
+      "key": "Q_total",
+      "values": [
+        0.25,
+        0.5,
+        1.0,
+        2.0,
+        4.0
+      ]
+    },
+    "diagnostics": {
+      "thermal_compliance": "<callable _get_thermal_compliance>"
+    }
+  },
+  "tesseract_hashes": {
+    "Firedrake": "d9935251a2270b64",
+    "deal.II": "d00757b164ac0144",
+    "FEniCS": "050aadc98a985619",
+    "JAX-FEM": "7fb58b38b7f05b27",
+    "torch-fem": "b102021693128cf6"
+  },
+  "harness_hash": "82d5b53b234b0219",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.physical_laws",
+  "wall_time_s": {
+    "deal.II": 1.3093412369998987,
+    "FEniCS": 9.418580334000012,
+    "Firedrake": 6.5826282269999865,
+    "JAX-FEM": 4.752056425000035,
+    "torch-fem": 1.9997220019999986
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:19:40.653070+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:19:40Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446917",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  },
+  "spread": {}
+}

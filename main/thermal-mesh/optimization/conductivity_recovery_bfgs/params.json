@@ -1,0 +1,26 @@
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 16,
+    "ny": 8,
+    "nz": 1,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "rho_0": 0.5,
+    "Q_total": 1.0,
+    "compliance_key": "identification_error",
+    "penalty_weight": 0.0,
+    "x_min": 0.001,
+    "snap_interval": 10,
+    "target_rho_from_two_gaussians": true
+  },
+  "optim": {
+    "max_iters": 200,
+    "patience": 30
+  },
+  "optimizer": "bfgs"
+}

@@ -1,0 +1,28 @@
+{
+  "ic": {
+    "name": "tgv3d",
+    "seed": 0
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.01,
+    "steps": 50,
+    "lbm_N_base": 16
+  },
+  "reference": {
+    "solvers": [
+      "exponax"
+    ],
+    "dt": 0.002,
+    "steps": 250
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.001,
+      0.01,
+      0.05
+    ]
+  }
+}

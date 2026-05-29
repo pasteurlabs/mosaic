@@ -1,0 +1,462 @@
+{
+  "by_N": {
+    "deal.II": {
+      "16": {
+        "mean": 0.19370505213737488,
+        "std": 0.0008586859330534935,
+        "trials_s": [
+          0.19304374299997562,
+          0.1949177569999847,
+          0.19315364500005217
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 346.259456
+      },
+      "32": {
+        "mean": 0.21504563093185425,
+        "std": 0.001030782237648964,
+        "trials_s": [
+          0.21407285500004036,
+          0.21459177000008367,
+          0.21647225100002743
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 372.133888
+      },
+      "64": {
+        "mean": 0.30510976910591125,
+        "std": 0.0005367451813071966,
+        "trials_s": [
+          0.30483252999999877,
+          0.3046364110000468,
+          0.3058603450000419
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 372.133888
+      },
+      "128": {
+        "mean": 0.6784376502037048,
+        "std": 0.001767459325492382,
+        "trials_s": [
+          0.6774237409999841,
+          0.6809231909999198,
+          0.676965967000001
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 372.969472
+      },
+      "256": {
+        "mean": 2.440810203552246,
+        "std": 0.007189589086920023,
+        "trials_s": [
+          2.4335739960000637,
+          2.4382423590000144,
+          2.4506140539999706
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 380.207104
+      },
+      "512": {
+        "mean": 13.88398551940918,
+        "std": 0.0593445785343647,
+        "trials_s": [
+          13.838123904999975,
+          13.846043998000027,
+          13.967786297000089
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 399.60576
+      },
+      "1024": {
+        "mean": 91.94573211669922,
+        "std": 0.15491750836372375,
+        "trials_s": [
+          92.13748144699991,
+          91.94162047300006,
+          91.75807970100004
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 476.188672
+      }
+    },
+    "FEniCS": {
+      "16": {
+        "mean": 0.03174910694360733,
+        "std": 0.0007117816130630672,
+        "trials_s": [
+          0.032728216000009525,
+          0.031057182000040484,
+          0.031461908999972366
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 401.743872
+      },
+      "32": {
+        "mean": 0.08939503878355026,
+        "std": 0.00018419369007460773,
+        "trials_s": [
+          0.08926114799999141,
+          0.08965549000004103,
+          0.08926846899998964
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 401.743872
+      },
+      "64": {
+        "mean": 0.2537795901298523,
+        "std": 0.0004881697823293507,
+        "trials_s": [
+          0.254140854999946,
+          0.2530894450000005,
+          0.2541084270000056
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 401.743872
+      },
+      "128": {
+        "mean": 0.7443275451660156,
+        "std": 0.002843277994543314,
+        "trials_s": [
+          0.7427749589999166,
+          0.7483160300000691,
+          0.7418915560000414
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 401.743872
+      },
+      "256": {
+        "mean": 2.8069913387298584,
+        "std": 0.004361841827630997,
+        "trials_s": [
+          2.805849631000001,
+          2.802312246999918,
+          2.812811746999955
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 402.558976
+      },
+      "512": {
+        "mean": 11.856517791748047,
+        "std": 0.22629472613334656,
+        "trials_s": [
+          11.959937297000124,
+          11.542525174000048,
+          12.067090742000119
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 404.856832
+      },
+      "1024": {
+        "status": "failed",
+        "trials_s": [],
+        "failure_type": "error",
+        "exc_type": "RuntimeError",
+        "exc_msg": "Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 660, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 680, in app\n    await route.handle(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 276, in handle\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 134, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 120, in app\n    response = await f(request)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 674, in app\n    raw_response = await run_endpoint_function(\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 328, in run_endpoint_function\n    return await dependant.call(**values)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/serve.py\", line 76, in wrapper\n    result = endpoint_func(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/core.py\", line 226, in apply\n    out = api_module.apply(payload.inputs)\n  File \"/tesseract/tesseract_api.py\", line 440, in apply\n    J_val, T_verts, _, _ = _solve_heat(\n  File \"/tesseract/tesseract_api.py\", line 289, in _solve_heat\n    solve(a == L, T_sol, bcs)\n  File \"/python-env/lib/python3.10/site-packages/fenics_adjoint/solving.py\", line 52, in solve\n    output = backend.solve(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 220, in solve\n    _solve_varproblem(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 247, in _solve_varproblem\n    solver.solve()\nRuntimeError: \n\n*** -------------------------------------------------------------------------\n*** DOLFIN encountered an error. If you are not able to resolve this issue\n*** using the information listed below, you can ask for help at\n***\n***     fenics-support@googlegroups.com\n***\n*** Remember to include the error message listed below and, if possible,\n*** include a *minimal* running example to reproduce the error.\n***\n*** -------------------------------------------------------------------------\n*** Error:   Unable to successfully call PETSc function 'KSPSolve'.\n*** Reason:  PETSc error code is: 76 (Error in external library).\n*** Where:   This error was encountered inside /home/conda/feedstock_root/build_artifacts/fenics-pkgs_1777354178743/work/dolfin/la/PETScKrylovSolver.cpp.\n*** Process: 0\n*** \n*** DOLFIN version: 2019.1.0\n*** Git changeset:  51a9923d75a14fa8c4849db2db1fa46ad72b05b0\n*** -------------------------------------------------------------------------\n\n",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/core/harness.py\", line 171, in run_timed_trials\n    fn()  # warmup; return value intentionally discarded\n    ^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/cost.py\", line 186, in <lambda>\n    return _timed_kernel(t, ctx, timed_call=lambda: t.apply(inputs))\n                                                    ^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 43, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 448, in apply\n    return self._client.run_tesseract(\"apply\", payload, run_id, self._stream_logs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 892, in run_tesseract\n    return self._request(endpoint, method, payload, run_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 813, in _request\n    raise RuntimeError(\nRuntimeError: Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 660, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 680, in app\n    await route.handle(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 276, in handle\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 134, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 120, in app\n    response = await f(request)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 674, in app\n    raw_response = await run_endpoint_function(\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 328, in run_endpoint_function\n    return await dependant.call(**values)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/serve.py\", line 76, in wrapper\n    result = endpoint_func(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/core.py\", line 226, in apply\n    out = api_module.apply(payload.inputs)\n  File \"/tesseract/tesseract_api.py\", line 440, in apply\n    J_val, T_verts, _, _ = _solve_heat(\n  File \"/tesseract/tesseract_api.py\", line 289, in _solve_heat\n    solve(a == L, T_sol, bcs)\n  File \"/python-env/lib/python3.10/site-packages/fenics_adjoint/solving.py\", line 52, in solve\n    output = backend.solve(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 220, in solve\n    _solve_varproblem(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 247, in _solve_varproblem\n    solver.solve()\nRuntimeError: \n\n*** -------------------------------------------------------------------------\n*** DOLFIN encountered an error. If you are not able to resolve this issue\n*** using the information listed below, you can ask for help at\n***\n***     fenics-support@googlegroups.com\n***\n*** Remember to include the error message listed below and, if possible,\n*** include a *minimal* running example to reproduce the error.\n***\n*** -------------------------------------------------------------------------\n*** Error:   Unable to successfully call PETSc function 'KSPSolve'.\n*** Reason:  PETSc error code is: 76 (Error in external library).\n*** Where:   This error was encountered inside /home/conda/feedstock_root/build_artifacts/fenics-pkgs_1777354178743/work/dolfin/la/PETScKrylovSolver.cpp.\n*** Process: 0\n*** \n*** DOLFIN version: 2019.1.0\n*** Git changeset:  51a9923d75a14fa8c4849db2db1fa46ad72b05b0\n*** -------------------------------------------------------------------------\n\n\n",
+        "vram_peak_mib": null,
+        "ram_peak_mib": 543.399936
+      }
+    },
+    "Firedrake": {
+      "16": {
+        "mean": 0.05255027860403061,
+        "std": 0.000815164006780833,
+        "trials_s": [
+          0.05368669300014517,
+          0.052149847000009686,
+          0.051814281999895684
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 403.832832
+      },
+      "32": {
+        "mean": 0.13667979836463928,
+        "std": 0.0038293201941996813,
+        "trials_s": [
+          0.13615055400009624,
+          0.14161189800006468,
+          0.1322769219998463
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 403.832832
+      },
+      "64": {
+        "mean": 0.4559658169746399,
+        "std": 0.0012166225351393223,
+        "trials_s": [
+          0.4542452260000118,
+          0.4568219970001337,
+          0.4568301580000025
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 403.832832
+      },
+      "128": {
+        "mean": 1.7839488983154297,
+        "std": 0.003515701973810792,
+        "trials_s": [
+          1.7888267860000724,
+          1.7806766720000269,
+          1.7823428640001566
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 403.841024
+      },
+      "256": {
+        "mean": 7.177239894866943,
+        "std": 0.009282086975872517,
+        "trials_s": [
+          7.190001415000097,
+          7.168196726000133,
+          7.17352046200017
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 404.815872
+      },
+      "512": {
+        "mean": 29.062389373779297,
+        "std": 0.08440441638231277,
+        "trials_s": [
+          28.973380211999938,
+          29.038011258000097,
+          29.175771194999925
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 410.075136
+      },
+      "1024": {
+        "mean": 120.0848617553711,
+        "std": 0.6642737984657288,
+        "trials_s": [
+          120.12129552800002,
+          119.25369139099985,
+          120.87960063100013
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 480.473088
+      }
+    },
+    "JAX-FEM": {
+      "16": {
+        "mean": 0.2492184042930603,
+        "std": 0.002613076474517584,
+        "trials_s": [
+          0.24593842300001256,
+          0.2493840839999848,
+          0.2523326740000016
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 361.484288
+      },
+      "32": {
+        "mean": 0.28057295083999634,
+        "std": 0.005931489169597626,
+        "trials_s": [
+          0.2844455549999907,
+          0.285080698999991,
+          0.2721925690000262
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 387.2768
+      },
+      "64": {
+        "mean": 0.33721351623535156,
+        "std": 0.004358859732747078,
+        "trials_s": [
+          0.3372493910000003,
+          0.34253401799998073,
+          0.3318571969999766
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 387.2768
+      },
+      "128": {
+        "mean": 0.6510180234909058,
+        "std": 0.0025029273238033056,
+        "trials_s": [
+          0.653343389999975,
+          0.6521664019999776,
+          0.6475441679999676
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 388.018176
+      },
+      "256": {
+        "mean": 2.2670650482177734,
+        "std": 0.010838688351213932,
+        "trials_s": [
+          2.26302154199999,
+          2.2818914179999865,
+          2.256282569999996
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 398.737408
+      },
+      "512": {
+        "mean": 11.601247787475586,
+        "std": 0.017943192273378372,
+        "trials_s": [
+          11.611976137,
+          11.575967619999972,
+          11.61579845
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 415.72352
+      },
+      "1024": {
+        "mean": 86.62562561035156,
+        "std": 1.942738652229309,
+        "trials_s": [
+          85.731293015,
+          89.322554454,
+          84.82300932399994
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 457.986048
+      }
+    },
+    "torch-fem": {
+      "16": {
+        "mean": 0.04987460374832153,
+        "std": 0.00026742013869807124,
+        "trials_s": [
+          0.05024912099997891,
+          0.049641810000025544,
+          0.049732887000004666
+        ],
+        "vram_peak_mib": 150.0,
+        "ram_peak_mib": 384.950272
+      },
+      "32": {
+        "mean": 0.06012552231550217,
+        "std": 5.667905861628242e-05,
+        "trials_s": [
+          0.06020171599993773,
+          0.060065872999985004,
+          0.06010896699990553
+        ],
+        "vram_peak_mib": 4.0,
+        "ram_peak_mib": 384.950272
+      },
+      "64": {
+        "mean": 0.11794783920049667,
+        "std": 0.0011440417729318142,
+        "trials_s": [
+          0.11956575700003214,
+          0.11714182800005801,
+          0.1171359359999542
+        ],
+        "vram_peak_mib": 4.0,
+        "ram_peak_mib": 384.950272
+      },
+      "128": {
+        "mean": 0.36903536319732666,
+        "std": 0.007152574602514505,
+        "trials_s": [
+          0.37828901799991854,
+          0.3679463119999582,
+          0.3608706909999455
+        ],
+        "vram_peak_mib": 56.0,
+        "ram_peak_mib": 384.950272
+      },
+      "256": {
+        "mean": 1.0226926803588867,
+        "std": 0.005383563693612814,
+        "trials_s": [
+          1.03028778099997,
+          1.018437691000031,
+          1.0193522499999972
+        ],
+        "vram_peak_mib": 270.0,
+        "ram_peak_mib": 385.138688
+      },
+      "512": {
+        "mean": 3.519597053527832,
+        "std": 0.003507500048726797,
+        "trials_s": [
+          3.5148016829999733,
+          3.52089627700002,
+          3.5230935559999352
+        ],
+        "vram_peak_mib": 1386.0,
+        "ram_peak_mib": 389.279744
+      },
+      "1024": {
+        "mean": 13.438175201416016,
+        "std": 0.015310525894165039,
+        "trials_s": [
+          13.43068321699991,
+          13.459513513000047,
+          13.424326520000022
+        ],
+        "vram_peak_mib": 4744.0,
+        "ram_peak_mib": 461.676544
+      }
+    }
+  },
+  "hardware": {
+    "gpus": [
+      "Tesla T4, 16384 MiB"
+    ],
+    "cpu": "AMD EPYC 7V12 64-Core Processor",
+    "ram_gb": 29.4
+  },
+  "params": {
+    "physics": {
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0,
+      "rho_0": 0.5,
+      "steps": 1,
+      "nx": 16
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "nx",
+      "values": [
+        16,
+        32,
+        64,
+        128,
+        256,
+        512,
+        1024
+      ]
+    }
+  },
+  "_isolation_note": "Wall-clock times measured on dedicated per-suite VM in CI. Relative rankings reliable; absolute times may vary \u00b110-15% across runs.",
+  "tesseract_hashes": {
+    "deal.II": "d00757b164ac0144",
+    "Firedrake": "d9935251a2270b64",
+    "FEniCS": "050aadc98a985619",
+    "torch-fem": "b102021693128cf6",
+    "JAX-FEM": "7fb58b38b7f05b27"
+  },
+  "harness_hash": "957374b3a274eeb6",
+  "harness_fn": "mosaic.benchmarks.problems.shared.cost.spatial_cost",
+  "wall_time_s": {
+    "deal.II": 441.23394282800007,
+    "FEniCS": 118.93892838499994,
+    "Firedrake": 643.8634993809999,
+    "JAX-FEM": 430.404681566,
+    "torch-fem": 79.35105750599996
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:27:13.332532+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:27:13Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446918",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

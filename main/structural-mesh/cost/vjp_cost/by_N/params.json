@@ -1,0 +1,26 @@
+{
+  "name": "by_N",
+  "physics": {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "rho_0": 0.5,
+    "corner_load": false,
+    "steps": 1,
+    "nx": 4
+  },
+  "cost": {
+    "n_trials": 3
+  },
+  "sweep": {
+    "key": "nx",
+    "values": [
+      4,
+      6,
+      8,
+      12,
+      16
+    ]
+  }
+}

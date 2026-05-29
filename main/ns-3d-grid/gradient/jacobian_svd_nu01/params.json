@@ -1,0 +1,16 @@
+{
+  "ic": {
+    "name": "tgv3d",
+    "seed": 0
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 10
+  },
+  "jacobian": {
+    "n_alphas": 41,
+    "alpha_range": 0.3
+  }
+}

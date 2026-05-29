@@ -1,0 +1,170 @@
+{
+  "by_param": {
+    "8": {
+      "INS.jl": {
+        "error": 0.14681477844715118,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 0.0029038949869573116,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Exponax": {
+        "error": 0.0025440100580453873,
+        "valid": true
+      },
+      "PhiFlow": {
+        "error": 0.14681509137153625,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.0029038507491350174,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 0.0034062345512211323,
+        "valid": true
+      },
+      "XLB": {
+        "error": 0.27312642335891724,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "16": {
+      "INS.jl": {
+        "error": 0.03858112916350365,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 0.0025006902869790792,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Exponax": {
+        "error": 0.0025440144818276167,
+        "valid": true
+      },
+      "PhiFlow": {
+        "error": 0.03858182951807976,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.0025006092619150877,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 0.002610937226563692,
+        "valid": true
+      },
+      "XLB": {
+        "error": 0.07410091906785965,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "32": {
+      "INS.jl": {
+        "error": 0.010378108359873295,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 0.002507800003513694,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Exponax": {
+        "error": 0.0025440258905291557,
+        "valid": true
+      },
+      "PhiFlow": {
+        "error": 0.010378721170127392,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.0025074766017496586,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 0.002544293412938714,
+        "valid": true
+      },
+      "XLB": {
+        "error": 0.019093619659543037,
+        "valid": true,
+        "drag": 0.0
+      }
+    }
+  },
+  "spread": {
+    "8": 0.10900099575519562,
+    "16": 0.028645362704992294,
+    "32": 0.0065834298729896545
+  },
+  "sweep_key": "N",
+  "reference_label": "analytic",
+  "params": {
+    "ic": {
+      "name": "tgv3d",
+      "seed": 0
+    },
+    "physics": {
+      "N": 8,
+      "nu": 0.05,
+      "dt": 0.01,
+      "steps": 1
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        8,
+        16,
+        32
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "OpenFOAM": "ef19c93f82cf4d0d",
+    "Warp-NS": "8d0f242f90ecbde8",
+    "PICT": "9b1e8d5ae4ba922a",
+    "XLB": "48fb8aa8416ca6f5",
+    "Exponax": "ae9026775f5bebcb",
+    "PhiFlow": "90446cdcf4373f59"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "INS.jl": 19.265337594000016,
+    "OpenFOAM": 2.3517207950000056,
+    "Exponax": 4.294784561000029,
+    "PhiFlow": 6.654603856999984,
+    "PICT": 0.8640785049999522,
+    "Warp-NS": 3.118897191999963,
+    "XLB": 1.8150919409999915
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:35:04.948828+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:35:04Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446962",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

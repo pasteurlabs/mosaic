@@ -1,0 +1,21 @@
+{
+  "physics": {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "rho_0": 0.5,
+    "corner_load": false,
+    "nx": 8,
+    "steps": 1
+  },
+  "cost": {
+    "n_trials": 3
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      1
+    ]
+  }
+}

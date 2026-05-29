@@ -1,0 +1,542 @@
+{
+  "by_solver": {
+    "INS.jl": {
+      "40": {
+        "grad_norm": 81.93869018554688,
+        "grad_mean": -2.3345153588039125e-10,
+        "grad_std": 0.5289120674133301,
+        "grad_min": -1.7993402481079102,
+        "grad_max": 1.7993402481079102,
+        "status": "ok",
+        "wall_time_s": 3.3191156720000095,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1776.13671875
+      },
+      "80": {
+        "grad_norm": 75.16633605957031,
+        "grad_mean": -2.4586916946844894e-09,
+        "grad_std": 0.48519784212112427,
+        "grad_min": -1.6032212972640991,
+        "grad_max": 1.6032207012176514,
+        "status": "ok",
+        "wall_time_s": 5.951646245000006,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 2199.8828125
+      },
+      "160": {
+        "grad_norm": 92.77001953125,
+        "grad_mean": 1.6686320236658503e-07,
+        "grad_std": 0.5988292098045349,
+        "grad_min": -3.164811611175537,
+        "grad_max": 3.164841651916504,
+        "status": "ok",
+        "wall_time_s": 11.867340910999985,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 3282.9765625
+      },
+      "320": {
+        "grad_norm": 488.9503479003906,
+        "grad_mean": 0.01403496041893959,
+        "grad_std": 3.15613055229187,
+        "grad_min": -20.328807830810547,
+        "grad_max": 20.328536987304688,
+        "status": "ok",
+        "wall_time_s": 24.058674517999975,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 6178.98046875
+      },
+      "640": {
+        "grad_norm": 11651.373046875,
+        "grad_mean": -2.4261116981506348,
+        "grad_std": 75.17020416259766,
+        "grad_min": -1229.8009033203125,
+        "grad_max": 792.497802734375,
+        "status": "ok",
+        "wall_time_s": 46.10117157999997,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 10238.13671875
+      },
+      "1280": {
+        "grad_norm": 208552.65625,
+        "grad_mean": 11.083894729614258,
+        "grad_std": 1346.156494140625,
+        "grad_min": -15169.8701171875,
+        "grad_max": 22279.609375,
+        "status": "ok",
+        "wall_time_s": 90.33473425200003,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 18461.40234375
+      },
+      "2560": {
+        "grad_norm": 288446.21875,
+        "grad_mean": -4.857010841369629,
+        "grad_std": 1861.9093017578125,
+        "grad_min": -24559.439453125,
+        "grad_max": 21126.9609375,
+        "status": "ok",
+        "wall_time_s": 174.25109792199999,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 35627.91015625
+      },
+      "5120": {
+        "status": "failed",
+        "failure_type": "error",
+        "error": "('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))",
+        "wall_time_s": 82.33535356700008,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 57441.4609375
+      },
+      "10240": {
+        "status": "skipped",
+        "reason": "first failure at steps=5120 (error)"
+      }
+    },
+    "Exponax": {
+      "40": {
+        "grad_norm": 156.00328063964844,
+        "grad_mean": -7.120767975266062e-08,
+        "grad_std": 1.0069987773895264,
+        "grad_min": -2.9668397903442383,
+        "grad_max": 2.96683406829834,
+        "status": "ok",
+        "wall_time_s": 1.100168498999949,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 299.515625
+      },
+      "80": {
+        "grad_norm": 238.4474334716797,
+        "grad_mean": -9.155273517080786e-08,
+        "grad_std": 1.5391751527786255,
+        "grad_min": -5.044371128082275,
+        "grad_max": 5.044375896453857,
+        "status": "ok",
+        "wall_time_s": 2.0053175169999804,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 315.03515625
+      },
+      "160": {
+        "grad_norm": 365.03314208984375,
+        "grad_mean": -0.00011316426389385015,
+        "grad_std": 2.3562798500061035,
+        "grad_min": -12.159433364868164,
+        "grad_max": 12.169732093811035,
+        "status": "ok",
+        "wall_time_s": 2.0058424169999967,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 326.6640625
+      },
+      "320": {
+        "grad_norm": 534387.5625,
+        "grad_mean": -2.825345039367676,
+        "grad_std": 3449.458984375,
+        "grad_min": -40646.43359375,
+        "grad_max": 40698.55859375,
+        "status": "ok",
+        "wall_time_s": 4.006758713000011,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 575.48828125
+      },
+      "640": {
+        "grad_norm": 136547312.0,
+        "grad_mean": -252.99691772460938,
+        "grad_std": 881410.875,
+        "grad_min": -11329734.0,
+        "grad_max": 11371818.0,
+        "status": "ok",
+        "wall_time_s": 4.011291099999994,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 570.73828125
+      },
+      "1280": {
+        "grad_norm": 647155456.0,
+        "grad_mean": 14031.9208984375,
+        "grad_std": 4177347.5,
+        "grad_min": -55866652.0,
+        "grad_max": 56260152.0,
+        "status": "ok",
+        "wall_time_s": 6.303992342999948,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1305.57421875
+      },
+      "2560": {
+        "grad_norm": 1989254784.0,
+        "grad_mean": 5597.62451171875,
+        "grad_std": 12840582.0,
+        "grad_min": -171275968.0,
+        "grad_max": 171105472.0,
+        "status": "ok",
+        "wall_time_s": 11.728919344000019,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 2253.7421875
+      },
+      "5120": {
+        "grad_norm": 829649472.0,
+        "grad_mean": -10988.435546875,
+        "grad_std": 5355352.5,
+        "grad_min": -48738120.0,
+        "grad_max": 48741228.0,
+        "status": "ok",
+        "wall_time_s": 22.040334460999986,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 4145.7109375
+      },
+      "10240": {
+        "grad_norm": 404817728.0,
+        "grad_mean": 415.7446594238281,
+        "grad_std": 2613089.75,
+        "grad_min": -25175828.0,
+        "grad_max": 24926924.0,
+        "status": "ok",
+        "wall_time_s": 42.073090156000035,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 7912.80078125
+      }
+    },
+    "PhiFlow": {
+      "40": {
+        "grad_norm": 88.75365447998047,
+        "grad_mean": 3.019968719542021e-09,
+        "grad_std": 0.5729039311408997,
+        "grad_min": -2.2888612747192383,
+        "grad_max": 2.2888612747192383,
+        "status": "ok",
+        "wall_time_s": 1.1042325399999982,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 453.28515625
+      },
+      "80": {
+        "grad_norm": 232.11529541015625,
+        "grad_mean": 9.187062488535958e-08,
+        "grad_std": 1.498300552368164,
+        "grad_min": -18.181983947753906,
+        "grad_max": 18.182010650634766,
+        "status": "ok",
+        "wall_time_s": 7.9237194150000505,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 544.73046875
+      },
+      "160": {
+        "status": "failed",
+        "failure_type": "nan",
+        "error": "VJP returned non-finite gradient (NaN/Inf)",
+        "wall_time_s": 8.013273649999974,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 622.23046875
+      },
+      "320": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "640": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "1280": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "2560": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "5120": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "10240": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      }
+    },
+    "PICT": {
+      "40": {
+        "grad_norm": 86.10585021972656,
+        "grad_mean": 8.642673243741683e-10,
+        "grad_std": 0.5558099150657654,
+        "grad_min": -1.8907207250595093,
+        "grad_max": 1.8907179832458496,
+        "status": "ok",
+        "wall_time_s": 3.1830929039999774,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 691.18359375
+      },
+      "80": {
+        "grad_norm": 78.1795654296875,
+        "grad_mean": -6.258487617039066e-10,
+        "grad_std": 0.5046470165252686,
+        "grad_min": -1.7464747428894043,
+        "grad_max": 1.7464759349822998,
+        "status": "ok",
+        "wall_time_s": 6.2928000999999085,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 703.25
+      },
+      "160": {
+        "grad_norm": 81.58806610107422,
+        "grad_mean": -6.278356181610434e-07,
+        "grad_std": 0.5266493558883667,
+        "grad_min": -3.4155750274658203,
+        "grad_max": 3.415501594543457,
+        "status": "ok",
+        "wall_time_s": 13.571933724000019,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 717.1328125
+      },
+      "320": {
+        "grad_norm": 235.14212036132812,
+        "grad_mean": 3.3698877359711332e-06,
+        "grad_std": 1.5178332328796387,
+        "grad_min": -11.3505220413208,
+        "grad_max": 11.345779418945312,
+        "status": "ok",
+        "wall_time_s": 26.04485762999991,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 753.91015625
+      },
+      "640": {
+        "grad_norm": 213.033203125,
+        "grad_mean": -2.9506086320907343e-06,
+        "grad_std": 1.375125527381897,
+        "grad_min": -8.109709739685059,
+        "grad_max": 8.115345001220703,
+        "status": "ok",
+        "wall_time_s": 52.07993816800001,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 827.4453125
+      },
+      "1280": {
+        "grad_norm": 207.41453552246094,
+        "grad_mean": -0.0019065567757934332,
+        "grad_std": 1.3388540744781494,
+        "grad_min": -9.189204216003418,
+        "grad_max": 9.095829010009766,
+        "status": "ok",
+        "wall_time_s": 102.16276803200003,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 975.5703125
+      },
+      "2560": {
+        "grad_norm": 560.16650390625,
+        "grad_mean": 0.011364546604454517,
+        "grad_std": 3.615842819213867,
+        "grad_min": -38.69475173950195,
+        "grad_max": 39.536983489990234,
+        "status": "ok",
+        "wall_time_s": 198.30324444500002,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1269.94140625
+      },
+      "5120": {
+        "status": "failed",
+        "failure_type": "error",
+        "error": "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+        "wall_time_s": 188.41628260800007,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1478.59765625
+      },
+      "10240": {
+        "status": "skipped",
+        "reason": "first failure at steps=5120 (error)"
+      }
+    },
+    "Warp-NS": {
+      "40": {
+        "grad_norm": 95.36296081542969,
+        "grad_mean": -4.768371808516747e-10,
+        "grad_std": 0.6155648231506348,
+        "grad_min": -2.7201614379882812,
+        "grad_max": 2.7201619148254395,
+        "status": "ok",
+        "wall_time_s": 1.0126792670000668,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 313.86328125
+      },
+      "80": {
+        "grad_norm": 345.3236389160156,
+        "grad_mean": -2.521038140912424e-06,
+        "grad_std": 2.2290587425231934,
+        "grad_min": -20.970773696899414,
+        "grad_max": 20.97161102294922,
+        "status": "ok",
+        "wall_time_s": 2.0026424079999288,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 313.93359375
+      },
+      "160": {
+        "status": "failed",
+        "failure_type": "nan",
+        "error": "VJP returned non-finite gradient (NaN/Inf)",
+        "wall_time_s": 2.0032083470000543,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 315.1875
+      },
+      "320": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "640": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "1280": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "2560": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "5120": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      },
+      "10240": {
+        "status": "skipped",
+        "reason": "first failure at steps=160 (nan)"
+      }
+    },
+    "XLB": {
+      "40": {
+        "grad_norm": 81.96859741210938,
+        "grad_mean": -6.357828707947988e-10,
+        "grad_std": 0.5291058421134949,
+        "grad_min": -1.9079008102416992,
+        "grad_max": 1.907901406288147,
+        "status": "ok",
+        "wall_time_s": 1.012546119000035,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 384.6640625
+      },
+      "80": {
+        "grad_norm": 72.89878845214844,
+        "grad_mean": 2.7020772286334704e-09,
+        "grad_std": 0.4705601930618286,
+        "grad_min": -1.3430724143981934,
+        "grad_max": 1.343072533607483,
+        "status": "ok",
+        "wall_time_s": 4.007008856000084,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1830.7421875
+      },
+      "160": {
+        "grad_norm": 47.623802185058594,
+        "grad_mean": 1.825888951145771e-08,
+        "grad_std": 0.3074113726615906,
+        "grad_min": -1.0656808614730835,
+        "grad_max": 1.0656816959381104,
+        "status": "ok",
+        "wall_time_s": 4.007293075000007,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 3191.953125
+      },
+      "320": {
+        "grad_norm": 21.033767700195312,
+        "grad_mean": 4.651149154710765e-08,
+        "grad_std": 0.13577242195606232,
+        "grad_min": -0.47978711128234863,
+        "grad_max": 0.47978654503822327,
+        "status": "ok",
+        "wall_time_s": 6.012709011999959,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 5994.6796875
+      },
+      "640": {
+        "grad_norm": 14.60523796081543,
+        "grad_mean": 1.0517736681592282e-09,
+        "grad_std": 0.09427648782730103,
+        "grad_min": -0.46041348576545715,
+        "grad_max": 0.460415780544281,
+        "status": "ok",
+        "wall_time_s": 12.027380113000163,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 11531.0
+      },
+      "1280": {
+        "grad_norm": 2.3534069061279297,
+        "grad_mean": 6.368880178797554e-08,
+        "grad_std": 0.015191190876066685,
+        "grad_min": -0.05397268384695053,
+        "grad_max": 0.053974688053131104,
+        "status": "ok",
+        "wall_time_s": 22.04893768099987,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 22579.7265625
+      },
+      "2560": {
+        "status": "failed",
+        "failure_type": "OOM",
+        "error": "Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.12/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/middleware/exceptions.py\", line 63",
+        "wall_time_s": 6.0115902990000905,
+        "vram_peak_mib": null,
+        "ram_peak_mib": 473.76171875
+      },
+      "5120": {
+        "status": "skipped",
+        "reason": "first failure at steps=2560 (OOM)"
+      },
+      "10240": {
+        "status": "skipped",
+        "reason": "first failure at steps=2560 (OOM)"
+      }
+    }
+  },
+  "params": {
+    "ic": {
+      "name": "tgv3d",
+      "seed": 0
+    },
+    "physics": {
+      "N": 20,
+      "nu": 0.001,
+      "dt": 0.05,
+      "steps": 40
+    },
+    "sweep": {
+      "key": "steps",
+      "values": [
+        40,
+        80,
+        160,
+        320,
+        640,
+        1280,
+        2560,
+        5120,
+        10240
+      ]
+    }
+  },
+  "sweep_key": "steps",
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "PICT": "9b1e8d5ae4ba922a",
+    "XLB": "48fb8aa8416ca6f5",
+    "PhiFlow": "90446cdcf4373f59",
+    "Warp-NS": "8d0f242f90ecbde8",
+    "Exponax": "ae9026775f5bebcb"
+  },
+  "harness_hash": "3a05ce4961654588",
+  "harness_fn": "mosaic.benchmarks.problems.shared.gradient.horizon_sweep_limits",
+  "wall_time_s": {
+    "INS.jl": 496.309812688,
+    "Exponax": 97.27502239499995,
+    "PhiFlow": 23.047372389999964,
+    "PICT": 594.400874674,
+    "Warp-NS": 8.10450221200017,
+    "XLB": 57.55629032700017
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:35:39.037333+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:35:39Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446905",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 8,
+    "ny": 2,
+    "nz": 4,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "corner_load": false,
+    "rho_0": 0.5,
+    "F_total": 0.25
+  },
+  "sweep": {
+    "key": "F_total",
+    "values": [
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ]
+  },
+  "diagnostics": {
+    "compliance": "<callable _get_compliance>"
+  }
+}

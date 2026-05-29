@@ -1,0 +1,413 @@
+{
+  "by_N": {
+    "FEniCS": {
+      "16": {
+        "mean": 0.11689772456884384,
+        "std": 0.0012112013064324856,
+        "trials_s": [
+          0.11857333399984782,
+          0.11575206900010926,
+          0.11636777500007156
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 404.688896,
+        "grad_norm": 265.6398620605469
+      },
+      "32": {
+        "mean": 0.26647287607192993,
+        "std": 0.00016571322339586914,
+        "trials_s": [
+          0.2666702610001721,
+          0.26648355699990134,
+          0.2662647540000762
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 412.332032,
+        "grad_norm": 132.81991577148438
+      },
+      "64": {
+        "mean": 0.643335223197937,
+        "std": 0.004381350241601467,
+        "trials_s": [
+          0.6398345139998582,
+          0.6495130719999906,
+          0.6406579160000092
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 413.81888,
+        "grad_norm": 66.40995025634766
+      },
+      "128": {
+        "mean": 1.8976352214813232,
+        "std": 0.004201240837574005,
+        "trials_s": [
+          1.8919121060000634,
+          1.901878889000045,
+          1.899114759999975
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 418.291712,
+        "grad_norm": 33.20497512817383
+      },
+      "256": {
+        "mean": 6.98516845703125,
+        "std": 0.03932386636734009,
+        "trials_s": [
+          6.951462032000109,
+          6.963713768999924,
+          7.040328809999892
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 423.927808,
+        "grad_norm": 16.602487564086914
+      },
+      "512": {
+        "mean": 28.976104736328125,
+        "std": 0.40480566024780273,
+        "trials_s": [
+          29.48453606099997,
+          28.94975631699981,
+          28.49401828400005
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 444.788736,
+        "grad_norm": 8.301243782043457
+      },
+      "1024": {
+        "status": "failed",
+        "trials_s": [],
+        "failure_type": "error",
+        "exc_type": "RuntimeError",
+        "exc_msg": "Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 660, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 680, in app\n    await route.handle(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 276, in handle\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 134, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 120, in app\n    response = await f(request)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 674, in app\n    raw_response = await run_endpoint_function(\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 328, in run_endpoint_function\n    return await dependant.call(**values)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/serve.py\", line 76, in wrapper\n    result = endpoint_func(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/core.py\", line 226, in apply\n    out = api_module.apply(payload.inputs)\n  File \"/tesseract/tesseract_api.py\", line 440, in apply\n    J_val, T_verts, _, _ = _solve_heat(\n  File \"/tesseract/tesseract_api.py\", line 289, in _solve_heat\n    solve(a == L, T_sol, bcs)\n  File \"/python-env/lib/python3.10/site-packages/fenics_adjoint/solving.py\", line 52, in solve\n    output = backend.solve(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 220, in solve\n    _solve_varproblem(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 247, in _solve_varproblem\n    solver.solve()\nRuntimeError: \n\n*** -------------------------------------------------------------------------\n*** DOLFIN encountered an error. If you are not able to resolve this issue\n*** using the information listed below, you can ask for help at\n***\n***     fenics-support@googlegroups.com\n***\n*** Remember to include the error message listed below and, if possible,\n*** include a *minimal* running example to reproduce the error.\n***\n*** -------------------------------------------------------------------------\n*** Error:   Unable to successfully call PETSc function 'KSPSolve'.\n*** Reason:  PETSc error code is: 76 (Error in external library).\n*** Where:   This error was encountered inside /home/conda/feedstock_root/build_artifacts/fenics-pkgs_1777354178743/work/dolfin/la/PETScKrylovSolver.cpp.\n*** Process: 0\n*** \n*** DOLFIN version: 2019.1.0\n*** Git changeset:  51a9923d75a14fa8c4849db2db1fa46ad72b05b0\n*** -------------------------------------------------------------------------\n\n",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/core/harness.py\", line 171, in run_timed_trials\n    fn()  # warmup; return value intentionally discarded\n    ^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/cost.py\", line 229, in <lambda>\n    timed_call=lambda: _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key),\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/gradient.py\", line 58, in _vjp_grad\n    return jax.grad(f)(inputs[ic_key])\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/gradient.py\", line 55, in f\n    out = apply_tesseract(t, {**inputs, ic_key: ic})[output_key]\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/core/tracer_apply.py\", line 57, in apply_tesseract\n    return _apply_fn(t, inputs)\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 677, in apply_tesseract\n    out = tesseract_dispatch_p.bind(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 158, in tesseract_dispatch_jvp_rule\n    res = tesseract_dispatch_p.bind(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 310, in tesseract_dispatch\n    result = _dispatch(*array_args)\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 297, in _dispatch\n    out = getattr(client, eval_func)(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/tesseract_compat.py\", line 90, in apply\n    out_data = self.client.apply(inputs)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 43, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 448, in apply\n    return self._client.run_tesseract(\"apply\", payload, run_id, self._stream_logs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 894, in run_tesseract\n    if log_streamer is not None:\n       ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 813, in _request\n    raise RuntimeError(\nRuntimeError: Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 660, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 680, in app\n    await route.handle(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/routing.py\", line 276, in handle\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 134, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.10/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 120, in app\n    response = await f(request)\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 674, in app\n    raw_response = await run_endpoint_function(\n  File \"/python-env/lib/python3.10/site-packages/fastapi/routing.py\", line 328, in run_endpoint_function\n    return await dependant.call(**values)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/serve.py\", line 76, in wrapper\n    result = endpoint_func(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/tesseract_core/runtime/core.py\", line 226, in apply\n    out = api_module.apply(payload.inputs)\n  File \"/tesseract/tesseract_api.py\", line 440, in apply\n    J_val, T_verts, _, _ = _solve_heat(\n  File \"/tesseract/tesseract_api.py\", line 289, in _solve_heat\n    solve(a == L, T_sol, bcs)\n  File \"/python-env/lib/python3.10/site-packages/fenics_adjoint/solving.py\", line 52, in solve\n    output = backend.solve(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 220, in solve\n    _solve_varproblem(*args, **kwargs)\n  File \"/python-env/lib/python3.10/site-packages/dolfin/fem/solving.py\", line 247, in _solve_varproblem\n    solver.solve()\nRuntimeError: \n\n*** -------------------------------------------------------------------------\n*** DOLFIN encountered an error. If you are not able to resolve this issue\n*** using the information listed below, you can ask for help at\n***\n***     fenics-support@googlegroups.com\n***\n*** Remember to include the error message listed below and, if possible,\n*** include a *minimal* running example to reproduce the error.\n***\n*** -------------------------------------------------------------------------\n*** Error:   Unable to successfully call PETSc function 'KSPSolve'.\n*** Reason:  PETSc error code is: 76 (Error in external library).\n*** Where:   This error was encountered inside /home/conda/feedstock_root/build_artifacts/fenics-pkgs_1777354178743/work/dolfin/la/PETScKrylovSolver.cpp.\n*** Process: 0\n*** \n*** DOLFIN version: 2019.1.0\n*** Git changeset:  51a9923d75a14fa8c4849db2db1fa46ad72b05b0\n*** -------------------------------------------------------------------------\n\n\n--------------------\nFor simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.\n",
+        "vram_peak_mib": null,
+        "ram_peak_mib": 605.835264
+      }
+    },
+    "Firedrake": {
+      "16": {
+        "mean": 0.14270131289958954,
+        "std": 0.0009218644117936492,
+        "trials_s": [
+          0.1437221959999988,
+          0.14148865199990723,
+          0.1428930729998683
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 483.28704,
+        "grad_norm": 265.6398620605469
+      },
+      "32": {
+        "mean": 0.30652356147766113,
+        "std": 0.0006320907850749791,
+        "trials_s": [
+          0.3067981699998654,
+          0.3056495079999877,
+          0.30712296000001515
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 483.28704,
+        "grad_norm": 132.81991577148438
+      },
+      "64": {
+        "mean": 0.9762889742851257,
+        "std": 0.004447828512638807,
+        "trials_s": [
+          0.9822783409999829,
+          0.974958714999957,
+          0.9716298660000575
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 483.299328,
+        "grad_norm": 66.40995025634766
+      },
+      "128": {
+        "mean": 3.765756607055664,
+        "std": 0.002438379218801856,
+        "trials_s": [
+          3.768784912000001,
+          3.7656714260001536,
+          3.7628141099999084
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 483.299328,
+        "grad_norm": 33.20497512817383
+      },
+      "256": {
+        "mean": 15.041229248046875,
+        "std": 0.04101637378334999,
+        "trials_s": [
+          15.022975387000315,
+          15.098038327999802,
+          15.002673835999758
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 484.073472,
+        "grad_norm": 16.602487564086914
+      },
+      "512": {
+        "mean": 61.0921630859375,
+        "std": 0.3142993152141571,
+        "trials_s": [
+          61.53216510199991,
+          60.81761356099969,
+          60.92671848100008
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 485.384192,
+        "grad_norm": 8.301243782043457
+      },
+      "1024": {
+        "mean": 252.2723388671875,
+        "std": 0.12719599902629852,
+        "trials_s": [
+          252.4025470669999,
+          252.09974343300019,
+          252.31470627199997
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 571.633664,
+        "grad_norm": 4.1506218910217285
+      }
+    },
+    "JAX-FEM": {
+      "16": {
+        "mean": 1.0978357791900635,
+        "std": 0.0726168304681778,
+        "trials_s": [
+          1.047887199999991,
+          1.200518824000028,
+          1.0451011839999182
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 403.738624,
+        "grad_norm": 265.6398620605469
+      },
+      "32": {
+        "mean": 1.1414624452590942,
+        "std": 0.0035187078174203634,
+        "trials_s": [
+          1.1407038779999539,
+          1.13758241000005,
+          1.1461008109999966
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 411.357184,
+        "grad_norm": 132.81991577148438
+      },
+      "64": {
+        "mean": 1.3120919466018677,
+        "std": 0.006472560111433268,
+        "trials_s": [
+          1.320237751000036,
+          1.3044030410000005,
+          1.3116347840000344
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 412.741632,
+        "grad_norm": 66.40995025634766
+      },
+      "128": {
+        "mean": 2.1653449535369873,
+        "std": 0.001075085485354066,
+        "trials_s": [
+          2.16524411599994,
+          2.164081486999976,
+          2.1667090749999716
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 416.894976,
+        "grad_norm": 33.20497512817383
+      },
+      "256": {
+        "mean": 6.541942596435547,
+        "std": 0.01943334750831127,
+        "trials_s": [
+          6.514781376000087,
+          6.55915570600007,
+          6.551889366999944
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 420.982784,
+        "grad_norm": 16.602487564086914
+      },
+      "512": {
+        "mean": 32.55781555175781,
+        "std": 0.2084987759590149,
+        "trials_s": [
+          32.46973626199997,
+          32.84555146900004,
+          32.35814996300007
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 442.957824,
+        "grad_norm": 8.301243782043457
+      },
+      "1024": {
+        "status": "failed",
+        "trials_s": [
+          245.55980873299995
+        ],
+        "failure_type": "error",
+        "exc_type": "ConnectionError",
+        "exc_msg": "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 787, in urlopen\n    response = self._make_request(\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 534, in _make_request\n    response = conn.getresponse()\n               ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connection.py\", line 571, in getresponse\n    httplib_response = super().getresponse()\n                       ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 1448, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.12/http/client.py\", line 336, in begin\n    version, status, reason = self._read_status()\n                              ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 305, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/adapters.py\", line 645, in send\n    resp = conn.urlopen(\n           ^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 841, in urlopen\n    retries = retries.increment(\n              ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/util/retry.py\", line 490, in increment\n    raise reraise(type(error), error, _stacktrace)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/util/util.py\", line 38, in reraise\n    raise value.with_traceback(tb)\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 787, in urlopen\n    response = self._make_request(\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 534, in _make_request\n    response = conn.getresponse()\n               ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connection.py\", line 571, in getresponse\n    httplib_response = super().getresponse()\n                       ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 1448, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.12/http/client.py\", line 336, in begin\n    version, status, reason = self._read_status()\n                              ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 305, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 775, in _request\n    response = self._session.request(\n               ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/sessions.py\", line 592, in request\n    resp = self.send(prep, **send_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/sessions.py\", line 706, in send\n    r = adapter.send(request, **kwargs)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/adapters.py\", line 660, in send\n    raise ConnectionError(err, request=request)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 787, in urlopen\n    response = self._make_request(\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 534, in _make_request\n    response = conn.getresponse()\n               ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connection.py\", line 571, in getresponse\n    httplib_response = super().getresponse()\n                       ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 1448, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.12/http/client.py\", line 336, in begin\n    version, status, reason = self._read_status()\n                              ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 305, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/adapters.py\", line 645, in send\n    resp = conn.urlopen(\n           ^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 841, in urlopen\n    retries = retries.increment(\n              ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/util/retry.py\", line 490, in increment\n    raise reraise(type(error), error, _stacktrace)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/util/util.py\", line 38, in reraise\n    raise value.with_traceback(tb)\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 787, in urlopen\n    response = self._make_request(\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py\", line 534, in _make_request\n    response = conn.getresponse()\n               ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/urllib3/connection.py\", line 571, in getresponse\n    httplib_response = super().getresponse()\n                       ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 1448, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.12/http/client.py\", line 336, in begin\n    version, status, reason = self._read_status()\n                              ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/http/client.py\", line 305, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/core/harness.py\", line 174, in run_timed_trials\n    v = fn()\n        ^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/cost.py\", line 229, in <lambda>\n    timed_call=lambda: _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key),\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/gradient.py\", line 58, in _vjp_grad\n    return jax.grad(f)(inputs[ic_key])\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/gradient.py\", line 55, in f\n    out = apply_tesseract(t, {**inputs, ic_key: ic})[output_key]\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/core/tracer_apply.py\", line 57, in apply_tesseract\n    return _apply_fn(t, inputs)\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 677, in apply_tesseract\n    out = tesseract_dispatch_p.bind(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 158, in tesseract_dispatch_jvp_rule\n    res = tesseract_dispatch_p.bind(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 310, in tesseract_dispatch\n    result = _dispatch(*array_args)\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/primitive.py\", line 297, in _dispatch\n    out = getattr(client, eval_func)(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_jax/tesseract_compat.py\", line 90, in apply\n    out_data = self.client.apply(inputs)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 43, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 448, in apply\n    return self._client.run_tesseract(\"apply\", payload, run_id, self._stream_logs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 894, in run_tesseract\n    if log_streamer is not None:\n       ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 783, in _request\n    response = self._session.request(\n               ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/sessions.py\", line 592, in request\n    resp = self.send(prep, **send_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/sessions.py\", line 706, in send\n    r = adapter.send(request, **kwargs)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/requests/adapters.py\", line 660, in send\n    raise ConnectionError(err, request=request)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n--------------------\nFor simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.\n",
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 596.242432,
+        "grad_norm": 4.1506218910217285
+      }
+    },
+    "torch-fem": {
+      "16": {
+        "mean": 0.1411864161491394,
+        "std": 0.0007602428086102009,
+        "trials_s": [
+          0.1421819019999475,
+          0.1410403419999966,
+          0.1403369660001772
+        ],
+        "vram_peak_mib": 158.0,
+        "ram_peak_mib": 538.529792,
+        "grad_norm": 265.6398620605469
+      },
+      "32": {
+        "mean": 0.16528987884521484,
+        "std": 0.0001093741157092154,
+        "trials_s": [
+          0.1652880900001037,
+          0.16515681200007748,
+          0.16542469899991374
+        ],
+        "vram_peak_mib": 4.0,
+        "ram_peak_mib": 538.529792,
+        "grad_norm": 132.81991577148438
+      },
+      "64": {
+        "mean": 0.3078107535839081,
+        "std": 0.0006005333852954209,
+        "trials_s": [
+          0.3072896590001619,
+          0.30865208299996993,
+          0.3074905050000325
+        ],
+        "vram_peak_mib": 32.0,
+        "ram_peak_mib": 538.529792,
+        "grad_norm": 66.40995025634766
+      },
+      "128": {
+        "mean": 0.8064974546432495,
+        "std": 0.01824810542166233,
+        "trials_s": [
+          0.8321132920000309,
+          0.7964026480001394,
+          0.7909763360000852
+        ],
+        "vram_peak_mib": 64.0,
+        "ram_peak_mib": 538.529792,
+        "grad_norm": 33.204978942871094
+      },
+      "256": {
+        "mean": 2.2709310054779053,
+        "std": 0.005799182690680027,
+        "trials_s": [
+          2.2706044489998476,
+          2.2639973479999753,
+          2.278191024999842
+        ],
+        "vram_peak_mib": 296.0,
+        "ram_peak_mib": 539.01312,
+        "grad_norm": 16.60249137878418
+      },
+      "512": {
+        "mean": 7.734691619873047,
+        "std": 0.017287367954850197,
+        "trials_s": [
+          7.723062633000154,
+          7.721883038999977,
+          7.759130440000035
+        ],
+        "vram_peak_mib": 1386.0,
+        "ram_peak_mib": 540.708864,
+        "grad_norm": 8.300821304321289
+      },
+      "1024": {
+        "mean": 29.296451568603516,
+        "std": 0.008459658361971378,
+        "trials_s": [
+          29.30313748200001,
+          29.30169776400021,
+          29.284515952999982
+        ],
+        "vram_peak_mib": 5512.0,
+        "ram_peak_mib": 615.40352,
+        "grad_norm": 4.1504106521606445
+      }
+    }
+  },
+  "hardware": {
+    "gpus": [
+      "Tesla T4, 16384 MiB"
+    ],
+    "cpu": "AMD EPYC 7V12 64-Core Processor",
+    "ram_gb": 29.4
+  },
+  "params": {
+    "name": "by_N",
+    "physics": {
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0,
+      "rho_0": 0.5,
+      "steps": 1,
+      "nx": 16
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "nx",
+      "values": [
+        16,
+        32,
+        64,
+        128,
+        256,
+        512,
+        1024
+      ]
+    }
+  },
+  "_isolation_note": "Wall-clock times measured on dedicated per-suite VM in CI. Relative rankings reliable; absolute times may vary \u00b110-15% across runs.",
+  "coords": {
+    "variant": "by_N"
+  },
+  "tesseract_hashes": {
+    "Firedrake": "d9935251a2270b64",
+    "FEniCS": "050aadc98a985619",
+    "torch-fem": "b102021693128cf6",
+    "JAX-FEM": "7fb58b38b7f05b27"
+  },
+  "harness_hash": "b541a3273d092ce7",
+  "harness_fn": "mosaic.benchmarks.problems.shared.cost.vjp_cost",
+  "wall_time_s": {
+    "FEniCS": 216.5115299480001,
+    "Firedrake": 1348.0106301199999,
+    "JAX-FEM": 768.292608779,
+    "torch-fem": 169.15960323700006
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:43:17.695055+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:43:17Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446918",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

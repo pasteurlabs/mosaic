@@ -1,0 +1,151 @@
+{
+  "by_param": {
+    "0.25": {
+      "deal.II": {
+        "compliance": 0.0002484577998984605
+      },
+      "FEniCS": {
+        "compliance": 0.0002484577998984605
+      },
+      "Firedrake": {
+        "compliance": 0.0002484577998984605
+      },
+      "TopOpt.jl": {
+        "compliance": 0.0002498319372534752
+      },
+      "JAX-FEM": {
+        "compliance": 0.0002484577998984605
+      }
+    },
+    "0.5": {
+      "deal.II": {
+        "compliance": 0.000993831199593842
+      },
+      "FEniCS": {
+        "compliance": 0.000993831199593842
+      },
+      "Firedrake": {
+        "compliance": 0.000993831199593842
+      },
+      "TopOpt.jl": {
+        "compliance": 0.0009993277490139008
+      },
+      "JAX-FEM": {
+        "compliance": 0.000993831199593842
+      }
+    },
+    "1.0": {
+      "deal.II": {
+        "compliance": 0.003975324798375368
+      },
+      "FEniCS": {
+        "compliance": 0.003975324798375368
+      },
+      "Firedrake": {
+        "compliance": 0.003975324798375368
+      },
+      "TopOpt.jl": {
+        "compliance": 0.003997310996055603
+      },
+      "JAX-FEM": {
+        "compliance": 0.003975324798375368
+      }
+    },
+    "2.0": {
+      "deal.II": {
+        "compliance": 0.015901299193501472
+      },
+      "FEniCS": {
+        "compliance": 0.015901299193501472
+      },
+      "Firedrake": {
+        "compliance": 0.015901299193501472
+      },
+      "TopOpt.jl": {
+        "compliance": 0.015989243984222412
+      },
+      "JAX-FEM": {
+        "compliance": 0.015901299193501472
+      }
+    },
+    "4.0": {
+      "deal.II": {
+        "compliance": 0.06360519677400589
+      },
+      "FEniCS": {
+        "compliance": 0.06360519677400589
+      },
+      "Firedrake": {
+        "compliance": 0.06360519677400589
+      },
+      "TopOpt.jl": {
+        "compliance": 0.06395697593688965
+      },
+      "JAX-FEM": {
+        "compliance": 0.06360519677400589
+      }
+    }
+  },
+  "sweep_key": "F_total",
+  "params": {
+    "ic": {
+      "name": "uniform",
+      "seed": 0
+    },
+    "physics": {
+      "nx": 8,
+      "ny": 2,
+      "nz": 4,
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "corner_load": false,
+      "rho_0": 0.5,
+      "F_total": 0.25
+    },
+    "sweep": {
+      "key": "F_total",
+      "values": [
+        0.25,
+        0.5,
+        1.0,
+        2.0,
+        4.0
+      ]
+    },
+    "diagnostics": {
+      "compliance": "<callable _get_compliance>"
+    }
+  },
+  "tesseract_hashes": {
+    "deal.II": "5b94ac02e321acd8",
+    "Firedrake": "1a592c44c7545035",
+    "TopOpt.jl": "85d4a500d6517488",
+    "FEniCS": "f6d5432442bb2ceb",
+    "JAX-FEM": "fea3625aed005089"
+  },
+  "harness_hash": "82d5b53b234b0219",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.physical_laws",
+  "wall_time_s": {
+    "deal.II": 7.898009128000012,
+    "FEniCS": 13.332897614999979,
+    "Firedrake": 12.187994881000009,
+    "TopOpt.jl": 18.675793661000057,
+    "JAX-FEM": 5.143552669000002
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:17:22.257200+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:17:22Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446922",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  },
+  "spread": {}
+}

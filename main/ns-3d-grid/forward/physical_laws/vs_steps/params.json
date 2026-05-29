@@ -1,0 +1,28 @@
+{
+  "name": "vs_steps",
+  "ic": {
+    "name": "tgv3d",
+    "seed": 0
+  },
+  "physics": {
+    "nu": 0.05,
+    "dt": 0.01,
+    "steps": 5,
+    "N": 16,
+    "lbm_N_base": 16
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      5,
+      10,
+      20,
+      50
+    ]
+  },
+  "diagnostics": {
+    "divergence_rms": "<callable divergence_rms>",
+    "kinetic_energy": "<callable kinetic_energy>",
+    "energy_spectrum": "<callable energy_spectrum>"
+  }
+}

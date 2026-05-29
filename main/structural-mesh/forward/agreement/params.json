@@ -1,0 +1,27 @@
+{
+  "ic": {
+    "name": "uniform",
+    "seed": 0
+  },
+  "physics": {
+    "nx": 8,
+    "ny": 2,
+    "nz": 4,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "corner_load": false,
+    "rho_0": 0.2
+  },
+  "sweep": {
+    "key": "rho_0",
+    "values": [
+      0.2,
+      0.4,
+      0.5,
+      0.7,
+      0.9
+    ]
+  }
+}

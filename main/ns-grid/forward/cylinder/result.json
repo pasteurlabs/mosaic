@@ -1,0 +1,205 @@
+{
+  "by_param": {
+    "0.05": {
+      "INS.jl": {
+        "error": null,
+        "valid": false
+      },
+      "OpenFOAM": {
+        "error": 0.39553102671059354,
+        "valid": true
+      },
+      "jax-cfd": {
+        "error": null,
+        "valid": false
+      },
+      "PhiFlow": {
+        "error": 0.06904799491167068,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.6715558767318726,
+        "valid": true,
+        "drag": -1.6631481647491455
+      },
+      "Warp-NS": {
+        "error": null,
+        "valid": false
+      },
+      "XLB": {
+        "error": 0.12985695898532867,
+        "valid": true,
+        "drag": -2.1514012813568115
+      }
+    },
+    "0.02": {
+      "INS.jl": {
+        "error": null,
+        "valid": false
+      },
+      "OpenFOAM": {
+        "error": 0.28638445468276297,
+        "valid": true
+      },
+      "jax-cfd": {
+        "error": null,
+        "valid": false
+      },
+      "PhiFlow": {
+        "error": 0.05628740414977074,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.4199588894844055,
+        "valid": true,
+        "drag": -1.3506648540496826
+      },
+      "Warp-NS": {
+        "error": null,
+        "valid": false
+      },
+      "XLB": {
+        "error": 0.1414119154214859,
+        "valid": true,
+        "drag": -1.8121167421340942
+      }
+    },
+    "0.01": {
+      "INS.jl": {
+        "error": null,
+        "valid": false
+      },
+      "OpenFOAM": {
+        "error": 0.22160072041086692,
+        "valid": true
+      },
+      "jax-cfd": {
+        "error": null,
+        "valid": false
+      },
+      "PhiFlow": {
+        "error": 0.16618777811527252,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.2941257953643799,
+        "valid": true,
+        "drag": -1.2631992101669312
+      },
+      "Warp-NS": {
+        "error": null,
+        "valid": false
+      },
+      "XLB": {
+        "error": 0.20229999721050262,
+        "valid": true,
+        "drag": -1.6670358180999756
+      }
+    },
+    "0.005": {
+      "INS.jl": {
+        "error": null,
+        "valid": false
+      },
+      "OpenFOAM": {
+        "error": 0.18301223913368064,
+        "valid": true
+      },
+      "jax-cfd": {
+        "error": null,
+        "valid": false
+      },
+      "PhiFlow": {
+        "error": 0.14475862681865692,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.2507335841655731,
+        "valid": true,
+        "drag": -1.1565451622009277
+      },
+      "Warp-NS": {
+        "error": null,
+        "valid": false
+      },
+      "XLB": {
+        "error": 0.20138396322727203,
+        "valid": true,
+        "drag": -1.5908520221710205
+      }
+    }
+  },
+  "spread": {
+    "0.05": 0.2708323001861572,
+    "0.02": 0.1553102731704712,
+    "0.01": 0.05385598540306091,
+    "0.005": 0.04329806938767433
+  },
+  "sweep_key": "nu",
+  "reference_label": "consensus",
+  "params": {
+    "ic": {
+      "name": "uniform",
+      "seed": 0
+    },
+    "physics": {
+      "N": 64,
+      "dt": 0.01,
+      "steps": 500,
+      "obstacle": {
+        "shape": "cylinder",
+        "center": [
+          0.5,
+          0.5
+        ],
+        "radius": 0.1
+      },
+      "nu": 0.05
+    },
+    "reference_solver": "openfoam",
+    "sweep": {
+      "key": "nu",
+      "values": [
+        0.05,
+        0.02,
+        0.01,
+        0.005
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "OpenFOAM": "ef19c93f82cf4d0d",
+    "jax-cfd": "d96b542faaddd3bc",
+    "PICT": "9b1e8d5ae4ba922a",
+    "XLB": "48fb8aa8416ca6f5",
+    "PhiFlow": "90446cdcf4373f59",
+    "Warp-NS": "8d0f242f90ecbde8"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "OpenFOAM": 19.87221211299999,
+    "PhiFlow": 27.74352482200004,
+    "PICT": 120.48940788599998,
+    "XLB": 2.4784322369999927
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:30:32.214226+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:30:32Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446929",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

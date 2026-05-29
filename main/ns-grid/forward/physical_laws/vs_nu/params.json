@@ -1,0 +1,28 @@
+{
+  "name": "vs_nu",
+  "ic": {
+    "name": "tgv",
+    "seed": 0
+  },
+  "physics": {
+    "dt": 0.01,
+    "steps": 20,
+    "N": 64,
+    "nu": 0.001
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.001,
+      0.005,
+      0.01,
+      0.05,
+      0.1
+    ]
+  },
+  "diagnostics": {
+    "divergence_rms": "<callable divergence_rms>",
+    "kinetic_energy": "<callable kinetic_energy>",
+    "energy_spectrum": "<callable energy_spectrum>"
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "by_param": {
+    "0.001": {
+      "INS.jl": {
+        "error": 0.11267081648111343,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 0.11834203451871872,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Exponax": {
+        "error": 0.12425535917282104,
+        "valid": true
+      },
+      "PhiFlow": {
+        "error": 0.11460329592227936,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.11647094786167145,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 0.12155016511678696,
+        "valid": true
+      },
+      "XLB": {
+        "error": 0.11872772872447968,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "0.01": {
+      "INS.jl": {
+        "error": 0.11234300583600998,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 0.11614465713500977,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Exponax": {
+        "error": 0.12186166644096375,
+        "valid": true
+      },
+      "PhiFlow": {
+        "error": 0.11415501683950424,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.11432933062314987,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 0.11937092989683151,
+        "valid": true
+      },
+      "XLB": {
+        "error": 0.11833448708057404,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "0.05": {
+      "INS.jl": {
+        "error": 0.11347278952598572,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 0.10915409028530121,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Exponax": {
+        "error": 0.11408503353595734,
+        "valid": true
+      },
+      "PhiFlow": {
+        "error": 0.11479710042476654,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 0.1075257956981659,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 0.11229945719242096,
+        "valid": true
+      },
+      "XLB": {
+        "error": 0.11964423954486847,
+        "valid": true,
+        "drag": 0.0
+      }
+    }
+  },
+  "spread": {
+    "0.001": 0.0034597564954310656,
+    "0.01": 0.0029800040647387505,
+    "0.05": 0.003918259404599667
+  },
+  "sweep_key": "nu",
+  "reference_label": "analytic",
+  "params": {
+    "ic": {
+      "name": "tgv3d",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "dt": 0.01,
+      "steps": 50,
+      "lbm_N_base": 16
+    },
+    "reference": {
+      "solvers": [
+        "exponax"
+      ],
+      "dt": 0.002,
+      "steps": 250
+    },
+    "sweep": {
+      "key": "nu",
+      "values": [
+        0.001,
+        0.01,
+        0.05
+      ]
+    }
+  },
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "OpenFOAM": "ef19c93f82cf4d0d",
+    "Warp-NS": "8d0f242f90ecbde8",
+    "PICT": "9b1e8d5ae4ba922a",
+    "XLB": "48fb8aa8416ca6f5",
+    "Exponax": "ae9026775f5bebcb",
+    "PhiFlow": "90446cdcf4373f59"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "INS.jl": 19.564747497000013,
+    "OpenFOAM": 2.199992234000007,
+    "Exponax": 5.595297377999941,
+    "PhiFlow": 6.793517003000034,
+    "PICT": 3.3012248539999973,
+    "Warp-NS": 3.0378528640000013,
+    "XLB": 1.9625277650000044
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:35:43.835339+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:35:43Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446962",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

@@ -1,0 +1,259 @@
+{
+  "by_param": {
+    "0.001": {
+      "INS.jl": {
+        "error": 1.0325603485107422,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 1.032698392868042,
+        "valid": true,
+        "drag": 0.0
+      },
+      "jax-cfd": {
+        "error": 1.0324888229370117,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PhiFlow": {
+        "error": 1.0325430631637573,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 1.0327173471450806,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 1.0327013731002808,
+        "valid": true
+      },
+      "XLB": {
+        "error": 1.0323253870010376,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "0.005": {
+      "INS.jl": {
+        "error": 1.032022476196289,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 1.0321617126464844,
+        "valid": true,
+        "drag": 0.0
+      },
+      "jax-cfd": {
+        "error": 1.031955599784851,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PhiFlow": {
+        "error": 1.0320051908493042,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 1.0321733951568604,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 1.0321578979492188,
+        "valid": true
+      },
+      "XLB": {
+        "error": 1.031780481338501,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "0.01": {
+      "INS.jl": {
+        "error": 1.0313917398452759,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 1.0315299034118652,
+        "valid": true,
+        "drag": 0.0
+      },
+      "jax-cfd": {
+        "error": 1.031328797340393,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PhiFlow": {
+        "error": 1.031373381614685,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 1.0315371751785278,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 1.0315195322036743,
+        "valid": true
+      },
+      "XLB": {
+        "error": 1.0311801433563232,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "0.02": {
+      "INS.jl": {
+        "error": 1.0302554368972778,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 1.0303926467895508,
+        "valid": true,
+        "drag": 0.0
+      },
+      "jax-cfd": {
+        "error": 1.030194640159607,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PhiFlow": {
+        "error": 1.0302302837371826,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 1.0303939580917358,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 1.030365228652954,
+        "valid": true
+      },
+      "XLB": {
+        "error": 1.030120849609375,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    "0.05": {
+      "INS.jl": {
+        "error": 1.0276265144348145,
+        "valid": true,
+        "drag": 0.0
+      },
+      "OpenFOAM": {
+        "error": 1.0277774333953857,
+        "valid": true,
+        "drag": 0.0
+      },
+      "jax-cfd": {
+        "error": 1.0275496244430542,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PhiFlow": {
+        "error": 1.027566909790039,
+        "valid": true,
+        "drag": 0.0
+      },
+      "PICT": {
+        "error": 1.0277678966522217,
+        "valid": true,
+        "drag": 0.0
+      },
+      "Warp-NS": {
+        "error": 1.0276782512664795,
+        "valid": true
+      },
+      "XLB": {
+        "error": 1.0278085470199585,
+        "valid": true,
+        "drag": 0.0
+      }
+    }
+  },
+  "spread": {
+    "0.001": 0.00014493137132376432,
+    "0.005": 0.0001443130458937958,
+    "0.01": 0.00013151187158655375,
+    "0.02": 0.00010347050556447357,
+    "0.05": 0.00010380257299402729
+  },
+  "sweep_key": "nu",
+  "reference_label": "analytic",
+  "params": {
+    "ic": {
+      "name": "multimode",
+      "seed": 42
+    },
+    "physics": {
+      "N": 64,
+      "dt": 0.05,
+      "steps": 20,
+      "nu": 0.001
+    },
+    "reference": {
+      "solvers": [
+        "jax_cfd"
+      ],
+      "dt": 0.01,
+      "steps": 100
+    },
+    "sweep": {
+      "key": "nu",
+      "values": [
+        0.001,
+        0.005,
+        0.01,
+        0.02,
+        0.05
+      ]
+    }
+  },
+  "coords": {
+    "variant": "multimode"
+  },
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "OpenFOAM": "ef19c93f82cf4d0d",
+    "jax-cfd": "d96b542faaddd3bc",
+    "PICT": "9b1e8d5ae4ba922a",
+    "XLB": "48fb8aa8416ca6f5",
+    "PhiFlow": "90446cdcf4373f59",
+    "Warp-NS": "8d0f242f90ecbde8"
+  },
+  "harness_hash": "e00995ce5bd881e0",
+  "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+  "wall_time_s": {
+    "INS.jl": 12.035267216999983,
+    "OpenFOAM": 3.2781393449999996,
+    "jax-cfd": 2.1631744399999207,
+    "PhiFlow": 7.291051373999949,
+    "PICT": 4.268898673999956,
+    "Warp-NS": 2.8713810950000607,
+    "XLB": 1.2610224960000096
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:25:00.688865+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:25:00Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446929",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

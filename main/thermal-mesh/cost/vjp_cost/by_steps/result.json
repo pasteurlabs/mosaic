@@ -1,0 +1,120 @@
+{
+  "by_steps": {
+    "FEniCS": {
+      "1": {
+        "mean": 0.6253644824028015,
+        "std": 0.020631182938814163,
+        "trials_s": [
+          0.5961889000000156,
+          0.6401926380003715,
+          0.6397119309999653
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 494.723072,
+        "grad_norm": 66.40995025634766
+      }
+    },
+    "Firedrake": {
+      "1": {
+        "mean": 0.9799045920372009,
+        "std": 0.0017754411092028022,
+        "trials_s": [
+          0.9824117399998613,
+          0.9787690590001148,
+          0.9785329800001819
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 494.907392,
+        "grad_norm": 66.40995025634766
+      }
+    },
+    "JAX-FEM": {
+      "1": {
+        "mean": 1.3402183055877686,
+        "std": 0.057404667139053345,
+        "trials_s": [
+          1.3049326069999552,
+          1.421178650999991,
+          1.2945431379998809
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 482.709504,
+        "grad_norm": 66.40995025634766
+      }
+    },
+    "torch-fem": {
+      "1": {
+        "mean": 0.31058263778686523,
+        "std": 0.0013226654846221209,
+        "trials_s": [
+          0.31244182600016757,
+          0.3098310859998037,
+          0.30947495999998864
+        ],
+        "vram_peak_mib": 194.0,
+        "ram_peak_mib": 482.906112,
+        "grad_norm": 66.40995025634766
+      }
+    }
+  },
+  "hardware": {
+    "gpus": [
+      "Tesla T4, 16384 MiB"
+    ],
+    "cpu": "AMD EPYC 7V12 64-Core Processor",
+    "ram_gb": 29.4
+  },
+  "params": {
+    "name": "by_steps",
+    "physics": {
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "Q_total": 1.0,
+      "rho_0": 0.5,
+      "nx": 64,
+      "steps": 1
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "steps",
+      "values": [
+        1
+      ]
+    }
+  },
+  "_isolation_note": "Wall-clock times measured on dedicated per-suite VM in CI. Relative rankings reliable; absolute times may vary \u00b110-15% across runs.",
+  "coords": {
+    "variant": "by_steps"
+  },
+  "tesseract_hashes": {
+    "Firedrake": "d9935251a2270b64",
+    "FEniCS": "050aadc98a985619",
+    "torch-fem": "b102021693128cf6",
+    "JAX-FEM": "7fb58b38b7f05b27"
+  },
+  "harness_hash": "b541a3273d092ce7",
+  "harness_fn": "mosaic.benchmarks.problems.shared.cost.vjp_cost",
+  "wall_time_s": {
+    "FEniCS": 15.919131462000223,
+    "Firedrake": 16.046721979000267,
+    "JAX-FEM": 13.59579481500009,
+    "torch-fem": 3.3424314920000597
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:43:44.137332+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:43:44Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446918",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

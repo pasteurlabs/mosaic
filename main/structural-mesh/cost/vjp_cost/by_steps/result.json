@@ -1,0 +1,121 @@
+{
+  "by_steps": {
+    "FEniCS": {
+      "1": {
+        "mean": 0.2563183009624481,
+        "std": 0.006985630374401808,
+        "trials_s": [
+          0.24643912600004114,
+          0.26126172099998257,
+          0.26125405399989177
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 392.065024,
+        "grad_norm": 3.393672886886634e-05
+      }
+    },
+    "Firedrake": {
+      "1": {
+        "mean": 0.16324760019779205,
+        "std": 0.0032207847107201815,
+        "trials_s": [
+          0.1677275209999607,
+          0.16172031400003561,
+          0.16029494399992927
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 392.155136,
+        "grad_norm": 3.393672886886634e-05
+      }
+    },
+    "TopOpt.jl": {
+      "1": {
+        "mean": 0.02444753609597683,
+        "std": 0.001046255580149591,
+        "trials_s": [
+          0.025926615999992464,
+          0.02367313299998841,
+          0.02374285400003373
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 392.155136,
+        "grad_norm": 3.4138254704885185e-05
+      }
+    },
+    "JAX-FEM": {
+      "1": {
+        "mean": 0.2473960816860199,
+        "std": 0.001416219980455935,
+        "trials_s": [
+          0.2485433470000089,
+          0.24824416799998517,
+          0.24540069299999345
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 403.00544,
+        "grad_norm": 3.393672886886634e-05
+      }
+    }
+  },
+  "hardware": {
+    "gpus": [
+      "Tesla T4, 16384 MiB"
+    ],
+    "cpu": "AMD EPYC 7V12 64-Core Processor",
+    "ram_gb": 29.4
+  },
+  "params": {
+    "name": "by_steps",
+    "physics": {
+      "Lx": 2.0,
+      "Ly": 1.0,
+      "Lz": 1.0,
+      "F_total": 1.0,
+      "rho_0": 0.5,
+      "corner_load": false,
+      "nx": 8,
+      "steps": 1
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "steps",
+      "values": [
+        1
+      ]
+    }
+  },
+  "_isolation_note": "Wall-clock times measured on dedicated per-suite VM in CI. Relative rankings reliable; absolute times may vary \u00b110-15% across runs.",
+  "coords": {
+    "variant": "by_steps"
+  },
+  "tesseract_hashes": {
+    "FEniCS": "f6d5432442bb2ceb",
+    "TopOpt.jl": "85d4a500d6517488",
+    "Firedrake": "1a592c44c7545035",
+    "JAX-FEM": "fea3625aed005089"
+  },
+  "harness_hash": "b541a3273d092ce7",
+  "harness_fn": "mosaic.benchmarks.problems.shared.cost.vjp_cost",
+  "wall_time_s": {
+    "FEniCS": 22.363297796000097,
+    "Firedrake": 26.40457763300003,
+    "TopOpt.jl": 19.41979828400008,
+    "JAX-FEM": 8.260859466999989
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:18:11.187595+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:18:11Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446920",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}

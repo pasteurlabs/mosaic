@@ -1,0 +1,290 @@
+{
+  "by_steps": {
+    "INS.jl": {
+      "10": {
+        "mean": 1.0960988998413086,
+        "std": 0.03762483596801758,
+        "trials_s": [
+          1.1464871480000056,
+          1.0857105990000377,
+          1.0560989109999923
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 473.935872
+      },
+      "50": {
+        "mean": 4.887429237365723,
+        "std": 0.09894327819347382,
+        "trials_s": [
+          4.796443033999992,
+          5.024986382999998,
+          4.840858079999975
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 474.140672
+      },
+      "100": {
+        "mean": 9.599630355834961,
+        "std": 0.12140676379203796,
+        "trials_s": [
+          9.494959767000012,
+          9.534098750999988,
+          9.769831533000001
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 474.140672
+      }
+    },
+    "OpenFOAM": {
+      "10": {
+        "mean": 3.8239493370056152,
+        "std": 0.02507643960416317,
+        "trials_s": [
+          3.8593925330000047,
+          3.805193017000022,
+          3.8072625139999445
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 474.157056
+      },
+      "50": {
+        "mean": 10.322946548461914,
+        "std": 0.06237005814909935,
+        "trials_s": [
+          10.235591082999917,
+          10.377200573999971,
+          10.356046483
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 474.157056
+      },
+      "100": {
+        "mean": 19.153898239135742,
+        "std": 0.03348677605390549,
+        "trials_s": [
+          19.17846712000005,
+          19.176672930999985,
+          19.106550810000044
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 474.157056
+      }
+    },
+    "Exponax": {
+      "10": {
+        "mean": 0.14294056594371796,
+        "std": 0.000768801779486239,
+        "trials_s": [
+          0.1438753859999906,
+          0.14199235399996724,
+          0.14295392400003948
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.60416
+      },
+      "50": {
+        "mean": 0.6317543983459473,
+        "std": 0.01417586486786604,
+        "trials_s": [
+          0.6517337139998745,
+          0.6203315960001419,
+          0.6231979599999704
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      },
+      "100": {
+        "mean": 1.2126731872558594,
+        "std": 0.0028431278187781572,
+        "trials_s": [
+          1.2090733539998837,
+          1.212922097000046,
+          1.2160241900000983
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      }
+    },
+    "PhiFlow": {
+      "10": {
+        "status": "failed",
+        "trials_s": [],
+        "failure_type": "error",
+        "exc_type": "RuntimeError",
+        "exc_msg": "Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.12/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/routing.py\", line 660, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/routing.py\", line 680, in app\n    await route.handle(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/routing.py\", line 276, in handle\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 134, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 120, in app\n    response = await f(request)\n               ^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 674, in app\n    raw_response = await run_endpoint_function(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 328, in run_endpoint_function\n    return await dependant.call(**values)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/tesseract_core/runtime/serve.py\", line 76, in wrapper\n    result = endpoint_func(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/tesseract_core/runtime/core.py\", line 226, in apply\n    out = api_module.apply(payload.inputs)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 396, in apply\n    return apply_jit(_unpack_scalars(inputs.model_dump()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/equinox/_jit.py\", line 209, in __call__\n    return _call(self, False, args, kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/equinox/_jit.py\", line 263, in _call\n    marker, _, _ = out = jit_wrapper._cached(\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 378, in apply_jit\n    result, drag = phiflow_fwd(**inputs)\n                   ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 339, in phiflow_fwd\n    face_final, scan_hist = jax.lax.scan(step, face_init, None, length=steps)\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 317, in step\n    vel, _ = fluid.make_incompressible(vel, obstacles, solve=_cg_solve)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phi/physics/fluid.py\", line 156, in make_incompressible\n    pressure = math.solve_linear(masked_laplace, div, solve, velocity.boundary, hard_bcs, active, wide_stencil=wide_stencil, order=order, implicit=None, upwind=None, correct_skew=correct_skew)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_optimize.py\", line 634, in solve_linear\n    matrix, bias = f.sparse_matrix_and_bias(x0, *f_args, **f_kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_functional.py\", line 503, in sparse_matrix_and_bias\n    return self._get_or_trace(key, args, aux_kwargs)[:2]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_functional.py\", line 439, in _get_or_trace\n    assert _TRACING_LINEAR.pop(-1) is self\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_lin_trace.py\", line 524, in matrix_and_bias_from_tracer\n    matrix = to_format_for_mul(coo, target_backend, auto_compress)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_lin_trace.py\", line 541, in to_format_for_mul\n    x = x.compress_rows()\n        ^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_sparse.py\", line 350, in compress_rows\n    return self.compress(self._dense_shape.non_dual)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_sparse.py\", line 379, in compress\n    idx_packed = bi.unravel_index(u_idx, (c_dims.volume, u_dims.volume))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/backend/_numpy_backend.py\", line 360, in unravel_index\n    return np.stack(np.unravel_index(flat_index, shape), -1)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: index -2147474726 is out of bounds for array with size 12230590464\n--------------------\nFor simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.\n",
+        "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/core/harness.py\", line 171, in run_timed_trials\n    fn()  # warmup; return value intentionally discarded\n    ^^^^\n  File \"/home/runner/work/mosaic/mosaic/mosaic/benchmarks/problems/shared/cost.py\", line 204, in <lambda>\n    return _timed_kernel(t, ctx, timed_call=lambda: t.apply(inputs))\n                                                    ^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 43, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 448, in apply\n    return self._client.run_tesseract(\"apply\", payload, run_id, self._stream_logs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 892, in run_tesseract\n    return self._request(endpoint, method, payload, run_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/mosaic/mosaic/.venv/lib/python3.12/site-packages/tesseract_core/sdk/tesseract.py\", line 813, in _request\n    raise RuntimeError(\nRuntimeError: Error 500 from Tesseract: Traceback (most recent call last):\n  File \"/python-env/lib/python3.12/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/routing.py\", line 660, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/routing.py\", line 680, in app\n    await route.handle(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/routing.py\", line 276, in handle\n    await self.app(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 134, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/python-env/lib/python3.12/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 120, in app\n    response = await f(request)\n               ^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 674, in app\n    raw_response = await run_endpoint_function(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/fastapi/routing.py\", line 328, in run_endpoint_function\n    return await dependant.call(**values)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/tesseract_core/runtime/serve.py\", line 76, in wrapper\n    result = endpoint_func(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/tesseract_core/runtime/core.py\", line 226, in apply\n    out = api_module.apply(payload.inputs)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 396, in apply\n    return apply_jit(_unpack_scalars(inputs.model_dump()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/equinox/_jit.py\", line 209, in __call__\n    return _call(self, False, args, kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/equinox/_jit.py\", line 263, in _call\n    marker, _, _ = out = jit_wrapper._cached(\n                         ^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 378, in apply_jit\n    result, drag = phiflow_fwd(**inputs)\n                   ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 339, in phiflow_fwd\n    face_final, scan_hist = jax.lax.scan(step, face_init, None, length=steps)\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tesseract/tesseract_api.py\", line 317, in step\n    vel, _ = fluid.make_incompressible(vel, obstacles, solve=_cg_solve)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phi/physics/fluid.py\", line 156, in make_incompressible\n    pressure = math.solve_linear(masked_laplace, div, solve, velocity.boundary, hard_bcs, active, wide_stencil=wide_stencil, order=order, implicit=None, upwind=None, correct_skew=correct_skew)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_optimize.py\", line 634, in solve_linear\n    matrix, bias = f.sparse_matrix_and_bias(x0, *f_args, **f_kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_functional.py\", line 503, in sparse_matrix_and_bias\n    return self._get_or_trace(key, args, aux_kwargs)[:2]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_functional.py\", line 439, in _get_or_trace\n    assert _TRACING_LINEAR.pop(-1) is self\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_lin_trace.py\", line 524, in matrix_and_bias_from_tracer\n    matrix = to_format_for_mul(coo, target_backend, auto_compress)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_lin_trace.py\", line 541, in to_format_for_mul\n    x = x.compress_rows()\n        ^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_sparse.py\", line 350, in compress_rows\n    return self.compress(self._dense_shape.non_dual)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/math/_sparse.py\", line 379, in compress\n    idx_packed = bi.unravel_index(u_idx, (c_dims.volume, u_dims.volume))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/python-env/lib/python3.12/site-packages/phiml/backend/_numpy_backend.py\", line 360, in unravel_index\n    return np.stack(np.unravel_index(flat_index, shape), -1)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: index -2147474726 is out of bounds for array with size 12230590464\n--------------------\nFor simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.\n\n",
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      },
+      "50": null,
+      "100": null
+    },
+    "PICT": {
+      "10": {
+        "mean": 0.25523653626441956,
+        "std": 0.012960417196154594,
+        "trials_s": [
+          0.2720437270002094,
+          0.25316515600002276,
+          0.24050070099997356
+        ],
+        "vram_peak_mib": 162.0,
+        "ram_peak_mib": 480.636928
+      },
+      "50": {
+        "mean": 1.2514132261276245,
+        "std": 0.027145475149154663,
+        "trials_s": [
+          1.2843112430000474,
+          1.2178293449999273,
+          1.2520991829999275
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      },
+      "100": {
+        "mean": 2.5908851623535156,
+        "std": 0.06883466988801956,
+        "trials_s": [
+          2.5437534659999983,
+          2.5406856150000294,
+          2.688215679999985
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      }
+    },
+    "Warp-NS": {
+      "10": {
+        "mean": 0.16383139789104462,
+        "std": 0.0011755037121474743,
+        "trials_s": [
+          0.16493333700009316,
+          0.1622024649998366,
+          0.164358398000104
+        ],
+        "vram_peak_mib": 168.0,
+        "ram_peak_mib": 480.636928
+      },
+      "50": {
+        "mean": 0.7552140951156616,
+        "std": 0.019364843145012856,
+        "trials_s": [
+          0.741589766000061,
+          0.7825999130000127,
+          0.7414523229999759
+        ],
+        "vram_peak_mib": 160.0,
+        "ram_peak_mib": 480.636928
+      },
+      "100": {
+        "mean": 1.5204496383666992,
+        "std": 0.012740607373416424,
+        "trials_s": [
+          1.5384126149999702,
+          1.5102505799998198,
+          1.512685521999856
+        ],
+        "vram_peak_mib": 224.0,
+        "ram_peak_mib": 480.636928
+      }
+    },
+    "XLB": {
+      "10": {
+        "mean": 4.786177635192871,
+        "std": 0.017725972458720207,
+        "trials_s": [
+          4.797412785000006,
+          4.761152971000001,
+          4.7999674440000035
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      },
+      "50": {
+        "mean": 23.651565551757812,
+        "std": 0.03864206746220589,
+        "trials_s": [
+          23.672219397000163,
+          23.68505713500008,
+          23.59742370999993
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      },
+      "100": {
+        "mean": 47.286773681640625,
+        "std": 0.06953640282154083,
+        "trials_s": [
+          47.18843635200005,
+          47.33574892699994,
+          47.33613645699984
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 480.636928
+      }
+    }
+  },
+  "hardware": {
+    "gpus": [
+      "Tesla T4, 16384 MiB"
+    ],
+    "cpu": "AMD EPYC 7V12 64-Core Processor",
+    "ram_gb": 29.4
+  },
+  "params": {
+    "physics": {
+      "nu": 0.01,
+      "dt": 0.01,
+      "lbm_N_base": 16,
+      "N": 48,
+      "steps": 10
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "steps",
+      "values": [
+        10,
+        50,
+        100
+      ]
+    }
+  },
+  "_isolation_note": "Wall-clock times measured on dedicated per-suite VM in CI. Relative rankings reliable; absolute times may vary \u00b110-15% across runs.",
+  "tesseract_hashes": {
+    "INS.jl": "239eff53fd8c26b6",
+    "OpenFOAM": "ef19c93f82cf4d0d",
+    "XLB": "48fb8aa8416ca6f5",
+    "PICT": "9b1e8d5ae4ba922a",
+    "Exponax": "ae9026775f5bebcb",
+    "Warp-NS": "8d0f242f90ecbde8",
+    "PhiFlow": "90446cdcf4373f59"
+  },
+  "harness_hash": "f500e2cad0ae228a",
+  "harness_fn": "mosaic.benchmarks.problems.shared.cost.temporal_cost",
+  "wall_time_s": {
+    "INS.jl": 78.20603333600002,
+    "OpenFOAM": 134.65812551700003,
+    "Exponax": 9.90407340999991,
+    "PhiFlow": 1.2682204589998491,
+    "PICT": 16.641720093000004,
+    "Warp-NS": 11.968995518999918,
+    "XLB": 304.26911359300016
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+    "mosaic_version": "0.1.dev1+g40fbb5e66",
+    "timestamp": "2026-05-28T21:46:06.771291+00:00"
+  },
+  "_run_meta": {
+    "timestamp": "2026-05-28T21:46:06Z",
+    "ci": true,
+    "runner": "mosaic-bench-gpu-1000446945",
+    "github_run_id": "26602626294",
+    "github_sha": "40fbb5e6650cb0ae6428259aff2c2887ffa576dd",
+    "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+  }
+}
