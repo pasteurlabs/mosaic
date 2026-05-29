@@ -1,2 +1,2 @@
 numpy==2.4.4
-../../mosaic_shared
+../../../mosaic_shared

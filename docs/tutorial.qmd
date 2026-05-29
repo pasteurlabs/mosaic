@@ -349,10 +349,10 @@ This file is **base Tesseract**: tesseract-core consumes it as the pip-install m
 
 ```
 jax[cuda12]>=0.4.13
-../../mosaic_shared
+../../../mosaic_shared
 ```
 
-The relative path `../../mosaic_shared` is resolved at build time relative to your solver directory (`mosaic/tesseracts/<domain>/<solver>/` → `mosaic/mosaic_shared/`). It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
+The relative path `../../../mosaic_shared` is resolved at build time relative to your solver directory (`mosaic/tesseracts/<domain>/<solver>/` → `mosaic/mosaic_shared/`). It ensures the canonical `InputSchema` / `OutputSchema` are available inside the container.
 
 ::: {.callout-note}
 For non-Python runtimes (Julia, C++, …) you'll also need `custom_build_steps` in `tesseract_config.yaml` to install the runtime. Existing Mosaic solvers show two patterns: `ins-jl` (Julia via apt + juliacall) and `openfoam` (C++ via apt). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repo collects many more patterns — base-image overrides, system-package installation, multi-stage builds, GPU runtimes — independent of Mosaic.
@@ -936,7 +936,7 @@ Per-experiment plot descriptions live on `Experiment.params` (read via `cfg.get_
 Your domain needs at least one solver for `mosaic validate-domain` to pass. Follow **Part A** of this tutorial — the same `tesseract_config.yaml` / `tesseract_api.py` / `tesseract_requirements.txt` workflow applies, with two differences for a fresh domain:
 
 1. **The solver directory lives under your new domain**: `mosaic/tesseracts/diffusion-1d/numpy-spectral/` instead of `mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/`.
-2. **`tesseract_requirements.txt`** references the shared package with `../../mosaic_shared` (still one level up — `mosaic/tesseracts/<your-domain>/<solver>/` to `mosaic/mosaic_shared/`).
+2. **`tesseract_requirements.txt`** references the shared package with `../../../mosaic_shared` (still one level up — `mosaic/tesseracts/<your-domain>/<solver>/` to `mosaic/mosaic_shared/`).
 
 ::: {.callout-note}
 Reference solvers can be **forward-only** (e.g. an analytic / spectral baseline). Set `differentiable: false` in the YAML and skip `vector_jacobian_product`; the `gradient` and `optimization` suites will skip the solver, and it still participates in `forward` and `cost` suites as a baseline. To add a differentiable solver later, implement `vector_jacobian_product` per Part A §4.5.
