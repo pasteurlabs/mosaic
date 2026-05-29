@@ -226,7 +226,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <blockquote class="blockquote">
-<p>Auto-generated 2026-05-29 10:59 UTC &nbsp;·&nbsp; 19 plots</p>
+<p>Auto-generated 2026-05-29 12:08 UTC &nbsp;·&nbsp; 19 plots</p>
 </blockquote>
 <p>Quasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks y-symmetry and drives topology optimisation toward non-trivial branching structures. Also supports source-identification experiments: recover the volumetric heat source f(x) from temperature observations via the identification_error = ||T − T_target||² objective.</p>
 <div class="callout callout-style-default callout-note callout-titled" title="Boundary conditions">
@@ -744,8 +744,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="cost" class="level2">
 <h2 class="anchored" data-anchor-id="cost">Cost</h2>
 <p>Wall-clock cost scaling with problem size N and number of integration steps.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="Note on wall-clock measurements">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Note on wall-clock measurements
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Cost-suite timings are collected on dedicated CI runners with no concurrent benchmark workloads. Relative solver rankings within a single run are reliable; absolute wall times may vary ±10–15% across runs due to cloud VM variability.</p>
+</div>
+</div>
 <div class="callout callout-style-default callout-note callout-titled" title="Settings">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
@@ -754,7 +767,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p><strong>Spatial Cost</strong></p>
 <p>Sweeps <code>nx</code> ∈ {16, 32, 64, 128, 256, 512, 1024}</p>
