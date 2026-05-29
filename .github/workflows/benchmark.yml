@@ -340,7 +340,7 @@ jobs:
 
       # ── Publish to results branch ──────────────────────────────────────
       # All results (dev and release) are published only after merge, by
-      # publish-results.yml (workflow_run trigger).
+      # publish-results.yml (push-to-main trigger).
 
       # ── Deploy PR preview to GitHub Pages ──────────────────────────────
       - name: Deploy PR preview to gh-pages
