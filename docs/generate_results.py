@@ -117,7 +117,14 @@ SUITE_DESCRIPTIONS = {
         "or physical parameters, topology optimization, and drag minimization."
     ),
     "cost": (
-        "Wall-clock cost scaling with problem size N and number of integration steps."
+        "Wall-clock cost scaling with problem size N and number of integration steps.\n"
+        "\n"
+        "::: {.callout-note title='Note on wall-clock measurements'}\n"
+        "Cost-suite timings are collected on dedicated CI runners "
+        "with no concurrent benchmark workloads. Relative solver rankings within a "
+        "single run are reliable; absolute wall times may vary ±10–15% across runs "
+        "due to cloud VM variability.\n"
+        ":::"
     ),
 }
 

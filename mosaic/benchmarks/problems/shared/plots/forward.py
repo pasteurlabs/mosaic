@@ -365,7 +365,7 @@ def _agreement_figure(
         )
 
     if save:
-        out = out_dir / "agreement.pdf"
+        out = out_dir / "agreement.png"
         fig.savefig(out)
         print(f"Saved {out}")
     return fig
@@ -855,7 +855,7 @@ def plot_physical_laws(
         spec = _PA_FEM_SPECS.get(cfg.name)
         if spec is not None:
             return _pa_plot_fem_single(
-                cfg, data, spec, out_dir / "physical_accuracy.pdf" if save else None
+                cfg, data, spec, out_dir / "physical_accuracy.png" if save else None
             )
         # NS sub-experiment (one sweep variant): render a 1×3 row.
         sweep_key = (exp_key + suffix).rsplit("/", 1)[-1] or "vs_param"
@@ -892,7 +892,7 @@ def plot_physical_laws(
                 handlelength=2.0,
             )
         if save:
-            out = out_dir / "physical_accuracy.pdf"
+            out = out_dir / "physical_accuracy.png"
             fig.savefig(out)
             print(f"Saved {out}")
         return fig
@@ -917,5 +917,5 @@ def plot_physical_laws(
         cfg,
         sweeps_data,
         title,
-        out_dir / "physical_accuracy.pdf" if save else None,
+        out_dir / "physical_accuracy.png" if save else None,
     )

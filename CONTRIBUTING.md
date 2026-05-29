@@ -127,6 +127,53 @@ $ pre-commit install
 3. Open a pull request with a clear description of what you're adding.
 4. CI runs lint, tests, and tesseract config validation on every PR. If your PR touches `mosaic/` code, a maintainer will add one of three benchmark labels (`benchmark:none`, `benchmark:solver`, or `benchmark:all`) to control whether and how benchmarks run.
 
+## CI/CD
+
+The project uses several GitHub Actions workflows that work together.
+
+### Lint and test (`ci.yml`)
+
+Runs on every PR: linting (ruff), tests (pytest), and Tesseract config validation. Must pass before merge.
+
+### Benchmarks (`benchmark.yml`)
+
+Runs on PRs that carry a benchmark label. The workflow has four stages:
+
+1. **Plan** — detects which solvers changed, reads the benchmark label, and builds a (suite, problem, hardware) matrix.
+2. **Build** — builds Docker images for any changed solvers and pushes them to GHCR.
+3. **Run** — executes the benchmark matrix across CPU and GPU runners.
+4. **Report** — merges CPU/GPU results, generates a status snapshot, renders a docs preview, posts a PR comment with the diff, and publishes results.
+
+For dev PRs the report step overlays the PR's results on top of the current rolling baseline so the preview shows all solvers, not just the ones that ran. It then merges the PR's results into the `main/` directory on the `benchmark-results` branch.
+
+For release PRs the report step writes results to a `_pending/` staging area instead.
+
+### Docs (`docs.yml`)
+
+Builds a docs preview on every PR. Fetches rolling benchmark results from the `benchmark-results` branch so the preview includes result plots even when benchmarks didn't run on this PR.
+
+### Read the Docs (`.readthedocs.yaml`)
+
+Builds the production documentation site. Tag builds (releases) fetch the matching versioned results directory; branch builds fetch the rolling `main/` results.
+
+### Release (`release.yml`)
+
+Handles the full release lifecycle (see [Release process](#release-process) below). When a release PR merges, the workflow creates a GitHub release and promotes the staged benchmark results: `_pending/` is copied to a permanent `{version}/` directory and `main/` is reset to that release baseline.
+
+### PR preview cleanup (`cleanup-pr-previews.yml`)
+
+Removes the PR's docs preview from `gh-pages` when the PR is closed.
+
+### Benchmark results branch layout
+
+The `benchmark-results` branch stores all published benchmark results:
+
+- **`main/`** — rolling accumulation of results merged from dev PRs. Best-effort; different solvers may come from different commits.
+- **`{version}/`** (e.g. `v0.4.0/`) — immutable release results. Produced by a full benchmark run on a release PR.
+- **`_pending/`** — staging area for an in-progress release. Promoted to `{version}/` when the release PR merges.
+
+Each directory contains per-domain subdirectories with `result.json`, `params.json`, plots (`.png`, `.gif`), plus top-level `snapshot.json` and `status-report.md` files.
+
 ## Commit and pull request message guidelines
 
 We follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification for all commits that reach the `main` branch. Each commit is crafted from a pull request that is squash-merged. The commit title and message comes from the pull request title and message, respectively. As such, they should be structured following the specification.
@@ -163,7 +210,7 @@ Mosaic follows [semantic versioning](https://semver.org).
 Releases are done via GitHub Actions, which automatically build the release artifacts and publish them to PyPI. To create a new release:
 
 1. Make sure the code is in a good state, all tests pass, and the documentation is up to date.
-2. Trigger the release workflow through the [GitHub UI](https://github.com/pasteurlabs/mosaic/actions/workflows/release.yml). This opens a new pull request with the release notes and the version number.
+2. Trigger the release workflow through the [GitHub UI](https://github.com/pasteurlabs/mosaic/actions/workflows/release.yml). This opens a new pull request with the release notes and the version number. Full benchmarks run automatically on the release PR, writing results to `_pending/` on the `benchmark-results` branch.
 3. Add any additional release notes to the pull request message.
 4. Once the pull request is ready, merge it into `main`.
-5. GitHub Actions will then automatically release the new version. Verify that the release artifacts are correctly built and published.
+5. GitHub Actions will then automatically release the new version, promote the staged benchmark results to a permanent `{version}/` directory, and reset the rolling `main/` baseline. Verify that the release artifacts are correctly built and published.

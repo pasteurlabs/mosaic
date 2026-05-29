@@ -205,7 +205,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
             handlelength=1.8,
         )
 
-        out = out_dir / "conductivity_recovery_overview.pdf"
+        out = out_dir / "conductivity_recovery_overview.png"
         fig.savefig(out)
         plt.close(fig)
         print(f"Saved {out}")

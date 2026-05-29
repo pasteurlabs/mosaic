@@ -637,7 +637,7 @@ def _plot_recovery_experiment(
         )
 
     if save:
-        out = out_dir / f"{exp_key}.pdf"
+        out = out_dir / f"{exp_key}.png"
         fig.savefig(out)
         print(f"Saved {out}")
     return fig

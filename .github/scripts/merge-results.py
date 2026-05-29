@@ -136,6 +136,23 @@ def _merge_result_pair(existing: dict, new: dict) -> dict:
         wt = {**(existing.get("wall_time_s") or {}), **(new.get("wall_time_s") or {})}
         result["wall_time_s"] = wt
 
+    # per_solver_* / grad_norms merge (jacobian_svd-style results)
+    for key in list(result.keys()):
+        if (
+            (key.startswith("per_solver_") or key == "grad_norms")
+            and isinstance(existing.get(key), dict)
+            and isinstance(new.get(key), dict)
+        ):
+            result[key] = {**existing[key], **new[key]}
+
+    # solver_names merge (jacobian_svd)
+    if isinstance(existing.get("solver_names"), list) and isinstance(
+        new.get("solver_names"), list
+    ):
+        result["solver_names"] = sorted(
+            set(existing["solver_names"]) | set(new["solver_names"])
+        )
+
     return result
 
 

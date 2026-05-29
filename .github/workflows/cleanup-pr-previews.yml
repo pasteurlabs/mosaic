@@ -1,0 +1,39 @@
+name: Cleanup PR previews
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+
+      - name: Remove PR preview
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+
+          git config user.name "PasteurBot"
+          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
+
+          if ! git fetch origin gh-pages 2>/dev/null; then
+            exit 0
+          fi
+
+          WORK=$(mktemp -d)
+          git worktree add "$WORK" gh-pages
+
+          if [ -d "$WORK/pr-preview/pr-${PR_NUM}" ]; then
+            rm -rf "$WORK/pr-preview/pr-${PR_NUM}"
+            git -C "$WORK" add -A
+            git -C "$WORK" commit -m "Clean up preview for PR #${PR_NUM}" --allow-empty
+            git -C "$WORK" push origin gh-pages
+          fi
+          git worktree remove "$WORK"

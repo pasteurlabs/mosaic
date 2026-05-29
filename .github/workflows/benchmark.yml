@@ -135,8 +135,8 @@ jobs:
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
                   fi
-                  # Extract display name so downstream only pulls/runs this solver
-                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; entries=json.load(sys.stdin); print(','.join(e['display_name'] for e in entries if 'display_name' in e))")
+                  # Build solver list: changed solver + consensus peers
+                  SOLVERS=$(echo "$SOLVER_MATRIX" | uv run python .github/scripts/expand-solver-list.py --problems "$PROBLEMS")
                 fi
                 ;;
               all)
@@ -243,12 +243,32 @@ jobs:
       - name: Merge results from CPU/GPU artifacts
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
+      - name: Overlay PR results on main/ baseline
+        if: >-
+          github.event_name == 'pull_request'
+          && needs.plan.outputs.is_release_pr != 'true'
+        run: |
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            BASELINE=$(mktemp -d)
+            git worktree add "$BASELINE" "origin/$RESULTS_BRANCH" --detach 2>/dev/null || true
+            if [ -d "$BASELINE/main" ]; then
+              MERGED=$(mktemp -d)
+              # Solver-level merge: baseline result.json entries are preserved
+              # for solvers that this PR didn't run.
+              uv run python .github/scripts/overlay-results.py \
+                "$BASELINE/main" mosaic-results "$MERGED"
+              rm -rf mosaic-results
+              mv "$MERGED" mosaic-results
+            fi
+            git worktree remove "$BASELINE" 2>/dev/null || true
+          fi
+
       - name: Fetch baseline snapshot from results branch
         id: baseline
         run: |
           BASELINE_PATH=""
           if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            if git show "origin/$RESULTS_BRANCH:latest/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
+            if git show "origin/$RESULTS_BRANCH:main/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
               BASELINE_PATH="baseline-snapshot.json"
               echo "Fetched baseline snapshot"
             fi
@@ -306,7 +326,7 @@ jobs:
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
           PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
-          printf '\n---\n[View full report](%s)\n' "$PREVIEW_URL" >> status-report.md
+          printf '\n---\n\n### 📊 [View full benchmark report](%s)\nInteractive plots, solver comparisons, and detailed results.\n' "$PREVIEW_URL" >> status-report.md
 
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
@@ -318,49 +338,9 @@ jobs:
             "${{ github.event.pull_request.number }}" \
             status-report.md
 
-      # ── Publish to results branch (release PRs only) ──────────────────
-      - name: Publish results to results branch
-        if: needs.plan.outputs.is_release_pr == 'true'
-        run: |
-          set -euo pipefail
-          SHA="${{ github.sha }}"
-          SHORT_SHA="${SHA:0:8}"
-          WORK=$(mktemp -d)
-
-          git config user.name "PasteurBot"
-          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
-
-          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            git worktree add "$WORK" "$RESULTS_BRANCH"
-          else
-            git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
-            git -C "$WORK" rm -rf . 2>/dev/null || true
-            echo "# Mosaic Benchmark Results" > "$WORK/README.md"
-            echo "" >> "$WORK/README.md"
-            echo "Automated benchmark results. Do not edit manually." >> "$WORK/README.md"
-            git -C "$WORK" add README.md
-            git -C "$WORK" commit -m "Initialize results branch"
-          fi
-
-          DEST="$WORK/releases/pending"
-          mkdir -p "$DEST"
-          cp snapshot.json status-report.md "$DEST/"
-          cp -r mosaic-results/* "$DEST/" 2>/dev/null || true
-
-          rm -rf "$WORK/latest"
-          mkdir -p "$WORK/latest"
-          cp snapshot.json status-report.md "$WORK/latest/"
-          cp -r mosaic-results/* "$WORK/latest/" 2>/dev/null || true
-
-          git -C "$WORK" add .
-          git -C "$WORK" commit -m "Benchmark results for ${SHORT_SHA}
-
-          Source commit: ${SHA}
-          Problems: ${{ needs.plan.outputs.problems }}
-          Suites: ${{ needs.plan.outputs.suites }}"
-
-          git -C "$WORK" push origin "$RESULTS_BRANCH"
-          git worktree remove "$WORK"
+      # ── Publish to results branch ──────────────────────────────────────
+      # All results (dev and release) are published only after merge, by
+      # publish-results.yml (workflow_run trigger).
 
       # ── Deploy PR preview to GitHub Pages ──────────────────────────────
       - name: Deploy PR preview to gh-pages

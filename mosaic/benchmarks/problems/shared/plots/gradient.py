@@ -144,7 +144,7 @@ def _fd_check_figure(
         )
 
     if save:
-        out = out_dir / "fd_check.pdf"
+        out = out_dir / "fd_check.png"
         fig.savefig(out)
         print(f"Saved {out}")
     return fig
@@ -347,7 +347,7 @@ def _jacobian_svd_figure(
         axes[idx // ncols][idx % ncols].set_visible(False)
 
     if save:
-        out = out_dir / "jacobian_svd.pdf"
+        out = out_dir / "jacobian_svd.png"
         fig.savefig(out)
         print(f"Saved {out}")
     return fig
@@ -529,7 +529,7 @@ def _horizon_sweep_figure(
     _horizon_attach_legend(fig, seen, failure_seen)
 
     if save:
-        out = out_dir / "horizon_sweep.pdf"
+        out = out_dir / "horizon_sweep.png"
         fig.savefig(out)
         print(f"Saved {out}")
     return fig

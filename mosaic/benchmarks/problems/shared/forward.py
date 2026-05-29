@@ -181,14 +181,24 @@ def _agreement_aggregate(
         for n, arr in comparable.items():
             per_solver_for_npz.setdefault(n, {})[str(i)] = np.asarray(arr)
 
-        if len(comparable) < 2:
+        has_analytic = analytic_fn is not None and "obstacle" not in phys
+        has_ref_solver = reference_solver is not None and reference_solver in comparable
+
+        if len(comparable) < 2 and not has_analytic and not has_ref_solver:
             by_param[val] = {
                 n: {"error": apply_errors.get(n, {}).get(val), "valid": False}
                 for n in solver_names
             }
             continue
 
-        if analytic_fn is not None and "obstacle" not in phys:
+        if len(comparable) == 0:
+            by_param[val] = {
+                n: {"error": apply_errors.get(n, {}).get(val), "valid": False}
+                for n in solver_names
+            }
+            continue
+
+        if has_analytic:
             reference = _analytic_reference(
                 ic_name=ic_name,
                 seed=seed,
@@ -203,7 +213,7 @@ def _agreement_aggregate(
                 solver_name_for_inputs=cfg.solvers[0].name,
             )
             reference_label = "analytic"
-        elif reference_solver is not None and reference_solver in comparable:
+        elif has_ref_solver:
             reference = np.asarray(comparable[reference_solver])
             reference_label = f"solver:{reference_solver}"
         else:

@@ -226,12 +226,11 @@ def unit_label(name: str, units: dict[str, str] | None) -> str:
 
 
 def save_fig(fig: Figure, stem: str, out_dir: Path) -> None:
-    """Save *fig* as both PNG and PDF under *out_dir*, then close it."""
+    """Save *fig* as PNG under *out_dir*, then close it."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    for ext in ("png", "pdf"):
-        fig.savefig(out_dir / f"{stem}.{ext}")
-    print_saved(f"{out_dir}/{stem}.{{png,pdf}}")
+    fig.savefig(out_dir / f"{stem}.png")
+    print_saved(f"{out_dir}/{stem}.png")
     plt.close(fig)
 
 

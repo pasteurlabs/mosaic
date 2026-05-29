@@ -339,7 +339,7 @@ def plot_cost_overview(
         )
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "cost_overview.pdf"
+    out = out_dir / "cost_overview.png"
     fig.savefig(out)
     plt.close(fig)
     print(f"Saved {out}")

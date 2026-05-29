@@ -192,3 +192,6 @@ jobs:
             --notes-file "${{ steps.release_notes.outputs.release_note_file }}" \
             --target ${{ github.event.pull_request.merge_commit_sha }} \
             --latest
+
+      # Benchmark results are published by publish-results.yml
+      # (workflow_run trigger) after the Benchmark workflow completes.
