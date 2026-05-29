@@ -186,7 +186,7 @@ def _scaling_impl(out_dir: Path) -> None:
         labelspacing=0.3,
     )
 
-    out = out_dir / "scaling.pdf"
+    out = out_dir / "scaling.png"
     fig.savefig(out)
     plt.close(fig)
     print(f"Saved {out}")
@@ -328,7 +328,7 @@ def _plot_ucurves(cfg: Problem, **_kw: Any) -> None:
         / "gradient"
         / "horizon_sweep"
         / "result.json",
-        "out": "ucurves.pdf",
+        "out": "ucurves.png",
         "ncols": 4,
     }
     with rc_context():

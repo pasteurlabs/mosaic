@@ -585,7 +585,7 @@ def _topopt_overview_generate(out_dir: Path) -> None:
             handlelength=1.8,
         )
 
-        out = out_dir / "topopt_overview.pdf"
+        out = out_dir / "topopt_overview.png"
         fig.savefig(out)
         plt.close(fig)
         print(f"Saved {out}")

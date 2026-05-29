@@ -336,7 +336,7 @@ def _drag_opt_figure(
     )
 
     if save:
-        out = out_dir / f"{exp_key}.pdf"
+        out = out_dir / f"{exp_key}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out)
         print(f"Saved {out}")

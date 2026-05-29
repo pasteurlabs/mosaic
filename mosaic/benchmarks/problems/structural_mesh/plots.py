@@ -235,7 +235,7 @@ def _plot_topopt_figure(
         )
 
     if save:
-        out = out_dir / f"{exp_key}.pdf"
+        out = out_dir / f"{exp_key}.png"
         fig.savefig(out)
         print(f"Saved {out}")
     return fig
