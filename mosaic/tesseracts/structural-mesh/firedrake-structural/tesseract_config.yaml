@@ -8,7 +8,7 @@ build_config:
   base_image: "firedrakeproject/firedrake:2026.4.0"
   skip_checks: true
   package_data:
-    - ["../../mosaic_shared", "/tmp/mosaic_shared"]
+    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN cp /usr/local/lib/python3.12/dist-packages/__editable__.firedrake-2026.4.0.pth /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/__editable___firedrake_2026_4_0_finder.py /python-env/lib/python3.12/site-packages/ && cp /usr/local/lib/python3.12/dist-packages/a1_coverage.pth /python-env/lib/python3.12/site-packages/ && echo /usr/local/lib/python3.12/dist-packages > /python-env/lib/python3.12/site-packages/firedrake_deps.pth"
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared meshio scipy"

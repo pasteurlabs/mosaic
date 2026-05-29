@@ -1,4 +1,4 @@
 https://download.pytorch.org/whl/cu121/torch-2.5.1%2Bcu121-cp311-cp311-linux_x86_64.whl
 torch-fem==0.6.2
 numpy==2.4.4
-../../mosaic_shared
+../../../mosaic_shared
