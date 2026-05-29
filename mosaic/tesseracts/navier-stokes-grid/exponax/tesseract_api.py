@@ -27,7 +27,7 @@ class InputSchema(
     """Exponax solver input schema with spectral-specific parameters."""
 
     drag: Differentiable[Array[(1,), Float32]] = Field(
-        description="Linear drag coefficient",
+        description="Linear drag coefficient.",
         default_factory=lambda: np.array([0.0], dtype=np.float32),
     )
     order: int = Field(description="ETDRK time integration order (0-4)", default=2)
