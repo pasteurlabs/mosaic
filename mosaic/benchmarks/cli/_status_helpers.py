@@ -222,7 +222,7 @@ def _status_print_summary(per_problem_tally: list[tuple]) -> None:
         "[dim]—[/] missing · "
         "[dim yellow]perm[/] excluded (permanent, out of %) · "
         "[yellow]excl[/] excluded (work-to-do) · "
-        "[bold]*[/] stale (predates current tesseract/harness source)"
+        "[bold]*[/] stale (predates current benchmark run and may be outdated)"
     )
 
     def _score_colored(score: float | None) -> str:

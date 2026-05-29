@@ -1359,7 +1359,7 @@ _MD_LEGEND = (
     "· missing · "
     "🚫 excluded (permanent — out of score denominator) · "
     "⚪ excluded (work-to-do) · "
-    "**\\*** stale — result predates current tesseract/harness source"
+    "**\\*** stale — result predates current benchmark run"
 )
 
 _MD_EXPLAINER = (
@@ -1602,16 +1602,6 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
             lines.append("| " + " | ".join(cells) + " |")
         lines.append("")
         lines.append("</details>")
-        lines.append("")
-
-    # ── wall-clock caveat (only when cost suite has results) ─────────────────
-    has_cost = any(row.suite == "cost" for st in statuses for row in st.rows)
-    if has_cost:
-        lines.append(
-            "> **Note on wall-clock measurements:** Cost-suite timings are collected on dedicated CI runners\n"
-            "> with no concurrent benchmark workloads. Relative solver rankings within a single run are\n"
-            "> reliable; absolute wall times may vary ±10–15% across runs due to cloud VM variability."
-        )
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
