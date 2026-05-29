@@ -4,7 +4,7 @@
     "href": "docs/results_thermal_mesh.html",
     "title": "Heat Conduction",
     "section": "",
-    "text": "Auto-generated 2026-05-29 12:08 UTC  ·  19 plots\nQuasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks y-symmetry and drives topology optimisation toward non-trivial branching structures. Also supports source-identification experiments: recover the volumetric heat source f(x) from temperature observations via the identification_error = ||T − T_target||² objective."
+    "text": "Auto-generated 2026-05-29 13:09 UTC  ·  19 plots\nQuasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks y-symmetry and drives topology optimisation toward non-trivial branching structures. Also supports source-identification experiments: recover the volumetric heat source f(x) from temperature observations via the identification_error = ||T − T_target||² objective."
   },
   {
     "objectID": "docs/results_thermal_mesh.html#initial-conditions",
@@ -46,7 +46,7 @@
     "href": "docs/results_ns_grid.html",
     "title": "Navier–Stokes (2D)",
     "section": "",
-    "text": "Auto-generated 2026-05-29 12:08 UTC  ·  25 plots\n2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as the primary control parameter. The nonlinear advection term ∇·(u⊗u) transfers energy across scales; at low ν the flow develops turbulent cascades and the Lyapunov exponent grows, making long-horizon gradients exponentially sensitive to perturbations."
+    "text": "Auto-generated 2026-05-29 13:09 UTC  ·  25 plots\n2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as the primary control parameter. The nonlinear advection term ∇·(u⊗u) transfers energy across scales; at low ν the flow develops turbulent cascades and the Lyapunov exponent grows, making long-horizon gradients exponentially sensitive to perturbations."
   },
   {
     "objectID": "docs/results_ns_grid.html#initial-conditions",
@@ -88,7 +88,7 @@
     "href": "docs/results_ns_3d_grid.html",
     "title": "Navier–Stokes (3D)",
     "section": "",
-    "text": "Auto-generated 2026-05-29 12:08 UTC  ·  15 plots\n3D incompressible Navier–Stokes on a triply-periodic domain with viscosity ν as the primary control parameter. The 3D extension admits helical structures, vortex stretching, and faster chaos onset than 2D: chaos horizon T* ≈ 8–16 s vs T* &gt; 64 s in 2D (at ν=0.001, N=16). Gradient norms grow (vortex stretching) rather than decaying as in 2D."
+    "text": "Auto-generated 2026-05-29 13:09 UTC  ·  15 plots\n3D incompressible Navier–Stokes on a triply-periodic domain with viscosity ν as the primary control parameter. The 3D extension admits helical structures, vortex stretching, and faster chaos onset than 2D: chaos horizon T* ≈ 8–16 s vs T* &gt; 64 s in 2D (at ν=0.001, N=16). Gradient norms grow (vortex stretching) rather than decaying as in 2D."
   },
   {
     "objectID": "docs/results_ns_3d_grid.html#initial-conditions",
@@ -137,7 +137,7 @@
     "href": "docs/results_structural_mesh.html",
     "title": "Structural Mechanics",
     "section": "",
-    "text": "Auto-generated 2026-05-29 12:08 UTC  ·  19 plots\n3D linear-elasticity compliance minimisation on a cantilever beam with SIMP material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples every density element to the global displacement field via the constitutive relation E_eff(ρ) = E_min + (E_max − E_min)·ρ³; the compliance objective C = F^T K(ρ)⁻¹ F is smooth but non-convex in ρ, driving gradient-based topology optimisation toward sparse binary 0/1 layouts."
+    "text": "Auto-generated 2026-05-29 13:09 UTC  ·  19 plots\n3D linear-elasticity compliance minimisation on a cantilever beam with SIMP material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples every density element to the global displacement field via the constitutive relation E_eff(ρ) = E_min + (E_max − E_min)·ρ³; the compliance objective C = F^T K(ρ)⁻¹ F is smooth but non-convex in ρ, driving gradient-based topology optimisation toward sparse binary 0/1 layouts."
   },
   {
     "objectID": "docs/results_structural_mesh.html#initial-conditions",
