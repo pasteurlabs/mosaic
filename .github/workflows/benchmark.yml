@@ -243,12 +243,36 @@ jobs:
       - name: Merge results from CPU/GPU artifacts
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
+      - name: Overlay PR results on main/ baseline
+        if: >-
+          github.event_name == 'pull_request'
+          && needs.plan.outputs.is_release_pr != 'true'
+        run: |
+          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+            BASELINE=$(mktemp -d)
+            git worktree add "$BASELINE" "origin/$RESULTS_BRANCH" --detach 2>/dev/null || true
+            if [ -d "$BASELINE/main" ]; then
+              MERGED=$(mktemp -d)
+              # Start from baseline
+              cp -r "$BASELINE/main"/. "$MERGED/" 2>/dev/null || true
+              rm -f "$MERGED/snapshot.json" "$MERGED/status-report.md"
+              # PR results take precedence
+              if [ -d mosaic-results ]; then
+                cp -r mosaic-results/. "$MERGED/"
+              fi
+              rm -rf mosaic-results
+              mv "$MERGED" mosaic-results
+              echo "Overlaid PR results on main/ baseline"
+            fi
+            git worktree remove "$BASELINE" 2>/dev/null || true
+          fi
+
       - name: Fetch baseline snapshot from results branch
         id: baseline
         run: |
           BASELINE_PATH=""
           if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            if git show "origin/$RESULTS_BRANCH:latest/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
+            if git show "origin/$RESULTS_BRANCH:main/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
               BASELINE_PATH="baseline-snapshot.json"
               echo "Fetched baseline snapshot"
             fi
@@ -318,49 +342,136 @@ jobs:
             "${{ github.event.pull_request.number }}" \
             status-report.md
 
-      # ── Publish to results branch (release PRs only) ──────────────────
-      - name: Publish results to results branch
+      # ── Publish to results branch ──────────────────────────────────────
+      - name: Publish results to main/ (dev PRs)
+        if: >-
+          github.event_name == 'pull_request'
+          && needs.plan.outputs.is_release_pr != 'true'
+          && needs.benchmarks.result == 'success'
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:8}"
+
+          git config user.name "PasteurBot"
+          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
+
+          for attempt in 1 2 3; do
+            WORK=$(mktemp -d)
+
+            if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+              git worktree add "$WORK" "$RESULTS_BRANCH"
+            else
+              git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
+              git -C "$WORK" rm -rf . 2>/dev/null || true
+              echo "# Mosaic Benchmark Results" > "$WORK/README.md"
+              git -C "$WORK" add README.md
+              git -C "$WORK" commit -m "Initialize results branch"
+            fi
+
+            # Merge PR results on top of existing main/
+            DEST="$WORK/main"
+            MERGE_STAGING=$(mktemp -d)
+            cp -r "$DEST"/. "$MERGE_STAGING/" 2>/dev/null || true
+            # Remove meta files -- will be regenerated
+            rm -f "$MERGE_STAGING/snapshot.json" "$MERGE_STAGING/status-report.md"
+            # Overlay PR results (new files win, whitelist only)
+            cd mosaic-results
+            find . -type f \( -name "*.png" -o -name "*.gif" -o -name "result.json" -o -name "params.json" \) | while read f; do
+              mkdir -p "$MERGE_STAGING/$(dirname "$f")"
+              cp "$f" "$MERGE_STAGING/$f"
+            done
+            cd -
+
+            rm -rf "$DEST"
+            mkdir -p "$DEST"
+            cp -r "$MERGE_STAGING"/. "$DEST/"
+
+            # Regenerate snapshot over the merged results so next PR's
+            # diff-against comparison is accurate
+            ln -sfn "$DEST" mosaic-results
+            uv run mosaic status --format json > "$DEST/snapshot.json"
+            uv run mosaic status --format md > "$DEST/status-report.md"
+
+            git -C "$WORK" add .
+            if git -C "$WORK" diff --cached --quiet; then
+              echo "No changes to commit"
+              git worktree remove "$WORK"
+              break
+            fi
+            git -C "$WORK" commit -m "Update main/ from PR (${SHORT_SHA})
+
+          Source commit: ${SHA}
+          Problems: ${{ needs.plan.outputs.problems }}
+          Suites: ${{ needs.plan.outputs.suites }}
+          Solvers: ${{ needs.plan.outputs.solvers }}"
+
+            if git -C "$WORK" push origin "$RESULTS_BRANCH"; then
+              echo "Published to main/ (attempt $attempt)"
+              git worktree remove "$WORK"
+              break
+            else
+              echo "Push failed (attempt $attempt), retrying..."
+              git worktree remove "$WORK"
+              sleep $((attempt * 2))
+            fi
+          done
+
+      - name: Publish results to _pending/ (release PRs)
         if: needs.plan.outputs.is_release_pr == 'true'
         run: |
           set -euo pipefail
           SHA="${{ github.sha }}"
           SHORT_SHA="${SHA:0:8}"
-          WORK=$(mktemp -d)
 
           git config user.name "PasteurBot"
           git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
 
-          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            git worktree add "$WORK" "$RESULTS_BRANCH"
-          else
-            git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
-            git -C "$WORK" rm -rf . 2>/dev/null || true
-            echo "# Mosaic Benchmark Results" > "$WORK/README.md"
-            echo "" >> "$WORK/README.md"
-            echo "Automated benchmark results. Do not edit manually." >> "$WORK/README.md"
-            git -C "$WORK" add README.md
-            git -C "$WORK" commit -m "Initialize results branch"
-          fi
+          for attempt in 1 2 3; do
+            WORK=$(mktemp -d)
 
-          DEST="$WORK/releases/pending"
-          mkdir -p "$DEST"
-          cp snapshot.json status-report.md "$DEST/"
-          cp -r mosaic-results/* "$DEST/" 2>/dev/null || true
+            if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
+              git worktree add "$WORK" "$RESULTS_BRANCH"
+            else
+              git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
+              git -C "$WORK" rm -rf . 2>/dev/null || true
+              echo "# Mosaic Benchmark Results" > "$WORK/README.md"
+              git -C "$WORK" add README.md
+              git -C "$WORK" commit -m "Initialize results branch"
+            fi
 
-          rm -rf "$WORK/latest"
-          mkdir -p "$WORK/latest"
-          cp snapshot.json status-report.md "$WORK/latest/"
-          cp -r mosaic-results/* "$WORK/latest/" 2>/dev/null || true
+            DEST="$WORK/_pending"
+            rm -rf "$DEST"
+            mkdir -p "$DEST"
+            cp snapshot.json status-report.md "$DEST/"
+            # Whitelist copy
+            cd mosaic-results
+            find . -type f \( -name "*.png" -o -name "*.gif" -o -name "result.json" -o -name "params.json" \) | while read f; do
+              mkdir -p "$DEST/$(dirname "$f")"
+              cp "$f" "$DEST/$f"
+            done
+            cd -
 
-          git -C "$WORK" add .
-          git -C "$WORK" commit -m "Benchmark results for ${SHORT_SHA}
+            git -C "$WORK" add .
+            if git -C "$WORK" diff --cached --quiet; then
+              echo "No changes to commit"
+              git worktree remove "$WORK"
+              break
+            fi
+            git -C "$WORK" commit -m "Benchmark results (pending release) for ${SHORT_SHA}
 
-          Source commit: ${SHA}
-          Problems: ${{ needs.plan.outputs.problems }}
-          Suites: ${{ needs.plan.outputs.suites }}"
+          Source commit: ${SHA}"
 
-          git -C "$WORK" push origin "$RESULTS_BRANCH"
-          git worktree remove "$WORK"
+            if git -C "$WORK" push origin "$RESULTS_BRANCH"; then
+              echo "Published to _pending/ (attempt $attempt)"
+              git worktree remove "$WORK"
+              break
+            else
+              echo "Push failed (attempt $attempt), retrying..."
+              git worktree remove "$WORK"
+              sleep $((attempt * 2))
+            fi
+          done
 
       # ── Deploy PR preview to GitHub Pages ──────────────────────────────
       - name: Deploy PR preview to gh-pages

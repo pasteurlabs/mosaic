@@ -41,10 +41,10 @@ jobs:
       - name: Fetch benchmark results from results branch
         run: |
           if git fetch origin benchmark-results 2>/dev/null; then
-            git checkout origin/benchmark-results -- latest/ 2>/dev/null || true
-            if [ -d latest ]; then
+            git checkout origin/benchmark-results -- main/ 2>/dev/null || true
+            if [ -d main ]; then
               mkdir -p mosaic-results
-              for domain_dir in latest/*/; do
+              for domain_dir in main/*/; do
                 domain=$(basename "$domain_dir")
                 [ -d "$domain_dir" ] || continue
                 cp -r "$domain_dir" "mosaic-results/$domain"
