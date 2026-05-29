@@ -7,6 +7,8 @@ on:
         description: 'JSON array of {"domain", "solver"} objects to build'
         type: string
         required: true
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       domain:
@@ -28,10 +30,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Discover solvers (workflow_dispatch only) ───────────────────────────
+  # ── Discover solvers (push to main / workflow_dispatch) ──────────────────
   discover:
     name: Discover solvers
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'workflow_call'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.detect.outputs.matrix }}
@@ -42,7 +44,7 @@ jobs:
         name: Enumerate solvers for domain
         run: |
           set -euo pipefail
-          DOMAIN="${{ inputs.domain }}"
+          DOMAIN="${{ inputs.domain || 'all' }}"
           MATRIX_JSON="["
           FIRST=true
           for cfg in mosaic/tesseracts/*/tesseract_config.yaml mosaic/tesseracts/*/*/tesseract_config.yaml; do
