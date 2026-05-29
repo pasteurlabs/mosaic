@@ -1,0 +1,177 @@
+[
+  {
+    "objectID": "docs/results_thermal_mesh.html",
+    "href": "docs/results_thermal_mesh.html",
+    "title": "Heat Conduction",
+    "section": "",
+    "text": "Auto-generated 2026-05-29 10:59 UTC  ·  19 plots\nQuasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks y-symmetry and drives topology optimisation toward non-trivial branching structures. Also supports source-identification experiments: recover the volumetric heat source f(x) from temperature observations via the identification_error = ||T − T_target||² objective."
+  },
+  {
+    "objectID": "docs/results_thermal_mesh.html#initial-conditions",
+    "href": "docs/results_thermal_mesh.html#initial-conditions",
+    "title": "Heat Conduction",
+    "section": "Initial Conditions",
+    "text": "Initial Conditions\nVisualisation of each initial condition available for this problem. IC plots are generated without running any solver.\n\nGaussian Source\nGaussian heat source centred at (cx·Lx, cy·Ly) = (0.5·Lx, 0.5·Ly) with width σ·min(Lx,Ly). Used as the control field for source-identification experiments (ic_field=‘source’ in physics dict).\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"nx\": 16,\n  \"ny\": 8,\n  \"nz\": 1,\n  \"amplitude\": 1.0,\n  \"cx\": 0.5,\n  \"cy\": 0.5,\n  \"sigma\": 0.2\n}\n\n\n\n\n\n\nRandom\nGaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); breaks spatial symmetry to produce non-trivial per-cell gradient sensitivity maps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"rho_0\": 0.5,\n  \"noise\": 0.3,\n  \"nx\": 16,\n  \"ny\": 8,\n  \"nz\": 1,\n  \"seed\": 0\n}\n\n\n\n\n\n\nTwo Gaussians\nTwo-Gaussian volumetric heat source at (0.3·Lx, 0.5·Ly) and (0.7·Lx, 0.5·Ly). Ground-truth source for source-recovery experiments.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"nx\": 16,\n  \"ny\": 8,\n  \"nz\": 1\n}\n\n\n\n\n\n\nUniform\nUniform SIMP thermal conductivity density ρ₀ over all hex mesh elements; standard homogeneous starting point for heat-conduction topology optimisation.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"rho_0\": 0.5,\n  \"nx\": 16,\n  \"ny\": 8,\n  \"nz\": 1\n}\n\n\n\n\n\n\nZero Source\nZero volumetric heat source; standard zero-initialisation for source-recovery experiments.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"nx\": 16,\n  \"ny\": 8,\n  \"nz\": 1\n}"
+  },
+  {
+    "objectID": "docs/results_thermal_mesh.html#forward",
+    "href": "docs/results_thermal_mesh.html#forward",
+    "title": "Heat Conduction",
+    "section": "Forward",
+    "text": "Forward\nForward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.\n\nAgreement\nThermal compliance C vs uniform element density ρ₀ at fixed N; compares solvers on a log scale.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps rho_0 ∈ {0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95}\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"nx\": 16,\n    \"ny\": 8,\n    \"nz\": 1,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"Q_total\": 1.0,\n    \"rho_0\": 0.05\n  },\n  \"sweep\": {\n    \"key\": \"rho_0\",\n    \"values\": [\n      0.05,\n      0.1,\n      0.2,\n      0.4,\n      0.6,\n      0.8,\n      0.95\n    ]\n  }\n}\n\n\n\n\n\n\nBaseline\nThermal compliance C vs mesh resolution N with random density; compares FV and FEM solvers across refinements.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps N ∈ {2, 3, 4, 6, 8, 12, 16, 24}\n{\n  \"ic\": {\n    \"name\": \"random\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 2,\n    \"nz\": 1,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"Q_total\": 1.0\n  },\n  \"sweep\": {\n    \"key\": \"N\",\n    \"values\": [\n      2,\n      3,\n      4,\n      6,\n      8,\n      12,\n      16,\n      24\n    ]\n  }\n}\n\n\n\n\n\n\nSource Baseline\nThermal compliance C vs mesh resolution N with a Gaussian source field; compares solvers across refinements.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps N ∈ {4, 6, 8, 12, 16, 24}\n{\n  \"ic\": {\n    \"name\": \"gaussian_source\"\n  },\n  \"physics\": {\n    \"N\": 4,\n    \"nz\": 1,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"rho_0\": 0.5,\n    \"ic_field\": \"source\"\n  },\n  \"sweep\": {\n    \"key\": \"N\",\n    \"values\": [\n      4,\n      6,\n      8,\n      12,\n      16,\n      24\n    ]\n  }\n}\n\n\n\n\n\n\nSource Linearity\nThermal compliance C vs source amplitude at fixed mesh; compares solvers on log-log axes.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps amplitude ∈ {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}\n{\n  \"ic\": {\n    \"name\": \"gaussian_source\"\n  },\n  \"physics\": {\n    \"nx\": 16,\n    \"ny\": 8,\n    \"nz\": 1,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"rho_0\": 0.5,\n    \"ic_field\": \"source\",\n    \"amplitude\": 0.1\n  },\n  \"sweep\": {\n    \"key\": \"amplitude\",\n    \"values\": [\n      0.1,\n      0.25,\n      0.5,\n      1.0,\n      2.0,\n      4.0\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_thermal_mesh.html#gradient",
+    "href": "docs/results_thermal_mesh.html#gradient",
+    "title": "Heat Conduction",
+    "section": "Gradient",
+    "text": "Gradient\nGradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.\n\nParameter Sweep\nGradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs element density ρ₀.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps rho_0 ∈ {0.1, 0.2, 0.4, 0.6, 0.8}\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"nx\": 8,\n    \"ny\": 4,\n    \"nz\": 1,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"Q_total\": 1.0,\n    \"rho_0\": 0.1\n  },\n  \"fd\": {\n    \"eps_values\": [\n      1.0,\n      0.1,\n      0.01,\n      0.001,\n      0.0001\n    ],\n    \"n_dirs\": 6\n  },\n  \"sweep\": {\n    \"key\": \"rho_0\",\n    \"values\": [\n      0.1,\n      0.2,\n      0.4,\n      0.6,\n      0.8\n    ]\n  }\n}\n\n\n\n   \n\n\nSource Width Sweep\nGradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs source width σ.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps sigma ∈ {0.05, 0.1, 0.2, 0.3, 0.5}\n{\n  \"ic\": {\n    \"name\": \"gaussian_source\"\n  },\n  \"ic_key\": \"source\",\n  \"output_key\": \"identification_error\",\n  \"physics\": {\n    \"nx\": 16,\n    \"ny\": 8,\n    \"nz\": 1,\n    \"rho_0\": 0.5,\n    \"target_from_two_gaussians\": true,\n    \"ic_field\": \"source\"\n  },\n  \"fd\": {\n    \"eps_values\": [\n      0.1,\n      0.01,\n      0.001,\n      0.0001\n    ],\n    \"n_dirs\": 4\n  },\n  \"sweep\": {\n    \"key\": \"sigma\",\n    \"values\": [\n      0.05,\n      0.1,\n      0.2,\n      0.3,\n      0.5\n    ],\n    \"ic_sweep\": true\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_thermal_mesh.html#optimization",
+    "href": "docs/results_thermal_mesh.html#optimization",
+    "title": "Heat Conduction",
+    "section": "Optimization",
+    "text": "Optimization\nOptimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.\n\nConductivity Recovery Bfgs\nOptimisation traces (loss vs iteration) and recovered conductivity fields vs the two-Gaussian ground truth, using L-BFGS.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"nx\": 16,\n    \"ny\": 8,\n    \"nz\": 1,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"rho_0\": 0.5,\n    \"Q_total\": 1.0,\n    \"compliance_key\": \"identification_error\",\n    \"penalty_weight\": 0.0,\n    \"x_min\": 0.001,\n    \"snap_interval\": 10,\n    \"target_rho_from_two_gaussians\": true\n  },\n  \"optim\": {\n    \"max_iters\": 200,\n    \"patience\": 30\n  },\n  \"optimizer\": \"bfgs\"\n}"
+  },
+  {
+    "objectID": "docs/results_thermal_mesh.html#cost",
+    "href": "docs/results_thermal_mesh.html#cost",
+    "title": "Heat Conduction",
+    "section": "Cost",
+    "text": "Cost\nWall-clock cost scaling with problem size N and number of integration steps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSpatial Cost\nSweeps nx ∈ {16, 32, 64, 128, 256, 512, 1024}\n{\n  \"physics\": {\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"Q_total\": 1.0,\n    \"rho_0\": 0.5,\n    \"steps\": 1,\n    \"nx\": 16\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"nx\",\n    \"values\": [\n      16,\n      32,\n      64,\n      128,\n      256,\n      512,\n      1024\n    ]\n  }\n}\nTemporal Cost\nSweeps steps ∈ {1}\n{\n  \"physics\": {\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"Q_total\": 1.0,\n    \"rho_0\": 0.5,\n    \"nx\": 64,\n    \"steps\": 1\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      1\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_grid.html",
+    "href": "docs/results_ns_grid.html",
+    "title": "Navier–Stokes (2D)",
+    "section": "",
+    "text": "Auto-generated 2026-05-29 10:59 UTC  ·  25 plots\n2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as the primary control parameter. The nonlinear advection term ∇·(u⊗u) transfers energy across scales; at low ν the flow develops turbulent cascades and the Lyapunov exponent grows, making long-horizon gradients exponentially sensitive to perturbations."
+  },
+  {
+    "objectID": "docs/results_ns_grid.html#initial-conditions",
+    "href": "docs/results_ns_grid.html#initial-conditions",
+    "title": "Navier–Stokes (2D)",
+    "section": "Initial Conditions",
+    "text": "Initial Conditions\nVisualisation of each initial condition available for this problem. IC plots are generated without running any solver.\n\nFlat Inflow\nFlat 1-D inlet velocity profile u_x(y) = U, shape (N,). Starting point for inflow-profile drag-optimisation experiments.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 64,\n  \"U\": 0.5\n}\n\n\n\n\n\n\nMultimode\nIncompressible velocity field with energy concentrated in a ring at wavenumber k=2 (σ_k=0.5); supports multi-scale turbulent development.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 64\n}\n\n\n\n\n\n\nTgv\nTaylor–Green vortex u=sin(x)cos(y), v=−cos(x)sin(y); has a closed-form analytic solution for viscous decay, enabling solver verification.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 64\n}\n\n\n\n\n\n\nUniform\nUniform rightward flow u=(U, 0) — background flow for cylinder-wake (Kármán vortex street) experiments. Obstacle specified separately via the physics.obstacle field.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 64,\n  \"U\": 1.0\n}"
+  },
+  {
+    "objectID": "docs/results_ns_grid.html#forward",
+    "href": "docs/results_ns_grid.html#forward",
+    "title": "Navier–Stokes (2D)",
+    "section": "Forward",
+    "text": "Forward\nForward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.\n\nCylinder\nVorticity snapshots and kinetic-energy evolution vs time for each solver across a sweep of viscosities.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps nu ∈ {0.05, 0.02, 0.01, 0.005}\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 64,\n    \"dt\": 0.01,\n    \"steps\": 500,\n    \"obstacle\": {\n      \"shape\": \"cylinder\",\n      \"center\": [\n        0.5,\n        0.5\n      ],\n      \"radius\": 0.1\n    },\n    \"nu\": 0.05\n  },\n  \"reference_solver\": \"openfoam\",\n  \"sweep\": {\n    \"key\": \"nu\",\n    \"values\": [\n      0.05,\n      0.02,\n      0.01,\n      0.005\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_grid.html#gradient",
+    "href": "docs/results_ns_grid.html#gradient",
+    "title": "Navier–Stokes (2D)",
+    "section": "Gradient",
+    "text": "Gradient\nGradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nFd Check\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 20\n  },\n  \"fd\": {\n    \"eps_values\": [\n      5.0,\n      1.0,\n      0.1,\n      0.01,\n      0.001,\n      0.0001\n    ],\n    \"n_dirs\": 20\n  }\n}\nHorizon Sweep\nSweeps steps ∈ {5, 10, 20, 40, 80, 160, 320}\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 5\n  },\n  \"fd\": {\n    \"eps_values\": [\n      1.0,\n      0.1,\n      0.01,\n      0.001\n    ],\n    \"n_dirs\": 8\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      5,\n      10,\n      20,\n      40,\n      80,\n      160,\n      320\n    ]\n  }\n}\nJacobian Svd\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 10\n  }\n}\nJacobian Svd Nu01\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.01,\n    \"dt\": 0.05,\n    \"steps\": 10\n  }\n}\nJacobian Svd Steps20\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 20\n  }\n}\nJacobian Svd Steps40\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 40\n  }\n}\nParam Sweep\nSweeps nu ∈ {0.05, 0.01, 0.005, 0.001}\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"dt\": 0.05,\n    \"steps\": 200,\n    \"nu\": 0.05\n  },\n  \"fd\": {\n    \"eps_values\": [\n      5.0,\n      1.0,\n      0.1,\n      0.01,\n      0.001\n    ],\n    \"n_dirs\": 15\n  },\n  \"sweep\": {\n    \"key\": \"nu\",\n    \"values\": [\n      0.05,\n      0.01,\n      0.005,\n      0.001\n    ]\n  }\n}\n\n\n\n\n\nFinite-Difference Check\nU-curves of finite-difference gradient error vs perturbation size ε together with subspace cosine; validates VJP correctness.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 20\n  },\n  \"fd\": {\n    \"eps_values\": [\n      5.0,\n      1.0,\n      0.1,\n      0.01,\n      0.001,\n      0.0001\n    ],\n    \"n_dirs\": 20\n  }\n}\n\n\n\n\n\n\nParameter Sweep\nGradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps nu ∈ {0.05, 0.01, 0.005, 0.001}\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"dt\": 0.05,\n    \"steps\": 200,\n    \"nu\": 0.05\n  },\n  \"fd\": {\n    \"eps_values\": [\n      5.0,\n      1.0,\n      0.1,\n      0.01,\n      0.001\n    ],\n    \"n_dirs\": 15\n  },\n  \"sweep\": {\n    \"key\": \"nu\",\n    \"values\": [\n      0.05,\n      0.01,\n      0.005,\n      0.001\n    ]\n  }\n}\n\n\n\n   \n\n\nHorizon Sweep\nGradient norm, FD error, and direction cosine vs rollout horizon T = steps*dt.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps steps ∈ {5, 10, 20, 40, 80, 160, 320}\n{\n  \"ic\": {\n    \"name\": \"multimode\",\n    \"seed\": 42\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 5\n  },\n  \"fd\": {\n    \"eps_values\": [\n      1.0,\n      0.1,\n      0.01,\n      0.001\n    ],\n    \"n_dirs\": 8\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      5,\n      10,\n      20,\n      40,\n      80,\n      160,\n      320\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_grid.html#optimization",
+    "href": "docs/results_ns_grid.html#optimization",
+    "title": "Navier–Stokes (2D)",
+    "section": "Optimization",
+    "text": "Optimization\nOptimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.\n\nDrag Opt\nDrag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"ic\": {\n    \"name\": \"flat_inflow\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 32,\n    \"nu\": 0.0025,\n    \"dt\": 0.02,\n    \"steps\": 200,\n    \"domain_extent\": 1.0,\n    \"U_mean\": 0.5,\n    \"obstacle\": {\n      \"shape\": \"cylinder\",\n      \"center\": [\n        0.5,\n        0.5\n      ],\n      \"radius\": 0.05\n    }\n  },\n  \"optim\": {\n    \"lr\": 0.0005,\n    \"max_iters\": 250,\n    \"patience\": 50,\n    \"flow_penalty_weight\": 50.0,\n    \"snap_interval\": 20\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_grid.html#cost",
+    "href": "docs/results_ns_grid.html#cost",
+    "title": "Navier–Stokes (2D)",
+    "section": "Cost",
+    "text": "Cost\nWall-clock cost scaling with problem size N and number of integration steps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSpatial Cost\nSweeps N ∈ {64, 128, 192, 256}\n{\n  \"physics\": {\n    \"nu\": 0.01,\n    \"dt\": 0.01,\n    \"steps\": 100,\n    \"N\": 64\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"N\",\n    \"values\": [\n      64,\n      128,\n      192,\n      256\n    ]\n  }\n}\nTemporal Cost\nSweeps steps ∈ {10, 50, 100, 500, 1000}\n{\n  \"physics\": {\n    \"nu\": 0.01,\n    \"dt\": 0.01,\n    \"N\": 128,\n    \"steps\": 10\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      10,\n      50,\n      100,\n      500,\n      1000\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html",
+    "href": "docs/results_ns_3d_grid.html",
+    "title": "Navier–Stokes (3D)",
+    "section": "",
+    "text": "Auto-generated 2026-05-29 10:59 UTC  ·  15 plots\n3D incompressible Navier–Stokes on a triply-periodic domain with viscosity ν as the primary control parameter. The 3D extension admits helical structures, vortex stretching, and faster chaos onset than 2D: chaos horizon T* ≈ 8–16 s vs T* &gt; 64 s in 2D (at ν=0.001, N=16). Gradient norms grow (vortex stretching) rather than decaying as in 2D."
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html#initial-conditions",
+    "href": "docs/results_ns_3d_grid.html#initial-conditions",
+    "title": "Navier–Stokes (3D)",
+    "section": "Initial Conditions",
+    "text": "Initial Conditions\nVisualisation of each initial condition available for this problem. IC plots are generated without running any solver.\n\nAbc\nArnold–Beltrami–Childress flow — a 3D Beltrami field that is a steady Euler solution with non-zero helicity. Particle trajectories are chaotic for A≈B≈C≈1, making it a demanding test for gradient signal at long horizons. Shape (N,N,N,3).\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 32\n}\n\n\n\n\n\n\nRand Div Free\nRandom divergence-free 3D velocity field generated via curl of a spectral vector potential (energy ring at |k|=2, width 1). Seed-controlled, evolves non-trivially under NS dynamics — unlike ABC flow it has no near-steady-state structure. Shape (N,N,N,3).\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 32\n}\n\n\n\n\n\n\nTgv3D\n3D Taylor–Green vortex u=sin(x)cos(y)cos(z), v=−cos(x)sin(y)cos(z), w=0; divergence-free IC that develops turbulent vortex structures and a peak dissipation rate around t≈9/ν. Shape (N,N,N,3).\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"N\": 32\n}"
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html#forward",
+    "href": "docs/results_ns_3d_grid.html#forward",
+    "title": "Navier–Stokes (3D)",
+    "section": "Forward",
+    "text": "Forward\nForward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.\n\nAgreement\n3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a fine-grid consensus reference.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps nu ∈ {0.001, 0.01, 0.05}\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.01,\n    \"steps\": 50,\n    \"lbm_N_base\": 16\n  },\n  \"reference\": {\n    \"solvers\": [\n      \"exponax\"\n    ],\n    \"dt\": 0.002,\n    \"steps\": 250\n  },\n  \"sweep\": {\n    \"key\": \"nu\",\n    \"values\": [\n      0.001,\n      0.01,\n      0.05\n    ]\n  }\n}\n\n\n\n\n\n\nBaseline\nRelative error vs grid resolution N at steps=1; validates single-step forward accuracy across 3D solvers.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps N ∈ {8, 16, 32}\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.05,\n    \"dt\": 0.01,\n    \"steps\": 1\n  },\n  \"sweep\": {\n    \"key\": \"N\",\n    \"values\": [\n      8,\n      16,\n      32\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html#gradient",
+    "href": "docs/results_ns_3d_grid.html#gradient",
+    "title": "Navier–Stokes (3D)",
+    "section": "Gradient",
+    "text": "Gradient\nGradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nFd Check\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 10\n  },\n  \"fd\": {\n    \"eps_values\": [\n      5.0,\n      1.0,\n      0.1,\n      0.01,\n      0.001,\n      0.0001\n    ],\n    \"n_dirs\": 10\n  }\n}\nHorizon Sweep Limits\nSweeps steps ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 20,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 40\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      40,\n      80,\n      160,\n      320,\n      640,\n      1280,\n      2560,\n      5120,\n      10240\n    ]\n  }\n}\nJacobian Svd\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 10\n  },\n  \"jacobian\": {\n    \"n_alphas\": 41,\n    \"alpha_range\": 0.3\n  }\n}\nJacobian Svd Nu01\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.01,\n    \"dt\": 0.05,\n    \"steps\": 10\n  },\n  \"jacobian\": {\n    \"n_alphas\": 41,\n    \"alpha_range\": 0.3\n  }\n}\nJacobian Svd Steps20\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 20\n  },\n  \"jacobian\": {\n    \"n_alphas\": 41,\n    \"alpha_range\": 0.3\n  }\n}\nJacobian Svd Steps40\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 8,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 40\n  },\n  \"jacobian\": {\n    \"n_alphas\": 41,\n    \"alpha_range\": 0.3\n  }\n}\n\n\n\n\n\nFinite-Difference Check\nFinite-difference gradient error U-curves and direction cosine vs perturbation ε for each solver on the 3D Taylor-Green vortex IC.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 10\n  },\n  \"fd\": {\n    \"eps_values\": [\n      5.0,\n      1.0,\n      0.1,\n      0.01,\n      0.001,\n      0.0001\n    ],\n    \"n_dirs\": 10\n  }\n}\n\n\n\n \n\n\nHorizon Sweep Limits\nPer-solver rollout-limit table reporting step count at first failure, failure type, and wall time per successful step.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps steps ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}\n{\n  \"ic\": {\n    \"name\": \"tgv3d\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 20,\n    \"nu\": 0.001,\n    \"dt\": 0.05,\n    \"steps\": 40\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      40,\n      80,\n      160,\n      320,\n      640,\n      1280,\n      2560,\n      5120,\n      10240\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html#optimization",
+    "href": "docs/results_ns_3d_grid.html#optimization",
+    "title": "Navier–Stokes (3D)",
+    "section": "Optimization",
+    "text": "Optimization\nOptimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.\n\nRecovery Constant Ic Bfgs Proj\nFinal IC recovery error per solver from zero-initialised L-BFGS optimisation with divergence-free projection.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps steps ∈ {100}\n{\n  \"ic\": {\n    \"name\": \"rand_div_free\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 16,\n    \"nu\": 0.01,\n    \"dt\": 0.02,\n    \"steps\": 100\n  },\n  \"optim\": {\n    \"ic_init_type\": \"zeros\",\n    \"max_iters\": 100,\n    \"patience\": 20,\n    \"failure_threshold\": 2.0,\n    \"snap_interval\": 5,\n    \"ic_seeds\": [\n      0,\n      1,\n      2\n    ],\n    \"record_diagnostics\": true\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      100\n    ]\n  },\n  \"optimizer\": \"bfgs_proj\",\n  \"_exp_key\": \"recovery_constant_ic_bfgs_proj\"\n}"
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html#cost",
+    "href": "docs/results_ns_3d_grid.html#cost",
+    "title": "Navier–Stokes (3D)",
+    "section": "Cost",
+    "text": "Cost\nWall-clock cost scaling with problem size N and number of integration steps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSpatial Cost\nSweeps N ∈ {16, 32, 48, 64}\n{\n  \"physics\": {\n    \"nu\": 0.01,\n    \"dt\": 0.01,\n    \"lbm_N_base\": 16,\n    \"steps\": 50,\n    \"N\": 16\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"N\",\n    \"values\": [\n      16,\n      32,\n      48,\n      64\n    ]\n  }\n}\nTemporal Cost\nSweeps steps ∈ {10, 50, 100}\n{\n  \"physics\": {\n    \"nu\": 0.01,\n    \"dt\": 0.01,\n    \"lbm_N_base\": 16,\n    \"N\": 48,\n    \"steps\": 10\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      10,\n      50,\n      100\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_ns_3d_grid.html#extra",
+    "href": "docs/results_ns_3d_grid.html#extra",
+    "title": "Navier–Stokes (3D)",
+    "section": "_Extra",
+    "text": "_Extra\n\n\n\n\n\n\nNoteSettings"
+  },
+  {
+    "objectID": "docs/results_structural_mesh.html",
+    "href": "docs/results_structural_mesh.html",
+    "title": "Structural Mechanics",
+    "section": "",
+    "text": "Auto-generated 2026-05-29 10:59 UTC  ·  19 plots\n3D linear-elasticity compliance minimisation on a cantilever beam with SIMP material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples every density element to the global displacement field via the constitutive relation E_eff(ρ) = E_min + (E_max − E_min)·ρ³; the compliance objective C = F^T K(ρ)⁻¹ F is smooth but non-convex in ρ, driving gradient-based topology optimisation toward sparse binary 0/1 layouts."
+  },
+  {
+    "objectID": "docs/results_structural_mesh.html#initial-conditions",
+    "href": "docs/results_structural_mesh.html#initial-conditions",
+    "title": "Structural Mechanics",
+    "section": "Initial Conditions",
+    "text": "Initial Conditions\nVisualisation of each initial condition available for this problem. IC plots are generated without running any solver.\n\nRandom\nGaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); breaks spatial symmetry so gradient experiments see non-trivial per-cell sensitivity.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{}\n\n\n\n\n\n\nTwo Density Bumps\nGround-truth density with two stiff Gaussian pillars (ρ_peak=0.95, σ=0.12·min(Lx,Lz)) at (0.35·Lx, 0.5·Ly, 0.5·Lz) and (0.75·Lx, 0.5·Ly, 0.5·Lz) on a soft ρ_bg=0.1 background; analog of thermal-mesh two_gaussians for the load-recovery inverse experiment (recover density from displacement observations).\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"nx\": 16,\n  \"ny\": 2,\n  \"nz\": 8\n}\n\n\n\n\n\n\nUniform\nUniform SIMP material density ρ₀ over all hex mesh elements; standard homogeneous starting point for topology optimisation of the cantilever beam.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"rho_0\": 0.5,\n  \"nx\": 16\n}"
+  },
+  {
+    "objectID": "docs/results_structural_mesh.html#forward",
+    "href": "docs/results_structural_mesh.html#forward",
+    "title": "Structural Mechanics",
+    "section": "Forward",
+    "text": "Forward\nForward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.\n\nAgreement\nStructural compliance C = F^T U vs density ρ₀ at fixed mesh, sweeping uniform density to span the SIMP stiffness regime.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps rho_0 ∈ {0.2, 0.4, 0.5, 0.7, 0.9}\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"nx\": 8,\n    \"ny\": 2,\n    \"nz\": 4,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"F_total\": 1.0,\n    \"corner_load\": false,\n    \"rho_0\": 0.2\n  },\n  \"sweep\": {\n    \"key\": \"rho_0\",\n    \"values\": [\n      0.2,\n      0.4,\n      0.5,\n      0.7,\n      0.9\n    ]\n  }\n}\n\n\n\n\n\n\nBaseline\nStructural compliance C = F^T U vs mesh resolution N for each solver, uniform density ρ₀=0.5, full-face downward load.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps N ∈ {4, 6, 8, 12, 16}\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"N\": 4,\n    \"ny\": 2,\n    \"nz\": 4,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"F_total\": 1.0,\n    \"corner_load\": false\n  },\n  \"sweep\": {\n    \"key\": \"N\",\n    \"values\": [\n      4,\n      6,\n      8,\n      12,\n      16\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_structural_mesh.html#gradient",
+    "href": "docs/results_structural_mesh.html#gradient",
+    "title": "Structural Mechanics",
+    "section": "Gradient",
+    "text": "Gradient\nGradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.\n\nParameter Sweep\nGradient norm, best-ε FD error, direction cosine, and U-curves vs uniform density ρ₀.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSweeps rho_0 ∈ {0.2, 0.4, 0.6, 0.8}\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"nx\": 8,\n    \"ny\": 2,\n    \"nz\": 4,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"F_total\": 1.0,\n    \"corner_load\": true,\n    \"rho_0\": 0.2\n  },\n  \"fd\": {\n    \"eps_values\": [\n      0.5,\n      0.1,\n      0.03,\n      0.01,\n      0.003,\n      0.001,\n      0.0003\n    ],\n    \"n_dirs\": 6\n  },\n  \"sweep\": {\n    \"key\": \"rho_0\",\n    \"values\": [\n      0.2,\n      0.4,\n      0.6,\n      0.8\n    ]\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_structural_mesh.html#optimization",
+    "href": "docs/results_structural_mesh.html#optimization",
+    "title": "Structural Mechanics",
+    "section": "Optimization",
+    "text": "Optimization\nOptimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.\n\nTopology Optimisation\nSIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): compliance C = F^T U and density field evolution under a 50% volume-fraction constraint.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\n{\n  \"ic\": {\n    \"name\": \"uniform\",\n    \"seed\": 0\n  },\n  \"physics\": {\n    \"nx\": 16,\n    \"ny\": 2,\n    \"nz\": 8,\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"F_total\": 1.0,\n    \"corner_load\": true,\n    \"v_frac\": 0.5,\n    \"compliance_key\": \"compliance\",\n    \"penalty_weight\": 50.0,\n    \"x_min\": 0.001,\n    \"snap_interval\": 5\n  },\n  \"optim\": {\n    \"lr\": 0.05,\n    \"max_iters\": 2500,\n    \"patience\": 100\n  }\n}"
+  },
+  {
+    "objectID": "docs/results_structural_mesh.html#cost",
+    "href": "docs/results_structural_mesh.html#cost",
+    "title": "Structural Mechanics",
+    "section": "Cost",
+    "text": "Cost\nWall-clock cost scaling with problem size N and number of integration steps.\n\n\n\n\n\n\nNoteSettings\n\n\n\n\n\nSpatial Cost\nSweeps nx ∈ {4, 6, 8, 12, 16}\n{\n  \"physics\": {\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"F_total\": 1.0,\n    \"rho_0\": 0.5,\n    \"corner_load\": false,\n    \"steps\": 1,\n    \"nx\": 4\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"nx\",\n    \"values\": [\n      4,\n      6,\n      8,\n      12,\n      16\n    ]\n  }\n}\nTemporal Cost\nSweeps steps ∈ {1}\n{\n  \"physics\": {\n    \"Lx\": 2.0,\n    \"Ly\": 1.0,\n    \"Lz\": 1.0,\n    \"F_total\": 1.0,\n    \"rho_0\": 0.5,\n    \"corner_load\": false,\n    \"nx\": 8,\n    \"steps\": 1\n  },\n  \"cost\": {\n    \"n_trials\": 3\n  },\n  \"sweep\": {\n    \"key\": \"steps\",\n    \"values\": [\n      1\n    ]\n  }\n}"
+  }
+]
