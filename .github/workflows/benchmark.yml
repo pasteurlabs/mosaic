@@ -306,7 +306,7 @@ jobs:
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
           PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
-          printf '\n---\n[View full report](%s)\n' "$PREVIEW_URL" >> status-report.md
+          printf '\n---\n\n> ### 📊 [View full benchmark report](%s)\n> Interactive plots, solver comparisons, and detailed results.\n' "$PREVIEW_URL" >> status-report.md
 
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR

@@ -1479,19 +1479,21 @@ def _md_score_cell(score: float | None) -> str:
     return f"{weight_emoji(score)} **{score:.2f}**"
 
 
-def _md_format_reason(reason: str) -> str:
-    """Format a failure reason for markdown, collapsing long/multiline text.
+def _md_format_reason(reason: str, *, collapse: bool = True) -> str:
+    """Format a failure reason for markdown.
 
-    Short single-line reasons are shown inline. Multiline or long reasons show
-    the first line as a summary with the full text in a ``<details>`` block.
+    When *collapse* is True (default, used for errors), long/multiline reasons
+    show the first line as a summary with the full text in a ``<details>``
+    block.  When False (used for anomalies), the full reason is always shown
+    inline.
     """
     if not reason:
         return ""
     reason_lines = reason.strip().splitlines()
     summary = reason_lines[0].strip()[:120]
     is_long = len(reason_lines) > 1 or len(reason) > 120
-    if not is_long:
-        return f" — {summary}"
+    if not is_long or not collapse:
+        return f" — {reason.strip()}"
     # Wrap the full reason in a collapsible block.
     # The <details> must not be indented — GFM breaks HTML blocks inside
     # list items when they carry leading whitespace or stray blank lines.
@@ -1568,7 +1570,7 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
         lines.append("")
         for problem, label, solver, status, reason in fa:
             glyph = _MD_GLYPHS[status]
-            reason_str = _md_format_reason(reason)
+            reason_str = _md_format_reason(reason, collapse=(status == FAILED))
             lines.append(
                 f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}"
             )
@@ -1739,7 +1741,9 @@ def render_diff_markdown(diff: dict) -> str:
     def _fmt_rec(r: dict) -> str:
         src = _glyph(r["from"], r.get("from_category", ""))
         dst = _glyph(r["to"], r.get("to_category", ""))
-        reason_str = _md_format_reason(r.get("reason", ""))
+        reason_str = _md_format_reason(
+            r.get("reason", ""), collapse=(r["to"] == FAILED)
+        )
         return (
             f"- {src}→{dst} `{r['problem']}` · `{r['label']}` · "
             f"**{r['solver']}**{reason_str}"
