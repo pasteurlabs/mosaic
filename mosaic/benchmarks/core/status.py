@@ -1362,6 +1362,15 @@ _MD_LEGEND = (
     "**\\*** stale — result predates current tesseract/harness source"
 )
 
+_MD_EXPLAINER = (
+    "Each solver is run against every experiment in the suite. "
+    "**ok** = produced valid results; "
+    "**fail** = crashed or returned invalid data; "
+    "**anom** = ran successfully but tripped an automated quality check "
+    "(e.g. poor gradient accuracy, outlier wall-clock time, or diverged optimisation). "
+    "Thresholds are defined per-problem in the problem config."
+)
+
 
 def format_score(score: float | None) -> str:
     """Plain-text score formatter: ``"0.62"`` / ``"—"``.
@@ -1515,7 +1524,7 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
       - Anomalies / failures block (flat list, grouped by problem)
       - Per-problem detail tables inside <details> so the comment stays short
     """
-    lines: list[str] = ["## Mosaic status", "", _MD_LEGEND, ""]
+    lines: list[str] = ["## Mosaic status", "", _MD_LEGEND, "", _MD_EXPLAINER, ""]
 
     # ── summary ─────────────────────────────────────────────────────────────
     # ok = fresh-ok (not stale). Stale ok cells show up only in the stale
