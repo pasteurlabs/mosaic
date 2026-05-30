@@ -14,7 +14,7 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz, v1_to_legacy
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
@@ -112,7 +112,7 @@ def _fd_check_figure(
     """Styled 1×2 rel-error + cosine figure for a single fd_check run."""
     plt.rcParams.update(RCPARAMS)
 
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
 
     fig, (ax_err, ax_cos) = plt.subplots(
         1, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.3), dpi=300
@@ -309,7 +309,7 @@ def _jacobian_svd_figure(
     """
     plt.rcParams.update(RCPARAMS)
 
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
 
     per_solver_spectra = data.get("per_solver_spectra") or {}
     if not per_solver_spectra:
@@ -518,7 +518,7 @@ def _horizon_sweep_figure(
     """Styled 1×3 grad-norm / FD-error / cosine figure."""
     plt.rcParams.update(RCPARAMS)
 
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
 
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.42), dpi=300)
     fig.subplots_adjust(bottom=0.32, wspace=0.58, left=0.09, right=0.98, top=0.91)
@@ -829,7 +829,7 @@ def plot_param_sweep(
     """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
-    data = load_json(result_path)
+    data = v1_to_legacy(load_json(result_path))
     styles = solver_styles(cfg)
     sweep_key = data.get("sweep_key", "param")
 
@@ -934,7 +934,7 @@ def plot_jacobian_svd(
     they live here as additional ``save_fig`` calls.
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     styles = solver_styles(cfg)
 
     solver_names = data["solver_names"]
@@ -1091,7 +1091,7 @@ def plot_horizon_sweep(
     live here.
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     styles = solver_styles(cfg)
 
     # ── summary curves (styled) ─────────────────────────────────────────────
@@ -1212,7 +1212,7 @@ def plot_jacobian_svd_comparison(
         result_path = results_dir() / cfg.name / _SUITE / exp_key / "result.json"
         if not result_path.exists():
             continue
-        data = load_json(result_path)
+        data = v1_to_legacy(load_json(result_path))
         if not data.get("per_solver_spectra"):
             continue
         variants.append((exp_key, data))

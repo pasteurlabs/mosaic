@@ -13,7 +13,7 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz, v1_to_legacy
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
@@ -329,7 +329,7 @@ def _agreement_figure(
     """
     plt.rcParams.update(RCPARAMS)
 
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     sweep_key = data.get("sweep_key", "param")
     reference_label = data.get("reference_label", "consensus")
     ref_desc = "analytic" if reference_label == "analytic" else "consensus"
@@ -405,7 +405,7 @@ def plot_agreement(
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     sweep_key = data.get("sweep_key", "param")
     styles = solver_styles(cfg)
 
@@ -467,7 +467,7 @@ def plot_forward_fields(
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     sweep_key = data.get("sweep_key", "param")
     styles = solver_styles(cfg)
     f2d = _resolve_field_to_2d(field_to_2d)
@@ -851,7 +851,7 @@ def plot_physical_laws(
     # ── single-result layout (FEM or per-sub-key NS call) ────────────────────
     single_path = out_dir / "result.json"
     if single_path.exists():
-        data = load_json(single_path)
+        data = v1_to_legacy(load_json(single_path))
         spec = _PA_FEM_SPECS.get(cfg.name)
         if spec is not None:
             return _pa_plot_fem_single(
@@ -905,7 +905,7 @@ def plot_physical_laws(
                 continue
             sub_result = sub / "result.json"
             if sub_result.exists():
-                sweeps_data[sub.name] = load_json(sub_result)
+                sweeps_data[sub.name] = v1_to_legacy(load_json(sub_result))
     if not sweeps_data:
         return None
 

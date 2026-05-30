@@ -369,7 +369,7 @@ def _drag_opt_aggregate(
     out_dir: Any,
     snapshots: Any,
     shared_extras: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Aggregate per-solver drag_opt output → result dict + profiles/flow npz.
 
@@ -389,7 +389,6 @@ def _drag_opt_aggregate(
     Returns the canonical ``{by_solver, run_name, U_mean, params}`` result
     dict (writing ``result.json`` is the framework's job).
     """
-    del cfg  # not needed; out_dir already resolved
     # Strip the framework's ``"prefix:"`` suffix convention; sweep_mode="none"
     # so the suffix after ``":"`` is always empty.
     profile_snaps: dict[str, np.ndarray] = {}
@@ -412,6 +411,11 @@ def _drag_opt_aggregate(
     U_mean = float(run.get("physics", {}).get("U_mean", 0.5))
     run_name = run.get("name", "")
 
+    from mosaic.benchmarks.core.experiment import (
+        _build_result_envelope,
+        _flatten_by_solver,
+    )
+
     if not by_solver:
         from mosaic.benchmarks.core.console import print_warn
 
@@ -419,12 +423,16 @@ def _drag_opt_aggregate(
             "drag_opt: by_solver is empty (all solvers excluded or "
             "skipped) — skipping NPZ writes to preserve existing data"
         )
-        return {
-            "by_solver": by_solver,
-            "run_name": run_name,
-            "U_mean": U_mean,
-            "params": run,
-        }
+        return _build_result_envelope(
+            cfg=cfg,
+            suite=_kw.get("suite", "optimization"),
+            exp_key=_kw.get("exp_key", "drag_opt"),
+            run=run,
+            sweep_key=None,
+            sweep_values=None,
+            results=_flatten_by_solver(by_solver, None),
+            extras={"run_name": run_name, "U_mean": U_mean},
+        )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     if profile_init is not None:
@@ -433,12 +441,16 @@ def _drag_opt_aggregate(
         )
     _merge_drag_flow_fields_npz(out_dir, flow_init_snaps, flow_snaps)
 
-    return {
-        "by_solver": by_solver,
-        "run_name": run_name,
-        "U_mean": U_mean,
-        "params": run,
-    }
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_kw.get("suite", "optimization"),
+        exp_key=_kw.get("exp_key", "drag_opt"),
+        run=run,
+        sweep_key=None,
+        sweep_values=None,
+        results=_flatten_by_solver(by_solver, None),
+        extras={"run_name": run_name, "U_mean": U_mean},
+    )
 
 
 @kernel(

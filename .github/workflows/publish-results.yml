@@ -1,11 +1,12 @@
 name: Publish benchmark results
 
-# Runs after the Benchmark workflow completes. If the triggering PR has
-# been merged, downloads its benchmark artifacts and publishes them to
-# the benchmark-results branch with solver-level merging.
+# Runs on every push to main (i.e. after a PR is merged).  Finds the
+# Benchmark workflow run that produced results for the merged PR,
+# merges them with the current baseline artifact, and uploads the
+# result as the new baseline.
 #
-# Dev PRs:     overlay onto main/
-# Release PRs: write to {version}/ and reset main/ to the release baseline
+# Dev PRs:     overlay onto baseline
+# Release PRs: overlay + upload release-<version> artifact
 
 on:
   workflow_run:
@@ -15,13 +16,11 @@ on:
 permissions:
   contents: write
   actions: read
-
-env:
-  RESULTS_BRANCH: benchmark-results
+  pull-requests: read
 
 jobs:
   publish:
-    name: Publish to results branch
+    name: Publish to baseline artifact
     runs-on: ubuntu-latest
     if: >-
       github.event.workflow_run.conclusion == 'success'
@@ -32,35 +31,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # workflow_run.pull_requests can be empty for cross-fork PRs;
-          # fall back to searching by head SHA.
-          PR_NUM=""
-          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          # Find the PR that produced this merge commit
+          PR_NUM=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --jq '.[0].number // empty' 2>&1 || true)
 
-          # Try the embedded PR list first.
-          PR_JSON='${{ toJSON(github.event.workflow_run.pull_requests) }}'
-          PR_NUM=$(echo "$PR_JSON" | python3 -c "
-          import json, sys
-          prs = json.load(sys.stdin)
-          if prs:
-              print(prs[0]['number'])
-          " 2>/dev/null || true)
-
-          # Fallback: search by head SHA.
-          if [[ -z "$PR_NUM" ]]; then
-            PR_NUM=$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/pulls" \
-              --jq '.[0].number' 2>/dev/null || true)
-          fi
-
-          if [[ -z "$PR_NUM" ]]; then
-            echo "No PR found for head SHA ${HEAD_SHA} — skipping"
+          # Validate it's actually a number (gh may print error messages)
+          if ! [[ "$PR_NUM" =~ ^[0-9]+$ ]]; then
+            echo "No PR found for this push — skipping"
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          PR_DATA=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}")
-          MERGED=$(echo "$PR_DATA" | jq -r '.merged')
-          HEAD_BRANCH=$(echo "$PR_DATA" | jq -r '.head.ref')
+          # Detect release PRs by head branch name
+          HEAD_BRANCH=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.head.ref')
+          HEAD_SHA=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.head.sha')
 
           IS_RELEASE="false"
           VERSION=""
@@ -86,7 +70,6 @@ jobs:
         if: steps.check.outputs.should_publish == 'true'
         with:
           token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
-          fetch-depth: 0
 
       - uses: astral-sh/setup-uv@v7
         if: steps.check.outputs.should_publish == 'true'
@@ -129,138 +112,83 @@ jobs:
         if: steps.check.outputs.should_publish == 'true'
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
-      # ── Dev PRs: overlay onto main/ ──────────────────────────────────────
-      - name: Publish results to main/ (dev PRs)
-        if: >-
-          steps.check.outputs.should_publish == 'true'
-          && steps.check.outputs.is_release != 'true'
+      - name: Download current baseline artifact
+        if: steps.check.outputs.should_publish == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: baseline
+          path: baseline/mosaic-results/
+        continue-on-error: true
+
+      - name: Overlay onto baseline
+        if: steps.check.outputs.should_publish == 'true'
         run: |
-          set -euo pipefail
-          SHA="${{ steps.check.outputs.head_sha }}"
-          SHORT_SHA="${SHA:0:8}"
-
-          git config user.name "PasteurBot"
-          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
-
-          for attempt in 1 2 3; do
-            WORK=$(mktemp -d)
-
-            if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-              git worktree add "$WORK" "$RESULTS_BRANCH"
-            else
-              git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
-              git -C "$WORK" rm -rf . 2>/dev/null || true
-              echo "# Mosaic Benchmark Results" > "$WORK/README.md"
-              git -C "$WORK" add README.md
-              git -C "$WORK" commit -m "Initialize results branch"
-            fi
-
-            # Solver-level merge: preserves solvers not in this PR.
-            DEST="$WORK/main"
-            MERGE_STAGING=$(mktemp -d)
+          if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
+            echo "Overlaying PR results onto baseline"
             uv run python .github/scripts/overlay-results.py \
-              "$DEST" mosaic-results "$MERGE_STAGING"
+              baseline/mosaic-results mosaic-results merged-results
+            rm -rf mosaic-results
+            mv merged-results mosaic-results
+          else
+            echo "No baseline artifact found — using PR results as initial baseline"
+          fi
 
-            rm -rf "$DEST"
-            mkdir -p "$DEST"
-            cp -r "$MERGE_STAGING"/. "$DEST/"
+      - name: Generate snapshot and status report
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          uv run mosaic status --format json > mosaic-results/snapshot.json
+          uv run mosaic status --format md > mosaic-results/status-report.md
 
-            # Regenerate snapshot so next PR's diff-against is accurate.
-            ln -sfn "$DEST" mosaic-results
-            uv run mosaic status --format json > "$DEST/snapshot.json"
-            uv run mosaic status --format md > "$DEST/status-report.md"
+      - name: Strip derived files from baseline
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          # Remove derived files that are regenerated at docs-build time
+          find mosaic-results/ -name "*.png" -delete 2>/dev/null || true
+          find mosaic-results/ -name "*.gif" -delete 2>/dev/null || true
+          find mosaic-results/ -name "result_partial.json" -delete 2>/dev/null || true
+          find mosaic-results/ -name "*.lock" -delete 2>/dev/null || true
+          find mosaic-results/ -name "result.csv" -delete 2>/dev/null || true
+          echo "Stripped derived files from baseline"
 
-            git -C "$WORK" add .
-            if git -C "$WORK" diff --cached --quiet; then
-              echo "No changes to commit"
-              git worktree remove "$WORK"
-              break
-            fi
-            git -C "$WORK" commit -m "Update main/ from PR #${{ steps.check.outputs.pr_number }} (${SHORT_SHA})
+      - name: Upload baseline artifact
+        if: steps.check.outputs.should_publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: baseline
+          path: mosaic-results/
+          overwrite: true
+          retention-days: 400
 
-          Source commit: ${SHA}"
-
-            if git -C "$WORK" push origin "$RESULTS_BRANCH"; then
-              echo "Published to main/ (attempt $attempt)"
-              git worktree remove "$WORK"
-              break
-            else
-              echo "Push failed (attempt $attempt), retrying..."
-              git worktree remove "$WORK"
-              sleep $((attempt * 2))
-            fi
-          done
-
-      # ── Release PRs: write {version}/ and reset main/ ───────────────────
-      - name: Publish release results (release PRs)
+      - name: Upload release artifact
         if: >-
           steps.check.outputs.should_publish == 'true'
           && steps.check.outputs.is_release == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ steps.check.outputs.version }}
+          path: mosaic-results/
+          retention-days: 400
+
+      # ── Trigger Read the Docs build ──────────────────────────────────
+      # The baseline artifact is now uploaded; trigger RTD so it can
+      # fetch the artifact and rebuild the docs site.
+      - name: Trigger RTD build (latest)
+        if: >-
+          steps.check.outputs.should_publish == 'true'
+          && steps.check.outputs.is_release != 'true'
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: bash .github/scripts/rtd-trigger.sh latest
+
+      - name: Trigger RTD build (release)
+        if: >-
+          steps.check.outputs.should_publish == 'true'
+          && steps.check.outputs.is_release == 'true'
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
         run: |
-          set -euo pipefail
-          VERSION="${{ steps.check.outputs.version }}"
-          SHA="${{ steps.check.outputs.head_sha }}"
-          SHORT_SHA="${SHA:0:8}"
-
-          if [[ -z "$VERSION" ]]; then
-            echo "::error::Could not determine release version"
-            exit 1
-          fi
-
-          git config user.name "PasteurBot"
-          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
-
-          for attempt in 1 2 3; do
-            WORK=$(mktemp -d)
-
-            if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-              git worktree add "$WORK" "$RESULTS_BRANCH"
-            else
-              git worktree add --orphan "$WORK" "$RESULTS_BRANCH"
-              git -C "$WORK" rm -rf . 2>/dev/null || true
-              echo "# Mosaic Benchmark Results" > "$WORK/README.md"
-              git -C "$WORK" add README.md
-              git -C "$WORK" commit -m "Initialize results branch"
-            fi
-
-            # Generate snapshot and status report.
-            uv run mosaic status --format json > snapshot.json
-            uv run mosaic status --format md > status-report.md
-
-            # Write release results to {version}/.
-            VDEST="$WORK/${VERSION}"
-            rm -rf "$VDEST"
-            mkdir -p "$VDEST"
-            cp snapshot.json status-report.md "$VDEST/"
-            cd mosaic-results
-            find . -type f \( -name "*.png" -o -name "*.gif" -o -name "result.json" -o -name "params.json" \) | while read f; do
-              mkdir -p "$VDEST/$(dirname "$f")"
-              cp "$f" "$VDEST/$f"
-            done
-            cd -
-
-            # Reset main/ to the release baseline.
-            rm -rf "$WORK/main"
-            cp -r "$VDEST" "$WORK/main"
-
-            git -C "$WORK" add .
-            if git -C "$WORK" diff --cached --quiet; then
-              echo "No changes to commit"
-              git worktree remove "$WORK"
-              break
-            fi
-            git -C "$WORK" commit -m "Release ${VERSION} benchmark results (${SHORT_SHA})
-
-          Source commit: ${SHA}
-          Wrote ${VERSION}/ and reset main/"
-
-            if git -C "$WORK" push origin "$RESULTS_BRANCH"; then
-              echo "Published release results (attempt $attempt)"
-              git worktree remove "$WORK"
-              break
-            else
-              echo "Push failed (attempt $attempt), retrying..."
-              git worktree remove "$WORK"
-              sleep $((attempt * 2))
-            fi
-          done
+          # Build both the release version and latest
+          bash .github/scripts/rtd-trigger.sh "stable"
+          bash .github/scripts/rtd-trigger.sh "latest"

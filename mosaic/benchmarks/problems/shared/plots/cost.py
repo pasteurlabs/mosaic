@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, v1_to_legacy
 from mosaic.benchmarks.problems.shared.plots.style import (
     apply_style,
     fig_shared_legend,
@@ -157,10 +157,10 @@ def _load_cost_inputs(suite_dir: Any, suffix: str) -> tuple:
     if not (has_spatial or has_temporal or has_vjp_n or has_vjp_s):
         return None, ""
 
-    spatial_data = load_json(spatial_path) if has_spatial else {}
-    temporal_data = load_json(temporal_path) if has_temporal else {}
-    vjp_n = load_json(vjp_n_path) if has_vjp_n else {}
-    vjp_s = load_json(vjp_s_path) if has_vjp_s else {}
+    spatial_data = v1_to_legacy(load_json(spatial_path)) if has_spatial else {}
+    temporal_data = v1_to_legacy(load_json(temporal_path)) if has_temporal else {}
+    vjp_n = v1_to_legacy(load_json(vjp_n_path)) if has_vjp_n else {}
+    vjp_s = v1_to_legacy(load_json(vjp_s_path)) if has_vjp_s else {}
     vjp_data: dict = {}
     if vjp_n.get("by_N"):
         vjp_data["by_N"] = vjp_n["by_N"]

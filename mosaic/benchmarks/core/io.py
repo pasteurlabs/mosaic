@@ -720,6 +720,15 @@ def _solvers_in_result(res: dict, known_solvers: set[str] | None = None) -> set[
     ``landscape.by_solver``.
     """
     names: set[str] = set()
+
+    # v1 format: flat results list
+    if res.get("schema_version") == 1:
+        for entry in res.get("results", []):
+            solver = entry.get("solver")
+            if solver:
+                names.add(str(solver))
+        return names
+
     for key in ("by_solver", "by_sweep", "by_N", "by_steps"):
         top = res.get(key)
         if isinstance(top, dict):
@@ -781,100 +790,15 @@ def _compute_harness_info(harness_fn: object) -> tuple[str, str]:
     return h, qualname
 
 
-def _merge_by_param(existing: dict, result: dict) -> dict:
-    """Merge ``by_param`` (and accompanying ``spread``) from result into existing."""
-    merged_by_param: dict = {str(k): v for k, v in existing["by_param"].items()}
-    for pval, solver_map in result["by_param"].items():
-        spval = str(pval)
-        if (
-            spval in merged_by_param
-            and isinstance(merged_by_param[spval], dict)
-            and isinstance(solver_map, dict)
-        ):
-            merged_by_param[spval] = {**merged_by_param[spval], **solver_map}
-        else:
-            merged_by_param[spval] = solver_map
-    merged_spread: dict = {str(k): v for k, v in existing.get("spread", {}).items()}
-    merged_spread.update({str(k): v for k, v in result.get("spread", {}).items()})
-    return {
-        **existing,
-        **result,
-        "by_param": merged_by_param,
-        "spread": merged_spread,
-    }
-
-
-def _merge_by_size(existing: dict, result: dict, key: str) -> dict:
-    """Per-solver merge for ``by_N`` / ``by_steps`` — keep prior non-empty entries.
-
-    Cost suites pre-populate every solver key (empty dict for solvers that
-    failed), so a naive outer-merge would overwrite a successful prior run's
-    per-size entries with empty dicts. Prefer the new run's non-empty entries,
-    fall back to existing data when the new run produced an empty dict.
-    """
-    merged: dict = {**existing[key]}
-    for sname, svals in result[key].items():
-        if (isinstance(svals, dict) and svals) or sname not in merged:
-            merged[sname] = svals
-    return {**existing, **result, key: merged}
-
-
 def _merge_with_existing(result: dict, existing: dict) -> dict:
     """Merge a parameter-compatible existing result into ``result``.
 
-    Dispatches across the supported schemas (``by_solver``, ``by_param``,
-    ``by_sweep``) for the primary merge, then layers in ``by_N`` / ``by_steps``
-    per-solver merges. Caller wins on collision.
+    Both results must be schema_version=1. Uses the unified flat-list merge
+    where ``result`` (new) wins on collision.
     """
-    if isinstance(result.get("by_solver"), dict) and isinstance(
-        existing.get("by_solver"), dict
-    ):
-        merged_by_solver = {**existing["by_solver"], **result["by_solver"]}
-        result = {**existing, **result, "by_solver": merged_by_solver}
-    elif isinstance(result.get("by_param"), dict) and isinstance(
-        existing.get("by_param"), dict
-    ):
-        result = _merge_by_param(existing, result)
-    elif isinstance(result.get("by_sweep"), dict) and isinstance(
-        existing.get("by_sweep"), dict
-    ):
-        merged_by_sweep = {**existing["by_sweep"], **result["by_sweep"]}
-        result = {**existing, **result, "by_sweep": merged_by_sweep}
+    from mosaic.benchmarks.core.experiment import merge_results
 
-    if isinstance(result.get("by_N"), dict) and isinstance(existing.get("by_N"), dict):
-        result = _merge_by_size(existing, result, "by_N")
-    if isinstance(result.get("by_steps"), dict) and isinstance(
-        existing.get("by_steps"), dict
-    ):
-        result = _merge_by_size(existing, result, "by_steps")
-    return result
-
-
-def _stamp_tesseract_hashes(
-    result: dict, existing: dict | None, new_hashes: dict[str, str]
-) -> None:
-    """In-place: merge peer-solver hashes from prior runs with the new ones."""
-    if not (isinstance(result, dict) and new_hashes):
-        return
-    prior = result.get("tesseract_hashes") or {}
-    if isinstance(existing, dict) and isinstance(
-        existing.get("tesseract_hashes"), dict
-    ):
-        prior = {**existing["tesseract_hashes"], **prior}
-    merged_hashes = {**prior, **new_hashes} if isinstance(prior, dict) else new_hashes
-    result["tesseract_hashes"] = merged_hashes
-
-
-def _stamp_wall_time(
-    result: dict, existing: dict | None, wall_time_s: dict[str, float] | None
-) -> None:
-    """In-place: merge wall-time entries from prior runs with the new ones."""
-    if not (wall_time_s and isinstance(result, dict)):
-        return
-    prior = result.get("wall_time_s") or {}
-    if isinstance(existing, dict) and isinstance(existing.get("wall_time_s"), dict):
-        prior = {**existing["wall_time_s"], **prior}
-    result["wall_time_s"] = {**prior, **wall_time_s}
+    return merge_results(existing, result)
 
 
 def _write_artifacts(
@@ -933,25 +857,38 @@ def save_experiment(
         ) == _physics_params(result.get("params")):
             result = _merge_with_existing(result, existing)
 
-        _stamp_tesseract_hashes(result, existing, new_tesseract_hashes)
-        # harness_hash / harness_fn: latest write wins.
-        if isinstance(result, dict) and new_harness_hash:
-            result["harness_hash"] = new_harness_hash
-            result["harness_fn"] = new_harness_fn_qualname
-
-        _stamp_wall_time(result, existing, wall_time_s)
-
-        if isinstance(result, dict) and "environment" not in result:
-            result["environment"] = _environment_metadata()
-
-        # CI provenance — latest write always wins. Same fields as the
-        # main-side `_run_meta` shipped in commit 822cbdd; ported here
-        # because the I/O code moved from utils.py to io.py in the refactor.
         if isinstance(result, dict):
+            # Stamp provenance sub-dict
+            prov = result.setdefault("provenance", {})
+            # Tesseract hashes
+            prior_th = prov.get("tesseract_hashes", {})
+            if isinstance(existing, dict):
+                prior_th = {
+                    **existing.get("provenance", {}).get("tesseract_hashes", {}),
+                    **prior_th,
+                }
+            prov["tesseract_hashes"] = {**prior_th, **new_tesseract_hashes}
+            # Harness info
+            if new_harness_hash:
+                prov["harness_hash"] = new_harness_hash
+                prov["harness_fn"] = new_harness_fn_qualname
+            # Wall time
+            if wall_time_s:
+                prior_wt = prov.get("wall_time_s", {})
+                if isinstance(existing, dict):
+                    prior_wt = {
+                        **existing.get("provenance", {}).get("wall_time_s", {}),
+                        **prior_wt,
+                    }
+                prov["wall_time_s"] = {**prior_wt, **wall_time_s}
+            # Environment
+            if "environment" not in prov:
+                prov["environment"] = _environment_metadata()
+            # CI run meta
             import datetime as _dt
             import platform as _platform
 
-            result["_run_meta"] = {
+            prov["run_meta"] = {
                 "timestamp": _dt.datetime.now(_dt.timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 ),
@@ -1029,6 +966,129 @@ def load_experiment_result(out_dir: Path | str) -> dict | None:
     in one place.
     """
     return try_load_json(Path(out_dir) / "result.json")
+
+
+def v1_to_legacy(data: dict) -> dict:
+    """Convert a schema_version=1 result dict into a legacy-shaped view.
+
+    Returns a dict with the legacy top-level keys (``by_solver``,
+    ``by_param``, ``by_N``, ``by_steps``, ``sweep_key``, ``params``, etc.)
+    so that plotting and analysis code can work with both old and new formats.
+
+    For v1 results, the flat ``results`` list is re-grouped:
+      - No sweep → ``by_solver[solver] = metrics``
+      - With sweep → ``by_solver[solver][sweep_value] = metrics``
+
+    Forward-suite results (where metrics contain ``valid``/``error``) are
+    additionally grouped into ``by_param[sweep_value][solver] = metrics``.
+
+    Cost-suite results (sweep_key in N/n_elements/steps) produce
+    ``by_N`` or ``by_steps``.
+
+    The extras dict is merged at top level so keys like ``spread``,
+    ``reference_label``, ``hardware``, etc. remain accessible.
+    """
+    if data.get("schema_version") != 1:
+        return data
+
+    results = data.get("results", [])
+    sweep_info = data.get("sweep")
+    extras = data.get("extras", {})
+    prov = data.get("provenance", {})
+
+    sweep_key = sweep_info.get("key") if isinstance(sweep_info, dict) else None
+
+    # Group by solver
+    by_solver: dict = {}
+    for entry in results:
+        solver = entry.get("solver", "")
+        sv = entry.get("sweep_value")
+        metrics = entry.get("metrics")
+        if sv is None:
+            by_solver[solver] = metrics or {}
+        else:
+            by_solver.setdefault(solver, {})[sv] = metrics or {}
+
+    view: dict = {
+        "params": data.get("params", {}),
+        **extras,
+    }
+
+    # Detect forward-suite results (metrics contain "valid"/"error")
+    has_valid = any(
+        isinstance(e.get("metrics"), dict) and "valid" in e["metrics"]
+        for e in results
+        if e.get("metrics")
+    )
+
+    if has_valid and sweep_key:
+        # Build by_param[sweep_value][solver] = metrics
+        by_param: dict = {}
+        for entry in results:
+            sv = entry.get("sweep_value")
+            solver = entry.get("solver", "")
+            metrics = entry.get("metrics") or {}
+            by_param.setdefault(sv, {})[solver] = metrics
+        view["by_param"] = by_param
+        view["sweep_key"] = sweep_key
+    elif sweep_key in ("N", "n_elements"):
+        view["by_N"] = by_solver
+    elif sweep_key == "steps":
+        view["by_steps"] = by_solver
+    else:
+        view["by_solver"] = by_solver
+        if sweep_key:
+            view["sweep_key"] = sweep_key
+
+    # Copy provenance fields into top level for backward compat
+    for k in (
+        "tesseract_hashes",
+        "harness_hash",
+        "harness_fn",
+        "wall_time_s",
+        "environment",
+        "run_meta",
+    ):
+        if k in prov:
+            compat_key = f"_{k}" if k == "run_meta" else k
+            view[compat_key] = prov[k]
+
+    # Copy experiment-level fields for jacobian_svd compat
+    if "solver_names" in extras:
+        for k in (
+            "singular_values",
+            "condition_number",
+            "effective_rank",
+            "explained_variance",
+            "cross_cosine",
+            "grad_norms",
+            "landscape",
+        ):
+            if k in extras:
+                view[k] = extras[k]
+        # Build per_solver_* from flat results for jacobian_svd
+        per_solver_spectra: dict = {}
+        per_solver_cond: dict = {}
+        per_solver_eff_rank: dict = {}
+        per_solver_grad_norm: dict = {}
+        for entry in results:
+            solver = entry.get("solver", "")
+            metrics = entry.get("metrics") or {}
+            if "spectrum" in metrics:
+                per_solver_spectra[solver] = metrics["spectrum"]
+            if "cond" in metrics:
+                per_solver_cond[solver] = metrics["cond"]
+            if "eff_rank" in metrics:
+                per_solver_eff_rank[solver] = metrics["eff_rank"]
+            if "grad_norm" in metrics:
+                per_solver_grad_norm[solver] = metrics["grad_norm"]
+        if per_solver_spectra:
+            view["per_solver_spectra"] = per_solver_spectra
+            view["per_solver_cond"] = per_solver_cond
+            view["per_solver_eff_rank"] = per_solver_eff_rank
+            view["per_solver_grad_norm"] = per_solver_grad_norm
+
+    return view
 
 
 def load_field_snapshots_npz(

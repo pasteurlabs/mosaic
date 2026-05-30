@@ -74,7 +74,7 @@ def _conductivity_recovery_aggregate(
     out_dir: Any,
     snapshots: Any,
     shared_extras: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Aggregate per-solver conductivity-recovery output → result dict + NPZ.
 
@@ -110,7 +110,21 @@ def _conductivity_recovery_aggregate(
         rho_histories,
     )
 
-    return {"by_solver": by_solver, "params": run}
+    from mosaic.benchmarks.core.experiment import (
+        _build_result_envelope,
+        _flatten_by_solver,
+    )
+
+    cfg = _kw.get("cfg")
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_kw.get("suite", "optimization"),
+        exp_key=_kw.get("exp_key", "conductivity_recovery"),
+        run=run,
+        sweep_key=None,
+        sweep_values=None,
+        results=_flatten_by_solver(by_solver, None),
+    )
 
 
 @kernel(

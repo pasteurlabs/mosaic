@@ -10,7 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir
+from mosaic.benchmarks.core.io import load_json, results_dir, v1_to_legacy
 from mosaic.benchmarks.problems.shared.plots.style import (
     save_fig,
     solver_plot_props,
@@ -28,7 +28,7 @@ def plot_conductivity_recovery(
 ) -> Any:
     """Loss curves + final-error bar chart for conductivity recovery."""
     out_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     by_solver = data.get("by_solver", {})
     if not by_solver:
         return None

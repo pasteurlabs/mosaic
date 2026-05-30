@@ -44,7 +44,7 @@ def _topopt_aggregate(
     ic: Any,
     snapshot_filename: Any,
     snapshot_prefixes: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Aggregate per-solver topopt output → result dict + NPZ.
 
@@ -52,9 +52,14 @@ def _topopt_aggregate(
     "rho_history:": rho_history_arr}}`` from each kernel invocation. The
     ``"rho_init"`` shared array comes via ``shared_extras``. The aggregate
     writes the NPZ with prefixes ``("rho_final", "rho_history")`` and
-    returns the canonical ``{by_solver, params}`` result dict.
+    returns the unified result envelope.
     """
-    del cfg, ic  # IC is already present in ``shared_extras["rho_init"]``
+    from mosaic.benchmarks.core.experiment import (
+        _build_result_envelope,
+        _flatten_by_solver,
+    )
+
+    del ic  # IC is already present in ``shared_extras["rho_init"]``
     solver_names = list(snapshots.keys())
     save_field_snapshots_npz(
         out_dir,
@@ -64,7 +69,15 @@ def _topopt_aggregate(
         filename=snapshot_filename,
         prefixes=snapshot_prefixes,
     )
-    return {"by_solver": by_solver, "params": run}
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_kw.get("suite", "optimization"),
+        exp_key=_kw.get("exp_key", "topopt"),
+        run=run,
+        sweep_key=None,
+        sweep_values=None,
+        results=_flatten_by_solver(by_solver, None),
+    )
 
 
 @kernel(

@@ -1,5 +1,10 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+#
+# IMPORTANT: Disable the default GitHub webhook in RTD project settings
+# (Admin > Integrations). Builds are triggered explicitly by GitHub Actions
+# workflows (publish-results.yml, benchmark.yml) via the RTD API to ensure
+# benchmark artifacts are uploaded before the docs build starts.
 
 # Required
 version: 2
@@ -24,36 +29,54 @@ build:
       - dpkg -x /tmp/quarto.deb /tmp/quarto
     build:
       html:
-        # Fetch benchmark results from the results branch (if available)
+        # Fetch benchmark results from the baseline artifact.
+        # For release builds (tag), try the release-specific artifact first.
+        # For PR builds (external), also try the PR's own results artifact.
+        # GITHUB_TOKEN must be added as an RTD environment variable.
         - |
-          if git fetch origin benchmark-results 2>/dev/null; then
-            # RTD sets READTHEDOCS_VERSION_TYPE to "tag" for release builds,
-            # "branch" for main. Pick the matching results directory.
+          export GITHUB_REPO="pasteurlabs/mosaic"
+          export GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "GITHUB_TOKEN not set — docs will build without benchmark results"
+          else
+            FETCHED=false
+            # Release builds: try release-specific artifact first
             if [ "$READTHEDOCS_VERSION_TYPE" = "tag" ]; then
-              RESULTS_DIR="$READTHEDOCS_VERSION"
-            else
-              RESULTS_DIR="main"
-            fi
-            # Try preferred dir first, fall back to main/
-            for dir in "$RESULTS_DIR" main; do
-              git checkout origin/benchmark-results -- "$dir/" 2>/dev/null || continue
-              if [ -d "$dir" ]; then
-                mkdir -p mosaic-results
-                for domain_dir in "$dir"/*/; do
-                  domain=$(basename "$domain_dir")
-                  [ -d "$domain_dir" ] || continue
-                  cp -r "$domain_dir" "mosaic-results/$domain"
-                done
-                echo "Restored benchmark results from $dir/ (version type: ${READTHEDOCS_VERSION_TYPE:-unknown})"
-                break
+              if bash .github/scripts/fetch-artifact.sh \
+                   "release-${READTHEDOCS_VERSION_NAME}" mosaic-results; then
+                FETCHED=true
               fi
-            done
+            fi
+            # PR builds: try the PR's benchmark results artifact, overlaid on baseline
+            if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
+              # Fetch baseline first
+              bash .github/scripts/fetch-artifact.sh baseline mosaic-results || true
+              # Overlay PR-specific results (benchmark-results-<sha>)
+              if bash .github/scripts/fetch-artifact.sh \
+                   "benchmark-results-${READTHEDOCS_GIT_COMMIT_HASH}" \
+                   /tmp/pr-results; then
+                # PR results contain mosaic-results/ at the top level
+                if [ -d /tmp/pr-results/mosaic-results ]; then
+                  cp -r /tmp/pr-results/mosaic-results/* mosaic-results/ 2>/dev/null || true
+                else
+                  cp -r /tmp/pr-results/* mosaic-results/ 2>/dev/null || true
+                fi
+                rm -rf /tmp/pr-results
+                FETCHED=true
+              fi
+            fi
+            # Default: fetch baseline artifact
+            if [ "$FETCHED" = "false" ]; then
+              bash .github/scripts/fetch-artifact.sh baseline mosaic-results || true
+            fi
           fi
         # Generate solver reference and results pages
         - uv run python docs/generate.py
         - |
-          if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
+          if [ -d mosaic-results ] && [ "$(ls mosaic-results/ 2>/dev/null)" ]; then
             uv run python docs/generate_results.py
+          else
+            echo "No benchmark results available — skipping results page generation"
           fi
         # Render with Quarto
         - uv run /tmp/quarto/opt/quarto/bin/quarto render --output-dir $READTHEDOCS_OUTPUT/html

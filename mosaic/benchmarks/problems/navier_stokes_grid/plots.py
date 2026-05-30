@@ -20,6 +20,7 @@ from mosaic.benchmarks.core.io import (
     load_json,
     results_dir,
     try_load_npz,
+    v1_to_legacy,
 )
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
@@ -117,7 +118,7 @@ def plot_drag_opt(
     # Multi-run layout: one canonical figure per run subdir.
     if base_dir.is_dir():
         for sub in sorted(base_dir.iterdir()):
-            sub_data = load_json(sub / "result.json")
+            sub_data = v1_to_legacy(load_json(sub / "result.json"))
             if sub_data is not None:
                 _plot_one(
                     sub_data,

@@ -13,7 +13,7 @@ on:
         default: "all"
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   packages: read
   actions: read
@@ -21,9 +21,6 @@ permissions:
 concurrency:
   group: benchmark-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
-env:
-  RESULTS_BRANCH: benchmark-results
 
 jobs:
   # ── Determine what to benchmark ──────────────────────────────────────────
@@ -135,8 +132,8 @@ jobs:
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
                   fi
-                  # Build solver list: changed solver + consensus peers
-                  SOLVERS=$(echo "$SOLVER_MATRIX" | uv run python .github/scripts/expand-solver-list.py --problems "$PROBLEMS")
+                  # Single-solver runs work independently (precomputed references)
+                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(','.join(e['display_name'] for e in json.load(sys.stdin) if 'display_name' in e))")
                 fi
                 ;;
               all)
@@ -229,8 +226,6 @@ jobs:
         with:
           enable-cache: true
 
-      - uses: quarto-dev/quarto-actions/setup@v2
-
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
@@ -243,35 +238,37 @@ jobs:
       - name: Merge results from CPU/GPU artifacts
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
-      - name: Overlay PR results on main/ baseline
+      - name: Download baseline artifact
+        if: >-
+          github.event_name == 'pull_request'
+          && needs.plan.outputs.is_release_pr != 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: baseline
+          path: baseline/mosaic-results/
+        continue-on-error: true
+
+      - name: Overlay PR results on baseline
         if: >-
           github.event_name == 'pull_request'
           && needs.plan.outputs.is_release_pr != 'true'
         run: |
-          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            BASELINE=$(mktemp -d)
-            git worktree add "$BASELINE" "origin/$RESULTS_BRANCH" --detach 2>/dev/null || true
-            if [ -d "$BASELINE/main" ]; then
-              MERGED=$(mktemp -d)
-              # Solver-level merge: baseline result.json entries are preserved
-              # for solvers that this PR didn't run.
-              uv run python .github/scripts/overlay-results.py \
-                "$BASELINE/main" mosaic-results "$MERGED"
-              rm -rf mosaic-results
-              mv "$MERGED" mosaic-results
-            fi
-            git worktree remove "$BASELINE" 2>/dev/null || true
+          if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
+            MERGED=$(mktemp -d)
+            uv run python .github/scripts/overlay-results.py \
+              baseline/mosaic-results mosaic-results "$MERGED"
+            rm -rf mosaic-results
+            mv "$MERGED" mosaic-results
           fi
 
-      - name: Fetch baseline snapshot from results branch
+      - name: Extract baseline snapshot
         id: baseline
         run: |
           BASELINE_PATH=""
-          if git fetch origin "$RESULTS_BRANCH" 2>/dev/null; then
-            if git show "origin/$RESULTS_BRANCH:main/snapshot.json" > baseline-snapshot.json 2>/dev/null; then
-              BASELINE_PATH="baseline-snapshot.json"
-              echo "Fetched baseline snapshot"
-            fi
+          if [ -f baseline/mosaic-results/snapshot.json ]; then
+            cp baseline/mosaic-results/snapshot.json baseline-snapshot.json
+            BASELINE_PATH="baseline-snapshot.json"
+            echo "Fetched baseline snapshot"
           fi
           echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
 
@@ -296,38 +293,6 @@ jobs:
             status-report.md
           retention-days: 90
 
-      # ── Build docs & deploy PR preview ─────────────────────────────────
-      - name: Generate solver reference
-        if: github.event_name != 'pull_request' || needs.plan.outputs.is_release_pr == 'true'
-        run: uv run python docs/generate.py
-
-      - name: Generate results pages
-        run: |
-          if [ -d mosaic-results ] && [ "$(ls mosaic-results/)" ]; then
-            uv run python docs/generate_results.py
-          else
-            echo "No benchmark results available — skipping results page generation"
-          fi
-
-      - name: Render site
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.plan.outputs.is_release_pr }}" != "true" ]]; then
-            echo "PR preview: rendering results pages only"
-            cp _quarto.yml _quarto.yml.bak
-            cp .github/quarto-pr-preview.yml _quarto.yml
-            uv run quarto render
-            mv _quarto.yml.bak _quarto.yml
-          else
-            uv run quarto render
-          fi
-
-      - name: Append report link to status report
-        if: github.event_name == 'pull_request'
-        run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          PREVIEW_URL="https://special-giggle-k5jvr5n.pages.github.io/pr-preview/pr-${PR_NUM}/"
-          printf '\n---\n\n### 📊 [View full benchmark report](%s)\nInteractive plots, solver comparisons, and detailed results.\n' "$PREVIEW_URL" >> status-report.md
-
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
         if: github.event_name == 'pull_request'
@@ -338,34 +303,18 @@ jobs:
             "${{ github.event.pull_request.number }}" \
             status-report.md
 
-      # ── Publish to results branch ──────────────────────────────────────
-      # All results (dev and release) are published only after merge, by
-      # publish-results.yml (workflow_run trigger).
-
-      # ── Deploy PR preview to GitHub Pages ──────────────────────────────
-      - name: Deploy PR preview to gh-pages
+      # ── Trigger RTD PR preview rebuild ─────────────────────────────────
+      # RTD's webhook fires on PR push, but that build starts before
+      # benchmark results exist.  After uploading the results artifact,
+      # trigger a fresh RTD build so it can pick up the results.
+      - name: Trigger RTD PR preview rebuild
         if: github.event_name == 'pull_request'
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
         run: |
-          set -euo pipefail
           PR_NUM="${{ github.event.pull_request.number }}"
-          WORK=$(mktemp -d)
-
-          git config user.name "PasteurBot"
-          git config user.email "${{ vars.PL_PASTEURBOT_EMAIL }}"
-
-          if git fetch origin gh-pages 2>/dev/null; then
-            git worktree add "$WORK" gh-pages
-          else
-            git worktree add --orphan "$WORK" gh-pages
-          fi
-
-          rm -rf "$WORK/pr-preview/pr-${PR_NUM}"
-          mkdir -p "$WORK/pr-preview/pr-${PR_NUM}"
-          cp -r _site/* "$WORK/pr-preview/pr-${PR_NUM}/"
-          git -C "$WORK" add pr-preview/
-          git -C "$WORK" commit -m "Deploy docs preview for PR #${PR_NUM}" --allow-empty
-          git -C "$WORK" push origin gh-pages
-          git worktree remove "$WORK"
+          bash .github/scripts/rtd-trigger.sh "${PR_NUM}"
 
   # ── Merge gate ─────────────────────────────────────────────────────────
   bench-ok:

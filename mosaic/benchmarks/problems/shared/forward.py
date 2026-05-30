@@ -23,7 +23,11 @@ from typing import Any
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.experiment import KernelContext, kernel
+from mosaic.benchmarks.core.experiment import (
+    KernelContext,
+    _build_result_envelope,
+    kernel,
+)
 from mosaic.benchmarks.core.io import (
     load_cached_field_snapshots,
     save_csv,
@@ -113,7 +117,7 @@ def _agreement_aggregate(
     out_dir: Any,
     snapshot_filename: Any,
     snapshot_prefixes: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Cross-solver reference + per-solver error pass for agreement.
 
@@ -143,8 +147,6 @@ def _agreement_aggregate(
             outputs_per_val[sweep_values[idx]][name] = np.asarray(arr)
 
     # Augment with cached arrays for solvers not re-run this invocation.
-    # ``shared_prefixes`` mirrors the save side so meta keys (``sweep_values``,
-    # ``consensus_``, ``ic``, …) aren't mistaken for solver arrays.
     cached_for_val = load_cached_field_snapshots(
         out_dir / snapshot_filename,
         sweep_values,
@@ -155,8 +157,7 @@ def _agreement_aggregate(
         for n, arr in cache.items():
             outputs_per_val[v].setdefault(n, arr)
 
-    # ── Build by_param / spread + collect arrays for the flat-layout NPZ ──
-    by_param: dict = {}
+    # ── Build results list + collect arrays for the flat-layout NPZ ──
     per_solver_for_npz: dict[str, dict[str, np.ndarray]] = {}
     shared_arrays: dict[str, np.ndarray] = {
         "sweep_values": np.array([float(v) for v in sweep_values]),
@@ -165,7 +166,6 @@ def _agreement_aggregate(
     apply_errors: dict[str, dict] = {}
     drags: dict[str, dict] = {}
     for name, smetrics in by_solver.items():
-        # smetrics is {sweep_val: {valid, [apply_error], [drag]}}.
         for val, m in smetrics.items():
             if not m.get("valid", False):
                 apply_errors.setdefault(name, {})[val] = m.get("apply_error")
@@ -176,6 +176,9 @@ def _agreement_aggregate(
     solver_names = [s.name for s in cfg.solvers]
     reference_solver = run.get("reference_solver")
 
+    # Collect per-(solver, sweep_value) results
+    flat_results: list[dict] = []
+
     for i, val in enumerate(sweep_values):
         comparable = outputs_per_val.get(val, {})
         for n, arr in comparable.items():
@@ -184,18 +187,20 @@ def _agreement_aggregate(
         has_analytic = analytic_fn is not None and "obstacle" not in phys
         has_ref_solver = reference_solver is not None and reference_solver in comparable
 
-        if len(comparable) < 2 and not has_analytic and not has_ref_solver:
-            by_param[val] = {
-                n: {"error": apply_errors.get(n, {}).get(val), "valid": False}
-                for n in solver_names
-            }
-            continue
-
-        if len(comparable) == 0:
-            by_param[val] = {
-                n: {"error": apply_errors.get(n, {}).get(val), "valid": False}
-                for n in solver_names
-            }
+        if (len(comparable) < 2 and not has_analytic and not has_ref_solver) or len(
+            comparable
+        ) == 0:
+            for n in solver_names:
+                flat_results.append(
+                    {
+                        "solver": n,
+                        "sweep_value": str(val),
+                        "metrics": {
+                            "error": apply_errors.get(n, {}).get(val),
+                            "valid": False,
+                        },
+                    }
+                )
             continue
 
         if has_analytic:
@@ -221,21 +226,26 @@ def _agreement_aggregate(
             reference_label = "consensus"
         shared_arrays[f"consensus_{i}"] = np.asarray(reference)
 
-        by_param[val] = {
-            n: (
-                {
+        for n in solver_names:
+            if n in comparable:
+                metrics: dict = {
                     "error": error_fn(comparable[n], reference),
                     "valid": True,
-                    **({"drag": drags[n][val]} if val in drags.get(n, {}) else {}),
                 }
-                if n in comparable
-                else {
+                if val in drags.get(n, {}):
+                    metrics["drag"] = drags[n][val]
+            else:
+                metrics = {
                     "error": apply_errors.get(n, {}).get(val),
                     "valid": False,
                 }
+            flat_results.append(
+                {
+                    "solver": n,
+                    "sweep_value": str(val),
+                    "metrics": metrics,
+                }
             )
-            for n in solver_names
-        }
 
     save_field_snapshots_npz(
         out_dir,
@@ -249,38 +259,41 @@ def _agreement_aggregate(
 
     csv_rows = [
         {
-            "solver": n,
-            sweep_key: val,
-            "error": by_param[val][n]["error"],
-            "valid": by_param[val][n]["valid"],
+            "solver": e["solver"],
+            sweep_key: e["sweep_value"],
+            "error": e["metrics"].get("error"),
+            "valid": e["metrics"].get("valid"),
         }
-        for val in sweep_values
-        for n in solver_names
+        for e in flat_results
     ]
     save_csv(csv_rows, out_dir / "result.csv")
 
-    spread = {
-        val: float(
-            jnp.std(
-                jnp.array(
-                    [
-                        r["error"]
-                        for r in s.values()
-                        if r["valid"] and r["error"] is not None
-                    ]
-                )
-            )
-        )
-        for val, s in by_param.items()
-    }
+    # Compute spread per sweep value
+    spread: dict = {}
+    for val in sweep_values:
+        val_str = str(val)
+        errors = [
+            e["metrics"]["error"]
+            for e in flat_results
+            if e["sweep_value"] == val_str
+            and e["metrics"].get("valid")
+            and e["metrics"].get("error") is not None
+        ]
+        spread[val] = float(jnp.std(jnp.array(errors))) if errors else 0.0
 
-    return {
-        "by_param": by_param,
-        "spread": spread,
-        "sweep_key": sweep_key,
-        "reference_label": reference_label,
-        "params": run,
-    }
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_SUITE,
+        exp_key=_kw.get("exp_key", "agreement"),
+        run=run,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        results=flat_results,
+        extras={
+            "spread": spread,
+            "reference_label": reference_label,
+        },
+    )
 
 
 @kernel(
@@ -340,7 +353,7 @@ def _physical_laws_aggregate(
     sweep_values: Any,
     sweep_key: Any,
     out_dir: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Compute physical diagnostics + analytic-error per (solver, sweep-value)."""
     diagnostics = run.get("diagnostics") or {}
@@ -362,13 +375,12 @@ def _physical_laws_aggregate(
         for idx_str, arr in suf_map.items():
             outputs_per_val[sweep_values[int(idx_str)]][name] = np.asarray(arr)
 
-    by_param: dict = {}
+    flat_results: list[dict] = []
     csv_rows: list[dict] = []
     diag_ctx = {"domain_extent": domain_extent}
 
     for val in sweep_values:
         curr_phys = {**phys, sweep_key: val}
-        by_param[val] = {}
 
         analytic_ref = None
         if analytic_fn is not None:
@@ -382,7 +394,13 @@ def _physical_laws_aggregate(
 
         for name, out in outputs_per_val.get(val, {}).items():
             if not by_solver.get(name, {}).get(val, {}).get("valid", False):
-                by_param[val][name] = None
+                flat_results.append(
+                    {
+                        "solver": name,
+                        "sweep_value": str(val),
+                        "metrics": None,
+                    }
+                )
                 continue
             diag: dict = {}
             for dname, fn in diagnostics.items():
@@ -393,7 +411,13 @@ def _physical_laws_aggregate(
             if analytic_ref is not None:
                 with contextlib.suppress(Exception):
                     diag["analytic_error"] = float(error_fn(out, analytic_ref))
-            by_param[val][name] = diag
+            flat_results.append(
+                {
+                    "solver": name,
+                    "sweep_value": str(val),
+                    "metrics": diag,
+                }
+            )
             for dname, dval in diag.items():
                 csv_rows.append(
                     {
@@ -404,18 +428,30 @@ def _physical_laws_aggregate(
                     }
                 )
 
-        # Mark solvers that didn't produce output as None for this val.
+        # Mark solvers that didn't produce output.
+        produced = {e["solver"] for e in flat_results if e["sweep_value"] == str(val)}
         for s in cfg.solvers:
-            by_param[val].setdefault(s.name, None)
+            if s.name not in produced:
+                flat_results.append(
+                    {
+                        "solver": s.name,
+                        "sweep_value": str(val),
+                        "metrics": None,
+                    }
+                )
 
     if csv_rows:
         save_csv(csv_rows, out_dir / "result.csv")
 
-    return {
-        "by_param": by_param,
-        "sweep_key": sweep_key,
-        "params": run,
-    }
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_SUITE,
+        exp_key=_kw.get("exp_key", "physical_laws"),
+        run=run,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        results=flat_results,
+    )
 
 
 @kernel(

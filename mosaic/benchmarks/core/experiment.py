@@ -78,6 +78,91 @@ def random_direction(shape: tuple, key: jax.Array) -> jax.Array:
     return v / (jnp.linalg.norm(v) + 1e-30)
 
 
+# ── Unified result format ────────────────────────────────────────────────────
+
+SCHEMA_VERSION = 1
+
+
+def _flatten_by_solver(by_solver: dict, sweep_key: str | None) -> list[dict]:
+    """Convert the kernel's ``by_solver`` accumulator into a flat results list.
+
+    Each entry is ``{solver, sweep_value, metrics}``.
+    """
+    entries: list[dict] = []
+    for solver, data in by_solver.items():
+        if sweep_key is None:
+            entries.append(
+                {"solver": solver, "sweep_value": None, "metrics": data or {}}
+            )
+        else:
+            if isinstance(data, dict):
+                for val, metrics in data.items():
+                    entries.append(
+                        {
+                            "solver": solver,
+                            "sweep_value": str(val),
+                            "metrics": metrics or {},
+                        }
+                    )
+            else:
+                entries.append(
+                    {"solver": solver, "sweep_value": None, "metrics": data or {}}
+                )
+    return entries
+
+
+def _build_result_envelope(
+    *,
+    cfg: Problem,
+    suite: str,
+    exp_key: str,
+    run: dict,
+    sweep_key: str | None,
+    sweep_values: list | None,
+    results: list[dict],
+    extras: dict | None = None,
+) -> dict:
+    """Build the canonical result envelope (schema_version=1)."""
+    envelope: dict = {
+        "schema_version": SCHEMA_VERSION,
+        "experiment": {
+            "domain": cfg.name,
+            "suite": suite,
+            "name": exp_key,
+        },
+        "params": run,
+        "sweep": (
+            {"key": sweep_key, "values": [str(v) for v in sweep_values]}
+            if sweep_key and sweep_values
+            else None
+        ),
+        "results": results,
+    }
+    if extras:
+        envelope["extras"] = extras
+    return envelope
+
+
+def merge_results(a: dict, b: dict) -> dict:
+    """Merge two schema_version=1 result files. *b* wins on conflict."""
+    seen: dict[tuple, dict] = {}
+    for entry in a.get("results", []) + b.get("results", []):
+        seen[(entry["solver"], entry.get("sweep_value"))] = entry
+    merged = {**a, **b, "results": list(seen.values())}
+    # Merge provenance sub-dicts
+    for key in ("tesseract_hashes", "wall_time_s"):
+        a_val = a.get("provenance", {}).get(key, {})
+        b_val = b.get("provenance", {}).get(key, {})
+        if a_val or b_val:
+            merged.setdefault("provenance", {})[key] = {**a_val, **b_val}
+    # Merge extras
+    a_extras = a.get("extras", {})
+    b_extras = b.get("extras", {})
+    if a_extras or b_extras:
+        merged["extras"] = {**a_extras, **b_extras}
+    return merged
+
+
 @dataclass
 class KernelContext:
     """Argument bundle handed to each kernel invocation.
@@ -540,15 +625,23 @@ def run_experiment(
                     filename=snapshot_filename,
                     prefixes=snapshot_prefixes,
                 )
-            result = {"by_solver": by_solver, "params": run}
-            if sweep_key is not None:
-                result["sweep_key"] = sweep_key
+            result = _build_result_envelope(
+                cfg=cfg,
+                suite=suite,
+                exp_key=exp_key,
+                run=run,
+                sweep_key=sweep_key,
+                sweep_values=sweep_values if sweep_key else None,
+                results=_flatten_by_solver(by_solver, sweep_key),
+            )
         else:
             result = aggregate_fn(
                 by_solver,
                 run=run,
                 cfg=cfg,
                 tags=tags,
+                suite=suite,
+                exp_key=exp_key,
                 out_dir=out_dir,
                 selected=selected,
                 gpu_ids=gpu_ids,

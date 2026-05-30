@@ -19,6 +19,7 @@ from mosaic.benchmarks.core.io import (
     load_json,
     results_dir,
     try_load_npz,
+    v1_to_legacy,
 )
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
@@ -678,7 +679,7 @@ def plot_recovery(
     base_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     out_dir = _resolve_recovery_out_dir(base_dir, ic)
 
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     styles = solver_styles(cfg, differentiable_only=True)
 
     # Use threshold recorded in the experiment params; fall back to argument default.

@@ -80,7 +80,7 @@ sudo dpkg -i quarto-1.5.57-linux-amd64.deb
 quarto --version   # should print 1.5.x
 ```
 
-Then, mirroring `.github/workflows/docs.yml`:
+Then, mirroring `.readthedocs.yaml`:
 
 ```bash
 uv sync --extra dev
@@ -144,35 +144,31 @@ Runs on PRs that carry a benchmark label. The workflow has four stages:
 3. **Run** — executes the benchmark matrix across CPU and GPU runners.
 4. **Report** — merges CPU/GPU results, generates a status snapshot, renders a docs preview, posts a PR comment with the diff, and publishes results.
 
-For dev PRs the report step overlays the PR's results on top of the current rolling baseline so the preview shows all solvers, not just the ones that ran. It then merges the PR's results into the `main/` directory on the `benchmark-results` branch.
+For dev PRs the report step overlays the PR's results on top of the current rolling baseline so the preview shows all solvers, not just the ones that ran.
 
-For release PRs the report step writes results to a `_pending/` staging area instead.
-
-### Docs (`docs.yml`)
-
-Builds a docs preview on every PR. Fetches rolling benchmark results from the `benchmark-results` branch so the preview includes result plots even when benchmarks didn't run on this PR.
+For release PRs the report step uploads results the same way; `publish-results.yml` later creates both the updated `baseline` and an immutable `release-<version>` artifact.
 
 ### Read the Docs (`.readthedocs.yaml`)
 
-Builds the production documentation site. Tag builds (releases) fetch the matching versioned results directory; branch builds fetch the rolling `main/` results.
+Builds the documentation site (production and PR previews). RTD fetches the `baseline` artifact from GitHub Actions so docs always reflect the latest merged benchmark results. PR preview builds also overlay PR-specific results when available.
+
+RTD builds are triggered explicitly by GitHub Actions workflows (not by the default webhook) to avoid races — results must be published before the docs build starts:
+
+- **Push to main** — `publish-results.yml` uploads the baseline artifact, then triggers an RTD build for `latest`.
+- **Release** — `publish-results.yml` uploads a `release-<version>` artifact and triggers RTD builds for `stable` and `latest`.
+- **PR** — `benchmark.yml` uploads benchmark results, then triggers an RTD PR preview rebuild.
 
 ### Release (`release.yml`)
 
-Handles the full release lifecycle (see [Release process](#release-process) below). When a release PR merges, the workflow creates a GitHub release and promotes the staged benchmark results: `_pending/` is copied to a permanent `{version}/` directory and `main/` is reset to that release baseline.
+Handles the full release lifecycle (see [Release process](#release-process) below).
 
-### PR preview cleanup (`cleanup-pr-previews.yml`)
+### Benchmark results artifacts
 
-Removes the PR's docs preview from `gh-pages` when the PR is closed.
+Benchmark results are stored as GitHub Actions artifacts (not a git branch):
 
-### Benchmark results branch layout
-
-The `benchmark-results` branch stores all published benchmark results:
-
-- **`main/`** — rolling accumulation of results merged from dev PRs. Best-effort; different solvers may come from different commits.
-- **`{version}/`** (e.g. `v0.4.0/`) — immutable release results. Produced by a full benchmark run on a release PR.
-- **`_pending/`** — staging area for an in-progress release. Promoted to `{version}/` when the release PR merges.
-
-Each directory contains per-domain subdirectories with `result.json`, `params.json`, plots (`.png`, `.gif`), plus top-level `snapshot.json` and `status-report.md` files.
+- **`baseline`** — rolling accumulation of results merged from dev PRs, overwritten atomically on each merge to main.
+- **`release-<version>`** (e.g. `release-v0.4.0`) — immutable release results with long retention.
+- **`benchmark-results-<sha>`** — per-PR results uploaded during the benchmark workflow, used for PR preview builds.
 
 ## Commit and pull request message guidelines
 
@@ -210,7 +206,7 @@ Mosaic follows [semantic versioning](https://semver.org).
 Releases are done via GitHub Actions, which automatically build the release artifacts and publish them to PyPI. To create a new release:
 
 1. Make sure the code is in a good state, all tests pass, and the documentation is up to date.
-2. Trigger the release workflow through the [GitHub UI](https://github.com/pasteurlabs/mosaic/actions/workflows/release.yml). This opens a new pull request with the release notes and the version number. Full benchmarks run automatically on the release PR, writing results to `_pending/` on the `benchmark-results` branch.
+2. Trigger the release workflow through the [GitHub UI](https://github.com/pasteurlabs/mosaic/actions/workflows/release.yml). This opens a new pull request with the release notes and the version number. Full benchmarks run automatically on the release PR.
 3. Add any additional release notes to the pull request message.
 4. Once the pull request is ready, merge it into `main`.
-5. GitHub Actions will then automatically release the new version, promote the staged benchmark results to a permanent `{version}/` directory, and reset the rolling `main/` baseline. Verify that the release artifacts are correctly built and published.
+5. GitHub Actions will then automatically release the new version and publish the benchmark results as both the updated `baseline` and an immutable `release-<version>` artifact. Verify that the release artifacts are correctly built and published.

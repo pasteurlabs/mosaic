@@ -622,7 +622,7 @@ def _recovery_aggregate(
     sweep_key: Any,
     snapshot_filename: Any,
     snapshot_prefixes: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Cross-solver post-pass: failure_values + per-solver NPZ + result dict.
 
@@ -712,13 +712,21 @@ def _recovery_aggregate(
         prefixes=snapshot_prefixes,
     )
 
-    del cfg  # accepted for signature parity; unused here
-    return {
-        "sweep_key": sweep_key,
-        "by_sweep": by_sweep,
-        "failure_values": failure_values,
-        "params": run,
-    }
+    from mosaic.benchmarks.core.experiment import (
+        _build_result_envelope,
+        _flatten_by_solver,
+    )
+
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_kw.get("suite", "optimization"),
+        exp_key=_kw.get("exp_key", "recovery"),
+        run=run,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        results=_flatten_by_solver(by_sweep, sweep_key),
+        extras={"failure_values": failure_values},
+    )
 
 
 # ── Kernel ───────────────────────────────────────────────────────────────────

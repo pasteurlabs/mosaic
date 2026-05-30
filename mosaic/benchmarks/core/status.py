@@ -244,226 +244,6 @@ def _reason_from_entry(entry: Any) -> str:
     return ""
 
 
-# Named trajectory keys we use to decide whether a recovery / optimisation
-# entry has any real signal. If any of these is present and all-NaN, the
-# solver ran-without-crashing but produced junk data — classify as FAILED
-# regardless of ambient scalar metadata (n_iters / converged / etc.).
-_TRAJECTORY_KEYS = ("errors", "drags", "flow_rates", "loss", "losses")
-
-
-def _finite_floats(values: Any) -> list[float]:
-    """Return the subset of *values* that are finite real numbers."""
-    if not isinstance(values, list | tuple):
-        return []
-    return [
-        float(v)
-        for v in values
-        if isinstance(v, int | float)
-        and not (isinstance(v, float) and math.isnan(v))
-        and math.isfinite(v)
-    ]
-
-
-def _is_numeric_key(k: Any) -> bool:
-    """True if *k* parses as a float (used to spot numeric-keyed sweep dicts)."""
-    if isinstance(k, int | float):
-        return True
-    if isinstance(k, str):
-        try:
-            float(k)
-            return True
-        except ValueError:
-            return False
-    return False
-
-
-def _check_named_trajectory(entry: dict) -> tuple[str, str] | None:
-    """Reject entries whose named trajectory list is all non-finite or flat.
-
-    Returns ``(FAILED, reason)`` when the first matching trajectory key in
-    ``_TRAJECTORY_KEYS`` shows the entry produced no usable signal; otherwise
-    ``None`` (continue with other heuristics).
-    """
-    for key in _TRAJECTORY_KEYS:
-        traj = entry.get(key)
-        if not (isinstance(traj, list) and traj):
-            continue
-        finite_vals = _finite_floats(traj)
-        if not finite_vals:
-            return FAILED, f"'{key}' trajectory is all non-finite"
-        if len(finite_vals) > 1 and min(finite_vals) == max(finite_vals):
-            return (
-                FAILED,
-                f"'{key}' trajectory is flat — no loss reduction (broken gradient?)",
-            )
-        # First matching trajectory adjudicates — don't keep searching.
-        return None
-    return None
-
-
-def _check_numeric_sweep(entry: dict) -> tuple[str, str] | None:
-    """Reject numeric-keyed sweep dicts whose every non-trivial sub-entry is bad.
-
-    "Bad" means non-finite final loss across the board, or a flat sub-trajectory.
-    """
-    numeric_subs = [
-        (k, v) for k, v in entry.items() if _is_numeric_key(k) and isinstance(v, dict)
-    ]
-    if not numeric_subs:
-        return None
-    non_trivial = [
-        (k, v)
-        for k, v in numeric_subs
-        if isinstance(v.get("initial_loss"), int | float)
-        and math.isfinite(float(v.get("initial_loss", 0)))
-        and float(v.get("initial_loss", 0)) > 0
-    ]
-    if not non_trivial:
-        return None
-    bad = [
-        (k, v)
-        for k, v in non_trivial
-        if not (
-            isinstance(v.get("final_loss"), int | float)
-            and math.isfinite(float(v.get("final_loss", float("nan"))))
-        )
-    ]
-    if len(bad) == len(non_trivial):
-        return FAILED, "all non-trivial sweep values have non-finite final loss"
-    for sk, sv in non_trivial:
-        sub_finite = _finite_floats(sv.get("losses") or [])
-        if len(sub_finite) > 1 and min(sub_finite) == max(sub_finite):
-            return FAILED, (
-                f"sweep value {sk}: loss trajectory is flat"
-                " — no loss reduction (broken gradient?)"
-            )
-    return None
-
-
-def _check_eps_sweep(entry: dict) -> tuple[str, str] | None:
-    """Reject fd_check / source_fd_check entries whose eps_sweep is entirely non-finite.
-
-    Checks both cosine and rel_error fields.
-    """
-    sweep = entry.get("eps_sweep")
-    if not (isinstance(sweep, dict) and sweep):
-        return None
-    for st in sweep.values():
-        if not isinstance(st, dict):
-            continue
-        cos = st.get("cosine")
-        if isinstance(cos, int | float) and math.isfinite(cos):
-            return None
-        for r in st.get("rel_error", []) or []:
-            if isinstance(r, int | float) and math.isfinite(r):
-                return None
-    return FAILED, "eps_sweep produced all non-finite values"
-
-
-def _classify_dict_entry(entry: dict) -> tuple[str, str]:
-    """Classify a dict-shaped by_solver entry."""
-    if not entry:
-        return FAILED, "empty result"
-    # Explicit valid=False flag (forward-suite shape reused elsewhere).
-    if entry.get("valid") is False:
-        return FAILED, _reason_from_entry(entry) or "invalid"
-    for checker in (_check_named_trajectory, _check_numeric_sweep, _check_eps_sweep):
-        verdict = checker(entry)
-        if verdict is not None:
-            return verdict
-    reason = _reason_from_entry(entry)
-    if not _has_any_finite(entry):
-        return FAILED, reason or "no finite values"
-    return OK, ""
-
-
-def _classify_by_solver_entry(entry: Any) -> tuple[str, str]:
-    """Classify a single solver's entry from a ``by_solver`` dict.
-
-    Returns (status, reason).
-    """
-    if entry is None:
-        return FAILED, ""
-    if isinstance(entry, dict):
-        return _classify_dict_entry(entry)
-    if isinstance(entry, list | tuple):
-        if not entry or not _has_any_finite(entry):
-            return FAILED, "no finite values"
-        return OK, ""
-    if isinstance(entry, int | float):
-        return (OK, "") if _has_any_finite(entry) else (FAILED, "non-finite value")
-    return OK, ""
-
-
-def _classify_from_by_param(
-    data: dict, solvers: list[str], checks: list
-) -> dict[str, Cell]:
-    """Forward-suite layout: ``by_param[value][solver] = {error, valid}``.
-
-    Walks the supplied ``checks`` list (callables built from
-    :mod:`.status_checks`) — first ``anom`` wins. Checks receive a
-    :class:`ForwardSummary` per solver. Cells are NOT_RUN if the solver
-    didn't report on any sweep point, FAILED if every point failed, OK
-    otherwise (unless a check fires).
-    """
-    from .status_checks import ForwardSummary
-
-    cells: dict[str, Cell] = {}
-    by_param = data.get("by_param", {})
-
-    per_solver_valid: dict[str, list[bool]] = {s: [] for s in solvers}
-    per_solver_reason: dict[str, str] = dict.fromkeys(solvers, "")
-    peer_medians: dict[Any, float] = {}
-    solver_errs_by_pval: dict[str, dict[Any, float]] = {s: {} for s in solvers}
-
-    for pval, solver_map in by_param.items():
-        if not isinstance(solver_map, dict):
-            continue
-        peer_errors: list[float] = []
-        for solver in solvers:
-            if solver not in solver_map:
-                continue
-            entry = solver_map[solver]
-            if not isinstance(entry, dict):
-                continue
-            is_valid = entry.get("valid") is True or (
-                entry.get("valid") is None and _has_any_finite(entry)
-            )
-            per_solver_valid[solver].append(is_valid)
-            err = entry.get("error")
-            if is_valid and isinstance(err, int | float) and math.isfinite(err):
-                solver_errs_by_pval[solver][pval] = float(err)
-                peer_errors.append(float(err))
-            elif not is_valid and not per_solver_reason[solver]:
-                per_solver_reason[solver] = _reason_from_entry(entry) or ""
-        if peer_errors:
-            sorted_errs = sorted(peer_errors)
-            mid = len(sorted_errs) // 2
-            peer_medians[pval] = (
-                sorted_errs[mid]
-                if len(sorted_errs) % 2
-                else 0.5 * (sorted_errs[mid - 1] + sorted_errs[mid])
-            )
-
-    for solver in solvers:
-        if not per_solver_valid[solver]:
-            cells[solver] = Cell(NOT_RUN)
-            continue
-        if not any(per_solver_valid[solver]):
-            cells[solver] = Cell(
-                FAILED, per_solver_reason[solver] or "all sweep points failed"
-            )
-            continue
-        summary = ForwardSummary(
-            errs_by_pval=solver_errs_by_pval[solver],
-            peer_medians_by_pval=peer_medians,
-            n_valid_points=len(solver_errs_by_pval[solver]),
-        )
-        verdict = _run_checks(checks, summary)
-        cells[solver] = Cell(*verdict) if verdict else Cell(OK)
-    return cells
-
-
 def _run_checks(checks: list, summary: Any) -> tuple[str, str] | None:
     """Walk a check list against a summary; return first ``anom`` or ``None``.
 
@@ -481,60 +261,6 @@ def _run_checks(checks: list, summary: Any) -> tuple[str, str] | None:
         if result and result[0] == ANOMALY:
             return result
     return None
-
-
-def _classify_from_by_N(data: dict, solvers: list[str], key: str) -> dict[str, Cell]:
-    """Cost-suite layout: ``by_N[solver][N] = {mean, std}`` (or ``by_steps``)."""
-    cells: dict[str, Cell] = {}
-    top = data.get(key, {})
-    for solver in solvers:
-        if solver not in top:
-            cells[solver] = Cell(NOT_RUN)
-            continue
-        entry = top[solver]
-        if isinstance(entry, dict) and entry and _has_any_finite(entry):
-            cells[solver] = Cell(OK)
-        else:
-            cells[solver] = Cell(FAILED, "empty timings")
-    return cells
-
-
-def _classify_from_by_solver(
-    data: dict, solvers: list[str], key: str
-) -> dict[str, Cell]:
-    """Generic ``by_solver`` layout (gradient, recovery, etc.)."""
-    cells: dict[str, Cell] = {}
-    top = data.get(key, {})
-    for solver in solvers:
-        if solver not in top:
-            cells[solver] = Cell(NOT_RUN)
-            continue
-        status, reason = _classify_by_solver_entry(top[solver])
-        cells[solver] = Cell(status, reason)
-    return cells
-
-
-def _classify_from_per_solver_prefix(data: dict, solvers: list[str]) -> dict[str, Cell]:
-    """jacobian_svd-style layout: top-level ``per_solver_*`` dicts plus a ``solver_names`` list.
-
-    Keys are keyed by solver; ``solver_names`` enumerates solvers that were attempted.
-    """
-    attempted = set(data.get("solver_names", []) or [])
-    per_solver_dicts = [
-        v
-        for k, v in data.items()
-        if k.startswith("per_solver_") and isinstance(v, dict)
-    ]
-    cells: dict[str, Cell] = {}
-    for solver in solvers:
-        if solver not in attempted and not any(solver in d for d in per_solver_dicts):
-            cells[solver] = Cell(NOT_RUN)
-            continue
-        has_finite = any(
-            solver in d and _has_any_finite(d[solver]) for d in per_solver_dicts
-        )
-        cells[solver] = Cell(OK) if has_finite else Cell(FAILED, "no finite values")
-    return cells
 
 
 def _median(values: list[float]) -> float:
@@ -819,24 +545,56 @@ def _find_trajectory(entry: Any) -> list[float] | None:
     return None
 
 
+def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
+    """Classify from schema_version=1 flat results list."""
+    cells: dict[str, Cell] = {}
+    results = data.get("results", [])
+    if not results:
+        return {s: Cell(NOT_RUN) for s in solvers}
+
+    # Group by solver
+    per_solver: dict[str, list[dict]] = {}
+    for entry in results:
+        solver = entry.get("solver", "")
+        per_solver.setdefault(solver, []).append(entry)
+
+    for solver in solvers:
+        entries = per_solver.get(solver, [])
+        if not entries:
+            cells[solver] = Cell(NOT_RUN)
+            continue
+
+        # Check if any entry has valid metrics
+        has_valid = False
+        has_any = False
+        reason = ""
+        for entry in entries:
+            metrics = entry.get("metrics")
+            if metrics is None:
+                continue
+            has_any = True
+            if isinstance(metrics, dict):
+                if metrics.get("valid") is True:
+                    has_valid = True
+                elif metrics.get("valid") is False:
+                    if not reason:
+                        reason = _reason_from_entry(metrics) or ""
+                elif _has_any_finite(metrics):
+                    has_valid = True
+
+        if not has_any:
+            cells[solver] = Cell(NOT_RUN)
+        elif has_valid:
+            cells[solver] = Cell(OK)
+        else:
+            cells[solver] = Cell(FAILED, reason or "all entries failed")
+
+    return cells
+
+
 def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
-    """Dispatch to the right classifier based on which top-level key is present."""
-    if "by_solver" in data:
-        cells = _classify_from_by_solver(data, solvers, "by_solver")
-    elif "by_sweep" in data:
-        cells = _classify_from_by_solver(data, solvers, "by_sweep")
-    elif "by_param" in data:
-        cells = _classify_from_by_param(data, solvers, checks)
-    elif "by_N" in data:
-        cells = _classify_from_by_N(data, solvers, "by_N")
-    elif "by_steps" in data:
-        cells = _classify_from_by_N(data, solvers, "by_steps")
-    elif any(k.startswith("per_solver_") for k in data) or "solver_names" in data:
-        cells = _classify_from_per_solver_prefix(data, solvers)
-    else:
-        # Unknown layout — mark everything as "not_run" so the user knows we
-        # didn't find per-solver data to inspect.
-        cells = {s: Cell(NOT_RUN) for s in solvers}
+    """Classify each solver from a schema_version=1 result."""
+    cells = _classify_from_v1(data, solvers, checks)
 
     # Solvers whose Tesseract container failed to start (or whose work raised)
     # before any result was recorded are absent from the data layout above and
@@ -936,19 +694,59 @@ def _resolve_tesseract_hash(cfg: Problem, solver: str, cache: dict[str, str]) ->
     return h
 
 
+def _v1_to_legacy_view(data: dict) -> dict:
+    """Build a legacy-shaped view from v1 results for anomaly refinement functions.
+
+    Returns a dict with ``by_solver``, ``by_param``, or ``by_N``/``by_steps``
+    depending on the experiment's sweep structure, so existing refinement
+    functions can work without modification.
+    """
+    if data.get("schema_version") != 1:
+        return data
+    results = data.get("results", [])
+    sweep_info = data.get("sweep")
+    extras = data.get("extras", {})
+
+    # Group by solver
+    by_solver: dict = {}
+    for entry in results:
+        solver = entry.get("solver", "")
+        sv = entry.get("sweep_value")
+        metrics = entry.get("metrics")
+        if sv is None:
+            by_solver[solver] = metrics or {}
+        else:
+            by_solver.setdefault(solver, {})[sv] = metrics or {}
+
+    view: dict = {"by_solver": by_solver, "params": data.get("params", {})}
+
+    # Reconstruct sweep-specific keys for refinement functions
+    if sweep_info and isinstance(sweep_info, dict):
+        sweep_key = sweep_info.get("key", "")
+        if sweep_key in ("N", "n_elements"):
+            view["by_N"] = by_solver
+        elif sweep_key == "steps":
+            view["by_steps"] = by_solver
+
+    # Forward extras into the view
+    view.update(extras)
+    return view
+
+
 def _refine_for_suite(
     suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: list
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
+    view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
     if suite == "cost":
-        _refine_cost(data, cells, checks)
+        _refine_cost(view, cells, checks)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
     ):
-        _refine_fd_check(data, cells, checks)
+        _refine_fd_check(view, cells, checks)
     elif suite == "optimization":
-        _refine_recovery(data, cells, checks)
+        _refine_recovery(view, cells, checks)
 
 
 def _row_harness_stale(data: dict, harness_hash_cache: dict[str, str | None]) -> bool:
@@ -956,8 +754,10 @@ def _row_harness_stale(data: dict, harness_hash_cache: dict[str, str | None]) ->
 
     Missing-or-empty stored hash → stale.
     """
-    stored_harness_hash = data.get("harness_hash")
-    stored_harness_fn = data.get("harness_fn")
+    # v1: provenance.harness_hash / provenance.harness_fn
+    prov = data.get("provenance", {}) if data.get("schema_version") == 1 else {}
+    stored_harness_hash = prov.get("harness_hash") or data.get("harness_hash")
+    stored_harness_fn = prov.get("harness_fn") or data.get("harness_fn")
     if not stored_harness_hash or not stored_harness_fn:
         return True
     current = _resolve_harness_hash(stored_harness_fn, harness_hash_cache)
@@ -980,7 +780,9 @@ def _apply_staleness(
     even if the row as a whole isn't stale.
     """
     row_stale = _row_harness_stale(data, harness_hash_cache)
-    stored_tess = data.get("tesseract_hashes") or {}
+    # v1: provenance.tesseract_hashes
+    prov = data.get("provenance", {}) if data.get("schema_version") == 1 else {}
+    stored_tess = prov.get("tesseract_hashes") or data.get("tesseract_hashes") or {}
     if not isinstance(stored_tess, dict):
         stored_tess = {}
     for solver in solvers:
