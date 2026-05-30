@@ -384,7 +384,7 @@ def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
     for alias in ordered:
         sv = by_solver[alias_to_display[alias]]
         for k, v in sv.items():
-            gn = v.get("grad_norm", 1.0)
+            gn = _finite_or_nan(v.get("grad_norm", 1.0))
             if not np.isfinite(gn) or gn <= 0:
                 fail_at_step[int(k)].append(alias)
 
@@ -410,14 +410,14 @@ def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
 
         for k in step_keys:
             v = sv[k]
-            gn = v.get("grad_norm", float("nan"))
+            gn = _finite_or_nan(v.get("grad_norm", float("nan")))
             eps_sweep = v.get("eps_sweep", {})
-            if eps_sweep:
-                best_err = min(float(e["rel_error_mean"]) for e in eps_sweep.values())
-                best_cos = max(float(e["cosine_mean"]) for e in eps_sweep.values())
-            else:
-                best_err = float("nan")
-                best_cos = float("nan")
+            errs = [_finite_or_nan(e.get("rel_error_mean")) for e in eps_sweep.values()]
+            errs = [e for e in errs if np.isfinite(e)]
+            coss = [_finite_or_nan(e.get("cosine_mean")) for e in eps_sweep.values()]
+            coss = [c for c in coss if np.isfinite(c)]
+            best_err = min(errs) if errs else float("nan")
+            best_cos = max(coss) if coss else float("nan")
 
             if np.isfinite(gn) and gn > 0 and np.isfinite(best_err) and best_err > 0:
                 ok_steps.append(int(k))
@@ -663,9 +663,17 @@ def _plot_error_per_solver(
         n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), squeeze=False
     )
 
-    # ε values from the first solver/key entry
-    _first = by_solver[solver_names[0]]
-    eps_keys = sorted(_first[next(iter(_first))]["eps_sweep"], key=float)
+    # ε values from the first solver/key entry that actually carries an eps
+    # sweep — a failed run may record a step/param entry without one, so we
+    # can't blindly index the first entry.
+    eps_keys: list[str] = []
+    for name in solver_names:
+        for entry in by_solver[name].values():
+            if isinstance(entry, dict) and entry.get("eps_sweep"):
+                eps_keys = sorted(entry["eps_sweep"], key=float)
+                break
+        if eps_keys:
+            break
     eps_colors = plt.cm.plasma(np.linspace(0.15, 0.85, len(eps_keys)))
     markers = ["o", "s", "^", "D"]
 
@@ -677,7 +685,14 @@ def _plot_error_per_solver(
 
         for ei, eps in enumerate(eps_keys):
             re_m = [
-                by_solver[name][k]["eps_sweep"][eps]["rel_error_mean"] for k in x_keys
+                _finite_or_nan(
+                    by_solver[name]
+                    .get(k, {})
+                    .get("eps_sweep", {})
+                    .get(eps, {})
+                    .get("rel_error_mean")
+                )
+                for k in x_keys
             ]
             ax.semilogy(
                 xs,
@@ -708,6 +723,21 @@ def _plot_error_per_solver(
 # ── best-ε overlay helper ─────────────────────────────────────────────────────
 
 
+def _finite_or_nan(v: Any) -> float:
+    """Coerce a metric value to ``float``, mapping ``None``/non-numeric to ``nan``.
+
+    Benchmark ``result.json`` stores ``None`` for ε / step runs that failed or
+    were non-finite. Both ``float(None)`` and ``np.isfinite(None)`` raise, so raw
+    metric values must be normalised before any ``min``/``max``/finite-filter —
+    otherwise a single failed run takes down the whole figure.
+    """
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return float("nan")
+    return f if np.isfinite(f) else float("nan")
+
+
 def _plot_best_eps_overlay(
     by_solver: dict,
     styles: dict,
@@ -723,14 +753,21 @@ def _plot_best_eps_overlay(
     def _best_re(eps_sweep: dict) -> float:
         finite = [
             v
-            for v in (e["rel_error_mean"] for e in eps_sweep.values())
+            for v in (
+                _finite_or_nan(e.get("rel_error_mean")) for e in eps_sweep.values()
+            )
             if np.isfinite(v)
         ]
         return float(min(finite)) if finite else float("nan")
 
     for name, results in by_solver.items():
         xs = [x_to_float(k) for k in x_keys]
-        best_re = [_best_re(results[k]["eps_sweep"]) for k in x_keys]
+        best_re = [
+            _best_re(results[k]["eps_sweep"])
+            if isinstance(results.get(k), dict) and "eps_sweep" in results[k]
+            else float("nan")
+            for k in x_keys
+        ]
 
         pairs = [(x, v) for x, v in zip(xs, best_re, strict=False) if np.isfinite(v)]
         if not pairs:
@@ -755,13 +792,26 @@ def _plot_best_eps_overlay(
 
 
 def _best_eps_series(param_results: dict, param_keys: Any, metric: str) -> list[float]:
-    """For each param key pick the best-ε value of `metric` across the eps sweep."""
-    return [
-        min(param_results[k]["eps_sweep"].values(), key=lambda v: v["rel_error_mean"])[
-            metric
+    """For each param key pick the best-ε value of `metric` across the eps sweep.
+
+    ε entries with a missing ``rel_error_mean`` (``None`` — e.g. a failed or
+    non-finite ε run) can't be ranked and are skipped. A param key with no
+    rankable ε entry yields ``nan`` so the curve simply gaps there rather than
+    raising and dropping the whole figure.
+    """
+    out: list[float] = []
+    for k in param_keys:
+        ranked = [
+            v
+            for v in param_results[k]["eps_sweep"].values()
+            if v.get("rel_error_mean") is not None
         ]
-        for k in param_keys
-    ]
+        if not ranked:
+            out.append(float("nan"))
+            continue
+        val = min(ranked, key=lambda v: v["rel_error_mean"]).get(metric)
+        out.append(float("nan") if val is None else val)
+    return out
 
 
 def _plot_ucurve_overlay(
@@ -794,10 +844,15 @@ def _plot_ucurve_overlay(
         for name in solver_names:
             props = solver_plot_props(styles[name])
 
-            sweep = by_solver[name][key]["eps_sweep"]
+            entry = by_solver[name].get(key)
+            if not entry or "eps_sweep" not in entry:
+                # Solver has no eps sweep for this value (e.g. a failed run that
+                # recorded status but no curve) — skip rather than KeyError out.
+                continue
+            sweep = entry["eps_sweep"]
             eps_f = sorted(sweep.keys(), key=float)
             eps_fl = [float(e) for e in eps_f]
-            re_m = [sweep[e]["rel_error_mean"] for e in eps_f]
+            re_m = [_finite_or_nan(sweep[e].get("rel_error_mean")) for e in eps_f]
 
             ax.loglog(eps_fl, re_m, label=styles[name]["label"], **props)
 
@@ -861,7 +916,12 @@ def plot_param_sweep(
     axes[2].set_title(f"G2a — direction accuracy vs {sweep_key}")
     min_cos_sweep = min(all_cosines_sweep) if all_cosines_sweep else 0.0
     if min_cos_sweep > 0.8:
-        axes[2].set_ylim(min(min_cos_sweep, 0.999) - 0.001, 1.001)
+        # Zoom in to surface variation among high cosines, but keep a minimum
+        # window: when every cosine is ≈1.0 a tight band (e.g. [0.998, 1.001])
+        # carves the axis into sub-0.001 gridlines that imply structure which
+        # isn't there. Flooring at 0.95 makes a perfect result read as a line
+        # pinned to the top of a readable band instead.
+        axes[2].set_ylim(min(min_cos_sweep - 0.001, 0.95), 1.005)
     else:
         axes[2].set_ylim(-0.05, 1.05)
     fig_shared_legend(fig, axes)

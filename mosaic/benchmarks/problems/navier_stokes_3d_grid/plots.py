@@ -809,7 +809,9 @@ def _render_recovery_evolution_gifs(
     """
     for j, name in enumerate(solver_names):
         hist_key = f"ic_history_{j}"
-        if hist_key not in npz.files:
+        # ``npz`` is a plain dict from ``try_load_npz`` (not an NpzFile), so
+        # membership is a key check — ``.files`` would AttributeError.
+        if hist_key not in npz:
             continue
         history = np.asarray(npz[hist_key])  # (n_frames, *ic_shape)
         if history.ndim < 2 or history.shape[0] == 0:

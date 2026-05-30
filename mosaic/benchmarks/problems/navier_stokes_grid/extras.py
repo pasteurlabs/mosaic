@@ -95,6 +95,7 @@ def _scaling_impl(out_dir: Path) -> None:
 
     all_els: set[int] = set()
     seen: set[str] = set()
+    fwd_has = vjp_has = ratio_has = False
 
     # ``fwd_data`` / ``vjp_data`` are keyed by spec.name (display form);
     # build an alias→display map so we can iterate NS_ORDER (alias form).
@@ -129,12 +130,14 @@ def _scaling_impl(out_dir: Path) -> None:
             els_f = [_n_to_elements_2d(n) for n in ns_f]
             ax_fwd.loglog(els_f, [fwd_pts[n] for n in ns_f], **kw)
             all_els.update(els_f)
+            fwd_has = True
 
         if vjp_pts:
             ns_v = sorted(vjp_pts)
             els_v = [_n_to_elements_2d(n) for n in ns_v]
             ax_vjp.loglog(els_v, [vjp_pts[n] for n in ns_v], **kw)
             all_els.update(els_v)
+            vjp_has = True
 
         common_ns = sorted(set(fwd_pts) & set(vjp_pts))
         if len(common_ns) >= 2:
@@ -142,10 +145,12 @@ def _scaling_impl(out_dir: Path) -> None:
             ratios = [vjp_pts[n] / fwd_pts[n] for n in common_ns]
             ax_ratio.loglog(els_c, ratios, **kw)
             all_els.update(els_c)
+            ratio_has = True
 
         seen.add(alias)
 
-    ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
+    if ratio_has:
+        ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
 
     ax_fwd.set_title("Forward time")
     ax_vjp.set_title("VJP time")
@@ -185,6 +190,17 @@ def _scaling_impl(out_dir: Path) -> None:
         borderpad=0.5,
         labelspacing=0.3,
     )
+
+    # A log-scaled panel with no plotted data has no positive values and makes
+    # ``savefig`` raise at draw time, dropping the whole figure. Hide empty
+    # panels; bail out entirely if no solver supplied any cost data.
+    for ax, has_data in ((ax_fwd, fwd_has), (ax_vjp, vjp_has), (ax_ratio, ratio_has)):
+        if not has_data:
+            ax.set_visible(False)
+    if not (fwd_has or vjp_has or ratio_has):
+        plt.close(fig)
+        print("[skip] scaling: no cost data to plot")
+        return
 
     out = out_dir / "scaling.png"
     fig.savefig(out)

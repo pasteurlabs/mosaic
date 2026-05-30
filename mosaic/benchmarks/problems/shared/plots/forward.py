@@ -410,6 +410,12 @@ def plot_agreement(
     styles = solver_styles(cfg)
 
     npz = try_load_npz(fields_path)
+    if "sweep_values" not in npz:
+        # No fields.npz (missing / unreadable) — nothing to draw. Fall back to
+        # the result.json-only convergence view so regeneration doesn't crash.
+        print(f"[skip] agreement: no field data at {fields_path}")
+        _agreement_convergence(cfg, exp_key, suffix, save, out_dir)
+        return None
     sweep_vals = npz["sweep_values"].tolist()
     solver_names = npz["solver_names"].tolist()
 
@@ -473,6 +479,11 @@ def plot_forward_fields(
     f2d = _resolve_field_to_2d(field_to_2d)
 
     npz = try_load_npz(fields_path)
+    if "sweep_values" not in npz:
+        # Raw-field plot is purely npz-driven; with no fields.npz there's
+        # nothing to render, so skip instead of KeyError-ing out.
+        print(f"[skip] {exp_key}: no field data at {fields_path}")
+        return None
     sweep_vals = npz["sweep_values"].tolist()
     solver_names = npz["solver_names"].tolist()
 
