@@ -9,9 +9,8 @@ name: Publish benchmark results
 # Release PRs: overlay + upload release-<version> artifact
 
 on:
-  workflow_run:
-    workflows: ["Benchmark"]
-    types: [completed]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
@@ -22,12 +21,9 @@ jobs:
   publish:
     name: Publish to baseline artifact
     runs-on: ubuntu-latest
-    if: >-
-      github.event.workflow_run.conclusion == 'success'
-      && github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Check if PR was merged
-        id: check
+      - name: Find benchmark run for this merge
+        id: find
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -53,39 +49,44 @@ jobs:
             VERSION="${HEAD_BRANCH#bot/release/}"
           fi
 
+          # Find the Benchmark workflow run for this PR's head SHA
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?head_sha=${HEAD_SHA}&status=completed&event=pull_request" \
+            --jq '.workflow_runs | map(select(.conclusion == "success")) | sort_by(.updated_at) | last | .id' 2>/dev/null || true)
+
+          if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
+            echo "No successful Benchmark run found for PR #${PR_NUM} (SHA ${HEAD_SHA}) — skipping"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "PR #${PR_NUM} (release=$IS_RELEASE version=$VERSION) — benchmark run $RUN_ID"
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "is_release=$IS_RELEASE" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          if [[ "$MERGED" == "true" ]]; then
-            echo "PR #${PR_NUM} is merged (release=$IS_RELEASE version=$VERSION) — will publish"
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "PR #${PR_NUM} not merged — skipping"
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v6
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         with:
           token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
 
       - uses: astral-sh/setup-uv@v7
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         with:
           enable-cache: true
 
       - name: Install Mosaic
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Download benchmark artifacts
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RUN_ID="${{ github.event.workflow_run.id }}"
+          RUN_ID="${{ steps.find.outputs.run_id }}"
           echo "Downloading artifacts from workflow run $RUN_ID"
 
           ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
@@ -109,7 +110,7 @@ jobs:
           echo "Downloaded $(echo "$ARTIFACTS" | wc -l | tr -d ' ') artifact(s)"
 
       - name: Merge results from CPU/GPU artifacts
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download current baseline artifact
