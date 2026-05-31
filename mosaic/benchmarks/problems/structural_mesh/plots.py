@@ -32,6 +32,8 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     THERMAL_ORDER,
     dedup_handles,
     make_handle,
+    paper_image_grid,
+    paper_row,
     resolve_solver_alias,
     save_fig,
     solver_props,
@@ -284,11 +286,11 @@ def plot_topopt(
         return fig_c
     solver_names = npz["solver_names"].tolist()
     n_panels = 1 + len(solver_names)
-    fig_f, axes = plt.subplots(1, n_panels, figsize=(n_panels * 3, 3), squeeze=False)
+    fig_f, axes = paper_image_grid(1, n_panels)
 
-    initial_panels = [("Initial ρ", npz["rho_init"])] if "rho_init" in npz else []
+    initial_panels = [(r"Initial $\rho$", npz["rho_init"])] if "rho_init" in npz else []
     panels = initial_panels + [
-        (styles.get(n, {}).get("label", n) + " final", npz[f"rho_final_{j}"])
+        (styles.get(n, {}).get("label", n), npz[f"rho_final_{j}"])
         for j, n in enumerate(solver_names)
         if f"rho_final_{j}" in npz
     ]
@@ -302,12 +304,16 @@ def plot_topopt(
             vmax=1,
             interpolation="nearest",
         )
-        ax.set_title(title, fontsize=8)
+        ax.set_title(title)
         ax.axis("off")
-    if im is not None:
-        plt.colorbar(im, ax=axes[0][-1], fraction=0.04)
-    fig_f.suptitle(f"{cfg.name} — optimised density fields")
+    fig_f.suptitle("Optimised density fields")
     fig_f.tight_layout()
+    if im is not None:
+        # Shared colorbar in its own slim axes so every density panel stays
+        # square and equally sized (no per-panel shrink).
+        fig_f.subplots_adjust(right=0.90)
+        cax = fig_f.add_axes((0.92, 0.18, 0.015, 0.62))
+        fig_f.colorbar(im, cax=cax)
     if save:
         save_fig(fig_f, "topopt_fields", out_dir)
 
@@ -390,7 +396,7 @@ def _plot_topopt_3d(
         )
         fc[..., 3] = alpha
 
-        fig = plt.figure(figsize=(9, 6))
+        fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.62), dpi=300)
         ax = fig.add_subplot(111, projection="3d")
         ax.voxels(filled, facecolors=fc, edgecolor="none")
 
@@ -433,9 +439,9 @@ def _plot_topopt_3d(
             )
             ax.legend(fontsize=8, loc="upper left")
 
-        ax.set_xlabel("x  (length)", labelpad=4)
-        ax.set_ylabel("y  (width)", labelpad=4)
-        ax.set_zlabel("z  (height)", labelpad=4)
+        ax.set_xlabel("$x$  (length)", labelpad=4)
+        ax.set_ylabel("$y$  (width)", labelpad=4)
+        ax.set_zlabel("$z$  (height)", labelpad=4)
         # View from the right-front-top so both the clamped left face and the
         # bottom-front corner load on the right face are simultaneously visible.
         # azim=45 looks from the right side (load corner is on the near face);
@@ -444,10 +450,10 @@ def _plot_topopt_3d(
 
         label = styles.get(name, {}).get("label", name)
         compliance_val = by_solver.get(name, {}).get("final_compliance")
-        title = f"{cfg.name} — {label}\noptimised topology  (ρ > {threshold})"
+        title = rf"{label}  ($\rho > {threshold}$)"
         if compliance_val is not None:
-            title += f"    C = {compliance_val:.4e}"
-        ax.set_title(title, fontsize=9)
+            title += f"\n$C = {compliance_val:.3e}$"
+        ax.set_title(title)
 
         fig.tight_layout()
         save_fig(fig, f"topopt_3d_{name}", out_dir)
@@ -479,7 +485,7 @@ def _render_topopt_evolution_gifs(
         n_frames = int(history.shape[0])
 
         first = _rho_to_2d(history[0], params_all)
-        fig, ax = plt.subplots(figsize=(5, 3.5))
+        fig, ax = paper_row(1)
         im = ax.imshow(
             first,
             origin="lower",
@@ -489,9 +495,8 @@ def _render_topopt_evolution_gifs(
             interpolation="nearest",
         )
         label = styles.get(name, {}).get("label", name)
-        title = ax.set_title(f"{label} — iter 1 / {n_frames}", fontsize=9)
+        title = ax.set_title(f"{label} — iter 1 / {n_frames}")
         ax.axis("off")
-        fig.tight_layout()
 
         def _update(
             idx: Any,

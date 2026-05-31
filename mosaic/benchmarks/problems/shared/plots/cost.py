@@ -13,8 +13,10 @@ import numpy as np
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.problems.shared.plots.style import (
+    RCPARAMS,
     apply_style,
     fig_shared_legend,
+    paper_grid,
     save_fig,
     solver_plot_props,
     solver_styles,
@@ -357,6 +359,7 @@ def plot_cost(
     Row 1 is hidden when no memory data is available.
     Failure markers (OOM ▼, error ◆, NaN ×) with connectors from last ok point.
     """
+    plt.rcParams.update(RCPARAMS)
     suite_dir = results_dir() / cfg.name / _SUITE
 
     loaded, hw_str = _load_cost_inputs(suite_dir, suffix)
@@ -371,11 +374,9 @@ def plot_cost(
 
     styles = solver_styles(cfg)
 
-    fig, axes_grid = plt.subplots(
+    fig, axes_grid = paper_grid(
         2,
         n_cols,
-        figsize=(5 * n_cols, 7),
-        squeeze=False,
     )
 
     failure_types_seen: set[str] = set()
@@ -401,7 +402,7 @@ def plot_cost(
     _add_failure_legend_entries(axes_grid[0, 0], failure_types_seen)
 
     # ── legend, title, hardware footnote ─────────────────────────────────────
-    fig.suptitle(f"{cfg.name} — cost")
+    fig.suptitle("Cost", fontweight="bold")
     fig_shared_legend(fig, axes_grid, bottom=0.16)
 
     if hw_str:

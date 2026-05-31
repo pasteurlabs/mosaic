@@ -25,6 +25,8 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     field_grid,
     fig_shared_legend,
     make_handle,
+    paper_grid,
+    paper_row,
     save_fig,
     solver_plot_props,
     solver_props,
@@ -79,8 +81,9 @@ def _agreement_plot_scalar(
     units: dict | None,
 ) -> Any:
     """Scalar-output agreement: plot the scalar value vs sweep parameter."""
+    plt.rcParams.update(RCPARAMS)
     n_vals = len(sweep_vals)
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = paper_row(1)
     all_y: list[float] = []
     solver_series: list[tuple] = []
     for name in solver_names:
@@ -101,8 +104,7 @@ def _agreement_plot_scalar(
     ax.set_xlabel(unit_label(sweep_key, units))
     ylabel = output_key.replace("_", " ")
     ax.set_ylabel(ylabel)
-    ax.set_title(f"{cfg.name} — {ylabel} vs {sweep_key}")
-    ax.grid(True, alpha=0.3)
+    ax.set_title(ylabel[:1].upper() + ylabel[1:])
     fig_shared_legend(fig, [ax])
     if save:
         save_fig(fig, "curves", out_dir)
@@ -145,15 +147,14 @@ def _agreement_plot_curves(
     agreement_ylabel: str,
 ) -> Any:
     """1-D observable agreement (RDF g(r), P(k), etc.) with residual row."""
+    plt.rcParams.update(RCPARAMS)
     n_vals = len(sweep_vals)
     x = npz["x_axis"] if "x_axis" in npz else np.arange(len(sample_consensus))
-    fig_agr, ax_grid = plt.subplots(
+    fig_agr, ax_grid = paper_grid(
         2,
         n_vals,
-        figsize=(4 * n_vals, 7),
         sharex="col",
         sharey="row",
-        squeeze=False,
     )
     for i, val in enumerate(sweep_vals):
         ax_top = ax_grid[0, i]
@@ -164,7 +165,7 @@ def _agreement_plot_curves(
         if i == 0:
             ax_top.set_ylabel(agreement_ylabel)
             ax_bot.set_ylabel(f"Δ {agreement_ylabel}")
-    fig_agr.suptitle(f"{cfg.name} — agreement ({agreement_ylabel})")
+    fig_agr.suptitle(f"Agreement — {agreement_ylabel}", fontweight="bold")
     fig_shared_legend(fig_agr, list(ax_grid.flat))
     if save:
         save_fig(fig_agr, "curves", out_dir)

@@ -16,19 +16,25 @@ import numpy as np
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.problems.shared.plots.style import (
+    COSINE_DEFECT_YLABEL,
     FEM_ORDER,
     NS_ORDER,
     RCPARAMS,
     SOLVER_STYLES,
     TEXTWIDTH,
     apply_style,
+    cosine_defect,
     dedup_handles,
     field_grid,
     fig_shared_legend,
     grad_magnitude_2d,
     make_handle,
+    paper_grid,
+    paper_image_grid,
+    paper_row,
     resolve_solver_alias,
     save_fig,
+    solver_legend,
     solver_plot_props,
     solver_props,
     solver_styles,
@@ -659,9 +665,7 @@ def _plot_error_per_solver(
     n_cols = min(3, n)
     n_rows = math.ceil(n / n_cols)
 
-    fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), squeeze=False
-    )
+    fig, axes = paper_grid(n_rows, n_cols)
 
     # ε values from the first solver/key entry that actually carries an eps
     # sweep — a failed run may record a step/param entry without one, so we
@@ -715,7 +719,7 @@ def _plot_error_per_solver(
         row, col = divmod(idx, n_cols)
         axes[row][col].set_visible(False)
 
-    fig.suptitle(title_prefix, fontsize=10)
+    fig.suptitle(title_prefix, fontweight="bold")
     fig_shared_legend(fig, axes)
     return fig
 
@@ -764,7 +768,7 @@ def _plot_best_eps_overlay(
     x_scale: str = "linear",
 ) -> plt.Figure:
     """All solvers overlaid: best-ε rel_error_mean vs x_keys."""
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = paper_row(1)
 
     def _best_re(eps_sweep: dict) -> float:
         finite = [
@@ -847,9 +851,7 @@ def _plot_ucurve_overlay(
     n_cols = min(ncols, n_panels)
     n_rows = math.ceil(n_panels / n_cols)
 
-    fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(3.5 * n_cols, 3.0 * n_rows), squeeze=False
-    )
+    fig, axes = paper_grid(n_rows, n_cols)
 
     solver_names = list(by_solver.keys())
 
@@ -874,13 +876,13 @@ def _plot_ucurve_overlay(
 
         ax.set_xlabel("ε")
         ax.set_ylabel("Relative FD error")
-        ax.set_title(f"{sweep_label} = {key}", fontsize=9)
+        ax.set_title(f"{sweep_label} = {key}")
 
     for idx in range(n_panels, n_rows * n_cols):
         row, col = divmod(idx, n_cols)
         axes[row][col].set_visible(False)
 
-    fig.suptitle(title_prefix, fontsize=10)
+    fig.suptitle(title_prefix, fontweight="bold")
     fig_shared_legend(fig, axes)
     return fig
 
@@ -905,42 +907,38 @@ def plot_param_sweep(
     sweep_key = data.get("sweep_key", "param")
 
     # ── summary: grad norm, best-ε rel error, best-ε cosine vs sweep param ───
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    all_cosines_sweep: list[float] = []
+    # House style mirrors horizon_sweep: a TEXTWIDTH 1×3 row, with direction
+    # accuracy shown as 1−cosine on a log axis (a perfect cosine sits at the
+    # floor) rather than a raw cosine squashed against 1.0.
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = paper_row(3)
+    seen: set[str] = set()
     for name, param_results in data["by_solver"].items():
         param_vals = sorted(param_results.keys(), key=float)
         param_f = [float(v) for v in param_vals]
-        norms = [param_results[v]["grad_norm"] for v in param_vals]
+        norms = [_finite_or_nan(param_results[v].get("grad_norm")) for v in param_vals]
         re_mean = _best_eps_series(param_results, param_vals, "rel_error_mean")
         cosines = _best_eps_series(param_results, param_vals, "cosine_mean")
-        all_cosines_sweep.extend(c for c in cosines if np.isfinite(c))
         props = solver_plot_props(styles[name])
+        lbl = styles[name]["label"]
 
-        axes[0].loglog(param_f, norms, label=styles[name]["label"], **props)
-        axes[1].loglog(param_f, re_mean, label=styles[name]["label"], **props)
-        axes[2].semilogx(param_f, cosines, label=styles[name]["label"], **props)
+        axes[0].loglog(param_f, norms, label=lbl, **props)
+        axes[1].loglog(param_f, re_mean, label=lbl, **props)
+        axes[2].loglog(param_f, cosine_defect(cosines), label=lbl, **props)
+        alias = resolve_solver_alias(name)
+        if alias:
+            seen.add(alias)
 
     xlbl = unit_label(sweep_key, units)
-    axes[0].set_xlabel(xlbl)
-    axes[0].set_ylabel("Gradient norm")
-    axes[0].set_title(f"G2a — gradient norm vs {sweep_key}")
-    axes[1].set_xlabel(xlbl)
-    axes[1].set_ylabel("Relative FD error (best ε)")
-    axes[1].set_title(f"G2a — FD error vs {sweep_key}")
-    axes[2].set_xlabel(xlbl)
-    axes[2].set_ylabel("Subspace cosine (best ε)")
-    axes[2].set_title(f"G2a — direction accuracy vs {sweep_key}")
-    min_cos_sweep = min(all_cosines_sweep) if all_cosines_sweep else 0.0
-    if min_cos_sweep > 0.8:
-        # Zoom in to surface variation among high cosines, but keep a minimum
-        # window: when every cosine is ≈1.0 a tight band (e.g. [0.998, 1.001])
-        # carves the axis into sub-0.001 gridlines that imply structure which
-        # isn't there. Flooring at 0.95 makes a perfect result read as a line
-        # pinned to the top of a readable band instead.
-        axes[2].set_ylim(min(min_cos_sweep - 0.001, 0.95), 1.005)
-    else:
-        axes[2].set_ylim(-0.05, 1.05)
-    fig_shared_legend(fig, axes)
+    for ax in axes:
+        ax.set_xlabel(xlbl)
+    axes[0].set_ylabel(r"$\|\nabla\mathcal{L}\|$")
+    axes[0].set_title("Gradient norm")
+    axes[1].set_ylabel("Relative FD error")
+    axes[1].set_title("FD error (best $\\varepsilon$)")
+    axes[2].set_ylabel(COSINE_DEFECT_YLABEL)
+    axes[2].set_title("Direction accuracy (best $\\varepsilon$)")
+    solver_legend(fig, seen)
     if save:
         save_fig(fig, "param_sweep", out_dir)
 
@@ -951,7 +949,7 @@ def plot_param_sweep(
         param_vals,
         sweep_key,
         styles,
-        f"{cfg.name} — G2a ε U-curves ({sweep_key} sweep)",
+        "ε U-curves",
         ncols=len(param_vals),
     )
     if save:
@@ -961,7 +959,7 @@ def plot_param_sweep(
     fig_s = _plot_error_per_solver(
         data["by_solver"],
         styles,
-        f"{cfg.name} — G2a FD error vs {sweep_key} (per solver)",
+        "FD error per solver",
         x_keys=param_vals,
         x_to_float=float,
         x_label=sweep_key,
@@ -974,7 +972,7 @@ def plot_param_sweep(
     fig_b = _plot_best_eps_overlay(
         data["by_solver"],
         styles,
-        f"{cfg.name} — G2a best-ε FD error vs {sweep_key}",
+        "Best-ε FD error",
         x_keys=param_vals,
         x_to_float=float,
         x_label=sweep_key,
@@ -1033,7 +1031,7 @@ def plot_jacobian_svd(
     )
 
     if _scalar_output:
-        fig_bar, ax = plt.subplots(figsize=(6, 4))
+        fig_bar, ax = paper_row(1)
         names = list(per_solver_grad_norm or per_solver_spectra)
         norms = [per_solver_grad_norm.get(n, float("nan")) for n in names]
         colors = [styles.get(n, {}).get("color", "#888888") for n in names]
@@ -1042,7 +1040,7 @@ def plot_jacobian_svd(
         ax.set_xticks(range(len(names)))
         ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=9)
         ax.set_ylabel("‖∇L‖  (gradient norm)")
-        ax.set_title(f"{cfg.name} — G3 per-solver gradient norm")
+        ax.set_title("Per-solver gradient norm")
         ax.set_yscale("log")
         ax.grid(True, axis="y", alpha=0.3)
         fig_bar.tight_layout()
@@ -1052,7 +1050,7 @@ def plot_jacobian_svd(
             fig_c = fig_bar
 
     # ── Cross-solver cosine similarity heatmap ───────────────────────────────
-    fig_h, ax = plt.subplots(figsize=(6, 5))
+    fig_h, ax = paper_image_grid(1, 1, panel=TEXTWIDTH * 0.6, squeeze=True)
     n = len(solver_names)
     im = ax.imshow(cross_cos, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
     ax.set_xticks(range(n))
@@ -1060,7 +1058,7 @@ def plot_jacobian_svd(
     short_labels = [styles.get(s, {}).get("label", s) for s in solver_names]
     ax.set_xticklabels(short_labels, rotation=45, ha="right", fontsize=9)
     ax.set_yticklabels(short_labels, fontsize=9)
-    ax.set_title(f"{cfg.name} — G3 cross-solver cosine similarity")
+    ax.set_title("Cross-solver cosine similarity")
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig_h.tight_layout()
     if save:
@@ -1182,7 +1180,7 @@ def plot_horizon_sweep(
         step_keys,
         "steps",
         styles,
-        f"{cfg.name} — G2c ε U-curves (horizon sweep)",
+        "ε U-curves",
         ncols=4,
     )
     if save:
@@ -1192,7 +1190,7 @@ def plot_horizon_sweep(
     fig_s = _plot_error_per_solver(
         data["by_solver"],
         styles,
-        f"{cfg.name} — G2c FD error vs horizon (per solver)",
+        "FD error per solver",
         x_keys=step_keys,
         x_to_float=int,
         x_label="Steps (horizon)",
@@ -1204,7 +1202,7 @@ def plot_horizon_sweep(
     fig_b = _plot_best_eps_overlay(
         data["by_solver"],
         styles,
-        f"{cfg.name} — G2c best-ε FD error vs horizon",
+        "Best-ε FD error",
         x_keys=step_keys,
         x_to_float=int,
         x_label="Steps (horizon)",
@@ -1236,7 +1234,7 @@ def plot_horizon_sweep(
         lbl = styles.get(name, {}).get("label", name)
         fig_g = field_grid(
             panels,
-            f"{cfg.name} — G2c ∂L/∂IC magnitude | {lbl}",
+            f"∂L/∂IC magnitude — {lbl}",
             shared_scale=True,
             symmetric=False,
             ncols=len(panels),
@@ -1308,9 +1306,7 @@ def plot_jacobian_svd_comparison(
     ncols = min(3, n_solvers)
     nrows = math.ceil(n_solvers / ncols)
 
-    fig, axes = plt.subplots(
-        nrows, ncols, figsize=(5 * ncols, 3.5 * nrows), squeeze=False
-    )
+    fig, axes = paper_grid(nrows, ncols)
 
     for idx, solver in enumerate(all_solvers):
         ax = axes[idx // ncols][idx % ncols]
@@ -1352,10 +1348,7 @@ def plot_jacobian_svd_comparison(
     for idx in range(n_solvers, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
-    fig.suptitle(
-        f"{cfg.name} — Jacobian SVD: per-solver spectra comparison", fontsize=11
-    )
-    fig.tight_layout()
+    fig.suptitle("Jacobian SVD spectra", fontweight="bold")
 
     if save:
         out_dir = results_dir() / cfg.name / _SUITE

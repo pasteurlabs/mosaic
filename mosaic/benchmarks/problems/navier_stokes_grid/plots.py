@@ -30,6 +30,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     dedup_handles,
     imshow_with_cbar,
     make_handle,
+    paper_image_grid,
     resolve_solver_alias,
     save_fig,
     solver_props,
@@ -387,9 +388,7 @@ def _plot_drag_opt_fields(
     all_rows = ["__initial__", *solver_names_clean]
     n_rows = len(all_rows)
     ncols = 2
-    fig_fld, axes_fld = plt.subplots(
-        n_rows, ncols, figsize=(ncols * 3.5, n_rows * 3.0), squeeze=False
-    )
+    fig_fld, axes_fld = paper_image_grid(n_rows, ncols)
 
     # Compute shared colour scales from the initial flow so all panels are comparable.
     flow_init = npz.get("flow_initial")
@@ -423,7 +422,7 @@ def _plot_drag_opt_fields(
                 interpolation="nearest",
             )
             if row_idx == 0:
-                ax.set_title(col_title, fontsize=10, fontweight="bold")
+                ax.set_title(col_title, fontweight="bold")
             ax.axis("off")
 
         # Row label as text overlaid on the left side of the first column.
@@ -476,10 +475,7 @@ def _plot_drag_opt_fields(
             label += "\n[NOT CONVERGED]"
         _render_row(i + 1, label, field, converged)
 
-    fig_fld.suptitle(
-        f"{run_name or 'drag_opt'} — optimised flow fields ($u_x$ | $u_y$)",
-        y=1.01,
-    )
+    fig_fld.suptitle("Optimised flow fields", fontweight="bold")
     fig_fld.tight_layout()
     if save:
         save_fig(fig_fld, "drag_opt_fields", out_dir)
@@ -530,19 +526,19 @@ def _render_drag_opt_evolution_gifs(
         color = sty.get("color", "#3366CC")
         label = sty.get("label", name)
 
-        fig, ax = plt.subplots(figsize=(4.5, 4.5))
+        fig, axes = paper_image_grid(1, 1)
+        ax = axes[0, 0]
         ax.plot(initial, y, "k--", lw=1.4, label="initial")
         (line,) = ax.plot(hist[0], y, color=color, lw=2.0, label=label)
         ax.set_xlim(xlo, xhi)
         ax.set_ylim(0.0, 1.0)
-        ax.set_xlabel("u_x")
-        ax.set_ylabel("y")
+        ax.set_xlabel(r"$u_x$")
+        ax.set_ylabel("$y$")
         title = ax.set_title(
             f"{label} — snapshot 1 / {n_frames}"
-            + (f"  ({run_name})" if run_name else ""),
-            fontsize=9,
+            + (f"  ({run_name})" if run_name else "")
         )
-        ax.legend(fontsize=8, loc="best")
+        ax.legend(loc="best")
         fig.tight_layout()
 
         def _update(

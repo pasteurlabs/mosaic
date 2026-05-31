@@ -13,8 +13,11 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.problems.shared.plots.style import (
+    RCPARAMS,
+    TEXTWIDTH,
     apply_style,
     imshow_with_cbar,
+    paper_image_grid,
     save_fig,
     vorticity_2d,
 )
@@ -44,12 +47,13 @@ def plot_ic(
     The IC description is read off ``make_ic[ic_name].description`` when
     ``make_ic`` is provided (else falls back to ``""``).
     """
+    plt.rcParams.update(RCPARAMS)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     to_2d = ic_to_2d or field_to_2d or vorticity_2d
 
-    fig, ax = plt.subplots(1, 1, figsize=(4.5, 4.0))
+    fig, ax = paper_image_grid(1, 1, panel=TEXTWIDTH * 0.5, squeeze=True)
 
     try:
         arr2d = np.asarray(to_2d(ic), dtype=np.float32)
@@ -90,6 +94,6 @@ def plot_ic(
     if desc:
         # Wrap long descriptions onto a second line
         title_parts.append(desc)
-    ax.set_title("\n".join(title_parts), fontsize=9, wrap=True)
+    ax.set_title("\n".join(title_parts), wrap=True)
 
     save_fig(fig, "ic", out_dir)

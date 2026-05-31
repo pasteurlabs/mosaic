@@ -27,10 +27,13 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     STRUCTURAL_ORDER,
     TEXTWIDTH,
     THERMAL_ORDER,
+    apply_style,
     dedup_handles,
     fig_shared_legend,
     imshow_with_cbar,
     make_handle,
+    paper_image_grid,
+    paper_row,
     resolve_solver_alias,
     save_fig,
     solver_plot_props,
@@ -122,8 +125,10 @@ def _plot_recovery_summary(
     save: bool,
 ):
     """Build ``recovery.png``: IC recovery improvement + min loss vs sweep."""
-    fig_r, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+    apply_style()
+    fig_r, (ax1, ax2) = paper_row(2)
 
+    loss_plotted = False
     for name, s_results in by_sweep.items():
         sty = styles.get(name, {})
         xs_ic, ys_ic = [], []
@@ -146,26 +151,28 @@ def _plot_recovery_summary(
             ax1.plot(
                 xs_ic, ys_ic, label=sty.get("label", name), **solver_plot_props(sty)
             )
-        if xs_loss:
+        # Need at least one positive value for the log axis, else savefig raises.
+        if xs_loss and any(y > 0 for y in ys_loss):
             ax2.semilogy(
                 xs_loss, ys_loss, label=sty.get("label", name), **solver_plot_props(sty)
             )
+            loss_plotted = True
+
+    if not loss_plotted:
+        ax2.set_yscale("linear")
 
     ax1.axhline(0, color="gray", ls="--", lw=1, alpha=0.5)
     ax1.axhline(-1, color="gray", ls=":", lw=1, alpha=0.4)
     ax1.set_xlabel(sweep_key)
-    ax1.set_ylabel("Normalised Δ IC error  (final − init) / init")
-    ax1.set_title(
-        f"IC recovery improvement vs {sweep_key}\n(−1 = perfect, 0 = no gain)"
-    )
+    ax1.set_ylabel(r"$\Delta$ IC error  (final $-$ init) / init")
+    ax1.set_title("IC recovery")
     ax1.grid(True, which="both", alpha=0.3)
 
     ax2.set_xlabel(sweep_key)
     ax2.set_ylabel("Min loss (MSE)")
-    ax2.set_title(f"Minimum achieved loss vs {sweep_key}")
+    ax2.set_title("Minimum loss")
     ax2.grid(True, which="both", alpha=0.3)
 
-    fig_r.suptitle(f"{cfg.name} — recovery")
     fig_shared_legend(fig_r, [ax1])
     if save:
         save_fig(fig_r, "optimization", out_dir)
@@ -276,11 +283,10 @@ def _plot_ic_field_comparison(
     save: bool,
 ) -> None:
     """Per-solver row of: true | perturbed | recovered | residual."""
+    apply_style()
     n_solvers = len(solver_names)
     ncols = 4
-    fig_fld, axes_fld = plt.subplots(
-        n_solvers, ncols, figsize=(ncols * 2.6, n_solvers * 2.6), squeeze=False
-    )
+    fig_fld, axes_fld = paper_image_grid(n_solvers, ncols)
 
     w_true = f_ic(ic_true)
     w_init = f_ic(ic_init)
@@ -313,13 +319,15 @@ def _plot_ic_field_comparison(
             v_use = np.abs(arr).max() if v is None else v
             _imshow_panel(ax, fig_fld, arr, v_use, cmap=cm)
             if j == 0:
-                ax.set_title(title)
+                ax.set_title(title, fontsize=7)
             if col == 0:
-                ax.set_ylabel(lbl, fontsize=8)
+                ax.set_ylabel(lbl, fontsize=7)
             ax.axis("off")
 
     fig_fld.suptitle(
-        f"{cfg.name} — IC recovery fields ({sweep_key}={rep_horizon_str})", y=1.01
+        f"IC recovery fields ({sweep_key}$=${rep_horizon_str})",
+        y=1.01,
+        fontweight="bold",
     )
     fig_fld.tight_layout()
     if save:
@@ -342,9 +350,8 @@ def _plot_final_state_comparison(
     has_final = any(f"final_gt_{j}" in npz for j in range(n_solvers))
     if not has_final:
         return
-    fig_fin, axes_fin = plt.subplots(
-        n_solvers, 3, figsize=(3 * 2.6, n_solvers * 2.6), squeeze=False
-    )
+    apply_style()
+    fig_fin, axes_fin = paper_image_grid(n_solvers, 3)
     for j, name in enumerate(solver_names):
         gt_key = f"final_gt_{j}"
         rec_key = f"final_rec_{j}"
@@ -371,12 +378,14 @@ def _plot_final_state_comparison(
             v_use = np.abs(arr).max() if v is None else v
             _imshow_panel(ax, fig_fin, arr, v_use)
             if j == 0:
-                ax.set_title(title)
+                ax.set_title(title, fontsize=7)
             if col == 0:
-                ax.set_ylabel(f"{lbl}\n({sweep_key}={fin_val})", fontsize=8)
+                ax.set_ylabel(f"{lbl}\n({sweep_key}={fin_val})", fontsize=7)
             ax.axis("off")
     fig_fin.suptitle(
-        f"{cfg.name} — final state comparison (best converged {sweep_key})", y=1.01
+        "Final state comparison",
+        y=1.01,
+        fontweight="bold",
     )
     fig_fin.tight_layout()
     if save:
@@ -426,9 +435,9 @@ def _draw_per_sigma_row(
         v_use = vmax_p if vmax_p else np.abs(arr).max() or 1.0
         _imshow_panel(ax, fig_sg, arr, v_use)
         if j == 0:
-            ax.set_title(col_titles[col])
+            ax.set_title(col_titles[col], fontsize=7)
         if col == 0:
-            ax.set_ylabel(lbl, fontsize=8)
+            ax.set_ylabel(lbl, fontsize=7)
         ax.axis("off")
 
 
@@ -463,16 +472,12 @@ def _plot_per_sigma_grid(
     ]
     vmax_ic = np.abs(w_ic_true).max() or 1.0
     vmax_fin = np.abs(w_final_true).max() if w_final_true is not None else 1.0
+    apply_style()
     for si, sv in enumerate(sweep_vals_arr):
         w_ic_pert = (
             f_vis(ic_perturbed_all[si]) if ic_perturbed_all is not None else None
         )
-        fig_sg, axes_sg = plt.subplots(
-            n_solvers,
-            ncols,
-            figsize=(ncols * 2.6, n_solvers * 2.6),
-            squeeze=False,
-        )
+        fig_sg, axes_sg = paper_image_grid(n_solvers, ncols)
         shared = {
             "w_ic_true": w_ic_true,
             "w_ic_pert": w_ic_pert,
@@ -494,7 +499,9 @@ def _plot_per_sigma_grid(
                 shared,
             )
         sv_str = f"{sv:.2g}".rstrip("0").rstrip(".")
-        fig_sg.suptitle(f"{cfg.name} — {sweep_key}={sv_str} · all solvers", y=1.01)
+        fig_sg.suptitle(
+            f"All solvers ({sweep_key}$=${sv_str})", y=1.01, fontweight="bold"
+        )
         fig_sg.tight_layout()
         if save:
             save_fig(fig_sg, f"recovery_sigma_{sv_str}", out_dir)
@@ -624,6 +631,11 @@ def _plot_recovery_experiment(
         ax.set_ylabel("Error" if error_key == "errors" else "Loss")
         ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
+
+    if not seen:
+        # No curve drawn (e.g. all solvers lacked finite errors) — an empty
+        # log-scaled axis makes savefig raise, so drop back to a linear axis.
+        ax.set_yscale("linear")
 
     handles = dedup_handles([make_handle(s) for s in solver_order if s in seen])
     if handles:
@@ -824,7 +836,8 @@ def _render_recovery_evolution_gifs(
         vmax = float(max(np.abs(arr).max() for arr in frames_2d)) or 1.0
 
         label = styles.get(name, {}).get("label", name)
-        fig, ax = plt.subplots(figsize=(5, 4))
+        apply_style()
+        fig, ax = paper_image_grid(1, 1, squeeze=True)
         im = ax.imshow(
             frames_2d[0].T,
             origin="lower",
