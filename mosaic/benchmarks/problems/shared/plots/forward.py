@@ -28,6 +28,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     paper_grid,
     paper_row,
     save_fig,
+    solver_legend,
     solver_plot_props,
     solver_props,
     solver_styles,
@@ -624,8 +625,9 @@ def _pa_plot_ns_row(
     cfg: Any,
     ns_seen: set[str],
     row_is_top: bool,
+    show_row_label: bool = True,
 ) -> None:
-    """Render one row of the 3×3 NS grid for a single sweep (3 metrics)."""
+    """Render one row of the NS metric grid for a single sweep (3 metrics)."""
     by_param = data["by_param"]
     params = sorted(by_param.keys(), key=float)
     phys = data.get("params", {}).get("physics", {})
@@ -691,58 +693,50 @@ def _pa_plot_ns_row(
 
         if row_is_top:
             ax.set_title(metric_label)
-        if col == 0:
+        if col == 0 and show_row_label:
             ax.set_ylabel(_PA_ROW_LABELS[sweep_key], fontsize=9)
         ax.set_xlabel(_PA_SWEEP_XLABELS[sweep_key])
 
         _pa_set_axis_ticks(ax, x_all, log_x, log_y, is_elements=use_elements)
 
 
-def _pa_plot_ns_grid(
+def _pa_plot_ns_per_sweep(
     cfg: Any,
     sweeps_data: dict[str, dict],
     domain_title: str,
-    out_path: Path | None,
-) -> plt.Figure:
-    """3×3 NS grid: rows=sweep (vs_N, vs_nu, vs_steps), cols=metrics."""
-    fig, axes = plt.subplots(3, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.85))
-    fig.suptitle(domain_title, fontsize=9, fontweight="bold", y=1.02)
-    fig.subplots_adjust(bottom=0.22, wspace=0.35, hspace=0.55)
+    out_dir: Path | None,
+) -> plt.Figure | None:
+    """One figure per sweep axis: a 1×3 metric row (vs_N / vs_nu / vs_steps).
 
-    ns_seen: set[str] = set()
-
-    for row, (sweep_key, log_x, use_elements) in enumerate(_PA_SWEEPS):
+    Each sweep gets its own ``physical_accuracy_<sweep>.png`` so the panels are
+    full-width and legible rather than packed into a single cramped 3×3 grid.
+    """
+    last_fig: plt.Figure | None = None
+    for sweep_key, log_x, use_elements in _PA_SWEEPS:
         data = sweeps_data.get(sweep_key)
         if data is None:
-            for col in range(3):
-                axes[row, col].set_visible(False)
             continue
+        fig, axes = paper_row(3)
+        ns_seen: set[str] = set()
         _pa_plot_ns_row(
-            axes[row],
+            axes,
             sweep_key,
             log_x,
             use_elements,
             data,
             cfg,
             ns_seen,
-            row_is_top=(row == 0),
+            row_is_top=True,
+            show_row_label=False,
         )
-
-    handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.0),
-        ncol=6,
-        fontsize=7.5,
-        framealpha=0.7,
-        handlelength=2.0,
-    )
-
-    if out_path is not None:
-        fig.savefig(out_path)
-        print(f"Saved {out_path}")
-    return fig
+        fig.suptitle(f"{domain_title} — {_PA_ROW_LABELS[sweep_key]}", fontweight="bold")
+        solver_legend(fig, ns_seen, order=NS_ORDER)
+        if out_dir is not None:
+            out = out_dir / f"physical_accuracy_{sweep_key}.png"
+            fig.savefig(out)
+            print(f"Saved {out}")
+        last_fig = fig
+    return last_fig
 
 
 def _pa_plot_fem_single(
@@ -879,8 +873,7 @@ def plot_physical_laws(
             ),
             (sweep_key, True, sweep_key == "vs_N"),
         )
-        fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.32))
-        fig.subplots_adjust(bottom=0.32, wspace=0.45)
+        fig, axes = paper_row(3)
         ns_seen: set[str] = set()
         _pa_plot_ns_row(
             axes,
@@ -891,18 +884,9 @@ def plot_physical_laws(
             cfg,
             ns_seen,
             row_is_top=True,
+            show_row_label=False,
         )
-        handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
-        if handles:
-            fig.legend(
-                handles=handles,
-                loc="lower center",
-                bbox_to_anchor=(0.5, 0.0),
-                ncol=min(len(handles), 6),
-                fontsize=7.0,
-                framealpha=0.7,
-                handlelength=2.0,
-            )
+        solver_legend(fig, ns_seen, order=NS_ORDER)
         if save:
             out = out_dir / "physical_accuracy.png"
             fig.savefig(out)
@@ -925,9 +909,9 @@ def plot_physical_laws(
         (t for n, t in _PA_NS_DOMAINS if n == cfg.name),
         f"{cfg.category_label or cfg.name} — physical accuracy",
     )
-    return _pa_plot_ns_grid(
+    return _pa_plot_ns_per_sweep(
         cfg,
         sweeps_data,
         title,
-        out_dir / "physical_accuracy.png" if save else None,
+        out_dir if save else None,
     )

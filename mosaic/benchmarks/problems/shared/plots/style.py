@@ -326,6 +326,9 @@ def fig_shared_legend(
 ROW_ASPECT = 0.42
 # Per-row height (inches) for multi-row line grids.
 GRID_ROW_H = 1.7
+# Min per-column width (inches) for line grids — grids wider than TEXTWIDTH/this
+# many columns grow past TEXTWIDTH so panels don't collapse to zero size.
+GRID_COL_W = 1.35
 # Per-panel size (inches) for image / field grids (≈ TEXTWIDTH at 3–4 cols).
 IMG_PANEL = 1.45
 # Floor for ``1 − cosine`` so a perfect cosine still plots on a log axis.
@@ -372,15 +375,17 @@ def paper_grid(
     squeeze: bool = False,
     **kwargs: Any,
 ) -> tuple[Figure, Any]:
-    """TEXTWIDTH-wide grid of line-plot panels; height scales with *nrows*.
+    """Grid of line-plot panels; height scales with *nrows*.
 
-    For per-solver / per-sweep-value curve grids. Hide any padding panels via
-    ``ax.set_visible(False)``.
+    TEXTWIDTH wide for up to ~4 columns; wider beyond that so panels don't
+    collapse to zero size (which disables constrained layout). For per-solver /
+    per-sweep-value curve grids. Hide padding panels via ``ax.set_visible(False)``.
     """
+    width = max(TEXTWIDTH, ncols * GRID_COL_W)
     return plt.subplots(
         nrows,
         ncols,
-        figsize=(TEXTWIDTH, row_h * nrows + 0.4),
+        figsize=(width, row_h * nrows + 0.4),
         dpi=dpi,
         squeeze=squeeze,
         layout="constrained",
