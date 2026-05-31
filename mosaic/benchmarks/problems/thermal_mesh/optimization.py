@@ -20,14 +20,10 @@ from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
+from tesseract_jax import apply_tesseract
 
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import save_npz_merged
-
-# JAX-traced loss_fn closures capture this reference at trace time;
-# using the tracer-aware wrapper ensures primitive binding sees the
-# active trace.
-from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
 

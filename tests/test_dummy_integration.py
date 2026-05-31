@@ -105,14 +105,14 @@ def test_forward_baseline_runs_with_dummy(ns_grid_tags, tmp_path, monkeypatch):
         physics={"N": [4, 8], "nu": 0.05, "dt": 0.01, "steps": 1},
     )
     result = cfg.experiments["forward/dummy_baseline"].fn(cfg, tags)
-    assert "by_param" in result
-    assert "spread" in result
-    assert result["by_param"]
+    assert "results" in result
+    assert "extras" in result
+    assert result["results"]
     # Result.json should have been written.
     json_path = tmp_path / "ns-grid" / "forward" / "dummy_baseline" / "result.json"
     assert json_path.exists()
     on_disk = json.loads(json_path.read_text())
-    assert "by_param" in on_disk
+    assert "results" in on_disk
 
 
 def test_structural_mesh_forward_runs_with_dummy(
@@ -142,15 +142,15 @@ def test_structural_mesh_forward_runs_with_dummy(
         },
     )
     result = cfg.experiments["forward/dummy_baseline"].fn(cfg, tags)
-    assert "by_param" in result
-    assert "spread" in result
-    assert result["by_param"]
+    assert "results" in result
+    assert "extras" in result
+    assert result["results"]
     json_path = (
         tmp_path / "structural-mesh" / "forward" / "dummy_baseline" / "result.json"
     )
     assert json_path.exists()
     on_disk = json.loads(json_path.read_text())
-    assert "by_param" in on_disk
+    assert "results" in on_disk
 
 
 def test_thermal_mesh_forward_runs_with_dummy(thermal_mesh_tags, tmp_path, monkeypatch):
@@ -176,13 +176,13 @@ def test_thermal_mesh_forward_runs_with_dummy(thermal_mesh_tags, tmp_path, monke
         },
     )
     result = cfg.experiments["forward/dummy_baseline"].fn(cfg, tags)
-    assert "by_param" in result
-    assert "spread" in result
-    assert result["by_param"]
+    assert "results" in result
+    assert "extras" in result
+    assert result["results"]
     json_path = tmp_path / "thermal-mesh" / "forward" / "dummy_baseline" / "result.json"
     assert json_path.exists()
     on_disk = json.loads(json_path.read_text())
-    assert "by_param" in on_disk
+    assert "results" in on_disk
 
 
 # ── Every-experiment parametrized smoke test ─────────────────────────────────

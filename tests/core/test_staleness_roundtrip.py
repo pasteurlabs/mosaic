@@ -160,10 +160,20 @@ class HarnessRoundtripTests(_StalenessRoundtripBase):
 
     def _save_once(self, fn) -> None:
         result = {
-            "params": {},
-            "by_solver": {
-                self.solver: {"error": 0.01, "valid": True},
+            "schema_version": 1,
+            "experiment": {
+                "domain": self.cfg.name,
+                "suite": "forward",
+                "name": "baseline",
             },
+            "params": {},
+            "results": [
+                {
+                    "solver": self.solver,
+                    "sweep_value": None,
+                    "metrics": {"error": 0.01, "valid": True},
+                },
+            ],
         }
         save_experiment(result, self.exp_dir, cfg=self.cfg, harness_fn=fn)
 
@@ -385,8 +395,20 @@ class TesseractRoundtripTests(_StalenessRoundtripBase):
 
     def _save_once(self) -> None:
         result = {
+            "schema_version": 1,
+            "experiment": {
+                "domain": self.cfg.name,
+                "suite": "forward",
+                "name": "baseline",
+            },
             "params": {},
-            "by_solver": {self.solver: {"error": 0.01, "valid": True}},
+            "results": [
+                {
+                    "solver": self.solver,
+                    "sweep_value": None,
+                    "metrics": {"error": 0.01, "valid": True},
+                },
+            ],
         }
         save_experiment(result, self.exp_dir, cfg=self.cfg, harness_fn=self.harness_fn)
 

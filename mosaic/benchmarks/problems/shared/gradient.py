@@ -27,6 +27,7 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
+from tesseract_jax import apply_tesseract
 
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.experiment import (
@@ -37,10 +38,6 @@ from mosaic.benchmarks.core.experiment import (
 )
 from mosaic.benchmarks.core.io import save_field_snapshots_npz, try_load_npz
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
-
-# JAX-traced closures capture this reference at trace time; using the
-# tracer-aware wrapper ensures primitive binding sees the active trace.
-from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 
 # ── Science primitives ───────────────────────────────────────────────────────
 

@@ -52,6 +52,14 @@ class TestTrimmedMean:
         plain = jnp.stack(arrays).mean(axis=0)
         assert float(result[0]) < float(plain[0])
 
+    def test_near_identical_scalars_no_zero_collapse(self):
+        # 4 near-identical scalars where quantile interpolation pushes the
+        # lo/hi bracket outside all discrete values. Without the fallback
+        # the mask is all-false and the result collapses to 0.
+        arrays = [jnp.array(v) for v in [0.003665, 0.003665, 0.003681, 0.003665]]
+        result = trimmed_mean(arrays)
+        assert float(result) > 0.003, f"Expected ~0.00367, got {float(result)}"
+
     def test_empty_list_raises(self):
         with pytest.raises(ValueError):
             trimmed_mean([])

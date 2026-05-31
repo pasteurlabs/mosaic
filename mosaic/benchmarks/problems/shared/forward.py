@@ -33,6 +33,7 @@ from mosaic.benchmarks.core.io import (
     save_csv,
     save_field_snapshots_npz,
 )
+from mosaic.benchmarks.core.reference import load_reference
 from mosaic.benchmarks.core.runner import (
     get_last_apply_error,
     safe_apply,
@@ -179,6 +180,8 @@ def _agreement_aggregate(
     # Collect per-(solver, sweep_value) results
     flat_results: list[dict] = []
 
+    exp_key = _kw.get("exp_key", "agreement")
+
     for i, val in enumerate(sweep_values):
         comparable = outputs_per_val.get(val, {})
         for n, arr in comparable.items():
@@ -186,10 +189,15 @@ def _agreement_aggregate(
 
         has_analytic = analytic_fn is not None and "obstacle" not in phys
         has_ref_solver = reference_solver is not None and reference_solver in comparable
+        precomputed = load_reference(cfg.name, exp_key, i)
+        has_precomputed = precomputed is not None
 
-        if (len(comparable) < 2 and not has_analytic and not has_ref_solver) or len(
-            comparable
-        ) == 0:
+        if len(comparable) == 0 or (
+            len(comparable) < 2
+            and not has_analytic
+            and not has_ref_solver
+            and not has_precomputed
+        ):
             for n in solver_names:
                 flat_results.append(
                     {
@@ -221,6 +229,9 @@ def _agreement_aggregate(
         elif has_ref_solver:
             reference = np.asarray(comparable[reference_solver])
             reference_label = f"solver:{reference_solver}"
+        elif has_precomputed:
+            reference = precomputed
+            reference_label = "precomputed"
         else:
             reference = trimmed_mean(list(comparable.values()))
             reference_label = "consensus"
@@ -284,7 +295,7 @@ def _agreement_aggregate(
     return _build_result_envelope(
         cfg=cfg,
         suite=_SUITE,
-        exp_key=_kw.get("exp_key", "agreement"),
+        exp_key=exp_key,
         run=run,
         sweep_key=sweep_key,
         sweep_values=sweep_values,

@@ -69,8 +69,6 @@ jobs:
 
       - uses: actions/checkout@v6
         if: steps.find.outputs.should_publish == 'true'
-        with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
 
       - uses: astral-sh/setup-uv@v7
         if: steps.find.outputs.should_publish == 'true'
@@ -114,7 +112,7 @@ jobs:
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download current baseline artifact
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         uses: actions/download-artifact@v8
         with:
           name: baseline
@@ -122,7 +120,7 @@ jobs:
         continue-on-error: true
 
       - name: Overlay onto baseline
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: |
           if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
             echo "Overlaying PR results onto baseline"
@@ -135,13 +133,13 @@ jobs:
           fi
 
       - name: Generate snapshot and status report
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: |
           uv run mosaic status --format json > mosaic-results/snapshot.json
           uv run mosaic status --format md > mosaic-results/status-report.md
 
       - name: Strip derived files from baseline
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: |
           # Remove derived files that are regenerated at docs-build time
           find mosaic-results/ -name "*.png" -delete 2>/dev/null || true
@@ -152,7 +150,7 @@ jobs:
           echo "Stripped derived files from baseline"
 
       - name: Upload baseline artifact
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: baseline
@@ -162,11 +160,11 @@ jobs:
 
       - name: Upload release artifact
         if: >-
-          steps.check.outputs.should_publish == 'true'
-          && steps.check.outputs.is_release == 'true'
+          steps.find.outputs.should_publish == 'true'
+          && steps.find.outputs.is_release == 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: release-${{ steps.check.outputs.version }}
+          name: release-${{ steps.find.outputs.version }}
           path: mosaic-results/
           retention-days: 400
 
@@ -175,8 +173,8 @@ jobs:
       # fetch the artifact and rebuild the docs site.
       - name: Trigger RTD build (latest)
         if: >-
-          steps.check.outputs.should_publish == 'true'
-          && steps.check.outputs.is_release != 'true'
+          steps.find.outputs.should_publish == 'true'
+          && steps.find.outputs.is_release != 'true'
         env:
           RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
           RTD_PROJECT: ${{ vars.RTD_PROJECT }}
@@ -184,8 +182,8 @@ jobs:
 
       - name: Trigger RTD build (release)
         if: >-
-          steps.check.outputs.should_publish == 'true'
-          && steps.check.outputs.is_release == 'true'
+          steps.find.outputs.should_publish == 'true'
+          && steps.find.outputs.is_release == 'true'
         env:
           RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
           RTD_PROJECT: ${{ vars.RTD_PROJECT }}
