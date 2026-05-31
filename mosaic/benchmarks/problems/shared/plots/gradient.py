@@ -1183,15 +1183,12 @@ def plot_jacobian_svd_comparison(
         solver_style = styles.get(solver, {})
         color = solver_style.get("color", "#888888")
         label_base = solver_style.get("label", solver)
-        ann_lines: list[str] = []
 
         for vi, (exp_key, data) in enumerate(variants):
             spectra = data.get("per_solver_spectra", {})
             if solver not in spectra:
                 continue
             spec = spectra[solver]
-            er = data.get("per_solver_eff_rank", {}).get(solver, float("nan"))
-            cond = data.get("per_solver_cond", {}).get(solver, float("nan"))
             var_label = _VARIANT_LABELS.get(exp_key, exp_key)
             vstyle = _VARIANT_STYLES[vi % len(_VARIANT_STYLES)]
             n_modes = len(spec)
@@ -1205,7 +1202,6 @@ def plot_jacobian_svd_comparison(
                 markersize=4 if marker else 0,
                 linewidth=1.5,
             )
-            ann_lines.append(f"{var_label}  r={er:.0f}  κ={cond:.0e}")
             if idx == 0:
                 variant_handles.append(
                     mlines.Line2D(
@@ -1223,18 +1219,6 @@ def plot_jacobian_svd_comparison(
         ax.set_title(label_base, color=color)
         ax.set_xlabel("Mode index $i$")
         ax.set_ylabel(r"$\sigma_i\,/\,\sigma_1$")
-        # eff-rank / condition number per variant, compact, low-left out of the way
-        if ann_lines:
-            ax.text(
-                0.03,
-                0.03,
-                "\n".join(ann_lines),
-                transform=ax.transAxes,
-                fontsize=4.5,
-                va="bottom",
-                ha="left",
-                color="0.35",
-            )
 
     # Hide unused axes
     for idx in range(n_solvers, nrows * ncols):

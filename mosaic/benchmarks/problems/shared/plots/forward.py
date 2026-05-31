@@ -260,26 +260,29 @@ def _agreement_plot_curves_styled(
     if not by_param:
         return
     params = sorted(by_param.keys(), key=float)
-    alias_to_name = _alias_to_display_name(cfg)
+    # ``by_param`` may be keyed by alias ('jax_cfd') or display name ('jax-cfd')
+    # depending on the run; resolve every present key to its canonical alias so
+    # the NS_ORDER walk finds the data regardless of which form was written.
+    alias_to_key: dict[str, str] = {}
+    for p in params:
+        for k in by_param[p]:
+            a = resolve_solver_alias(k) or k
+            alias_to_key.setdefault(a, k)
 
     for solver in NS_ORDER:
-        display_name = alias_to_name.get(solver)
-        if display_name is None:
+        data_key = alias_to_key.get(solver)
+        if data_key is None:
             continue
         _label, color, ls, mk = solver_props(solver)
         xs, ys = [], []
         for p in params:
-            entry = by_param[p].get(display_name)
+            entry = by_param[p].get(data_key)
             if isinstance(entry, dict):
                 err = entry.get("error")
-                if (
-                    err is not None
-                    and isinstance(err, float)
-                    and np.isfinite(err)
-                    and err > 0
-                ):
+                # numeric error only — a failed run stores a string message here
+                if isinstance(err, (int, float)) and np.isfinite(err) and err > 0:
                     xs.append(float(p))
-                    ys.append(err)
+                    ys.append(float(err))
         if not xs:
             continue
         ax.semilogy(
