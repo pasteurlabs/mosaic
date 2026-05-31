@@ -1294,11 +1294,15 @@ def plot_jacobian_svd_comparison(
     if not variants:
         return None
 
-    # Collect all solver names across variants
+    # Collect solver names across variants, de-duplicated by canonical alias so
+    # display-name ('PhiFlow') and alias ('phiflow') forms don't each get a panel.
     all_solvers: list[str] = []
+    _seen_alias: set[str] = set()
     for _, data in variants:
         for s in data.get("solver_names", []):
-            if s not in all_solvers:
+            key = resolve_solver_alias(s) or s
+            if key not in _seen_alias:
+                _seen_alias.add(key)
                 all_solvers.append(s)
 
     styles = _alias_tolerant(solver_styles(cfg))
@@ -1307,12 +1311,14 @@ def plot_jacobian_svd_comparison(
     nrows = math.ceil(n_solvers / ncols)
 
     fig, axes = paper_grid(nrows, ncols)
+    variant_handles: list[mlines.Line2D] = []
 
     for idx, solver in enumerate(all_solvers):
         ax = axes[idx // ncols][idx % ncols]
         solver_style = styles.get(solver, {})
         color = solver_style.get("color", "#888888")
         label_base = solver_style.get("label", solver)
+        ann_lines: list[str] = []
 
         for vi, (exp_key, data) in enumerate(variants):
             spectra = data.get("per_solver_spectra", {})
@@ -1333,21 +1339,49 @@ def plot_jacobian_svd_comparison(
                 color=vstyle["color"],
                 markersize=4 if marker else 0,
                 linewidth=1.5,
-                label=f"{var_label}  r={er:.0f}  κ={cond:.1e}",
             )
+            ann_lines.append(f"{var_label}  r={er:.0f}  κ={cond:.0e}")
+            if idx == 0:
+                variant_handles.append(
+                    mlines.Line2D(
+                        [],
+                        [],
+                        color=vstyle["color"],
+                        linestyle=vstyle["linestyle"],
+                        linewidth=1.5,
+                        label=var_label,
+                    )
+                )
 
         ax.axhline(1e-1, color="gray", linestyle="--", linewidth=0.8, alpha=0.6)
         ax.axhline(1e-4, color="gray", linestyle="--", linewidth=0.8, alpha=0.6)
-        ax.set_title(f"{label_base}", color=color, fontsize=10)
-        ax.set_xlabel("Mode index i")
-        ax.set_ylabel("σᵢ / σ₁")
-        ax.legend(fontsize=7, framealpha=0.8)
-        ax.grid(True, alpha=0.3)
+        ax.set_title(label_base, color=color)
+        ax.set_xlabel("Mode index $i$")
+        ax.set_ylabel(r"$\sigma_i\,/\,\sigma_1$")
+        # eff-rank / condition number per variant, compact, low-left out of the way
+        if ann_lines:
+            ax.text(
+                0.03,
+                0.03,
+                "\n".join(ann_lines),
+                transform=ax.transAxes,
+                fontsize=4.5,
+                va="bottom",
+                ha="left",
+                color="0.35",
+            )
 
     # Hide unused axes
     for idx in range(n_solvers, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
+    if variant_handles:
+        fig.legend(
+            handles=variant_handles,
+            loc="outside lower center",
+            ncol=min(len(variant_handles), 4),
+            handlelength=2.0,
+        )
     fig.suptitle("Jacobian SVD spectra", fontweight="bold")
 
     if save:
