@@ -711,14 +711,6 @@ def plot_recovery(
         out_dir, by_sweep, sweep_vals, sweep_key
     )
 
-    # ── Canonical figure (inlined) ────────────────────────────────────────────
-    # When the experiment lives in a per-IC subdir, reflect the suffix so the
-    # figure lands next to result.json in the IC subdir.
-    paper_suffix = suffix
-    if out_dir != base_dir and out_dir.name != base_dir.name:
-        paper_suffix = f"{suffix}/{out_dir.name}"
-    _plot_recovery_experiment(cfg, exp_key=exp_key, suffix=paper_suffix, save=save)
-
     # ── recovery.png: 2 panels ─────────────────────────────────────────────────
     fig_r = _plot_recovery_summary(
         cfg,
@@ -745,60 +737,16 @@ def plot_recovery(
     rep_horizon = float(
         (npz.get("rep_val") or npz.get("rep_horizon", np.array([0])))[0]
     )
-    rep_horizon_str = f"{rep_horizon:g}"
     solver_names = npz["solver_names"].tolist()
-    ic_true = npz["ic_true"]
-    ic_init = npz["ic_init"]
 
     # Use ic_to_2d when set (e.g. n-body density contrast δ₀ slice),
     # then field_to_2d (e.g. 3D vorticity slice), then vorticity_2d for 2-D.
     f_ic = ic_to_2d or field_to_2d or vorticity_2d
 
-    _plot_ic_field_comparison(
-        cfg,
-        npz,
-        solver_names,
-        ic_true,
-        ic_init,
-        f_ic,
-        styles,
-        sweep_key,
-        rep_horizon_str,
-        out_dir,
-        save,
-    )
     if save:
         _render_recovery_evolution_gifs(
             out_dir, npz, solver_names, f_ic, styles, sweep_key, rep_horizon
         )
-
-    # ── Final temporal state comparison (GT vs recovered rollout) ────────────
-    f_out = ic_to_2d or field_to_2d or vorticity_2d
-    _plot_final_state_comparison(
-        cfg,
-        npz,
-        solver_names,
-        f_out,
-        styles,
-        sweep_key,
-        rep_horizon,
-        out_dir,
-        save,
-    )
-
-    # ── Per-sigma all-solver grid ─────────────────────────────────────────────
-    f_vis = ic_to_2d or field_to_2d or vorticity_2d
-    _plot_per_sigma_grid(
-        cfg,
-        npz,
-        solver_names,
-        ic_true,
-        f_vis,
-        styles,
-        sweep_key,
-        out_dir,
-        save,
-    )
 
     return fig_r
 

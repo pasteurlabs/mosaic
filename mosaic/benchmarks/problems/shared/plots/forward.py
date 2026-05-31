@@ -27,6 +27,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     make_handle,
     paper_grid,
     paper_row,
+    resolve_solver_alias,
     save_fig,
     solver_legend,
     solver_plot_props,
@@ -63,6 +64,16 @@ def _is_field(arr: np.ndarray) -> bool:
 
 
 _SUITE = "forward"
+
+
+def _dedup_solver_names(names: list[str]) -> list[str]:
+    seen, out = set(), []
+    for n in names:
+        key = resolve_solver_alias(n) or n
+        if key not in seen:
+            seen.add(key)
+            out.append(n)
+    return out
 
 
 # ── agreement ─────────────────────────────────────────────────────────────────
@@ -419,7 +430,7 @@ def plot_agreement(
         _agreement_convergence(cfg, exp_key, suffix, save, out_dir)
         return None
     sweep_vals = npz["sweep_values"].tolist()
-    solver_names = npz["solver_names"].tolist()
+    solver_names = _dedup_solver_names(npz["solver_names"].tolist())
 
     sample_consensus = npz.get("consensus_0", None)
 
@@ -487,7 +498,7 @@ def plot_forward_fields(
         print(f"[skip] {exp_key}: no field data at {fields_path}")
         return None
     sweep_vals = npz["sweep_values"].tolist()
-    solver_names = npz["solver_names"].tolist()
+    solver_names = _dedup_solver_names(npz["solver_names"].tolist())
 
     _agreement_raw_fields(
         cfg,

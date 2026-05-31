@@ -377,18 +377,28 @@ def _plot_drag_opt_fields(
     npz = try_load_npz(fields_path)
     by_solver = data.get("by_solver", {})
     # ``try_load_npz`` returns a plain dict; tolerate both dict and NpzFile.
-    npz_keys = npz.files if hasattr(npz, "files") else list(npz.keys())
-    solver_names = [k for k in npz_keys if k.startswith("flow_final_")]
-    solver_names_clean = [k[len("flow_final_") :] for k in solver_names]
+    npz_keys = set(npz.files if hasattr(npz, "files") else npz.keys())
 
-    if not solver_names:
+    # Drive the rows from ``by_solver`` (the canonical solver set for this
+    # result) rather than scanning every ``flow_final_*`` npz key.  The npz can
+    # accumulate stale per-solver entries from earlier runs (e.g. differently
+    # cased aliases like ``flow_final_XLB`` alongside ``flow_final_xlb``); those
+    # have no ``by_solver`` metadata and would render as blank/duplicate rows.
+    solver_names_clean = [s for s in by_solver if f"flow_final_{s}" in npz_keys]
+
+    if not solver_names_clean:
         return
 
-    # Rows: initial + one per solver.  Columns: velocity magnitude | vorticity.
-    all_rows = ["__initial__", *solver_names_clean]
-    n_rows = len(all_rows)
+    # Rows: initial + one per solver.  Columns: u_x | u_y.
+    n_rows = 1 + len(solver_names_clean)
     ncols = 2
     fig_fld, axes_fld = paper_image_grid(n_rows, ncols)
+    # Reserve a left gutter for the (multi-line) row labels and generous
+    # vertical/horizontal spacing so labels, titles and colorbars never collide.
+    # Done before rendering so ``ax.get_position()`` reflects the final layout.
+    fig_fld.subplots_adjust(
+        left=0.26, right=0.97, top=0.93, bottom=0.03, hspace=0.45, wspace=0.55
+    )
 
     # Compute shared colour scales from the initial flow so all panels are comparable.
     flow_init = npz.get("flow_initial")
@@ -425,19 +435,19 @@ def _plot_drag_opt_fields(
                 ax.set_title(col_title, fontweight="bold")
             ax.axis("off")
 
-        # Row label as text overlaid on the left side of the first column.
-        # axis("off") hides set_ylabel, so use ax.text in axes coordinates.
+        # Row label placed in the left figure gutter (reserved via
+        # subplots_adjust above) so multi-line solver labels never overlap the
+        # neighbouring colorbars or row above/below.
         ax0 = axes_fld[row_idx, 0]
-        ax0.text(
-            -0.12,
-            0.5,
+        pos = ax0.get_position()
+        fig_fld.text(
+            0.015,
+            (pos.y0 + pos.y1) / 2,
             label,
-            transform=ax0.transAxes,
-            fontsize=8,
+            fontsize=7,
             va="center",
-            ha="right",
-            rotation=0,
-            wrap=True,
+            ha="left",
+            linespacing=1.3,
         )
 
         # Red border annotation for non-converged / poor solvers
@@ -476,7 +486,6 @@ def _plot_drag_opt_fields(
         _render_row(i + 1, label, field, converged)
 
     fig_fld.suptitle("Optimised flow fields", fontweight="bold")
-    fig_fld.tight_layout()
     if save:
         save_fig(fig_fld, "drag_opt_fields", out_dir)
     figs.append(fig_fld)

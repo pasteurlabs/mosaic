@@ -64,7 +64,6 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .exclusions import register as _register_exclusions
-from .extras import register as _register_extras
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
@@ -443,10 +442,5 @@ problem.add_extra_plot(
 # All per-solver exclusions live in :mod:`.exclusions`; one call attaches the
 # whole table to the canonical :class:`Problem` instance.
 _register_exclusions(problem)
-
-# Per-domain ``_extra/`` aggregator plots (cost overview, scaling, ucurves)
-# live in :mod:`.extras`; the runner picks them up by scanning ``plot_fns``
-# for ``_extra/`` keys.
-_register_extras(problem)
 
 __all__ = ["problem"]

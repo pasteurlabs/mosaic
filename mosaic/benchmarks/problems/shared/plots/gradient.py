@@ -16,14 +16,12 @@ import numpy as np
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
 from mosaic.benchmarks.problems.shared.plots.style import (
-    COSINE_DEFECT_YLABEL,
     FEM_ORDER,
     NS_ORDER,
     RCPARAMS,
     SOLVER_STYLES,
     TEXTWIDTH,
     apply_style,
-    cosine_defect,
     dedup_handles,
     field_grid,
     fig_shared_legend,
@@ -34,11 +32,9 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     paper_row,
     resolve_solver_alias,
     save_fig,
-    solver_legend,
     solver_plot_props,
     solver_props,
     solver_styles,
-    unit_label,
     vorticity_2d,
 )
 
@@ -899,76 +895,15 @@ def plot_param_sweep(
     exp_key: str = "param_sweep",
     **_kw: Any,
 ) -> Any:
-    """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
+    """Single file: best-ε FD error vs sweep param, all solvers overlaid."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
     data = load_json(result_path)
     styles = _alias_tolerant(solver_styles(cfg))
     sweep_key = data.get("sweep_key", "param")
 
-    # ── summary: grad norm, best-ε rel error, best-ε cosine vs sweep param ───
-    # House style mirrors horizon_sweep: a TEXTWIDTH 1×3 row, with direction
-    # accuracy shown as 1−cosine on a log axis (a perfect cosine sits at the
-    # floor) rather than a raw cosine squashed against 1.0.
-    plt.rcParams.update(RCPARAMS)
-    fig, axes = paper_row(3)
-    seen: set[str] = set()
-    for name, param_results in data["by_solver"].items():
-        param_vals = sorted(param_results.keys(), key=float)
-        param_f = [float(v) for v in param_vals]
-        norms = [_finite_or_nan(param_results[v].get("grad_norm")) for v in param_vals]
-        re_mean = _best_eps_series(param_results, param_vals, "rel_error_mean")
-        cosines = _best_eps_series(param_results, param_vals, "cosine_mean")
-        props = solver_plot_props(styles[name])
-        lbl = styles[name]["label"]
-
-        axes[0].loglog(param_f, norms, label=lbl, **props)
-        axes[1].loglog(param_f, re_mean, label=lbl, **props)
-        axes[2].loglog(param_f, cosine_defect(cosines), label=lbl, **props)
-        alias = resolve_solver_alias(name)
-        if alias:
-            seen.add(alias)
-
-    xlbl = unit_label(sweep_key, units)
-    for ax in axes:
-        ax.set_xlabel(xlbl)
-    axes[0].set_ylabel(r"$\|\nabla\mathcal{L}\|$")
-    axes[0].set_title("Gradient norm")
-    axes[1].set_ylabel("Relative FD error")
-    axes[1].set_title("FD error (best $\\varepsilon$)")
-    axes[2].set_ylabel(COSINE_DEFECT_YLABEL)
-    axes[2].set_title("Direction accuracy (best $\\varepsilon$)")
-    solver_legend(fig, seen)
-    if save:
-        save_fig(fig, "param_sweep", out_dir)
-
-    # ── U-curve overlay: all solvers per sweep value ──────────────────────────
-    param_vals = sorted(next(iter(data["by_solver"].values())).keys(), key=float)
-    fig_u = _plot_ucurve_overlay(
-        data["by_solver"],
-        param_vals,
-        sweep_key,
-        styles,
-        "ε U-curves",
-        ncols=len(param_vals),
-    )
-    if save:
-        save_fig(fig_u, "ucurves", out_dir)
-
-    # ── FD error vs param, one line per ε (per solver) ────────────────────────
-    fig_s = _plot_error_per_solver(
-        data["by_solver"],
-        styles,
-        "FD error per solver",
-        x_keys=param_vals,
-        x_to_float=float,
-        x_label=sweep_key,
-        x_scale="log",
-    )
-    if save:
-        save_fig(fig_s, "error_vs_param", out_dir)
-
     # ── Best-ε FD error vs param, all solvers overlaid ────────────────────────
+    param_vals = sorted(next(iter(data["by_solver"].values())).keys(), key=float)
     fig_b = _plot_best_eps_overlay(
         data["by_solver"],
         styles,
@@ -981,7 +916,7 @@ def plot_param_sweep(
     if save:
         save_fig(fig_b, "best_eps_vs_param", out_dir)
 
-    return fig
+    return fig_b
 
 
 # ── G3: Jacobian SVD ──────────────────────────────────────────────────────────
@@ -1165,82 +1100,12 @@ def plot_horizon_sweep(
     live here.
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
-    data = load_json(out_dir / "result.json")
-    styles = _alias_tolerant(solver_styles(cfg))
 
     # ── summary curves (styled) ─────────────────────────────────────────────
     fig_c = _horizon_sweep_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
-    # ── U-curve overlay: all solvers per horizon ─────────────────────────────
-    step_keys = sorted(next(iter(data["by_solver"].values())).keys(), key=int)
-    fig_u = _plot_ucurve_overlay(
-        data["by_solver"],
-        step_keys,
-        "steps",
-        styles,
-        "ε U-curves",
-        ncols=4,
-    )
-    if save:
-        save_fig(fig_u, "ucurves", out_dir)
-
-    # ── FD error vs steps, one line per ε (per solver) ───────────────────────
-    fig_s = _plot_error_per_solver(
-        data["by_solver"],
-        styles,
-        "FD error per solver",
-        x_keys=step_keys,
-        x_to_float=int,
-        x_label="Steps (horizon)",
-    )
-    if save:
-        save_fig(fig_s, "error_vs_steps", out_dir)
-
-    # ── Best-ε FD error vs steps, all solvers overlaid ───────────────────────
-    fig_b = _plot_best_eps_overlay(
-        data["by_solver"],
-        styles,
-        "Best-ε FD error",
-        x_keys=step_keys,
-        x_to_float=int,
-        x_label="Steps (horizon)",
-    )
-    if save:
-        save_fig(fig_b, "best_eps_vs_steps", out_dir)
-
-    # ── gradient magnitude fields at representative horizons ──────────────────
-    fields_path = out_dir / "gradient_fields.npz"
-    if not fields_path.exists():
-        return fig_c
-
-    npz = try_load_npz(fields_path)
-    solver_names = npz["solver_names"].tolist()
-    horizons = npz["horizons"].tolist()
-
-    for j, name in enumerate(solver_names):
-        panels = []
-        for k, h in enumerate(horizons):
-            key = f"grad_{j}_{k}"
-            if key in npz:
-                g = grad_magnitude_2d(npz[key])
-                vmax = g.max() or 1.0
-                panels.append(
-                    (f"T={h}", g, {"cmap": "viridis", "vmin": 0, "vmax": vmax})
-                )
-        if not panels:
-            continue
-        lbl = styles.get(name, {}).get("label", name)
-        fig_g = field_grid(
-            panels,
-            f"∂L/∂IC magnitude — {lbl}",
-            shared_scale=True,
-            symmetric=False,
-            ncols=len(panels),
-        )
-        if save:
-            save_fig(fig_g, f"gradient_fields_{name}", out_dir)
     return fig_c
 
 

@@ -192,7 +192,7 @@ def _build_columns(
                 "spatial_N",
                 spatial_data["by_N"],
                 res_key,
-                "Forward — N scaling",
+                "Forward · N",
                 _first_nonempty_keys(spatial_data["by_N"]),
             )
         )
@@ -203,7 +203,7 @@ def _build_columns(
                 "temporal_steps",
                 temporal_data["by_steps"],
                 "steps",
-                "Forward — steps scaling",
+                "Forward · steps",
                 _first_nonempty_keys(temporal_data["by_steps"]),
             )
         )
@@ -214,7 +214,7 @@ def _build_columns(
                 "vjp_N",
                 vjp_data["by_N"],
                 res_key,
-                "VJP — N scaling",
+                "VJP · N",
                 _first_nonempty_keys(vjp_data["by_N"]),
             )
         )
@@ -225,12 +225,25 @@ def _build_columns(
                 "vjp_steps",
                 vjp_data["by_steps"],
                 "steps",
-                "VJP — steps scaling",
+                "VJP · steps",
                 _first_nonempty_keys(vjp_data["by_steps"]),
             )
         )
 
     return columns
+
+
+def _column_has_data(by_data: dict, keys: list, cfg: Problem) -> tuple[bool, bool]:
+    """Return ``(has_time, has_mem)`` for a column across all solvers."""
+    has_time = False
+    has_mem = False
+    for spec in cfg.solvers:
+        row = by_data.get(spec.name) or {}
+        if any(np.isfinite(v) for v in _time_vals(row, keys)):
+            has_time = True
+        if any(np.isfinite(v) for v in _mem_vals(row, keys)):
+            has_mem = True
+    return has_time, has_mem
 
 
 def _column_x(panel_id: str, keys: list, n_to_cells: Any, xlabel: str) -> tuple:
@@ -278,7 +291,7 @@ def _draw_solver_series(
             failure_types_seen.add(fail_ft)
 
     mem_drawn = False
-    if any(np.isfinite(v) for v in m_ys):
+    if ax_mem is not None and any(np.isfinite(v) for v in m_ys):
         ax_mem.loglog(x_arr, m_ys, **kw)
         if fail_k is not None:
             _draw_failure(ax_mem, x_arr, keys, fail_k, m_ys, color, ls, fail_ft)
@@ -288,43 +301,41 @@ def _draw_solver_series(
 
 
 def _draw_column(
-    axes_grid: Any,
-    col: int,
+    ax_time: Any,
+    ax_mem: Any,
     col_spec: tuple,
     cfg: Problem,
     styles: dict,
     failure_types_seen: set[str],
     *,
     n_to_cells: Any,
-) -> bool:
-    """Draw all solvers on one column. Return True if any memory series was drawn."""
+    first_col: bool,
+) -> None:
+    """Draw all solvers on one column into the given time / memory axes.
+
+    ``ax_mem`` may be ``None`` when the figure has no memory row.
+    """
     panel_id, by_data, xlabel, title, keys = col_spec
-    ax_time = axes_grid[0, col]
-    ax_mem = axes_grid[1, col]
 
     x_arr, xlabel_disp = _column_x(panel_id, keys, n_to_cells, xlabel)
 
-    col_has_mem = False
     for spec in cfg.solvers:
         name = spec.name
         row = by_data.get(name) or {}
         style = styles.get(name, {"color": cfg.solver(name).color})
-        if _draw_solver_series(
+        _draw_solver_series(
             ax_time, ax_mem, x_arr, keys, row, style, cfg, name, failure_types_seen
-        ):
-            col_has_mem = True
+        )
 
     ax_time.set_xlabel(xlabel_disp)
-    ax_time.set_ylabel("Wall-clock time (s)")
+    if first_col:
+        ax_time.set_ylabel("Wall-clock time (s)")
     ax_time.set_title(title)
 
-    ax_mem.set_xlabel(xlabel_disp)
-    ax_mem.set_ylabel("Peak (V)RAM (MiB)")
-
-    if not col_has_mem:
-        ax_mem.set_visible(False)
-
-    return col_has_mem
+    if ax_mem is not None:
+        ax_mem.set_xlabel(xlabel_disp)
+        if first_col:
+            ax_mem.set_ylabel("Peak (V)RAM (MiB)")
 
 
 def _add_failure_legend_entries(ax: Any, failure_types_seen: set[str]) -> None:
@@ -356,7 +367,8 @@ def plot_cost(
     """Cost plots: wall-clock timing + peak (V)RAM (log-log), 2 rows × N columns.
 
     Row 0 — wall-clock time.  Row 1 — peak GPU VRAM (or RAM for CPU solvers).
-    Row 1 is hidden when no memory data is available.
+    Only sweep axes with data get a column, and the memory row is dropped
+    entirely when no column carries memory data.
     Failure markers (OOM ▼, error ◆, NaN ×) with connectors from last ok point.
     """
     plt.rcParams.update(RCPARAMS)
@@ -368,53 +380,55 @@ def plot_cost(
     spatial_data, temporal_data, vjp_data = loaded
 
     columns = _build_columns(spatial_data, temporal_data, vjp_data, resolution_key)
+
+    # Keep only (kind × axis) columns that actually have plotted points. A
+    # column can pass the structural ``_has_inner_data`` check yet hold no
+    # finite time/mem values (e.g. a Forward sweep that was never run for this
+    # problem) — those would render as blank panels, so drop them here.
+    col_data = [_column_has_data(c[1], c[4], cfg) for c in columns]
+    columns = [c for c, (t, m) in zip(columns, col_data, strict=False) if t or m]
+    col_data = [(t, m) for (t, m) in col_data if t or m]
     n_cols = len(columns)
     if n_cols == 0:
         return None
 
+    # Decide the row layout up front: keep a memory row only when at least one
+    # column actually carries memory data, so an all-empty row is never drawn.
+    mem_row_used = any(m for (_t, m) in col_data)
+    n_rows = 2 if mem_row_used else 1
+
     styles = solver_styles(cfg)
 
-    fig, axes_grid = paper_grid(
-        2,
-        n_cols,
-    )
+    fig, axes_grid = paper_grid(n_rows, n_cols)
 
     failure_types_seen: set[str] = set()
-    mem_row_used = False
 
     for col, col_spec in enumerate(columns):
-        if _draw_column(
-            axes_grid,
-            col,
+        ax_time = axes_grid[0, col]
+        ax_mem = axes_grid[1, col] if mem_row_used else None
+        _draw_column(
+            ax_time,
+            ax_mem,
             col_spec,
             cfg,
             styles,
             failure_types_seen,
             n_to_cells=n_to_cells,
-        ):
-            mem_row_used = True
-
-    # hide memory row label axes if the whole row is empty
-    if not mem_row_used:
-        for ax in axes_grid[1]:
-            ax.set_visible(False)
+            first_col=(col == 0),
+        )
 
     _add_failure_legend_entries(axes_grid[0, 0], failure_types_seen)
 
-    # ── legend, title, hardware footnote ─────────────────────────────────────
-    fig.suptitle("Cost", fontweight="bold")
-    fig_shared_legend(fig, axes_grid, bottom=0.16)
-
+    # ── title + hardware footnote + shared bottom legend ─────────────────────
+    # Constrained layout (paper_grid) reserves space for the whole (multi-line)
+    # suptitle and the "outside" legend automatically, so folding the hardware
+    # string into the suptitle as a small grey second line keeps everything
+    # collision-free without manual figure-coordinate placement.
     if hw_str:
-        fig.text(
-            0.5,
-            0.07,
-            hw_str,
-            ha="center",
-            fontsize=7,
-            color="gray",
-            transform=fig.transFigure,
-        )
+        fig.suptitle(f"Cost\n{hw_str}", fontweight="bold", fontsize=9)
+    else:
+        fig.suptitle("Cost", fontweight="bold")
+    fig_shared_legend(fig, axes_grid)
 
     if save:
         save_fig(fig, f"cost{suffix}", suite_dir)
