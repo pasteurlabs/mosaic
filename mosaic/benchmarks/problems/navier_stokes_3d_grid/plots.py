@@ -536,9 +536,10 @@ def _plot_ns_recovery(
             if _PAPER_NS_SIGMA in sweep
             else sorted(sweep.keys())[len(sweep) // 2]
         )
-        errors = sweep[sigma_key].get("errors") or sweep[sigma_key].get(
-            "ic_error_history", []
-        )
+        entry = sweep.get(sigma_key)
+        if not entry:
+            continue
+        errors = entry.get("errors") or entry.get("ic_error_history", [])
         if not errors:
             continue
         _label, color, ls, _mk = solver_props(alias)

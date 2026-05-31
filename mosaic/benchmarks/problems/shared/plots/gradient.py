@@ -570,7 +570,7 @@ def plot_fd_check(
     # presentation concern local to this problem (paper plots don't
     # produce field grids), so we keep the lightweight per-suite
     # ``solver_styles`` here rather than depend on paper-side styling.
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
     fields_path = out_dir / "gradient_fields.npz"
     if not fields_path.exists():
         return fig_c
@@ -721,6 +721,22 @@ def _plot_error_per_solver(
 
 
 # ── best-ε overlay helper ─────────────────────────────────────────────────────
+
+
+def _alias_tolerant(styles: dict) -> dict:
+    """Augment a ``solver_styles`` dict so it also resolves canonical aliases.
+
+    ``solver_styles`` keys by display name (``'PhiFlow'``), but ``by_solver`` in
+    some result.json is keyed by canonical alias (``'phiflow'``). Adding alias
+    entries (pointing at the same style) lets ``styles[name]`` work for either
+    form without scattering lookups. Display-name lookups are unchanged.
+    """
+    out = dict(styles)
+    for display_name, style in styles.items():
+        alias = resolve_solver_alias(display_name)
+        if alias and alias not in out:
+            out[alias] = style
+    return out
 
 
 def _finite_or_nan(v: Any) -> float:
@@ -885,7 +901,7 @@ def plot_param_sweep(
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
     data = load_json(result_path)
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
     sweep_key = data.get("sweep_key", "param")
 
     # ── summary: grad norm, best-ε rel error, best-ε cosine vs sweep param ───
@@ -995,7 +1011,7 @@ def plot_jacobian_svd(
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
 
     solver_names = data["solver_names"]
     cross_cos = np.array(data["cross_cosine"])
@@ -1152,7 +1168,7 @@ def plot_horizon_sweep(
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
 
     # ── summary curves (styled) ─────────────────────────────────────────────
     fig_c = _horizon_sweep_figure(
@@ -1287,7 +1303,7 @@ def plot_jacobian_svd_comparison(
             if s not in all_solvers:
                 all_solvers.append(s)
 
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
     n_solvers = len(all_solvers)
     ncols = min(3, n_solvers)
     nrows = math.ceil(n_solvers / ncols)
