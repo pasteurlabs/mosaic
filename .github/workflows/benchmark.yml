@@ -310,8 +310,11 @@ jobs:
       - name: Upload rendered docs site
         uses: actions/upload-artifact@v7
         with:
-          name: docs-site-${{ github.sha }}
+          # One artifact per PR (RTD serves it keyed off the PR number). For
+          # non-PR runs (e.g. workflow_dispatch) fall back to the commit SHA.
+          name: docs-site-pr-${{ github.event.pull_request.number || github.sha }}
           path: _site/
+          overwrite: true
           retention-days: 90
 
       # ── Post PR comment ────────────────────────────────────────────────

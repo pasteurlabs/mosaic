@@ -16,7 +16,7 @@
 #
 # RTD-provided env used to pick the right artifact:
 #   READTHEDOCS_VERSION_TYPE        – external | branch | tag
-#   READTHEDOCS_GIT_COMMIT_HASH     – commit being built
+#   READTHEDOCS_VERSION             – PR number on external builds
 #   READTHEDOCS_VERSION_NAME        – version/tag name
 set -euo pipefail
 
@@ -61,12 +61,13 @@ if [ -z "$GITHUB_TOKEN" ]; then
 fi
 
 # Pick the artifact name matching this build. PR (external) builds key off
-# the commit SHA (benchmark.yml uploads docs-site-<sha>); branch/tag builds
-# use stable names (publish-results.yml uploads docs-site-latest and
+# the PR number, which RTD exposes as READTHEDOCS_VERSION (benchmark.yml
+# uploads docs-site-pr-<N>, overwritten per push). Branch/tag builds use
+# stable names (publish-results.yml uploads docs-site-latest and
 # docs-site-release-<version>).
 #   - tag (release):   docs-site-release-<version>, then docs-site-latest
-#   - external (PR):   docs-site-<sha>
-#   - branch (latest): docs-site-latest, then docs-site-<sha>
+#   - external (PR):   docs-site-pr-<PR number>
+#   - branch (latest): docs-site-latest
 CANDIDATES=()
 case "${READTHEDOCS_VERSION_TYPE:-}" in
   tag)
@@ -74,11 +75,11 @@ case "${READTHEDOCS_VERSION_TYPE:-}" in
     CANDIDATES+=("docs-site-latest")
     ;;
   external)
-    [ -n "${READTHEDOCS_GIT_COMMIT_HASH:-}" ] && CANDIDATES+=("docs-site-${READTHEDOCS_GIT_COMMIT_HASH}")
+    # READTHEDOCS_VERSION is the PR number for external builds.
+    [ -n "${READTHEDOCS_VERSION:-}" ] && CANDIDATES+=("docs-site-pr-${READTHEDOCS_VERSION}")
     ;;
   *)
     CANDIDATES+=("docs-site-latest")
-    [ -n "${READTHEDOCS_GIT_COMMIT_HASH:-}" ] && CANDIDATES+=("docs-site-${READTHEDOCS_GIT_COMMIT_HASH}")
     ;;
 esac
 
