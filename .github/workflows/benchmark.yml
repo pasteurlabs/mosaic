@@ -300,6 +300,29 @@ jobs:
             status-report.md
           retention-days: 90
 
+      # ── Render docs site on GHA ────────────────────────────────────────
+      # The docs are rendered here (where the full mosaic/jax stack is already
+      # installed and memory is ample) rather than on Read the Docs, whose
+      # constrained builders OOM-kill the heavy `import mosaic`. RTD only
+      # downloads and serves the pre-rendered _site/ (see .readthedocs.yaml).
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: "1.7.31"
+
+      - name: Generate results pages
+        run: uv run python docs/generate_results.py
+
+      - name: Render docs site
+        run: uv run quarto render --output-dir _site
+
+      - name: Upload rendered docs site
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site-${{ github.sha }}
+          path: _site/
+          retention-days: 90
+
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
         if: github.event_name == 'pull_request'

@@ -138,6 +138,43 @@ jobs:
           uv run mosaic status --format json > mosaic-results/snapshot.json
           uv run mosaic status --format md > mosaic-results/status-report.md
 
+      # ── Render docs site on GHA ────────────────────────────────────────
+      # Render here (full stack + memory available) and publish the rendered
+      # _site/ as an artifact that RTD downloads and serves. Must run BEFORE
+      # the strip step below, which removes the plots from mosaic-results/.
+      - name: Set up Quarto
+        if: steps.find.outputs.should_publish == 'true'
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: "1.7.31"
+
+      - name: Render docs site
+        if: steps.find.outputs.should_publish == 'true'
+        run: |
+          uv run python docs/generate_results.py
+          uv run quarto render --output-dir _site
+
+      # latest is uploaded for every publish (a release also rebuilds latest
+      # on RTD — see the "Trigger RTD build (release)" step below).
+      - name: Upload docs site (latest)
+        if: steps.find.outputs.should_publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site-latest
+          path: _site/
+          overwrite: true
+          retention-days: 400
+
+      - name: Upload docs site (release)
+        if: >-
+          steps.find.outputs.should_publish == 'true'
+          && steps.find.outputs.is_release == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site-release-${{ steps.find.outputs.version }}
+          path: _site/
+          retention-days: 400
+
       - name: Strip derived files from baseline
         if: steps.find.outputs.should_publish == 'true'
         run: |

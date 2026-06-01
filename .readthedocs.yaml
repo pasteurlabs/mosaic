@@ -1,95 +1,29 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
-# IMPORTANT: Keep the GitHub webhook ENABLED in RTD project settings
-# (Admin > Integrations) so RTD creates an external version and builds a
-# preview the moment a PR is pushed.
+# Docs are NOT built here. They are rendered on GitHub Actions
+# (benchmark.yml / publish-results.yml), where the full mosaic/jax stack is
+# installed and memory is ample, then uploaded as a `docs-site-<sha>` artifact.
+# RTD's constrained builders OOM-kill the heavy `import mosaic`, so RTD just
+# downloads and serves the pre-rendered site (see rtd-serve-site.sh).
 #
-# That first (early) build runs before this PR's benchmark-results-<sha>
-# artifact exists, so the external branch below renders baseline content with
-# a "results still building" badge (see rtd-pending-badge.sh). Once the
-# benchmark run finishes and uploads the artifact, benchmark.yml triggers a
-# second build via the RTD API that overlays the real PR results.
-#
-# For latest/stable/release (non-PR) versions, builds are still triggered
-# explicitly from publish-results.yml after artifacts are uploaded.
+# IMPORTANT:
+#   * Keep the GitHub webhook ENABLED in RTD (Admin > Integrations) so RTD
+#     creates an external version and a preview build the moment a PR is
+#     pushed. If the rendered artifact isn't ready yet, that early build shows
+#     a "building" placeholder; benchmark.yml triggers a follow-up build via
+#     the RTD API once the site artifact is uploaded.
+#   * GITHUB_TOKEN must be set as an RTD environment variable (actions:read)
+#     so the rendered artifact can be downloaded.
 
 # Required
 version: 2
 
-# Set the OS, Python version, and other tools you might need
 build:
   os: ubuntu-24.04
   tools:
     python: "3.13"
-
-  jobs:
-    create_environment:
-      - asdf plugin add uv
-      - asdf install uv latest
-      - asdf global uv latest
-      - uv venv
-    install:
-      - cp production.uv.lock uv.lock
-      - uv sync --frozen --extra dev
-      # Quarto CLI (not a Python package)
-      - wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.7.31/quarto-1.7.31-linux-amd64.deb -O /tmp/quarto.deb
-      - dpkg -x /tmp/quarto.deb /tmp/quarto
-    build:
-      html:
-        # Fetch benchmark results from the baseline artifact.
-        # For release builds (tag), try the release-specific artifact first.
-        # For PR builds (external), also try the PR's own results artifact.
-        # GITHUB_TOKEN must be added as an RTD environment variable.
-        - |
-          export GITHUB_REPO="pasteurlabs/mosaic"
-          export GITHUB_TOKEN="${GITHUB_TOKEN:-}"
-          if [ -z "$GITHUB_TOKEN" ]; then
-            echo "GITHUB_TOKEN not set — docs will build without benchmark results"
-          else
-            FETCHED=false
-            # Release builds: try release-specific artifact first
-            if [ "$READTHEDOCS_VERSION_TYPE" = "tag" ]; then
-              if bash .github/scripts/fetch-artifact.sh \
-                   "release-${READTHEDOCS_VERSION_NAME}" mosaic-results; then
-                FETCHED=true
-              fi
-            fi
-            # PR builds: try the PR's benchmark results artifact, overlaid on baseline
-            if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
-              # Fetch baseline first
-              bash .github/scripts/fetch-artifact.sh baseline mosaic-results || true
-              # Overlay PR-specific results (benchmark-results-<sha>)
-              if bash .github/scripts/fetch-artifact.sh \
-                   "benchmark-results-${READTHEDOCS_GIT_COMMIT_HASH}" \
-                   /tmp/pr-results; then
-                # PR results contain mosaic-results/ at the top level
-                mkdir -p mosaic-results
-                if [ -d /tmp/pr-results/mosaic-results ]; then
-                  cp -r /tmp/pr-results/mosaic-results/* mosaic-results/ 2>/dev/null || true
-                else
-                  cp -r /tmp/pr-results/* mosaic-results/ 2>/dev/null || true
-                fi
-                rm -rf /tmp/pr-results
-                FETCHED=true
-              else
-                # Early build: PR results not uploaded yet. Render baseline with
-                # a "results still building" badge; benchmark.yml triggers a
-                # follow-up build that overlays the real results.
-                echo "PR results not available yet — adding 'building' badge"
-                bash .github/scripts/rtd-pending-badge.sh
-              fi
-            fi
-            # Default: fetch baseline artifact
-            if [ "$FETCHED" = "false" ]; then
-              bash .github/scripts/fetch-artifact.sh baseline mosaic-results || true
-            fi
-          fi
-        # Generate solver reference page
-        - uv run python docs/generate.py
-        # Generate results pages. generate_results.py is a no-op (exit 0) when
-        # mosaic-results/ has no plottable results, so this is safe even when
-        # the fetched artifact contains only metadata (snapshot.json, etc.).
-        - uv run python docs/generate_results.py
-        # Render with Quarto
-        - uv run /tmp/quarto/opt/quarto/bin/quarto render --output-dir $READTHEDOCS_OUTPUT/html
+  commands:
+    # No environment / render needed — fetch the pre-rendered site artifact
+    # built on GitHub Actions and serve it from RTD's HTML output directory.
+    - bash .github/scripts/rtd-serve-site.sh "$READTHEDOCS_OUTPUT/html"
