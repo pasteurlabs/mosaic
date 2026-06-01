@@ -17,7 +17,7 @@ VERSION_SLUG="${1:?usage: rtd-trigger.sh <version-slug>}"
 : "${RTD_TOKEN:?RTD_TOKEN must be set}"
 : "${RTD_PROJECT:?RTD_PROJECT must be set}"
 
-RTD_HOST="${RTD_HOST:-app.readthedocs.org}"
+RTD_HOST="${RTD_HOST:-readthedocs.com}"
 RTD_API="https://${RTD_HOST}/api/v3/projects/${RTD_PROJECT}"
 AUTH="Authorization: Token ${RTD_TOKEN}"
 

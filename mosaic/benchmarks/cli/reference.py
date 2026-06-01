@@ -26,7 +26,7 @@ import typer
 from mosaic.benchmarks.cli import app
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.reference import (
-    CONSENSUS_EXPERIMENTS,
+    PRECOMPUTED_EXPERIMENTS,
     extract_references_from_fields,
     save_reference,
 )
@@ -73,20 +73,20 @@ def reference(
     """
     # Determine which domains to process.
     if problems == "all":
-        domains = list(CONSENSUS_EXPERIMENTS.keys())
+        domains = list(PRECOMPUTED_EXPERIMENTS.keys())
     else:
         domains = [p.strip() for p in problems.split(",")]
-        # Filter to domains that actually have consensus experiments.
-        unknown = [d for d in domains if d not in CONSENSUS_EXPERIMENTS]
+        # Filter to domains that actually have precomputed experiments.
+        unknown = [d for d in domains if d not in PRECOMPUTED_EXPERIMENTS]
         if unknown:
             console.print(
-                f"[yellow]WARN[/] No consensus experiments for: {', '.join(unknown)}. "
-                "Only structural-mesh and thermal-mesh use consensus references."
+                f"[yellow]WARN[/] No precomputed-reference experiments for: "
+                f"{', '.join(unknown)}."
             )
-        domains = [d for d in domains if d in CONSENSUS_EXPERIMENTS]
+        domains = [d for d in domains if d in PRECOMPUTED_EXPERIMENTS]
 
     if not domains:
-        console.print("[yellow]No consensus domains to process.[/]")
+        console.print("[yellow]No domains with precomputed references to process.[/]")
         raise typer.Exit()
 
     # Determine which experiments to process.
@@ -110,7 +110,7 @@ def _generate_from_results(
 
     total = 0
     for domain in domains:
-        exps = CONSENSUS_EXPERIMENTS[domain]
+        exps = PRECOMPUTED_EXPERIMENTS[domain]
         if exp_filter is not None:
             exps = [e for e in exps if e in exp_filter]
 
@@ -213,7 +213,7 @@ def _generate_by_running(
 
     for domain in domains:
         cfg = get_config(domain)
-        exps = CONSENSUS_EXPERIMENTS[domain]
+        exps = PRECOMPUTED_EXPERIMENTS[domain]
         if exp_filter is not None:
             exps = [e for e in exps if e in exp_filter]
 

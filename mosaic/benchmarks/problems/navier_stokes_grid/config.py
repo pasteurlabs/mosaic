@@ -199,7 +199,7 @@ problem.add_experiment(
     agreement,
     plot_description=(
         "Relative error vs viscosity ν for each IC, with vorticity field snapshots"
-        " compared against a fine-solver reference."
+        " compared against the analytic TGV reference."
     ),
     ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
     physics={
@@ -208,7 +208,6 @@ problem.add_experiment(
         "steps": 20,
         "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
     },
-    reference={"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
     plot=plot_agreement,
 )
 problem.add_experiment(
@@ -222,7 +221,6 @@ problem.add_experiment(
         "steps": 20,
         "nu": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2],
     },
-    reference={"solvers": {"jax_cfd"}, "dt": 0.01, "steps": 100},
     plot=plot_agreement,
 )
 problem.add_experiment(

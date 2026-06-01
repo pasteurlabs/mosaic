@@ -47,26 +47,6 @@ _SUITE = "forward"
 # ── Shared helpers ───────────────────────────────────────────────────────────
 
 
-def _agreement_phys(ctx: KernelContext) -> dict:
-    """Resolve per-solver physics: apply the fine-grid override when appropriate.
-
-    When the solver is named in the run's
-    ``reference={"solvers": {...}, "dt", "steps"}`` spec, override dt/steps;
-    otherwise pass through.
-    """
-    ref = ctx.run.get("reference")
-    if not isinstance(ref, dict):
-        return ctx.phys
-    if ctx.name not in set(ref.get("solvers", set())):
-        return ctx.phys
-    phys = dict(ctx.phys)
-    if ref.get("dt") is not None:
-        phys["dt"] = ref["dt"]
-    if ref.get("steps") is not None:
-        phys["steps"] = ref["steps"]
-    return phys
-
-
 def _analytic_reference(
     *,
     ic_name: str,
@@ -181,6 +161,8 @@ def _agreement_aggregate(
     flat_results: list[dict] = []
 
     exp_key = _kw.get("exp_key", "agreement")
+    suite = _kw.get("suite", "forward")
+    ref_key = f"{suite}/{exp_key}"
 
     for i, val in enumerate(sweep_values):
         comparable = outputs_per_val.get(val, {})
@@ -189,7 +171,7 @@ def _agreement_aggregate(
 
         has_analytic = analytic_fn is not None and "obstacle" not in phys
         has_ref_solver = reference_solver is not None and reference_solver in comparable
-        precomputed = load_reference(cfg.name, exp_key, i)
+        precomputed = load_reference(cfg.name, ref_key, i)
         has_precomputed = precomputed is not None
 
         if len(comparable) == 0 or (
@@ -198,7 +180,10 @@ def _agreement_aggregate(
             and not has_ref_solver
             and not has_precomputed
         ):
+            attempted = set(by_solver.keys())
             for n in solver_names:
+                if n not in attempted and n not in comparable:
+                    continue
                 flat_results.append(
                     {
                         "solver": n,
@@ -237,7 +222,14 @@ def _agreement_aggregate(
             reference_label = "consensus"
         shared_arrays[f"consensus_{i}"] = np.asarray(reference)
 
+        # Only emit entries for solvers that were attempted in this run
+        # (present in by_solver). Solvers that didn't run on this hardware
+        # are omitted so the merge step doesn't overwrite valid entries
+        # from the other (CPU/GPU) job.
+        attempted = set(by_solver.keys())
         for n in solver_names:
+            if n not in attempted and n not in comparable:
+                continue
             if n in comparable:
                 metrics: dict = {
                     "error": error_fn(comparable[n], reference),
@@ -326,18 +318,12 @@ def agreement(t: Any, ctx: KernelContext) -> dict:
     a trimmed-mean consensus across solvers, computes per-solver
     ``error`` vs that reference, and writes ``fields.npz`` (flat layout).
 
-    Per-run ``reference`` may be:
-      * a callable — analytic ``(ic, t, L, **physics) → arr``;
-      * a dict ``{"solvers": {...}, "dt": d, "steps": n}`` — bumps the
-        named solvers to a finer dt/steps to form a fine-grid reference.
-
     Returns (by_param[val][solver] schema)::
 
         {"error": float, "valid": True[, "drag": ...]}
         | {"error": str | None, "valid": False}
     """
-    phys = _agreement_phys(ctx)
-    inputs = ctx.make_inputs(ctx.name, ctx.ic, **phys)
+    inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     result, extras, _ = safe_apply_with_extras(t, inputs, ctx.output_key, ["drag"])
 
     if result is None:
@@ -439,10 +425,12 @@ def _physical_laws_aggregate(
                     }
                 )
 
-        # Mark solvers that didn't produce output.
+        # Mark attempted solvers that didn't produce output. Only include
+        # solvers present in by_solver (actually attempted on this hardware)
+        # so the merge step doesn't overwrite valid entries from the other job.
         produced = {e["solver"] for e in flat_results if e["sweep_value"] == str(val)}
         for s in cfg.solvers:
-            if s.name not in produced:
+            if s.name not in produced and s.name in by_solver:
                 flat_results.append(
                     {
                         "solver": s.name,

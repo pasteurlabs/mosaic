@@ -151,11 +151,19 @@ def extract_references_from_fields(
     return refs
 
 
-# ── Experiments that use consensus references ──────────────────────────────
+# ── Experiments that need precomputed references ───────────────────────────
 
-# Domain → list of experiment keys that rely on consensus references.
-# NS domains have analytic or designated-solver references and are not listed.
-CONSENSUS_EXPERIMENTS: dict[str, list[str]] = {
+# Domain → list of experiment keys that need a checked-in reference NPZ.
+# Reasons an experiment lands here:
+#   - consensus-based (mesh domains): no analytic solution, needs trimmed-mean
+#     across all solvers — but single-solver CI jobs have only one peer;
+#   - designated reference solver on different hardware: e.g. the cylinder
+#     experiment uses OpenFOAM (CPU) as reference, but GPU-only solvers can't
+#     see OpenFOAM's output during their aggregate pass.
+PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
+    "ns-grid": [
+        "forward/cylinder",
+    ],
     "structural-mesh": [
         "forward/baseline",
         "forward/agreement",
@@ -167,3 +175,6 @@ CONSENSUS_EXPERIMENTS: dict[str, list[str]] = {
         "forward/source_linearity",
     ],
 }
+
+# Backward-compat alias
+CONSENSUS_EXPERIMENTS = PRECOMPUTED_EXPERIMENTS

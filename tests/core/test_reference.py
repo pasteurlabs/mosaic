@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from mosaic.benchmarks.core.reference import (
-    CONSENSUS_EXPERIMENTS,
+    PRECOMPUTED_EXPERIMENTS,
     _reference_dir,
     _reference_filename,
     extract_references_from_fields,
@@ -108,22 +108,25 @@ class TestExtractReferencesFromFields:
         assert 1 not in refs
 
 
-class TestConsensusExperiments:
+class TestPrecomputedExperiments:
+    def test_ns_grid_experiments(self):
+        exps = PRECOMPUTED_EXPERIMENTS["ns-grid"]
+        assert "forward/cylinder" in exps
+
     def test_structural_mesh_experiments(self):
-        exps = CONSENSUS_EXPERIMENTS["structural-mesh"]
+        exps = PRECOMPUTED_EXPERIMENTS["structural-mesh"]
         assert "forward/baseline" in exps
         assert "forward/agreement" in exps
 
     def test_thermal_mesh_experiments(self):
-        exps = CONSENSUS_EXPERIMENTS["thermal-mesh"]
+        exps = PRECOMPUTED_EXPERIMENTS["thermal-mesh"]
         assert "forward/baseline" in exps
         assert "forward/agreement" in exps
         assert "forward/source_baseline" in exps
         assert "forward/source_linearity" in exps
 
-    def test_ns_domains_not_listed(self):
-        assert "ns-grid" not in CONSENSUS_EXPERIMENTS
-        assert "ns-3d-grid" not in CONSENSUS_EXPERIMENTS
+    def test_ns_3d_grid_not_listed(self):
+        assert "ns-3d-grid" not in PRECOMPUTED_EXPERIMENTS
 
 
 class TestCheckedInReferences:
@@ -133,7 +136,7 @@ class TestCheckedInReferences:
         "domain,exp_key",
         [
             (domain, exp_key)
-            for domain, exps in CONSENSUS_EXPERIMENTS.items()
+            for domain, exps in PRECOMPUTED_EXPERIMENTS.items()
             for exp_key in exps
         ],
     )
@@ -146,7 +149,7 @@ class TestCheckedInReferences:
         "domain,exp_key",
         [
             (domain, exp_key)
-            for domain, exps in CONSENSUS_EXPERIMENTS.items()
+            for domain, exps in PRECOMPUTED_EXPERIMENTS.items()
             for exp_key in exps
         ],
     )
