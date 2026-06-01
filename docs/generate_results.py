@@ -559,7 +559,16 @@ def main() -> None:
 
     tree = _scan_results()
     if not tree:
-        sys.exit(f"No benchmark results found under {RESULTS_DIR}")
+        # No plottable results. In --check mode this is a failure (someone
+        # expected generated pages); in normal generation (e.g. a docs build
+        # where benchmark artifacts are absent or contain only metadata like
+        # snapshot.json) it is a clean no-op — exit 0 so the docs build
+        # doesn't fail.
+        msg = f"No benchmark results found under {RESULTS_DIR}"
+        if check_mode:
+            sys.exit(msg)
+        print(f"{msg} — nothing to generate.")
+        return
 
     stale: list[str] = []
     for problem, suites in tree.items():
