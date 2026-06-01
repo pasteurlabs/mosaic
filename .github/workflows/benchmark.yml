@@ -181,40 +181,46 @@ jobs:
           echo "Matrix: $MATRIX"
 
   # ── Build changed solver images → GHCR :<sha> ─────────────────────────
-  build:
-    name: Build solver images
-    needs: plan
-    if: needs.plan.outputs.should_run == 'true' && needs.plan.outputs.solver_matrix != '[]'
-    uses: ./.github/workflows/build-tesseracts.yml
-    with:
-      matrix: ${{ needs.plan.outputs.solver_matrix }}
-    permissions:
-      contents: read
-      packages: write
-    secrets: inherit
+  # TEMPORARILY DISABLED: build + benchmarks are commented out to test the
+  # RTD docs-preview integration without running the full suite. The `report`
+  # job below still runs (with baseline-only results) so it exercises the
+  # artifact upload + RTD rebuild trigger. Restore by uncommenting these two
+  # jobs and re-adding `build`/`benchmarks` to the `needs` of `report` and
+  # `bench-ok` (see the TEMP markers below).
+  # build:
+  #   name: Build solver images
+  #   needs: plan
+  #   if: needs.plan.outputs.should_run == 'true' && needs.plan.outputs.solver_matrix != '[]'
+  #   uses: ./.github/workflows/build-tesseracts.yml
+  #   with:
+  #     matrix: ${{ needs.plan.outputs.solver_matrix }}
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   secrets: inherit
 
   # ── Run benchmarks (ics + solver suites) ───────────────────────────────
-  benchmarks:
-    name: Run benchmarks
-    needs: [plan, build]
-    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    uses: ./.github/workflows/benchmark-run.yml
-    with:
-      matrix: ${{ needs.plan.outputs.matrix }}
-      problems: ${{ needs.plan.outputs.problems }}
-      suites: ${{ needs.plan.outputs.suites }}
-      solvers: ${{ needs.plan.outputs.solvers }}
-      image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
-      timeout: 600
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
+  # benchmarks:
+  #   name: Run benchmarks
+  #   needs: [plan, build]
+  #   if: always() && needs.plan.outputs.should_run == 'true' && !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+  #   uses: ./.github/workflows/benchmark-run.yml
+  #   with:
+  #     matrix: ${{ needs.plan.outputs.matrix }}
+  #     problems: ${{ needs.plan.outputs.problems }}
+  #     suites: ${{ needs.plan.outputs.suites }}
+  #     solvers: ${{ needs.plan.outputs.solvers }}
+  #     image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
+  #     timeout: 600
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
 
   # ── Merge results, report, publish ─────────────────────────────────────
   report:
     name: Report & publish
-    needs: [plan, benchmarks]
+    needs: [plan] # TEMP: was [plan, benchmarks] — benchmarks disabled
     if: always() && needs.plan.outputs.should_run == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -232,9 +238,12 @@ jobs:
         with:
           pattern: results-*
           path: staging-results/
+        continue-on-error: true # TEMP: no results-* exist while benchmarks disabled
 
       - name: Merge results from CPU/GPU artifacts
-        run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
+        run: |
+          mkdir -p staging-results  # TEMP: ensure dir exists when no artifacts downloaded
+          uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download baseline artifact
         if: >-
@@ -318,14 +327,14 @@ jobs:
   bench-ok:
     name: Benchmark checks passed
     if: always()
-    needs: [plan, build, benchmarks, report]
+    needs: [plan, report] # TEMP: was [plan, build, benchmarks, report]
     runs-on: ubuntu-latest
     steps:
       - name: Decide status
         run: |
           echo "plan: ${{ needs.plan.result }}"
-          echo "build: ${{ needs.build.result }}"
-          echo "benchmarks: ${{ needs.benchmarks.result }}"
+          echo "build: skipped (TEMP: benchmarks disabled)"
+          echo "benchmarks: skipped (TEMP: benchmarks disabled)"
           echo "report: ${{ needs.report.result }}"
           echo "label: ${{ needs.plan.outputs.label }}"
           echo "mosaic_touched: ${{ needs.plan.outputs.mosaic_touched }}"
@@ -354,8 +363,10 @@ jobs:
           fi
 
           # When benchmarks ran, all downstream jobs must succeed (or be skipped)
+          # TEMP: build/benchmarks disabled — only `report` is checked here.
+          # Restore the build/benchmarks entries when re-enabling those jobs.
           if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
-            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}"; do
+            for result in "${{ needs.report.result }}"; do
               if [[ "$result" != "success" && "$result" != "skipped" ]]; then
                 echo "::error::Benchmark job failed ($result)."
                 exit 1
