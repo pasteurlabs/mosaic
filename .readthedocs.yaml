@@ -49,8 +49,43 @@ build:
         # succeeds, the failure is in one of those; if it still fails, the
         # cause is install / generate.py / quarto render (likely RTD-side).
         - 'echo "STAGE 1 - build.html start (version_type=$READTHEDOCS_VERSION_TYPE)"'
-        # --- artifact fetch / badge (DISABLED for bisect; see git history) ---
-        - 'echo "STAGE 2 - artifact fetch skipped (bisect)"'
+        # --- artifact fetch / badge (RE-ENABLED for bisect round 2) ---
+        - |
+          echo "STAGE 2 - artifact fetch START"
+          export GITHUB_REPO="pasteurlabs/mosaic"
+          export GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "GITHUB_TOKEN not set — docs will build without benchmark results"
+          else
+            FETCHED=false
+            if [ "$READTHEDOCS_VERSION_TYPE" = "tag" ]; then
+              if bash .github/scripts/fetch-artifact.sh \
+                   "release-${READTHEDOCS_VERSION_NAME}" mosaic-results; then
+                FETCHED=true
+              fi
+            fi
+            if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
+              bash .github/scripts/fetch-artifact.sh baseline mosaic-results || true
+              if bash .github/scripts/fetch-artifact.sh \
+                   "benchmark-results-${READTHEDOCS_GIT_COMMIT_HASH}" \
+                   /tmp/pr-results; then
+                if [ -d /tmp/pr-results/mosaic-results ]; then
+                  cp -r /tmp/pr-results/mosaic-results/* mosaic-results/ 2>/dev/null || true
+                else
+                  cp -r /tmp/pr-results/* mosaic-results/ 2>/dev/null || true
+                fi
+                rm -rf /tmp/pr-results
+                FETCHED=true
+              else
+                echo "PR results not available yet — adding 'building' badge"
+                bash .github/scripts/rtd-pending-badge.sh
+              fi
+            fi
+            if [ "$FETCHED" = "false" ]; then
+              bash .github/scripts/fetch-artifact.sh baseline mosaic-results || true
+            fi
+          fi
+          echo "STAGE 2 - artifact fetch DONE"
         # Generate solver reference page
         - 'echo "STAGE 3 - running generate.py" && uv run python docs/generate.py'
         # --- results page generation (DISABLED for bisect; see git history) ---
