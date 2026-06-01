@@ -33,7 +33,6 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     imshow_with_cbar,
     make_handle,
     paper_image_grid,
-    paper_row,
     resolve_solver_alias,
     save_fig,
     solver_plot_props,
@@ -72,111 +71,6 @@ def _sorted_sweep_vals(by_sweep: dict) -> list:
         _first.keys(),
         key=lambda v: float(v) if str(v).replace(".", "").lstrip("-").isdigit() else 0,
     )
-
-
-def _compute_fallback_ic_error_init(
-    out_dir: Path,
-    by_sweep: dict,
-    sweep_vals: list,
-    sweep_key: str,
-) -> dict[float, float]:
-    """Estimate ``ic_error_init`` per sweep value from ``recovery_fields.npz``.
-
-    When older runs did not record ``ic_error_init`` and the sweep is a
-    ``perturb_sigma`` sweep, recover an approximation by measuring the exact
-    error at the representative sigma and scaling linearly to other sigmas.
-    Returns an empty dict when the fallback cannot be computed.
-    """
-    fallback: dict[float, float] = {}
-    has_ic_error_init = any(
-        (s_results.get(v) or s_results.get(str(v)) or {}).get("ic_error_init")
-        is not None
-        for v in sweep_vals
-        for s_results in by_sweep.values()
-    )
-    if has_ic_error_init or sweep_key != "perturb_sigma":
-        return fallback
-    fp = out_dir / "recovery_fields.npz"
-    if not fp.exists():
-        return fallback
-    npz = try_load_npz(fp)
-    if "ic_true" not in npz or "ic_init" not in npz:
-        return fallback
-    ic_t = npz["ic_true"].astype(float)
-    ic_i = npz["ic_init"].astype(float)
-    rep_v = float((npz.get("rep_val") or npz.get("rep_horizon", np.array([0])))[0])
-    ic_t_norm = float(np.sqrt(np.mean(ic_t**2)))
-    if ic_t_norm <= 0 or rep_v <= 0:
-        return fallback
-    rep_err = float(np.sqrt(np.mean((ic_i - ic_t) ** 2))) / ic_t_norm
-    for v in sweep_vals:
-        fallback[float(v)] = rep_err * float(v) / rep_v
-    return fallback
-
-
-def _plot_recovery_summary(
-    cfg: Problem,
-    by_sweep: dict,
-    sweep_vals: list,
-    sweep_key: str,
-    styles: dict,
-    fallback_ic_error_init: dict[float, float],
-    out_dir: Path,
-    save: bool,
-):
-    """Build ``recovery.png``: IC recovery improvement + min loss vs sweep."""
-    apply_style()
-    fig_r, (ax1, ax2) = paper_row(2)
-
-    loss_plotted = False
-    for name, s_results in by_sweep.items():
-        sty = styles.get(name, {})
-        xs_ic, ys_ic = [], []
-        xs_loss, ys_loss = [], []
-        for v in sweep_vals:
-            r = s_results.get(v) or s_results.get(str(v))
-            if r is None:
-                continue
-            xs_ic.append(float(v))
-            ic_init_val = r.get("ic_error_init") or fallback_ic_error_init.get(float(v))
-            if ic_init_val:
-                ys_ic.append((r["final_ic_error"] - ic_init_val) / ic_init_val)
-            else:
-                ys_ic.append(r["final_ic_error"])
-            errors = r.get("errors") or []
-            if errors:
-                xs_loss.append(float(v))
-                ys_loss.append(min(errors))
-        if xs_ic:
-            ax1.plot(
-                xs_ic, ys_ic, label=sty.get("label", name), **solver_plot_props(sty)
-            )
-        # Need at least one positive value for the log axis, else savefig raises.
-        if xs_loss and any(y > 0 for y in ys_loss):
-            ax2.semilogy(
-                xs_loss, ys_loss, label=sty.get("label", name), **solver_plot_props(sty)
-            )
-            loss_plotted = True
-
-    if not loss_plotted:
-        ax2.set_yscale("linear")
-
-    ax1.axhline(0, color="gray", ls="--", lw=1, alpha=0.5)
-    ax1.axhline(-1, color="gray", ls=":", lw=1, alpha=0.4)
-    ax1.set_xlabel(sweep_key)
-    ax1.set_ylabel(r"$\Delta$ IC error  (final $-$ init) / init")
-    ax1.set_title("IC recovery")
-    ax1.grid(True, which="both", alpha=0.3)
-
-    ax2.set_xlabel(sweep_key)
-    ax2.set_ylabel("Min loss (MSE)")
-    ax2.set_title("Minimum loss")
-    ax2.grid(True, which="both", alpha=0.3)
-
-    fig_shared_legend(fig_r, [ax1])
-    if save:
-        save_fig(fig_r, "optimization", out_dir)
-    return fig_r
 
 
 def _draw_convergence_panel(
@@ -670,17 +564,17 @@ def plot_recovery(
 ) -> Any:
     """Recovery per-experiment plot — styled figure + extras.
 
-    The canonical styled IC-recovery convergence figure is generated
-    inline by :func:`_plot_recovery_experiment` so the polished styling
-    lands on the experiment results dir too. This wrapper
-    additionally produces:
+    This wrapper produces:
 
-      * ``optimization`` — recovery improvement + min-loss summary panel.
       * ``convergence_curves`` — per-sweep-value loss curves grid.
       * ``recovery_fields`` — per-solver true/perturbed/recovered/residual.
       * ``recovery_final_states`` — GT vs recovered rollout panels.
       * ``recovery_sigma_<v>`` — all-solvers-per-sigma grid.
-      * ``recovery_evolution_<solver>.gif`` — IC reconstruction animation.
+      * ``recovery_evolution.gif`` — combined IC reconstruction animation.
+
+    The per-metric "vs steps" summary panel is intentionally omitted: the
+    3D-NS recovery sweeps a single ``steps`` value, so a metric-vs-sweep
+    curve degenerates to one point.
 
     When results live in per-IC subdirectories (from
     ``--experiments <suite>/<exp>/<ic>`` runs), pass ``ic`` to select a specific
@@ -705,23 +599,10 @@ def plot_recovery(
     sweep_key = data.get("sweep_key", "steps")
     sweep_vals = _sorted_sweep_vals(by_sweep)
 
-    # When ic_error_init was not recorded (older runs), estimate it from the npz
-    # for sigma sweeps: compute exact error at rep_val, scale linearly for others.
-    fallback_ic_error_init = _compute_fallback_ic_error_init(
-        out_dir, by_sweep, sweep_vals, sweep_key
-    )
-
-    # ── recovery.png: 2 panels ─────────────────────────────────────────────────
-    fig_r = _plot_recovery_summary(
-        cfg,
-        by_sweep,
-        sweep_vals,
-        sweep_key,
-        styles,
-        fallback_ic_error_init,
-        out_dir,
-        save,
-    )
+    # NOTE: the per-metric "vs steps" summary panel (``optimization.png``,
+    # produced by ``_plot_recovery_summary``) is intentionally NOT generated
+    # here: the 3D-NS recovery runs a single experiment (one ``steps`` value),
+    # so a metric-vs-sweep curve degenerates to a single point and is spurious.
 
     # ── convergence curves (all sweep values) + IC error consensus ───────────
     _plot_convergence_curves(
@@ -731,7 +612,7 @@ def plot_recovery(
     # ── IC field comparison ────────────────────────────────────────────────────
     fields_path = out_dir / "recovery_fields.npz"
     if not fields_path.exists():
-        return fig_r
+        return None
 
     npz = try_load_npz(fields_path)
     rep_horizon = float(
@@ -748,7 +629,7 @@ def plot_recovery(
             out_dir, npz, solver_names, f_ic, styles, sweep_key, rep_horizon
         )
 
-    return fig_r
+    return None
 
 
 def _render_recovery_evolution_gifs(
@@ -760,62 +641,114 @@ def _render_recovery_evolution_gifs(
     sweep_key: str,
     rep_horizon: Any,
 ) -> None:
-    """Write ``recovery_evolution_<solver>.gif`` per solver from ``ic_history_<j>``.
+    """Write a single combined ``recovery_evolution.gif`` for all solvers.
 
-    Each frame is the 2-D scalar view of the IC at snapshot ``frame`` (same
-    mapping used in the static ``recovery_fields`` panel: ``ic_to_2d`` or
-    vorticity).  Shared vmin/vmax across frames keeps colouring stable so the
-    viewer can see the IC re-form rather than a flicker from autoscaling.
-    Silently skips solvers without a recorded history.
+    Builds one figure with a row of image panels — one panel per solver that
+    has a recorded ``ic_history_<j>``. Each panel animates that solver's 2-D
+    scalar view of the IC (same ``ic_to_2d`` / vorticity mapping as the static
+    ``recovery_fields`` panel) re-forming over optimiser snapshots. Frames are
+    synchronised across panels: at frame *k* every panel shows its snapshot-*k*
+    state, and solvers with fewer snapshots hold (clamp to) their last frame.
+    Per-panel vmin/vmax is fixed across frames so the IC re-forming reads
+    clearly rather than flickering from autoscaling. A shared solver legend is
+    placed below the row, deduplicated by canonical alias. Silently skips
+    solvers without a recorded history; emits nothing when none qualify.
     """
+    # ``npz`` is a plain dict from ``try_load_npz`` (not an NpzFile), so
+    # membership is a key check — ``.files`` would AttributeError.
+    panels: list[dict] = []
+    seen_aliases: set[str] = set()
     for j, name in enumerate(solver_names):
         hist_key = f"ic_history_{j}"
-        # ``npz`` is a plain dict from ``try_load_npz`` (not an NpzFile), so
-        # membership is a key check — ``.files`` would AttributeError.
         if hist_key not in npz:
             continue
         history = np.asarray(npz[hist_key])  # (n_frames, *ic_shape)
         if history.ndim < 2 or history.shape[0] == 0:
             continue
-        n_frames = int(history.shape[0])
+        alias = resolve_solver_alias(name)
+        dedup_key = alias if alias is not None else name
+        if dedup_key in seen_aliases:
+            continue
+        seen_aliases.add(dedup_key)
 
-        # Collapse IC to 2-D per frame using the same vorticity/slice helper.
+        n_frames = int(history.shape[0])
         frames_2d = [f_ic(history[i]) for i in range(n_frames)]
         vmax = float(max(np.abs(arr).max() for arr in frames_2d)) or 1.0
-
         label = styles.get(name, {}).get("label", name)
-        apply_style()
-        fig, ax = paper_image_grid(1, 1, squeeze=True)
+        panels.append(
+            {
+                "name": name,
+                "alias": alias,
+                "label": label,
+                "frames": frames_2d,
+                "n": n_frames,
+                "vmax": vmax,
+            }
+        )
+
+    if not panels:
+        return
+
+    n_panels = len(panels)
+    n_frames = max(p["n"] for p in panels)
+
+    apply_style()
+    fig, axes = paper_image_grid(1, n_panels, squeeze=False)
+    axes = np.atleast_1d(axes).ravel()
+
+    images: list = []
+    for ax, p in zip(axes, panels, strict=True):
         im = ax.imshow(
-            frames_2d[0].T,
+            p["frames"][0].T,
             origin="lower",
             cmap="RdBu_r",
-            vmin=-vmax,
-            vmax=vmax,
+            vmin=-p["vmax"],
+            vmax=p["vmax"],
             interpolation="nearest",
         )
-        title = ax.set_title(
-            f"{label} — snapshot 1 / {n_frames}  ({sweep_key}={rep_horizon})",
-            fontsize=9,
-        )
+        images.append(im)
+        ax.set_title(p["label"], fontsize=8)
         ax.axis("off")
-        fig.tight_layout()
 
-        def _update(
-            idx: Any,
-            _im: Any = im,
-            _title: Any = title,
-            _frames: Any = frames_2d,
-            _label: Any = label,
-            _n: Any = n_frames,
-            _sk: Any = sweep_key,
-            _sv: Any = rep_horizon,
-        ) -> Any:
-            _im.set_data(_frames[idx].T)
-            _title.set_text(f"{_label} — snapshot {idx + 1} / {_n}  ({_sk}={_sv})")
-            return _im, _title
+    title = fig.suptitle(
+        f"IC recovery evolution — snapshot 1 / {n_frames}  ({sweep_key}={rep_horizon})",
+        fontsize=9,
+    )
+    fig.tight_layout()
 
-        anim = manimation.FuncAnimation(
-            fig, _update, frames=n_frames, interval=250, blit=False
+    handles = dedup_handles(
+        [make_handle(p["alias"]) for p in panels if p["alias"] is not None]
+    )
+    if handles:
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(len(handles), 5),
+            fontsize=7.5,
+            framealpha=0.7,
+            handlelength=2.0,
         )
-        _save_animation(anim, f"recovery_evolution_{name}", out_dir, fps=4)
+        fig.subplots_adjust(bottom=0.18)
+
+    def _update(
+        idx: Any,
+        _images: Any = images,
+        _panels: Any = panels,
+        _title: Any = title,
+        _n: Any = n_frames,
+        _sk: Any = sweep_key,
+        _sv: Any = rep_horizon,
+    ) -> Any:
+        for _im, _p in zip(_images, _panels, strict=True):
+            k = min(idx, _p["n"] - 1)  # clamp: hold last frame
+            _im.set_data(_p["frames"][k].T)
+        _title.set_text(
+            f"IC recovery evolution — snapshot {idx + 1} / {_n}  ({_sk}={_sv})"
+        )
+        return (*_images, _title)
+
+    anim = manimation.FuncAnimation(
+        fig, _update, frames=n_frames, interval=250, blit=False
+    )
+    _save_animation(anim, "recovery_evolution", out_dir, fps=4)

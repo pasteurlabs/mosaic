@@ -387,7 +387,18 @@ def _plot_drag_opt_fields(
     # accumulate stale per-solver entries from earlier runs (e.g. differently
     # cased aliases like ``flow_final_XLB`` alongside ``flow_final_xlb``); those
     # have no ``by_solver`` metadata and would render as blank/duplicate rows.
-    solver_names_clean = [s for s in by_solver if f"flow_final_{s}" in npz_keys]
+    # Additionally dedup by canonical alias: if ``by_solver`` carries both a
+    # display name and an alias mapping to the same solver, keep only the first.
+    solver_names_clean: list[str] = []
+    seen_aliases: set[str] = set()
+    for s in by_solver:
+        if f"flow_final_{s}" not in npz_keys:
+            continue
+        alias = resolve_solver_alias(s) or s
+        if alias in seen_aliases:
+            continue
+        seen_aliases.add(alias)
+        solver_names_clean.append(s)
 
     if not solver_names_clean:
         return
@@ -396,11 +407,25 @@ def _plot_drag_opt_fields(
     n_rows = 1 + len(solver_names_clean)
     ncols = 2
     fig_fld, axes_fld = paper_image_grid(n_rows, ncols)
-    # Reserve a left gutter for the (multi-line) row labels and generous
-    # vertical/horizontal spacing so labels, titles and colorbars never collide.
-    # Done before rendering so ``ax.get_position()`` reflects the final layout.
+    # Widen the figure to host a dedicated left gutter for the (multi-line) row
+    # labels without stealing width from the panels/colorbars.  ``IMG_PANEL`` is
+    # ~1.45" per panel; reserve a fixed ~1.5" gutter on the left.
+    panel_w = fig_fld.get_size_inches()[0] / ncols
+    gutter_w = 1.5
+    fig_w = ncols * panel_w + gutter_w
+    fig_h = fig_fld.get_size_inches()[1]
+    fig_fld.set_size_inches(fig_w, fig_h)
+    left_frac = gutter_w / fig_w
+    # Reserve the left gutter and keep generous vertical/horizontal spacing so
+    # labels, column titles, suptitle and colorbars never collide.  Done before
+    # rendering so ``ax.get_position()`` reflects the final layout.
     fig_fld.subplots_adjust(
-        left=0.26, right=0.97, top=0.93, bottom=0.03, hspace=0.45, wspace=0.55
+        left=left_frac,
+        right=0.97,
+        top=0.90,
+        bottom=0.03,
+        hspace=0.30,
+        wspace=0.55,
     )
 
     # Compute shared colour scales from the initial flow so all panels are comparable.
@@ -435,21 +460,22 @@ def _plot_drag_opt_fields(
                 interpolation="nearest",
             )
             if row_idx == 0:
-                ax.set_title(col_title, fontweight="bold")
+                ax.set_title(col_title, fontweight="bold", pad=6)
             ax.axis("off")
 
         # Row label placed in the left figure gutter (reserved via
-        # subplots_adjust above) so multi-line solver labels never overlap the
-        # neighbouring colorbars or row above/below.
+        # subplots_adjust above).  Right-aligned so the label always ends a
+        # fixed gap left of the panel regardless of its length — multi-line
+        # solver labels never overlap the panels, colorbars or adjacent rows.
         ax0 = axes_fld[row_idx, 0]
         pos = ax0.get_position()
         fig_fld.text(
-            0.015,
+            pos.x0 - 0.02,
             (pos.y0 + pos.y1) / 2,
             label,
             fontsize=7,
             va="center",
-            ha="left",
+            ha="right",
             linespacing=1.3,
         )
 
@@ -488,7 +514,7 @@ def _plot_drag_opt_fields(
             label += "\n[NOT CONVERGED]"
         _render_row(i + 1, label, field, converged)
 
-    fig_fld.suptitle("Optimised flow fields", fontweight="bold")
+    fig_fld.suptitle("Optimised flow fields", fontweight="bold", y=0.97)
     if save:
         save_fig(fig_fld, "drag_opt_fields", out_dir)
     figs.append(fig_fld)

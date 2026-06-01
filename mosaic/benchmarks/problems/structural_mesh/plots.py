@@ -115,6 +115,39 @@ def _solver_order_for(cfg_name: str) -> list[str]:
     return STRUCTURAL_ORDER
 
 
+def _field_solver_names(npz: Any, by_solver: dict | None = None) -> list[str]:
+    """Per-field solver names aligned with the ``rho_final_<j>`` arrays.
+
+    The NPZ stores one ``rho_final_<j>`` (and optional ``rho_history_<j>``)
+    array per solver, written in ``by_solver`` insertion order. The
+    companion ``solver_names`` array is *supposed* to label them, but some
+    older result sets carry a truncated ``solver_names`` (e.g. only the
+    first solver) while still writing every field array — which makes the
+    field/3-D/GIF panels silently collapse to a single solver.
+
+    To stay robust we count the actual ``rho_final_<j>`` arrays and:
+      * use ``solver_names`` when it labels *every* field array, otherwise
+      * fall back to the ``by_solver`` keys (same generation order) so all
+        solvers present in the data are drawn.
+    """
+    npz_keys = npz.files if hasattr(npz, "files") else list(npz.keys())
+    n_fields = sum(1 for k in npz_keys if k.startswith("rho_final_"))
+
+    stored = list(npz["solver_names"]) if "solver_names" in npz_keys else []
+    if len(stored) >= n_fields and n_fields > 0:
+        return [str(s) for s in stored[:n_fields]]
+
+    by_solver_names = list((by_solver or {}).keys())
+    if len(by_solver_names) >= n_fields and n_fields > 0:
+        return [str(s) for s in by_solver_names[:n_fields]]
+
+    # Last resort: pad whatever names we have so every field array is drawn.
+    names = [str(s) for s in (stored or by_solver_names)]
+    while len(names) < n_fields:
+        names.append(f"solver_{len(names)}")
+    return names
+
+
 def _plot_topopt_figure(
     cfg: Problem,
     *,
@@ -161,7 +194,7 @@ def _plot_topopt_figure(
     )
 
     if have_fields:
-        npz_solvers = list(npz["solver_names"])
+        npz_solvers = _field_solver_names(npz, by_solver)
         n_field_panels = len(npz_solvers)
         ncols = max(1, n_field_panels)
         fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.62), dpi=300)
@@ -282,9 +315,9 @@ def plot_topopt(
         return fig_c
 
     npz = try_load_npz(fields_path)
-    if "solver_names" not in npz:
+    solver_names = _field_solver_names(npz, by_solver)
+    if not solver_names:
         return fig_c
-    solver_names = npz["solver_names"].tolist()
     n_panels = 1 + len(solver_names)
     fig_f, axes = paper_image_grid(1, n_panels)
 

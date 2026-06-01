@@ -249,16 +249,19 @@ def _alias_to_display_name(cfg: Any) -> dict[str, str]:
 
 def _agreement_plot_curves_styled(
     ax: Any, data: dict, seen: set[str], cfg: Any
-) -> None:
+) -> list[float]:
     """Plot per-solver error-vs-sweep curves onto ``ax``.
 
     Walks :data:`NS_ORDER`, drawing every solver that produced at least
     one valid finite positive error. Updates ``seen`` so the caller can
-    build a legend covering only solvers that actually appear.
+    build a legend covering only solvers that actually appear, and returns
+    the flat list of plotted error values (so the caller can pick a tick
+    strategy that stays legible when the spread is sub-decade).
     """
+    all_errors: list[float] = []
     by_param = data.get("by_param", {})
     if not by_param:
-        return
+        return all_errors
     params = sorted(by_param.keys(), key=float)
     # ``by_param`` may be keyed by alias ('jax_cfd') or display name ('jax-cfd')
     # depending on the run; resolve every present key to its canonical alias so
@@ -295,7 +298,29 @@ def _agreement_plot_curves_styled(
             markeredgewidth=0,
             linewidth=1.6,
         )
+        all_errors.extend(ys)
         seen.add(solver)
+    return all_errors
+
+
+def _agreement_set_logy_ticks(ax: Any, narrow_y: bool) -> None:
+    """Pick a y-axis scale + tick strategy that stays legible for the data span.
+
+    The default decade ``LogLocator`` yields *no* major ticks when every
+    error sits inside a single decade (e.g. the multimode IC where all
+    solvers agree to within ~0.5 %), leaving the axis bare *and* a log
+    scale visually exaggerates a sub-percent spread into a full-height
+    swing. For that sub-decade case switch to a linear scale with a
+    bounded ``MaxNLocator`` so the (near-constant) values read honestly.
+    """
+    if narrow_y:
+        ax.set_yscale("linear")
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=4, prune="both"))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.4g"))
+    else:
+        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
 
 
 def _agreement_style_axis(
@@ -306,10 +331,12 @@ def _agreement_style_axis(
     y_label: str,
     log_x: bool,
     has_data: bool = True,
+    narrow_y: bool = False,
 ) -> None:
     """Apply consistent axis labels / ticks to one panel."""
     ax.set_title(title)
-    ax.set_xlabel(x_label)
+    # ``labelpad`` keeps the x-label clear of the shared legend strip below.
+    ax.set_xlabel(x_label, labelpad=2)
     ax.set_ylabel(y_label)
     if not has_data:
         ax.text(
@@ -324,8 +351,7 @@ def _agreement_style_axis(
         )
         ax.tick_params(axis="x", labelsize=7, rotation=30)
         return
-    ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
-    ax.yaxis.set_minor_locator(mticker.NullLocator())
+    _agreement_set_logy_ticks(ax, narrow_y)
     if log_x:
         ax.set_xscale("log")
     ax.xaxis.set_major_locator(mticker.LogLocator(base=10, numticks=5))
@@ -350,11 +376,15 @@ def _agreement_figure(
     reference_label = data.get("reference_label", "consensus")
     ref_desc = "analytic" if reference_label == "analytic" else "consensus"
 
-    fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.55, TEXTWIDTH * 0.4), dpi=300)
-    fig.subplots_adjust(bottom=0.30, left=0.18, right=0.95, top=0.88)
+    fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.55, TEXTWIDTH * 0.42), dpi=300)
+    fig.subplots_adjust(bottom=0.34, left=0.18, right=0.95, top=0.88)
 
     seen: set[str] = set()
-    _agreement_plot_curves_styled(ax, data, seen, cfg)
+    errors = _agreement_plot_curves_styled(ax, data, seen, cfg)
+
+    # Sub-decade error spread (all solvers agree to within a decade) needs a
+    # finer tick locator so the y-axis isn't left bare.
+    narrow_y = bool(errors) and (max(errors) / min(errors) < 10)
 
     x_label = _agreement_math_label(sweep_key)
     _agreement_style_axis(
@@ -364,6 +394,7 @@ def _agreement_figure(
         y_label=f"Error vs {ref_desc}",
         log_x=True,
         has_data=bool(seen),
+        narrow_y=narrow_y,
     )
 
     handles = dedup_handles(
@@ -373,7 +404,7 @@ def _agreement_figure(
         fig.legend(
             handles=handles,
             loc="lower center",
-            bbox_to_anchor=(0.5, 0.01),
+            bbox_to_anchor=(0.5, -0.02),
             ncol=min(len(handles), 5),
             fontsize=6.5,
             framealpha=0.7,

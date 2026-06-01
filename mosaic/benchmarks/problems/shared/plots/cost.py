@@ -13,7 +13,9 @@ import numpy as np
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.problems.shared.plots.style import (
+    GRID_COL_W,
     RCPARAMS,
+    TEXTWIDTH,
     apply_style,
     fig_shared_legend,
     paper_grid,
@@ -25,6 +27,15 @@ from mosaic.benchmarks.problems.shared.plots.style import (
 apply_style()
 
 _SUITE = "cost"
+
+# Cost panels are log-log with verbose x-tick labels ("cells", step counts), so
+# give each column a touch more room than the house ``GRID_COL_W`` to keep ticks
+# and titles from crowding (still single-column-ish for a few columns).
+_COST_COL_W = GRID_COL_W * 1.35
+
+# Steady-state problems have no time integration, so a "vs steps" cost sweep is
+# meaningless — those columns are dropped from their cost figure.
+_NON_TRANSIENT_PROBLEMS = {"structural-mesh", "thermal-mesh"}
 
 _FAILURE_MARKER = {
     "OOM": "v",
@@ -181,9 +192,18 @@ def _load_cost_inputs(suite_dir: Any, suffix: str) -> tuple:
 
 
 def _build_columns(
-    spatial_data: dict, temporal_data: dict, vjp_data: dict, res_key: str
+    spatial_data: dict,
+    temporal_data: dict,
+    vjp_data: dict,
+    res_key: str,
+    *,
+    drop_steps: bool = False,
 ) -> list[tuple[str, dict, str, str, list]]:
-    """Assemble the column specs in display order, skipping empty ones."""
+    """Assemble the column specs in display order, skipping empty ones.
+
+    When ``drop_steps`` is set (steady-state problems), the time-integration
+    "vs steps" columns are omitted entirely, leaving only the N / size sweep.
+    """
     columns: list[tuple[str, dict, str, str, list]] = []
 
     if _has_inner_data(spatial_data.get("by_N", {})):
@@ -197,7 +217,7 @@ def _build_columns(
             )
         )
 
-    if _has_inner_data(temporal_data.get("by_steps", {})):
+    if not drop_steps and _has_inner_data(temporal_data.get("by_steps", {})):
         columns.append(
             (
                 "temporal_steps",
@@ -219,7 +239,7 @@ def _build_columns(
             )
         )
 
-    if _has_inner_data(vjp_data.get("by_steps", {})):
+    if not drop_steps and _has_inner_data(vjp_data.get("by_steps", {})):
         columns.append(
             (
                 "vjp_steps",
@@ -379,7 +399,10 @@ def plot_cost(
         return None
     spatial_data, temporal_data, vjp_data = loaded
 
-    columns = _build_columns(spatial_data, temporal_data, vjp_data, resolution_key)
+    drop_steps = cfg.name in _NON_TRANSIENT_PROBLEMS
+    columns = _build_columns(
+        spatial_data, temporal_data, vjp_data, resolution_key, drop_steps=drop_steps
+    )
 
     # Keep only (kind × axis) columns that actually have plotted points. A
     # column can pass the structural ``_has_inner_data`` check yet hold no
@@ -400,6 +423,9 @@ def plot_cost(
     styles = solver_styles(cfg)
 
     fig, axes_grid = paper_grid(n_rows, n_cols)
+    # Roomier than the house width so log x-tick labels / titles aren't cramped.
+    _cur_w, cur_h = fig.get_size_inches()
+    fig.set_size_inches(max(TEXTWIDTH, n_cols * _COST_COL_W), cur_h)
 
     failure_types_seen: set[str] = set()
 
