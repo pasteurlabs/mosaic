@@ -31,6 +31,16 @@ HTTP_CODE=$(curl -sSL -w "%{http_code}" -X POST \
 BODY=$(cat /tmp/_rtd_response.json)
 rm -f /tmp/_rtd_response.json
 
+# A 404 means RTD has no version with this slug yet. For PR (external)
+# versions this is a benign race: RTD's webhook creates the external version
+# on PR push, and this rebuild trigger may fire before that has happened. The
+# webhook-driven build still produces a preview, so treat a missing version as
+# a soft skip rather than failing the merge gate.
+if [ "$HTTP_CODE" = "404" ]; then
+  echo "::warning::No RTD version '${VERSION_SLUG}' yet (${BODY}) — skipping rebuild trigger."
+  exit 0
+fi
+
 if [ "$HTTP_CODE" != "202" ]; then
   echo "::error::RTD API returned ${HTTP_CODE}: ${BODY}"
   exit 1
@@ -58,8 +68,11 @@ while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
       exit 0
       ;;
     cancelled)
-      echo "::error::RTD build ${BUILD_ID} was cancelled"
-      exit 1
+      # RTD cancels a build when a newer one supersedes it (e.g. the webhook
+      # build and this API-triggered rebuild overlap). The surviving build
+      # produces the preview, so a cancellation is not a failure of this step.
+      echo "::warning::RTD build ${BUILD_ID} was cancelled (superseded) — skipping."
+      exit 0
       ;;
     *)
       echo "  build ${BUILD_ID}: ${STATE} (${ELAPSED}s elapsed)"

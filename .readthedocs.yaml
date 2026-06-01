@@ -1,10 +1,18 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
-# IMPORTANT: Disable the default GitHub webhook in RTD project settings
-# (Admin > Integrations). Builds are triggered explicitly by GitHub Actions
-# workflows (publish-results.yml, benchmark.yml) via the RTD API to ensure
-# benchmark artifacts are uploaded before the docs build starts.
+# IMPORTANT: Keep the GitHub webhook ENABLED in RTD project settings
+# (Admin > Integrations) so RTD creates an external version and builds a
+# preview the moment a PR is pushed.
+#
+# That first (early) build runs before this PR's benchmark-results-<sha>
+# artifact exists, so the external branch below renders baseline content with
+# a "results still building" badge (see rtd-pending-badge.sh). Once the
+# benchmark run finishes and uploads the artifact, benchmark.yml triggers a
+# second build via the RTD API that overlays the real PR results.
+#
+# For latest/stable/release (non-PR) versions, builds are still triggered
+# explicitly from publish-results.yml after artifacts are uploaded.
 
 # Required
 version: 2
@@ -63,6 +71,12 @@ build:
                 fi
                 rm -rf /tmp/pr-results
                 FETCHED=true
+              else
+                # Early build: PR results not uploaded yet. Render baseline with
+                # a "results still building" badge; benchmark.yml triggers a
+                # follow-up build that overlays the real results.
+                echo "PR results not available yet — adding 'building' badge"
+                bash .github/scripts/rtd-pending-badge.sh
               fi
             fi
             # Default: fetch baseline artifact
