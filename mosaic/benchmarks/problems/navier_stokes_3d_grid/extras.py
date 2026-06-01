@@ -604,15 +604,14 @@ def _hsl_save_figure(fig: Any, out_dir: Path) -> None:
 
 
 def _plot_horizon_sweep_limits(cfg: Problem, **_kw: Any) -> Any:
-    """``_extra/horizon_sweep_limits`` — VJP rollout-length limit figure."""
-    out_dir = _extra_out_dir(cfg)
-    path = (
-        results_dir()
-        / "ns-3d-grid"
-        / "gradient"
-        / "horizon_sweep_limits"
-        / "result.json"
-    )
+    """``gradient/horizon_sweep_limits`` — VJP rollout-length limit figure.
+
+    Saves alongside the experiment's ``result.json`` (under the gradient
+    suite) so it groups under Gradient in the docs rather than a stray
+    "Extra" section.
+    """
+    out_dir = results_dir() / cfg.name / "gradient" / "horizon_sweep_limits"
+    path = out_dir / "result.json"
     if not path.exists():
         print(f"[horizon_sweep_limits] {path} not found — skipping")
         return None

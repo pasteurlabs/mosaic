@@ -50,13 +50,23 @@ _CLR_LOAD = "#FF1744"
 
 
 def _add_bcs(ax: Any, nx: int, ny: int, nz: int, ph: dict) -> None:
-    """Overlay fixed-face patch and load arrow on a voxel Axes3D."""
+    """Overlay fixed-face patch and load arrow on a voxel Axes3D.
+
+    The load arrow is drawn *anchored to the loaded corner of the structure*
+    (on the right face, x = nx) and pointing in the load direction. Its origin
+    is offset outward by the full arrow length so the arrow *tip* lands on the
+    corner, keeping the shaft outside the voxels yet still inside (or only just
+    beyond) the data box. The axes limits are then explicitly grown to include
+    the whole arrow — otherwise the auto-fit bounds (set from the voxels alone)
+    clip it — and a high ``zorder`` keeps it drawn on top of the voxels.
+    """
     wall = Poly3DCollection(
         [[(0, 0, 0), (0, ny, 0), (0, ny, nz), (0, 0, nz)]],
         alpha=0.55,
         facecolor=_CLR_FIXED,
         edgecolor="#333333",
         linewidth=0.8,
+        zorder=1,
     )
     ax.add_collection3d(wall)
 
@@ -66,26 +76,43 @@ def _add_bcs(ax: Any, nx: int, ny: int, nz: int, ph: dict) -> None:
     ly = (ny - 0.5) if corner_y_high else 0.5
     lz = (nz - 0.5) if corner_z_high else 0.5
 
-    arrow_len = nz * 0.65
+    # Arrow length scaled to the structure but with a sensible floor so it is
+    # clearly visible even on the thin/short meshes used here (e.g. nz = 8).
+    arrow_len = max(2.5, 0.6 * max(nx, ny, nz))
     if load_axis == "y":
         y_sign = -1 if corner_y_high else 1
-        dx, dy_a, dz_a = 0, y_sign * arrow_len, 0
+        dx, dy_a, dz_a = 0.0, y_sign * arrow_len, 0.0
     else:
         z_sign = -1 if corner_z_high else 1
-        dx, dy_a, dz_a = 0, 0, z_sign * arrow_len
+        dx, dy_a, dz_a = 0.0, 0.0, z_sign * arrow_len
 
-    ox = nx + 0.6 if load_axis != "y" else nx
+    # Load corner sits on the right face (x = nx). Place the arrow *tail* one
+    # arrow-length back along the load direction so the *tip* meets the corner.
+    ox, oy, oz = float(nx), float(ly), float(lz)
+    tail_x, tail_y, tail_z = ox - dx, oy - dy_a, oz - dz_a
     ax.quiver(
-        ox,
-        ly,
-        lz,
+        tail_x,
+        tail_y,
+        tail_z,
         dx,
         dy_a,
         dz_a,
         color=_CLR_LOAD,
-        linewidth=2.5,
-        arrow_length_ratio=0.28,
+        linewidth=3.0,
+        arrow_length_ratio=0.3,
+        zorder=10,
     )
+
+    # Grow the axes limits to enclose both the voxel box and the full arrow so
+    # nothing is clipped once the surrounding spines/ticks are turned off.
+    xs = [0.0, float(nx), tail_x, ox]
+    ys = [0.0, float(ny), tail_y, oy]
+    zs = [0.0, float(nz), tail_z, oz]
+    pad = 0.5
+    ax.set_xlim(min(xs) - pad, max(xs) + pad)
+    ax.set_ylim(min(ys) - pad, max(ys) + pad)
+    ax.set_zlim(min(zs) - pad, max(zs) + pad)
+    ax.set_box_aspect((nx, ny, nz))
 
 
 def _voxel_facecolors(
@@ -291,7 +318,8 @@ def plot_topopt(
 
       * ``topopt_fields`` — initial + per-solver final 2-D density panels.
       * ``topopt_evolution_<solver>.gif`` — density-field animation per solver.
-      * ``topopt_3d_<solver>.png`` — interactive-style 3-D voxel render per solver.
+      * ``topopt_3d.png`` — single grid of 3-D voxel renders, one panel per
+        solver, with the load-arrow / fixed-face BC overlay on each.
     """
     out_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
     data = load_json(out_dir / "result.json")
@@ -369,34 +397,45 @@ def _plot_topopt_3d(
     out_dir: Path,
     styles: dict,
     params: dict | None = None,
-    threshold: float = 0.35,
+    threshold: float = _THRESH,
 ) -> None:
-    """3-D voxel plots of the final optimised density field, one per solver.
+    """Single combined 3-D voxel grid of the final optimised density fields.
 
-    Saves ``topopt_3d_{solver_name}.png`` in *out_dir*.  The voxel array is
-    reshaped from the flat (n_cells,) layout to (nx, ny, nz) so that matplotlib's
-    ``Axes3D.voxels()`` maps naturally to (length, width, height).  Voxels with
-    ρ > *threshold* are shown; colour is steel-blue (solid material) with alpha
-    proportional to density so partially-dense cells appear translucent.
+    Produces ONE figure ``topopt_3d.png`` in *out_dir* with one 3-D voxel panel
+    per solver that actually carries a ``rho_final_<j>`` array, titled per solver
+    and annotated with the fixed-face patch + red load arrow via :func:`_add_bcs`.
 
-    Problem-specific annotations are inferred from *params*:
-    - ``corner_load=True``:  red marker at the corner load point (x=Lx, y=0, z=0).
-    - Always:                translucent blue plane on the fixed/clamped face (x=0).
-
-    Works for any problem using a 2:1:1 hex mesh (structural-mesh, thermal-mesh, …).
+    Solvers are deduplicated by canonical alias (first occurrence wins) so the
+    same physical result is not drawn twice. The voxel array is reshaped from the
+    flat ``(n_cells,)`` layout to ``(nx, ny, nz)`` so matplotlib's
+    ``Axes3D.voxels()`` maps naturally to (length, width, height); voxels with
+    ρ > *threshold* are shown.
     """
     params = params or {}
-    corner_load = params.get("corner_load", False)
 
-    # Steel-blue RGB for solid material
-    _SOLID_RGB = np.array([0.267, 0.467, 0.667])  # #4477AA
-
+    # Collect the (solver, field-index) panels to draw, deduped by alias.
+    seen_aliases: set[str] = set()
+    panels: list[tuple[int, str]] = []
     for j, name in enumerate(solver_names):
-        key = f"rho_final_{j}"
-        if key not in npz:
+        if f"rho_final_{j}" not in npz:
             continue
+        alias = resolve_solver_alias(name)
+        key = alias or name
+        if key in seen_aliases:
+            continue
+        seen_aliases.add(key)
+        panels.append((j, name))
 
-        rho_flat = npz[key]
+    if not panels:
+        return
+
+    n = len(panels)
+    fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH / max(1, n) * 1.05), dpi=300)
+    gs = fig.add_gridspec(1, n, wspace=0.05, top=0.80, bottom=0.02)
+
+    for col, (j, name) in enumerate(panels):
+        ax = fig.add_subplot(gs[0, col], projection="3d")
+        rho_flat = npz[f"rho_final_{j}"]
         n_cells = len(rho_flat)
 
         # Prefer explicit (nx, ny, nz) from params when they match n_cells;
@@ -414,83 +453,31 @@ def _plot_topopt_3d(
 
         # Reshape: flat → (nz, ny, nx) → (nx, ny, nz) for matplotlib voxels axes
         rho_xyz = rho_flat.reshape(nz_, ny_, nx_).transpose(2, 1, 0)  # (nx, ny, nz)
-
         filled = rho_xyz > threshold
 
-        # Face colours: steel-blue for all filled voxels; alpha scales with density
-        # so near-threshold cells appear translucent and solid cells opaque.
-        fc = np.zeros((*rho_xyz.shape, 4))
-        fc[..., :3] = _SOLID_RGB
-        # Remap density from [threshold, 1] → [0.35, 0.92] for alpha
-        alpha = np.where(
-            filled,
-            0.35 + 0.57 * (rho_xyz - threshold) / (1.0 - threshold + 1e-8),
-            0.0,
-        )
-        fc[..., 3] = alpha
+        alias = resolve_solver_alias(name)
+        _label, color, _ls, _mk = solver_props(alias or name)
+        fc = _voxel_facecolors(rho_xyz, filled, color)
+        ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True, zorder=2)
 
-        fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.62), dpi=300)
-        ax = fig.add_subplot(111, projection="3d")
-        ax.voxels(filled, facecolors=fc, edgecolor="none")
+        # Fixed-face patch + red load arrow (also sets axis limits / box aspect).
+        _add_bcs(ax, nx_, ny_, nz_, params)
 
-        # Fixed/clamped face: translucent blue plane at x=0
-        yy, zz = np.meshgrid([0, ny_], [0, nz_])
-        xx = np.zeros_like(yy)
-        ax.plot_surface(xx, yy, zz, alpha=0.12, color="#4477AA", linewidth=0)
-
-        # Corner load annotation (structural-mesh only).
-        # The load is applied at the bottom-front corner of the right face
-        # (x=Lx, y=0, z=0 in physical coords → voxel coords nx_-0.5, 0.5, 0.5).
-        # Draw it AFTER the voxels so it renders on top, use depthshade=False to
-        # prevent matplotlib from darkening the marker, and add a quiver arrow
-        # pointing upward (+z) so the force direction is unambiguous.
-        if corner_load:
-            ax.scatter(
-                [nx_ - 0.5],
-                [0.5],
-                [0.5],
-                color="#EE3333",
-                s=180,
-                zorder=10,
-                depthshade=False,
-                label="load (↑z)",
-            )
-            # Arrow: base slightly below the load point, pointing upward (+z).
-            # Length ~15 % of nz_ so it is proportional to the mesh.
-            arrow_len = max(0.8, nz_ * 0.15)
-            ax.quiver(
-                nx_ - 0.5,
-                0.5,
-                0.5 - arrow_len,
-                0,
-                0,
-                arrow_len,
-                color="#EE3333",
-                linewidth=2,
-                arrow_length_ratio=0.4,
-                zorder=10,
-            )
-            ax.legend(fontsize=8, loc="upper left")
-
-        ax.set_xlabel("$x$  (length)", labelpad=4)
-        ax.set_ylabel("$y$  (width)", labelpad=4)
-        ax.set_zlabel("$z$  (height)", labelpad=4)
-        # View from the right-front-top so both the clamped left face and the
-        # bottom-front corner load on the right face are simultaneously visible.
-        # azim=45 looks from the right side (load corner is on the near face);
-        # elev=30 gives enough height to see the 3-D topology clearly.
-        ax.view_init(elev=30, azim=45)
-
-        label = styles.get(name, {}).get("label", name)
+        label = styles.get(name, {}).get("label", alias or name)
         compliance_val = by_solver.get(name, {}).get("final_compliance")
-        title = rf"{label}  ($\rho > {threshold}$)"
+        title = label
         if compliance_val is not None:
             title += f"\n$C = {compliance_val:.3e}$"
-        ax.set_title(title)
+        ax.set_title(title, fontsize=7.5, pad=2)
+        ax.view_init(elev=_ELEV, azim=_AZIM)
+        ax.set_axis_off()
 
-        fig.tight_layout()
-        save_fig(fig, f"topopt_3d_{name}", out_dir)
-        plt.close(fig)
+    fig.suptitle(
+        rf"Optimised density ($\rho > {threshold}$) with load and fixed-face BCs",
+        fontsize=9,
+        y=0.98,
+    )
+    save_fig(fig, "topopt_3d", out_dir)
 
 
 def _render_topopt_evolution_gifs(
