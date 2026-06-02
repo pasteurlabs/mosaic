@@ -155,8 +155,14 @@ jobs:
           version: "1.7.31"
 
       - name: Render docs site
+        # Regenerate plots for ALL solvers from the merged result.json files
+        # first: the baseline artifact stores data only (plots stripped on
+        # upload) and only the merged PR's solver re-ran, so without this the
+        # rendered docs would omit every baseline solver's plots.
+        # --plots-only is no-Docker/no-GPU.
         if: steps.find.outputs.should_publish == 'true'
         run: |
+          uv run mosaic run --plots-only
           uv run python docs/generate_results.py
           uv run quarto render --output-dir _site
 

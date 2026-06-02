@@ -287,16 +287,6 @@ jobs:
           fi
           uv run mosaic status --format md $DIFF_FLAG > status-report.md
 
-      - name: Upload merged results artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-results-${{ github.sha }}
-          path: |
-            mosaic-results/
-            snapshot.json
-            status-report.md
-          retention-days: 90
-
       # ── Render docs site on GHA ────────────────────────────────────────
       # The docs are rendered here (where the full mosaic/jax stack is already
       # installed and memory is ample) rather than on Read the Docs, whose
@@ -306,6 +296,14 @@ jobs:
         uses: quarto-dev/quarto-actions/setup@v2
         with:
           version: "1.7.31"
+
+      # Regenerate plots for ALL solvers from the merged result.json files.
+      # The baseline artifact stores data only (plots are stripped before
+      # upload), and only the changed solver re-ran here, so without this step
+      # generate_results.py would glob just the changed solver's PNGs and the
+      # docs would omit every baseline solver. --plots-only is no-Docker/no-GPU.
+      - name: Regenerate plots from merged results
+        run: uv run mosaic run --plots-only
 
       - name: Generate results pages
         run: uv run python docs/generate_results.py
