@@ -7,6 +7,10 @@ current_version=$(gh release view --json tagName --jq '.tagName' || echo "v0.0.0
 
 # Prevent bumping major versions, downgrade to minor in this case
 new_version=$(git-cliff --bumped-version --bump $bump_type)
+# Normalize 'v' prefix so the major comparison below is consistent
+# (git-cliff drops the prefix for the first release)
+current_version="v${current_version#v}"
+new_version="v${new_version#v}"
 current_major=$(cut -d '.' -f 1 <<< "$current_version")
 new_major=$(cut -d '.' -f 1 <<< "$new_version")
 if [[ "$current_major" != "$new_major" ]]; then

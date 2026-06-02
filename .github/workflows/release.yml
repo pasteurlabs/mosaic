@@ -54,6 +54,8 @@ jobs:
           bump_type=$(bash .github/workflows/get_bump_type.sh)
           git-cliff --output CHANGELOG.md --bump $bump_type
           new_version=$(git-cliff --bumped-version --bump $bump_type)
+          # Ensure a single leading 'v' (git-cliff drops it for the first release)
+          new_version="v${new_version#v}"
 
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
@@ -104,6 +106,8 @@ jobs:
         run: |
           bump_type=$(bash .github/workflows/get_bump_type.sh)
           new_version=$(git-cliff --bumped-version --bump $bump_type)
+          # Ensure a single leading 'v' (git-cliff drops it for the first release)
+          new_version="v${new_version#v}"
           git-cliff --output CHANGELOG.md --bump $bump_type
 
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
@@ -152,6 +156,8 @@ jobs:
 
           bump_type=$(bash .github/workflows/get_bump_type.sh)
           new_version=$(git-cliff --bumped-version --bump $bump_type)
+          # Ensure a single leading 'v' (git-cliff drops it for the first release)
+          new_version="v${new_version#v}"
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
       - name: Assemble release notes
