@@ -237,6 +237,18 @@ def save_fig(fig: Figure, stem: str, out_dir: Path) -> None:
 # ── Shared figure legend ──────────────────────────────────────────────────────
 
 
+def _is_constrained(fig: Figure) -> bool:
+    """True when *fig* is driven by the constrained-layout engine.
+
+    Bottom legends must use ``loc="outside ..."`` (which the engine reserves
+    space for) rather than a manual ``bbox_to_anchor`` + ``tight_layout`` that
+    would conflict with it.
+    """
+    from matplotlib.layout_engine import ConstrainedLayoutEngine
+
+    return isinstance(fig.get_layout_engine(), ConstrainedLayoutEngine)
+
+
 def fig_shared_legend(
     fig: Figure,
     axes: Any,
@@ -271,11 +283,18 @@ def fig_shared_legend(
                 handles.append(h)
                 labels.append(lbl)
 
+    constrained = _is_constrained(fig)
     if not handles:
-        fig.tight_layout()
+        if not constrained:
+            fig.tight_layout()
         return
 
     _ncol = ncol if ncol is not None else len(handles)
+    if constrained:
+        # Constrained layout reserves space for an "outside" legend automatically;
+        # a manual tight_layout would conflict with the layout engine.
+        fig.legend(handles, labels, loc="outside lower center", ncol=_ncol)
+        return
     fig.legend(
         handles,
         labels,
@@ -286,6 +305,169 @@ def fig_shared_legend(
         framealpha=0.7,
     )
     fig.tight_layout(rect=[0, bottom, 1, 1])
+
+
+# ── Paper figure layouts ──────────────────────────────────────────────────────
+#
+# Canonical house layout for every line/curve and image figure in the suite,
+# factored out of the original horizon_sweep / fd_check figures so all plots
+# read identically: a TEXTWIDTH-wide figure (so PDFs embed at single-column
+# print width without scaling), RCPARAMS active, and — for solver curves — a
+# single shared legend centred below the panels in canonical solver order.
+#
+# Use:
+#   paper_row(3)             → 1×3 row of line panels      (sweep summaries)
+#   paper_grid(nrows, ncols) → multi-row grid of line panels (per-solver curves)
+#   paper_image_grid(r, c)   → grid of square image panels  (field renders)
+#   solver_legend(fig, seen) → shared bottom legend, canonical order
+#   cosine_defect(values)    → 1 − cosine, for a log "direction accuracy" axis
+
+# Aspect (height / TEXTWIDTH) of a single row of line panels.
+ROW_ASPECT = 0.42
+# Per-row height (inches) for multi-row line grids.
+GRID_ROW_H = 1.7
+# Min per-column width (inches) for line grids — grids wider than TEXTWIDTH/this
+# many columns grow past TEXTWIDTH so panels don't collapse to zero size.
+GRID_COL_W = 1.35
+# Per-panel size (inches) for image / field grids (≈ TEXTWIDTH at 3–4 cols).
+IMG_PANEL = 1.45
+# Floor for ``1 − cosine`` so a perfect cosine still plots on a log axis.
+COSINE_DEFECT_FLOOR = 1e-12
+# Canonical y-label for the log "direction accuracy" panel.
+COSINE_DEFECT_YLABEL = "$1 -$ cosine"
+
+
+def paper_row(
+    ncols: int = 1,
+    *,
+    aspect: float = ROW_ASPECT,
+    dpi: int = 300,
+    squeeze: bool = True,
+    **kwargs: Any,
+) -> tuple[Figure, Any]:
+    """One TEXTWIDTH-wide row of *ncols* line-plot panels at the house aspect.
+
+    The canonical layout for sweep / curve summaries (cf. ``horizon_sweep``).
+    Pair with :func:`solver_legend` for the shared bottom legend. ``RCPARAMS``
+    must already be active (modules call :func:`apply_style` at import).
+
+    Uses constrained layout so multi-panel rows never overlap their y-labels /
+    titles; the shared legend helpers reserve their own space via an "outside"
+    placement.
+    """
+    return plt.subplots(
+        1,
+        ncols,
+        figsize=(TEXTWIDTH, TEXTWIDTH * aspect),
+        dpi=dpi,
+        squeeze=squeeze,
+        layout="constrained",
+        **kwargs,
+    )
+
+
+def paper_grid(
+    nrows: int,
+    ncols: int,
+    *,
+    row_h: float = GRID_ROW_H,
+    dpi: int = 300,
+    squeeze: bool = False,
+    **kwargs: Any,
+) -> tuple[Figure, Any]:
+    """Grid of line-plot panels; height scales with *nrows*.
+
+    TEXTWIDTH wide for up to ~4 columns; wider beyond that so panels don't
+    collapse to zero size (which disables constrained layout). For per-solver /
+    per-sweep-value curve grids. Hide padding panels via ``ax.set_visible(False)``.
+    """
+    width = max(TEXTWIDTH, ncols * GRID_COL_W)
+    return plt.subplots(
+        nrows,
+        ncols,
+        figsize=(width, row_h * nrows + 0.4),
+        dpi=dpi,
+        squeeze=squeeze,
+        layout="constrained",
+        **kwargs,
+    )
+
+
+def paper_image_grid(
+    nrows: int,
+    ncols: int,
+    *,
+    panel: float = IMG_PANEL,
+    dpi: int = 300,
+    squeeze: bool = False,
+    **kwargs: Any,
+) -> tuple[Figure, Any]:
+    """Grid of square-ish image / field panels (≈ TEXTWIDTH wide at 3–4 cols).
+
+    For field renders (IC, optimised density, recovered fields, …). Each panel
+    is *panel* inches square; add colorbars with :func:`imshow_with_cbar`.
+
+    Deliberately NOT constrained-layout: image grids commonly attach
+    ``make_axes_locatable`` colorbars (via :func:`imshow_with_cbar`), which the
+    constrained-layout engine can't manage. Callers space panels with
+    ``tight_layout`` / ``subplots_adjust`` as needed.
+    """
+    return plt.subplots(
+        nrows,
+        ncols,
+        figsize=(ncols * panel, nrows * panel),
+        dpi=dpi,
+        squeeze=squeeze,
+        **kwargs,
+    )
+
+
+def solver_legend(
+    fig: Figure,
+    seen: Any,
+    *,
+    order: list[str] | None = None,
+    extra_handles: list | None = None,
+    ncol: int | None = None,
+    y: float = 0.01,
+) -> None:
+    """Shared solver legend centred below the panels, solvers in canonical order.
+
+    *seen* is an iterable of solver aliases present in the figure; *order* is the
+    canonical ordering (defaults to ``NS_ORDER + FEM_ORDER``). *extra_handles*
+    appends custom ``Line2D`` proxies (e.g. a failure marker). No-op when nothing
+    is present. Styling (font, frame) comes from ``RCPARAMS``.
+    """
+    order = order if order is not None else (NS_ORDER + FEM_ORDER)
+    seen_set = set(seen)
+    handles = dedup_handles([make_handle(s) for s in order if s in seen_set])
+    if extra_handles:
+        handles += list(extra_handles)
+    if not handles:
+        return
+    _ncol = ncol if ncol is not None else min(len(handles), 6)
+    if _is_constrained(fig):
+        fig.legend(
+            handles=handles, loc="outside lower center", ncol=_ncol, handlelength=2.0
+        )
+        return
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, y),
+        ncol=_ncol,
+        handlelength=2.0,
+    )
+
+
+def cosine_defect(values: Any, *, floor: float = COSINE_DEFECT_FLOOR) -> list[float]:
+    """``1 − cosine`` (floored) for a log "direction accuracy" axis.
+
+    Near-perfect cosine similarity reads on a log axis instead of being squashed
+    against 1.0. Pair with ``ax.loglog`` / ``ax.set_yscale('log')`` and
+    ``ax.set_ylabel(COSINE_DEFECT_YLABEL)``.
+    """
+    return [max(1.0 - float(c), floor) for c in values]
 
 
 # ── Multi-panel grid helper ───────────────────────────────────────────────────

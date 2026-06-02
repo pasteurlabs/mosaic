@@ -172,17 +172,18 @@ def _hsl_parse_one_solver(step_results: dict) -> dict:
     fail_step = fail_vram = fail_wall = fail_ram = fail_ft = None
     for k in all_steps:
         r = step_results[k]
-        if r["status"] == "ok":
+        status = r.get("status")
+        if status == "ok":
             ok_steps.append(int(k))
             ok_vram.append(r.get("vram_peak_mib") or 0.0)
-            ok_wall.append(r["wall_time_s"])
+            ok_wall.append(r.get("wall_time_s") or 0.0)
             ok_gnorm.append(r.get("grad_norm") or 1.0)
-        elif r["status"] == "failed" and fail_step is None:
+        elif status == "failed" and fail_step is None:
             fail_step = int(k)
             fail_vram = r.get("vram_peak_mib") or 1.0
-            fail_wall = r["wall_time_s"]
+            fail_wall = r.get("wall_time_s") or 0.0
             fail_ram = r.get("ram_peak_mib") or 1.0
-            fail_ft = r["failure_type"]
+            fail_ft = r.get("failure_type") or "error"
 
     ok_ram = [step_results[str(s)].get("ram_peak_mib") for s in ok_steps]
     cpu_only = all(v == 0.0 for v in ok_vram) and bool(ok_vram)
@@ -608,15 +609,14 @@ def _hsl_save_figure(fig: Any, out_dir: Path) -> None:
 
 
 def _plot_horizon_sweep_limits(cfg: Problem, **_kw: Any) -> Any:
-    """``_extra/horizon_sweep_limits`` — VJP rollout-length limit figure."""
-    out_dir = _extra_out_dir(cfg)
-    path = (
-        results_dir()
-        / "ns-3d-grid"
-        / "gradient"
-        / "horizon_sweep_limits"
-        / "result.json"
-    )
+    """``gradient/horizon_sweep_limits`` — VJP rollout-length limit figure.
+
+    Saves alongside the experiment's ``result.json`` (under the gradient
+    suite) so it groups under Gradient in the docs rather than a stray
+    "Extra" section.
+    """
+    out_dir = results_dir() / cfg.name / "gradient" / "horizon_sweep_limits"
+    path = out_dir / "result.json"
     if not path.exists():
         print(f"[horizon_sweep_limits] {path} not found — skipping")
         return None

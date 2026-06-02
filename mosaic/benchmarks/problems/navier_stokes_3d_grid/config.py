@@ -53,14 +53,13 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 )
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
-    plot_horizon_sweep,
     plot_jacobian_svd_comparison,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .exclusions import register as _register_exclusions
-from .extras import register as _register_extras
+from .extras import _plot_horizon_sweep_limits
 from .ics import _abc_flow, _rand_div_free_3d, _tgv3d, _tgv3d_analytic
 from .optimization import recovery
 from .physics import DIAGNOSTICS, make_inputs
@@ -330,7 +329,7 @@ problem.add_experiment(
         "dt": 0.05,
         "steps": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
     },
-    plot=plot_horizon_sweep,
+    plot=_plot_horizon_sweep_limits,
 )
 problem.add_experiment(
     "gradient/jacobian_svd",
@@ -412,8 +411,5 @@ problem.add_extra_plot(
 
 # All per-solver exclusions live in :mod:`.exclusions`.
 _register_exclusions(problem)
-
-# Cross-domain / cross-experiment aggregator plots (registered as _extra/<key>).
-_register_extras(problem)
 
 __all__ = ["problem"]

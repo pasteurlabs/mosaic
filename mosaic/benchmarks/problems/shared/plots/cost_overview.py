@@ -25,10 +25,10 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     NS_ORDER,
     RCPARAMS,
     STRUCTURAL_ORDER,
-    TEXTWIDTH,
     THERMAL_ORDER,
     dedup_handles,
     make_handle,
+    paper_grid,
     solver_props,
 )
 
@@ -172,12 +172,7 @@ def plot_cost_overview(
         return  # nothing to plot
 
     n_rows = len(active_rows)
-    fig_w = TEXTWIDTH * 0.55
-    panel_h = fig_w * 0.55
-    fig, axes_arr = plt.subplots(
-        n_rows, 1, figsize=(fig_w, panel_h * n_rows + 0.7), sharex=True, squeeze=False
-    )
-    fig.subplots_adjust(left=0.22, right=0.97, bottom=0.18, top=0.95, hspace=0.22)
+    fig, axes_arr = paper_grid(n_rows, 1, sharex=True)
     ax_by_key = {k: axes_arr[i, 0] for i, (k, _) in enumerate(active_rows)}
     for k, ylab in active_rows:
         ax_by_key[k].set_ylabel(ylab)
