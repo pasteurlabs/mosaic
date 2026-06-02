@@ -13,7 +13,13 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz, v1_to_legacy
+from mosaic.benchmarks.core.io import (
+    legacy_by_param,
+    load_json,
+    results_dir,
+    try_load_npz,
+    v1_to_legacy,
+)
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
@@ -614,7 +620,13 @@ def _pa_plot_ns_row(
     row_is_top: bool,
 ) -> None:
     """Render one row of the 3×3 NS grid for a single sweep (3 metrics)."""
-    by_param = data["by_param"]
+    # physical_laws metrics (analytic_error / kinetic_energy / …) carry no
+    # ``valid`` key, so v1_to_legacy groups them solver-major (by_N / by_steps
+    # / by_solver) rather than into by_param. Transpose to the param-major
+    # layout this row renderer expects.
+    by_param = legacy_by_param(data)
+    if not by_param:
+        return
     params = sorted(by_param.keys(), key=float)
     phys = data.get("params", {}).get("physics", {})
     subdir = cfg.name
@@ -744,7 +756,11 @@ def _pa_plot_fem_single(
     fig.subplots_adjust(bottom=0.22)
 
     metric = spec["metric"]
-    by_param = data["by_param"]
+    # FEM physical_laws metrics (compliance / thermal_compliance) carry no
+    # ``valid`` key → solver-major group; transpose to param-major.
+    by_param = legacy_by_param(data)
+    if not by_param:
+        return fig
     params = sorted(by_param.keys(), key=float)
     x_vals = np.array([float(p) for p in params])
 

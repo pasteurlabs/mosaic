@@ -24,7 +24,12 @@ import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.io import (
+    legacy_by_solver,
+    load_json,
+    results_dir,
+    try_load_npz,
+)
 from mosaic.benchmarks.problems.shared.plots.cost_overview import (
     plot_cost_overview_for,
 )
@@ -391,14 +396,20 @@ def _topopt_overview_generate(out_dir: Path) -> None:
         print(f"[topopt_overview] {result_path} not found — skipping")
         return
 
-    data = load_json(result_path)
-    by_solver = data["by_solver"]
+    by_solver = legacy_by_solver(load_json(result_path))
+    if not by_solver:
+        print(f"[topopt_overview] {result_path} has no solver data — skipping")
+        return
 
     # Load additional optimizer results where available
     opt_datasets: list[tuple[str, dict]] = []
     for key, (m_ls, _m_label, rp) in opt_methods.items():
         if rp.exists():
-            opt_datasets.append((m_ls, load_json(rp)["by_solver"]))
+            rp_by_solver = legacy_by_solver(load_json(rp))
+            if rp_by_solver:
+                opt_datasets.append((m_ls, rp_by_solver))
+            else:
+                print(f"[topopt_overview] {rp} has no solver data — skipping {key}")
         else:
             print(f"[topopt_overview] {rp} not found — skipping {key}")
     if not opt_datasets:

@@ -14,7 +14,13 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz, v1_to_legacy
+from mosaic.benchmarks.core.io import (
+    legacy_by_solver,
+    load_json,
+    results_dir,
+    try_load_npz,
+    v1_to_legacy,
+)
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
@@ -368,7 +374,11 @@ def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
     from collections import defaultdict
 
     ax_gn, ax_err, ax_cos = axes
-    by_solver = data["by_solver"]
+    # A ``steps`` sweep lands under ``by_steps`` (not ``by_solver``) post-v1;
+    # collapse whichever group is present.
+    by_solver = legacy_by_solver(data)
+    if not by_solver:
+        return False
     # ``by_solver`` is keyed by spec.name (display form); build an
     # alias→display map and iterate NS_ORDER (alias-keyed) against it.
     alias_to_display: dict[str, str] = {}
@@ -792,9 +802,13 @@ def _plot_ucurve_overlay(
         ax = axes[row][col]
 
         for name in solver_names:
+            if name not in styles:
+                continue
+            entry = by_solver.get(name, {}).get(key)
+            sweep = entry.get("eps_sweep") if isinstance(entry, dict) else None
+            if not sweep:
+                continue
             props = solver_plot_props(styles[name])
-
-            sweep = by_solver[name][key]["eps_sweep"]
             eps_f = sorted(sweep.keys(), key=float)
             eps_fl = [float(e) for e in eps_f]
             re_m = [sweep[e]["rel_error_mean"] for e in eps_f]
@@ -1093,16 +1107,35 @@ def plot_horizon_sweep(
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = v1_to_legacy(load_json(out_dir / "result.json"))
     styles = solver_styles(cfg)
+    # A ``steps`` sweep lands under ``by_steps`` (not ``by_solver``) post-v1;
+    # collapse whichever group is present.
+    by_solver = legacy_by_solver(data)
 
     # ── summary curves (styled) ─────────────────────────────────────────────
     fig_c = _horizon_sweep_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
+    if not by_solver:
+        return fig_c
+
+    # The ε-based panels below (U-curves, per-ε error, best-ε overlay) only
+    # apply when entries carry an ``eps_sweep``. Some horizon experiments
+    # (e.g. rollout-limit variants) record different metrics — emit just the
+    # styled summary for those rather than crashing on a missing key.
+    has_eps_sweep = any(
+        isinstance(v, dict) and "eps_sweep" in v
+        for sweep in by_solver.values()
+        if isinstance(sweep, dict)
+        for v in sweep.values()
+    )
+    if not has_eps_sweep:
+        return fig_c
+
     # ── U-curve overlay: all solvers per horizon ─────────────────────────────
-    step_keys = sorted(next(iter(data["by_solver"].values())).keys(), key=int)
+    step_keys = sorted(next(iter(by_solver.values())).keys(), key=int)
     fig_u = _plot_ucurve_overlay(
-        data["by_solver"],
+        by_solver,
         step_keys,
         "steps",
         styles,
@@ -1114,7 +1147,7 @@ def plot_horizon_sweep(
 
     # ── FD error vs steps, one line per ε (per solver) ───────────────────────
     fig_s = _plot_error_per_solver(
-        data["by_solver"],
+        by_solver,
         styles,
         f"{cfg.name} — G2c FD error vs horizon (per solver)",
         x_keys=step_keys,
@@ -1126,7 +1159,7 @@ def plot_horizon_sweep(
 
     # ── Best-ε FD error vs steps, all solvers overlaid ───────────────────────
     fig_b = _plot_best_eps_overlay(
-        data["by_solver"],
+        by_solver,
         styles,
         f"{cfg.name} — G2c best-ε FD error vs horizon",
         x_keys=step_keys,

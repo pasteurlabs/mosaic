@@ -16,6 +16,7 @@ import numpy as np
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import (
     experiment_dir,
+    legacy_by_solver,
     load_json,
     results_dir,
     try_load_npz,
@@ -594,9 +595,25 @@ def _plot_recovery_experiment(
         )
     else:
         # FEM-style by_solver layout (errors / losses per solver).
-        by_solver = data.get("by_solver", {})
+        by_solver = legacy_by_solver(data)
+
+        def _metrics_for(sdata: Any) -> dict:
+            # A single-horizon sweep nests metrics one level deeper
+            # ({sweep_value: metrics}); unwrap to the metrics dict that
+            # actually holds the convergence series.
+            if isinstance(sdata, dict) and not ("errors" in sdata or "losses" in sdata):
+                for inner in sdata.values():
+                    if isinstance(inner, dict) and (
+                        "errors" in inner or "losses" in inner
+                    ):
+                        return inner
+            return sdata if isinstance(sdata, dict) else {}
+
+        solver_metrics = {s: _metrics_for(sd) for s, sd in by_solver.items()}
         error_key = (
-            "errors" if any("errors" in v for v in by_solver.values()) else "losses"
+            "errors"
+            if any("errors" in m for m in solver_metrics.values())
+            else "losses"
         )
         # ``by_solver`` keyed by spec.name; bridge to alias for ordering.
         alias_to_display: dict[str, str] = {}
@@ -608,10 +625,9 @@ def _plot_recovery_experiment(
             display_name = alias_to_display.get(alias)
             if display_name is None:
                 continue
-            sdata = by_solver.get(display_name)
-            if not sdata:
-                continue
-            vals = sdata.get(error_key, [])
+            vals = solver_metrics.get(display_name, {}).get(error_key, [])
+            # semilogy needs strictly positive y; drop non-positive/non-finite.
+            vals = [v for v in vals if np.isfinite(v) and v > 0]
             if not vals:
                 continue
             _label, color, ls, _mk = solver_props(alias)
@@ -622,8 +638,9 @@ def _plot_recovery_experiment(
         ax.set_title(f"Recovery — {cfg.category_label or cfg.name}")
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Error" if error_key == "errors" else "Loss")
-        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
-        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        if seen:
+            ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+            ax.yaxis.set_minor_locator(mticker.NullLocator())
 
     handles = dedup_handles([make_handle(s) for s in solver_order if s in seen])
     if handles:
@@ -810,7 +827,8 @@ def _render_recovery_evolution_gifs(
     """
     for j, name in enumerate(solver_names):
         hist_key = f"ic_history_{j}"
-        if hist_key not in npz.files:
+        # ``npz`` is a plain dict from try_load_npz, not an NpzFile.
+        if hist_key not in npz:
             continue
         history = np.asarray(npz[hist_key])  # (n_frames, *ic_shape)
         if history.ndim < 2 or history.shape[0] == 0:
