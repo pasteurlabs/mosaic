@@ -1128,8 +1128,18 @@ def legacy_by_param(data: dict) -> dict:
     existing = view.get("by_param")
     if existing:
         return existing
+    # Only ``by_N`` / ``by_steps`` are guaranteed sweep-nested
+    # ({solver: {sweep_value: metrics}}). A no-sweep result lands in
+    # ``by_solver`` as {solver: metrics} (no param axis) — transposing that
+    # would mistake metric names for sweep values, so it stays out.
+    nested = view.get("by_N") or view.get("by_steps")
+    if not nested and view.get("sweep_key"):
+        # Sweep that isn't N/steps (e.g. nu, sigma) → by_solver, but nested.
+        nested = view.get("by_solver")
+    if not nested:
+        return {}
     by_param: dict = {}
-    for solver, sweep in legacy_by_solver(data).items():
+    for solver, sweep in nested.items():
         if not isinstance(sweep, dict):
             continue
         for sweep_value, metrics in sweep.items():
