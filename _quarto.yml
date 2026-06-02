@@ -1,3 +1,12 @@
+# The page set (project.render) and the navbar's left side live in the render
+# profiles, not here \u2014 Quarto MERGES list values across profiles by
+# concatenation, so a profile can't shrink a list defined in the base. To get a
+# results-only PR preview we therefore keep those lists out of the base and let
+# each profile supply its own:
+#   * full (default) \u2192 _quarto-full.yml \u2014 the complete site
+#   * pr             \u2192 _quarto-pr.yml   \u2014 results pages only, slim navbar
+# Plain `quarto render`/`preview` uses the full profile (profile.default below);
+# PR previews set QUARTO_PROFILE=pr in benchmark.yml.
 project:
   type: website
   output-dir: _site
@@ -6,43 +15,15 @@ project:
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
     - python docs/generate.py
-  render:
-    - docs/index.qmd
-    - docs/getting-started.qmd
-    - docs/standalone.qmd
-    - docs/internals.qmd
-    - docs/solvers.qmd
-    - docs/tutorial.qmd
-    - docs/results_*.qmd
+
+profile:
+  default: full
 
 website:
   title: Mosaic
   repo-url: https://github.com/pasteurlabs/mosaic
   repo-actions: [edit, issue]
   navbar:
-    left:
-      - text: Overview
-        file: docs/index.qmd
-      - text: Getting Started
-        file: docs/getting-started.qmd
-      - text: Standalone Usage
-        file: docs/standalone.qmd
-      - text: Internals
-        file: docs/internals.qmd
-      - text: Solver Reference
-        file: docs/solvers.qmd
-      - text: Add a Backend
-        file: docs/tutorial.qmd
-      - text: Results
-        menu:
-          - text: "Navier\u2013Stokes (2D)"
-            file: docs/results_ns_grid.qmd
-          - text: "Navier\u2013Stokes (3D)"
-            file: docs/results_ns_3d_grid.qmd
-          - text: Structural Mechanics
-            file: docs/results_structural_mesh.qmd
-          - text: Heat Conduction
-            file: docs/results_thermal_mesh.qmd
     right:
       - icon: github
         href: https://github.com/pasteurlabs/mosaic
