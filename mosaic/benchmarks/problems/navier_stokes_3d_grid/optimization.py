@@ -38,6 +38,7 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
+from tesseract_jax import apply_tesseract
 
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import (
@@ -47,11 +48,6 @@ from mosaic.benchmarks.core.io import (
     save_field_snapshots_npz,
     try_load_json,
 )
-
-# JAX-traced loss_fn closures capture this reference at trace time;
-# using the tracer-aware wrapper ensures primitive binding sees the
-# active trace.
-from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 from mosaic.benchmarks.core.utils import is_valid
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
 
@@ -622,7 +618,7 @@ def _recovery_aggregate(
     sweep_key: Any,
     snapshot_filename: Any,
     snapshot_prefixes: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Cross-solver post-pass: failure_values + per-solver NPZ + result dict.
 
@@ -712,13 +708,21 @@ def _recovery_aggregate(
         prefixes=snapshot_prefixes,
     )
 
-    del cfg  # accepted for signature parity; unused here
-    return {
-        "sweep_key": sweep_key,
-        "by_sweep": by_sweep,
-        "failure_values": failure_values,
-        "params": run,
-    }
+    from mosaic.benchmarks.core.experiment import (
+        _build_result_envelope,
+        _flatten_by_solver,
+    )
+
+    return _build_result_envelope(
+        cfg=cfg,
+        suite=_kw.get("suite", "optimization"),
+        exp_key=_kw.get("exp_key", "recovery"),
+        run=run,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        results=_flatten_by_solver(by_sweep, sweep_key),
+        extras={"failure_values": failure_values},
+    )
 
 
 # ── Kernel ───────────────────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ app = typer.Typer(name="mosaic", rich_markup_mode="rich")
 # side-effectful by design.
 from mosaic.benchmarks.cli import build as _build  # noqa: E402, F401
 from mosaic.benchmarks.cli import ics as _ics  # noqa: E402, F401
+from mosaic.benchmarks.cli import reference as _reference  # noqa: E402, F401
 from mosaic.benchmarks.cli import run as _run  # noqa: E402, F401
 from mosaic.benchmarks.cli import status as _status  # noqa: E402, F401
 from mosaic.benchmarks.cli import templates as _templates  # noqa: E402, F401

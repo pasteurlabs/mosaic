@@ -46,7 +46,12 @@ from typing import Any
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.experiment import KernelContext, kernel
+from mosaic.benchmarks.core.experiment import (
+    KernelContext,
+    _build_result_envelope,
+    _flatten_by_solver,
+    kernel,
+)
 from mosaic.benchmarks.core.hardware import get_hardware_info
 from mosaic.benchmarks.core.harness import run_timed_trials
 from mosaic.benchmarks.core.io import save_field_snapshots_npz
@@ -105,25 +110,37 @@ _CI_ISOLATION_NOTE = (
 
 
 def _cost_aggregate(
-    by_solver: Any, *, cfg: Any, run: Any, sweep_values: Any, sweep_key: Any, **_: Any
+    by_solver: Any, *, cfg: Any, run: Any, sweep_values: Any, sweep_key: Any, **_kw: Any
 ) -> dict:
-    """Build ``{by_N or by_steps: {solver: {val: metrics}}, hardware, params}``.
+    """Build unified result envelope for cost experiments."""
+    flat_results = _flatten_by_solver(by_solver, sweep_key)
+    # Add empty entries for solvers not in by_solver
+    present = {e["solver"] for e in flat_results}
+    for s in cfg.solvers:
+        if s.name not in present:
+            if sweep_key:
+                for val in sweep_values:
+                    flat_results.append(
+                        {"solver": s.name, "sweep_value": str(val), "metrics": {}}
+                    )
+            else:
+                flat_results.append(
+                    {"solver": s.name, "sweep_value": None, "metrics": {}}
+                )
 
-    Pre-allocates an empty dict for every ``cfg.solver`` so excluded ones
-    still appear as ``{}`` in the result — matches the legacy layout.
-    """
-    out_key = _axis_key(sweep_key)
-    by_axis: dict = {s.name: {} for s in cfg.solvers}
-    for name, smetrics in by_solver.items():
-        by_axis[name] = smetrics
-    result = {
-        out_key: by_axis,
-        "hardware": get_hardware_info(),
-        "params": run,
-    }
+    extras: dict = {"hardware": get_hardware_info()}
     if os.environ.get("CI"):
-        result["_isolation_note"] = _CI_ISOLATION_NOTE
-    return result
+        extras["_isolation_note"] = _CI_ISOLATION_NOTE
+    return _build_result_envelope(
+        cfg=cfg,
+        suite="cost",
+        exp_key=_kw.get("exp_key", "cost"),
+        run=run,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        results=flat_results,
+        extras=extras,
+    )
 
 
 def _vjp_cost_aggregate(
@@ -137,12 +154,9 @@ def _vjp_cost_aggregate(
     snapshots: Any,
     snapshot_filename: Any,
     snapshot_prefixes: Any,
-    **_: Any,
+    **_kw: Any,
 ) -> dict:
     """Like :func:`_cost_aggregate` plus a gradient-field NPZ save."""
-    out_key = _axis_key(sweep_key)
-    by_axis: dict = dict(by_solver)
-
     # Save gradient snapshots from successful trials.
     if snapshots:
         shared_key = "N_values" if sweep_key != "steps" else "steps_values"
@@ -155,14 +169,20 @@ def _vjp_cost_aggregate(
             prefixes=snapshot_prefixes,
         )
 
-    result = {
-        out_key: by_axis,
-        "hardware": get_hardware_info(),
-        "params": run,
-    }
+    flat_results = _flatten_by_solver(by_solver, sweep_key)
+    extras: dict = {"hardware": get_hardware_info()}
     if os.environ.get("CI"):
-        result["_isolation_note"] = _CI_ISOLATION_NOTE
-    return result
+        extras["_isolation_note"] = _CI_ISOLATION_NOTE
+    return _build_result_envelope(
+        cfg=cfg,
+        suite="cost",
+        exp_key=_kw.get("exp_key", "vjp_cost"),
+        run=run,
+        sweep_key=sweep_key,
+        sweep_values=sweep_values,
+        results=flat_results,
+        extras=extras,
+    )
 
 
 # ── Kernels ──────────────────────────────────────────────────────────────────

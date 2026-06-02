@@ -27,19 +27,17 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
+from tesseract_jax import apply_tesseract
 
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.experiment import (
     KernelContext,
+    _build_result_envelope,
     kernel,
     random_direction,
 )
 from mosaic.benchmarks.core.io import save_field_snapshots_npz, try_load_npz
 from mosaic.benchmarks.core.runner import run_with_gpu_pool
-
-# JAX-traced closures capture this reference at trace time; using the
-# tracer-aware wrapper ensures primitive binding sees the active trace.
-from mosaic.benchmarks.core.tracer_apply import apply_tesseract
 
 # ── Science primitives ───────────────────────────────────────────────────────
 
@@ -442,23 +440,46 @@ def _jacobian_svd_aggregate(
     )
 
     del ic_name, seed  # unused; accepted for signature parity
-    del horizons_shared, sweep_values, sweep_key  # not applicable to non-sweep
-    return {
-        "solver_names": solver_names,
-        "singular_values": S_norm,
-        "singular_values_raw": S.tolist(),
-        "condition_number": cond,
-        "effective_rank": eff_rank,
-        "explained_variance": expl_var,
-        "per_solver_spectra": per_solver_spectra,
-        "per_solver_cond": per_solver_cond,
-        "per_solver_eff_rank": per_solver_eff_rank,
-        "per_solver_grad_norm": per_solver_grad_norm,
-        "cross_cosine": cross_cos,
-        "grad_norms": grad_norms,
-        "landscape": {"alphas": alphas, "by_solver": landscape_by_solver},
-        "params": run,
-    }
+    del horizons_shared  # not applicable to non-sweep
+
+    # Build per-solver results with SVD metrics
+    flat_results: list[dict] = []
+    for name in solver_names:
+        flat_results.append(
+            {
+                "solver": name,
+                "sweep_value": None,
+                "metrics": {
+                    "spectrum": per_solver_spectra.get(name, []),
+                    "cond": per_solver_cond.get(name),
+                    "eff_rank": per_solver_eff_rank.get(name),
+                    "grad_norm": per_solver_grad_norm.get(name),
+                },
+            }
+        )
+
+    return _build_result_envelope(
+        cfg=cfg,
+        suite="gradient",
+        exp_key=_jacobian_svd_aggregate.__name__.removeprefix("_").removesuffix(
+            "_aggregate"
+        ),
+        run=run,
+        sweep_key=sweep_key if sweep_key else None,
+        sweep_values=sweep_values if sweep_values else None,
+        results=flat_results,
+        extras={
+            "solver_names": solver_names,
+            "singular_values": S_norm,
+            "singular_values_raw": S.tolist(),
+            "condition_number": cond,
+            "effective_rank": eff_rank,
+            "explained_variance": expl_var,
+            "cross_cosine": cross_cos,
+            "grad_norms": grad_norms,
+            "landscape": {"alphas": alphas, "by_solver": landscape_by_solver},
+        },
+    )
 
 
 @kernel(

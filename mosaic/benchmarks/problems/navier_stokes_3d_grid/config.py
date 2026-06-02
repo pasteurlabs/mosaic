@@ -189,7 +189,7 @@ problem.add_experiment(
     agreement,
     plot_description=(
         "3D velocity magnitude fields and kinetic energy spectra per solver, swept over"
-        " viscosity \u03bd, compared against a fine-grid consensus reference."
+        " viscosity \u03bd, compared against the analytic TGV reference."
     ),
     ic={"name": "tgv3d", "seed": 0},
     physics={
@@ -199,7 +199,6 @@ problem.add_experiment(
         "steps": 50,
         "lbm_N_base": 16,
     },
-    reference={"solvers": {"exponax"}, "dt": 0.002, "steps": 250},
     plot=plot_agreement,
 )
 problem.add_experiment(

@@ -20,13 +20,15 @@ MARKER="<!-- mosaic-benchmark-bot -->"
 BODY="${MARKER}
 $(cat "$MD_FILE")"
 
-# Find existing comment by marker
+# Find existing comment by marker (suppress stderr so a 401 doesn't
+# leak garbage into COMMENT_ID; strip \r that Windows-style line endings
+# or gh pagination may introduce).
 COMMENT_ID=$(gh api \
   "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
   --paginate --jq ".[] | select(.body | startswith(\"${MARKER}\")) | .id" \
-  | head -n1 || true)
+  2>/dev/null | tr -d '\r' | head -n1 || true)
 
-if [[ -n "$COMMENT_ID" ]]; then
+if [[ "$COMMENT_ID" =~ ^[0-9]+$ ]]; then
   echo "Updating existing comment ${COMMENT_ID}"
   gh api \
     --method PATCH \

@@ -19,6 +19,7 @@ from mosaic.benchmarks.core.io import (
     load_json,
     results_dir,
     try_load_npz,
+    v1_to_legacy,
 )
 from mosaic.benchmarks.problems.shared.plots.optimization import (
     _rho_to_2d,
@@ -259,7 +260,7 @@ def plot_topopt(
       * ``topopt_3d_<solver>.png`` — interactive-style 3-D voxel render per solver.
     """
     out_dir = results_dir() / cfg.name / "optimization" / f"{exp_key}{suffix}"
-    data = load_json(out_dir / "result.json")
+    data = v1_to_legacy(load_json(out_dir / "result.json"))
     styles = solver_styles(cfg, differentiable_only=False)
     # params is the full run dict {ic, physics, optim, ...}; v_frac lives in
     # physics sub-dict (structural-mesh layout) or directly at top level.

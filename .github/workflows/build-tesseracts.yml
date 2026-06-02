@@ -115,7 +115,7 @@ jobs:
         id: image
         run: |
           CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
-          IMAGE_NAME=$(python3 .github/scripts/tesseract-config-field.py "$CONFIG" name)
+          IMAGE_NAME=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG'))['name'])")
           GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
           echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "ghcr_base=${GHCR_BASE}" >> "$GITHUB_OUTPUT"

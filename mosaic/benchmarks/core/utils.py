@@ -32,6 +32,10 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
     With n <= 2 arrays, quantile linear interpolation places lo strictly above
     the minimum and hi strictly below the maximum, so both values fail the mask
     and the result collapses to zero.  For small n we fall back to the plain mean.
+
+    When the quantile bracket eliminates all values at a position (e.g. 4 nearly
+    identical scalars where float interpolation pushes lo above every value),
+    the plain mean is used at those positions as a fallback.
     """
     stacked = jnp.stack(arrays, axis=0)  # (n, ...)
     if len(arrays) <= 2:
@@ -39,8 +43,13 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
     lo = jnp.quantile(stacked, q_lo, axis=0)
     hi = jnp.quantile(stacked, q_hi, axis=0)
     mask = (stacked >= lo) & (stacked <= hi)
-    count = jnp.maximum(mask.sum(axis=0), 1)
-    return (stacked * mask).sum(axis=0) / count
+    count = mask.sum(axis=0)
+    trimmed = jnp.where(
+        count > 0,
+        (stacked * mask).sum(axis=0) / jnp.maximum(count, 1),
+        stacked.mean(axis=0),
+    )
+    return trimmed
 
 
 def l2_error_rel(pred: object, ref: object) -> float:

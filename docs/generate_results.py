@@ -199,9 +199,19 @@ _SOLVER_GYM = ROOT / "mosaic"
 if str(_SOLVER_GYM) not in sys.path:
     sys.path.insert(0, str(_SOLVER_GYM))
 
-from mosaic.benchmarks.problems import (  # noqa: E402
-    get_config as _get_config,  # type: ignore
-)
+
+def _get_config(problem: str):
+    """Lazily import and return the problem config.
+
+    ``mosaic.benchmarks.problems`` transitively imports the full compute stack
+    (jax, jaxlib, matplotlib, scipy, ...), which is hundreds of MB resident.
+    Importing it at module load OOM-kills resource-constrained docs builders
+    (e.g. Read the Docs) even when there are no results to describe. Defer the
+    import to the few call sites that actually need problem metadata.
+    """
+    from mosaic.benchmarks.problems import get_config
+
+    return get_config(problem)
 
 
 def _plot_description(problem: str, suite: str, experiment: str) -> str:
@@ -276,7 +286,11 @@ def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
 
 
 def _sweep_line(params: dict) -> str:
-    """Return a one-line sweep description, or empty string if no sweep."""
+    """Return a one-line sweep description, or empty string if no sweep.
+
+    Handles both the unified result format (top-level ``sweep`` dict in
+    ``result.json``) and the legacy ``params.json`` formats.
+    """
     # New nested format: params["sweep"] = {"key": ..., "values": [...]}
     if isinstance(params.get("sweep"), dict):
         sweep = params["sweep"]
@@ -314,6 +328,27 @@ def _sweep_line(params: dict) -> str:
     return "Sweeps " + ", ".join(parts) if parts else ""
 
 
+def _load_params(params_path: Path) -> dict | None:
+    """Load params from params.json or fall back to result.json's params field."""
+    if params_path.exists():
+        return json.loads(params_path.read_text(encoding="utf-8"))
+    # Try result.json in the same directory
+    result_path = params_path.parent / "result.json"
+    if result_path.exists():
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            # v1 format: params is a top-level field; also expose sweep info
+            params = result.get("params", {})
+            if result.get("schema_version") == 1 and isinstance(
+                result.get("sweep"), dict
+            ):
+                params = {**params, "sweep": result["sweep"]}
+            return params
+        except Exception:
+            pass
+    return None
+
+
 def _params_block(
     params_path: Path | None, sub_params: list[tuple[str, Path]] | None = None
 ) -> list[str]:
@@ -323,22 +358,23 @@ def _params_block(
         "::: {.callout-note collapse='true' title='Settings'}",
     ]
 
-    if params_path is not None and params_path.exists():
-        params = json.loads(params_path.read_text(encoding="utf-8"))
-        sweep = _sweep_line(params)
-        if sweep:
-            lines += ["", sweep]
-        lines += [
-            "",
-            "```json",
-            json.dumps(params, indent=2),
-            "```",
-        ]
+    if params_path is not None:
+        params = _load_params(params_path)
+        if params:
+            sweep = _sweep_line(params)
+            if sweep:
+                lines += ["", sweep]
+            lines += [
+                "",
+                "```json",
+                json.dumps(params, indent=2),
+                "```",
+            ]
     elif sub_params:
         for name, p in sub_params:
-            if not p.exists():
+            params = _load_params(p)
+            if not params:
                 continue
-            params = json.loads(p.read_text(encoding="utf-8"))
             sweep = _sweep_line(params)
             lines += ["", f"**{name.replace('_', ' ').title()}**"]
             if sweep:
@@ -533,7 +569,16 @@ def main() -> None:
 
     tree = _scan_results()
     if not tree:
-        sys.exit(f"No benchmark results found under {RESULTS_DIR}")
+        # No plottable results. In --check mode this is a failure (someone
+        # expected generated pages); in normal generation (e.g. a docs build
+        # where benchmark artifacts are absent or contain only metadata like
+        # snapshot.json) it is a clean no-op — exit 0 so the docs build
+        # doesn't fail.
+        msg = f"No benchmark results found under {RESULTS_DIR}"
+        if check_mode:
+            sys.exit(msg)
+        print(f"{msg} — nothing to generate.")
+        return
 
     stale: list[str] = []
     for problem, suites in tree.items():
