@@ -272,6 +272,17 @@ def _plots_only(
         console.print("No plot functions registered for this suite.")
         return
     print_rule("plots")
+    # Plot against the FULL (unfiltered) config — mirrors run_suite's plot
+    # step. The incoming cfg may have been hardware-filtered (e.g. GPU
+    # solvers dropped on a CPU-only runner), but result trees / baselines
+    # still carry every solver; styling those rows needs the complete
+    # solver list, or per-solver style lookups raise KeyError.
+    try:
+        from mosaic.benchmarks.problems import get_config
+
+        cfg = get_config(cfg.name)
+    except Exception:
+        pass
     if to_run:
         names = to_run
     else:

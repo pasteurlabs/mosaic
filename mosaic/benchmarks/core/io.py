@@ -1091,6 +1091,62 @@ def v1_to_legacy(data: dict) -> dict:
     return view
 
 
+def legacy_by_solver(data: dict) -> dict:
+    """Return the solver-keyed group from a result dict, schema-agnostic.
+
+    :func:`v1_to_legacy` routes a sweep result into exactly one of
+    ``by_solver`` / ``by_N`` / ``by_steps`` depending on the sweep key — but
+    all three share the same ``{solver: ...}`` shape. Plots that just want
+    "the per-solver data" shouldn't have to know which sweep key produced
+    the file (a ``steps`` sweep lands in ``by_steps``, a ``nu`` sweep in
+    ``by_solver``, an ``N`` sweep in ``by_N``). This collapses them.
+
+    Accepts either a raw v1 dict or an already-legacy view; returns ``{}``
+    when no solver-keyed group is present.
+    """
+    view = v1_to_legacy(data)
+    for key in ("by_solver", "by_steps", "by_N"):
+        group = view.get(key)
+        if group:
+            return group
+    return {}
+
+
+def legacy_by_param(data: dict) -> dict:
+    """Return a param-major ``{sweep_value: {solver: metrics}}`` view.
+
+    :func:`v1_to_legacy` only builds ``by_param`` for forward-suite results
+    (those whose metrics carry a ``valid`` key); other sweeps land in the
+    solver-major ``by_solver`` / ``by_N`` / ``by_steps`` groups. Plots that
+    want the param-major layout regardless of metric content (e.g.
+    ``physical_laws``, whose metrics are ``analytic_error`` / ``kinetic_energy``
+    rather than ``valid``) use this to transpose whichever group is present.
+
+    Returns ``{}`` when the result has no sweep / no solver data.
+    """
+    view = v1_to_legacy(data)
+    existing = view.get("by_param")
+    if existing:
+        return existing
+    # Only ``by_N`` / ``by_steps`` are guaranteed sweep-nested
+    # ({solver: {sweep_value: metrics}}). A no-sweep result lands in
+    # ``by_solver`` as {solver: metrics} (no param axis) — transposing that
+    # would mistake metric names for sweep values, so it stays out.
+    nested = view.get("by_N") or view.get("by_steps")
+    if not nested and view.get("sweep_key"):
+        # Sweep that isn't N/steps (e.g. nu, sigma) → by_solver, but nested.
+        nested = view.get("by_solver")
+    if not nested:
+        return {}
+    by_param: dict = {}
+    for solver, sweep in nested.items():
+        if not isinstance(sweep, dict):
+            continue
+        for sweep_value, metrics in sweep.items():
+            by_param.setdefault(sweep_value, {})[solver] = metrics
+    return by_param
+
+
 def load_field_snapshots_npz(
     out_dir: Path | str, filename: str = "gradient_fields.npz"
 ) -> dict[str, np.ndarray]:

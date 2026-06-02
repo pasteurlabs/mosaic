@@ -43,8 +43,12 @@ jobs:
         run: cp production.uv.lock uv.lock && uv sync --frozen --extra dev
 
       - name: Run tests
+        # ``-m "not integration"`` overrides the default addopts (which also
+        # excludes ``slow``) so the slow plot-corpus tests run in CI; only the
+        # Docker-requiring ``integration`` tests stay excluded.
         run: |
           uv run pytest \
+            -m "not integration" \
             --cov=mosaic \
             --cov-branch \
             --cov-report=term-missing:skip-covered \

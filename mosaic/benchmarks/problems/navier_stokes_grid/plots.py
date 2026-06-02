@@ -31,8 +31,11 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     dedup_handles,
     imshow_with_cbar,
     make_handle,
+    paper_image_grid,
+    paper_row,
     resolve_solver_alias,
     save_fig,
+    solver_legend,
     solver_props,
     solver_styles,
 )
@@ -56,8 +59,9 @@ def plot_drag_opt(
 
       * ``drag_opt_fields`` — per-solver flow field panels (u_x, u_y) when
         ``flow_fields.npz`` is present.
-      * ``drag_opt_evolution_<solver>.gif`` — one inflow-profile animation
-        per solver when ``profiles.npz`` carries ``profile_history_*``.
+      * ``drag_opt_evolution.gif`` — one combined inflow-profile animation
+        with a panel per solver when ``profiles.npz`` carries
+        ``profile_history_*``.
 
     Supports both single-run (drag_opt/result.json) and multi-run
     (drag_opt/<name>/result.json) layouts.
@@ -96,7 +100,7 @@ def plot_drag_opt(
         # ── Flow field visualisation (velocity + vorticity) ──────────────────
         _plot_drag_opt_fields(data, out_dir, run_name, title_suffix, styles, save, figs)
 
-        # ── Inflow profile evolution GIFs (one per solver) ──────────────────
+        # ── Inflow profile evolution GIF (combined, one panel per solver) ───
         if save and "initial" in profiles:
             _render_drag_opt_evolution_gifs(
                 profiles, out_dir, solver_names, styles, run_name
@@ -104,7 +108,9 @@ def plot_drag_opt(
 
     # Single-run layout — figure resolves the experiment dir from cfg.
     single_path = base_dir / "result.json"
-    single_result = load_json(single_path) if single_path.exists() else None
+    single_result = (
+        v1_to_legacy(load_json(single_path)) if single_path.exists() else None
+    )
     if single_result is not None:
         _plot_one(
             single_result,
@@ -275,7 +281,7 @@ def _drag_opt_figure(
 
     plt.rcParams.update(RCPARAMS)
 
-    data = load_json(result_path)
+    data = v1_to_legacy(load_json(result_path))
     profiles = try_load_npz(profiles_path) if profiles_path.exists() else None
 
     # Both ``by_solver`` and ``profiles`` are keyed by spec.name (display form).
@@ -377,19 +383,52 @@ def _plot_drag_opt_fields(
     npz = try_load_npz(fields_path)
     by_solver = data.get("by_solver", {})
     # ``try_load_npz`` returns a plain dict; tolerate both dict and NpzFile.
-    npz_keys = npz.files if hasattr(npz, "files") else list(npz.keys())
-    solver_names = [k for k in npz_keys if k.startswith("flow_final_")]
-    solver_names_clean = [k[len("flow_final_") :] for k in solver_names]
+    npz_keys = set(npz.files if hasattr(npz, "files") else npz.keys())
 
-    if not solver_names:
+    # Drive the rows from ``by_solver`` (the canonical solver set for this
+    # result) rather than scanning every ``flow_final_*`` npz key.  The npz can
+    # accumulate stale per-solver entries from earlier runs (e.g. differently
+    # cased aliases like ``flow_final_XLB`` alongside ``flow_final_xlb``); those
+    # have no ``by_solver`` metadata and would render as blank/duplicate rows.
+    # Additionally dedup by canonical alias: if ``by_solver`` carries both a
+    # display name and an alias mapping to the same solver, keep only the first.
+    solver_names_clean: list[str] = []
+    seen_aliases: set[str] = set()
+    for s in by_solver:
+        if f"flow_final_{s}" not in npz_keys:
+            continue
+        alias = resolve_solver_alias(s) or s
+        if alias in seen_aliases:
+            continue
+        seen_aliases.add(alias)
+        solver_names_clean.append(s)
+
+    if not solver_names_clean:
         return
 
-    # Rows: initial + one per solver.  Columns: velocity magnitude | vorticity.
-    all_rows = ["__initial__", *solver_names_clean]
-    n_rows = len(all_rows)
+    # Rows: initial + one per solver.  Columns: u_x | u_y.
+    n_rows = 1 + len(solver_names_clean)
     ncols = 2
-    fig_fld, axes_fld = plt.subplots(
-        n_rows, ncols, figsize=(ncols * 3.5, n_rows * 3.0), squeeze=False
+    fig_fld, axes_fld = paper_image_grid(n_rows, ncols)
+    # Widen the figure to host a dedicated left gutter for the (multi-line) row
+    # labels without stealing width from the panels/colorbars.  ``IMG_PANEL`` is
+    # ~1.45" per panel; reserve a fixed ~1.5" gutter on the left.
+    panel_w = fig_fld.get_size_inches()[0] / ncols
+    gutter_w = 1.5
+    fig_w = ncols * panel_w + gutter_w
+    fig_h = fig_fld.get_size_inches()[1]
+    fig_fld.set_size_inches(fig_w, fig_h)
+    left_frac = gutter_w / fig_w
+    # Reserve the left gutter and keep generous vertical/horizontal spacing so
+    # labels, column titles, suptitle and colorbars never collide.  Done before
+    # rendering so ``ax.get_position()`` reflects the final layout.
+    fig_fld.subplots_adjust(
+        left=left_frac,
+        right=0.97,
+        top=0.90,
+        bottom=0.03,
+        hspace=0.30,
+        wspace=0.55,
     )
 
     # Compute shared colour scales from the initial flow so all panels are comparable.
@@ -424,22 +463,23 @@ def _plot_drag_opt_fields(
                 interpolation="nearest",
             )
             if row_idx == 0:
-                ax.set_title(col_title, fontsize=10, fontweight="bold")
+                ax.set_title(col_title, fontweight="bold", pad=6)
             ax.axis("off")
 
-        # Row label as text overlaid on the left side of the first column.
-        # axis("off") hides set_ylabel, so use ax.text in axes coordinates.
+        # Row label placed in the left figure gutter (reserved via
+        # subplots_adjust above).  Right-aligned so the label always ends a
+        # fixed gap left of the panel regardless of its length — multi-line
+        # solver labels never overlap the panels, colorbars or adjacent rows.
         ax0 = axes_fld[row_idx, 0]
-        ax0.text(
-            -0.12,
-            0.5,
+        pos = ax0.get_position()
+        fig_fld.text(
+            pos.x0 - 0.02,
+            (pos.y0 + pos.y1) / 2,
             label,
-            transform=ax0.transAxes,
-            fontsize=8,
+            fontsize=7,
             va="center",
             ha="right",
-            rotation=0,
-            wrap=True,
+            linespacing=1.3,
         )
 
         # Red border annotation for non-converged / poor solvers
@@ -477,11 +517,7 @@ def _plot_drag_opt_fields(
             label += "\n[NOT CONVERGED]"
         _render_row(i + 1, label, field, converged)
 
-    fig_fld.suptitle(
-        f"{run_name or 'drag_opt'} — optimised flow fields ($u_x$ | $u_y$)",
-        y=1.01,
-    )
-    fig_fld.tight_layout()
+    fig_fld.suptitle("Optimised flow fields", fontweight="bold", y=0.97)
     if save:
         save_fig(fig_fld, "drag_opt_fields", out_dir)
     figs.append(fig_fld)
@@ -494,11 +530,15 @@ def _render_drag_opt_evolution_gifs(
     styles: dict,
     run_name: str,
 ) -> None:
-    """Write ``drag_opt_evolution_<solver>.gif`` per solver.
+    """Write a single combined ``drag_opt_evolution.gif`` for all solvers.
 
-    Each frame is a 1-D line plot of the inflow profile u_x(y) at one
-    optimisation snapshot, with the initial profile drawn dashed as a
-    reference.  Skips solvers without a recorded ``profile_history_<name>``.
+    Builds one figure with a row of subplots — one panel per solver that has
+    a recorded ``profile_history_<name>``. Each panel animates that solver's
+    inflow profile u_x(y) over BFGS iterations, with the initial profile drawn
+    dashed as a reference. Frames are synchronised across panels: at frame *k*
+    every panel shows its iteration-*k* state, and solvers with fewer snapshots
+    hold (clamp to) their last frame. A shared solver legend is placed below
+    the row. Solvers are deduplicated by canonical alias so each appears once.
     """
     initial = np.asarray(profiles["initial"])
     N = initial.size
@@ -507,6 +547,9 @@ def _render_drag_opt_evolution_gifs(
     # Treat np.load NpzFile *and* plain dict uniformly via .files / keys.
     keys = set(profiles.files) if hasattr(profiles, "files") else set(profiles.keys())
 
+    # Collect one entry per solver that has a usable history, deduped by alias.
+    panels: list[dict] = []
+    seen_aliases: set[str] = set()
     for name in solver_names:
         hkey = f"profile_history_{name}"
         if hkey not in keys:
@@ -514,8 +557,36 @@ def _render_drag_opt_evolution_gifs(
         hist = np.asarray(profiles[hkey])  # (n_snaps, N)
         if hist.ndim != 2 or hist.shape[0] == 0:
             continue
-        n_frames = int(hist.shape[0])
+        alias = resolve_solver_alias(name)
+        dedup_key = alias if alias is not None else name
+        if dedup_key in seen_aliases:
+            continue
+        seen_aliases.add(dedup_key)
 
+        label, color, _ls, _mk = solver_props(name)
+        panels.append(
+            {
+                "name": name,
+                "alias": alias,
+                "label": label,
+                "color": color,
+                "hist": hist,
+                "n": int(hist.shape[0]),
+            }
+        )
+
+    if not panels:
+        return
+
+    n_panels = len(panels)
+    n_frames = max(p["n"] for p in panels)
+
+    fig, axes = paper_row(n_panels, squeeze=False)
+    axes = np.atleast_1d(axes).ravel()
+
+    lines: list = []
+    for ax, p in zip(axes, panels, strict=True):
+        hist = p["hist"]
         extrema = [
             float(hist.min()),
             float(hist.max()),
@@ -527,41 +598,44 @@ def _render_drag_opt_evolution_gifs(
         xlo -= pad
         xhi += pad
 
-        sty = styles.get(name, {})
-        color = sty.get("color", "#3366CC")
-        label = sty.get("label", name)
-
-        fig, ax = plt.subplots(figsize=(4.5, 4.5))
         ax.plot(initial, y, "k--", lw=1.4, label="initial")
-        (line,) = ax.plot(hist[0], y, color=color, lw=2.0, label=label)
+        (line,) = ax.plot(hist[0], y, color=p["color"], lw=2.0, label=p["label"])
+        lines.append(line)
         ax.set_xlim(xlo, xhi)
         ax.set_ylim(0.0, 1.0)
-        ax.set_xlabel("u_x")
-        ax.set_ylabel("y")
-        title = ax.set_title(
-            f"{label} — snapshot 1 / {n_frames}"
-            + (f"  ({run_name})" if run_name else ""),
-            fontsize=9,
-        )
-        ax.legend(fontsize=8, loc="best")
-        fig.tight_layout()
+        ax.set_xlabel(r"$u_x$")
+        ax.set_ylabel("$y$")
+        ax.set_title(p["label"])
 
-        def _update(
-            idx: Any,
-            _line: Any = line,
-            _title: Any = title,
-            _hist: Any = hist,
-            _label: Any = label,
-            _n: Any = n_frames,
-            _rn: Any = run_name,
-        ) -> Any:
-            _line.set_xdata(_hist[idx])
-            _title.set_text(
-                f"{_label} — snapshot {idx + 1} / {_n}" + (f"  ({_rn})" if _rn else "")
-            )
-            return _line, _title
+    sup = (
+        f"Inflow profile evolution — {run_name}"
+        if run_name
+        else "Inflow profile evolution"
+    )
+    fig.suptitle(sup)
 
-        anim = manimation.FuncAnimation(
-            fig, _update, frames=n_frames, interval=250, blit=False
-        )
-        _save_animation(anim, f"drag_opt_evolution_{name}", out_dir, fps=4)
+    # Shared solver legend below the row (canonical order, deduped by alias).
+    initial_handle = mlines.Line2D(
+        [], [], color="k", linestyle="--", lw=1.4, label="initial"
+    )
+    solver_legend(
+        fig,
+        [p["alias"] for p in panels if p["alias"] is not None],
+        order=NS_ORDER,
+        extra_handles=[initial_handle],
+    )
+
+    def _update(
+        idx: Any,
+        _lines: Any = lines,
+        _panels: Any = panels,
+    ) -> Any:
+        for _line, _p in zip(_lines, _panels, strict=True):
+            k = min(idx, _p["n"] - 1)  # clamp: hold last frame
+            _line.set_xdata(_p["hist"][k])
+        return tuple(_lines)
+
+    anim = manimation.FuncAnimation(
+        fig, _update, frames=n_frames, interval=250, blit=False
+    )
+    _save_animation(anim, "drag_opt_evolution", out_dir, fps=4)

@@ -25,7 +25,12 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import blended_transform_factory
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir
+from mosaic.benchmarks.core.io import (
+    legacy_by_solver,
+    load_json,
+    results_dir,
+    v1_to_legacy,
+)
 from mosaic.benchmarks.problems.shared.plots.cost_overview import (
     plot_cost_overview_for,
 )
@@ -167,17 +172,18 @@ def _hsl_parse_one_solver(step_results: dict) -> dict:
     fail_step = fail_vram = fail_wall = fail_ram = fail_ft = None
     for k in all_steps:
         r = step_results[k]
-        if r["status"] == "ok":
+        status = r.get("status")
+        if status == "ok":
             ok_steps.append(int(k))
             ok_vram.append(r.get("vram_peak_mib") or 0.0)
-            ok_wall.append(r["wall_time_s"])
+            ok_wall.append(r.get("wall_time_s") or 0.0)
             ok_gnorm.append(r.get("grad_norm") or 1.0)
-        elif r["status"] == "failed" and fail_step is None:
+        elif status == "failed" and fail_step is None:
             fail_step = int(k)
             fail_vram = r.get("vram_peak_mib") or 1.0
-            fail_wall = r["wall_time_s"]
+            fail_wall = r.get("wall_time_s") or 0.0
             fail_ram = r.get("ram_peak_mib") or 1.0
-            fail_ft = r["failure_type"]
+            fail_ft = r.get("failure_type") or "error"
 
     ok_ram = [step_results[str(s)].get("ram_peak_mib") for s in ok_steps]
     cpu_only = all(v == 0.0 for v in ok_vram) and bool(ok_vram)
@@ -603,25 +609,28 @@ def _hsl_save_figure(fig: Any, out_dir: Path) -> None:
 
 
 def _plot_horizon_sweep_limits(cfg: Problem, **_kw: Any) -> Any:
-    """``_extra/horizon_sweep_limits`` — VJP rollout-length limit figure."""
-    out_dir = _extra_out_dir(cfg)
-    path = (
-        results_dir()
-        / "ns-3d-grid"
-        / "gradient"
-        / "horizon_sweep_limits"
-        / "result.json"
-    )
+    """``gradient/horizon_sweep_limits`` — VJP rollout-length limit figure.
+
+    Saves alongside the experiment's ``result.json`` (under the gradient
+    suite) so it groups under Gradient in the docs rather than a stray
+    "Extra" section.
+    """
+    out_dir = results_dir() / cfg.name / "gradient" / "horizon_sweep_limits"
+    path = out_dir / "result.json"
     if not path.exists():
         print(f"[horizon_sweep_limits] {path} not found — skipping")
         return None
     data = load_json(path)
     # ``by_solver`` from result.json is keyed by spec.name (display form).
-    # Re-key to canonical aliases up-front so downstream helpers (which
-    # compare against _HSL_SOLVER_ORDER / SOLVER_STYLES, both alias-keyed)
-    # match correctly. Drop unresolved entries silently — they would not
-    # appear in any ordering list anyway.
-    _raw_by_solver = data["by_solver"]
+    # (A ``steps`` sweep lands under ``by_steps`` post-schema-v1; legacy_by_solver
+    # collapses whichever group is present.) Re-key to canonical aliases up-front
+    # so downstream helpers (which compare against _HSL_SOLVER_ORDER /
+    # SOLVER_STYLES, both alias-keyed) match correctly. Drop unresolved entries
+    # silently — they would not appear in any ordering list anyway.
+    _raw_by_solver = legacy_by_solver(data)
+    if not _raw_by_solver:
+        print(f"[horizon_sweep_limits] {path} has no solver data — skipping")
+        return None
     by_solver: dict = {}
     for display_name, sv in _raw_by_solver.items():
         a = resolve_solver_alias(display_name)
@@ -637,9 +646,7 @@ def _plot_horizon_sweep_limits(cfg: Problem, **_kw: Any) -> Any:
 
         present, ordered = _hsl_order_solvers(by_solver)
 
-        all_sweep_steps = sorted(
-            {int(k) for sv in data["by_solver"].values() for k in sv}
-        )
+        all_sweep_steps = sorted({int(k) for sv in _raw_by_solver.values() for k in sv})
         of_fd = _hsl_openfoam_fd_vjp_estimate(all_sweep_steps, N_sweep=20)
 
         solver_data = _hsl_parse_all_solvers(by_solver, ordered)
@@ -707,7 +714,7 @@ def _scaling_load_cost(experiment: str) -> dict[str, dict[int, float]]:
     p = results_dir() / "ns-3d-grid" / "cost" / experiment / "result.json"
     if not p.exists():
         return {}
-    data = load_json(p)
+    data = v1_to_legacy(load_json(p))
     return {s: _scaling_extract(nd) for s, nd in data.get("by_N", {}).items()}
 
 
@@ -730,6 +737,7 @@ def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
 
     all_els: set[int] = set()
     seen: set[str] = set()
+    axes_with_data: set[Any] = set()
 
     # ``fwd_data`` / ``vjp_data`` are keyed by spec.name (display form).
     _display_names = set(fwd_data) | set(vjp_data)
@@ -763,12 +771,14 @@ def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
             els_f = [_n_to_elements_3d(n) for n in ns_f]
             ax_fwd.loglog(els_f, [fwd_pts[n] for n in ns_f], **kw)
             all_els.update(els_f)
+            axes_with_data.add(ax_fwd)
 
         if vjp_pts:
             ns_v = sorted(vjp_pts)
             els_v = [_n_to_elements_3d(n) for n in ns_v]
             ax_vjp.loglog(els_v, [vjp_pts[n] for n in ns_v], **kw)
             all_els.update(els_v)
+            axes_with_data.add(ax_vjp)
 
         common_ns = sorted(set(fwd_pts) & set(vjp_pts))
         if len(common_ns) >= 2:
@@ -776,16 +786,29 @@ def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
             ratios = [vjp_pts[n] / fwd_pts[n] for n in common_ns]
             ax_ratio.loglog(els_c, ratios, **kw)
             all_els.update(els_c)
+            axes_with_data.add(ax_ratio)
 
         seen.add(alias)
 
-    ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
+    if not seen:
+        plt.close(fig)
+        print("[scaling] no cost data for ns-3d-grid — skipping")
+        return
+
+    if ax_ratio in axes_with_data:
+        ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
 
     ax_fwd.set_title("Forward time")
     ax_vjp.set_title("VJP time")
     ax_ratio.set_title("VJP / forward")
     ax_fwd.set_ylabel("3D NS\nTime (s)", fontsize=7.5)
+
+    # Hide axes that never received data — leaving them log-scaled but empty
+    # would raise "no positive values" at savefig time.
     for ax in axes:
+        if ax not in axes_with_data:
+            ax.set_axis_off()
+            continue
         ax.set_xlabel("DOFs", fontsize=7.5)
         ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=5))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
@@ -799,6 +822,8 @@ def _plot_scaling(cfg: Problem, **_kw: Any) -> None:
         lambda x, _: f"{round(x / 1000):.0f}k" if x >= 1000 else str(int(x))
     )
     for ax in axes:
+        if ax not in axes_with_data:
+            continue
         ax.set_xticks(tick_els)
         ax.xaxis.set_major_formatter(fmt)
         ax.tick_params(axis="x", labelsize=7, rotation=35)

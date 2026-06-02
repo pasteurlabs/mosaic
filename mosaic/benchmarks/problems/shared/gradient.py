@@ -263,6 +263,7 @@ def _jacobian_svd_aggregate(
     snapshot_filename: Any,
     snapshot_prefixes: Any,
     horizons_shared: Any,
+    **_kw: Any,
 ) -> dict:
     """Cross-solver SVD + optional loss-landscape pass.
 

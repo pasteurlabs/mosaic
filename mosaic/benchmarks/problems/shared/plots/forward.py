@@ -13,7 +13,13 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz, v1_to_legacy
+from mosaic.benchmarks.core.io import (
+    legacy_by_param,
+    load_json,
+    results_dir,
+    try_load_npz,
+    v1_to_legacy,
+)
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
@@ -25,7 +31,11 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     field_grid,
     fig_shared_legend,
     make_handle,
+    paper_grid,
+    paper_row,
+    resolve_solver_alias,
     save_fig,
+    solver_legend,
     solver_plot_props,
     solver_props,
     solver_styles,
@@ -62,6 +72,16 @@ def _is_field(arr: np.ndarray) -> bool:
 _SUITE = "forward"
 
 
+def _dedup_solver_names(names: list[str]) -> list[str]:
+    seen, out = set(), []
+    for n in names:
+        key = resolve_solver_alias(n) or n
+        if key not in seen:
+            seen.add(key)
+            out.append(n)
+    return out
+
+
 # ── agreement ─────────────────────────────────────────────────────────────────
 
 
@@ -79,8 +99,9 @@ def _agreement_plot_scalar(
     units: dict | None,
 ) -> Any:
     """Scalar-output agreement: plot the scalar value vs sweep parameter."""
+    plt.rcParams.update(RCPARAMS)
     n_vals = len(sweep_vals)
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = paper_row(1)
     all_y: list[float] = []
     solver_series: list[tuple] = []
     for name in solver_names:
@@ -101,8 +122,7 @@ def _agreement_plot_scalar(
     ax.set_xlabel(unit_label(sweep_key, units))
     ylabel = output_key.replace("_", " ")
     ax.set_ylabel(ylabel)
-    ax.set_title(f"{cfg.name} — {ylabel} vs {sweep_key}")
-    ax.grid(True, alpha=0.3)
+    ax.set_title(ylabel[:1].upper() + ylabel[1:])
     fig_shared_legend(fig, [ax])
     if save:
         save_fig(fig, "curves", out_dir)
@@ -145,15 +165,14 @@ def _agreement_plot_curves(
     agreement_ylabel: str,
 ) -> Any:
     """1-D observable agreement (RDF g(r), P(k), etc.) with residual row."""
+    plt.rcParams.update(RCPARAMS)
     n_vals = len(sweep_vals)
     x = npz["x_axis"] if "x_axis" in npz else np.arange(len(sample_consensus))
-    fig_agr, ax_grid = plt.subplots(
+    fig_agr, ax_grid = paper_grid(
         2,
         n_vals,
-        figsize=(4 * n_vals, 7),
         sharex="col",
         sharey="row",
-        squeeze=False,
     )
     for i, val in enumerate(sweep_vals):
         ax_top = ax_grid[0, i]
@@ -164,7 +183,7 @@ def _agreement_plot_curves(
         if i == 0:
             ax_top.set_ylabel(agreement_ylabel)
             ax_bot.set_ylabel(f"Δ {agreement_ylabel}")
-    fig_agr.suptitle(f"{cfg.name} — agreement ({agreement_ylabel})")
+    fig_agr.suptitle(f"Agreement — {agreement_ylabel}", fontweight="bold")
     fig_shared_legend(fig_agr, list(ax_grid.flat))
     if save:
         save_fig(fig_agr, "curves", out_dir)
@@ -236,37 +255,43 @@ def _alias_to_display_name(cfg: Any) -> dict[str, str]:
 
 def _agreement_plot_curves_styled(
     ax: Any, data: dict, seen: set[str], cfg: Any
-) -> None:
+) -> list[float]:
     """Plot per-solver error-vs-sweep curves onto ``ax``.
 
     Walks :data:`NS_ORDER`, drawing every solver that produced at least
     one valid finite positive error. Updates ``seen`` so the caller can
-    build a legend covering only solvers that actually appear.
+    build a legend covering only solvers that actually appear, and returns
+    the flat list of plotted error values (so the caller can pick a tick
+    strategy that stays legible when the spread is sub-decade).
     """
+    all_errors: list[float] = []
     by_param = data.get("by_param", {})
     if not by_param:
-        return
+        return all_errors
     params = sorted(by_param.keys(), key=float)
-    alias_to_name = _alias_to_display_name(cfg)
+    # ``by_param`` may be keyed by alias ('jax_cfd') or display name ('jax-cfd')
+    # depending on the run; resolve every present key to its canonical alias so
+    # the NS_ORDER walk finds the data regardless of which form was written.
+    alias_to_key: dict[str, str] = {}
+    for p in params:
+        for k in by_param[p]:
+            a = resolve_solver_alias(k) or k
+            alias_to_key.setdefault(a, k)
 
     for solver in NS_ORDER:
-        display_name = alias_to_name.get(solver)
-        if display_name is None:
+        data_key = alias_to_key.get(solver)
+        if data_key is None:
             continue
         _label, color, ls, mk = solver_props(solver)
         xs, ys = [], []
         for p in params:
-            entry = by_param[p].get(display_name)
+            entry = by_param[p].get(data_key)
             if isinstance(entry, dict):
                 err = entry.get("error")
-                if (
-                    err is not None
-                    and isinstance(err, float)
-                    and np.isfinite(err)
-                    and err > 0
-                ):
+                # numeric error only — a failed run stores a string message here
+                if isinstance(err, int | float) and np.isfinite(err) and err > 0:
                     xs.append(float(p))
-                    ys.append(err)
+                    ys.append(float(err))
         if not xs:
             continue
         ax.semilogy(
@@ -279,7 +304,29 @@ def _agreement_plot_curves_styled(
             markeredgewidth=0,
             linewidth=1.6,
         )
+        all_errors.extend(ys)
         seen.add(solver)
+    return all_errors
+
+
+def _agreement_set_logy_ticks(ax: Any, narrow_y: bool) -> None:
+    """Pick a y-axis scale + tick strategy that stays legible for the data span.
+
+    The default decade ``LogLocator`` yields *no* major ticks when every
+    error sits inside a single decade (e.g. the multimode IC where all
+    solvers agree to within ~0.5 %), leaving the axis bare *and* a log
+    scale visually exaggerates a sub-percent spread into a full-height
+    swing. For that sub-decade case switch to a linear scale with a
+    bounded ``MaxNLocator`` so the (near-constant) values read honestly.
+    """
+    if narrow_y:
+        ax.set_yscale("linear")
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=4, prune="both"))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.4g"))
+    else:
+        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
 
 
 def _agreement_style_axis(
@@ -290,10 +337,12 @@ def _agreement_style_axis(
     y_label: str,
     log_x: bool,
     has_data: bool = True,
+    narrow_y: bool = False,
 ) -> None:
     """Apply consistent axis labels / ticks to one panel."""
     ax.set_title(title)
-    ax.set_xlabel(x_label)
+    # ``labelpad`` keeps the x-label clear of the shared legend strip below.
+    ax.set_xlabel(x_label, labelpad=2)
     ax.set_ylabel(y_label)
     if not has_data:
         ax.text(
@@ -308,8 +357,7 @@ def _agreement_style_axis(
         )
         ax.tick_params(axis="x", labelsize=7, rotation=30)
         return
-    ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
-    ax.yaxis.set_minor_locator(mticker.NullLocator())
+    _agreement_set_logy_ticks(ax, narrow_y)
     if log_x:
         ax.set_xscale("log")
     ax.xaxis.set_major_locator(mticker.LogLocator(base=10, numticks=5))
@@ -334,11 +382,15 @@ def _agreement_figure(
     reference_label = data.get("reference_label", "consensus")
     ref_desc = "analytic" if reference_label == "analytic" else "consensus"
 
-    fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.55, TEXTWIDTH * 0.4), dpi=300)
-    fig.subplots_adjust(bottom=0.30, left=0.18, right=0.95, top=0.88)
+    fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.55, TEXTWIDTH * 0.42), dpi=300)
+    fig.subplots_adjust(bottom=0.34, left=0.18, right=0.95, top=0.88)
 
     seen: set[str] = set()
-    _agreement_plot_curves_styled(ax, data, seen, cfg)
+    errors = _agreement_plot_curves_styled(ax, data, seen, cfg)
+
+    # Sub-decade error spread (all solvers agree to within a decade) needs a
+    # finer tick locator so the y-axis isn't left bare.
+    narrow_y = bool(errors) and (max(errors) / min(errors) < 10)
 
     x_label = _agreement_math_label(sweep_key)
     _agreement_style_axis(
@@ -348,6 +400,7 @@ def _agreement_figure(
         y_label=f"Error vs {ref_desc}",
         log_x=True,
         has_data=bool(seen),
+        narrow_y=narrow_y,
     )
 
     handles = dedup_handles(
@@ -357,7 +410,7 @@ def _agreement_figure(
         fig.legend(
             handles=handles,
             loc="lower center",
-            bbox_to_anchor=(0.5, 0.01),
+            bbox_to_anchor=(0.5, -0.02),
             ncol=min(len(handles), 5),
             fontsize=6.5,
             framealpha=0.7,
@@ -410,8 +463,14 @@ def plot_agreement(
     styles = solver_styles(cfg)
 
     npz = try_load_npz(fields_path)
+    if "sweep_values" not in npz:
+        # No fields.npz (missing / unreadable) — nothing to draw. Fall back to
+        # the result.json-only convergence view so regeneration doesn't crash.
+        print(f"[skip] agreement: no field data at {fields_path}")
+        _agreement_convergence(cfg, exp_key, suffix, save, out_dir)
+        return None
     sweep_vals = npz["sweep_values"].tolist()
-    solver_names = npz["solver_names"].tolist()
+    solver_names = _dedup_solver_names(npz["solver_names"].tolist())
 
     sample_consensus = npz.get("consensus_0", None)
 
@@ -473,8 +532,13 @@ def plot_forward_fields(
     f2d = _resolve_field_to_2d(field_to_2d)
 
     npz = try_load_npz(fields_path)
+    if "sweep_values" not in npz:
+        # Raw-field plot is purely npz-driven; with no fields.npz there's
+        # nothing to render, so skip instead of KeyError-ing out.
+        print(f"[skip] {exp_key}: no field data at {fields_path}")
+        return None
     sweep_vals = npz["sweep_values"].tolist()
-    solver_names = npz["solver_names"].tolist()
+    solver_names = _dedup_solver_names(npz["solver_names"].tolist())
 
     _agreement_raw_fields(
         cfg,
@@ -612,9 +676,16 @@ def _pa_plot_ns_row(
     cfg: Any,
     ns_seen: set[str],
     row_is_top: bool,
+    show_row_label: bool = True,
 ) -> None:
-    """Render one row of the 3×3 NS grid for a single sweep (3 metrics)."""
-    by_param = data["by_param"]
+    """Render one row of the NS metric grid for a single sweep (3 metrics)."""
+    # physical_laws metrics (analytic_error / kinetic_energy / …) carry no
+    # ``valid`` key, so v1_to_legacy groups them solver-major (by_N / by_steps
+    # / by_solver) rather than into by_param. Transpose to the param-major
+    # layout this row renderer expects.
+    by_param = legacy_by_param(data)
+    if not by_param:
+        return
     params = sorted(by_param.keys(), key=float)
     phys = data.get("params", {}).get("physics", {})
     subdir = cfg.name
@@ -679,58 +750,50 @@ def _pa_plot_ns_row(
 
         if row_is_top:
             ax.set_title(metric_label)
-        if col == 0:
+        if col == 0 and show_row_label:
             ax.set_ylabel(_PA_ROW_LABELS[sweep_key], fontsize=9)
         ax.set_xlabel(_PA_SWEEP_XLABELS[sweep_key])
 
         _pa_set_axis_ticks(ax, x_all, log_x, log_y, is_elements=use_elements)
 
 
-def _pa_plot_ns_grid(
+def _pa_plot_ns_per_sweep(
     cfg: Any,
     sweeps_data: dict[str, dict],
     domain_title: str,
-    out_path: Path | None,
-) -> plt.Figure:
-    """3×3 NS grid: rows=sweep (vs_N, vs_nu, vs_steps), cols=metrics."""
-    fig, axes = plt.subplots(3, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.85))
-    fig.suptitle(domain_title, fontsize=9, fontweight="bold", y=1.02)
-    fig.subplots_adjust(bottom=0.22, wspace=0.35, hspace=0.55)
+    out_dir: Path | None,
+) -> plt.Figure | None:
+    """One figure per sweep axis: a 1×3 metric row (vs_N / vs_nu / vs_steps).
 
-    ns_seen: set[str] = set()
-
-    for row, (sweep_key, log_x, use_elements) in enumerate(_PA_SWEEPS):
+    Each sweep gets its own ``physical_accuracy_<sweep>.png`` so the panels are
+    full-width and legible rather than packed into a single cramped 3×3 grid.
+    """
+    last_fig: plt.Figure | None = None
+    for sweep_key, log_x, use_elements in _PA_SWEEPS:
         data = sweeps_data.get(sweep_key)
         if data is None:
-            for col in range(3):
-                axes[row, col].set_visible(False)
             continue
+        fig, axes = paper_row(3)
+        ns_seen: set[str] = set()
         _pa_plot_ns_row(
-            axes[row],
+            axes,
             sweep_key,
             log_x,
             use_elements,
             data,
             cfg,
             ns_seen,
-            row_is_top=(row == 0),
+            row_is_top=True,
+            show_row_label=False,
         )
-
-    handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.0),
-        ncol=6,
-        fontsize=7.5,
-        framealpha=0.7,
-        handlelength=2.0,
-    )
-
-    if out_path is not None:
-        fig.savefig(out_path)
-        print(f"Saved {out_path}")
-    return fig
+        fig.suptitle(f"{domain_title} — {_PA_ROW_LABELS[sweep_key]}", fontweight="bold")
+        solver_legend(fig, ns_seen, order=NS_ORDER)
+        if out_dir is not None:
+            out = out_dir / f"physical_accuracy_{sweep_key}.png"
+            fig.savefig(out)
+            print(f"Saved {out}")
+        last_fig = fig
+    return last_fig
 
 
 def _pa_plot_fem_single(
@@ -744,7 +807,11 @@ def _pa_plot_fem_single(
     fig.subplots_adjust(bottom=0.22)
 
     metric = spec["metric"]
-    by_param = data["by_param"]
+    # FEM physical_laws metrics (compliance / thermal_compliance) carry no
+    # ``valid`` key → solver-major group; transpose to param-major.
+    by_param = legacy_by_param(data)
+    if not by_param:
+        return fig
     params = sorted(by_param.keys(), key=float)
     x_vals = np.array([float(p) for p in params])
 
@@ -867,8 +934,7 @@ def plot_physical_laws(
             ),
             (sweep_key, True, sweep_key == "vs_N"),
         )
-        fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.32))
-        fig.subplots_adjust(bottom=0.32, wspace=0.45)
+        fig, axes = paper_row(3)
         ns_seen: set[str] = set()
         _pa_plot_ns_row(
             axes,
@@ -879,18 +945,9 @@ def plot_physical_laws(
             cfg,
             ns_seen,
             row_is_top=True,
+            show_row_label=False,
         )
-        handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
-        if handles:
-            fig.legend(
-                handles=handles,
-                loc="lower center",
-                bbox_to_anchor=(0.5, 0.0),
-                ncol=min(len(handles), 6),
-                fontsize=7.0,
-                framealpha=0.7,
-                handlelength=2.0,
-            )
+        solver_legend(fig, ns_seen, order=NS_ORDER)
         if save:
             out = out_dir / "physical_accuracy.png"
             fig.savefig(out)
@@ -913,9 +970,9 @@ def plot_physical_laws(
         (t for n, t in _PA_NS_DOMAINS if n == cfg.name),
         f"{cfg.category_label or cfg.name} — physical accuracy",
     )
-    return _pa_plot_ns_grid(
+    return _pa_plot_ns_per_sweep(
         cfg,
         sweeps_data,
         title,
-        out_dir / "physical_accuracy.png" if save else None,
+        out_dir if save else None,
     )

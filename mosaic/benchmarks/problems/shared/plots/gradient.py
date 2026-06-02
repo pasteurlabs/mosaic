@@ -14,7 +14,13 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz, v1_to_legacy
+from mosaic.benchmarks.core.io import (
+    legacy_by_solver,
+    load_json,
+    results_dir,
+    try_load_npz,
+    v1_to_legacy,
+)
 from mosaic.benchmarks.problems.shared.plots.style import (
     FEM_ORDER,
     NS_ORDER,
@@ -27,12 +33,14 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     fig_shared_legend,
     grad_magnitude_2d,
     make_handle,
+    paper_grid,
+    paper_image_grid,
+    paper_row,
     resolve_solver_alias,
     save_fig,
     solver_plot_props,
     solver_props,
     solver_styles,
-    unit_label,
     vorticity_2d,
 )
 
@@ -368,7 +376,11 @@ def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
     from collections import defaultdict
 
     ax_gn, ax_err, ax_cos = axes
-    by_solver = data["by_solver"]
+    # A ``steps`` sweep lands under ``by_steps`` (not ``by_solver``) post-v1;
+    # collapse whichever group is present.
+    by_solver = legacy_by_solver(data)
+    if not by_solver:
+        return False
     # ``by_solver`` is keyed by spec.name (display form); build an
     # alias→display map and iterate NS_ORDER (alias-keyed) against it.
     alias_to_display: dict[str, str] = {}
@@ -384,7 +396,7 @@ def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
     for alias in ordered:
         sv = by_solver[alias_to_display[alias]]
         for k, v in sv.items():
-            gn = v.get("grad_norm", 1.0)
+            gn = _finite_or_nan(v.get("grad_norm", 1.0))
             if not np.isfinite(gn) or gn <= 0:
                 fail_at_step[int(k)].append(alias)
 
@@ -410,14 +422,14 @@ def _horizon_plot_curves(axes: Any, data: dict, seen: set[str]) -> bool:
 
         for k in step_keys:
             v = sv[k]
-            gn = v.get("grad_norm", float("nan"))
+            gn = _finite_or_nan(v.get("grad_norm", float("nan")))
             eps_sweep = v.get("eps_sweep", {})
-            if eps_sweep:
-                best_err = min(float(e["rel_error_mean"]) for e in eps_sweep.values())
-                best_cos = max(float(e["cosine_mean"]) for e in eps_sweep.values())
-            else:
-                best_err = float("nan")
-                best_cos = float("nan")
+            errs = [_finite_or_nan(e.get("rel_error_mean")) for e in eps_sweep.values()]
+            errs = [e for e in errs if np.isfinite(e)]
+            coss = [_finite_or_nan(e.get("cosine_mean")) for e in eps_sweep.values()]
+            coss = [c for c in coss if np.isfinite(c)]
+            best_err = min(errs) if errs else float("nan")
+            best_cos = max(coss) if coss else float("nan")
 
             if np.isfinite(gn) and gn > 0 and np.isfinite(best_err) and best_err > 0:
                 ok_steps.append(int(k))
@@ -570,7 +582,7 @@ def plot_fd_check(
     # presentation concern local to this problem (paper plots don't
     # produce field grids), so we keep the lightweight per-suite
     # ``solver_styles`` here rather than depend on paper-side styling.
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
     fields_path = out_dir / "gradient_fields.npz"
     if not fields_path.exists():
         return fig_c
@@ -659,13 +671,19 @@ def _plot_error_per_solver(
     n_cols = min(3, n)
     n_rows = math.ceil(n / n_cols)
 
-    fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(4.5 * n_cols, 3.5 * n_rows), squeeze=False
-    )
+    fig, axes = paper_grid(n_rows, n_cols)
 
-    # ε values from the first solver/key entry
-    _first = by_solver[solver_names[0]]
-    eps_keys = sorted(_first[next(iter(_first))]["eps_sweep"], key=float)
+    # ε values from the first solver/key entry that actually carries an eps
+    # sweep — a failed run may record a step/param entry without one, so we
+    # can't blindly index the first entry.
+    eps_keys: list[str] = []
+    for name in solver_names:
+        for entry in by_solver[name].values():
+            if isinstance(entry, dict) and entry.get("eps_sweep"):
+                eps_keys = sorted(entry["eps_sweep"], key=float)
+                break
+        if eps_keys:
+            break
     eps_colors = plt.cm.plasma(np.linspace(0.15, 0.85, len(eps_keys)))
     markers = ["o", "s", "^", "D"]
 
@@ -677,7 +695,14 @@ def _plot_error_per_solver(
 
         for ei, eps in enumerate(eps_keys):
             re_m = [
-                by_solver[name][k]["eps_sweep"][eps]["rel_error_mean"] for k in x_keys
+                _finite_or_nan(
+                    by_solver[name]
+                    .get(k, {})
+                    .get("eps_sweep", {})
+                    .get(eps, {})
+                    .get("rel_error_mean")
+                )
+                for k in x_keys
             ]
             ax.semilogy(
                 xs,
@@ -700,12 +725,43 @@ def _plot_error_per_solver(
         row, col = divmod(idx, n_cols)
         axes[row][col].set_visible(False)
 
-    fig.suptitle(title_prefix, fontsize=10)
+    fig.suptitle(title_prefix, fontweight="bold")
     fig_shared_legend(fig, axes)
     return fig
 
 
 # ── best-ε overlay helper ─────────────────────────────────────────────────────
+
+
+def _alias_tolerant(styles: dict) -> dict:
+    """Augment a ``solver_styles`` dict so it also resolves canonical aliases.
+
+    ``solver_styles`` keys by display name (``'PhiFlow'``), but ``by_solver`` in
+    some result.json is keyed by canonical alias (``'phiflow'``). Adding alias
+    entries (pointing at the same style) lets ``styles[name]`` work for either
+    form without scattering lookups. Display-name lookups are unchanged.
+    """
+    out = dict(styles)
+    for display_name, style in styles.items():
+        alias = resolve_solver_alias(display_name)
+        if alias and alias not in out:
+            out[alias] = style
+    return out
+
+
+def _finite_or_nan(v: Any) -> float:
+    """Coerce a metric value to ``float``, mapping ``None``/non-numeric to ``nan``.
+
+    Benchmark ``result.json`` stores ``None`` for ε / step runs that failed or
+    were non-finite. Both ``float(None)`` and ``np.isfinite(None)`` raise, so raw
+    metric values must be normalised before any ``min``/``max``/finite-filter —
+    otherwise a single failed run takes down the whole figure.
+    """
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return float("nan")
+    return f if np.isfinite(f) else float("nan")
 
 
 def _plot_best_eps_overlay(
@@ -718,19 +774,26 @@ def _plot_best_eps_overlay(
     x_scale: str = "linear",
 ) -> plt.Figure:
     """All solvers overlaid: best-ε rel_error_mean vs x_keys."""
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = paper_row(1)
 
     def _best_re(eps_sweep: dict) -> float:
         finite = [
             v
-            for v in (e["rel_error_mean"] for e in eps_sweep.values())
+            for v in (
+                _finite_or_nan(e.get("rel_error_mean")) for e in eps_sweep.values()
+            )
             if np.isfinite(v)
         ]
         return float(min(finite)) if finite else float("nan")
 
     for name, results in by_solver.items():
         xs = [x_to_float(k) for k in x_keys]
-        best_re = [_best_re(results[k]["eps_sweep"]) for k in x_keys]
+        best_re = [
+            _best_re(results[k]["eps_sweep"])
+            if isinstance(results.get(k), dict) and "eps_sweep" in results[k]
+            else float("nan")
+            for k in x_keys
+        ]
 
         pairs = [(x, v) for x, v in zip(xs, best_re, strict=False) if np.isfinite(v)]
         if not pairs:
@@ -755,13 +818,26 @@ def _plot_best_eps_overlay(
 
 
 def _best_eps_series(param_results: dict, param_keys: Any, metric: str) -> list[float]:
-    """For each param key pick the best-ε value of `metric` across the eps sweep."""
-    return [
-        min(param_results[k]["eps_sweep"].values(), key=lambda v: v["rel_error_mean"])[
-            metric
+    """For each param key pick the best-ε value of `metric` across the eps sweep.
+
+    ε entries with a missing ``rel_error_mean`` (``None`` — e.g. a failed or
+    non-finite ε run) can't be ranked and are skipped. A param key with no
+    rankable ε entry yields ``nan`` so the curve simply gaps there rather than
+    raising and dropping the whole figure.
+    """
+    out: list[float] = []
+    for k in param_keys:
+        ranked = [
+            v
+            for v in param_results[k]["eps_sweep"].values()
+            if v.get("rel_error_mean") is not None
         ]
-        for k in param_keys
-    ]
+        if not ranked:
+            out.append(float("nan"))
+            continue
+        val = min(ranked, key=lambda v: v["rel_error_mean"]).get(metric)
+        out.append(float("nan") if val is None else val)
+    return out
 
 
 def _plot_ucurve_overlay(
@@ -781,9 +857,7 @@ def _plot_ucurve_overlay(
     n_cols = min(ncols, n_panels)
     n_rows = math.ceil(n_panels / n_cols)
 
-    fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(3.5 * n_cols, 3.0 * n_rows), squeeze=False
-    )
+    fig, axes = paper_grid(n_rows, n_cols)
 
     solver_names = list(by_solver.keys())
 
@@ -792,24 +866,28 @@ def _plot_ucurve_overlay(
         ax = axes[row][col]
 
         for name in solver_names:
+            if name not in styles:
+                continue
+            entry = by_solver.get(name, {}).get(key)
+            sweep = entry.get("eps_sweep") if isinstance(entry, dict) else None
+            if not sweep:
+                continue
             props = solver_plot_props(styles[name])
-
-            sweep = by_solver[name][key]["eps_sweep"]
             eps_f = sorted(sweep.keys(), key=float)
             eps_fl = [float(e) for e in eps_f]
-            re_m = [sweep[e]["rel_error_mean"] for e in eps_f]
+            re_m = [_finite_or_nan(sweep[e].get("rel_error_mean")) for e in eps_f]
 
             ax.loglog(eps_fl, re_m, label=styles[name]["label"], **props)
 
         ax.set_xlabel("ε")
         ax.set_ylabel("Relative FD error")
-        ax.set_title(f"{sweep_label} = {key}", fontsize=9)
+        ax.set_title(f"{sweep_label} = {key}")
 
     for idx in range(n_panels, n_rows * n_cols):
         row, col = divmod(idx, n_cols)
         axes[row][col].set_visible(False)
 
-    fig.suptitle(title_prefix, fontsize=10)
+    fig.suptitle(title_prefix, fontweight="bold")
     fig_shared_legend(fig, axes)
     return fig
 
@@ -826,79 +904,19 @@ def plot_param_sweep(
     exp_key: str = "param_sweep",
     **_kw: Any,
 ) -> Any:
-    """Two files: summary curves (grad norm + best-ε error + cosine) and U-curve grid."""
+    """Single file: best-ε FD error vs sweep param, all solvers overlaid."""
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
     data = v1_to_legacy(load_json(result_path))
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
     sweep_key = data.get("sweep_key", "param")
 
-    # ── summary: grad norm, best-ε rel error, best-ε cosine vs sweep param ───
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    all_cosines_sweep: list[float] = []
-    for name, param_results in data["by_solver"].items():
-        param_vals = sorted(param_results.keys(), key=float)
-        param_f = [float(v) for v in param_vals]
-        norms = [param_results[v]["grad_norm"] for v in param_vals]
-        re_mean = _best_eps_series(param_results, param_vals, "rel_error_mean")
-        cosines = _best_eps_series(param_results, param_vals, "cosine_mean")
-        all_cosines_sweep.extend(c for c in cosines if np.isfinite(c))
-        props = solver_plot_props(styles[name])
-
-        axes[0].loglog(param_f, norms, label=styles[name]["label"], **props)
-        axes[1].loglog(param_f, re_mean, label=styles[name]["label"], **props)
-        axes[2].semilogx(param_f, cosines, label=styles[name]["label"], **props)
-
-    xlbl = unit_label(sweep_key, units)
-    axes[0].set_xlabel(xlbl)
-    axes[0].set_ylabel("Gradient norm")
-    axes[0].set_title(f"G2a — gradient norm vs {sweep_key}")
-    axes[1].set_xlabel(xlbl)
-    axes[1].set_ylabel("Relative FD error (best ε)")
-    axes[1].set_title(f"G2a — FD error vs {sweep_key}")
-    axes[2].set_xlabel(xlbl)
-    axes[2].set_ylabel("Subspace cosine (best ε)")
-    axes[2].set_title(f"G2a — direction accuracy vs {sweep_key}")
-    min_cos_sweep = min(all_cosines_sweep) if all_cosines_sweep else 0.0
-    if min_cos_sweep > 0.8:
-        axes[2].set_ylim(min(min_cos_sweep, 0.999) - 0.001, 1.001)
-    else:
-        axes[2].set_ylim(-0.05, 1.05)
-    fig_shared_legend(fig, axes)
-    if save:
-        save_fig(fig, "param_sweep", out_dir)
-
-    # ── U-curve overlay: all solvers per sweep value ──────────────────────────
-    param_vals = sorted(next(iter(data["by_solver"].values())).keys(), key=float)
-    fig_u = _plot_ucurve_overlay(
-        data["by_solver"],
-        param_vals,
-        sweep_key,
-        styles,
-        f"{cfg.name} — G2a ε U-curves ({sweep_key} sweep)",
-        ncols=len(param_vals),
-    )
-    if save:
-        save_fig(fig_u, "ucurves", out_dir)
-
-    # ── FD error vs param, one line per ε (per solver) ────────────────────────
-    fig_s = _plot_error_per_solver(
-        data["by_solver"],
-        styles,
-        f"{cfg.name} — G2a FD error vs {sweep_key} (per solver)",
-        x_keys=param_vals,
-        x_to_float=float,
-        x_label=sweep_key,
-        x_scale="log",
-    )
-    if save:
-        save_fig(fig_s, "error_vs_param", out_dir)
-
     # ── Best-ε FD error vs param, all solvers overlaid ────────────────────────
+    param_vals = sorted(next(iter(data["by_solver"].values())).keys(), key=float)
     fig_b = _plot_best_eps_overlay(
         data["by_solver"],
         styles,
-        f"{cfg.name} — G2a best-ε FD error vs {sweep_key}",
+        "Best-ε FD error",
         x_keys=param_vals,
         x_to_float=float,
         x_label=sweep_key,
@@ -907,7 +925,7 @@ def plot_param_sweep(
     if save:
         save_fig(fig_b, "best_eps_vs_param", out_dir)
 
-    return fig
+    return fig_b
 
 
 # ── G3: Jacobian SVD ──────────────────────────────────────────────────────────
@@ -935,7 +953,7 @@ def plot_jacobian_svd(
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     data = v1_to_legacy(load_json(out_dir / "result.json"))
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
 
     solver_names = data["solver_names"]
     cross_cos = np.array(data["cross_cosine"])
@@ -957,7 +975,7 @@ def plot_jacobian_svd(
     )
 
     if _scalar_output:
-        fig_bar, ax = plt.subplots(figsize=(6, 4))
+        fig_bar, ax = paper_row(1)
         names = list(per_solver_grad_norm or per_solver_spectra)
         norms = [per_solver_grad_norm.get(n, float("nan")) for n in names]
         colors = [styles.get(n, {}).get("color", "#888888") for n in names]
@@ -966,7 +984,7 @@ def plot_jacobian_svd(
         ax.set_xticks(range(len(names)))
         ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=9)
         ax.set_ylabel("‖∇L‖  (gradient norm)")
-        ax.set_title(f"{cfg.name} — G3 per-solver gradient norm")
+        ax.set_title("Per-solver gradient norm")
         ax.set_yscale("log")
         ax.grid(True, axis="y", alpha=0.3)
         fig_bar.tight_layout()
@@ -976,7 +994,7 @@ def plot_jacobian_svd(
             fig_c = fig_bar
 
     # ── Cross-solver cosine similarity heatmap ───────────────────────────────
-    fig_h, ax = plt.subplots(figsize=(6, 5))
+    fig_h, ax = paper_image_grid(1, 1, panel=TEXTWIDTH * 0.6, squeeze=True)
     n = len(solver_names)
     im = ax.imshow(cross_cos, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
     ax.set_xticks(range(n))
@@ -984,7 +1002,7 @@ def plot_jacobian_svd(
     short_labels = [styles.get(s, {}).get("label", s) for s in solver_names]
     ax.set_xticklabels(short_labels, rotation=45, ha="right", fontsize=9)
     ax.set_yticklabels(short_labels, fontsize=9)
-    ax.set_title(f"{cfg.name} — G3 cross-solver cosine similarity")
+    ax.set_title("Cross-solver cosine similarity")
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig_h.tight_layout()
     if save:
@@ -1091,82 +1109,12 @@ def plot_horizon_sweep(
     live here.
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
-    data = v1_to_legacy(load_json(out_dir / "result.json"))
-    styles = solver_styles(cfg)
 
     # ── summary curves (styled) ─────────────────────────────────────────────
     fig_c = _horizon_sweep_figure(
         cfg, exp_key=exp_key, suffix=suffix, save=save, out_dir=out_dir
     )
 
-    # ── U-curve overlay: all solvers per horizon ─────────────────────────────
-    step_keys = sorted(next(iter(data["by_solver"].values())).keys(), key=int)
-    fig_u = _plot_ucurve_overlay(
-        data["by_solver"],
-        step_keys,
-        "steps",
-        styles,
-        f"{cfg.name} — G2c ε U-curves (horizon sweep)",
-        ncols=4,
-    )
-    if save:
-        save_fig(fig_u, "ucurves", out_dir)
-
-    # ── FD error vs steps, one line per ε (per solver) ───────────────────────
-    fig_s = _plot_error_per_solver(
-        data["by_solver"],
-        styles,
-        f"{cfg.name} — G2c FD error vs horizon (per solver)",
-        x_keys=step_keys,
-        x_to_float=int,
-        x_label="Steps (horizon)",
-    )
-    if save:
-        save_fig(fig_s, "error_vs_steps", out_dir)
-
-    # ── Best-ε FD error vs steps, all solvers overlaid ───────────────────────
-    fig_b = _plot_best_eps_overlay(
-        data["by_solver"],
-        styles,
-        f"{cfg.name} — G2c best-ε FD error vs horizon",
-        x_keys=step_keys,
-        x_to_float=int,
-        x_label="Steps (horizon)",
-    )
-    if save:
-        save_fig(fig_b, "best_eps_vs_steps", out_dir)
-
-    # ── gradient magnitude fields at representative horizons ──────────────────
-    fields_path = out_dir / "gradient_fields.npz"
-    if not fields_path.exists():
-        return fig_c
-
-    npz = try_load_npz(fields_path)
-    solver_names = npz["solver_names"].tolist()
-    horizons = npz["horizons"].tolist()
-
-    for j, name in enumerate(solver_names):
-        panels = []
-        for k, h in enumerate(horizons):
-            key = f"grad_{j}_{k}"
-            if key in npz:
-                g = grad_magnitude_2d(npz[key])
-                vmax = g.max() or 1.0
-                panels.append(
-                    (f"T={h}", g, {"cmap": "viridis", "vmin": 0, "vmax": vmax})
-                )
-        if not panels:
-            continue
-        lbl = styles.get(name, {}).get("label", name)
-        fig_g = field_grid(
-            panels,
-            f"{cfg.name} — G2c ∂L/∂IC magnitude | {lbl}",
-            shared_scale=True,
-            symmetric=False,
-            ncols=len(panels),
-        )
-        if save:
-            save_fig(fig_g, f"gradient_fields_{name}", out_dir)
     return fig_c
 
 
@@ -1220,21 +1168,24 @@ def plot_jacobian_svd_comparison(
     if not variants:
         return None
 
-    # Collect all solver names across variants
+    # Collect solver names across variants, de-duplicated by canonical alias so
+    # display-name ('PhiFlow') and alias ('phiflow') forms don't each get a panel.
     all_solvers: list[str] = []
+    _seen_alias: set[str] = set()
     for _, data in variants:
         for s in data.get("solver_names", []):
-            if s not in all_solvers:
+            key = resolve_solver_alias(s) or s
+            if key not in _seen_alias:
+                _seen_alias.add(key)
                 all_solvers.append(s)
 
-    styles = solver_styles(cfg)
+    styles = _alias_tolerant(solver_styles(cfg))
     n_solvers = len(all_solvers)
     ncols = min(3, n_solvers)
     nrows = math.ceil(n_solvers / ncols)
 
-    fig, axes = plt.subplots(
-        nrows, ncols, figsize=(5 * ncols, 3.5 * nrows), squeeze=False
-    )
+    fig, axes = paper_grid(nrows, ncols)
+    variant_handles: list[mlines.Line2D] = []
 
     for idx, solver in enumerate(all_solvers):
         ax = axes[idx // ncols][idx % ncols]
@@ -1247,8 +1198,6 @@ def plot_jacobian_svd_comparison(
             if solver not in spectra:
                 continue
             spec = spectra[solver]
-            er = data.get("per_solver_eff_rank", {}).get(solver, float("nan"))
-            cond = data.get("per_solver_cond", {}).get(solver, float("nan"))
             var_label = _VARIANT_LABELS.get(exp_key, exp_key)
             vstyle = _VARIANT_STYLES[vi % len(_VARIANT_STYLES)]
             n_modes = len(spec)
@@ -1261,25 +1210,37 @@ def plot_jacobian_svd_comparison(
                 color=vstyle["color"],
                 markersize=4 if marker else 0,
                 linewidth=1.5,
-                label=f"{var_label}  r={er:.0f}  κ={cond:.1e}",
             )
+            if idx == 0:
+                variant_handles.append(
+                    mlines.Line2D(
+                        [],
+                        [],
+                        color=vstyle["color"],
+                        linestyle=vstyle["linestyle"],
+                        linewidth=1.5,
+                        label=var_label,
+                    )
+                )
 
         ax.axhline(1e-1, color="gray", linestyle="--", linewidth=0.8, alpha=0.6)
         ax.axhline(1e-4, color="gray", linestyle="--", linewidth=0.8, alpha=0.6)
-        ax.set_title(f"{label_base}", color=color, fontsize=10)
-        ax.set_xlabel("Mode index i")
-        ax.set_ylabel("σᵢ / σ₁")
-        ax.legend(fontsize=7, framealpha=0.8)
-        ax.grid(True, alpha=0.3)
+        ax.set_title(label_base, color=color)
+        ax.set_xlabel("Mode index $i$")
+        ax.set_ylabel(r"$\sigma_i\,/\,\sigma_1$")
 
     # Hide unused axes
     for idx in range(n_solvers, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
 
-    fig.suptitle(
-        f"{cfg.name} — Jacobian SVD: per-solver spectra comparison", fontsize=11
-    )
-    fig.tight_layout()
+    if variant_handles:
+        fig.legend(
+            handles=variant_handles,
+            loc="outside lower center",
+            ncol=min(len(variant_handles), 4),
+            handlelength=2.0,
+        )
+    fig.suptitle("Jacobian SVD spectra", fontweight="bold")
 
     if save:
         out_dir = results_dir() / cfg.name / _SUITE

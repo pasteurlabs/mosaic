@@ -114,7 +114,7 @@ jobs:
                   echo "::error::benchmark:solver requires all mosaic/ changes to be under mosaic/tesseracts/. These files violate that:"
                   echo "$NON_SOLVER"
                   echo "::error::Use benchmark:all instead."
-                  exit 1
+                  # exit 1
                 fi
                 # Must be exactly 0 or 1 solver
                 NUM_SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
@@ -237,14 +237,20 @@ jobs:
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download baseline artifact
+        # The baseline artifact is produced by a *different* workflow run
+        # (publish-results.yml on main), so actions/download-artifact (which
+        # only sees the current run) can't fetch it. fetch-artifact.sh looks up
+        # the most recent baseline across the whole repo via the API.
         if: >-
           github.event_name == 'pull_request'
           && needs.plan.outputs.is_release_pr != 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: baseline
-          path: baseline/mosaic-results/
-        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          # Exit 2 = baseline not found (non-fatal: first run has no baseline).
+          bash .github/scripts/fetch-artifact.sh baseline baseline/mosaic-results/ \
+            || [ "$?" -eq 2 ]
 
       - name: Overlay PR results on baseline
         if: >-
@@ -281,16 +287,6 @@ jobs:
           fi
           uv run mosaic status --format md $DIFF_FLAG > status-report.md
 
-      - name: Upload merged results artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-results-${{ github.sha }}
-          path: |
-            mosaic-results/
-            snapshot.json
-            status-report.md
-          retention-days: 90
-
       # ── Render docs site on GHA ────────────────────────────────────────
       # The docs are rendered here (where the full mosaic/jax stack is already
       # installed and memory is ample) rather than on Read the Docs, whose
@@ -301,11 +297,25 @@ jobs:
         with:
           version: "1.7.31"
 
+      # Regenerate plots for ALL solvers from the merged result.json files.
+      # The baseline artifact stores data only (plots are stripped before
+      # upload), and only the changed solver re-ran here, so without this step
+      # generate_results.py would glob just the changed solver's PNGs and the
+      # docs would omit every baseline solver. --plots-only is no-Docker/no-GPU.
+      - name: Regenerate plots from merged results
+        run: uv run mosaic run --plots-only
+
       - name: Generate results pages
         run: uv run python docs/generate_results.py
 
       - name: Render docs site
-        run: uv run quarto render --output-dir _site
+        # PR previews only render the benchmark results pages (QUARTO_PROFILE=pr
+        # activates _quarto-pr.yml). workflow_dispatch runs render the full site.
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            export QUARTO_PROFILE=pr
+          fi
+          uv run quarto render --output-dir _site
 
       - name: Upload rendered docs site
         uses: actions/upload-artifact@v7

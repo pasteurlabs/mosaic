@@ -20,7 +20,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
-from mosaic.benchmarks.core.io import load_json, results_dir, try_load_npz
+from mosaic.benchmarks.core.io import (
+    legacy_by_solver,
+    load_json,
+    results_dir,
+    try_load_npz,
+)
 from mosaic.benchmarks.problems.shared.plots.cost_overview import (
     plot_cost_overview_for,
 )
@@ -94,7 +99,9 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
                 continue
             result, _ = loaded[key]
             # ``by_solver`` keyed by spec.name; bridge to alias.
-            by_solver_d = result["by_solver"]
+            by_solver_d = legacy_by_solver(result)
+            if not by_solver_d:
+                continue
             alias_to_display: dict[str, str] = {}
             for display_name in by_solver_d:
                 a = resolve_solver_alias(display_name)

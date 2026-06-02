@@ -6,7 +6,7 @@ name: Publish benchmark results
 # result as the new baseline.
 #
 # Dev PRs:     overlay onto baseline
-# Release PRs: overlay + upload release-<version> artifact
+# Release PRs: overlay + attach release-<version>.zip to the GitHub release
 
 on:
   push:
@@ -112,12 +112,18 @@ jobs:
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download current baseline artifact
+        # The baseline artifact lives in a previous publish-results run, not
+        # this one, so actions/download-artifact (current-run only) can't see
+        # it. A silent miss here would clobber the accumulated baseline with
+        # only this PR's solver. fetch-artifact.sh resolves it via the API.
         if: steps.find.outputs.should_publish == 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: baseline
-          path: baseline/mosaic-results/
-        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          # Exit 2 = baseline not found (non-fatal: first run has no baseline).
+          bash .github/scripts/fetch-artifact.sh baseline baseline/mosaic-results/ \
+            || [ "$?" -eq 2 ]
 
       - name: Overlay onto baseline
         if: steps.find.outputs.should_publish == 'true'
@@ -149,8 +155,14 @@ jobs:
           version: "1.7.31"
 
       - name: Render docs site
+        # Regenerate plots for ALL solvers from the merged result.json files
+        # first: the baseline artifact stores data only (plots stripped on
+        # upload) and only the merged PR's solver re-ran, so without this the
+        # rendered docs would omit every baseline solver's plots.
+        # --plots-only is no-Docker/no-GPU.
         if: steps.find.outputs.should_publish == 'true'
         run: |
+          uv run mosaic run --plots-only
           uv run python docs/generate_results.py
           uv run quarto render --output-dir _site
 
@@ -195,15 +207,37 @@ jobs:
           overwrite: true
           retention-days: 400
 
-      - name: Upload release artifact
+      - name: Attach release results to GitHub release
+        # The release tag is created by release.yml, which runs concurrently
+        # off the same merge. Poll until the release exists, then attach the
+        # results as a release asset (replacing the old workflow artifact).
         if: >-
           steps.find.outputs.should_publish == 'true'
           && steps.find.outputs.is_release == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-${{ steps.find.outputs.version }}
-          path: mosaic-results/
-          retention-days: 400
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.find.outputs.version }}"
+          ASSET="release-${VERSION}.zip"
+
+          (cd mosaic-results && zip -q -r "/tmp/${ASSET}" .)
+
+          # Wait for release.yml to create the release tag (runs concurrently).
+          for attempt in $(seq 1 30); do
+            if gh release view "$VERSION" >/dev/null 2>&1; then
+              echo "Release $VERSION found"
+              break
+            fi
+            if [[ "$attempt" -eq 30 ]]; then
+              echo "::error::Release $VERSION not found after waiting ~5min"
+              exit 1
+            fi
+            echo "Release $VERSION not ready yet (attempt $attempt/30) — waiting 10s"
+            sleep 10
+          done
+
+          gh release upload "$VERSION" "/tmp/${ASSET}" --clobber
+          echo "Attached ${ASSET} to release $VERSION"
 
       # ── Trigger Read the Docs build ──────────────────────────────────
       # The baseline artifact is now uploaded; trigger RTD so it can
