@@ -100,7 +100,7 @@ problem = Problem(
     category_label="Navier–Stokes (Grid)",
     description=(
         "**Fluid flow in 2D.** We simulate an incompressible fluid (think of stirred "
-        "water) and differentiate through the simulation — the headline question is "
+        "water) and differentiate through the simulation. The headline question is "
         "whether each solver returns a trustworthy gradient as the flow becomes chaotic.\n\n"
         "Formally, we solve the 2D incompressible Navier–Stokes equations "
         "$\\partial_t \\mathbf{u} + (\\mathbf{u}\\cdot\\nabla)\\mathbf{u} "
@@ -109,8 +109,8 @@ problem = Problem(
         "nonlinear advection term $\\nabla\\cdot(\\mathbf{u}\\otimes\\mathbf{u})$ "
         "transfers energy across scales; at low $\\nu$ the flow develops turbulent "
         "cascades and a positive Lyapunov exponent, so long-horizon gradients grow "
-        "exponentially sensitive to perturbations — the regime where backprop-through-"
-        "simulation is hardest."
+        "exponentially sensitive to perturbations. This is the regime where "
+        "backprop-through-simulation is hardest."
     ),
     bc_description=(
         "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
@@ -143,7 +143,7 @@ problem.add_ic(
     fn=_multimode,
     description=(
         "Incompressible velocity field with energy concentrated in a ring at "
-        "wavenumber k=2 (σ_k=0.5); supports multi-scale turbulent development."
+        "wavenumber $k=2$ ($\\sigma_k=0.5$); supports multi-scale turbulent development."
     ),
     plot_params={"N": 64},
     plot=plot_ic,
@@ -152,7 +152,7 @@ problem.add_ic(
     "tgv",
     fn=_tgv,
     description=(
-        "Taylor–Green vortex u=sin(x)cos(y), v=−cos(x)sin(y); has a closed-form "
+        "Taylor–Green vortex $u=\\sin(x)\\cos(y)$, $v=-\\cos(x)\\sin(y)$; has a closed-form "
         "analytic solution for viscous decay, enabling solver verification."
     ),
     plot_params={"N": 64},
@@ -162,7 +162,7 @@ problem.add_ic(
     "uniform",
     fn=_uniform_flow,
     description=(
-        "Uniform rightward flow u=(U, 0) — background flow for cylinder-wake "
+        "Uniform rightward flow $u=(U, 0)$ — background flow for cylinder-wake "
         "(Kármán vortex street) experiments. Obstacle specified separately via "
         "the physics.obstacle field."
     ),
@@ -173,7 +173,7 @@ problem.add_ic(
     "flat_inflow",
     fn=_flat_inflow,
     description=(
-        "Flat 1-D inlet velocity profile u_x(y) = U, shape (N,). "
+        "Flat 1-D inlet velocity profile $u_x(y) = U$, shape (N,). "
         "Starting point for inflow-profile drag-optimisation experiments."
     ),
     plot_params={"N": 64, "U": 0.5},
@@ -188,7 +188,7 @@ problem.add_experiment(
     "forward/baseline",
     agreement,
     plot_description=(
-        "Relative error vs grid resolution N at steps=1; validates single-step forward"
+        "Relative error vs grid resolution $N$ at steps=1; validates single-step forward"
         " accuracy across solvers."
     ),
     ic={"name": "tgv", "seed": 0},
@@ -205,7 +205,7 @@ problem.add_experiment(
     "forward/agreement",
     agreement,
     plot_description=(
-        "Relative error vs viscosity ν for each IC, with vorticity field snapshots"
+        "Relative error vs viscosity $\\nu$ for each IC, with vorticity field snapshots"
         " compared against the analytic TGV reference."
     ),
     ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
@@ -220,7 +220,7 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/tgv_nu_sweep",
     agreement,
-    plot_description="Relative error vs viscosity ν for each solver at a fixed TGV initial condition.",
+    plot_description="Relative error vs viscosity $\\nu$ for each solver at a fixed TGV initial condition.",
     ic={"name": "tgv", "seed": 42},
     physics={
         "N": 64,
@@ -233,7 +233,7 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
-    plot_description="Divergence RMS, kinetic energy, and analytic error vs N, steps, and ν for each solver.",
+    plot_description="Divergence RMS, kinetic energy, and analytic error vs $N$, steps, and $\\nu$ for each solver.",
     diagnostics=DIAGNOSTICS,
     runs=[
         {
@@ -286,7 +286,7 @@ problem.add_experiment(
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
-    plot_description="Forward-pass wall-clock time vs grid resolution N at fixed step count for all solvers.",
+    plot_description="Forward-pass wall-clock time vs grid resolution $N$ at fixed step count for all solvers.",
     physics={"nu": 0.01, "dt": 0.01, "steps": 100, "N": [64, 128, 192, 256]},
     cost={"n_trials": 3},
     plot=plot_cost,
@@ -294,7 +294,7 @@ problem.add_experiment(
 problem.add_experiment(
     "cost/temporal_cost",
     temporal_cost,
-    plot_description="Forward-pass wall-clock time vs step count at fixed N for all solvers.",
+    plot_description="Forward-pass wall-clock time vs step count at fixed $N$ for all solvers.",
     physics={"nu": 0.01, "dt": 0.01, "N": 128, "steps": [10, 50, 100, 500, 1000]},
     cost={"n_trials": 3},
     plot=plot_cost,
@@ -302,7 +302,7 @@ problem.add_experiment(
 problem.add_experiment(
     "cost/vjp_cost",
     vjp_cost,
-    plot_description="VJP wall-clock time vs N and step count for differentiable solvers.",
+    plot_description="VJP wall-clock time vs $N$ and step count for differentiable solvers.",
     runs=[
         {
             "name": "by_N",
@@ -327,7 +327,7 @@ problem.add_experiment(
     "gradient/fd_check",
     fd_check,
     plot_description=(
-        "U-curves of finite-difference gradient error vs perturbation size ε together"
+        "U-curves of finite-difference gradient error vs perturbation size $\\varepsilon$ together"
         " with subspace cosine; validates VJP correctness."
     ),
     ic={"name": "multimode", "seed": 42},
@@ -343,7 +343,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/param_sweep",
     param_sweep,
-    plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs the sweep parameter.",
+    plot_description=(
+        "Gradient norm, best-$\\varepsilon$ FD error, direction cosine, and "
+        "U-curves vs the sweep parameter."
+    ),
     ic={"name": "multimode", "seed": 42},
     physics={"N": 16, "dt": 0.05, "steps": 200, "nu": [0.05, 0.01, 0.005, 0.001]},
     fd={"eps_values": [5e0, 1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 15},
@@ -352,7 +355,7 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/horizon_sweep",
     param_sweep,
-    plot_description="Gradient norm, FD error, and direction cosine vs rollout horizon T = steps*dt.",
+    plot_description="Gradient norm, FD error, and direction cosine vs rollout horizon $T = \\mathrm{steps}\\cdot dt$.",
     ic={"name": "multimode", "seed": 42},
     physics={"N": 16, "nu": 0.001, "dt": 0.05, "steps": [5, 10, 20, 40, 80, 160, 320]},
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3], "n_dirs": 8},

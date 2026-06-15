@@ -2,7 +2,7 @@
 title: Getting Started
 ---
 
-This guide walks through setting up Mosaic, running your first benchmark, and understanding the output.
+This guide walks through setting up Mosaic, running the benchmarks yourself, and reading the output. Running locally is also how you reproduce the [Results](index.qmd) on your own target hardware, which is the most accurate measurement for your setup.
 
 ## Prerequisites
 

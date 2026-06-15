@@ -16,26 +16,31 @@ project:
 
 website:
   navbar:
+    # Ordered as a progression: understand → run → see results → look up →
+    # use → extend. Results is pulled forward (it's the main draw); advanced
+    # and contributor topics are grouped under "Contribute" at the end.
     left:
       - text: Overview
         file: docs/index.qmd
       - text: Getting Started
         file: docs/getting-started.qmd
-      - text: Standalone Usage
-        file: docs/standalone.qmd
-      - text: Internals
-        file: docs/internals.qmd
-      - text: Solver Reference
-        file: docs/solvers.qmd
-      - text: Add a Backend
-        file: docs/tutorial.qmd
       - text: Results
         menu:
           - text: "Navier–Stokes (2D)"
             file: docs/results_ns_grid.qmd
           - text: "Navier–Stokes (3D)"
             file: docs/results_ns_3d_grid.qmd
-          - text: Structural Mechanics
+          - text: Structural mechanics
             file: docs/results_structural_mesh.qmd
-          - text: Heat Conduction
+          - text: Heat transfer
             file: docs/results_thermal_mesh.qmd
+      - text: Solver Reference
+        file: docs/solvers.qmd
+      - text: Use solvers elsewhere
+        file: docs/standalone.qmd
+      - text: Contribute
+        menu:
+          - text: Add a Backend
+            file: docs/tutorial.qmd
+          - text: How it works
+            file: docs/internals.qmd

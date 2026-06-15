@@ -54,18 +54,33 @@ _FAILURE_LABEL = {
 
 
 def _hardware_str(result: dict) -> str:
+    """Describe the runner hardware for the cost-plot subtitle.
+
+    The result records a single machine spec (GPU + CPU + RAM) shared across
+    all solvers, but solvers run on different devices: GPU-capable ones use the
+    GPU, CPU-only ones (OpenFOAM, deal.II, FEniCS, ...) use the CPU. Listing the
+    GPU alone would wrongly imply every solver used it, so the subtitle names
+    both devices and the per-curve (GPU)/(CPU) legend tags say which is which.
+    """
     hw = result.get("hardware", {})
     parts = []
     gpus = hw.get("gpus")
     if gpus:
-        parts.append(gpus[0].split(",")[0].strip())
+        parts.append(f"GPU {gpus[0].split(',')[0].strip()}")
     cpu = hw.get("cpu", "")
     if cpu:
-        parts.append(cpu)
-    ram = hw.get("ram_gb")
-    if ram:
-        parts.append(f"{ram} GB RAM")
-    return "  |  ".join(parts)
+        parts.append(f"CPU {_short_cpu(cpu)}")
+    return " · ".join(parts)
+
+
+def _short_cpu(cpu: str) -> str:
+    """Trim a verbose CPU model string so the subtitle fits the figure width.
+
+    ``"AMD EPYC 7V12 64-Core Processor"`` → ``"AMD EPYC 7V12"``.
+    """
+    for noise in ("64-Core Processor", "Processor", "CPU", "(R)", "(TM)"):
+        cpu = cpu.replace(noise, "")
+    return " ".join(cpu.split())
 
 
 def _time_vals(row: dict, keys: list) -> list[float]:
@@ -149,6 +164,29 @@ def _first_nonempty_keys(top: dict) -> list[str]:
     return []
 
 
+# Resolution-sweep keys other than the canonical "N"/"n_elements" that
+# v1_to_legacy already routes to ``by_N``. Mesh domains sweep their mesh
+# parameter (e.g. ``nx``), which v1_to_legacy leaves under ``by_solver``; the
+# cost column builder only reads ``by_N``, so without this alias the mesh cost
+# plots came out empty and the suite looked NS-only.
+_RESOLUTION_SWEEP_KEYS = {"nx", "ny", "nz", "n", "resolution"}
+
+
+def _norm_resolution_sweep(data: dict) -> dict:
+    """Alias a resolution sweep stored under ``by_solver`` to ``by_N``.
+
+    The ``by_solver`` shape (solver → {sweep_value → metrics}) is identical to
+    ``by_N``, so a shallow alias is enough. No-op when ``by_N`` already exists
+    or the sweep isn't a resolution sweep.
+    """
+    if not isinstance(data, dict) or "by_N" in data:
+        return data
+    if data.get("sweep_key") in _RESOLUTION_SWEEP_KEYS and "by_solver" in data:
+        data = dict(data)
+        data["by_N"] = data["by_solver"]
+    return data
+
+
 def _load_cost_inputs(suite_dir: Any, suffix: str) -> tuple:
     """Load the four result.json files; return (data_dicts, hw_str) or (None, "").
 
@@ -170,9 +208,13 @@ def _load_cost_inputs(suite_dir: Any, suffix: str) -> tuple:
     if not (has_spatial or has_temporal or has_vjp_n or has_vjp_s):
         return None, ""
 
-    spatial_data = v1_to_legacy(load_json(spatial_path)) if has_spatial else {}
+    spatial_data = _norm_resolution_sweep(
+        v1_to_legacy(load_json(spatial_path)) if has_spatial else {}
+    )
     temporal_data = v1_to_legacy(load_json(temporal_path)) if has_temporal else {}
-    vjp_n = v1_to_legacy(load_json(vjp_n_path)) if has_vjp_n else {}
+    vjp_n = _norm_resolution_sweep(
+        v1_to_legacy(load_json(vjp_n_path)) if has_vjp_n else {}
+    )
     vjp_s = v1_to_legacy(load_json(vjp_s_path)) if has_vjp_s else {}
     vjp_data: dict = {}
     if vjp_n.get("by_N"):
@@ -450,10 +492,15 @@ def plot_cost(
     # suptitle and the "outside" legend automatically, so folding the hardware
     # string into the suptitle as a small grey second line keeps everything
     # collision-free without manual figure-coordinate placement.
+    # Title + runner spec as a small second line. Constrained layout
+    # (paper_grid) reserves space for the whole multi-line suptitle, so this
+    # stays collision-free; the shortened hw_str keeps the line within width.
+    # The per-curve (GPU)/(CPU) legend tags say which device each solver used.
+    title = "Wall-clock time and peak memory vs problem size"
     if hw_str:
-        fig.suptitle(f"Cost\n{hw_str}", fontweight="bold", fontsize=9)
+        fig.suptitle(f"{title}\nRunner: {hw_str}", fontweight="bold", fontsize=9)
     else:
-        fig.suptitle("Cost", fontweight="bold")
+        fig.suptitle(title, fontweight="bold")
     fig_shared_legend(fig, axes_grid)
 
     if save:

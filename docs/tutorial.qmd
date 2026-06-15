@@ -918,7 +918,7 @@ Each call records an experiment at `key` (formatted `"suite/experiment"`). The k
 
 **Aggregator plots.** Use `problem.add_sweep_plot(name, fn, group_by=..., filter=...)` to register one plot fn that the framework dispatches once per partition of cells sharing a `coords` value. The fn receives `(payload, group)` where `payload` is a list of `{"coords": ..., "exp_key": ..., "result": ...}` entries and `group` is the partition's coord values.
 
-Per-experiment plot descriptions live on `Experiment.params` (read via `cfg.get_plot_description(suite, exp)`); they're passed inline via `plot_description=` on each `.add_experiment(...)` call. For the per-field anatomy of `Problem` / `SolverSpec` / `Experiment`, see [Internals](internals.qmd).
+Per-experiment plot descriptions live on `Experiment.params` (read via `cfg.get_plot_description(suite, exp)`); they're passed inline via `plot_description=` on each `.add_experiment(...)` call. For the per-field anatomy of `Problem` / `SolverSpec` / `Experiment`, see [How it works](internals.qmd).
 
 **Run-dict sub-keys** (in shorthand or inside `runs=[...]`):
 

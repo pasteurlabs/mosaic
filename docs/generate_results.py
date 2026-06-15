@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -24,7 +25,7 @@ OUTPUT_DIR = Path(__file__).resolve().parent  # docs/
 _IMG_BASE = "../mosaic-results"
 
 # Suite traversal order
-_SUITE_ORDER = ["ics", "forward", "gradient", "optimization", "cost"]
+_SUITE_ORDER = ["ics", "forward", "cost", "gradient", "optimization"]
 
 # Experiment traversal order within each suite
 _EXPERIMENT_ORDER = [
@@ -45,9 +46,57 @@ _EXPERIMENT_ORDER = [
 PROBLEM_LABELS = {
     "ns-grid": "Navier\u2013Stokes (2D)",
     "ns-3d-grid": "Navier\u2013Stokes (3D)",
-    "structural-mesh": "Structural Mechanics",
-    "thermal-mesh": "Heat Conduction",
+    "structural-mesh": "Structural mechanics",
+    "thermal-mesh": "Heat transfer",
 }
+
+# Schematic of each benchmark task (control variable, physical process,
+# optimization objective), shared with the paper. Path is relative to the
+# generated docs/results_*.qmd files. Optional \u2014 omitted if the file is absent.
+PROBLEM_ILLUSTRATIONS = {
+    "ns-grid": "figures/domain_ns_grid.png",
+    "ns-3d-grid": "figures/domain_ns_3d_grid.png",
+    "structural-mesh": "figures/domain_structural_mesh.png",
+    "thermal-mesh": "figures/domain_thermal_mesh.png",
+}
+
+# One-line "what is this task" caption shown under the schematic, aimed at a
+# reader who knows ML but not the specific solver community.
+PROBLEM_TAGLINES = {
+    "ns-grid": (
+        "Optimize the inflow of a 2D channel flow to minimize drag on a "
+        "cylinder, differentiating through an incompressible fluid solver."
+    ),
+    "ns-3d-grid": (
+        "Recover the initial velocity field of a 3D turbulent flow from a "
+        "later snapshot, differentiating through the Navier\u2013Stokes rollout."
+    ),
+    "structural-mesh": (
+        "Place a fixed budget of material in a clamped beam to make it as "
+        "stiff as possible, differentiating through a finite-element solve."
+    ),
+    "thermal-mesh": (
+        "Invert for the conductivity field of a slab from its temperature, "
+        "differentiating through a steady heat-conduction solve."
+    ),
+}
+
+# Shared "how the results were produced" callout, surfaced near the top of
+# every results page (hardware + reliability \u2014 issue 6). The benchmark runs on
+# GitHub Actions runners: GPU solvers on a Tesla T4 node, CPU-only solvers
+# (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Wall times therefore
+# reflect commodity cloud hardware, not a tuned workstation.
+RESULTS_PROVENANCE = (
+    "These are **example results**, produced automatically on GitHub Actions "
+    "runners and refreshed on every release. Each solver runs on its intended "
+    "device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers "
+    "(OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and "
+    "gradient metrics are hardware-independent and reproducible. Wall-clock "
+    "numbers reflect commodity cloud hardware and can vary by 10\u201315% between "
+    "runs, so read them for relative scaling between solvers rather than as "
+    "absolute timings. For numbers that reflect *your* setup, "
+    "[run the benchmarks yourself](getting-started.qmd) on your target hardware."
+)
 
 PROBLEM_DESCRIPTIONS = {
     "ns-grid": (
@@ -115,26 +164,21 @@ SUITE_DESCRIPTIONS = {
         "**Is the gradient right?** Gradient benchmarks compare each solver's "
         "AD/adjoint gradient against a finite-difference ground truth. We report "
         "magnitude error (relative $L^2$) and direction agreement (cosine "
-        "similarity) across parameter, resolution, and horizon sweeps — the latter "
-        "exposing how gradients degrade as the rollout lengthens."
+        "similarity) across parameter, resolution, and horizon sweeps. The horizon "
+        "sweep in particular exposes how gradients degrade as the rollout lengthens."
     ),
     "optimization": (
-        "**Can you optimise through it?** End-to-end optimization benchmarks run a "
-        "gradient-based optimiser using each solver's own gradients: recovery of "
+        "**Can you optimize through it?** End-to-end optimization benchmarks run a "
+        "gradient-based optimizer using each solver's own gradients: recovery of "
         "initial conditions or physical parameters, topology optimization, and drag "
-        "minimization. This is the ultimate test — a gradient can pass the "
+        "minimization. This is the ultimate test, since a gradient can pass the "
         "finite-difference check yet still fail to drive a full optimization loop."
     ),
     "cost": (
         "**What does it cost?** Wall-clock scaling of the forward and VJP passes "
-        "with problem size $N$ and the number of integration steps.\n"
-        "\n"
-        "::: {.callout-note title='Note on wall-clock measurements'}\n"
-        "Cost-suite timings are collected on dedicated CI runners "
-        "with no concurrent benchmark workloads. Relative solver rankings within a "
-        "single run are reliable; absolute wall times may vary ±10–15% across runs "
-        "due to cloud VM variability.\n"
-        ":::"
+        "with problem size $N$ and the number of integration steps. Timings come "
+        "from dedicated runners with no concurrent workloads; see the reliability "
+        "note at the top of the page before reading absolute numbers."
     ),
 }
 
@@ -263,6 +307,241 @@ def _bc_description(problem: str) -> str:
     except Exception:
         pass
     return PROBLEM_BC_DESCRIPTIONS.get(problem, "")
+
+
+# ── Per-suite "best solver" leaderboard (issue 8) ──────────────────────────────
+#
+# Each suite is scored on its headline metric, computed directly from the
+# result.json files so the table can't drift from the plots. Rules are
+# deliberately conservative: a solver appears only when its metric is finite,
+# and a suite's table is emitted only when at least two solvers can be ranked
+# (a one-row "leaderboard" says nothing). All metrics here are
+# hardware-independent, so the ranking is reproducible across runs.
+
+
+def _median(xs: list[float]) -> float:
+    vals = sorted(v for v in xs if isinstance(v, int | float) and math.isfinite(v))
+    if not vals:
+        return float("nan")
+    n = len(vals)
+    mid = n // 2
+    return vals[mid] if n % 2 else 0.5 * (vals[mid - 1] + vals[mid])
+
+
+def _mean_finite(xs: list[float]) -> float:
+    vals = [v for v in xs if isinstance(v, int | float) and math.isfinite(v)]
+    return sum(vals) / len(vals) if vals else float("nan")
+
+
+def _fmt_sci(v: float) -> str:
+    if not math.isfinite(v):
+        return "—"
+    if v == 0:
+        return "0"
+    return f"{v:.2e}"
+
+
+def _load_suite_results(problem: str, suite: str, experiment: str) -> list[dict]:
+    """Return the flat ``results`` list for one (suite, experiment), or []."""
+    path = RESULTS_DIR / problem / suite / experiment / "result.json"
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("results", []) or []
+    except Exception:
+        return []
+
+
+def _rank_forward(problem: str) -> tuple[list[str], list[tuple]] | None:
+    """Rank solvers by mean relative error vs the reference (lower is better)."""
+    # Prefer the viscosity/parameter sweep; fall back to the first forward
+    # experiment dir that carries an ``error`` metric.
+    candidates = ["tgv_nu_sweep", "agreement", "baseline", "source_baseline"]
+    by_solver: dict[str, list[float]] = {}
+    for exp in candidates:
+        for r in _load_suite_results(problem, "forward", exp):
+            m = r.get("metrics") or {}
+            if "error" in m and m.get("valid", True):
+                by_solver.setdefault(r["solver"], []).append(m["error"])
+        if by_solver:
+            break
+    rows = sorted(
+        ((s, _mean_finite(v)) for s, v in by_solver.items()),
+        key=lambda t: (math.isnan(t[1]), t[1]),
+    )
+    rows = [(s, e) for s, e in rows if math.isfinite(e)]
+    if len(rows) < 2:
+        return None
+    header = ["Solver", "Mean rel. error"]
+    return header, [(s, _fmt_sci(e)) for s, e in rows]
+
+
+def _rank_gradient(problem: str) -> tuple[list[str], list[tuple]] | None:
+    """Rank by best-ε FD error (lower better); show direction cosine alongside."""
+    by_solver: dict[str, tuple[float, float]] = {}
+    for r in _load_suite_results(problem, "gradient", "fd_check"):
+        eps_sweep = (r.get("metrics") or {}).get("eps_sweep") or {}
+        best_err, best_cos = float("inf"), float("nan")
+        for entry in eps_sweep.values():
+            re = entry.get("rel_error")
+            med = _median(re) if isinstance(re, list) else _median([re])
+            if math.isfinite(med) and med < best_err:
+                best_err = med
+                cos = entry.get("cosine")
+                best_cos = cos if isinstance(cos, int | float) else float("nan")
+        if math.isfinite(best_err):
+            by_solver[r["solver"]] = (best_err, best_cos)
+    rows = sorted(by_solver.items(), key=lambda t: t[1][0])
+    if len(rows) < 2:
+        return None
+    # Cosines sit so close to 1 that a fixed-decimal column reads as a wall of
+    # "1.00000"; report the defect 1 − cos instead, where smaller is better.
+    header = ["Solver", "Best-ε FD error", "1 − cosine"]
+    return header, [
+        (s, _fmt_sci(err), _fmt_sci(1.0 - cos) if math.isfinite(cos) else "—")
+        for s, (err, cos) in rows
+    ]
+
+
+def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float]]:
+    """For each solver, return ``(N, mean_s)`` at the largest N it completed.
+
+    Picking the time at the max successful size avoids flattering a solver that
+    OOMs early. ``results`` is a flat cost ``results`` list (sweep_value = N).
+    """
+    out: dict[str, tuple[float, float]] = {}
+    for r in results:
+        m = r.get("metrics") or {}
+        if m.get("status") == "failed":
+            continue
+        mean_s = m.get("mean")
+        n = r.get("sweep_value")
+        if not isinstance(mean_s, int | float) or not math.isfinite(mean_s):
+            continue
+        nf = float(n) if isinstance(n, int | float | str) and str(n) else float("nan")
+        prev = out.get(r["solver"])
+        if prev is None or nf > prev[0]:
+            out[r["solver"]] = (nf, float(mean_s))
+    return out
+
+
+def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
+    """Rank by forward wall-clock, reporting both forward and VJP time.
+
+    Forward time comes from the ``spatial_cost`` sweep and VJP time from
+    ``vjp_cost/by_N``; each is taken at the largest N that solver completed
+    (shown in the "at N" column). Forward-only solvers have no VJP entry, which
+    shows as "—". Ranked by forward time (faster wins).
+    """
+    fwd = _cost_at_max_n(_load_suite_results(problem, "cost", "spatial_cost"))
+    vjp = _cost_at_max_n(_load_suite_results(problem, "cost", "vjp_cost/by_N"))
+    if len(fwd) < 2:
+        return None
+
+    def _time(v: tuple[float, float] | None) -> str:
+        # Annotate each time with its own N: forward and VJP can top out at
+        # different sizes (a solver may OOM on the heavier backward pass first).
+        if not v:
+            return "—"
+        n, t = v
+        n_str = f" @ N={int(n)}" if math.isfinite(n) else ""
+        return f"{t:.3g} s{n_str}"
+
+    rows = sorted(fwd.items(), key=lambda t: t[1][1])
+    header = ["Solver", "Forward time", "VJP time"]
+    return header, [(s, _time(fv), _time(vjp.get(s))) for s, fv in rows]
+
+
+# final-objective metric name by domain optimization experiment
+_OPT_FINAL_KEYS = ("final_error", "final_drag", "final_compliance")
+
+
+def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
+    """Rank by final optimization objective (lower is better)."""
+    # Find the first optimization experiment dir with a recognised final metric.
+    opt_dir = RESULTS_DIR / problem / "optimization"
+    if not opt_dir.exists():
+        return None
+    rows: list[tuple[str, float, bool]] = []
+    metric_label = None
+    for exp in sorted(p.name for p in opt_dir.iterdir() if p.is_dir()):
+        for r in _load_suite_results(problem, "optimization", exp):
+            m = r.get("metrics") or {}
+            key = next((k for k in _OPT_FINAL_KEYS if k in m), None)
+            if key is None:
+                continue
+            val = m.get(key)
+            if isinstance(val, int | float) and math.isfinite(val):
+                metric_label = key.replace("final_", "final ").replace("_", " ")
+                rows.append((r["solver"], float(val), bool(m.get("converged", False))))
+        if rows:
+            break
+    if len(rows) < 2:
+        return None
+    rows.sort(key=lambda t: t[1])
+    header = ["Solver", metric_label.capitalize(), "Converged"]
+    return header, [(s, _fmt_sci(v), "yes" if conv else "no") for s, v, conv in rows]
+
+
+_SUITE_RANKERS = {
+    "forward": _rank_forward,
+    "gradient": _rank_gradient,
+    "cost": _rank_cost,
+    "optimization": _rank_optimization,
+}
+
+_SUITE_RANK_CAPTIONS = {
+    "forward": "Ranked by mean relative error against the reference solution "
+    "(lower is more accurate).",
+    "gradient": "Ranked by the best-ε finite-difference error of the gradient "
+    "(lower is more trustworthy); direction cosine near 1 confirms the gradient "
+    "points the right way.",
+    "cost": "Forward and VJP (backward) wall-clock time, each shown at the "
+    "largest problem size N the solver completed for that pass; ranked by "
+    "forward time (faster is better). Forward-only solvers have no VJP entry. "
+    "See the reliability note above before comparing across devices.",
+    "optimization": "Ranked by the final objective reached within the iteration "
+    "budget (lower is better).",
+}
+
+
+def _leaderboard_block(problem: str, suite: str) -> list[str]:
+    """Return QMD lines for the per-suite best-solver table, or [] if none.
+
+    Rendered as a plain, always-visible table (no collapse, no emoji) under a
+    bold "Solver ranking" lead-in, suited to a scientific report.
+    """
+    ranker = _SUITE_RANKERS.get(suite)
+    if ranker is None:
+        return []
+    try:
+        ranked = ranker(problem)
+    except Exception:
+        return []
+    if not ranked:
+        return []
+    header, rows = ranked
+    # Wrap the table in a .sortable-table div so docs/sortable-tables.html
+    # (injected via include-after-body) can attach click-to-sort handlers
+    # (numeric-aware). Static and correctly rank-ordered without JS, so it
+    # degrades gracefully.
+    # Rows are already in rank order, so a Rank column adds nothing; rely on row
+    # order (and click-to-sort) instead.
+    lines = [
+        "**Solver ranking**",
+        "",
+        "::: {.sortable-table}",
+        "| " + " | ".join(header) + " |",
+        "|" + "|".join("---" for _ in header) + "|",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(str(c) for c in row) + " |")
+    lines += [":::"]
+    caption = _SUITE_RANK_CAPTIONS.get(suite, "")
+    if caption:
+        lines += ["", f"*{caption}*"]
+    lines += [""]
+    return lines
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -487,8 +766,31 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
         "",
     ]
 
+    # Task schematic + one-line tagline (skipped if the figure is missing, so a
+    # checkout without docs/figures/ still renders cleanly).
+    illustration = PROBLEM_ILLUSTRATIONS.get(problem)
+    if illustration and (OUTPUT_DIR / illustration).exists():
+        lines += [
+            f"![]({illustration}){{width=100% "
+            'style="max-width:560px; display:block; margin:0 auto 0.5rem;"}',
+            "",
+        ]
+        tagline = PROBLEM_TAGLINES.get(problem)
+        if tagline:
+            lines += [f"*{tagline}*", ""]
+
     if desc:
         lines += [desc, ""]
+
+    # How the results were produced — hardware + reliability (issue 6).
+    lines += [
+        "::: {.callout-tip title='How these results were produced' collapse='true'}",
+        "",
+        RESULTS_PROVENANCE,
+        "",
+        ":::",
+        "",
+    ]
 
     bc = _bc_description(problem)
     if bc:
@@ -567,6 +869,9 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
             for png in pngs:
                 lines.append(_img_tag(problem, suite, experiment, png))
             lines.append("")
+
+        # Best-solver leaderboard, shown below the suite's plots (issue 8).
+        lines += _leaderboard_block(problem, suite)
 
     return "\n".join(lines)
 

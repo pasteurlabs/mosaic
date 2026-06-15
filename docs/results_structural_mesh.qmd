@@ -1,63 +1,66 @@
 ---
-title: Structural Mechanics
+title: Structural mechanics
 ---
 
-> Auto-generated 2026-05-06 19:23 UTC &nbsp;·&nbsp; 58 plots
+> Auto-generated 2026-06-15 19:21 UTC &nbsp;·&nbsp; 13 plots
 
-3D linear-elasticity compliance minimisation on a cantilever beam with SIMP material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples every density element to the global displacement field via the constitutive relation E_eff(ρ) = E_min + (E_max − E_min)·ρ³; the compliance objective C = F^T K(ρ)⁻¹ F is smooth but non-convex in ρ, driving gradient-based topology optimisation toward sparse binary 0/1 layouts.
+![](figures/domain_structural_mesh.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
+
+*Place a fixed budget of material in a clamped beam to make it as stiff as possible, differentiating through a finite-element solve.*
+
+**Designing a stiff structure.** Given a fixed amount of material, where should it go to make a loaded beam as rigid as possible? This is *topology optimization*, solved by differentiating a finite-element stress analysis with respect to a per-element material density field $\rho$.
+
+We minimize the compliance (inverse stiffness) of a 3D linear-elastic cantilever beam under the SIMP density-penalization scheme ($p=3$, $E_\max = 70{,}000$ MPa). Each element's stiffness follows the constitutive relation $E_\text{eff}(\rho) = E_\min + (E_\max - E_\min)\,\rho^3$, and the global stiffness matrix $K(\rho)$ couples every element to the displacement field. The objective $C = \mathbf{F}^\top K(\rho)^{-1}\mathbf{F}$ (external work under load $\mathbf{F}$) is smooth but non-convex in $\rho$, so gradient-based optimization drives the design toward sparse, near-binary $0/1$ material layouts, and the gradient must stay reliable throughout.
+
+::: {.callout-tip title='How these results were produced' collapse='true'}
+
+These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
+
+:::
 
 ::: {.callout-note title='Boundary conditions'}
 
-3-D cantilever beam on domain [0,2]×[0,1]×[0,1] (HEX8 elements, 2:1:1 aspect). Dirichlet: all nodes at x=0 have zero displacement (clamped). Neumann: a prescribed total force is applied to the right face (x=2) — either a uniform downward traction or a concentrated upward corner load depending on the experiment (controlled by the corner_load flag).
+3D cantilever beam on domain $[0,2]\times[0,1]\times[0,1]$ (HEX8 elements, 2:1:1 aspect). Dirichlet: all nodes at $x=0$ have zero displacement (clamped wall). Neumann: a prescribed total force is applied to the right face ($x=2$), either a uniform downward traction or a concentrated upward corner load depending on the experiment (controlled by the corner_load flag).
 
 :::
 
 ## Initial Conditions
 
-Visualisation of each initial condition available for this problem. IC plots are generated without running any solver.
-
-### Random
-
-Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); breaks spatial symmetry so gradient experiments see non-trivial per-cell sensitivity.
+Visualisation of each initial condition (the starting field a run is launched from) available for this problem. IC plots are generated without running any solver.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
 
-:::
+**Two Density Bumps**
 
-![](../mosaic-results/structural-mesh/ics/random/ic.png){.lightbox}
+```json
+{
+  "nx": 16,
+  "ny": 2,
+  "nz": 8
+}
+```
 
-### Two Density Bumps
+**Uniform**
 
-Ground-truth density with two stiff Gaussian pillars (ρ_peak=0.95, σ=0.12·min(Lx,Lz)) at (0.35·Lx, 0.5·Ly, 0.5·Lz) and (0.75·Lx, 0.5·Ly, 0.5·Lz) on a soft ρ_bg=0.1 background; analog of thermal-mesh ``two_gaussians`` for the load-recovery inverse experiment (recover density from displacement observations).
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-:::
-
-![](../mosaic-results/structural-mesh/ics/two_density_bumps/ic.png){.lightbox}
-
-### Uniform
-
-Uniform SIMP material density ρ₀ over all hex mesh elements; standard homogeneous starting point for topology optimisation of the cantilever beam.
-
-
-::: {.callout-note collapse='true' title='Settings'}
+```json
+{
+  "rho_0": 0.5,
+  "nx": 16
+}
+```
 
 :::
 
-![](../mosaic-results/structural-mesh/ics/uniform/ic.png){.lightbox}
+![](../mosaic-results/structural-mesh/ics/ics.png){.lightbox}
 
 ## Forward
 
-Forward-pass benchmarks: agreement between solvers, field diagnostics, and long-run stability.
+**Is the prediction right?** Forward-pass benchmarks check each solver's output against a trusted reference (and an analytic solution where one exists): inter-solver agreement, field-level diagnostics, and long-run stability.
 
 ### Agreement
 
-Forward accuracy sweep across element density ρ₀ for each solver.
-
-Structural compliance C = F^T U vs element density ρ₀ for each solver (log-scale; full-face downward load). jax_fem uses surface traction; topopt_jl distributes force uniformly across right-face nodes — non-uniform shape-function weighting in jax_fem causes a small but consistent compliance difference (~0.5–3%) across all densities.
+Structural compliance $C = \mathbf{F}^\top \mathbf{u}$ vs density $\rho_0$ at fixed mesh, sweeping uniform density to span the SIMP stiffness regime.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -78,7 +81,8 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.5, 0.7, 0.9}
     "Ly": 1.0,
     "Lz": 1.0,
     "F_total": 1.0,
-    "corner_load": false
+    "corner_load": false,
+    "rho_0": 0.2
   },
   "sweep": {
     "key": "rho_0",
@@ -99,9 +103,7 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.5, 0.7, 0.9}
 
 ### Baseline
 
-Inter-solver compliance agreement sweep over mesh resolution N.
-
-Structural compliance C = F^T U vs mesh resolution N for each solver (uniform density ρ₀=0.5, full-face downward load). Both solvers implement HEX8 FEM; compliance should agree to <1% at all resolutions.
+Structural compliance $C = \mathbf{F}^\top \mathbf{u}$ vs mesh resolution $N$ for each solver, uniform density $\rho_0=0.5$, full-face downward load.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -115,7 +117,7 @@ Sweeps `N` ∈ {4, 6, 8, 12, 16}
     "seed": 0
   },
   "physics": {
-    "nx": 8,
+    "N": 4,
     "ny": 2,
     "nz": 4,
     "Lx": 2.0,
@@ -140,13 +142,10 @@ Sweeps `N` ∈ {4, 6, 8, 12, 16}
 :::
 
 ![](../mosaic-results/structural-mesh/forward/baseline/curves.png){.lightbox}
-![](../mosaic-results/structural-mesh/forward/baseline/convergence.png){.lightbox}
 
 ### Physical Laws
 
-Structural compliance vs applied load F_total to verify quadratic scaling law C ∝ F².
-
-Structural compliance C = F^T U vs total load F_total at fixed N=8 (nx=8, ny=2, nz=4), ρ₀=0.5. For linear elasticity C = F^T K⁻¹ F ∝ F², so log-log slope must be 2.0. Deviations across solvers reveal errors in the stiffness assembly or force application.
+Diagnostic functionals (compliance, total displacement) vs total load $F_\mathrm{total}$, validating linearity of the SIMP response.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -167,7 +166,8 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
     "Ly": 1.0,
     "Lz": 1.0,
     "corner_load": false,
-    "rho_0": 0.5
+    "rho_0": 0.5,
+    "F_total": 0.25
   },
   "sweep": {
     "key": "F_total",
@@ -178,23 +178,122 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
       2.0,
       4.0
     ]
+  },
+  "diagnostics": {
+    "compliance": "<callable _get_compliance>"
   }
 }
 ```
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/physical_laws/physical_laws.png){.lightbox}
+![](../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.png){.lightbox}
+
+**Solver ranking**
+
+::: {.sortable-table}
+| Solver | Mean rel. error |
+|---|---|
+| deal.II | 0 |
+| FEniCS | 0 |
+| Firedrake | 0 |
+| TopOpt.jl | 5.53e-03 |
+:::
+
+*Ranked by mean relative error against the reference solution (lower is more accurate).*
+
+## Cost
+
+**What does it cost?** Wall-clock scaling of the forward and VJP passes with problem size $N$ and the number of integration steps. Timings come from dedicated runners with no concurrent workloads; see the reliability note at the top of the page before reading absolute numbers.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+**Spatial Cost**
+
+Sweeps `nx` ∈ {4, 6, 8, 12, 16}
+
+```json
+{
+  "physics": {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "rho_0": 0.5,
+    "corner_load": false,
+    "steps": 1,
+    "nx": 4
+  },
+  "cost": {
+    "n_trials": 3
+  },
+  "sweep": {
+    "key": "nx",
+    "values": [
+      4,
+      6,
+      8,
+      12,
+      16
+    ]
+  }
+}
+```
+
+**Temporal Cost**
+
+Sweeps `steps` ∈ {1}
+
+```json
+{
+  "physics": {
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "rho_0": 0.5,
+    "corner_load": false,
+    "nx": 8,
+    "steps": 1
+  },
+  "cost": {
+    "n_trials": 3
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      1
+    ]
+  }
+}
+```
+
+:::
+
+![](../mosaic-results/structural-mesh/cost/cost.png){.lightbox}
+
+**Solver ranking**
+
+::: {.sortable-table}
+| Solver | Forward time | VJP time |
+|---|---|---|
+| TopOpt.jl | 0.0127 s @ N=16 | 0.0342 s @ N=16 |
+| Firedrake | 0.103 s @ N=16 | 0.285 s @ N=16 |
+| FEniCS | 0.138 s @ N=16 | 0.472 s @ N=16 |
+| JAX-FEM | 0.154 s @ N=16 | 0.52 s @ N=16 |
+| deal.II | 1.54 s @ N=16 | — |
+:::
+
+*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
 
 ## Gradient
 
-Gradient benchmarks: finite-difference checks and gradient quality (magnitude, direction cosine) across parameter, resolution, and horizon sweeps.
+**Is the gradient right?** Gradient benchmarks compare each solver's AD/adjoint gradient against a finite-difference ground truth. We report magnitude error (relative $L^2$) and direction agreement (cosine similarity) across parameter, resolution, and horizon sweeps. The horizon sweep in particular exposes how gradients degrade as the rollout lengthens.
 
 ### Finite-Difference Check
 
-FD gradient check vs analytic VJP at nominal mesh and load.
-
-U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient vectors, and gradient magnitude field panels.
+U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ with subspace cosine, validating VJP correctness on a random density.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -235,13 +334,10 @@ U-curves (FD gradient error vs ε), direction cosine between AD and FD gradient 
 :::
 
 ![](../mosaic-results/structural-mesh/gradient/fd_check/fd_check.png){.lightbox}
-![](../mosaic-results/structural-mesh/gradient/fd_check/gradient_fields.png){.lightbox}
 
 ### Parameter Sweep
 
-Gradient quality vs element density ρ₀ at fixed mesh.
-
-Gradient norm, best-ε FD error, direction cosine, and U-curves vs element density ρ₀.
+Gradient norm, best-$\varepsilon$ FD error, direction cosine, and U-curves vs uniform density $\rho_0$.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -262,7 +358,8 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.6, 0.8}
     "Ly": 1.0,
     "Lz": 1.0,
     "F_total": 1.0,
-    "corner_load": true
+    "corner_load": true,
+    "rho_0": 0.2
   },
   "fd": {
     "eps_values": [
@@ -290,58 +387,27 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.6, 0.8}
 
 :::
 
-![](../mosaic-results/structural-mesh/gradient/param_sweep/error_vs_param.png){.lightbox}
-![](../mosaic-results/structural-mesh/gradient/param_sweep/param_sweep.png){.lightbox}
-![](../mosaic-results/structural-mesh/gradient/param_sweep/ucurves.png){.lightbox}
 ![](../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
 
-### Jacobian Svd
+**Solver ranking**
 
-Jacobian SVD and gradient subspace analysis at nominal mesh.
-
-Singular-value spectrum of the stacked per-solver gradient matrix and pairwise cosine similarity between JAX-FEM and TopOpt.jl gradient directions. Both solvers implement the same SIMP adjoint so cosine similarity should be near 1; deviations indicate differing adjoint formulations or numerical precision.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-```json
-{
-  "ic": {
-    "name": "random",
-    "seed": 0
-  },
-  "physics": {
-    "nx": 8,
-    "ny": 2,
-    "nz": 4,
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "corner_load": true
-  },
-  "jacobian": {
-    "n_alphas": 21,
-    "alpha_range": 0.2
-  }
-}
-```
-
+::: {.sortable-table}
+| Solver | Best-ε FD error | 1 − cosine |
+|---|---|---|
+| FEniCS | 2.10e-05 | 1.96e-10 |
+| Firedrake | 2.10e-05 | 1.96e-10 |
+| TopOpt.jl | 2.10e-05 | 1.96e-10 |
 :::
 
-![](../mosaic-results/structural-mesh/gradient/jacobian_svd/gradient_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/gradient/jacobian_svd/jacobian_svd.png){.lightbox}
-![](../mosaic-results/structural-mesh/gradient/jacobian_svd/landscape.png){.lightbox}
+*Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
 
 ## Optimization
 
-Optimization benchmarks: gradient-based recovery of initial conditions or physical parameters, topology optimization, and drag minimization.
+**Can you optimize through it?** End-to-end optimization benchmarks run a gradient-based optimizer using each solver's own gradients: recovery of initial conditions or physical parameters, topology optimization, and drag minimization. This is the ultimate test, since a gradient can pass the finite-difference check yet still fail to drive a full optimization loop.
 
 ### Topology Optimisation
 
-SIMP topology optimisation: minimise structural compliance under volume fraction constraint.
-
-SIMP topology optimisation on a 16×8×8 cantilever beam: minimise compliance C = F^T U subject to a 50% volume fraction constraint (Adam, lr=0.02). Density field evolves from uniform ρ=0.5 toward a binary 0/1 layout; both solvers converge to the same topology confirming consistent adjoint gradients.
+SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr=0.05): compliance $C = \mathbf{F}^\top \mathbf{u}$ and density field evolution under a 50% volume-fraction constraint.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -365,7 +431,7 @@ SIMP topology optimisation on a 16×8×8 cantilever beam: minimise compliance C 
     "compliance_key": "compliance",
     "penalty_weight": 50.0,
     "x_min": 0.001,
-    "snap_interval": 10
+    "snap_interval": 5
   },
   "optim": {
     "lr": 0.05,
@@ -377,238 +443,22 @@ SIMP topology optimisation on a 16×8×8 cantilever beam: minimise compliance C 
 
 :::
 
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_convergence.png){.lightbox}
 ![](../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d_fenics_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d_firedrake_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d_jax_fem.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d_topopt_jl.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_fenics_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_firedrake_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_jax_fem.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_topopt_jl.gif){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.png){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt.png){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif){.lightbox}
 
-### Topopt Bfgs
+**Solver ranking**
 
-SIMP topology optimisation with L-BFGS: minimise structural compliance under volume fraction constraint.
-
-SIMP topology optimisation on a 16×8×8 cantilever beam with L-BFGS: minimise compliance C = F^T U subject to a 50% volume fraction constraint.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-```json
-{
-  "ic": {
-    "name": "uniform",
-    "seed": 0
-  },
-  "physics": {
-    "nx": 16,
-    "ny": 2,
-    "nz": 8,
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "corner_load": true,
-    "v_frac": 0.5,
-    "compliance_key": "compliance",
-    "penalty_weight": 50.0,
-    "x_min": 0.001,
-    "snap_interval": 5
-  },
-  "optim": {
-    "max_iters": 100,
-    "patience": 20
-  }
-}
-```
-
+::: {.sortable-table}
+| Solver | Final compliance | Converged |
+|---|---|---|
+| JAX-FEM | 1.00e-03 | no |
+| FEniCS | 1.00e-03 | no |
+| Firedrake | 1.00e-03 | no |
+| TopOpt.jl | 1.00e-03 | no |
 :::
 
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_convergence.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_3d_fenics_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_3d_firedrake_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_3d_jax_fem.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_3d_topopt_jl.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_evolution_fenics_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_evolution_firedrake_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_evolution_jax_fem.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_bfgs/topopt_evolution_topopt_jl.gif){.lightbox}
-
-### Topopt Mma
-
-SIMP topology optimisation with MMA (nlopt LD_MMA): hard volume fraction constraint.
-
-SIMP topology optimisation on a 16×2×8 cantilever beam with MMA: minimise compliance C = F^T U subject to a hard 50% volume fraction inequality constraint.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-```json
-{
-  "ic": {
-    "name": "uniform",
-    "seed": 0
-  },
-  "physics": {
-    "nx": 16,
-    "ny": 2,
-    "nz": 8,
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "corner_load": true,
-    "v_frac": 0.5,
-    "compliance_key": "compliance",
-    "x_min": 0.001,
-    "snap_interval": 5
-  },
-  "optim": {
-    "max_iters": 200,
-    "patience": 30
-  }
-}
-```
-
-:::
-
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_convergence.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_3d_fenics_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_3d_firedrake_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_3d_jax_fem.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_3d_topopt_jl.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_evolution_fenics_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_evolution_firedrake_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_evolution_jax_fem.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma/topopt_evolution_topopt_jl.gif){.lightbox}
-
-### Topopt Mma Fine
-
-SIMP topology optimisation with MMA on a fine 32×4×16 mesh (8× more elements than topopt_mma). Tests whether solver cross-solver agreement holds at higher resolution.
-
-SIMP topology optimisation on a fine 32×4×16 cantilever beam with MMA: minimise compliance C = F^T U subject to a hard 50% volume fraction inequality constraint.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-```json
-{
-  "ic": {
-    "name": "uniform",
-    "seed": 0
-  },
-  "physics": {
-    "nx": 32,
-    "ny": 4,
-    "nz": 16,
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "corner_load": true,
-    "v_frac": 0.5,
-    "compliance_key": "compliance",
-    "x_min": 0.001,
-    "snap_interval": 10
-  },
-  "optim": {
-    "max_iters": 300,
-    "patience": 40
-  }
-}
-```
-
-:::
-
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_convergence.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_3d_fenics_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_3d_firedrake_structural.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_3d_jax_fem.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_3d_topopt_jl.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_evolution_fenics_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_evolution_firedrake_structural.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_evolution_jax_fem.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt_mma_fine/topopt_evolution_topopt_jl.gif){.lightbox}
-
-## Cost
-
-Wall-clock cost scaling with problem size N and number of integration steps.
-
-Wall-clock and memory profiling vs mesh size for all solvers.
-
-
-::: {.callout-note collapse='true' title='Settings'}
-
-**Spatial Cost**
-
-Sweeps N ∈ {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200}
-
-```json
-{
-  "physics": {
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "rho_0": 0.5,
-    "corner_load": false
-  },
-  "cost": {
-    "N_values": [
-      8,
-      16,
-      32,
-      64,
-      128,
-      256,
-      512,
-      1024,
-      2048,
-      3200
-    ],
-    "n_trials": 3
-  }
-}
-```
-
-**Vjp Cost**
-
-Sweeps N ∈ {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 3200}
-
-```json
-{
-  "physics": {
-    "Lx": 2.0,
-    "Ly": 1.0,
-    "Lz": 1.0,
-    "F_total": 1.0,
-    "rho_0": 0.5,
-    "corner_load": false
-  },
-  "cost": {
-    "N_values": [
-      8,
-      16,
-      32,
-      64,
-      128,
-      256,
-      512,
-      1024,
-      2048,
-      3200
-    ],
-    "n_trials": 3
-  }
-}
-```
-
-:::
-
-![](../mosaic-results/structural-mesh/cost/cost.png){.lightbox}
+*Ranked by the final objective reached within the iteration budget (lower is better).*

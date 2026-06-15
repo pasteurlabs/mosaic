@@ -8,13 +8,13 @@ An extensible benchmark framework for differentiable physics solvers that treats
 
 ## What this measures, and why
 
-If you train a model or run an optimizer through a physics simulation, the simulation has to return two things: a correct prediction (the *forward* pass) **and** a correct gradient of that prediction with respect to your inputs (the *backward* pass, or vector–Jacobian product, VJP). Most solver benchmarks only check the forward pass. Mosaic checks both — because a solver that runs fast and predicts accurately is still useless for gradient-based learning if its VJP is wrong, noisy, or numerically ill-conditioned.
+If you train a model or run an optimizer through a physics simulation, the simulation has to return two things: a correct prediction (the *forward* pass) **and** a correct gradient of that prediction with respect to your inputs (the *backward* pass, or vector–Jacobian product, VJP). Most solver benchmarks only check the forward pass. Mosaic checks both, because a solver that runs fast and predicts accurately is still useless for gradient-based learning if its VJP is wrong, noisy, or numerically ill-conditioned.
 
 Concretely, every solver is asked to compute an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$, and we score it on three axes: **does the forward solution match a trusted reference?**, **does the gradient match a finite-difference ground truth?**, and **how much wall-clock time and memory does each cost?**
 
 ## How solvers are compared
 
-Built on [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which wraps each solver in a Docker container exposing a uniform `apply` / `vjp` interface, and [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), which calls those containers as native JAX functions (with full JIT and `grad` support) from the benchmark harness. This lets a single harness compare solvers built on incompatible AD backends — JAX, PyTorch, Julia (Zygote), hand-written C++ adjoints — without any shared dependency, by talking only to the common `apply` / `vjp` interface.
+Built on [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which wraps each solver in a Docker container exposing a uniform `apply` / `vjp` interface, and [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), which calls those containers as native JAX functions (with full JIT and `grad` support) from the benchmark harness. This lets a single harness compare solvers built on incompatible AD backends (JAX, PyTorch, Julia Zygote, hand-written C++ adjoints) without any shared dependency, by talking only to the common `apply` / `vjp` interface.
 
 ## Benchmark domains
 
@@ -27,22 +27,32 @@ Built on [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which 
 
 The full catalog — per-solver numerical scheme, AD strategy, image name, schema fields, and known limitations — is on the [Solver Reference](solvers.qmd) page.
 
+::: {.callout-tip appearance="simple"}
+### 📊 See how the solvers compare
+
+Each domain has a results page with every plot, a best-solver ranking per category, and the task setup:
+[Navier–Stokes 2D](results_ns_grid.qmd) ·
+[Navier–Stokes 3D](results_ns_3d_grid.qmd) ·
+[Structural mechanics](results_structural_mesh.qmd) ·
+[Heat transfer](results_thermal_mesh.qmd)
+:::
+
 ## Evaluation protocol
 
 All metrics are computed uniformly across solvers through the Tesseract interface. The protocol is solver-agnostic: it operates on `apply` and `vjp` and never inspects solver internals.
 
 **Setup compatibility.** For each solver--task pair: whether the solver produces a usable gradient, fails numerically, or cannot run due to structural constraints (e.g. periodic-only BCs on a channel domain). Structural incompatibilities are declared via `problem.exclude(key, {solver_name: Exclusion(...)})`; the matching is longest-prefix (e.g. `key="gradient"` blocks every `gradient/*` experiment).
 
-**Gradient accuracy.** Central finite differences (FD) through the Tesseract interface serve as the solver-agnostic ground truth — we never inspect a solver's AD machinery, only the gradient it returns. Directional derivatives are evaluated along $K$ random perturbation vectors ($K = 6\text{--}20$) and reported as:
+**Gradient accuracy.** Central finite differences (FD) through the Tesseract interface serve as the solver-agnostic ground truth. We never inspect a solver's AD machinery, only the gradient it returns. Directional derivatives are evaluated along $K$ random perturbation vectors ($K = 6\text{--}20$) and reported as:
 
 - **Cosine similarity** between the AD gradient $g_\text{ad}$ and the FD gradient $g_\text{fd}$ (direction agreement, $1$ = identical direction)
 - **Relative $L^2$ error** $\dfrac{\lVert g_\text{ad} - g_\text{fd} \rVert}{\lVert g_\text{fd} \rVert}$ (magnitude agreement, $0$ = exact)
 
-The FD step size is swept over $\varepsilon \in \{10^{-6}, \dots, 10^{-1}\}$ and the minimum error is reported, avoiding both the truncation regime (large $\varepsilon$) and the roundoff regime (small $\varepsilon$). For Navier–Stokes problems (F2, F3), the full Jacobian is additionally computed and its singular-value spectrum inspected — a wide spread of singular values signals an ill-conditioned gradient that will stall an optimizer.
+The FD step size is swept over $\varepsilon \in \{10^{-6}, \dots, 10^{-1}\}$ and the minimum error is reported, avoiding both the truncation regime (large $\varepsilon$) and the roundoff regime (small $\varepsilon$). For Navier–Stokes problems (F2, F3), the full Jacobian is additionally computed and its singular-value spectrum inspected. A wide spread of singular values signals an ill-conditioned gradient that will stall an optimizer.
 
 **Performance.** Forward and VJP wall-clock time, their ratio, and peak memory, measured on each solver's intended hardware target across 3--4 problem sizes. All timings are averaged over 3 runs after 1 warmup iteration (to pre-populate JIT caches and stabilize memory allocation).
 
-**Forward accuracy.** Resolution sweep against a reference solver (OpenFOAM for fluids, deal.II for structures/thermal). Where an analytical solution exists (the Taylor–Green vortex), precision is also measured against it. Physical-law adherence — e.g. a divergence-free velocity field, $\nabla \cdot \mathbf{u} = 0$ — is checked where applicable.
+**Forward accuracy.** Resolution sweep against a reference solver (OpenFOAM for fluids, deal.II for structures/thermal). Where an analytical solution exists (the Taylor–Green vortex), precision is also measured against it. Physical-law adherence (e.g. a divergence-free velocity field, $\nabla \cdot \mathbf{u} = 0$) is checked where applicable.
 
 **Optimization convergence.** The ultimate test: can you actually optimize *through* the solver? We run Adam with each solver's own gradients on each benchmark task for a fixed iteration budget (500 iterations for H, F2, F3; 2500 for S). A solver **succeeds** if it reaches a final objective within 1% of the best solution any solver achieved within the budget. This catches solvers whose gradients pass the FD check pointwise but still fail to drive a full optimization loop.
 
@@ -61,4 +71,4 @@ Results are saved to `mosaic-results/<problem>/<suite>/` as JSON (metrics), NPZ 
 
 ---
 
-→ Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference. To call a Mosaic solver from your own code without the harness, see **[Standalone Usage](standalone.qmd)**. For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)**.
+→ Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference. To call a Mosaic solver from your own code without the harness, see **[Use Mosaic solvers elsewhere](standalone.qmd)**. For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)**.

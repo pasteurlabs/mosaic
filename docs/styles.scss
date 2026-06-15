@@ -18,3 +18,34 @@ p > img {
   display: block;
   margin-inline: auto;
 }
+
+// ── Sortable ranking tables ──────────────────────────────────────────────────
+// The solver-ranking tables (wrapped in `.sortable-table`) get click-to-sort
+// behaviour from docs/sortable-tables.html. Style the headers as affordances:
+// pointer cursor, hover highlight, and a ▲/▼ indicator on the active column.
+.sortable-table table th.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  // Reserve room for the indicator so the header doesn't shift when it appears.
+  &::after {
+    content: "↕";
+    opacity: 0.25;
+    margin-left: 0.4em;
+    font-size: 0.85em;
+  }
+  &[data-sort="asc"]::after {
+    content: "▲";
+    opacity: 0.9;
+  }
+  &[data-sort="desc"]::after {
+    content: "▼";
+    opacity: 0.9;
+  }
+}

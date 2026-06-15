@@ -45,3 +45,6 @@ format:
     html-math-method: mathjax
     # Enable click-to-zoom for images tagged {.lightbox} (the result plots).
     lightbox: true
+    # Click-to-sort for the solver-ranking tables (.sortable-table).
+    include-after-body:
+      - docs/sortable-tables.html

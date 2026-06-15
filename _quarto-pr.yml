@@ -26,7 +26,7 @@ website:
             file: docs/results_ns_grid.qmd
           - text: "Navier–Stokes (3D)"
             file: docs/results_ns_3d_grid.qmd
-          - text: Structural Mechanics
+          - text: Structural mechanics
             file: docs/results_structural_mesh.qmd
-          - text: Heat Conduction
+          - text: Heat transfer
             file: docs/results_thermal_mesh.qmd
