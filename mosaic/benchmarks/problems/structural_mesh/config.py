@@ -85,17 +85,25 @@ problem = Problem(
     name="structural-mesh",
     category_label="Structural Mechanics",
     description=(
-        "3D linear-elasticity compliance minimisation on a cantilever beam with SIMP "
-        "material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples "
-        "every density element to the global displacement field via the constitutive "
-        "relation E_eff(ρ) = E_min + (E_max − E_min)·ρ³; the compliance objective "
-        "C = F^T K(ρ)⁻¹ F is smooth but non-convex in ρ, driving gradient-based "
-        "topology optimisation toward sparse binary 0/1 layouts."
+        "**Designing a stiff structure.** Given a fixed amount of material, where "
+        "should it go to make a loaded beam as rigid as possible? This is *topology "
+        "optimisation*, and it is solved by differentiating a finite-element "
+        "stress analysis with respect to a per-element material density field $\\rho$.\n\n"
+        "We minimise the compliance (inverse stiffness) of a 3D linear-elastic "
+        "cantilever beam under the SIMP density-penalisation scheme "
+        "($p=3$, $E_\\max = 70{,}000$ MPa). Each element's stiffness follows the "
+        "constitutive relation $E_\\text{eff}(\\rho) = E_\\min + (E_\\max - E_\\min)\\,\\rho^3$, "
+        "and the global stiffness matrix $K(\\rho)$ couples every element to the "
+        "displacement field. The objective $C = \\mathbf{F}^\\top K(\\rho)^{-1}\\mathbf{F}$ "
+        "(external work under load $\\mathbf{F}$) is smooth but non-convex in $\\rho$, so "
+        "gradient-based optimisation drives the design toward sparse, near-binary "
+        "$0/1$ material layouts — and the gradient must stay reliable throughout."
     ),
     bc_description=(
-        "3-D cantilever beam on domain [0,2]×[0,1]×[0,1] (HEX8 elements, 2:1:1 aspect). "
-        "Dirichlet: all nodes at x=0 have zero displacement (clamped). "
-        "Neumann: a prescribed total force is applied to the right face (x=2) — "
+        "3D cantilever beam on domain $[0,2]\\times[0,1]\\times[0,1]$ "
+        "(HEX8 elements, 2:1:1 aspect). "
+        "Dirichlet: all nodes at $x=0$ have zero displacement (clamped wall). "
+        "Neumann: a prescribed total force is applied to the right face ($x=2$) — "
         "either a uniform downward traction or a concentrated upward corner load "
         "depending on the experiment (controlled by the corner_load flag)."
     ),

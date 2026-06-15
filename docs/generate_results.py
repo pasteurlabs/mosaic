@@ -101,23 +101,33 @@ SUITE_LABELS = {
 
 SUITE_DESCRIPTIONS = {
     "ics": (
-        "Visualisation of each initial condition available for this problem. "
+        "Visualisation of each initial condition (the starting field a run is "
+        "launched from) available for this problem. "
         "IC plots are generated without running any solver."
     ),
     "forward": (
-        "Forward-pass benchmarks: agreement between solvers, field diagnostics, "
-        "and long-run stability."
+        "**Is the prediction right?** Forward-pass benchmarks check each solver's "
+        "output against a trusted reference (and an analytic solution where one "
+        "exists): inter-solver agreement, field-level diagnostics, and long-run "
+        "stability."
     ),
     "gradient": (
-        "Gradient benchmarks: finite-difference checks and gradient quality "
-        "(magnitude, direction cosine) across parameter, resolution, and horizon sweeps."
+        "**Is the gradient right?** Gradient benchmarks compare each solver's "
+        "AD/adjoint gradient against a finite-difference ground truth. We report "
+        "magnitude error (relative $L^2$) and direction agreement (cosine "
+        "similarity) across parameter, resolution, and horizon sweeps — the latter "
+        "exposing how gradients degrade as the rollout lengthens."
     ),
     "optimization": (
-        "Optimization benchmarks: gradient-based recovery of initial conditions "
-        "or physical parameters, topology optimization, and drag minimization."
+        "**Can you optimise through it?** End-to-end optimization benchmarks run a "
+        "gradient-based optimiser using each solver's own gradients: recovery of "
+        "initial conditions or physical parameters, topology optimization, and drag "
+        "minimization. This is the ultimate test — a gradient can pass the "
+        "finite-difference check yet still fail to drive a full optimization loop."
     ),
     "cost": (
-        "Wall-clock cost scaling with problem size N and number of integration steps.\n"
+        "**What does it cost?** Wall-clock scaling of the forward and VJP passes "
+        "with problem size $N$ and the number of integration steps.\n"
         "\n"
         "::: {.callout-note title='Note on wall-clock measurements'}\n"
         "Cost-suite timings are collected on dedicated CI runners "

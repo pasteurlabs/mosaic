@@ -81,20 +81,27 @@ problem = Problem(
     name="thermal-mesh",
     category_label="Heat Conduction",
     description=(
-        "Quasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP "
-        "material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ "
-        "controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux "
-        "on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks "
-        "y-symmetry and drives topology optimisation toward non-trivial branching structures. "
-        "Also supports source-identification experiments: recover the volumetric heat source f(x) "
-        "from temperature observations via the identification_error = ||T − T_target||² objective."
+        "**Routing heat through a material.** Where should the conductive material go "
+        "to carry heat away most effectively — and, separately, can we recover an "
+        "unknown heat source from temperature measurements? Both are inverse problems "
+        "solved by differentiating through a steady heat-conduction solve.\n\n"
+        "We minimise the thermal compliance of a quasi-2D heated slab under the SIMP "
+        "density-penalisation scheme ($p=3$). The effective conductivity "
+        "$k_\\text{eff}(\\rho) = k_\\min + (k_\\max - k_\\min)\\,\\rho^3$ controls how "
+        "heat is routed, and the compliance $C = \\oint_\\Gamma q_n\\,T\\,d\\Gamma$ "
+        "measures the work done by the heat flux on the temperature field. A hot-spot "
+        "boundary condition (a central $1/3$ stripe) breaks $y$-symmetry and drives the "
+        "topology optimisation toward non-trivial branching structures. The same domain "
+        "also hosts *source-identification* experiments, which recover an unknown "
+        "volumetric heat source $f(\\mathbf{x})$ from temperature observations by "
+        "minimising $\\lVert T - T_\\text{target} \\rVert^2$."
     ),
     bc_description=(
-        "Quasi-2D heated slab on domain [0,2]×[0,1] (nz=1 HEX8 layer). "
-        "Dirichlet: all nodes at x=0 held at T=0 (fixed temperature). "
-        "Neumann (uniform): uniform heat flux Q_total over the right face (x=2). "
-        "Neumann (hot-spot): flux concentrated on the central 1/3 stripe in y "
-        "(Ly/3 ≤ y ≤ 2Ly/3) at the right face, driving non-trivial topology."
+        "Quasi-2D heated slab on domain $[0,2]\\times[0,1]$ (a single HEX8 layer, $n_z=1$). "
+        "Dirichlet: all nodes at $x=0$ held at $T=0$ (fixed temperature). "
+        "Neumann (uniform): uniform heat flux $Q_\\text{total}$ over the right face ($x=2$). "
+        "Neumann (hot-spot): flux concentrated on the central $1/3$ stripe in $y$ "
+        "($L_y/3 \\le y \\le 2L_y/3$) at the right face, driving non-trivial topology."
     ),
     tesseract_dir=_TESSERACT_SLUG,
     output_key="thermal_compliance",

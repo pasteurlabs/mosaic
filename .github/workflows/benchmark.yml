@@ -327,11 +327,29 @@ jobs:
           overwrite: true
           retention-days: 90
 
+      # ── Resolve RTD preview URL ────────────────────────────────────────
+      # The external version already exists (RTD's webhook created it on PR
+      # push), so its public docs URL can be looked up immediately — no need to
+      # wait for the rebuild below. Resolving it here (a fast API GET) lets the
+      # PR comment link the preview prominently without being held up by the
+      # build poll. Non-fatal: an empty output just omits the banner.
+      - name: Resolve RTD preview URL
+        id: rtd_url
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          bash .github/scripts/rtd-preview-url.sh "${PR_NUM}"
+
       # ── Post PR comment ────────────────────────────────────────────────
       - name: Post status comment on PR
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          DOCS_PREVIEW_URL: ${{ steps.rtd_url.outputs.preview_url }}
         run: |
           .github/scripts/post-status-comment.sh \
             "${{ github.event.pull_request.number }}" \

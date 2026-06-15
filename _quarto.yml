@@ -35,9 +35,13 @@ execute:
 
 format:
   html:
-    theme: flatly
+    theme: [flatly, docs/styles.scss]
     toc: true
     toc-depth: 3
     code-copy: true
     code-overflow: wrap
     highlight-style: github
+    # Render LaTeX math ($...$ inline, $$...$$ display) with MathJax.
+    html-math-method: mathjax
+    # Enable click-to-zoom for images tagged {.lightbox} (the result plots).
+    lightbox: true

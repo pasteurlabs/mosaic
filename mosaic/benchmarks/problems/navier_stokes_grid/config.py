@@ -99,14 +99,22 @@ problem = Problem(
     name="ns-grid",
     category_label="Navier–Stokes (Grid)",
     description=(
-        "2D incompressible Navier–Stokes on a doubly-periodic domain with viscosity ν as "
-        "the primary control parameter. The nonlinear advection term ∇·(u⊗u) transfers "
-        "energy across scales; at low ν the flow develops turbulent cascades and the "
-        "Lyapunov exponent grows, making long-horizon gradients exponentially sensitive "
-        "to perturbations."
+        "**Fluid flow in 2D.** We simulate an incompressible fluid (think of stirred "
+        "water) and differentiate through the simulation — the headline question is "
+        "whether each solver returns a trustworthy gradient as the flow becomes chaotic.\n\n"
+        "Formally, we solve the 2D incompressible Navier–Stokes equations "
+        "$\\partial_t \\mathbf{u} + (\\mathbf{u}\\cdot\\nabla)\\mathbf{u} "
+        "= -\\nabla p + \\nu\\,\\nabla^2\\mathbf{u}$, $\\nabla\\cdot\\mathbf{u}=0$, "
+        "with the kinematic viscosity $\\nu$ as the primary control parameter. The "
+        "nonlinear advection term $\\nabla\\cdot(\\mathbf{u}\\otimes\\mathbf{u})$ "
+        "transfers energy across scales; at low $\\nu$ the flow develops turbulent "
+        "cascades and a positive Lyapunov exponent, so long-horizon gradients grow "
+        "exponentially sensitive to perturbations — the regime where backprop-through-"
+        "simulation is hardest."
     ),
     bc_description=(
-        "Doubly-periodic square domain [0, 2π]²; incompressibility enforced via "
+        "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
+        "edge). Incompressibility $\\nabla\\cdot\\mathbf{u}=0$ is enforced by a "
         "pressure projection at each time step. No walls or inflow/outflow boundaries."
     ),
     tesseract_dir=_TESSERACT_SLUG,
