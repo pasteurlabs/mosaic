@@ -133,7 +133,7 @@ def plot_cost_overview(
 ) -> None:
     """Render a single-column cost overview for one problem subdirectory.
 
-    Writes ``cost_overview.pdf`` into *out_dir*. Rows:
+    Writes ``cost_overview.png`` into *out_dir*. Rows:
       * forward time
       * VJP time
       * forward (V)RAM
