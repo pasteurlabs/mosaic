@@ -195,6 +195,72 @@ _DUMMY_FOR = {
 }
 
 
+# ── Heavy-experiment shrink overrides ────────────────────────────────────────
+#
+# The ``jacobian_svd`` kernel builds the *full* Jacobian by looping one VJP
+# call per output element (it can't use ``jax.jacrev``/``vmap`` — tesseract
+# doesn't support vmap). The row count is ``D_out`` = output-field size, which
+# for the registered ns-3d-grid cases is N³·components at N=8 ≈ 1500 rows × 7
+# solvers ≈ 10k dummy-VJP calls *per case*. At ~45s each, those four cases
+# alone dominated this file's runtime (~180s of ~350s total).
+#
+# For the dummy plumbing test we only care that the kernel + framework + VJP
+# pipeline executes and writes ``result.json`` — a full N=8 Jacobian is
+# overkill. We re-register the heavy ns-3d-grid cases at N=4 (8× fewer rows),
+# preserving every other physics field so the run is otherwise identical. The
+# numerical output is meaningless against a constant dummy either way.
+#
+# Keyed by ``(problem, exp_key)`` → physics dict (only N differs from the
+# production registration in ``navier_stokes_3d_grid/config.py``).
+_SHRINK_PHYSICS: dict[tuple[str, str], dict] = {
+    ("ns-3d-grid", "gradient/jacobian_svd"): {
+        "N": 4,
+        "nu": 0.001,
+        "dt": 0.05,
+        "steps": 10,
+    },
+    ("ns-3d-grid", "gradient/jacobian_svd_steps20"): {
+        "N": 4,
+        "nu": 0.001,
+        "dt": 0.05,
+        "steps": 20,
+    },
+    ("ns-3d-grid", "gradient/jacobian_svd_steps40"): {
+        "N": 4,
+        "nu": 0.001,
+        "dt": 0.05,
+        "steps": 40,
+    },
+    ("ns-3d-grid", "gradient/jacobian_svd_nu01"): {
+        "N": 4,
+        "nu": 0.01,
+        "dt": 0.05,
+        "steps": 10,
+    },
+}
+
+
+def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
+    """Re-register ``exp_key`` at a smaller N if it's a known heavy case.
+
+    Mutates ``cfg.experiments[exp_key]`` in place (the config object is a
+    fresh per-call ``get_config(problem)``, so this never leaks across tests).
+    No-op for experiments not in :data:`_SHRINK_PHYSICS`.
+    """
+    physics = _SHRINK_PHYSICS.get((problem, exp_key))
+    if physics is None:
+        return
+    from mosaic.benchmarks.problems.shared.gradient import jacobian_svd
+
+    cfg.add_experiment(
+        exp_key,
+        jacobian_svd,
+        ic={"name": "tgv3d", "seed": 0},
+        physics=physics,
+        jacobian={"n_alphas": 41, "alpha_range": 0.3},
+    )
+
+
 def _all_experiments():
     """Enumerate (problem, exp_key) pairs for every non-IC experiment.
 
@@ -242,6 +308,7 @@ def dummy_corpus(tmp_path_factory):
     try:
         for problem, exp_key in _all_experiments():
             cfg = get_config(problem)
+            _maybe_shrink(cfg, problem, exp_key)
             tag = f"inprocess:{_DUMMY_FOR[problem]}"
             tags = dict.fromkeys(cfg.solver_names, tag)
             try:
@@ -272,6 +339,7 @@ def test_experiment_runs_with_dummy(problem, exp_key, tmp_path, monkeypatch):
 
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
     cfg = get_config(problem)
+    _maybe_shrink(cfg, problem, exp_key)
     tag = f"inprocess:{_DUMMY_FOR[problem]}"
     tags = dict.fromkeys(cfg.solver_names, tag)
     cfg.experiments[exp_key].fn(cfg, tags)
