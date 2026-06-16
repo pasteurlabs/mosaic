@@ -24,7 +24,9 @@ integration tests in :mod:`test_integration`.
 
 from __future__ import annotations
 
+import contextlib
 import json
+import warnings
 from pathlib import Path
 
 import pytest
@@ -279,6 +281,51 @@ def _all_experiments():
     return pairs
 
 
+# ── Degenerate-dummy warning suppression ─────────────────────────────────────
+#
+# The dummies return constant / all-zero arrays, so the framework + plot code
+# hits numerical degeneracies that never occur on real data: log-scaling axes
+# whose data has no positive values, a 0/0 cosine over zero-norm Jacobians, and
+# a pydantic field whose ``0.0`` default isn't emitted into the JSON schema.
+# These are expected here (see also :data:`_DEGENERATE_DATA_HINTS` /
+# :func:`_skip_if_degenerate`), so we silence *exactly these* warnings while
+# running against the dummy — without hiding the same categories in real runs.
+#
+# Each entry is a ``warnings.filterwarnings``-style spec ("ignore", message
+# regex, category). Used both as a ``catch_warnings`` block (around the corpus
+# build, which runs inside a fixture) and as ``@pytest.mark.filterwarnings``
+# strings on the individual tests.
+_DUMMY_WARNING_FILTERS: tuple[tuple[str, type[Warning]], ...] = (
+    ("Data has no positive values", UserWarning),
+    ("invalid value encountered in scalar divide", RuntimeWarning),
+    ("Default value .* is not JSON serializable", UserWarning),
+)
+
+
+def _filterwarnings_marks() -> list:
+    """``@pytest.mark.filterwarnings`` marks for the degenerate-dummy warnings."""
+    return [
+        pytest.mark.filterwarnings(f"ignore:{msg}:{cat.__name__}")
+        for msg, cat in _DUMMY_WARNING_FILTERS
+    ]
+
+
+# Every test in this module runs against the constant-output dummies, so the
+# degenerate-data warnings are expected for all of them. Applying the filters
+# module-wide (they match only those specific message/category pairs) keeps the
+# suppression scoped to this file without per-test decoration.
+pytestmark = _filterwarnings_marks()
+
+
+@contextlib.contextmanager
+def _suppress_dummy_warnings():
+    """Silence the known degenerate-dummy warnings within the block."""
+    with warnings.catch_warnings():
+        for msg, cat in _DUMMY_WARNING_FILTERS:
+            warnings.filterwarnings("ignore", message=msg, category=cat)
+        yield
+
+
 # ── Shared dummy-result corpus ───────────────────────────────────────────────
 #
 # Building the corpus is the dominant cost in this file — every experiment
@@ -308,15 +355,16 @@ def dummy_corpus(tmp_path_factory):
     os.environ["MOSAIC_RESULTS_DIR"] = str(results_root)
     errors: dict[tuple[str, str], Exception] = {}
     try:
-        for problem, exp_key in _all_experiments():
-            cfg = get_config(problem)
-            _maybe_shrink(cfg, problem, exp_key)
-            tag = f"inprocess:{_DUMMY_FOR[problem]}"
-            tags = dict.fromkeys(cfg.solver_names, tag)
-            try:
-                cfg.experiments[exp_key].fn(cfg, tags)
-            except Exception as exc:
-                errors[(problem, exp_key)] = exc
+        with _suppress_dummy_warnings():
+            for problem, exp_key in _all_experiments():
+                cfg = get_config(problem)
+                _maybe_shrink(cfg, problem, exp_key)
+                tag = f"inprocess:{_DUMMY_FOR[problem]}"
+                tags = dict.fromkeys(cfg.solver_names, tag)
+                try:
+                    cfg.experiments[exp_key].fn(cfg, tags)
+                except Exception as exc:
+                    errors[(problem, exp_key)] = exc
         yield {"results_root": results_root, "errors": errors}
     finally:
         if prev is None:
