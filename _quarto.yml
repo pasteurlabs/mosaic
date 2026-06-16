@@ -1,12 +1,7 @@
-# The page set (project.render) and the navbar's left side live in the render
-# profiles, not here \u2014 Quarto MERGES list values across profiles by
-# concatenation, so a profile can't shrink a list defined in the base. To get a
-# results-only PR preview we therefore keep those lists out of the base and let
-# each profile supply its own:
-#   * full (default) \u2192 _quarto-full.yml \u2014 the complete site
-#   * pr             \u2192 _quarto-pr.yml   \u2014 results pages only, slim navbar
-# Plain `quarto render`/`preview` uses the full profile (profile.default below);
-# PR previews set QUARTO_PROFILE=pr in benchmark.yml.
+# The whole site is rendered everywhere \u2014 local `quarto render`/`preview`, PR
+# previews (benchmark.yml), and post-merge (publish-results.yml). PRs used to
+# render a results-only profile, but that hid prose changes on doc PRs, so the
+# split was dropped: there is now a single page set and navbar, defined here.
 project:
   type: website
   output-dir: _site
@@ -15,15 +10,41 @@ project:
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
     - python docs/generate.py
-
-profile:
-  default: full
+  render:
+    - docs/index.qmd
+    - docs/getting-started.qmd
+    - docs/standalone.qmd
+    - docs/internals.qmd
+    - docs/solvers.qmd
+    - docs/tutorial.qmd
+    - docs/results.qmd
+    - docs/results_*.qmd
 
 website:
   title: Mosaic
   repo-url: https://github.com/pasteurlabs/mosaic
   repo-actions: [edit, issue]
   navbar:
+    # Ordered as a progression: understand \u2192 run \u2192 see results \u2192 look up \u2192
+    # use \u2192 extend. Results is pulled forward (it's the main draw); advanced
+    # and contributor topics are grouped under "Contribute" at the end.
+    left:
+      - text: Overview
+        file: docs/index.qmd
+      - text: Getting Started
+        file: docs/getting-started.qmd
+      - text: Results
+        file: docs/results.qmd
+      - text: Solver Reference
+        file: docs/solvers.qmd
+      - text: Use solvers elsewhere
+        file: docs/standalone.qmd
+      - text: Contribute
+        menu:
+          - text: Add a Backend
+            file: docs/tutorial.qmd
+          - text: How it works
+            file: docs/internals.qmd
     right:
       - icon: github
         href: https://github.com/pasteurlabs/mosaic

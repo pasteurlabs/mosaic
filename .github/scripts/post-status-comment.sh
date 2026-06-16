@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Post or update a Mosaic status comment on a PR.
 #
-# Usage: post-status-comment.sh <pr-number> <markdown-file>
+# Usage: post-status-comment.sh <pr-number> [markdown-file]
 #
 # Finds an existing comment by the bot with "## Mosaic" header and updates it,
 # or creates a new one. Requires GH_TOKEN with write permissions.
+#
+# The markdown file (the benchmark status report) is optional: PRs that ran no
+# benchmarks (benchmark:none, docs-only) skip it, since the report would just be
+# an all-zero diff against the baseline. In that case the comment is only the
+# docs-preview banner.
 #
 # When DOCS_PREVIEW_URL is set, a prominent banner linking to the rendered
 # Read the Docs preview is prepended above the status report. That preview is
@@ -14,28 +19,48 @@
 set -euo pipefail
 
 PR_NUMBER="$1"
-MD_FILE="$2"
+MD_FILE="${2:-}"
 
-if [[ ! -f "$MD_FILE" ]]; then
-  echo "ERROR: markdown file not found: $MD_FILE" >&2
-  exit 1
+REPORT=""
+if [[ -n "$MD_FILE" ]]; then
+  if [[ ! -f "$MD_FILE" ]]; then
+    echo "ERROR: markdown file not found: $MD_FILE" >&2
+    exit 1
+  fi
+  REPORT="$(cat "$MD_FILE")"
 fi
 
 MARKER="<!-- mosaic-benchmark-bot -->"
 
 PREVIEW_BANNER=""
 if [[ -n "${DOCS_PREVIEW_URL:-}" ]]; then
-  PREVIEW_BANNER="### 📊 [**View the full benchmark results →**](${DOCS_PREVIEW_URL})
+  # Deep-link straight to the results landing page (docs/results.qmd renders to
+  # results.html), which fans out to every domain's plots.
+  RESULTS_URL="${DOCS_PREVIEW_URL%/}/results.html"
+  # Tailor the blurb to whether a status report follows.
+  if [[ -n "$REPORT" ]]; then
+    PREVIEW_BLURB="The rendered docs preview has every plot for this run (forward accuracy,
+gradients, cost, optimization). The summary below only reports pass/fail status."
+  else
+    PREVIEW_BLURB="No benchmarks ran for this PR, so there is no status report — but the
+rendered docs preview (built from the current baseline) is available below."
+  fi
+  PREVIEW_BANNER="### 📊 [**View the full benchmark results →**](${RESULTS_URL})
 
-The rendered docs preview has every plot for this run (forward accuracy,
-gradients, cost, optimization). The summary below only reports pass/fail status.
+${PREVIEW_BLURB}
 
 ---
 "
 fi
 
+# Nothing to say (no report and no preview link) → don't post an empty comment.
+if [[ -z "$REPORT" && -z "$PREVIEW_BANNER" ]]; then
+  echo "No status report and no docs-preview URL — skipping PR comment."
+  exit 0
+fi
+
 BODY="${MARKER}
-${PREVIEW_BANNER}$(cat "$MD_FILE")"
+${PREVIEW_BANNER}${REPORT}"
 
 # Find existing comment by marker (suppress stderr so a 401 doesn't
 # leak garbage into COMMENT_ID; strip \r that Windows-style line endings
