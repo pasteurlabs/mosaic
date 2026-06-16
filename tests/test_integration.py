@@ -3,9 +3,9 @@
 
 """Integration tests that build and run a real Tesseract container.
 
-These tests require Docker and are skipped by default.  Run explicitly with::
-
-    pytest -m integration
+These tests build a real Docker image, so they only run where Docker (and the
+``tesseract`` CLI) are available; on hosts without a working Docker daemon the
+whole module is skipped rather than failing.
 
 The Exponax solver is used because it is small, fast, JAX-only, and
 exercises the full apply / VJP path without GPU requirements.
@@ -13,11 +13,33 @@ exercises the full apply / VJP path without GPU requirements.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.integration
+
+def _docker_available() -> bool:
+    """True if both the ``tesseract`` CLI and a responsive Docker daemon exist."""
+    if shutil.which("tesseract") is None or shutil.which("docker") is None:
+        return False
+    try:
+        return (
+            subprocess.run(
+                ["docker", "info"],
+                capture_output=True,
+                timeout=10,
+            ).returncode
+            == 0
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _docker_available(),
+    reason="Docker daemon and/or tesseract CLI unavailable",
+)
 
 _SOLVER_DIR = "mosaic/tesseracts/navier-stokes-grid/exponax"
 _IMAGE = "exponax_navier_stokes_grid:latest"
