@@ -34,18 +34,19 @@ MARKER="<!-- mosaic-benchmark-bot -->"
 
 PREVIEW_BANNER=""
 if [[ -n "${DOCS_PREVIEW_URL:-}" ]]; then
-  # Deep-link straight to the results landing page (docs/results.qmd renders to
-  # results.html), which fans out to every domain's plots.
-  RESULTS_URL="${DOCS_PREVIEW_URL%/}/results.html"
+  # Deep-link straight to the results landing page, which fans out to every
+  # domain's plots. The Quarto project root is the repo root and results.qmd
+  # lives under docs/, so it renders to docs/results.html (only index.qmd is
+  # promoted to the site root; every other page keeps its docs/ prefix).
+  RESULTS_URL="${DOCS_PREVIEW_URL%/}/docs/results.html"
   # Tailor the blurb to whether a status report follows.
   if [[ -n "$REPORT" ]]; then
     PREVIEW_BLURB="The rendered docs preview has every plot for this run (forward accuracy,
-gradients, cost, optimization). The summary below only reports pass/fail status."
+gradients, cost, optimization) merged with existing baseline results on \`main\`. The summary below reports pass/fail status."
   else
-    PREVIEW_BLURB="No benchmarks ran for this PR, so there is no status report — but the
-rendered docs preview (built from the current baseline) is available below."
+    PREVIEW_BLURB="No benchmarks ran for this PR, so there is no status report."
   fi
-  PREVIEW_BANNER="### 📊 [**View the full benchmark results →**](${RESULTS_URL})
+  PREVIEW_BANNER="### 📊 [**View the full benchmark results**](${RESULTS_URL})
 
 ${PREVIEW_BLURB}
 

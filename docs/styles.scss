@@ -8,12 +8,20 @@
 // rendered height and let width shrink to keep the aspect ratio, so a tall
 // figure stays readable without dominating the page. Lightbox (click-to-zoom)
 // still serves the full-resolution image.
+// Quarto adds Bootstrap's `.img-fluid` (`max-width:100%; height:auto`) to every
+// embedded image, and some get an inline `width:100%` as well. Both override a
+// plain `.quarto-figure img` rule, so the `max-height` below never bound. We
+// raise specificity to beat `.img-fluid`, and use `!important` on the sizing
+// trio to also beat the inline `width`. `height:auto` keeps the aspect ratio
+// while `max-height` caps it; `width:auto`/`max-width:100%` let the width shrink
+// to match (and stay within the column when the cap doesn't bind).
+.quarto-figure img.img-fluid,
 .quarto-figure img,
 p > img {
   max-height: 32rem;
-  width: auto;
-  // Keep within the content column when the height cap doesn't bind.
-  max-width: 100%;
+  height: auto !important;
+  width: auto !important;
+  max-width: 100% !important;
   // Centre figures whose width is now narrower than the column.
   display: block;
   margin-inline: auto;
