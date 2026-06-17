@@ -47,6 +47,36 @@ DUMMY_THERMAL_MESH = (
 ).resolve()
 
 
+@pytest.fixture(autouse=True)
+def _no_savefig(monkeypatch):
+    """Skip the final to-disk ``Figure.savefig`` render for every test here.
+
+    The plot tests only verify that the plot pipeline *runs* against the dummy
+    corpus — the rendered files themselves are never inspected and are thrown
+    away with the temp results dir. Rasterising + writing them is ~84% of the
+    plot-test wall time (the figure is still fully constructed; only the final
+    ``savefig`` render is skipped), so stubbing it out is a large, safe speedup.
+
+    Only the *disk* case is stubbed: we no-op when the destination is a path
+    (str / ``os.PathLike``), but fall through to the real ``savefig`` when it's
+    a file-like buffer. Matplotlib's ``Animation.save`` renders each frame via
+    ``fig.savefig(BytesIO(), ...)``, so the GIF-producing optimization plots
+    still work. Scoped to this file via ``monkeypatch``; real runs unaffected.
+    """
+    import os
+
+    from matplotlib.figure import Figure
+
+    real_savefig = Figure.savefig
+
+    def _maybe_savefig(self, fname, *args, **kwargs):
+        if isinstance(fname, str | os.PathLike):
+            return None
+        return real_savefig(self, fname, *args, **kwargs)
+
+    monkeypatch.setattr(Figure, "savefig", _maybe_savefig)
+
+
 @pytest.fixture
 def ns_grid_tags():
     """Return a tags dict pointing every ns-grid solver at the dummy."""
