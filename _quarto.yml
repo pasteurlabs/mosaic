@@ -25,21 +25,21 @@ website:
   repo-url: https://github.com/pasteurlabs/mosaic
   repo-actions: [edit, issue]
   navbar:
-    # Ordered as a progression: understand \u2192 run \u2192 see results \u2192 look up \u2192
-    # use \u2192 extend. Results is pulled forward (it's the main draw); advanced
+    # Ordered as a progression: understand -> run -> see results -> look up ->
+    # use -> extend. Results is moved to last so it's visible; advanced
     # and contributor topics are grouped under "Contribute" at the end.
     left:
       - text: Overview
         file: docs/index.qmd
       - text: Getting Started
         file: docs/getting-started.qmd
-      - text: Results
-        file: docs/results.qmd
       - text: Solver Reference
         file: docs/solvers.qmd
       - text: Use solvers elsewhere
         file: docs/standalone.qmd
       - text: Contribute
+      - text: Results
+        file: docs/results.qmd
         menu:
           - text: Add a Backend
             file: docs/tutorial.qmd
