@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.0] - 2026-06-02
+## [0.1.0] - 2026-06-17
 
 ### Features
 
@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 - Delete code ratio logic and `tesseracts` command (#47)
 - Keep only one copy of shared code (#44)
 - Simpler result format + artifact-based result storage (#65)
+
+### Documentation
+
+- Better docs rendering (#72)
 
 ### Performance
 
