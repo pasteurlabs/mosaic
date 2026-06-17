@@ -1,0 +1,59 @@
+---
+title: Results
+---
+
+Benchmark results for every domain, with embedded plots, a best-solver ranking
+per category, and the task setup. Pick a domain below.
+
+::: {.callout-tip appearance="simple"}
+These are **example results**, produced automatically on GitHub Actions runners
+and refreshed on every release. Accuracy and gradient metrics are
+hardware-independent and reproducible; wall-clock numbers reflect commodity
+cloud hardware and are best read as relative scaling between solvers. For
+numbers that reflect *your* setup, [run the benchmarks
+yourself](getting-started.qmd) on your target hardware.
+:::
+
+## Domains
+
+### [Navier–Stokes (2D)](results_ns_grid.qmd)
+
+Optimize the inflow of a 2D channel flow to minimize drag on a cylinder,
+differentiating through an incompressible fluid solver. Covers JAX-CFD,
+PhiFlow, INS.jl, XLB, PICT, Warp-NS, and OpenFOAM across spectral,
+finite-difference, finite-volume, and LBM schemes.
+
+### [Navier–Stokes (3D)](results_ns_3d_grid.qmd)
+
+Recover the initial velocity field of a 3D turbulent flow from a later snapshot,
+differentiating through the Navier–Stokes rollout. Covers PhiFlow, XLB, PICT,
+Warp-NS, Exponax, INS.jl, and OpenFOAM on a triply periodic Taylor–Green vortex.
+
+### [Structural mechanics](results_structural_mesh.qmd)
+
+Place a fixed budget of material in a clamped beam to make it as stiff as
+possible, differentiating through a finite-element solve. Covers deal.II,
+FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever compliance
+minimization with SIMP penalization.
+
+### [Heat transfer](results_thermal_mesh.qmd)
+
+Invert for the conductivity field of a slab from its temperature,
+differentiating through a steady heat-conduction solve. Covers deal.II, FEniCS,
+Firedrake, JAX-FEM, and torch-fem on 2D steady-state heat conduction.
+
+## What each page reports
+
+Every domain page scores its solvers on four axes:
+
+- **Forward** — is the prediction right? Output vs. a trusted reference (and an
+  analytic solution where one exists).
+- **Gradient** — is the gradient right? AD/adjoint gradient vs. a
+  finite-difference ground truth (magnitude and direction).
+- **Cost** — what does it cost? Forward and VJP wall-clock scaling with problem
+  size.
+- **Optimization** — can you optimize through it? End-to-end convergence using
+  each solver's own gradients.
+
+See the [Overview](index.qmd#evaluation-protocol) for the full evaluation
+protocol.

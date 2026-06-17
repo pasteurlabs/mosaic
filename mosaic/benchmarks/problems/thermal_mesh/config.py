@@ -79,22 +79,29 @@ for _key in ("fenics_heat", "dealii_heat", "firedrake_heat", "torch_fem_thermal"
 
 problem = Problem(
     name="thermal-mesh",
-    category_label="Heat Conduction",
+    category_label="Heat transfer",
     description=(
-        "Quasi-2D steady heat-conduction compliance minimisation on a heated slab with SIMP "
-        "material penalisation (p=3). The effective conductivity k_eff(ρ) = k_min + (k_max − k_min)·ρ³ "
-        "controls heat routing; the compliance C = ∮_Γ q_n·T dΓ is the work done by the heat flux "
-        "on the temperature field. The hot-spot boundary condition (central 1/3 stripe) breaks "
-        "y-symmetry and drives topology optimisation toward non-trivial branching structures. "
-        "Also supports source-identification experiments: recover the volumetric heat source f(x) "
-        "from temperature observations via the identification_error = ||T − T_target||² objective."
+        "**Routing heat through a material.** Where should the conductive material go "
+        "to carry heat away most effectively? And, separately, can we recover an "
+        "unknown heat source from temperature measurements? Both are inverse problems "
+        "solved by differentiating through a steady heat-conduction solve.\n\n"
+        "We minimize the thermal compliance of a quasi-2D heated slab under the SIMP "
+        "density-penalization scheme ($p=3$). The effective conductivity "
+        "$k_\\text{eff}(\\rho) = k_\\min + (k_\\max - k_\\min)\\,\\rho^3$ controls how "
+        "heat is routed, and the compliance $C = \\oint_\\Gamma q_n\\,T\\,d\\Gamma$ "
+        "measures the work done by the heat flux on the temperature field. A hot-spot "
+        "boundary condition (a central $1/3$ stripe) breaks $y$-symmetry and drives the "
+        "topology optimization toward non-trivial branching structures. The same domain "
+        "also hosts *source-identification* experiments, which recover an unknown "
+        "volumetric heat source $f(\\mathbf{x})$ from temperature observations by "
+        "minimizing $\\lVert T - T_\\text{target} \\rVert^2$."
     ),
     bc_description=(
-        "Quasi-2D heated slab on domain [0,2]×[0,1] (nz=1 HEX8 layer). "
-        "Dirichlet: all nodes at x=0 held at T=0 (fixed temperature). "
-        "Neumann (uniform): uniform heat flux Q_total over the right face (x=2). "
-        "Neumann (hot-spot): flux concentrated on the central 1/3 stripe in y "
-        "(Ly/3 ≤ y ≤ 2Ly/3) at the right face, driving non-trivial topology."
+        "Quasi-2D heated slab on domain $[0,2]\\times[0,1]$ (a single HEX8 layer, $n_z=1$). "
+        "Dirichlet: all nodes at $x=0$ held at $T=0$ (fixed temperature). "
+        "Neumann (uniform): uniform heat flux $Q_\\text{total}$ over the right face ($x=2$). "
+        "Neumann (hot-spot): flux concentrated on the central $1/3$ stripe in $y$ "
+        "($L_y/3 \\le y \\le 2L_y/3$) at the right face, driving non-trivial topology."
     ),
     tesseract_dir=_TESSERACT_SLUG,
     output_key="thermal_compliance",
@@ -119,7 +126,7 @@ problem.add_ic(
     "uniform",
     fn=_uniform,
     description=(
-        "Uniform SIMP thermal conductivity density ρ₀ over all hex mesh elements; "
+        "Uniform SIMP thermal conductivity density $\\rho_0$ over all hex mesh elements; "
         "standard homogeneous starting point for heat-conduction topology optimisation."
     ),
     plot_params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
@@ -129,7 +136,7 @@ problem.add_ic(
     "random",
     fn=_random,
     description=(
-        "Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); "
+        "Gaussian-noise density field centred at $\\rho_0=0.5$ ($\\sigma=0.3$, clipped to $[0.05, 0.95]$); "
         "breaks spatial symmetry to produce non-trivial per-cell gradient sensitivity maps."
     ),
     plot_params={
@@ -146,8 +153,8 @@ problem.add_ic(
     "gaussian_source",
     fn=_gaussian_source,
     description=(
-        "Gaussian heat source centred at (cx·Lx, cy·Ly) = (0.5·Lx, 0.5·Ly) with "
-        "width σ·min(Lx,Ly). Used as the control field for source-identification experiments "
+        "Gaussian heat source centred at $(c_x L_x, c_y L_y) = (0.5 L_x, 0.5 L_y)$ with "
+        "width $\\sigma\\min(L_x, L_y)$. Used as the control field for source-identification experiments "
         "(ic_field='source' in physics dict)."
     ),
     plot_params={
@@ -174,7 +181,7 @@ problem.add_ic(
     "two_gaussians",
     fn=_two_gaussians,
     description=(
-        "Two-Gaussian volumetric heat source at (0.3·Lx, 0.5·Ly) and (0.7·Lx, 0.5·Ly). "
+        "Two-Gaussian volumetric heat source at $(0.3 L_x, 0.5 L_y)$ and $(0.7 L_x, 0.5 L_y)$. "
         "Ground-truth source for source-recovery experiments."
     ),
     plot_params={"nx": 16, "ny": 8, "nz": 1},
@@ -189,7 +196,7 @@ problem.add_experiment(
     "forward/baseline",
     agreement,
     plot_description=(
-        "Thermal compliance C vs mesh resolution N with random density; "
+        "Thermal compliance $C$ vs mesh resolution $N$ with random density; "
         "compares FV and FEM solvers across refinements."
     ),
     ic={"name": "random", "seed": 0},
@@ -206,7 +213,10 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/agreement",
     agreement,
-    plot_description="Thermal compliance C vs uniform element density ρ₀ at fixed N; compares solvers on a log scale.",
+    plot_description=(
+        "Thermal compliance $C$ vs uniform element density $\\rho_0$ at fixed "
+        "$N$; compares solvers on a log scale."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "nx": 16,
@@ -224,8 +234,8 @@ problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
     plot_description=(
-        "Thermal compliance C vs total heat flux Q_total at fixed N and "
-        "ρ₀ with a hot-spot BC; shown on log-log axes."
+        "Thermal compliance $C$ vs total heat flux $Q_\\mathrm{total}$ at fixed $N$ and "
+        "$\\rho_0$ with a hot-spot BC; shown on log-log axes."
     ),
     diagnostics=DIAGNOSTICS,
     ic={"name": "uniform", "seed": 0},
@@ -245,7 +255,7 @@ problem.add_experiment(
     "forward/source_baseline",
     agreement,
     plot_description=(
-        "Thermal compliance C vs mesh resolution N with a Gaussian source "
+        "Thermal compliance $C$ vs mesh resolution $N$ with a Gaussian source "
         "field; compares solvers across refinements."
     ),
     ic={"name": "gaussian_source"},
@@ -263,7 +273,7 @@ problem.add_experiment(
 problem.add_experiment(
     "forward/source_linearity",
     agreement,
-    plot_description="Thermal compliance C vs source amplitude at fixed mesh; compares solvers on log-log axes.",
+    plot_description="Thermal compliance $C$ vs source amplitude at fixed mesh; compares solvers on log-log axes.",
     ic={"name": "gaussian_source"},
     physics={
         "nx": 16,
@@ -291,7 +301,7 @@ _THERMAL_NX = [16, 32, 64, 128, 256, 512, 1024]
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
-    plot_description="Forward-pass wall-clock time vs mesh size (nx) for all solvers.",
+    plot_description="Forward-pass wall-clock time vs mesh size ($n_x$) for all solvers.",
     physics={**_THERMAL_PHYS, "steps": 1, "nx": _THERMAL_NX},
     cost={"n_trials": 3},
     plot=plot_cost,
@@ -307,7 +317,7 @@ problem.add_experiment(
 problem.add_experiment(
     "cost/vjp_cost",
     vjp_cost,
-    plot_description="VJP wall-clock time vs mesh size (nx) for differentiable solvers.",
+    plot_description="VJP wall-clock time vs mesh size ($n_x$) for differentiable solvers.",
     runs=[
         {
             "name": "by_N",
@@ -328,7 +338,7 @@ problem.add_experiment(
     "gradient/fd_check",
     fd_check,
     plot_description=(
-        "FD gradient error vs step size ε (U-curves), AD/FD direction "
+        "FD gradient error vs step size $\\varepsilon$ (U-curves), AD/FD direction "
         "cosine, and gradient magnitude field panels."
     ),
     ic={"name": "random", "seed": 0},
@@ -347,7 +357,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/param_sweep",
     param_sweep,
-    plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs element density ρ₀.",
+    plot_description=(
+        "Gradient norm, best-$\\varepsilon$ FD error, AD/FD direction cosine, "
+        "and U-curves vs element density $\\rho_0$."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "nx": 8,
@@ -369,7 +382,7 @@ problem.add_experiment(
     "gradient/source_fd_check",
     fd_check,
     plot_description=(
-        "FD gradient error vs ε, AD/FD direction cosine, and gradient "
+        "FD gradient error vs $\\varepsilon$, AD/FD direction cosine, and gradient "
         "field panels for d(identification_error)/d(source)."
     ),
     ic={"name": "gaussian_source"},
@@ -392,7 +405,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/source_width_sweep",
     param_sweep,
-    plot_description="Gradient norm, best-ε FD error, AD/FD direction cosine, and U-curves vs source width σ.",
+    plot_description=(
+        "Gradient norm, best-$\\varepsilon$ FD error, AD/FD direction cosine, "
+        "and U-curves vs source width $\\sigma$."
+    ),
     ic={"name": "gaussian_source"},
     ic_key="source",
     output_key="identification_error",

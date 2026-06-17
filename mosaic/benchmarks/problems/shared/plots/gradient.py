@@ -48,6 +48,17 @@ apply_style()
 
 _SUITE = "gradient"
 
+# Render common sweep-parameter keys as proper math on plot axes/titles.
+_SWEEP_MATH_LABELS = {
+    "nu": r"$\nu$  (viscosity)",
+    "rho0": r"$\rho_0$  (density)",
+    "rho": r"$\rho$  (density)",
+    "density": r"$\rho_0$  (density)",
+    "source_width": r"$\sigma$  (source width)",
+    "sigma": r"$\sigma$",
+    "steps": "rollout steps $T$",
+}
+
 
 # ── fd_check helpers ──────────────────────────────────────────────────────────
 
@@ -132,7 +143,7 @@ def _fd_check_figure(
     _fd_check_style_axes(
         ax_err,
         ax_cos,
-        title=f"FD check — {cfg.category_label or cfg.name}",
+        title="Gradient check vs finite differences (valley = accurate)",
         ylabel_left=True,
     )
 
@@ -766,14 +777,20 @@ def _finite_or_nan(v: Any) -> float:
 
 def _plot_best_eps_overlay(
     by_solver: dict,
-    styles: dict,
     title: str,
     x_keys: Any,
     x_to_float: Any,
     x_label: str,
     x_scale: str = "linear",
 ) -> plt.Figure:
-    """All solvers overlaid: best-ε rel_error_mean vs x_keys."""
+    """All solvers overlaid: best-ε rel_error_mean vs x_keys.
+
+    Styling (color/linestyle/marker) and the legend come from the canonical
+    ``SOLVER_STYLES`` registry via ``solver_props``/``make_handle``, so this
+    plot is consistent with the other gradient figures (fd_check, horizon
+    sweep). Earlier it used ``solver_styles(cfg)``, a second family-palette
+    style source that assigned a different colour/marker to each solver.
+    """
     fig, ax = paper_row(1)
 
     def _best_re(eps_sweep: dict) -> float:
@@ -799,17 +816,25 @@ def _plot_best_eps_overlay(
         if not pairs:
             continue
         px, py = zip(*pairs, strict=False)
+        label, color, ls, mk = solver_props(name)
         ax.semilogy(
             px,
             py,
-            label=styles[name]["label"],
-            **solver_plot_props(styles[name]),
+            label=label,
+            color=color,
+            linestyle=ls,
+            marker=mk,
+            markersize=4,
+            markeredgewidth=0,
+            linewidth=1.6,
         )
 
     ax.set_xscale(x_scale)
     ax.set_xlabel(x_label)
-    ax.set_ylabel("Relative FD error (best ε)")
+    ax.set_ylabel(r"Relative FD error (best $\varepsilon$)")
     ax.set_title(title)
+    # Shared legend below the panel; constrained-layout aware (matches the
+    # other gradient figures via the same SOLVER_STYLES-driven handles).
     fig_shared_legend(fig, [ax])
     return fig
 
@@ -908,18 +933,17 @@ def plot_param_sweep(
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     result_path = out_dir / "result.json"
     data = v1_to_legacy(load_json(result_path))
-    styles = _alias_tolerant(solver_styles(cfg))
     sweep_key = data.get("sweep_key", "param")
+    x_label = _SWEEP_MATH_LABELS.get(sweep_key, sweep_key)
 
     # ── Best-ε FD error vs param, all solvers overlaid ────────────────────────
     param_vals = sorted(next(iter(data["by_solver"].values())).keys(), key=float)
     fig_b = _plot_best_eps_overlay(
         data["by_solver"],
-        styles,
-        "Best-ε FD error",
+        f"Gradient accuracy vs {x_label}: lower is better",
         x_keys=param_vals,
         x_to_float=float,
-        x_label=sweep_key,
+        x_label=x_label,
         x_scale="log",
     )
     if save:
@@ -1223,8 +1247,6 @@ def plot_jacobian_svd_comparison(
                     )
                 )
 
-        ax.axhline(1e-1, color="gray", linestyle="--", linewidth=0.8, alpha=0.6)
-        ax.axhline(1e-4, color="gray", linestyle="--", linewidth=0.8, alpha=0.6)
         ax.set_title(label_base, color=color)
         ax.set_xlabel("Mode index $i$")
         ax.set_ylabel(r"$\sigma_i\,/\,\sigma_1$")
@@ -1240,7 +1262,10 @@ def plot_jacobian_svd_comparison(
             ncol=min(len(variant_handles), 4),
             handlelength=2.0,
         )
-    fig.suptitle("Jacobian SVD spectra", fontweight="bold")
+    fig.suptitle(
+        "Jacobian singular-value spectra (flatter = better-conditioned gradient)",
+        fontweight="bold",
+    )
 
     if save:
         out_dir = results_dir() / cfg.name / _SUITE

@@ -1,0 +1,52 @@
+/*-- scss:rules --*/
+
+// ── Plot sizing guardrail ────────────────────────────────────────────────────
+// Result pages embed matplotlib PNGs at their natural pixel size, which Quarto
+// scales up to the full content width. A few plots are a single tall panel
+// (one-solver FD U-curves, stacked per-solver field grids, the cost overview),
+// and full-width scaling blows those up to several screen-heights. Cap the
+// rendered height and let width shrink to keep the aspect ratio, so a tall
+// figure stays readable without dominating the page. Lightbox (click-to-zoom)
+// still serves the full-resolution image.
+img.img-fluid,
+.quarto-figure img,
+p > img {
+  max-height: 32rem;
+  height: auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  // Centre figures whose width is now narrower than the column.
+  display: block;
+  margin-inline: auto;
+}
+
+// ── Sortable ranking tables ──────────────────────────────────────────────────
+// The solver-ranking tables (wrapped in `.sortable-table`) get click-to-sort
+// behaviour from docs/sortable-tables.html. Style the headers as affordances:
+// pointer cursor, hover highlight, and a ▲/▼ indicator on the active column.
+.sortable-table table th.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  // Reserve room for the indicator so the header doesn't shift when it appears.
+  &::after {
+    content: "↕";
+    opacity: 0.25;
+    margin-left: 0.4em;
+    font-size: 0.85em;
+  }
+  &[data-sort="asc"]::after {
+    content: "▲";
+    opacity: 0.9;
+  }
+  &[data-sort="desc"]::after {
+    content: "▼";
+    opacity: 0.9;
+  }
+}

@@ -17,12 +17,21 @@ Differentiable physics solvers unlock gradient-based optimization for topology o
 | **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
 | **F3** | 3D Navier-Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
 
+### 📊 [Browse the latest benchmark results →](https://docs.pasteurlabs.ai/projects/mosaic/latest/docs/results_ns_grid.html)
+
+Per-domain pages with every plot, solver rankings, and the full evaluation protocol, refreshed on each release:
+[Navier–Stokes 2D](https://docs.pasteurlabs.ai/projects/mosaic/latest/docs/results_ns_grid.html) ·
+[Navier–Stokes 3D](https://docs.pasteurlabs.ai/projects/mosaic/latest/docs/results_ns_3d_grid.html) ·
+[Structural mechanics](https://docs.pasteurlabs.ai/projects/mosaic/latest/docs/results_structural_mesh.html) ·
+[Heat transfer](https://docs.pasteurlabs.ai/projects/mosaic/latest/docs/results_thermal_mesh.html)
+
 ---
 
 > **Paper reproduction:** if you're here to reproduce the results from [our paper](https://arxiv.org/abs/XXXX.XXXXX), see the [`v0.1+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.1+paper-repro) tag which contains the figure-generation code, pinned dependencies, and step-by-step instructions.
 
 **Jump to your use case:**
 
+- [Browse the results](https://docs.pasteurlabs.ai/projects/mosaic/latest/docs/results_ns_grid.html) — see how the solvers compare, no setup required
 - [Run the benchmarks](#run-the-benchmarks) — run solvers and inspect results
 - [Use Tesseracts in your own code](#use-tesseracts-in-your-own-code) — researcher building on Mosaic solvers
 - [Contribute](#contribute) — add a solver, tune a configuration, or extend to a new domain
@@ -203,7 +212,7 @@ Mosaic is designed to grow with the community. There are three ways in, roughly 
 ## Documentation
 
 - [Getting Started](docs/getting-started.qmd) — prerequisites, installation, first benchmark
-- [Standalone Usage](docs/standalone.qmd) — using individual Tesseracts in your own code
+- [Use Mosaic solvers elsewhere](docs/standalone.qmd) — using individual Tesseracts in your own code
 - [Architecture](docs/architecture.qmd) — Tesseract interface, data structures, evaluation protocol
 - [Solver Reference](docs/solvers.qmd) — per-solver documentation with numerical methods, AD strategies, and known limitations
 - [Add a Solver](docs/tutorial-add-solver.qmd) — step-by-step tutorial with a complete working example
