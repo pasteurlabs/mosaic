@@ -1,5 +1,5 @@
 ---
-title: Internals
+title: How it works
 ---
 
 Data structures defined in `mosaic/benchmarks/core/config.py` that the runner, status pipeline, and per-problem packages all read from. Contributors writing a new domain (see [Add a Backend](tutorial.qmd)) need to know these field-by-field; the [Tesseract interface](standalone.qmd#how-tesseracts-work) is documented separately because its audience extends past Mosaic itself.

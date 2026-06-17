@@ -1,0 +1,104 @@
+<script type="text/javascript">
+// Click-to-sort for the solver-ranking tables on the results pages.
+//
+// Each ranking table is rendered inside a `::: {.sortable-table}` div (see
+// docs/generate_results.py). This attaches click handlers to every header
+// cell: click to sort by that column, click again to reverse. Sorting is
+// numeric-aware — cells like "1.74e-08", "0.113 s", or "—" are compared by
+// their leading numeric value, everything else alphabetically. No dependency;
+// if JS is disabled the table stays static and rank-ordered.
+
+(function () {
+  "use strict";
+
+  // Parse a cell's sort value. Returns {num} when the text starts with a
+  // number (optionally signed / scientific / with a trailing unit), else
+  // {str} with the lowercased text. Non-finite placeholders ("—", "n/a")
+  // sort to the end regardless of direction.
+  function cellValue(text) {
+    const t = text.trim();
+    if (t === "" || t === "—" || t === "-" || t.toLowerCase() === "n/a") {
+      return { num: NaN, str: "" };
+    }
+    // Leading number: -1.74e-08, 0.113, 12, 1.2e3 ...
+    const m = t.match(/^[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/);
+    if (m) return { num: parseFloat(m[0]), str: t.toLowerCase() };
+    return { num: NaN, str: t.toLowerCase() };
+  }
+
+  function compare(a, b, numeric) {
+    const av = cellValue(a);
+    const bv = cellValue(b);
+    if (numeric) {
+      const an = isNaN(av.num);
+      const bn = isNaN(bv.num);
+      // NaN (placeholder) always sorts last.
+      if (an && bn) return 0;
+      if (an) return 1;
+      if (bn) return -1;
+      return av.num - bv.num;
+    }
+    return av.str.localeCompare(bv.str);
+  }
+
+  // Decide whether a column is numeric: a majority of its data cells parse
+  // as numbers. Keeps text columns (Solver, Converged) alphabetical.
+  function columnIsNumeric(rows, colIdx) {
+    let numeric = 0;
+    let total = 0;
+    for (const row of rows) {
+      const cell = row.cells[colIdx];
+      if (!cell) continue;
+      total += 1;
+      if (!isNaN(cellValue(cell.textContent).num)) numeric += 1;
+    }
+    return total > 0 && numeric / total >= 0.5;
+  }
+
+  function makeSortable(table) {
+    const thead = table.tHead;
+    if (!thead || !thead.rows.length) return;
+    const headerCells = Array.from(thead.rows[0].cells);
+    const tbody = table.tBodies[0];
+    if (!tbody) return;
+
+    headerCells.forEach((th, colIdx) => {
+      th.classList.add("sortable-th");
+      th.setAttribute("role", "button");
+      th.setAttribute("tabindex", "0");
+      let ascending = true;
+
+      function sort() {
+        const rows = Array.from(tbody.rows);
+        const numeric = columnIsNumeric(rows, colIdx);
+        rows.sort((r1, r2) => {
+          const c1 = r1.cells[colIdx] ? r1.cells[colIdx].textContent : "";
+          const c2 = r2.cells[colIdx] ? r2.cells[colIdx].textContent : "";
+          const cmp = compare(c1, c2, numeric);
+          return ascending ? cmp : -cmp;
+        });
+        rows.forEach((r) => tbody.appendChild(r));
+
+        // Update sort indicators.
+        headerCells.forEach((h) => h.removeAttribute("data-sort"));
+        th.setAttribute("data-sort", ascending ? "asc" : "desc");
+        ascending = !ascending;
+      }
+
+      th.addEventListener("click", sort);
+      th.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          sort();
+        }
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document
+      .querySelectorAll(".sortable-table table")
+      .forEach((table) => makeSortable(table));
+  });
+})();
+</script>

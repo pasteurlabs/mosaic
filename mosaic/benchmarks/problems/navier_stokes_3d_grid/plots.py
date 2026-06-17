@@ -470,7 +470,7 @@ def _plot_recovery_experiment(
     Draws per-solver IC-error vs iteration on a log scale (using the
     representative sigma slice, see ``_PAPER_NS_SIGMA``). Reads
     ``result.json`` from the experiment directory and writes
-    ``<exp_key>.pdf`` next to it when ``save`` is True.
+    ``<exp_key>.png`` next to it when ``save`` is True.
     """
     out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
     result_path = out_dir / "result.json"

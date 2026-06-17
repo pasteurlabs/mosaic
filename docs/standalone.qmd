@@ -1,5 +1,5 @@
 ---
-title: Standalone Usage
+title: Use Mosaic solvers elsewhere
 ---
 
 You do not need the full benchmark harness to use a Mosaic solver. This page introduces the Tesseract interface every solver exposes, then shows the two ways to call one from your own code.

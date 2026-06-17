@@ -84,6 +84,41 @@ def _dedup_solver_names(names: list[str]) -> list[str]:
 
 # ── agreement ─────────────────────────────────────────────────────────────────
 
+# Human-readable axis labels for scalar-output agreement plots. ``output_key``
+# arrives as a raw schema field name (e.g. "output", "thermal_compliance"),
+# which makes for an opaque "Output" title; map the common ones to a labelled,
+# math-typeset quantity instead.
+_SCALAR_OUTPUT_LABELS = {
+    "output": ("Scalar output", "Solver output vs resolution"),
+    "thermal_compliance": (
+        r"Thermal compliance $C$",
+        "Thermal compliance vs resolution",
+    ),
+    "compliance": (
+        r"Structural compliance $C = \mathbf{F}^\top\mathbf{u}$",
+        "Structural compliance vs resolution",
+    ),
+}
+
+# Sweep-key → axis label for the scalar agreement plots (renders "N" as a
+# described mesh-resolution axis rather than a bare letter / lowercase "n").
+_SCALAR_X_LABELS = {
+    "N": "Mesh resolution $N$",
+    "n_elements": "Elements per side $N$",
+}
+
+
+def _scalar_output_labels(output_key: str, sweep_key: str) -> tuple[str, str]:
+    """Return (ylabel, title) for a scalar-output agreement plot.
+
+    Falls back to a prettified field name when the key is unknown, so adding a
+    new scalar output still yields a sane label without a registry entry.
+    """
+    if output_key in _SCALAR_OUTPUT_LABELS:
+        return _SCALAR_OUTPUT_LABELS[output_key]
+    pretty = output_key.replace("_", " ")
+    return pretty, pretty[:1].upper() + pretty[1:]
+
 
 def _agreement_plot_scalar(
     cfg: Any,
@@ -119,10 +154,10 @@ def _agreement_plot_scalar(
         ax.set_yscale("log")
     for y_vals, props, lbl in solver_series:
         ax.plot(sweep_vals, y_vals, label=lbl, **props)
-    ax.set_xlabel(unit_label(sweep_key, units))
-    ylabel = output_key.replace("_", " ")
+    ax.set_xlabel(_SCALAR_X_LABELS.get(sweep_key, unit_label(sweep_key, units)))
+    ylabel, title = _scalar_output_labels(output_key, sweep_key)
     ax.set_ylabel(ylabel)
-    ax.set_title(ylabel[:1].upper() + ylabel[1:])
+    ax.set_title(title)
     fig_shared_legend(fig, [ax])
     if save:
         save_fig(fig, "curves", out_dir)
@@ -371,7 +406,7 @@ def _agreement_figure(
 ) -> plt.Figure:
     """Styled single-experiment agreement figure.
 
-    Writes ``agreement.pdf`` next to ``result.json``. Single axis plots
+    Writes ``agreement.png`` next to ``result.json``. Single axis plots
     per-solver error vs the sweep parameter (sweep_key inferred from the
     result file), styled with the shared palette + rcParams.
     """
@@ -429,7 +464,7 @@ def _agreement_convergence(
 ) -> None:
     """Error vs sweep param line chart (styled).
 
-    Renders the canonical single-experiment figure (``agreement.pdf``
+    Renders the canonical single-experiment figure (``agreement.png``
     next to ``result.json``). The previous ``convergence.png`` /
     ``errors.png`` shared-style files are superseded by this output.
     """
@@ -453,14 +488,17 @@ def plot_agreement(
 ) -> Any:
     """Convergence-vs-sweep plot for the agreement experiment.
 
-    Writes a single ``curves.pdf`` (scalar / 1-D outputs) or
-    ``agreement.pdf`` (paper-styled error-vs-sweep, 2-D field outputs).
+    Writes a single ``agreement.png`` (paper-styled error-vs-sweep).
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
     data = v1_to_legacy(load_json(out_dir / "result.json"))
     sweep_key = data.get("sweep_key", "param")
     styles = solver_styles(cfg)
+    # No explicit override → label the curve with the problem's own output
+    # quantity (e.g. "thermal_compliance") rather than the generic "output".
+    if output_key == "output" and getattr(cfg, "output_key", None):
+        output_key = cfg.output_key
 
     npz = try_load_npz(fields_path)
     if "sweep_values" not in npz:
@@ -901,7 +939,7 @@ def plot_physical_laws(
 
     Reads ``<results>/<cfg.name>/forward/<exp_key>{suffix}/result.json``
     (or its sub-dirs when the experiment is a multi-run sweep) and writes
-    a styled PDF named ``physical_accuracy.pdf`` next to it.
+    a styled PNG named ``physical_accuracy.png`` next to it.
 
     Detection:
       * If the experiment dir contains ``result.json``: single FEM panel

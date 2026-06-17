@@ -105,14 +105,21 @@ problem = Problem(
     name="ns-3d-grid",
     category_label="Navier–Stokes (Grid)",
     description=(
-        "3D incompressible Navier–Stokes on a triply-periodic domain with viscosity ν as "
-        "the primary control parameter. The 3D extension admits helical structures, vortex "
-        "stretching, and faster chaos onset than 2D: chaos horizon T* ≈ 8–16 s vs T* > 64 s "
-        "in 2D (at ν=0.001, N=16). Gradient norms grow (vortex stretching) rather than "
-        "decaying as in 2D."
+        "**Fluid flow in 3D.** The 3D counterpart of the 2D fluid problem, and the "
+        "harder stress test for differentiable simulation: real turbulence lives in 3D, "
+        "and the gradients are correspondingly more delicate.\n\n"
+        "We solve the 3D incompressible Navier–Stokes equations "
+        "$\\partial_t \\mathbf{u} + (\\mathbf{u}\\cdot\\nabla)\\mathbf{u} "
+        "= -\\nabla p + \\nu\\,\\nabla^2\\mathbf{u}$, $\\nabla\\cdot\\mathbf{u}=0$, "
+        "with viscosity $\\nu$ as the primary control parameter. Unlike 2D, the 3D "
+        "equations admit *vortex stretching*, which amplifies vorticity and brings on "
+        "chaos far sooner: the chaos horizon is $T^\\ast \\approx 8\\text{–}16$ s versus "
+        "$T^\\ast > 64$ s in 2D (at $\\nu=10^{-3}$, $N=16$). As a result gradient norms "
+        "*grow* along the rollout here rather than decaying as they do in 2D."
     ),
     bc_description=(
-        "Triply-periodic cubic domain [0, 2π]³; incompressibility enforced via "
+        "Triply-periodic cubic domain $[0, 2\\pi]^3$ (the flow wraps around on all "
+        "three axes). Incompressibility $\\nabla\\cdot\\mathbf{u}=0$ is enforced by a "
         "pressure projection at each time step. No walls or inflow/outflow boundaries."
     ),
     tesseract_dir=_TESSERACT_SLUG,

@@ -54,7 +54,7 @@ def _conductivity_methods() -> dict[str, tuple]:
 
 
 def _conductivity_overview_generate(out_dir: Path) -> None:
-    """Generate ``conductivity_recovery_overview.pdf`` into *out_dir*.
+    """Generate ``conductivity_recovery_overview.png`` into *out_dir*.
 
     Layout:
       Row 0: identification error history — loglog, all solvers × both methods
@@ -222,7 +222,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
 
 
 def _conductivity_overview_plot(cfg: Problem, **_kw: Any) -> None:
-    """Runner-facing adapter: writes ``conductivity_recovery_overview.pdf``."""
+    """Runner-facing adapter: writes ``conductivity_recovery_overview.png``."""
     out_dir = results_dir() / cfg.name / "_extra"
     out_dir.mkdir(parents=True, exist_ok=True)
     _conductivity_overview_generate(out_dir)

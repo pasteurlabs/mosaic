@@ -71,11 +71,7 @@ mosaic-shared = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --tb=short -m 'not integration and not slow'"
-markers = [
-    "integration: requires Docker and a built Tesseract container (deselected by default)",
-    "slow: builds the full dummy-result corpus (every experiment runs once); deselected by default. Run with `pytest -m slow` for the plot tests.",
-]
+addopts = "-v --tb=short"
 
 [tool.ruff]
 # Set to the lowest supported Python version.

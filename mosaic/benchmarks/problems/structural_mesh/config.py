@@ -83,19 +83,27 @@ for _key in ("dealii_structural", "fenics_structural", "firedrake_structural"):
 
 problem = Problem(
     name="structural-mesh",
-    category_label="Structural Mechanics",
+    category_label="Structural mechanics",
     description=(
-        "3D linear-elasticity compliance minimisation on a cantilever beam with SIMP "
-        "material penalisation (p=3, E_max=70 000 MPa). The stiffness matrix K(ρ) couples "
-        "every density element to the global displacement field via the constitutive "
-        "relation E_eff(ρ) = E_min + (E_max − E_min)·ρ³; the compliance objective "
-        "C = F^T K(ρ)⁻¹ F is smooth but non-convex in ρ, driving gradient-based "
-        "topology optimisation toward sparse binary 0/1 layouts."
+        "**Designing a stiff structure.** Given a fixed amount of material, where "
+        "should it go to make a loaded beam as rigid as possible? This is *topology "
+        "optimization*, solved by differentiating a finite-element "
+        "stress analysis with respect to a per-element material density field $\\rho$.\n\n"
+        "We minimize the compliance (inverse stiffness) of a 3D linear-elastic "
+        "cantilever beam under the SIMP density-penalization scheme "
+        "($p=3$, $E_\\max = 70{,}000$ MPa). Each element's stiffness follows the "
+        "constitutive relation $E_\\text{eff}(\\rho) = E_\\min + (E_\\max - E_\\min)\\,\\rho^3$, "
+        "and the global stiffness matrix $K(\\rho)$ couples every element to the "
+        "displacement field. The objective $C = \\mathbf{F}^\\top K(\\rho)^{-1}\\mathbf{F}$ "
+        "(external work under load $\\mathbf{F}$) is smooth but non-convex in $\\rho$, so "
+        "gradient-based optimization drives the design toward sparse, near-binary "
+        "$0/1$ material layouts, and the gradient must stay reliable throughout."
     ),
     bc_description=(
-        "3-D cantilever beam on domain [0,2]×[0,1]×[0,1] (HEX8 elements, 2:1:1 aspect). "
-        "Dirichlet: all nodes at x=0 have zero displacement (clamped). "
-        "Neumann: a prescribed total force is applied to the right face (x=2) — "
+        "3D cantilever beam on domain $[0,2]\\times[0,1]\\times[0,1]$ "
+        "(HEX8 elements, 2:1:1 aspect). "
+        "Dirichlet: all nodes at $x=0$ have zero displacement (clamped wall). "
+        "Neumann: a prescribed total force is applied to the right face ($x=2$), "
         "either a uniform downward traction or a concentrated upward corner load "
         "depending on the experiment (controlled by the corner_load flag)."
     ),
@@ -116,7 +124,7 @@ problem.add_ic(
     "uniform",
     _uniform,
     description=(
-        "Uniform SIMP material density ρ₀ over all hex mesh elements; standard "
+        "Uniform SIMP material density $\\rho_0$ over all hex mesh elements; standard "
         "homogeneous starting point for topology optimisation of the cantilever beam."
     ),
     plot_params={"rho_0": 0.5, "nx": 16},
@@ -126,7 +134,7 @@ problem.add_ic(
     "random",
     _random,
     description=(
-        "Gaussian-noise density field centred at ρ₀=0.5 (σ=0.3, clipped to [0.05, 0.95]); "
+        "Gaussian-noise density field centred at $\\rho_0=0.5$ ($\\sigma=0.3$, clipped to $[0.05, 0.95]$); "
         "breaks spatial symmetry so gradient experiments see non-trivial per-cell sensitivity."
     ),
     plot_params={},
@@ -136,8 +144,10 @@ problem.add_ic(
     "two_density_bumps",
     _two_density_bumps,
     description=(
-        "Ground-truth density with two stiff Gaussian pillars (ρ_peak=0.95, σ=0.12·min(Lx,Lz)) "
-        "at (0.35·Lx, 0.5·Ly, 0.5·Lz) and (0.75·Lx, 0.5·Ly, 0.5·Lz) on a soft ρ_bg=0.1 "
+        "Ground-truth density with two stiff Gaussian pillars "
+        "($\\rho_\\mathrm{peak}=0.95$, $\\sigma=0.12\\min(L_x, L_z)$) "
+        "at $(0.35 L_x, 0.5 L_y, 0.5 L_z)$ and $(0.75 L_x, 0.5 L_y, 0.5 L_z)$ "
+        "on a soft $\\rho_\\mathrm{bg}=0.1$ "
         "background; analog of thermal-mesh ``two_gaussians`` for the load-recovery inverse "
         "experiment (recover density from displacement observations)."
     ),
@@ -153,8 +163,8 @@ problem.add_experiment(
     "forward/baseline",
     agreement,
     plot_description=(
-        "Structural compliance C = F^T U vs mesh resolution N for each solver, "
-        "uniform density ρ₀=0.5, full-face downward load."
+        "Structural compliance $C = \\mathbf{F}^\\top \\mathbf{u}$ vs mesh resolution $N$ for each solver, "
+        "uniform density $\\rho_0=0.5$, full-face downward load."
     ),
     ic={"name": "uniform", "seed": 0},
     physics={
@@ -173,7 +183,7 @@ problem.add_experiment(
     "forward/agreement",
     agreement,
     plot_description=(
-        "Structural compliance C = F^T U vs density ρ₀ at fixed mesh, "
+        "Structural compliance $C = \\mathbf{F}^\\top \\mathbf{u}$ vs density $\\rho_0$ at fixed mesh, "
         "sweeping uniform density to span the SIMP stiffness regime."
     ),
     ic={"name": "uniform", "seed": 0},
@@ -194,7 +204,7 @@ problem.add_experiment(
     "forward/physical_laws",
     physical_laws,
     plot_description=(
-        "Diagnostic functionals (compliance, total displacement) vs total load F_total, "
+        "Diagnostic functionals (compliance, total displacement) vs total load $F_\\mathrm{total}$, "
         "validating linearity of the SIMP response."
     ),
     diagnostics=DIAGNOSTICS,
@@ -225,7 +235,7 @@ _MESH_PHYS = {
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
-    plot_description="Forward-pass wall-clock time vs mesh resolution N at one assembly step.",
+    plot_description="Forward-pass wall-clock time vs mesh resolution $N$ at one assembly step.",
     physics={**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
     cost={"n_trials": 3},
     plot=plot_cost,
@@ -245,7 +255,7 @@ problem.add_experiment(
 problem.add_experiment(
     "cost/vjp_cost",
     vjp_cost,
-    plot_description="VJP wall-clock time vs mesh resolution N for differentiable solvers.",
+    plot_description="VJP wall-clock time vs mesh resolution $N$ for differentiable solvers.",
     runs=[
         {
             "name": "by_N",
@@ -266,7 +276,7 @@ problem.add_experiment(
     "gradient/fd_check",
     fd_check,
     plot_description=(
-        "U-curves of finite-difference gradient error vs perturbation size ε "
+        "U-curves of finite-difference gradient error vs perturbation size $\\varepsilon$ "
         "with subspace cosine, validating VJP correctness on a random density."
     ),
     ic={"name": "random", "seed": 0},
@@ -299,7 +309,10 @@ problem.add_experiment(
 problem.add_experiment(
     "gradient/param_sweep",
     param_sweep,
-    plot_description="Gradient norm, best-ε FD error, direction cosine, and U-curves vs uniform density ρ₀.",
+    plot_description=(
+        "Gradient norm, best-$\\varepsilon$ FD error, direction cosine, and "
+        "U-curves vs uniform density $\\rho_0$."
+    ),
     ic={"name": "uniform", "seed": 0},
     physics={
         "nx": 8,
@@ -322,8 +335,8 @@ problem.add_experiment(
     "optimization/topopt",
     topopt,
     plot_description=(
-        "SIMP topology optimisation on a 16×8×8 cantilever beam with Adam (lr=0.05): "
-        "compliance C = F^T U and density field evolution under a "
+        "SIMP topology optimisation on a $16\\times8\\times8$ cantilever beam with Adam (lr=0.05): "
+        "compliance $C = \\mathbf{F}^\\top \\mathbf{u}$ and density field evolution under a "
         "50% volume-fraction constraint."
     ),
     ic={"name": "uniform", "seed": 0},

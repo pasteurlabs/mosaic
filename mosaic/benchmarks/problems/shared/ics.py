@@ -11,7 +11,7 @@ explicitly so each problem owns its own registration in its
 
 Results land at ``<results>/{problem}/ics/{ic_name}/``:
 
-  * ``ic.png`` / ``ic.pdf`` — 2-D projection of the IC
+  * ``ic.png``             — 2-D projection of the IC
   * ``params.json``         — IC generation kwargs used for the plot
 """
 

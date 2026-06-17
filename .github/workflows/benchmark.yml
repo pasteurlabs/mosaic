@@ -215,7 +215,16 @@ jobs:
   report:
     name: Report & publish
     needs: [plan, benchmarks]
-    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled()
+    # Runs on every PR (and every dispatch where benchmarks ran), even for
+    # benchmark:none PRs that ran no benchmarks. The benchmark-result steps
+    # below are guarded on should_run; the docs render / upload / RTD-trigger
+    # steps run regardless so doc-only PRs still get a Read the Docs preview.
+    # A benchmark:none PR still fetches the published baseline, so its preview
+    # shows the full site populated with the last released results.
+    if: >-
+      always() && !cancelled()
+      && needs.plan.result == 'success'
+      && (github.event_name == 'pull_request' || needs.plan.outputs.should_run == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -228,13 +237,20 @@ jobs:
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Download all results
+        # Only PR runs that actually ran benchmarks produce results-* artifacts.
+        # benchmark:none PRs skip this and rely on the baseline below.
+        if: needs.plan.outputs.should_run == 'true'
         uses: actions/download-artifact@v8
         with:
           pattern: results-*
           path: staging-results/
 
       - name: Merge results from CPU/GPU artifacts
-        run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
+        if: needs.plan.outputs.should_run == 'true'
+        run: |
+          # download-artifact doesn't create the path dir when nothing matches.
+          mkdir -p staging-results
+          uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download baseline artifact
         # The baseline artifact is produced by a *different* workflow run
@@ -258,15 +274,30 @@ jobs:
           && needs.plan.outputs.is_release_pr != 'true'
         run: |
           if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
-            MERGED=$(mktemp -d)
-            uv run python .github/scripts/overlay-results.py \
-              baseline/mosaic-results mosaic-results "$MERGED"
-            rm -rf mosaic-results
-            mv "$MERGED" mosaic-results
+            if [ -d mosaic-results ] && [ "$(ls mosaic-results/ 2>/dev/null)" ]; then
+              # PR ran benchmarks: overlay its (possibly partial) results on the
+              # baseline, PR winning per solver.
+              MERGED=$(mktemp -d)
+              uv run python .github/scripts/overlay-results.py \
+                baseline/mosaic-results mosaic-results "$MERGED"
+              rm -rf mosaic-results
+              mv "$MERGED" mosaic-results
+            else
+              # benchmark:none (or a PR that ran nothing): no PR results to
+              # overlay, so the preview just shows the published baseline.
+              rm -rf mosaic-results
+              cp -r baseline/mosaic-results mosaic-results
+            fi
           fi
 
+      # The status snapshot/report exist only to summarise *this run's* results
+      # against the baseline. When no benchmarks ran (e.g. benchmark:none or a
+      # docs-only PR), the result tree is just a copy of the baseline, so the
+      # report would be an all-zero diff — pure noise. Skip it; the PR comment
+      # then carries only the docs-preview link.
       - name: Extract baseline snapshot
         id: baseline
+        if: needs.plan.outputs.should_run == 'true'
         run: |
           BASELINE_PATH=""
           if [ -f baseline/mosaic-results/snapshot.json ]; then
@@ -277,9 +308,11 @@ jobs:
           echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Generate status snapshot (JSON)
+        if: needs.plan.outputs.should_run == 'true'
         run: uv run mosaic status --format json > snapshot.json
 
       - name: Generate status report (markdown)
+        if: needs.plan.outputs.should_run == 'true'
         run: |
           DIFF_FLAG=""
           if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
@@ -309,13 +342,10 @@ jobs:
         run: uv run python docs/generate_results.py
 
       - name: Render docs site
-        # PR previews only render the benchmark results pages (QUARTO_PROFILE=pr
-        # activates _quarto-pr.yml). workflow_dispatch runs render the full site.
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            export QUARTO_PROFILE=pr
-          fi
-          uv run quarto render --output-dir _site
+        # Always render the full site, so doc-only (benchmark:none) PRs preview
+        # their prose changes, not just the results pages. Results pages are
+        # populated from the merged PR+baseline result tree above.
+        run: uv run quarto render --output-dir _site
 
       - name: Upload rendered docs site
         uses: actions/upload-artifact@v7
@@ -326,16 +356,6 @@ jobs:
           path: _site/
           overwrite: true
           retention-days: 90
-
-      # ── Post PR comment ────────────────────────────────────────────────
-      - name: Post status comment on PR
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
-        run: |
-          .github/scripts/post-status-comment.sh \
-            "${{ github.event.pull_request.number }}" \
-            status-report.md
 
       # ── Trigger RTD PR preview rebuild ─────────────────────────────────
       # RTD's webhook fires on PR push, but that build starts before
@@ -349,6 +369,40 @@ jobs:
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
           bash .github/scripts/rtd-trigger.sh "${PR_NUM}"
+
+      # ── Resolve RTD preview URL ────────────────────────────────────────
+      # The external version already exists (RTD's webhook created it on PR
+      # push), so its public docs URL can be looked up immediately — no need to
+      # wait for the rebuild below. Resolving it here (a fast API GET) lets the
+      # PR comment link the preview prominently without being held up by the
+      # build poll. Non-fatal: an empty output just omits the banner.
+      - name: Resolve RTD preview URL
+        id: rtd_url
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          bash .github/scripts/rtd-preview-url.sh "${PR_NUM}"
+
+      # ── Post PR comment ────────────────────────────────────────────────
+      # When benchmarks ran, pass the status report; otherwise pass nothing and
+      # the comment is just the docs-preview banner (no all-zero status table).
+      - name: Post status comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          DOCS_PREVIEW_URL: ${{ steps.rtd_url.outputs.preview_url }}
+        run: |
+          REPORT=""
+          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
+            REPORT="status-report.md"
+          fi
+          .github/scripts/post-status-comment.sh \
+            "${{ github.event.pull_request.number }}" \
+            "$REPORT"
 
   # ── Merge gate ─────────────────────────────────────────────────────────
   bench-ok:
@@ -383,9 +437,18 @@ jobs:
             exit 1
           fi
 
-          # benchmark:none → pass immediately
+          # benchmark:none → no benchmarks to check, but the report job still
+          # runs to render the docs preview. A failed render (e.g. a broken
+          # .qmd) should block merge; RTD-side steps are best-effort
+          # (continue-on-error) and don't fail the job.
           if [[ "${{ needs.plan.outputs.label }}" == "none" ]]; then
-            echo "benchmark:none — skipping all benchmark checks"
+            if [[ "${{ github.event_name }}" == "pull_request" \
+               && "${{ needs.report.result }}" != "success" \
+               && "${{ needs.report.result }}" != "skipped" ]]; then
+              echo "::error::Docs preview (report job) failed (${{ needs.report.result }})."
+              exit 1
+            fi
+            echo "benchmark:none — skipping benchmark checks (docs preview OK)"
             exit 0
           fi
 
