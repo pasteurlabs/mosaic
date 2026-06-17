@@ -138,6 +138,27 @@ def _force_remove_containers() -> None:
 atexit.register(_force_remove_containers)
 
 
+# In-process Tesseracts (``inprocess:`` tags, used only by the dummy-backed
+# framework tests) are cached by API path. ``from_tesseract_api`` builds the
+# full FastAPI app + OpenAPI/Pydantic schema on every call (~0.2–1.2 s), which
+# dominates those tests since the same dummy module is opened hundreds of times
+# (7 solvers × ~120 experiment runs). The resulting instance is stateless and
+# fully reusable: ``__enter__`` short-circuits and ``__exit__`` is a no-op when
+# there's no serve context, so a single build per path is safe to share.
+_inprocess_cache: dict[str, Tesseract] = {}
+_inprocess_cache_lock = threading.Lock()
+
+
+def _inprocess_tesseract(api_path: str) -> Tesseract:
+    """Return a cached in-process Tesseract for ``api_path``, building once."""
+    with _inprocess_cache_lock:
+        t = _inprocess_cache.get(api_path)
+        if t is None:
+            t = Tesseract.from_tesseract_api(api_path)
+            _inprocess_cache[api_path] = t
+        return t
+
+
 @contextlib.contextmanager
 def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
     """Open a Tesseract and track its container for cleanup on crash.
@@ -150,8 +171,8 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
     :meth:`Tesseract.from_image`.
     """
     if tag.startswith("inprocess:"):
-        with Tesseract.from_tesseract_api(tag[len("inprocess:") :]) as t:
-            yield t
+        # Cached + reused across opens; no container, nothing to tear down.
+        yield _inprocess_tesseract(tag[len("inprocess:") :])
         return
 
     t = Tesseract.from_image(
