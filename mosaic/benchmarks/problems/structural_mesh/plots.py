@@ -192,7 +192,7 @@ def _plot_topopt_figure(
 
     Reads ``result.json`` (+ optional ``topopt_fields.npz``,
     ``params.json``) from the experiment directory and writes
-    ``<exp_key>.pdf`` next to them when ``save`` is True.
+    ``<exp_key>.png`` next to them when ``save`` is True.
     """
     out_dir = experiment_dir(results_dir(), cfg.name, "optimization", exp_key + suffix)
     result_path = out_dir / "result.json"
@@ -315,7 +315,7 @@ def plot_topopt(
     """Topopt per-experiment plot — styled figure + extras.
 
     Produces a publication-quality compliance-convergence + 3-D voxel figure
-    (``<exp_key>.pdf``) plus:
+    (``<exp_key>.png``) plus:
 
       * ``topopt_fields`` — initial + per-solver final 2-D density panels.
       * ``topopt_evolution_<solver>.gif`` — density-field animation per solver.

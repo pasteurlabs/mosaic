@@ -375,7 +375,7 @@ def _plot_convergence(
 
 
 def _topopt_overview_generate(out_dir: Path) -> None:
-    """Generate ``topopt_overview.pdf`` into *out_dir*.
+    """Generate ``topopt_overview.png`` into *out_dir*.
 
     Layout:
       Left column (split vertically):
@@ -606,7 +606,7 @@ def _topopt_overview_generate(out_dir: Path) -> None:
 
 
 def _topopt_overview_plot(cfg: Problem, **_kw: Any) -> None:
-    """Runner-facing adapter: writes ``topopt_overview.pdf`` under ``_extra/``."""
+    """Runner-facing adapter: writes ``topopt_overview.png`` under ``_extra/``."""
     out_dir = results_dir() / cfg.name / "_extra"
     out_dir.mkdir(parents=True, exist_ok=True)
     _topopt_overview_generate(out_dir)

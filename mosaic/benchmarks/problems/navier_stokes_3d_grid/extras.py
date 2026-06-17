@@ -602,10 +602,9 @@ def _hsl_attach_legend(
 
 
 def _hsl_save_figure(fig: Any, out_dir: Path) -> None:
-    for ext in ("pdf", "png"):
-        out = out_dir / f"horizon_sweep_limits.{ext}"
-        fig.savefig(out)
-        print(f"Saved {out}")
+    out = out_dir / "horizon_sweep_limits.png"
+    fig.savefig(out)
+    print(f"Saved {out}")
 
 
 def _plot_horizon_sweep_limits(cfg: Problem, **_kw: Any) -> Any:
