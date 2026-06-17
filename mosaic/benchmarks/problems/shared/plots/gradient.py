@@ -575,7 +575,7 @@ def plot_fd_check(
     """FD-check experiment plot: curves (styled) + gradient-magnitude fields.
 
     The rel-error / cosine curves use the inlined styling helpers
-    (:func:`_fd_check_figure`) so the per-experiment ``fd_check.pdf``
+    (:func:`_fd_check_figure`) so the per-experiment ``fd_check.png``
     and the figure renderer stay in lockstep. The
     gradient-magnitude field panels are this problem's extra: they need
     ``ic_to_2d`` / ``diagnostic_fields`` flags that don't fit the
@@ -970,7 +970,7 @@ def plot_jacobian_svd(
 
     The per-solver singular spectrum grid uses the inlined styling
     helpers (:func:`_jacobian_svd_figure`) so the per-experiment
-    ``jacobian_svd.pdf`` stays in lockstep with the figure renderer. The cross-solver cosine heatmap, scalar-output
+    ``jacobian_svd.png`` stays in lockstep with the figure renderer. The cross-solver cosine heatmap, scalar-output
     gradient-norm bar chart, and gradient-field panels are this
     problem's extras: they don't fit the cross-domain paper layout, so
     they live here as additional ``save_fig`` calls.
@@ -1127,7 +1127,7 @@ def plot_horizon_sweep(
 
     The grad-norm / best-ε error / cosine curves use the inlined
     styling helpers (:func:`_horizon_sweep_figure`) so the
-    per-experiment ``horizon_sweep.pdf`` stays in lockstep with the
+    per-experiment ``horizon_sweep.png`` stays in lockstep with the
     figure renderer. The U-curve grid, per-solver error panels
     and gradient-magnitude field panels are this problem's extras and
     live here.

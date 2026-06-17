@@ -406,7 +406,7 @@ def _agreement_figure(
 ) -> plt.Figure:
     """Styled single-experiment agreement figure.
 
-    Writes ``agreement.pdf`` next to ``result.json``. Single axis plots
+    Writes ``agreement.png`` next to ``result.json``. Single axis plots
     per-solver error vs the sweep parameter (sweep_key inferred from the
     result file), styled with the shared palette + rcParams.
     """
@@ -464,7 +464,7 @@ def _agreement_convergence(
 ) -> None:
     """Error vs sweep param line chart (styled).
 
-    Renders the canonical single-experiment figure (``agreement.pdf``
+    Renders the canonical single-experiment figure (``agreement.png``
     next to ``result.json``). The previous ``convergence.png`` /
     ``errors.png`` shared-style files are superseded by this output.
     """
@@ -488,8 +488,7 @@ def plot_agreement(
 ) -> Any:
     """Convergence-vs-sweep plot for the agreement experiment.
 
-    Writes a single ``curves.pdf`` (scalar / 1-D outputs) or
-    ``agreement.pdf`` (paper-styled error-vs-sweep, 2-D field outputs).
+    Writes a single ``agreement.png`` (paper-styled error-vs-sweep).
     """
     out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
     fields_path = out_dir / "fields.npz"
@@ -940,7 +939,7 @@ def plot_physical_laws(
 
     Reads ``<results>/<cfg.name>/forward/<exp_key>{suffix}/result.json``
     (or its sub-dirs when the experiment is a multi-run sweep) and writes
-    a styled PDF named ``physical_accuracy.pdf`` next to it.
+    a styled PNG named ``physical_accuracy.png`` next to it.
 
     Detection:
       * If the experiment dir contains ``result.json``: single FEM panel

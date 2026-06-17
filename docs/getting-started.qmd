@@ -174,7 +174,7 @@ mosaic-results/
     forward/
       baseline/result.json    # per-solver forward errors
       agreement/result.json   # cross-solver agreement
-      *.png, *.pdf            # generated plots
+      *.png                   # generated plots
     gradient/
       fd_check/result.json    # FD verification results
     cost/
