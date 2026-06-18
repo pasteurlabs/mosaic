@@ -26,8 +26,7 @@ website:
   repo-actions: [edit, issue]
   navbar:
     # Ordered as a progression: understand -> run -> see results -> look up ->
-    # use -> extend. Results is moved to last so it's visible; advanced
-    # and contributor topics are grouped under "Contribute" at the end.
+    # use -> extend. Results is moved to last so it's extra visible.
     left:
       - text: Overview
         file: docs/index.qmd
@@ -35,16 +34,26 @@ website:
         file: docs/getting-started.qmd
       - text: Solver Reference
         file: docs/solvers.qmd
-      - text: Use solvers elsewhere
+      - text: Use Solvers Elsewhere
         file: docs/standalone.qmd
       - text: Contribute
-      - text: Results
-        file: docs/results.qmd
         menu:
           - text: Add a Backend
             file: docs/tutorial.qmd
           - text: How it works
             file: docs/internals.qmd
+      - text: Results
+        menu:
+          - text: Overview
+            file: docs/results.qmd
+          - text: Navier-Stokes (2D)
+            file: docs/results_ns_grid.qmd
+          - text: Navier-Stokes (3D)
+            file: docs/results_ns_3d_grid.qmd
+          - text: Structural Mechanics
+            file: docs/results_structural_mesh.qmd
+          - text: Heat Transfer
+            file: docs/results_thermal_mesh.qmd
     right:
       - icon: github
         href: https://github.com/pasteurlabs/mosaic
