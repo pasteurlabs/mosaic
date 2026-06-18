@@ -13,7 +13,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
+from mosaic_shared.schema_types import make_differentiable
 
 
 class InputSchema(

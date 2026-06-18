@@ -17,7 +17,7 @@ from mosaic_shared.problems.thermal_mesh import (
 from mosaic_shared.problems.thermal_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
+from mosaic_shared.schema_types import make_differentiable
 from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.jax_recipes import jax_jvp, jax_vjp
 

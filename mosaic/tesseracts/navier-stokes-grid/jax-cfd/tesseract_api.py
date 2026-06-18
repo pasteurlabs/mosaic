@@ -13,7 +13,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
+from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths

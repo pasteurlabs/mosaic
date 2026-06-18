@@ -180,7 +180,7 @@ The import path uses `mosaic_shared.problems.navier_stokes_grid`, not a relative
 Subclass the canonical schemas and declare which fields your solver can differentiate through. Mosaic provides `make_differentiable(base, [...])`, which returns a new Pydantic class with the listed fields wrapped in `Differentiable[...]` (preserving every other field as-is):
 
 ```python
-from mosaic_shared.types import make_differentiable
+from mosaic_shared.schema_types import make_differentiable
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
@@ -731,7 +731,7 @@ class OutputSchema(BaseModel):
 Two equivalent ways to declare differentiable fields:
 
 * **Inline (shown above):** wrap each field's type with `Differentiable[...]` directly.
-* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `mosaic_shared.types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
+* **Post-hoc:** define a plain `BaseModel`, then derive the canonical class via `make_differentiable(_Base, ["u0", "alpha", "dt"])` from `mosaic_shared.schema_types`. This is the pattern existing Mosaic domains (`navier_stokes_grid`, `structural_mesh`, `thermal_mesh`) use because it lets individual *solvers* extend the canonical set of differentiable fields independently. Either is fine for a new domain.
 :::
 
 **[`Array` type hints](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema).** The shape tuple uses `None` for dimensions that vary at runtime (here, the grid size `N`). Fixed-size dimensions use integers (e.g. `Array[(1,), Float32]` for scalar physics parameters stored as 1-element arrays).

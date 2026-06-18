@@ -30,7 +30,7 @@ from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable  # noqa: E402
+from mosaic_shared.schema_types import make_differentiable  # noqa: E402
 
 
 class InputSchema(
