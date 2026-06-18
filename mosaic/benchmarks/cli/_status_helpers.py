@@ -64,7 +64,19 @@ def _status_emit_snapshot(
             out_parts.append(
                 render_diff_markdown(diff_snapshots(old_snapshot, new_snapshot))
             )
-    out_parts.append(render_markdown(statuses))
+    report = render_markdown(statuses)
+    if out_parts:
+        # A diff was rendered above, so the diff is the headline. Collapse the
+        # full absolute status behind a <details> to keep the comment short —
+        # it carries baseline context the reader rarely needs at a glance.
+        # The <details>/summary must not be indented (GFM breaks HTML blocks
+        # inside list items with leading whitespace), and blank lines around
+        # the body let the inner markdown tables render.
+        out_parts.append(
+            f"<details><summary>Full Mosaic status</summary>\n\n{report}\n</details>"
+        )
+    else:
+        out_parts.append(report)
     typer.echo("\n".join(out_parts))
 
 
