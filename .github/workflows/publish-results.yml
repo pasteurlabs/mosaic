@@ -122,7 +122,11 @@ jobs:
         # this one, so actions/download-artifact (current-run only) can't see
         # it. A silent miss here would clobber the accumulated baseline with
         # only this PR's solver. fetch-artifact.sh resolves it via the API.
-        if: steps.download.outputs.has_results == 'true'
+        #
+        # Runs even when the PR produced no results (benchmark:none / docs-only):
+        # the baseline is then the sole source for the docs render below, so a
+        # merged prose change still gets published to RTD.
+        if: steps.find.outputs.should_publish == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
@@ -144,8 +148,24 @@ jobs:
             echo "No baseline artifact found — using PR results as initial baseline"
           fi
 
+      - name: Use baseline as result tree (no new PR results)
+        # benchmark:none / docs-only PRs produced no results to merge, so the
+        # render below has nothing to work from. Seed mosaic-results/ with the
+        # baseline so the docs still render (and RTD still updates) with the
+        # last published benchmark data.
+        if: >-
+          steps.find.outputs.should_publish == 'true'
+          && steps.download.outputs.has_results != 'true'
+        run: |
+          if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
+            cp -r baseline/mosaic-results mosaic-results
+          else
+            echo "No baseline and no PR results — rendering docs without result data"
+            mkdir -p mosaic-results
+          fi
+
       - name: Generate snapshot and status report
-        if: steps.download.outputs.has_results == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: |
           uv run mosaic status --format json > mosaic-results/snapshot.json
           uv run mosaic status --format md > mosaic-results/status-report.md
@@ -155,7 +175,7 @@ jobs:
       # _site/ as an artifact that RTD downloads and serves. Must run BEFORE
       # the strip step below, which removes the plots from mosaic-results/.
       - name: Set up Quarto
-        if: steps.download.outputs.has_results == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         uses: quarto-dev/quarto-actions/setup@v2
         with:
           version: "1.7.31"
@@ -166,7 +186,7 @@ jobs:
         # upload) and only the merged PR's solver re-ran, so without this the
         # rendered docs would omit every baseline solver's plots.
         # --plots-only is no-Docker/no-GPU.
-        if: steps.download.outputs.has_results == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         run: |
           uv run mosaic run --plots-only
           uv run python docs/generate_results.py
@@ -175,7 +195,7 @@ jobs:
       # latest is uploaded for every publish (a release also rebuilds latest
       # on RTD — see the "Trigger RTD build (release)" step below).
       - name: Upload docs site (latest)
-        if: steps.download.outputs.has_results == 'true'
+        if: steps.find.outputs.should_publish == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: docs-site-latest
@@ -246,11 +266,13 @@ jobs:
           echo "Attached ${ASSET} to release $VERSION"
 
       # ── Trigger Read the Docs build ──────────────────────────────────
-      # The baseline artifact is now uploaded; trigger RTD so it can
-      # fetch the artifact and rebuild the docs site.
+      # The docs-site-latest artifact is now uploaded; trigger RTD so it can
+      # fetch it and serve the new site. Runs on every publish — including
+      # benchmark:none / docs-only merges — so merged prose changes reach RTD
+      # even when no new benchmark results were produced.
       - name: Trigger RTD build (latest)
         if: >-
-          steps.download.outputs.has_results == 'true'
+          steps.find.outputs.should_publish == 'true'
           && steps.find.outputs.is_release != 'true'
         env:
           RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
