@@ -20,7 +20,7 @@ dependencies = [
     "matplotlib",
     "jax[cpu]",
     "optax",
-    "tesseract-core[runtime]>=1.9.0",
+    "tesseract-core[runtime]>=1.10.0",
     "tesseract-jax",
     "psutil",
     "pyyaml",
