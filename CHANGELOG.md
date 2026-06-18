@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-06-18
+
+### Refactor
+
+- Upgrade tesseract core to v1.10.0 (#75)
+
+### Documentation
+
+- Better readme + docs (#74)
+
 ## [0.1.0] - 2026-06-17
 
 ### Features
