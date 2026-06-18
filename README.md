@@ -1,31 +1,21 @@
 <p align="center">
-  <img src="docs/logo.png" width="420" alt="Mosaic logo">
+  <img src="docs/logo.png" width="520" alt="Mosaic logo">
 </p>
 
-<h1 align="center">Mosaic</h1>
+# Mosaic
 
-<p align="center">
-  <strong>A benchmark suite and reusable collection of differentiable physics solvers.</strong><br>
-  Think OpenAI Gym, but for differentiable physics: a growing catalog of tasks across physical domains, with a standardized interface and evaluation protocol for every solver and their gradients.
-</p>
+**A benchmark suite and reusable collection of differentiable physics solvers.** <br>
+Think OpenAI Gym, but for differentiable physics: a growing catalog of tasks across physical domains, with a standardized interface and evaluation protocol for every solver and their gradients.
 
-<p align="center">
-  <a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/"><img src="https://img.shields.io/badge/docs-stable-3b6fb6" alt="Stable docs"></a>
-  <a href="https://docs.pasteurlabs.ai/projects/mosaic/latest/"><img src="https://img.shields.io/badge/docs-latest-7a7a7a" alt="Latest docs"></a>
-  <a href="https://arxiv.org/abs/XXXX.XXXXX"><img src="https://img.shields.io/badge/paper-arXiv-b31b1b" alt="Paper"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
-</p>
+<a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_grid.html"><img src="https://img.shields.io/badge/%F0%9F%93%8A_results-browse-3b6fb6" alt="Results"></a>
+<a href="#run-the-benchmarks"><img src="https://img.shields.io/badge/%E2%96%B6_run-the_benchmarks-555" alt="Run"></a>
+<a href="#use-tesseracts-in-your-own-code"><img src="https://img.shields.io/badge/%F0%9F%A7%A9_use-in_your_code-555" alt="Use"></a>
+<a href="#contribute"><img src="https://img.shields.io/badge/%F0%9F%A4%9D_contribute-add_a_solver-555" alt="Contribute"></a>
+<a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/"><img src="https://img.shields.io/badge/docs-stable-3b6fb6" alt="Stable docs"></a>
+<a href="https://arxiv.org/abs/XXXX.XXXXX"><img src="https://img.shields.io/badge/paper-arXiv-b31b1b" alt="Paper"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
 
-<p align="center">
-  <a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_grid.html"><img src="https://img.shields.io/badge/%F0%9F%93%8A_results-browse-3b6fb6" alt="Results"></a>
-  <a href="#run-the-benchmarks"><img src="https://img.shields.io/badge/%E2%96%B6_run-the_benchmarks-555" alt="Run"></a>
-  <a href="#use-tesseracts-in-your-own-code"><img src="https://img.shields.io/badge/%F0%9F%A7%A9_use-in_your_code-555" alt="Use"></a>
-  <a href="#contribute"><img src="https://img.shields.io/badge/%F0%9F%A4%9D_contribute-add_a_solver-555" alt="Contribute"></a>
-</p>
-
-<p align="center">
-  <img src="docs/visual_abstract.png" width="100%" alt="Overview of Mosaic: diverse solver backends are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains.">
-</p>
+![Overview of Mosaic: diverse solver backends are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains.](docs/visual_abstract.png)
 
 ## What Mosaic measures
 
@@ -58,11 +48,7 @@ Per-domain pages with every plot, solver rankings, and the full evaluation proto
 
 ## 📖 Documentation
 
-Two versions are published. **Use [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/) — it tracks the latest release and is the most reliable.** [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may be ahead of the released code.
-
-|     | Stable (recommended)                                                                           | Latest (`main`)                                                                                |
-| :-- | :--------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
-|     | [docs.pasteurlabs.ai/…/mosaic/**stable**](https://docs.pasteurlabs.ai/projects/mosaic/stable/) | [docs.pasteurlabs.ai/…/mosaic/**latest**](https://docs.pasteurlabs.ai/projects/mosaic/latest/) |
+Two versions are published. **You most likely want to use [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/) — it tracks the latest release and is the most reliable (all solvers benchmarked in the same run).** [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may aggregate results from different runs.
 
 Start here:
 [Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html) ·
