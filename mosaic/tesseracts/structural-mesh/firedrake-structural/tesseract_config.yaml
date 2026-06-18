@@ -10,11 +10,9 @@ build_config:
   # Reuse Firedrake (and its deps) pre-installed in the vendor base image via
   # --system-site-packages, instead of manually copying its editable-install
   # .pth/finder files into the tesseract venv (which broke on every version bump).
+  # mosaic_shared, meshio and scipy are installed from tesseract_requirements.txt,
+  # so no package_data copy or custom pip step is needed.
   inherit_base_image_packages: true
-  package_data:
-    - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
-  custom_build_steps:
-    - "RUN /python-env/bin/pip install /tmp/mosaic_shared meshio scipy"
 
 metadata:
   mosaic:
