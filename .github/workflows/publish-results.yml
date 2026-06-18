@@ -80,6 +80,7 @@ jobs:
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Download benchmark artifacts
+        id: download
         if: steps.find.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,9 +92,14 @@ jobs:
             --jq '.artifacts[] | select(.name | startswith("results-")) | .id')
 
           if [[ -z "$ARTIFACTS" ]]; then
-            echo "::error::No results-* artifacts found in run $RUN_ID"
-            exit 1
+            # benchmark:none / docs-only PRs run no benchmarks, so the (successful)
+            # Benchmark run produces no results-* artifacts. Nothing to publish —
+            # leave the baseline untouched and skip the rest of the job.
+            echo "No results-* artifacts found in run $RUN_ID — nothing to publish, skipping"
+            echo "has_results=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "has_results=true" >> "$GITHUB_OUTPUT"
 
           mkdir -p staging-results
           for AID in $ARTIFACTS; do
@@ -108,7 +114,7 @@ jobs:
           echo "Downloaded $(echo "$ARTIFACTS" | wc -l | tr -d ' ') artifact(s)"
 
       - name: Merge results from CPU/GPU artifacts
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         run: uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
 
       - name: Download current baseline artifact
@@ -116,7 +122,7 @@ jobs:
         # this one, so actions/download-artifact (current-run only) can't see
         # it. A silent miss here would clobber the accumulated baseline with
         # only this PR's solver. fetch-artifact.sh resolves it via the API.
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
@@ -126,7 +132,7 @@ jobs:
             || [ "$?" -eq 2 ]
 
       - name: Overlay onto baseline
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         run: |
           if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
             echo "Overlaying PR results onto baseline"
@@ -139,7 +145,7 @@ jobs:
           fi
 
       - name: Generate snapshot and status report
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         run: |
           uv run mosaic status --format json > mosaic-results/snapshot.json
           uv run mosaic status --format md > mosaic-results/status-report.md
@@ -149,7 +155,7 @@ jobs:
       # _site/ as an artifact that RTD downloads and serves. Must run BEFORE
       # the strip step below, which removes the plots from mosaic-results/.
       - name: Set up Quarto
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         uses: quarto-dev/quarto-actions/setup@v2
         with:
           version: "1.7.31"
@@ -160,7 +166,7 @@ jobs:
         # upload) and only the merged PR's solver re-ran, so without this the
         # rendered docs would omit every baseline solver's plots.
         # --plots-only is no-Docker/no-GPU.
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         run: |
           uv run mosaic run --plots-only
           uv run python docs/generate_results.py
@@ -169,7 +175,7 @@ jobs:
       # latest is uploaded for every publish (a release also rebuilds latest
       # on RTD — see the "Trigger RTD build (release)" step below).
       - name: Upload docs site (latest)
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: docs-site-latest
@@ -179,7 +185,7 @@ jobs:
 
       - name: Upload docs site (release)
         if: >-
-          steps.find.outputs.should_publish == 'true'
+          steps.download.outputs.has_results == 'true'
           && steps.find.outputs.is_release == 'true'
         uses: actions/upload-artifact@v7
         with:
@@ -188,7 +194,7 @@ jobs:
           retention-days: 400
 
       - name: Strip derived files from baseline
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         run: |
           # Remove derived files that are regenerated at docs-build time
           find mosaic-results/ -name "*.png" -delete 2>/dev/null || true
@@ -199,7 +205,7 @@ jobs:
           echo "Stripped derived files from baseline"
 
       - name: Upload baseline artifact
-        if: steps.find.outputs.should_publish == 'true'
+        if: steps.download.outputs.has_results == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: baseline
@@ -212,7 +218,7 @@ jobs:
         # off the same merge. Poll until the release exists, then attach the
         # results as a release asset (replacing the old workflow artifact).
         if: >-
-          steps.find.outputs.should_publish == 'true'
+          steps.download.outputs.has_results == 'true'
           && steps.find.outputs.is_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -244,7 +250,7 @@ jobs:
       # fetch the artifact and rebuild the docs site.
       - name: Trigger RTD build (latest)
         if: >-
-          steps.find.outputs.should_publish == 'true'
+          steps.download.outputs.has_results == 'true'
           && steps.find.outputs.is_release != 'true'
         env:
           RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
@@ -253,7 +259,7 @@ jobs:
 
       - name: Trigger RTD build (release)
         if: >-
-          steps.find.outputs.should_publish == 'true'
+          steps.download.outputs.has_results == 'true'
           && steps.find.outputs.is_release == 'true'
         env:
           RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
