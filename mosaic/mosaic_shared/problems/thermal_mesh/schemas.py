@@ -15,13 +15,13 @@ Canonical interface
 
 The base schemas carry plain (non-`Differentiable`) array types.  Each solver
 wraps the fields it actually supports gradients on via
-``mosaic_shared.types.make_differentiable``::
+``mosaic_shared.schema_types.make_differentiable``::
 
     from mosaic_shared.problems.thermal_mesh import (
         InputSchema as _Base,
         OutputSchema as _BaseOut,
     )
-    from mosaic_shared.types import make_differentiable
+    from mosaic_shared.schema_types import make_differentiable
 
     InputSchema = make_differentiable(_Base, ["rho", "source"])
     OutputSchema = make_differentiable(
@@ -33,7 +33,7 @@ Solvers with additional material parameters (k_max, p_exp) should subclass
 """
 
 import numpy as np
-from mosaic_shared.types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
+from mosaic_shared.schema_types import HexMesh, MeshBC, MeshDirichletBC, MeshNeumannBC
 from pydantic import BaseModel, Field
 from tesseract_core.runtime import Array, Float32
 

@@ -19,9 +19,9 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
+from mosaic_shared.schema_types import make_differentiable
 from tesseract_core.runtime import ShapeDType
-from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+from tesseract_core.runtime.jax_recipes import jax_jvp, jax_vjp
 
 crt_file_path = os.path.dirname(__file__)
 data_dir = os.path.join(crt_file_path, "data")
@@ -314,13 +314,7 @@ def jacobian_vector_product(
     assert jvp_inputs <= {"rho"}
     assert jvp_outputs <= {"compliance"}
 
-    inputs_dict = inputs.model_dump()
-    filtered_apply = filter_func(apply_fn, inputs_dict, jvp_outputs)
-    return jax.jvp(
-        filtered_apply,
-        [flatten_with_paths(inputs_dict, include_paths=jvp_inputs)],
-        [tangent_vector],
-    )[1]
+    return jax_jvp(apply_fn, inputs, jvp_inputs, jvp_outputs, tangent_vector)
 
 
 def vector_jacobian_product(
@@ -343,14 +337,7 @@ def vector_jacobian_product(
     assert vjp_inputs <= {"rho"}
     assert vjp_outputs <= {"compliance"}
 
-    inputs = inputs.model_dump()
-
-    filtered_apply = filter_func(apply_fn, inputs, vjp_outputs)
-    _, vjp_func = jax.vjp(
-        filtered_apply, flatten_with_paths(inputs, include_paths=vjp_inputs)
-    )
-    out = vjp_func(cotangent_vector)[0]
-    return out
+    return jax_vjp(apply_fn, inputs, vjp_inputs, vjp_outputs, cotangent_vector)
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:

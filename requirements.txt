@@ -40,7 +40,6 @@ charset-normalizer==3.4.7
 click==8.4.1
     # via
     #   mlflow-skinny
-    #   tesseract-core
     #   typer
     #   uvicorn
 cloudpickle==3.1.2
@@ -277,7 +276,7 @@ starlette==0.52.1
     # via
     #   fastapi
     #   mlflow-skinny
-tesseract-core==1.9.0
+tesseract-core==1.10.0
     # via
     #   mosaic-bench
     #   tesseract-jax

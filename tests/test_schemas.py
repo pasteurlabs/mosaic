@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-# The schema modules import from ``mosaic_shared.types`` and
+# The schema modules import from ``mosaic_shared.schema_types`` and
 # ``tesseract_core.runtime`` which are only available when these packages are
 # installed (e.g. inside a tesseract runtime or a full dev environment).
 _missing_runtime_deps = False
 try:
-    import mosaic_shared.types  # noqa: F401
+    import mosaic_shared.schema_types  # noqa: F401
     import tesseract_core.runtime  # noqa: F401
 except ModuleNotFoundError:
     _missing_runtime_deps = True

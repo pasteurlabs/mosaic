@@ -28,7 +28,7 @@ runner = CliRunner()
 # in a minimal test environment. Mirror the gate used in test_schemas.py.
 _missing_runtime_deps = False
 try:
-    import mosaic_shared.types  # noqa: F401
+    import mosaic_shared.schema_types  # noqa: F401
 except ModuleNotFoundError:
     _missing_runtime_deps = True
 

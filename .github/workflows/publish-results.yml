@@ -224,7 +224,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.find.outputs.version }}"
-          ASSET="release-${VERSION}.zip"
+          ASSET="mosaic-results-${VERSION}.zip"
 
           (cd mosaic-results && zip -q -r "/tmp/${ASSET}" .)
 
