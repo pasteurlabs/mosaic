@@ -2,7 +2,7 @@
 title: ""
 ---
 
-![](../logo.png){width=100% style="max-width:600px; display:block; margin:0 auto 1.5rem;"}
+![](logo.png){width=100% style="max-width:600px; display:block; margin:0 auto 1.5rem;"}
 
 An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput.
 
