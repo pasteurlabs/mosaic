@@ -60,7 +60,7 @@ from mosaic_shared.problems.structural_mesh import (
 from mosaic_shared.problems.structural_mesh import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.types import make_differentiable
+from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field  # still needed for InputSchema fields
 from tesseract_core.runtime import ShapeDType
 

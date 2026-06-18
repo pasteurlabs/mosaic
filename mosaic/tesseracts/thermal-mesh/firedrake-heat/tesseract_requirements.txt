@@ -1,1 +1,3 @@
-# mosaic_shared is installed via custom_build_steps after package_data copy
+meshio==5.3.5
+scipy==1.17.1
+../../../mosaic_shared
