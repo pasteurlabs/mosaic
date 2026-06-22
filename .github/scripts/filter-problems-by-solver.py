@@ -7,8 +7,9 @@
 
 Prints a comma-separated list of problem names where at least one of
 the ``--solvers`` display names exists.  Used by the ``benchmark:solver``
-CI path to narrow the matrix when ``detect-changed-problems`` returns
-``all`` (e.g. because core files changed).
+CI path to scope the matrix to the changed solvers' problems, derived
+from the solver set rather than the diff — so harness/core changes never
+widen the run (that's what ``benchmark:all`` is for).
 
 Usage (in CI):
     python .github/scripts/filter-problems-by-solver.py \
