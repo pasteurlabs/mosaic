@@ -108,32 +108,28 @@ jobs:
                 SHOULD_RUN="false"
                 ;;
               solver)
-                # All mosaic/ changes must be under mosaic/tesseracts/
-                NON_SOLVER=$(echo "$DIFF_FILES" | grep '^mosaic/' | grep -v '^mosaic/tesseracts/' || true)
-                if [[ -n "$NON_SOLVER" ]]; then
-                  echo "::error::benchmark:solver requires all mosaic/ changes to be under mosaic/tesseracts/. These files violate that:"
-                  echo "$NON_SOLVER"
-                  echo "::error::Use benchmark:all instead."
-                  # exit 1
-                fi
-                # Must be exactly 0 or 1 solver
+                # Run only the solvers whose Tesseract code changed. The set
+                # comes from SOLVER_MATRIX (detect-changed-solvers keys off the
+                # changed tesseract dirs), so harness/core changes never widen
+                # the run — that's what benchmark:all is for. Maintainers apply
+                # this label deliberately, so non-solver mosaic/ changes are
+                # permitted, and any number of changed solvers is fine.
                 NUM_SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
-                if [[ "$NUM_SOLVERS" -gt 1 ]]; then
-                  echo "::error::benchmark:solver requires changes to exactly one solver, but $NUM_SOLVERS solvers changed. Use benchmark:all instead."
-                  exit 1
-                fi
                 if [[ "$NUM_SOLVERS" -eq 0 ]]; then
-                  # No solver actually changed — nothing to do
+                  # No solver Tesseract changed — nothing to do
                   SHOULD_RUN="false"
                 else
-                  SHOULD_RUN="true"
-                  # Scope problems to the affected solver
-                  PROBLEMS=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-problems.py)
+                  # Per-solver runs work independently (precomputed references)
+                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(','.join(e['display_name'] for e in json.load(sys.stdin) if 'display_name' in e))")
+                  # Scope problems to those containing the changed solvers.
+                  # Derived from the solver set (not the diff), so it stays
+                  # narrow even when harness files also changed.
+                  PROBLEMS=$(uv run python .github/scripts/filter-problems-by-solver.py --problems all --solvers "$SOLVERS")
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
+                  else
+                    SHOULD_RUN="true"
                   fi
-                  # Single-solver runs work independently (precomputed references)
-                  SOLVERS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(','.join(e['display_name'] for e in json.load(sys.stdin) if 'display_name' in e))")
                 fi
                 ;;
               all)

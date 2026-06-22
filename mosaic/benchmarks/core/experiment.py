@@ -82,6 +82,11 @@ def random_direction(shape: tuple, key: jax.Array) -> jax.Array:
 
 SCHEMA_VERSION = 1
 
+# Max length of a stored failure/error string. Generous enough to keep a full
+# Tesseract traceback (which the status report renders inside a collapsible
+# <details> block) rather than clipping it after the first few stack frames.
+MAX_ERROR_LEN = 4000
+
 
 def _flatten_by_solver(by_solver: dict, sweep_key: str | None) -> list[dict]:
     """Convert the kernel's ``by_solver`` accumulator into a flat results list.
@@ -367,7 +372,7 @@ def run_experiment(
             exc: Exception,
             _sf: dict[str, str] = solver_failures,
         ) -> None:
-            _sf[name] = f"{type(exc).__name__}: {exc}"[:300]
+            _sf[name] = f"{type(exc).__name__}: {exc}"[:MAX_ERROR_LEN]
 
         def _ctx(
             name: str,
@@ -566,7 +571,7 @@ def run_experiment(
                     )
                 else:
                     failure_type = classify_failure(type(exc).__name__, str(exc))
-                    err_short = str(exc)[:300]
+                    err_short = str(exc)[:MAX_ERROR_LEN]
                     solver_results[val] = {
                         "status": "failed",
                         "failure_type": failure_type,

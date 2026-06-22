@@ -59,7 +59,7 @@ Solver behavior can be adjusted at three levels:
 - The change must not regress any other solver's results.
 - CI requires a maintainer to add a benchmark label to any PR that touches `mosaic/` code. The options are:
   - `benchmark:none` — skip benchmarks (maintainer trusts no answer-changing code).
-  - `benchmark:solver` — run benchmarks only on the modified solver (changes must be isolated to one solver).
+  - `benchmark:solver` — run benchmarks only on the solvers whose Tesseract code changed, scoped to the problems containing them (any number of solvers; harness/core changes don't widen the run — use `benchmark:all` for that).
   - `benchmark:all` — run the full benchmark suite from scratch.
 - Include the diff output in your PR description so reviewers can see the impact at a glance.
 
