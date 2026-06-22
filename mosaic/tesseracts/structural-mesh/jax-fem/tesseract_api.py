@@ -21,7 +21,7 @@ from mosaic_shared.problems.structural_mesh import (
 )
 from mosaic_shared.schema_types import make_differentiable
 from tesseract_core.runtime import ShapeDType
-from tesseract_core.runtime.jax_recipes import jax_jvp, jax_vjp
+from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 crt_file_path = os.path.dirname(__file__)
 data_dir = os.path.join(crt_file_path, "data")
@@ -310,11 +310,25 @@ def jacobian_vector_product(
     jvp_outputs: set[str],
     tangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
-    """Compute the Jacobian-vector product for the structural solver."""
+    """Compute the Jacobian-vector product for the structural solver.
+
+    NOTE: this calls ``jax.jvp`` eagerly rather than the ``jax_jvp`` helper
+    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper`` runs
+    a host-side SciPy UMFPACK direct solve (``scipy.sparse.linalg.spsolve`` on
+    concrete NumPy arrays), which cannot be traced under ``jax.jit``. The
+    shared helper wraps the differentiation in ``eqx.filter_jit``, so routing
+    through it raises an Error 500 inside the container. Keep this un-jitted.
+    """
     assert jvp_inputs <= {"rho"}
     assert jvp_outputs <= {"compliance"}
 
-    return jax_jvp(apply_fn, inputs, jvp_inputs, jvp_outputs, tangent_vector)
+    inputs_dict = inputs.model_dump()
+    filtered_apply = filter_func(apply_fn, inputs_dict, jvp_outputs)
+    return jax.jvp(
+        filtered_apply,
+        [flatten_with_paths(inputs_dict, include_paths=jvp_inputs)],
+        [tangent_vector],
+    )[1]
 
 
 def vector_jacobian_product(
@@ -337,7 +351,14 @@ def vector_jacobian_product(
     assert vjp_inputs <= {"rho"}
     assert vjp_outputs <= {"compliance"}
 
-    return jax_vjp(apply_fn, inputs, vjp_inputs, vjp_outputs, cotangent_vector)
+    # Eager (un-jitted) — see the note in jacobian_vector_product for why we
+    # cannot route through tesseract_core.runtime.jax_recipes.jax_vjp here.
+    inputs_dict = inputs.model_dump()
+    filtered_apply = filter_func(apply_fn, inputs_dict, vjp_outputs)
+    _, vjp_func = jax.vjp(
+        filtered_apply, flatten_with_paths(inputs_dict, include_paths=vjp_inputs)
+    )
+    return vjp_func(cotangent_vector)[0]
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
