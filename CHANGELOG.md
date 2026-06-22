@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.1] - 2026-06-18
+## [0.1.1] - 2026-06-22
+
+### Bug Fixes
+
+- Fix jax-fem; make sure full tracebacks get forwarded to PR status reports (#81)
 
 ### Refactor
 
