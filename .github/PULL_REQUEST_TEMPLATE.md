@@ -41,7 +41,7 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 
 <!-- If this PR touches mosaic/ code, CI will block until a maintainer adds one of these labels:
   - benchmark:none    — skip benchmarks (no answer-changing code)
-  - benchmark:solver  — benchmark only the modified solver (must be isolated to one solver)
+  - benchmark:solver  — benchmark only the solvers whose Tesseract code changed (scoped to their problems)
   - benchmark:all     — full benchmark suite from scratch
 -->
 

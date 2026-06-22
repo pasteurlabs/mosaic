@@ -553,7 +553,7 @@ These checks run on every push to the PR branch.
 Full benchmark runs require GPU runners and take significant time, so they are triggered on demand. If your PR touches any code under `mosaic/`, CI will block until a maintainer adds exactly one of these labels:
 
 - **`benchmark:none`** — skip benchmarks entirely (the maintainer trusts no answer-changing code is being merged).
-- **`benchmark:solver`** — build and benchmark only the modified solver. CI enforces that changes are isolated to a single solver directory under `mosaic/tesseracts/`.
+- **`benchmark:solver`** — build and benchmark only the solvers whose Tesseract code changed, scoped to the problems containing them. Any number of solvers may change, and non-solver `mosaic/` changes (including harness/core) are allowed without widening the run — use `benchmark:all` if a core change warrants a full re-run. The maintainer applying this label vouches that a scoped run is sufficient.
 - **`benchmark:all`** — run the full benchmark suite from scratch (all problems, all suites).
 
 The typical flow:
