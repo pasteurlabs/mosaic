@@ -9,96 +9,37 @@ For each solver matching the requested problems and hardware target,
 pulls the image from the registry and retags it to the local short
 name expected by ``Tesseract.from_image()``.
 
+Images are pulled by commit-SHA tag, never ``:latest``. ``--tag`` is this
+PR's HEAD (built by the build job for changed solvers); ``--fallback-tag`` is
+the base/main commit (always built by the push-to-main run and immutable).
+Both are immutable, so a plain ``docker pull`` of the tag is unambiguous —
+unlike ``:latest``, a runner-cached or not-yet-propagated SHA tag can't point
+at the wrong image.
+
 Usage (in CI):
     python .github/scripts/pull-solver-images.py \
         --registry ghcr.io/org/mosaic \
         --problems all \
         --hardware gpu \
-        --tag abc123f
+        --tag <head-sha> \
+        --fallback-tag <base-sha>
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import sys
 
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
 
-def _digest_via_buildx(remote: str) -> str | None:
-    r = subprocess.run(
-        [
-            "docker",
-            "buildx",
-            "imagetools",
-            "inspect",
-            remote,
-            "--format",
-            "{{.Manifest.Digest}}",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    digest = r.stdout.strip()
-    return digest if r.returncode == 0 and digest.startswith("sha256:") else None
-
-
-def _digest_via_manifest(remote: str) -> str | None:
-    r = subprocess.run(
-        ["docker", "manifest", "inspect", "-v", remote],
-        capture_output=True,
-        text=True,
-    )
-    if r.returncode != 0:
-        return None
-    try:
-        data = json.loads(r.stdout)
-    except json.JSONDecodeError:
-        return None
-    # A multi-arch tag returns a list of per-platform manifests; a single-arch
-    # tag returns one object. The top-level Descriptor.digest is the tag's
-    # digest in both shapes — take the first entry for the list case.
-    entry = data[0] if isinstance(data, list) else data
-    digest = (entry.get("Descriptor") or {}).get("digest", "")
-    return digest if digest.startswith("sha256:") else None
-
-
-def _resolve_digest(remote: str) -> str | None:
-    """Resolve a registry reference (``repo:tag``) to its immutable digest.
-
-    Queries the registry directly — not the runner's local image store — so a
-    stale ``:latest`` cached on the runner (or a tag that was just pushed)
-    can't shadow the authoritative image. Tries ``docker buildx imagetools``
-    first, falling back to ``docker manifest inspect`` for runners without
-    buildx (the solver jobs run on self-hosted hosts). Returns ``sha256:…`` or
-    ``None`` if the reference doesn't exist.
-    """
-    return _digest_via_buildx(remote) or _digest_via_manifest(remote)
-
-
-def _pull_pinned(remote: str, local_tag: str) -> bool:
-    """Pull *remote* by its registry digest and retag to *local_tag*.
-
-    Pulling by digest (``repo@sha256:…``) is cache-proof: Docker fetches the
-    exact image the registry reference points to *now*, never a stale local
-    layer. This is what makes a ``:latest`` fallback safe — a release PR that
-    falls back to ``:latest`` always gets the current ``main`` build, not
-    whatever the runner happened to cache earlier.
-
-    Returns True on success. False means the reference didn't resolve (caller
-    can try the next candidate, e.g. the ``:latest`` fallback).
-    """
-    digest = _resolve_digest(remote)
-    if digest is None:
+def _pull_and_retag(remote: str, local_tag: str) -> bool:
+    """Pull *remote* and retag it to *local_tag*. Returns True on success."""
+    print(f"Pulling {remote}")
+    if subprocess.run(["docker", "pull", remote]).returncode != 0:
         return False
-    repo = remote.rsplit(":", 1)[0]
-    pinned = f"{repo}@{digest}"
-    print(f"Pulling {remote} -> {pinned}")
-    if subprocess.run(["docker", "pull", pinned]).returncode != 0:
-        return False
-    subprocess.run(["docker", "tag", pinned, local_tag])
+    subprocess.run(["docker", "tag", remote, local_tag])
     print(f"  Tagged as {local_tag}")
     return True
 
@@ -115,8 +56,14 @@ def main() -> None:
     parser.add_argument(
         "--tag",
         default=None,
-        help="Registry tag to pull (e.g. a commit SHA). Tries this first, "
-        "falls back to 'latest' for images that weren't built at this tag.",
+        help="Primary registry tag to pull (this PR's HEAD commit SHA). Built "
+        "by the build job for solvers this PR changed.",
+    )
+    parser.add_argument(
+        "--fallback-tag",
+        default=None,
+        help="Fallback registry tag (the base/main commit SHA) for solvers not "
+        "built at --tag. Always an immutable, already-built SHA — never :latest.",
     )
     parser.add_argument(
         "--solvers",
@@ -162,23 +109,24 @@ def main() -> None:
             local_tag = tag
             image_name = tag.rsplit(":", 1)[0]
 
-            # Try --tag first (e.g. :<sha>), fall back to :latest. Each pull is
-            # pinned to the registry digest (see _pull_pinned) so the :latest
-            # fallback can't serve a stale runner-cached image — the bug that
-            # made release PRs benchmark against pre-fix solver code.
+            # Pull by SHA: --tag (HEAD) first, then --fallback-tag (base/main).
+            # Both are immutable commit SHAs, so the right image is unambiguous
+            # — no :latest, hence no stale/racy pointer (the bug that made a
+            # release PR benchmark against pre-fix solver code).
+            sha_tags = [t for t in (args.tag, args.fallback_tag) if t]
             candidates = (
-                [f"{registry}/{image_name}:{args.tag}", f"{registry}/{tag}"]
-                if args.tag
+                [f"{registry}/{image_name}:{t}" for t in sha_tags]
+                if sha_tags
                 else [f"{registry}/{tag}"]
             )
             pulled = False
-            for remote in candidates:
-                if _pull_pinned(remote, local_tag):
+            for i, remote in enumerate(candidates):
+                if _pull_and_retag(remote, local_tag):
                     pulled = True
                     pulled_count += 1
                     break
-                if args.tag:
-                    print(f"  {remote} not found, trying :latest fallback...")
+                if i + 1 < len(candidates):
+                    print(f"  {remote} not found, trying fallback {candidates[i + 1]}")
             if not pulled:
                 print(f"  FAIL: no image found for {image_name}")
                 failed.append(image_name)
