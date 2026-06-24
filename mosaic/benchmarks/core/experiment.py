@@ -88,6 +88,27 @@ SCHEMA_VERSION = 1
 MAX_ERROR_LEN = 4000
 
 
+def _truncate_error(msg: str, limit: int = MAX_ERROR_LEN) -> str:
+    """Clip a long error/traceback to *limit* chars, keeping both ends.
+
+    A forwarded Tesseract "Error 500" message is the *remote* traceback: the
+    actual exception (e.g. ``IndexError: ...``) sits at the very bottom, below
+    a tall stack of FastAPI/starlette middleware frames. A plain ``msg[:limit]``
+    keeps that boilerplate head and drops the real cause — exactly backwards.
+    Keep a generous head plus the tail (where the cause lives) so the status
+    report shows what actually went wrong.
+    """
+    if len(msg) <= limit:
+        return msg
+    marker = "\n... [traceback truncated] ...\n"
+    budget = limit - len(marker)
+    # Bias toward the tail: the head only needs enough to show the error type
+    # and entry point; the cause is always at the end.
+    head = budget // 3
+    tail = budget - head
+    return f"{msg[:head]}{marker}{msg[-tail:]}"
+
+
 def _flatten_by_solver(by_solver: dict, sweep_key: str | None) -> list[dict]:
     """Convert the kernel's ``by_solver`` accumulator into a flat results list.
 
@@ -372,7 +393,7 @@ def run_experiment(
             exc: Exception,
             _sf: dict[str, str] = solver_failures,
         ) -> None:
-            _sf[name] = f"{type(exc).__name__}: {exc}"[:MAX_ERROR_LEN]
+            _sf[name] = _truncate_error(f"{type(exc).__name__}: {exc}")
 
         def _ctx(
             name: str,
@@ -571,7 +592,7 @@ def run_experiment(
                     )
                 else:
                     failure_type = classify_failure(type(exc).__name__, str(exc))
-                    err_short = str(exc)[:MAX_ERROR_LEN]
+                    err_short = _truncate_error(str(exc))
                     solver_results[val] = {
                         "status": "failed",
                         "failure_type": failure_type,
