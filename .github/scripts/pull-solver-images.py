@@ -9,12 +9,20 @@ For each solver matching the requested problems and hardware target,
 pulls the image from the registry and retags it to the local short
 name expected by ``Tesseract.from_image()``.
 
+Images are pulled by commit-SHA tag, never ``:latest``. ``--tag`` is this
+PR's HEAD (built by the build job for changed solvers); ``--fallback-tag`` is
+the base/main commit (always built by the push-to-main run and immutable).
+Both are immutable, so a plain ``docker pull`` of the tag is unambiguous —
+unlike ``:latest``, a runner-cached or not-yet-propagated SHA tag can't point
+at the wrong image.
+
 Usage (in CI):
     python .github/scripts/pull-solver-images.py \
         --registry ghcr.io/org/mosaic \
         --problems all \
         --hardware gpu \
-        --tag abc123f
+        --tag <head-sha> \
+        --fallback-tag <base-sha>
 """
 
 from __future__ import annotations
@@ -24,6 +32,16 @@ import subprocess
 import sys
 
 from mosaic.benchmarks.problems import PROBLEMS, get_config
+
+
+def _pull_and_retag(remote: str, local_tag: str) -> bool:
+    """Pull *remote* and retag it to *local_tag*. Returns True on success."""
+    print(f"Pulling {remote}")
+    if subprocess.run(["docker", "pull", remote]).returncode != 0:
+        return False
+    subprocess.run(["docker", "tag", remote, local_tag])
+    print(f"  Tagged as {local_tag}")
+    return True
 
 
 def main() -> None:
@@ -38,8 +56,14 @@ def main() -> None:
     parser.add_argument(
         "--tag",
         default=None,
-        help="Registry tag to pull (e.g. a commit SHA). Tries this first, "
-        "falls back to 'latest' for images that weren't built at this tag.",
+        help="Primary registry tag to pull (this PR's HEAD commit SHA). Built "
+        "by the build job for solvers this PR changed.",
+    )
+    parser.add_argument(
+        "--fallback-tag",
+        default=None,
+        help="Fallback registry tag (the base/main commit SHA) for solvers not "
+        "built at --tag. Always an immutable, already-built SHA — never :latest.",
     )
     parser.add_argument(
         "--solvers",
@@ -85,26 +109,24 @@ def main() -> None:
             local_tag = tag
             image_name = tag.rsplit(":", 1)[0]
 
-            # Try --tag first (e.g. :<sha>), fall back to :latest.
+            # Pull by SHA: --tag (HEAD) first, then --fallback-tag (base/main).
+            # Both are immutable commit SHAs, so the right image is unambiguous
+            # — no :latest, hence no stale/racy pointer (the bug that made a
+            # release PR benchmark against pre-fix solver code).
+            sha_tags = [t for t in (args.tag, args.fallback_tag) if t]
             candidates = (
-                [f"{registry}/{image_name}:{args.tag}", f"{registry}/{tag}"]
-                if args.tag
+                [f"{registry}/{image_name}:{t}" for t in sha_tags]
+                if sha_tags
                 else [f"{registry}/{tag}"]
             )
             pulled = False
-            for remote in candidates:
-                print(f"Pulling {remote}")
-                r = subprocess.run(
-                    ["docker", "pull", remote], capture_output=True, text=True
-                )
-                if r.returncode == 0:
-                    subprocess.run(["docker", "tag", remote, local_tag])
-                    print(f"  Tagged as {local_tag}")
+            for i, remote in enumerate(candidates):
+                if _pull_and_retag(remote, local_tag):
                     pulled = True
                     pulled_count += 1
                     break
-                if args.tag:
-                    print("  Not found, trying :latest fallback...")
+                if i + 1 < len(candidates):
+                    print(f"  {remote} not found, trying fallback {candidates[i + 1]}")
             if not pulled:
                 print(f"  FAIL: no image found for {image_name}")
                 failed.append(image_name)

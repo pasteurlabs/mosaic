@@ -19,6 +19,12 @@ on:
         description: "GHCR image tag to pull (typically a commit SHA)"
         type: string
         required: true
+      base_image_tag:
+        description: >-
+          Fallback GHCR tag (the base/main commit SHA) for solvers not built at
+          image_tag. Always an immutable, already-built SHA — never :latest.
+        type: string
+        default: ""
       solvers:
         description: "Comma-separated solver display names to restrict the run to (or '' for all)"
         type: string
@@ -98,11 +104,13 @@ jobs:
       - name: Pull solver images from GHCR
         run: |
           SOLVERS="${{ inputs.solvers }}"
+          BASE_TAG="${{ inputs.base_image_tag }}"
           uv run python .github/scripts/pull-solver-images.py \
             --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
             --problems "${{ matrix.problem }}" \
             --hardware "${{ matrix.hardware }}" \
             --tag "${{ inputs.image_tag }}" \
+            ${BASE_TAG:+--fallback-tag "$BASE_TAG"} \
             ${SOLVERS:+--solvers "$SOLVERS"}
 
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}

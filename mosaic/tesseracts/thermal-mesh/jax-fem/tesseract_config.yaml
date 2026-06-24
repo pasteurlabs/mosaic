@@ -3,7 +3,7 @@ version: "0.1.0"
 description: >
   JAX-FEM HEX8 steady-state heat-conduction solver with SIMP conductivity and optional
   volumetric source. Gradients ∂C/∂ρ and ∂C/∂source via JAX autodiff through the linear FE
-  solve (hybrid implicit-function-theorem adjoint).
+  solve (hybrid implicit-function-theorem adjoint)
 build_config:
   target_platform: "native"
   base_image: "condaforge/miniforge3:26.1.1-3"
