@@ -200,7 +200,14 @@ jobs:
       problems: ${{ needs.plan.outputs.problems }}
       suites: ${{ needs.plan.outputs.suites }}
       solvers: ${{ needs.plan.outputs.solvers }}
+      # Primary tag: this PR's HEAD (built by the build job for changed solvers).
+      # Fallback tag: the PR's base, i.e. the main commit this branch sits on —
+      # always built by the push-to-main "Build Tesseracts" run and immutable.
+      # Solvers not rebuilt by this PR (unchanged solvers, or any solver on a
+      # release PR that builds nothing) are pulled at the base SHA rather than
+      # the mutable :latest, so a stale/racy :latest can never be served.
       image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
+      base_image_tag: ${{ github.event.pull_request.base.sha || github.sha }}
       timeout: 600
     permissions:
       contents: read
