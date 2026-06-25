@@ -96,6 +96,17 @@ class TestApplySolverFilter:
         # Order follows cfg.solvers, not the CSV.
         assert [s.name for s in result.solvers] == ["XLB", "Firedrake"]
 
+    def test_flat_csv_case_insensitive(self):
+        cfg = _make_problem()
+        result = self.filter(cfg, "xlb,FIREDRAKE")
+        # Matching is case-insensitive; kept names keep their canonical casing.
+        assert [s.name for s in result.solvers] == ["XLB", "Firedrake"]
+
+    def test_per_problem_map_case_insensitive(self):
+        cfg = _make_problem(name="ns-grid")
+        result = self.filter(cfg, "ns-grid=xlb,firedrake")
+        assert [s.name for s in result.solvers] == ["XLB", "Firedrake"]
+
 
 # -- _resolve_gpu_pool ---------------------------------------------------------
 
@@ -204,3 +215,43 @@ class TestFilterHardware:
         cfg = _make_problem()
         result = self.filter(cfg, "tpu")
         assert [s.name for s in result.solvers] == ["XLB", "jax-cfd", "Firedrake"]
+
+
+# -- _platform_warnings --------------------------------------------------------
+#
+# Mosaic only supports Linux + Docker Engine + NVIDIA GPU. The run command
+# surfaces a warning on unsupported hosts; these tests pin which inputs trigger
+# which warnings so the message can't silently regress to nothing.
+class TestPlatformWarnings:
+    @staticmethod
+    def warn(system=None, docker_info=None):
+        from mosaic.benchmarks.cli._helpers import _platform_warnings
+
+        return _platform_warnings(system=system, docker_info=docker_info)
+
+    def test_linux_no_docker_desktop_is_clean(self):
+        assert self.warn(system="Linux", docker_info="Ubuntu 22.04") == []
+
+    def test_macos_warns(self):
+        msgs = self.warn(system="Darwin")
+        assert len(msgs) == 1
+        assert "Linux" in msgs[0] and "Darwin" in msgs[0]
+
+    def test_windows_warns(self):
+        msgs = self.warn(system="Windows")
+        assert any("Windows" in m for m in msgs)
+
+    def test_docker_desktop_warns(self):
+        # Docker Desktop on a Linux host: the OS check passes but the daemon
+        # string still flags the lack of GPU passthrough.
+        msgs = self.warn(system="Linux", docker_info="Docker Desktop")
+        assert len(msgs) == 1
+        assert "Docker Desktop" in msgs[0]
+
+    def test_macos_with_docker_desktop_warns_both(self):
+        msgs = self.warn(system="Darwin", docker_info="Docker Desktop")
+        assert len(msgs) == 2
+
+    def test_missing_docker_info_skips_desktop_check(self):
+        # docker info unavailable (Docker not running) → no Desktop warning.
+        assert self.warn(system="Linux", docker_info=None) == []

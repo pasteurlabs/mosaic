@@ -4,22 +4,25 @@ title: Getting Started
 
 This guide walks through setting up Mosaic, running the benchmarks yourself, and reading the output. Running locally is also how you reproduce the [Results](index.qmd) on your own target hardware, which is the most accurate measurement for your setup.
 
+## Platform support
+
+::: {.callout-important}
+**Mosaic targets Linux with an NVIDIA GPU.** Meaningful benchmark usage requires:
+
+- **Linux** (x86-64) host
+- **[Docker Engine](https://docs.docker.com/engine/install/)** — *not* Docker Desktop, which can't pass an NVIDIA GPU through to containers
+- An **NVIDIA GPU** plus the **[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)**, with Docker configured to use the `nvidia` runtime
+
+On **macOS** (including Apple Silicon) and **Windows** you cannot follow this guide end-to-end: the recommended Exponax solver and most other solvers are GPU-only, GPU passthrough is unavailable under Docker Desktop, and not every solver container is known to build on non-x86 hosts. `mosaic run` prints a warning when it detects an unsupported platform.
+:::
+
 ## Prerequisites
 
 - **Python >= 3.10**
-- **Docker** --- must be running. All solvers execute inside Docker containers.
+- **Linux host with Docker Engine** --- must be running. All solvers execute inside Docker containers. See [Platform support](#platform-support) above.
+- **NVIDIA GPU + Container Toolkit** --- the recommended solvers are GPU-only.
 - **Several dozen GB of disk space** for building all solver containers; individual images range from ~1 GB to ~10 GB.
-- **RAM**: 16 GB minimum; 32 GB recommended for 3D fluid problems.
-
-### GPU support (optional)
-
-GPU-enabled solvers (marked **GPU** in the [Solver Reference](solvers.qmd)) run efficiently on a CUDA-capable NVIDIA GPU. To enable that path you'll need:
-
-- An NVIDIA GPU with CUDA support
-- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed and configured
-- Docker configured to use the `nvidia` runtime
-
-Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
+- **RAM/VRAM**: 16 GB minimum; 32 GB recommended for 3D fluid problems. Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
 
 ## Installation
 
@@ -45,8 +48,10 @@ mosaic status        # shows all problems and solvers (no Docker needed)
 
 The fastest way to verify everything works is to build one solver and run a quick forward check. The first two commands come straight from tesseract-core ([`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build), [`tesseract run`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-run)) — Mosaic adds nothing on top.
 
+Exponax is small and fast to build, but it runs on JAX with CUDA and therefore needs an NVIDIA GPU (see [Platform support](#platform-support)). On a machine without one, this smoke test won't run.
+
 ```bash
-# Build the Exponax solver (small, fast, JAX-only)
+# Build the Exponax solver (small, fast; requires an NVIDIA GPU to run)
 tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 
 # Run a single forward call (uses the built image)
