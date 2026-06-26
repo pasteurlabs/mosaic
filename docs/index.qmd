@@ -41,7 +41,7 @@ Each domain has a results page with every plot, a best-solver ranking per catego
 
 All metrics are computed uniformly across solvers through the Tesseract interface. The protocol is solver-agnostic: it operates on `apply` and `vjp` and never inspects solver internals. Mosaic reports several categories of metrics:
 
-**Setup compatibility.** For each solver--task pair: whether the solver produces a usable gradient, fails numerically, or cannot run due to structural constraints (e.g. periodic-only BCs on a channel domain). Structural incompatibilities are declared via `problem.exclude(key, {solver_name: Exclusion(...)})`; the matching is longest-prefix (e.g. `key="gradient"` blocks every `gradient/*` experiment).
+**Setup compatibility.** For each solver--task pair: whether the solver produces a usable gradient, fails numerically, or cannot run due to structural constraints (e.g. periodic-only BCs on a channel domain).
 
 **Gradient accuracy.** Central finite differences (FD) through the Tesseract interface serve as the solver-agnostic ground truth. We never inspect a solver's AD machinery, only the gradient it returns. Directional derivatives are evaluated along $K$ random perturbation vectors ($K = 6\text{--}20$) and reported as:
 
@@ -52,9 +52,9 @@ The FD step size is swept over $\varepsilon \in \{10^{-6}, \dots, 10^{-1}\}$ and
 
 **Performance.** Forward and VJP wall-clock time, their ratio, and peak memory, measured on each solver's intended hardware target across 3--4 problem sizes. All timings are averaged over 3 runs after 1 warmup iteration (to pre-populate JIT caches and stabilize memory allocation).
 
-**Forward accuracy.** Resolution sweep against a reference solver (OpenFOAM for fluids, deal.II for structures/thermal). Where an analytical solution exists (the Taylor–Green vortex), precision is also measured against it. Physical-law adherence (e.g. a divergence-free velocity field, $\nabla \cdot \mathbf{u} = 0$) is checked where applicable.
+**Forward accuracy.** Resolution sweep against a reference solver (OpenFOAM for fluids, deal.II for structures/thermal). Where an analytical solution exists (e.g. the Taylor–Green vortex), precision is also measured against it. Physical-law adherence (e.g. a divergence-free velocity field, $\nabla \cdot \mathbf{u} = 0$) is checked where applicable.
 
-**Optimization convergence.** The ultimate test: can you actually optimize *through* the solver? We run Adam with each solver's own gradients on each benchmark task for a fixed iteration budget (500 iterations for H, F2, F3; 2500 for S). A solver **succeeds** if it reaches a final objective within 1% of the best solution any solver achieved within the budget. This catches solvers whose gradients pass the FD check pointwise but still fail to drive a full optimization loop.
+**Optimization convergence.** The ultimate test: can you actually optimize *through* the solver? We run with L-BFGS on each benchmark task for a fixed iteration budget (500 iterations for H, F2, F3; 2500 for S). A solver **succeeds** if it reaches a final objective within 1% of the best solution any solver achieved within the budget. This catches solvers whose gradients pass the FD check pointwise but still fail to drive a full optimization loop.
 
 ## Benchmark suites
 
