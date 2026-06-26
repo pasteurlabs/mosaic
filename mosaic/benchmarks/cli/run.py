@@ -22,6 +22,7 @@ from mosaic.benchmarks.cli._helpers import (
     _run_validate_suites,
     _suite_components,
     _validate_solver_csv,
+    _warn_platform_compatibility,
 )
 from mosaic.benchmarks.core.cell_filter import build_filter, set_active
 from mosaic.benchmarks.core.console import console, print_rule, print_warn
@@ -143,6 +144,12 @@ def run(
     """
     if output_dir is not None:
         os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
+
+    # --plots-only neither builds containers nor touches Docker/GPUs, so a
+    # platform warning would be noise there. For real runs, surface known
+    # incompatibilities (non-Linux host, Docker Desktop) up front.
+    if not plots_only:
+        _warn_platform_compatibility()
 
     problem_list = (
         PROBLEMS if problems == "all" else [p.strip() for p in problems.split(",")]

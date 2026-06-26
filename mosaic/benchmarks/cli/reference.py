@@ -54,13 +54,12 @@ def reference(
         "existing fields.npz snapshots instead of running solvers.",
     ),
 ) -> None:
-    r"""Generate precomputed reference solutions for consensus experiments.
+    """Generate precomputed reference solutions for consensus experiments.
 
     References are trimmed-mean fields computed across all solvers. Once
     checked in, single-solver CI runs can compute errors without needing
     the full solver ensemble.
 
-    \b
     Examples:
         # Extract from existing benchmark results
         mosaic reference --from-results mosaic-results/

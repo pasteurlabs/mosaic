@@ -39,7 +39,7 @@ Each domain has a results page with every plot, a best-solver ranking per catego
 
 ## Evaluation protocol
 
-All metrics are computed uniformly across solvers through the Tesseract interface. The protocol is solver-agnostic: it operates on `apply` and `vjp` and never inspects solver internals.
+All metrics are computed uniformly across solvers through the Tesseract interface. The protocol is solver-agnostic: it operates on `apply` and `vjp` and never inspects solver internals. Mosaic reports several categories of metrics:
 
 **Setup compatibility.** For each solver--task pair: whether the solver produces a usable gradient, fails numerically, or cannot run due to structural constraints (e.g. periodic-only BCs on a channel domain). Structural incompatibilities are declared via `problem.exclude(key, {solver_name: Exclusion(...)})`; the matching is longest-prefix (e.g. `key="gradient"` blocks every `gradient/*` experiment).
 

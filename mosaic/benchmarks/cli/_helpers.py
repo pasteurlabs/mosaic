@@ -30,6 +30,76 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _platform_warnings(
+    system: str | None = None, docker_info: str | None = None
+) -> list[str]:
+    """Return platform-compatibility warnings for the current host.
+
+    Mosaic is only validated on Linux with Docker Engine and the NVIDIA
+    Container Toolkit. Other configurations (macOS, Windows, Docker Desktop)
+    are untested: most GPU solvers won't run at all, and we haven't verified
+    that every Tesseract even builds on non-x86 hosts (Apple Silicon).
+
+    Pure and injectable so it can be unit-tested: ``system`` defaults to
+    ``platform.system()`` and ``docker_info`` to the output of ``docker info``
+    (server-side ``Operating System`` line, used to spot Docker Desktop).
+    """
+    import platform as _platform
+
+    if system is None:
+        system = _platform.system()
+
+    warnings: list[str] = []
+
+    if system != "Linux":
+        warnings.append(
+            f"Mosaic is only tested on Linux; detected {system}. Most solvers "
+            "require Docker Engine + the NVIDIA Container Toolkit on a Linux "
+            "host with an NVIDIA GPU. GPU-only solvers (e.g. the recommended "
+            "Exponax) cannot run here, and not all Tesseracts are known to "
+            "build on this platform."
+        )
+
+    if docker_info and "docker desktop" in docker_info.lower():
+        warnings.append(
+            "Docker Desktop detected. GPU passthrough is unavailable, so "
+            "GPU-only solvers will fail to run. Use Docker Engine on a Linux "
+            "host for full benchmark coverage."
+        )
+
+    return warnings
+
+
+def _docker_server_os() -> str | None:
+    """Return the Docker daemon's reported OS string, or None if unavailable.
+
+    Reads ``docker info``'s server-side ``Operating System`` field, which
+    reports e.g. ``Docker Desktop`` on Docker Desktop hosts. Returns None if
+    Docker isn't installed/running so callers can degrade gracefully.
+    """
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["docker", "info", "--format", "{{.OperatingSystem}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
+
+
+def _warn_platform_compatibility() -> None:
+    """Print platform-compatibility warnings before a run, if any apply."""
+    for msg in _platform_warnings(docker_info=_docker_server_os()):
+        print_warn(msg)
+
+
 def _suite_components(suite: str, cfg: Any) -> tuple[dict, callable]:
     """Return (experiments_dict, plot_fns_factory) for ``suite`` in ``cfg``.
 
@@ -92,24 +162,29 @@ def _apply_solver_filter(cfg: Any, solvers_csv: str | None) -> Any:
     """
     if not solvers_csv:
         return cfg
+    # Solver names are matched case-insensitively: lower-case the requested
+    # names and compare against lower-cased canonical names. Filtering still
+    # keeps the solvers by their canonical name so downstream lookups are
+    # unaffected.
+    by_lower = {s.name.lower(): s.name for s in cfg.solvers}
     if "=" in solvers_csv:
         per_problem = _parse_per_problem_solver_map(solvers_csv)
         if cfg.name not in per_problem:
             return cfg
-        requested = set(per_problem[cfg.name])
+        requested = {s.lower() for s in per_problem[cfg.name]}
         # Per-problem map: an unknown name *is* a typo, because the user
         # explicitly addressed this problem.
-        unknown = requested - set(cfg.solver_names)
+        unknown = requested - set(by_lower)
         if unknown:
             print_warn(
                 f"{cfg.name}: unknown solver(s) in -s map: "
                 f"{', '.join(sorted(unknown))} — skipping"
             )
     else:
-        requested = {s.strip() for s in solvers_csv.split(",") if s.strip()}
+        requested = {s.strip().lower() for s in solvers_csv.split(",") if s.strip()}
         # Flat CSV: silently ignore names that don't apply here — they
         # presumably belong to another problem.
-    keep = [s for s in cfg.solvers if s.name in requested]
+    keep = [s for s in cfg.solvers if s.name.lower() in requested]
     if not keep:
         print_warn(f"{cfg.name}: no solvers in -s match this problem — skipping")
         return None
@@ -401,7 +476,9 @@ def _validate_solver_csv(solvers_csv: str | None, problem_list: list[str]) -> No
             # "build failed" later in the loop and aren't relevant to a
             # name-typo check.
             continue
-    unknown = requested - all_names
+    # Match case-insensitively against the canonical names.
+    known_lower = {n.lower() for n in all_names}
+    unknown = {name for name in requested if name.lower() not in known_lower}
     if unknown:
         from difflib import get_close_matches
 
