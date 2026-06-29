@@ -186,7 +186,6 @@ def _canonical_schema_source(physics_dir: str) -> str | None:
         schema_path = (
             ROOT
             / "mosaic"
-            / "tesseracts"
             / "mosaic_shared"
             / "problems"
             / module
