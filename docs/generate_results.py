@@ -452,8 +452,18 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
     return header, [(s, _time(fv), _time(vjp.get(s))) for s, fv in rows]
 
 
-# final-objective metric name by domain optimization experiment
-_OPT_FINAL_KEYS = ("final_error", "final_drag", "final_compliance")
+# final-objective metric name by domain optimization experiment, in priority
+# order (the first key present in a result's metrics is used to rank it).
+_OPT_FINAL_KEYS = ("final_error", "final_drag", "final_compliance", "final_ic_error")
+
+# Human-readable column labels for the ranked metric. Falls back to a generic
+# de-underscored title when a key is missing here.
+_OPT_METRIC_LABELS = {
+    "final_error": "Final error",
+    "final_drag": "Final drag",
+    "final_compliance": "Final compliance",
+    "final_ic_error": "Final IC recovery error",
+}
 
 
 def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
@@ -472,14 +482,16 @@ def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
                 continue
             val = m.get(key)
             if isinstance(val, int | float) and math.isfinite(val):
-                metric_label = key.replace("final_", "final ").replace("_", " ")
+                metric_label = _OPT_METRIC_LABELS.get(
+                    key, key.replace("final_", "final ").replace("_", " ").capitalize()
+                )
                 rows.append((r["solver"], float(val), bool(m.get("converged", False))))
         if rows:
             break
     if len(rows) < 2:
         return None
     rows.sort(key=lambda t: t[1])
-    header = ["Solver", metric_label.capitalize(), "Converged"]
+    header = ["Solver", metric_label, "Converged"]
     return header, [(s, _fmt_sci(v), "yes" if conv else "no") for s, v, conv in rows]
 
 
