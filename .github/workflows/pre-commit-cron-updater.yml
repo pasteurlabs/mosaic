@@ -62,7 +62,7 @@ jobs:
         if: steps.pre-commit.outputs.pre-commit-outcome == 'success'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           committer: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           author: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           commit-message: Update pre-commit hooks
@@ -76,7 +76,7 @@ jobs:
         if: steps.create-pr-ok.outputs.pull-request-operation == 'created'
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           pull-request-number: ${{ steps.create-pr-ok.outputs.pull-request-number }}
           merge-method: squash
 
@@ -84,7 +84,7 @@ jobs:
         if: steps.pre-commit.outputs.pre-commit-outcome == 'failure'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           committer: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           author: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           commit-message: Update pre-commit hooks

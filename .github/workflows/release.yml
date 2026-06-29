@@ -24,7 +24,7 @@ on:
       - main
 
 env:
-  GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+  GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
 
 jobs:
   trigger-pr:
@@ -35,7 +35,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -62,7 +62,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           committer: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           author: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           commit-message: "chore: update changelog"
@@ -88,7 +88,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -134,7 +134,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
           fetch-tags: true
