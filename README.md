@@ -12,7 +12,7 @@ Think OpenAI Gym, but for differentiable physics: a growing catalog of tasks acr
 <a href="#use-tesseracts-in-your-own-code"><img src="https://img.shields.io/badge/%F0%9F%A7%A9_use-in_your_code-555" alt="Use"></a>
 <a href="#contribute"><img src="https://img.shields.io/badge/%F0%9F%A4%9D_contribute-add_a_solver-555" alt="Contribute"></a>
 <a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/"><img src="https://img.shields.io/badge/docs-stable-3b6fb6" alt="Stable docs"></a>
-<a href="https://arxiv.org/abs/XXXX.XXXXX"><img src="https://img.shields.io/badge/paper-arXiv-b31b1b" alt="Paper"></a>
+<a href="https://arxiv.org/abs/2606.27895"><img src="https://img.shields.io/badge/paper-arXiv-b31b1b" alt="Paper"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
 
 ![Overview of Mosaic: diverse solver backends are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains.](docs/visual_abstract.png)
@@ -217,6 +217,22 @@ mosaic/
     thermal-mesh/         # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
   tests/                  # unit tests (run with pytest)
 docs/                     # Quarto documentation site
+```
+
+## Citation
+
+If you use Mosaic in your research, please cite the paper ([arXiv:2606.27895](https://arxiv.org/abs/2606.27895)):
+
+```bibtex
+@misc{rehmann2026mosaic,
+  title         = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
+  author        = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
+  year          = {2026},
+  eprint        = {2606.27895},
+  archivePrefix = {arXiv},
+  primaryClass  = {physics.comp-ph},
+  url           = {https://arxiv.org/abs/2606.27895}
+}
 ```
 
 ## License
