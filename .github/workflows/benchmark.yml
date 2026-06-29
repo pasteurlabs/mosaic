@@ -396,7 +396,7 @@ jobs:
       - name: Post status comment on PR
         if: github.event_name == 'pull_request'
         env:
-          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           DOCS_PREVIEW_URL: ${{ steps.rtd_url.outputs.preview_url }}
         run: |
           REPORT=""

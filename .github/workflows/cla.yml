@@ -14,8 +14,8 @@ jobs:
         if: startsWith(github.event.comment.body, '@PasteurBot') || github.event.comment.body == 'recheck' || github.event_name == 'pull_request_target'
         uses: contributor-assistant/github-action@v2.6.1
         env:
-          GITHUB_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
-          PERSONAL_ACCESS_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          GITHUB_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
         with:
           allowlist: "PasteurBot,dependabot[bot],github-actions[bot]"
 

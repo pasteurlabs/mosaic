@@ -46,7 +46,7 @@ jobs:
         if: steps.git-diff.outputs.update_done == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.PL_PASTEURBOT_PAT_PRIVATE }}
+          token: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
           committer: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           author: PasteurBot <${{ vars.PL_PASTEURBOT_EMAIL }}>
           commit-message: Update dependencies
