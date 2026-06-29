@@ -432,7 +432,10 @@ def _plot_topopt_3d(
 
     n = len(panels)
     fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH / max(1, n) * 1.05), dpi=300)
-    gs = fig.add_gridspec(1, n, wspace=0.05, top=0.80, bottom=0.02)
+    # wspace gives adjacent per-panel titles horizontal breathing room (they
+    # overlapped at 0.05); top leaves a clear band below the suptitle for the
+    # two-line "<label> / C = ..." titles.
+    gs = fig.add_gridspec(1, n, wspace=0.30, top=0.78, bottom=0.02)
 
     for col, (j, name) in enumerate(panels):
         ax = fig.add_subplot(gs[0, col], projection="3d")
@@ -469,7 +472,7 @@ def _plot_topopt_3d(
         title = label
         if compliance_val is not None:
             title += f"\n$C = {compliance_val:.3e}$"
-        ax.set_title(title, fontsize=7.5, pad=2)
+        ax.set_title(title, fontsize=7, pad=6)
         ax.view_init(elev=_ELEV, azim=_AZIM)
         ax.set_axis_off()
 
