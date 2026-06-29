@@ -184,12 +184,7 @@ def _canonical_schema_source(physics_dir: str) -> str | None:
         return None
     if module not in _CANONICAL_CACHE:
         schema_path = (
-            ROOT
-            / "mosaic"
-            / "mosaic_shared"
-            / "problems"
-            / module
-            / "schemas.py"
+            ROOT / "mosaic" / "mosaic_shared" / "problems" / module / "schemas.py"
         )
         if not schema_path.exists():
             _CANONICAL_CACHE[module] = ""
