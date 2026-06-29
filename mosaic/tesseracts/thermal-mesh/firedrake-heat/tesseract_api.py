@@ -332,6 +332,25 @@ def _solve_heat(
         input_to_fd[inp_idx] = fd_idx
     T_nodes = T_fd[input_to_fd]  # (n_input_nodes,)
 
+    # ---- Identification error: area-weighted L2 integral ∫(T-T*)² dΩ ----
+    # This is BOTH the reported objective and the quantity the adjoint below
+    # differentiates, so the returned gradient is the exact derivative of the
+    # reported objective. (Previously apply() reported the nodal sum
+    # sum((T-T*)²) while the adjoint differentiated this integral and bridged
+    # the two with an approximate scalar — see issue #85.)
+    id_error_l2 = None
+    if target_temperature is not None:
+        T_target_fd = Function(V)
+        T_tgt = np.asarray(target_temperature, dtype=np.float64)
+        T_tgt_reordered = np.zeros(mesh.num_vertices(), dtype=np.float64)
+        for fd_idx, inp_idx in enumerate(fd_to_input_nodes):
+            if inp_idx < len(T_tgt):
+                T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
+        T_target_fd.dat.data[:] = T_tgt_reordered
+        id_error_l2 = float(
+            assemble(inner(T_sol - T_target_fd, T_sol - T_target_fd) * dx)
+        )
+
     # ---- Gradients via adjoint -----------------------------------------
     dJ_drho = None
     dJ_dsource = None
@@ -417,22 +436,14 @@ def _solve_heat(
             if inp_idx < len(T_tgt4):
                 T_tgt_reordered4[fd_idx] = T_tgt4[inp_idx]
         T_target_fd4.dat.data[:] = T_tgt_reordered4
-        # Identification error functional: I = ∫(T - T_target)² dΩ
-        _coords4 = mesh.coordinates.dat.data_ro
-        domain_vol4 = float(
-            np.prod(
-                [
-                    _coords4[:, i].max() - _coords4[:, i].min()
-                    for i in range(_coords4.shape[1])
-                ]
-            )
-        )
-        n_nodes4 = mesh.num_vertices()
-        nodal_correction4 = float(n_nodes4) / domain_vol4
+        # Identification error functional: I = ∫(T - T_target)² dΩ — the same
+        # area-weighted L2 integral the forward apply() now reports, so this
+        # adjoint derivative is the *exact* gradient of the reported objective
+        # (no nodal-sum/integral correction factor needed; see issue #85).
         I_rho = assemble(inner(T_sol4 - T_target_fd4, T_sol4 - T_target_fd4) * dx)
         dI_rho_hat = ReducedFunctional(I_rho, Control(rho_fn4))
         dI_rho_fn = dI_rho_hat.derivative()
-        dI_rho_vec = dI_rho_fn.dat.data_ro.copy() * nodal_correction4
+        dI_rho_vec = dI_rho_fn.dat.data_ro.copy()
         dI_rho_input = np.zeros(len(rho_values))
         dI_rho_input[fd_to_input_cells] = dI_rho_vec
         dI_drho = dI_rho_input
@@ -477,32 +488,23 @@ def _solve_heat(
             if inp_idx < len(T_tgt):
                 T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
         T_target_fd.dat.data[:] = T_tgt_reordered
-        # Identification error functional: I = ∫(T - T_target)² dΩ
-        # NOTE: The forward uses sum((T_nodes-T_target)²) (nodal sum, no area weighting).
-        # The L2 functional ∫(T-T_target)²dΩ = M_lump * nodal_sum (Galerkin mass weighting).
-        # Correcting by (n_nodes / domain_vol) ≈ 1/M_lump_avg cancels this discrepancy,
-        # reducing the VJP magnitude error from ~50× to <5%.
-        _coords = mesh.coordinates.dat.data_ro
-        domain_vol = float(
-            np.prod(
-                [
-                    _coords[:, i].max() - _coords[:, i].min()
-                    for i in range(_coords.shape[1])
-                ]
-            )
-        )
-        n_nodes = mesh.num_vertices()
-        nodal_correction = float(n_nodes) / domain_vol
+        # Identification error functional: I = ∫(T - T_target)² dΩ — the exact
+        # area-weighted L2 integral the forward apply() now reports, so this
+        # adjoint derivative is the exact gradient of the reported objective.
+        # (Previously the forward used the nodal sum sum((T-T_target)²) and this
+        # gradient was multiplied by an approximate n_nodes/domain_vol factor to
+        # bridge the two — only correct to ~5%, which corrupted L-BFGS curvature;
+        # see issue #85.)
         J3 = assemble(inner(T_sol3 - T_target_fd, T_sol3 - T_target_fd) * dx)
         Jhat3 = ReducedFunctional(J3, Control(source_fn3))
         dI_src_fn = Jhat3.derivative()
-        dI_src_fd = dI_src_fn.dat.data_ro.copy() * nodal_correction
+        dI_src_fd = dI_src_fn.dat.data_ro.copy()
         dI_src_input = np.zeros(len(source_values))
         for fd_idx, inp_idx in enumerate(fd_to_input_cells):
             dI_src_input[inp_idx] = dI_src_fd[fd_idx]
         dI_dsource = dI_src_input
 
-    return float(J), T_nodes, dJ_drho, dJ_dsource, dI_dsource, dI_drho
+    return float(J), T_nodes, dJ_drho, dJ_dsource, dI_dsource, dI_drho, id_error_l2
 
 
 # ---------------------------------------------------------------------------
@@ -540,7 +542,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         bc.neumann.values if bc.neumann else np.zeros((0, 1)), dtype=np.float64
     )
 
-    J_val, T_nodes, _, _, _, _ = _solve_heat(
+    J_val, T_nodes, _, _, _, _, id_error_l2 = _solve_heat(
         rho_values,
         source_values,
         pts,
@@ -552,11 +554,11 @@ def apply(inputs: InputSchema) -> OutputSchema:
         k_max=inputs.k_max,
         p_exp=inputs.p_exp,
         compute_gradient=False,
+        target_temperature=target_temp if target_temp.size else None,
     )
 
-    T_f32 = T_nodes.astype(np.float32)
-    n = min(len(T_f32), len(target_temp))
-    id_error = np.float32(np.sum((T_f32[:n] - target_temp[:n]) ** 2))
+    # Area-weighted L2 identification error ∫(T-T*)² dΩ (see _solve_heat / #85).
+    id_error = np.float32(id_error_l2 if id_error_l2 is not None else 0.0)
 
     return OutputSchema(
         thermal_compliance=np.float32(J_val),
@@ -619,7 +621,7 @@ def vector_jacobian_product(
     target_temp = np.asarray(inputs.target_temperature, dtype=np.float64)
     need_target = want_source_id_error or want_rho_id_error
 
-    _, _, dJ_drho, dJ_dsource, dI_dsource, dI_drho = _solve_heat(
+    _, _, dJ_drho, dJ_dsource, dI_dsource, dI_drho, _ = _solve_heat(
         rho_values,
         source_values,
         pts,

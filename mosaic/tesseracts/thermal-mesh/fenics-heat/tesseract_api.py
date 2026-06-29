@@ -303,6 +303,27 @@ def _solve_heat(
     # compute_vertex_values returns a flat array of length n_vertices.
     T_vertices = T_sol.compute_vertex_values(mesh)
 
+    # ---- Identification error: area-weighted L2 integral ∫(T-T*)² dΩ ------
+    # This is BOTH the reported objective and the integral the adjoint below
+    # differentiates, so the returned gradient is the exact derivative of the
+    # reported objective. (Previously apply() reported the nodal sum
+    # sum((T-T*)²) while the adjoint differentiated this integral, bridged by an
+    # approximate n_nodes/domain_vol scalar — see issue #85.)
+    id_error_l2 = None
+    if target_temperature is not None:
+        T_target_fn0 = Function(V)
+        T_tgt0 = np.asarray(target_temperature, dtype=np.float64)
+        d2v0 = dof_to_vertex_map(V)
+        target_at_dofs0 = np.zeros(V.dim(), dtype=np.float64)
+        for dof_i in range(V.dim()):
+            vert_i = int(d2v0[dof_i])
+            if vert_i < len(T_tgt0):
+                target_at_dofs0[dof_i] = float(T_tgt0[vert_i])
+        T_target_fn0.vector()[:] = target_at_dofs0
+        id_error_l2 = float(
+            assemble(inner(T_sol - T_target_fn0, T_sol - T_target_fn0) * dx)
+        )
+
     # ---- Gradient via adjoint --------------------------------------------
     dJ_drho = None
     if compute_gradient:
@@ -377,31 +398,21 @@ def _solve_heat(
                 target_at_dofs2[dof_i] = float(T_tgt[vert_i])
         T_target_fn.vector()[:] = target_at_dofs2
 
-        # Nodal correction: identification_error (forward) = sum(nodal diff^2),
-        # while dolfin-adjoint differentiates ∫(T-T_t)² dΩ (area-weighted).
-        coords2 = mesh2.coordinates()
-        domain_vol2 = float(
-            np.prod(
-                [
-                    coords2[:, i].max() - coords2[:, i].min()
-                    for i in range(coords2.shape[1])
-                ]
-            )
-        )
-        n_nodes_mesh2 = mesh2.num_vertices()
-        nodal_correction2 = float(n_nodes_mesh2) / domain_vol2
-
+        # identification_error = ∫(T-T_t)² dΩ — the same area-weighted L2
+        # integral the forward apply() now reports, so this adjoint derivative
+        # is the exact gradient of the reported objective (no nodal-sum/integral
+        # correction factor needed; see issue #85).
         diff2 = T_sol2 - T_target_fn
         I2 = assemble(inner(diff2, diff2) * dx)
         Ihat2 = ReducedFunctional(I2, Control(rho2))
         dI_fenics2 = Ihat2.derivative()
-        dI_fenics_vec2 = dI_fenics2.vector().get_local().copy() * nodal_correction2
+        dI_fenics_vec2 = dI_fenics2.vector().get_local().copy()
 
         dI_input2 = np.zeros(len(rho_values))
         dI_input2[fenics_to_input2] = dI_fenics_vec2
         dI_drho = dI_input2
 
-    return float(J), T_vertices, dJ_drho, dI_drho
+    return float(J), T_vertices, dJ_drho, dI_drho, id_error_l2
 
 
 # ---------------------------------------------------------------------------
@@ -439,7 +450,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         bc.neumann.values if bc.neumann else np.zeros((0, 1)), dtype=np.float64
     )
 
-    J_val, T_verts, _, _ = _solve_heat(
+    J_val, T_verts, _, _, id_error_l2 = _solve_heat(
         rho_values,
         pts,
         cells,
@@ -451,11 +462,11 @@ def apply(inputs: InputSchema) -> OutputSchema:
         inputs.p_exp,
         compute_gradient=False,
         source_values=source_values,
+        target_temperature=target_temp if target_temp.size else None,
     )
 
-    T_f32 = T_verts.astype(np.float32)
-    n = min(len(T_f32), len(target_temp))
-    id_error = np.float32(np.sum((T_f32[:n] - target_temp[:n]) ** 2))
+    # Area-weighted L2 identification error ∫(T-T*)² dΩ (see _solve_heat / #85).
+    id_error = np.float32(id_error_l2 if id_error_l2 is not None else 0.0)
 
     return OutputSchema(
         thermal_compliance=np.float32(J_val),
@@ -530,7 +541,7 @@ def vector_jacobian_product(
             else None
         )
 
-        _, _, dJ_drho, dI_drho = _solve_heat(
+        _, _, dJ_drho, dI_drho, _ = _solve_heat(
             rho_values,
             pts,
             cells,
@@ -622,21 +633,9 @@ def vector_jacobian_product(
             T_sol = Function(V)
             solve(a == L, T_sol, bcs)
 
-            # ---- Nodal correction factor (matches firedrake fix) -----------
-            # identification_error = sum((T_nodes - T_target)^2)  (nodal, no area)
-            # J_id (dolfin-adjoint) = integral((T-T_t)^2 dΩ)     (area-weighted)
-            # Correction: nodal_correction = n_nodes / domain_vol
-            coords = mesh.coordinates()  # numpy array (n_vertices, 3)
-            domain_vol = float(
-                np.prod(
-                    [
-                        coords[:, i].max() - coords[:, i].min()
-                        for i in range(coords.shape[1])
-                    ]
-                )
-            )
-            n_nodes_mesh = mesh.num_vertices()
-            nodal_correction = float(n_nodes_mesh) / domain_vol
+            # identification_error is now the area-weighted L2 integral
+            # ∫(T-T_t)² dΩ — exactly what dolfin-adjoint differentiates below —
+            # so no nodal-sum/integral correction factor is applied (see #85).
 
             # ---- Branch: ∂(identification_error)/∂source -----------------
             if cot_src != 0.0:
@@ -660,9 +659,7 @@ def vector_jacobian_product(
                 # ---- Adjoint differentiation for identification_error -----
                 Jhat_id = ReducedFunctional(J_id, source_ctrl)
                 dJ_src_fenics = Jhat_id.derivative()
-                dJ_src_vec = (
-                    dJ_src_fenics.vector().get_local().copy() * nodal_correction
-                )
+                dJ_src_vec = dJ_src_fenics.vector().get_local().copy()
 
                 # ---- Map FEniCS DG0 DOF order → input cell order ---------
                 dJ_src_input = np.zeros(hm.n_faces, dtype=np.float64)

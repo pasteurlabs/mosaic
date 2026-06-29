@@ -7,6 +7,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import meshio
 from jax_fem.generate_mesh import Mesh
 from jax_fem.problem import Problem
@@ -41,21 +42,46 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
+def _lumped_node_weights(points: np.ndarray, cells: np.ndarray) -> np.ndarray:
+    """Per-node lumped volume w_i for an axis-aligned hex mesh.
+
+    Each hex cell's volume (bounding-box product of its node coordinates) is
+    split equally among its nodes, so ``sum_i w_i * f_i`` approximates the
+    integral ``∫ f dΩ``. Used to make ``identification_error`` the area-weighted
+    L2 integral ``∫(T-T*)² dΩ`` rather than a raw nodal sum (see issue #85).
+    """
+    pts = np.asarray(points, dtype=np.float64)
+    cels = np.asarray(cells, dtype=np.int64)
+    w = np.zeros(len(pts), dtype=np.float64)
+    for cell in cels:
+        cp = pts[cell]
+        vol = float(np.prod(cp.max(axis=0) - cp.min(axis=0)))
+        w[cell] += vol / len(cell)
+    return w
+
+
 def _compute_identification_error(
-    T_nodes: jnp.ndarray, target_temperature: jnp.ndarray
+    T_nodes: jnp.ndarray,
+    target_temperature: jnp.ndarray,
+    node_weights: jnp.ndarray | None = None,
 ) -> jnp.ndarray:
-    """Compute ||T - target_temperature||²_2 (scalar, float32).
+    """Compute the area-weighted L2 identification error (scalar, float32).
 
     Args:
         T_nodes: Nodal temperature field, shape (n_nodes,).
         target_temperature: Per-node target, shape (n_target,). Trimmed to
             min(n_nodes, n_target) for safety.
+        node_weights: Per-node lumped volumes w_i so the result is
+            ``sum_i w_i (T_i-T*_i)²`` ≈ ``∫(T-T*)² dΩ``. When None, falls back to
+            the unweighted nodal sum.
 
     Returns:
         Scalar identification error.
     """
     n = min(T_nodes.shape[0], target_temperature.shape[0])
     diff = T_nodes[:n] - target_temperature[:n]
+    if node_weights is not None:
+        return jnp.sum(node_weights[:n] * diff**2).astype(jnp.float32)
     return jnp.sum(diff**2).astype(jnp.float32)
 
 
@@ -308,7 +334,17 @@ def apply_fn(inputs: dict) -> dict:
     # identification_error = sum((-T_jaxfem - T_target)^2) is consistent with
     # the other three solvers' sum((T_nodal - T_target)^2) formulation.
     T_nodal = -sol[:, 0]
-    id_error = _compute_identification_error(T_nodal, target_temperature)
+    # Area-weighted L2 integral ∫(T-T*)² dΩ via lumped nodal volumes. The mesh
+    # arrays are concrete (only rho/source are traced by jax.vjp), so the weights
+    # are geometry-only constants and AD flows through T_nodal correctly (#85).
+    node_w = jnp.asarray(
+        _lumped_node_weights(
+            inputs["hex_mesh"]["points"][: inputs["hex_mesh"]["n_points"]],
+            inputs["hex_mesh"]["faces"][: inputs["hex_mesh"]["n_faces"]],
+        ),
+        dtype=jnp.float32,
+    )
+    id_error = _compute_identification_error(T_nodal, target_temperature, node_w)
 
     return {
         "thermal_compliance": thermal_compliance.astype(jnp.float32),
