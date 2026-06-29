@@ -230,7 +230,7 @@ If you use Mosaic in your research, please cite the paper ([arXiv:2606.27895](ht
   year          = {2026},
   eprint        = {2606.27895},
   archivePrefix = {arXiv},
-  primaryClass  = {cs.LG},
+  primaryClass  = {physics.comp-ph},
   url           = {https://arxiv.org/abs/2606.27895}
 }
 ```
