@@ -7,8 +7,8 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import meshio
+import numpy as np
 from jax_fem.generate_mesh import Mesh
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper

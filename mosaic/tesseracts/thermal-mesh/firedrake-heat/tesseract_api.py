@@ -542,7 +542,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         bc.neumann.values if bc.neumann else np.zeros((0, 1)), dtype=np.float64
     )
 
-    J_val, T_nodes, _, _, _, _, id_error_l2 = _solve_heat(
+    J_val, _, _, _, _, _, id_error_l2 = _solve_heat(
         rho_values,
         source_values,
         pts,
