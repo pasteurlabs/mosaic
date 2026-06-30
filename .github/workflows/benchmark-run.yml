@@ -116,9 +116,23 @@ jobs:
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
         run: |
           SOLVERS="${{ inputs.solvers }}"
+          PROBLEM="${{ matrix.problem }}"
+          # A flat --solvers list may name solvers that only exist in some
+          # problems of the matrix (e.g. torch-fem is thermal-only, TopOpt.jl is
+          # structural-only). mosaic run rejects a name absent from the problem
+          # it runs against, so intersect the request with THIS problem's solver
+          # set first; an empty intersection means this leg has nothing to run.
+          if [[ -n "$SOLVERS" ]]; then
+            SOLVERS=$(uv run python .github/scripts/intersect-solvers.py \
+              --problem "$PROBLEM" --solvers "$SOLVERS")
+            if [[ -z "$SOLVERS" ]]; then
+              echo "::notice::None of the requested solvers exist for $PROBLEM — skipping."
+              exit 0
+            fi
+          fi
           uv run mosaic run \
             --suites ${{ matrix.suite }} \
-            --problems ${{ matrix.problem }} \
+            --problems "$PROBLEM" \
             --hardware ${{ matrix.hardware }} \
             --no-build \
             ${SOLVERS:+--solvers "$SOLVERS"}
