@@ -665,7 +665,7 @@ def _build_positional_payload(
 def _environment_metadata() -> dict:
     """Gather Python / mosaic version / timestamp metadata for provenance."""
     import platform as _platform
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     version = "unknown"
     with contextlib.suppress(Exception):
@@ -677,7 +677,7 @@ def _environment_metadata() -> dict:
         "python_version": _platform.python_version(),
         "platform": _platform.platform(),
         "mosaic_version": version,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -889,9 +889,7 @@ def save_experiment(
             import platform as _platform
 
             prov["run_meta"] = {
-                "timestamp": _dt.datetime.now(_dt.timezone.utc).strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"
-                ),
+                "timestamp": _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "ci": bool(os.environ.get("CI")),
                 "runner": os.environ.get("RUNNER_NAME", ""),
                 "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
