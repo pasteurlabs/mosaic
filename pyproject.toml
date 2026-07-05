@@ -9,7 +9,7 @@ readme = "README.md"
 authors = [
     {name = "The Mosaic team @ Pasteur Labs + OSS contributors", email = "info@simulation.science"},
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.15"
 license = {text = "Apache-2.0"}
 dynamic = ["version"]
 dependencies = [
@@ -76,7 +76,7 @@ addopts = "-v --tb=short"
 
 [tool.ruff]
 # Set to the lowest supported Python version.
-target-version = "py310"
+target-version = "py312"
 
 # Set the target line length for formatting.
 line-length = 88
