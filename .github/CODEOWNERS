@@ -1,0 +1,7 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# global owners will be requested for
+# review when someone opens a pull request.
+#
+# Add code owners here. For example:
+# *       @user1 @user2 @user3

@@ -50,6 +50,7 @@ mosaic-results/
 .env
 .claude/
 uv.lock
+.ruff_cache/
 
 /.quarto/
 
