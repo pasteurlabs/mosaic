@@ -120,7 +120,6 @@ ignore = [
     "RUF001", # Ambiguous unicode in string — Greek letters (ρ, π, ∂) are intentional in math code
     "RUF002", # Ambiguous unicode in docstring — same
     "RUF003", # Ambiguous unicode in comment — same
-    "UP042",  # PEP 663 StrEnum: opt-out; rewriting str-enums can change behavior
 ]
 
 [tool.ruff.lint.pydocstyle]
