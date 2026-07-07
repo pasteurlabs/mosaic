@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import math
 import sys
-from datetime import UTC
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -878,10 +877,10 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
 
 
 def main() -> None:
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     check_mode = "--check" in sys.argv
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     tree = _scan_results()
     if not tree:

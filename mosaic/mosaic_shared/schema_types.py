@@ -4,7 +4,7 @@
 """Mesh and boundary condition type definitions."""
 
 import types
-from enum import StrEnum
+from enum import Enum
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation, create_model
@@ -15,7 +15,7 @@ from tesseract_core.runtime import Array, Differentiable, Float32, Int32
 # ---------------------------------------------------------------------------
 
 
-class BCType(StrEnum):
+class BCType(str, Enum):
     """Boundary condition type for a single domain face."""
 
     PERIODIC = "periodic"
@@ -80,7 +80,7 @@ class GridBC(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class ObstacleShape(StrEnum):
+class ObstacleShape(str, Enum):
     """Shape of an embedded obstacle in the flow domain."""
 
     CYLINDER = "cylinder"  # infinite cylinder (circle in 2-D cross-section)

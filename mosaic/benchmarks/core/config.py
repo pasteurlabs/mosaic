@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 TESSERACTS_DIR: Path = Path(__file__).resolve().parents[2] / "tesseracts"
 
 
-class ExclusionCategory(StrEnum):
+class ExclusionCategory(str, Enum):
     """Why a solver does not run for a given experiment.
 
     ``CATEGORICAL`` is permanent (excluded from the campaign-score denominator);
@@ -47,7 +47,7 @@ EXCL_PERMANENT: frozenset[ExclusionCategory] = frozenset(
 )
 
 
-class AdStrategy(StrEnum):
+class AdStrategy(str, Enum):
     """How a solver computes gradients.
 
     ``None`` (the absence of an :class:`AdStrategy`) means non-differentiable.
