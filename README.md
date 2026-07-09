@@ -59,12 +59,12 @@ What we can offer are a few patterns that recur across domains and are unlikely 
 
 **Rollout length is a fundamental bottleneck.** The clearest signal comes from pushing the 3D Navier–Stokes gradient out to longer and longer horizons. As the flow turns chaotic, solvers fail in method-characteristic ways: projection-based finite-difference codes return non-finite gradients within a couple hundred steps; tape-based reverse-mode AD stays accurate but its memory climbs with every stored step until it runs out; a spectral solver keeps running cheaply for thousands of steps while its gradient magnitude explodes to meaningless values.
 
-**Whether a solver can even run the task is a first-order constraint.** On the 2D drag-minimization problem, the most application-like task in the suite, only three of seven fluid solvers can participate at all. Some assume periodic boundaries and cannot represent the obstacle, others rely on a spectral projection incompatible with the geometry. Before comparing gradient quality, check whether a solver's assumptions match your problem.
+**Whether a solver can even run the task is a major constraint.** On the 2D drag-minimization problem, the most application-like task in the suite, only three of seven fluid solvers can participate at all. Some assume periodic boundaries and cannot represent the obstacle, others rely on a spectral projection incompatible with the geometry. Before comparing gradient quality, check whether a solver's assumptions match your problem.
 
 Note that today's tasks are deliberately on the simpler end — laminar flow, linear elasticity, modest horizons — and configurations are mostly out-of-the-box rather than expert-tuned. Harder regimes may well surface cases where raw gradient quality becomes the binding constraint.
 
 > [!TIP]
-> Browse the [per-domain pages](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_grid.html) for the numbers behind each of these claims.
+> Browse the [per-domain pages](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results.html) for the numbers behind each of these claims.
 
 ## 📖 Documentation
 
