@@ -46,6 +46,26 @@ Per-domain pages with every plot, solver rankings, and the full evaluation proto
 [Structural mechanics](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_structural_mesh.html) ·
 [Heat transfer](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_thermal_mesh.html)
 
+## So, which solver is best?
+
+It depends, and there likely isn't even a "best" solver for a given task. These solvers were built for different jobs, in different languages, with different differentiation strategies, and very different user experiences. Mosaic runs them side by side to make those differences visible, but also marginalizes over a lot of nuance.
+
+What we can offer are a few patterns that recur across domains and are unlikely to shift with more configuration tuning, because they follow from fundamental constraints rather than from how exactly a solver is set up.
+
+> [!NOTE]
+> These takeaways are the high-level version and are glossing over a lot of detail. For the full analysis see our [paper](https://arxiv.org/abs/2606.27895).
+
+**On well-conditioned problems, compute performance and integration effort matter most.** Heat transfer and structural mechanics are our controlled cases, where the physics is linear and the objective is smooth. Every differentiable solver reproduces the finite-difference gradient direction almost exactly (cosine similarity above 0.999), and although pointwise accuracy still spans a few orders of magnitude, that spread does not decide the outcome, since all backends agree on the forward solution and converge to effectively the same optimum. What is left to distinguish them is how fast the forward-plus-VJP pass runs and how much work it took to wire up. For a large class of inverse and design problems, you can simply pick the solver that is fastest and/or easiest to integrate.
+
+**Rollout length is a fundamental bottleneck.** Pushing the 3D Navier–Stokes gradient out to longer and longer horizons separates a solver's success into two separate properties. The first is _gradient conditioning_, set by the numerical discretization: as the flow turns chaotic, projection-based schemes tend to accumulate spurious non-physical modes that corrupt the gradient (return non-finite values within a couple hundred steps), whereas lattice-Boltzmann and finite-volume schemes keep the gradient bounded far longer. The second is _memory_, set by the differentiation strategy: tape-based reverse-mode AD stores every step and eventually runs out, while methods that avoid unrolling the full trace stay within budget. So at long horizons, prefer a well-conditioned discretization with an AD strategy that does not grow with the rollout, and always check the gradient magnitude rather than trusting that a run which completes has produced a usable gradient.
+
+**Whether a solver can even run the task is a major constraint.** For example, on the 2D drag-minimization problem, only three of seven fluid solvers can participate at all. Some assume periodic boundaries and cannot represent the obstacle, others rely on a spectral projection incompatible with the geometry. Before comparing gradient quality, check whether a solver's assumptions match your problem.
+
+Note that today's tasks are deliberately on the simpler end — laminar flow, linear elasticity, modest horizons — and configurations are mostly out-of-the-box rather than expert-tuned. Harder regimes may well surface cases where raw gradient quality becomes the binding constraint.
+
+> [!TIP]
+> Browse the [per-domain pages](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results.html) for the numbers behind each of these claims.
+
 ## 📖 Documentation
 
 Two versions are published. **You most likely want to use [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/) — it tracks the latest release and is the most reliable (all solvers benchmarked in the same run).** [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may aggregate results from different runs.
