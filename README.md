@@ -48,7 +48,7 @@ Per-domain pages with every plot, solver rankings, and the full evaluation proto
 
 ## So, which solver is best?
 
-It depends, and the honest answer is that "best" is the wrong question. These solvers were built for different jobs, in different languages, with different differentiation strategies, and Mosaic runs them side by side to make those differences visible, but also marginalizes over a lot of implementation details.
+It depends, and there likely isn't a "best" solver for a task. These solvers were built for different jobs, in different languages, with different differentiation strategies, and Mosaic runs them side by side to make those differences visible, but also marginalizes over a lot of nuance.
 
 What we can offer are a few patterns that recur across domains and are unlikely to shift with more configuration tuning, because they follow from how each method works rather than from how exactly it is set up.
 
