@@ -38,9 +38,12 @@ JAX_CFD_NO_OBSTACLE = Exclusion(
 )
 INS_JL_NO_OBSTACLE = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "no IBM or volume penalization — the cylinder obstacle cannot be "
-    "represented in INS.jl; spectral/LU pressure projection is also "
-    "periodic-only",
+    "this tesseract represents the cylinder by hard-mask Brinkman "
+    "penalization (velocity zeroed after each projection), which is "
+    "projection-inconsistent and diverges; INS.jl itself supports the "
+    "obstacle via a finite Brinkman forcing term with its native channel "
+    "BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers "
+    "handle non-periodic BCs), but that route is not implemented here",
 )
 WARP_NS_NO_OBSTACLE = Exclusion(
     ExclusionCategory.CATEGORICAL,
