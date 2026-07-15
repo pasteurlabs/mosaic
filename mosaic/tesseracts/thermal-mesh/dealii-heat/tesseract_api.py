@@ -158,6 +158,24 @@ def _run_solver(wd: Path) -> None:
         )
 
 
+def _lumped_node_weights(points: np.ndarray, cells: np.ndarray) -> np.ndarray:
+    """Per-node lumped volume w_i for an axis-aligned hex mesh.
+
+    Each hex cell's volume (bounding-box product of its node coordinates) is
+    split equally among its nodes, so ``sum_i w_i * f_i`` approximates the
+    integral ``∫ f dΩ``. Used to make ``identification_error`` the area-weighted
+    L2 integral ``∫(T-T*)² dΩ`` rather than a raw nodal sum (see issue #85).
+    """
+    pts = np.asarray(points, dtype=np.float64)
+    cels = np.asarray(cells, dtype=np.int64)
+    w = np.zeros(len(pts), dtype=np.float64)
+    for cell in cels:
+        cp = pts[cell]
+        vol = float(np.prod(cp.max(axis=0) - cp.min(axis=0)))
+        w[cell] += vol / len(cell)
+    return w
+
+
 def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:
     """Read compliance.txt and (if present) temperature.npy to compute id-error."""
     with open(wd / "compliance.txt") as f:
@@ -167,8 +185,15 @@ def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:
     temp_path = wd / "temperature.npy"
     if temp_path.exists() and target_temp.size > 1:
         temperature = np.load(str(temp_path)).astype(np.float32)
-        n = min(len(temperature), len(target_temp))
-        id_error = np.float32(np.sum((temperature[:n] - target_temp[:n]) ** 2))
+        # Area-weighted L2 integral ∫(T-T*)² dΩ via lumped nodal volumes.
+        hm = inputs.hex_mesh
+        pts = np.asarray(hm.points[: hm.n_points], dtype=np.float64)
+        cells = np.asarray(hm.faces[: hm.n_faces], dtype=np.int64)
+        w = _lumped_node_weights(pts, cells)
+        n = min(len(temperature), len(target_temp), len(w))
+        id_error = np.float32(
+            np.sum(w[:n] * (temperature[:n] - target_temp[:n]).astype(np.float64) ** 2)
+        )
     else:
         id_error = np.float32(0.0)
 
