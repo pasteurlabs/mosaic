@@ -220,10 +220,15 @@ jobs:
     needs: [plan, benchmarks]
     # Runs on every PR (and every dispatch where benchmarks ran), even for
     # benchmark:none PRs that ran no benchmarks. The benchmark-result steps
-    # below are guarded on should_run; the docs render / upload / RTD-trigger
-    # steps run regardless so doc-only PRs still get a Read the Docs preview.
-    # A benchmark:none PR still fetches the published baseline, so its preview
+    # below are guarded on should_run; the docs render + upload steps run
+    # regardless so doc-only PRs still get a Read the Docs preview. A
+    # benchmark:none PR still fetches the published baseline, so its preview
     # shows the full site populated with the last released results.
+    #
+    # This job runs in the PR head's context and uses NO repo secrets, so it
+    # works identically for fork PRs. The secret-requiring follow-up (trigger
+    # the RTD rebuild, resolve the preview URL, post the PR comment) lives in
+    # docs-publish.yml, which fires on workflow_run in the base-repo context.
     if: >-
       always() && !cancelled()
       && needs.plan.result == 'success'
@@ -350,6 +355,28 @@ jobs:
         # populated from the merged PR+baseline result tree above.
         run: uv run quarto render --output-dir _site
 
+      # ── Metadata for the downstream publish workflow ───────────────────
+      # The RTD trigger, preview-URL lookup, and PR comment all need repo
+      # secrets, which GitHub withholds from pull_request runs on fork PRs.
+      # So this job (which runs in the *fork's* context) does the secret-free
+      # work — render + upload — and hands off to docs-publish.yml, which runs
+      # on workflow_run in the *base* repo's context (trusted main code, full
+      # secret access). The handoff carries everything that workflow needs but
+      # can't otherwise recover: the PR number and whether benchmarks ran.
+      - name: Write publish metadata
+        if: github.event_name == 'pull_request'
+        run: |
+          {
+            echo "pr_number=${{ github.event.pull_request.number }}"
+            echo "should_run=${{ needs.plan.outputs.should_run }}"
+          } > publish-meta.txt
+          # Ship the status report alongside the site so the downstream comment
+          # can include it. Absent (benchmark:none) → downstream posts only the
+          # preview banner.
+          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
+            cp status-report.md _site-status-report.md
+          fi
+
       - name: Upload rendered docs site
         uses: actions/upload-artifact@v7
         with:
@@ -360,52 +387,20 @@ jobs:
           overwrite: true
           retention-days: 90
 
-      # ── Trigger RTD PR preview rebuild ─────────────────────────────────
-      # RTD's webhook fires on PR push, but that build starts before
-      # benchmark results exist.  After uploading the results artifact,
-      # trigger a fresh RTD build so it can pick up the results.
-      - name: Trigger RTD PR preview rebuild
+      - name: Upload publish handoff
+        # Consumed by docs-publish.yml (workflow_run). Kept separate from the
+        # _site artifact so the downstream can grab just the small metadata +
+        # report without unpacking the whole site.
         if: github.event_name == 'pull_request'
-        env:
-          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
-          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
-        run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          bash .github/scripts/rtd-trigger.sh "${PR_NUM}"
-
-      # ── Resolve RTD preview URL ────────────────────────────────────────
-      # The external version already exists (RTD's webhook created it on PR
-      # push), so its public docs URL can be looked up immediately — no need to
-      # wait for the rebuild below. Resolving it here (a fast API GET) lets the
-      # PR comment link the preview prominently without being held up by the
-      # build poll. Non-fatal: an empty output just omits the banner.
-      - name: Resolve RTD preview URL
-        id: rtd_url
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
-          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
-        run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          bash .github/scripts/rtd-preview-url.sh "${PR_NUM}"
-
-      # ── Post PR comment ────────────────────────────────────────────────
-      # When benchmarks ran, pass the status report; otherwise pass nothing and
-      # the comment is just the docs-preview banner (no all-zero status table).
-      - name: Post status comment on PR
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
-          DOCS_PREVIEW_URL: ${{ steps.rtd_url.outputs.preview_url }}
-        run: |
-          REPORT=""
-          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
-            REPORT="status-report.md"
-          fi
-          .github/scripts/post-status-comment.sh \
-            "${{ github.event.pull_request.number }}" \
-            "$REPORT"
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-publish-meta-${{ github.event.pull_request.number }}
+          path: |
+            publish-meta.txt
+            _site-status-report.md
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 7
 
   # ── Merge gate ─────────────────────────────────────────────────────────
   bench-ok:
@@ -442,8 +437,8 @@ jobs:
 
           # benchmark:none → no benchmarks to check, but the report job still
           # runs to render the docs preview. A failed render (e.g. a broken
-          # .qmd) should block merge; RTD-side steps are best-effort
-          # (continue-on-error) and don't fail the job.
+          # .qmd) should block merge. RTD publishing / PR-commenting happen in
+          # docs-publish.yml (workflow_run) and never gate the merge.
           if [[ "${{ needs.plan.outputs.label }}" == "none" ]]; then
             if [[ "${{ github.event_name }}" == "pull_request" \
                && "${{ needs.report.result }}" != "success" \
