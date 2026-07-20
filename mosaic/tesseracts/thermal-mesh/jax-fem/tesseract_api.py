@@ -171,6 +171,8 @@ class HeatConduction(Problem):
         T_face = jnp.sum(T_face, axis=2)
         subset_quad_points = self.physical_surface_quad_points[0]
         neumann_fn = self.get_surface_maps()[0]
+        # neumann_fn returns the negated flux (-q_n) for the residual; negate
+        # again here to recover the physical influx q_n for the compliance.
         flux = -jax.vmap(jax.vmap(neumann_fn))(T_face, subset_quad_points)
         val = jnp.sum(flux * T_face * nanson_scale[:, :, None])
         return val
@@ -238,7 +240,12 @@ def setup(
 
     def make_neumann_value_fn(i: int) -> Callable:
         def _value_fn_vn(u: jnp.ndarray, x: jnp.ndarray):
-            return von_neumann_values[i]
+            # JAX-FEM adds the surface map to the residual with a + sign, while
+            # the physical Neumann term enters the weak form as -∮ q_n v dΓ (see
+            # JAX-FEM's Poisson demo). Return the negated flux so a positive
+            # prescribed q_n is a physical influx, consistent with the source
+            # term in get_mass_map.
+            return -von_neumann_values[i]
 
         return _value_fn_vn
 
@@ -302,12 +309,11 @@ def apply_fn(inputs: dict) -> dict:
     thermal_compliance = problem.compute_thermal_compliance(sol)
 
     target_temperature = jnp.array(inputs.get("target_temperature", jnp.zeros(1)))
-    # JAX-FEM's weak form uses the sign convention K·T = -f, so the solved
-    # temperature field is the negative of the physical temperature returned by
-    # FEniCS/Firedrake/deal.II (which use K·T = +f).  Negate sol[:,0] so that
-    # identification_error = sum((-T_jaxfem - T_target)^2) is consistent with
-    # the other three solvers' sum((T_nodal - T_target)^2) formulation.
-    T_nodal = -sol[:, 0]
+    # With the Neumann flux applied as a physical influx (see
+    # make_neumann_value_fn), the solved field is the physical temperature, so
+    # it can be compared directly against the reference targets used by the
+    # other solvers: identification_error = sum((T_nodal - T_target)^2).
+    T_nodal = sol[:, 0]
     id_error = _compute_identification_error(T_nodal, target_temperature)
 
     return {
