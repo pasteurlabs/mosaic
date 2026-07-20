@@ -12,10 +12,19 @@ on:
         description: "Comma-separated suites to run (or 'all')"
         default: "all"
 
+# This workflow runs on `pull_request`, so on fork PRs it gets a read-only
+# token and no repo secrets. It therefore does only the secret-free work:
+# planning and a metadata handoff. The privileged half — building solver
+# images, pushing to (private) GHCR, running benchmarks, rendering docs, and
+# commenting — lives in benchmark-execute.yml, which fires on `workflow_run`
+# in the trusted base-repo context. See that file's header for the trust model.
+#
+# `statuses: write` lets the plan-gate job post the `bench-ok` commit status
+# (the name branch protection requires) to this PR's head SHA — pending when a
+# trusted run will follow, or an immediate success/failure when it won't.
 permissions:
   contents: read
-  pull-requests: write
-  packages: read
+  statuses: write
   actions: read
 
 concurrency:
@@ -176,286 +185,150 @@ jobs:
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "Matrix: $MATRIX"
 
-  # ── Build changed solver images → GHCR :<sha> ─────────────────────────
-  build:
-    name: Build solver images
-    needs: plan
-    if: needs.plan.outputs.should_run == 'true' && needs.plan.outputs.solver_matrix != '[]'
-    uses: ./.github/workflows/build-tesseracts.yml
-    with:
-      matrix: ${{ needs.plan.outputs.solver_matrix }}
-    permissions:
-      contents: read
-      packages: write
-    secrets: inherit
+          # Guard: should_run=true but an empty include matrix means the plan
+          # decided to run yet generated no jobs (e.g. the should_run filter and
+          # the matrix generator disagreed). That would yield a green bench-ok
+          # with nothing benchmarked — fail loudly instead of passing silently.
+          N=$(echo "$MATRIX" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('include', [])))")
+          if [[ "$N" -eq 0 ]]; then
+            echo "::error::should_run=true but the benchmark matrix is empty — planning inconsistency."
+            exit 1
+          fi
 
-  # ── Run benchmarks (ics + solver suites) ───────────────────────────────
-  benchmarks:
-    name: Run benchmarks
-    needs: [plan, build]
-    if: always() && needs.plan.outputs.should_run == 'true' && !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    uses: ./.github/workflows/benchmark-run.yml
-    with:
-      matrix: ${{ needs.plan.outputs.matrix }}
-      problems: ${{ needs.plan.outputs.problems }}
-      suites: ${{ needs.plan.outputs.suites }}
-      solvers: ${{ needs.plan.outputs.solvers }}
-      # Primary tag: this PR's HEAD (built by the build job for changed solvers).
-      # Fallback tag: the PR's base, i.e. the main commit this branch sits on —
-      # always built by the push-to-main "Build Tesseracts" run and immutable.
-      # Solvers not rebuilt by this PR (unchanged solvers, or any solver on a
-      # release PR that builds nothing) are pulled at the base SHA rather than
-      # the mutable :latest, so a stale/racy :latest can never be served.
-      image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
-      base_image_tag: ${{ github.event.pull_request.base.sha || github.sha }}
-      timeout: 600
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-
-  # ── Merge results, report, publish ─────────────────────────────────────
-  report:
-    name: Report & publish
-    needs: [plan, benchmarks]
-    # Runs on every PR (and every dispatch where benchmarks ran), even for
-    # benchmark:none PRs that ran no benchmarks. The benchmark-result steps
-    # below are guarded on should_run; the docs render + upload steps run
-    # regardless so doc-only PRs still get a Read the Docs preview. A
-    # benchmark:none PR still fetches the published baseline, so its preview
-    # shows the full site populated with the last released results.
-    #
-    # This job runs in the PR head's context and uses NO repo secrets, so it
-    # works identically for fork PRs. The secret-requiring follow-up (trigger
-    # the RTD rebuild, resolve the preview URL, post the PR comment) lives in
-    # docs-publish.yml, which fires on workflow_run in the base-repo context.
-    if: >-
-      always() && !cancelled()
-      && needs.plan.result == 'success'
-      && (github.event_name == 'pull_request' || needs.plan.outputs.should_run == 'true')
+  # ── Plan-time merge gate + bench-ok status seeding ─────────────────────
+  # Renamed from `bench-ok` (that name is now the *commit status* the trusted
+  # benchmark-execute run posts — see below). This job enforces only what is
+  # decidable at plan time (the label policy) and seeds the `bench-ok` status:
+  #
+  #   • policy violation (mosaic/ touched, no label, non-release) → failure
+  #   • nothing will run (benchmark:none, no solver change, docs-only) → the
+  #     trusted run still renders docs but posts no gate, so seed success here
+  #   • a trusted run will run benchmarks → seed pending; benchmark-execute
+  #     flips it to success/failure when it finishes
+  #
+  # Branch protection keeps requiring the `bench-ok` context, so the merge
+  # can't go green until either this job short-circuits it or the trusted run
+  # reports real results. `github.actor` from a fork can still write a status
+  # to its own head SHA with the (read-only-elsewhere) default token.
+  plan-gate:
+    name: Plan gate
+    if: always()
+    needs: [plan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install Mosaic
-        run: cp production.uv.lock uv.lock && uv sync --frozen
-
-      - name: Download all results
-        # Only PR runs that actually ran benchmarks produce results-* artifacts.
-        # benchmark:none PRs skip this and rely on the baseline below.
-        if: needs.plan.outputs.should_run == 'true'
-        uses: actions/download-artifact@v8
-        with:
-          pattern: results-*
-          path: staging-results/
-
-      - name: Merge results from CPU/GPU artifacts
-        if: needs.plan.outputs.should_run == 'true'
-        run: |
-          # download-artifact doesn't create the path dir when nothing matches.
-          mkdir -p staging-results
-          uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
-
-      - name: Download baseline artifact
-        # The baseline artifact is produced by a *different* workflow run
-        # (publish-results.yml on main), so actions/download-artifact (which
-        # only sees the current run) can't fetch it. fetch-artifact.sh looks up
-        # the most recent baseline across the whole repo via the API.
-        if: >-
-          github.event_name == 'pull_request'
-          && needs.plan.outputs.is_release_pr != 'true'
+      - name: Evaluate policy and seed bench-ok status
+        if: github.event_name == 'pull_request'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: ${{ github.repository }}
-        run: |
-          # Exit 2 = baseline not found (non-fatal: first run has no baseline).
-          bash .github/scripts/fetch-artifact.sh baseline baseline/mosaic-results/ \
-            || [ "$?" -eq 2 ]
-
-      - name: Overlay PR results on baseline
-        if: >-
-          github.event_name == 'pull_request'
-          && needs.plan.outputs.is_release_pr != 'true'
-        run: |
-          if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
-            if [ -d mosaic-results ] && [ "$(ls mosaic-results/ 2>/dev/null)" ]; then
-              # PR ran benchmarks: overlay its (possibly partial) results on the
-              # baseline, PR winning per solver.
-              MERGED=$(mktemp -d)
-              uv run python .github/scripts/overlay-results.py \
-                baseline/mosaic-results mosaic-results "$MERGED"
-              rm -rf mosaic-results
-              mv "$MERGED" mosaic-results
-            else
-              # benchmark:none (or a PR that ran nothing): no PR results to
-              # overlay, so the preview just shows the published baseline.
-              rm -rf mosaic-results
-              cp -r baseline/mosaic-results mosaic-results
-            fi
-          fi
-
-      # The status snapshot/report exist only to summarise *this run's* results
-      # against the baseline. When no benchmarks ran (e.g. benchmark:none or a
-      # docs-only PR), the result tree is just a copy of the baseline, so the
-      # report would be an all-zero diff — pure noise. Skip it; the PR comment
-      # then carries only the docs-preview link.
-      - name: Extract baseline snapshot
-        id: baseline
-        if: needs.plan.outputs.should_run == 'true'
-        run: |
-          BASELINE_PATH=""
-          if [ -f baseline/mosaic-results/snapshot.json ]; then
-            cp baseline/mosaic-results/snapshot.json baseline-snapshot.json
-            BASELINE_PATH="baseline-snapshot.json"
-            echo "Fetched baseline snapshot"
-          fi
-          echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
-
-      - name: Generate status snapshot (JSON)
-        if: needs.plan.outputs.should_run == 'true'
-        run: uv run mosaic status --format json > snapshot.json
-
-      - name: Generate status report (markdown)
-        if: needs.plan.outputs.should_run == 'true'
-        run: |
-          DIFF_FLAG=""
-          if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
-            DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
-          fi
-          uv run mosaic status --format md $DIFF_FLAG > status-report.md
-
-      # ── Render docs site on GHA ────────────────────────────────────────
-      # The docs are rendered here (where the full mosaic/jax stack is already
-      # installed and memory is ample) rather than on Read the Docs, whose
-      # constrained builders OOM-kill the heavy `import mosaic`. RTD only
-      # downloads and serves the pre-rendered _site/ (see .readthedocs.yaml).
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-        with:
-          version: "1.7.31"
-
-      # Regenerate plots for ALL solvers from the merged result.json files.
-      # The baseline artifact stores data only (plots are stripped before
-      # upload), and only the changed solver re-ran here, so without this step
-      # generate_results.py would glob just the changed solver's PNGs and the
-      # docs would omit every baseline solver. --plots-only is no-Docker/no-GPU.
-      - name: Regenerate plots from merged results
-        run: uv run mosaic run --plots-only
-
-      - name: Generate results pages
-        run: uv run python docs/generate_results.py
-
-      - name: Render docs site
-        # Always render the full site, so doc-only (benchmark:none) PRs preview
-        # their prose changes, not just the results pages. Results pages are
-        # populated from the merged PR+baseline result tree above.
-        run: uv run quarto render --output-dir _site
-
-      # ── Metadata for the downstream publish workflow ───────────────────
-      # The RTD trigger, preview-URL lookup, and PR comment all need repo
-      # secrets, which GitHub withholds from pull_request runs on fork PRs.
-      # So this job (which runs in the *fork's* context) does the secret-free
-      # work — render + upload — and hands off to docs-publish.yml, which runs
-      # on workflow_run in the *base* repo's context (trusted main code, full
-      # secret access). The handoff carries everything that workflow needs but
-      # can't otherwise recover: the PR number and whether benchmarks ran.
-      - name: Write publish metadata
-        if: github.event_name == 'pull_request'
-        run: |
-          {
-            echo "pr_number=${{ github.event.pull_request.number }}"
-            echo "should_run=${{ needs.plan.outputs.should_run }}"
-          } > publish-meta.txt
-          # Ship the status report alongside the site so the downstream comment
-          # can include it. Absent (benchmark:none) → downstream posts only the
-          # preview banner.
-          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
-            cp status-report.md _site-status-report.md
-          fi
-
-      - name: Upload rendered docs site
-        uses: actions/upload-artifact@v7
-        with:
-          # One artifact per PR (RTD serves it keyed off the PR number). For
-          # non-PR runs (e.g. workflow_dispatch) fall back to the commit SHA.
-          name: docs-site-pr-${{ github.event.pull_request.number || github.sha }}
-          path: _site/
-          overwrite: true
-          retention-days: 90
-
-      - name: Upload publish handoff
-        # Consumed by docs-publish.yml (workflow_run). Kept separate from the
-        # _site artifact so the downstream can grab just the small metadata +
-        # report without unpacking the whole site.
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v7
-        with:
-          name: docs-publish-meta-${{ github.event.pull_request.number }}
-          path: |
-            publish-meta.txt
-            _site-status-report.md
-          if-no-files-found: ignore
-          overwrite: true
-          retention-days: 7
-
-  # ── Merge gate ─────────────────────────────────────────────────────────
-  bench-ok:
-    name: Benchmark checks passed
-    if: always()
-    needs: [plan, build, benchmarks, report]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Decide status
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           echo "plan: ${{ needs.plan.result }}"
-          echo "build: ${{ needs.build.result }}"
-          echo "benchmarks: ${{ needs.benchmarks.result }}"
-          echo "report: ${{ needs.report.result }}"
           echo "label: ${{ needs.plan.outputs.label }}"
           echo "mosaic_touched: ${{ needs.plan.outputs.mosaic_touched }}"
+          echo "should_run: ${{ needs.plan.outputs.should_run }}"
+
+          # The seed posts are BEST-EFFORT: a fork token that can't write a
+          # status must not fail this step (that would flip the run conclusion
+          # to failure and gate out the trusted executor, orphaning the gate).
+          # The executor's finalize job is the authoritative terminal post for
+          # every found=true PR — these seeds only surface state sooner. The
+          # policy `exit 1` paths below stay fatal (they intentionally block).
+          post() { bash .github/scripts/post-commit-status.sh "$HEAD_SHA" "$1" "$2" "$RUN_URL" || echo "::warning::bench-ok seed ($1) could not be posted; finalize will set it."; }
 
           # plan must always succeed
           if [[ "${{ needs.plan.result }}" != "success" ]]; then
+            post failure "Plan job failed"
             echo "::error::Plan failed."
             exit 1
           fi
 
           # PR that touches mosaic/ without a benchmark label → block merge
-          # (release PRs are exempt — they always run full benchmarks)
-          if [[ "${{ github.event_name }}" == "pull_request" \
-             && "${{ needs.plan.outputs.mosaic_touched }}" == "true" \
+          # (release PRs are exempt — they always run full benchmarks). The
+          # planner run then concludes failure, so the executor never runs and
+          # this failure status is the final word until a label is applied.
+          if [[ "${{ needs.plan.outputs.mosaic_touched }}" == "true" \
              && "${{ needs.plan.outputs.is_release_pr }}" != "true" \
              && -z "${{ needs.plan.outputs.label }}" ]]; then
+            post failure "Add a benchmark:{none,solver,all} label"
             echo "::error::This PR modifies mosaic/ code but has no benchmark label."
             echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:all"
             exit 1
           fi
 
-          # benchmark:none → no benchmarks to check, but the report job still
-          # runs to render the docs preview. A failed render (e.g. a broken
-          # .qmd) should block merge. RTD publishing / PR-commenting happen in
-          # docs-publish.yml (workflow_run) and never gate the merge.
-          if [[ "${{ needs.plan.outputs.label }}" == "none" ]]; then
-            if [[ "${{ github.event_name }}" == "pull_request" \
-               && "${{ needs.report.result }}" != "success" \
-               && "${{ needs.report.result }}" != "skipped" ]]; then
-              echo "::error::Docs preview (report job) failed (${{ needs.report.result }})."
-              exit 1
-            fi
-            echo "benchmark:none — skipping benchmark checks (docs preview OK)"
+          # Nothing will run (benchmark:none, no solver change, docs-only):
+          # seed success now so the check shows green promptly. finalize
+          # re-asserts success for this case too, so a failed seed still
+          # resolves.
+          if [[ "${{ needs.plan.outputs.should_run }}" != "true" ]]; then
+            post success "No benchmarks to run for this PR"
+            echo "No benchmarks will run — bench-ok seeded success."
             exit 0
           fi
 
-          # When benchmarks ran, all downstream jobs must succeed (or be skipped)
-          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
-            for result in "${{ needs.build.result }}" "${{ needs.benchmarks.result }}" "${{ needs.report.result }}"; do
-              if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-                echo "::error::Benchmark job failed ($result)."
-                exit 1
-              fi
-            done
-          fi
+          # Benchmarks will run in the trusted benchmark-execute workflow.
+          # Seed pending; finalize flips bench-ok to success/failure.
+          post pending "Benchmarks running in benchmark-execute"
+          echo "Seeded bench-ok=pending; trusted run will report results."
+
+  # ── Handoff to the trusted benchmark-execute workflow ──────────────────
+  # The privileged work (build + push to private GHCR, run benchmarks, render
+  # docs, comment) can't happen here on fork PRs. Ship everything the trusted
+  # workflow_run needs — but can't recover from its own context — as a small
+  # artifact. Every value is a plan output (numeric / enum / SHA / JSON) and is
+  # re-validated on the far side before use.
+  handoff:
+    name: Handoff to benchmark-execute
+    needs: [plan]
+    if: always() && needs.plan.result == 'success' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write handoff metadata
+        # All values go through env rather than inline ${{ }} interpolation:
+        # PR-controlled strings (labels, and especially any free-form field)
+        # must never be spliced into a shell script directly. The executor
+        # re-validates each one before use.
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SHOULD_RUN: ${{ needs.plan.outputs.should_run }}
+          LABEL: ${{ needs.plan.outputs.label }}
+          IS_RELEASE_PR: ${{ needs.plan.outputs.is_release_pr }}
+          PROBLEMS: ${{ needs.plan.outputs.problems }}
+          SUITES: ${{ needs.plan.outputs.suites }}
+          SOLVERS: ${{ needs.plan.outputs.solvers }}
+          SOLVER_MATRIX: ${{ needs.plan.outputs.solver_matrix }}
+          RUN_MATRIX: ${{ needs.plan.outputs.matrix }}
+        run: |
+          {
+            echo "pr_number=${PR_NUMBER}"
+            echo "head_sha=${HEAD_SHA}"
+            echo "base_sha=${BASE_SHA}"
+            echo "should_run=${SHOULD_RUN}"
+            echo "label=${LABEL}"
+            echo "is_release_pr=${IS_RELEASE_PR}"
+            echo "problems=${PROBLEMS}"
+            echo "suites=${SUITES}"
+            echo "solvers=${SOLVERS}"
+          } > handoff-meta.txt
+          # Matrices are JSON — keep them in their own files to avoid quoting
+          # hazards in the key=value metadata.
+          printf '%s\n' "$SOLVER_MATRIX" > solver-matrix.json
+          printf '%s\n' "$RUN_MATRIX" > run-matrix.json
+          echo "--- handoff-meta.txt ---"
+          cat handoff-meta.txt
+
+      - name: Upload handoff
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-handoff-${{ github.event.pull_request.number }}
+          path: |
+            handoff-meta.txt
+            solver-matrix.json
+            run-matrix.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
