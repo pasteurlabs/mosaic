@@ -1,8 +1,9 @@
 name: ins_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Julia finite-difference solver with spectral pressure projection and RK4 time integration;
-  CPU-only. Differentiates through the time loop via Zygote.jl reverse-mode AD.
+  Julia staggered finite-volume solver with spectral pressure projection and RK4 time
+  integration; run on CPU in this benchmark (the library itself also supports CUDA via
+  KernelAbstractions.jl). Differentiates through the time loop via Zygote.jl reverse-mode AD.
 build_config:
   custom_build_steps:
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates gcc g++ && rm -rf /var/lib/apt/lists/*"
@@ -26,8 +27,8 @@ metadata:
     name: "INS.jl"
     backend: julia
     family: projection
-    scheme: "FD + projection"
-    discretization: FD
+    scheme: "FV + projection"
+    discretization: FV
     numerics: "Projection, RK4"
     ad_strategy: autodiff
     differentiable: true
