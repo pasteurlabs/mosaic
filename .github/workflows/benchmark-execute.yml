@@ -1,0 +1,431 @@
+name: Benchmark execute
+
+# Trusted half of the fork-safe benchmark flow. The Benchmark workflow runs on
+# `pull_request` — on fork PRs it gets a read-only token and no secrets, so it
+# can only plan and upload a metadata handoff. This workflow fills the gap.
+#
+# `workflow_run` always runs in the BASE repo's context, using the workflow
+# definition from the default branch — trusted code with `packages: write` and
+# full secret access — regardless of whether the triggering run came from a
+# fork. It therefore does everything the planner couldn't:
+#
+#   • build the PR's changed solver images and push them to (private) GHCR,
+#   • run the benchmarks (pulling the private images it just pushed, plus the
+#     immutable base-SHA images for unchanged solvers),
+#   • render the docs preview, and
+#   • post the `bench-ok` commit status + the PR comment / RTD preview.
+#
+# SECURITY: this run holds write scope and secrets, so it must never execute
+# PR-authored *workflow/script* code. It checks out the base repo's default
+# branch for its own scripts; the only PR-authored code it touches is the
+# solver source it builds into a container and runs in the same sandboxed
+# runners same-repo PRs already use. Every fork-controlled value (SHAs, PR
+# number, label, matrices) arrives via the handoff artifact and is re-validated
+# before use — same posture the retired docs-publish.yml used.
+
+on:
+  workflow_run:
+    workflows: ["Benchmark"]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: write # push/pull private solver images
+  statuses: write # post the bench-ok commit status
+  actions: read # download the handoff artifact from the triggering run
+
+concurrency:
+  # Serialize per triggering PR head; a newer push supersedes an in-flight run.
+  group: benchmark-execute-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Recover + validate the handoff from the triggering PR run ──────────
+  recover-meta:
+    name: Recover handoff
+    # Only PR-triggered Benchmark runs that succeeded (a failed planner already
+    # posted bench-ok=failure and there's nothing to execute).
+    if: >-
+      github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.parse.outputs.found }}
+      should_run: ${{ steps.parse.outputs.should_run }}
+      pr_number: ${{ steps.parse.outputs.pr_number }}
+      head_sha: ${{ steps.parse.outputs.head_sha }}
+      base_sha: ${{ steps.parse.outputs.base_sha }}
+      label: ${{ steps.parse.outputs.label }}
+      is_release_pr: ${{ steps.parse.outputs.is_release_pr }}
+      problems: ${{ steps.parse.outputs.problems }}
+      suites: ${{ steps.parse.outputs.suites }}
+      solvers: ${{ steps.parse.outputs.solvers }}
+      solver_matrix: ${{ steps.parse.outputs.solver_matrix }}
+      run_matrix: ${{ steps.parse.outputs.run_matrix }}
+    steps:
+      - name: Download handoff
+        id: dl
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: bench-handoff-*
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: handoff/
+          merge-multiple: true
+
+      - name: Parse and validate handoff
+        id: parse
+        run: |
+          set -euo pipefail
+          META="handoff/handoff-meta.txt"
+          if [[ ! -f "$META" ]]; then
+            echo "No handoff metadata — nothing to execute."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          get() { grep -oP "^$1=\K.*" "$META" || true; }
+          PR_NUMBER="$(get pr_number)"
+          HEAD_SHA="$(get head_sha)"
+          BASE_SHA="$(get base_sha)"
+          SHOULD_RUN="$(get should_run)"
+          LABEL="$(get label)"
+          IS_RELEASE_PR="$(get is_release_pr)"
+          PROBLEMS="$(get problems)"
+          SUITES="$(get suites)"
+          SOLVERS="$(get solvers)"
+
+          # ── Validate every fork-controlled value before use ──────────────
+          fail() { echo "::warning::$1 — skipping."; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || fail "PR number '$PR_NUMBER' not numeric"
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "head_sha '$HEAD_SHA' not a 40-hex SHA"
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "base_sha '$BASE_SHA' not a 40-hex SHA"
+          case "$SHOULD_RUN" in true | false) ;; *) fail "should_run '$SHOULD_RUN' invalid" ;; esac
+          case "$LABEL" in none | solver | all | "") ;; *) fail "label '$LABEL' invalid" ;; esac
+          case "$IS_RELEASE_PR" in true | false) ;; *) fail "is_release_pr '$IS_RELEASE_PR' invalid" ;; esac
+
+          # Matrices are JSON; validate they parse and re-emit compactly.
+          SOLVER_MATRIX="$(python3 -c 'import json,sys; print(json.dumps(json.load(open("handoff/solver-matrix.json"))))' 2>/dev/null || echo "INVALID")"
+          [[ "$SOLVER_MATRIX" != "INVALID" ]] || fail "solver-matrix.json not valid JSON"
+          # run-matrix is only present/needed when benchmarks run.
+          if [[ "$SHOULD_RUN" == "true" ]]; then
+            RUN_MATRIX="$(python3 -c 'import json,sys; print(json.dumps(json.load(open("handoff/run-matrix.json"))))' 2>/dev/null || echo "INVALID")"
+            [[ "$RUN_MATRIX" != "INVALID" ]] || fail "run-matrix.json not valid JSON"
+          else
+            RUN_MATRIX='{"include":[]}'
+          fi
+
+          {
+            echo "found=true"
+            echo "pr_number=$PR_NUMBER"
+            echo "head_sha=$HEAD_SHA"
+            echo "base_sha=$BASE_SHA"
+            echo "should_run=$SHOULD_RUN"
+            echo "label=$LABEL"
+            echo "is_release_pr=$IS_RELEASE_PR"
+            echo "problems=$PROBLEMS"
+            echo "suites=$SUITES"
+            echo "solvers=$SOLVERS"
+            echo "solver_matrix=$SOLVER_MATRIX"
+            echo "run_matrix=$RUN_MATRIX"
+          } >> "$GITHUB_OUTPUT"
+          echo "Recovered handoff for PR #$PR_NUMBER (head $HEAD_SHA, should_run=$SHOULD_RUN)"
+
+  # ── Build changed solver images → private GHCR :<head_sha> ─────────────
+  build:
+    name: Build solver images
+    needs: [recover-meta]
+    if: >-
+      needs.recover-meta.outputs.found == 'true'
+      && needs.recover-meta.outputs.should_run == 'true'
+      && needs.recover-meta.outputs.solver_matrix != '[]'
+    uses: ./.github/workflows/build-tesseracts.yml
+    with:
+      matrix: ${{ needs.recover-meta.outputs.solver_matrix }}
+      ref: ${{ needs.recover-meta.outputs.head_sha }}
+      image_sha: ${{ needs.recover-meta.outputs.head_sha }}
+    permissions:
+      contents: read
+      packages: write
+    # Deliberately NOT `secrets: inherit`. This job checks out and executes
+    # PR-authored code (the solver's build_base.sh and Dockerfile) to build the
+    # image, so it must see the smallest possible secret surface. build-tesseracts
+    # needs only the auto-provided GITHUB_TOKEN for GHCR; RTD_TOKEN / the bot PAT
+    # stay out of reach of fork build scripts. (The images are then run in the
+    # same sandboxed runners same-repo PRs already use.)
+
+  # ── Run benchmarks (ics + solver suites) ───────────────────────────────
+  benchmarks:
+    name: Run benchmarks
+    needs: [recover-meta, build]
+    if: >-
+      always() && !cancelled()
+      && needs.recover-meta.outputs.found == 'true'
+      && needs.recover-meta.outputs.should_run == 'true'
+      && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    uses: ./.github/workflows/benchmark-run.yml
+    with:
+      matrix: ${{ needs.recover-meta.outputs.run_matrix }}
+      problems: ${{ needs.recover-meta.outputs.problems }}
+      suites: ${{ needs.recover-meta.outputs.suites }}
+      solvers: ${{ needs.recover-meta.outputs.solvers }}
+      # Primary tag: this PR's HEAD (built by the build job above). Fallback:
+      # the PR's base SHA — always built by the push-to-main run and immutable,
+      # so unchanged solvers pull a stable image rather than the mutable :latest.
+      image_tag: ${{ needs.recover-meta.outputs.head_sha }}
+      base_image_tag: ${{ needs.recover-meta.outputs.base_sha }}
+      timeout: 600
+    permissions:
+      contents: read
+      packages: read
+    # No `secrets: inherit`: this job runs the fork-built solver container, so
+    # it sees the smallest secret surface. benchmark-run.yml needs only the
+    # auto-provided GITHUB_TOKEN (GHCR pull); RTD_TOKEN / the bot PAT stay out.
+
+  # ── Merge results + render docs preview ─────────────────────────────────
+  # Runs for every recovered PR (even benchmark:none / docs-only), so the RTD
+  # preview always reflects this PR. Benchmark-result steps are guarded on
+  # should_run; the render always runs. Mirrors the old benchmark.yml `report`
+  # job, but here in the trusted context it also consumes the results produced
+  # by the `benchmarks` job in *this* run.
+  report:
+    name: Report & render
+    needs: [recover-meta, benchmarks]
+    if: >-
+      always() && !cancelled()
+      && needs.recover-meta.outputs.found == 'true'
+      && (needs.benchmarks.result == 'success' || needs.benchmarks.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      report_ok: ${{ steps.done.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v6
+        # Base-repo default branch: our own trusted scripts, never PR code.
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Download all results
+        # Only runs that ran benchmarks produce results-* artifacts. They live
+        # in *this* run (benchmarks job above), so a same-run download works.
+        if: needs.recover-meta.outputs.should_run == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: results-*
+          path: staging-results/
+
+      - name: Merge results from CPU/GPU artifacts
+        if: needs.recover-meta.outputs.should_run == 'true'
+        run: |
+          mkdir -p staging-results
+          uv run python .github/scripts/merge-results.py staging-results/ mosaic-results/
+
+      - name: Download baseline artifact
+        if: needs.recover-meta.outputs.is_release_pr != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          # Exit 2 = baseline not found (non-fatal: first run has no baseline).
+          bash .github/scripts/fetch-artifact.sh baseline baseline/mosaic-results/ \
+            || [ "$?" -eq 2 ]
+
+      - name: Overlay PR results on baseline
+        if: needs.recover-meta.outputs.is_release_pr != 'true'
+        run: |
+          if [ -d baseline/mosaic-results ] && [ "$(ls baseline/mosaic-results/ 2>/dev/null)" ]; then
+            if [ -d mosaic-results ] && [ "$(ls mosaic-results/ 2>/dev/null)" ]; then
+              MERGED=$(mktemp -d)
+              uv run python .github/scripts/overlay-results.py \
+                baseline/mosaic-results mosaic-results "$MERGED"
+              rm -rf mosaic-results
+              mv "$MERGED" mosaic-results
+            else
+              rm -rf mosaic-results
+              cp -r baseline/mosaic-results mosaic-results
+            fi
+          fi
+
+      - name: Extract baseline snapshot
+        id: baseline
+        if: needs.recover-meta.outputs.should_run == 'true'
+        run: |
+          BASELINE_PATH=""
+          if [ -f baseline/mosaic-results/snapshot.json ]; then
+            cp baseline/mosaic-results/snapshot.json baseline-snapshot.json
+            BASELINE_PATH="baseline-snapshot.json"
+            echo "Fetched baseline snapshot"
+          fi
+          echo "path=$BASELINE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Generate status snapshot (JSON)
+        if: needs.recover-meta.outputs.should_run == 'true'
+        run: uv run mosaic status --format json > snapshot.json
+
+      - name: Generate status report (markdown)
+        if: needs.recover-meta.outputs.should_run == 'true'
+        run: |
+          DIFF_FLAG=""
+          if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
+            DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
+          fi
+          uv run mosaic status --format md $DIFF_FLAG > status-report.md
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: "1.7.31"
+
+      - name: Regenerate plots from merged results
+        run: uv run mosaic run --plots-only
+
+      - name: Generate results pages
+        run: uv run python docs/generate_results.py
+
+      - name: Render docs site
+        run: uv run quarto render --output-dir _site
+
+      - name: Upload rendered docs site
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site-pr-${{ needs.recover-meta.outputs.pr_number }}
+          path: _site/
+          overwrite: true
+          retention-days: 90
+
+      - name: Stash status report for finalize
+        if: needs.recover-meta.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: status-report-${{ needs.recover-meta.outputs.pr_number }}
+          path: status-report.md
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 7
+
+      - id: done
+        run: echo "ok=true" >> "$GITHUB_OUTPUT"
+
+  # ── Post the bench-ok status + RTD preview + PR comment ────────────────
+  # Runs for EVERY triggering PR run (not gated on found/should_run), because
+  # its first job is the terminal-state guarantee: whenever the planner seeded
+  # bench-ok=pending, something here must resolve it, or the PR is stuck
+  # unmergeable forever. So this job always posts a definitive bench-ok:
+  #
+  #   • handoff missing/invalid (found=false)  → error   (couldn't verify)
+  #   • benchmarks ran (should_run=true)        → success | failure by results
+  #   • nothing ran (should_run=false)          → skip; plan-gate seeded success
+  #
+  # The head SHA comes from the validated handoff when present, else from
+  # github.event.workflow_run.head_sha (the PR head of the triggering run) —
+  # both identify the same commit; post-commit-status.sh re-validates it.
+  finalize:
+    name: Finalize (status, RTD, comment)
+    needs: [recover-meta, build, benchmarks, report]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # ── bench-ok commit status: the merge gate + deadlock backstop ────
+      # Only act when the PLANNER SUCCEEDED. If it concluded failure/cancelled
+      # (policy block, or a handoff-upload failure), plan-gate already owns the
+      # terminal bench-ok — either it posted `failure` for the policy violation,
+      # or nothing was seeded. Posting here in that case would clobber a correct
+      # status (e.g. flip a docs-only PR's green to error). So this step runs
+      # only for a successful planner run, which is exactly when a pending may
+      # have been seeded and we owe the terminal verdict.
+      - name: Post bench-ok status
+        if: github.event.workflow_run.conclusion == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FOUND: ${{ needs.recover-meta.outputs.found }}
+          SHOULD_RUN: ${{ needs.recover-meta.outputs.should_run }}
+          META_SHA: ${{ needs.recover-meta.outputs.head_sha }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          HEAD_SHA="${META_SHA:-$EVENT_SHA}"
+
+          if [[ "$FOUND" != "true" ]]; then
+            # Planner succeeded (so a pending was seeded) but we couldn't recover
+            # the handoff — resolve the pending as error rather than orphan it.
+            if [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              bash .github/scripts/post-commit-status.sh "$HEAD_SHA" error \
+                "Could not recover benchmark handoff — re-run required" "$RUN_URL"
+            else
+              echo "No valid head SHA available — cannot post status."
+            fi
+            exit 0
+          fi
+
+          # benchmark:none / docs-only: no benchmarks ran, so bench-ok is
+          # success. plan-gate already seeded this, but re-assert it as the
+          # authoritative terminal post in case the fork seed couldn't write.
+          if [[ "$SHOULD_RUN" != "true" ]]; then
+            bash .github/scripts/post-commit-status.sh "$HEAD_SHA" success \
+              "No benchmarks to run for this PR" "$RUN_URL"
+            exit 0
+          fi
+
+          BUILD="${{ needs.build.result }}"
+          BENCH="${{ needs.benchmarks.result }}"
+          REPORT="${{ needs.report.result }}"
+          echo "build=$BUILD benchmarks=$BENCH report=$REPORT"
+
+          STATE="success"; DESC="Benchmarks passed"
+          for r in "$BUILD" "$BENCH" "$REPORT"; do
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              STATE="failure"; DESC="A benchmark job failed"
+            fi
+          done
+          bash .github/scripts/post-commit-status.sh "$HEAD_SHA" "$STATE" "$DESC" "$RUN_URL"
+
+      # The remaining steps (RTD, PR comment) only make sense with a recovered
+      # handoff; skip them cleanly when found=false.
+      - name: Download status report
+        if: needs.recover-meta.outputs.found == 'true' && needs.recover-meta.outputs.should_run == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: status-report-${{ needs.recover-meta.outputs.pr_number }}
+          path: report/
+
+      # ── Trigger RTD preview rebuild + resolve URL (best-effort) ────────
+      - name: Trigger RTD PR preview rebuild
+        if: needs.recover-meta.outputs.found == 'true'
+        continue-on-error: true
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: bash .github/scripts/rtd-trigger.sh "${{ needs.recover-meta.outputs.pr_number }}"
+
+      - name: Resolve RTD preview URL
+        id: rtd_url
+        if: needs.recover-meta.outputs.found == 'true'
+        continue-on-error: true
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: bash .github/scripts/rtd-preview-url.sh "${{ needs.recover-meta.outputs.pr_number }}"
+
+      # ── Post / update the PR status comment ───────────────────────────
+      - name: Post status comment on PR
+        if: needs.recover-meta.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DOCS_PREVIEW_URL: ${{ steps.rtd_url.outputs.preview_url }}
+        run: |
+          REPORT=""
+          if [[ -f report/status-report.md ]]; then
+            REPORT="report/status-report.md"
+          fi
+          .github/scripts/post-status-comment.sh \
+            "${{ needs.recover-meta.outputs.pr_number }}" \
+            "$REPORT"

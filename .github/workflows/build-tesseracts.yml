@@ -7,6 +7,20 @@ on:
         description: 'JSON array of {"domain", "solver"} objects to build'
         type: string
         required: true
+      ref:
+        description: >-
+          Commit SHA to check out and build. The trusted benchmark-execute
+          workflow passes a PR's validated HEAD so it builds the PR's solver
+          code from the base-repo context. Empty → the workflow's own ref.
+        type: string
+        default: ""
+      image_sha:
+        description: >-
+          SHA to tag the pushed image with. benchmark-execute passes the same
+          validated PR HEAD so the tag matches what the benchmark run pulls.
+          Empty → the event's PR-head/commit SHA.
+        type: string
+        default: ""
   push:
     branches: [main]
   workflow_dispatch:
@@ -75,6 +89,11 @@ jobs:
         include: ${{ fromJSON(inputs.matrix || needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          # When invoked by benchmark-execute (workflow_run), check out the PR's
+          # HEAD commit explicitly rather than the default-branch ref this
+          # trusted run starts on, so we build the PR's solver code.
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Free disk space
         run: |
@@ -91,10 +110,10 @@ jobs:
         run: pip install tesseract-core
 
       - name: Log in to GHCR
-        # PR runs need to push too so the benchmark workflow can pull
-        # PR-specific images by SHA. Fork PRs lack package:write on the
-        # default token and will skip push naturally (the push step
-        # tolerates auth failure; the benchmark falls back to :latest).
+        # Runs either on push-to-main or from the trusted benchmark-execute
+        # (workflow_run) context — both hold a token with package:write, so the
+        # push below always succeeds. (Fork `pull_request` runs no longer reach
+        # this workflow; they hand off to benchmark-execute instead.)
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -130,17 +149,16 @@ jobs:
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
       - name: Push to GHCR
-        # Always push :<sha> (PR or push) so the benchmark workflow can pull
-        # the exact image built for this commit. Only push :latest on
-        # push-to-main so PR builds don't bump main's latest pointer.
-        # Tolerate auth failure (fork PRs lack package:write); the benchmark
-        # then falls back to :latest.
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        # Always push :<sha> so the benchmark run can pull the exact image
+        # built for this commit. Only push :latest on push-to-main so PR
+        # builds don't bump main's latest pointer. No auth-failure tolerance:
+        # both callers (push-to-main, trusted benchmark-execute) hold
+        # package:write, so a push failure is a real error worth failing on.
         env:
-          # On `pull_request`, ``github.sha`` is the GH-generated merge
-          # commit, not the PR HEAD. The benchmark workflow polls for the
-          # PR HEAD's SHA, so push under that to keep the two in sync.
-          IMAGE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # benchmark-execute passes the validated PR HEAD via image_sha so the
+          # tag matches what the benchmark run pulls; push-to-main falls back to
+          # the commit SHA.
+          IMAGE_SHA: ${{ inputs.image_sha || github.event.pull_request.head.sha || github.sha }}
         run: |
           IMAGE_NAME="${{ steps.image.outputs.image_name }}"
           GHCR_BASE="${{ steps.image.outputs.ghcr_base }}"
