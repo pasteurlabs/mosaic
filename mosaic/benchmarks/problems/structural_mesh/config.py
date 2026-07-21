@@ -82,7 +82,12 @@ apply_styles(_SOLVERS)
 # differs (TopOpt.jl uses ``E``, FEM backends use ``E_max``).
 _MAT_SHARED = {"nu": _NU, "xmin": _XMIN}
 _SOLVERS["topopt_jl"].input_overrides = {"E": _E_MAX, **_MAT_SHARED}
-for _key in ("dealii_structural", "fenics_structural", "firedrake_structural"):
+for _key in (
+    "dealii_structural",
+    "fenics_structural",
+    "firedrake_structural",
+    "torch_fem_structural",
+):
     _SOLVERS[_key].input_overrides = {"E_max": _E_MAX, **_MAT_SHARED}
 
 
