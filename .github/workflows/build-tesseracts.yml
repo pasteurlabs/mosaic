@@ -91,10 +91,11 @@ jobs:
         run: pip install tesseract-core
 
       - name: Log in to GHCR
-        # PR runs need to push too so the benchmark workflow can pull
-        # PR-specific images by SHA. Fork PRs lack package:write on the
-        # default token and will skip push naturally (the push step
-        # tolerates auth failure; the benchmark falls back to :latest).
+        # Only the main-push path publishes to GHCR (:latest / :<sha>), so only
+        # it needs auth. The PR path (workflow_call) never pushes — it exports
+        # the built image as an artifact instead — so it needs no login and
+        # works from fork PRs whose default token can't write packages.
+        if: github.event_name != 'workflow_call'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -121,6 +122,9 @@ jobs:
           echo "ghcr_base=${GHCR_BASE}" >> "$GITHUB_OUTPUT"
 
       - name: Build Tesseract image
+        # cache-from is best-effort: BuildKit warns and does a full build if the
+        # :latest cache ref is missing or unreadable, so this never hard-fails —
+        # including on fork PRs (which read the public GHCR cache without login).
         env:
           TESSERACT_DOCKER_BUILD_ARGS: >-
             --cache-from type=registry,ref=${{ steps.image.outputs.ghcr_base }}:latest
@@ -129,34 +133,57 @@ jobs:
           SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
           tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
+      # ── main-push path: publish to GHCR ──────────────────────────────
+      # Push-to-main (and manual dispatch) publish the baseline images that PR
+      # builds later read via `cache-from` and that unchanged solvers are pulled
+      # from at their base SHA. PR builds go through workflow_call and take the
+      # artifact path below instead — they never push.
       - name: Push to GHCR
-        # Always push :<sha> (PR or push) so the benchmark workflow can pull
-        # the exact image built for this commit. Only push :latest on
-        # push-to-main so PR builds don't bump main's latest pointer.
-        # Tolerate auth failure (fork PRs lack package:write); the benchmark
-        # then falls back to :latest.
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        if: github.event_name != 'workflow_call'
         env:
-          # On `pull_request`, ``github.sha`` is the GH-generated merge
-          # commit, not the PR HEAD. The benchmark workflow polls for the
-          # PR HEAD's SHA, so push under that to keep the two in sync.
-          IMAGE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          IMAGE_SHA: ${{ github.sha }}
         run: |
           IMAGE_NAME="${{ steps.image.outputs.image_name }}"
           GHCR_BASE="${{ steps.image.outputs.ghcr_base }}"
           LOCAL_IMAGE="${IMAGE_NAME}:latest"
 
-          # Always tag and push :<sha>
+          # Always tag and push :<sha> (immutable, what PRs pull unchanged
+          # solvers by).
           docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:${IMAGE_SHA}"
           docker push "${GHCR_BASE}:${IMAGE_SHA}"
           echo "Pushed ${GHCR_BASE}:${IMAGE_SHA}"
 
-          # :latest tracks main only.
-          IS_MAIN_PUSH='${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}'
-          if [[ "${IS_MAIN_PUSH}" == "true" ]]; then
+          # :latest tracks main only (the cache-from ref).
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag "${LOCAL_IMAGE}" "${GHCR_BASE}:latest"
             docker push "${GHCR_BASE}:latest"
             echo "Pushed ${GHCR_BASE}:latest"
           else
             echo "Skipping :latest tag — only main pushes update :latest"
           fi
+
+      # ── PR path: export the built image as an artifact ───────────────
+      # A fork PR's default token can neither push to nor (for a private
+      # package) pull from GHCR. So instead of publishing, save the built image
+      # to a tarball and hand it to the benchmark run via an artifact. The run
+      # `docker load`s it back to `<image_name>:latest` — exactly the local tag
+      # `mosaic run --no-build` resolves — so it's interchangeable with a pull.
+      # No registry write, works identically for fork and same-repo PRs.
+      - name: Save built image as artifact
+        if: github.event_name == 'workflow_call'
+        run: |
+          IMAGE_NAME="${{ steps.image.outputs.image_name }}"
+          mkdir -p image-out
+          docker save "${IMAGE_NAME}:latest" -o "image-out/${IMAGE_NAME}.tar"
+          echo "Saved ${IMAGE_NAME}:latest ($(du -h image-out/${IMAGE_NAME}.tar | cut -f1))"
+
+      - name: Upload solver image artifact
+        if: github.event_name == 'workflow_call'
+        uses: actions/upload-artifact@v7
+        with:
+          name: solver-image-${{ steps.image.outputs.image_name }}
+          path: image-out/*.tar
+          if-no-files-found: error
+          # Only consumed by the benchmarks job in the same run; a few days of
+          # slack covers a manual re-run of just that job without re-building.
+          retention-days: 3

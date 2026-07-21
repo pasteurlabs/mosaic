@@ -9,20 +9,25 @@ For each solver matching the requested problems and hardware target,
 pulls the image from the registry and retags it to the local short
 name expected by ``Tesseract.from_image()``.
 
-Images are pulled by commit-SHA tag, never ``:latest``. ``--tag`` is this
-PR's HEAD (built by the build job for changed solvers); ``--fallback-tag`` is
-the base/main commit (always built by the push-to-main run and immutable).
-Both are immutable, so a plain ``docker pull`` of the tag is unambiguous —
-unlike ``:latest``, a runner-cached or not-yet-propagated SHA tag can't point
-at the wrong image.
+Images are pulled by commit-SHA tag, never ``:latest``: an immutable SHA tag
+makes ``docker pull`` unambiguous, whereas a runner-cached or not-yet-propagated
+``:latest`` can point at the wrong image.
+
+In CI, PR runs build the *changed* solvers and hand them to the benchmark run
+as image artifacts (``docker load``, not a registry pull), so this script only
+fetches the *unchanged* solvers. Those are pulled at ``--fallback-tag`` (the
+PR's base/main commit, always published by the push-to-main build). The
+already-loaded solvers are passed via ``--skip-images`` so they are not
+re-fetched at a SHA where they were never published. ``--tag`` remains for
+direct/manual use (pull a specific SHA first, then fall back).
 
 Usage (in CI):
     python .github/scripts/pull-solver-images.py \
         --registry ghcr.io/org/mosaic \
         --problems all \
         --hardware gpu \
-        --tag <head-sha> \
-        --fallback-tag <base-sha>
+        --fallback-tag <base-sha> \
+        --skip-images <name1>,<name2>
 """
 
 from __future__ import annotations
@@ -71,6 +76,14 @@ def main() -> None:
         help="Comma-separated solver display names to restrict pulling to. "
         "When set, only matching solvers are pulled; others are skipped.",
     )
+    parser.add_argument(
+        "--skip-images",
+        default=None,
+        help="Comma-separated image names (the tag's repository part, e.g. "
+        "'ins_navier_stokes_grid') to skip pulling. Used when those images are "
+        "already present locally — e.g. loaded from a build artifact on a PR — "
+        "so the registry pull only covers the unchanged solvers.",
+    )
     args = parser.parse_args()
 
     registry = args.registry.lower().rstrip("/")
@@ -82,6 +95,10 @@ def main() -> None:
     solver_filter: set[str] | None = None
     if args.solvers:
         solver_filter = {s.strip() for s in args.solvers.split(",") if s.strip()}
+
+    skip_images: set[str] = set()
+    if args.skip_images:
+        skip_images = {s.strip() for s in args.skip_images.split(",") if s.strip()}
 
     seen: set[str] = set()
     failed: list[str] = []
@@ -108,6 +125,13 @@ def main() -> None:
             # Local short name is always the :latest form (what the runner expects).
             local_tag = tag
             image_name = tag.rsplit(":", 1)[0]
+
+            # Already present locally (e.g. docker-loaded from a PR build
+            # artifact) → don't pull, it would only fail at a SHA where this
+            # changed solver was never published.
+            if image_name in skip_images:
+                print(f"Skipping {image_name} (already loaded locally)")
+                continue
 
             # Pull by SHA: --tag (HEAD) first, then --fallback-tag (base/main).
             # Both are immutable commit SHAs, so the right image is unambiguous

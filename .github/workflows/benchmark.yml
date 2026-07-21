@@ -176,7 +176,11 @@ jobs:
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "Matrix: $MATRIX"
 
-  # ── Build changed solver images → GHCR :<sha> ─────────────────────────
+  # ── Build changed solver images → image artifacts ─────────────────────
+  # On PRs the build exports each changed solver as a `solver-image-*`
+  # artifact rather than pushing to GHCR: a fork PR's token can neither push
+  # to nor (for a private package) pull from GHCR. The benchmarks job below
+  # loads those artifacts. No packages:write needed — the PR path never pushes.
   build:
     name: Build solver images
     needs: plan
@@ -186,8 +190,6 @@ jobs:
       matrix: ${{ needs.plan.outputs.solver_matrix }}
     permissions:
       contents: read
-      packages: write
-    secrets: inherit
 
   # ── Run benchmarks (ics + solver suites) ───────────────────────────────
   benchmarks:
@@ -200,19 +202,17 @@ jobs:
       problems: ${{ needs.plan.outputs.problems }}
       suites: ${{ needs.plan.outputs.suites }}
       solvers: ${{ needs.plan.outputs.solvers }}
-      # Primary tag: this PR's HEAD (built by the build job for changed solvers).
-      # Fallback tag: the PR's base, i.e. the main commit this branch sits on —
-      # always built by the push-to-main "Build Tesseracts" run and immutable.
-      # Solvers not rebuilt by this PR (unchanged solvers, or any solver on a
-      # release PR that builds nothing) are pulled at the base SHA rather than
-      # the mutable :latest, so a stale/racy :latest can never be served.
-      image_tag: ${{ github.event.pull_request.head.sha || github.sha }}
+      # Changed solvers come from the build's image artifacts (loaded in the run
+      # job). Unchanged solvers are pulled from GHCR at the PR's base SHA — the
+      # main commit this branch sits on, always published by the push-to-main
+      # build and immutable, so no stale/racy :latest is ever served. GHCR is
+      # public-read, so the pull works from fork PRs without a push.
       base_image_tag: ${{ github.event.pull_request.base.sha || github.sha }}
       timeout: 600
     permissions:
       contents: read
+      actions: read # download the solver-image-* artifacts
       packages: read
-    secrets: inherit
 
   # ── Merge results, report, publish ─────────────────────────────────────
   report:
