@@ -1,0 +1,116 @@
+name: Publish docs preview
+
+# Second half of the fork-safe docs-preview flow. The Benchmark workflow's
+# `report` job runs in the PR head's context (fork PRs included) and does the
+# secret-free work: render the site and upload it as an artifact. It cannot
+# trigger the RTD rebuild, resolve the preview URL, or post the PR comment,
+# because GitHub withholds repo secrets from pull_request runs on fork PRs.
+#
+# This workflow fills that gap. `workflow_run` always runs in the BASE repo's
+# context using the workflow definition from the default branch — trusted code
+# with full secret access — regardless of whether the triggering run came from
+# a fork. It downloads the artifacts the report job produced and performs the
+# privileged steps. Because it never checks out or executes PR-authored code,
+# exposing secrets here is safe.
+
+on:
+  workflow_run:
+    workflows: ["Benchmark"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read # download artifacts from the triggering run
+  pull-requests: write # post the status comment
+
+jobs:
+  publish:
+    name: Publish RTD preview & comment
+    runs-on: ubuntu-latest
+    # Only for PR-triggered Benchmark runs that succeeded. A failed report job
+    # means there's nothing worth publishing (and the merge gate already
+    # surfaces that failure on the PR).
+    if: >-
+      github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v6
+
+      # ── Recover the handoff from the triggering run ────────────────────
+      # download-artifact with an explicit run-id reaches into the upstream
+      # run (a different workflow), which the default same-run lookup can't do.
+      - name: Download publish handoff
+        id: dl_meta
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: docs-publish-meta-*
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: handoff/
+          merge-multiple: true
+
+      # No handoff artifact → the report job didn't reach the upload (e.g. a
+      # non-PR dispatch, or a render failure). Nothing to publish; exit clean.
+      - name: Parse handoff
+        id: meta
+        run: |
+          META="handoff/publish-meta.txt"
+          if [[ ! -f "$META" ]]; then
+            echo "No handoff metadata — nothing to publish."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PR_NUMBER=$(grep -oP '^pr_number=\K.*' "$META" || true)
+          SHOULD_RUN=$(grep -oP '^should_run=\K.*' "$META" || true)
+          # Guard: the PR number originates from fork-controlled workflow
+          # output, so validate it's purely numeric before using it in API
+          # calls / URLs. Anything else → bail rather than act on it.
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::warning::Handoff PR number '${PR_NUMBER}' is not numeric — skipping."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
+          echo "Publishing for PR #${PR_NUMBER} (should_run=${SHOULD_RUN})"
+
+      # ── Trigger RTD PR preview rebuild ─────────────────────────────────
+      # RTD's webhook already built a preview on PR push, but that build ran
+      # before this run rendered the results pages. Trigger a fresh build so
+      # the preview reflects the merged PR+baseline result tree.
+      - name: Trigger RTD PR preview rebuild
+        if: steps.meta.outputs.found == 'true'
+        continue-on-error: true
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: bash .github/scripts/rtd-trigger.sh "${{ steps.meta.outputs.pr_number }}"
+
+      # ── Resolve RTD preview URL ────────────────────────────────────────
+      - name: Resolve RTD preview URL
+        id: rtd_url
+        if: steps.meta.outputs.found == 'true'
+        continue-on-error: true
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          RTD_PROJECT: ${{ vars.RTD_PROJECT }}
+        run: bash .github/scripts/rtd-preview-url.sh "${{ steps.meta.outputs.pr_number }}"
+
+      # ── Post PR comment ────────────────────────────────────────────────
+      # Include the status report if the report job shipped one (benchmarks
+      # ran); otherwise the comment is just the preview banner.
+      - name: Post status comment on PR
+        if: steps.meta.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PL_PASTEURBOT_PAT_PUBLIC }}
+          DOCS_PREVIEW_URL: ${{ steps.rtd_url.outputs.preview_url }}
+        run: |
+          REPORT=""
+          if [[ -f handoff/_site-status-report.md ]]; then
+            REPORT="handoff/_site-status-report.md"
+          fi
+          .github/scripts/post-status-comment.sh \
+            "${{ steps.meta.outputs.pr_number }}" \
+            "$REPORT"
