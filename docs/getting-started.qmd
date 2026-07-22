@@ -30,9 +30,12 @@ On **macOS** (including Apple Silicon) and **Windows** you cannot follow this gu
 git clone https://github.com/pasteurlabs/mosaic
 cd mosaic
 
-# Pick one
-uv sync --extra dev        # uv (recommended)
-pip install -e ".[dev]"    # pip
+# Option 1 — uv (recommended)
+uv sync --extra dev
+
+# Option 2 — pip
+pip install -e mosaic/mosaic_shared
+pip install -e ".[dev]"
 
 pre-commit install         # optional: enables lint checks on commit
 ```
