@@ -91,11 +91,14 @@ jobs:
         run: pip install tesseract-core
 
       - name: Log in to GHCR
-        # Only the main-push path publishes to GHCR (:latest / :<sha>), so only
-        # it needs auth. The PR path (workflow_call) never pushes — it exports
-        # the built image as an artifact instead — so it needs no login and
-        # works from fork PRs whose default token can't write packages.
-        if: github.event_name != 'workflow_call'
+        # Only the publish (push-to-main / dispatch) path pushes to GHCR, so
+        # only it needs auth. That path is distinguished by `inputs.matrix`
+        # being empty — it's set only when benchmark.yml calls this via
+        # workflow_call for a PR. (`github.event_name` can't tell them apart:
+        # in a called workflow it reflects the caller's event, not
+        # 'workflow_call'.) The PR path exports an artifact instead of pushing,
+        # so it needs no login and works from fork PRs.
+        if: inputs.matrix == ''
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -139,7 +142,8 @@ jobs:
       # from at their base SHA. PR builds go through workflow_call and take the
       # artifact path below instead — they never push.
       - name: Push to GHCR
-        if: github.event_name != 'workflow_call'
+        # Publish path only (empty inputs.matrix ⇒ push-to-main / dispatch).
+        if: inputs.matrix == ''
         env:
           IMAGE_SHA: ${{ github.sha }}
         run: |
@@ -170,7 +174,8 @@ jobs:
       # `mosaic run --no-build` resolves — so it's interchangeable with a pull.
       # No registry write, works identically for fork and same-repo PRs.
       - name: Save built image as artifact
-        if: github.event_name == 'workflow_call'
+        # PR path only (inputs.matrix set ⇒ called from benchmark.yml).
+        if: inputs.matrix != ''
         run: |
           IMAGE_NAME="${{ steps.image.outputs.image_name }}"
           mkdir -p image-out
@@ -178,7 +183,7 @@ jobs:
           echo "Saved ${IMAGE_NAME}:latest ($(du -h image-out/${IMAGE_NAME}.tar | cut -f1))"
 
       - name: Upload solver image artifact
-        if: github.event_name == 'workflow_call'
+        if: inputs.matrix != ''
         uses: actions/upload-artifact@v7
         with:
           name: solver-image-${{ steps.image.outputs.image_name }}

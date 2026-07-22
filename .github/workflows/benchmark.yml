@@ -190,6 +190,11 @@ jobs:
       matrix: ${{ needs.plan.outputs.solver_matrix }}
     permissions:
       contents: read
+      # Must satisfy build-tesseracts.yml's top-level `packages: write` (a
+      # reusable workflow can't be granted less than it declares, or the run
+      # fails at startup). The PR path never pushes — the push steps are gated
+      # to non-workflow_call — so this scope simply goes unused on PRs.
+      packages: write
     secrets: inherit
 
   # ── Run benchmarks (ics + solver suites) ───────────────────────────────
