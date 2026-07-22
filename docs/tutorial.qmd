@@ -15,7 +15,7 @@ Before you start, make sure you have:
 
 - **Python >= 3.10**
 - **Docker** installed and running (`docker info` should succeed)
-- **Tesseract CLI** --- installed with Mosaic (`pip install -e ".[dev]"` provides it)
+- **Tesseract CLI** --- installed with Mosaic's dev extra (see the install step below)
 - **~4 GB free disk space** for building one solver container
 - **(Optional) NVIDIA GPU + Container Toolkit** --- needed only if your solver targets GPU
 
@@ -24,6 +24,7 @@ Clone the repository and install in development mode:
 ```bash
 git clone https://github.com/pasteurlabs/mosaic
 cd mosaic
+pip install -e mosaic/mosaic_shared
 pip install -e ".[dev]"
 pre-commit install   # enables lint checks on commit
 ```
