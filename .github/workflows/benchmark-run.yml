@@ -15,14 +15,11 @@ on:
         description: "Comma-separated suites (or 'all') — used for IC suite filter"
         type: string
         default: "all"
-      image_tag:
-        description: "GHCR image tag to pull (typically a commit SHA)"
-        type: string
-        required: true
       base_image_tag:
         description: >-
-          Fallback GHCR tag (the base/main commit SHA) for solvers not built at
-          image_tag. Always an immutable, already-built SHA — never :latest.
+          GHCR tag (the base/main commit SHA) to pull the unchanged solvers at.
+          Always an immutable, already-built SHA — never :latest. Changed
+          solvers are loaded from build artifacts, not pulled.
         type: string
         default: ""
       solvers:
@@ -94,7 +91,42 @@ jobs:
       - name: Install Mosaic
         run: cp production.uv.lock uv.lock && uv sync --frozen
 
-      - name: Log in to GHCR
+      # ── Load PR-built solver images from artifacts ────────────────────
+      # The build job exported each changed solver's image as a `solver-image-*`
+      # artifact (a fork PR can't push to GHCR). Load them back to
+      # `<image_name>:latest` — the local tag `mosaic run --no-build` resolves —
+      # so they're interchangeable with a registry pull. Absent on runs that
+      # built nothing (e.g. benchmark:all pulling everything from base SHA).
+      - name: Download PR-built solver images
+        id: dl_images
+        continue-on-error: true # no artifacts on runs that rebuilt nothing
+        uses: actions/download-artifact@v8
+        with:
+          pattern: solver-image-*
+          path: solver-images/
+          merge-multiple: true
+
+      - name: Load solver images and list them
+        id: loaded
+        run: |
+          LOADED=""
+          shopt -s nullglob
+          for tar in solver-images/*.tar; do
+            echo "Loading $tar"
+            docker load -i "$tar"
+            NAME="$(basename "$tar" .tar)"
+            LOADED="${LOADED:+$LOADED,}${NAME}"
+          done
+          echo "loaded_images=$LOADED" >> "$GITHUB_OUTPUT"
+          echo "Loaded images: ${LOADED:-<none>}"
+
+      # ── Pull the remaining (unchanged) solvers from GHCR ──────────────
+      # Unchanged solvers are pulled at the base/main SHA (immutable, always
+      # published by the push-to-main build). The GHCR packages are public, so
+      # no login is required — this works from fork PRs. Login is best-effort to
+      # raise rate limits when a token happens to be available.
+      - name: Log in to GHCR (best-effort)
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -105,13 +137,16 @@ jobs:
         run: |
           SOLVERS="${{ inputs.solvers }}"
           BASE_TAG="${{ inputs.base_image_tag }}"
+          LOADED="${{ steps.loaded.outputs.loaded_images }}"
+          # No --tag: the PR-head SHA is never published (images come from
+          # artifacts). Everything not loaded locally is pulled at the base SHA.
           uv run python .github/scripts/pull-solver-images.py \
             --registry "ghcr.io/${{ github.repository_owner }}/mosaic" \
             --problems "${{ matrix.problem }}" \
             --hardware "${{ matrix.hardware }}" \
-            --tag "${{ inputs.image_tag }}" \
             ${BASE_TAG:+--fallback-tag "$BASE_TAG"} \
-            ${SOLVERS:+--solvers "$SOLVERS"}
+            ${SOLVERS:+--solvers "$SOLVERS"} \
+            ${LOADED:+--skip-images "$LOADED"}
 
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
         run: |
