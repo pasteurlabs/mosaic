@@ -190,6 +190,7 @@ jobs:
       matrix: ${{ needs.plan.outputs.solver_matrix }}
     permissions:
       contents: read
+    secrets: inherit
 
   # ── Run benchmarks (ics + solver suites) ───────────────────────────────
   benchmarks:
@@ -213,6 +214,7 @@ jobs:
       contents: read
       actions: read # download the solver-image-* artifacts
       packages: read
+    secrets: inherit
 
   # ── Merge results, report, publish ─────────────────────────────────────
   report:
