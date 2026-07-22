@@ -109,14 +109,15 @@ Quarto will error with a missing-file message if you run `quarto render` before 
 
 ## Local development setup
 
-Clone the repository and install the dependencies with [pre-commit](https://pre-commit.com/) hooks:
+Clone the repository and install the dependencies with [pre-commit](https://pre-commit.com/) hooks. With uv this is a single `uv sync --extra dev`; with pip, install the shared workspace member first:
 
 ```console
 $ git clone git@github.com:pasteurlabs/mosaic.git
 $ cd mosaic
 $ python -m venv venv
 $ . venv/bin/activate
-$ pip install -e .[dev]
+$ pip install -e mosaic/mosaic_shared
+$ pip install -e ".[dev]"
 $ pre-commit install
 ```
 
