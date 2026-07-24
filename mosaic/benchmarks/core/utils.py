@@ -142,6 +142,8 @@ def _debug_run(run: dict) -> None:
             training[key] = min(training[key], cap)
     if training:
         training["check_grad"] = False
+    if "model_seeds" in training:
+        training["model_seeds"] = list(training["model_seeds"])[:1]
     dataset = run.get("dataset", {})
     for key in ("train_seeds", "test_seeds"):
         if key in dataset:
