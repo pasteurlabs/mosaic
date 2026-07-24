@@ -29,12 +29,12 @@ Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesserac
 
 ## Domains & solvers
 
-| ID     | Domain                     | Optimization task              | Solvers                                                |
-| :----- | :------------------------- | :----------------------------- | :----------------------------------------------------- |
-| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
-| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
-| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
-| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+| ID     | Domain                     | Optimization task                       | Solvers                                                |
+| :----- | :------------------------- | :-------------------------------------- | :----------------------------------------------------- |
+| **H**  | Heat transfer              | Conductivity inversion                  | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
+| **S**  | Structural mechanics       | Compliance minimization (SIMP)          | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
+| **F2** | Incompressible fluids (2D) | Drag optimization and neural correction | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
+| **F3** | 3D Navier–Stokes           | Initial condition recovery              | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
 
 ## 📊 Results
 
