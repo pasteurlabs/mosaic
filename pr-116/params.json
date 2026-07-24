@@ -1,0 +1,47 @@
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 0
+  },
+  "physics": {
+    "N": 32,
+    "nu": 0.001,
+    "dt": 0.02,
+    "steps": 4
+  },
+  "dataset": {
+    "reference_factor": 2,
+    "reference_substeps": 2,
+    "train_seeds": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "test_seeds": [
+      100,
+      101
+    ],
+    "train_frames": 16,
+    "k0": 6.0,
+    "sigma_k": 1.0,
+    "amplitude": 0.3
+  },
+  "training": {
+    "max_updates": 100,
+    "unroll": 4,
+    "lr": 0.0001,
+    "clip_norm": 1.0,
+    "hidden_channels": 32,
+    "kernel_size": 5,
+    "seed": 2026,
+    "model_seed": 0,
+    "check_grad": true,
+    "fd_epsilon": 0.01
+  },
+  "evaluation": {
+    "rollout_frames": 24,
+    "stable_error_threshold": 1.0
+  },
+  "description": "Train an identical residual convolutional corrector through each differentiable solver and evaluate its held-out recurrent rollout."
+}

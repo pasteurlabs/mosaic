@@ -1,0 +1,62 @@
+{
+  "dataset_hash": "c4fb81fd2087b191",
+  "best_final_error": "Warp-NS",
+  "fastest_training": "XLB",
+  "largest_relative_improvement": "XLB",
+  "ranking_by_final_error": [
+    {
+      "solver": "Warp-NS",
+      "final_rollout_error": 0.10517567193910235,
+      "uncorrected_rollout_error": 0.15463821961731683,
+      "improvement_pct": 31.98597849891157,
+      "training_wall_time_s": 59.902832649997436,
+      "seconds_per_update": 0.5990283264999744,
+      "end_to_end_fd_rel_error": 0.00038358455640263855
+    },
+    {
+      "solver": "PICT",
+      "final_rollout_error": 0.10613888814321168,
+      "uncorrected_rollout_error": 0.19844942099772145,
+      "improvement_pct": 46.51589931073898,
+      "training_wall_time_s": 110.59367099500378,
+      "seconds_per_update": 1.1059367099500377,
+      "end_to_end_fd_rel_error": 0.002308264374732971
+    },
+    {
+      "solver": "XLB",
+      "final_rollout_error": 0.23113944442782103,
+      "uncorrected_rollout_error": 0.8650168328517429,
+      "improvement_pct": 73.2791969300129,
+      "training_wall_time_s": 46.69029064800998,
+      "seconds_per_update": 0.4669029064800998,
+      "end_to_end_fd_rel_error": 0.0006979778409004211
+    },
+    {
+      "solver": "INS.jl",
+      "final_rollout_error": 0.24967888262498922,
+      "uncorrected_rollout_error": 0.7624077206252253,
+      "improvement_pct": 67.2512651864401,
+      "training_wall_time_s": 94.29914124398783,
+      "seconds_per_update": 0.9429914124398784,
+      "end_to_end_fd_rel_error": 0.0005995919927954674
+    },
+    {
+      "solver": "PhiFlow",
+      "final_rollout_error": 0.2497597516214575,
+      "uncorrected_rollout_error": 0.7623321086179482,
+      "improvement_pct": 67.2374088932282,
+      "training_wall_time_s": 52.13389854000707,
+      "seconds_per_update": 0.5213389854000706,
+      "end_to_end_fd_rel_error": 0.0006177814793772995
+    },
+    {
+      "solver": "jax-cfd",
+      "final_rollout_error": 0.2619581599022741,
+      "uncorrected_rollout_error": 0.772838155592452,
+      "improvement_pct": 66.10439611355369,
+      "training_wall_time_s": 51.311869580997154,
+      "seconds_per_update": 0.5131186958099715,
+      "end_to_end_fd_rel_error": 0.0004065119428560138
+    }
+  ]
+}
