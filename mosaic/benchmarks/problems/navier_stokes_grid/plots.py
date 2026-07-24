@@ -155,9 +155,127 @@ def plot_solver_in_loop(
     ]
     solver_legend(fig, aliases, order=NS_ORDER)
     fig.suptitle("Solver-in-the-loop neural correction")
+    figs = [fig]
     if save:
         save_fig(fig, "solver_in_loop", out_dir)
-    return [fig]
+    fields_fig = _plot_solver_in_loop_fields(arrays, names, out_dir, save=save)
+    if fields_fig is not None:
+        figs.append(fields_fig)
+    return figs
+
+
+def _periodic_vorticity_2d(
+    velocity: np.ndarray,
+    *,
+    domain_extent: float = 2.0 * np.pi,
+) -> np.ndarray:
+    """Return centered-difference vorticity for a periodic 2-D velocity field."""
+    ux, uy = _vel_components_2d(np.asarray(velocity))
+    dx = domain_extent / ux.shape[0]
+    dy = domain_extent / ux.shape[1]
+    d_uy_dx = (np.roll(uy, -1, axis=0) - np.roll(uy, 1, axis=0)) / (2.0 * dx)
+    d_ux_dy = (np.roll(ux, -1, axis=1) - np.roll(ux, 1, axis=1)) / (2.0 * dy)
+    return d_uy_dx - d_ux_dy
+
+
+def _plot_solver_in_loop_fields(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Render final held-out reference, raw-solver, and corrected vorticity.
+
+    Each solver gets one row. The reference column is deliberately repeated so
+    every raw/corrected pair can be read horizontally without looking across
+    rows. All panels share one robust symmetric colour scale.
+    """
+    reference = np.asarray(arrays.get("reference_rollout", np.array([])))
+    if reference.size == 0 or reference.shape[0] == 0:
+        return None
+
+    rows: list[tuple[str, np.ndarray, np.ndarray]] = []
+    for idx, name in enumerate(names):
+        raw = np.asarray(arrays.get(f"rollout_uncorrected_{idx}", np.array([])))
+        corrected = np.asarray(arrays.get(f"rollout_corrected_{idx}", np.array([])))
+        if raw.size and corrected.size and raw.shape[0] and corrected.shape[0]:
+            rows.append((name, raw[-1], corrected[-1]))
+    if not rows:
+        return None
+    solver_order = {alias: idx for idx, alias in enumerate(NS_ORDER)}
+    rows.sort(
+        key=lambda row: solver_order.get(
+            resolve_solver_alias(row[0]) or row[0],
+            len(solver_order),
+        )
+    )
+
+    reference_final = reference[-1]
+    reference_vorticity = _periodic_vorticity_2d(reference_final)
+    rendered_rows: list[tuple[str, np.ndarray, np.ndarray]] = []
+    scale_fields = [reference_vorticity]
+    for name, raw, corrected in rows:
+        raw_vorticity = _periodic_vorticity_2d(raw)
+        corrected_vorticity = _periodic_vorticity_2d(corrected)
+        rendered_rows.append((name, raw_vorticity, corrected_vorticity))
+        scale_fields.extend((raw_vorticity, corrected_vorticity))
+
+    magnitudes = np.concatenate([np.abs(field).ravel() for field in scale_fields])
+    vmax = float(np.percentile(magnitudes, 99.0)) or 1.0
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        len(rendered_rows),
+        3,
+        figsize=(TEXTWIDTH, max(1.8, 0.95 * len(rendered_rows))),
+        squeeze=False,
+        layout="constrained",
+    )
+    column_titles = ("Reference", "Solver only", "Solver + corrector")
+    image = None
+    for row_idx, (name, raw_vorticity, corrected_vorticity) in enumerate(rendered_rows):
+        label, _color, _linestyle, _marker = solver_props(name)
+        for col_idx, field in enumerate(
+            (reference_vorticity, raw_vorticity, corrected_vorticity)
+        ):
+            ax = axes[row_idx, col_idx]
+            image = ax.imshow(
+                field.T,
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                interpolation="nearest",
+            )
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if row_idx == 0:
+                ax.set_title(column_titles[col_idx])
+        axes[row_idx, 0].set_ylabel(
+            label,
+            rotation=0,
+            ha="right",
+            va="center",
+            labelpad=8,
+        )
+
+    if image is not None:
+        colorbar = fig.colorbar(
+            image,
+            ax=axes.ravel().tolist(),
+            location="right",
+            shrink=0.82,
+            pad=0.02,
+        )
+        colorbar.set_label(r"Vorticity $\omega$")
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    time_suffix = f" at $t={float(times[-1]):g}$" if times.size else ""
+    fig.suptitle(f"Held-out final-frame flow{time_suffix}")
+
+    if save:
+        save_fig(fig, "solver_in_loop_fields", out_dir)
+    return fig
 
 
 def plot_drag_opt(

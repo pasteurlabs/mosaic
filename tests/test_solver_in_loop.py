@@ -23,6 +23,10 @@ from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
     spectral_restrict,
 )
 from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv, _tgv_analytic
+from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
+    _periodic_vorticity_2d,
+    _plot_solver_in_loop_fields,
+)
 from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
     solver_in_loop,
 )
@@ -126,6 +130,46 @@ def test_debug_run_caps_corrector_training():
     assert run["dataset"]["test_seeds"] == [100]
     assert run["dataset"]["train_frames"] == 3
     assert run["evaluation"]["rollout_frames"] == 3
+
+
+def test_solver_in_loop_fields_render_reference_raw_and_corrected(tmp_path):
+    n = 16
+    coordinates = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
+    x, y = np.meshgrid(coordinates, coordinates, indexing="ij")
+    reference = np.zeros((n, n, 1, 2), dtype=np.float32)
+    reference[:, :, 0, 0] = np.sin(y)
+    reference[:, :, 0, 1] = -np.sin(x)
+
+    expected_vorticity = -np.cos(x) - np.cos(y)
+    np.testing.assert_allclose(
+        _periodic_vorticity_2d(reference),
+        expected_vorticity,
+        rtol=3e-2,
+        atol=3e-2,
+    )
+
+    arrays = {
+        "reference_rollout": np.stack((reference, reference)),
+        "evaluation_times": np.asarray([0.0, 0.1]),
+        "rollout_uncorrected_0": np.stack((reference, 0.8 * reference)),
+        "rollout_corrected_0": np.stack((reference, 0.95 * reference)),
+    }
+    fig = _plot_solver_in_loop_fields(
+        arrays,
+        ["jax-cfd"],
+        tmp_path,
+        save=True,
+    )
+
+    assert fig is not None
+    assert [axis.get_title() for axis in fig.axes[:3]] == [
+        "Reference",
+        "Solver only",
+        "Solver + corrector",
+    ]
+    rendered = tmp_path / "solver_in_loop_fields.png"
+    assert rendered.exists()
+    assert rendered.stat().st_size > 0
 
 
 def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
