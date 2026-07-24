@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Per-problem plots for the navier-stokes-grid drag-optimisation experiments."""
+"""Per-problem plots for 2D Navier--Stokes optimisation experiments."""
 
 from __future__ import annotations
 
@@ -42,6 +42,122 @@ from mosaic.benchmarks.problems.shared.plots.style import (
 
 # Solvers shown in the drag_opt paper panel, in display order.
 _DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "pict"]
+
+
+def plot_solver_in_loop(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **_kw: Any,
+) -> list:
+    """Plot corrector trainability, rollout quality, and time-to-quality."""
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        "optimization",
+        f"solver_in_loop{suffix}",
+    )
+    result_path = out_dir / "result.json"
+    fields_path = out_dir / "corrector_fields.npz"
+    if not result_path.exists() or not fields_path.exists():
+        print(f"[solver_in_loop] missing results in {out_dir} — skipping")
+        return []
+
+    data = v1_to_legacy(load_json(result_path))
+    arrays = try_load_npz(fields_path)
+    names = [str(v) for v in arrays.get("solver_names", np.array([])).tolist()]
+    if not names:
+        return []
+
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    fig, axes = paper_row(3, squeeze=False)
+    ax_loss, ax_roll, ax_cost = np.atleast_1d(axes).ravel()
+    present: list[str] = []
+
+    for idx, name in enumerate(names):
+        metrics = data.get("by_solver", {}).get(name, {})
+        label, color, linestyle, marker = solver_props(name)
+        loss = np.asarray(arrays.get(f"loss_{idx}", np.array([])))
+        corrected = np.asarray(arrays.get(f"error_corrected_{idx}", np.array([])))
+        uncorrected = np.asarray(arrays.get(f"error_uncorrected_{idx}", np.array([])))
+        if loss.size:
+            ax_loss.plot(
+                np.arange(1, loss.size + 1),
+                loss,
+                color=color,
+                linestyle=linestyle,
+                label=label,
+            )
+        if corrected.size:
+            x = times[: corrected.size] if times.size else np.arange(corrected.size)
+            ax_roll.plot(
+                x[1:],
+                corrected[1:],
+                color=color,
+                linestyle=linestyle,
+                label=label,
+            )
+        if uncorrected.size:
+            x = times[: uncorrected.size] if times.size else np.arange(uncorrected.size)
+            ax_roll.plot(
+                x[1:],
+                uncorrected[1:],
+                color=color,
+                linestyle=":",
+                alpha=0.45,
+            )
+
+        wall = metrics.get("training_wall_time_s")
+        error = metrics.get("final_rollout_error")
+        if wall is not None and error is not None:
+            ax_cost.scatter(
+                [wall],
+                [error],
+                color=color,
+                marker=marker,
+                s=30,
+                label=label,
+            )
+        present.append(name)
+
+    if any(
+        np.any(np.asarray(arrays.get(f"loss_{idx}", np.array([]))) > 0)
+        for idx in range(len(names))
+    ):
+        ax_loss.set_yscale("log")
+    ax_loss.set_xlabel("Optimizer update")
+    ax_loss.set_ylabel("Training loss")
+    ax_loss.set_title("Corrector training")
+
+    ax_roll.set_yscale("log")
+    ax_roll.set_xlabel("Physical time")
+    ax_roll.set_ylabel("Relative $L^2$ error")
+    ax_roll.set_title("Held-out rollout")
+    ax_roll.text(
+        0.98,
+        0.96,
+        "solid: corrected\n dotted: uncorrected",
+        transform=ax_roll.transAxes,
+        ha="right",
+        va="top",
+        fontsize=6.5,
+    )
+
+    ax_cost.set_xscale("log")
+    ax_cost.set_yscale("log")
+    ax_cost.set_xlabel("Training wall time [s]")
+    ax_cost.set_ylabel("Final rollout error")
+    ax_cost.set_title("Time to quality")
+
+    aliases = [
+        alias for name in present if (alias := resolve_solver_alias(name)) is not None
+    ]
+    solver_legend(fig, aliases, order=NS_ORDER)
+    fig.suptitle("Solver-in-the-loop neural correction")
+    if save:
+        save_fig(fig, "solver_in_loop", out_dir)
+    return [fig]
 
 
 def plot_drag_opt(

@@ -131,6 +131,26 @@ def _debug_run(run: dict) -> None:
     for key, cap in [("max_iters", 50), ("patience", 10)]:
         if key in optim:
             optim[key] = min(optim[key], cap)
+    training = run.get("training", {})
+    for key, cap in [
+        ("max_updates", 2),
+        ("unroll", 2),
+        ("hidden_channels", 8),
+        ("kernel_size", 3),
+    ]:
+        if key in training:
+            training[key] = min(training[key], cap)
+    if training:
+        training["check_grad"] = False
+    dataset = run.get("dataset", {})
+    for key in ("train_seeds", "test_seeds"):
+        if key in dataset:
+            dataset[key] = list(dataset[key])[:1]
+    if "train_frames" in dataset:
+        dataset["train_frames"] = min(dataset["train_frames"], 3)
+    evaluation = run.get("evaluation", {})
+    if "rollout_frames" in evaluation:
+        evaluation["rollout_frames"] = min(evaluation["rollout_frames"], 3)
     cost = run.get("cost", {})
     for key in ("N_values", "steps_values"):
         if key in cost:

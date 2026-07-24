@@ -10,6 +10,7 @@ The problem definition is split across these modules:
                          re-exported from
                          :mod:`mosaic.benchmarks.problems.shared.diagnostics`.
 - :mod:`.optimization` — drag-minimisation runner.
+- :mod:`.solver_in_loop` — neural corrector training through each solver.
 - :mod:`.plots`        — per-experiment plot fns wired in below.
 - :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
 - :mod:`.extras`       — cross-experiment aggregator plots.
@@ -67,7 +68,8 @@ from .exclusions import register as _register_exclusions
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt
+from .plots import plot_drag_opt, plot_solver_in_loop
+from .solver_in_loop import solver_in_loop
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -441,6 +443,61 @@ problem.add_experiment(
         "snap_interval": 20,
     },
     plot=plot_drag_opt,
+)
+problem.add_experiment(
+    "optimization/solver_in_loop",
+    solver_in_loop,
+    description=(
+        "Train an identical residual convolutional corrector through each "
+        "differentiable solver and evaluate its held-out recurrent rollout."
+    ),
+    plot_description=(
+        "Corrector training loss, held-out rollout error, stable horizon, and "
+        "wall-clock cost for each differentiable solver."
+    ),
+    # Keep dataset seed lists inside an explicit run payload: they are data,
+    # not benchmark sweep coordinates.
+    runs=[
+        {
+            "ic": {"name": "multimode", "seed": 0},
+            "physics": {
+                # ``steps`` is the number of native PDE steps between neural
+                # corrections. Recurrent training feeds the corrected
+                # canonical velocity back through the Tesseract as ``v0``.
+                "N": 32,
+                "nu": 0.001,
+                "dt": 0.02,
+                "steps": 4,
+            },
+            "dataset": {
+                "reference_factor": 2,
+                "reference_substeps": 2,
+                "train_seeds": [0, 1, 2, 3],
+                "test_seeds": [100, 101],
+                "train_frames": 16,
+                "k0": 6.0,
+                "sigma_k": 1.0,
+                "amplitude": 0.3,
+            },
+            "training": {
+                "max_updates": 100,
+                "unroll": 4,
+                "lr": 1e-4,
+                "clip_norm": 1.0,
+                "hidden_channels": 32,
+                "kernel_size": 5,
+                "seed": 2026,
+                "model_seed": 0,
+                "check_grad": True,
+                "fd_epsilon": 1e-2,
+            },
+            "evaluation": {
+                "rollout_frames": 24,
+                "stable_error_threshold": 1.0,
+            },
+        }
+    ],
+    plot=plot_solver_in_loop,
 )
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

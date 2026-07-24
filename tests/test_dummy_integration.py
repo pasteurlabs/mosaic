@@ -280,6 +280,47 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
     fresh per-call ``get_config(problem)``, so this never leaks across tests).
     No-op for experiments not in :data:`_SHRINK_PHYSICS`.
     """
+    if (problem, exp_key) == ("ns-grid", "optimization/solver_in_loop"):
+        from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
+            solver_in_loop,
+        )
+
+        cfg.add_experiment(
+            exp_key,
+            solver_in_loop,
+            runs=[
+                {
+                    "ic": {"name": "multimode", "seed": 0},
+                    "physics": {
+                        "N": 8,
+                        "nu": 0.001,
+                        "dt": 0.02,
+                        "steps": 1,
+                    },
+                    "dataset": {
+                        "reference_factor": 2,
+                        "reference_substeps": 1,
+                        "train_seeds": [0],
+                        "test_seeds": [100],
+                        "train_frames": 2,
+                        "k0": 2.0,
+                    },
+                    "training": {
+                        "max_updates": 1,
+                        "unroll": 2,
+                        "hidden_channels": 4,
+                        "kernel_size": 3,
+                        "check_grad": False,
+                    },
+                    "evaluation": {
+                        "rollout_frames": 2,
+                        "stable_error_threshold": 1.0,
+                    },
+                }
+            ],
+        )
+        return
+
     physics = _SHRINK_PHYSICS.get((problem, exp_key))
     if physics is None:
         return
