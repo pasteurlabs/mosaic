@@ -57,6 +57,34 @@ def test_timeout_tuple_matches_components():
     )
 
 
+# ── Tesseract launch modes ───────────────────────────────────────────────────
+
+
+def test_tracked_tesseract_connects_to_url_without_container_lifecycle(monkeypatch):
+    """``url:`` tags connect to a caller-owned service and do not enter it."""
+    expected = object()
+    calls: list[tuple[str, tuple[float, float]]] = []
+
+    class FakeTesseract:
+        @staticmethod
+        def from_url(url, *, timeout):
+            calls.append((url, timeout))
+            return expected
+
+        @staticmethod
+        def from_image(*_args, **_kwargs):  # pragma: no cover - must not run
+            raise AssertionError("url tags must not launch a container")
+
+    monkeypatch.setattr(runner, "Tesseract", FakeTesseract)
+    live_before = set(runner._live_containers)
+
+    with runner._tracked_tesseract("url:http://127.0.0.1:8123", [], {}) as actual:
+        assert actual is expected
+
+    assert calls == [("http://127.0.0.1:8123", runner.MOSAIC_TESSERACT_TIMEOUT_TUPLE)]
+    assert runner._live_containers == live_before
+
+
 # ── safe_apply_with_extras: success paths ─────────────────────────────────────
 
 
