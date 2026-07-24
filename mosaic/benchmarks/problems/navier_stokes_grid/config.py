@@ -68,7 +68,7 @@ from .exclusions import register as _register_exclusions
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt, plot_solver_in_loop
+from .plots import plot_drag_opt, plot_solver_in_loop, plot_solver_in_loop_tgv
 from .solver_in_loop import solver_in_loop
 
 _TESSERACT_SLUG = "navier-stokes-grid"
@@ -448,12 +448,15 @@ problem.add_experiment(
     "optimization/solver_in_loop",
     solver_in_loop,
     description=(
-        "Train an identical residual convolutional corrector through each "
-        "differentiable solver and evaluate its held-out recurrent rollout."
+        "Train an identical Equinox periodic residual corrector through each "
+        "differentiable solver. Paired stop-gradient training and native versus "
+        "restarted rollouts separate raw accuracy, coupling cost, correctability, "
+        "and the incremental benefit of the solver VJP."
     ),
     plot_description=(
-        "Corrector training loss, held-out rollout error, stable horizon, and "
-        "wall-clock cost for each differentiable solver."
+        "Corrector training, held-out trajectories, physical diagnostics, "
+        "state-restart penalty, correction gain, solver-VJP lift, and wall-clock "
+        "cost for each differentiable solver."
     ),
     # Keep dataset seed lists inside an explicit run payload: they are data,
     # not benchmark sweep coordinates.
@@ -470,6 +473,7 @@ problem.add_experiment(
                 "steps": 4,
             },
             "dataset": {
+                "reference_kind": "pseudo_spectral_multimode",
                 "reference_factor": 2,
                 "reference_substeps": 2,
                 "train_seeds": [0, 1, 2, 3],
@@ -477,17 +481,72 @@ problem.add_experiment(
                 "train_frames": 16,
                 "k0": 6.0,
                 "sigma_k": 1.0,
-                "amplitude": 0.3,
+                # The stronger field and longer held-out horizon produce
+                # substantial nonlinear evolution (rather than testing a
+                # nearly frozen decaying texture).
+                "amplitude": 0.5,
             },
             "training": {
                 "max_updates": 100,
                 "unroll": 4,
                 "lr": 1e-4,
                 "clip_norm": 1.0,
+                "architecture": "periodic_residual_cnn",
                 "hidden_channels": 32,
                 "kernel_size": 5,
                 "seed": 2026,
-                "model_seed": 0,
+                "model_seeds": [0, 1, 2],
+                "check_grad": True,
+                "fd_epsilon": 1e-2,
+            },
+            "evaluation": {
+                "rollout_frames": 36,
+                "stable_error_threshold": 1.0,
+            },
+        }
+    ],
+    plot=plot_solver_in_loop,
+)
+problem.add_experiment(
+    "optimization/solver_in_loop_tgv",
+    solver_in_loop,
+    description=(
+        "Repeat solver-in-the-loop training against an analytic, translated "
+        "Taylor--Green vortex. This low-complexity regime audits physical time, "
+        "viscous decay, and canonical state-restart effects separately from the "
+        "nonlinear multimode comparison."
+    ),
+    plot_description=(
+        "Native and restarted solver error, neural-correction gain, solver-VJP "
+        "lift, and held-out trajectories against the analytic TGV solution."
+    ),
+    runs=[
+        {
+            "ic": {"name": "tgv", "seed": 0},
+            "physics": {
+                "N": 32,
+                "nu": 0.05,
+                "dt": 0.02,
+                "steps": 4,
+            },
+            "dataset": {
+                "reference_kind": "analytic_tgv",
+                "reference_factor": 2,
+                "reference_substeps": 1,
+                "train_seeds": [0, 1, 2, 3],
+                "test_seeds": [100, 101],
+                "train_frames": 16,
+            },
+            "training": {
+                "max_updates": 100,
+                "unroll": 4,
+                "lr": 1e-4,
+                "clip_norm": 1.0,
+                "architecture": "periodic_residual_cnn",
+                "hidden_channels": 32,
+                "kernel_size": 5,
+                "seed": 2026,
+                "model_seeds": [0, 1, 2],
                 "check_grad": True,
                 "fd_epsilon": 1e-2,
             },
@@ -497,7 +556,7 @@ problem.add_experiment(
             },
         }
     ],
-    plot=plot_solver_in_loop,
+    plot=plot_solver_in_loop_tgv,
 )
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

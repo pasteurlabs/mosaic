@@ -11,12 +11,73 @@ initial weights, projection, optimiser, and reference trajectories; only the
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+
+class PeriodicResidualCNN(eqx.Module):
+    """Small translation-equivariant corrector built from periodic convolutions."""
+
+    layers: tuple[eqx.nn.Conv2d, ...]
+    architecture: str = eqx.field(static=True)
+    hidden_channels: int = eqx.field(static=True)
+    kernel_size: int = eqx.field(static=True)
+
+    def __init__(
+        self,
+        key: jax.Array,
+        *,
+        hidden_channels: int,
+        kernel_size: int,
+    ) -> None:
+        if kernel_size % 2 != 1:
+            raise ValueError("kernel_size must be odd")
+        channels = (2, hidden_channels, hidden_channels * 2, 2)
+        keys = jax.random.split(key, len(channels) - 1)
+        layers: list[eqx.nn.Conv2d] = []
+        for idx, (cin, cout, layer_key) in enumerate(
+            zip(channels[:-1], channels[1:], keys, strict=True)
+        ):
+            layer = eqx.nn.Conv2d(
+                cin,
+                cout,
+                kernel_size,
+                padding=kernel_size // 2,
+                padding_mode="CIRCULAR",
+                key=layer_key,
+            )
+            fan_in = kernel_size * kernel_size * cin
+            scale = np.sqrt(2.0 / fan_in)
+            if idx == len(channels) - 2:
+                scale *= 1e-2
+            weight = (
+                jax.random.normal(layer_key, layer.weight.shape, dtype=jnp.float32)
+                * scale
+            )
+            layer = eqx.tree_at(
+                lambda value: (value.weight, value.bias),
+                layer,
+                (
+                    weight,
+                    jnp.zeros((cout, 1, 1), dtype=jnp.float32),
+                ),
+            )
+            layers.append(layer)
+        self.layers = tuple(layers)
+        self.architecture = "periodic_residual_cnn"
+        self.hidden_channels = hidden_channels
+        self.kernel_size = kernel_size
+
+    def __call__(self, velocity: jax.Array) -> jax.Array:
+        """Map a channel-first velocity field to an additive correction."""
+        x = velocity
+        for layer in self.layers[:-1]:
+            x = jax.nn.gelu(layer(x))
+        return self.layers[-1](x)
 
 
 def init_corrector(
@@ -24,68 +85,32 @@ def init_corrector(
     *,
     hidden_channels: int = 32,
     kernel_size: int = 5,
-) -> tuple[dict[str, jax.Array], ...]:
-    """Initialise a small three-layer periodic residual CNN.
+    architecture: str = "periodic_residual_cnn",
+) -> PeriodicResidualCNN:
+    """Initialise the benchmark-owned Equinox corrector.
 
     The final layer starts at a much smaller scale than the feature layers, so
     the initial corrected rollout remains close to the underlying solver while
     gradients can still reach every layer on the first update.
     """
-    if kernel_size % 2 != 1:
-        raise ValueError("kernel_size must be odd")
-    channels = (2, hidden_channels, hidden_channels * 2, 2)
-    keys = jax.random.split(key, len(channels) - 1)
-    layers: list[dict[str, jax.Array]] = []
-    for idx, (cin, cout, layer_key) in enumerate(
-        zip(channels[:-1], channels[1:], keys, strict=True)
-    ):
-        fan_in = kernel_size * kernel_size * cin
-        scale = np.sqrt(2.0 / fan_in)
-        if idx == len(channels) - 2:
-            scale *= 1e-2
-        kernel = (
-            jax.random.normal(
-                layer_key,
-                (kernel_size, kernel_size, cin, cout),
-                dtype=jnp.float32,
-            )
-            * scale
-        )
-        layers.append(
-            {
-                "kernel": kernel,
-                "bias": jnp.zeros((cout,), dtype=jnp.float32),
-            }
-        )
-    return tuple(layers)
-
-
-def _periodic_conv(x: jax.Array, layer: dict[str, jax.Array]) -> jax.Array:
-    """Apply one stride-one NHWC convolution with periodic padding."""
-    kernel = layer["kernel"]
-    pad = kernel.shape[0] // 2
-    padded = jnp.pad(x, ((pad, pad), (pad, pad), (0, 0)), mode="wrap")
-    y = jax.lax.conv_general_dilated(
-        padded[jnp.newaxis, ...],
-        kernel,
-        window_strides=(1, 1),
-        padding="VALID",
-        dimension_numbers=("NHWC", "HWIO", "NHWC"),
-    )[0]
-    return y + layer["bias"]
+    if architecture != "periodic_residual_cnn":
+        raise ValueError(f"unknown corrector architecture: {architecture!r}")
+    return PeriodicResidualCNN(
+        key,
+        hidden_channels=hidden_channels,
+        kernel_size=kernel_size,
+    )
 
 
 def apply_corrector(
-    params: Sequence[dict[str, jax.Array]],
+    model: PeriodicResidualCNN,
     velocity: jax.Array,
     *,
     velocity_scale: float | jax.Array,
 ) -> jax.Array:
     """Predict an additive velocity correction on ``(N, N, 1, 2)`` fields."""
     x = velocity[:, :, 0, :] / jnp.asarray(velocity_scale, dtype=velocity.dtype)
-    for layer in params[:-1]:
-        x = jax.nn.gelu(_periodic_conv(x, layer))
-    delta = _periodic_conv(x, params[-1])
+    delta = jnp.moveaxis(model(jnp.moveaxis(x, -1, 0)), 0, -1)
     return delta[:, :, jnp.newaxis, :] * jnp.asarray(
         velocity_scale, dtype=velocity.dtype
     )
@@ -128,14 +153,14 @@ def project_periodic_correction(delta: jax.Array, domain_extent: float) -> jax.A
 
 
 def corrected_velocity(
-    params: Sequence[dict[str, jax.Array]],
+    model: PeriodicResidualCNN,
     provisional: jax.Array,
     *,
     velocity_scale: float | jax.Array,
     domain_extent: float,
 ) -> jax.Array:
     """Apply the learned residual and enforce a physical correction subspace."""
-    delta = apply_corrector(params, provisional, velocity_scale=velocity_scale)
+    delta = apply_corrector(model, provisional, velocity_scale=velocity_scale)
     return provisional + project_periodic_correction(delta, domain_extent)
 
 
@@ -157,6 +182,46 @@ def divergence_rms(velocity: Any, domain_extent: float) -> float:
     kx, ky = np.meshgrid(wave, wave, indexing="ij")
     div_hat = 1j * (kx * np.fft.fft2(field[..., 0]) + ky * np.fft.fft2(field[..., 1]))
     return float(np.sqrt(np.mean(np.fft.ifft2(div_hat).real ** 2)))
+
+
+def centered_divergence_rms(velocity: Any, domain_extent: float) -> float:
+    """Centered-difference RMS divergence for one canonical velocity field."""
+    field = np.asarray(velocity)
+    if field.ndim == 4:
+        field = field[:, :, 0, :]
+    dx = domain_extent / field.shape[0]
+    dy = domain_extent / field.shape[1]
+    du_dx = (np.roll(field[..., 0], -1, axis=0) - np.roll(field[..., 0], 1, axis=0)) / (
+        2.0 * dx
+    )
+    dv_dy = (np.roll(field[..., 1], -1, axis=1) - np.roll(field[..., 1], 1, axis=1)) / (
+        2.0 * dy
+    )
+    return float(np.sqrt(np.mean((du_dx + dv_dy) ** 2)))
+
+
+def kinetic_energy(velocity: Any) -> float:
+    """Mean kinetic energy density for one canonical velocity field."""
+    field = np.asarray(velocity)
+    if field.ndim == 4:
+        field = field[:, :, 0, :]
+    return float(0.5 * np.mean(np.sum(field**2, axis=-1)))
+
+
+def enstrophy(velocity: Any, domain_extent: float) -> float:
+    """Mean enstrophy density using centered periodic differences."""
+    field = np.asarray(velocity)
+    if field.ndim == 4:
+        field = field[:, :, 0, :]
+    dx = domain_extent / field.shape[0]
+    dy = domain_extent / field.shape[1]
+    dv_dx = (np.roll(field[..., 1], -1, axis=0) - np.roll(field[..., 1], 1, axis=0)) / (
+        2.0 * dx
+    )
+    du_dy = (np.roll(field[..., 0], -1, axis=1) - np.roll(field[..., 0], 1, axis=1)) / (
+        2.0 * dy
+    )
+    return float(0.5 * np.mean((dv_dx - du_dy) ** 2))
 
 
 def spectral_restrict(velocity: Any, target_n: int) -> np.ndarray:
@@ -284,10 +349,14 @@ def reference_trajectory(
 
 
 __all__ = [
+    "PeriodicResidualCNN",
     "apply_corrector",
+    "centered_divergence_rms",
     "corrected_velocity",
     "divergence_rms",
+    "enstrophy",
     "init_corrector",
+    "kinetic_energy",
     "project_periodic_correction",
     "reference_trajectory",
     "relative_l2",
