@@ -17,7 +17,8 @@ build_config:
   # runtime, nvidia-cuda-nvcc-cu12 provides nvcc for building PISOtorch's
   # CUDA extensions, and the GPU driver is injected at runtime by
   # nvidia-container-toolkit on the host.
-  # torch==2.5.1+cu121 is pinned in requirements to avoid cu128/cu130 mismatch.
+  # torch==2.7.1+cu128 is the oldest stable wheel with NVIDIA Blackwell
+  # support and stays aligned with the CUDA 12.8 extension toolchain below.
   # No extra_packages — build-only deps (ninja, gcc, nvcc) are installed in
   # custom_build_steps so they only appear in run_stage, avoiding duplication
   # across the two-stage Dockerfile and saving ~200 MB of disk during build.
@@ -32,7 +33,7 @@ build_config:
         && dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb \
         && apt-get update \
         && apt-get install -y --no-install-recommends \
-           cuda-nvcc-12-3 cuda-cudart-dev-12-3 libcublas-dev-12-3 libcusparse-dev-12-3 \
+           cuda-nvcc-12-8 cuda-cudart-dev-12-8 libcublas-dev-12-8 libcusparse-dev-12-8 \
         && rm -rf /var/lib/apt/lists/*
     - |
       RUN TORCH_LIB=$(python -c "import torch; print(torch.__path__[0])")/lib \
@@ -57,7 +58,9 @@ build_config:
 env:
   CUDA_HOME: "/usr/local/cuda"
   PATH: "/usr/local/cuda/bin:${PATH}"
-  TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;9.0"
+  TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;9.0;10.0;12.0"
+  NVIDIA_VISIBLE_DEVICES: "all"
+  NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
 
 metadata:
   mosaic:

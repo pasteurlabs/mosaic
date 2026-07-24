@@ -30,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gpu = [
+    "jax[cuda12]",
+]
 dev = [
     "pytest",
     "pytest-cov",
