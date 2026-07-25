@@ -68,7 +68,12 @@ from .exclusions import register as _register_exclusions
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt, plot_solver_in_loop, plot_solver_in_loop_tgv
+from .plots import (
+    plot_drag_opt,
+    plot_solver_in_loop,
+    plot_solver_in_loop_self_reference,
+    plot_solver_in_loop_tgv,
+)
 from .solver_in_loop import solver_in_loop
 
 _TESSERACT_SLUG = "navier-stokes-grid"
@@ -572,6 +577,71 @@ problem.add_experiment(
         }
     ],
     plot=plot_solver_in_loop_tgv,
+)
+problem.add_experiment(
+    "optimization/solver_in_loop_self_reference",
+    solver_in_loop,
+    description=(
+        "Train the paired full-VJP and stop-gradient Equinox correctors against "
+        "each admitted solver's own spatially and temporally refined trajectory. "
+        "A direct semigroup audit gates training so the comparison measures "
+        "solver-in-the-loop credit assignment rather than state-reset artifacts."
+    ),
+    plot_description=(
+        "Within-solver refined-reference correction, recurrence admission, paired "
+        "solver-VJP lift, held-out trajectories, and training cost. Absolute errors "
+        "are not compared across solver-specific references."
+    ),
+    runs=[
+        {
+            "ic": {"name": "multimode", "seed": 0},
+            "physics": {
+                "N": 32,
+                "nu": 0.001,
+                "dt": 0.02,
+                "steps": 4,
+            },
+            "dataset": {
+                "reference_kind": "solver_self_refined",
+                "reference_factor": 2,
+                "reference_temporal_factor": 2,
+                "train_seeds": list(range(16)),
+                "test_seeds": list(range(100, 108)),
+                "train_frames": 24,
+                "k0": 6.0,
+                "sigma_k": 1.0,
+                "amplitude": 0.5,
+                "prefix_audit_seeds": [0, 1, 100, 101],
+                "prefix_audit_frames": [1, 8, 24, 36],
+                "closure_relative_tolerance": 0.01,
+                "closure_to_signal_tolerance": 0.1,
+                "minimum_refinement_signal": 1e-4,
+            },
+            "training": {
+                "max_updates": 200,
+                "unroll": 8,
+                "loss_mode": "solver_terminal",
+                "solver_loss_weight": 0.1,
+                "loss_normalization": "solver_baseline",
+                "loss_scale_floor": 1e-6,
+                "lr": 1e-4,
+                "clip_norm": 5.0,
+                "architecture": "periodic_residual_cnn",
+                "hidden_channels": 32,
+                "kernel_size": 5,
+                "seed": 2026,
+                "model_seeds": [0, 1, 2],
+                "check_grad": True,
+                "fd_epsilon": 1e-2,
+            },
+            "evaluation": {
+                "rollout_frames": 36,
+                "seen_ic_trajectories": 8,
+                "stable_error_threshold": 1.0,
+            },
+        }
+    ],
+    plot=plot_solver_in_loop_self_reference,
 )
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

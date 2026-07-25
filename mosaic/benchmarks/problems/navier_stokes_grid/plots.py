@@ -89,6 +89,8 @@ def plot_solver_in_loop(
     save: bool = True,
     suffix: str = "",
     exp_key: str = "solver_in_loop",
+    title: str = "Solver-in-the-loop neural correction",
+    solver_specific_reference: bool = False,
     **_kw: Any,
 ) -> list:
     """Plot corrector trainability, rollout quality, and time-to-quality."""
@@ -202,11 +204,16 @@ def plot_solver_in_loop(
             )
 
         wall = metrics.get("training_wall_time_s")
-        error = metrics.get("final_rollout_error")
-        if wall is not None and error is not None:
+        quality = (
+            100.0 * (float(metrics["solver_vjp_geometric_lift"]) - 1.0)
+            if solver_specific_reference
+            and metrics.get("solver_vjp_geometric_lift") is not None
+            else metrics.get("final_rollout_error")
+        )
+        if wall is not None and quality is not None:
             ax_cost.scatter(
                 [wall],
-                [error],
+                [quality],
                 color=color,
                 marker=marker,
                 s=30,
@@ -225,7 +232,11 @@ def plot_solver_in_loop(
 
     ax_roll.set_yscale("log")
     ax_roll.set_xlabel("Physical time")
-    ax_roll.set_ylabel("Relative $L^2$ error")
+    ax_roll.set_ylabel(
+        "Error to solver-specific reference"
+        if solver_specific_reference
+        else "Relative $L^2$ error"
+    )
     ax_roll.set_title("Held-out rollout")
     ax_roll.text(
         0.98,
@@ -243,18 +254,30 @@ def plot_solver_in_loop(
     )
 
     ax_cost.set_xlabel("Training wall time [s]")
-    ax_cost.set_ylabel("Final rollout error")
-    ax_cost.set_title("Time to quality")
+    ax_cost.set_ylabel(
+        "Solver-VJP lift [%]" if solver_specific_reference else "Final rollout error"
+    )
+    ax_cost.set_title(
+        "VJP benefit versus cost" if solver_specific_reference else "Time to quality"
+    )
+    if solver_specific_reference:
+        ax_cost.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
 
     _solver_loop_legend(fig, present)
-    fig.suptitle("Solver-in-the-loop neural correction")
+    fig.suptitle(title)
     figs = [fig]
     if save:
         save_fig(fig, "solver_in_loop", out_dir)
     fields_fig = _plot_solver_in_loop_fields(arrays, names, out_dir, save=save)
     if fields_fig is not None:
         figs.append(fields_fig)
-    fairness_fig = _plot_solver_in_loop_fairness(data, names, out_dir, save=save)
+    fairness_fig = _plot_solver_in_loop_fairness(
+        data,
+        names,
+        out_dir,
+        save=save,
+        solver_specific_reference=solver_specific_reference,
+    )
     if fairness_fig is not None:
         figs.append(fairness_fig)
     physics_fig = _plot_solver_in_loop_physics(arrays, names, out_dir, save=save)
@@ -287,6 +310,38 @@ def plot_solver_in_loop_tgv(
         suffix=suffix,
         exp_key="solver_in_loop_tgv",
         **kwargs,
+    )
+
+
+def plot_solver_in_loop_self_reference(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **kwargs: Any,
+) -> list:
+    """Plot the recurrence-admitted, solver-specific refined-reference task."""
+    return plot_solver_in_loop(
+        cfg,
+        save=save,
+        suffix=suffix,
+        exp_key="solver_in_loop_self_reference",
+        title="Solver-specific refined-reference neural correction",
+        solver_specific_reference=True,
+        **kwargs,
+    )
+
+
+def _solver_reference_rollout(
+    arrays: dict[str, np.ndarray],
+    solver_index: int,
+) -> np.ndarray:
+    """Return a solver-specific target when present, else the shared target."""
+    return np.asarray(
+        arrays.get(
+            f"reference_rollout_{solver_index}",
+            arrays.get("reference_rollout", np.array([])),
+        )
     )
 
 
@@ -389,23 +444,25 @@ def _plot_solver_in_loop_fields(
     every raw/corrected pair can be read horizontally without looking across
     rows. All panels share one robust symmetric colour scale.
     """
-    reference = np.asarray(arrays.get("reference_rollout", np.array([])))
-    if reference.size == 0 or reference.shape[0] == 0:
-        return None
-
     rows = _ordered_solver_rollouts(arrays, names)
     if not rows:
         return None
 
-    reference_final = reference[-1]
-    reference_vorticity = _periodic_vorticity_2d(reference_final)
-    rendered_rows: list[tuple[str, np.ndarray, np.ndarray]] = []
-    scale_fields = [reference_vorticity]
+    rendered_rows: list[tuple[str, np.ndarray, np.ndarray, np.ndarray]] = []
+    scale_fields: list[np.ndarray] = []
     for name, raw, corrected in rows:
+        reference = _solver_reference_rollout(arrays, names.index(name))
+        if reference.size == 0 or reference.shape[0] == 0:
+            continue
+        reference_vorticity = _periodic_vorticity_2d(reference[-1])
         raw_vorticity = _periodic_vorticity_2d(raw[-1])
         corrected_vorticity = _periodic_vorticity_2d(corrected[-1])
-        rendered_rows.append((name, raw_vorticity, corrected_vorticity))
-        scale_fields.extend((raw_vorticity, corrected_vorticity))
+        rendered_rows.append(
+            (name, reference_vorticity, raw_vorticity, corrected_vorticity)
+        )
+        scale_fields.extend((reference_vorticity, raw_vorticity, corrected_vorticity))
+    if not rendered_rows:
+        return None
 
     magnitudes = np.concatenate([np.abs(field).ravel() for field in scale_fields])
     vmax = float(np.percentile(magnitudes, 99.0)) or 1.0
@@ -420,7 +477,12 @@ def _plot_solver_in_loop_fields(
     )
     column_titles = ("Reference", "Solver only", "Solver + corrector")
     image = None
-    for row_idx, (name, raw_vorticity, corrected_vorticity) in enumerate(rendered_rows):
+    for row_idx, (
+        name,
+        reference_vorticity,
+        raw_vorticity,
+        corrected_vorticity,
+    ) in enumerate(rendered_rows):
         label, _color, _linestyle, _marker = solver_props(name)
         for col_idx, field in enumerate(
             (reference_vorticity, raw_vorticity, corrected_vorticity)
@@ -493,21 +555,28 @@ def _plot_solver_in_loop_physics(
     save: bool,
 ) -> plt.Figure | None:
     """Compare energy, enstrophy, and divergence along held-out rollouts."""
-    reference = np.asarray(arrays.get("reference_rollout", np.array([])))
     rows = _ordered_solver_rollouts(arrays, names)
-    if reference.size == 0 or not rows:
+    solver_references = {
+        name: _solver_reference_rollout(arrays, names.index(name))
+        for name, _raw, _corrected in rows
+    }
+    rows = [row for row in rows if solver_references[row[0]].size]
+    if not rows:
         return None
 
     n_frames = min(
-        reference.shape[0],
-        *(min(raw.shape[0], corrected.shape[0]) for _, raw, corrected in rows),
+        [
+            min(
+                solver_references[name].shape[0],
+                raw.shape[0],
+                corrected.shape[0],
+            )
+            for name, raw, corrected in rows
+        ]
     )
     times = np.asarray(arrays.get("evaluation_times", np.array([])))[:n_frames]
     if times.size != n_frames:
         times = np.arange(n_frames, dtype=float)
-    reference_diagnostics = _trajectory_diagnostics(reference[:n_frames])
-    energy_scale = reference_diagnostics[0][0] + 1e-12
-    enstrophy_scale = reference_diagnostics[1][0] + 1e-12
 
     plt.rcParams.update(RCPARAMS)
     fig, axes = plt.subplots(
@@ -519,18 +588,21 @@ def _plot_solver_in_loop_physics(
     )
     ax_energy, ax_enstrophy, ax_spectral, ax_centered = axes.ravel()
     diagnostic_axes = (ax_energy, ax_enstrophy, ax_spectral, ax_centered)
-    reference_curves = (
-        reference_diagnostics[0] / energy_scale,
-        reference_diagnostics[1] / enstrophy_scale,
-        reference_diagnostics[2],
-        reference_diagnostics[3],
-    )
-    for ax, curve in zip(diagnostic_axes, reference_curves, strict=True):
-        ax.plot(times, np.maximum(curve, 1e-12), color="black", linewidth=1.25)
 
     present: list[str] = []
     for name, raw, corrected in rows:
         _label, color, _linestyle, _marker = solver_props(name)
+        reference_diagnostics = _trajectory_diagnostics(
+            solver_references[name][:n_frames]
+        )
+        energy_scale = reference_diagnostics[0][0] + 1e-12
+        enstrophy_scale = reference_diagnostics[1][0] + 1e-12
+        reference_curves = (
+            reference_diagnostics[0] / energy_scale,
+            reference_diagnostics[1] / enstrophy_scale,
+            reference_diagnostics[2],
+            reference_diagnostics[3],
+        )
         raw_diagnostics = _trajectory_diagnostics(raw[:n_frames])
         corrected_diagnostics = _trajectory_diagnostics(corrected[:n_frames])
         raw_curves = (
@@ -545,12 +617,20 @@ def _plot_solver_in_loop_physics(
             corrected_diagnostics[2],
             corrected_diagnostics[3],
         )
-        for ax, raw_curve, corrected_curve in zip(
+        for ax, reference_curve, raw_curve, corrected_curve in zip(
             diagnostic_axes,
+            reference_curves,
             raw_curves,
             corrected_curves,
             strict=True,
         ):
+            ax.plot(
+                times,
+                np.maximum(reference_curve, 1e-12),
+                color=color,
+                linestyle="--",
+                alpha=0.7,
+            )
             ax.plot(times, np.maximum(raw_curve, 1e-12), color=color, linestyle=":")
             ax.plot(
                 times,
@@ -577,7 +657,9 @@ def _plot_solver_in_loop_physics(
         fig,
         present,
         extra_handles=[
-            mlines.Line2D([], [], color="black", linewidth=1.25, label="reference"),
+            mlines.Line2D(
+                [], [], color="0.4", linestyle="--", label="solver-specific reference"
+            ),
             mlines.Line2D([], [], color="0.4", linestyle=":", label="solver only"),
             mlines.Line2D([], [], color="0.4", linestyle="-", label="full corrector"),
         ],
@@ -594,6 +676,7 @@ def _plot_solver_in_loop_fairness(
     out_dir: Path,
     *,
     save: bool,
+    solver_specific_reference: bool = False,
 ) -> plt.Figure | None:
     """Separate raw quality, correctability, and benefit from the solver VJP."""
     by_solver = data.get("by_solver", {})
@@ -712,7 +795,11 @@ def _plot_solver_in_loop_fairness(
     ax_quality.set_ylim(error_min, error_max)
     ax_quality.set_xlabel("Solver-only mean error")
     ax_quality.set_ylabel("Corrected mean error")
-    ax_quality.set_title("Absolute quality")
+    ax_quality.set_title(
+        "Within-solver target error"
+        if solver_specific_reference
+        else "Absolute quality"
+    )
 
     width = 0.36 if has_counterfactual else 0.62
     colors = [solver_props(name)[1] for name, _metrics in rows]
@@ -807,7 +894,12 @@ def _plot_solver_in_loop_fairness(
         uncertainty_suffix = " (error bars: combined seed/IC SD)"
     elif has_seed_uncertainty:
         uncertainty_suffix = " (error bars: ±1 seed SD)"
-    fig.suptitle(f"Fair solver-in-the-loop decomposition{uncertainty_suffix}")
+    title = (
+        "Solver-specific self-consistency decomposition"
+        if solver_specific_reference
+        else "Fair solver-in-the-loop decomposition"
+    )
+    fig.suptitle(f"{title}{uncertainty_suffix}")
     if save:
         save_fig(fig, "solver_in_loop_fairness", out_dir)
     return fig
@@ -904,14 +996,31 @@ def _plot_solver_in_loop_diagnostics(
     ax_restart.set_ylabel("Repeated-call final error")
     ax_restart.set_title("State-coupling effect")
 
-    ax_restart_ratio.bar(
-        positions,
-        values("state_restart_error_ratio"),
-        color=colors,
-    )
-    ax_restart_ratio.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
-    ax_restart_ratio.set_ylabel("Repeated / native error [×]")
-    ax_restart_ratio.set_title("Restart penalty")
+    if all(metrics.get("semigroup_error_p95") is not None for _name, metrics in rows):
+        closure_pct = 100.0 * np.asarray(values("semigroup_error_p95"))
+        tolerance_pct = 100.0 * max(values("semigroup_p95_tolerance"))
+        ax_restart_ratio.bar(positions, closure_pct, color=colors)
+        ax_restart_ratio.axhline(
+            tolerance_pct,
+            color="0.45",
+            linestyle=":",
+            linewidth=1.0,
+            label="admission limit",
+        )
+        positive = closure_pct[closure_pct > 0]
+        if positive.size and max(positive) / min(positive) >= 10.0:
+            ax_restart_ratio.set_yscale("log")
+        ax_restart_ratio.set_ylabel("95th percentile residual [%]")
+        ax_restart_ratio.set_title("Semigroup admission")
+    else:
+        ax_restart_ratio.bar(
+            positions,
+            values("state_restart_error_ratio"),
+            color=colors,
+        )
+        ax_restart_ratio.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+        ax_restart_ratio.set_ylabel("Repeated / native error [×]")
+        ax_restart_ratio.set_title("Restart penalty")
 
     for ax, horizon, title in (
         (ax_matched, "matched_horizon", "Matched training horizon"),
@@ -1011,14 +1120,24 @@ def _save_solver_in_loop_animation(
     out_dir: Path,
 ) -> None:
     """Animate reference, solver-only, and fully corrected held-out rollouts."""
-    reference = np.asarray(arrays.get("reference_rollout", np.array([])))
     rows = _ordered_solver_rollouts(arrays, names)
-    if reference.size == 0 or not rows:
+    solver_references = {
+        name: _solver_reference_rollout(arrays, names.index(name))
+        for name, _raw, _corrected in rows
+    }
+    rows = [row for row in rows if solver_references[row[0]].size]
+    if not rows:
         return
 
     available_frames = min(
-        reference.shape[0],
-        *(min(raw.shape[0], corrected.shape[0]) for _, raw, corrected in rows),
+        [
+            min(
+                solver_references[name].shape[0],
+                raw.shape[0],
+                corrected.shape[0],
+            )
+            for name, raw, corrected in rows
+        ]
     )
     # Keep the full simulated horizon in the animation while bounding the GIF
     # payload embedded in PRs.  Evenly spaced samples retain both endpoints.
@@ -1031,19 +1150,21 @@ def _save_solver_in_loop_animation(
         )
     )
     n_frames = len(frame_indices)
-    reference_vorticity = [
-        _periodic_vorticity_2d(reference[index]) for index in frame_indices
-    ]
     rollout_vorticity = [
         (
             name,
+            [
+                _periodic_vorticity_2d(solver_references[name][index])
+                for index in frame_indices
+            ],
             [_periodic_vorticity_2d(raw[index]) for index in frame_indices],
             [_periodic_vorticity_2d(corrected[index]) for index in frame_indices],
         )
         for name, raw, corrected in rows
     ]
-    scale_fields = list(reference_vorticity)
-    for _name, raw_fields, corrected_fields in rollout_vorticity:
+    scale_fields: list[np.ndarray] = []
+    for _name, reference_fields, raw_fields, corrected_fields in rollout_vorticity:
+        scale_fields.extend(reference_fields)
         scale_fields.extend(raw_fields)
         scale_fields.extend(corrected_fields)
     magnitudes = np.concatenate([np.abs(field).ravel() for field in scale_fields])
@@ -1059,10 +1180,15 @@ def _save_solver_in_loop_animation(
         layout="constrained",
     )
     images: list[tuple[Any, int, int]] = []
-    for row_idx, (name, raw_fields, corrected_fields) in enumerate(rollout_vorticity):
+    for row_idx, (
+        name,
+        reference_fields,
+        raw_fields,
+        corrected_fields,
+    ) in enumerate(rollout_vorticity):
         label, _color, _linestyle, _marker = solver_props(name)
         for col_idx, fields in enumerate(
-            (reference_vorticity, raw_fields, corrected_fields)
+            (reference_fields, raw_fields, corrected_fields)
         ):
             ax = axes[row_idx, col_idx]
             image = ax.imshow(
@@ -1105,12 +1231,7 @@ def _save_solver_in_loop_animation(
 
     def _update(frame: int) -> tuple[Any, ...]:
         for image, row_idx, col_idx in images:
-            if col_idx == 0:
-                field = reference_vorticity[frame]
-            elif col_idx == 1:
-                field = rollout_vorticity[row_idx][1][frame]
-            else:
-                field = rollout_vorticity[row_idx][2][frame]
+            field = rollout_vorticity[row_idx][col_idx + 1][frame]
             image.set_data(field.T)
         time_value = float(times[frame]) if frame < times.size else float(frame)
         title.set_text(f"Held-out trajectory at $t={time_value:g}$")

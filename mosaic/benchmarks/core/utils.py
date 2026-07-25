@@ -148,11 +148,27 @@ def _debug_run(run: dict) -> None:
     for key in ("train_seeds", "test_seeds"):
         if key in dataset:
             dataset[key] = list(dataset[key])[:1]
+    if "prefix_audit_seeds" in dataset:
+        retained_seeds = set(dataset.get("train_seeds", [])) | set(
+            dataset.get("test_seeds", [])
+        )
+        dataset["prefix_audit_seeds"] = [
+            seed for seed in dataset["prefix_audit_seeds"] if seed in retained_seeds
+        ]
     if "train_frames" in dataset:
         dataset["train_frames"] = min(dataset["train_frames"], 3)
     evaluation = run.get("evaluation", {})
     if "rollout_frames" in evaluation:
         evaluation["rollout_frames"] = min(evaluation["rollout_frames"], 3)
+    if "prefix_audit_frames" in dataset:
+        max_frame = max(
+            int(dataset.get("train_frames", 0)),
+            int(evaluation.get("rollout_frames", 0)),
+            int(training.get("unroll", 0)),
+        )
+        dataset["prefix_audit_frames"] = [
+            frame for frame in dataset["prefix_audit_frames"] if frame <= max_frame
+        ]
     cost = run.get("cost", {})
     for key in ("N_values", "steps_values"):
         if key in cost:

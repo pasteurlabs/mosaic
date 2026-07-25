@@ -187,7 +187,30 @@ def _solver_advance(
     frame_steps: int,
 ) -> jax.Array:
     """Advance one canonical correction interval through a Tesseract."""
-    physics = {**ctx.phys, "steps": frame_steps}
+    return _solver_advance_with_physics(
+        t,
+        ctx,
+        velocity,
+        dt=float(ctx.phys["dt"]),
+        steps=frame_steps,
+    )
+
+
+def _solver_advance_with_physics(
+    t: Any,
+    ctx: KernelContext,
+    velocity: jax.Array | np.ndarray,
+    *,
+    dt: float,
+    steps: int,
+) -> jax.Array:
+    """Advance a state with an explicit grid and temporal compute budget."""
+    physics = {
+        **ctx.phys,
+        "N": int(velocity.shape[0]),
+        "dt": float(dt),
+        "steps": int(steps),
+    }
     inputs = ctx.make_inputs(ctx.name, velocity, **physics)
     outputs = apply_tesseract(t, inputs)
     if ctx.output_key not in outputs:
@@ -195,6 +218,228 @@ def _solver_advance(
             f"Solver '{ctx.name}' did not return output {ctx.output_key!r}"
         )
     return outputs[ctx.output_key]
+
+
+def _make_solver_self_reference_datasets(
+    t: Any,
+    ctx: KernelContext,
+    *,
+    dataset: dict[str, Any],
+    evaluation: dict[str, Any],
+    training: dict[str, Any],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, str, dict[str, Any]]:
+    """Build and audit targets from the same solver at a refined compute budget."""
+    started = time.perf_counter()
+    n = int(ctx.phys["N"])
+    reference_factor = int(dataset.get("reference_factor", 2))
+    temporal_factor = int(dataset.get("reference_temporal_factor", 2))
+    if reference_factor < 1 or temporal_factor < 1:
+        raise ValueError("reference refinement factors must be positive")
+
+    train_seeds = tuple(int(v) for v in dataset.get("train_seeds", [0, 1, 2, 3]))
+    test_seeds = tuple(int(v) for v in dataset.get("test_seeds", [100, 101]))
+    all_seeds = train_seeds + test_seeds
+    train_frames = int(dataset.get("train_frames", 16))
+    eval_frames = int(evaluation.get("rollout_frames", 32))
+    unroll = int(training.get("unroll", 4))
+    n_frames = max(train_frames, eval_frames, unroll)
+
+    fine_n = n * reference_factor
+    coarse_dt = float(ctx.phys["dt"])
+    coarse_steps = int(ctx.phys["steps"])
+    fine_dt = coarse_dt / temporal_factor
+    fine_steps = coarse_steps * temporal_factor
+    k0 = float(dataset.get("k0", 6.0))
+    sigma_k = float(dataset.get("sigma_k", 1.0))
+    amplitude = float(dataset.get("amplitude", 0.3))
+
+    apply_count = 0
+
+    def advance(
+        velocity: np.ndarray,
+        *,
+        dt: float,
+        steps: int,
+    ) -> np.ndarray:
+        nonlocal apply_count
+        apply_count += 1
+        return np.asarray(
+            _solver_advance_with_physics(
+                t,
+                ctx,
+                velocity,
+                dt=dt,
+                steps=steps,
+            )
+        )
+
+    trajectories: dict[int, np.ndarray] = {}
+    fine_initials: dict[int, np.ndarray] = {}
+    for seed in all_seeds:
+        fine_state = np.asarray(
+            _multimode(
+                fine_n,
+                L=ctx.domain_extent,
+                seed=seed,
+                k0=k0,
+                sigma_k=sigma_k,
+                amplitude=amplitude,
+            ),
+            dtype=np.float32,
+        )
+        fine_initials[seed] = fine_state
+        frames = [spectral_restrict(fine_state, n)]
+        for _frame in range(n_frames):
+            fine_state = advance(fine_state, dt=fine_dt, steps=fine_steps)
+            frames.append(spectral_restrict(fine_state, n))
+        trajectories[seed] = np.asarray(frames, dtype=np.float32)
+
+    requested_audit_seeds = tuple(
+        int(v)
+        for v in dataset.get(
+            "prefix_audit_seeds",
+            [train_seeds[0], test_seeds[0]],
+        )
+    )
+    missing_audit_seeds = set(requested_audit_seeds) - set(all_seeds)
+    if missing_audit_seeds:
+        raise ValueError(
+            "dataset.prefix_audit_seeds must belong to the train/test split: "
+            f"{sorted(missing_audit_seeds)}"
+        )
+    audit_frames = tuple(
+        sorted(
+            {
+                int(frame)
+                for frame in dataset.get(
+                    "prefix_audit_frames",
+                    [1, min(train_frames, n_frames), n_frames],
+                )
+                if 0 < int(frame) <= n_frames
+            }
+        )
+    )
+    if not audit_frames:
+        raise ValueError("dataset.prefix_audit_frames must select a positive frame")
+
+    coarse_closure_errors: list[float] = []
+    fine_closure_errors: list[float] = []
+    refinement_signals: list[float] = []
+    finite = True
+    audit_frame_set = set(audit_frames)
+    max_audit_frame = max(audit_frames)
+    for seed in requested_audit_seeds:
+        target = trajectories[seed]
+        coarse_state = np.asarray(target[0])
+        coarse_repeated: dict[int, np.ndarray] = {}
+        for frame in range(1, max_audit_frame + 1):
+            coarse_state = advance(
+                coarse_state,
+                dt=coarse_dt,
+                steps=coarse_steps,
+            )
+            if frame in audit_frame_set:
+                coarse_repeated[frame] = coarse_state
+
+        for frame in audit_frames:
+            coarse_native = advance(
+                np.asarray(target[0]),
+                dt=coarse_dt,
+                steps=coarse_steps * frame,
+            )
+            fine_native = advance(
+                fine_initials[seed],
+                dt=fine_dt,
+                steps=fine_steps * frame,
+            )
+            fine_native_coarse = spectral_restrict(fine_native, n)
+            coarse_closure_errors.append(
+                relative_l2(coarse_repeated[frame], coarse_native)
+            )
+            fine_closure_errors.append(relative_l2(target[frame], fine_native_coarse))
+            refinement_signals.append(
+                relative_l2(coarse_repeated[frame], target[frame])
+            )
+            finite = finite and bool(
+                np.all(np.isfinite(coarse_repeated[frame]))
+                and np.all(np.isfinite(coarse_native))
+                and np.all(np.isfinite(target[frame]))
+                and np.all(np.isfinite(fine_native_coarse))
+            )
+
+    closure_tolerance = float(dataset.get("closure_relative_tolerance", 0.01))
+    closure_to_signal_tolerance = float(dataset.get("closure_to_signal_tolerance", 0.1))
+    minimum_signal = float(dataset.get("minimum_refinement_signal", 1e-4))
+    max_coarse_closure = float(max(coarse_closure_errors))
+    max_fine_closure = float(max(fine_closure_errors))
+    mean_signal = float(np.mean(refinement_signals))
+    closure_to_signal = [
+        closure / (signal + 1e-12)
+        for closure, signal in zip(
+            fine_closure_errors,
+            refinement_signals,
+            strict=True,
+        )
+    ]
+    eligible = bool(
+        finite
+        and max_coarse_closure <= closure_tolerance
+        and max_fine_closure <= closure_tolerance
+        and max(closure_to_signal) <= closure_to_signal_tolerance
+        and mean_signal > minimum_signal
+    )
+
+    config = {
+        "reference_kind": "solver_self_refined",
+        "solver": ctx.name,
+        "n": n,
+        "reference_factor": reference_factor,
+        "reference_temporal_factor": temporal_factor,
+        "viscosity": float(ctx.phys["nu"]),
+        "coarse_dt": coarse_dt,
+        "coarse_steps": coarse_steps,
+        "fine_dt": fine_dt,
+        "fine_steps": fine_steps,
+        "n_frames": n_frames,
+        "domain_extent": float(ctx.domain_extent),
+        "train_seeds": train_seeds,
+        "test_seeds": test_seeds,
+        "k0": k0,
+        "sigma_k": sigma_k,
+        "amplitude": amplitude,
+        "prefix_audit_seeds": requested_audit_seeds,
+        "prefix_audit_frames": audit_frames,
+        "closure_relative_tolerance": closure_tolerance,
+        "closure_to_signal_tolerance": closure_to_signal_tolerance,
+        "minimum_refinement_signal": minimum_signal,
+    }
+    all_trajectories = np.stack([trajectories[seed] for seed in all_seeds])
+    n_train = len(train_seeds)
+    train = all_trajectories[:n_train, : train_frames + 1]
+    train_rollouts = all_trajectories[:n_train, : eval_frames + 1]
+    test = all_trajectories[n_train:, : eval_frames + 1]
+    audit = {
+        "eligible_for_corrector_training": eligible,
+        "reference_generation_wall_time_s": time.perf_counter() - started,
+        "reference_generation_apply_count": apply_count,
+        "reference_grid_size": fine_n,
+        "reference_dt": fine_dt,
+        "reference_steps_per_interval": fine_steps,
+        "prefix_audit_seeds": list(requested_audit_seeds),
+        "prefix_audit_frames": list(audit_frames),
+        "coarse_closure_errors": coarse_closure_errors,
+        "fine_closure_errors": fine_closure_errors,
+        "refinement_signals": refinement_signals,
+        "max_coarse_closure_error": max_coarse_closure,
+        "max_fine_closure_error": max_fine_closure,
+        "max_fine_closure_to_signal_ratio": float(max(closure_to_signal)),
+        "mean_refinement_signal": mean_signal,
+        "closure_relative_tolerance": closure_tolerance,
+        "closure_to_signal_tolerance": closure_to_signal_tolerance,
+        "minimum_refinement_signal": minimum_signal,
+        "reference_states_finite": finite,
+    }
+    return train, train_rollouts, test, _dataset_digest(config), audit
 
 
 def _window_loss(
@@ -566,6 +811,7 @@ def _std(values: list[float]) -> float:
         "rollout_corrected",
         "rollout_stop_gradient",
         "rollout_uncorrected",
+        "reference_rollout",
     ),
 )
 def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
@@ -574,14 +820,49 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     dataset_cfg = ctx.run.get("dataset", {})
     evaluation = ctx.run.get("evaluation", {})
     frame_steps = int(ctx.phys["steps"])
-
-    train, train_rollouts, test, dataset_hash = _make_reference_datasets(
-        physics=ctx.phys,
-        dataset=dataset_cfg,
-        evaluation=evaluation,
-        training=training,
-        domain_extent=ctx.domain_extent,
-    )
+    reference_kind = str(dataset_cfg.get("reference_kind", "pseudo_spectral_multimode"))
+    reference_audit: dict[str, Any] = {}
+    if reference_kind == "solver_self_refined":
+        (
+            train,
+            train_rollouts,
+            test,
+            dataset_hash,
+            reference_audit,
+        ) = _make_solver_self_reference_datasets(
+            t,
+            ctx,
+            dataset=dataset_cfg,
+            evaluation=evaluation,
+            training=training,
+        )
+    else:
+        train, train_rollouts, test, dataset_hash = _make_reference_datasets(
+            physics=ctx.phys,
+            dataset=dataset_cfg,
+            evaluation=evaluation,
+            training=training,
+            domain_extent=ctx.domain_extent,
+        )
+    interval_time = float(ctx.phys["dt"]) * frame_steps
+    if not reference_audit.get("eligible_for_corrector_training", True):
+        return {
+            "metrics": {
+                **reference_audit,
+                "completed": True,
+                "n_updates": 0,
+                "stop_gradient_n_updates": 0,
+                "dataset_hash": dataset_hash,
+                "reference_kind": reference_kind,
+                "correction_intervals": int(test.shape[1] - 1),
+                "rollout_final_time": interval_time * int(test.shape[1] - 1),
+            },
+            "snapshots": {"reference_rollout": test[0]},
+            "shared": {
+                "evaluation_times": np.arange(test.shape[1], dtype=np.float32)
+                * interval_time
+            },
+        }
     velocity_scale = float(np.sqrt(np.mean(train**2)) + 1e-8)
 
     configured_seeds = training.get("model_seeds")
@@ -602,6 +883,39 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     if seen_trajectory_count < 1:
         raise ValueError("evaluation.seen_ic_trajectories must select at least one IC")
     seen_references = train_rollouts[:seen_trajectory_count]
+    semigroup_errors: list[float] = []
+    for reference in test:
+        one_interval = _solver_advance(
+            t,
+            ctx,
+            jnp.asarray(reference[0]),
+            frame_steps=frame_steps,
+        )
+        repeated = _solver_advance(
+            t,
+            ctx,
+            one_interval,
+            frame_steps=frame_steps,
+        )
+        uninterrupted = _solver_advance(
+            t,
+            ctx,
+            jnp.asarray(reference[0]),
+            frame_steps=2 * frame_steps,
+        )
+        semigroup_errors.append(
+            relative_l2(np.asarray(repeated), np.asarray(uninterrupted))
+        )
+    semigroup_median = float(np.median(semigroup_errors))
+    semigroup_p95 = float(np.percentile(semigroup_errors, 95.0))
+    semigroup_median_tolerance = float(
+        dataset_cfg.get("semigroup_median_tolerance", 0.005)
+    )
+    semigroup_p95_tolerance = float(dataset_cfg.get("semigroup_p95_tolerance", 0.01))
+    valid_for_vjp_ranking = bool(
+        semigroup_median <= semigroup_median_tolerance
+        and semigroup_p95 <= semigroup_p95_tolerance
+    )
     first_uncorrected, uncorrected_errors_array = _evaluate_reference_set(
         t,
         ctx,
@@ -867,7 +1181,6 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     stop_gradient_log_gain = float(np.mean(stop_gradient_log_gain_samples))
     solver_vjp_log_lift = float(np.mean(solver_vjp_log_lift_samples))
     threshold = float(evaluation.get("stable_error_threshold", 1.0))
-    interval_time = float(ctx.phys["dt"]) * frame_steps
     matched_horizon_frame = min(train.shape[1] - 1, test.shape[1] - 1)
     long_horizon_frame = test.shape[1] - 1
     seen_matched_error = float(seen_corrected_error[matched_horizon_frame])
@@ -889,6 +1202,14 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     )
 
     metrics = {
+        **reference_audit,
+        "eligible_for_corrector_training": True,
+        "valid_for_vjp_ranking": valid_for_vjp_ranking,
+        "semigroup_error_median": semigroup_median,
+        "semigroup_error_p95": semigroup_p95,
+        "semigroup_error_samples": semigroup_errors,
+        "semigroup_median_tolerance": semigroup_median_tolerance,
+        "semigroup_p95_tolerance": semigroup_p95_tolerance,
         "final_rollout_error": final_corrected,
         "final_rollout_error_seed_std": float(corrected_error_seed_std[-1]),
         "final_rollout_error_ic_std": float(corrected_error_ic_std[-1]),
@@ -1089,9 +1410,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "visualization_model_seed": model_seeds[0],
         "completed": all(completed_by_seed) and all(stop_gradient_completed_by_seed),
         "dataset_hash": dataset_hash,
-        "reference_kind": str(
-            dataset_cfg.get("reference_kind", "pseudo_spectral_multimode")
-        ),
+        "reference_kind": reference_kind,
         "correction_intervals": int(test.shape[1] - 1),
         "native_steps": frame_steps * int(test.shape[1] - 1),
         "rollout_final_time": interval_time * int(test.shape[1] - 1),
@@ -1167,14 +1486,22 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         snapshots["rollout_corrected"] = first_corrected
         snapshots["rollout_stop_gradient"] = first_stop_gradient
         snapshots["rollout_uncorrected"] = first_uncorrected
-    return {
-        "metrics": metrics,
-        "snapshots": snapshots,
-        "shared": {
+    if reference_kind == "solver_self_refined":
+        snapshots["reference_rollout"] = test[0]
+        shared = {
+            "evaluation_times": np.arange(test.shape[1], dtype=np.float32)
+            * interval_time
+        }
+    else:
+        shared = {
             "reference_rollout": test[0],
             "evaluation_times": np.arange(test.shape[1], dtype=np.float32)
             * interval_time,
-        },
+        }
+    return {
+        "metrics": metrics,
+        "snapshots": snapshots,
+        "shared": shared,
     }
 
 

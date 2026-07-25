@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
+from types import SimpleNamespace
 
 import equinox as eqx
 import jax
@@ -35,6 +36,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
     _save_solver_in_loop_animation,
 )
 from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
+    _make_solver_self_reference_datasets,
     _rollout_log_gain,
     make_reference_dataset,
     solver_in_loop,
@@ -135,6 +137,59 @@ def test_analytic_tgv_reference_has_exact_decay_and_distinct_phases():
     assert len(dataset_hash) == 16
 
 
+def test_solver_self_reference_matches_physical_time_and_passes_closure(
+    monkeypatch,
+):
+    calls: list[tuple[int, float, int]] = []
+
+    def _closed_refined_step(_t, _ctx, velocity, *, dt, steps):
+        calls.append((velocity.shape[0], dt, steps))
+        per_step_decay = 1.0 - dt / velocity.shape[0]
+        return jnp.asarray(velocity) * per_step_decay**steps
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "_solver_advance_with_physics",
+        _closed_refined_step,
+    )
+    ctx = SimpleNamespace(
+        name="closed-dummy",
+        phys={"N": 8, "nu": 0.001, "dt": 0.02, "steps": 1},
+        domain_extent=2.0 * np.pi,
+    )
+    train, train_rollouts, test, dataset_hash, audit = (
+        _make_solver_self_reference_datasets(
+            None,
+            ctx,
+            dataset={
+                "reference_factor": 2,
+                "reference_temporal_factor": 2,
+                "train_seeds": [0, 1],
+                "test_seeds": [100],
+                "train_frames": 2,
+                "prefix_audit_seeds": [0, 100],
+                "prefix_audit_frames": [1, 2],
+                "k0": 2.0,
+                "minimum_refinement_signal": 1e-5,
+            },
+            evaluation={"rollout_frames": 3},
+            training={"unroll": 2},
+        )
+    )
+
+    assert train.shape == (2, 3, 8, 8, 1, 2)
+    assert train_rollouts.shape == (2, 4, 8, 8, 1, 2)
+    assert test.shape == (1, 4, 8, 8, 1, 2)
+    assert len(dataset_hash) == 16
+    assert audit["eligible_for_corrector_training"] is True
+    assert audit["max_coarse_closure_error"] < 1e-5
+    assert audit["max_fine_closure_error"] < 1e-5
+    assert audit["mean_refinement_signal"] > 1e-5
+    assert (16, 0.01, 2) in calls
+    assert (8, 0.02, 1) in calls
+    assert 0.01 * 2 == 0.02 * 1
+
+
 def test_rollout_log_gain_is_geometric_and_ignores_initial_frame():
     baseline = np.asarray([0.0, 4.0, 8.0])
     corrected = np.asarray([0.0, 2.0, 2.0])
@@ -198,7 +253,7 @@ def test_solver_in_loop_fields_render_reference_raw_and_corrected(tmp_path):
     )
 
     arrays = {
-        "reference_rollout": np.stack((reference, reference)),
+        "reference_rollout_0": np.stack((reference, reference)),
         "evaluation_times": np.asarray([0.0, 0.1]),
         "rollout_uncorrected_0": np.stack((reference, 0.8 * reference)),
         "rollout_corrected_0": np.stack((reference, 0.95 * reference)),
@@ -370,3 +425,54 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert (out_dir / "result.json").exists()
     with np.load(out_dir / "corrector_fields.npz") as snapshots:
         assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)
+
+
+def test_solver_self_reference_skips_training_below_refinement_floor(
+    tmp_path,
+    monkeypatch,
+):
+    """An admitted interface still skips training when refinement has no signal."""
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    base = get_config("ns-grid")
+    pict = next(spec for spec in base.solvers if spec.key == "pict")
+    cfg = dataclasses.replace(base, solvers=[pict])
+    cfg.add_experiment(
+        "optimization/solver_self_reference_ineligible_smoke",
+        solver_in_loop,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 0},
+                "physics": {"N": 8, "nu": 0.001, "dt": 0.02, "steps": 1},
+                "dataset": {
+                    "reference_kind": "solver_self_refined",
+                    "reference_factor": 2,
+                    "reference_temporal_factor": 2,
+                    "train_seeds": [0],
+                    "test_seeds": [100],
+                    "train_frames": 1,
+                    "prefix_audit_seeds": [0, 100],
+                    "prefix_audit_frames": [1],
+                    "k0": 2.0,
+                },
+                "training": {
+                    "max_updates": 1,
+                    "unroll": 1,
+                    "hidden_channels": 4,
+                    "kernel_size": 3,
+                },
+                "evaluation": {"rollout_frames": 1},
+            }
+        ],
+    )
+    result = cfg.experiments["optimization/solver_self_reference_ineligible_smoke"].fn(
+        cfg,
+        {pict.name: f"inprocess:{_IDENTITY_DUMMY}"},
+    )
+
+    metrics = result["results"][0]["metrics"]
+    assert metrics["completed"] is True
+    assert metrics["eligible_for_corrector_training"] is False
+    assert metrics["mean_refinement_signal"] == 0
+    assert metrics["n_updates"] == 0
