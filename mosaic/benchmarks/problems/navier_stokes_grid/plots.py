@@ -133,6 +133,20 @@ def plot_solver_in_loop(
         )
         stopped = np.asarray(arrays.get(f"error_stop_gradient_{idx}", np.array([])))
         uncorrected = np.asarray(arrays.get(f"error_uncorrected_{idx}", np.array([])))
+        if solver_specific_reference and uncorrected.size:
+            # Each self-reference cell has a different target.  Divide by that
+            # cell's raw trajectory so shared axes show within-solver correction
+            # gain rather than incomparable absolute target errors.
+            baseline = np.maximum(uncorrected, 1e-12)
+            if corrected.size:
+                corrected = corrected / baseline
+            if corrected_std.size:
+                corrected_std = corrected_std / baseline
+            if corrected_ic_std.size:
+                corrected_ic_std = corrected_ic_std / baseline
+            if stopped.size:
+                stopped = stopped / baseline
+            uncorrected = np.ones_like(uncorrected)
         if loss.size:
             updates = np.arange(1, loss.size + 1)
             ax_loss.plot(
@@ -233,7 +247,7 @@ def plot_solver_in_loop(
     ax_roll.set_yscale("log")
     ax_roll.set_xlabel("Physical time")
     ax_roll.set_ylabel(
-        "Error to solver-specific reference"
+        "Error / solver-only error"
         if solver_specific_reference
         else "Relative $L^2$ error"
     )
@@ -280,17 +294,24 @@ def plot_solver_in_loop(
     )
     if fairness_fig is not None:
         figs.append(fairness_fig)
-    physics_fig = _plot_solver_in_loop_physics(arrays, names, out_dir, save=save)
-    if physics_fig is not None:
-        figs.append(physics_fig)
-    diagnostics_fig = _plot_solver_in_loop_diagnostics(
-        data,
+    physics_fig = _plot_solver_in_loop_physics(
+        arrays,
         names,
         out_dir,
         save=save,
+        solver_specific_reference=solver_specific_reference,
     )
-    if diagnostics_fig is not None:
-        figs.append(diagnostics_fig)
+    if physics_fig is not None:
+        figs.append(physics_fig)
+    if not solver_specific_reference:
+        diagnostics_fig = _plot_solver_in_loop_diagnostics(
+            data,
+            names,
+            out_dir,
+            save=save,
+        )
+        if diagnostics_fig is not None:
+            figs.append(diagnostics_fig)
     if save:
         _save_solver_in_loop_animation(arrays, names, out_dir)
     return figs
@@ -553,6 +574,7 @@ def _plot_solver_in_loop_physics(
     out_dir: Path,
     *,
     save: bool,
+    solver_specific_reference: bool = False,
 ) -> plt.Figure | None:
     """Compare energy, enstrophy, and divergence along held-out rollouts."""
     rows = _ordered_solver_rollouts(arrays, names)
@@ -590,7 +612,7 @@ def _plot_solver_in_loop_physics(
     diagnostic_axes = (ax_energy, ax_enstrophy, ax_spectral, ax_centered)
 
     present: list[str] = []
-    for name, raw, corrected in rows:
+    for row_index, (name, raw, corrected) in enumerate(rows):
         _label, color, _linestyle, _marker = solver_props(name)
         reference_diagnostics = _trajectory_diagnostics(
             solver_references[name][:n_frames]
@@ -624,13 +646,14 @@ def _plot_solver_in_loop_physics(
             corrected_curves,
             strict=True,
         ):
-            ax.plot(
-                times,
-                np.maximum(reference_curve, 1e-12),
-                color=color,
-                linestyle="--",
-                alpha=0.7,
-            )
+            if solver_specific_reference or row_index == 0:
+                ax.plot(
+                    times,
+                    np.maximum(reference_curve, 1e-12),
+                    color=color if solver_specific_reference else "0.25",
+                    linestyle="--",
+                    alpha=0.7,
+                )
             ax.plot(times, np.maximum(raw_curve, 1e-12), color=color, linestyle=":")
             ax.plot(
                 times,
@@ -658,7 +681,15 @@ def _plot_solver_in_loop_physics(
         present,
         extra_handles=[
             mlines.Line2D(
-                [], [], color="0.4", linestyle="--", label="solver-specific reference"
+                [],
+                [],
+                color="0.4",
+                linestyle="--",
+                label=(
+                    "solver-specific reference"
+                    if solver_specific_reference
+                    else "shared reference"
+                ),
             ),
             mlines.Line2D([], [], color="0.4", linestyle=":", label="solver only"),
             mlines.Line2D([], [], color="0.4", linestyle="-", label="full corrector"),
@@ -711,6 +742,8 @@ def _plot_solver_in_loop_fairness(
     labels: list[str] = []
 
     all_errors: list[float] = []
+    normalized_full_errors: list[float] = []
+    normalized_stopped_errors: list[float] = []
     full_gain: list[float] = []
     stopped_gain: list[float] = []
     vjp_lift: list[float] = []
@@ -727,8 +760,17 @@ def _plot_solver_in_loop_fairness(
         labels.append(label)
         raw = float(metrics["uncorrected_mean_rollout_error"])
         corrected = float(metrics["mean_rollout_error"])
-        all_errors.extend((raw, corrected))
-        ax_quality.scatter(raw, corrected, color=color, marker=marker, s=30)
+        normalized_full_errors.append(corrected / max(raw, 1e-12))
+        stopped_error = metrics.get("stop_gradient_mean_rollout_error")
+        has_counterfactual &= stopped_error is not None
+        normalized_stopped_errors.append(
+            float(stopped_error) / max(raw, 1e-12)
+            if stopped_error is not None
+            else np.nan
+        )
+        if not solver_specific_reference:
+            all_errors.extend((raw, corrected))
+            ax_quality.scatter(raw, corrected, color=color, marker=marker, s=30)
         update_time = metrics.get("median_update_time_s")
         has_cost &= update_time is not None
         update_times.append(float(update_time) if update_time is not None else np.nan)
@@ -777,32 +819,53 @@ def _plot_solver_in_loop_fairness(
         vjp_lift_log_std.append(float(np.hypot(seed_lift_std, ic_lift_std)))
         has_ic_uncertainty |= "solver_vjp_log_lift_ic_std" in metrics
 
-    error_min = max(min(all_errors) * 0.8, 1e-4)
-    error_max = max(all_errors) * 1.25
-    ax_quality.plot(
-        [error_min, error_max],
-        [error_min, error_max],
-        color="0.45",
-        linestyle=":",
-        linewidth=1.0,
-    )
-    if error_max / error_min >= 10.0:
-        ax_quality.set_xscale("log")
-        ax_quality.set_yscale("log")
-        ax_quality.xaxis.set_minor_formatter(mticker.NullFormatter())
-        ax_quality.yaxis.set_minor_formatter(mticker.NullFormatter())
-    ax_quality.set_xlim(error_min, error_max)
-    ax_quality.set_ylim(error_min, error_max)
-    ax_quality.set_xlabel("Solver-only mean error")
-    ax_quality.set_ylabel("Corrected mean error")
-    ax_quality.set_title(
-        "Within-solver target error"
-        if solver_specific_reference
-        else "Absolute quality"
-    )
-
     width = 0.36 if has_counterfactual else 0.62
     colors = [solver_props(name)[1] for name, _metrics in rows]
+    if solver_specific_reference:
+        ax_quality.bar(
+            positions - (width / 2 if has_counterfactual else 0.0),
+            normalized_full_errors,
+            width=width,
+            color=colors,
+            alpha=0.9,
+            label="full solver VJP",
+        )
+        if has_counterfactual:
+            ax_quality.bar(
+                positions + width / 2,
+                normalized_stopped_errors,
+                width=width,
+                color=colors,
+                alpha=0.35,
+                hatch="//",
+                label="stop-gradient",
+            )
+            ax_quality.legend(loc="best", fontsize=6.5)
+        ax_quality.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+        ax_quality.set_xticks(positions, labels, rotation=35, ha="right")
+        ax_quality.set_ylabel("Mean error / solver-only error")
+        ax_quality.set_title("Target-normalized quality")
+    else:
+        error_min = max(min(all_errors) * 0.8, 1e-4)
+        error_max = max(all_errors) * 1.25
+        ax_quality.plot(
+            [error_min, error_max],
+            [error_min, error_max],
+            color="0.45",
+            linestyle=":",
+            linewidth=1.0,
+        )
+        if error_max / error_min >= 10.0:
+            ax_quality.set_xscale("log")
+            ax_quality.set_yscale("log")
+            ax_quality.xaxis.set_minor_formatter(mticker.NullFormatter())
+            ax_quality.yaxis.set_minor_formatter(mticker.NullFormatter())
+        ax_quality.set_xlim(error_min, error_max)
+        ax_quality.set_ylim(error_min, error_max)
+        ax_quality.set_xlabel("Solver-only mean error")
+        ax_quality.set_ylabel("Corrected mean error")
+        ax_quality.set_title("Absolute quality")
+
     full_error = _log_scale_errorbars(full_gain, full_gain_log_std)
     ax_gain.bar(
         positions - (width / 2 if has_counterfactual else 0.0),
