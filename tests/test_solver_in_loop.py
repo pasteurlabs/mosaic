@@ -287,6 +287,12 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
             (reference, 0.85 * reference, 0.7 * reference)
         ),
         "rollout_corrected_0": np.stack((reference, 0.95 * reference, 0.9 * reference)),
+        "rollout_uncorrected_1": np.stack(
+            (reference, 0.9 * reference, 0.8 * reference)
+        ),
+        "rollout_corrected_1": np.stack(
+            (reference, 0.97 * reference, 0.94 * reference)
+        ),
     }
     data = {
         "by_solver": {
@@ -326,7 +332,7 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
     )
     physics = _plot_solver_in_loop_physics(
         arrays,
-        ["jax-cfd"],
+        ["jax-cfd", "warp-ns"],
         tmp_path,
         save=True,
     )
@@ -341,6 +347,8 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
     assert fairness is not None
     assert physics is not None
     assert diagnostics is not None
+    # One shared reference plus raw/corrected curves for each solver.
+    assert all(len(axis.lines) == 5 for axis in physics.axes[:4])
     for filename in (
         "solver_in_loop_diagnostics.png",
         "solver_in_loop_fairness.png",
@@ -350,6 +358,36 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
         rendered = tmp_path / filename
         assert rendered.exists()
         assert rendered.stat().st_size > 0
+
+
+def test_self_reference_fairness_normalizes_solver_specific_targets(tmp_path):
+    data = {
+        "by_solver": {
+            "pict": {
+                "uncorrected_mean_rollout_error": 0.4,
+                "mean_rollout_error": 0.2,
+                "stop_gradient_mean_rollout_error": 0.3,
+                "geometric_error_reduction": 2.0,
+                "stop_gradient_geometric_error_reduction": 4.0 / 3.0,
+                "solver_vjp_geometric_lift": 1.5,
+            }
+        }
+    }
+
+    figure = _plot_solver_in_loop_fairness(
+        data,
+        ["pict"],
+        tmp_path,
+        save=False,
+        solver_specific_reference=True,
+    )
+
+    assert figure is not None
+    np.testing.assert_allclose(
+        [patch.get_height() for patch in figure.axes[0].patches],
+        [0.5, 0.75],
+    )
+    assert figure.axes[0].get_title() == "Target-normalized quality"
 
 
 def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):

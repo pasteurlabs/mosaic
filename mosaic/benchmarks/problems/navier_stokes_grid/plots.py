@@ -762,7 +762,8 @@ def _plot_solver_in_loop_fairness(
         corrected = float(metrics["mean_rollout_error"])
         normalized_full_errors.append(corrected / max(raw, 1e-12))
         stopped_error = metrics.get("stop_gradient_mean_rollout_error")
-        has_counterfactual &= stopped_error is not None
+        if solver_specific_reference:
+            has_counterfactual &= stopped_error is not None
         normalized_stopped_errors.append(
             float(stopped_error) / max(raw, 1e-12)
             if stopped_error is not None
