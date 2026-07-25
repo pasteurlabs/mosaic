@@ -88,6 +88,18 @@ XLB_TGV_LBM_FLOOR = Exclusion(
     "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
     "by further sub-stepping (tested k=9..27); valid=True",
 )
+STAGGERED_STATE_NOT_CLOSED = Exclusion(
+    ExclusionCategory.INFEASIBLE,
+    "the canonical velocity call boundary repeatedly converts between collocated "
+    "and staggered states; the resulting transition fails the semigroup admission "
+    "test and cannot support an intrinsic solver-VJP ranking",
+)
+XLB_STATE_NOT_CLOSED = Exclusion(
+    ExclusionCategory.INFEASIBLE,
+    "the canonical velocity-only call boundary rebuilds equilibrium populations "
+    "and discards density and non-equilibrium moments; native recurrent state must "
+    "be preserved before an intrinsic solver-VJP ranking",
+)
 
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
@@ -124,3 +136,12 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
+    problem.exclude(
+        "optimization/solver_in_loop_self_reference",
+        {
+            "jax_cfd": STAGGERED_STATE_NOT_CLOSED,
+            "ins_jl": STAGGERED_STATE_NOT_CLOSED,
+            "phiflow": STAGGERED_STATE_NOT_CLOSED,
+            "xlb": XLB_STATE_NOT_CLOSED,
+        },
+    )

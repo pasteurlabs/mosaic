@@ -281,6 +281,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
     """
     if problem == "ns-grid" and exp_key in {
         "optimization/solver_in_loop",
+        "optimization/solver_in_loop_self_reference",
         "optimization/solver_in_loop_tgv",
     }:
         from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
@@ -288,6 +289,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
         )
 
         analytic = exp_key.endswith("_tgv")
+        self_reference = exp_key.endswith("_self_reference")
         cfg.add_experiment(
             exp_key,
             solver_in_loop,
@@ -305,14 +307,23 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
                     },
                     "dataset": {
                         "reference_kind": (
-                            "analytic_tgv" if analytic else "pseudo_spectral_multimode"
+                            "analytic_tgv"
+                            if analytic
+                            else (
+                                "solver_self_refined"
+                                if self_reference
+                                else "pseudo_spectral_multimode"
+                            )
                         ),
                         "reference_factor": 2,
+                        "reference_temporal_factor": 2,
                         "reference_substeps": 1,
                         "train_seeds": [0],
                         "test_seeds": [100],
                         "train_frames": 2,
                         "k0": 2.0,
+                        "prefix_audit_seeds": [0, 100],
+                        "prefix_audit_frames": [1, 2],
                     },
                     "training": {
                         "max_updates": 1,
