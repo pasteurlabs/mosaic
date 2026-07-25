@@ -449,9 +449,10 @@ problem.add_experiment(
     solver_in_loop,
     description=(
         "Train an identical Equinox periodic residual corrector through each "
-        "differentiable solver. Paired stop-gradient training and native versus "
-        "restarted rollouts separate raw accuracy, coupling cost, correctability, "
-        "and the incremental benefit of the solver VJP."
+        "differentiable solver. A solver-terminal recurrent auxiliary, paired "
+        "stop-gradient controls, native versus restarted rollouts, and seen versus "
+        "held-out IC horizons separate integration, coupling, trainability, and "
+        "the incremental benefit of the solver VJP."
     ),
     plot_description=(
         "Corrector training, held-out trajectories, physical diagnostics, "
@@ -476,9 +477,9 @@ problem.add_experiment(
                 "reference_kind": "pseudo_spectral_multimode",
                 "reference_factor": 2,
                 "reference_substeps": 2,
-                "train_seeds": [0, 1, 2, 3],
-                "test_seeds": [100, 101],
-                "train_frames": 16,
+                "train_seeds": list(range(16)),
+                "test_seeds": list(range(100, 108)),
+                "train_frames": 24,
                 "k0": 6.0,
                 "sigma_k": 1.0,
                 # The stronger field and longer held-out horizon produce
@@ -487,10 +488,18 @@ problem.add_experiment(
                 "amplitude": 0.5,
             },
             "training": {
-                "max_updates": 100,
-                "unroll": 4,
+                "max_updates": 200,
+                "unroll": 8,
+                # A solver-only terminal auxiliary measures temporal credit
+                # without letting it destabilize the locally supervised rollout.
+                "loss_mode": "solver_terminal",
+                "solver_loss_weight": 0.1,
+                # Scale each solver's loss by its own uncorrected recurrent
+                # baseline so clipping/optimisation do not inherit raw accuracy.
+                "loss_normalization": "solver_baseline",
+                "loss_scale_floor": 1e-6,
                 "lr": 1e-4,
-                "clip_norm": 1.0,
+                "clip_norm": 5.0,
                 "architecture": "periodic_residual_cnn",
                 "hidden_channels": 32,
                 "kernel_size": 5,
@@ -501,6 +510,7 @@ problem.add_experiment(
             },
             "evaluation": {
                 "rollout_frames": 36,
+                "seen_ic_trajectories": 8,
                 "stable_error_threshold": 1.0,
             },
         }
@@ -538,10 +548,14 @@ problem.add_experiment(
                 "train_frames": 16,
             },
             "training": {
-                "max_updates": 100,
-                "unroll": 4,
+                "max_updates": 150,
+                "unroll": 8,
+                "loss_mode": "solver_terminal",
+                "solver_loss_weight": 0.1,
+                "loss_normalization": "solver_baseline",
+                "loss_scale_floor": 1e-6,
                 "lr": 1e-4,
-                "clip_norm": 1.0,
+                "clip_norm": 5.0,
                 "architecture": "periodic_residual_cnn",
                 "hidden_channels": 32,
                 "kernel_size": 5,
@@ -552,6 +566,7 @@ problem.add_experiment(
             },
             "evaluation": {
                 "rollout_frames": 24,
+                "seen_ic_trajectories": 2,
                 "stable_error_threshold": 1.0,
             },
         }

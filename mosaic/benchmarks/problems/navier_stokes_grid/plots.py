@@ -126,6 +126,9 @@ def plot_solver_in_loop(
         corrected_std = np.asarray(
             arrays.get(f"error_corrected_seed_std_{idx}", np.array([]))
         )
+        corrected_ic_std = np.asarray(
+            arrays.get(f"error_corrected_ic_std_{idx}", np.array([]))
+        )
         stopped = np.asarray(arrays.get(f"error_stop_gradient_{idx}", np.array([])))
         uncorrected = np.asarray(arrays.get(f"error_uncorrected_{idx}", np.array([])))
         if loss.size:
@@ -164,10 +167,16 @@ def plot_solver_in_loop(
                 label=label,
             )
             if corrected_std.shape == corrected.shape:
+                rollout_uncertainty = corrected_std
+                if corrected_ic_std.shape == corrected.shape:
+                    rollout_uncertainty = np.hypot(
+                        corrected_std,
+                        corrected_ic_std,
+                    )
                 ax_roll.fill_between(
                     x[1:],
-                    np.maximum(corrected[1:] - corrected_std[1:], 1e-12),
-                    corrected[1:] + corrected_std[1:],
+                    np.maximum(corrected[1:] - rollout_uncertainty[1:], 1e-12),
+                    corrected[1:] + rollout_uncertainty[1:],
                     color=color,
                     alpha=0.12,
                     linewidth=0,
@@ -211,7 +220,7 @@ def plot_solver_in_loop(
     ):
         ax_loss.set_yscale("log")
     ax_loss.set_xlabel("Optimizer update")
-    ax_loss.set_ylabel("Training loss")
+    ax_loss.set_ylabel("Normalized training loss")
     ax_loss.set_title("Corrector training")
 
     ax_roll.set_yscale("log")
@@ -251,6 +260,14 @@ def plot_solver_in_loop(
     physics_fig = _plot_solver_in_loop_physics(arrays, names, out_dir, save=save)
     if physics_fig is not None:
         figs.append(physics_fig)
+    diagnostics_fig = _plot_solver_in_loop_diagnostics(
+        data,
+        names,
+        out_dir,
+        save=save,
+    )
+    if diagnostics_fig is not None:
+        figs.append(diagnostics_fig)
     if save:
         _save_solver_in_loop_animation(arrays, names, out_dir)
     return figs
@@ -606,7 +623,7 @@ def _plot_solver_in_loop_fairness(
         squeeze=False,
         layout="constrained",
     )
-    ax_restart, ax_quality, ax_gain, ax_vjp = axes.ravel()
+    ax_quality, ax_gain, ax_vjp, ax_efficiency = axes.ravel()
     positions = np.arange(len(rows), dtype=float)
     labels: list[str] = []
 
@@ -617,9 +634,11 @@ def _plot_solver_in_loop_fairness(
     full_gain_log_std: list[float] = []
     stopped_gain_log_std: list[float] = []
     vjp_lift_log_std: list[float] = []
+    update_times: list[float] = []
     has_counterfactual = True
-    has_native = True
+    has_cost = True
     has_seed_uncertainty = False
+    has_ic_uncertainty = False
     for name, metrics in rows:
         label, color, _linestyle, marker = solver_props(name)
         labels.append(label)
@@ -627,25 +646,24 @@ def _plot_solver_in_loop_fairness(
         corrected = float(metrics["mean_rollout_error"])
         all_errors.extend((raw, corrected))
         ax_quality.scatter(raw, corrected, color=color, marker=marker, s=30)
-        native = metrics.get("native_final_rollout_error")
-        restarted = metrics.get("uncorrected_rollout_error")
-        if native is None or restarted is None:
-            has_native = False
-        else:
-            ax_restart.scatter(
-                float(native),
-                float(restarted),
-                color=color,
-                marker=marker,
-                s=30,
-            )
+        update_time = metrics.get("median_update_time_s")
+        has_cost &= update_time is not None
+        update_times.append(float(update_time) if update_time is not None else np.nan)
 
         full = metrics.get("geometric_error_reduction")
         if full is None:
             full = raw / max(corrected, 1e-12)
         full_gain.append(float(full))
-        full_gain_log_std.append(float(metrics.get("rollout_log_gain_seed_std", 0.0)))
+        full_gain_log_std.append(
+            float(
+                np.hypot(
+                    float(metrics.get("rollout_log_gain_seed_std", 0.0)),
+                    float(metrics.get("rollout_log_gain_ic_std", 0.0)),
+                )
+            )
+        )
         has_seed_uncertainty |= "rollout_log_gain_seed_std" in metrics
+        has_ic_uncertainty |= "rollout_log_gain_ic_std" in metrics
 
         stopped = metrics.get("stop_gradient_geometric_error_reduction")
         lift = metrics.get("solver_vjp_geometric_lift")
@@ -654,9 +672,27 @@ def _plot_solver_in_loop_fairness(
         stopped_gain.append(float(stopped) if stopped is not None else np.nan)
         vjp_lift.append(float(lift) if lift is not None else np.nan)
         stopped_gain_log_std.append(
-            float(metrics.get("stop_gradient_rollout_log_gain_seed_std", 0.0))
+            float(
+                np.hypot(
+                    float(
+                        metrics.get(
+                            "stop_gradient_rollout_log_gain_seed_std",
+                            0.0,
+                        )
+                    ),
+                    float(
+                        metrics.get(
+                            "stop_gradient_rollout_log_gain_ic_std",
+                            0.0,
+                        )
+                    ),
+                )
+            )
         )
-        vjp_lift_log_std.append(float(metrics.get("solver_vjp_log_lift_seed_std", 0.0)))
+        seed_lift_std = float(metrics.get("solver_vjp_log_lift_seed_std", 0.0))
+        ic_lift_std = float(metrics.get("solver_vjp_log_lift_ic_std", 0.0))
+        vjp_lift_log_std.append(float(np.hypot(seed_lift_std, ic_lift_std)))
+        has_ic_uncertainty |= "solver_vjp_log_lift_ic_std" in metrics
 
     error_min = max(min(all_errors) * 0.8, 1e-4)
     error_max = max(all_errors) * 1.25
@@ -677,43 +713,6 @@ def _plot_solver_in_loop_fairness(
     ax_quality.set_xlabel("Solver-only mean error")
     ax_quality.set_ylabel("Corrected mean error")
     ax_quality.set_title("Absolute quality")
-
-    if has_native:
-        native_values = [
-            float(metrics["native_final_rollout_error"]) for _name, metrics in rows
-        ]
-        restarted_values = [
-            float(metrics["uncorrected_rollout_error"]) for _name, metrics in rows
-        ]
-        restart_min = max(min(native_values + restarted_values) * 0.8, 1e-4)
-        restart_max = max(native_values + restarted_values) * 1.25
-        ax_restart.plot(
-            [restart_min, restart_max],
-            [restart_min, restart_max],
-            color="0.45",
-            linestyle=":",
-            linewidth=1.0,
-        )
-        if restart_max / restart_min >= 10.0:
-            ax_restart.set_xscale("log")
-            ax_restart.set_yscale("log")
-            ax_restart.xaxis.set_minor_formatter(mticker.NullFormatter())
-            ax_restart.yaxis.set_minor_formatter(mticker.NullFormatter())
-        ax_restart.set_xlim(restart_min, restart_max)
-        ax_restart.set_ylim(restart_min, restart_max)
-        ax_restart.set_xlabel("Native single-call final error")
-        ax_restart.set_ylabel("Restarted final error")
-        ax_restart.set_title("Coupling / restart penalty")
-    else:
-        ax_restart.axis("off")
-        ax_restart.text(
-            0.5,
-            0.5,
-            "Native single-call baseline\nnot available in this run",
-            ha="center",
-            va="center",
-            transform=ax_restart.transAxes,
-        )
 
     width = 0.36 if has_counterfactual else 0.62
     colors = [solver_props(name)[1] for name, _metrics in rows]
@@ -763,6 +762,33 @@ def _plot_solver_in_loop_fairness(
         ax_vjp.set_xticks(positions, labels, rotation=35, ha="right")
         ax_vjp.set_ylabel("Solver-VJP lift [%]")
         ax_vjp.set_title("Benefit from solver VJP")
+        if has_cost:
+            for idx, (name, _metrics) in enumerate(rows):
+                _label, color, _linestyle, marker = solver_props(name)
+                error = None if vjp_error is None else vjp_error[:, idx].reshape(2, 1)
+                ax_efficiency.errorbar(
+                    update_times[idx],
+                    vjp_lift_pct[idx],
+                    yerr=error,
+                    color=color,
+                    marker=marker,
+                    linestyle="none",
+                    capsize=2,
+                )
+            positive_times = [value for value in update_times if value > 0]
+            if positive_times and max(positive_times) / min(positive_times) >= 10.0:
+                ax_efficiency.set_xscale("log")
+            ax_efficiency.axhline(
+                0.0,
+                color="0.45",
+                linestyle=":",
+                linewidth=1.0,
+            )
+            ax_efficiency.set_xlabel("Full-VJP update time [s]")
+            ax_efficiency.set_ylabel("Solver-VJP lift [%]")
+            ax_efficiency.set_title("VJP benefit versus cost")
+        else:
+            ax_efficiency.axis("off")
     else:
         ax_vjp.axis("off")
         ax_vjp.text(
@@ -773,12 +799,195 @@ def _plot_solver_in_loop_fairness(
             va="center",
             transform=ax_vjp.transAxes,
         )
+        ax_efficiency.axis("off")
 
     _solver_loop_legend(fig, [name for name, _metrics in rows])
-    uncertainty_suffix = " (error bars: ±1 seed SD)" if has_seed_uncertainty else ""
+    uncertainty_suffix = ""
+    if has_seed_uncertainty and has_ic_uncertainty:
+        uncertainty_suffix = " (error bars: combined seed/IC SD)"
+    elif has_seed_uncertainty:
+        uncertainty_suffix = " (error bars: ±1 seed SD)"
     fig.suptitle(f"Fair solver-in-the-loop decomposition{uncertainty_suffix}")
     if save:
         save_fig(fig, "solver_in_loop_fairness", out_dir)
+    return fig
+
+
+def _plot_solver_in_loop_diagnostics(
+    data: dict[str, Any],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Separate solver-interface effects, IC generalization, and extrapolation."""
+    by_solver = data.get("by_solver", {})
+    required = (
+        "first_interval_rollout_error",
+        "native_final_rollout_error",
+        "uncorrected_rollout_error",
+        "state_restart_error_ratio",
+        "seen_ic_matched_horizon_error",
+        "heldout_ic_matched_horizon_error",
+        "seen_ic_long_horizon_error",
+        "heldout_ic_long_horizon_error",
+    )
+    solver_order = {alias: idx for idx, alias in enumerate(NS_ORDER)}
+    rows = [
+        (name, by_solver[name])
+        for name in names
+        if name in by_solver
+        and all(by_solver[name].get(key) is not None for key in required)
+    ]
+    rows.sort(
+        key=lambda row: solver_order.get(
+            resolve_solver_alias(row[0]) or row[0],
+            len(solver_order),
+        )
+    )
+    if not rows:
+        return None
+
+    labels = [solver_props(name)[0] for name, _metrics in rows]
+    colors = [solver_props(name)[1] for name, _metrics in rows]
+    markers = [solver_props(name)[3] for name, _metrics in rows]
+    positions = np.arange(len(rows), dtype=float)
+    width = 0.36
+
+    def values(key: str) -> list[float]:
+        return [float(metrics.get(key, 0.0)) for _name, metrics in rows]
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        2,
+        3,
+        figsize=(TEXTWIDTH, 5.0),
+        squeeze=False,
+        layout="constrained",
+    )
+    ax_first, ax_restart, ax_restart_ratio, ax_matched, ax_long, ax_gaps = axes.ravel()
+
+    ax_first.bar(
+        positions,
+        values("first_interval_rollout_error"),
+        color=colors,
+        yerr=values("first_interval_rollout_error_ic_std"),
+        capsize=2,
+    )
+    ax_first.set_ylabel("Relative $L^2$ error")
+    ax_first.set_title("First canonical interval")
+
+    native = values("native_final_rollout_error")
+    restarted = values("uncorrected_rollout_error")
+    lower = max(min(native + restarted) * 0.8, 1e-5)
+    upper = max(native + restarted) * 1.25
+    ax_restart.plot(
+        [lower, upper],
+        [lower, upper],
+        color="0.45",
+        linestyle=":",
+        linewidth=1.0,
+    )
+    for x_value, y_value, color, marker in zip(
+        native,
+        restarted,
+        colors,
+        markers,
+        strict=True,
+    ):
+        ax_restart.scatter(x_value, y_value, color=color, marker=marker, s=30)
+    if upper / lower >= 10.0:
+        ax_restart.set_xscale("log")
+        ax_restart.set_yscale("log")
+    ax_restart.set(xlim=(lower, upper), ylim=(lower, upper))
+    ax_restart.set_xlabel("Native final error")
+    ax_restart.set_ylabel("Repeated-call final error")
+    ax_restart.set_title("State-coupling effect")
+
+    ax_restart_ratio.bar(
+        positions,
+        values("state_restart_error_ratio"),
+        color=colors,
+    )
+    ax_restart_ratio.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_restart_ratio.set_ylabel("Repeated / native error [×]")
+    ax_restart_ratio.set_title("Restart penalty")
+
+    for ax, horizon, title in (
+        (ax_matched, "matched_horizon", "Matched training horizon"),
+        (ax_long, "long_horizon", "Long rollout horizon"),
+    ):
+        seen = values(f"seen_ic_{horizon}_error")
+        heldout = values(f"heldout_ic_{horizon}_error")
+        ax.bar(
+            positions - width / 2,
+            seen,
+            width,
+            color=colors,
+            alpha=0.9,
+            label="seen IC",
+            yerr=values(f"seen_ic_{horizon}_error_ic_std"),
+            capsize=2,
+        )
+        ax.bar(
+            positions + width / 2,
+            heldout,
+            width,
+            color=colors,
+            alpha=0.35,
+            hatch="//",
+            label="held-out IC",
+            yerr=values(f"heldout_ic_{horizon}_error_ic_std"),
+            capsize=2,
+        )
+        positive = [value for value in (*seen, *heldout) if value > 0]
+        if positive and max(positive) / min(positive) >= 10.0:
+            ax.set_yscale("log")
+        ax.set_xticks(positions, labels, rotation=35, ha="right")
+        ax.set_ylabel("Corrected relative $L^2$ error")
+        ax.set_title(title)
+    ax_matched.legend(loc="best", fontsize=6.5)
+
+    gap_width = 0.24
+    for offset, key, label, alpha in (
+        (
+            -gap_width,
+            "ic_generalization_ratio_at_matched_horizon",
+            "held-out / seen",
+            0.9,
+        ),
+        (0.0, "seen_ic_temporal_extrapolation_ratio", "seen long / matched", 0.6),
+        (
+            gap_width,
+            "heldout_ic_temporal_extrapolation_ratio",
+            "held-out long / matched",
+            0.3,
+        ),
+    ):
+        ax_gaps.bar(
+            positions + offset,
+            values(key),
+            gap_width,
+            color=colors,
+            alpha=alpha,
+            label=label,
+        )
+    ax_gaps.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_gaps.set_ylabel("Error ratio [×]")
+    ax_gaps.set_title("Generalization gaps")
+    ax_gaps.legend(loc="lower left", fontsize=6.0)
+
+    for ax in (ax_first, ax_restart_ratio, ax_matched, ax_long, ax_gaps):
+        ax.set_xticks(positions, labels, rotation=35, ha="right")
+
+    matched_time = rows[0][1].get("matched_horizon_time")
+    long_time = rows[0][1].get("rollout_final_time")
+    suffix = ""
+    if matched_time is not None and long_time is not None:
+        suffix = f" ($t_\\mathrm{{match}}={matched_time:g}$, $t_\\mathrm{{long}}={long_time:g}$)"
+    fig.suptitle(f"Solver interface and corrector generalization{suffix}")
+    if save:
+        save_fig(fig, "solver_in_loop_diagnostics", out_dir)
     return fig
 
 
