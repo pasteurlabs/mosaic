@@ -18,8 +18,9 @@ and the training dataset remain outside the repository.
 
 Each optimization used the unmodified `optimization/drag_opt` harness for 250
 Adam updates. The remote Tesseract services and client ran on RTX 5090 nodes
-through the same Slurm runner and Enroot/Pyxis workflow as PR 116. No benchmark
-label or CI benchmark trigger was used.
+through the same Slurm runner and Enroot/Pyxis workflow as PR 116. The
+`benchmark:none` disposition was applied only after the offline runs; CI solver
+builds and benchmark execution remained skipped.
 
 ## Media
 
