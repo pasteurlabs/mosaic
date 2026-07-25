@@ -29,6 +29,7 @@ SOLVER_STYLES: dict[str, dict[str, Any]] = {
     "pict": {"color": "#AA44AA", "linestyle": (0, (5, 1)), "marker": "v"},
     "warp_ns": {"color": "#EE7733", "linestyle": (0, (1, 1)), "marker": "X"},
     "xlb": {"color": "#66CCEE", "linestyle": (0, (3, 1, 1, 1)), "marker": "P"},
+    "xlb_surrogate": {"color": "#0077BB", "linestyle": "--", "marker": "*"},
     "exponax": {"color": "#33AA99", "linestyle": "-", "marker": "o"},
     # ── Structural mechanics ─────────────────────────────────────────────
     "jax_fem": {"color": "#4477AA", "linestyle": "-.", "marker": "o"},

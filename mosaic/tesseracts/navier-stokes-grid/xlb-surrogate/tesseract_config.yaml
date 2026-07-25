@@ -1,0 +1,26 @@
+name: xlb_surrogate_navier_stokes_grid
+version: "0.1.0"
+description: >
+  Differentiable full-field surrogate of XLB for the fixed N=32, Re=20 cylinder-flow
+  drag-optimization task. A POD decoder reconstructs the final velocity and RANS
+  traction fields; drag is evaluated with Mosaic's canonical surface integral.
+build_config:
+  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
+  package_data:
+    - ["./weights.npz", "/tesseract/weights.npz"]
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+
+metadata:
+  mosaic:
+    name: "XLB surrogate"
+    backend: jax
+    family: surrogate
+    scheme: "POD-MLP full-field neural operator"
+    discretization: Learned
+    numerics: "POD decoder, residual MLP"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    doc_url: "https://github.com/pasteurlabs/mosaic"

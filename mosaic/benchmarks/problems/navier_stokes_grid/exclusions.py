@@ -100,6 +100,12 @@ XLB_STATE_NOT_CLOSED = Exclusion(
     "and discards density and non-equilibrium moments; native recurrent state must "
     "be preserved before an intrinsic solver-VJP ranking",
 )
+XLB_SURROGATE_FIXED_TASK = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "trained only for the fixed N=32, Re=20 cylinder-flow drag-optimization "
+    "task; evaluating other resolutions, geometries, time horizons, or initial "
+    "conditions would be out of distribution",
+)
 
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
@@ -145,3 +151,12 @@ def register(problem: Problem) -> None:
             "xlb": XLB_STATE_NOT_CLOSED,
         },
     )
+
+    # The XLB surrogate is intentionally a solver for one optimization task,
+    # not a general-purpose Navier--Stokes emulator.
+    _surrogate_only = {"xlb_surrogate": XLB_SURROGATE_FIXED_TASK}
+    problem.exclude("forward", _surrogate_only)
+    problem.exclude("cost", _surrogate_only)
+    problem.exclude("gradient", _surrogate_only)
+    problem.exclude("optimization/solver_in_loop", _surrogate_only)
+    problem.exclude("optimization/solver_in_loop_tgv", _surrogate_only)
