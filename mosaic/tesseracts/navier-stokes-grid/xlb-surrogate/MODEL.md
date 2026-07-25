@@ -56,5 +56,19 @@ Against float64 XLB on eight held-out profiles:
 - mean drag-gradient cosine: `0.9950` (minimum `0.9885`);
 - mean drag-gradient relative L2 error: 9.06%.
 
+For the full-field Jacobian
+`J = ∂ final_velocity / ∂ inflow_profile`, both XLB and the surrogate have
+rank 30: the two profile values at the no-slip wall endpoints are exact null
+directions. On the 30 resolved singular directions, median condition numbers
+over the same eight profiles were:
+
+- full returned field: XLB `4.79`, surrogate `5.03`;
+- interior dynamic field (excluding inlet, walls, and cylinder): XLB `15.36`,
+  surrogate `40.38`;
+- wake field: XLB `46.49`, surrogate `51.13`.
+
+The corresponding median Frobenius Jacobian cosines were `0.9788`, `0.9729`,
+and `0.9758`.
+
 A 250-update surrogate optimization reached drag `-0.04689`. Re-evaluating
 the final profile with float64 XLB gave `-0.04758`.

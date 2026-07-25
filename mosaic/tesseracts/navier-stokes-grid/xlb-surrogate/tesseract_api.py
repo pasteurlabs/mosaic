@@ -101,6 +101,12 @@ def _decode_fields(
     the RANS channels feed the same drag functional used by the projection
     solvers.
     """
+    # The teacher applies the inlet and then overwrites y=0 and y=N-1 with
+    # no-slip walls, so those two profile entries are physically inactive.
+    # Preserve the trained forward function exactly while preventing the MLP
+    # from inventing sensitivities along the teacher's two null directions.
+    profile = profile.at[0].set(jax.lax.stop_gradient(profile[0]))
+    profile = profile.at[-1].set(jax.lax.stop_gradient(profile[-1]))
     x = (profile - weights["profile_mean"]) / weights["profile_scale"]
     hidden = jax.nn.gelu(x @ weights["w_in"] + weights["b_in"])
     for idx in range(3):

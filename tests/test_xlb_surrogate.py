@@ -75,3 +75,5 @@ def test_drag_has_finite_profile_gradient():
     gradient = jax.grad(drag_sum)(jnp.full((_API._N,), 0.5, dtype=jnp.float32))
     assert gradient.shape == (_API._N,)
     assert np.all(np.isfinite(np.asarray(gradient)))
+    assert gradient[0] == 0.0
+    assert gradient[-1] == 0.0
