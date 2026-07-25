@@ -28,6 +28,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
 from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv, _tgv_analytic
 from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
     _periodic_vorticity_2d,
+    _plot_solver_in_loop_diagnostics,
     _plot_solver_in_loop_fairness,
     _plot_solver_in_loop_fields,
     _plot_solver_in_loop_physics,
@@ -236,7 +237,10 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
         "by_solver": {
             "jax-cfd": {
                 "native_final_rollout_error": 0.1,
+                "first_interval_rollout_error": 0.08,
+                "first_interval_rollout_error_ic_std": 0.01,
                 "uncorrected_rollout_error": 0.3,
+                "state_restart_error_ratio": 3.0,
                 "uncorrected_mean_rollout_error": 0.25,
                 "mean_rollout_error": 0.12,
                 "geometric_error_reduction": 2.0,
@@ -245,6 +249,16 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
                 "stop_gradient_rollout_log_gain_seed_std": 0.08,
                 "solver_vjp_geometric_lift": 2.0 / 1.4,
                 "solver_vjp_log_lift_seed_std": 0.06,
+                "solver_vjp_log_lift_ic_std": 0.03,
+                "seen_ic_matched_horizon_error": 0.1,
+                "heldout_ic_matched_horizon_error": 0.12,
+                "seen_ic_long_horizon_error": 0.15,
+                "heldout_ic_long_horizon_error": 0.2,
+                "ic_generalization_ratio_at_matched_horizon": 1.2,
+                "seen_ic_temporal_extrapolation_ratio": 1.5,
+                "heldout_ic_temporal_extrapolation_ratio": 5.0 / 3.0,
+                "matched_horizon_time": 0.1,
+                "rollout_final_time": 0.2,
             }
         }
     }
@@ -261,11 +275,19 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
         tmp_path,
         save=True,
     )
+    diagnostics = _plot_solver_in_loop_diagnostics(
+        data,
+        ["jax-cfd"],
+        tmp_path,
+        save=True,
+    )
     _save_solver_in_loop_animation(arrays, ["jax-cfd"], tmp_path)
 
     assert fairness is not None
     assert physics is not None
+    assert diagnostics is not None
     for filename in (
+        "solver_in_loop_diagnostics.png",
         "solver_in_loop_fairness.png",
         "solver_in_loop_physics.png",
         "solver_in_loop_trajectory.gif",
@@ -301,6 +323,9 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
                 "training": {
                     "max_updates": 1,
                     "unroll": 2,
+                    "loss_mode": "solver_terminal",
+                    "solver_loss_weight": 0.1,
+                    "loss_normalization": "solver_baseline",
                     "hidden_channels": 4,
                     "kernel_size": 3,
                     "model_seeds": [0, 1],
@@ -332,6 +357,16 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["solver_vjp_geometric_lift"] > 0
     assert metrics["solver_vjp_update_overhead_ratio"] > 0
     assert metrics["corrector_architecture"] == "periodic_residual_cnn"
+    assert metrics["training_loss_mode"] == "solver_terminal"
+    assert metrics["training_solver_loss_weight"] == 0.1
+    assert metrics["training_loss_normalization"] == "solver_baseline"
+    assert metrics["training_loss_scale"] > 0
+    assert metrics["n_train_trajectories"] == 1
+    assert metrics["n_test_trajectories"] == 1
+    assert metrics["seen_ic_matched_horizon_error"] >= 0
+    assert metrics["heldout_ic_long_horizon_error"] >= 0
+    assert metrics["final_rollout_error_ic_std"] == 0
     out_dir = tmp_path / "ns-grid" / "optimization" / "solver_in_loop_smoke"
     assert (out_dir / "result.json").exists()
-    assert (out_dir / "corrector_fields.npz").exists()
+    with np.load(out_dir / "corrector_fields.npz") as snapshots:
+        assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)

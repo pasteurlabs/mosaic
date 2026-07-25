@@ -115,15 +115,15 @@ def _cached_reference_dataset(
     return np.stack(trajectories).astype(np.float32)
 
 
-def make_reference_dataset(
+def _make_reference_datasets(
     *,
     physics: dict[str, Any],
     dataset: dict[str, Any],
     evaluation: dict[str, Any],
     training: dict[str, Any],
     domain_extent: float,
-) -> tuple[np.ndarray, np.ndarray, str]:
-    """Build the train/test trajectory tensors used by every solver."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+    """Build train windows plus seen- and held-out-IC evaluation trajectories."""
     n = int(physics["N"])
     train_seeds = tuple(int(v) for v in dataset.get("train_seeds", [0, 1, 2, 3]))
     test_seeds = tuple(int(v) for v in dataset.get("test_seeds", [100, 101]))
@@ -155,8 +155,28 @@ def make_reference_dataset(
         all_trajectories = _cached_reference_dataset(**config)
     n_train = len(train_seeds)
     train = all_trajectories[:n_train, : train_frames + 1]
+    train_rollouts = all_trajectories[:n_train, : eval_frames + 1]
     test = all_trajectories[n_train:, : eval_frames + 1]
-    return train, test, _dataset_digest(config)
+    return train, train_rollouts, test, _dataset_digest(config)
+
+
+def make_reference_dataset(
+    *,
+    physics: dict[str, Any],
+    dataset: dict[str, Any],
+    evaluation: dict[str, Any],
+    training: dict[str, Any],
+    domain_extent: float,
+) -> tuple[np.ndarray, np.ndarray, str]:
+    """Return training windows and held-out trajectories for public callers."""
+    train, _train_rollouts, test, dataset_hash = _make_reference_datasets(
+        physics=physics,
+        dataset=dataset,
+        evaluation=evaluation,
+        training=training,
+        domain_extent=domain_extent,
+    )
+    return train, test, dataset_hash
 
 
 def _solver_advance(
@@ -186,17 +206,25 @@ def _window_loss(
     frame_steps: int,
     velocity_scale: float,
     differentiate_solver: bool,
+    loss_mode: str,
+    solver_loss_weight: float,
+    loss_scale: float,
 ) -> jax.Array:
-    """Mean normalized state error over one recurrent training window."""
+    """Normalized recurrent loss with configurable temporal credit assignment."""
     state = targets[0]
     losses: list[jax.Array] = []
-    for target in targets[1:]:
+    solver_terminal_loss: jax.Array | None = None
+    for step, target in enumerate(targets[1:]):
         provisional = _solver_advance(t, ctx, state, frame_steps=frame_steps)
         if not differentiate_solver:
             # Keep the identical recurrent forward trajectory but cut the
             # backward graph at every solver transition. This counterfactual
             # measures what the same corrector can learn without the solver VJP.
             provisional = jax.lax.stop_gradient(provisional)
+        if step == targets.shape[0] - 2:
+            solver_terminal_loss = jnp.sum((provisional - target) ** 2) / (
+                jnp.sum(target**2) + 1e-12
+            )
         state = corrected_velocity(
             model,
             provisional,
@@ -204,7 +232,17 @@ def _window_loss(
             domain_extent=ctx.domain_extent,
         )
         losses.append(jnp.sum((state - target) ** 2) / (jnp.sum(target**2) + 1e-12))
-    return jnp.mean(jnp.stack(losses))
+    if loss_mode == "mean":
+        loss = jnp.mean(jnp.stack(losses))
+    elif loss_mode == "terminal":
+        loss = losses[-1]
+    elif loss_mode == "solver_terminal":
+        if solver_terminal_loss is None:
+            raise RuntimeError("solver-terminal loss requires a non-empty rollout")
+        loss = solver_loss_weight * solver_terminal_loss + jnp.mean(jnp.stack(losses))
+    else:
+        raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
+    return loss / jnp.asarray(loss_scale, dtype=loss.dtype)
 
 
 def _directional_fd(
@@ -269,6 +307,7 @@ def _train_corrector(
     frame_steps: int,
     training: dict[str, Any],
     velocity_scale: float,
+    loss_scale: float,
     differentiate_solver: bool,
     model_seed: int,
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
@@ -281,7 +320,17 @@ def _train_corrector(
     hidden_channels = int(training.get("hidden_channels", 32))
     kernel_size = int(training.get("kernel_size", 5))
     architecture = str(training.get("architecture", "periodic_residual_cnn"))
+    loss_mode = str(training.get("loss_mode", "mean"))
+    solver_loss_weight = float(training.get("solver_loss_weight", 0.1))
     fd_epsilon = float(training.get("fd_epsilon", 1e-2))
+    if unroll < 1 or train.shape[1] < unroll + 1:
+        raise ValueError(
+            "training.unroll must be positive and fit inside dataset.train_frames"
+        )
+    if loss_mode not in {"mean", "terminal", "solver_terminal"}:
+        raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
+    if solver_loss_weight < 0:
+        raise ValueError("training.solver_loss_weight must be non-negative")
 
     model = init_corrector(
         jax.random.PRNGKey(model_seed),
@@ -316,6 +365,9 @@ def _train_corrector(
             frame_steps=frame_steps,
             velocity_scale=velocity_scale,
             differentiate_solver=differentiate_solver,
+            loss_mode=loss_mode,
+            solver_loss_weight=solver_loss_weight,
+            loss_scale=loss_scale,
         )
 
         loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
@@ -377,6 +429,35 @@ def _evaluate_rollout(
     return np.stack(states), errors
 
 
+def _evaluate_reference_set(
+    t: Any,
+    ctx: KernelContext,
+    model: Any,
+    references: np.ndarray,
+    *,
+    frame_steps: int,
+    velocity_scale: float,
+    corrected: bool,
+) -> tuple[np.ndarray | None, np.ndarray]:
+    """Evaluate one model on several ICs while retaining only the first rollout."""
+    errors: list[list[float]] = []
+    first_rollout: np.ndarray | None = None
+    for reference in references:
+        rollout, reference_errors = _evaluate_rollout(
+            t,
+            ctx,
+            model,
+            reference,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            corrected=corrected,
+        )
+        errors.append(reference_errors)
+        if first_rollout is None:
+            first_rollout = rollout
+    return first_rollout, np.asarray(errors, dtype=np.float64)
+
+
 def _first_unstable(errors: list[float], threshold: float) -> int:
     """Return first bad frame, or the full completed horizon."""
     for idx, error in enumerate(errors):
@@ -395,6 +476,34 @@ def _rollout_log_gain(
     if baseline.shape != corrected.shape or baseline.size == 0:
         raise ValueError("rollout errors must have matching non-empty shapes")
     return float(np.mean(np.log((baseline + 1e-12) / (corrected + 1e-12))))
+
+
+def _rollout_log_gain_samples(
+    baseline_errors: np.ndarray,
+    corrected_errors: np.ndarray,
+) -> np.ndarray:
+    """Return paired rollout gains with leading model-seed and IC axes."""
+    baseline = np.asarray(baseline_errors, dtype=np.float64)
+    corrected = np.asarray(corrected_errors, dtype=np.float64)
+    if baseline.ndim == 2:
+        baseline = baseline[None, ...]
+    if baseline.shape[-2:] != corrected.shape[-2:]:
+        raise ValueError("rollout ensembles must have matching IC/time axes")
+    return np.mean(
+        np.log((baseline[..., 1:] + 1e-12) / (corrected[..., 1:] + 1e-12)),
+        axis=-1,
+    )
+
+
+def _ensemble_curve_stats(
+    errors: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Mean curve plus independent model-seed and initial-condition spread."""
+    return (
+        np.mean(errors, axis=(0, 1)),
+        np.std(np.mean(errors, axis=1), axis=0),
+        np.std(np.mean(errors, axis=0), axis=0),
+    )
 
 
 def _median_steady_update_time(update_times: list[float]) -> float | None:
@@ -442,9 +551,18 @@ def _std(values: list[float]) -> float:
         "update_time_stop_gradient",
         "error_corrected",
         "error_corrected_seed_std",
+        "error_corrected_ic_std",
         "error_stop_gradient",
         "error_stop_gradient_seed_std",
+        "error_stop_gradient_ic_std",
         "error_uncorrected",
+        "error_uncorrected_ic_std",
+        "error_seen_corrected",
+        "error_seen_stop_gradient",
+        "error_seen_uncorrected",
+        "rollout_log_gain_samples",
+        "stop_gradient_log_gain_samples",
+        "solver_vjp_log_lift_samples",
         "rollout_corrected",
         "rollout_stop_gradient",
         "rollout_uncorrected",
@@ -457,7 +575,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     evaluation = ctx.run.get("evaluation", {})
     frame_steps = int(ctx.phys["steps"])
 
-    train, test, dataset_hash = make_reference_dataset(
+    train, train_rollouts, test, dataset_hash = _make_reference_datasets(
         physics=ctx.phys,
         dataset=dataset_cfg,
         evaluation=evaluation,
@@ -477,31 +595,56 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     # Evaluate the solver itself once: these trajectories do not depend on a
     # neural-model seed. A long native call and a sequence of short canonical
     # restarts expose coupling penalties separately from integration accuracy.
-    uncorrected_errors: list[list[float]] = []
+    seen_trajectory_count = min(
+        int(evaluation.get("seen_ic_trajectories", test.shape[0])),
+        train_rollouts.shape[0],
+    )
+    if seen_trajectory_count < 1:
+        raise ValueError("evaluation.seen_ic_trajectories must select at least one IC")
+    seen_references = train_rollouts[:seen_trajectory_count]
+    first_uncorrected, uncorrected_errors_array = _evaluate_reference_set(
+        t,
+        ctx,
+        None,
+        test,
+        frame_steps=frame_steps,
+        velocity_scale=velocity_scale,
+        corrected=False,
+    )
+    _first_seen_uncorrected, seen_uncorrected_errors = _evaluate_reference_set(
+        t,
+        ctx,
+        None,
+        seen_references,
+        frame_steps=frame_steps,
+        velocity_scale=velocity_scale,
+        corrected=False,
+    )
     native_final_errors: list[float] = []
-    first_uncorrected: np.ndarray | None = None
     for reference in test:
-        uncorrected_rollout, raw_err = _evaluate_rollout(
-            t,
-            ctx,
-            None,
-            reference,
-            frame_steps=frame_steps,
-            velocity_scale=velocity_scale,
-            corrected=False,
-        )
         native_final = _solver_advance(
             t,
             ctx,
             jnp.asarray(reference[0]),
             frame_steps=frame_steps * (reference.shape[0] - 1),
         )
-        uncorrected_errors.append(raw_err)
         native_final_errors.append(relative_l2(np.asarray(native_final), reference[-1]))
-        if first_uncorrected is None:
-            first_uncorrected = uncorrected_rollout
 
-    uncorrected_error = np.mean(np.asarray(uncorrected_errors), axis=0)
+    uncorrected_error = np.mean(uncorrected_errors_array, axis=0)
+    uncorrected_error_ic_std = np.std(uncorrected_errors_array, axis=0)
+    seen_uncorrected_error = np.mean(seen_uncorrected_errors, axis=0)
+    training_horizon_frame = min(train.shape[1] - 1, seen_uncorrected_error.size - 1)
+    loss_normalization = str(training.get("loss_normalization", "target_energy"))
+    if loss_normalization == "target_energy":
+        training_loss_scale = 1.0
+    elif loss_normalization == "solver_baseline":
+        loss_scale_floor = float(training.get("loss_scale_floor", 1e-6))
+        training_loss_scale = max(
+            float(np.mean(seen_uncorrected_error[1 : training_horizon_frame + 1] ** 2)),
+            loss_scale_floor,
+        )
+    else:
+        raise ValueError(f"unknown training.loss_normalization: {loss_normalization!r}")
 
     models: list[Any] = []
     losses_by_seed: list[list[float]] = []
@@ -517,6 +660,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     stop_gradient_training_walls: list[float] = []
     corrected_errors_by_seed: list[np.ndarray] = []
     stop_gradient_errors_by_seed: list[np.ndarray] = []
+    seen_corrected_errors_by_seed: list[np.ndarray] = []
+    seen_stop_gradient_errors_by_seed: list[np.ndarray] = []
     first_corrected: np.ndarray | None = None
     first_stop_gradient: np.ndarray | None = None
 
@@ -543,6 +688,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             frame_steps=frame_steps,
             training=seed_training,
             velocity_scale=velocity_scale,
+            loss_scale=training_loss_scale,
             differentiate_solver=True,
             model_seed=model_seed,
         )
@@ -563,37 +709,53 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             frame_steps=frame_steps,
             training=seed_training,
             velocity_scale=velocity_scale,
+            loss_scale=training_loss_scale,
             differentiate_solver=False,
             model_seed=model_seed,
         )
         stop_gradient_training_walls.append(time.perf_counter() - stop_gradient_started)
 
-        seed_corrected_errors: list[list[float]] = []
-        seed_stop_gradient_errors: list[list[float]] = []
-        for reference_idx, reference in enumerate(test):
-            corrected_rollout, corr_err = _evaluate_rollout(
-                t,
-                ctx,
-                model,
-                reference,
-                frame_steps=frame_steps,
-                velocity_scale=velocity_scale,
-                corrected=True,
-            )
-            stop_gradient_rollout, stop_gradient_err = _evaluate_rollout(
+        corrected_rollout, seed_corrected_errors = _evaluate_reference_set(
+            t,
+            ctx,
+            model,
+            test,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            corrected=True,
+        )
+        stop_gradient_rollout, seed_stop_gradient_errors = _evaluate_reference_set(
+            t,
+            ctx,
+            stop_gradient_model,
+            test,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            corrected=True,
+        )
+        _seen_corrected_rollout, seen_seed_corrected_errors = _evaluate_reference_set(
+            t,
+            ctx,
+            model,
+            seen_references,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            corrected=True,
+        )
+        _seen_stop_gradient_rollout, seen_seed_stop_gradient_errors = (
+            _evaluate_reference_set(
                 t,
                 ctx,
                 stop_gradient_model,
-                reference,
+                seen_references,
                 frame_steps=frame_steps,
                 velocity_scale=velocity_scale,
                 corrected=True,
             )
-            seed_corrected_errors.append(corr_err)
-            seed_stop_gradient_errors.append(stop_gradient_err)
-            if seed_idx == 0 and reference_idx == 0:
-                first_corrected = corrected_rollout
-                first_stop_gradient = stop_gradient_rollout
+        )
+        if seed_idx == 0:
+            first_corrected = corrected_rollout
+            first_stop_gradient = stop_gradient_rollout
 
         models.append(model)
         losses_by_seed.append(losses)
@@ -605,19 +767,33 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         stop_gradient_grad_norms_by_seed.append(stop_gradient_grad_norms)
         stop_gradient_update_times_by_seed.append(stop_gradient_update_times)
         stop_gradient_completed_by_seed.append(stop_gradient_completed)
-        corrected_errors_by_seed.append(
-            np.mean(np.asarray(seed_corrected_errors), axis=0)
-        )
-        stop_gradient_errors_by_seed.append(
-            np.mean(np.asarray(seed_stop_gradient_errors), axis=0)
-        )
+        corrected_errors_by_seed.append(seed_corrected_errors)
+        stop_gradient_errors_by_seed.append(seed_stop_gradient_errors)
+        seen_corrected_errors_by_seed.append(seen_seed_corrected_errors)
+        seen_stop_gradient_errors_by_seed.append(seen_seed_stop_gradient_errors)
 
     corrected_errors_array = np.stack(corrected_errors_by_seed)
     stop_gradient_errors_array = np.stack(stop_gradient_errors_by_seed)
-    corrected_error = np.mean(corrected_errors_array, axis=0)
-    corrected_error_std = np.std(corrected_errors_array, axis=0)
-    stop_gradient_error = np.mean(stop_gradient_errors_array, axis=0)
-    stop_gradient_error_std = np.std(stop_gradient_errors_array, axis=0)
+    seen_corrected_errors_array = np.stack(seen_corrected_errors_by_seed)
+    seen_stop_gradient_errors_array = np.stack(seen_stop_gradient_errors_by_seed)
+    corrected_error, corrected_error_seed_std, corrected_error_ic_std = (
+        _ensemble_curve_stats(corrected_errors_array)
+    )
+    (
+        stop_gradient_error,
+        stop_gradient_error_seed_std,
+        stop_gradient_error_ic_std,
+    ) = _ensemble_curve_stats(stop_gradient_errors_array)
+    (
+        seen_corrected_error,
+        _seen_corrected_error_seed_std,
+        seen_corrected_error_ic_std,
+    ) = _ensemble_curve_stats(seen_corrected_errors_array)
+    (
+        seen_stop_gradient_error,
+        _seen_stop_gradient_error_seed_std,
+        _seen_stop_gradient_error_ic_std,
+    ) = _ensemble_curve_stats(seen_stop_gradient_errors_array)
     losses = _mean_curve(losses_by_seed)
     stop_gradient_losses = _mean_curve(stop_gradient_losses_by_seed)
     grad_norms = _mean_curve(grad_norms_by_seed)
@@ -666,27 +842,38 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     mean_corrected = float(np.mean(corrected_error[1:]))
     mean_stop_gradient = float(np.mean(stop_gradient_error[1:]))
     mean_uncorrected = float(np.mean(uncorrected_error[1:]))
-    rollout_log_gains = [
-        _rollout_log_gain(uncorrected_error, seed_error)
-        for seed_error in corrected_errors_by_seed
-    ]
-    stop_gradient_log_gains = [
-        _rollout_log_gain(uncorrected_error, seed_error)
-        for seed_error in stop_gradient_errors_by_seed
-    ]
-    solver_vjp_log_lifts = [
-        _rollout_log_gain(stopped, full)
-        for stopped, full in zip(
-            stop_gradient_errors_by_seed,
-            corrected_errors_by_seed,
-            strict=True,
-        )
-    ]
-    rollout_log_gain = float(np.mean(rollout_log_gains))
-    stop_gradient_log_gain = float(np.mean(stop_gradient_log_gains))
-    solver_vjp_log_lift = float(np.mean(solver_vjp_log_lifts))
+    rollout_log_gain_samples = _rollout_log_gain_samples(
+        uncorrected_errors_array,
+        corrected_errors_array,
+    )
+    stop_gradient_log_gain_samples = _rollout_log_gain_samples(
+        uncorrected_errors_array,
+        stop_gradient_errors_array,
+    )
+    solver_vjp_log_lift_samples = _rollout_log_gain_samples(
+        stop_gradient_errors_array,
+        corrected_errors_array,
+    )
+    rollout_log_gains = np.mean(rollout_log_gain_samples, axis=1)
+    stop_gradient_log_gains = np.mean(
+        stop_gradient_log_gain_samples,
+        axis=1,
+    )
+    solver_vjp_log_lifts = np.mean(
+        solver_vjp_log_lift_samples,
+        axis=1,
+    )
+    rollout_log_gain = float(np.mean(rollout_log_gain_samples))
+    stop_gradient_log_gain = float(np.mean(stop_gradient_log_gain_samples))
+    solver_vjp_log_lift = float(np.mean(solver_vjp_log_lift_samples))
     threshold = float(evaluation.get("stable_error_threshold", 1.0))
     interval_time = float(ctx.phys["dt"]) * frame_steps
+    matched_horizon_frame = min(train.shape[1] - 1, test.shape[1] - 1)
+    long_horizon_frame = test.shape[1] - 1
+    seen_matched_error = float(seen_corrected_error[matched_horizon_frame])
+    heldout_matched_error = float(corrected_error[matched_horizon_frame])
+    seen_long_error = float(seen_corrected_error[long_horizon_frame])
+    heldout_long_error = float(corrected_error[long_horizon_frame])
     model = models[0]
     parameter_count = sum(
         int(leaf.size)
@@ -703,12 +890,19 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
 
     metrics = {
         "final_rollout_error": final_corrected,
-        "final_rollout_error_seed_std": float(corrected_error_std[-1]),
+        "final_rollout_error_seed_std": float(corrected_error_seed_std[-1]),
+        "final_rollout_error_ic_std": float(corrected_error_ic_std[-1]),
         "stop_gradient_final_rollout_error": final_stop_gradient,
         "stop_gradient_final_rollout_error_seed_std": float(
-            stop_gradient_error_std[-1]
+            stop_gradient_error_seed_std[-1]
+        ),
+        "stop_gradient_final_rollout_error_ic_std": float(
+            stop_gradient_error_ic_std[-1]
         ),
         "uncorrected_rollout_error": final_uncorrected,
+        "uncorrected_rollout_error_ic_std": float(uncorrected_error_ic_std[-1]),
+        "first_interval_rollout_error": float(uncorrected_error[1]),
+        "first_interval_rollout_error_ic_std": float(uncorrected_error_ic_std[1]),
         "native_final_rollout_error": native_final_error,
         "state_restart_error_ratio": final_uncorrected / (native_final_error + 1e-12),
         "mean_rollout_error": mean_corrected,
@@ -722,15 +916,58 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         / (mean_uncorrected + 1e-12),
         "rollout_log_gain": rollout_log_gain,
         "rollout_log_gain_seed_std": _std(rollout_log_gains),
+        "rollout_log_gain_ic_std": _std(
+            np.mean(rollout_log_gain_samples, axis=0).tolist()
+        ),
         "geometric_error_reduction": float(np.exp(rollout_log_gain)),
         "stop_gradient_rollout_log_gain": stop_gradient_log_gain,
         "stop_gradient_rollout_log_gain_seed_std": _std(stop_gradient_log_gains),
+        "stop_gradient_rollout_log_gain_ic_std": _std(
+            np.mean(stop_gradient_log_gain_samples, axis=0).tolist()
+        ),
         "stop_gradient_geometric_error_reduction": float(
             np.exp(stop_gradient_log_gain)
         ),
         "solver_vjp_log_lift": solver_vjp_log_lift,
         "solver_vjp_log_lift_seed_std": _std(solver_vjp_log_lifts),
+        "solver_vjp_log_lift_ic_std": _std(
+            np.mean(solver_vjp_log_lift_samples, axis=0).tolist()
+        ),
         "solver_vjp_geometric_lift": float(np.exp(solver_vjp_log_lift)),
+        "seen_ic_matched_horizon_error": seen_matched_error,
+        "seen_ic_matched_horizon_error_ic_std": float(
+            seen_corrected_error_ic_std[matched_horizon_frame]
+        ),
+        "heldout_ic_matched_horizon_error": heldout_matched_error,
+        "heldout_ic_matched_horizon_error_ic_std": float(
+            corrected_error_ic_std[matched_horizon_frame]
+        ),
+        "seen_ic_long_horizon_error": seen_long_error,
+        "seen_ic_long_horizon_error_ic_std": float(
+            seen_corrected_error_ic_std[long_horizon_frame]
+        ),
+        "heldout_ic_long_horizon_error": heldout_long_error,
+        "heldout_ic_long_horizon_error_ic_std": float(
+            corrected_error_ic_std[long_horizon_frame]
+        ),
+        "ic_generalization_ratio_at_matched_horizon": heldout_matched_error
+        / (seen_matched_error + 1e-12),
+        "seen_ic_temporal_extrapolation_ratio": seen_long_error
+        / (seen_matched_error + 1e-12),
+        "heldout_ic_temporal_extrapolation_ratio": heldout_long_error
+        / (heldout_matched_error + 1e-12),
+        "stop_gradient_seen_ic_matched_horizon_error": float(
+            seen_stop_gradient_error[matched_horizon_frame]
+        ),
+        "stop_gradient_heldout_ic_matched_horizon_error": float(
+            stop_gradient_error[matched_horizon_frame]
+        ),
+        "uncorrected_seen_ic_matched_horizon_error": float(
+            seen_uncorrected_error[matched_horizon_frame]
+        ),
+        "uncorrected_heldout_ic_matched_horizon_error": float(
+            uncorrected_error[matched_horizon_frame]
+        ),
         "stable_horizon": _first_unstable(corrected_error.tolist(), threshold)
         * interval_time,
         "stop_gradient_stable_horizon": _first_unstable(
@@ -839,7 +1076,16 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "corrector_parameter_count": parameter_count,
         "model_seeds": list(model_seeds),
         "n_model_seeds": len(model_seeds),
+        "n_train_trajectories": int(train.shape[0]),
         "n_test_trajectories": int(test.shape[0]),
+        "n_seen_ic_evaluation_trajectories": seen_trajectory_count,
+        "training_frames": int(train.shape[1] - 1),
+        "training_unroll": int(training.get("unroll", 4)),
+        "training_loss_mode": str(training.get("loss_mode", "mean")),
+        "training_solver_loss_weight": float(training.get("solver_loss_weight", 0.1)),
+        "training_loss_normalization": loss_normalization,
+        "training_loss_scale": training_loss_scale,
+        "matched_horizon_time": matched_horizon_frame * interval_time,
         "visualization_model_seed": model_seeds[0],
         "completed": all(completed_by_seed) and all(stop_gradient_completed_by_seed),
         "dataset_hash": dataset_hash,
@@ -871,7 +1117,11 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         ),
         "error_corrected": np.asarray(corrected_error, dtype=np.float32),
         "error_corrected_seed_std": np.asarray(
-            corrected_error_std,
+            corrected_error_seed_std,
+            dtype=np.float32,
+        ),
+        "error_corrected_ic_std": np.asarray(
+            corrected_error_ic_std,
             dtype=np.float32,
         ),
         "error_stop_gradient": np.asarray(
@@ -879,10 +1129,35 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             dtype=np.float32,
         ),
         "error_stop_gradient_seed_std": np.asarray(
-            stop_gradient_error_std,
+            stop_gradient_error_seed_std,
+            dtype=np.float32,
+        ),
+        "error_stop_gradient_ic_std": np.asarray(
+            stop_gradient_error_ic_std,
             dtype=np.float32,
         ),
         "error_uncorrected": np.asarray(uncorrected_error, dtype=np.float32),
+        "error_uncorrected_ic_std": np.asarray(
+            uncorrected_error_ic_std,
+            dtype=np.float32,
+        ),
+        "error_seen_corrected": np.asarray(
+            seen_corrected_error,
+            dtype=np.float32,
+        ),
+        "error_seen_stop_gradient": np.asarray(
+            seen_stop_gradient_error,
+            dtype=np.float32,
+        ),
+        "error_seen_uncorrected": np.asarray(
+            seen_uncorrected_error,
+            dtype=np.float32,
+        ),
+        "rollout_log_gain_samples": rollout_log_gain_samples.astype(np.float32),
+        "stop_gradient_log_gain_samples": stop_gradient_log_gain_samples.astype(
+            np.float32
+        ),
+        "solver_vjp_log_lift_samples": solver_vjp_log_lift_samples.astype(np.float32),
     }
     if (
         first_corrected is not None
