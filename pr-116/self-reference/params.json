@@ -1,0 +1,91 @@
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 0
+  },
+  "physics": {
+    "N": 32,
+    "nu": 0.001,
+    "dt": 0.02,
+    "steps": 4
+  },
+  "dataset": {
+    "reference_kind": "solver_self_refined",
+    "reference_factor": 2,
+    "reference_temporal_factor": 2,
+    "train_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "test_seeds": [
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107
+    ],
+    "train_frames": 24,
+    "k0": 6.0,
+    "sigma_k": 1.0,
+    "amplitude": 0.5,
+    "prefix_audit_seeds": [
+      0,
+      1,
+      100,
+      101
+    ],
+    "prefix_audit_frames": [
+      1,
+      8,
+      24,
+      36
+    ],
+    "closure_relative_tolerance": 0.01,
+    "closure_to_signal_tolerance": 0.1,
+    "minimum_refinement_signal": 0.0001
+  },
+  "training": {
+    "max_updates": 200,
+    "unroll": 8,
+    "loss_mode": "solver_terminal",
+    "solver_loss_weight": 0.1,
+    "loss_normalization": "solver_baseline",
+    "loss_scale_floor": 1e-06,
+    "lr": 0.0001,
+    "clip_norm": 5.0,
+    "architecture": "periodic_residual_cnn",
+    "hidden_channels": 32,
+    "kernel_size": 5,
+    "seed": 2026,
+    "model_seeds": [
+      0,
+      1,
+      2
+    ],
+    "check_grad": true,
+    "fd_epsilon": 0.01
+  },
+  "evaluation": {
+    "rollout_frames": 36,
+    "seen_ic_trajectories": 8,
+    "stable_error_threshold": 1.0
+  },
+  "description": "Train the paired full-VJP and stop-gradient Equinox correctors against each admitted solver's own spatially and temporally refined trajectory. A direct semigroup audit gates training so the comparison measures solver-in-the-loop credit assignment rather than state-reset artifacts."
+}

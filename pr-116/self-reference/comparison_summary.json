@@ -1,0 +1,110 @@
+{
+  "dataset_hashes": {
+    "PICT": "d365e1eb6b3ddf4a",
+    "Warp-NS": "e6319591d92522a2"
+  },
+  "reference_kind": "solver_self_refined",
+  "n_updates": 200,
+  "largest_vjp_lift": "PICT",
+  "fastest_full_vjp_update": "Warp-NS",
+  "best_vjp_lift_per_update_second": "Warp-NS",
+  "vjp_beneficial_95pct": [
+    "PICT",
+    "Warp-NS"
+  ],
+  "vjp_harmful_95pct": [],
+  "paired_vjp_comparisons": [
+    {
+      "left_solver": "PICT",
+      "right_solver": "Warp-NS",
+      "mean_log_lift_difference": 0.00015607336536049843,
+      "geometric_lift_ratio": 1.000156044960022,
+      "ci95_log_lift_difference": [
+        -0.011965578072704375,
+        0.014868926000781352
+      ],
+      "probability_left_better": 0.499,
+      "distinguishable_95pct": false
+    }
+  ],
+  "ranking_by_vjp_lift": [
+    {
+      "solver": "PICT",
+      "final_rollout_error": 0.15671688646060192,
+      "mean_rollout_error": 0.09474065302898513,
+      "native_final_rollout_error": 0.3548431058491157,
+      "first_interval_rollout_error": 0.0462720416382403,
+      "first_interval_rollout_error_ic_std": 0.002110047464759776,
+      "uncorrected_rollout_error": 0.3548431058491157,
+      "uncorrected_mean_rollout_error": 0.19801525959330898,
+      "state_restart_error_ratio": 0.9999999999971819,
+      "improvement_pct": 55.834879168316576,
+      "geometric_error_reduction": 1.9237210719965763,
+      "stop_gradient_geometric_error_reduction": 1.846026185250267,
+      "solver_vjp_geometric_lift": 1.042087640666796,
+      "solver_vjp_log_lift_seed_std": 0.010424065689790742,
+      "solver_vjp_log_lift_ic_std": 0.01799383530864474,
+      "solver_vjp_update_overhead_ratio": 1.8662298024204145,
+      "seen_ic_matched_horizon_error": 0.09806165341566232,
+      "heldout_ic_matched_horizon_error": 0.11118573784732795,
+      "ic_generalization_ratio_at_matched_horizon": 1.1338350310584873,
+      "seen_ic_temporal_extrapolation_ratio": 1.416909207050625,
+      "heldout_ic_temporal_extrapolation_ratio": 1.409505297112697,
+      "training_loss_mode": "solver_terminal",
+      "training_solver_loss_weight": 0.1,
+      "training_loss_normalization": "solver_baseline",
+      "training_loss_scale": 0.026246513451170284,
+      "training_wall_time_s": 983.6120941389818,
+      "seconds_per_update": 1.6393534902316362,
+      "median_update_time_s": 1.6116209569736384,
+      "end_to_end_fd_rel_error": 0.07830015569925308,
+      "vjp_log_lift_per_update_second": 0.025580486367728087,
+      "vjp_log_lift_ci95": [
+        0.025033406820148228,
+        0.05970029449090362
+      ],
+      "probability_vjp_beneficial": 1.0,
+      "vjp_beneficial_95pct": true,
+      "vjp_harmful_95pct": false
+    },
+    {
+      "solver": "Warp-NS",
+      "final_rollout_error": 0.1836800522987975,
+      "mean_rollout_error": 0.10718648320475005,
+      "native_final_rollout_error": 0.3134963718701515,
+      "first_interval_rollout_error": 0.046160470236552106,
+      "first_interval_rollout_error_ic_std": 0.0021247595374792078,
+      "uncorrected_rollout_error": 0.3134963718701515,
+      "uncorrected_mean_rollout_error": 0.17313300876148507,
+      "state_restart_error_ratio": 0.9999999999968102,
+      "improvement_pct": 41.409193604546445,
+      "geometric_error_reduction": 1.5219137415784685,
+      "stop_gradient_geometric_error_reduction": 1.4606749284522624,
+      "solver_vjp_geometric_lift": 1.0419250114678802,
+      "solver_vjp_log_lift_seed_std": 0.0031241739992490555,
+      "solver_vjp_log_lift_ic_std": 0.017697562036067194,
+      "solver_vjp_update_overhead_ratio": 1.3282245246222848,
+      "seen_ic_matched_horizon_error": 0.11006866007814203,
+      "heldout_ic_matched_horizon_error": 0.1256536117184396,
+      "ic_generalization_ratio_at_matched_horizon": 1.1415929986618498,
+      "seen_ic_temporal_extrapolation_ratio": 1.4626556300591476,
+      "heldout_ic_temporal_extrapolation_ratio": 1.4617968380321593,
+      "training_loss_mode": "solver_terminal",
+      "training_solver_loss_weight": 0.1,
+      "training_loss_normalization": "solver_baseline",
+      "training_loss_scale": 0.018824037836954664,
+      "training_wall_time_s": 501.624943770963,
+      "seconds_per_update": 0.836041572951605,
+      "median_update_time_s": 0.8119010730006266,
+      "end_to_end_fd_rel_error": 0.007191847078502178,
+      "vjp_log_lift_per_update_second": 0.05058494950374583,
+      "vjp_log_lift_ci95": [
+        0.02762352251447737,
+        0.0539359949529171
+      ],
+      "probability_vjp_beneficial": 1.0,
+      "vjp_beneficial_95pct": true,
+      "vjp_harmful_95pct": false
+    }
+  ]
+}
