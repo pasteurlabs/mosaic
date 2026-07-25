@@ -1,0 +1,30 @@
+{
+  "XLB": {
+    "initial_drag": -0.06891212612390518,
+    "final_drag": -0.047789257019758224,
+    "reduction_pct": 30.651890011589074,
+    "updates": 250,
+    "wall_time_s": 31.08675185398897
+  },
+  "XLB surrogate": {
+    "initial_drag": -0.06886342912912369,
+    "final_drag": -0.046985458582639694,
+    "reduction_pct": 31.770085839700617,
+    "updates": 250,
+    "wall_time_s": 26.50244394998299
+  },
+  "PICT": {
+    "initial_drag": -0.02386290766298771,
+    "final_drag": -0.017738044261932373,
+    "reduction_pct": 25.66687801652619,
+    "updates": 250,
+    "wall_time_s": 2148.984324135992
+  },
+  "PhiFlow": {
+    "initial_drag": -0.00083509786054492,
+    "final_drag": -0.0007095081964507699,
+    "reduction_pct": 15.038915799903979,
+    "updates": 250,
+    "wall_time_s": 461.904167375993
+  }
+}
