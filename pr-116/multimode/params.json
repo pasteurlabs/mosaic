@@ -17,22 +17,44 @@
       0,
       1,
       2,
-      3
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
     ],
     "test_seeds": [
       100,
-      101
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107
     ],
-    "train_frames": 16,
+    "train_frames": 24,
     "k0": 6.0,
     "sigma_k": 1.0,
     "amplitude": 0.5
   },
   "training": {
-    "max_updates": 100,
-    "unroll": 4,
+    "max_updates": 200,
+    "unroll": 8,
+    "loss_mode": "solver_terminal",
+    "solver_loss_weight": 0.1,
+    "loss_normalization": "solver_baseline",
+    "loss_scale_floor": 1e-06,
     "lr": 0.0001,
-    "clip_norm": 1.0,
+    "clip_norm": 5.0,
     "architecture": "periodic_residual_cnn",
     "hidden_channels": 32,
     "kernel_size": 5,
@@ -47,7 +69,8 @@
   },
   "evaluation": {
     "rollout_frames": 36,
+    "seen_ic_trajectories": 8,
     "stable_error_threshold": 1.0
   },
-  "description": "Train an identical Equinox periodic residual corrector through each differentiable solver. Paired stop-gradient training and native versus restarted rollouts separate raw accuracy, coupling cost, correctability, and the incremental benefit of the solver VJP."
+  "description": "Train an identical Equinox periodic residual corrector through each differentiable solver. A solver-terminal recurrent auxiliary, paired stop-gradient controls, native versus restarted rollouts, and seen versus held-out IC horizons separate integration, coupling, trainability, and the incremental benefit of the solver VJP."
 }
