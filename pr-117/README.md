@@ -15,6 +15,7 @@ and the training dataset remain outside the repository.
 - float64 XLB final-profile re-evaluation: Slurm `1533250`
 - packaged-surrogate field-history replay: Slurm `1540226`
 - plot/GIF rendering: Slurm `1540227`
+- float64 XLB/surrogate Jacobian conditioning: Slurm `1540907`
 
 Each optimization used the unmodified `optimization/drag_opt` harness for 250
 Adam updates. The remote Tesseract services and client ran on RTX 5090 nodes
@@ -31,6 +32,8 @@ builds and benchmark execution remained skipped.
 - `profile_evolution.gif`: saved inflow-control checkpoints for all solvers.
 - `surrogate_full_field_evolution.gif`: 14 actual full-field surrogate
   evaluations at optimizer updates 0, 20, ..., 240, and 250.
+- `jacobian_conditioning.png`: median full-field singular-value spectra for
+  XLB and the surrogate over eight held-out profiles.
 
 The full-field animation shows optimization progress, not physical simulation
 time: this surrogate directly maps the fixed task's inflow profile to its
@@ -43,6 +46,10 @@ time: this surrogate directly maps the fixed task's inflow profile to its
 field history. `surrogate_evaluation.json`, `training_metrics.json`, and
 `teacher_reevaluation.json` contain the held-out, gradient, kernel timing, and
 independent float64-XLB checks quoted in the PR.
+`jacobian_conditioning.json` contains the per-profile and aggregate full-field
+Jacobian spectra. Condition numbers use `sigma_max / sigma_min`; the reported
+resolved values omit the two exact no-slip wall-endpoint null directions at a
+relative threshold of `1e-6`.
 
 Weights SHA-256:
 `6089ba29d9644e1f3b87404302b0b19aaeb7ea6ee0b359d7aa5fe395ef04626c`.
