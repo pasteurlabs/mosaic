@@ -51,7 +51,7 @@ _IDENTITY_DUMMY = (
 ).resolve()
 
 
-def test_tgv_control_uses_all_solver_forward_baseline_cell():
+def test_tgv_control_uses_forward_baseline_with_mach_safe_xlb_budget():
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config("ns-grid")
@@ -64,10 +64,30 @@ def test_tgv_control_uses_all_solver_forward_baseline_cell():
     control_dataset = control_run["dataset"]
     control_evaluation = control_run["evaluation"]
 
-    for key in ("nu", "dt", "steps", "lbm_N_base"):
+    for key in ("nu", "dt", "steps"):
         assert control_physics[key] == forward_physics[key]
+    assert forward_physics["lbm_N_base"] == 64
+    assert control_physics["lbm_N_base"] == 16
     assert forward_run["sweep"]["key"] == "N"
     assert control_physics["N"] in forward_run["sweep"]["values"]
+    initial = _tgv(control_physics["N"])
+    by_key = {solver.key: solver for solver in cfg.solvers}
+    xlb_inputs = cfg.make_inputs(
+        by_key["xlb"].name,
+        initial,
+        domain_extent=cfg.domain_extent,
+        **control_physics,
+    )
+    pict_inputs = cfg.make_inputs(
+        by_key["pict"].name,
+        initial,
+        domain_extent=cfg.domain_extent,
+        **control_physics,
+    )
+    assert xlb_inputs["steps"] == 4
+    assert np.isclose(float(xlb_inputs["dt"][0]), 0.0025)
+    assert pict_inputs["steps"] == 1
+    assert np.isclose(float(pict_inputs["dt"][0]), 0.01)
     differentiable = {"jax_cfd", "ins_jl", "phiflow", "pict", "warp_ns", "xlb"}
     active_forward = {
         cfg.solver(name).key for name in active_solvers(cfg, "forward", "baseline")

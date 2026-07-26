@@ -542,11 +542,12 @@ problem.add_experiment(
     "optimization/solver_in_loop_tgv",
     solver_in_loop,
     description=(
-        "Run an all-solver solver-in-the-loop control using the N=64 cell from "
-        "forward/baseline, where every differentiable solver has less than 0.75% "
-        "one-step error. Repeated calls expose recurrent-state defects instead of "
-        "hiding them behind solver exclusions; the nonlinear multimode experiment "
-        "remains the learning stress task."
+        "Run an all-solver solver-in-the-loop control using the analytic N=64 "
+        "forward/baseline case, with an explicit Mach-safe XLB substep budget so "
+        "every differentiable solver passes both one-interval and uninterrupted "
+        "forward gates. Repeated calls then expose recurrent-state defects instead "
+        "of hiding them behind solver exclusions; the nonlinear multimode "
+        "experiment remains the learning stress task."
     ),
     plot_description=(
         "Native and restarted solver error, neural-correction gain, solver-VJP "
@@ -560,7 +561,9 @@ problem.add_experiment(
                 "nu": 0.05,
                 "dt": 0.01,
                 "steps": 1,
-                "lbm_N_base": 64,
+                # Four XLB substeps are the smallest tested budget that keeps
+                # both one-interval and uninterrupted t=1 error below 1%.
+                "lbm_N_base": 16,
             },
             "dataset": {
                 "reference_kind": "analytic_tgv",
@@ -588,7 +591,9 @@ problem.add_experiment(
                 "seed": 2026,
                 "model_seeds": [0, 1, 2],
                 "check_grad": True,
-                "fd_epsilon": 1e-2,
+                # The zero-initialized residual needs a smaller perturbation
+                # than the nonlinear stress task for its local VJP check.
+                "fd_epsilon": 3e-4,
             },
             "evaluation": {
                 "rollout_frames": 100,
