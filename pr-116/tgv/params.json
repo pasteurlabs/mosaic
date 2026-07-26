@@ -4,14 +4,14 @@
     "seed": 0
   },
   "physics": {
-    "N": 32,
-    "nu": 0.05,
-    "dt": 0.02,
-    "steps": 4
+    "N": 64,
+    "nu": 0.005,
+    "dt": 0.05,
+    "steps": 20
   },
   "dataset": {
     "reference_kind": "analytic_tgv",
-    "reference_factor": 2,
+    "reference_factor": 1,
     "reference_substeps": 1,
     "train_seeds": [
       0,
@@ -23,11 +23,11 @@
       100,
       101
     ],
-    "train_frames": 16
+    "train_frames": 8
   },
   "training": {
-    "max_updates": 150,
-    "unroll": 8,
+    "max_updates": 50,
+    "unroll": 4,
     "loss_mode": "solver_terminal",
     "solver_loss_weight": 0.1,
     "loss_normalization": "solver_baseline",
@@ -47,9 +47,9 @@
     "fd_epsilon": 0.01
   },
   "evaluation": {
-    "rollout_frames": 24,
+    "rollout_frames": 12,
     "seen_ic_trajectories": 2,
     "stable_error_threshold": 1.0
   },
-  "description": "Repeat solver-in-the-loop training against an analytic, translated Taylor--Green vortex. This low-complexity regime audits physical time, viscous decay, and canonical state-restart effects separately from the nonlinear multimode comparison."
+  "description": "Run a matched-forward-accuracy solver-in-the-loop control using the same Taylor--Green setup as forward/agreement. This low-complexity regime separates raw solver accuracy from corrector trainability; the nonlinear multimode experiment remains the stress task."
 }
