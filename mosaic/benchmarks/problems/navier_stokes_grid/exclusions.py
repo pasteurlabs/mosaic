@@ -106,6 +106,12 @@ _OBSTACLE_GATE = {
     "ins_jl": INS_JL_NO_OBSTACLE,
     "warp_ns": WARP_NS_NO_OBSTACLE,
 }
+_RECURRENT_STATE_GATE = {
+    "jax_cfd": STAGGERED_STATE_NOT_CLOSED,
+    "ins_jl": STAGGERED_STATE_NOT_CLOSED,
+    "phiflow": STAGGERED_STATE_NOT_CLOSED,
+    "xlb": XLB_STATE_NOT_CLOSED,
+}
 
 
 def register(problem: Problem) -> None:
@@ -136,12 +142,8 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
+    problem.exclude("optimization/solver_in_loop_tgv", _RECURRENT_STATE_GATE)
     problem.exclude(
         "optimization/solver_in_loop_self_reference",
-        {
-            "jax_cfd": STAGGERED_STATE_NOT_CLOSED,
-            "ins_jl": STAGGERED_STATE_NOT_CLOSED,
-            "phiflow": STAGGERED_STATE_NOT_CLOSED,
-            "xlb": XLB_STATE_NOT_CLOSED,
-        },
+        _RECURRENT_STATE_GATE,
     )

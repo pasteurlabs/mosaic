@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import dataclasses
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -48,6 +49,23 @@ _IDENTITY_DUMMY = (
     / "navier_stokes_grid_identity"
     / "tesseract_api.py"
 ).resolve()
+
+
+def test_tgv_control_uses_a_forward_agreement_cell():
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    forward = cfg.experiments["forward/agreement/tgv"]
+    control = cfg.experiments["optimization/solver_in_loop_tgv"]
+    forward_run = inspect.signature(forward.fn).parameters["_kw"].default["runs"][0]
+    control_run = inspect.signature(control.fn).parameters["_kw"].default["runs"][0]
+    forward_physics = forward_run["physics"]
+    control_physics = control_run["physics"]
+
+    for key in ("N", "dt", "steps"):
+        assert control_physics[key] == forward_physics[key]
+    assert forward_run["sweep"]["key"] == "nu"
+    assert control_physics["nu"] in forward_run["sweep"]["values"]
 
 
 def test_periodic_corrector_is_translation_equivariant():
