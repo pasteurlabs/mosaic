@@ -1079,7 +1079,7 @@ def _plot_solver_in_loop_diagnostics(
     ax_restart.set(xlim=(lower, upper), ylim=(lower, upper))
     ax_restart.set_xlabel("Native final error")
     ax_restart.set_ylabel("Repeated-call final error")
-    ax_restart.set_title("State-coupling effect")
+    ax_restart.set_title("Restart vs native")
 
     if all(
         metrics.get("long_closure_error_p95") is not None for _name, metrics in rows
@@ -1098,7 +1098,7 @@ def _plot_solver_in_loop_diagnostics(
         if positive.size and max(positive) / min(positive) >= 10.0:
             ax_restart_ratio.set_yscale("log")
         ax_restart_ratio.set_ylabel("95th percentile residual [%]")
-        ax_restart_ratio.set_title("Long-horizon closure admission")
+        ax_restart_ratio.set_title("K-step closure gate")
     elif all(metrics.get("semigroup_error_p95") is not None for _name, metrics in rows):
         closure_pct = 100.0 * np.asarray(values("semigroup_error_p95"))
         tolerance_pct = 100.0 * max(values("semigroup_p95_tolerance"))
