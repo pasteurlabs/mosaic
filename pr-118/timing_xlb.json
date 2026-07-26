@@ -1,0 +1,26 @@
+{
+  "solver": "xlb",
+  "task": {
+    "N": 16,
+    "viscosity": 0.01,
+    "dt": 0.02,
+    "steps": 100,
+    "domain_extent": 6.283185307179586
+  },
+  "compile_plus_first_forward_seconds": 0.40635628200834617,
+  "forward_seconds": [
+    0.004932943033054471,
+    0.004812173021491617,
+    0.004764694022014737
+  ],
+  "forward_median_seconds": 0.004812173021491617,
+  "compile_plus_first_vjp_seconds": 1.1916543629486114,
+  "vjp_seconds": [
+    0.014408931019715965,
+    0.014367930009029806,
+    0.014321072027087212
+  ],
+  "vjp_median_seconds": 0.014367930009029806,
+  "result_l2": 17.232891082763672,
+  "vjp_l2": 12.737909317016602
+}
