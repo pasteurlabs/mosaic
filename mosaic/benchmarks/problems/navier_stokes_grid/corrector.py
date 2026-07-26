@@ -50,14 +50,17 @@ class PeriodicResidualCNN(eqx.Module):
                 padding_mode="CIRCULAR",
                 key=layer_key,
             )
-            fan_in = kernel_size * kernel_size * cin
-            scale = np.sqrt(2.0 / fan_in)
             if idx == len(channels) - 2:
-                scale *= 1e-2
-            weight = (
-                jax.random.normal(layer_key, layer.weight.shape, dtype=jnp.float32)
-                * scale
-            )
+                # Start from the underlying solver exactly. This matters when
+                # its forward residual is already near numerical precision.
+                weight = jnp.zeros_like(layer.weight)
+            else:
+                fan_in = kernel_size * kernel_size * cin
+                scale = np.sqrt(2.0 / fan_in)
+                weight = (
+                    jax.random.normal(layer_key, layer.weight.shape, dtype=jnp.float32)
+                    * scale
+                )
             layer = eqx.tree_at(
                 lambda value: (value.weight, value.bias),
                 layer,
@@ -89,9 +92,9 @@ def init_corrector(
 ) -> PeriodicResidualCNN:
     """Initialise the benchmark-owned Equinox corrector.
 
-    The final layer starts at a much smaller scale than the feature layers, so
-    the initial corrected rollout remains close to the underlying solver while
-    gradients can still reach every layer on the first update.
+    The final layer starts at zero, so the initial corrected rollout is exactly
+    the underlying solver. The first update trains the readout; subsequent
+    updates propagate through the feature layers.
     """
     if architecture != "periodic_residual_cnn":
         raise ValueError(f"unknown corrector architecture: {architecture!r}")

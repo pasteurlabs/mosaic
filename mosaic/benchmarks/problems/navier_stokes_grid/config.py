@@ -542,10 +542,11 @@ problem.add_experiment(
     "optimization/solver_in_loop_tgv",
     solver_in_loop,
     description=(
-        "Run a matched-forward-accuracy solver-in-the-loop control using the "
-        "same Taylor--Green setup as forward/agreement. This low-complexity "
-        "regime separates raw solver accuracy from corrector trainability; the "
-        "nonlinear multimode experiment remains the stress task."
+        "Run an all-solver solver-in-the-loop control using the N=64 cell from "
+        "forward/baseline, where every differentiable solver has less than 0.75% "
+        "one-step error. Repeated calls expose recurrent-state defects instead of "
+        "hiding them behind solver exclusions; the nonlinear multimode experiment "
+        "remains the learning stress task."
     ),
     plot_description=(
         "Native and restarted solver error, neural-correction gain, solver-VJP "
@@ -556,9 +557,10 @@ problem.add_experiment(
             "ic": {"name": "tgv", "seed": 0},
             "physics": {
                 "N": 64,
-                "nu": 0.005,
-                "dt": 0.05,
-                "steps": 20,
+                "nu": 0.05,
+                "dt": 0.01,
+                "steps": 1,
+                "lbm_N_base": 64,
             },
             "dataset": {
                 "reference_kind": "analytic_tgv",
@@ -566,7 +568,8 @@ problem.add_experiment(
                 "reference_substeps": 1,
                 "train_seeds": [0, 1, 2, 3],
                 "test_seeds": [100, 101],
-                "train_frames": 8,
+                "train_frames": 24,
+                "long_closure_tolerance": 0.01,
             },
             "training": {
                 "max_updates": 50,
@@ -575,7 +578,9 @@ problem.add_experiment(
                 "solver_loss_weight": 0.1,
                 "loss_normalization": "solver_baseline",
                 "loss_scale_floor": 1e-6,
-                "lr": 1e-4,
+                # Calibrated on training loss only. A nonlinear-task-size Adam
+                # step overwhelms this near-floor, per-native-step residual.
+                "lr": 1e-9,
                 "clip_norm": 5.0,
                 "architecture": "periodic_residual_cnn",
                 "hidden_channels": 32,
@@ -586,9 +591,11 @@ problem.add_experiment(
                 "fd_epsilon": 1e-2,
             },
             "evaluation": {
-                "rollout_frames": 12,
+                "rollout_frames": 100,
                 "seen_ic_trajectories": 2,
                 "stable_error_threshold": 1.0,
+                "first_interval_error_tolerance": 0.01,
+                "native_long_error_tolerance": 0.01,
             },
         }
     ],

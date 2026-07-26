@@ -15,7 +15,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mosaic.benchmarks.core.utils import _debug_run
+from mosaic.benchmarks.core.utils import _debug_run, active_solvers
 from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
     PeriodicResidualCNN,
     apply_corrector,
@@ -51,21 +51,33 @@ _IDENTITY_DUMMY = (
 ).resolve()
 
 
-def test_tgv_control_uses_a_forward_agreement_cell():
+def test_tgv_control_uses_all_solver_forward_baseline_cell():
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config("ns-grid")
-    forward = cfg.experiments["forward/agreement/tgv"]
+    forward = cfg.experiments["forward/baseline"]
     control = cfg.experiments["optimization/solver_in_loop_tgv"]
     forward_run = inspect.signature(forward.fn).parameters["_kw"].default["runs"][0]
     control_run = inspect.signature(control.fn).parameters["_kw"].default["runs"][0]
     forward_physics = forward_run["physics"]
     control_physics = control_run["physics"]
+    control_dataset = control_run["dataset"]
+    control_evaluation = control_run["evaluation"]
 
-    for key in ("N", "dt", "steps"):
+    for key in ("nu", "dt", "steps", "lbm_N_base"):
         assert control_physics[key] == forward_physics[key]
-    assert forward_run["sweep"]["key"] == "nu"
-    assert control_physics["nu"] in forward_run["sweep"]["values"]
+    assert forward_run["sweep"]["key"] == "N"
+    assert control_physics["N"] in forward_run["sweep"]["values"]
+    differentiable = {"jax_cfd", "ins_jl", "phiflow", "pict", "warp_ns", "xlb"}
+    active_forward = {
+        cfg.solver(name).key for name in active_solvers(cfg, "forward", "baseline")
+    }
+    assert differentiable <= active_forward
+    for solver in differentiable:
+        assert "optimization/solver_in_loop_tgv" not in cfg.exclusions.get(solver, {})
+    assert control_evaluation["rollout_frames"] == 100
+    assert control_dataset["long_closure_tolerance"] == 0.01
+    assert control_evaluation["native_long_error_tolerance"] == 0.01
 
 
 def test_multimode_forward_agreement_does_not_use_tgv_reference():
@@ -80,6 +92,11 @@ def test_multimode_forward_agreement_does_not_use_tgv_reference():
 
 def test_periodic_corrector_is_translation_equivariant():
     model = init_corrector(jax.random.PRNGKey(0), hidden_channels=4, kernel_size=3)
+    model = eqx.tree_at(
+        lambda value: value.layers[-1].weight,
+        model,
+        jax.random.normal(jax.random.PRNGKey(2), model.layers[-1].weight.shape),
+    )
     velocity = jax.random.normal(jax.random.PRNGKey(1), (8, 8, 1, 2))
     shifted = jnp.roll(velocity, shift=(2, -1), axis=(0, 1))
 
@@ -94,6 +111,16 @@ def test_periodic_corrector_is_translation_equivariant():
     actual = apply_corrector(model, shifted, velocity_scale=1.0)
 
     np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-5)
+
+
+def test_corrector_starts_from_the_uncorrected_solver():
+    model = init_corrector(jax.random.PRNGKey(0), hidden_channels=4, kernel_size=3)
+    velocity = jax.random.normal(jax.random.PRNGKey(1), (8, 8, 1, 2))
+
+    np.testing.assert_array_equal(
+        apply_corrector(model, velocity, velocity_scale=1.0),
+        jnp.zeros_like(velocity),
+    )
 
 
 def test_periodic_projection_is_divergence_free_and_zero_mean():
@@ -505,6 +532,9 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["final_grad_norm"] > 0
     assert metrics["end_to_end_fd_rel_error"] < 5e-2
     assert metrics["native_final_rollout_error"] >= 0
+    assert metrics["native_final_rollout_error_p95"] >= 0
+    assert metrics["long_closure_error_p95"] < 1e-6
+    assert metrics["first_interval_error_p95"] >= 0
     assert metrics["solver_vjp_geometric_lift"] > 0
     assert metrics["solver_vjp_update_overhead_ratio"] > 0
     assert metrics["corrector_architecture"] == "periodic_residual_cnn"

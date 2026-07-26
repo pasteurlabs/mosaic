@@ -16,7 +16,7 @@ import json
 import threading
 import time
 from functools import lru_cache, partial
-from typing import Any
+from typing import Any, NamedTuple
 
 import equinox as eqx
 import jax
@@ -674,6 +674,12 @@ def _evaluate_rollout(
     return np.stack(states), errors
 
 
+class _ReferenceEvaluation(NamedTuple):
+    first_rollout: np.ndarray | None
+    errors: np.ndarray
+    final_states: np.ndarray
+
+
 def _evaluate_reference_set(
     t: Any,
     ctx: KernelContext,
@@ -683,9 +689,10 @@ def _evaluate_reference_set(
     frame_steps: int,
     velocity_scale: float,
     corrected: bool,
-) -> tuple[np.ndarray | None, np.ndarray]:
-    """Evaluate one model on several ICs while retaining only the first rollout."""
+) -> _ReferenceEvaluation:
+    """Evaluate several ICs, retaining the first rollout and every final state."""
     errors: list[list[float]] = []
+    final_states: list[np.ndarray] = []
     first_rollout: np.ndarray | None = None
     for reference in references:
         rollout, reference_errors = _evaluate_rollout(
@@ -698,9 +705,14 @@ def _evaluate_reference_set(
             corrected=corrected,
         )
         errors.append(reference_errors)
+        final_states.append(rollout[-1])
         if first_rollout is None:
             first_rollout = rollout
-    return first_rollout, np.asarray(errors, dtype=np.float64)
+    return _ReferenceEvaluation(
+        first_rollout=first_rollout,
+        errors=np.asarray(errors, dtype=np.float64),
+        final_states=np.asarray(final_states),
+    )
 
 
 def _first_unstable(errors: list[float], threshold: float) -> int:
@@ -916,7 +928,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         semigroup_median <= semigroup_median_tolerance
         and semigroup_p95 <= semigroup_p95_tolerance
     )
-    first_uncorrected, uncorrected_errors_array = _evaluate_reference_set(
+    uncorrected_eval = _evaluate_reference_set(
         t,
         ctx,
         None,
@@ -925,7 +937,10 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         velocity_scale=velocity_scale,
         corrected=False,
     )
-    _first_seen_uncorrected, seen_uncorrected_errors = _evaluate_reference_set(
+    first_uncorrected = uncorrected_eval.first_rollout
+    uncorrected_errors_array = uncorrected_eval.errors
+    restarted_final_states = uncorrected_eval.final_states
+    seen_uncorrected_eval = _evaluate_reference_set(
         t,
         ctx,
         None,
@@ -934,8 +949,10 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         velocity_scale=velocity_scale,
         corrected=False,
     )
+    seen_uncorrected_errors = seen_uncorrected_eval.errors
     native_final_errors: list[float] = []
-    for reference in test:
+    long_closure_errors: list[float] = []
+    for reference, restarted_final in zip(test, restarted_final_states, strict=True):
         native_final = _solver_advance(
             t,
             ctx,
@@ -943,6 +960,37 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             frame_steps=frame_steps * (reference.shape[0] - 1),
         )
         native_final_errors.append(relative_l2(np.asarray(native_final), reference[-1]))
+        long_closure_errors.append(
+            relative_l2(np.asarray(restarted_final), np.asarray(native_final))
+        )
+
+    first_interval_error_p95 = float(
+        np.percentile(uncorrected_errors_array[:, 1], 95.0)
+    )
+    long_closure_median = float(np.median(long_closure_errors))
+    long_closure_p95 = float(np.percentile(long_closure_errors, 95.0))
+    native_final_error_p95 = float(np.percentile(native_final_errors, 95.0))
+    long_closure_tolerance = float(
+        dataset_cfg.get("long_closure_tolerance", semigroup_p95_tolerance)
+    )
+    first_interval_error_tolerance = float(
+        evaluation.get(
+            "first_interval_error_tolerance",
+            evaluation.get("stable_error_threshold", 1.0),
+        )
+    )
+    native_long_error_tolerance = float(
+        evaluation.get(
+            "native_long_error_tolerance",
+            evaluation.get("stable_error_threshold", 1.0),
+        )
+    )
+    valid_for_vjp_ranking = bool(
+        valid_for_vjp_ranking
+        and first_interval_error_p95 <= first_interval_error_tolerance
+        and long_closure_p95 <= long_closure_tolerance
+        and native_final_error_p95 <= native_long_error_tolerance
+    )
 
     uncorrected_error = np.mean(uncorrected_errors_array, axis=0)
     uncorrected_error_ic_std = np.std(uncorrected_errors_array, axis=0)
@@ -1029,7 +1077,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         )
         stop_gradient_training_walls.append(time.perf_counter() - stop_gradient_started)
 
-        corrected_rollout, seed_corrected_errors = _evaluate_reference_set(
+        corrected_eval = _evaluate_reference_set(
             t,
             ctx,
             model,
@@ -1038,7 +1086,9 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             velocity_scale=velocity_scale,
             corrected=True,
         )
-        stop_gradient_rollout, seed_stop_gradient_errors = _evaluate_reference_set(
+        corrected_rollout = corrected_eval.first_rollout
+        seed_corrected_errors = corrected_eval.errors
+        stop_gradient_eval = _evaluate_reference_set(
             t,
             ctx,
             stop_gradient_model,
@@ -1047,7 +1097,9 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             velocity_scale=velocity_scale,
             corrected=True,
         )
-        _seen_corrected_rollout, seen_seed_corrected_errors = _evaluate_reference_set(
+        stop_gradient_rollout = stop_gradient_eval.first_rollout
+        seed_stop_gradient_errors = stop_gradient_eval.errors
+        seen_corrected_eval = _evaluate_reference_set(
             t,
             ctx,
             model,
@@ -1056,17 +1108,17 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             velocity_scale=velocity_scale,
             corrected=True,
         )
-        _seen_stop_gradient_rollout, seen_seed_stop_gradient_errors = (
-            _evaluate_reference_set(
-                t,
-                ctx,
-                stop_gradient_model,
-                seen_references,
-                frame_steps=frame_steps,
-                velocity_scale=velocity_scale,
-                corrected=True,
-            )
+        seen_seed_corrected_errors = seen_corrected_eval.errors
+        seen_stop_gradient_eval = _evaluate_reference_set(
+            t,
+            ctx,
+            stop_gradient_model,
+            seen_references,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            corrected=True,
         )
+        seen_seed_stop_gradient_errors = seen_stop_gradient_eval.errors
         if seed_idx == 0:
             first_corrected = corrected_rollout
             first_stop_gradient = stop_gradient_rollout
@@ -1210,6 +1262,14 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "semigroup_error_samples": semigroup_errors,
         "semigroup_median_tolerance": semigroup_median_tolerance,
         "semigroup_p95_tolerance": semigroup_p95_tolerance,
+        "first_interval_error_p95": first_interval_error_p95,
+        "first_interval_error_tolerance": first_interval_error_tolerance,
+        "long_closure_error_median": long_closure_median,
+        "long_closure_error_p95": long_closure_p95,
+        "long_closure_error_samples": long_closure_errors,
+        "long_closure_tolerance": long_closure_tolerance,
+        "native_final_rollout_error_p95": native_final_error_p95,
+        "native_long_error_tolerance": native_long_error_tolerance,
         "final_rollout_error": final_corrected,
         "final_rollout_error_seed_std": float(corrected_error_seed_std[-1]),
         "final_rollout_error_ic_std": float(corrected_error_ic_std[-1]),

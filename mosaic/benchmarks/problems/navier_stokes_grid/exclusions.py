@@ -142,7 +142,6 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
-    problem.exclude("optimization/solver_in_loop_tgv", _RECURRENT_STATE_GATE)
     problem.exclude(
         "optimization/solver_in_loop_self_reference",
         _RECURRENT_STATE_GATE,

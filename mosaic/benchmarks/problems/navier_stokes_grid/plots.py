@@ -1081,7 +1081,25 @@ def _plot_solver_in_loop_diagnostics(
     ax_restart.set_ylabel("Repeated-call final error")
     ax_restart.set_title("State-coupling effect")
 
-    if all(metrics.get("semigroup_error_p95") is not None for _name, metrics in rows):
+    if all(
+        metrics.get("long_closure_error_p95") is not None for _name, metrics in rows
+    ):
+        closure_pct = 100.0 * np.asarray(values("long_closure_error_p95"))
+        tolerance_pct = 100.0 * max(values("long_closure_tolerance"))
+        ax_restart_ratio.bar(positions, closure_pct, color=colors)
+        ax_restart_ratio.axhline(
+            tolerance_pct,
+            color="0.45",
+            linestyle=":",
+            linewidth=1.0,
+            label="admission limit",
+        )
+        positive = closure_pct[closure_pct > 0]
+        if positive.size and max(positive) / min(positive) >= 10.0:
+            ax_restart_ratio.set_yscale("log")
+        ax_restart_ratio.set_ylabel("95th percentile residual [%]")
+        ax_restart_ratio.set_title("Long-horizon closure admission")
+    elif all(metrics.get("semigroup_error_p95") is not None for _name, metrics in rows):
         closure_pct = 100.0 * np.asarray(values("semigroup_error_p95"))
         tolerance_pct = 100.0 * max(values("semigroup_p95_tolerance"))
         ax_restart_ratio.bar(positions, closure_pct, color=colors)
@@ -1096,7 +1114,7 @@ def _plot_solver_in_loop_diagnostics(
         if positive.size and max(positive) / min(positive) >= 10.0:
             ax_restart_ratio.set_yscale("log")
         ax_restart_ratio.set_ylabel("95th percentile residual [%]")
-        ax_restart_ratio.set_title("Semigroup admission")
+        ax_restart_ratio.set_title("Two-step closure admission")
     else:
         ax_restart_ratio.bar(
             positions,
