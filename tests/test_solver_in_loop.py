@@ -68,6 +68,16 @@ def test_tgv_control_uses_a_forward_agreement_cell():
     assert control_physics["nu"] in forward_run["sweep"]["values"]
 
 
+def test_multimode_forward_agreement_does_not_use_tgv_reference():
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    experiment = cfg.experiments["forward/agreement/multimode"]
+    run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
+
+    assert run["reference"] == "consensus"
+
+
 def test_periodic_corrector_is_translation_equivariant():
     model = init_corrector(jax.random.PRNGKey(0), hidden_channels=4, kernel_size=3)
     velocity = jax.random.normal(jax.random.PRNGKey(1), (8, 8, 1, 2))

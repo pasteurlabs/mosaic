@@ -212,16 +212,32 @@ problem.add_experiment(
     "forward/agreement",
     agreement,
     plot_description=(
-        "Relative error vs viscosity $\\nu$ for each IC, with vorticity field snapshots"
-        " compared against the analytic TGV reference."
+        "Relative error vs viscosity $\\nu$ for each IC, using the analytic "
+        "Taylor--Green reference for TGV and cross-solver consensus for multimode."
     ),
-    ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
-    physics={
-        "N": 64,
-        "dt": 0.05,
-        "steps": 20,
-        "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
-    },
+    runs=[
+        {
+            "name": "tgv",
+            "ic": {"name": "tgv", "seed": 42},
+            "physics": {
+                "N": 64,
+                "dt": 0.05,
+                "steps": 20,
+                "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
+            },
+        },
+        {
+            "name": "multimode",
+            "ic": {"name": "multimode", "seed": 42},
+            "physics": {
+                "N": 64,
+                "dt": 0.05,
+                "steps": 20,
+                "nu": [0.001, 0.005, 0.01, 0.02, 0.05],
+            },
+            "reference": "consensus",
+        },
+    ],
     plot=plot_agreement,
 )
 problem.add_experiment(
