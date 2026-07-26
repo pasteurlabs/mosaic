@@ -897,36 +897,57 @@ def _plot_solver_in_loop_fairness(
     ax_gain.set_title("Correctability")
 
     if has_counterfactual:
-        vjp_lift_pct = [100.0 * (value - 1.0) for value in vjp_lift]
+        admitted = [
+            idx
+            for idx, (_name, metrics) in enumerate(rows)
+            if metrics.get("valid_for_vjp_ranking", True)
+        ]
+        admitted_positions = np.arange(len(admitted), dtype=float)
+        admitted_labels = [labels[idx] for idx in admitted]
+        admitted_colors = [colors[idx] for idx in admitted]
+        vjp_lift_pct = [100.0 * (vjp_lift[idx] - 1.0) for idx in admitted]
         vjp_error = _log_scale_errorbars(vjp_lift, vjp_lift_log_std)
         if vjp_error is not None:
-            vjp_error = 100.0 * vjp_error
+            vjp_error = 100.0 * vjp_error[:, admitted]
         ax_vjp.bar(
-            positions,
+            admitted_positions,
             vjp_lift_pct,
-            color=colors,
+            color=admitted_colors,
             alpha=0.9,
             yerr=vjp_error,
             capsize=2,
         )
         ax_vjp.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
-        ax_vjp.set_xticks(positions, labels, rotation=35, ha="right")
+        ax_vjp.set_xticks(
+            admitted_positions,
+            admitted_labels,
+            rotation=35,
+            ha="right",
+        )
         ax_vjp.set_ylabel("Solver-VJP lift [%]")
-        ax_vjp.set_title("Benefit from solver VJP")
+        title_suffix = " (admitted only)" if len(admitted) < len(rows) else ""
+        ax_vjp.set_title(f"Benefit from solver VJP{title_suffix}")
         if has_cost:
-            for idx, (name, _metrics) in enumerate(rows):
+            for ranked_idx, idx in enumerate(admitted):
+                name, _metrics = rows[idx]
                 _label, color, _linestyle, marker = solver_props(name)
-                error = None if vjp_error is None else vjp_error[:, idx].reshape(2, 1)
+                error = (
+                    None
+                    if vjp_error is None
+                    else vjp_error[:, ranked_idx].reshape(2, 1)
+                )
                 ax_efficiency.errorbar(
                     update_times[idx],
-                    vjp_lift_pct[idx],
+                    vjp_lift_pct[ranked_idx],
                     yerr=error,
                     color=color,
                     marker=marker,
                     linestyle="none",
                     capsize=2,
                 )
-            positive_times = [value for value in update_times if value > 0]
+            positive_times = [
+                update_times[idx] for idx in admitted if update_times[idx] > 0
+            ]
             if positive_times and max(positive_times) / min(positive_times) >= 10.0:
                 ax_efficiency.set_xscale("log")
             ax_efficiency.axhline(
@@ -937,7 +958,7 @@ def _plot_solver_in_loop_fairness(
             )
             ax_efficiency.set_xlabel("Full-VJP update time [s]")
             ax_efficiency.set_ylabel("Solver-VJP lift [%]")
-            ax_efficiency.set_title("VJP benefit versus cost")
+            ax_efficiency.set_title(f"VJP benefit versus cost{title_suffix}")
         else:
             ax_efficiency.axis("off")
     else:

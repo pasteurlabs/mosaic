@@ -408,6 +408,36 @@ def test_self_reference_fairness_normalizes_solver_specific_targets(tmp_path):
     assert figure.axes[0].get_title() == "Target-normalized quality"
 
 
+def test_solver_vjp_panels_only_show_recurrence_admitted_cells(tmp_path):
+    common = {
+        "uncorrected_mean_rollout_error": 0.4,
+        "mean_rollout_error": 0.2,
+        "stop_gradient_mean_rollout_error": 0.22,
+        "geometric_error_reduction": 2.0,
+        "stop_gradient_geometric_error_reduction": 1.8,
+        "solver_vjp_geometric_lift": 2.0 / 1.8,
+        "median_update_time_s": 1.0,
+    }
+    data = {
+        "by_solver": {
+            "jax-cfd": {**common, "valid_for_vjp_ranking": False},
+            "pict": {**common, "valid_for_vjp_ranking": True},
+        }
+    }
+
+    figure = _plot_solver_in_loop_fairness(
+        data,
+        ["jax-cfd", "pict"],
+        tmp_path,
+        save=False,
+    )
+
+    assert figure is not None
+    assert len(figure.axes[2].patches) == 1
+    assert [tick.get_text() for tick in figure.axes[2].get_xticklabels()] == ["PICT"]
+    assert figure.axes[2].get_title() == "Benefit from solver VJP (admitted only)"
+
+
 def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     """One update crosses the apply/VJP boundary and writes canonical artifacts."""
     from mosaic.benchmarks.problems import get_config
