@@ -25,6 +25,7 @@ integration tests in :mod:`test_integration`.
 from __future__ import annotations
 
 import contextlib
+import copy
 import json
 import warnings
 from pathlib import Path
@@ -276,8 +277,8 @@ _SHRINK_PHYSICS: dict[tuple[str, str], dict] = {
 def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
     """Re-register ``exp_key`` at a smaller N if it's a known heavy case.
 
-    Mutates ``cfg.experiments[exp_key]`` in place (the config object is a
-    fresh per-call ``get_config(problem)``, so this never leaks across tests).
+    Mutates ``cfg.experiments[exp_key]`` in place. Callers must pass an
+    experiment-local copy so the smaller smoke configuration cannot leak.
     No-op for experiments not in :data:`_SHRINK_PHYSICS`.
     """
     if problem == "ns-grid" and exp_key in {
@@ -450,7 +451,7 @@ def dummy_corpus(tmp_path_factory):
     try:
         with _suppress_dummy_warnings():
             for problem, exp_key in _all_experiments():
-                cfg = get_config(problem)
+                cfg = copy.deepcopy(get_config(problem))
                 _maybe_shrink(cfg, problem, exp_key)
                 tag = f"inprocess:{_DUMMY_FOR[problem]}"
                 tags = dict.fromkeys(cfg.solver_names, tag)
