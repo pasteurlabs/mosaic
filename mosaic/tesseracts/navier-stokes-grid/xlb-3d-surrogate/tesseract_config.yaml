@@ -1,0 +1,26 @@
+name: xlb_3d_surrogate_navier_stokes_grid
+version: "0.1.0"
+description: >
+  Differentiable direct full-field surrogate of XLB for the fixed N=16 3D
+  initial-condition recovery task. A periodic Fourier neural operator maps the
+  complete initial velocity directly to the 100-step final velocity.
+build_config:
+  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
+  package_data:
+    - ["./weights.npz", "/tesseract/weights.npz"]
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+
+metadata:
+  mosaic:
+    name: "XLB 3D surrogate"
+    backend: jax
+    family: surrogate
+    scheme: "direct full-field Fourier neural operator"
+    discretization: Learned
+    numerics: "3D FNO with viscous skip and Helmholtz projection"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    doc_url: "https://github.com/pasteurlabs/mosaic"
