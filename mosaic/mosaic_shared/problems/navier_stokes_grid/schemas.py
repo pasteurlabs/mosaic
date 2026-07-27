@@ -22,6 +22,8 @@ Solvers with extra inputs (e.g. ``inner_steps``) should subclass the result of
 ``make_differentiable`` and add their additional fields.
 """
 
+from typing import ClassVar
+
 import numpy as np
 from mosaic_shared.schema_types import GridBC, GridObstacle, GridVectorField
 from pydantic import BaseModel, Field, model_validator
@@ -62,12 +64,30 @@ def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndar
 class InputSchema(BaseModel):
     """Canonical inputs for navier-stokes-grid tesseracts."""
 
+    supports_recurrent_state: ClassVar[bool] = False
+
     v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
         description=(
             "Initial cell-centred (non-staggered), component-last velocity field, "
             "shape (N, N, 1, 2). "
             "Default: 64×64 divergence-free random vortex field (seed=42)."
+        ),
+    )
+    state: Array[(None, None, None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Optional opaque solver-native recurrent checkpoint from a preceding "
+            "call. Its layout is solver-specific. Only solvers that explicitly opt "
+            "in to recurrent state accept a non-null value."
+        ),
+    )
+    return_state: bool = Field(
+        default=False,
+        description=(
+            "Request a solver-native recurrent checkpoint in the output. Defaults "
+            "to false, so canonical one-shot calls are unchanged. Supplying state "
+            "also implies that a supporting solver returns the continued state."
         ),
     )
     viscosity: Array[(1,), Float32] = Field(
@@ -105,6 +125,12 @@ class InputSchema(BaseModel):
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
+        if (
+            self.state is not None or self.return_state
+        ) and not self.supports_recurrent_state:
+            raise ValueError(
+                f"{type(self).__name__} does not opt in to recurrent solver state"
+            )
         if not self.boundary_conditions.is_fully_periodic and self.obstacle is None:
             raise ValueError(
                 "Non-periodic BCs require an obstacle. "
@@ -118,6 +144,13 @@ class OutputSchema(BaseModel):
 
     result: GridVectorField = Field(
         description="Final cell-centred velocity field, same shape as v0."
+    )
+    state: Array[(None, None, None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Optional opaque solver-native recurrent checkpoint. Present only when "
+            "requested from a solver that opts in to recurrent state."
+        ),
     )
     drag: Array[(1,), Float32] | None = Field(
         default=None,

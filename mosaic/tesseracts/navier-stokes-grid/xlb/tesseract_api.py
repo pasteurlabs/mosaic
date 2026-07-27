@@ -12,7 +12,7 @@ if "--xla_gpu_autotune_level" not in _xla_flags:
     os.environ["XLA_FLAGS"] = (_xla_flags + " --xla_gpu_autotune_level=0").strip()
 del _xla_flags
 
-from typing import Any  # noqa: E402
+from typing import Any, ClassVar  # noqa: E402
 
 import equinox as eqx  # noqa: E402
 import jax  # noqa: E402
@@ -41,6 +41,8 @@ class InputSchema(
     )
 ):
     """XLB solver input schema with optional differentiable recurrent state."""
+
+    supports_recurrent_state: ClassVar[bool] = True
 
     state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
         default=None,

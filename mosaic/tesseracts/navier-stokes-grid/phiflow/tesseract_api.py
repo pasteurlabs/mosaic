@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+from typing import Any, ClassVar
 
 import equinox as eqx
 import jax
@@ -42,6 +42,8 @@ class InputSchema(
     )
 ):
     """PhiFlow Navier-Stokes input schema with differentiable velocity and physics params."""
+
+    supports_recurrent_state: ClassVar[bool] = True
 
     state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
         default=None,

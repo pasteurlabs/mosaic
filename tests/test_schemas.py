@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
+import numpy as np
 import pytest
 
 # The schema modules import from ``mosaic_shared.schema_types`` and
@@ -55,6 +58,41 @@ def test_ns_grid_input_declares_canonical_fields():
     )
 
     field_names = set(InputSchema.model_fields.keys())
-    expected_subset = {"v0", "viscosity", "dt", "steps"}
+    expected_subset = {
+        "v0",
+        "state",
+        "return_state",
+        "viscosity",
+        "dt",
+        "steps",
+    }
     missing = expected_subset - field_names
     assert not missing, f"NS grid InputSchema lost canonical fields: {missing}"
+
+
+@needs_runtime
+def test_ns_grid_recurrent_state_is_canonical_but_opt_in():
+    """The common schema names recurrent fields without enabling every solver."""
+    from mosaic.mosaic_shared.problems.navier_stokes_grid import (
+        InputSchema,
+        OutputSchema,
+    )
+
+    default_inputs = InputSchema()
+    assert default_inputs.state is None
+    assert default_inputs.return_state is False
+    assert OutputSchema(result=default_inputs.v0).state is None
+
+    state = np.zeros((11, 8, 8, 1), dtype=np.float32)
+    with pytest.raises(ValueError, match="does not opt in"):
+        InputSchema(state=state)
+    with pytest.raises(ValueError, match="does not opt in"):
+        InputSchema(return_state=True)
+
+    class RecurrentInputSchema(InputSchema):
+        supports_recurrent_state: ClassVar[bool] = True
+
+    continued = RecurrentInputSchema(state=state)
+    requested = RecurrentInputSchema(return_state=True)
+    np.testing.assert_array_equal(continued.state, state)
+    assert requested.return_state is True

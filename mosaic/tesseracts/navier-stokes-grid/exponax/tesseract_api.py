@@ -226,6 +226,14 @@ def apply_jit(inputs: dict) -> dict:
 _SCALAR_KEYS = ("dt", "viscosity", "drag", "injection_scale")
 
 
+def _solver_inputs(inputs: InputSchema) -> dict:
+    """Remove canonical recurrent controls that Exponax does not opt in to."""
+    data = inputs.model_dump()
+    data.pop("state", None)
+    data.pop("return_state", None)
+    return data
+
+
 def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
@@ -236,7 +244,7 @@ def _unpack_scalars(d: dict) -> dict:
 
 def apply(inputs: InputSchema) -> OutputSchema:
     """Run the exponax forward solver."""
-    return apply_jit(_unpack_scalars(inputs.model_dump()))
+    return apply_jit(_unpack_scalars(_solver_inputs(inputs)))
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +314,7 @@ def vector_jacobian_product(
 ) -> dict[str, Any]:
     """Compute reverse-mode vector-Jacobian product for differentiable inputs."""
     return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
+        _unpack_scalars(_solver_inputs(inputs)),
         tuple(vjp_inputs),
         tuple(vjp_outputs),
         cotangent_vector,
@@ -329,7 +337,9 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
         return s
 
     jaxified_inputs = jax.tree.map(
-        to_jax, abstract_inputs.model_dump(), is_leaf=is_shapedtype_dict
+        to_jax,
+        _solver_inputs(abstract_inputs),
+        is_leaf=is_shapedtype_dict,
     )
     dynamic_inputs, static_inputs = eqx.partition(
         jaxified_inputs, filter_spec=is_shapedtype_struct

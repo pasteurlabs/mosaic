@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import juliacall
 import mosaic_shared
@@ -24,6 +24,8 @@ class InputSchema(
     )
 ):
     """Input schema for the incompressible Navier-Stokes Julia solver."""
+
+    supports_recurrent_state: ClassVar[bool] = True
 
     state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
         default=None,
