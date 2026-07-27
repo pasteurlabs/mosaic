@@ -488,7 +488,7 @@ problem.add_experiment(
             "physics": {
                 # ``steps`` is the number of native PDE steps between neural
                 # corrections. Recurrent training feeds the corrected
-                # canonical velocity back through the Tesseract as ``velocity``.
+                # canonical velocity back through the Tesseract as ``v0``.
                 "N": 32,
                 "nu": 0.001,
                 "dt": 0.02,

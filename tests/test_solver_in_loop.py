@@ -388,7 +388,7 @@ def test_solver_advance_threads_optional_native_state(monkeypatch):
 
     def _apply(_t, inputs):
         calls.append(inputs)
-        velocity = jnp.asarray(inputs["velocity"])
+        velocity = jnp.asarray(inputs["v0"])
         native_state = inputs.get("state")
         if native_state is None:
             native_state = jnp.zeros_like(velocity)
@@ -405,7 +405,7 @@ def test_solver_advance_threads_optional_native_state(monkeypatch):
         name="stateful-dummy",
         phys={"N": 2, "nu": 0.001, "dt": 0.02, "steps": 1},
         output_key="result",
-        make_inputs=lambda _name, velocity, **_physics: {"velocity": velocity},
+        make_inputs=lambda _name, velocity, **_physics: {"v0": velocity},
     )
     t = SimpleNamespace(
         openapi_schema={
@@ -413,7 +413,7 @@ def test_solver_advance_threads_optional_native_state(monkeypatch):
                 "schemas": {
                     "Apply_InputSchema": {
                         "properties": {
-                            "velocity": {},
+                            "v0": {},
                             "state": {},
                             "return_state": {},
                         }
@@ -453,7 +453,7 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
 
     def _apply(_t, inputs):
         calls.append(inputs)
-        return {"result": jnp.asarray(inputs["velocity"]) + 1.0}
+        return {"result": jnp.asarray(inputs["v0"]) + 1.0}
 
     monkeypatch.setattr(
         "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop.apply_tesseract",
@@ -463,7 +463,7 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
         openapi_schema={
             "components": {
                 "schemas": {
-                    "Apply_InputSchema": {"properties": {"velocity": {}}},
+                    "Apply_InputSchema": {"properties": {"v0": {}}},
                 }
             }
         }
@@ -472,7 +472,7 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
         name="stateless-dummy",
         phys={"N": 2, "nu": 0.001, "dt": 0.02, "steps": 1},
         output_key="result",
-        make_inputs=lambda _name, velocity, **_physics: {"velocity": velocity},
+        make_inputs=lambda _name, velocity, **_physics: {"v0": velocity},
     )
 
     velocity, native_state = _solver_advance(
@@ -482,7 +482,7 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
         frame_steps=1,
     )
 
-    assert set(calls[0]) == {"velocity"}
+    assert set(calls[0]) == {"v0"}
     assert native_state is None
     np.testing.assert_array_equal(velocity, jnp.ones_like(velocity))
 
