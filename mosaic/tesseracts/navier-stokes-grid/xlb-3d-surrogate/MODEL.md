@@ -91,6 +91,12 @@ the shared viscous baseline it is 0.9941, while the XLB nonlinear residual has
 must not be generalized to the full 12,288-dimensional input space, and the
 similar scalar condition numbers do not establish Jacobian equality.
 
+Against the 4,096-trajectory checkpoint under this same restricted audit,
+increasing the dataset changes the surrogate condition number from 7.740 to
+7.142 and the Gauss–Newton condition number from 59.98 to 51.05. The
+restricted-Jacobian Frobenius relative error improves from 13.50% to 8.84%
+and cosine from 0.9914 to 0.9961.
+
 The paper's conditioning protocol instead retains the complete raw velocity
 state, constructs one Jacobian row per output degree of freedom by sequential
 VJP, and applies a dense SVD. Because this solver is fixed at `N=16`, the
@@ -106,6 +112,12 @@ and the dense matrices. This adapted fixed-task audit is distinct from the
 paper's native `N=8` TGV physics; an XLB control at those native settings is
 reported separately.
 
+The paper-style comparison is essentially unchanged by scaling the training
+set: the 4k/16k Frobenius errors are 32.98%/32.94%, while the
+float32-resolved condition numbers are `4.89e3`/`5.45e3`. Their raw condition
+numbers are `3.75e10`/`7.48e10`, so the unresolved spectral tail becomes
+worse even as the restricted Jacobian improves.
+
 The larger dataset improves excluded-seed forward error from 7.473% to 4.309%
 and full-spectrum JVP error from 38.28% to 26.00%; validation and held-out
 errors improve together, so the observed inverse-model gap is not evidence of
@@ -114,6 +126,20 @@ the amplitude gate on the learned correction: at the zero-velocity cold start,
 the correction is second-order and the full model's first derivative is fixed
 by the viscous skip. Consequently, more trajectory data cannot correct the
 measured 49.34% radial JVP error at zero, where recovery begins.
+
+End-to-end VJPs were also checked against central finite differences on the
+exact recovery physics, using three IC seeds, ten shared unit-norm random
+directions per seed, and a 12-point relative-ε sweep. For the paper's
+energy-like objective `sum(u_T²)` at the true IC, the best aggregate median
+directional error is `6.63e-3` for the float32 surrogate versus `6.77e-6` for
+XLB; the corresponding mean direction cosines are 0.999984 and effectively
+1.0. For the actual self-recovery MSE at the zero cold start, the surrogate is
+more FD-consistent: its best median error is `2.56e-4` with mean cosine
+1.000000, versus `1.32e-1` and 0.991669 for XLB. The surrogate recovery
+failure is therefore not caused by an incorrect VJP implementation: finite
+differences verify the derivative of the learned forward map, while the
+inverse-path diagnostic shows that this internally accurate derivative points
+toward the wrong learned inverse basin.
 
 Both optimizer variants from the paper were run on the exact self-recovery
 benchmark. With unconstrained L-BFGS, the surrogate recovers the three ICs to
@@ -125,14 +151,21 @@ objective, true IC error, and optimized-IC divergence histories are recorded
 for PhiFlow, XLB, Warp-NS, Exponax, and the surrogate.
 
 The 16,384-trajectory checkpoint is therefore a better forward model but a
-worse global inverse than the 4,096-trajectory checkpoint. The initial
-self-target descent direction at exactly zero has nearly unchanged mean
-cosine with the direction to the true IC (0.845 versus 0.847). Immediately
-away from zero, however, the larger model's mean alignment falls to 0.419 at
-IC amplitude 0.05 and 0.150 at amplitude 0.10, versus 0.825 and 0.807 for the
-smaller checkpoint. Forward-only rollout selection does not constrain this
-off-manifold inverse-gradient geometry; similar conditioning at the true IC
-therefore does not predict recovery from the zero cold start.
+worse global inverse than the 4,096-trajectory checkpoint. Under complete
+matched runs, the smaller checkpoint reaches 8.10% mean IC error with L-BFGS
+and 8.12% with projected L-BFGS, versus 16.70% for both variants with the
+larger checkpoint. The seed-0 final objectives are nevertheless comparable:
+`1.28e-8`/`1.33e-8` for the 4k checkpoint and `1.15e-8`/`1.18e-8` for the 16k
+checkpoint (unconstrained/projected). The 16k seed-0 final divergence is also
+slightly lower, at `1.49e-2`/`1.43e-2` versus `1.77e-2`/`1.77e-2`.
+
+The initial self-target descent direction at exactly zero has nearly
+unchanged mean cosine with the direction to the true IC (0.845 versus 0.847).
+Immediately away from zero, however, the larger model's mean alignment falls
+to 0.419 at IC amplitude 0.05 and 0.150 at amplitude 0.10, versus 0.825 and
+0.807 for the smaller checkpoint. Forward-only rollout selection does not
+constrain this off-manifold inverse-gradient geometry; similar conditioning
+at the true IC therefore does not predict recovery from the zero cold start.
 
 Warm packaged in-process RTX 5090 medians are 7.24 ms for the 20-macro-step
 forward rollout and 14.78 ms for its end-to-end VJP. XLB takes 4.81 ms and
@@ -156,5 +189,6 @@ be presented as a drop-in inverse model for XLB observations.
 
 The draft PR contains both L-BFGS recovery variants, per-iteration loss, IC
 error and divergence histories, full-field plots, animation, timing
-decomposition, restricted and paper-protocol Jacobian spectra, and external
-offline artifact provenance.
+decomposition, 4k/16k restricted and paper-protocol Jacobian spectra, the
+inverse-gradient diagnostic, finite-difference U-curves, and external offline
+artifact provenance.
