@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Direct full-field XLB surrogate for the fixed 3D IC-recovery task."""
+"""Autoregressive full-field XLB surrogate for the fixed 3D recovery task."""
 
 from __future__ import annotations
 
@@ -33,6 +33,9 @@ _N = 16
 _VISCOSITY = 0.01
 _DT = 0.02
 _STEPS = 100
+_STRIDE = 5
+_MACRO_DT = _DT * _STRIDE
+_ROLLOUT_STEPS = _STEPS // _STRIDE
 _DOMAIN_EXTENT = 2.0 * math.pi
 _WIDTH = 32
 _MODES = 6
@@ -57,11 +60,17 @@ def _load_weights() -> dict[str, jax.Array]:
                 "width": int(data["width"]),
                 "modes": int(data["modes"]),
                 "layers": int(data["layers"]),
+                "stride": int(data["stride"]),
+                "rollout_steps": int(data["rollout_steps"]),
+                "autoregressive": int(data["autoregressive"]),
             }
             expected = {
                 "width": _WIDTH,
                 "modes": _MODES,
                 "layers": _LAYERS,
+                "stride": _STRIDE,
+                "rollout_steps": _ROLLOUT_STEPS,
+                "autoregressive": 1,
             }
             if metadata != expected:
                 raise RuntimeError(
@@ -107,7 +116,7 @@ def _helmholtz_project(velocity: jax.Array) -> jax.Array:
 
 
 def _diffuse(velocity: jax.Array) -> jax.Array:
-    """Exact linear viscous evolution over the fixed recovery horizon."""
+    """Exact linear viscous evolution over one learned macro time step."""
     velocity_hat = jnp.fft.rfftn(
         _helmholtz_project(velocity),
         axes=(1, 2, 3),
@@ -116,7 +125,7 @@ def _diffuse(velocity: jax.Array) -> jax.Array:
     kz = jnp.fft.rfftfreq(_N, d=1.0 / _N)
     kx, ky, kz_grid = jnp.meshgrid(k, k, kz, indexing="ij")
     k2 = kx**2 + ky**2 + kz_grid**2
-    decay = jnp.exp(-_VISCOSITY * (_DT * _STEPS) * k2)
+    decay = jnp.exp(-_VISCOSITY * _MACRO_DT * k2)
     return jnp.fft.irfftn(
         velocity_hat * decay[..., None],
         s=(_N, _N, _N),
@@ -155,12 +164,12 @@ def _spectral_convolution(
     ).real.astype(jnp.float32)
 
 
-def _surrogate_forward(
-    initial_velocity: jax.Array,
+def _one_step(
+    velocity: jax.Array,
     weights: dict[str, jax.Array],
 ) -> jax.Array:
-    """Map one full initial field directly to the fixed-horizon final field."""
-    velocity = _helmholtz_project(initial_velocity[None])
+    """Advance a batch of full velocity fields by five XLB solver steps."""
+    velocity = _helmholtz_project(velocity)
     normalized = velocity / weights["input_scale"]
     hidden = jnp.einsum("bxyzi,io->bxyzo", normalized, weights["w_lift"])
     for layer in range(_LAYERS):
@@ -177,13 +186,33 @@ def _surrogate_forward(
         hidden,
         weights["w_out"],
     )
-    amplitude = jnp.sqrt(jnp.mean(velocity**2, keepdims=True) + 1e-12)
+    amplitude = jnp.sqrt(
+        jnp.mean(velocity**2, axis=(1, 2, 3, 4), keepdims=True) + 1e-12
+    )
     correction = (
         raw_correction
         * weights["correction_scale"].reshape(1, 1, 1, 1, 3)
         * (amplitude / weights["input_scale"])
     )
-    return _helmholtz_project(_diffuse(velocity) + correction)[0]
+    return _helmholtz_project(_diffuse(velocity) + correction)
+
+
+def _surrogate_forward(
+    initial_velocity: jax.Array,
+    weights: dict[str, jax.Array],
+) -> jax.Array:
+    """Apply the shared macro-step neural operator autoregressively 20 times."""
+
+    def body(_: int, velocity: jax.Array) -> jax.Array:
+        return _one_step(velocity, weights)
+
+    final = jax.lax.fori_loop(
+        0,
+        _ROLLOUT_STEPS,
+        body,
+        initial_velocity[None],
+    )
+    return final[0]
 
 
 @jax.jit
@@ -239,7 +268,7 @@ def _validate_contract(inputs: InputSchema) -> None:
 
 
 def apply(inputs: InputSchema) -> dict[str, jax.Array | None]:
-    """Evaluate the direct IC-to-final-state full-field surrogate."""
+    """Evaluate the autoregressive full-field surrogate rollout."""
     _validate_contract(inputs)
     initial_velocity = jnp.asarray(inputs.v0, dtype=jnp.float32)
     return {

@@ -62,6 +62,7 @@ def test_full_field_shape_and_zero_state(monkeypatch):
     monkeypatch.setattr(_API, "_WIDTH", 4)
     monkeypatch.setattr(_API, "_MODES", 2)
     monkeypatch.setattr(_API, "_LAYERS", 1)
+    monkeypatch.setattr(_API, "_ROLLOUT_STEPS", 3)
     initial = jnp.zeros((_API._N, _API._N, _API._N, 3), dtype=jnp.float32)
     result = _API._surrogate_forward(initial, _weights())
     assert result.shape == initial.shape
@@ -73,6 +74,7 @@ def test_full_field_vjp_is_finite(monkeypatch):
     monkeypatch.setattr(_API, "_WIDTH", 4)
     monkeypatch.setattr(_API, "_MODES", 2)
     monkeypatch.setattr(_API, "_LAYERS", 1)
+    monkeypatch.setattr(_API, "_ROLLOUT_STEPS", 3)
     weights = _weights()
     initial = jnp.zeros((_API._N, _API._N, _API._N, 3), dtype=jnp.float32)
     initial = initial.at[1, 2, 3, 0].set(0.1)
@@ -83,3 +85,18 @@ def test_full_field_vjp_is_finite(monkeypatch):
     gradient = jax.grad(field_sum)(initial)
     assert gradient.shape == initial.shape
     assert np.all(np.isfinite(np.asarray(gradient)))
+
+
+def test_forward_reuses_one_macro_step_operator(monkeypatch):
+    monkeypatch.setattr(_API, "_WIDTH", 4)
+    monkeypatch.setattr(_API, "_MODES", 2)
+    monkeypatch.setattr(_API, "_LAYERS", 1)
+    monkeypatch.setattr(_API, "_ROLLOUT_STEPS", 3)
+    weights = _weights()
+    initial = jnp.zeros((_API._N, _API._N, _API._N, 3), dtype=jnp.float32)
+    initial = initial.at[1, 2, 3, 0].set(0.1)
+    expected = initial[None]
+    for _ in range(3):
+        expected = _API._one_step(expected, weights)
+    result = _API._surrogate_forward(initial, weights)
+    assert np.allclose(np.asarray(result), np.asarray(expected[0]), atol=1e-7)

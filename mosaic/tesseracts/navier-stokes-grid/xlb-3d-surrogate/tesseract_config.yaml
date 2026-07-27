@@ -1,9 +1,10 @@
 name: xlb_3d_surrogate_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Differentiable direct full-field surrogate of XLB for the fixed N=16 3D
-  initial-condition recovery task. A periodic Fourier neural operator maps the
-  complete initial velocity directly to the 100-step final velocity.
+  Differentiable autoregressive full-field surrogate of XLB for the fixed N=16
+  3D initial-condition recovery task. One periodic Fourier neural operator
+  advances the complete velocity by five XLB steps and is reused for a
+  20-macro-step rollout.
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data:
@@ -16,9 +17,9 @@ metadata:
     name: "XLB 3D surrogate"
     backend: jax
     family: surrogate
-    scheme: "direct full-field Fourier neural operator"
+    scheme: "autoregressive full-field Fourier neural operator"
     discretization: Learned
-    numerics: "3D FNO with viscous skip and Helmholtz projection"
+    numerics: "shared 5-step 3D FNO, 20-step rollout, viscous skip, Helmholtz projection"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
