@@ -1,11 +1,11 @@
 {
   "teacher": "xlb",
   "collision": "kbc",
-  "samples": 4096,
+  "samples": 16384,
   "split": {
-    "train": 3072,
-    "validation": 512,
-    "test": 512
+    "train": 12288,
+    "validation": 2048,
+    "test": 2048
   },
   "seed": 20260726,
   "physics": {
@@ -30,7 +30,7 @@
   "amplitude_min": 0.0,
   "amplitude_max": 1.25,
   "native_final_check_max_abs": 0.0,
-  "trajectory_sha256": "f94390c512c44d893581017007720077d85f2c153d28d8841630e0adc1e60dc8",
-  "split_sha256": "c2d85a70043330bb76eb0d0ebfa56d1f4af02246dab105e2a0f790287a7a3bcf",
-  "elapsed_seconds": 30.680514015024528
+  "trajectory_sha256": "4836fba4e6a8524af7a552c5977721118e726afa21db9a9f4d0b612a879a0005",
+  "split_sha256": "f24a6be870fc233d52ba7ee1f3b8b49f1f6f6a47dc8482a1caafd4cc7326ac21",
+  "elapsed_seconds": 92.49362099700375
 }

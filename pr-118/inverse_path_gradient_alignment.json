@@ -1,0 +1,243 @@
+{
+  "description": "Self-target loss-gradient alignment with the direction from a radially scaled benchmark IC back to its true IC.",
+  "task": {
+    "N": 16,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "amplitudes": [
+      0.0,
+      0.05,
+      0.1,
+      0.25,
+      0.5,
+      0.75
+    ],
+    "cold_start": "zero velocity"
+  },
+  "jax_backend": "cpu",
+  "models": {
+    "4096_trajectories": {
+      "weights": "/data/personal/andrinr/runner/surrogate/mosaic-3d/recovery_3d_autoregressive_weights_ft20.npz",
+      "trials": [
+        {
+          "seed": 0,
+          "samples": [
+            {
+              "amplitude": 0.0,
+              "self_target_loss": 0.017960362136363983,
+              "descent_to_true_ic_cosine": 0.8673360347747803
+            },
+            {
+              "amplitude": 0.05,
+              "self_target_loss": 0.01609337329864502,
+              "descent_to_true_ic_cosine": 0.8484888672828674
+            },
+            {
+              "amplitude": 0.1,
+              "self_target_loss": 0.014433549717068672,
+              "descent_to_true_ic_cosine": 0.8320547938346863
+            },
+            {
+              "amplitude": 0.25,
+              "self_target_loss": 0.010286927223205566,
+              "descent_to_true_ic_cosine": 0.8009508848190308
+            },
+            {
+              "amplitude": 0.5,
+              "self_target_loss": 0.004881612025201321,
+              "descent_to_true_ic_cosine": 0.7651665806770325
+            },
+            {
+              "amplitude": 0.75,
+              "self_target_loss": 0.001258856151252985,
+              "descent_to_true_ic_cosine": 0.7675777077674866
+            }
+          ]
+        },
+        {
+          "seed": 1,
+          "samples": [
+            {
+              "amplitude": 0.0,
+              "self_target_loss": 0.02119424194097519,
+              "descent_to_true_ic_cosine": 0.853551983833313
+            },
+            {
+              "amplitude": 0.05,
+              "self_target_loss": 0.019037213176488876,
+              "descent_to_true_ic_cosine": 0.8321427702903748
+            },
+            {
+              "amplitude": 0.1,
+              "self_target_loss": 0.0171294417232275,
+              "descent_to_true_ic_cosine": 0.81455397605896
+            },
+            {
+              "amplitude": 0.25,
+              "self_target_loss": 0.012328766286373138,
+              "descent_to_true_ic_cosine": 0.7852038145065308
+            },
+            {
+              "amplitude": 0.5,
+              "self_target_loss": 0.0058427355252206326,
+              "descent_to_true_ic_cosine": 0.7547416090965271
+            },
+            {
+              "amplitude": 0.75,
+              "self_target_loss": 0.0014723445056006312,
+              "descent_to_true_ic_cosine": 0.7716999053955078
+            }
+          ]
+        },
+        {
+          "seed": 2,
+          "samples": [
+            {
+              "amplitude": 0.0,
+              "self_target_loss": 0.026556653901934624,
+              "descent_to_true_ic_cosine": 0.8192408680915833
+            },
+            {
+              "amplitude": 0.05,
+              "self_target_loss": 0.023930992931127548,
+              "descent_to_true_ic_cosine": 0.7931991815567017
+            },
+            {
+              "amplitude": 0.1,
+              "self_target_loss": 0.021621063351631165,
+              "descent_to_true_ic_cosine": 0.7730646133422852
+            },
+            {
+              "amplitude": 0.25,
+              "self_target_loss": 0.015742521733045578,
+              "descent_to_true_ic_cosine": 0.7419695854187012
+            },
+            {
+              "amplitude": 0.5,
+              "self_target_loss": 0.007458779029548168,
+              "descent_to_true_ic_cosine": 0.7165091037750244
+            },
+            {
+              "amplitude": 0.75,
+              "self_target_loss": 0.001832917332649231,
+              "descent_to_true_ic_cosine": 0.7417759895324707
+            }
+          ]
+        }
+      ]
+    },
+    "16384_trajectories": {
+      "weights": "/data/personal/andrinr/runner/surrogate/mosaic-3d/recovery_3d_autoregressive_weights_16k.npz",
+      "trials": [
+        {
+          "seed": 0,
+          "samples": [
+            {
+              "amplitude": 0.0,
+              "self_target_loss": 0.018935592845082283,
+              "descent_to_true_ic_cosine": 0.865936815738678
+            },
+            {
+              "amplitude": 0.05,
+              "self_target_loss": 0.017049524933099747,
+              "descent_to_true_ic_cosine": 0.5043690204620361
+            },
+            {
+              "amplitude": 0.1,
+              "self_target_loss": 0.01544494554400444,
+              "descent_to_true_ic_cosine": 0.20881949365139008
+            },
+            {
+              "amplitude": 0.25,
+              "self_target_loss": 0.011620978824794292,
+              "descent_to_true_ic_cosine": 0.2500947415828705
+            },
+            {
+              "amplitude": 0.5,
+              "self_target_loss": 0.005166131071746349,
+              "descent_to_true_ic_cosine": 0.241212397813797
+            },
+            {
+              "amplitude": 0.75,
+              "self_target_loss": 0.001339068403467536,
+              "descent_to_true_ic_cosine": 0.2640543282032013
+            }
+          ]
+        },
+        {
+          "seed": 1,
+          "samples": [
+            {
+              "amplitude": 0.0,
+              "self_target_loss": 0.022315293550491333,
+              "descent_to_true_ic_cosine": 0.8536520600318909
+            },
+            {
+              "amplitude": 0.05,
+              "self_target_loss": 0.020138338208198547,
+              "descent_to_true_ic_cosine": 0.41996508836746216
+            },
+            {
+              "amplitude": 0.1,
+              "self_target_loss": 0.01829654723405838,
+              "descent_to_true_ic_cosine": 0.14203865826129913
+            },
+            {
+              "amplitude": 0.25,
+              "self_target_loss": 0.013764197938144207,
+              "descent_to_true_ic_cosine": 0.16153383255004883
+            },
+            {
+              "amplitude": 0.5,
+              "self_target_loss": 0.0061824731528759,
+              "descent_to_true_ic_cosine": 0.21168702840805054
+            },
+            {
+              "amplitude": 0.75,
+              "self_target_loss": 0.001617726287804544,
+              "descent_to_true_ic_cosine": 0.25393950939178467
+            }
+          ]
+        },
+        {
+          "seed": 2,
+          "samples": [
+            {
+              "amplitude": 0.0,
+              "self_target_loss": 0.028812382370233536,
+              "descent_to_true_ic_cosine": 0.8165268301963806
+            },
+            {
+              "amplitude": 0.05,
+              "self_target_loss": 0.02614016830921173,
+              "descent_to_true_ic_cosine": 0.33388057351112366
+            },
+            {
+              "amplitude": 0.1,
+              "self_target_loss": 0.02388513647019863,
+              "descent_to_true_ic_cosine": 0.09765121340751648
+            },
+            {
+              "amplitude": 0.25,
+              "self_target_loss": 0.017743047326803207,
+              "descent_to_true_ic_cosine": 0.1407671868801117
+            },
+            {
+              "amplitude": 0.5,
+              "self_target_loss": 0.00817913468927145,
+              "descent_to_true_ic_cosine": 0.16889360547065735
+            },
+            {
+              "amplitude": 0.75,
+              "self_target_loss": 0.0021292881574481726,
+              "descent_to_true_ic_cosine": 0.4175736606121063
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
