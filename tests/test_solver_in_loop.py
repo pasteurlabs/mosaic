@@ -196,7 +196,7 @@ def test_paper_aligned_curriculum_declares_one_nog_wig_protocol():
         16,
         32,
     ]
-    assert sum(stage["updates"] for stage in training["curriculum"]) == 12000
+    assert sum(stage["updates"] for stage in training["curriculum"]) == 11000
 
 
 def test_curriculum_normalization_preserves_stage_learning_rates():

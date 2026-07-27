@@ -590,7 +590,7 @@ problem.add_experiment(
                 "amplitude": 0.5,
             },
             "training": {
-                "max_updates": 12000,
+                "max_updates": 11000,
                 "unroll": 32,
                 "curriculum": [
                     {"unroll": 1, "updates": 1000, "lr": 1e-4},
@@ -598,10 +598,10 @@ problem.add_experiment(
                     {"unroll": 4, "updates": 1500, "lr": 1e-4},
                     {"unroll": 8, "updates": 2000, "lr": 1e-4},
                     {"unroll": 16, "updates": 2500, "lr": 5e-5},
-                    {"unroll": 32, "updates": 4000, "lr": 2.5e-5},
+                    {"unroll": 32, "updates": 3000, "lr": 2.5e-5},
                 ],
                 "include_one_step_baseline": True,
-                "one_step_updates": 12000,
+                "one_step_updates": 11000,
                 # The original SOL_n objective supervises every corrected
                 # state; omit the solver-terminal diagnostic used by the
                 # compact VJP audit.
