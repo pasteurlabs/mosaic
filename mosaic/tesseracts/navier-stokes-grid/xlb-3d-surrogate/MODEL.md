@@ -70,18 +70,37 @@ the shared viscous baseline it is 0.9861, while the XLB nonlinear residual has
 81.2% of the total Jacobian Frobenius norm. The restricted conditioning result
 must not be generalized to the full 12,288-dimensional input space.
 
-On the exact self-recovery benchmark, projected L-BFGS recovers the three ICs
-to 6.97%, 7.85%, and 9.54% relative L2 error (8.12% mean), compared with
-4.70%, 5.02%, and 5.94% for XLB (5.22% mean).
+The paper's conditioning protocol instead retains the complete raw velocity
+state, constructs one Jacobian row per output degree of freedom by sequential
+VJP, and applies a dense SVD. Because this solver is fixed at `N=16`, the
+paper-protocol audit uses an explicit orthonormal `8³` block-grid
+lift/restriction around the recovery IC, producing the same 1,536-dimensional
+raw state as the paper while retaining the fixed recovery physics. Under this
+protocol, the Jacobian Frobenius cosine falls to 0.9442 and relative error
+rises to 32.98%. Raw condition numbers are `2.79e7` for XLB and `3.75e10` for
+the surrogate. These tails fall below the float32 rank tolerance; condition
+numbers over the resolved singular values are `5.32e3` and `4.89e3`,
+respectively. The draft PR provides both normalized spectra, rank diagnostics,
+and the dense matrices. This adapted fixed-task audit is distinct from the
+paper's native `N=8` TGV physics; an XLB control at those native settings is
+reported separately.
+
+Both optimizer variants from the paper were run on the exact self-recovery
+benchmark. With unconstrained L-BFGS, the surrogate recovers the three ICs to
+6.94%, 7.82%, and 9.55% relative L2 error (8.10% mean), compared with 4.96%,
+5.17%, and 6.12% for XLB (5.42% mean). With divergence-free gradient
+projection, the surrogate reaches 6.97%, 7.85%, and 9.54% (8.12% mean),
+compared with 4.70%, 5.02%, and 5.94% for XLB (5.22% mean). Per-iteration
+objective, true IC error, and optimized-IC divergence histories are recorded
+for PhiFlow, XLB, Warp-NS, Exponax, and the surrogate.
 
 Warm packaged in-process RTX 5090 medians are 7.12 ms for the 20-macro-step
-forward rollout and 14.86 ms for its end-to-end VJP. XLB takes 4.81 ms and 14.37 ms on
-the same task. Unlike the replaced direct IC-to-final checkpoint, the
-autoregressive surrogate is therefore not a kernel-level speedup: repeatedly
-applying the shared operator makes it 1.48× slower for forward and 1.03×
-slower for VJP. The matched RTX 5090 recovery harness takes 33.17 s versus
-30.96 s for XLB (1.07× slower); shared RPC, optimizer, projection, and
-line-search overhead narrows the kernel difference.
+forward rollout and 14.86 ms for its end-to-end VJP. XLB takes 4.81 ms and
+14.37 ms on the same task. The autoregressive surrogate is therefore not a
+kernel-level speedup: repeatedly applying the shared operator makes it 1.48×
+slower for forward and 1.03× slower for VJP. The matched RTX 5090 recovery
+harness takes 33.17 s versus 30.96 s for XLB (1.07× slower); shared RPC,
+optimizer, projection, and line-search overhead narrows the kernel difference.
 
 ## Limitation: XLB-target inversion
 
@@ -94,6 +113,7 @@ The best saved IC errors are 20.4–24.6%, and XLB re-evaluation of the final
 recovered ICs leaves 11.2–16.1% final-field residual. The checkpoint must not
 be presented as a drop-in inverse model for XLB observations.
 
-The draft PR contains the exact self-recovery results, paper-style loss and IC
-error histories, full-field plots, animation, timing decomposition, Jacobian
-spectra, and external offline artifact provenance.
+The draft PR contains both L-BFGS recovery variants, per-iteration loss, IC
+error and divergence histories, full-field plots, animation, timing
+decomposition, restricted and paper-protocol Jacobian spectra, and external
+offline artifact provenance.
