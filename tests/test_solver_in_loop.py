@@ -34,6 +34,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv, _tgv_analyti
 from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
     _periodic_vorticity_2d,
     _plot_solver_in_loop_curriculum_correlations,
+    _plot_solver_in_loop_curriculum_fd,
     _plot_solver_in_loop_curriculum_fields,
     _plot_solver_in_loop_curriculum_rollouts,
     _plot_solver_in_loop_curriculum_spectra,
@@ -1042,6 +1043,8 @@ def test_curriculum_plots_render_all_training_protocols(tmp_path):
         "correlation_one_step_0": np.asarray([1.0, 0.995, 0.985, 0.97]),
         "correlation_stop_gradient_0": np.asarray([1.0, 0.998, 0.99, 0.98]),
         "correlation_corrected_0": np.asarray([1.0, 0.999, 0.996, 0.99]),
+        "fd_epsilon_0": np.asarray([1e-1, 1e-2, 1e-3]),
+        "fd_rel_error_samples_0": np.asarray([[0.2, 0.01, 0.04], [0.3, 0.02, 0.05]]),
         "curriculum_stage_unrolls_0": np.asarray([1, 2]),
         "curriculum_checkpoint_error_native_0": np.asarray([0.0, 0.02, 0.04, 0.06]),
         "curriculum_checkpoint_error_full_0": np.asarray(
@@ -1070,6 +1073,7 @@ def test_curriculum_plots_render_all_training_protocols(tmp_path):
         _plot_solver_in_loop_curriculum_correlations(
             arrays, ["jax-cfd"], tmp_path, save=True
         ),
+        _plot_solver_in_loop_curriculum_fd(arrays, ["jax-cfd"], tmp_path, save=True),
         _plot_solver_in_loop_curriculum_summary(
             data,
             arrays,
@@ -1090,6 +1094,7 @@ def test_curriculum_plots_render_all_training_protocols(tmp_path):
     for filename in (
         "solver_in_loop_curriculum_rollouts.png",
         "solver_in_loop_curriculum_correlations.png",
+        "solver_in_loop_curriculum_fd.png",
         "solver_in_loop_curriculum_summary.png",
         "solver_in_loop_curriculum_fields.png",
         "solver_in_loop_curriculum_spectra.png",
@@ -1186,6 +1191,8 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["completed"] is True
     assert metrics["final_grad_norm"] > 0
     assert metrics["end_to_end_fd_rel_error"] < 5e-2
+    assert metrics["end_to_end_fd_rel_error_max"] < 5e-2
+    assert len(metrics["fd_check_summary"]) == 2
     assert metrics["native_final_rollout_error"] >= 0
     assert metrics["native_final_rollout_error_p95"] >= 0
     assert metrics["long_closure_error_p95"] < 1e-6
@@ -1206,6 +1213,8 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert (out_dir / "result.json").exists()
     with np.load(out_dir / "corrector_fields.npz") as snapshots:
         assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)
+        assert snapshots["fd_epsilon_0"].shape == (5,)
+        assert snapshots["fd_rel_error_samples_0"].shape == (2, 5)
 
 
 def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(

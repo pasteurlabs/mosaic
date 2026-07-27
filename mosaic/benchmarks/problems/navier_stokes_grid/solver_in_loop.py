@@ -67,6 +67,8 @@ class _TrainingResult(NamedTuple):
     grad_norms: list[float]
     update_times: list[float]
     fd_error: float | None
+    fd_epsilons: tuple[float, ...]
+    fd_errors: tuple[float, ...]
     completed: bool
     stage_models: tuple[Any, ...]
     stage_unrolls: tuple[int, ...]
@@ -882,6 +884,19 @@ def _train_corrector(
     loss_mode = str(training.get("loss_mode", "mean"))
     solver_loss_weight = float(training.get("solver_loss_weight", 0.1))
     fd_epsilon = float(training.get("fd_epsilon", 1e-2))
+    configured_fd_epsilons = training.get("fd_epsilons")
+    if configured_fd_epsilons is None:
+        fd_epsilons = (
+            10.0 * fd_epsilon,
+            3.0 * fd_epsilon,
+            fd_epsilon,
+            0.3 * fd_epsilon,
+            0.1 * fd_epsilon,
+        )
+    else:
+        fd_epsilons = tuple(float(value) for value in configured_fd_epsilons)
+    if not fd_epsilons or any(value <= 0 for value in fd_epsilons):
+        raise ValueError("training.fd_epsilons must contain positive values")
     maximum_unroll = max(stage.unroll for stage in stages)
     if train.shape[1] < maximum_unroll + 1:
         raise ValueError(
@@ -909,6 +924,7 @@ def _train_corrector(
     grad_norms: list[float] = []
     update_times: list[float] = []
     fd_error: float | None = None
+    fd_error_curve: tuple[float, ...] = ()
     completed = True
     stage_models: list[Any] = []
     stage_boundaries: list[int] = []
@@ -952,13 +968,17 @@ def _train_corrector(
                 and differentiate_solver
                 and bool(training.get("check_grad", True))
             ):
-                fd_error = _directional_fd(
-                    loss_fn,
-                    model,
-                    grads,
-                    jax.random.PRNGKey(model_seed + 1),
-                    epsilon=fd_epsilon,
+                fd_error_curve = tuple(
+                    _directional_fd(
+                        loss_fn,
+                        model,
+                        grads,
+                        jax.random.PRNGKey(model_seed + 1),
+                        epsilon=epsilon,
+                    )
+                    for epsilon in fd_epsilons
                 )
+                fd_error = min(fd_error_curve)
             updates, opt_state = optimiser.update(
                 grads,
                 opt_state,
@@ -978,6 +998,8 @@ def _train_corrector(
         grad_norms=grad_norms,
         update_times=update_times,
         fd_error=fd_error,
+        fd_epsilons=fd_epsilons if fd_error_curve else (),
+        fd_errors=fd_error_curve,
         completed=completed,
         stage_models=tuple(stage_models),
         stage_unrolls=tuple(stage.unroll for stage in stages[: len(stage_models)]),
@@ -1204,6 +1226,8 @@ def _std(values: list[float]) -> float:
         "update_time_stop_gradient_samples",
         "update_time_one_step",
         "update_time_one_step_samples",
+        "fd_epsilon",
+        "fd_rel_error_samples",
         "error_corrected",
         "error_corrected_samples",
         "error_corrected_seed_std",
@@ -1467,6 +1491,9 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     grad_norms_by_seed: list[list[float]] = []
     update_times_by_seed: list[list[float]] = []
     fd_errors: list[float | None] = []
+    fd_model_seeds: list[int] = []
+    fd_epsilons_by_seed: list[tuple[float, ...]] = []
+    fd_error_curves_by_seed: list[tuple[float, ...]] = []
     completed_by_seed: list[bool] = []
     training_walls: list[float] = []
     stop_gradient_losses_by_seed: list[list[float]] = []
@@ -1497,10 +1524,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     for seed_idx, model_seed in enumerate(model_seeds):
         seed_training = {
             **training,
-            # One end-to-end FD check is enough for a shared architecture and
-            # solver VJP; repeating it for initialisation replicates adds cost
-            # without strengthening the paired training comparison.
-            "check_grad": bool(training.get("check_grad", True)) and seed_idx == 0,
+            "check_grad": bool(training.get("check_grad", True)),
         }
         started = time.perf_counter()
         full_training = _train_corrector(
@@ -1519,6 +1543,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         grad_norms = full_training.grad_norms
         update_times = full_training.update_times
         fd_error = full_training.fd_error
+        fd_epsilons = full_training.fd_epsilons
+        fd_error_curve = full_training.fd_errors
         completed = full_training.completed
         training_walls.append(time.perf_counter() - started)
 
@@ -1696,6 +1722,10 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         grad_norms_by_seed.append(grad_norms)
         update_times_by_seed.append(update_times)
         fd_errors.append(fd_error)
+        if fd_error_curve:
+            fd_model_seeds.append(model_seed)
+            fd_epsilons_by_seed.append(fd_epsilons)
+            fd_error_curves_by_seed.append(fd_error_curve)
         completed_by_seed.append(completed)
         stop_gradient_losses_by_seed.append(stop_gradient_losses)
         stop_gradient_grad_norms_by_seed.append(stop_gradient_grad_norms)
@@ -1908,6 +1938,27 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             ],
             axis=0,
         )
+    fd_epsilon_array = np.asarray([], dtype=np.float32)
+    fd_error_samples = np.empty((0, 0), dtype=np.float32)
+    fd_check_summary: list[dict[str, Any]] = []
+    if fd_error_curves_by_seed:
+        if len(set(fd_epsilons_by_seed)) != 1:
+            raise RuntimeError("FD epsilon grids differ across model seeds")
+        fd_epsilon_array = np.asarray(fd_epsilons_by_seed[0], dtype=np.float32)
+        fd_error_samples = np.asarray(fd_error_curves_by_seed, dtype=np.float32)
+        fd_check_summary = [
+            {
+                "model_seed": model_seed,
+                "best_epsilon": float(fd_epsilon_array[int(np.argmin(curve))]),
+                "best_relative_error": float(np.min(curve)),
+                "max_relative_error": float(np.max(curve)),
+            }
+            for model_seed, curve in zip(
+                fd_model_seeds,
+                fd_error_samples,
+                strict=True,
+            )
+        ]
 
     metrics = {
         **reference_audit,
@@ -2074,6 +2125,11 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         if stop_gradient_grad_norms.size
         else None,
         "end_to_end_fd_rel_error": _mean_optional(fd_errors),
+        "end_to_end_fd_rel_error_max": max(
+            (value for value in fd_errors if value is not None),
+            default=None,
+        ),
+        "fd_check_summary": fd_check_summary,
         "final_divergence_rms": divergence_rms(first_corrected[-1], ctx.domain_extent)
         if first_corrected is not None
         else None,
@@ -2331,6 +2387,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "update_time_stop_gradient_samples": _stack_curves(
             stop_gradient_update_times_by_seed
         ),
+        "fd_epsilon": fd_epsilon_array,
+        "fd_rel_error_samples": fd_error_samples,
         "error_corrected": np.asarray(corrected_error, dtype=np.float32),
         "error_corrected_samples": corrected_errors_array.astype(np.float32),
         "error_corrected_seed_std": np.asarray(

@@ -1740,6 +1740,12 @@ def plot_solver_in_loop_curriculum(
             out_dir,
             save=save,
         ),
+        _plot_solver_in_loop_curriculum_fd(
+            arrays,
+            names,
+            out_dir,
+            save=save,
+        ),
         _plot_solver_in_loop_curriculum_summary(
             data,
             arrays,
@@ -1883,6 +1889,78 @@ def _plot_solver_in_loop_curriculum_correlations(
     fig.suptitle("Held-out correlation decay (threshold 0.95)")
     if save:
         save_fig(fig, "solver_in_loop_curriculum_correlations", out_dir)
+    return fig
+
+
+def _plot_solver_in_loop_curriculum_fd(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Show directional finite-difference agreement across epsilon and seeds."""
+    rows = [
+        (index, name)
+        for index, name in _curriculum_rows(arrays, names)
+        if np.asarray(arrays.get(f"fd_rel_error_samples_{index}", np.array([]))).size
+    ]
+    if not rows:
+        return None
+    plt.rcParams.update(RCPARAMS)
+    ncols = 3
+    nrows = int(np.ceil(len(rows) / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(TEXTWIDTH, 1.85 * nrows),
+        squeeze=False,
+        layout="constrained",
+    )
+    for axis, (index, name) in zip(axes.ravel(), rows, strict=False):
+        epsilons = np.asarray(arrays.get(f"fd_epsilon_{index}", np.array([])))
+        errors = np.asarray(arrays.get(f"fd_rel_error_samples_{index}", np.array([])))
+        if epsilons.size == 0 or errors.ndim != 2:
+            axis.axis("off")
+            continue
+        _label, color, _linestyle, marker = solver_props(name)
+        for seed_errors in errors:
+            axis.plot(
+                epsilons,
+                np.maximum(seed_errors, 1e-12),
+                color=color,
+                alpha=0.22,
+                linewidth=0.8,
+            )
+        median = np.median(errors, axis=0)
+        axis.plot(
+            epsilons,
+            np.maximum(median, 1e-12),
+            color=color,
+            marker=marker,
+            linewidth=1.4,
+            label="median; faint = seed",
+        )
+        best_index = int(np.argmin(median))
+        axis.scatter(
+            [epsilons[best_index]],
+            [max(float(median[best_index]), 1e-12)],
+            color=color,
+            edgecolor="black",
+            linewidth=0.4,
+            zorder=3,
+        )
+        axis.set_xscale("log")
+        axis.set_yscale("log")
+        axis.set_xlabel("FD perturbation $\\epsilon$")
+        axis.set_ylabel("Relative FD/AD error")
+        axis.set_title(_label)
+        axis.legend(fontsize=6)
+    for axis in axes.ravel()[len(rows) :]:
+        axis.axis("off")
+    fig.suptitle("End-to-end solver-VJP finite-difference sweep")
+    if save:
+        save_fig(fig, "solver_in_loop_curriculum_fd", out_dir)
     return fig
 
 
