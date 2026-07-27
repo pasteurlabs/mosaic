@@ -1281,6 +1281,11 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["end_to_end_fd_rel_error"] < 5e-2
     assert metrics["end_to_end_fd_rel_error_max"] < 5e-2
     assert len(metrics["fd_check_summary"]) == 2
+    assert len(metrics["fd_horizon_summary"]) == 2
+    for check in metrics["fd_check_summary"]:
+        assert np.isfinite(check["finite_difference_at_best_epsilon"])
+        assert np.isfinite(check["autodiff_directional_derivative"])
+        assert check["absolute_directional_error"] >= 0
     assert metrics["native_final_rollout_error"] >= 0
     assert metrics["native_final_rollout_error_p95"] >= 0
     assert metrics["long_closure_error_p95"] < 1e-6
@@ -1303,6 +1308,19 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
         assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)
         assert snapshots["fd_epsilon_0"].shape == (5,)
         assert snapshots["fd_rel_error_samples_0"].shape == (2, 5)
+        assert snapshots["fd_directional_finite_difference_samples_0"].shape == (
+            2,
+            5,
+        )
+        assert snapshots["fd_directional_autodiff_samples_0"].shape == (2, 5)
+        assert snapshots["fd_stage_unroll_0"].tolist() == [2]
+        assert snapshots["fd_stage_rel_error_samples_0"].shape == (2, 1, 5)
+        assert snapshots["fd_stage_finite_difference_samples_0"].shape == (
+            2,
+            1,
+            5,
+        )
+        assert snapshots["fd_stage_autodiff_samples_0"].shape == (2, 1, 5)
 
 
 def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
@@ -1348,7 +1366,9 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
                     "hidden_channels": 4,
                     "kernel_size": 3,
                     "model_seeds": [0],
-                    "check_grad": False,
+                    "check_grad": True,
+                    "check_grad_stages": True,
+                    "fd_epsilon": 1e-3,
                 },
                 "evaluation": {
                     "rollout_frames": 3,
@@ -1374,6 +1394,7 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
     assert metrics["training_local_loss_weight"] == 0.05
     assert metrics["one_step_training_solver_intervals_per_seed"] == 2
     assert len(metrics["curriculum_checkpoint_summary"]) == 2
+    assert [entry["unroll"] for entry in metrics["fd_horizon_summary"]] == [1, 2]
     assert metrics["unrolling_geometric_lift_nog_over_one"] > 0
     assert metrics["solver_vjp_geometric_lift"] > 0
 
@@ -1390,6 +1411,8 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
             2,
             4,
         )
+        assert snapshots["fd_stage_unroll_0"].tolist() == [1, 2]
+        assert snapshots["fd_stage_rel_error_samples_0"].shape == (1, 2, 5)
         assert snapshots["correlation_corrected_0"].shape == (4,)
         assert snapshots["correlation_corrected_samples_0"].shape == (1, 1, 4)
 

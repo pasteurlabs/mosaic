@@ -59,6 +59,14 @@ class _TrainingStage(NamedTuple):
     lr: float
 
 
+class _DirectionalFD(NamedTuple):
+    """One directional finite-difference comparison."""
+
+    relative_error: float
+    finite_difference: float
+    autodiff: float
+
+
 class _TrainingResult(NamedTuple):
     """A trained corrector plus its curriculum checkpoints and traces."""
 
@@ -69,6 +77,12 @@ class _TrainingResult(NamedTuple):
     fd_error: float | None
     fd_epsilons: tuple[float, ...]
     fd_errors: tuple[float, ...]
+    fd_finite_differences: tuple[float, ...]
+    fd_autodiff: tuple[float, ...]
+    fd_stage_unrolls: tuple[int, ...]
+    fd_stage_errors: tuple[tuple[float, ...], ...]
+    fd_stage_finite_differences: tuple[tuple[float, ...], ...]
+    fd_stage_autodiff: tuple[tuple[float, ...], ...]
     completed: bool
     stage_models: tuple[Any, ...]
     stage_unrolls: tuple[int, ...]
@@ -841,8 +855,8 @@ def _directional_fd(
     key: jax.Array,
     *,
     epsilon: float,
-) -> float:
-    """Relative error of one end-to-end directional finite difference."""
+) -> _DirectionalFD:
+    """Compare AD and finite differences along one normalized direction."""
     dynamic, static = eqx.partition(model, eqx.is_inexact_array)
     leaves, structure = jax.tree_util.tree_flatten(dynamic)
     direction = jax.tree_util.tree_unflatten(
@@ -885,7 +899,11 @@ def _directional_fd(
             strict=True,
         )
     )
-    return float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12))
+    return _DirectionalFD(
+        relative_error=float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12)),
+        finite_difference=float(fd),
+        autodiff=float(ad),
+    )
 
 
 def _train_corrector(
@@ -970,6 +988,12 @@ def _train_corrector(
     update_times: list[float] = []
     fd_error: float | None = None
     fd_error_curve: tuple[float, ...] = ()
+    fd_finite_difference_curve: tuple[float, ...] = ()
+    fd_autodiff_curve: tuple[float, ...] = ()
+    fd_stage_unrolls: list[int] = []
+    fd_stage_error_curves: list[tuple[float, ...]] = []
+    fd_stage_finite_difference_curves: list[tuple[float, ...]] = []
+    fd_stage_autodiff_curves: list[tuple[float, ...]] = []
     completed = True
     stage_models: list[Any] = []
     stage_boundaries: list[int] = []
@@ -1010,13 +1034,16 @@ def _train_corrector(
             if not np.isfinite(loss_value) or not np.isfinite(grad_norm):
                 completed = False
                 break
-            if (
+            check_this_stage = bool(training.get("check_grad_stages", False)) or (
                 stage_index == len(stages) - 1
+            )
+            if (
+                check_this_stage
                 and stage_update == 0
                 and differentiate_solver
                 and bool(training.get("check_grad", True))
             ):
-                fd_error_curve = tuple(
+                checks = tuple(
                     _directional_fd(
                         loss_fn,
                         model,
@@ -1026,7 +1053,20 @@ def _train_corrector(
                     )
                     for epsilon in fd_epsilons
                 )
-                fd_error = min(fd_error_curve)
+                stage_error_curve = tuple(check.relative_error for check in checks)
+                stage_finite_difference_curve = tuple(
+                    check.finite_difference for check in checks
+                )
+                stage_autodiff_curve = tuple(check.autodiff for check in checks)
+                fd_stage_unrolls.append(stage.unroll)
+                fd_stage_error_curves.append(stage_error_curve)
+                fd_stage_finite_difference_curves.append(stage_finite_difference_curve)
+                fd_stage_autodiff_curves.append(stage_autodiff_curve)
+                if stage_index == len(stages) - 1:
+                    fd_error_curve = stage_error_curve
+                    fd_finite_difference_curve = stage_finite_difference_curve
+                    fd_autodiff_curve = stage_autodiff_curve
+                    fd_error = min(fd_error_curve)
             updates, opt_state = optimiser.update(
                 grads,
                 opt_state,
@@ -1048,6 +1088,12 @@ def _train_corrector(
         fd_error=fd_error,
         fd_epsilons=fd_epsilons if fd_error_curve else (),
         fd_errors=fd_error_curve,
+        fd_finite_differences=fd_finite_difference_curve,
+        fd_autodiff=fd_autodiff_curve,
+        fd_stage_unrolls=tuple(fd_stage_unrolls),
+        fd_stage_errors=tuple(fd_stage_error_curves),
+        fd_stage_finite_differences=tuple(fd_stage_finite_difference_curves),
+        fd_stage_autodiff=tuple(fd_stage_autodiff_curves),
         completed=completed,
         stage_models=tuple(stage_models),
         stage_unrolls=tuple(stage.unroll for stage in stages[: len(stage_models)]),
@@ -1542,6 +1588,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     fd_model_seeds: list[int] = []
     fd_epsilons_by_seed: list[tuple[float, ...]] = []
     fd_error_curves_by_seed: list[tuple[float, ...]] = []
+    fd_finite_difference_curves_by_seed: list[tuple[float, ...]] = []
+    fd_autodiff_curves_by_seed: list[tuple[float, ...]] = []
+    fd_stage_unrolls_by_seed: list[tuple[int, ...]] = []
+    fd_stage_error_curves_by_seed: list[tuple[tuple[float, ...], ...]] = []
+    fd_stage_finite_difference_curves_by_seed: list[tuple[tuple[float, ...], ...]] = []
+    fd_stage_autodiff_curves_by_seed: list[tuple[tuple[float, ...], ...]] = []
     completed_by_seed: list[bool] = []
     training_walls: list[float] = []
     stop_gradient_losses_by_seed: list[list[float]] = []
@@ -1593,6 +1645,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         fd_error = full_training.fd_error
         fd_epsilons = full_training.fd_epsilons
         fd_error_curve = full_training.fd_errors
+        fd_finite_difference_curve = full_training.fd_finite_differences
+        fd_autodiff_curve = full_training.fd_autodiff
         completed = full_training.completed
         training_walls.append(time.perf_counter() - started)
 
@@ -1776,6 +1830,14 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             fd_model_seeds.append(model_seed)
             fd_epsilons_by_seed.append(fd_epsilons)
             fd_error_curves_by_seed.append(fd_error_curve)
+            fd_finite_difference_curves_by_seed.append(fd_finite_difference_curve)
+            fd_autodiff_curves_by_seed.append(fd_autodiff_curve)
+            fd_stage_unrolls_by_seed.append(full_training.fd_stage_unrolls)
+            fd_stage_error_curves_by_seed.append(full_training.fd_stage_errors)
+            fd_stage_finite_difference_curves_by_seed.append(
+                full_training.fd_stage_finite_differences
+            )
+            fd_stage_autodiff_curves_by_seed.append(full_training.fd_stage_autodiff)
         completed_by_seed.append(completed)
         stop_gradient_losses_by_seed.append(stop_gradient_losses)
         stop_gradient_grad_norms_by_seed.append(stop_gradient_grad_norms)
@@ -1997,22 +2059,99 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         )
     fd_epsilon_array = np.asarray([], dtype=np.float32)
     fd_error_samples = np.empty((0, 0), dtype=np.float32)
+    fd_finite_difference_samples = np.empty((0, 0), dtype=np.float32)
+    fd_autodiff_samples = np.empty((0, 0), dtype=np.float32)
+    fd_stage_unroll_array = np.asarray([], dtype=np.int32)
+    fd_stage_error_samples = np.empty((0, 0, 0), dtype=np.float32)
+    fd_stage_finite_difference_samples = np.empty((0, 0, 0), dtype=np.float32)
+    fd_stage_autodiff_samples = np.empty((0, 0, 0), dtype=np.float32)
     fd_check_summary: list[dict[str, Any]] = []
+    fd_horizon_summary: list[dict[str, Any]] = []
     if fd_error_curves_by_seed:
         if len(set(fd_epsilons_by_seed)) != 1:
             raise RuntimeError("FD epsilon grids differ across model seeds")
+        if len(set(fd_stage_unrolls_by_seed)) != 1:
+            raise RuntimeError("FD horizon grids differ across model seeds")
         fd_epsilon_array = np.asarray(fd_epsilons_by_seed[0], dtype=np.float32)
         fd_error_samples = np.asarray(fd_error_curves_by_seed, dtype=np.float32)
+        fd_finite_difference_samples = np.asarray(
+            fd_finite_difference_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_autodiff_samples = np.asarray(
+            fd_autodiff_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_stage_unroll_array = np.asarray(
+            fd_stage_unrolls_by_seed[0],
+            dtype=np.int32,
+        )
+        fd_stage_error_samples = np.asarray(
+            fd_stage_error_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_stage_finite_difference_samples = np.asarray(
+            fd_stage_finite_difference_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_stage_autodiff_samples = np.asarray(
+            fd_stage_autodiff_curves_by_seed,
+            dtype=np.float32,
+        )
         fd_check_summary = [
             {
                 "model_seed": model_seed,
-                "best_epsilon": float(fd_epsilon_array[int(np.argmin(curve))]),
-                "best_relative_error": float(np.min(curve)),
+                "best_epsilon": float(
+                    fd_epsilon_array[best_index := int(np.argmin(curve))]
+                ),
+                "best_relative_error": float(curve[best_index]),
                 "max_relative_error": float(np.max(curve)),
+                "finite_difference_at_best_epsilon": float(
+                    finite_differences[best_index]
+                ),
+                "autodiff_directional_derivative": float(autodiff_values[best_index]),
+                "absolute_directional_error": float(
+                    abs(finite_differences[best_index] - autodiff_values[best_index])
+                ),
             }
-            for model_seed, curve in zip(
+            for model_seed, curve, finite_differences, autodiff_values in zip(
                 fd_model_seeds,
                 fd_error_samples,
+                fd_finite_difference_samples,
+                fd_autodiff_samples,
+                strict=True,
+            )
+        ]
+        fd_horizon_summary = [
+            {
+                "model_seed": model_seed,
+                "unroll": int(unroll),
+                "best_epsilon": float(
+                    fd_epsilon_array[best_index := int(np.argmin(curve))]
+                ),
+                "best_relative_error": float(curve[best_index]),
+                "finite_difference_at_best_epsilon": float(
+                    finite_differences[best_index]
+                ),
+                "autodiff_directional_derivative": float(autodiff_values[best_index]),
+            }
+            for (
+                model_seed,
+                seed_curves,
+                seed_finite_differences,
+                seed_autodiff_values,
+            ) in zip(
+                fd_model_seeds,
+                fd_stage_error_samples,
+                fd_stage_finite_difference_samples,
+                fd_stage_autodiff_samples,
+                strict=True,
+            )
+            for unroll, curve, finite_differences, autodiff_values in zip(
+                fd_stage_unroll_array,
+                seed_curves,
+                seed_finite_differences,
+                seed_autodiff_values,
                 strict=True,
             )
         ]
@@ -2187,6 +2326,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             default=None,
         ),
         "fd_check_summary": fd_check_summary,
+        "fd_horizon_summary": fd_horizon_summary,
         "final_divergence_rms": divergence_rms(first_corrected[-1], ctx.domain_extent)
         if first_corrected is not None
         else None,
@@ -2468,6 +2608,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         ),
         "fd_epsilon": fd_epsilon_array,
         "fd_rel_error_samples": fd_error_samples,
+        "fd_directional_finite_difference_samples": fd_finite_difference_samples,
+        "fd_directional_autodiff_samples": fd_autodiff_samples,
+        "fd_stage_unroll": fd_stage_unroll_array,
+        "fd_stage_rel_error_samples": fd_stage_error_samples,
+        "fd_stage_finite_difference_samples": (fd_stage_finite_difference_samples),
+        "fd_stage_autodiff_samples": fd_stage_autodiff_samples,
         "error_corrected": np.asarray(corrected_error, dtype=np.float32),
         "error_corrected_samples": corrected_errors_array.astype(np.float32),
         "error_corrected_seed_std": np.asarray(
