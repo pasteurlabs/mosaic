@@ -65,7 +65,8 @@ class InputSchema(BaseModel):
     v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
         description=(
-            "Initial velocity field, shape (N, N, 1, 2). "
+            "Initial cell-centred (non-staggered), component-last velocity field, "
+            "shape (N, N, 1, 2). "
             "Default: 64×64 divergence-free random vortex field (seed=42)."
         ),
     )
@@ -116,7 +117,7 @@ class OutputSchema(BaseModel):
     """Canonical outputs for navier-stokes-grid tesseracts."""
 
     result: GridVectorField = Field(
-        description="Final velocity field, same shape as v0."
+        description="Final cell-centred velocity field, same shape as v0."
     )
     drag: Array[(1,), Float32] | None = Field(
         default=None,

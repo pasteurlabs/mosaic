@@ -13,6 +13,11 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.problems.navier_stokes_grid import (
+    collocated_to_staggered_periodic,
+    lift_collocated_to_staggered_periodic,
+    staggered_to_collocated_periodic,
+)
 from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
@@ -24,6 +29,19 @@ class InputSchema(
 ):
     """Input schema for jax-cfd Navier-Stokes solver."""
 
+    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
+        default=None,
+        description=(
+            "Optional native staggered face velocity returned by a previous call. "
+            "When provided, v0 is interpreted as the desired corrected canonical "
+            "velocity and is reconciled with this state before advancing. The grid, "
+            "boundary conditions, timestep, and solver configuration must be unchanged."
+        ),
+    )
+    return_state: bool = Field(
+        default=False,
+        description="Return native staggered state for recurrent continuation.",
+    )
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
     )
@@ -59,6 +77,11 @@ class InputSchema(
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Output schema for jax-cfd Navier-Stokes solver."""
+
+    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
+        default=None,
+        description="Native staggered face velocity for recurrent continuation.",
+    )
 
 
 def _jaxcfd_bc(
@@ -214,26 +237,37 @@ def cfd_fwd(
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
+    state: jnp.ndarray | None = None,
     **_kwargs: Any,
-) -> tuple[jax.Array, jax.Array | None]:
+) -> tuple[jax.Array, jax.Array | None, jax.Array]:
     """Compute the final velocity field using the semi-implicit Navier-Stokes equations.
 
-    Supports both 2D and 3D; dimensionality is inferred from v0.shape[-1].
+    Supports both 2D and 3D; dimensionality is inferred from ``v0.shape[-1]``.
 
     When ``inflow_profile`` is provided (shape (ny,)), it is applied as a
     spatially-varying Dirichlet u_x BC at the x_lo face (x=0) after every step.
 
     Returns:
-        (result, drag): result has same shape as v0.  drag is shape (1,) float32
-        when an obstacle is present, else None.
+        ``(result, drag, state)`` where result has the same shape as v0,
+        drag is shape ``(1,)`` when an obstacle is present, and state is the
+        native face velocity with the same public array shape as v0.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
+    if state is not None and state.shape != v0.shape:
+        raise ValueError(f"jax-cfd state has shape {state.shape}, expected {v0.shape}")
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
+        if state is not None:
+            state = state[:, :, 0, :]
     domain_sizes = (domain_extent,) * ndim
 
     bc = _jaxcfd_bc(boundary_conditions, ndim)
+    periodic = all(
+        boundary_conditions[key]["type"] == "periodic"
+        for key in ("x_lo", "x_hi", "y_lo", "y_hi")
+        + (("z_lo", "z_hi") if ndim == 3 else ())
+    )
 
     spatial_shape = v0.shape[:-1]
     grid = cfd.grids.Grid(
@@ -251,14 +285,11 @@ def cfd_fwd(
         obs_mask = None
 
     # --- staggered grid helper -------------------------------------------
-    def interp_to_face(v_comp: Any, own_axis: int) -> Any:
-        return 0.5 * (v_comp + jnp.roll(v_comp, -1, axis=own_axis))
-
-    def make_grid_vars(v_2d: jnp.ndarray) -> Any:
+    def make_grid_vars_from_faces(face_values: jnp.ndarray) -> Any:
         return tuple(
             cfd.grids.GridVariable(
                 cfd.grids.GridArray(
-                    interp_to_face(v_2d[..., i], own_axis=i),
+                    face_values[..., i],
                     grid=grid,
                     offset=tuple(1.0 if j == i else 0.5 for j in range(ndim)),
                 ),
@@ -267,8 +298,34 @@ def cfd_fwd(
             for i in range(ndim)
         )
 
-    def interp_to_coloc(v_stag: Any, own_axis: int) -> Any:
-        return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
+    def collocated_to_native_faces(value: jnp.ndarray) -> jnp.ndarray:
+        if periodic:
+            return collocated_to_staggered_periodic(value, xp=jnp)
+        return jnp.stack(
+            [
+                0.5 * (value[..., i] + jnp.roll(value[..., i], -1, axis=i))
+                for i in range(ndim)
+            ],
+            axis=-1,
+        )
+
+    def native_faces_to_collocated(value: jnp.ndarray) -> jnp.ndarray:
+        if periodic:
+            return staggered_to_collocated_periodic(value, xp=jnp)
+        return jnp.stack(
+            [
+                0.5 * (value[..., i] + jnp.roll(value[..., i], 1, axis=i))
+                for i in range(ndim)
+            ],
+            axis=-1,
+        )
+
+    def project_faces(face_values: jnp.ndarray) -> jnp.ndarray:
+        projected = cfd.pressure.projection(make_grid_vars_from_faces(face_values))
+        return jnp.stack(
+            [component.array.data for component in projected],
+            axis=-1,
+        )
 
     # --- NS step function ------------------------------------------------
     step_fn = cfd.funcutils.repeated(
@@ -278,7 +335,23 @@ def cfd_fwd(
         steps=inner_steps,
     )
 
-    v_grid = make_grid_vars(v0)
+    if state is None:
+        face_initial = collocated_to_native_faces(v0)
+    else:
+        # Preserve the native state and assimilate only the canonical neural
+        # correction.  In particular, a zero correction leaves every native
+        # face value unchanged.
+        canonical_state = native_faces_to_collocated(state)
+        correction = v0 - canonical_state
+        correction_faces = (
+            lift_collocated_to_staggered_periodic(correction, xp=jnp)
+            if periodic
+            else collocated_to_native_faces(correction)
+        )
+        if periodic:
+            correction_faces = project_faces(correction_faces)
+        face_initial = state + correction_faces
+    v_grid = make_grid_vars_from_faces(face_initial)
 
     if inflow_profile is not None and ndim == 2:
         # Resample inflow_profile to ny if needed
@@ -372,10 +445,9 @@ def cfd_fwd(
         )
 
     # --- interpolate back to collocated grid ---
-    coloc_components = [
-        interp_to_coloc(stag_components[i], own_axis=i) for i in range(ndim)
-    ]
-    result = jnp.stack(coloc_components, axis=-1)
+    native_state = jnp.stack(stag_components, axis=-1)
+    result = native_faces_to_collocated(native_state)
+    coloc_components = [result[..., i] for i in range(ndim)]
 
     # --- drag computation -------------------------------------------------
     drag = None
@@ -386,14 +458,18 @@ def cfd_fwd(
 
     if ndim == 2:
         result = result[:, :, None, :]  # (nx, ny, 2) → (nx, ny, 1, 2)
-    return result, drag
+        native_state = native_state[:, :, None, :]
+    return result, drag, native_state
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled apply: run jax-cfd forward and return result with drag."""
-    result, drag = cfd_fwd(**inputs)
-    out = {"result": result}
+    result, drag, state = cfd_fwd(**inputs)
+    include_state = (
+        bool(inputs.get("return_state", False)) or inputs.get("state") is not None
+    )
+    out = {"result": result, "state": state if include_state else None}
     if drag is not None:
         out["drag"] = drag
     else:
@@ -445,9 +521,12 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict:
         arr = jnp.asarray(v0)
         v0_shape = arr.shape
         v0_dtype = str(arr.dtype)
+    raw_state = raw.get("state")
+    include_state = bool(raw.get("return_state", False)) or raw_state is not None
     return {
         "result": {"shape": v0_shape, "dtype": v0_dtype},
         "drag": {"shape": (1,), "dtype": "float32"},
+        "state": ({"shape": v0_shape, "dtype": v0_dtype} if include_state else None),
     }
 
 

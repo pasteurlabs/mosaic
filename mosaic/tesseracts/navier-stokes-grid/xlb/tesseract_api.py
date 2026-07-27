@@ -19,6 +19,8 @@ import jax  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
 import xlb  # noqa: E402
 import xlb.velocity_set  # noqa: E402
+from pydantic import Field  # noqa: E402
+from tesseract_core.runtime import Array, Differentiable, Float32  # noqa: E402
 
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
@@ -38,11 +40,40 @@ class InputSchema(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
     )
 ):
-    """XLB solver input schema with differentiable fields."""
+    """XLB solver input schema with optional differentiable recurrent state."""
+
+    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
+        default=None,
+        description=(
+            "Optional recurrent checkpoint, shape (q+d, nx, ny, nz), containing "
+            "q LBM populations followed by d canonical velocity channels. q=9 "
+            "in 2-D (nz=1) and q=27 in 3-D. When supplied, the change from the "
+            "checkpointed canonical velocity to v0 replaces the macroscopic velocity "
+            "while density and non-equilibrium moments are preserved. "
+            "The grid, timestep, domain, substep policy, and collision configuration "
+            "must be unchanged."
+        ),
+    )
+    return_state: bool = Field(
+        default=False,
+        description=(
+            "Return recurrent checkpoint state for continuation. Static control "
+            "flag; state is also returned whenever an input state is supplied."
+        ),
+    )
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
-    """XLB solver output schema with differentiable fields."""
+    """XLB solver output schema including differentiable recurrent state."""
+
+    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
+        default=None,
+        description=(
+            "Final recurrent checkpoint when requested, shape "
+            "(q+d, nx, ny, nz): q populations followed by d canonical velocity "
+            "channels."
+        ),
+    )
 
 
 from xlb.compute_backend import ComputeBackend  # noqa: E402
@@ -329,6 +360,39 @@ def _compute_drag_lbm(
     return jnp.reshape(drag, (1,))
 
 
+def _state_to_internal(
+    state: jnp.ndarray,
+    *,
+    ndim: int,
+    spatial: tuple[int, ...],
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    """Unpack public populations and their canonical physical velocity."""
+    q = 9 if ndim == 2 else 27
+    expected = (q + ndim, *spatial, 1) if ndim == 2 else (q + ndim, *spatial)
+    if tuple(state.shape) != expected:
+        raise ValueError(
+            f"XLB recurrent state has shape {tuple(state.shape)}, expected {expected}"
+        )
+    populations = state[:q, ..., 0] if ndim == 2 else state[:q]
+    canonical_velocity = state[q:, ..., 0] if ndim == 2 else state[q:]
+    return populations, canonical_velocity
+
+
+def _state_from_internal(
+    populations: jnp.ndarray,
+    result: jnp.ndarray,
+    *,
+    ndim: int,
+) -> jnp.ndarray:
+    """Pack populations with the exact canonical velocity returned to the caller."""
+    if ndim == 2:
+        canonical_velocity = jnp.moveaxis(result[:, :, 0, :], -1, 0)[..., None]
+        populations = populations[..., None]
+    else:
+        canonical_velocity = jnp.moveaxis(result, -1, 0)
+    return jnp.concatenate([populations, canonical_velocity], axis=0)
+
+
 def xlb_fwd(
     v0: jnp.ndarray,
     viscosity: float,
@@ -338,10 +402,12 @@ def xlb_fwd(
     boundary_conditions: dict | None = None,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
+    state: jnp.ndarray | None = None,
+    return_state: bool = False,
     _use_f64: bool = False,
     _sub_k: int | None = None,
     _collision_kind_override: str | None = None,
-) -> tuple[jnp.ndarray, jnp.ndarray | None]:
+) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray | None]:
     """Run a 2D or 3D incompressible LBM simulation from an initial velocity field.
 
     Accepts physical units; internally converts to lattice units via:
@@ -367,6 +433,11 @@ def xlb_fwd(
         boundary_conditions: Optional dict of boundary condition specs (e.g. no-slip walls).
         obstacle:      Optional dict describing an immersed obstacle (shape, center, radius).
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x=0 each step.
+        state:          Optional recurrent checkpoint, shape (q+d, nx, ny, nz).
+                        ``v0`` changes its macroscopic velocity while density and
+                        non-equilibrium moments are preserved.
+        return_state:   Return final checkpoint state. This is automatically true
+                        whenever ``state`` is supplied.
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
@@ -376,7 +447,9 @@ def xlb_fwd(
                        selected automatically from omega and obstacle presence.
 
     Returns:
-        (result, drag): result same shape as v0; drag shape (1,) or None.
+        (result, drag, state): result same shape as v0; drag shape (1,) or
+        None; state contains final populations plus canonical velocity in public
+        (q+d, nx, ny, nz) layout when requested and is otherwise None.
     """
     import math as _math
 
@@ -457,16 +530,41 @@ def xlb_fwd(
 
     if ndim == 2:
         # (nx, ny, 1, 2) → (2, nx, ny)
-        u0 = jnp.moveaxis(v0[:, :, 0, :], -1, 0).astype(fdtype) * scale_eff
+        u0_physical = jnp.moveaxis(v0[:, :, 0, :], -1, 0).astype(fdtype)
     else:
         # (nx, ny, nz, 3) → (3, nx, ny, nz)
-        u0 = jnp.moveaxis(v0, -1, 0).astype(fdtype) * scale_eff
+        u0_physical = jnp.moveaxis(v0, -1, 0).astype(fdtype)
+    u0 = u0_physical * scale_eff
 
     spatial = u0.shape[1:]
-    rho0 = jnp.ones((1, *spatial), dtype=fdtype)
-
-    # Initialise populations from equilibrium at rho=1 using XLB operator
-    f0 = xlb_eq(rho0, u0)
+    continuing = state is not None
+    emit_state = return_state or continuing
+    if not continuing:
+        rho0 = jnp.ones((1, *spatial), dtype=fdtype)
+        f0 = xlb_eq(rho0, u0)
+    else:
+        # The canonical corrector changes velocity but has no representation
+        # for LBM density or kinetic moments. Preserve both by replacing only
+        # the equilibrium momentum component of the returned populations:
+        #
+        #   f' = f + f_eq(rho, u_corrected) - f_eq(rho, u_from_f).
+        #
+        # Since both equilibria use the same rho, this keeps density and
+        # f_non_eq exactly while making the populations' momentum match v0.
+        f_previous, canonical_previous = _state_to_internal(
+            jnp.asarray(state, dtype=fdtype),
+            ndim=ndim,
+            spatial=spatial,
+        )
+        rho0, u_previous = xlb_macro(f_previous)
+        # Reconstruct the same canonical physical velocity returned by the
+        # preceding call before measuring the correction. This makes an
+        # unchanged, serialized float32 result an exact zero correction;
+        # multiplying v0 by scale first would introduce a round-trip residual
+        # at every recurrent boundary.
+        correction_lattice = (u0_physical - canonical_previous) * scale_eff
+        u_corrected = u_previous + correction_lattice
+        f0 = f_previous + xlb_eq(rho0, u_corrected) - xlb_eq(rho0, u_previous)
 
     # ── Standard periodic / inflow / obstacle mode ───────────────────────────
     obs_mask = _make_obstacle_mask_xlb(obstacle, u0.shape[1:])
@@ -588,10 +686,13 @@ def xlb_fwd(
     # always have a consistent dtype regardless of the computation path.
     if _use_f64:
         result = result.astype(jnp.float32)
+        if emit_state:
+            f_final = f_final.astype(jnp.float32)
         if drag is not None:
             drag = drag.astype(jnp.float32)
 
-    return result, drag
+    state_out = _state_from_internal(f_final, result, ndim=ndim) if emit_state else None
+    return result, drag, state_out
 
 
 # ---------------------------------------------------------------------------
@@ -602,8 +703,8 @@ def xlb_fwd(
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass for the XLB solver."""
-    result, drag = xlb_fwd(**inputs)
-    out = {"result": result}
+    result, drag, state = xlb_fwd(**inputs)
+    out = {"result": result, "state": state}
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out
 
@@ -646,7 +747,8 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: Any) -> dict:
-    """Output shape equals input v0 shape; drag is always shape (1,)."""
+    """Infer velocity, drag, and recurrent population-state outputs."""
+    raw = abstract_inputs.model_dump()
     v0_info = abstract_inputs.v0
     if isinstance(v0_info, dict):
         shape = tuple(v0_info["shape"])
@@ -654,11 +756,19 @@ def abstract_eval(abstract_inputs: Any) -> dict:
     else:
         shape = v0_info.shape
         dtype = "float32"
+    ndim = int(shape[-1])
+    if ndim not in (2, 3):
+        raise ValueError(f"XLB expects 2-D or 3-D velocity, got {ndim} components")
+    q = 9 if ndim == 2 else 27
     out = {
         "result": {"shape": shape, "dtype": dtype},
         "drag": {"shape": (1,), "dtype": "float32"},
+        "state": (
+            {"shape": (q + ndim, *shape[:3]), "dtype": "float32"}
+            if raw.get("return_state", False) or raw.get("state") is not None
+            else None
+        ),
     }
-    raw = abstract_inputs.model_dump()
     obstacle_raw = raw.get("obstacle") or {}
     _has_obstacle = bool(
         obstacle_raw.get("shape")
@@ -672,8 +782,8 @@ def abstract_eval(abstract_inputs: Any) -> dict:
 # VJP / JVP plumbing
 # ---------------------------------------------------------------------------
 #
-# xlb exposes four differentiable array-valued inputs: v0, viscosity, dt,
-# inflow_profile.  The VJP must return a gradient for every
+# xlb exposes five differentiable array-valued inputs: v0, viscosity, dt,
+# inflow_profile, and recurrent population state. The VJP must return a gradient for every
 # input requested in `vjp_inputs` under its *own* path key, otherwise the
 # tesseract_jax dispatcher falls back to a NaN filler (in particular the
 # drag_opt harness asks for the `inflow_profile` gradient — returning only
@@ -693,10 +803,11 @@ _DIFF_INPUT_KEYS: tuple[str, ...] = (
     "viscosity",
     "dt",
     "inflow_profile",
+    "state",
 )
 
-# Module-level cache: (v0_shape, steps, present_keys, vjp_outputs) -> jit-compiled fn.
-# Avoids recompiling the XLA kernel on every HTTP request (optimizer iteration).
+# Module-level cache for static solver configurations. All supplied array
+# primals remain dynamic arguments so a cached VJP cannot retain stale state.
 _vjp_compiled_cache: dict = {}
 
 
@@ -711,7 +822,7 @@ def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
     """Run xlb_fwd in float64 with diff inputs overridden from diff_bundle.
 
     Non-diff inputs (steps, boundary_conditions, obstacle, domain_extent) are
-    read from ``inputs``.  Returns (result, drag) with float32 dtype.
+    read from ``inputs``. Returns (result, drag, state) with float32 dtype.
 
     Pre-computes ``_sub_k`` from the concrete (non-traced) ``inputs["dt"]`` so
     that ``xlb_fwd`` does not need to call ``float()`` on a potentially-traced
@@ -725,6 +836,7 @@ def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
         "domain_extent",
         "boundary_conditions",
         "obstacle",
+        "return_state",
     ):
         if k in inputs:
             fwd_kwargs[k] = inputs[k]
@@ -745,7 +857,7 @@ def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
     # Optional fields: only pass when the caller actually supplied them
     # (either via diff_bundle or via the primal input dict).  Passing None
     # is also fine because xlb_fwd treats both as "no such BC".
-    for k in ("inflow_profile",):
+    for k in ("inflow_profile", "state"):
         if k in diff_bundle and diff_bundle[k] is not None:
             fwd_kwargs[k] = jnp.asarray(diff_bundle[k], dtype=jnp.float64)
         elif inputs.get(k) is not None:
@@ -790,8 +902,8 @@ def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
         _ck = "bgk"
     fwd_kwargs["_collision_kind_override"] = _ck
 
-    result, drag = xlb_fwd(_use_f64=True, **fwd_kwargs)
-    return result, drag
+    result, drag, state = xlb_fwd(_use_f64=True, **fwd_kwargs)
+    return result, drag, state
 
 
 def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:
@@ -837,26 +949,38 @@ def vjp_jit(
     if not present:
         return {}
 
+    all_present = tuple(k for k in _DIFF_INPUT_KEYS if inputs.get(k) is not None)
+    constant = tuple(k for k in all_present if k not in present)
     diff_bundle = _build_diff_bundle(inputs, present)
+    constant_bundle = _build_diff_bundle(inputs, constant)
 
     # Build a cache key from static aspects of the computation graph.
-    # diff_bundle and cotangent_vector are the only traced (variable) arguments.
+    # All array bundles and the cotangent are traced variable arguments.
     v0_src = inputs.get("v0")
     v0_shape = tuple(v0_src.shape) if hasattr(v0_src, "shape") else ()
     cache_key = (
         v0_shape,
         inputs.get("steps"),
+        inputs.get("domain_extent"),
+        repr(inputs.get("boundary_conditions")),
+        repr(inputs.get("obstacle")),
+        bool(inputs.get("return_state", False)),
+        float(inputs.get("viscosity", 0.001)),
+        float(inputs.get("dt", 0.05)),
+        os.environ.get("XLB_SUB_K_DISABLE", "1"),
         present,
+        constant,
         tuple(sorted(vjp_outputs)),
     )
 
     if cache_key not in _vjp_compiled_cache:
-        # Capture static inputs in closure once; only bundle/cotan are traced.
+        # Capture only non-array configuration in the closure.
         _inputs_frozen = inputs
         _vjp_outputs_frozen = vjp_outputs
 
-        def _fwd_static(bundle: dict) -> dict:
-            result, drag = _run_forward_f64(_inputs_frozen, bundle)
+        def _fwd_static(diff: dict, constants: dict) -> dict:
+            bundle = {**constants, **diff}
+            result, drag, state = _run_forward_f64(_inputs_frozen, bundle)
             out = {}
             if "result" in _vjp_outputs_frozen:
                 out["result"] = result
@@ -864,16 +988,22 @@ def vjp_jit(
                 out["drag"] = (
                     drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
                 )
+            if "state" in _vjp_outputs_frozen:
+                out["state"] = state
             return out
 
         @jax.jit
-        def _vjp_compiled(bundle: dict, cotan: dict) -> dict:
-            _, vjp_func = jax.vjp(_fwd_static, bundle)
+        def _vjp_compiled(diff: dict, constants: dict, cotan: dict) -> dict:
+            _, vjp_func = jax.vjp(lambda bundle: _fwd_static(bundle, constants), diff)
             return vjp_func(cotan)[0]
 
         _vjp_compiled_cache[cache_key] = _vjp_compiled
 
-    grads = _vjp_compiled_cache[cache_key](diff_bundle, cotangent_vector)
+    grads = _vjp_compiled_cache[cache_key](
+        diff_bundle,
+        constant_bundle,
+        cotangent_vector,
+    )
 
     out: dict = {}
     for k, g in grads.items():
