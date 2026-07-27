@@ -438,7 +438,15 @@ def _make_solver_self_reference_datasets(
     max_coarse_closure = float(max(coarse_closure_errors))
     max_fine_closure = float(max(fine_closure_errors))
     mean_signal = float(np.mean(refinement_signals))
-    closure_to_signal = [
+    coarse_closure_to_signal = [
+        closure / (signal + 1e-12)
+        for closure, signal in zip(
+            coarse_closure_errors,
+            refinement_signals,
+            strict=True,
+        )
+    ]
+    fine_closure_to_signal = [
         closure / (signal + 1e-12)
         for closure, signal in zip(
             fine_closure_errors,
@@ -450,7 +458,8 @@ def _make_solver_self_reference_datasets(
         finite
         and max_coarse_closure <= closure_tolerance
         and max_fine_closure <= closure_tolerance
-        and max(closure_to_signal) <= closure_to_signal_tolerance
+        and max(coarse_closure_to_signal) <= closure_to_signal_tolerance
+        and max(fine_closure_to_signal) <= closure_to_signal_tolerance
         and mean_signal > minimum_signal
     )
 
@@ -497,7 +506,8 @@ def _make_solver_self_reference_datasets(
         "refinement_signals": refinement_signals,
         "max_coarse_closure_error": max_coarse_closure,
         "max_fine_closure_error": max_fine_closure,
-        "max_fine_closure_to_signal_ratio": float(max(closure_to_signal)),
+        "max_coarse_closure_to_signal_ratio": float(max(coarse_closure_to_signal)),
+        "max_fine_closure_to_signal_ratio": float(max(fine_closure_to_signal)),
         "mean_refinement_signal": mean_signal,
         "closure_relative_tolerance": closure_tolerance,
         "closure_to_signal_tolerance": closure_to_signal_tolerance,

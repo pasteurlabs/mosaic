@@ -218,11 +218,17 @@ def plot_solver_in_loop(
             )
 
         wall = metrics.get("training_wall_time_s")
+        admitted = bool(metrics.get("valid_for_vjp_ranking", False))
         quality = (
             100.0 * (float(metrics["solver_vjp_geometric_lift"]) - 1.0)
             if solver_specific_reference
+            and admitted
             and metrics.get("solver_vjp_geometric_lift") is not None
-            else metrics.get("final_rollout_error")
+            else (
+                None
+                if solver_specific_reference
+                else metrics.get("final_rollout_error")
+            )
         )
         if wall is not None and quality is not None:
             ax_cost.scatter(
@@ -272,7 +278,9 @@ def plot_solver_in_loop(
         "Solver-VJP lift [%]" if solver_specific_reference else "Final rollout error"
     )
     ax_cost.set_title(
-        "VJP benefit versus cost" if solver_specific_reference else "Time to quality"
+        "VJP benefit versus cost (admitted only)"
+        if solver_specific_reference
+        else "Time to quality"
     )
     if solver_specific_reference:
         ax_cost.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
@@ -900,7 +908,7 @@ def _plot_solver_in_loop_fairness(
         admitted = [
             idx
             for idx, (_name, metrics) in enumerate(rows)
-            if metrics.get("valid_for_vjp_ranking", True)
+            if metrics.get("valid_for_vjp_ranking", False)
         ]
         admitted_positions = np.arange(len(admitted), dtype=float)
         admitted_labels = [labels[idx] for idx in admitted]
@@ -1003,7 +1011,7 @@ def _plot_solver_in_loop_diagnostics(
         "first_interval_rollout_error",
         "native_final_rollout_error",
         "uncorrected_rollout_error",
-        "state_restart_error_ratio",
+        "recurrent_to_native_error_ratio",
         "seen_ic_matched_horizon_error",
         "heldout_ic_matched_horizon_error",
         "seen_ic_long_horizon_error",
@@ -1042,7 +1050,7 @@ def _plot_solver_in_loop_diagnostics(
         squeeze=False,
         layout="constrained",
     )
-    ax_first, ax_restart, ax_restart_ratio, ax_matched, ax_long, ax_gaps = axes.ravel()
+    ax_first, ax_recurrent, ax_closure, ax_matched, ax_long, ax_gaps = axes.ravel()
 
     ax_first.bar(
         positions,
@@ -1055,10 +1063,10 @@ def _plot_solver_in_loop_diagnostics(
     ax_first.set_title("First canonical interval")
 
     native = values("native_final_rollout_error")
-    restarted = values("uncorrected_rollout_error")
-    lower = max(min(native + restarted) * 0.8, 1e-5)
-    upper = max(native + restarted) * 1.25
-    ax_restart.plot(
+    recurrent = values("uncorrected_rollout_error")
+    lower = max(min(native + recurrent) * 0.8, 1e-5)
+    upper = max(native + recurrent) * 1.25
+    ax_recurrent.plot(
         [lower, upper],
         [lower, upper],
         color="0.45",
@@ -1067,27 +1075,27 @@ def _plot_solver_in_loop_diagnostics(
     )
     for x_value, y_value, color, marker in zip(
         native,
-        restarted,
+        recurrent,
         colors,
         markers,
         strict=True,
     ):
-        ax_restart.scatter(x_value, y_value, color=color, marker=marker, s=30)
+        ax_recurrent.scatter(x_value, y_value, color=color, marker=marker, s=30)
     if upper / lower >= 10.0:
-        ax_restart.set_xscale("log")
-        ax_restart.set_yscale("log")
-    ax_restart.set(xlim=(lower, upper), ylim=(lower, upper))
-    ax_restart.set_xlabel("Native final error")
-    ax_restart.set_ylabel("Repeated-call final error")
-    ax_restart.set_title("Restart vs native")
+        ax_recurrent.set_xscale("log")
+        ax_recurrent.set_yscale("log")
+    ax_recurrent.set(xlim=(lower, upper), ylim=(lower, upper))
+    ax_recurrent.set_xlabel("Native final error")
+    ax_recurrent.set_ylabel("Repeated-call final error")
+    ax_recurrent.set_title("Repeated calls vs native")
 
     if all(
         metrics.get("long_closure_error_p95") is not None for _name, metrics in rows
     ):
         closure_pct = 100.0 * np.asarray(values("long_closure_error_p95"))
         tolerance_pct = 100.0 * max(values("long_closure_tolerance"))
-        ax_restart_ratio.bar(positions, closure_pct, color=colors)
-        ax_restart_ratio.axhline(
+        ax_closure.bar(positions, closure_pct, color=colors)
+        ax_closure.axhline(
             tolerance_pct,
             color="0.45",
             linestyle=":",
@@ -1096,14 +1104,14 @@ def _plot_solver_in_loop_diagnostics(
         )
         positive = closure_pct[closure_pct > 0]
         if positive.size and max(positive) / min(positive) >= 10.0:
-            ax_restart_ratio.set_yscale("log")
-        ax_restart_ratio.set_ylabel("95th percentile residual [%]")
-        ax_restart_ratio.set_title("K-step closure gate")
+            ax_closure.set_yscale("log")
+        ax_closure.set_ylabel("95th percentile residual [%]")
+        ax_closure.set_title("K-step closure gate")
     elif all(metrics.get("semigroup_error_p95") is not None for _name, metrics in rows):
         closure_pct = 100.0 * np.asarray(values("semigroup_error_p95"))
         tolerance_pct = 100.0 * max(values("semigroup_p95_tolerance"))
-        ax_restart_ratio.bar(positions, closure_pct, color=colors)
-        ax_restart_ratio.axhline(
+        ax_closure.bar(positions, closure_pct, color=colors)
+        ax_closure.axhline(
             tolerance_pct,
             color="0.45",
             linestyle=":",
@@ -1112,18 +1120,18 @@ def _plot_solver_in_loop_diagnostics(
         )
         positive = closure_pct[closure_pct > 0]
         if positive.size and max(positive) / min(positive) >= 10.0:
-            ax_restart_ratio.set_yscale("log")
-        ax_restart_ratio.set_ylabel("95th percentile residual [%]")
-        ax_restart_ratio.set_title("Two-step closure admission")
+            ax_closure.set_yscale("log")
+        ax_closure.set_ylabel("95th percentile residual [%]")
+        ax_closure.set_title("Two-step closure admission")
     else:
-        ax_restart_ratio.bar(
+        ax_closure.bar(
             positions,
-            values("state_restart_error_ratio"),
+            values("recurrent_to_native_error_ratio"),
             color=colors,
         )
-        ax_restart_ratio.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
-        ax_restart_ratio.set_ylabel("Repeated / native error [×]")
-        ax_restart_ratio.set_title("Restart penalty")
+        ax_closure.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+        ax_closure.set_ylabel("Repeated / native error [×]")
+        ax_closure.set_title("Repeated-call penalty")
 
     for ax, horizon, title in (
         (ax_matched, "matched_horizon", "Matched training horizon"),
@@ -1189,7 +1197,7 @@ def _plot_solver_in_loop_diagnostics(
     ax_gaps.set_title("Generalization gaps")
     ax_gaps.legend(loc="lower left", fontsize=6.0)
 
-    for ax in (ax_first, ax_restart_ratio, ax_matched, ax_long, ax_gaps):
+    for ax in (ax_first, ax_closure, ax_matched, ax_long, ax_gaps):
         ax.set_xticks(positions, labels, rotation=35, ha="right")
 
     matched_time = rows[0][1].get("matched_horizon_time")

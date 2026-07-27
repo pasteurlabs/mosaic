@@ -6,7 +6,7 @@
 The corrector deliberately lives in the benchmark harness instead of any
 solver Tesseract.  Every candidate solver therefore sees the same model,
 initial weights, projection, optimiser, and reference trajectories; only the
-``v0 -> result`` transition and its VJP vary between benchmark cells.
+``velocity -> result`` transition and its VJP vary between benchmark cells.
 """
 
 from __future__ import annotations

@@ -471,13 +471,13 @@ problem.add_experiment(
     description=(
         "Train an identical Equinox periodic residual corrector through each "
         "differentiable solver. A solver-terminal recurrent auxiliary, paired "
-        "stop-gradient controls, native versus restarted rollouts, and seen versus "
+        "stop-gradient controls, native versus repeated-call rollouts, and seen versus "
         "held-out IC horizons separate integration, coupling, trainability, and "
         "the incremental benefit of the solver VJP."
     ),
     plot_description=(
         "Corrector training, held-out trajectories, physical diagnostics, "
-        "state-restart penalty, correction gain, solver-VJP lift, and wall-clock "
+        "recurrent-call closure, correction gain, solver-VJP lift, and wall-clock "
         "cost for each differentiable solver."
     ),
     # Keep dataset seed lists inside an explicit run payload: they are data,
@@ -488,7 +488,7 @@ problem.add_experiment(
             "physics": {
                 # ``steps`` is the number of native PDE steps between neural
                 # corrections. Recurrent training feeds the corrected
-                # canonical velocity back through the Tesseract as ``v0``.
+                # canonical velocity back through the Tesseract as ``velocity``.
                 "N": 32,
                 "nu": 0.001,
                 "dt": 0.02,
@@ -533,6 +533,12 @@ problem.add_experiment(
                 "rollout_frames": 36,
                 "seen_ic_trajectories": 8,
                 "stable_error_threshold": 1.0,
+                # Predeclare forward-admission bounds for the nonlinear task.
+                # Long chaotic trajectories may decorrelate, but a candidate
+                # must start close to the common reference and remain finite
+                # enough for a meaningful relative-gain comparison.
+                "first_interval_error_tolerance": 0.15,
+                "native_long_error_tolerance": 0.5,
             },
         }
     ],
@@ -550,7 +556,7 @@ problem.add_experiment(
         "experiment remains the learning stress task."
     ),
     plot_description=(
-        "Native and restarted solver error, neural-correction gain, solver-VJP "
+        "Native and repeated-call solver error, neural-correction gain, solver-VJP "
         "lift, and held-out trajectories against the analytic TGV solution."
     ),
     runs=[
@@ -666,6 +672,8 @@ problem.add_experiment(
                 "rollout_frames": 36,
                 "seen_ic_trajectories": 8,
                 "stable_error_threshold": 1.0,
+                "first_interval_error_tolerance": 0.15,
+                "native_long_error_tolerance": 0.5,
             },
         }
     ],

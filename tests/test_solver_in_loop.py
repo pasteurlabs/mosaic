@@ -114,6 +114,17 @@ def test_multimode_forward_agreement_does_not_use_tgv_reference():
     assert run["reference"] == "consensus"
 
 
+def test_solver_loop_rankings_declare_forward_admission_bounds():
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    for name in ("solver_in_loop", "solver_in_loop_self_reference"):
+        experiment = cfg.experiments[f"optimization/{name}"]
+        run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
+        assert run["evaluation"]["first_interval_error_tolerance"] == 0.15
+        assert run["evaluation"]["native_long_error_tolerance"] == 0.5
+
+
 def test_periodic_corrector_is_translation_equivariant():
     model = init_corrector(jax.random.PRNGKey(0), hidden_channels=4, kernel_size=3)
     model = eqx.tree_at(
@@ -276,6 +287,8 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
     assert audit["eligible_for_corrector_training"] is True
     assert audit["max_coarse_closure_error"] < 1e-5
     assert audit["max_fine_closure_error"] < 1e-5
+    assert audit["max_coarse_closure_to_signal_ratio"] < 1e-4
+    assert audit["max_fine_closure_to_signal_ratio"] < 1e-4
     assert audit["mean_refinement_signal"] > 1e-5
     assert any(call[:3] == (16, 0.01, 2) for call in calls)
     assert any(call[:3] == (8, 0.02, 1) for call in calls)
@@ -283,12 +296,74 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
     assert 0.01 * 2 == 0.02 * 1
 
 
+def test_solver_self_reference_rejects_coarse_closure_larger_than_signal(
+    monkeypatch,
+):
+    def _coarse_call_biased_step(
+        _t,
+        _ctx,
+        velocity,
+        *,
+        dt,
+        steps,
+        native_state=None,
+    ):
+        per_step_decay = 1.0 - dt / velocity.shape[0]
+        call_bias = 5e-4 if velocity.shape[0] == 8 else 0.0
+        next_native_state = (
+            jnp.asarray([1.0])
+            if native_state is None
+            else jnp.asarray(native_state) + 1.0
+        )
+        return (
+            jnp.asarray(velocity) * per_step_decay**steps + call_bias,
+            next_native_state,
+        )
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "_solver_advance_with_physics",
+        _coarse_call_biased_step,
+    )
+    ctx = SimpleNamespace(
+        name="coarse-call-biased-dummy",
+        phys={"N": 8, "nu": 0.001, "dt": 0.02, "steps": 1},
+        domain_extent=2.0 * np.pi,
+    )
+
+    *_datasets, audit = _make_solver_self_reference_datasets(
+        None,
+        ctx,
+        dataset={
+            "reference_factor": 2,
+            "reference_temporal_factor": 2,
+            "train_seeds": [0],
+            "test_seeds": [100],
+            "train_frames": 2,
+            "prefix_audit_seeds": [0, 100],
+            "prefix_audit_frames": [1, 2],
+            "k0": 2.0,
+            "minimum_refinement_signal": 1e-5,
+        },
+        evaluation={"rollout_frames": 2},
+        training={"unroll": 2},
+    )
+
+    assert audit["max_coarse_closure_error"] < audit["closure_relative_tolerance"]
+    assert (
+        audit["max_coarse_closure_to_signal_ratio"]
+        > audit["closure_to_signal_tolerance"]
+    )
+    assert audit["max_fine_closure_to_signal_ratio"] < 1e-5
+    assert audit["eligible_for_corrector_training"] is False
+
+
 def test_solver_advance_threads_optional_native_state(monkeypatch):
     calls: list[dict] = []
 
     def _apply(_t, inputs):
         calls.append(inputs)
-        velocity = jnp.asarray(inputs["v0"])
+        velocity = jnp.asarray(inputs["velocity"])
         native_state = inputs.get("state")
         if native_state is None:
             native_state = jnp.zeros_like(velocity)
@@ -298,15 +373,14 @@ def test_solver_advance_threads_optional_native_state(monkeypatch):
         }
 
     monkeypatch.setattr(
-        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
-        "apply_tesseract",
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop.apply_tesseract",
         _apply,
     )
     ctx = SimpleNamespace(
         name="stateful-dummy",
         phys={"N": 2, "nu": 0.001, "dt": 0.02, "steps": 1},
         output_key="result",
-        make_inputs=lambda _name, velocity, **_physics: {"v0": velocity},
+        make_inputs=lambda _name, velocity, **_physics: {"velocity": velocity},
     )
     t = SimpleNamespace(
         openapi_schema={
@@ -314,7 +388,7 @@ def test_solver_advance_threads_optional_native_state(monkeypatch):
                 "schemas": {
                     "Apply_InputSchema": {
                         "properties": {
-                            "v0": {},
+                            "velocity": {},
                             "state": {},
                             "return_state": {},
                         }
@@ -354,18 +428,17 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
 
     def _apply(_t, inputs):
         calls.append(inputs)
-        return {"result": jnp.asarray(inputs["v0"]) + 1.0}
+        return {"result": jnp.asarray(inputs["velocity"]) + 1.0}
 
     monkeypatch.setattr(
-        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
-        "apply_tesseract",
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop.apply_tesseract",
         _apply,
     )
     t = SimpleNamespace(
         openapi_schema={
             "components": {
                 "schemas": {
-                    "Apply_InputSchema": {"properties": {"v0": {}}},
+                    "Apply_InputSchema": {"properties": {"velocity": {}}},
                 }
             }
         }
@@ -374,7 +447,7 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
         name="stateless-dummy",
         phys={"N": 2, "nu": 0.001, "dt": 0.02, "steps": 1},
         output_key="result",
-        make_inputs=lambda _name, velocity, **_physics: {"v0": velocity},
+        make_inputs=lambda _name, velocity, **_physics: {"velocity": velocity},
     )
 
     velocity, native_state = _solver_advance(
@@ -384,7 +457,7 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
         frame_steps=1,
     )
 
-    assert set(calls[0]) == {"v0"}
+    assert set(calls[0]) == {"velocity"}
     assert native_state is None
     np.testing.assert_array_equal(velocity, jnp.ones_like(velocity))
 
@@ -404,8 +477,7 @@ def test_corrected_rollout_threads_velocity_and_native_state(monkeypatch):
         return jnp.asarray(velocity) + next_native_state, next_native_state
 
     monkeypatch.setattr(
-        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
-        "_solver_advance",
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop._solver_advance",
         _advance,
     )
     monkeypatch.setattr(
@@ -447,8 +519,7 @@ def test_training_window_threads_corrected_velocity_and_native_state(monkeypatch
         return jnp.asarray(velocity) + next_native_state, next_native_state
 
     monkeypatch.setattr(
-        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
-        "_solver_advance",
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop._solver_advance",
         _advance,
     )
     monkeypatch.setattr(
@@ -607,7 +678,7 @@ def test_solver_in_loop_fairness_physics_and_animation_render(tmp_path):
                 "first_interval_rollout_error": 0.08,
                 "first_interval_rollout_error_ic_std": 0.01,
                 "uncorrected_rollout_error": 0.3,
-                "state_restart_error_ratio": 3.0,
+                "recurrent_to_native_error_ratio": 3.0,
                 "uncorrected_mean_rollout_error": 0.25,
                 "mean_rollout_error": 0.12,
                 "geometric_error_reduction": 2.0,

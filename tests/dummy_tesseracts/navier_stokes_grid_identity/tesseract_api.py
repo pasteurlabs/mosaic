@@ -27,16 +27,25 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.schema_types import make_differentiable
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 from tesseract_core.runtime import ShapeDType
 
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema, ["velocity", "viscosity", "dt", "inflow_profile"]
     )
 ):
+    # The smoke test presents this fixture as different real solvers, whose
+    # solver-specific tuning inputs must be accepted and ignored.
     model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_removed_fields(cls, value):
+        if isinstance(value, dict) and "v0" in value:
+            raise ValueError("'v0' was removed; pass 'velocity'")
+        return value
 
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
@@ -46,7 +55,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"
 def apply(inputs: InputSchema) -> OutputSchema:
     """Return the input velocity unchanged."""
     return OutputSchema(
-        result=np.asarray(inputs.v0, dtype=np.float32),
+        result=np.asarray(inputs.velocity, dtype=np.float32),
         drag=np.asarray([0.0], dtype=np.float32),
     )
 
@@ -57,12 +66,12 @@ def vector_jacobian_product(
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ) -> dict[str, np.ndarray]:
-    """Return the exact identity VJP for ``result = v0``."""
+    """Return the exact identity VJP for ``result = velocity``."""
     del vjp_outputs
     out: dict[str, np.ndarray] = {}
-    if "v0" in vjp_inputs:
-        out["v0"] = np.asarray(
-            cotangent_vector.get("result", np.zeros_like(inputs.v0)),
+    if "velocity" in vjp_inputs:
+        out["velocity"] = np.asarray(
+            cotangent_vector.get("result", np.zeros_like(inputs.velocity)),
             dtype=np.float32,
         )
     if "viscosity" in vjp_inputs:
@@ -77,13 +86,13 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict[str, ShapeDType]:
-    """Declare that ``result`` has the same shape and dtype as ``v0``."""
-    v0 = abstract_inputs.model_dump()["v0"]
-    if isinstance(v0, dict) and "shape" in v0:
-        shape = tuple(v0["shape"])
-        dtype = v0.get("dtype", "float32")
+    """Declare that ``result`` has the same shape and dtype as ``velocity``."""
+    velocity = abstract_inputs.model_dump()["velocity"]
+    if isinstance(velocity, dict) and "shape" in velocity:
+        shape = tuple(velocity["shape"])
+        dtype = velocity.get("dtype", "float32")
     else:
-        array = np.asarray(v0)
+        array = np.asarray(velocity)
         shape = array.shape
         dtype = str(array.dtype)
     return {
