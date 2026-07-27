@@ -487,8 +487,8 @@ problem.add_experiment(
             "ic": {"name": "multimode", "seed": 0},
             "physics": {
                 # ``steps`` is the number of native PDE steps between neural
-                # corrections. Recurrent training feeds the corrected
-                # canonical velocity back through the Tesseract as ``v0``.
+                # corrections. Recurrent training feeds back the corrected
+                # canonical ``v0`` while preserving any solver-native checkpoint.
                 "N": 32,
                 "nu": 0.001,
                 "dt": 0.02,
@@ -551,9 +551,9 @@ problem.add_experiment(
         "Run an all-solver solver-in-the-loop control using the analytic N=64 "
         "forward/baseline case, with an explicit Mach-safe XLB substep budget so "
         "every differentiable solver passes both one-interval and uninterrupted "
-        "forward gates. Repeated calls then expose recurrent-state defects instead "
-        "of hiding them behind solver exclusions; the nonlinear multimode "
-        "experiment remains the learning stress task."
+        "forward gates. Repeated calls then validate each opt-in recurrent-state "
+        "adapter under a common closure gate; the nonlinear multimode experiment "
+        "remains the learning stress task."
     ),
     plot_description=(
         "Native and repeated-call solver error, neural-correction gain, solver-VJP "
