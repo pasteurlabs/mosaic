@@ -590,7 +590,14 @@ def plot_solver_in_loop_reference_sensitivity(
         (ax_gain, "Geometric error reduction [×]", "Correctability"),
         (ax_vjp, "Solver-VJP lift [%]", "VJP conclusion"),
     ):
-        axis.set_xticks(x, [solver_props(alias)[0] for alias in aliases], rotation=28)
+        axis.set_xticks(
+            x,
+            [solver_props(alias)[0] for alias in aliases],
+            rotation=50,
+            ha="right",
+            rotation_mode="anchor",
+            fontsize=6.5,
+        )
         axis.set_ylabel(ylabel)
         axis.set_title(title)
     ax_gain.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
