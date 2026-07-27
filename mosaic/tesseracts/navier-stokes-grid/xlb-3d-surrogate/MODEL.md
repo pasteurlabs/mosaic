@@ -71,8 +71,10 @@ command uses the model definition that the inference API imports.
 
 All experiments were run offline through the shared Slurm and Pyxis/Enroot
 cluster path. On the three excluded recovery seeds, mean final-field relative
-L2 error is 4.309% and mean field cosine is 0.999076. Across the 1,982 nonzero
-held-out test trajectories, mean final-step relative L2 error is 7.219%.
+L2 error is 4.309% and mean field cosine is 0.999076. Across the 1,982
+held-out trajectories with IC amplitude at least 0.05, mean final-step
+relative L2 error is 7.219%. The 66 lower-amplitude cases are reported with
+absolute RMS error because relative error is ill-conditioned near zero.
 
 Directional derivatives were evaluated end to end through all 20 shared
 operator applications. On low-frequency projected directions (`|k|≤4`), mean
@@ -97,26 +99,24 @@ increasing the dataset changes the surrogate condition number from 7.740 to
 restricted-Jacobian Frobenius relative error improves from 13.50% to 8.84%
 and cosine from 0.9914 to 0.9961.
 
-The paper's conditioning protocol instead retains the complete raw velocity
-state, constructs one Jacobian row per output degree of freedom by sequential
-VJP, and applies a dense SVD. Because this solver is fixed at `N=16`, the
-paper-protocol audit uses an explicit orthonormal `8³` block-grid
-lift/restriction around the recovery IC, producing the same 1,536-dimensional
-raw state as the paper while retaining the fixed recovery physics. Under this
-protocol, the Jacobian Frobenius cosine falls to 0.9442 and relative error
-rises to 32.94%. Raw condition numbers are `2.79e7` for XLB and `7.48e10` for
-the surrogate. These tails fall below the float32 rank tolerance; condition
-numbers over the resolved singular values are `5.32e3` and `5.45e3`,
-respectively. The draft PR provides both normalized spectra, rank diagnostics,
-and the dense matrices. This adapted fixed-task audit is distinct from the
-paper's native `N=8` TGV physics; an XLB control at those native settings is
-reported separately.
+An adapted dense audit uses an explicit orthonormal `8³` block-grid
+lift/restriction around the fixed `N=16` recovery map, producing the same
+1,536-dimensional matrix size as the paper's raw-state protocol. It covers
+every coordinate of that coarse block-grid map, but it is not the complete
+12,288-dimensional production Jacobian and is distinct from the paper's
+native `N=8` TGV physics. Under this audit, the Jacobian Frobenius cosine falls
+to 0.9442 and relative error rises to 32.94%. Raw condition numbers are
+`2.79e7` for XLB and `7.48e10` for the surrogate. These tails fall below the
+float32 rank tolerance; condition numbers over the resolved singular values
+are `5.32e3` and `5.45e3`, respectively. The draft PR provides both normalized
+spectra, rank diagnostics, the dense matrices, and a native `N=8` TGV XLB
+control.
 
-The paper-style comparison is essentially unchanged by scaling the training
-set: the 4k/16k Frobenius errors are 32.98%/32.94%, while the
+The adapted block-grid comparison is essentially unchanged by scaling the
+training set: the 4k/16k Frobenius errors are 32.98%/32.94%, while the
 float32-resolved condition numbers are `4.89e3`/`5.45e3`. Their raw condition
-numbers are `3.75e10`/`7.48e10`, so the unresolved spectral tail becomes
-worse even as the restricted Jacobian improves.
+numbers are `3.75e10`/`7.48e10`, so the unresolved spectral tail becomes worse
+even as the restricted Jacobian improves.
 
 The larger dataset improves excluded-seed forward error from 7.473% to 4.309%
 and full-spectrum JVP error from 38.28% to 26.00%; validation and held-out
@@ -167,14 +167,17 @@ to 0.419 at IC amplitude 0.05 and 0.150 at amplitude 0.10, versus 0.825 and
 constrain this off-manifold inverse-gradient geometry; similar conditioning
 at the true IC therefore does not predict recovery from the zero cold start.
 
-Warm packaged in-process RTX 5090 medians are 7.24 ms for the 20-macro-step
-forward rollout and 14.78 ms for its end-to-end VJP. XLB takes 4.81 ms and
-14.37 ms on the same task. The autoregressive surrogate is therefore not a
-kernel-level speedup: repeatedly applying the shared operator makes it 1.51×
-slower for forward and 1.03× slower for VJP. Complete three-seed recovery
-harness times remain similar (34.73 s surrogate versus 34.21 s XLB for
-L-BFGS, and 33.38 s versus 35.78 s with projection) because RPC, optimizer,
-projection, callbacks, and line search dominate these single-run wall times.
+Two matched RTX 5090 timing blocks counterbalance solver order and contribute
+40 warm trials per solver. Their combined medians are 7.35 ms for the
+20-macro-step surrogate forward and 14.77 ms for its end-to-end VJP; XLB takes
+4.79 ms and 15.20 ms on the same task. The surrogate is therefore 1.53× slower
+for forward, while VJP cost is effectively at parity (0.97× here; an earlier
+independent run measured 1.03×). Solver-scoped three-seed harness times remain
+similar: 32.81 s surrogate versus 32.09 s XLB for L-BFGS, and 31.51 s versus
+32.50 s with projection. Including result-script setup and serialization gives
+34.73 s versus 34.21 s and 33.38 s versus 35.78 s, respectively. RPC,
+optimizer, projection, callbacks, and line search dominate these single-run
+wall times.
 
 ## Limitation: XLB-target inversion
 
