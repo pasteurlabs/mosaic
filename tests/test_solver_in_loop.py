@@ -812,6 +812,46 @@ def test_solver_mediated_loss_requires_the_solver_vjp(monkeypatch):
     assert float(stopped_grad) == 0.0
 
 
+def test_solver_terminal_mediated_loss_assigns_delayed_credit(monkeypatch):
+    def _advance(_t, _ctx, velocity, *, frame_steps, native_state=None):
+        del frame_steps, native_state
+        return 2.0 * jnp.asarray(velocity), None
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop._solver_advance",
+        _advance,
+    )
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "corrected_velocity",
+        lambda model, velocity, **_kwargs: velocity + model,
+    )
+    targets = jnp.ones((4, 1, 1, 1, 1))
+    ctx = SimpleNamespace(domain_extent=2.0 * np.pi)
+
+    def objective(model, differentiate_solver):
+        return _window_loss(
+            model,
+            targets,
+            t=None,
+            ctx=ctx,
+            frame_steps=1,
+            velocity_scale=1.0,
+            differentiate_solver=differentiate_solver,
+            loss_mode="solver_terminal_mediated",
+            solver_loss_weight=1.0,
+            local_loss_weight=0.0,
+            loss_scale=1.0,
+        )
+
+    full_loss, full_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), True)
+    stopped_loss, stopped_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), False)
+
+    assert float(full_loss) == float(stopped_loss)
+    assert abs(float(full_grad)) > 1.0
+    assert float(stopped_grad) == 0.0
+
+
 def test_stop_gradient_cuts_velocity_and_native_state():
     def stopped(value):
         velocity, native_state = _stop_recurrent_gradient(

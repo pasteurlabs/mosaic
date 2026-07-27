@@ -814,6 +814,13 @@ def _window_loss(
         if solver_terminal_loss is None:
             raise RuntimeError("solver-terminal loss requires a non-empty rollout")
         loss = solver_loss_weight * solver_terminal_loss + jnp.mean(jnp.stack(losses))
+    elif loss_mode == "solver_terminal_mediated":
+        if solver_terminal_loss is None:
+            raise RuntimeError("solver-terminal loss requires a non-empty rollout")
+        local_loss = jnp.mean(jnp.stack(losses))
+        loss = (
+            local_loss_weight * local_loss + solver_loss_weight * solver_terminal_loss
+        )
     elif loss_mode == "solver_mediated":
         local_loss = jnp.mean(jnp.stack(losses))
         mediated_loss = (
@@ -924,7 +931,13 @@ def _train_corrector(
         raise ValueError(
             "the warm-up plus largest look-ahead must fit inside dataset.train_frames"
         )
-    if loss_mode not in {"mean", "terminal", "solver_terminal", "solver_mediated"}:
+    if loss_mode not in {
+        "mean",
+        "terminal",
+        "solver_terminal",
+        "solver_terminal_mediated",
+        "solver_mediated",
+    }:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     if solver_loss_weight < 0:
         raise ValueError("training.solver_loss_weight must be non-negative")
@@ -933,7 +946,7 @@ def _train_corrector(
     if warmup_intervals < 0:
         raise ValueError("training.warmup_intervals must be non-negative")
     if (
-        loss_mode == "solver_mediated"
+        loss_mode in {"solver_mediated", "solver_terminal_mediated"}
         and solver_loss_weight == 0
         and local_loss_weight == 0
     ):
