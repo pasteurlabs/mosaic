@@ -44,10 +44,8 @@ def sanitize_float(v: float, clip: float) -> float:
         v = wp.float32(0.0)
     if v < wp.float32(-1.0e30):
         v = wp.float32(0.0)
-    if v > clip:
-        v = clip
-    if v < -clip:
-        v = -clip
+    v = min(v, clip)
+    v = max(v, -clip)
     return v
 
 

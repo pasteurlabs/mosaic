@@ -15,12 +15,11 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.colors as mcolors
-import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import numpy as np
+from matplotlib import gridspec, ticker
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.config import Problem

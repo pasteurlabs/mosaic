@@ -270,8 +270,7 @@ def scaffold_domain(
     experiment_todos_block = (
         "# Template-suggested experiments (uncomment + flesh out as you wire each one up):\n"
         + "\n".join(
-            f"# {line[2:] if line.startswith('# ') else line}"
-            for line in experiment_todos.splitlines()
+            f"# {line.removeprefix('# ')}" for line in experiment_todos.splitlines()
         )
         if experiment_todos.strip()
         else "# (template has no suite defaults; add experiments as you implement them.)"
