@@ -70,6 +70,17 @@ the shared viscous baseline it is 0.9861, while the XLB nonlinear residual has
 81.2% of the total Jacobian Frobenius norm. The restricted conditioning result
 must not be generalized to the full 12,288-dimensional input space.
 
+On the exact self-recovery benchmark, projected L-BFGS recovers the three ICs
+to 6.97%, 7.85%, and 9.54% relative L2 error (8.12% mean), compared with
+4.70%, 5.02%, and 5.94% for XLB (5.22% mean).
+
+Warm in-process RTX 5090 medians are 8.09 ms for the 20-macro-step forward
+rollout and 16.81 ms for its end-to-end VJP. XLB takes 4.81 ms and 14.37 ms on
+the same task. Unlike the replaced direct IC-to-final checkpoint, the
+autoregressive surrogate is therefore not a kernel-level speedup: repeatedly
+applying the shared operator makes it 1.68× slower for forward and 1.17×
+slower for VJP.
+
 ## Limitation: XLB-target inversion
 
 Self-recovery follows the benchmark contract: each solver produces and inverts
