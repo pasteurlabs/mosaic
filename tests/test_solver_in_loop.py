@@ -174,7 +174,7 @@ def test_reference_sensitivity_declares_independent_converged_targets():
         assert dataset["reference_convergence_tolerance"] == 0.005
 
 
-def test_delayed_credit_curriculum_declares_one_nog_wig_protocol():
+def test_terminal_credit_curriculum_declares_one_nog_wig_protocol():
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config("ns-grid")
@@ -188,14 +188,14 @@ def test_delayed_credit_curriculum_declares_one_nog_wig_protocol():
     assert run["evaluation"]["rollout_frames"] == 120
     assert run["evaluation"]["first_interval_error_tolerance"] == 0.15
     assert training["include_one_step_baseline"] is True
-    assert training["loss_mode"] == "solver_mediated"
+    assert training["loss_mode"] == "solver_terminal_mediated"
     assert training["solver_loss_weight"] == 1.0
-    assert training["local_loss_weight"] == 0.05
+    assert training["local_loss_weight"] == 0.0
     assert training["warmup_intervals"] == 2
+    assert training["check_grad_stages"] is True
     assert training["architecture"] == "periodic_resnet"
     assert training["residual_blocks"] == 5
     assert [stage["unroll"] for stage in training["curriculum"]] == [
-        1,
         2,
         4,
         8,

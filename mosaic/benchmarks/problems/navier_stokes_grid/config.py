@@ -552,12 +552,12 @@ problem.add_experiment(
     "optimization/solver_in_loop_curriculum",
     solver_in_loop,
     description=(
-        "Sparse-intervention, delayed-credit correction study separating one-step "
-        "supervision (ONE), recurrent exposure without temporal solver gradients "
-        "(NOG), and full recurrent solver differentiation (WIG). The dominant loss "
-        "is measured only after a learned correction has passed through four native "
-        "solver steps. Two stopped-gradient warm-up intervals precede a "
-        "1→2→4→8→16 look-ahead curriculum."
+        "Sparse-intervention, terminal-credit correction study separating one-step "
+        "supervision (ONE), a zero-gradient recurrent control (NOG), and full "
+        "recurrent solver differentiation (WIG). The training loss is measured only "
+        "after the corrected trajectory reaches the terminal numerical-solver state. "
+        "Two stopped-gradient warm-up intervals precede a 2→4→8→16 look-ahead "
+        "curriculum."
     ),
     plot_description=(
         "Delayed-credit curriculum checkpoints, ONE/NOG/WIG held-out errors, "
@@ -597,20 +597,20 @@ problem.add_experiment(
                 "max_updates": 4000,
                 "unroll": 16,
                 "curriculum": [
-                    {"unroll": 1, "updates": 250, "lr": 1e-4},
                     {"unroll": 2, "updates": 500, "lr": 1e-4},
                     {"unroll": 4, "updates": 750, "lr": 1e-4},
                     {"unroll": 8, "updates": 1000, "lr": 5e-5},
-                    {"unroll": 16, "updates": 1500, "lr": 2.5e-5},
+                    {"unroll": 16, "updates": 1750, "lr": 2.5e-5},
                 ],
                 "include_one_step_baseline": True,
                 "one_step_updates": 4000,
-                # WIG's dominant signal is the error before the next correction,
-                # after the previous action has traversed the solver. A small
-                # local term keeps the identical NOG forward rollout trainable.
-                "loss_mode": "solver_mediated",
+                # The observable objective is defined only after the recurrent
+                # corrected state traverses the terminal solver interval. WIG
+                # receives this credit through the solver; NOG is the exact
+                # zero-initialized native-solver control.
+                "loss_mode": "solver_terminal_mediated",
                 "solver_loss_weight": 1.0,
-                "local_loss_weight": 0.05,
+                "local_loss_weight": 0.0,
                 # Sample states from the learned rollout distribution without
                 # extending an already long differentiated chain.
                 "warmup_intervals": 2,
@@ -625,6 +625,7 @@ problem.add_experiment(
                 "seed": 2026,
                 "model_seeds": [0, 1, 2],
                 "check_grad": True,
+                "check_grad_stages": True,
                 "fd_epsilon": 1e-2,
             },
             "evaluation": {
