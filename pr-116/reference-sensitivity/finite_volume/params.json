@@ -1,0 +1,92 @@
+{
+  "name": "finite_volume",
+  "ic": {
+    "name": "multimode",
+    "seed": 0
+  },
+  "physics": {
+    "N": 32,
+    "nu": 0.001,
+    "dt": 0.02,
+    "steps": 4
+  },
+  "dataset": {
+    "reference_kind": "finite_volume_multimode",
+    "reference_factor": 4,
+    "reference_substeps": 4,
+    "reference_audit_factor": 8,
+    "reference_audit_substeps": 8,
+    "reference_audit_seeds": [
+      0,
+      100
+    ],
+    "reference_audit_frames": [
+      1,
+      8,
+      24,
+      36
+    ],
+    "reference_convergence_tolerance": 0.005,
+    "train_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "test_seeds": [
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107
+    ],
+    "train_frames": 24,
+    "k0": 2.0,
+    "sigma_k": 0.5,
+    "amplitude": 0.5
+  },
+  "training": {
+    "max_updates": 200,
+    "unroll": 8,
+    "loss_mode": "solver_terminal",
+    "solver_loss_weight": 0.1,
+    "loss_normalization": "solver_baseline",
+    "loss_scale_floor": 1e-06,
+    "lr": 0.0001,
+    "clip_norm": 5.0,
+    "architecture": "periodic_residual_cnn",
+    "hidden_channels": 32,
+    "kernel_size": 5,
+    "seed": 2026,
+    "model_seeds": [
+      0,
+      1,
+      2
+    ],
+    "check_grad": true,
+    "fd_epsilon": 0.01
+  },
+  "evaluation": {
+    "rollout_frames": 36,
+    "seen_ic_trajectories": 8,
+    "stable_error_threshold": 1.0,
+    "first_interval_error_tolerance": 0.05,
+    "native_long_error_tolerance": 0.5
+  },
+  "description": "Repeat the common all-solver corrector comparison against independently discretized, space-time-converged pseudo-spectral and conservative finite-volume references. Paired VJP conclusions are reported separately from reference-dependent absolute error."
+}

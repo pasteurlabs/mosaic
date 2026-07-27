@@ -1,10 +1,12 @@
 # PR 116 offline solver-in-the-loop results
 
 These artifacts support draft PR 116. The source branch is
-`feat/ns-grid-solver-in-loop` at `04b56d8`, stacked on the canonical recurrent
-state contract in PR 121 at `d685a33`. Numerical runs used the behaviorally
-identical source snapshot `e1133ff`; the two later commits only adjust an import
-and documentation.
+`feat/ns-grid-solver-in-loop` at `e52a002`, stacked on the canonical recurrent
+state contract in PR 121. The reference-sensitivity numerical runs use source
+snapshot `21db5ff`; the final two commits only correct the cross-reference
+figure layout. The earlier nonlinear, Taylor–Green, and method-local controls
+used the behaviorally identical pre-follow-up snapshot `e1133ff`; intervening
+source changes add the independent reference audit and its plots.
 
 ## Benchmark state
 
@@ -31,6 +33,67 @@ All six solvers pass the nonlinear and Taylor–Green recurrence gate:
 | XLB | native checkpoint | 1.75e-3 | yes |
 
 ![All-solver recurrence and generalization diagnostics](multimode/solver_in_loop_diagnostics.png)
+
+## Converged reference-sensitivity task
+
+The common nonlinear task is repeated against independently discretized
+pseudo-spectral and conservative finite-volume targets. Production targets use
+128² and `dt/4`; both are gated against 256² and `dt/8` realizations before
+training. The finite-volume transport uses MUSCL/minmod reconstruction and a
+local Rusanov flux, with five-point diffusion and a discrete streamfunction
+solve.
+
+| Audit | Relative discrepancy | Gate |
+|---|---:|:---:|
+| pseudo-spectral 128² vs 256² | p95 9.89e-8; max 1.01e-7 | pass |
+| finite-volume 128² vs 256² | median 0.121%; p95 0.160%; max 0.168% | pass |
+| both references, all held-out frames | median 0.162%; p95 0.207%; max 0.224% | diagnostic |
+| both references, final frame | median 0.196%; p95 0.222%; max 0.224% | diagnostic |
+
+The reference comparison covers all eight held-out ICs and all 36 noninitial
+evaluation frames. Agreement is specific to this smooth low-wave-number
+distribution, viscosity, grid, and horizon; neither method is declared a
+universally neutral ground truth.
+
+![Reference convergence and solver conclusion sensitivity](reference-sensitivity/solver_in_loop_reference_sensitivity.png)
+
+![Reference vorticity fields](reference-sensitivity/solver_in_loop_reference_fields.png)
+
+![Held-out reference disagreement](reference-sensitivity/reference_target_disagreement.png)
+
+| Solver | Native final error (spectral / FV) | Corrected final error (spectral / FV) | Correction gain (spectral / FV) |
+|---|---:|---:|---:|
+| JAX-CFD | 0.06842 / 0.06755 | 0.1526 / 0.1321 | 0.885× / 0.967× |
+| INS.jl | 0.05117 / 0.05108 | 0.1492 / 0.1526 | 0.737× / 0.701× |
+| PhiFlow | 0.04461 / 0.04461 | 0.2921 / 0.1743 | 0.686× / 0.677× |
+| XLB | 0.03587 / 0.03489 | 0.1117 / 0.1255 | 0.752× / 0.650× |
+| PICT | 0.05016 / 0.05039 | 0.04448 / 0.03957 | 1.107× / 1.212× |
+| Warp-NS | 0.03568 / 0.03608 | 0.03809 / 0.03705 | 0.946× / 0.973× |
+
+Native final errors change by at most 2.7% between references; corrected errors
+change by as much as 40.3%. PICT is the only learned corrector that beats its
+native solver under both references.
+
+| Solver | Spectral VJP lift [bootstrap 95% CI] | FV VJP lift [bootstrap 95% CI] | Conclusion |
+|---|---:|---:|---|
+| JAX-CFD | +39.0% [+35.6%, +42.2%] | +49.8% [+35.4%, +77.5%] | beneficial under both |
+| INS.jl | +38.8% [+27.8%, +50.5%] | +38.2% [+35.8%, +41.3%] | beneficial under both |
+| PhiFlow | +37.0% [+21.0%, +48.1%] | +45.1% [+38.2%, +54.3%] | beneficial under both |
+| XLB | +20.5% [+13.1%, +30.2%] | +16.2% [+7.2%, +24.6%] | beneficial under both |
+| PICT | −4.2% [−7.8%, −1.0%] | +4.3% [+2.1%, +6.7%] | harmful → beneficial |
+| Warp-NS | −0.3% [−2.8%, +2.0%] | +4.9% [−2.0%, +10.9%] | inconclusive under both |
+
+The paired VJP classification is reference-robust for JAX-CFD, INS.jl,
+PhiFlow, XLB, and Warp-NS. PICT is the exception: its resolved effect changes
+sign even though its absolute correction gain stays above one.
+
+![Pseudo-spectral-reference full fields](reference-sensitivity/spectral/solver_in_loop_fields.png)
+
+![Finite-volume-reference full fields](reference-sensitivity/finite_volume/solver_in_loop_fields.png)
+
+[Pseudo-spectral-reference trajectory GIF](reference-sensitivity/spectral/solver_in_loop_trajectory.gif)
+
+[Finite-volume-reference trajectory GIF](reference-sensitivity/finite_volume/solver_in_loop_trajectory.gif)
 
 ## Nonlinear shared-reference task
 
@@ -126,15 +189,22 @@ trajectory GIF.
 
 Offline Kander jobs:
 
+- reference convergence audit `1697345`; all-held-out target-disagreement
+  audit `1697383`;
+- reference sensitivity, pseudo-spectral: JAX-CFD `1697346`, INS.jl `1697347`,
+  PhiFlow `1697348`, PICT `1697349`, Warp-NS `1697350`, XLB `1697351`;
+- reference sensitivity, finite volume: JAX-CFD `1697352`, INS.jl `1697371`,
+  PhiFlow `1697372`, PICT `1697373`, Warp-NS `1697374`, XLB `1697375`;
+- reference-sensitivity merge/render `1697376`;
 - nonlinear: JAX-CFD `1697213`, INS.jl `1697215`, PhiFlow `1697238`,
   PICT `1697199`, Warp-NS `1697218`, XLB `1697220`;
 - Taylor–Green: JAX-CFD `1697182`, INS.jl `1697186`, PhiFlow `1697239`,
   PICT `1697202`, Warp-NS `1697194`, XLB `1697198`;
 - self-reference: JAX-CFD `1697214`, INS.jl `1697216`, PICT `1697200`,
   Warp-NS `1697219`, XLB `1697221`; rejected PhiFlow audit `1697228`;
-- merge/render `1697277`;
-- source validation `1696130`: Ruff and format passed; 514 tests passed and
-  three were skipped.
+- existing-control merge/render `1697277`;
+- source validation at `21db5ff`, job `1697344`: Ruff and format passed; 522
+  tests passed and three were skipped.
 
 No hosted benchmark label was used. PR 116 is marked `benchmark:none`; all
 numerical evidence here was generated offline through the shared
