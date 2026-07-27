@@ -435,7 +435,12 @@ def plot_solver_in_loop_reference_sensitivity(
         f"solver_in_loop_reference_sensitivity{suffix}",
     )
     parent_dir.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 3, figsize=(TEXTWIDTH, 0.66 * TEXTWIDTH))
+    fig, axes = plt.subplots(
+        2,
+        3,
+        figsize=(TEXTWIDTH, 0.72 * TEXTWIDTH),
+        layout="constrained",
+    )
     (
         ax_disagreement,
         ax_convergence,
@@ -534,7 +539,6 @@ def plot_solver_in_loop_reference_sensitivity(
             "width": width,
             "color": reference_colors[variant],
             "alpha": 0.88,
-            "label": reference_labels[variant],
         }
         ax_solver_only.bar(
             x + offset,
@@ -591,9 +595,23 @@ def plot_solver_in_loop_reference_sensitivity(
         axis.set_title(title)
     ax_gain.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
     ax_vjp.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
-    fig.legend(loc="outside lower center", ncol=2)
+    reference_handles = [
+        mlines.Line2D(
+            [],
+            [],
+            color=reference_colors[variant],
+            linewidth=6.0,
+            label=reference_labels[variant],
+        )
+        for variant in ("spectral", "finite_volume")
+    ]
+    fig.legend(
+        handles=reference_handles,
+        loc="outside lower center",
+        ncol=2,
+        frameon=False,
+    )
     fig.suptitle("Solver-in-the-loop reference sensitivity")
-    fig.subplots_adjust(hspace=0.52, wspace=0.42)
     if save:
         save_fig(fig, "solver_in_loop_reference_sensitivity", parent_dir)
     figs.append(fig)
