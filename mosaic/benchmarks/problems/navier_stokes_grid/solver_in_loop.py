@@ -1157,6 +1157,17 @@ def _mean_curve(curves: list[list[float]]) -> np.ndarray:
     ).astype(np.float32)
 
 
+def _stack_curves(curves: list[list[float]]) -> np.ndarray:
+    """Stack the common completed prefix of repeated optimization curves."""
+    if not curves:
+        return np.empty((0, 0), dtype=np.float32)
+    common_length = min(len(curve) for curve in curves)
+    return np.stack(
+        [np.asarray(curve[:common_length]) for curve in curves],
+        axis=0,
+    ).astype(np.float32)
+
+
 def _mean_optional(values: list[float | None]) -> float | None:
     """Average present scalar measurements from repeated model seeds."""
     present = [float(value) for value in values if value is not None]
@@ -1174,35 +1185,55 @@ def _std(values: list[float]) -> float:
     snapshot_filename="corrector_fields.npz",
     snapshot_prefixes=(
         "loss",
+        "loss_samples",
         "loss_seed_std",
         "loss_stop_gradient",
+        "loss_stop_gradient_samples",
         "loss_stop_gradient_seed_std",
         "loss_one_step",
+        "loss_one_step_samples",
         "grad_norm",
+        "grad_norm_samples",
         "grad_norm_stop_gradient",
+        "grad_norm_stop_gradient_samples",
         "grad_norm_one_step",
+        "grad_norm_one_step_samples",
         "update_time",
+        "update_time_samples",
         "update_time_stop_gradient",
+        "update_time_stop_gradient_samples",
         "update_time_one_step",
+        "update_time_one_step_samples",
         "error_corrected",
+        "error_corrected_samples",
         "error_corrected_seed_std",
         "error_corrected_ic_std",
         "error_stop_gradient",
+        "error_stop_gradient_samples",
         "error_stop_gradient_seed_std",
         "error_stop_gradient_ic_std",
         "error_uncorrected",
+        "error_uncorrected_samples",
         "error_uncorrected_ic_std",
         "error_seen_corrected",
+        "error_seen_corrected_samples",
         "error_seen_stop_gradient",
+        "error_seen_stop_gradient_samples",
         "error_seen_uncorrected",
         "error_one_step",
+        "error_one_step_samples",
         "error_one_step_seed_std",
         "error_one_step_ic_std",
         "error_seen_one_step",
+        "error_seen_one_step_samples",
         "correlation_corrected",
+        "correlation_corrected_samples",
         "correlation_stop_gradient",
+        "correlation_stop_gradient_samples",
         "correlation_one_step",
+        "correlation_one_step_samples",
         "correlation_uncorrected",
+        "correlation_uncorrected_samples",
         "rollout_log_gain_samples",
         "stop_gradient_log_gain_samples",
         "solver_vjp_log_lift_samples",
@@ -1212,8 +1243,10 @@ def _std(values: list[float]) -> float:
         "curriculum_stage_unrolls",
         "curriculum_stage_boundaries",
         "curriculum_checkpoint_error_full",
+        "curriculum_checkpoint_error_full_samples",
         "curriculum_checkpoint_error_full_seed_std",
         "curriculum_checkpoint_error_nog",
+        "curriculum_checkpoint_error_nog_samples",
         "curriculum_checkpoint_error_nog_seed_std",
         "curriculum_checkpoint_error_native",
         "rollout_corrected",
@@ -2272,23 +2305,34 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         ]
     snapshots = {
         "loss": losses,
+        "loss_samples": _stack_curves(losses_by_seed),
         "loss_seed_std": np.asarray(loss_seed_std, dtype=np.float32),
         "loss_stop_gradient": stop_gradient_losses,
+        "loss_stop_gradient_samples": _stack_curves(stop_gradient_losses_by_seed),
         "loss_stop_gradient_seed_std": np.asarray(
             stop_gradient_loss_seed_std,
             dtype=np.float32,
         ),
         "grad_norm": grad_norms,
+        "grad_norm_samples": _stack_curves(grad_norms_by_seed),
         "grad_norm_stop_gradient": np.asarray(
             stop_gradient_grad_norms,
             dtype=np.float32,
         ),
+        "grad_norm_stop_gradient_samples": _stack_curves(
+            stop_gradient_grad_norms_by_seed
+        ),
         "update_time": update_times,
+        "update_time_samples": _stack_curves(update_times_by_seed),
         "update_time_stop_gradient": np.asarray(
             stop_gradient_update_times,
             dtype=np.float32,
         ),
+        "update_time_stop_gradient_samples": _stack_curves(
+            stop_gradient_update_times_by_seed
+        ),
         "error_corrected": np.asarray(corrected_error, dtype=np.float32),
+        "error_corrected_samples": corrected_errors_array.astype(np.float32),
         "error_corrected_seed_std": np.asarray(
             corrected_error_seed_std,
             dtype=np.float32,
@@ -2301,6 +2345,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             stop_gradient_error,
             dtype=np.float32,
         ),
+        "error_stop_gradient_samples": stop_gradient_errors_array.astype(np.float32),
         "error_stop_gradient_seed_std": np.asarray(
             stop_gradient_error_seed_std,
             dtype=np.float32,
@@ -2310,6 +2355,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             dtype=np.float32,
         ),
         "error_uncorrected": np.asarray(uncorrected_error, dtype=np.float32),
+        "error_uncorrected_samples": uncorrected_errors_array.astype(np.float32),
         "error_uncorrected_ic_std": np.asarray(
             uncorrected_error_ic_std,
             dtype=np.float32,
@@ -2318,9 +2364,13 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             seen_corrected_error,
             dtype=np.float32,
         ),
+        "error_seen_corrected_samples": seen_corrected_errors_array.astype(np.float32),
         "error_seen_stop_gradient": np.asarray(
             seen_stop_gradient_error,
             dtype=np.float32,
+        ),
+        "error_seen_stop_gradient_samples": (
+            seen_stop_gradient_errors_array.astype(np.float32)
         ),
         "error_seen_uncorrected": np.asarray(
             seen_uncorrected_error,
@@ -2330,13 +2380,22 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             corrected_correlation,
             dtype=np.float32,
         ),
+        "correlation_corrected_samples": np.stack(
+            corrected_correlations_by_seed
+        ).astype(np.float32),
         "correlation_stop_gradient": np.asarray(
             stop_gradient_correlation,
             dtype=np.float32,
         ),
+        "correlation_stop_gradient_samples": np.stack(
+            stop_gradient_correlations_by_seed
+        ).astype(np.float32),
         "correlation_uncorrected": np.asarray(
             uncorrected_correlation,
             dtype=np.float32,
+        ),
+        "correlation_uncorrected_samples": (
+            uncorrected_correlations_array.astype(np.float32)
         ),
         "rollout_log_gain_samples": rollout_log_gain_samples.astype(np.float32),
         "stop_gradient_log_gain_samples": stop_gradient_log_gain_samples.astype(
@@ -2356,9 +2415,17 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         snapshots.update(
             {
                 "loss_one_step": one_step_losses,
+                "loss_one_step_samples": _stack_curves(one_step_losses_by_seed),
                 "grad_norm_one_step": one_step_grad_norms,
+                "grad_norm_one_step_samples": _stack_curves(
+                    one_step_grad_norms_by_seed
+                ),
                 "update_time_one_step": one_step_update_times,
+                "update_time_one_step_samples": _stack_curves(
+                    one_step_update_times_by_seed
+                ),
                 "error_one_step": np.asarray(one_step_error, dtype=np.float32),
+                "error_one_step_samples": one_step_errors_array.astype(np.float32),
                 "error_one_step_seed_std": np.asarray(
                     one_step_error_seed_std,
                     dtype=np.float32,
@@ -2371,12 +2438,18 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                     seen_one_step_error,
                     dtype=np.float32,
                 ),
+                "error_seen_one_step_samples": np.stack(
+                    seen_one_step_errors_by_seed
+                ).astype(np.float32),
                 "correlation_one_step": np.asarray(
                     one_step_correlation,
                     dtype=np.float32,
                 )
                 if one_step_correlation is not None
                 else np.asarray([], dtype=np.float32),
+                "correlation_one_step_samples": np.stack(
+                    one_step_correlations_by_seed
+                ).astype(np.float32),
                 "one_step_rollout_log_gain_samples": (
                     one_step_rollout_log_gain_samples.astype(np.float32)
                 ),
@@ -2405,12 +2478,18 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                 "curriculum_checkpoint_error_full": checkpoint_full_error.astype(
                     np.float32
                 ),
+                "curriculum_checkpoint_error_full_samples": np.stack(
+                    checkpoint_full_errors_by_seed
+                ).astype(np.float32),
                 "curriculum_checkpoint_error_full_seed_std": (
                     checkpoint_full_seed_std.astype(np.float32)
                 ),
                 "curriculum_checkpoint_error_nog": checkpoint_stop_error.astype(
                     np.float32
                 ),
+                "curriculum_checkpoint_error_nog_samples": np.stack(
+                    checkpoint_stop_errors_by_seed
+                ).astype(np.float32),
                 "curriculum_checkpoint_error_nog_seed_std": (
                     checkpoint_stop_seed_std.astype(np.float32)
                 ),

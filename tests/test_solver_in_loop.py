@@ -1277,9 +1277,18 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
     out_dir = tmp_path / "ns-grid" / "optimization" / "solver_in_loop_curriculum_smoke"
     with np.load(out_dir / "corrector_fields.npz") as snapshots:
         assert snapshots["error_one_step_0"].shape == (4,)
+        assert snapshots["error_one_step_samples_0"].shape == (1, 1, 4)
+        assert snapshots["error_corrected_samples_0"].shape == (1, 1, 4)
+        assert snapshots["loss_samples_0"].shape == (1, 2)
         assert snapshots["curriculum_stage_unrolls_0"].tolist() == [1, 2]
         assert snapshots["curriculum_checkpoint_error_full_0"].shape == (2, 4)
+        assert snapshots["curriculum_checkpoint_error_full_samples_0"].shape == (
+            1,
+            2,
+            4,
+        )
         assert snapshots["correlation_corrected_0"].shape == (4,)
+        assert snapshots["correlation_corrected_samples_0"].shape == (1, 1, 4)
 
 
 def test_solver_self_reference_skips_training_below_refinement_floor(
