@@ -1268,7 +1268,7 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
     tmp_path,
     monkeypatch,
 ):
-    """The opt-in curriculum keeps all three paper protocols in one result."""
+    """The opt-in curriculum exercises sparse delayed solver credit end to end."""
     from mosaic.benchmarks.problems import get_config
 
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
@@ -1287,7 +1287,7 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
                     "reference_substeps": 1,
                     "train_seeds": [0],
                     "test_seeds": [100],
-                    "train_frames": 3,
+                    "train_frames": 4,
                     "k0": 2.0,
                 },
                 "training": {
@@ -1299,7 +1299,10 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
                     ],
                     "include_one_step_baseline": True,
                     "one_step_updates": 2,
-                    "loss_mode": "mean",
+                    "loss_mode": "solver_mediated",
+                    "solver_loss_weight": 1.0,
+                    "local_loss_weight": 0.05,
+                    "warmup_intervals": 1,
                     "loss_normalization": "solver_baseline",
                     "hidden_channels": 4,
                     "kernel_size": 3,
@@ -1324,7 +1327,10 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
     assert metrics["completed"] is True
     assert metrics["n_updates"] == 2
     assert metrics["one_step_n_updates"] == 2
-    assert metrics["training_solver_intervals_per_seed"] == 3
+    assert metrics["training_solver_intervals_per_seed"] == 5
+    assert metrics["training_warmup_solver_intervals_per_seed"] == 2
+    assert metrics["training_loss_mode"] == "solver_mediated"
+    assert metrics["training_local_loss_weight"] == 0.05
     assert metrics["one_step_training_solver_intervals_per_seed"] == 2
     assert len(metrics["curriculum_checkpoint_summary"]) == 2
     assert metrics["unrolling_geometric_lift_nog_over_one"] > 0
