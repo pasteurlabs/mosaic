@@ -288,6 +288,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
         exp_key
         in {
             "optimization/solver_in_loop",
+            "optimization/solver_in_loop_curriculum",
             "optimization/solver_in_loop_self_reference",
             "optimization/solver_in_loop_tgv",
         }

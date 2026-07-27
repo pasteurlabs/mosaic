@@ -18,6 +18,7 @@ import numpy as np
 from mosaic.benchmarks.core.utils import _debug_run, active_solvers
 from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
     PeriodicResidualCNN,
+    PeriodicResNetCorrector,
     apply_corrector,
     centered_divergence_rms,
     divergence_rms,
@@ -32,11 +33,18 @@ from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
 from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv, _tgv_analytic
 from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
     _periodic_vorticity_2d,
+    _plot_solver_in_loop_curriculum_correlations,
+    _plot_solver_in_loop_curriculum_fd,
+    _plot_solver_in_loop_curriculum_fields,
+    _plot_solver_in_loop_curriculum_rollouts,
+    _plot_solver_in_loop_curriculum_spectra,
+    _plot_solver_in_loop_curriculum_summary,
     _plot_solver_in_loop_diagnostics,
     _plot_solver_in_loop_fairness,
     _plot_solver_in_loop_fields,
     _plot_solver_in_loop_physics,
     _save_solver_in_loop_animation,
+    _save_solver_in_loop_curriculum_animation,
 )
 from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
     _evaluate_rollout,
@@ -46,6 +54,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
     _rollout_log_gain,
     _solver_advance,
     _stop_recurrent_gradient,
+    _training_stages,
     _window_loss,
     make_reference_dataset,
     solver_in_loop,
@@ -165,6 +174,52 @@ def test_reference_sensitivity_declares_independent_converged_targets():
         assert dataset["reference_convergence_tolerance"] == 0.005
 
 
+def test_terminal_credit_curriculum_declares_one_nog_wig_protocol():
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    experiment = cfg.experiments["optimization/solver_in_loop_curriculum"]
+    run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
+    training = run["training"]
+
+    assert run["physics"]["steps"] == 4
+    assert run["dataset"]["train_seeds"] == list(range(32))
+    assert run["dataset"]["k0"] == 4.0
+    assert run["evaluation"]["rollout_frames"] == 120
+    assert run["evaluation"]["first_interval_error_tolerance"] == 0.15
+    assert training["include_one_step_baseline"] is True
+    assert training["loss_mode"] == "solver_terminal_mediated"
+    assert training["solver_loss_weight"] == 1.0
+    assert training["local_loss_weight"] == 0.0
+    assert training["warmup_intervals"] == 2
+    assert training["check_grad_stages"] is True
+    assert training["architecture"] == "periodic_resnet"
+    assert training["residual_blocks"] == 5
+    assert [stage["unroll"] for stage in training["curriculum"]] == [
+        2,
+        4,
+        8,
+        16,
+    ]
+    assert sum(stage["updates"] for stage in training["curriculum"]) == 1000
+
+
+def test_curriculum_normalization_preserves_stage_learning_rates():
+    stages = _training_stages(
+        {
+            "lr": 1e-4,
+            "curriculum": [
+                {"unroll": 1, "updates": 2},
+                {"unroll": 4, "updates": 3, "lr": 5e-5},
+            ],
+        }
+    )
+
+    assert [stage.unroll for stage in stages] == [1, 4]
+    assert [stage.updates for stage in stages] == [2, 3]
+    np.testing.assert_allclose([stage.lr for stage in stages], [1e-4, 5e-5])
+
+
 def test_self_reference_does_not_gate_the_learnable_refinement_signal():
     assert _passes_reference_accuracy_gate(
         "solver_self_refined",
@@ -209,6 +264,28 @@ def test_corrector_starts_from_the_uncorrected_solver():
     model = init_corrector(jax.random.PRNGKey(0), hidden_channels=4, kernel_size=3)
     velocity = jax.random.normal(jax.random.PRNGKey(1), (8, 8, 1, 2))
 
+    np.testing.assert_array_equal(
+        apply_corrector(model, velocity, velocity_scale=1.0),
+        jnp.zeros_like(velocity),
+    )
+
+
+def test_paper_scale_resnet_starts_at_solver_and_has_expected_capacity():
+    model = init_corrector(
+        jax.random.PRNGKey(0),
+        architecture="periodic_resnet",
+        hidden_channels=32,
+        kernel_size=5,
+        residual_blocks=5,
+    )
+    velocity = jax.random.normal(jax.random.PRNGKey(1), (8, 8, 1, 2))
+    parameter_count = sum(
+        int(leaf.size)
+        for leaf in jax.tree_util.tree_leaves(eqx.filter(model, eqx.is_inexact_array))
+    )
+
+    assert isinstance(model, PeriodicResNetCorrector)
+    assert parameter_count == 259554
     np.testing.assert_array_equal(
         apply_corrector(model, velocity, velocity_scale=1.0),
         jnp.zeros_like(velocity),
@@ -695,6 +772,86 @@ def test_training_window_threads_corrected_velocity_and_native_state(monkeypatch
     np.testing.assert_array_equal(calls[1][0], 12.0 * np.ones_like(targets[0]))
 
 
+def test_solver_mediated_loss_requires_the_solver_vjp(monkeypatch):
+    def _advance(_t, _ctx, velocity, *, frame_steps, native_state=None):
+        del frame_steps, native_state
+        return 2.0 * jnp.asarray(velocity), None
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop._solver_advance",
+        _advance,
+    )
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "corrected_velocity",
+        lambda model, velocity, **_kwargs: velocity + model,
+    )
+    targets = jnp.ones((3, 1, 1, 1, 1))
+    ctx = SimpleNamespace(domain_extent=2.0 * np.pi)
+
+    def objective(model, differentiate_solver):
+        return _window_loss(
+            model,
+            targets,
+            t=None,
+            ctx=ctx,
+            frame_steps=1,
+            velocity_scale=1.0,
+            differentiate_solver=differentiate_solver,
+            loss_mode="solver_mediated",
+            solver_loss_weight=1.0,
+            local_loss_weight=0.0,
+            loss_scale=1.0,
+        )
+
+    full_loss, full_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), True)
+    stopped_loss, stopped_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), False)
+
+    assert float(full_loss) == float(stopped_loss)
+    assert abs(float(full_grad)) > 1.0
+    assert float(stopped_grad) == 0.0
+
+
+def test_solver_terminal_mediated_loss_assigns_delayed_credit(monkeypatch):
+    def _advance(_t, _ctx, velocity, *, frame_steps, native_state=None):
+        del frame_steps, native_state
+        return 2.0 * jnp.asarray(velocity), None
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop._solver_advance",
+        _advance,
+    )
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "corrected_velocity",
+        lambda model, velocity, **_kwargs: velocity + model,
+    )
+    targets = jnp.ones((4, 1, 1, 1, 1))
+    ctx = SimpleNamespace(domain_extent=2.0 * np.pi)
+
+    def objective(model, differentiate_solver):
+        return _window_loss(
+            model,
+            targets,
+            t=None,
+            ctx=ctx,
+            frame_steps=1,
+            velocity_scale=1.0,
+            differentiate_solver=differentiate_solver,
+            loss_mode="solver_terminal_mediated",
+            solver_loss_weight=1.0,
+            local_loss_weight=0.0,
+            loss_scale=1.0,
+        )
+
+    full_loss, full_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), True)
+    stopped_loss, stopped_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), False)
+
+    assert float(full_loss) == float(stopped_loss)
+    assert abs(float(full_grad)) > 1.0
+    assert float(stopped_grad) == 0.0
+
+
 def test_stop_gradient_cuts_velocity_and_native_state():
     def stopped(value):
         velocity, native_state = _stop_recurrent_gradient(
@@ -757,6 +914,42 @@ def test_debug_run_caps_corrector_training():
     assert run["dataset"]["test_seeds"] == [100]
     assert run["dataset"]["train_frames"] == 3
     assert run["evaluation"]["rollout_frames"] == 3
+
+
+def test_debug_run_caps_curriculum_and_one_step_baseline():
+    run = {
+        "physics": {"N": 32, "steps": 1},
+        "training": {
+            "max_updates": 12000,
+            "unroll": 32,
+            "curriculum": [
+                {"unroll": 1, "updates": 1000, "lr": 1e-4},
+                {"unroll": 2, "updates": 1000, "lr": 1e-4},
+                {"unroll": 4, "updates": 1500, "lr": 1e-4},
+            ],
+            "one_step_updates": 12000,
+            "residual_blocks": 5,
+            "model_seeds": [0, 1, 2],
+        },
+        "dataset": {
+            "train_seeds": list(range(32)),
+            "test_seeds": list(range(100, 108)),
+            "train_frames": 96,
+        },
+        "evaluation": {"rollout_frames": 300},
+    }
+
+    _debug_run(run)
+
+    assert run["training"]["curriculum"] == [
+        {"unroll": 1, "updates": 1, "lr": 1e-4},
+        {"unroll": 2, "updates": 1, "lr": 1e-4},
+    ]
+    assert run["training"]["max_updates"] == 2
+    assert run["training"]["unroll"] == 2
+    assert run["training"]["one_step_updates"] == 2
+    assert run["training"]["residual_blocks"] == 1
+    assert run["training"]["model_seeds"] == [0]
 
 
 def test_solver_in_loop_fields_render_reference_raw_and_corrected(tmp_path):
@@ -913,6 +1106,93 @@ def test_self_reference_fairness_normalizes_solver_specific_targets(tmp_path):
     assert figure.axes[0].get_title() == "Target-normalized quality"
 
 
+def test_curriculum_plots_render_all_training_protocols(tmp_path):
+    reference = np.stack([_tgv(8) * np.exp(-0.02 * frame) for frame in range(4)])
+    native = reference * np.asarray([1.0, 0.98, 0.96, 0.94])[:, None, None, None, None]
+    one = reference * np.asarray([1.0, 0.99, 0.98, 0.97])[:, None, None, None, None]
+    nog = reference * np.asarray([1.0, 0.995, 0.99, 0.985])[:, None, None, None, None]
+    wig = reference * np.asarray([1.0, 0.998, 0.996, 0.994])[:, None, None, None, None]
+    arrays = {
+        "evaluation_times": np.arange(4, dtype=np.float32) * 0.02,
+        "reference_rollout": reference,
+        "rollout_uncorrected_0": native,
+        "rollout_one_step_0": one,
+        "rollout_stop_gradient_0": nog,
+        "rollout_corrected_0": wig,
+        "error_uncorrected_0": np.asarray([0.0, 0.02, 0.04, 0.06]),
+        "error_one_step_0": np.asarray([0.0, 0.01, 0.02, 0.03]),
+        "error_stop_gradient_0": np.asarray([0.0, 0.005, 0.01, 0.015]),
+        "error_corrected_0": np.asarray([0.0, 0.002, 0.004, 0.006]),
+        "correlation_uncorrected_0": np.asarray([1.0, 0.99, 0.97, 0.94]),
+        "correlation_one_step_0": np.asarray([1.0, 0.995, 0.985, 0.97]),
+        "correlation_stop_gradient_0": np.asarray([1.0, 0.998, 0.99, 0.98]),
+        "correlation_corrected_0": np.asarray([1.0, 0.999, 0.996, 0.99]),
+        "fd_epsilon_0": np.asarray([1e-1, 1e-2, 1e-3]),
+        "fd_rel_error_samples_0": np.asarray([[0.2, 0.01, 0.04], [0.3, 0.02, 0.05]]),
+        "curriculum_stage_unrolls_0": np.asarray([1, 2]),
+        "curriculum_checkpoint_error_native_0": np.asarray([0.0, 0.02, 0.04, 0.06]),
+        "curriculum_checkpoint_error_full_0": np.asarray(
+            [[0.0, 0.015, 0.03, 0.045], [0.0, 0.005, 0.01, 0.015]]
+        ),
+        "curriculum_checkpoint_error_nog_0": np.asarray(
+            [[0.0, 0.018, 0.036, 0.054], [0.0, 0.01, 0.02, 0.03]]
+        ),
+    }
+    data = {
+        "by_solver": {
+            "jax-cfd": {
+                "one_step_geometric_error_reduction": 1.5,
+                "stop_gradient_geometric_error_reduction": 2.0,
+                "geometric_error_reduction": 3.0,
+                "unrolling_geometric_lift_nog_over_one": 4.0 / 3.0,
+                "solver_vjp_geometric_lift": 1.5,
+                "one_step_training_wall_time_s": 1.0,
+                "stop_gradient_training_wall_time_s": 2.0,
+                "training_wall_time_s": 3.0,
+            }
+        }
+    }
+
+    figures = [
+        _plot_solver_in_loop_curriculum_rollouts(
+            arrays, ["jax-cfd"], tmp_path, save=True
+        ),
+        _plot_solver_in_loop_curriculum_correlations(
+            arrays, ["jax-cfd"], tmp_path, save=True
+        ),
+        _plot_solver_in_loop_curriculum_fd(arrays, ["jax-cfd"], tmp_path, save=True),
+        _plot_solver_in_loop_curriculum_summary(
+            data,
+            arrays,
+            ["jax-cfd"],
+            tmp_path,
+            save=True,
+        ),
+        _plot_solver_in_loop_curriculum_fields(
+            arrays, ["jax-cfd"], tmp_path, save=True
+        ),
+        _plot_solver_in_loop_curriculum_spectra(
+            arrays, ["jax-cfd"], tmp_path, save=True
+        ),
+    ]
+    _save_solver_in_loop_curriculum_animation(arrays, ["jax-cfd"], tmp_path)
+
+    assert all(figure is not None for figure in figures)
+    assert figures[3].axes[2].get_ylabel() == "WIG / NOG rollout lift [×]"
+    for filename in (
+        "solver_in_loop_curriculum_rollouts.png",
+        "solver_in_loop_curriculum_correlations.png",
+        "solver_in_loop_curriculum_fd.png",
+        "solver_in_loop_curriculum_summary.png",
+        "solver_in_loop_curriculum_fields.png",
+        "solver_in_loop_curriculum_spectra.png",
+        "solver_in_loop_curriculum_trajectory.gif",
+    ):
+        rendered = tmp_path / filename
+        assert rendered.exists()
+        assert rendered.stat().st_size > 0
+
+
 def test_solver_vjp_panels_only_show_recurrence_admitted_cells(tmp_path):
     common = {
         "uncorrected_mean_rollout_error": 0.4,
@@ -999,6 +1279,13 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["completed"] is True
     assert metrics["final_grad_norm"] > 0
     assert metrics["end_to_end_fd_rel_error"] < 5e-2
+    assert metrics["end_to_end_fd_rel_error_max"] < 5e-2
+    assert len(metrics["fd_check_summary"]) == 2
+    assert len(metrics["fd_horizon_summary"]) == 2
+    for check in metrics["fd_check_summary"]:
+        assert np.isfinite(check["finite_difference_at_best_epsilon"])
+        assert np.isfinite(check["autodiff_directional_derivative"])
+        assert check["absolute_directional_error"] >= 0
     assert metrics["native_final_rollout_error"] >= 0
     assert metrics["native_final_rollout_error_p95"] >= 0
     assert metrics["long_closure_error_p95"] < 1e-6
@@ -1019,6 +1306,116 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert (out_dir / "result.json").exists()
     with np.load(out_dir / "corrector_fields.npz") as snapshots:
         assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)
+        assert snapshots["fd_epsilon_0"].shape == (5,)
+        assert snapshots["fd_rel_error_samples_0"].shape == (2, 5)
+        assert snapshots["fd_directional_finite_difference_samples_0"].shape == (
+            2,
+            5,
+        )
+        assert snapshots["fd_directional_autodiff_samples_0"].shape == (2, 5)
+        assert snapshots["fd_stage_unroll_0"].tolist() == [2]
+        assert snapshots["fd_stage_rel_error_samples_0"].shape == (2, 1, 5)
+        assert snapshots["fd_stage_finite_difference_samples_0"].shape == (
+            2,
+            1,
+            5,
+        )
+        assert snapshots["fd_stage_autodiff_samples_0"].shape == (2, 1, 5)
+
+
+def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
+    tmp_path,
+    monkeypatch,
+):
+    """The opt-in curriculum exercises sparse delayed solver credit end to end."""
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    base = get_config("ns-grid")
+    jax_cfd = next(spec for spec in base.solvers if spec.key == "jax_cfd")
+    cfg = dataclasses.replace(base, solvers=[jax_cfd])
+    cfg.add_experiment(
+        "optimization/solver_in_loop_curriculum_smoke",
+        solver_in_loop,
+        runs=[
+            {
+                "ic": {"name": "multimode", "seed": 0},
+                "physics": {"N": 8, "nu": 0.001, "dt": 0.02, "steps": 1},
+                "dataset": {
+                    "reference_factor": 2,
+                    "reference_substeps": 1,
+                    "train_seeds": [0],
+                    "test_seeds": [100],
+                    "train_frames": 4,
+                    "k0": 2.0,
+                },
+                "training": {
+                    "max_updates": 2,
+                    "unroll": 2,
+                    "curriculum": [
+                        {"unroll": 1, "updates": 1, "lr": 1e-4},
+                        {"unroll": 2, "updates": 1, "lr": 5e-5},
+                    ],
+                    "include_one_step_baseline": True,
+                    "one_step_updates": 2,
+                    "loss_mode": "solver_mediated",
+                    "solver_loss_weight": 1.0,
+                    "local_loss_weight": 0.05,
+                    "warmup_intervals": 1,
+                    "loss_normalization": "solver_baseline",
+                    "hidden_channels": 4,
+                    "kernel_size": 3,
+                    "model_seeds": [0],
+                    "check_grad": True,
+                    "check_grad_stages": True,
+                    "fd_epsilon": 1e-3,
+                },
+                "evaluation": {
+                    "rollout_frames": 3,
+                    "checkpoint_ic_trajectories": 1,
+                    "checkpoint_rollout_frames": 3,
+                },
+            }
+        ],
+    )
+
+    result = cfg.experiments["optimization/solver_in_loop_curriculum_smoke"].fn(
+        cfg,
+        {jax_cfd.name: f"inprocess:{_IDENTITY_DUMMY}"},
+    )
+
+    metrics = result["results"][0]["metrics"]
+    assert metrics["completed"] is True
+    assert metrics["n_updates"] == 2
+    assert metrics["one_step_n_updates"] == 2
+    assert metrics["training_solver_intervals_per_seed"] == 5
+    assert metrics["training_warmup_solver_intervals_per_seed"] == 2
+    assert metrics["training_loss_mode"] == "solver_mediated"
+    assert metrics["training_local_loss_weight"] == 0.05
+    assert metrics["fd_check_scope"] == "differentiated_suffix_with_frozen_warmup"
+    assert metrics["one_step_training_solver_intervals_per_seed"] == 2
+    assert len(metrics["curriculum_checkpoint_summary"]) == 2
+    assert [entry["unroll"] for entry in metrics["fd_horizon_summary"]] == [1, 2]
+    assert metrics["unrolling_geometric_lift_nog_over_one"] > 0
+    assert metrics["solver_vjp_geometric_lift"] > 0
+
+    out_dir = tmp_path / "ns-grid" / "optimization" / "solver_in_loop_curriculum_smoke"
+    with np.load(out_dir / "corrector_fields.npz") as snapshots:
+        assert snapshots["error_one_step_0"].shape == (4,)
+        assert snapshots["error_one_step_samples_0"].shape == (1, 1, 4)
+        assert snapshots["error_corrected_samples_0"].shape == (1, 1, 4)
+        assert snapshots["loss_samples_0"].shape == (1, 2)
+        assert snapshots["curriculum_stage_unrolls_0"].tolist() == [1, 2]
+        assert snapshots["curriculum_checkpoint_error_full_0"].shape == (2, 4)
+        assert snapshots["curriculum_checkpoint_error_full_samples_0"].shape == (
+            1,
+            2,
+            4,
+        )
+        assert snapshots["fd_stage_unroll_0"].tolist() == [1, 2]
+        assert snapshots["fd_stage_rel_error_samples_0"].shape == (1, 2, 5)
+        assert snapshots["correlation_corrected_0"].shape == (4,)
+        assert snapshots["correlation_corrected_samples_0"].shape == (1, 1, 4)
 
 
 def test_solver_self_reference_skips_training_below_refinement_floor(

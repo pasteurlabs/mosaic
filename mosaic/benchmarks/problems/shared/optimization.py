@@ -156,16 +156,18 @@ def _run_lbfgs(
 
     ``clip_fn`` projects ``x`` back into the feasible set after each
     update (e.g. ``jnp.clip(x, x_min, 1.0)`` for density fields).
-    ``grad_proj_fn``, when provided, is called on the gradient (numpy)
+    ``grad_proj_fn``, when provided, is called on the JAX gradient
     before the L-BFGS update — used by velocity-field optimisation to
     project onto the divergence-free subspace (Helmholtz).
 
-    The ``lr``, ``patience``, ``record_diagnostics``, and ``div_fn``
-    parameters are accepted but ignored, so call sites that pass them
-    work without modification.
+    When ``record_diagnostics`` and ``div_fn`` are provided, the divergence
+    of the gradient used by L-BFGS and of the updated iterate are recorded
+    after every step. The ``lr`` and ``patience`` parameters are accepted
+    but ignored so the call signature remains compatible with
+    :func:`_run_optim`.
 
-    Returns ``(final_x, losses, diag)`` where ``diag`` is
-    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`.
+    Returns ``(final_x, losses, diag)`` with the same diagnostic shape as
+    :func:`_run_optim`.
     """
     if has_aux:
 
@@ -219,7 +221,7 @@ def _run_lbfgs(
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:
             x = clip_fn(x)
-        return x, opt_state, value, grad_norm, aux
+        return x, opt_state, value, grad_norm, aux, grad
 
     step = jax.jit(_step_body)
 
@@ -227,12 +229,19 @@ def _run_lbfgs(
     x = init_x
     losses: list[float] = []
     grad_norms: list[float] = []
+    diag: dict[str, Any] = {"grad_norms": grad_norms}
+    if record_diagnostics:
+        diag["grad_divs"] = [] if div_fn else None
+        diag["ic_divs"] = [] if div_fn else None
     _probe("init", -1)
     for i in range(max_iters):
-        x, opt_state, value, grad_norm, aux = step(x, opt_state)
+        x, opt_state, value, grad_norm, aux, grad = step(x, opt_state)
         if has_aux:
             _append_aux(aux_history, aux)
         grad_norms.append(float(grad_norm))
+        if record_diagnostics and div_fn is not None:
+            diag["grad_divs"].append(div_fn(np.asarray(grad)))
+            diag["ic_divs"].append(div_fn(np.asarray(x)))
         loss_val = float(value)
         losses.append(loss_val)
         _probe("after-step", i)
@@ -245,4 +254,4 @@ def _run_lbfgs(
             log_fn(i + 1, loss_val)
         if grad_norms[-1] < 1e-7:
             break
-    return x, losses, {"grad_norms": grad_norms}
+    return x, losses, diag

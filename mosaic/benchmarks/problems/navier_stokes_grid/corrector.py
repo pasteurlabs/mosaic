@@ -83,30 +83,120 @@ class PeriodicResidualCNN(eqx.Module):
         return self.layers[-1](x)
 
 
+class PeriodicResNetCorrector(eqx.Module):
+    """Paper-scale periodic residual corrector with two convolutions per block."""
+
+    stem: eqx.nn.Conv2d
+    blocks: tuple[tuple[eqx.nn.Conv2d, eqx.nn.Conv2d], ...]
+    head: eqx.nn.Conv2d
+    architecture: str = eqx.field(static=True)
+    hidden_channels: int = eqx.field(static=True)
+    kernel_size: int = eqx.field(static=True)
+    residual_blocks: int = eqx.field(static=True)
+
+    def __init__(
+        self,
+        key: jax.Array,
+        *,
+        hidden_channels: int,
+        kernel_size: int,
+        residual_blocks: int,
+    ) -> None:
+        if kernel_size % 2 != 1:
+            raise ValueError("kernel_size must be odd")
+        if residual_blocks < 1:
+            raise ValueError("residual_blocks must be positive")
+        keys = iter(jax.random.split(key, 2 * residual_blocks + 2))
+
+        def conv(cin: int, cout: int, layer_key: jax.Array) -> eqx.nn.Conv2d:
+            layer = eqx.nn.Conv2d(
+                cin,
+                cout,
+                kernel_size,
+                padding=kernel_size // 2,
+                padding_mode="CIRCULAR",
+                key=layer_key,
+            )
+            fan_in = kernel_size * kernel_size * cin
+            weight = jax.random.normal(
+                layer_key, layer.weight.shape, dtype=jnp.float32
+            ) * np.sqrt(2.0 / fan_in)
+            return eqx.tree_at(
+                lambda value: (value.weight, value.bias),
+                layer,
+                (weight, jnp.zeros((cout, 1, 1), dtype=jnp.float32)),
+            )
+
+        self.stem = conv(2, hidden_channels, next(keys))
+        self.blocks = tuple(
+            (
+                conv(hidden_channels, hidden_channels, next(keys)),
+                conv(hidden_channels, hidden_channels, next(keys)),
+            )
+            for _ in range(residual_blocks)
+        )
+        head_key = next(keys)
+        head = eqx.nn.Conv2d(
+            hidden_channels,
+            2,
+            kernel_size,
+            padding=kernel_size // 2,
+            padding_mode="CIRCULAR",
+            key=head_key,
+        )
+        self.head = eqx.tree_at(
+            lambda value: (value.weight, value.bias),
+            head,
+            (
+                jnp.zeros_like(head.weight),
+                jnp.zeros((2, 1, 1), dtype=jnp.float32),
+            ),
+        )
+        self.architecture = "periodic_resnet"
+        self.hidden_channels = hidden_channels
+        self.kernel_size = kernel_size
+        self.residual_blocks = residual_blocks
+
+    def __call__(self, velocity: jax.Array) -> jax.Array:
+        """Map a channel-first velocity field to an additive correction."""
+        x = jax.nn.gelu(self.stem(velocity))
+        for first, second in self.blocks:
+            x = jax.nn.gelu(x + second(jax.nn.gelu(first(x))))
+        return self.head(x)
+
+
 def init_corrector(
     key: jax.Array,
     *,
     hidden_channels: int = 32,
     kernel_size: int = 5,
     architecture: str = "periodic_residual_cnn",
-) -> PeriodicResidualCNN:
+    residual_blocks: int = 5,
+) -> PeriodicResidualCNN | PeriodicResNetCorrector:
     """Initialise the benchmark-owned Equinox corrector.
 
     The final layer starts at zero, so the initial corrected rollout is exactly
     the underlying solver. The first update trains the readout; subsequent
     updates propagate through the feature layers.
     """
-    if architecture != "periodic_residual_cnn":
-        raise ValueError(f"unknown corrector architecture: {architecture!r}")
-    return PeriodicResidualCNN(
-        key,
-        hidden_channels=hidden_channels,
-        kernel_size=kernel_size,
-    )
+    if architecture == "periodic_residual_cnn":
+        return PeriodicResidualCNN(
+            key,
+            hidden_channels=hidden_channels,
+            kernel_size=kernel_size,
+        )
+    if architecture == "periodic_resnet":
+        return PeriodicResNetCorrector(
+            key,
+            hidden_channels=hidden_channels,
+            kernel_size=kernel_size,
+            residual_blocks=residual_blocks,
+        )
+    raise ValueError(f"unknown corrector architecture: {architecture!r}")
 
 
 def apply_corrector(
-    model: PeriodicResidualCNN,
+    model: PeriodicResidualCNN | PeriodicResNetCorrector,
     velocity: jax.Array,
     *,
     velocity_scale: float | jax.Array,
@@ -156,7 +246,7 @@ def project_periodic_correction(delta: jax.Array, domain_extent: float) -> jax.A
 
 
 def corrected_velocity(
-    model: PeriodicResidualCNN,
+    model: PeriodicResidualCNN | PeriodicResNetCorrector,
     provisional: jax.Array,
     *,
     velocity_scale: float | jax.Array,
@@ -557,6 +647,7 @@ def finite_volume_reference_trajectory(
 
 
 __all__ = [
+    "PeriodicResNetCorrector",
     "PeriodicResidualCNN",
     "apply_corrector",
     "centered_divergence_rms",

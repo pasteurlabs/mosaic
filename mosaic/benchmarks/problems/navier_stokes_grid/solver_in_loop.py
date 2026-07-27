@@ -51,6 +51,84 @@ _NATIVE_STATE_SUPPORT: weakref.WeakKeyDictionary[Any, bool] = (
 )
 
 
+class _TrainingStage(NamedTuple):
+    """One recurrent-lookahead stage in a corrector curriculum."""
+
+    unroll: int
+    updates: int
+    lr: float
+
+
+class _DirectionalFD(NamedTuple):
+    """One directional finite-difference comparison."""
+
+    relative_error: float
+    finite_difference: float
+    autodiff: float
+
+
+class _TrainingResult(NamedTuple):
+    """A trained corrector plus its curriculum checkpoints and traces."""
+
+    model: Any
+    losses: list[float]
+    grad_norms: list[float]
+    update_times: list[float]
+    fd_error: float | None
+    fd_epsilons: tuple[float, ...]
+    fd_errors: tuple[float, ...]
+    fd_finite_differences: tuple[float, ...]
+    fd_autodiff: tuple[float, ...]
+    fd_stage_unrolls: tuple[int, ...]
+    fd_stage_errors: tuple[tuple[float, ...], ...]
+    fd_stage_finite_differences: tuple[tuple[float, ...], ...]
+    fd_stage_autodiff: tuple[tuple[float, ...], ...]
+    completed: bool
+    stage_models: tuple[Any, ...]
+    stage_unrolls: tuple[int, ...]
+    stage_boundaries: tuple[int, ...]
+    stage_learning_rates: tuple[float, ...]
+
+
+def _training_stages(training: dict[str, Any]) -> tuple[_TrainingStage, ...]:
+    """Normalize a fixed-horizon run or explicit curriculum into stages."""
+    default_lr = float(training.get("lr", 1e-4))
+    configured = training.get("curriculum")
+    if configured is None:
+        configured = [
+            {
+                "unroll": int(training.get("unroll", 4)),
+                "updates": int(training.get("max_updates", 100)),
+                "lr": default_lr,
+            }
+        ]
+    if not isinstance(configured, (list, tuple)) or not configured:
+        raise ValueError("training.curriculum must be a non-empty list")
+
+    stages: list[_TrainingStage] = []
+    for index, stage in enumerate(configured):
+        if not isinstance(stage, dict):
+            raise TypeError(f"training.curriculum[{index}] must be a mapping")
+        normalized = _TrainingStage(
+            unroll=int(stage["unroll"]),
+            updates=int(stage["updates"]),
+            lr=float(stage.get("lr", default_lr)),
+        )
+        if normalized.unroll < 1:
+            raise ValueError(f"training.curriculum[{index}].unroll must be positive")
+        if normalized.updates < 1:
+            raise ValueError(f"training.curriculum[{index}].updates must be positive")
+        if normalized.lr <= 0:
+            raise ValueError(f"training.curriculum[{index}].lr must be positive")
+        stages.append(normalized)
+    return tuple(stages)
+
+
+def _maximum_training_unroll(training: dict[str, Any]) -> int:
+    """Return the largest look-ahead required by a training configuration."""
+    return max(stage.unroll for stage in _training_stages(training))
+
+
 def _dataset_digest(config: dict[str, Any]) -> str:
     """Stable short identifier for generated reference data."""
     payload = json.dumps(config, sort_keys=True, separators=(",", ":")).encode()
@@ -270,7 +348,7 @@ def _make_reference_datasets(
     test_seeds = tuple(int(v) for v in dataset.get("test_seeds", [100, 101]))
     train_frames = int(dataset.get("train_frames", 16))
     eval_frames = int(evaluation.get("rollout_frames", 32))
-    unroll = int(training.get("unroll", 4))
+    unroll = _maximum_training_unroll(training)
     n_frames = max(train_frames, eval_frames, unroll)
     config = {
         "reference_kind": str(
@@ -464,7 +542,7 @@ def _make_solver_self_reference_datasets(
     all_seeds = train_seeds + test_seeds
     train_frames = int(dataset.get("train_frames", 16))
     eval_frames = int(evaluation.get("rollout_frames", 32))
-    unroll = int(training.get("unroll", 4))
+    unroll = _maximum_training_unroll(training)
     n_frames = max(train_frames, eval_frames, unroll)
 
     fine_n = n * reference_factor
@@ -696,11 +774,16 @@ def _window_loss(
     loss_mode: str,
     solver_loss_weight: float,
     loss_scale: float,
+    local_loss_weight: float = 1.0,
+    warmup_intervals: int = 0,
+    initial_state: jax.Array | None = None,
+    initial_native_state: Any | None = None,
 ) -> jax.Array:
     """Normalized recurrent loss with configurable temporal credit assignment."""
-    state = targets[0]
-    native_state = None
+    state = targets[0] if initial_state is None else initial_state
+    native_state = initial_native_state
     losses: list[jax.Array] = []
+    solver_mediated_losses: list[jax.Array] = []
     solver_terminal_loss: jax.Array | None = None
     for step, target in enumerate(targets[1:]):
         provisional, native_state = _solver_advance(
@@ -710,26 +793,35 @@ def _window_loss(
             frame_steps=frame_steps,
             native_state=native_state,
         )
-        if not differentiate_solver:
+        if not differentiate_solver or step < warmup_intervals:
             # Keep the identical recurrent forward trajectory but cut the
             # backward graph through both canonical and solver-native recurrent
-            # state. This counterfactual measures what the same corrector can
-            # learn without the solver VJP.
+            # state. Warm-up intervals expose inference-like states without
+            # extending the differentiated chain.
             provisional, native_state = _stop_recurrent_gradient(
                 provisional,
                 native_state,
             )
+        provisional_loss = jnp.sum((provisional - target) ** 2) / (
+            jnp.sum(target**2) + 1e-12
+        )
         if step == targets.shape[0] - 2:
-            solver_terminal_loss = jnp.sum((provisional - target) ** 2) / (
-                jnp.sum(target**2) + 1e-12
-            )
+            solver_terminal_loss = provisional_loss
         state = corrected_velocity(
             model,
             provisional,
             velocity_scale=velocity_scale,
             domain_extent=ctx.domain_extent,
         )
+        if step < warmup_intervals:
+            state, native_state = _stop_recurrent_gradient(state, native_state)
+            continue
         losses.append(jnp.sum((state - target) ** 2) / (jnp.sum(target**2) + 1e-12))
+        # The first provisional state after warm-up precedes any differentiated
+        # correction. Later provisional states measure how earlier corrections
+        # survive the intervening numerical solver and therefore require its VJP.
+        if step > warmup_intervals:
+            solver_mediated_losses.append(provisional_loss)
     if loss_mode == "mean":
         loss = jnp.mean(jnp.stack(losses))
     elif loss_mode == "terminal":
@@ -738,9 +830,54 @@ def _window_loss(
         if solver_terminal_loss is None:
             raise RuntimeError("solver-terminal loss requires a non-empty rollout")
         loss = solver_loss_weight * solver_terminal_loss + jnp.mean(jnp.stack(losses))
+    elif loss_mode == "solver_terminal_mediated":
+        if solver_terminal_loss is None:
+            raise RuntimeError("solver-terminal loss requires a non-empty rollout")
+        local_loss = jnp.mean(jnp.stack(losses))
+        loss = (
+            local_loss_weight * local_loss + solver_loss_weight * solver_terminal_loss
+        )
+    elif loss_mode == "solver_mediated":
+        local_loss = jnp.mean(jnp.stack(losses))
+        mediated_loss = (
+            jnp.mean(jnp.stack(solver_mediated_losses))
+            if solver_mediated_losses
+            else jnp.zeros_like(local_loss)
+        )
+        loss = local_loss_weight * local_loss + solver_loss_weight * mediated_loss
     else:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     return loss / jnp.asarray(loss_scale, dtype=loss.dtype)
+
+
+def _frozen_warmup_state(
+    model: Any,
+    targets: jax.Array,
+    *,
+    t: Any,
+    ctx: KernelContext,
+    frame_steps: int,
+    velocity_scale: float,
+    warmup_intervals: int,
+) -> tuple[jax.Array, Any | None]:
+    """Run pushforward warm-up once and freeze its recurrent suffix state."""
+    state = targets[0]
+    native_state = None
+    for _ in range(warmup_intervals):
+        state, native_state = _solver_advance(
+            t,
+            ctx,
+            state,
+            frame_steps=frame_steps,
+            native_state=native_state,
+        )
+        state = corrected_velocity(
+            model,
+            state,
+            velocity_scale=velocity_scale,
+            domain_extent=ctx.domain_extent,
+        )
+    return _stop_recurrent_gradient(state, native_state)
 
 
 def _directional_fd(
@@ -750,8 +887,8 @@ def _directional_fd(
     key: jax.Array,
     *,
     epsilon: float,
-) -> float:
-    """Relative error of one end-to-end directional finite difference."""
+) -> _DirectionalFD:
+    """Compare AD and finite differences along one normalized direction."""
     dynamic, static = eqx.partition(model, eqx.is_inexact_array)
     leaves, structure = jax.tree_util.tree_flatten(dynamic)
     direction = jax.tree_util.tree_unflatten(
@@ -794,7 +931,11 @@ def _directional_fd(
             strict=True,
         )
     )
-    return float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12))
+    return _DirectionalFD(
+        relative_error=float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12)),
+        finite_difference=float(fd),
+        autodiff=float(ad),
+    )
 
 
 def _train_corrector(
@@ -808,37 +949,69 @@ def _train_corrector(
     loss_scale: float,
     differentiate_solver: bool,
     model_seed: int,
-) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
-    """Train one solver-specific corrector with a fixed stochastic schedule."""
-    max_updates = int(training.get("max_updates", 100))
-    unroll = int(training.get("unroll", 4))
-    lr = float(training.get("lr", 1e-4))
+) -> _TrainingResult:
+    """Train one solver-specific corrector through a fixed or staged look-ahead."""
+    stages = _training_stages(training)
     clip_norm = float(training.get("clip_norm", 1.0))
     seed = int(training.get("seed", 2026))
     hidden_channels = int(training.get("hidden_channels", 32))
     kernel_size = int(training.get("kernel_size", 5))
     architecture = str(training.get("architecture", "periodic_residual_cnn"))
+    residual_blocks = int(training.get("residual_blocks", 5))
     loss_mode = str(training.get("loss_mode", "mean"))
     solver_loss_weight = float(training.get("solver_loss_weight", 0.1))
+    local_loss_weight = float(training.get("local_loss_weight", 1.0))
+    warmup_intervals = int(training.get("warmup_intervals", 0))
     fd_epsilon = float(training.get("fd_epsilon", 1e-2))
-    if unroll < 1 or train.shape[1] < unroll + 1:
-        raise ValueError(
-            "training.unroll must be positive and fit inside dataset.train_frames"
+    configured_fd_epsilons = training.get("fd_epsilons")
+    if configured_fd_epsilons is None:
+        fd_epsilons = (
+            10.0 * fd_epsilon,
+            3.0 * fd_epsilon,
+            fd_epsilon,
+            0.3 * fd_epsilon,
+            0.1 * fd_epsilon,
         )
-    if loss_mode not in {"mean", "terminal", "solver_terminal"}:
+    else:
+        fd_epsilons = tuple(float(value) for value in configured_fd_epsilons)
+    if not fd_epsilons or any(value <= 0 for value in fd_epsilons):
+        raise ValueError("training.fd_epsilons must contain positive values")
+    maximum_unroll = max(stage.unroll for stage in stages)
+    if train.shape[1] < warmup_intervals + maximum_unroll + 1:
+        raise ValueError(
+            "the warm-up plus largest look-ahead must fit inside dataset.train_frames"
+        )
+    if loss_mode not in {
+        "mean",
+        "terminal",
+        "solver_terminal",
+        "solver_terminal_mediated",
+        "solver_mediated",
+    }:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     if solver_loss_weight < 0:
         raise ValueError("training.solver_loss_weight must be non-negative")
+    if local_loss_weight < 0:
+        raise ValueError("training.local_loss_weight must be non-negative")
+    if warmup_intervals < 0:
+        raise ValueError("training.warmup_intervals must be non-negative")
+    if (
+        loss_mode in {"solver_mediated", "solver_terminal_mediated"}
+        and solver_loss_weight == 0
+        and local_loss_weight == 0
+    ):
+        raise ValueError("solver-mediated training needs a non-zero loss weight")
 
     model = init_corrector(
         jax.random.PRNGKey(model_seed),
         hidden_channels=hidden_channels,
         kernel_size=kernel_size,
         architecture=architecture,
+        residual_blocks=residual_blocks,
     )
     optimiser = optax.chain(
         optax.clip_by_global_norm(clip_norm),
-        optax.adam(lr),
+        optax.adam(stages[0].lr),
     )
     opt_state = optimiser.init(eqx.filter(model, eqx.is_inexact_array))
     rng = np.random.RandomState(seed)
@@ -846,56 +1019,149 @@ def _train_corrector(
     grad_norms: list[float] = []
     update_times: list[float] = []
     fd_error: float | None = None
+    fd_error_curve: tuple[float, ...] = ()
+    fd_finite_difference_curve: tuple[float, ...] = ()
+    fd_autodiff_curve: tuple[float, ...] = ()
+    fd_stage_unrolls: list[int] = []
+    fd_stage_error_curves: list[tuple[float, ...]] = []
+    fd_stage_finite_difference_curves: list[tuple[float, ...]] = []
+    fd_stage_autodiff_curves: list[tuple[float, ...]] = []
     completed = True
+    stage_models: list[Any] = []
+    stage_boundaries: list[int] = []
 
-    for update in range(max_updates):
-        update_started = time.perf_counter()
-        trajectory_idx = int(rng.randint(train.shape[0]))
-        max_start = train.shape[1] - unroll - 1
-        start = int(rng.randint(max_start + 1)) if max_start > 0 else 0
-        targets = jnp.asarray(train[trajectory_idx, start : start + unroll + 1])
-
-        loss_fn = partial(
-            _window_loss,
-            targets=targets,
-            t=t,
-            ctx=ctx,
-            frame_steps=frame_steps,
-            velocity_scale=velocity_scale,
-            differentiate_solver=differentiate_solver,
-            loss_mode=loss_mode,
-            solver_loss_weight=solver_loss_weight,
-            loss_scale=loss_scale,
+    for stage_index, stage in enumerate(stages):
+        optimiser = optax.chain(
+            optax.clip_by_global_norm(clip_norm),
+            optax.adam(stage.lr),
         )
-
-        loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
-        loss_value = float(loss)
-        grad_norm = float(optax.tree.norm(grads))
-        if not np.isfinite(loss_value) or not np.isfinite(grad_norm):
-            completed = False
-            break
-        if (
-            update == 0
-            and differentiate_solver
-            and bool(training.get("check_grad", True))
-        ):
-            fd_error = _directional_fd(
-                loss_fn,
-                model,
-                grads,
-                jax.random.PRNGKey(model_seed + 1),
-                epsilon=fd_epsilon,
+        for stage_update in range(stage.updates):
+            update_started = time.perf_counter()
+            trajectory_idx = int(rng.randint(train.shape[0]))
+            window_intervals = warmup_intervals + stage.unroll
+            max_start = train.shape[1] - window_intervals - 1
+            start = int(rng.randint(max_start + 1)) if max_start > 0 else 0
+            targets = jnp.asarray(
+                train[trajectory_idx, start : start + window_intervals + 1]
             )
-        updates, opt_state = optimiser.update(
-            grads,
-            opt_state,
-            eqx.filter(model, eqx.is_inexact_array),
-        )
-        model = eqx.apply_updates(model, updates)
-        losses.append(loss_value)
-        grad_norms.append(grad_norm)
-        update_times.append(time.perf_counter() - update_started)
-    return model, losses, grad_norms, update_times, fd_error, completed
+
+            loss_fn = partial(
+                _window_loss,
+                targets=targets,
+                t=t,
+                ctx=ctx,
+                frame_steps=frame_steps,
+                velocity_scale=velocity_scale,
+                differentiate_solver=differentiate_solver,
+                loss_mode=loss_mode,
+                solver_loss_weight=solver_loss_weight,
+                loss_scale=loss_scale,
+                local_loss_weight=local_loss_weight,
+                warmup_intervals=warmup_intervals,
+            )
+
+            loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
+            loss_value = float(loss)
+            grad_norm = float(optax.tree.norm(grads))
+            if not np.isfinite(loss_value) or not np.isfinite(grad_norm):
+                completed = False
+                break
+            check_this_stage = bool(training.get("check_grad_stages", False)) or (
+                stage_index == len(stages) - 1
+            )
+            if (
+                check_this_stage
+                and stage_update == 0
+                and differentiate_solver
+                and bool(training.get("check_grad", True))
+            ):
+                fd_loss_fn = loss_fn
+                if warmup_intervals:
+                    frozen_state, frozen_native_state = _frozen_warmup_state(
+                        model,
+                        targets,
+                        t=t,
+                        ctx=ctx,
+                        frame_steps=frame_steps,
+                        velocity_scale=velocity_scale,
+                        warmup_intervals=warmup_intervals,
+                    )
+                    # Stop-gradient warm-up defines a truncated derivative, not
+                    # the derivative of a fully perturbed forward rollout.
+                    # Freeze its base-model state for a like-for-like FD check.
+                    fd_loss_fn = partial(
+                        _window_loss,
+                        targets=targets[warmup_intervals:],
+                        t=t,
+                        ctx=ctx,
+                        frame_steps=frame_steps,
+                        velocity_scale=velocity_scale,
+                        differentiate_solver=differentiate_solver,
+                        loss_mode=loss_mode,
+                        solver_loss_weight=solver_loss_weight,
+                        loss_scale=loss_scale,
+                        local_loss_weight=local_loss_weight,
+                        warmup_intervals=0,
+                        initial_state=frozen_state,
+                        initial_native_state=frozen_native_state,
+                    )
+                checks = tuple(
+                    _directional_fd(
+                        fd_loss_fn,
+                        model,
+                        grads,
+                        jax.random.PRNGKey(model_seed + 1),
+                        epsilon=epsilon,
+                    )
+                    for epsilon in fd_epsilons
+                )
+                stage_error_curve = tuple(check.relative_error for check in checks)
+                stage_finite_difference_curve = tuple(
+                    check.finite_difference for check in checks
+                )
+                stage_autodiff_curve = tuple(check.autodiff for check in checks)
+                fd_stage_unrolls.append(stage.unroll)
+                fd_stage_error_curves.append(stage_error_curve)
+                fd_stage_finite_difference_curves.append(stage_finite_difference_curve)
+                fd_stage_autodiff_curves.append(stage_autodiff_curve)
+                if stage_index == len(stages) - 1:
+                    fd_error_curve = stage_error_curve
+                    fd_finite_difference_curve = stage_finite_difference_curve
+                    fd_autodiff_curve = stage_autodiff_curve
+                    fd_error = min(fd_error_curve)
+            updates, opt_state = optimiser.update(
+                grads,
+                opt_state,
+                eqx.filter(model, eqx.is_inexact_array),
+            )
+            model = eqx.apply_updates(model, updates)
+            losses.append(loss_value)
+            grad_norms.append(grad_norm)
+            update_times.append(time.perf_counter() - update_started)
+        stage_models.append(model)
+        stage_boundaries.append(len(losses))
+        if not completed:
+            break
+    return _TrainingResult(
+        model=model,
+        losses=losses,
+        grad_norms=grad_norms,
+        update_times=update_times,
+        fd_error=fd_error,
+        fd_epsilons=fd_epsilons if fd_error_curve else (),
+        fd_errors=fd_error_curve,
+        fd_finite_differences=fd_finite_difference_curve,
+        fd_autodiff=fd_autodiff_curve,
+        fd_stage_unrolls=tuple(fd_stage_unrolls),
+        fd_stage_errors=tuple(fd_stage_error_curves),
+        fd_stage_finite_differences=tuple(fd_stage_finite_difference_curves),
+        fd_stage_autodiff=tuple(fd_stage_autodiff_curves),
+        completed=completed,
+        stage_models=tuple(stage_models),
+        stage_unrolls=tuple(stage.unroll for stage in stages[: len(stage_models)]),
+        stage_boundaries=tuple(stage_boundaries),
+        stage_learning_rates=tuple(stage.lr for stage in stages[: len(stage_models)]),
+    )
 
 
 def _evaluate_rollout(
@@ -937,6 +1203,7 @@ def _evaluate_rollout(
 class _ReferenceEvaluation(NamedTuple):
     first_rollout: np.ndarray | None
     errors: np.ndarray
+    correlations: np.ndarray
     final_states: np.ndarray
 
 
@@ -952,6 +1219,7 @@ def _evaluate_reference_set(
 ) -> _ReferenceEvaluation:
     """Evaluate several ICs, retaining the first rollout and every final state."""
     errors: list[list[float]] = []
+    correlations: list[list[float]] = []
     final_states: list[np.ndarray] = []
     first_rollout: np.ndarray | None = None
     for reference in references:
@@ -965,12 +1233,29 @@ def _evaluate_reference_set(
             corrected=corrected,
         )
         errors.append(reference_errors)
+        reference_correlations = []
+        for predicted, target in zip(rollout, reference, strict=True):
+            predicted_flat = np.asarray(predicted, dtype=np.float64).ravel()
+            target_flat = np.asarray(target, dtype=np.float64).ravel()
+            predicted_flat -= np.mean(predicted_flat)
+            target_flat -= np.mean(target_flat)
+            reference_correlations.append(
+                float(
+                    np.vdot(predicted_flat, target_flat).real
+                    / (
+                        np.linalg.norm(predicted_flat) * np.linalg.norm(target_flat)
+                        + 1e-12
+                    )
+                )
+            )
+        correlations.append(reference_correlations)
         final_states.append(rollout[-1])
         if first_rollout is None:
             first_rollout = rollout
     return _ReferenceEvaluation(
         first_rollout=first_rollout,
         errors=np.asarray(errors, dtype=np.float64),
+        correlations=np.asarray(correlations, dtype=np.float64),
         final_states=np.asarray(final_states),
     )
 
@@ -981,6 +1266,14 @@ def _first_unstable(errors: list[float], threshold: float) -> int:
         if not np.isfinite(error) or error > threshold:
             return idx
     return len(errors) - 1
+
+
+def _first_below(values: list[float], threshold: float) -> int:
+    """Return first frame below a quality threshold, or the completed horizon."""
+    for idx, value in enumerate(values):
+        if not np.isfinite(value) or value < threshold:
+            return idx
+    return len(values) - 1
 
 
 def _rollout_log_gain(
@@ -1042,6 +1335,17 @@ def _mean_curve(curves: list[list[float]]) -> np.ndarray:
     ).astype(np.float32)
 
 
+def _stack_curves(curves: list[list[float]]) -> np.ndarray:
+    """Stack the common completed prefix of repeated optimization curves."""
+    if not curves:
+        return np.empty((0, 0), dtype=np.float32)
+    common_length = min(len(curve) for curve in curves)
+    return np.stack(
+        [np.asarray(curve[:common_length]) for curve in curves],
+        axis=0,
+    ).astype(np.float32)
+
+
 def _mean_optional(values: list[float | None]) -> float | None:
     """Average present scalar measurements from repeated model seeds."""
     present = [float(value) for value in values if value is not None]
@@ -1059,29 +1363,75 @@ def _std(values: list[float]) -> float:
     snapshot_filename="corrector_fields.npz",
     snapshot_prefixes=(
         "loss",
+        "loss_samples",
         "loss_seed_std",
         "loss_stop_gradient",
+        "loss_stop_gradient_samples",
         "loss_stop_gradient_seed_std",
+        "loss_one_step",
+        "loss_one_step_samples",
         "grad_norm",
+        "grad_norm_samples",
         "grad_norm_stop_gradient",
+        "grad_norm_stop_gradient_samples",
+        "grad_norm_one_step",
+        "grad_norm_one_step_samples",
         "update_time",
+        "update_time_samples",
         "update_time_stop_gradient",
+        "update_time_stop_gradient_samples",
+        "update_time_one_step",
+        "update_time_one_step_samples",
+        "fd_epsilon",
+        "fd_rel_error_samples",
         "error_corrected",
+        "error_corrected_samples",
         "error_corrected_seed_std",
         "error_corrected_ic_std",
         "error_stop_gradient",
+        "error_stop_gradient_samples",
         "error_stop_gradient_seed_std",
         "error_stop_gradient_ic_std",
         "error_uncorrected",
+        "error_uncorrected_samples",
         "error_uncorrected_ic_std",
         "error_seen_corrected",
+        "error_seen_corrected_samples",
         "error_seen_stop_gradient",
+        "error_seen_stop_gradient_samples",
         "error_seen_uncorrected",
+        "error_one_step",
+        "error_one_step_samples",
+        "error_one_step_seed_std",
+        "error_one_step_ic_std",
+        "error_seen_one_step",
+        "error_seen_one_step_samples",
+        "correlation_corrected",
+        "correlation_corrected_samples",
+        "correlation_stop_gradient",
+        "correlation_stop_gradient_samples",
+        "correlation_one_step",
+        "correlation_one_step_samples",
+        "correlation_uncorrected",
+        "correlation_uncorrected_samples",
         "rollout_log_gain_samples",
         "stop_gradient_log_gain_samples",
         "solver_vjp_log_lift_samples",
+        "one_step_rollout_log_gain_samples",
+        "unrolling_log_lift_samples",
+        "wig_over_one_log_lift_samples",
+        "curriculum_stage_unrolls",
+        "curriculum_stage_boundaries",
+        "curriculum_checkpoint_error_full",
+        "curriculum_checkpoint_error_full_samples",
+        "curriculum_checkpoint_error_full_seed_std",
+        "curriculum_checkpoint_error_nog",
+        "curriculum_checkpoint_error_nog_samples",
+        "curriculum_checkpoint_error_nog_seed_std",
+        "curriculum_checkpoint_error_native",
         "rollout_corrected",
         "rollout_stop_gradient",
+        "rollout_one_step",
         "rollout_uncorrected",
         "reference_rollout",
     ),
@@ -1143,6 +1493,16 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             },
         }
     velocity_scale = float(np.sqrt(np.mean(train**2)) + 1e-8)
+    include_one_step = bool(training.get("include_one_step_baseline", False))
+    curriculum_stages = _training_stages(training)
+    checkpoint_trajectory_count = min(
+        int(evaluation.get("checkpoint_ic_trajectories", 2)),
+        test.shape[0],
+    )
+    checkpoint_rollout_frames = min(
+        int(evaluation.get("checkpoint_rollout_frames", test.shape[1] - 1)),
+        test.shape[1] - 1,
+    )
 
     configured_seeds = training.get("model_seeds")
     if configured_seeds is None:
@@ -1207,6 +1567,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     )
     first_uncorrected = uncorrected_eval.first_rollout
     uncorrected_errors_array = uncorrected_eval.errors
+    uncorrected_correlations_array = uncorrected_eval.correlations
     recurrent_final_states = uncorrected_eval.final_states
     seen_uncorrected_eval = _evaluate_reference_set(
         t,
@@ -1286,6 +1647,15 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     grad_norms_by_seed: list[list[float]] = []
     update_times_by_seed: list[list[float]] = []
     fd_errors: list[float | None] = []
+    fd_model_seeds: list[int] = []
+    fd_epsilons_by_seed: list[tuple[float, ...]] = []
+    fd_error_curves_by_seed: list[tuple[float, ...]] = []
+    fd_finite_difference_curves_by_seed: list[tuple[float, ...]] = []
+    fd_autodiff_curves_by_seed: list[tuple[float, ...]] = []
+    fd_stage_unrolls_by_seed: list[tuple[int, ...]] = []
+    fd_stage_error_curves_by_seed: list[tuple[tuple[float, ...], ...]] = []
+    fd_stage_finite_difference_curves_by_seed: list[tuple[tuple[float, ...], ...]] = []
+    fd_stage_autodiff_curves_by_seed: list[tuple[tuple[float, ...], ...]] = []
     completed_by_seed: list[bool] = []
     training_walls: list[float] = []
     stop_gradient_losses_by_seed: list[list[float]] = []
@@ -1295,28 +1665,31 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     stop_gradient_training_walls: list[float] = []
     corrected_errors_by_seed: list[np.ndarray] = []
     stop_gradient_errors_by_seed: list[np.ndarray] = []
+    corrected_correlations_by_seed: list[np.ndarray] = []
+    stop_gradient_correlations_by_seed: list[np.ndarray] = []
     seen_corrected_errors_by_seed: list[np.ndarray] = []
     seen_stop_gradient_errors_by_seed: list[np.ndarray] = []
+    one_step_losses_by_seed: list[list[float]] = []
+    one_step_grad_norms_by_seed: list[list[float]] = []
+    one_step_update_times_by_seed: list[list[float]] = []
+    one_step_completed_by_seed: list[bool] = []
+    one_step_training_walls: list[float] = []
+    one_step_errors_by_seed: list[np.ndarray] = []
+    one_step_correlations_by_seed: list[np.ndarray] = []
+    seen_one_step_errors_by_seed: list[np.ndarray] = []
+    checkpoint_full_errors_by_seed: list[np.ndarray] = []
+    checkpoint_stop_errors_by_seed: list[np.ndarray] = []
     first_corrected: np.ndarray | None = None
     first_stop_gradient: np.ndarray | None = None
+    first_one_step: np.ndarray | None = None
 
     for seed_idx, model_seed in enumerate(model_seeds):
         seed_training = {
             **training,
-            # One end-to-end FD check is enough for a shared architecture and
-            # solver VJP; repeating it for initialisation replicates adds cost
-            # without strengthening the paired training comparison.
-            "check_grad": bool(training.get("check_grad", True)) and seed_idx == 0,
+            "check_grad": bool(training.get("check_grad", True)),
         }
         started = time.perf_counter()
-        (
-            model,
-            losses,
-            grad_norms,
-            update_times,
-            fd_error,
-            completed,
-        ) = _train_corrector(
+        full_training = _train_corrector(
             t,
             ctx,
             train,
@@ -1327,17 +1700,20 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             differentiate_solver=True,
             model_seed=model_seed,
         )
+        model = full_training.model
+        losses = full_training.losses
+        grad_norms = full_training.grad_norms
+        update_times = full_training.update_times
+        fd_error = full_training.fd_error
+        fd_epsilons = full_training.fd_epsilons
+        fd_error_curve = full_training.fd_errors
+        fd_finite_difference_curve = full_training.fd_finite_differences
+        fd_autodiff_curve = full_training.fd_autodiff
+        completed = full_training.completed
         training_walls.append(time.perf_counter() - started)
 
         stop_gradient_started = time.perf_counter()
-        (
-            stop_gradient_model,
-            stop_gradient_losses,
-            stop_gradient_grad_norms,
-            stop_gradient_update_times,
-            _stop_gradient_fd_error,
-            stop_gradient_completed,
-        ) = _train_corrector(
+        stop_training = _train_corrector(
             t,
             ctx,
             train,
@@ -1348,7 +1724,56 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             differentiate_solver=False,
             model_seed=model_seed,
         )
+        stop_gradient_model = stop_training.model
+        stop_gradient_losses = stop_training.losses
+        stop_gradient_grad_norms = stop_training.grad_norms
+        stop_gradient_update_times = stop_training.update_times
+        stop_gradient_completed = stop_training.completed
         stop_gradient_training_walls.append(time.perf_counter() - stop_gradient_started)
+
+        one_step_model = None
+        one_step_training: _TrainingResult | None = None
+        if include_one_step:
+            one_step_updates = int(
+                training.get(
+                    "one_step_updates",
+                    sum(stage.updates for stage in curriculum_stages),
+                )
+            )
+            one_step_config = {
+                **training,
+                "unroll": 1,
+                "max_updates": one_step_updates,
+                "curriculum": [
+                    {
+                        "unroll": 1,
+                        "updates": one_step_updates,
+                        "lr": float(training.get("lr", 1e-4)),
+                    }
+                ],
+                "loss_mode": "mean",
+                "solver_loss_weight": 0.0,
+                "local_loss_weight": 1.0,
+                "warmup_intervals": 0,
+                "check_grad": False,
+            }
+            one_step_started = time.perf_counter()
+            one_step_training = _train_corrector(
+                t,
+                ctx,
+                train,
+                frame_steps=frame_steps,
+                training=one_step_config,
+                velocity_scale=velocity_scale,
+                loss_scale=training_loss_scale,
+                # With a true reference state at the beginning of every
+                # one-step sample, the solver output does not depend on model
+                # parameters. Stopping it is therefore mathematically exact.
+                differentiate_solver=False,
+                model_seed=model_seed,
+            )
+            one_step_training_walls.append(time.perf_counter() - one_step_started)
+            one_step_model = one_step_training.model
 
         corrected_eval = _evaluate_reference_set(
             t,
@@ -1392,6 +1817,68 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             corrected=True,
         )
         seen_seed_stop_gradient_errors = seen_stop_gradient_eval.errors
+        if one_step_model is not None and one_step_training is not None:
+            one_step_eval = _evaluate_reference_set(
+                t,
+                ctx,
+                one_step_model,
+                test,
+                frame_steps=frame_steps,
+                velocity_scale=velocity_scale,
+                corrected=True,
+            )
+            seen_one_step_eval = _evaluate_reference_set(
+                t,
+                ctx,
+                one_step_model,
+                seen_references,
+                frame_steps=frame_steps,
+                velocity_scale=velocity_scale,
+                corrected=True,
+            )
+            one_step_losses_by_seed.append(one_step_training.losses)
+            one_step_grad_norms_by_seed.append(one_step_training.grad_norms)
+            one_step_update_times_by_seed.append(one_step_training.update_times)
+            one_step_completed_by_seed.append(one_step_training.completed)
+            one_step_errors_by_seed.append(one_step_eval.errors)
+            one_step_correlations_by_seed.append(one_step_eval.correlations)
+            seen_one_step_errors_by_seed.append(seen_one_step_eval.errors)
+            if seed_idx == 0:
+                first_one_step = one_step_eval.first_rollout
+
+        if len(full_training.stage_models) > 1:
+            checkpoint_references = test[
+                :checkpoint_trajectory_count, : checkpoint_rollout_frames + 1
+            ]
+            full_checkpoint_errors: list[np.ndarray] = []
+            stop_checkpoint_errors: list[np.ndarray] = []
+            for full_stage_model, stop_stage_model in zip(
+                full_training.stage_models,
+                stop_training.stage_models,
+                strict=True,
+            ):
+                full_stage_eval = _evaluate_reference_set(
+                    t,
+                    ctx,
+                    full_stage_model,
+                    checkpoint_references,
+                    frame_steps=frame_steps,
+                    velocity_scale=velocity_scale,
+                    corrected=True,
+                )
+                stop_stage_eval = _evaluate_reference_set(
+                    t,
+                    ctx,
+                    stop_stage_model,
+                    checkpoint_references,
+                    frame_steps=frame_steps,
+                    velocity_scale=velocity_scale,
+                    corrected=True,
+                )
+                full_checkpoint_errors.append(np.mean(full_stage_eval.errors, axis=0))
+                stop_checkpoint_errors.append(np.mean(stop_stage_eval.errors, axis=0))
+            checkpoint_full_errors_by_seed.append(np.stack(full_checkpoint_errors))
+            checkpoint_stop_errors_by_seed.append(np.stack(stop_checkpoint_errors))
         if seed_idx == 0:
             first_corrected = corrected_rollout
             first_stop_gradient = stop_gradient_rollout
@@ -1401,6 +1888,18 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         grad_norms_by_seed.append(grad_norms)
         update_times_by_seed.append(update_times)
         fd_errors.append(fd_error)
+        if fd_error_curve:
+            fd_model_seeds.append(model_seed)
+            fd_epsilons_by_seed.append(fd_epsilons)
+            fd_error_curves_by_seed.append(fd_error_curve)
+            fd_finite_difference_curves_by_seed.append(fd_finite_difference_curve)
+            fd_autodiff_curves_by_seed.append(fd_autodiff_curve)
+            fd_stage_unrolls_by_seed.append(full_training.fd_stage_unrolls)
+            fd_stage_error_curves_by_seed.append(full_training.fd_stage_errors)
+            fd_stage_finite_difference_curves_by_seed.append(
+                full_training.fd_stage_finite_differences
+            )
+            fd_stage_autodiff_curves_by_seed.append(full_training.fd_stage_autodiff)
         completed_by_seed.append(completed)
         stop_gradient_losses_by_seed.append(stop_gradient_losses)
         stop_gradient_grad_norms_by_seed.append(stop_gradient_grad_norms)
@@ -1408,11 +1907,22 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         stop_gradient_completed_by_seed.append(stop_gradient_completed)
         corrected_errors_by_seed.append(seed_corrected_errors)
         stop_gradient_errors_by_seed.append(seed_stop_gradient_errors)
+        corrected_correlations_by_seed.append(corrected_eval.correlations)
+        stop_gradient_correlations_by_seed.append(stop_gradient_eval.correlations)
         seen_corrected_errors_by_seed.append(seen_seed_corrected_errors)
         seen_stop_gradient_errors_by_seed.append(seen_seed_stop_gradient_errors)
 
     corrected_errors_array = np.stack(corrected_errors_by_seed)
     stop_gradient_errors_array = np.stack(stop_gradient_errors_by_seed)
+    corrected_correlation = np.mean(
+        np.stack(corrected_correlations_by_seed),
+        axis=(0, 1),
+    )
+    stop_gradient_correlation = np.mean(
+        np.stack(stop_gradient_correlations_by_seed),
+        axis=(0, 1),
+    )
+    uncorrected_correlation = np.mean(uncorrected_correlations_array, axis=0)
     seen_corrected_errors_array = np.stack(seen_corrected_errors_by_seed)
     seen_stop_gradient_errors_array = np.stack(seen_stop_gradient_errors_by_seed)
     corrected_error, corrected_error_seed_std, corrected_error_ic_std = (
@@ -1433,12 +1943,35 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         _seen_stop_gradient_error_seed_std,
         _seen_stop_gradient_error_ic_std,
     ) = _ensemble_curve_stats(seen_stop_gradient_errors_array)
+    one_step_error: np.ndarray | None = None
+    one_step_error_seed_std: np.ndarray | None = None
+    one_step_error_ic_std: np.ndarray | None = None
+    seen_one_step_error: np.ndarray | None = None
+    one_step_errors_array: np.ndarray | None = None
+    one_step_correlation: np.ndarray | None = None
+    if include_one_step:
+        one_step_errors_array = np.stack(one_step_errors_by_seed)
+        (
+            one_step_error,
+            one_step_error_seed_std,
+            one_step_error_ic_std,
+        ) = _ensemble_curve_stats(one_step_errors_array)
+        seen_one_step_error = _ensemble_curve_stats(
+            np.stack(seen_one_step_errors_by_seed)
+        )[0]
+        one_step_correlation = np.mean(
+            np.stack(one_step_correlations_by_seed),
+            axis=(0, 1),
+        )
     losses = _mean_curve(losses_by_seed)
     stop_gradient_losses = _mean_curve(stop_gradient_losses_by_seed)
+    one_step_losses = _mean_curve(one_step_losses_by_seed)
     grad_norms = _mean_curve(grad_norms_by_seed)
     stop_gradient_grad_norms = _mean_curve(stop_gradient_grad_norms_by_seed)
+    one_step_grad_norms = _mean_curve(one_step_grad_norms_by_seed)
     update_times = _mean_curve(update_times_by_seed)
     stop_gradient_update_times = _mean_curve(stop_gradient_update_times_by_seed)
+    one_step_update_times = _mean_curve(one_step_update_times_by_seed)
     loss_seed_std = (
         np.std(np.stack([curve[: len(losses)] for curve in losses_by_seed]), axis=0)
         if losses.size
@@ -1459,10 +1992,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     )
     training_wall = float(np.sum(training_walls))
     stop_gradient_training_wall = float(np.sum(stop_gradient_training_walls))
+    one_step_training_wall = float(np.sum(one_step_training_walls))
     total_updates = sum(len(curve) for curve in losses_by_seed)
     stop_gradient_total_updates = sum(
         len(curve) for curve in stop_gradient_losses_by_seed
     )
+    one_step_total_updates = sum(len(curve) for curve in one_step_losses_by_seed)
     steady_update_times = [
         value
         for seed_times in update_times_by_seed
@@ -1471,6 +2006,11 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     stop_gradient_steady_update_times = [
         value
         for seed_times in stop_gradient_update_times_by_seed
+        for value in (seed_times[1:] if len(seed_times) > 1 else seed_times)
+    ]
+    one_step_steady_update_times = [
+        value
+        for seed_times in one_step_update_times_by_seed
         for value in (seed_times[1:] if len(seed_times) > 1 else seed_times)
     ]
 
@@ -1505,7 +2045,24 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     rollout_log_gain = float(np.mean(rollout_log_gain_samples))
     stop_gradient_log_gain = float(np.mean(stop_gradient_log_gain_samples))
     solver_vjp_log_lift = float(np.mean(solver_vjp_log_lift_samples))
+    one_step_rollout_log_gain_samples: np.ndarray | None = None
+    unrolling_log_lift_samples: np.ndarray | None = None
+    wig_over_one_log_lift_samples: np.ndarray | None = None
+    if one_step_errors_array is not None:
+        one_step_rollout_log_gain_samples = _rollout_log_gain_samples(
+            uncorrected_errors_array,
+            one_step_errors_array,
+        )
+        unrolling_log_lift_samples = _rollout_log_gain_samples(
+            one_step_errors_array,
+            stop_gradient_errors_array,
+        )
+        wig_over_one_log_lift_samples = _rollout_log_gain_samples(
+            one_step_errors_array,
+            corrected_errors_array,
+        )
     threshold = float(evaluation.get("stable_error_threshold", 1.0))
+    correlation_threshold = float(evaluation.get("correlation_threshold", 0.95))
     matched_horizon_frame = min(train.shape[1] - 1, test.shape[1] - 1)
     long_horizon_frame = test.shape[1] - 1
     seen_matched_error = float(seen_corrected_error[matched_horizon_frame])
@@ -1525,6 +2082,141 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         if stop_gradient_steady_update_times
         else None
     )
+    one_step_median_update_time = (
+        float(np.median(one_step_steady_update_times))
+        if one_step_steady_update_times
+        else None
+    )
+    stage_boundaries = np.cumsum(
+        [stage.updates for stage in curriculum_stages],
+        dtype=np.int64,
+    )
+    warmup_intervals = int(training.get("warmup_intervals", 0))
+    warmup_solver_intervals_per_seed = warmup_intervals * sum(
+        stage.updates for stage in curriculum_stages
+    )
+    recurrent_solver_intervals_per_seed = int(
+        sum(
+            (warmup_intervals + stage.unroll) * stage.updates
+            for stage in curriculum_stages
+        )
+    )
+    checkpoint_full_error: np.ndarray | None = None
+    checkpoint_stop_error: np.ndarray | None = None
+    checkpoint_full_seed_std: np.ndarray | None = None
+    checkpoint_stop_seed_std: np.ndarray | None = None
+    checkpoint_native_error: np.ndarray | None = None
+    if checkpoint_full_errors_by_seed:
+        full_checkpoints = np.stack(checkpoint_full_errors_by_seed)
+        stop_checkpoints = np.stack(checkpoint_stop_errors_by_seed)
+        checkpoint_full_error = np.mean(full_checkpoints, axis=0)
+        checkpoint_stop_error = np.mean(stop_checkpoints, axis=0)
+        checkpoint_full_seed_std = np.std(full_checkpoints, axis=0)
+        checkpoint_stop_seed_std = np.std(stop_checkpoints, axis=0)
+        checkpoint_native_error = np.mean(
+            uncorrected_errors_array[
+                :checkpoint_trajectory_count, : checkpoint_rollout_frames + 1
+            ],
+            axis=0,
+        )
+    fd_epsilon_array = np.asarray([], dtype=np.float32)
+    fd_error_samples = np.empty((0, 0), dtype=np.float32)
+    fd_finite_difference_samples = np.empty((0, 0), dtype=np.float32)
+    fd_autodiff_samples = np.empty((0, 0), dtype=np.float32)
+    fd_stage_unroll_array = np.asarray([], dtype=np.int32)
+    fd_stage_error_samples = np.empty((0, 0, 0), dtype=np.float32)
+    fd_stage_finite_difference_samples = np.empty((0, 0, 0), dtype=np.float32)
+    fd_stage_autodiff_samples = np.empty((0, 0, 0), dtype=np.float32)
+    fd_check_summary: list[dict[str, Any]] = []
+    fd_horizon_summary: list[dict[str, Any]] = []
+    if fd_error_curves_by_seed:
+        if len(set(fd_epsilons_by_seed)) != 1:
+            raise RuntimeError("FD epsilon grids differ across model seeds")
+        if len(set(fd_stage_unrolls_by_seed)) != 1:
+            raise RuntimeError("FD horizon grids differ across model seeds")
+        fd_epsilon_array = np.asarray(fd_epsilons_by_seed[0], dtype=np.float32)
+        fd_error_samples = np.asarray(fd_error_curves_by_seed, dtype=np.float32)
+        fd_finite_difference_samples = np.asarray(
+            fd_finite_difference_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_autodiff_samples = np.asarray(
+            fd_autodiff_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_stage_unroll_array = np.asarray(
+            fd_stage_unrolls_by_seed[0],
+            dtype=np.int32,
+        )
+        fd_stage_error_samples = np.asarray(
+            fd_stage_error_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_stage_finite_difference_samples = np.asarray(
+            fd_stage_finite_difference_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_stage_autodiff_samples = np.asarray(
+            fd_stage_autodiff_curves_by_seed,
+            dtype=np.float32,
+        )
+        fd_check_summary = [
+            {
+                "model_seed": model_seed,
+                "best_epsilon": float(
+                    fd_epsilon_array[best_index := int(np.argmin(curve))]
+                ),
+                "best_relative_error": float(curve[best_index]),
+                "max_relative_error": float(np.max(curve)),
+                "finite_difference_at_best_epsilon": float(
+                    finite_differences[best_index]
+                ),
+                "autodiff_directional_derivative": float(autodiff_values[best_index]),
+                "absolute_directional_error": float(
+                    abs(finite_differences[best_index] - autodiff_values[best_index])
+                ),
+            }
+            for model_seed, curve, finite_differences, autodiff_values in zip(
+                fd_model_seeds,
+                fd_error_samples,
+                fd_finite_difference_samples,
+                fd_autodiff_samples,
+                strict=True,
+            )
+        ]
+        fd_horizon_summary = [
+            {
+                "model_seed": model_seed,
+                "unroll": int(unroll),
+                "best_epsilon": float(
+                    fd_epsilon_array[best_index := int(np.argmin(curve))]
+                ),
+                "best_relative_error": float(curve[best_index]),
+                "finite_difference_at_best_epsilon": float(
+                    finite_differences[best_index]
+                ),
+                "autodiff_directional_derivative": float(autodiff_values[best_index]),
+            }
+            for (
+                model_seed,
+                seed_curves,
+                seed_finite_differences,
+                seed_autodiff_values,
+            ) in zip(
+                fd_model_seeds,
+                fd_stage_error_samples,
+                fd_stage_finite_difference_samples,
+                fd_stage_autodiff_samples,
+                strict=True,
+            )
+            for unroll, curve, finite_differences, autodiff_values in zip(
+                fd_stage_unroll_array,
+                seed_curves,
+                seed_finite_differences,
+                seed_autodiff_values,
+                strict=True,
+            )
+        ]
 
     metrics = {
         **reference_audit,
@@ -1634,6 +2326,25 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             uncorrected_error.tolist(), threshold
         )
         * interval_time,
+        "final_rollout_correlation": float(corrected_correlation[-1]),
+        "stop_gradient_final_rollout_correlation": float(stop_gradient_correlation[-1]),
+        "uncorrected_final_rollout_correlation": float(uncorrected_correlation[-1]),
+        "correlation_threshold": correlation_threshold,
+        "correlation_horizon": _first_below(
+            corrected_correlation.tolist(),
+            correlation_threshold,
+        )
+        * interval_time,
+        "stop_gradient_correlation_horizon": _first_below(
+            stop_gradient_correlation.tolist(),
+            correlation_threshold,
+        )
+        * interval_time,
+        "uncorrected_correlation_horizon": _first_below(
+            uncorrected_correlation.tolist(),
+            correlation_threshold,
+        )
+        * interval_time,
         "initial_train_loss": float(losses[0]) if losses.size else None,
         "final_train_loss": float(losses[-1]) if losses.size else None,
         "best_train_loss": float(np.min(losses)) if losses.size else None,
@@ -1672,6 +2383,17 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         if stop_gradient_grad_norms.size
         else None,
         "end_to_end_fd_rel_error": _mean_optional(fd_errors),
+        "end_to_end_fd_rel_error_max": max(
+            (value for value in fd_errors if value is not None),
+            default=None,
+        ),
+        "fd_check_summary": fd_check_summary,
+        "fd_horizon_summary": fd_horizon_summary,
+        "fd_check_scope": (
+            "differentiated_suffix_with_frozen_warmup"
+            if warmup_intervals
+            else "full_training_window"
+        ),
         "final_divergence_rms": divergence_rms(first_corrected[-1], ctx.domain_extent)
         if first_corrected is not None
         else None,
@@ -1736,14 +2458,44 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "n_test_trajectories": int(test.shape[0]),
         "n_seen_ic_evaluation_trajectories": seen_trajectory_count,
         "training_frames": int(train.shape[1] - 1),
-        "training_unroll": int(training.get("unroll", 4)),
+        "training_unroll": max(stage.unroll for stage in curriculum_stages),
+        "training_curriculum": [
+            {
+                "unroll": stage.unroll,
+                "updates": stage.updates,
+                "lr": stage.lr,
+            }
+            for stage in curriculum_stages
+        ],
+        "training_stage_boundaries": stage_boundaries.tolist(),
+        "training_solver_intervals_per_seed": recurrent_solver_intervals_per_seed,
+        "training_solver_intervals_total": recurrent_solver_intervals_per_seed
+        * len(model_seeds),
+        "training_native_steps_per_seed": (
+            recurrent_solver_intervals_per_seed * frame_steps
+        ),
+        "training_native_steps_total": (
+            recurrent_solver_intervals_per_seed * frame_steps * len(model_seeds)
+        ),
+        "training_warmup_solver_intervals_per_seed": (warmup_solver_intervals_per_seed),
+        "training_warmup_solver_intervals_total": (
+            warmup_solver_intervals_per_seed * len(model_seeds)
+        ),
         "training_loss_mode": str(training.get("loss_mode", "mean")),
         "training_solver_loss_weight": float(training.get("solver_loss_weight", 0.1)),
+        "training_local_loss_weight": float(training.get("local_loss_weight", 1.0)),
+        "training_warmup_intervals": int(training.get("warmup_intervals", 0)),
+        "training_warmup_native_steps": warmup_intervals * frame_steps,
+        "training_differentiated_native_horizon": (
+            max(stage.unroll for stage in curriculum_stages) * frame_steps
+        ),
         "training_loss_normalization": loss_normalization,
         "training_loss_scale": training_loss_scale,
         "matched_horizon_time": matched_horizon_frame * interval_time,
         "visualization_model_seed": model_seeds[0],
-        "completed": all(completed_by_seed) and all(stop_gradient_completed_by_seed),
+        "completed": all(completed_by_seed)
+        and all(stop_gradient_completed_by_seed)
+        and (not include_one_step or all(one_step_completed_by_seed)),
         "dataset_hash": dataset_hash,
         "reference_kind": reference_kind,
         "correction_intervals": int(test.shape[1] - 1),
@@ -1751,25 +2503,186 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "rollout_final_time": interval_time * int(test.shape[1] - 1),
         "native_state_threading": _supports_native_state(t),
     }
+    if (
+        one_step_error is not None
+        and one_step_error_seed_std is not None
+        and one_step_error_ic_std is not None
+        and one_step_rollout_log_gain_samples is not None
+        and unrolling_log_lift_samples is not None
+        and wig_over_one_log_lift_samples is not None
+    ):
+        one_step_mean_error = float(np.mean(one_step_error[1:]))
+        one_step_log_gain = float(np.mean(one_step_rollout_log_gain_samples))
+        unrolling_log_lift = float(np.mean(unrolling_log_lift_samples))
+        wig_over_one_log_lift = float(np.mean(wig_over_one_log_lift_samples))
+        metrics.update(
+            {
+                "one_step_final_rollout_error": float(one_step_error[-1]),
+                "one_step_final_rollout_error_seed_std": float(
+                    one_step_error_seed_std[-1]
+                ),
+                "one_step_final_rollout_error_ic_std": float(one_step_error_ic_std[-1]),
+                "one_step_mean_rollout_error": one_step_mean_error,
+                "one_step_geometric_error_reduction": float(np.exp(one_step_log_gain)),
+                "one_step_rollout_log_gain_seed_std": _std(
+                    np.mean(one_step_rollout_log_gain_samples, axis=1).tolist()
+                ),
+                "one_step_rollout_log_gain_ic_std": _std(
+                    np.mean(one_step_rollout_log_gain_samples, axis=0).tolist()
+                ),
+                "unrolling_geometric_lift_nog_over_one": float(
+                    np.exp(unrolling_log_lift)
+                ),
+                "unrolling_log_lift_seed_std": _std(
+                    np.mean(unrolling_log_lift_samples, axis=1).tolist()
+                ),
+                "unrolling_log_lift_ic_std": _std(
+                    np.mean(unrolling_log_lift_samples, axis=0).tolist()
+                ),
+                "wig_geometric_lift_over_one": float(np.exp(wig_over_one_log_lift)),
+                "wig_over_one_log_lift_seed_std": _std(
+                    np.mean(wig_over_one_log_lift_samples, axis=1).tolist()
+                ),
+                "wig_over_one_log_lift_ic_std": _std(
+                    np.mean(wig_over_one_log_lift_samples, axis=0).tolist()
+                ),
+                "one_step_seen_ic_matched_horizon_error": float(
+                    seen_one_step_error[matched_horizon_frame]
+                )
+                if seen_one_step_error is not None
+                else None,
+                "one_step_heldout_ic_matched_horizon_error": float(
+                    one_step_error[matched_horizon_frame]
+                ),
+                "one_step_stable_horizon": _first_unstable(
+                    one_step_error.tolist(),
+                    threshold,
+                )
+                * interval_time,
+                "one_step_final_rollout_correlation": float(one_step_correlation[-1])
+                if one_step_correlation is not None
+                else None,
+                "one_step_correlation_horizon": _first_below(
+                    one_step_correlation.tolist(),
+                    correlation_threshold,
+                )
+                * interval_time
+                if one_step_correlation is not None
+                else None,
+                "one_step_initial_train_loss": float(one_step_losses[0])
+                if one_step_losses.size
+                else None,
+                "one_step_final_train_loss": float(one_step_losses[-1])
+                if one_step_losses.size
+                else None,
+                "one_step_best_train_loss": float(np.min(one_step_losses))
+                if one_step_losses.size
+                else None,
+                "one_step_n_updates": len(one_step_losses),
+                "one_step_total_optimizer_updates": one_step_total_updates,
+                "one_step_training_wall_time_s": one_step_training_wall,
+                "one_step_seconds_per_update": one_step_training_wall
+                / max(one_step_total_updates, 1),
+                "one_step_median_update_time_s": one_step_median_update_time,
+                "one_step_final_grad_norm": float(one_step_grad_norms[-1])
+                if one_step_grad_norms.size
+                else None,
+                "one_step_training_solver_intervals_per_seed": len(one_step_losses),
+                "one_step_training_solver_intervals_total": one_step_total_updates,
+                "one_step_training_native_steps_per_seed": (
+                    len(one_step_losses) * frame_steps
+                ),
+                "one_step_training_native_steps_total": (
+                    one_step_total_updates * frame_steps
+                ),
+                "one_step_final_divergence_rms": divergence_rms(
+                    first_one_step[-1],
+                    ctx.domain_extent,
+                )
+                if first_one_step is not None
+                else None,
+                "one_step_final_energy_ratio_to_reference": kinetic_energy(
+                    first_one_step[-1]
+                )
+                / (kinetic_energy(test[0, -1]) + 1e-12)
+                if first_one_step is not None
+                else None,
+            }
+        )
+    if (
+        checkpoint_full_error is not None
+        and checkpoint_stop_error is not None
+        and checkpoint_native_error is not None
+    ):
+        metrics["curriculum_checkpoint_summary"] = [
+            {
+                "unroll": stage.unroll,
+                "updates_cumulative": int(stage_boundaries[index]),
+                "full_geometric_error_reduction": float(
+                    np.exp(
+                        _rollout_log_gain(
+                            checkpoint_native_error,
+                            checkpoint_full_error[index],
+                        )
+                    )
+                ),
+                "nog_geometric_error_reduction": float(
+                    np.exp(
+                        _rollout_log_gain(
+                            checkpoint_native_error,
+                            checkpoint_stop_error[index],
+                        )
+                    )
+                ),
+                "wig_geometric_lift_over_nog": float(
+                    np.exp(
+                        _rollout_log_gain(
+                            checkpoint_stop_error[index],
+                            checkpoint_full_error[index],
+                        )
+                    )
+                ),
+            }
+            for index, stage in enumerate(curriculum_stages)
+        ]
     snapshots = {
         "loss": losses,
+        "loss_samples": _stack_curves(losses_by_seed),
         "loss_seed_std": np.asarray(loss_seed_std, dtype=np.float32),
         "loss_stop_gradient": stop_gradient_losses,
+        "loss_stop_gradient_samples": _stack_curves(stop_gradient_losses_by_seed),
         "loss_stop_gradient_seed_std": np.asarray(
             stop_gradient_loss_seed_std,
             dtype=np.float32,
         ),
         "grad_norm": grad_norms,
+        "grad_norm_samples": _stack_curves(grad_norms_by_seed),
         "grad_norm_stop_gradient": np.asarray(
             stop_gradient_grad_norms,
             dtype=np.float32,
         ),
+        "grad_norm_stop_gradient_samples": _stack_curves(
+            stop_gradient_grad_norms_by_seed
+        ),
         "update_time": update_times,
+        "update_time_samples": _stack_curves(update_times_by_seed),
         "update_time_stop_gradient": np.asarray(
             stop_gradient_update_times,
             dtype=np.float32,
         ),
+        "update_time_stop_gradient_samples": _stack_curves(
+            stop_gradient_update_times_by_seed
+        ),
+        "fd_epsilon": fd_epsilon_array,
+        "fd_rel_error_samples": fd_error_samples,
+        "fd_directional_finite_difference_samples": fd_finite_difference_samples,
+        "fd_directional_autodiff_samples": fd_autodiff_samples,
+        "fd_stage_unroll": fd_stage_unroll_array,
+        "fd_stage_rel_error_samples": fd_stage_error_samples,
+        "fd_stage_finite_difference_samples": (fd_stage_finite_difference_samples),
+        "fd_stage_autodiff_samples": fd_stage_autodiff_samples,
         "error_corrected": np.asarray(corrected_error, dtype=np.float32),
+        "error_corrected_samples": corrected_errors_array.astype(np.float32),
         "error_corrected_seed_std": np.asarray(
             corrected_error_seed_std,
             dtype=np.float32,
@@ -1782,6 +2695,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             stop_gradient_error,
             dtype=np.float32,
         ),
+        "error_stop_gradient_samples": stop_gradient_errors_array.astype(np.float32),
         "error_stop_gradient_seed_std": np.asarray(
             stop_gradient_error_seed_std,
             dtype=np.float32,
@@ -1791,6 +2705,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             dtype=np.float32,
         ),
         "error_uncorrected": np.asarray(uncorrected_error, dtype=np.float32),
+        "error_uncorrected_samples": uncorrected_errors_array.astype(np.float32),
         "error_uncorrected_ic_std": np.asarray(
             uncorrected_error_ic_std,
             dtype=np.float32,
@@ -1799,13 +2714,38 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             seen_corrected_error,
             dtype=np.float32,
         ),
+        "error_seen_corrected_samples": seen_corrected_errors_array.astype(np.float32),
         "error_seen_stop_gradient": np.asarray(
             seen_stop_gradient_error,
             dtype=np.float32,
         ),
+        "error_seen_stop_gradient_samples": (
+            seen_stop_gradient_errors_array.astype(np.float32)
+        ),
         "error_seen_uncorrected": np.asarray(
             seen_uncorrected_error,
             dtype=np.float32,
+        ),
+        "correlation_corrected": np.asarray(
+            corrected_correlation,
+            dtype=np.float32,
+        ),
+        "correlation_corrected_samples": np.stack(
+            corrected_correlations_by_seed
+        ).astype(np.float32),
+        "correlation_stop_gradient": np.asarray(
+            stop_gradient_correlation,
+            dtype=np.float32,
+        ),
+        "correlation_stop_gradient_samples": np.stack(
+            stop_gradient_correlations_by_seed
+        ).astype(np.float32),
+        "correlation_uncorrected": np.asarray(
+            uncorrected_correlation,
+            dtype=np.float32,
+        ),
+        "correlation_uncorrected_samples": (
+            uncorrected_correlations_array.astype(np.float32)
         ),
         "rollout_log_gain_samples": rollout_log_gain_samples.astype(np.float32),
         "stop_gradient_log_gain_samples": stop_gradient_log_gain_samples.astype(
@@ -1814,6 +2754,101 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "solver_vjp_log_lift_samples": solver_vjp_log_lift_samples.astype(np.float32),
     }
     if (
+        one_step_error is not None
+        and one_step_error_seed_std is not None
+        and one_step_error_ic_std is not None
+        and seen_one_step_error is not None
+        and one_step_rollout_log_gain_samples is not None
+        and unrolling_log_lift_samples is not None
+        and wig_over_one_log_lift_samples is not None
+    ):
+        snapshots.update(
+            {
+                "loss_one_step": one_step_losses,
+                "loss_one_step_samples": _stack_curves(one_step_losses_by_seed),
+                "grad_norm_one_step": one_step_grad_norms,
+                "grad_norm_one_step_samples": _stack_curves(
+                    one_step_grad_norms_by_seed
+                ),
+                "update_time_one_step": one_step_update_times,
+                "update_time_one_step_samples": _stack_curves(
+                    one_step_update_times_by_seed
+                ),
+                "error_one_step": np.asarray(one_step_error, dtype=np.float32),
+                "error_one_step_samples": one_step_errors_array.astype(np.float32),
+                "error_one_step_seed_std": np.asarray(
+                    one_step_error_seed_std,
+                    dtype=np.float32,
+                ),
+                "error_one_step_ic_std": np.asarray(
+                    one_step_error_ic_std,
+                    dtype=np.float32,
+                ),
+                "error_seen_one_step": np.asarray(
+                    seen_one_step_error,
+                    dtype=np.float32,
+                ),
+                "error_seen_one_step_samples": np.stack(
+                    seen_one_step_errors_by_seed
+                ).astype(np.float32),
+                "correlation_one_step": np.asarray(
+                    one_step_correlation,
+                    dtype=np.float32,
+                )
+                if one_step_correlation is not None
+                else np.asarray([], dtype=np.float32),
+                "correlation_one_step_samples": np.stack(
+                    one_step_correlations_by_seed
+                ).astype(np.float32),
+                "one_step_rollout_log_gain_samples": (
+                    one_step_rollout_log_gain_samples.astype(np.float32)
+                ),
+                "unrolling_log_lift_samples": unrolling_log_lift_samples.astype(
+                    np.float32
+                ),
+                "wig_over_one_log_lift_samples": (
+                    wig_over_one_log_lift_samples.astype(np.float32)
+                ),
+            }
+        )
+    if (
+        checkpoint_full_error is not None
+        and checkpoint_stop_error is not None
+        and checkpoint_full_seed_std is not None
+        and checkpoint_stop_seed_std is not None
+        and checkpoint_native_error is not None
+    ):
+        snapshots.update(
+            {
+                "curriculum_stage_unrolls": np.asarray(
+                    [stage.unroll for stage in curriculum_stages],
+                    dtype=np.int32,
+                ),
+                "curriculum_stage_boundaries": stage_boundaries.astype(np.int32),
+                "curriculum_checkpoint_error_full": checkpoint_full_error.astype(
+                    np.float32
+                ),
+                "curriculum_checkpoint_error_full_samples": np.stack(
+                    checkpoint_full_errors_by_seed
+                ).astype(np.float32),
+                "curriculum_checkpoint_error_full_seed_std": (
+                    checkpoint_full_seed_std.astype(np.float32)
+                ),
+                "curriculum_checkpoint_error_nog": checkpoint_stop_error.astype(
+                    np.float32
+                ),
+                "curriculum_checkpoint_error_nog_samples": np.stack(
+                    checkpoint_stop_errors_by_seed
+                ).astype(np.float32),
+                "curriculum_checkpoint_error_nog_seed_std": (
+                    checkpoint_stop_seed_std.astype(np.float32)
+                ),
+                "curriculum_checkpoint_error_native": checkpoint_native_error.astype(
+                    np.float32
+                ),
+            }
+        )
+    if (
         first_corrected is not None
         and first_stop_gradient is not None
         and first_uncorrected is not None
@@ -1821,6 +2856,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         snapshots["rollout_corrected"] = first_corrected
         snapshots["rollout_stop_gradient"] = first_stop_gradient
         snapshots["rollout_uncorrected"] = first_uncorrected
+        if first_one_step is not None:
+            snapshots["rollout_one_step"] = first_one_step
     if reference_kind == "solver_self_refined":
         snapshots["reference_rollout"] = test[0]
         shared = {

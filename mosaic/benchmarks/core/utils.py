@@ -142,6 +142,25 @@ def _debug_run(run: dict) -> None:
             training[key] = min(training[key], cap)
     if training:
         training["check_grad"] = False
+    if "curriculum" in training:
+        debug_curriculum = []
+        for stage in list(training["curriculum"])[:2]:
+            debug_curriculum.append(
+                {
+                    **stage,
+                    "unroll": min(int(stage["unroll"]), 2),
+                    "updates": 1,
+                }
+            )
+        training["curriculum"] = debug_curriculum
+        training["unroll"] = max(int(stage["unroll"]) for stage in debug_curriculum)
+        training["max_updates"] = sum(
+            int(stage["updates"]) for stage in debug_curriculum
+        )
+        if "one_step_updates" in training:
+            training["one_step_updates"] = training["max_updates"]
+    if "residual_blocks" in training:
+        training["residual_blocks"] = min(int(training["residual_blocks"]), 1)
     if "model_seeds" in training:
         training["model_seeds"] = list(training["model_seeds"])[:1]
     dataset = run.get("dataset", {})
@@ -199,11 +218,9 @@ def exclusion_lookup(
     # Full path: "<suite>", "<suite>/<exp>", "<suite>/<exp>/<sub>".
     parts: list[str] = [suite]
     if experiment:
-        for p in experiment.split("/"):
-            parts.append(p)
+        parts.extend(experiment.split("/"))
     if sub:
-        for p in sub.split("/"):
-            parts.append(p)
+        parts.extend(sub.split("/"))
     # Try longest prefix first.
     for n in range(len(parts), 0, -1):
         key = "/".join(parts[:n])

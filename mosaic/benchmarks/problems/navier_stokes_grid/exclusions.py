@@ -82,6 +82,12 @@ XLB_TGV_LBM_FLOOR = Exclusion(
     "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
     "by further sub-stepping (tested k=9..27); valid=True",
 )
+XLB_3D_SURROGATE_FIXED_TASK = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "trained only for the fixed N=16, nu=0.01, dt=0.02, 100-step periodic "
+    "3D initial-condition recovery task; this 2D benchmark is out of contract",
+)
+
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
@@ -117,3 +123,12 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
+    # The 3D recovery surrogate shares this tesseract family but has no valid
+    # 2D benchmark cell.
+    _surrogate_3d_only = {
+        "xlb_3d_surrogate": XLB_3D_SURROGATE_FIXED_TASK,
+    }
+    problem.exclude("forward", _surrogate_3d_only)
+    problem.exclude("cost", _surrogate_3d_only)
+    problem.exclude("gradient", _surrogate_3d_only)
+    problem.exclude("optimization", _surrogate_3d_only)
