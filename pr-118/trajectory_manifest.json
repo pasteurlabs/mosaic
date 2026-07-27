@@ -1,0 +1,36 @@
+{
+  "teacher": "xlb",
+  "collision": "kbc",
+  "samples": 4096,
+  "split": {
+    "train": 3072,
+    "validation": 512,
+    "test": 512
+  },
+  "seed": 20260726,
+  "physics": {
+    "N": 16,
+    "viscosity": 0.01,
+    "dt": 0.02,
+    "solver_steps": 100,
+    "domain_extent": 6.283185307179586
+  },
+  "trajectory": {
+    "native_continuous_populations": true,
+    "snapshot_stride_solver_steps": 5,
+    "macro_dt": 0.1,
+    "rollout_steps": 20,
+    "snapshots_including_ic": 21
+  },
+  "benchmark_seeds_excluded": [
+    0,
+    1,
+    2
+  ],
+  "amplitude_min": 0.0,
+  "amplitude_max": 1.25,
+  "native_final_check_max_abs": 0.0,
+  "trajectory_sha256": "f94390c512c44d893581017007720077d85f2c153d28d8841630e0adc1e60dc8",
+  "split_sha256": "c2d85a70043330bb76eb0d0ebfa56d1f4af02246dab105e2a0f790287a7a3bcf",
+  "elapsed_seconds": 30.680514015024528
+}
