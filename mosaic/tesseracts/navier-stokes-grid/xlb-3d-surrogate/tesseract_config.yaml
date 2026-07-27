@@ -9,6 +9,10 @@ build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data:
     - ["./weights.npz", "/tesseract/weights.npz"]
+    - ["./surrogate_model.py", "/tesseract/surrogate_model.py"]
+    - ["./training_data.py", "/tesseract/training_data.py"]
+    - ["./generate_trajectories.py", "/tesseract/generate_trajectories.py"]
+    - ["./train.py", "/tesseract/train.py"]
 env:
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
 

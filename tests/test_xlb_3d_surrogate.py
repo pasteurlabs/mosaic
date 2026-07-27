@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import jax
@@ -24,10 +25,22 @@ _API_PATH = (
     / "xlb-3d-surrogate"
     / "tesseract_api.py"
 )
+_DATA_PATH = _API_PATH.with_name("training_data.py")
 _SPEC = importlib.util.spec_from_file_location("xlb_3d_surrogate_api", _API_PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 _API = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(_API)
+sys.path.insert(0, str(_API_PATH.parent))
+try:
+    _SPEC.loader.exec_module(_API)
+finally:
+    sys.path.pop(0)
+_DATA_SPEC = importlib.util.spec_from_file_location(
+    "xlb_3d_surrogate_training_data",
+    _DATA_PATH,
+)
+assert _DATA_SPEC is not None and _DATA_SPEC.loader is not None
+_DATA = importlib.util.module_from_spec(_DATA_SPEC)
+_DATA_SPEC.loader.exec_module(_DATA)
 
 
 def _weights(width: int = 4, modes: int = 2):
@@ -100,3 +113,16 @@ def test_forward_reuses_one_macro_step_operator(monkeypatch):
         expected = _API._one_step(expected, weights)
     result = _API._surrogate_forward(initial, weights)
     assert np.allclose(np.asarray(result), np.asarray(expected[0]), atol=1e-7)
+
+
+def test_training_distribution_is_reproducible_and_full_field():
+    first = _DATA.make_inputs(10, 123)
+    second = _DATA.make_inputs(10, 123)
+
+    fields, amplitudes, families = first
+    assert fields.shape == (10, _API._N, _API._N, _API._N, 3)
+    assert amplitudes.shape == (10,)
+    assert families.shape == (10,)
+    assert np.all(np.isfinite(fields))
+    for left, right in zip(first, second, strict=True):
+        assert np.array_equal(left, right)

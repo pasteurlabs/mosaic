@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 import numpy as np
+import surrogate_model as model
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
@@ -29,14 +29,14 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Fixed-horizon full 3D velocity field."""
 
 
-_N = 16
-_VISCOSITY = 0.01
-_DT = 0.02
-_STEPS = 100
-_STRIDE = 5
-_MACRO_DT = _DT * _STRIDE
-_ROLLOUT_STEPS = _STEPS // _STRIDE
-_DOMAIN_EXTENT = 2.0 * math.pi
+_N = model.N
+_VISCOSITY = model.VISCOSITY
+_DT = model.SOLVER_DT
+_STEPS = model.SOLVER_STEPS
+_STRIDE = model.STRIDE
+_MACRO_DT = model.MACRO_DT
+_ROLLOUT_STEPS = model.ROLLOUT_STEPS
+_DOMAIN_EXTENT = model.DOMAIN_EXTENT
 _WIDTH = 32
 _MODES = 6
 _LAYERS = 6
@@ -96,105 +96,19 @@ def _load_weights() -> dict[str, jax.Array]:
     return _WEIGHTS
 
 
-def _helmholtz_project(velocity: jax.Array) -> jax.Array:
-    """Project a batched periodic velocity field to the divergence-free subspace."""
-    velocity_hat = jnp.fft.rfftn(velocity, axes=(1, 2, 3))
-    k = jnp.fft.fftfreq(_N, d=1.0 / _N)
-    kz = jnp.fft.rfftfreq(_N, d=1.0 / _N)
-    kx, ky, kz_grid = jnp.meshgrid(k, k, kz, indexing="ij")
-    wave = jnp.stack([kx, ky, kz_grid], axis=-1)
-    k2 = jnp.sum(wave**2, axis=-1)
-    safe_k2 = jnp.where(k2 == 0, 1.0, k2)
-    dot = jnp.sum(velocity_hat * wave, axis=-1)
-    projected_hat = velocity_hat - wave * (dot / safe_k2)[..., None]
-    projected_hat = projected_hat.at[:, 0, 0, 0, :].set(velocity_hat[:, 0, 0, 0, :])
-    return jnp.fft.irfftn(
-        projected_hat,
-        s=(_N, _N, _N),
-        axes=(1, 2, 3),
-    ).real.astype(jnp.float32)
-
-
-def _diffuse(velocity: jax.Array) -> jax.Array:
-    """Exact linear viscous evolution over one learned macro time step."""
-    velocity_hat = jnp.fft.rfftn(
-        _helmholtz_project(velocity),
-        axes=(1, 2, 3),
-    )
-    k = jnp.fft.fftfreq(_N, d=1.0 / _N)
-    kz = jnp.fft.rfftfreq(_N, d=1.0 / _N)
-    kx, ky, kz_grid = jnp.meshgrid(k, k, kz, indexing="ij")
-    k2 = kx**2 + ky**2 + kz_grid**2
-    decay = jnp.exp(-_VISCOSITY * _MACRO_DT * k2)
-    return jnp.fft.irfftn(
-        velocity_hat * decay[..., None],
-        s=(_N, _N, _N),
-        axes=(1, 2, 3),
-    ).real.astype(jnp.float32)
-
-
-def _spectral_convolution(
-    hidden: jax.Array,
-    weights: dict[str, jax.Array],
-    layer: int,
-) -> jax.Array:
-    hidden_hat = jnp.fft.rfftn(hidden, axes=(1, 2, 3))
-    output_hat = jnp.zeros_like(hidden_hat)
-    selections = (
-        (slice(0, _MODES), slice(0, _MODES)),
-        (slice(-_MODES, None), slice(0, _MODES)),
-        (slice(0, _MODES), slice(-_MODES, None)),
-        (slice(-_MODES, None), slice(-_MODES, None)),
-    )
-    for quadrant, (sx, sy) in enumerate(selections):
-        spectral_weight = (
-            weights[f"spec_{layer}_{quadrant}_real"]
-            + 1j * weights[f"spec_{layer}_{quadrant}_imag"]
-        )
-        transformed = jnp.einsum(
-            "bxyzi,xyzio->bxyzo",
-            hidden_hat[:, sx, sy, :_MODES, :],
-            spectral_weight,
-        )
-        output_hat = output_hat.at[:, sx, sy, :_MODES, :].set(transformed)
-    return jnp.fft.irfftn(
-        output_hat,
-        s=(_N, _N, _N),
-        axes=(1, 2, 3),
-    ).real.astype(jnp.float32)
-
-
 def _one_step(
     velocity: jax.Array,
     weights: dict[str, jax.Array],
 ) -> jax.Array:
     """Advance a batch of full velocity fields by five XLB solver steps."""
-    velocity = _helmholtz_project(velocity)
-    normalized = velocity / weights["input_scale"]
-    hidden = jnp.einsum("bxyzi,io->bxyzo", normalized, weights["w_lift"])
-    for layer in range(_LAYERS):
-        spectral = _spectral_convolution(hidden, weights, layer)
-        local = jnp.einsum(
-            "bxyzi,io->bxyzo",
-            hidden,
-            weights[f"w_local_{layer}"],
-        )
-        update = jax.nn.gelu(spectral + local)
-        hidden = (hidden + update) * jnp.asarray(2.0**-0.5, jnp.float32)
-    raw_correction = jnp.einsum(
-        "bxyzi,io->bxyzo",
-        hidden,
-        weights["w_out"],
+    return model.one_step(
+        weights,
+        velocity,
+        input_scale=weights["input_scale"],
+        correction_scale=weights["correction_scale"],
+        modes=_MODES,
+        layers=_LAYERS,
     )
-    amplitude = jnp.sqrt(
-        jnp.mean(velocity**2, axis=(1, 2, 3, 4), keepdims=True) + 1e-12
-    )
-    correction = (
-        raw_correction
-        * weights["correction_scale"].reshape(1, 1, 1, 1, 3)
-        * (amplitude / weights["input_scale"])
-    )
-    return _helmholtz_project(_diffuse(velocity) + correction)
 
 
 def _surrogate_forward(
@@ -202,17 +116,19 @@ def _surrogate_forward(
     weights: dict[str, jax.Array],
 ) -> jax.Array:
     """Apply the shared macro-step neural operator autoregressively 20 times."""
-
-    def body(_: int, velocity: jax.Array) -> jax.Array:
-        return _one_step(velocity, weights)
-
-    final = jax.lax.fori_loop(
-        0,
-        _ROLLOUT_STEPS,
-        body,
+    return model.rollout(
+        weights,
         initial_velocity[None],
-    )
-    return final[0]
+        steps=_ROLLOUT_STEPS,
+        input_scale=weights["input_scale"],
+        correction_scale=weights["correction_scale"],
+        modes=_MODES,
+        layers=_LAYERS,
+    )[0, -1]
+
+
+_helmholtz_project = model.helmholtz_project
+_diffuse = model.diffuse_macro
 
 
 @jax.jit

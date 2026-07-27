@@ -29,12 +29,15 @@ the teacher is never restarted from equilibrium at macro-step boundaries.
 
 ## Training provenance
 
-Training and dataset-generation code remain outside this repository. The
-packaged weights were trained from 4,096 native XLB KBC D3Q27 trajectories,
-split 3,072/512/512 for training/validation/test. Each trajectory contains the
-IC plus 20 full-field snapshots, one every five XLB steps. The final generated
-snapshot matched the canonical 100-step float32 teacher call with maximum
-absolute difference zero. Benchmark IC seeds 0, 1, and 2 were excluded.
+`generate_trajectories.py`, `training_data.py`, `train.py`, and the shared
+`surrogate_model.py` are packaged with the Tesseract. The generator must run
+against the XLB teacher API; cluster submission and container orchestration
+remain external. The packaged weights were trained from 4,096 native XLB KBC
+D3Q27 trajectories, split 3,072/512/512 for training/validation/test. Each
+trajectory contains the IC plus 20 full-field snapshots, one every five XLB
+steps. The final generated snapshot matched the canonical 100-step float32
+teacher call with maximum absolute difference zero. Benchmark IC seeds 0, 1,
+and 2 were excluded.
 
 Training used autoregressive unroll curriculum
 `1 → 2 → 4 → 8 → 12 → 20`, followed by a full-20-step fine-tune. The
@@ -46,6 +49,21 @@ The native trajectory dataset SHA-256 is
 `f94390c512c44d893581017007720077d85f2c153d28d8841630e0adc1e60dc8`.
 The packaged checkpoint SHA-256 is
 `03178cee7457849e28ecd4f6f97bfa70b111cebedc0847f882d8362abf493835`.
+
+The reproducible program boundary is:
+
+```bash
+python generate_trajectories.py \
+  --teacher-api /tesseract/tesseract_api.py \
+  --output /surrogate-output/recovery_3d_xlb_trajectories.npy
+python train.py \
+  --dataset /surrogate-output/recovery_3d_xlb_trajectories.npy \
+  --weights /surrogate-output/recovery_3d_autoregressive_weights.npz
+```
+
+The first command is run in the XLB solver image so
+`/tesseract/tesseract_api.py` is the teacher implementation. The second
+command uses the model definition that the inference API imports.
 
 ## Offline validation
 
