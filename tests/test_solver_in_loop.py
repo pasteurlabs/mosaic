@@ -201,7 +201,7 @@ def test_terminal_credit_curriculum_declares_one_nog_wig_protocol():
         8,
         16,
     ]
-    assert sum(stage["updates"] for stage in training["curriculum"]) == 4000
+    assert sum(stage["updates"] for stage in training["curriculum"]) == 1000
 
 
 def test_curriculum_normalization_preserves_stage_learning_rates():

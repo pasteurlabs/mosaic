@@ -594,16 +594,16 @@ problem.add_experiment(
                 "amplitude": 0.5,
             },
             "training": {
-                "max_updates": 4000,
+                "max_updates": 1000,
                 "unroll": 16,
                 "curriculum": [
-                    {"unroll": 2, "updates": 500, "lr": 1e-4},
-                    {"unroll": 4, "updates": 750, "lr": 1e-4},
-                    {"unroll": 8, "updates": 1000, "lr": 5e-5},
-                    {"unroll": 16, "updates": 1750, "lr": 2.5e-5},
+                    {"unroll": 2, "updates": 100, "lr": 1e-4},
+                    {"unroll": 4, "updates": 180, "lr": 1e-4},
+                    {"unroll": 8, "updates": 270, "lr": 5e-5},
+                    {"unroll": 16, "updates": 450, "lr": 2.5e-5},
                 ],
                 "include_one_step_baseline": True,
-                "one_step_updates": 4000,
+                "one_step_updates": 1000,
                 # The observable objective is defined only after the recurrent
                 # corrected state traverses the terminal solver interval. WIG
                 # receives this credit through the solver; NOG is the exact
