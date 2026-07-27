@@ -1700,6 +1700,662 @@ def _save_solver_in_loop_animation(
     _save_animation(animation, "solver_in_loop_trajectory", out_dir, fps=6)
 
 
+def plot_solver_in_loop_curriculum(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **kwargs: Any,
+) -> list:
+    """Plot the paper-aligned ONE/NOG/WIG curriculum and long rollout."""
+    figs = plot_solver_in_loop(
+        cfg,
+        save=save,
+        suffix=suffix,
+        exp_key="solver_in_loop_curriculum",
+        title="Autoregressive corrector curriculum",
+        **kwargs,
+    )
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        "optimization",
+        f"solver_in_loop_curriculum{suffix}",
+    )
+    result_path = out_dir / "result.json"
+    fields_path = out_dir / "corrector_fields.npz"
+    if not result_path.exists() or not fields_path.exists():
+        return figs
+    data = v1_to_legacy(load_json(result_path))
+    arrays = try_load_npz(fields_path)
+    names = [str(value) for value in arrays.get("solver_names", np.array([])).tolist()]
+    if not names:
+        return figs
+
+    for figure in (
+        _plot_solver_in_loop_curriculum_rollouts(arrays, names, out_dir, save=save),
+        _plot_solver_in_loop_curriculum_correlations(
+            arrays,
+            names,
+            out_dir,
+            save=save,
+        ),
+        _plot_solver_in_loop_curriculum_summary(
+            data,
+            arrays,
+            names,
+            out_dir,
+            save=save,
+        ),
+        _plot_solver_in_loop_curriculum_fields(arrays, names, out_dir, save=save),
+        _plot_solver_in_loop_curriculum_spectra(arrays, names, out_dir, save=save),
+    ):
+        if figure is not None:
+            figs.append(figure)
+    if save:
+        _save_solver_in_loop_curriculum_animation(arrays, names, out_dir)
+    return figs
+
+
+def _curriculum_rows(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+) -> list[tuple[int, str]]:
+    """Return curriculum-capable cells in canonical solver order."""
+    rows = [
+        (index, name)
+        for index, name in enumerate(names)
+        if np.asarray(arrays.get(f"error_one_step_{index}", np.array([]))).size
+    ]
+    solver_order = {alias: index for index, alias in enumerate(NS_ORDER)}
+    rows.sort(
+        key=lambda row: solver_order.get(
+            resolve_solver_alias(row[1]) or row[1],
+            len(solver_order),
+        )
+    )
+    return rows
+
+
+def _plot_solver_in_loop_curriculum_rollouts(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Show long free-rollout error for ONE, NOG, WIG, and solver only."""
+    rows = _curriculum_rows(arrays, names)
+    if not rows:
+        return None
+    plt.rcParams.update(RCPARAMS)
+    ncols = 3
+    nrows = int(np.ceil(len(rows) / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(TEXTWIDTH, 1.85 * nrows),
+        squeeze=False,
+        layout="constrained",
+    )
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    semantics = (
+        ("error_uncorrected", "Solver only", ":", "0.45"),
+        ("error_one_step", "ONE", "-.", "#D95F02"),
+        ("error_stop_gradient", "NOG", "--", "#7570B3"),
+        ("error_corrected", "WIG", "-", "#1B9E77"),
+    )
+    for axis, (index, name) in zip(axes.ravel(), rows, strict=False):
+        for prefix, label, linestyle, color in semantics:
+            values = np.asarray(arrays.get(f"{prefix}_{index}", np.array([])))
+            if values.size < 2:
+                continue
+            x = times[: values.size] if times.size else np.arange(values.size)
+            axis.plot(
+                x[1:],
+                np.maximum(values[1:], 1e-12),
+                label=label,
+                linestyle=linestyle,
+                color=color,
+            )
+        axis.set_yscale("log")
+        axis.set_xlabel("Physical time")
+        axis.set_ylabel("Relative $L^2$ error")
+        axis.set_title(solver_props(name)[0])
+    for axis in axes.ravel()[len(rows) :]:
+        axis.axis("off")
+    axes.ravel()[0].legend(loc="best", fontsize=6.5)
+    fig.suptitle("Fully autoregressive held-out rollouts")
+    if save:
+        save_fig(fig, "solver_in_loop_curriculum_rollouts", out_dir)
+    return fig
+
+
+def _plot_solver_in_loop_curriculum_correlations(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Show long-horizon field correlation for all training protocols."""
+    rows = _curriculum_rows(arrays, names)
+    if not rows:
+        return None
+    plt.rcParams.update(RCPARAMS)
+    ncols = 3
+    nrows = int(np.ceil(len(rows) / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(TEXTWIDTH, 1.85 * nrows),
+        squeeze=False,
+        layout="constrained",
+    )
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    semantics = (
+        ("correlation_uncorrected", "Solver only", ":", "0.45"),
+        ("correlation_one_step", "ONE", "-.", "#D95F02"),
+        ("correlation_stop_gradient", "NOG", "--", "#7570B3"),
+        ("correlation_corrected", "WIG", "-", "#1B9E77"),
+    )
+    for axis, (index, name) in zip(axes.ravel(), rows, strict=False):
+        for prefix, label, linestyle, color in semantics:
+            values = np.asarray(arrays.get(f"{prefix}_{index}", np.array([])))
+            if values.size < 2:
+                continue
+            x = times[: values.size] if times.size else np.arange(values.size)
+            axis.plot(
+                x,
+                values,
+                label=label,
+                linestyle=linestyle,
+                color=color,
+            )
+        axis.axhline(0.95, color="0.6", linestyle=":", linewidth=0.8)
+        axis.set_ylim(-0.05, 1.02)
+        axis.set_xlabel("Physical time")
+        axis.set_ylabel("Field correlation")
+        axis.set_title(solver_props(name)[0])
+    for axis in axes.ravel()[len(rows) :]:
+        axis.axis("off")
+    axes.ravel()[0].legend(loc="best", fontsize=6.5)
+    fig.suptitle("Held-out correlation decay (threshold 0.95)")
+    if save:
+        save_fig(fig, "solver_in_loop_curriculum_correlations", out_dir)
+    return fig
+
+
+def _plot_solver_in_loop_curriculum_summary(
+    data: dict[str, Any],
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Decompose recurrent exposure, temporal gradients, horizon, and cost."""
+    rows = _curriculum_rows(arrays, names)
+    if not rows:
+        return None
+    by_solver = data.get("by_solver", {})
+    labels = [solver_props(name)[0] for _index, name in rows]
+    colors = [solver_props(name)[1] for _index, name in rows]
+    positions = np.arange(len(rows), dtype=float)
+    width = 0.24
+
+    def metric(name: str, key: str) -> float:
+        value = by_solver.get(name, {}).get(key)
+        return float(value) if value is not None else np.nan
+
+    one_gain = [
+        metric(name, "one_step_geometric_error_reduction") for _index, name in rows
+    ]
+    nog_gain = [
+        metric(name, "stop_gradient_geometric_error_reduction") for _index, name in rows
+    ]
+    wig_gain = [metric(name, "geometric_error_reduction") for _index, name in rows]
+    unrolling_lift = [
+        100.0 * (metric(name, "unrolling_geometric_lift_nog_over_one") - 1.0)
+        for _index, name in rows
+    ]
+    vjp_lift = [
+        100.0 * (metric(name, "solver_vjp_geometric_lift") - 1.0)
+        for _index, name in rows
+    ]
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(TEXTWIDTH, 4.6),
+        squeeze=False,
+        layout="constrained",
+    )
+    ax_gain, ax_decomposition, ax_horizon, ax_cost = axes.ravel()
+    for offset, values, label, alpha in (
+        (-width, one_gain, "ONE", 0.35),
+        (0.0, nog_gain, "NOG", 0.65),
+        (width, wig_gain, "WIG", 0.95),
+    ):
+        ax_gain.bar(
+            positions + offset,
+            values,
+            width,
+            color=colors,
+            alpha=alpha,
+            label=label,
+        )
+    ax_gain.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_gain.set_xticks(positions, labels, rotation=35, ha="right")
+    ax_gain.set_ylabel("Geometric error reduction [×]")
+    ax_gain.set_title("Absolute correctability")
+    ax_gain.legend(fontsize=6.5)
+
+    ax_decomposition.bar(
+        positions - width / 2,
+        unrolling_lift,
+        width,
+        color=colors,
+        alpha=0.45,
+        label="NOG / ONE",
+    )
+    ax_decomposition.bar(
+        positions + width / 2,
+        vjp_lift,
+        width,
+        color=colors,
+        alpha=0.95,
+        label="WIG / NOG",
+    )
+    ax_decomposition.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_decomposition.set_xticks(positions, labels, rotation=35, ha="right")
+    ax_decomposition.set_ylabel("Incremental rollout lift [%]")
+    ax_decomposition.set_title("Exposure versus temporal credit")
+    ax_decomposition.legend(fontsize=6.5)
+
+    for index, name in rows:
+        unrolls = np.asarray(
+            arrays.get(f"curriculum_stage_unrolls_{index}", np.array([]))
+        )
+        full = np.asarray(
+            arrays.get(f"curriculum_checkpoint_error_full_{index}", np.array([]))
+        )
+        native = np.asarray(
+            arrays.get(f"curriculum_checkpoint_error_native_{index}", np.array([]))
+        )
+        if not unrolls.size or full.ndim != 2 or native.size < 2:
+            continue
+        reductions = [
+            np.exp(
+                np.mean(
+                    np.log(
+                        (native[1 : stage_error.size] + 1e-12)
+                        / (stage_error[1:] + 1e-12)
+                    )
+                )
+            )
+            for stage_error in full
+        ]
+        _label, color, _linestyle, marker = solver_props(name)
+        ax_horizon.plot(
+            unrolls,
+            reductions,
+            color=color,
+            marker=marker,
+            label=_label,
+        )
+    ax_horizon.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_horizon.set_xscale("log", base=2)
+    ax_horizon.set_xticks([1, 2, 4, 8, 16, 32], [1, 2, 4, 8, 16, 32])
+    ax_horizon.set_xlabel("Curriculum look-ahead")
+    ax_horizon.set_ylabel("WIG error reduction [×]")
+    ax_horizon.set_title("Checkpoint quality versus horizon")
+
+    one_cost = [metric(name, "one_step_training_wall_time_s") for _index, name in rows]
+    nog_cost = [
+        metric(name, "stop_gradient_training_wall_time_s") for _index, name in rows
+    ]
+    wig_cost = [metric(name, "training_wall_time_s") for _index, name in rows]
+    ax_cost.bar(
+        positions,
+        one_cost,
+        color=colors,
+        alpha=0.35,
+        label="ONE",
+    )
+    ax_cost.bar(
+        positions,
+        nog_cost,
+        bottom=one_cost,
+        color=colors,
+        alpha=0.65,
+        label="NOG",
+    )
+    ax_cost.bar(
+        positions,
+        wig_cost,
+        bottom=np.asarray(one_cost) + np.asarray(nog_cost),
+        color=colors,
+        alpha=0.95,
+        label="WIG",
+    )
+    ax_cost.set_xticks(positions, labels, rotation=35, ha="right")
+    ax_cost.set_ylabel("Training wall time [s]")
+    ax_cost.set_title("Measured training cost")
+    ax_cost.legend(fontsize=6.5)
+
+    _solver_loop_legend(fig, [name for _index, name in rows])
+    fig.suptitle("ONE/NOG/WIG decomposition and curriculum")
+    if save:
+        save_fig(fig, "solver_in_loop_curriculum_summary", out_dir)
+    return fig
+
+
+def _curriculum_rollouts(
+    arrays: dict[str, np.ndarray],
+    solver_index: int,
+) -> tuple[np.ndarray, ...] | None:
+    """Return reference, native, ONE, NOG, and WIG rollouts for one cell."""
+    values = (
+        _solver_reference_rollout(arrays, solver_index),
+        np.asarray(arrays.get(f"rollout_uncorrected_{solver_index}", np.array([]))),
+        np.asarray(arrays.get(f"rollout_one_step_{solver_index}", np.array([]))),
+        np.asarray(arrays.get(f"rollout_stop_gradient_{solver_index}", np.array([]))),
+        np.asarray(arrays.get(f"rollout_corrected_{solver_index}", np.array([]))),
+    )
+    return values if all(value.size for value in values) else None
+
+
+def _plot_solver_in_loop_curriculum_fields(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Render final reference, solver, ONE, NOG, and WIG vorticity fields."""
+    rows = [
+        (index, name, rollouts)
+        for index, name in _curriculum_rows(arrays, names)
+        if (rollouts := _curriculum_rollouts(arrays, index)) is not None
+    ]
+    if not rows:
+        return None
+    fields = [
+        [_periodic_vorticity_2d(trajectory[-1]) for trajectory in rollouts]
+        for _index, _name, rollouts in rows
+    ]
+    vmax = (
+        float(
+            np.percentile(
+                np.abs(
+                    np.concatenate([field.ravel() for row in fields for field in row])
+                ),
+                99.0,
+            )
+        )
+        or 1.0
+    )
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        len(rows),
+        5,
+        figsize=(TEXTWIDTH, max(2.0, 0.8 * len(rows))),
+        squeeze=False,
+        layout="constrained",
+    )
+    image = None
+    for row_index, ((_solver_index, name, _rollouts), row_fields) in enumerate(
+        zip(rows, fields, strict=True)
+    ):
+        for column, field in enumerate(row_fields):
+            image = axes[row_index, column].imshow(
+                field.T,
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                interpolation="nearest",
+            )
+            axes[row_index, column].set_xticks([])
+            axes[row_index, column].set_yticks([])
+        axes[row_index, 0].set_ylabel(
+            solver_props(name)[0],
+            rotation=0,
+            ha="right",
+            va="center",
+            labelpad=8,
+        )
+    for axis, title in zip(
+        axes[0],
+        ("Reference", "Solver", "ONE", "NOG", "WIG"),
+        strict=True,
+    ):
+        axis.set_title(title)
+    if image is not None:
+        colorbar = fig.colorbar(
+            image,
+            ax=axes.ravel().tolist(),
+            location="right",
+            shrink=0.82,
+            pad=0.02,
+        )
+        colorbar.set_label(r"Vorticity $\omega$")
+    fig.suptitle("Final fully autoregressive held-out fields")
+    if save:
+        save_fig(fig, "solver_in_loop_curriculum_fields", out_dir)
+    return fig
+
+
+def _isotropic_energy_spectrum(velocity: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return shell-summed kinetic-energy spectrum on a periodic square."""
+    ux, uy = _vel_components_2d(np.asarray(velocity))
+    n = ux.shape[0]
+    ux_hat = np.fft.fft2(ux) / (n * n)
+    uy_hat = np.fft.fft2(uy) / (n * n)
+    energy = 0.5 * (np.abs(ux_hat) ** 2 + np.abs(uy_hat) ** 2)
+    wave = np.fft.fftfreq(n) * n
+    kx, ky = np.meshgrid(wave, wave, indexing="ij")
+    shells = np.rint(np.sqrt(kx**2 + ky**2)).astype(int)
+    shell_energy = np.bincount(
+        shells.ravel(),
+        weights=energy.ravel(),
+        minlength=n // 2 + 1,
+    )[: n // 2 + 1]
+    wavenumbers = np.arange(shell_energy.size)
+    return wavenumbers[1:], shell_energy[1:]
+
+
+def _plot_solver_in_loop_curriculum_spectra(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Compare final energy spectra for every autoregressive training mode."""
+    rows = [
+        (index, name, rollouts)
+        for index, name in _curriculum_rows(arrays, names)
+        if (rollouts := _curriculum_rollouts(arrays, index)) is not None
+    ]
+    if not rows:
+        return None
+    plt.rcParams.update(RCPARAMS)
+    ncols = 3
+    nrows = int(np.ceil(len(rows) / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(TEXTWIDTH, 1.85 * nrows),
+        squeeze=False,
+        layout="constrained",
+    )
+    semantics = (
+        ("Reference", "--", "0.2"),
+        ("Solver", ":", "0.45"),
+        ("ONE", "-.", "#D95F02"),
+        ("NOG", "--", "#7570B3"),
+        ("WIG", "-", "#1B9E77"),
+    )
+    for axis, (_index, name, rollouts) in zip(
+        axes.ravel(),
+        rows,
+        strict=False,
+    ):
+        for trajectory, (label, linestyle, color) in zip(
+            rollouts,
+            semantics,
+            strict=True,
+        ):
+            wavenumber, spectrum = _isotropic_energy_spectrum(trajectory[-1])
+            axis.loglog(
+                wavenumber,
+                np.maximum(spectrum, 1e-16),
+                label=label,
+                linestyle=linestyle,
+                color=color,
+            )
+        axis.set_xlabel("Wavenumber $k$")
+        axis.set_ylabel("$E(k)$")
+        axis.set_title(solver_props(name)[0])
+    for axis in axes.ravel()[len(rows) :]:
+        axis.axis("off")
+    axes.ravel()[0].legend(loc="best", fontsize=6.0)
+    fig.suptitle("Final held-out kinetic-energy spectra")
+    if save:
+        save_fig(fig, "solver_in_loop_curriculum_spectra", out_dir)
+    return fig
+
+
+def _save_solver_in_loop_curriculum_animation(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+) -> None:
+    """Animate reference, native, ONE, NOG, and WIG held-out trajectories."""
+    rows = [
+        (index, name, rollouts)
+        for index, name in _curriculum_rows(arrays, names)
+        if (rollouts := _curriculum_rollouts(arrays, index)) is not None
+    ]
+    if not rows:
+        return
+    available_frames = min(
+        trajectory.shape[0]
+        for _index, _name, rollouts in rows
+        for trajectory in rollouts
+    )
+    frame_indices = np.unique(
+        np.linspace(
+            0,
+            available_frames - 1,
+            num=min(available_frames, 24),
+            dtype=int,
+        )
+    )
+    vorticity = [
+        [
+            [_periodic_vorticity_2d(trajectory[frame]) for frame in frame_indices]
+            for trajectory in rollouts
+        ]
+        for _index, _name, rollouts in rows
+    ]
+    vmax = (
+        float(
+            np.percentile(
+                np.abs(
+                    np.concatenate(
+                        [
+                            field.ravel()
+                            for row in vorticity
+                            for mode in row
+                            for field in mode
+                        ]
+                    )
+                ),
+                99.0,
+            )
+        )
+        or 1.0
+    )
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        len(rows),
+        5,
+        figsize=(TEXTWIDTH, max(2.0, 0.8 * len(rows))),
+        dpi=100,
+        squeeze=False,
+        layout="constrained",
+    )
+    images: list[tuple[Any, int, int]] = []
+    for row_index, (_solver_index, name, _rollouts) in enumerate(rows):
+        for column in range(5):
+            image = axes[row_index, column].imshow(
+                vorticity[row_index][column][0].T,
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                interpolation="nearest",
+                animated=True,
+            )
+            images.append((image, row_index, column))
+            axes[row_index, column].set_xticks([])
+            axes[row_index, column].set_yticks([])
+        axes[row_index, 0].set_ylabel(
+            solver_props(name)[0],
+            rotation=0,
+            ha="right",
+            va="center",
+            labelpad=8,
+        )
+    for axis, title_text in zip(
+        axes[0],
+        ("Reference", "Solver", "ONE", "NOG", "WIG"),
+        strict=True,
+    ):
+        axis.set_title(title_text)
+    colorbar = fig.colorbar(
+        images[-1][0],
+        ax=axes.ravel().tolist(),
+        location="right",
+        shrink=0.82,
+        pad=0.02,
+    )
+    colorbar.set_label(r"Vorticity $\omega$")
+    all_times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    times = (
+        all_times[frame_indices]
+        if all_times.size >= available_frames
+        else np.arange(frame_indices.size)
+    )
+    title = fig.suptitle("Autoregressive curriculum rollout at $t=0$")
+
+    def _update(frame: int) -> tuple[Any, ...]:
+        for image, row_index, column in images:
+            image.set_data(vorticity[row_index][column][frame].T)
+        title.set_text(
+            f"Autoregressive curriculum rollout at $t={float(times[frame]):g}$"
+        )
+        return tuple([image for image, _row, _column in images] + [title])
+
+    animation = manimation.FuncAnimation(
+        fig,
+        _update,
+        frames=len(frame_indices),
+        interval=180,
+        blit=False,
+    )
+    _save_animation(
+        animation,
+        "solver_in_loop_curriculum_trajectory",
+        out_dir,
+        fps=6,
+    )
+
+
 def plot_drag_opt(
     cfg: Problem,
     *,

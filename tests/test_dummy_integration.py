@@ -288,6 +288,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
         exp_key
         in {
             "optimization/solver_in_loop",
+            "optimization/solver_in_loop_curriculum",
             "optimization/solver_in_loop_self_reference",
             "optimization/solver_in_loop_tgv",
         }
@@ -469,7 +470,7 @@ def dummy_corpus(tmp_path_factory):
                 tags = dict.fromkeys(cfg.solver_names, tag)
                 try:
                     cfg.experiments[exp_key].fn(cfg, tags)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - corpus records every failure
                     errors[(problem, exp_key)] = exc
         yield {"results_root": results_root, "errors": errors}
     finally:
