@@ -37,8 +37,12 @@ from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
     _save_solver_in_loop_animation,
 )
 from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
+    _evaluate_rollout,
     _make_solver_self_reference_datasets,
     _rollout_log_gain,
+    _solver_advance,
+    _stop_recurrent_gradient,
+    _window_loss,
     make_reference_dataset,
     solver_in_loop,
 )
@@ -215,12 +219,25 @@ def test_analytic_tgv_reference_has_exact_decay_and_distinct_phases():
 def test_solver_self_reference_matches_physical_time_and_passes_closure(
     monkeypatch,
 ):
-    calls: list[tuple[int, float, int]] = []
+    calls: list[tuple[int, float, int, object | None]] = []
 
-    def _closed_refined_step(_t, _ctx, velocity, *, dt, steps):
-        calls.append((velocity.shape[0], dt, steps))
+    def _closed_refined_step(
+        _t,
+        _ctx,
+        velocity,
+        *,
+        dt,
+        steps,
+        native_state=None,
+    ):
+        calls.append((velocity.shape[0], dt, steps, native_state))
         per_step_decay = 1.0 - dt / velocity.shape[0]
-        return jnp.asarray(velocity) * per_step_decay**steps
+        next_native_state = (
+            jnp.asarray([1.0])
+            if native_state is None
+            else jnp.asarray(native_state) + 1.0
+        )
+        return jnp.asarray(velocity) * per_step_decay**steps, next_native_state
 
     monkeypatch.setattr(
         "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
@@ -260,9 +277,223 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
     assert audit["max_coarse_closure_error"] < 1e-5
     assert audit["max_fine_closure_error"] < 1e-5
     assert audit["mean_refinement_signal"] > 1e-5
-    assert (16, 0.01, 2) in calls
-    assert (8, 0.02, 1) in calls
+    assert any(call[:3] == (16, 0.01, 2) for call in calls)
+    assert any(call[:3] == (8, 0.02, 1) for call in calls)
+    assert any(call[3] is not None for call in calls)
     assert 0.01 * 2 == 0.02 * 1
+
+
+def test_solver_advance_threads_optional_native_state(monkeypatch):
+    calls: list[dict] = []
+
+    def _apply(_t, inputs):
+        calls.append(inputs)
+        velocity = jnp.asarray(inputs["v0"])
+        native_state = inputs.get("state")
+        if native_state is None:
+            native_state = jnp.zeros_like(velocity)
+        return {
+            "result": velocity + native_state + 1.0,
+            "state": native_state + 2.0,
+        }
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "apply_tesseract",
+        _apply,
+    )
+    ctx = SimpleNamespace(
+        name="stateful-dummy",
+        phys={"N": 2, "nu": 0.001, "dt": 0.02, "steps": 1},
+        output_key="result",
+        make_inputs=lambda _name, velocity, **_physics: {"v0": velocity},
+    )
+    t = SimpleNamespace(
+        openapi_schema={
+            "components": {
+                "schemas": {
+                    "Apply_InputSchema": {
+                        "properties": {
+                            "v0": {},
+                            "state": {},
+                            "return_state": {},
+                        }
+                    }
+                }
+            }
+        }
+    )
+    initial = jnp.ones((2, 2, 1, 2))
+
+    first_velocity, first_native_state = _solver_advance(
+        t,
+        ctx,
+        initial,
+        frame_steps=1,
+    )
+    second_velocity, second_native_state = _solver_advance(
+        t,
+        ctx,
+        first_velocity,
+        frame_steps=1,
+        native_state=first_native_state,
+    )
+
+    assert "state" not in calls[0]
+    assert calls[0]["return_state"] is True
+    assert calls[1]["return_state"] is True
+    np.testing.assert_array_equal(calls[1]["state"], first_native_state)
+    np.testing.assert_array_equal(first_velocity, 2.0 * jnp.ones_like(initial))
+    np.testing.assert_array_equal(first_native_state, 2.0 * jnp.ones_like(initial))
+    np.testing.assert_array_equal(second_velocity, 5.0 * jnp.ones_like(initial))
+    np.testing.assert_array_equal(second_native_state, 4.0 * jnp.ones_like(initial))
+
+
+def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
+    calls: list[dict] = []
+
+    def _apply(_t, inputs):
+        calls.append(inputs)
+        return {"result": jnp.asarray(inputs["v0"]) + 1.0}
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "apply_tesseract",
+        _apply,
+    )
+    t = SimpleNamespace(
+        openapi_schema={
+            "components": {
+                "schemas": {
+                    "Apply_InputSchema": {"properties": {"v0": {}}},
+                }
+            }
+        }
+    )
+    ctx = SimpleNamespace(
+        name="stateless-dummy",
+        phys={"N": 2, "nu": 0.001, "dt": 0.02, "steps": 1},
+        output_key="result",
+        make_inputs=lambda _name, velocity, **_physics: {"v0": velocity},
+    )
+
+    velocity, native_state = _solver_advance(
+        t,
+        ctx,
+        jnp.zeros((2, 2, 1, 2)),
+        frame_steps=1,
+    )
+
+    assert set(calls[0]) == {"v0"}
+    assert native_state is None
+    np.testing.assert_array_equal(velocity, jnp.ones_like(velocity))
+
+
+def test_corrected_rollout_threads_velocity_and_native_state(monkeypatch):
+    calls: list[tuple[np.ndarray, int | None]] = []
+
+    def _advance(_t, _ctx, velocity, *, frame_steps, native_state=None):
+        del frame_steps
+        calls.append(
+            (
+                np.asarray(velocity),
+                None if native_state is None else int(native_state),
+            )
+        )
+        next_native_state = 1 if native_state is None else native_state + 1
+        return jnp.asarray(velocity) + next_native_state, next_native_state
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "_solver_advance",
+        _advance,
+    )
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "corrected_velocity",
+        lambda _model, velocity, **_kwargs: velocity + 10.0,
+    )
+    reference = np.zeros((3, 2, 2, 1, 2), dtype=np.float32)
+    ctx = SimpleNamespace(domain_extent=2.0 * np.pi)
+
+    rollout, _ = _evaluate_rollout(
+        None,
+        ctx,
+        None,
+        reference,
+        frame_steps=1,
+        velocity_scale=1.0,
+        corrected=True,
+    )
+
+    assert calls[0][1] is None
+    assert calls[1][1] == 1
+    np.testing.assert_array_equal(calls[1][0], 11.0 * np.ones_like(reference[0]))
+    np.testing.assert_array_equal(rollout[-1], 23.0 * np.ones_like(reference[0]))
+
+
+def test_training_window_threads_corrected_velocity_and_native_state(monkeypatch):
+    calls: list[tuple[np.ndarray, int | None]] = []
+
+    def _advance(_t, _ctx, velocity, *, frame_steps, native_state=None):
+        del frame_steps
+        calls.append(
+            (
+                np.asarray(velocity),
+                None if native_state is None else int(native_state),
+            )
+        )
+        next_native_state = 1 if native_state is None else native_state + 1
+        return jnp.asarray(velocity) + next_native_state, next_native_state
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "_solver_advance",
+        _advance,
+    )
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "corrected_velocity",
+        lambda model, velocity, **_kwargs: velocity + model,
+    )
+    targets = jnp.ones((3, 2, 2, 1, 2))
+    ctx = SimpleNamespace(domain_extent=2.0 * np.pi)
+
+    loss = _window_loss(
+        jnp.asarray(10.0),
+        targets,
+        t=None,
+        ctx=ctx,
+        frame_steps=1,
+        velocity_scale=1.0,
+        differentiate_solver=True,
+        loss_mode="mean",
+        solver_loss_weight=0.1,
+        loss_scale=1.0,
+    )
+
+    assert np.isfinite(float(loss))
+    assert calls[0][1] is None
+    assert calls[1][1] == 1
+    np.testing.assert_array_equal(calls[1][0], 12.0 * np.ones_like(targets[0]))
+
+
+def test_stop_gradient_cuts_velocity_and_native_state():
+    def stopped(value):
+        velocity, native_state = _stop_recurrent_gradient(
+            value,
+            {"memory": 2.0 * value},
+        )
+        return velocity + native_state["memory"]
+
+    primal, tangent = jax.jvp(
+        stopped,
+        (jnp.asarray(3.0),),
+        (jnp.asarray(1.0),),
+    )
+
+    assert float(primal) == 9.0
+    assert float(tangent) == 0.0
 
 
 def test_rollout_log_gain_is_geometric_and_ignores_initial_frame():

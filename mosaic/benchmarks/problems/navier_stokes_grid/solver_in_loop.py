@@ -15,6 +15,7 @@ import hashlib
 import json
 import threading
 import time
+import weakref
 from functools import lru_cache, partial
 from typing import Any, NamedTuple
 
@@ -42,6 +43,10 @@ from .corrector import (
 from .ics import _multimode, _tgv
 
 _DATASET_LOCK = threading.Lock()
+_NATIVE_STATE_SUPPORT_LOCK = threading.Lock()
+_NATIVE_STATE_SUPPORT: weakref.WeakKeyDictionary[Any, bool] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def _dataset_digest(config: dict[str, Any]) -> str:
@@ -185,7 +190,8 @@ def _solver_advance(
     velocity: jax.Array,
     *,
     frame_steps: int,
-) -> jax.Array:
+    native_state: Any | None = None,
+) -> tuple[jax.Array, Any | None]:
     """Advance one canonical correction interval through a Tesseract."""
     return _solver_advance_with_physics(
         t,
@@ -193,7 +199,30 @@ def _solver_advance(
         velocity,
         dt=float(ctx.phys["dt"]),
         steps=frame_steps,
+        native_state=native_state,
     )
+
+
+def _supports_native_state(t: Any) -> bool:
+    """Return whether the advertised apply inputs support recurrent state."""
+    with _NATIVE_STATE_SUPPORT_LOCK:
+        try:
+            return _NATIVE_STATE_SUPPORT[t]
+        except (KeyError, TypeError):
+            pass
+    try:
+        properties = t.openapi_schema["components"]["schemas"]["Apply_InputSchema"][
+            "properties"
+        ]
+    except (AttributeError, KeyError, TypeError):
+        return False
+    supports_native_state = "return_state" in properties and "state" in properties
+    with _NATIVE_STATE_SUPPORT_LOCK:
+        try:
+            _NATIVE_STATE_SUPPORT[t] = supports_native_state
+        except TypeError:
+            pass
+    return supports_native_state
 
 
 def _solver_advance_with_physics(
@@ -203,7 +232,8 @@ def _solver_advance_with_physics(
     *,
     dt: float,
     steps: int,
-) -> jax.Array:
+    native_state: Any | None = None,
+) -> tuple[jax.Array, Any | None]:
     """Advance a state with an explicit grid and temporal compute budget."""
     physics = {
         **ctx.phys,
@@ -212,12 +242,38 @@ def _solver_advance_with_physics(
         "steps": int(steps),
     }
     inputs = ctx.make_inputs(ctx.name, velocity, **physics)
+    supports_native_state = _supports_native_state(t)
+    if supports_native_state:
+        inputs = {**inputs, "return_state": True}
+    if native_state is not None:
+        if not supports_native_state:
+            raise RuntimeError(
+                f"Solver '{ctx.name}' received native state without advertising "
+                "'state' and 'return_state' apply inputs"
+            )
+        inputs = {**inputs, "state": native_state}
     outputs = apply_tesseract(t, inputs)
     if ctx.output_key not in outputs:
         raise RuntimeError(
             f"Solver '{ctx.name}' did not return output {ctx.output_key!r}"
         )
-    return outputs[ctx.output_key]
+    next_native_state = outputs.get("state") if supports_native_state else None
+    if supports_native_state and next_native_state is None:
+        raise RuntimeError(
+            f"Solver '{ctx.name}' advertised recurrent state but did not return 'state'"
+        )
+    return outputs[ctx.output_key], next_native_state
+
+
+def _stop_recurrent_gradient(
+    velocity: jax.Array,
+    native_state: Any | None,
+) -> tuple[jax.Array, Any | None]:
+    """Cut solver-VJP paths through canonical and solver-native recurrent state."""
+    return (
+        jax.lax.stop_gradient(velocity),
+        jax.tree_util.tree_map(jax.lax.stop_gradient, native_state),
+    )
 
 
 def _make_solver_self_reference_datasets(
@@ -260,18 +316,19 @@ def _make_solver_self_reference_datasets(
         *,
         dt: float,
         steps: int,
-    ) -> np.ndarray:
+        native_state: Any | None = None,
+    ) -> tuple[np.ndarray, Any | None]:
         nonlocal apply_count
         apply_count += 1
-        return np.asarray(
-            _solver_advance_with_physics(
-                t,
-                ctx,
-                velocity,
-                dt=dt,
-                steps=steps,
-            )
+        next_velocity, next_native_state = _solver_advance_with_physics(
+            t,
+            ctx,
+            velocity,
+            dt=dt,
+            steps=steps,
+            native_state=native_state,
         )
+        return np.asarray(next_velocity), next_native_state
 
     trajectories: dict[int, np.ndarray] = {}
     fine_initials: dict[int, np.ndarray] = {}
@@ -289,8 +346,14 @@ def _make_solver_self_reference_datasets(
         )
         fine_initials[seed] = fine_state
         frames = [spectral_restrict(fine_state, n)]
+        fine_native_state = None
         for _frame in range(n_frames):
-            fine_state = advance(fine_state, dt=fine_dt, steps=fine_steps)
+            fine_state, fine_native_state = advance(
+                fine_state,
+                dt=fine_dt,
+                steps=fine_steps,
+                native_state=fine_native_state,
+            )
             frames.append(spectral_restrict(fine_state, n))
         trajectories[seed] = np.asarray(frames, dtype=np.float32)
 
@@ -331,23 +394,25 @@ def _make_solver_self_reference_datasets(
     for seed in requested_audit_seeds:
         target = trajectories[seed]
         coarse_state = np.asarray(target[0])
+        coarse_native_state = None
         coarse_repeated: dict[int, np.ndarray] = {}
         for frame in range(1, max_audit_frame + 1):
-            coarse_state = advance(
+            coarse_state, coarse_native_state = advance(
                 coarse_state,
                 dt=coarse_dt,
                 steps=coarse_steps,
+                native_state=coarse_native_state,
             )
             if frame in audit_frame_set:
                 coarse_repeated[frame] = coarse_state
 
         for frame in audit_frames:
-            coarse_native = advance(
+            coarse_native, _ = advance(
                 np.asarray(target[0]),
                 dt=coarse_dt,
                 steps=coarse_steps * frame,
             )
-            fine_native = advance(
+            fine_native, _ = advance(
                 fine_initials[seed],
                 dt=fine_dt,
                 steps=fine_steps * frame,
@@ -457,15 +522,26 @@ def _window_loss(
 ) -> jax.Array:
     """Normalized recurrent loss with configurable temporal credit assignment."""
     state = targets[0]
+    native_state = None
     losses: list[jax.Array] = []
     solver_terminal_loss: jax.Array | None = None
     for step, target in enumerate(targets[1:]):
-        provisional = _solver_advance(t, ctx, state, frame_steps=frame_steps)
+        provisional, native_state = _solver_advance(
+            t,
+            ctx,
+            state,
+            frame_steps=frame_steps,
+            native_state=native_state,
+        )
         if not differentiate_solver:
             # Keep the identical recurrent forward trajectory but cut the
-            # backward graph at every solver transition. This counterfactual
-            # measures what the same corrector can learn without the solver VJP.
-            provisional = jax.lax.stop_gradient(provisional)
+            # backward graph through both canonical and solver-native recurrent
+            # state. This counterfactual measures what the same corrector can
+            # learn without the solver VJP.
+            provisional, native_state = _stop_recurrent_gradient(
+                provisional,
+                native_state,
+            )
         if step == targets.shape[0] - 2:
             solver_terminal_loss = jnp.sum((provisional - target) ** 2) / (
                 jnp.sum(target**2) + 1e-12
@@ -657,10 +733,17 @@ def _evaluate_rollout(
 ) -> tuple[np.ndarray, list[float]]:
     """Roll out one held-out sequence with or without neural corrections."""
     state = jnp.asarray(reference[0])
+    native_state = None
     states = [np.asarray(state)]
     errors = [0.0]
     for target in reference[1:]:
-        state = _solver_advance(t, ctx, state, frame_steps=frame_steps)
+        state, native_state = _solver_advance(
+            t,
+            ctx,
+            state,
+            frame_steps=frame_steps,
+            native_state=native_state,
+        )
         if corrected:
             state = corrected_velocity(
                 model,
@@ -868,6 +951,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                 "reference_kind": reference_kind,
                 "correction_intervals": int(test.shape[1] - 1),
                 "rollout_final_time": interval_time * int(test.shape[1] - 1),
+                "native_state_threading": _supports_native_state(t),
             },
             "snapshots": {"reference_rollout": test[0]},
             "shared": {
@@ -887,7 +971,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
 
     # Evaluate the solver itself once: these trajectories do not depend on a
     # neural-model seed. A long native call and a sequence of short canonical
-    # restarts expose coupling penalties separately from integration accuracy.
+    # intervals expose recurrent-call closure separately from integration accuracy.
     seen_trajectory_count = min(
         int(evaluation.get("seen_ic_trajectories", test.shape[0])),
         train_rollouts.shape[0],
@@ -897,19 +981,20 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     seen_references = train_rollouts[:seen_trajectory_count]
     semigroup_errors: list[float] = []
     for reference in test:
-        one_interval = _solver_advance(
+        one_interval, one_interval_native_state = _solver_advance(
             t,
             ctx,
             jnp.asarray(reference[0]),
             frame_steps=frame_steps,
         )
-        repeated = _solver_advance(
+        repeated, _ = _solver_advance(
             t,
             ctx,
             one_interval,
             frame_steps=frame_steps,
+            native_state=one_interval_native_state,
         )
-        uninterrupted = _solver_advance(
+        uninterrupted, _ = _solver_advance(
             t,
             ctx,
             jnp.asarray(reference[0]),
@@ -939,7 +1024,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     )
     first_uncorrected = uncorrected_eval.first_rollout
     uncorrected_errors_array = uncorrected_eval.errors
-    restarted_final_states = uncorrected_eval.final_states
+    recurrent_final_states = uncorrected_eval.final_states
     seen_uncorrected_eval = _evaluate_reference_set(
         t,
         ctx,
@@ -952,8 +1037,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     seen_uncorrected_errors = seen_uncorrected_eval.errors
     native_final_errors: list[float] = []
     long_closure_errors: list[float] = []
-    for reference, restarted_final in zip(test, restarted_final_states, strict=True):
-        native_final = _solver_advance(
+    for reference, recurrent_final in zip(test, recurrent_final_states, strict=True):
+        native_final, _ = _solver_advance(
             t,
             ctx,
             jnp.asarray(reference[0]),
@@ -961,7 +1046,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         )
         native_final_errors.append(relative_l2(np.asarray(native_final), reference[-1]))
         long_closure_errors.append(
-            relative_l2(np.asarray(restarted_final), np.asarray(native_final))
+            relative_l2(np.asarray(recurrent_final), np.asarray(native_final))
         )
 
     first_interval_error_p95 = float(
@@ -1285,7 +1370,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "first_interval_rollout_error": float(uncorrected_error[1]),
         "first_interval_rollout_error_ic_std": float(uncorrected_error_ic_std[1]),
         "native_final_rollout_error": native_final_error,
-        "state_restart_error_ratio": final_uncorrected / (native_final_error + 1e-12),
+        "recurrent_to_native_error_ratio": final_uncorrected
+        / (native_final_error + 1e-12),
         "mean_rollout_error": mean_corrected,
         "stop_gradient_mean_rollout_error": mean_stop_gradient,
         "uncorrected_mean_rollout_error": mean_uncorrected,
@@ -1474,7 +1560,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "correction_intervals": int(test.shape[1] - 1),
         "native_steps": frame_steps * int(test.shape[1] - 1),
         "rollout_final_time": interval_time * int(test.shape[1] - 1),
-        "state_restart": True,
+        "native_state_threading": _supports_native_state(t),
     }
     snapshots = {
         "loss": losses,
