@@ -204,19 +204,25 @@ def _solver_advance(
 
 
 def _supports_native_state(t: Any) -> bool:
-    """Return whether the advertised apply inputs support recurrent state."""
+    """Return whether apply advertises a differentiable recurrent checkpoint."""
     with _NATIVE_STATE_SUPPORT_LOCK:
         try:
             return _NATIVE_STATE_SUPPORT[t]
         except (KeyError, TypeError):
             pass
     try:
-        properties = t.openapi_schema["components"]["schemas"]["Apply_InputSchema"][
-            "properties"
-        ]
+        schemas = t.openapi_schema["components"]["schemas"]
+        properties = schemas["Apply_InputSchema"]["properties"]
+        differentiable_inputs = schemas["ApplyInputSchema"]["differentiable_arrays"]
+        differentiable_outputs = schemas["ApplyOutputSchema"]["differentiable_arrays"]
     except (AttributeError, KeyError, TypeError):
         return False
-    supports_native_state = "return_state" in properties and "state" in properties
+    supports_native_state = (
+        "return_state" in properties
+        and "state" in properties
+        and "state" in differentiable_inputs
+        and "state" in differentiable_outputs
+    )
     with _NATIVE_STATE_SUPPORT_LOCK:
         try:
             _NATIVE_STATE_SUPPORT[t] = supports_native_state

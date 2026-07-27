@@ -417,7 +417,13 @@ def test_solver_advance_threads_optional_native_state(monkeypatch):
                             "state": {},
                             "return_state": {},
                         }
-                    }
+                    },
+                    "ApplyInputSchema": {
+                        "differentiable_arrays": {"v0": {}, "state": {}}
+                    },
+                    "ApplyOutputSchema": {
+                        "differentiable_arrays": {"result": {}, "state": {}}
+                    },
                 }
             }
         }
@@ -463,7 +469,15 @@ def test_solver_advance_leaves_stateless_schema_unchanged(monkeypatch):
         openapi_schema={
             "components": {
                 "schemas": {
-                    "Apply_InputSchema": {"properties": {"v0": {}}},
+                    "Apply_InputSchema": {
+                        "properties": {
+                            "v0": {},
+                            "state": {},
+                            "return_state": {},
+                        }
+                    },
+                    "ApplyInputSchema": {"differentiable_arrays": {"v0": {}}},
+                    "ApplyOutputSchema": {"differentiable_arrays": {"result": {}}},
                 }
             }
         }
