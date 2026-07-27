@@ -420,14 +420,26 @@ def phiflow_fwd(
         )
         return staggered_to_faces(projected)
 
+    def project_periodic_faces_primal(face_arr: jnp.ndarray) -> jnp.ndarray:
+        # Avoid injecting a CG residual when an uncorrected recurrent call
+        # assimilates an exactly zero canonical increment. Keep the custom VJP
+        # below so this zero-valued primal still has the linear projection as
+        # its derivative.
+        return jax.lax.cond(
+            jnp.all(face_arr == 0),
+            jnp.zeros_like,
+            project_periodic_faces_impl,
+            face_arr,
+        )
+
     @jax.custom_vjp
     def project_periodic_faces(face_arr: jnp.ndarray) -> jnp.ndarray:
-        return project_periodic_faces_impl(face_arr)
+        return project_periodic_faces_primal(face_arr)
 
     def project_periodic_faces_fwd(
         face_arr: jnp.ndarray,
     ) -> tuple[jnp.ndarray, None]:
-        return project_periodic_faces_impl(face_arr), None
+        return project_periodic_faces_primal(face_arr), None
 
     def project_periodic_faces_bwd(
         _residual: None, cotangent: jnp.ndarray
