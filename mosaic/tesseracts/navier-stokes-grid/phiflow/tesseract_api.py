@@ -46,9 +46,11 @@ class InputSchema(
     state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
         default=None,
         description=(
-            "Optional staggered solver state returned by a previous call. "
-            "Periodic state uses Mosaic's high-face indexing and is translated to "
-            "PhiFlow's lower-face indexing internally. "
+            "Optional recurrent checkpoint returned by a previous call. The final "
+            "axis packs the native staggered velocity followed by the canonical "
+            "cell-centred velocity, so its size is twice that of v0. Periodic native "
+            "state uses Mosaic's high-face indexing and is translated to PhiFlow's "
+            "lower-face indexing internally. "
             "When provided, v0 is interpreted as the desired corrected canonical "
             "velocity and is reconciled with this state before advancing. The grid, "
             "boundary conditions, timestep, and solver configuration must be unchanged."
@@ -77,8 +79,9 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"
     state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
         default=None,
         description=(
-            "Staggered solver state for recurrent continuation. Periodic state "
-            "uses Mosaic's high-face indexing."
+            "Recurrent checkpoint for continuation. The final axis packs native "
+            "staggered velocity followed by the exact canonical result; periodic "
+            "native state uses Mosaic's high-face indexing."
         ),
     )
 
@@ -181,23 +184,30 @@ def phiflow_fwd(
         boundary_conditions: Dict mapping face keys to BC type/value dicts.
         obstacle: Optional obstacle dict.
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
-        state: Optional serialized staggered state from a previous recurrent call.
+        state: Optional recurrent checkpoint from a previous call. Its final axis
+            packs native staggered velocity followed by canonical velocity.
         return_state: Static output-control flag consumed by the public apply path.
 
     Returns:
         ``(result, drag, state)`` where result has the same shape as v0,
-        drag has shape ``(1,)`` or is None, and state is serialized staggered
-        solver state with the same public array shape as v0. Periodic state
-        uses Mosaic's high-face indexing.
+        drag has shape ``(1,)`` or is None, and state's final axis packs serialized
+        native staggered velocity followed by the exact canonical result. Periodic
+        native state uses Mosaic's high-face indexing.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
-    if state is not None and state.shape != v0.shape:
-        raise ValueError(f"PhiFlow state has shape {state.shape}, expected {v0.shape}")
+    expected_state_shape = (*v0.shape[:-1], 2 * ndim)
+    if state is not None and state.shape != expected_state_shape:
+        raise ValueError(
+            f"PhiFlow state has shape {state.shape}, expected {expected_state_shape}"
+        )
+    native_state = state[..., :ndim] if state is not None else None
+    canonical_checkpoint = state[..., ndim:] if state is not None else None
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
-        if state is not None:
-            state = state[:, :, 0, :]
+        if native_state is not None:
+            native_state = native_state[:, :, 0, :]
+            canonical_checkpoint = canonical_checkpoint[:, :, 0, :]
 
     if ndim == 2:
         nx, ny = v0.shape[:2]
@@ -475,13 +485,12 @@ def phiflow_fwd(
 
     # Convert the initial canonical field once. On continuation, retain the
     # serialized staggered state and assimilate only the canonical correction.
-    if state is None:
+    if native_state is None:
         face_init = centered_to_faces(v0)
     else:
-        state_values = high_faces_to_phiflow(state) if periodic else state
+        state_values = high_faces_to_phiflow(native_state) if periodic else native_state
         face_state = jnp.moveaxis(state_values, -1, 0)
-        canonical_state = faces_to_centered(face_state)
-        correction = v0 - canonical_state
+        correction = v0 - canonical_checkpoint
         correction_faces = (
             lift_periodic_correction(correction)
             if periodic
@@ -504,13 +513,14 @@ def phiflow_fwd(
     # Convert final face values back to collocated once and serialize the
     # staggered carry for the next recurrent call.
     result = faces_to_centered(face_final)
-    state_out = jnp.moveaxis(face_final, 0, -1)
+    native_state_out = jnp.moveaxis(face_final, 0, -1)
     if periodic:
-        state_out = phiflow_faces_to_high(state_out)
+        native_state_out = phiflow_faces_to_high(native_state_out)
     if ndim == 2:
         # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
         result = result[:, :, None, :]
-        state_out = state_out[:, :, None, :]
+        native_state_out = native_state_out[:, :, None, :]
+    state_out = jnp.concatenate([native_state_out, result], axis=-1)
 
     # --- drag from RANS-averaged pressure + velocity ----------------------
     drag = None
@@ -571,9 +581,13 @@ def vector_jacobian_product(
     # cotangents for outputs that do not influence the caller's objective.
     if inputs.return_state or inputs.state is not None:
         vjp_outputs = {*vjp_outputs, "result", "state"}
+        zero_state = jnp.concatenate(
+            [jnp.zeros_like(inputs.v0), jnp.zeros_like(inputs.v0)],
+            axis=-1,
+        )
         cotangent_vector = {
             "result": jnp.zeros_like(inputs.v0),
-            "state": jnp.zeros_like(inputs.v0),
+            "state": zero_state,
             **cotangent_vector,
         }
     return vjp_jit(
@@ -605,7 +619,10 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
         "result": {"shape": v0_shape, "dtype": v0_dtype},
         "drag": {"shape": (1,), "dtype": "float32"},
         "state": (
-            {"shape": v0_shape, "dtype": v0_dtype}
+            {
+                "shape": (*v0_shape[:-1], 2 * v0_shape[-1]),
+                "dtype": v0_dtype,
+            }
             if bool(raw.get("return_state", False)) or raw.get("state") is not None
             else None
         ),
