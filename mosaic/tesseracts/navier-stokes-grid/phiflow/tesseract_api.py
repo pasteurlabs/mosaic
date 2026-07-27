@@ -60,7 +60,10 @@ class InputSchema(
     )
     return_state: bool = Field(
         default=False,
-        description="Return staggered solver state for recurrent continuation.",
+        description=(
+            "Return a recurrent checkpoint containing native staggered velocity "
+            "and the exact canonical result."
+        ),
     )
 
     @model_validator(mode="after")

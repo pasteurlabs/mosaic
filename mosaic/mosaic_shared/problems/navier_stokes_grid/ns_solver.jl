@@ -1,5 +1,4 @@
 using IncompressibleNavierStokes
-using FFTW
 using Zygote
 
 include(joinpath(@__DIR__, "grid_layout.jl"))
@@ -107,20 +106,20 @@ function _ns_forward_2d_from_stag(velocity_stag::AbstractArray, rhs, setup, psol
 end
 
 """2-D forward from a canonical collocated initial condition."""
-function ns_forward_2d_state(velocity::AbstractArray, rhs, setup, psolver,
+function ns_forward_2d_state(v0::AbstractArray, rhs, setup, psolver,
                              nu::Real, dt::Real, steps::Int, n::Int)
     return _ns_forward_2d_from_stag(
-        collocated_to_staggered_periodic_2d(velocity, n), rhs, setup, psolver,
+        collocated_to_staggered_periodic_2d(v0, n), rhs, setup, psolver,
         nu, dt, steps, n, true)
 end
 
 """2-D continuation preserving native faces and assimilating the canonical correction."""
-function ns_forward_2d_continue(velocity::AbstractArray, state::AbstractArray,
+function ns_forward_2d_continue(v0::AbstractArray, state::AbstractArray,
                                 rhs, setup, psolver,
                                 nu::Real, dt::Real, steps::Int, n::Int)
     canonical_state = staggered_to_collocated_periodic_2d(state, n)
     correction = lift_collocated_to_staggered_periodic_2d(
-        velocity .- canonical_state, n)
+        v0 .- canonical_state, n)
     projected_correction = strip_ghosts_2d(
         project(add_ghosts_2d(correction, n), setup; psolver), n)
     reconciled = state .+ projected_correction
@@ -129,9 +128,9 @@ function ns_forward_2d_continue(velocity::AbstractArray, state::AbstractArray,
 end
 
 """2-D forward returning only canonical velocity."""
-function ns_forward_2d(velocity::AbstractArray, rhs, setup, psolver,
+function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
-    return first(ns_forward_2d_state(velocity, rhs, setup, psolver, nu, dt, steps, n))
+    return first(ns_forward_2d_state(v0, rhs, setup, psolver, nu, dt, steps, n))
 end
 
 """Advance a native 3-D staggered interior state and return (collocated, staggered)."""
@@ -159,20 +158,20 @@ function _ns_forward_3d_from_stag(velocity_stag::AbstractArray, rhs, setup, psol
 end
 
 """3-D forward from a canonical collocated initial condition."""
-function ns_forward_3d_state(velocity::AbstractArray, rhs, setup, psolver,
+function ns_forward_3d_state(v0::AbstractArray, rhs, setup, psolver,
                              nu::Real, dt::Real, steps::Int, n::Int)
     return _ns_forward_3d_from_stag(
-        collocated_to_staggered_periodic_3d(velocity, n), rhs, setup, psolver,
+        collocated_to_staggered_periodic_3d(v0, n), rhs, setup, psolver,
         nu, dt, steps, n, true)
 end
 
 """3-D continuation preserving native faces and assimilating the canonical correction."""
-function ns_forward_3d_continue(velocity::AbstractArray, state::AbstractArray,
+function ns_forward_3d_continue(v0::AbstractArray, state::AbstractArray,
                                 rhs, setup, psolver,
                                 nu::Real, dt::Real, steps::Int, n::Int)
     canonical_state = staggered_to_collocated_periodic_3d(state, n)
     correction = lift_collocated_to_staggered_periodic_3d(
-        velocity .- canonical_state, n)
+        v0 .- canonical_state, n)
     projected_correction = strip_ghosts_3d(
         project(add_ghosts_3d(correction, n), setup; psolver), n)
     reconciled = state .+ projected_correction
@@ -181,9 +180,9 @@ function ns_forward_3d_continue(velocity::AbstractArray, state::AbstractArray,
 end
 
 """3-D forward returning only canonical velocity."""
-function ns_forward_3d(velocity::AbstractArray, rhs, setup, psolver,
+function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
-    return first(ns_forward_3d_state(velocity, rhs, setup, psolver, nu, dt, steps, n))
+    return first(ns_forward_3d_state(v0, rhs, setup, psolver, nu, dt, steps, n))
 end
 
 
@@ -192,81 +191,81 @@ end
 # ---------------------------------------------------------------------------
 
 """
-    ns_apply(velocity_np, nu, dt, steps, n, L) -> v_out_np
+    ns_apply(v0_np, nu, dt, steps, n, L) -> v_out_np
 
 Forward pass.
-  2-D: velocity_np (n,n,2) Float32 → returns (n,n,2) Float32
-  3-D: velocity_np (n,n,n,3) Float32 → returns (n,n,n,3) Float32
+  2-D: v0_np (n,n,2) Float32 → returns (n,n,2) Float32
+  3-D: v0_np (n,n,n,3) Float32 → returns (n,n,n,3) Float32
 """
-function ns_apply(velocity_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64)
-    velocity   = Float32.(velocity_np)
-    ndim = size(velocity, ndims(velocity))  # last dim: 2 or 3
+function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64)
+    v0   = Float32.(v0_np)
+    ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
     rhs  = create_right_hand_side(setup, psolver)
 
     if ndim == 2
-        v_out = ns_forward_2d(velocity, rhs, setup, psolver, nu, dt, steps, n)
+        v_out = ns_forward_2d(v0, rhs, setup, psolver, nu, dt, steps, n)
     else
-        v_out = ns_forward_3d(velocity, rhs, setup, psolver, nu, dt, steps, n)
+        v_out = ns_forward_3d(v0, rhs, setup, psolver, nu, dt, steps, n)
     end
     return Float32.(v_out)
 end
 
 """Forward pass returning both canonical velocity and native staggered state."""
-function ns_apply_state(velocity_np, nu::Float64, dt::Float64,
+function ns_apply_state(v0_np, nu::Float64, dt::Float64,
                         steps::Int, n::Int, L::Float64)
-    velocity   = Float32.(velocity_np)
-    ndim = size(velocity, ndims(velocity))
+    v0 = Float32.(v0_np)
+    ndim = size(v0, ndims(v0))
     setup, psolver = get_setup_and_psolver(n, L, ndim)
     rhs = create_right_hand_side(setup, psolver)
 
     if ndim == 2
         v_out, state_out = ns_forward_2d_state(
-            velocity, rhs, setup, psolver, nu, dt, steps, n)
+            v0, rhs, setup, psolver, nu, dt, steps, n)
     else
         v_out, state_out = ns_forward_3d_state(
-            velocity, rhs, setup, psolver, nu, dt, steps, n)
+            v0, rhs, setup, psolver, nu, dt, steps, n)
     end
     return Float32.(v_out), Float32.(state_out)
 end
 
 """Continue from native staggered state after reconciling a corrected canonical velocity."""
-function ns_apply_state_continue(velocity_np, state_np, nu::Float64, dt::Float64,
+function ns_apply_state_continue(v0_np, state_np, nu::Float64, dt::Float64,
                                  steps::Int, n::Int, L::Float64)
-    velocity    = Float32.(velocity_np)
+    v0 = Float32.(v0_np)
     state = Float32.(state_np)
-    ndim  = size(velocity, ndims(velocity))
+    ndim = size(v0, ndims(v0))
     setup, psolver = get_setup_and_psolver(n, L, ndim)
     rhs = create_right_hand_side(setup, psolver)
 
     if ndim == 2
         v_out, state_out = ns_forward_2d_continue(
-            velocity, state, rhs, setup, psolver, nu, dt, steps, n)
+            v0, state, rhs, setup, psolver, nu, dt, steps, n)
     else
         v_out, state_out = ns_forward_3d_continue(
-            velocity, state, rhs, setup, psolver, nu, dt, steps, n)
+            v0, state, rhs, setup, psolver, nu, dt, steps, n)
     end
     return Float32.(v_out), Float32.(state_out)
 end
 
 """
-    ns_vjp(velocity_np, cotangent_np, nu, dt, steps, n, L)
-        -> (grad_velocity, grad_nu, grad_dt, grad_L)
+    ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L)
+        -> (grad_v0, grad_nu, grad_dt, grad_L)
 
-VJP. Shapes match velocity_np. grad_L is always 0.0 (L is structural).
+VJP. Shapes match v0_np. grad_L is always 0.0 (L is structural).
 
-grad_velocity and grad_dt are computed via Zygote reverse-mode AD.
+grad_v0 and grad_dt are computed via Zygote reverse-mode AD.
 grad_nu is computed via central finite differences because INS.jl's
 `diffusion` rrule returns NoTangent() for the viscosity argument (the
 library registers its own ChainRulesCore rrule that only differentiates
 through the velocity field, not through nu). This is a scalar FD and
 therefore cheap: two extra forward passes.
 """
-function ns_vjp(velocity_np, cotangent_np, nu::Float64, dt::Float64,
+function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
                 steps::Int, n::Int, L::Float64)
-    velocity   = Float32.(velocity_np)
+    v0   = Float32.(v0_np)
     cot  = Float32.(cotangent_np)
-    ndim = size(velocity, ndims(velocity))
+    ndim = size(v0, ndims(v0))
 
     setup, psolver = get_setup_and_psolver(n, L, ndim)
     rhs  = create_right_hand_side(setup, psolver)
@@ -277,30 +276,30 @@ function ns_vjp(velocity_np, cotangent_np, nu::Float64, dt::Float64,
         fwd = (v, dt_) -> ns_forward_3d(v, rhs, setup, psolver, nu, dt_, steps, n)
     end
 
-    # Zygote pullback for grad_velocity and grad_dt.
+    # Zygote pullback for grad_v0 and grad_dt.
     # nu is captured as a constant here so Zygote does not attempt to
     # differentiate through INS.jl's diffusion rrule (which returns
     # NoTangent() for viscosity). grad_nu is handled separately below.
-    _, back = Zygote.pullback(fwd, velocity, Float32(dt))
+    _, back = Zygote.pullback(fwd, v0, Float32(dt))
     grads = back(cot)
-    grad_velocity  = Float32.(grads[1])
+    grad_v0  = Float32.(grads[1])
     grad_dt  = Float64(something(grads[2], 0.0))
 
     # grad_nu via central finite differences (scalar nu, two extra forward passes).
     # ε is chosen relative to nu so the FD stencil is accurate regardless of scale.
     eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
     if ndim == 2
-        f_plus  = ns_forward_2d(velocity, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        f_minus = ns_forward_2d(velocity, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+        f_plus  = ns_forward_2d(v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+        f_minus = ns_forward_2d(v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
     else
-        f_plus  = ns_forward_3d(velocity, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        f_minus = ns_forward_3d(velocity, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+        f_plus  = ns_forward_3d(v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+        f_minus = ns_forward_3d(v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
     end
     jvp_nu  = (f_plus .- f_minus) ./ (2 * eps_nu)  # ∂f/∂nu (same shape as cot)
     grad_nu = Float64(sum(cot .* jvp_nu))
 
     return (
-        grad_velocity,
+        grad_v0,
         grad_nu,
         grad_dt,
         Float64(0.0),
@@ -308,13 +307,13 @@ function ns_vjp(velocity_np, cotangent_np, nu::Float64, dt::Float64,
 end
 
 """VJP for an initial call that returns canonical and native staggered outputs."""
-function ns_vjp_state(velocity_np, cotangent_np, cotangent_state_np,
+function ns_vjp_state(v0_np, cotangent_np, cotangent_state_np,
                       nu::Float64, dt::Float64,
                       steps::Int, n::Int, L::Float64)
-    velocity        = Float32.(velocity_np)
-    cot       = Float32.(cotangent_np)
+    v0 = Float32.(v0_np)
+    cot = Float32.(cotangent_np)
     cot_state = Float32.(cotangent_state_np)
-    ndim      = size(velocity, ndims(velocity))
+    ndim = size(v0, ndims(v0))
 
     setup, psolver = get_setup_and_psolver(n, L, ndim)
     rhs = create_right_hand_side(setup, psolver)
@@ -326,39 +325,39 @@ function ns_vjp_state(velocity_np, cotangent_np, cotangent_state_np,
             v, rhs, setup, psolver, nu, dt_, steps, n)
     end
 
-    _, back = Zygote.pullback(fwd, velocity, Float32(dt))
+    _, back = Zygote.pullback(fwd, v0, Float32(dt))
     grads = back((cot, cot_state))
-    grad_velocity = Float32.(grads[1])
+    grad_v0 = Float32.(grads[1])
     grad_dt = Float64(something(grads[2], 0.0))
 
     eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
     if ndim == 2
         plus = ns_forward_2d_state(
-            velocity, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
         minus = ns_forward_2d_state(
-            velocity, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+            v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
     else
         plus = ns_forward_3d_state(
-            velocity, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
         minus = ns_forward_3d_state(
-            velocity, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+            v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
     end
     jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
     jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
     grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
 
-    return grad_velocity, grad_nu, grad_dt, Float64(0.0)
+    return grad_v0, grad_nu, grad_dt, Float64(0.0)
 end
 
 """VJP for a recurrent call initialized from native staggered state."""
-function ns_vjp_state_continue(velocity_np, state_np, cotangent_np,
+function ns_vjp_state_continue(v0_np, state_np, cotangent_np,
                                cotangent_state_np, nu::Float64, dt::Float64,
                                steps::Int, n::Int, L::Float64)
-    velocity        = Float32.(velocity_np)
-    state     = Float32.(state_np)
-    cot       = Float32.(cotangent_np)
+    v0 = Float32.(v0_np)
+    state = Float32.(state_np)
+    cot = Float32.(cotangent_np)
     cot_state = Float32.(cotangent_state_np)
-    ndim      = size(velocity, ndims(velocity))
+    ndim = size(v0, ndims(v0))
 
     setup, psolver = get_setup_and_psolver(n, L, ndim)
     rhs = create_right_hand_side(setup, psolver)
@@ -370,29 +369,29 @@ function ns_vjp_state_continue(velocity_np, state_np, cotangent_np,
             v, s, rhs, setup, psolver, nu, dt_, steps, n)
     end
 
-    _, back = Zygote.pullback(fwd, velocity, state, Float32(dt))
+    _, back = Zygote.pullback(fwd, v0, state, Float32(dt))
     grads = back((cot, cot_state))
-    grad_velocity = Float32.(grads[1])
+    grad_v0 = Float32.(grads[1])
     grad_state = Float32.(grads[2])
     grad_dt = Float64(something(grads[3], 0.0))
 
     eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
     if ndim == 2
         plus = ns_forward_2d_continue(
-            velocity, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
         minus = ns_forward_2d_continue(
-            velocity, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+            v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
     else
         plus = ns_forward_3d_continue(
-            velocity, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
         minus = ns_forward_3d_continue(
-            velocity, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+            v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
     end
     jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
     jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
     grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
 
-    return grad_velocity, grad_state, grad_nu, grad_dt, Float64(0.0)
+    return grad_v0, grad_state, grad_nu, grad_dt, Float64(0.0)
 end
 
 
@@ -596,35 +595,19 @@ function _channel_2d_rhs(
     return _apply_brinkman_2d(u_proj, obstacle_mask, n1, n2)
 end
 
-"""Pack channel cell velocities into the solver's interior face layout."""
-function channel_collocated_to_faces_2d(u::AbstractArray, n::Int)
-    half = eltype(u)(0.5)
-    ux = half .* (u[:, :, 1] .+ cat(u[2:end, :, 1], u[1:1, :, 1]; dims=1))
-    uy = half .* (u[:, :, 2] .+ cat(u[:, 2:end, 2], u[:, 1:1, 2]; dims=2))
-    return cat(reshape(ux, n, n, 1), reshape(uy, n, n, 1); dims=3)
-end
-
-"""Average the solver's interior channel faces back onto cell centres."""
-function channel_faces_to_collocated_2d(u::AbstractArray, n::Int)
-    half = eltype(u)(0.5)
-    ux = half .* (cat(u[end:end, :, 1], u[1:end-1, :, 1]; dims=1) .+ u[:, :, 1])
-    uy = half .* (cat(u[:, end:end, 2], u[:, 1:end-1, 2]; dims=2) .+ u[:, :, 2])
-    return cat(reshape(ux, n, n, 1), reshape(uy, n, n, 1); dims=3)
-end
-
 """
-    ns_channel_2d_forward(velocity, inflow_field, obstacle_mask, nu, dt, steps, setup, psolver, mask_inflow)
+    ns_channel_2d_forward(v0, inflow_field, obstacle_mask, nu, dt, steps, setup, psolver, mask_inflow)
 
 RK4 time integration for 2-D channel flow with Brinkman cylinder.
 
-velocity:            (n, n, 2) Float32 initial velocity (collocated).
+v0:            (n, n, 2) Float32 initial velocity (collocated).
 inflow_field:  (n, 2)    Float32 differentiable inflow velocity at x=0.
 obstacle_mask: (n, n, 2) Float32 Brinkman mask (1=solid, 0=fluid).
 
 Returns: (n1, n2, 2) Float32 full staggered velocity field (includes ghost cells).
 """
 function ns_channel_2d_forward(
-    velocity::AbstractArray,
+    v0::AbstractArray,
     inflow_field::AbstractArray,
     obstacle_mask::AbstractArray,
     nu::Real, dt::Real, steps::Int,
@@ -635,23 +618,23 @@ function ns_channel_2d_forward(
     n = n1 - 2
     T = eltype(inflow_field)
     # Convert collocated IC to staggered
-    velocity_stag = channel_collocated_to_faces_2d(velocity, n)  # (n, n, 2)
+    v0_stag = collocated_to_staggered_periodic_2d(v0, n)  # (n, n, 2)
     # Build initial ghost array consistent with channel BCs:
     #   x: left ghost = inflow, right ghost = outflow (copy rightmost interior col)
     #   y: periodic (bottom ghost = top interior row, top ghost = bottom interior row)
     # Interior with periodic y ghost cells
-    bot_y_ghost = velocity_stag[:, n:n, :]   # (n, 1, 2) — periodic: ghost from top interior
-    top_y_ghost = velocity_stag[:, 1:1, :]   # (n, 1, 2) — periodic: ghost from bottom interior
-    inner_ypad  = cat(bot_y_ghost, velocity_stag, top_y_ghost; dims = 2)  # (n, n2, 2)
+    bot_y_ghost = v0_stag[:, n:n, :]   # (n, 1, 2) — periodic: ghost from top interior
+    top_y_ghost = v0_stag[:, 1:1, :]   # (n, 1, 2) — periodic: ghost from bottom interior
+    inner_ypad  = cat(bot_y_ghost, v0_stag, top_y_ghost; dims = 2)  # (n, n2, 2)
     # Left x-ghost column: inflow values, with periodic y corners
     inflow_bot_corner = reshape(inflow_field[n:n, :], 1, 1, 2)   # (1, 1, 2)
     inflow_top_corner = reshape(inflow_field[1:1, :], 1, 1, 2)   # (1, 1, 2)
     inflow_interior   = reshape(inflow_field, 1, n, 2)             # (1, n, 2)
     left_col_ypad = cat(inflow_bot_corner, inflow_interior, inflow_top_corner; dims = 2)  # (1, n2, 2)
     # Right x-ghost column: zero-gradient outflow (copy rightmost interior column)
-    right_interior_col = velocity_stag[n:n, :, :]   # (1, n, 2)
-    right_bot_corner   = velocity_stag[n:n, n:n, :]  # (1, 1, 2)
-    right_top_corner   = velocity_stag[n:n, 1:1, :]  # (1, 1, 2)
+    right_interior_col = v0_stag[n:n, :, :]   # (1, n, 2)
+    right_bot_corner   = v0_stag[n:n, n:n, :]  # (1, 1, 2)
+    right_top_corner   = v0_stag[n:n, 1:1, :]  # (1, 1, 2)
     right_col_ypad = cat(right_bot_corner, right_interior_col, right_top_corner; dims = 2)  # (1, n2, 2)
     u = cat(left_col_ypad, inner_ypad, right_col_ypad; dims = 1)  # (n1, n2, 2)
     # Apply Brinkman to initial field
@@ -673,23 +656,23 @@ function ns_channel_2d_forward(
 end
 
 """
-    ns_apply_channel_2d(velocity_np, inflow_np, obstacle_np, nu, dt, steps, n, L) -> v_out_np
+    ns_apply_channel_2d(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L) -> v_out_np
 
 Forward pass for 2-D channel flow with Brinkman cylinder obstacle.
 
-velocity_np:       (n, n, 2)   Float32 — initial velocity (collocated).
+v0_np:       (n, n, 2)   Float32 — initial velocity (collocated).
 inflow_np:   (n, 2)      Float32 — x- and y-velocity of inflow at x=0 face.
 obstacle_np: (n, n, 2)   Float32 — Brinkman mask (1=solid, 0=fluid), broadcast over velocity components.
 
 Returns: (n, n, 2) Float32 collocated interior velocity field.
 """
 function ns_apply_channel_2d(
-    velocity_np,
+    v0_np,
     inflow_np,
     obstacle_np,
     nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64,
 )
-    velocity      = Float32.(velocity_np)       # (n, n, 2)
+    v0      = Float32.(v0_np)       # (n, n, 2)
     inflow  = Float32.(inflow_np)   # (n, 2)
     obs     = Float32.(obstacle_np) # (n, n, 2)
 
@@ -702,17 +685,17 @@ function ns_apply_channel_2d(
     mask_inflow[1, :, 2] .= 1f0
 
     u_full = ns_channel_2d_forward(
-        velocity, inflow, obs, Float32(nu), Float32(dt), steps,
+        v0, inflow, obs, Float32(nu), Float32(dt), steps,
         setup, psolver, mask_inflow,
     )
 
     return Float32.(
-        channel_faces_to_collocated_2d(strip_ghosts_2d(u_full, n), n)
+        staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
     )
 end
 
 """
-    ns_vjp_channel_2d(velocity_np, inflow_np, obstacle_np, nu, dt, steps, n, L, cotangent_np)
+    ns_vjp_channel_2d(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L, cotangent_np)
         -> (grad_inflow, grad_nu, grad_dt, grad_L)
 
 VJP for 2-D channel flow w.r.t. inflow_np.
@@ -722,13 +705,13 @@ obstacle_np is treated as non-differentiable (held constant in pullback).
 grad_nu, grad_dt, grad_L: zeros.
 """
 function ns_vjp_channel_2d(
-    velocity_np,
+    v0_np,
     inflow_np,
     obstacle_np,
     nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64,
     cotangent_np,
 )
-    velocity          = Float32.(velocity_np)
+    v0          = Float32.(v0_np)
     inflow      = Float32.(inflow_np)
     obs         = Float32.(obstacle_np)
     cot_coloc   = Float32.(cotangent_np)  # (n, n, 2) collocated cotangent
@@ -741,13 +724,13 @@ function ns_vjp_channel_2d(
     mask_inflow[1, :, 2] .= 1f0
 
     # Forward function for pullback: differentiate w.r.t. inflow only.
-    # velocity and obstacle_mask are held constant (non-differentiable).
+    # v0 and obstacle_mask are held constant (non-differentiable).
     function fwd(inflow_f)
         u_full = ns_channel_2d_forward(
-            velocity, inflow_f, obs, Float32(nu), Float32(dt), steps,
+            v0, inflow_f, obs, Float32(nu), Float32(dt), steps,
             setup, psolver, mask_inflow,
         )
-        channel_faces_to_collocated_2d(strip_ghosts_2d(u_full, n), n)
+        staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
     end
 
     _, back = Zygote.pullback(fwd, inflow)
@@ -817,7 +800,7 @@ function _compute_drag_julia_2d(
 end
 
 """
-    ns_channel_2d_forward_with_drag(velocity, inflow_field, obstacle_mask, solid_mask,
+    ns_channel_2d_forward_with_drag(v0, inflow_field, obstacle_mask, solid_mask,
                                      nu, dt, steps, setup, psolver, mask_inflow)
 
 RK4 time integration for 2-D channel flow with Brinkman cylinder.
@@ -829,7 +812,7 @@ Returns: (u_full, mean_drag, mean_velocity)
   mean_velocity: (n, n, 2)   Float32 — tail-window mean collocated velocity (RANS).
 """
 function ns_channel_2d_forward_with_drag(
-    velocity::AbstractArray,
+    v0::AbstractArray,
     inflow_field::AbstractArray,
     obstacle_mask::AbstractArray,
     solid_mask::AbstractArray,
@@ -843,17 +826,17 @@ function ns_channel_2d_forward_with_drag(
     nu_T = T(nu)
 
     # Initial staggered state (same as ns_channel_2d_forward)
-    velocity_stag = channel_collocated_to_faces_2d(velocity, n)
-    bot_y_ghost = velocity_stag[:, n:n, :]
-    top_y_ghost = velocity_stag[:, 1:1, :]
-    inner_ypad  = cat(bot_y_ghost, velocity_stag, top_y_ghost; dims = 2)
+    v0_stag = collocated_to_staggered_periodic_2d(v0, n)
+    bot_y_ghost = v0_stag[:, n:n, :]
+    top_y_ghost = v0_stag[:, 1:1, :]
+    inner_ypad  = cat(bot_y_ghost, v0_stag, top_y_ghost; dims = 2)
     inflow_bot_corner = reshape(inflow_field[n:n, :], 1, 1, 2)
     inflow_top_corner = reshape(inflow_field[1:1, :], 1, 1, 2)
     inflow_interior   = reshape(inflow_field, 1, n, 2)
     left_col_ypad = cat(inflow_bot_corner, inflow_interior, inflow_top_corner; dims = 2)
-    right_interior_col = velocity_stag[n:n, :, :]
-    right_bot_corner   = velocity_stag[n:n, n:n, :]
-    right_top_corner   = velocity_stag[n:n, 1:1, :]
+    right_interior_col = v0_stag[n:n, :, :]
+    right_bot_corner   = v0_stag[n:n, n:n, :]
+    right_top_corner   = v0_stag[n:n, 1:1, :]
     right_col_ypad = cat(right_bot_corner, right_interior_col, right_top_corner; dims = 2)
     u = cat(left_col_ypad, inner_ypad, right_col_ypad; dims = 1)
     u = _apply_brinkman_2d(u, obstacle_mask, n1, n2)
@@ -880,7 +863,7 @@ function ns_channel_2d_forward_with_drag(
 
         if step_i >= tail_start
             u_coloc =
-                channel_faces_to_collocated_2d(strip_ghosts_2d(u, n), n)
+                staggered_to_collocated_periodic_2d(strip_ghosts_2d(u, n), n)
             drag_sum = drag_sum + _compute_drag_julia_2d(u_coloc, solid_mask, nu_T)
             velocity_sum = velocity_sum .+ u_coloc
         end
@@ -892,14 +875,14 @@ function ns_channel_2d_forward_with_drag(
 end
 
 """
-    ns_apply_channel_2d_drag_window(velocity_np, inflow_np, obstacle_np, nu, dt, steps, n, L)
+    ns_apply_channel_2d_drag_window(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L)
         -> (v_out_np, mean_drag, mean_velocity)
 
 Forward pass for 2-D channel flow with Brinkman cylinder obstacle.
 Returns the final collocated velocity field, the tail-window mean drag,
 and the tail-window mean velocity (RANS) field (averaged over the last steps÷2 steps).
 
-velocity_np:       (n, n, 2)   Float32 — initial velocity (collocated).
+v0_np:       (n, n, 2)   Float32 — initial velocity (collocated).
 inflow_np:   (n, 2)      Float32 — x- and y-velocity of inflow at x=0 face.
 obstacle_np: (n, n, 2)   Float32 — Brinkman mask (1=solid, 0=fluid).
 
@@ -909,12 +892,12 @@ Returns:
   mean_velocity: (n, n, 2) Float32 — tail-window mean collocated velocity (RANS).
 """
 function ns_apply_channel_2d_drag_window(
-    velocity_np,
+    v0_np,
     inflow_np,
     obstacle_np,
     nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64,
 )
-    velocity      = Float32.(velocity_np)
+    v0      = Float32.(v0_np)
     inflow  = Float32.(inflow_np)
     obs     = Float32.(obstacle_np)
 
@@ -930,18 +913,18 @@ function ns_apply_channel_2d_drag_window(
     solid_mask = obs[:, :, 1]  # (n, n) Float32
 
     u_full, mean_drag, mean_velocity = ns_channel_2d_forward_with_drag(
-        velocity, inflow, obs, solid_mask, Float32(nu), Float32(dt), steps,
+        v0, inflow, obs, solid_mask, Float32(nu), Float32(dt), steps,
         setup, psolver, mask_inflow,
     )
 
     v_out = Float32.(
-        channel_faces_to_collocated_2d(strip_ghosts_2d(u_full, n), n)
+        staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
     )
     return v_out, Float32(mean_drag), Float32.(mean_velocity)
 end
 
 """
-    ns_vjp_channel_2d_drag_window(velocity_np, inflow_np, obstacle_np, nu, dt, steps, n, L,
+    ns_vjp_channel_2d_drag_window(v0_np, inflow_np, obstacle_np, nu, dt, steps, n, L,
                                    cotangent_result_np, cotangent_drag)
         -> (grad_inflow, grad_nu, grad_dt, grad_L)
 
@@ -954,14 +937,14 @@ cotangent_drag:      Float32 scalar   — cotangent on mean_drag.
 grad_inflow: (n, 2) Float32 — gradient of loss w.r.t. inflow velocity field.
 """
 function ns_vjp_channel_2d_drag_window(
-    velocity_np,
+    v0_np,
     inflow_np,
     obstacle_np,
     nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64,
     cotangent_result_np,
     cotangent_drag::Float64,
 )
-    velocity          = Float32.(velocity_np)
+    v0          = Float32.(v0_np)
     inflow      = Float32.(inflow_np)
     obs         = Float32.(obstacle_np)
     cot_result  = Float32.(cotangent_result_np)  # (n, n, 2)
@@ -981,11 +964,11 @@ function ns_vjp_channel_2d_drag_window(
     # mean_velocity is also computed but not differentiated (cotangent = 0).
     function fwd(inflow_f)
         u_full, mean_drag, _mean_vel = ns_channel_2d_forward_with_drag(
-            velocity, inflow_f, obs, solid_mask, Float32(nu), Float32(dt), steps,
+            v0, inflow_f, obs, solid_mask, Float32(nu), Float32(dt), steps,
             setup, psolver, mask_inflow,
         )
         v_out =
-            channel_faces_to_collocated_2d(strip_ghosts_2d(u_full, n), n)
+            staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
         return v_out, mean_drag
     end
 
