@@ -48,17 +48,41 @@ forward error from 7.473% to 4.309% and full-spectrum JVP error from 38.28% to
 26.00%. Held-out and validation errors improve with training, so this is not
 conventional train/test overfitting.
 
+## Finite-difference verification
+
+The packaged surrogate and the current solver-loop XLB image were checked on
+the exact recovery physics with central finite differences. The protocol uses
+seeds 0/1/2, ten shared unit-norm random directions per seed, and the same
+12-point relative-ε sweep. Perturbations are scaled by the true IC RMS.
+
+| objective / best-ε aggregate | XLB | surrogate |
+|---|---:|---:|
+| paper energy `sum(u_T²)` median error | 6.77e-6 | 6.63e-3 |
+| paper energy mean cosine | ≈1.000000 | 0.999984 |
+| recovery MSE at zero median error | 1.32e-1 | 2.56e-4 |
+| recovery MSE at zero mean cosine | 0.991669 | ≈1.000000 |
+
+The surrogate is less precise on the energy-objective magnitude check but has
+near-perfect direction agreement. More importantly, its VJP is exceptionally
+consistent with finite differences for the actual zero-start recovery
+objective. The poor recovered IC is therefore not an autodiff bug: the VJP is
+an accurate derivative of a learned map whose global inverse geometry is
+wrong. XLB has a larger zero-start recovery-MSE magnitude discrepancy, but its
+direction remains closely aligned and its optimizer reaches the better IC.
+
 ## Recovery
 
 Both paper optimizer variants use the exact zero cold start, 100 iterations,
 the same zoom line search, and seeds 0/1/2.
 
-| optimizer / solver | seed 0 | seed 1 | seed 2 | mean |
+| optimizer / solver checkpoint | seed 0 | seed 1 | seed 2 | mean |
 |---|---:|---:|---:|---:|
 | L-BFGS / XLB | 4.96% | 5.17% | 6.12% | **5.42%** |
-| L-BFGS / surrogate | 17.31% | 15.70% | 17.10% | **16.70%** |
+| L-BFGS / surrogate 4k | 6.94% | 7.81% | 9.56% | **8.10%** |
+| L-BFGS / surrogate 16k | 17.31% | 15.70% | 17.10% | **16.70%** |
 | L-BFGS + projection / XLB | 4.70% | 5.02% | 5.94% | **5.22%** |
-| L-BFGS + projection / surrogate | 17.32% | 15.59% | 17.19% | **16.70%** |
+| L-BFGS + projection / surrogate 4k | 6.97% | 7.85% | 9.54% | **8.12%** |
+| L-BFGS + projection / surrogate 16k | 17.32% | 15.59% | 17.19% | **16.70%** |
 
 For surrogate seed 0, unconstrained/projected final `max|∇·u₀|` is
 1.49e-2/1.43e-2; the maximum over each optimization is 1.52e-2/1.43e-2.
@@ -66,7 +90,11 @@ The projected optimizer follows the paper definition: it projects the
 gradient before the L-BFGS update, not the quasi-Newton iterate itself.
 
 The larger checkpoint is a better forward model but a worse global inverse
-than the 4,096-trajectory checkpoint, whose self-recovery mean was about 8.1%.
+than the 4,096-trajectory checkpoint. The 16k seed-0 final objectives are
+slightly lower (`1.15e-8`/`1.18e-8` versus `1.28e-8`/`1.33e-8` for
+unconstrained/projected), and its final divergence is also lower, despite its
+roughly twofold larger IC error.
+
 At exactly zero, mean self-target descent alignment with the direction to the
 true IC is almost unchanged (cosine 0.845 versus 0.847). At IC amplitude 0.05,
 the 16k model falls to 0.419 versus 0.825; at amplitude 0.10 it falls to 0.150
@@ -89,6 +117,24 @@ The similar scalar condition numbers are real but do not imply identical
 Jacobians. They summarize only spectral extremes in a smooth restricted
 subspace, while Frobenius, directional, amplitude-path, and inverse-gradient
 diagnostics measure different structure.
+
+The matched checkpoint comparison is:
+
+| audit | metric | XLB | surrogate 4k | surrogate 16k |
+|---|---|---:|---:|---:|
+| restricted 512D | `κ(J)` | 6.864 | 7.740 | 7.142 |
+| restricted 512D | `κ(JᵀJ)` | 47.17 | 59.98 | 51.05 |
+| restricted 512D | Frobenius relative error | — | 13.50% | 8.84% |
+| restricted 512D | Frobenius cosine | — | 0.9914 | 0.9961 |
+| paper-style 1536D | raw `κ(J)` | 2.790e7 | 3.747e10 | 7.476e10 |
+| paper-style 1536D | resolved `κ(J)` | 5.319e3 | 4.890e3 | 5.445e3 |
+| paper-style 1536D | Frobenius relative error | — | 32.98% | 32.94% |
+| paper-style 1536D | Frobenius cosine | — | 0.9442 | 0.9443 |
+
+Scaling the data improves the restricted Jacobian, but leaves the global
+paper-style agreement nearly unchanged and worsens the unresolved raw
+spectral tail. Neither local audit predicts the observed cold-start inverse
+basin.
 
 The paper-style audit constructs dense 1,536-dimensional raw-state Jacobians
 using one VJP per output degree of freedom and a dense SVD. Because this
@@ -125,6 +171,16 @@ final-field residual.
 
 ## Figures
 
+- `finite_difference_checks.png`: matched XLB/surrogate FD U-curves and
+  directional agreement for both the paper energy objective and zero-start
+  recovery MSE.
+- `inverse_diagnostic_explanation.png`: recovery-gradient alignment and radial
+  loss along the true-IC ray, followed by the optimizer objective and actual IC
+  error. It shows why a smooth, decreasing forward objective is insufficient.
+- `checkpoint_conditioning_comparison.png`: matched 4k/16k restricted and
+  paper-style singular spectra, condition numbers, and Jacobian agreement.
+- `checkpoint_optimization_comparison.png`: complete 4k/16k L-BFGS and
+  projected-L-BFGS objective, IC-error, and divergence histories.
 - `data_scaling_recovery_path.png`: forward error, radial JVP error, and
   self-recovery descent alignment for the 4k and 16k checkpoints.
 - `recovery_optimizer_ablation.png`: objective, true IC error, and optimized-IC
