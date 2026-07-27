@@ -374,12 +374,34 @@ def main() -> None:
 
     validation_subset = val_idx[: min(args.validation_samples, val_idx.size)]
     rng = np.random.default_rng(args.seed + 3)
+    initial_predictions = evaluate_indices(params, validation_subset)
+    initial_targets = np.asarray(
+        trajectories[validation_subset, 1:],
+        dtype=np.float32,
+    )
+    initial_validation_errors = _relative_l2(
+        initial_predictions,
+        initial_targets,
+    )
+    initial_validation_mean = float(np.mean(initial_validation_errors))
+    initial_validation_final = float(np.mean(initial_validation_errors[:, -1]))
     best_params: dict[str, Any] = jax.tree.map(
         lambda value: np.asarray(value),
         params,
     )
-    best_validation = float("inf")
+    best_validation = initial_validation_final
     best_global_step = 0
+    print(
+        " ".join(
+            (
+                "global_step=0",
+                f"validation_rollout_relative_l2_mean={initial_validation_mean}",
+                f"validation_final_relative_l2_mean={initial_validation_final}",
+                "best_global_step=0",
+            )
+        ),
+        flush=True,
+    )
     global_step = 0
     history: list[dict[str, Any]] = []
     for phase_index, (horizon, phase_updates) in enumerate(phases):
@@ -523,6 +545,8 @@ def main() -> None:
             {"unroll_horizon": horizon, "updates": updates}
             for horizon, updates in phases
         ],
+        "initial_validation_rollout_relative_l2": initial_validation_mean,
+        "initial_validation_final_relative_l2": initial_validation_final,
         "best_global_step": best_global_step,
         "best_validation_final_relative_l2": best_validation,
         "test_nonzero_samples": int(np.count_nonzero(test_nonzero)),

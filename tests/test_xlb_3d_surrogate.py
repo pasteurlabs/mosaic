@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 import jax
@@ -29,11 +28,7 @@ _DATA_PATH = _API_PATH.with_name("training_data.py")
 _SPEC = importlib.util.spec_from_file_location("xlb_3d_surrogate_api", _API_PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 _API = importlib.util.module_from_spec(_SPEC)
-sys.path.insert(0, str(_API_PATH.parent))
-try:
-    _SPEC.loader.exec_module(_API)
-finally:
-    sys.path.pop(0)
+_SPEC.loader.exec_module(_API)
 _DATA_SPEC = importlib.util.spec_from_file_location(
     "xlb_3d_surrogate_training_data",
     _DATA_PATH,

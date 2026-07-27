@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import surrogate_model as model
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
@@ -19,6 +19,12 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.schema_types import make_differentiable
+
+_MODULE_DIR = Path(__file__).resolve().parent
+if str(_MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(_MODULE_DIR))
+
+import surrogate_model as model  # noqa: E402
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0"])):
