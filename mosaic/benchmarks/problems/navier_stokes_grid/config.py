@@ -634,7 +634,11 @@ problem.add_experiment(
                 "checkpoint_rollout_frames": 64,
                 "stable_error_threshold": 1.0,
                 "correlation_threshold": 0.95,
-                "first_interval_error_tolerance": 0.05,
+                # This regime deliberately creates a substantial coarse-grid
+                # mismatch; reference convergence is audited separately at
+                # 128²→256², so a 15% first-interval ceiling remains selective
+                # without rejecting the signal the corrector is meant to learn.
+                "first_interval_error_tolerance": 0.15,
                 "native_long_error_tolerance": 1.0,
             },
         }

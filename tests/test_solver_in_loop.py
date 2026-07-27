@@ -186,6 +186,7 @@ def test_delayed_credit_curriculum_declares_one_nog_wig_protocol():
     assert run["dataset"]["train_seeds"] == list(range(32))
     assert run["dataset"]["k0"] == 4.0
     assert run["evaluation"]["rollout_frames"] == 120
+    assert run["evaluation"]["first_interval_error_tolerance"] == 0.15
     assert training["include_one_step_baseline"] is True
     assert training["loss_mode"] == "solver_mediated"
     assert training["solver_loss_weight"] == 1.0
