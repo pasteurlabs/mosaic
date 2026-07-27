@@ -40,8 +40,13 @@ Checkpoint SHA-256:
 
 On the three excluded recovery seeds, final-field relative L2 errors are
 4.418%, 4.191%, and 4.317% (4.309% mean), with mean cosine 0.999076. Across
-1,982 nonzero held-out test trajectories, mean final error is 7.219% and
-median final error is 5.348%.
+the 1,982 held-out trajectories with IC amplitude `≥0.05`, mean final error
+is 7.219% and median final error is 5.348%. The remaining 66 lower-amplitude
+cases are reported separately with absolute RMS error because relative error
+is ill-conditioned as the target norm approaches zero.
+
+Slurm follow-up `1697360` reruns this audit against the current recurrent-state
+XLB image and reproduces all forward and JVP headline values exactly.
 
 Increasing the dataset from 4,096 to 16,384 trajectories improves excluded
 forward error from 7.473% to 4.309% and full-spectrum JVP error from 38.28% to
@@ -126,20 +131,21 @@ The matched checkpoint comparison is:
 | restricted 512D | `κ(JᵀJ)` | 47.17 | 59.98 | 51.05 |
 | restricted 512D | Frobenius relative error | — | 13.50% | 8.84% |
 | restricted 512D | Frobenius cosine | — | 0.9914 | 0.9961 |
-| paper-style 1536D | raw `κ(J)` | 2.790e7 | 3.747e10 | 7.476e10 |
-| paper-style 1536D | resolved `κ(J)` | 5.319e3 | 4.890e3 | 5.445e3 |
-| paper-style 1536D | Frobenius relative error | — | 32.98% | 32.94% |
-| paper-style 1536D | Frobenius cosine | — | 0.9442 | 0.9443 |
+| adapted block-grid 1536D | raw `κ(J)` | 2.790e7 | 3.747e10 | 7.476e10 |
+| adapted block-grid 1536D | resolved `κ(J)` | 5.319e3 | 4.890e3 | 5.445e3 |
+| adapted block-grid 1536D | Frobenius relative error | — | 32.98% | 32.94% |
+| adapted block-grid 1536D | Frobenius cosine | — | 0.9442 | 0.9443 |
 
-Scaling the data improves the restricted Jacobian, but leaves the global
-paper-style agreement nearly unchanged and worsens the unresolved raw
-spectral tail. Neither local audit predicts the observed cold-start inverse
-basin.
+Scaling the data improves the restricted Jacobian, but leaves the adapted
+block-grid agreement nearly unchanged and worsens the unresolved raw spectral
+tail. Neither local audit predicts the observed cold-start inverse basin.
 
-The paper-style audit constructs dense 1,536-dimensional raw-state Jacobians
-using one VJP per output degree of freedom and a dense SVD. Because this
-surrogate is fixed at `N=16`, an explicit orthonormal `8³` block-grid
-lift/restriction preserves the fixed recovery physics:
+The adapted audit constructs dense 1,536-dimensional Jacobians using one VJP
+per coarse output degree of freedom and a dense SVD. Because this surrogate is
+fixed at `N=16`, an explicit orthonormal `8³` block-grid lift/restriction
+preserves the fixed recovery physics. It covers every coordinate of that
+coarse map, but it is not the complete 12,288-dimensional production
+Jacobian and is distinct from the paper's native `N=8` TGV physics:
 
 - Raw `κ(J)`: 2.790e7 XLB, 7.476e10 surrogate.
 - Float32-resolved `κ(J)`: 5.319e3 XLB, 5.445e3 surrogate.
@@ -149,20 +155,35 @@ lift/restriction preserves the fixed recovery physics:
 The raw tails lie below the float32 rank tolerance. A native `N=8` TGV XLB
 control and all three dense matrices are included.
 
+The rebased source passes the full suite (`522 passed, 3 skipped`) in Slurm job
+`1697321`; the rebuilt runtime image passes its generated API check and
+Pyxis/Enroot round-trip in `1697322`.
+
+Follow-up JSON:
+
+- `followup_evaluation_16k.json`: current-XLB forward/JVP reproduction with
+  explicit amplitude-threshold and low-amplitude absolute-error reporting.
+- `followup_timing_xlb.json` and `followup_timing_surrogate.json`: 40-trial
+  order-balanced timing aggregates from completed jobs `1697367` and
+  `1697363`.
+
 ## Timing and XLB-target limitation
 
-Warm packaged RTX 5090 medians:
+Two matched RTX 5090 blocks counterbalance solver order and contribute 40 warm
+trials per solver:
 
 | kernel | XLB | surrogate |
 |---|---:|---:|
-| forward | 4.812 ms | 7.243 ms |
-| VJP | 14.368 ms | 14.779 ms |
+| forward | 4.794 ms | 7.350 ms |
+| VJP | 15.198 ms | 14.771 ms |
 
-The autoregressive surrogate is 1.51× slower for forward and 1.03× slower for
-VJP. Complete three-seed recovery wall times remain similar because RPC,
-callbacks, optimizer, projection, and line-search overhead dominate:
-34.73 s surrogate versus 34.21 s XLB for L-BFGS, and 33.38 s versus 35.78 s
-with projection.
+The autoregressive surrogate is 1.53× slower for forward, while VJP cost is at
+parity: 0.97× in the counterbalanced result and 1.03× in the earlier
+independent measurement. Solver-scoped three-seed harness times remain similar:
+32.81 s surrogate versus 32.09 s XLB for L-BFGS, and 31.51 s versus 32.50 s
+with projection. Including result-script setup and serialization gives 34.73 s
+versus 34.21 s and 33.38 s versus 35.78 s, respectively. RPC, callbacks,
+optimizer, projection, and line-search overhead dominate these wall times.
 
 Surrogate inversion of XLB-generated targets remains a negative result:
 37.43% final mean IC error and 17.99% mean at the best saved snapshots. The
@@ -178,7 +199,8 @@ final-field residual.
   loss along the true-IC ray, followed by the optimizer objective and actual IC
   error. It shows why a smooth, decreasing forward objective is insufficient.
 - `checkpoint_conditioning_comparison.png`: matched 4k/16k restricted and
-  paper-style singular spectra, condition numbers, and Jacobian agreement.
+  adapted block-grid singular spectra, condition numbers, and Jacobian
+  agreement.
 - `checkpoint_optimization_comparison.png`: complete 4k/16k L-BFGS and
   projected-L-BFGS objective, IC-error, and divergence histories.
 - `data_scaling_recovery_path.png`: forward error, radial JVP error, and
@@ -190,7 +212,8 @@ final-field residual.
 - `full_field_recovery.png`: true/recovered ICs and final fields.
 - `forward_full_field_slices.png`: three orthogonal final-field slices.
 - `recovery_evolution.gif`: full 3D projected-recovery evolution.
-- `jacobian_conditioning.png`: restricted and paper-style Jacobian spectra.
+- `jacobian_conditioning.png`: restricted and adapted block-grid Jacobian
+  spectra.
 - `cross_model_recovery.png`: XLB-target objective and IC-error divergence.
 - `autoregressive_curriculum.png`: curriculum and rollout training metrics.
 - `optimization_summary.png`: recovery accuracy and kernel/harness timing.

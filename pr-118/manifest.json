@@ -36,7 +36,14 @@
     "baseline_checkpoint_controlled_evaluation": 1693974,
     "inverse_path_gradient_diagnostic": 1696590,
     "finite_difference_xlb": 1697019,
-    "finite_difference_surrogate": 1697017
+    "finite_difference_surrogate": 1697017,
+    "rebased_full_validation": 1697321,
+    "rebased_package_build": 1697322,
+    "current_xlb_evaluation_followup": 1697360,
+    "timing_surrogate_then_xlb": 1697367,
+    "timing_xlb_then_surrogate": 1697363,
+    "order_balanced_timing_merge": 1697368,
+    "order_balanced_timing_render": 1697370
   },
   "training_provenance": {
     "teacher": "XLB KBC D3Q27",
@@ -62,7 +69,7 @@
     "packaged_weights_sha256": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f"
   },
   "artifacts": {
-    "README.md": "46430ea07f85278b1f4db8536e9269066e0456b0785ed81e02d0504113c29b4a",
+    "README.md": "0473d99c1f9d8778009f5c60d822cd900c85f9df28025f8dae6b9c0c382229f6",
     "autoregressive_curriculum.png": "2d731924ff4710624ad3effb95b3e1471f3838bfa996e215db2c121b20212b90",
     "checkpoint_conditioning_comparison.png": "fc22db87e0dd0985417d784e86dbe20bacd64a0aa6a6ee8670d36a2d88790992",
     "checkpoint_optimization_comparison.png": "68274f3656503751ad9d7abd6a09a3137279ccab8dac219f1b391f99f3576f25",
@@ -74,6 +81,9 @@
     "finite_difference_checks.png": "bff11160406e9819fb8e0ff2866ea1168dde54526ba7b4abf1def4aa312ca683",
     "finite_difference_surrogate.json": "2afeb4c0a51b93847d0f76b58baaac813f0f7738e38f78e6fca3b1d7072817b4",
     "finite_difference_xlb.json": "d1ce715cb4c5fbcadf91d5d6c5a0b277756eacb34b687e4225d6834816679b32",
+    "followup_evaluation_16k.json": "57da3ab5cd4a1c0f7b57a0d501082e748e108786ef219d32be628921f1f86b9d",
+    "followup_timing_surrogate.json": "ca872c5a7214473e4044bee2e475f3b9e271379938f3d2bfdf0c695b2f3fcc92",
+    "followup_timing_xlb.json": "186a9b5c2017a2a2c8b54b34cd90d92d10f68ac5870f0b29c365150ab9a2b2f0",
     "forward_full_field_slices.png": "3b36e4457244b6a2a1ca1e0c778af200b1bb317a13baec127ad04631e6fc84af",
     "full_field_recovery.png": "9042b618775cbcf364c17102f0d2b4b8b77172ae50efc5568612e6a5092fdd4a",
     "inverse_diagnostic_explanation.png": "15eda2d5639e70a0f08e3152fa7d8ace4baabf5f6162af3945536c5a0b1e906c",
@@ -84,7 +94,7 @@
     "jacobian_paper_protocol.json": "44d91e8005cf50be1992facf0dac7155e7a46c94d0eacfe4e13b185607b4fb2b",
     "jacobian_paper_protocol_4k.json": "7cb3e3059fa8da529f690bf08dab9bc9e43834e0591b0a1985ebcf4e3598f6f4",
     "jacobian_paper_protocol_matrices.npz": "639cfa4dc2ecd8291ea8ae2e5d902045ae6cc5d2a429876c76c4273212783f80",
-    "optimization_summary.png": "a3acf9d60d3f36d622ec326070ecf58befa9002ded7228eaf8db3332a45647f0",
+    "optimization_summary.png": "9037ec775ed681ea2a6aaf776ef17bb657bcf61512343ee452ab6dcd51f17f2c",
     "recovery_convergence_comparison.png": "5ee6a922294966c33d37bcff69f2e774c3bdafa5047c17b1d77c58d997923778",
     "recovery_evolution.gif": "053ec9345bafbff20342515abb4421c269f73275c34c01bd18493f66a883a390",
     "recovery_exponax.json": "cd23bc96047412e85fe2cfa4b8db3c208f1a41bdb3c6d73d4bad226c2ef33f57",
