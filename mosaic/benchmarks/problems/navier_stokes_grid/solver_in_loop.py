@@ -34,10 +34,12 @@ from .corrector import (
     corrected_velocity,
     divergence_rms,
     enstrophy,
+    finite_volume_reference_trajectory,
     init_corrector,
     kinetic_energy,
     reference_trajectory,
     relative_l2,
+    spectral_prolong,
     spectral_restrict,
 )
 from .ics import _multimode, _tgv
@@ -76,7 +78,10 @@ def _cached_reference_dataset(
     trajectories: list[np.ndarray] = []
     reference_n = n * reference_factor
     for seed in seeds:
-        if reference_kind == "pseudo_spectral_multimode":
+        if reference_kind in {
+            "pseudo_spectral_multimode",
+            "finite_volume_multimode",
+        }:
             fine_initial = _multimode(
                 reference_n,
                 L=domain_extent,
@@ -85,7 +90,12 @@ def _cached_reference_dataset(
                 sigma_k=sigma_k,
                 amplitude=amplitude,
             )
-            fine = reference_trajectory(
+            trajectory_fn = (
+                reference_trajectory
+                if reference_kind == "pseudo_spectral_multimode"
+                else finite_volume_reference_trajectory
+            )
+            fine = trajectory_fn(
                 fine_initial,
                 viscosity=viscosity,
                 dt=dt,
@@ -120,6 +130,132 @@ def _cached_reference_dataset(
     return np.stack(trajectories).astype(np.float32)
 
 
+def _reference_convergence_audit(
+    *,
+    production_trajectories: np.ndarray,
+    production_seeds: tuple[int, ...],
+    physics: dict[str, Any],
+    dataset: dict[str, Any],
+    evaluation: dict[str, Any],
+    domain_extent: float,
+) -> dict[str, Any]:
+    """Compare the production reference with a finer space-time realization."""
+    audit_factor = dataset.get("reference_audit_factor")
+    if audit_factor is None:
+        return {}
+
+    n = int(physics["N"])
+    reference_kind = str(dataset["reference_kind"])
+    audit_seeds = tuple(
+        int(value)
+        for value in dataset.get(
+            "reference_audit_seeds",
+            [production_seeds[0], production_seeds[-1]],
+        )
+    )
+    missing = sorted(set(audit_seeds) - set(production_seeds))
+    if missing:
+        raise ValueError(
+            f"reference audit seeds are absent from the dataset: {missing}"
+        )
+    n_frames = int(evaluation.get("rollout_frames", 32))
+    production_factor = int(dataset.get("reference_factor", 2))
+    production_n = n * production_factor
+    audit_n = n * int(audit_factor)
+    audit_substeps = int(dataset.get("reference_audit_substeps", audit_factor))
+    if audit_n < production_n or audit_n % production_n != 0:
+        raise ValueError(
+            "reference_audit_factor must be an integer refinement of reference_factor"
+        )
+    if reference_kind not in {
+        "pseudo_spectral_multimode",
+        "finite_volume_multimode",
+    }:
+        raise ValueError(
+            f"reference convergence audit is unsupported for {reference_kind!r}"
+        )
+    trajectory_fn = (
+        reference_trajectory
+        if reference_kind == "pseudo_spectral_multimode"
+        else finite_volume_reference_trajectory
+    )
+    audit_trajectories = []
+    for seed in audit_seeds:
+        production_initial = _multimode(
+            production_n,
+            L=domain_extent,
+            seed=seed,
+            k0=float(dataset.get("k0", 6.0)),
+            sigma_k=float(dataset.get("sigma_k", 1.0)),
+            amplitude=float(dataset.get("amplitude", 0.3)),
+        )
+        audit_initial = spectral_prolong(production_initial, audit_n)
+        audit_fine = trajectory_fn(
+            audit_initial,
+            viscosity=float(physics["nu"]),
+            dt=float(physics["dt"]),
+            frame_steps=int(physics["steps"]),
+            n_frames=n_frames,
+            substeps=audit_substeps,
+            domain_extent=float(domain_extent),
+        )
+        audit_trajectories.append(
+            np.stack([spectral_restrict(frame, n) for frame in audit_fine])
+        )
+    audit_trajectories = np.stack(audit_trajectories)
+
+    frames = tuple(
+        sorted(
+            {
+                int(frame)
+                for frame in dataset.get(
+                    "reference_audit_frames",
+                    [1, max(1, n_frames // 3), n_frames],
+                )
+                if 0 < int(frame) <= n_frames
+            }
+        )
+    )
+    if not frames:
+        raise ValueError("reference_audit_frames must contain a positive valid frame")
+    production_by_seed = {
+        seed: production_trajectories[index]
+        for index, seed in enumerate(production_seeds)
+    }
+    errors = np.asarray(
+        [
+            relative_l2(
+                production_by_seed[seed][frame],
+                audit_trajectories[seed_index, frame],
+            )
+            for seed_index, seed in enumerate(audit_seeds)
+            for frame in frames
+        ],
+        dtype=np.float64,
+    )
+    tolerance = float(dataset.get("reference_convergence_tolerance", 0.05))
+    p95 = float(np.percentile(errors, 95))
+    return {
+        "reference_convergence_audit_applied": True,
+        "reference_convergence_scheme": reference_kind,
+        "reference_production_grid_size": production_n,
+        "reference_audit_grid_size": audit_n,
+        "reference_production_dt": float(
+            physics["dt"] / int(dataset.get("reference_substeps", 2))
+        ),
+        "reference_audit_dt": float(physics["dt"] / audit_substeps),
+        "reference_convergence_frames": list(frames),
+        "reference_convergence_seeds": list(audit_seeds),
+        "reference_convergence_errors": errors.tolist(),
+        "reference_convergence_error_median": float(np.median(errors)),
+        "reference_convergence_error_p95": p95,
+        "reference_convergence_error_max": float(np.max(errors)),
+        "reference_convergence_tolerance": tolerance,
+        "reference_convergence_passed": bool(p95 <= tolerance),
+        "eligible_for_corrector_training": bool(p95 <= tolerance),
+    }
+
+
 def _make_reference_datasets(
     *,
     physics: dict[str, Any],
@@ -127,7 +263,7 @@ def _make_reference_datasets(
     evaluation: dict[str, Any],
     training: dict[str, Any],
     domain_extent: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, str, dict[str, Any]]:
     """Build train windows plus seen- and held-out-IC evaluation trajectories."""
     n = int(physics["N"])
     train_seeds = tuple(int(v) for v in dataset.get("train_seeds", [0, 1, 2, 3]))
@@ -162,7 +298,15 @@ def _make_reference_datasets(
     train = all_trajectories[:n_train, : train_frames + 1]
     train_rollouts = all_trajectories[:n_train, : eval_frames + 1]
     test = all_trajectories[n_train:, : eval_frames + 1]
-    return train, train_rollouts, test, _dataset_digest(config)
+    audit = _reference_convergence_audit(
+        production_trajectories=all_trajectories,
+        production_seeds=train_seeds + test_seeds,
+        physics=physics,
+        dataset=dataset,
+        evaluation=evaluation,
+        domain_extent=domain_extent,
+    )
+    return train, train_rollouts, test, _dataset_digest(config), audit
 
 
 def make_reference_dataset(
@@ -174,7 +318,7 @@ def make_reference_dataset(
     domain_extent: float,
 ) -> tuple[np.ndarray, np.ndarray, str]:
     """Return training windows and held-out trajectories for public callers."""
-    train, _train_rollouts, test, dataset_hash = _make_reference_datasets(
+    train, _train_rollouts, test, dataset_hash, _audit = _make_reference_datasets(
         physics=physics,
         dataset=dataset,
         evaluation=evaluation,
@@ -965,7 +1109,13 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             training=training,
         )
     else:
-        train, train_rollouts, test, dataset_hash = _make_reference_datasets(
+        (
+            train,
+            train_rollouts,
+            test,
+            dataset_hash,
+            reference_audit,
+        ) = _make_reference_datasets(
             physics=ctx.phys,
             dataset=dataset_cfg,
             evaluation=evaluation,

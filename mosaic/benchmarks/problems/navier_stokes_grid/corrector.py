@@ -249,6 +249,32 @@ def spectral_restrict(velocity: Any, target_n: int) -> np.ndarray:
     return result[:, :, np.newaxis, :] if had_z_axis else result
 
 
+def spectral_prolong(velocity: Any, target_n: int) -> np.ndarray:
+    """Fourier-prolong a periodic velocity field to ``target_n`` cells."""
+    field = np.asarray(velocity)
+    had_z_axis = field.ndim == 4
+    if had_z_axis:
+        field = field[:, :, 0, :]
+    source_n = field.shape[0]
+    if source_n == target_n:
+        result = field.astype(np.float32, copy=True)
+    else:
+        if source_n > target_n or target_n % source_n != 0:
+            raise ValueError("target grid must be an integer multiple of source_n")
+        spectrum = np.fft.fftshift(np.fft.fft2(field, axes=(0, 1)), axes=(0, 1))
+        padded = np.zeros((target_n, target_n, field.shape[-1]), dtype=np.complex128)
+        start = (target_n - source_n) // 2
+        stop = start + source_n
+        padded[start:stop, start:stop, :] = spectrum
+        result = np.fft.ifft2(
+            np.fft.ifftshift(padded, axes=(0, 1)),
+            axes=(0, 1),
+        ).real
+        result *= (target_n / source_n) ** 2
+        result = result.astype(np.float32)
+    return result[:, :, np.newaxis, :] if had_z_axis else result
+
+
 def _velocity_to_vorticity_hat(
     velocity: np.ndarray, domain_extent: float
 ) -> np.ndarray:
@@ -285,15 +311,21 @@ def _vorticity_rhs(
     *,
     viscosity: float,
     domain_extent: float,
+    operators: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Dealiased pseudo-spectral RHS for 2D vorticity dynamics."""
     n = omega_hat.shape[0]
-    dx = domain_extent / n
-    wave = 2.0 * np.pi * np.fft.fftfreq(n, d=dx)
-    mode = np.fft.fftfreq(n) * n
-    kx, ky = np.meshgrid(wave, wave, indexing="ij")
-    mx, my = np.meshgrid(mode, mode, indexing="ij")
-    k2 = kx**2 + ky**2
+    if operators is None:
+        dx = domain_extent / n
+        wave = 2.0 * np.pi * np.fft.fftfreq(n, d=dx)
+        mode = np.fft.fftfreq(n) * n
+        kx, ky = np.meshgrid(wave, wave, indexing="ij")
+        mx, my = np.meshgrid(mode, mode, indexing="ij")
+        k2 = kx**2 + ky**2
+        cutoff = n // 3
+        dealias = (np.abs(mx) <= cutoff) & (np.abs(my) <= cutoff)
+    else:
+        kx, ky, k2, dealias = operators
     safe_k2 = np.where(k2 == 0, 1.0, k2)
     psi_hat = omega_hat / safe_k2
     psi_hat[0, 0] = 0.0
@@ -303,10 +335,102 @@ def _vorticity_rhs(
     grad_x = np.fft.ifft2(1j * kx * omega_hat).real
     grad_y = np.fft.ifft2(1j * ky * omega_hat).real
     advection_hat = np.fft.fft2(u * grad_x + v * grad_y)
-    cutoff = n // 3
-    dealias = (np.abs(mx) <= cutoff) & (np.abs(my) <= cutoff)
     advection_hat *= dealias
     return -advection_hat - viscosity * k2 * omega_hat
+
+
+def _minmod3(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
+    """Three-argument minmod limiter for periodic finite-volume slopes."""
+    same_sign = (np.signbit(a) == np.signbit(b)) & (np.signbit(b) == np.signbit(c))
+    magnitude = np.minimum(np.minimum(np.abs(a), np.abs(b)), np.abs(c))
+    return np.where(same_sign, np.copysign(magnitude, a), 0.0)
+
+
+def _finite_volume_vorticity_to_velocity(
+    omega: np.ndarray,
+    *,
+    dx: float,
+    safe_k2: np.ndarray,
+) -> np.ndarray:
+    """Recover cell-centred velocity with the finite-volume discrete operators."""
+    psi_hat = np.fft.fft2(omega) / safe_k2
+    psi_hat[0, 0] = 0.0
+    psi = np.fft.ifft2(psi_hat).real
+    u = (np.roll(psi, -1, axis=1) - np.roll(psi, 1, axis=1)) / (2.0 * dx)
+    v = -(np.roll(psi, -1, axis=0) - np.roll(psi, 1, axis=0)) / (2.0 * dx)
+    return np.stack([u, v], axis=-1)[:, :, np.newaxis, :]
+
+
+def _finite_volume_vorticity_rhs(
+    omega: np.ndarray,
+    *,
+    viscosity: float,
+    domain_extent: float,
+    operators: tuple[float, np.ndarray] | None = None,
+) -> np.ndarray:
+    """Conservative MUSCL finite-volume RHS for periodic 2-D vorticity.
+
+    The advective update uses monotonized-central reconstruction and a local
+    Rusanov flux. Velocity is recovered from a discrete streamfunction whose
+    Fourier symbol exactly inverts the cell-centred five-point Laplacian. The
+    evolution is therefore independently discretized from
+    :func:`_vorticity_rhs`: only the periodic elliptic inversion uses FFTs,
+    matching the pressure solve used by several candidate grid solvers.
+    """
+    n = omega.shape[0]
+    if operators is None:
+        dx = domain_extent / n
+        mode = np.fft.fftfreq(n) * n
+        mx, my = np.meshgrid(mode, mode, indexing="ij")
+        discrete_k2 = (
+            4.0 * (np.sin(np.pi * mx / n) ** 2 + np.sin(np.pi * my / n) ** 2) / dx**2
+        )
+        safe_k2 = np.where(discrete_k2 == 0.0, 1.0, discrete_k2)
+    else:
+        dx, safe_k2 = operators
+
+    velocity = _finite_volume_vorticity_to_velocity(
+        omega,
+        dx=dx,
+        safe_k2=safe_k2,
+    )
+    u = velocity[:, :, 0, 0]
+    v = velocity[:, :, 0, 1]
+    u_face = 0.5 * (u + np.roll(u, -1, axis=0))
+    v_face = 0.5 * (v + np.roll(v, -1, axis=1))
+
+    backward_x = omega - np.roll(omega, 1, axis=0)
+    forward_x = np.roll(omega, -1, axis=0) - omega
+    centered_x = 0.5 * (np.roll(omega, -1, axis=0) - np.roll(omega, 1, axis=0))
+    slope_x = _minmod3(2.0 * backward_x, centered_x, 2.0 * forward_x)
+    omega_x_left = omega + 0.5 * slope_x
+    omega_x_right = np.roll(omega, -1, axis=0) - 0.5 * np.roll(slope_x, -1, axis=0)
+    flux_x = 0.5 * u_face * (omega_x_left + omega_x_right) - 0.5 * np.abs(u_face) * (
+        omega_x_right - omega_x_left
+    )
+
+    backward_y = omega - np.roll(omega, 1, axis=1)
+    forward_y = np.roll(omega, -1, axis=1) - omega
+    centered_y = 0.5 * (np.roll(omega, -1, axis=1) - np.roll(omega, 1, axis=1))
+    slope_y = _minmod3(2.0 * backward_y, centered_y, 2.0 * forward_y)
+    omega_y_left = omega + 0.5 * slope_y
+    omega_y_right = np.roll(omega, -1, axis=1) - 0.5 * np.roll(slope_y, -1, axis=1)
+    flux_y = 0.5 * v_face * (omega_y_left + omega_y_right) - 0.5 * np.abs(v_face) * (
+        omega_y_right - omega_y_left
+    )
+
+    advection = (
+        -((flux_x - np.roll(flux_x, 1, axis=0)) + (flux_y - np.roll(flux_y, 1, axis=1)))
+        / dx
+    )
+    laplacian = (
+        np.roll(omega, -1, axis=0)
+        + np.roll(omega, 1, axis=0)
+        + np.roll(omega, -1, axis=1)
+        + np.roll(omega, 1, axis=1)
+        - 4.0 * omega
+    ) / dx**2
+    return advection + viscosity * laplacian
 
 
 def reference_trajectory(
@@ -322,6 +446,20 @@ def reference_trajectory(
     """Integrate a high-resolution periodic reference with spectral RK4."""
     velocity = np.asarray(initial_velocity, dtype=np.float64)
     omega_hat = _velocity_to_vorticity_hat(velocity, domain_extent)
+    n = omega_hat.shape[0]
+    dx = domain_extent / n
+    wave = 2.0 * np.pi * np.fft.fftfreq(n, d=dx)
+    mode = np.fft.fftfreq(n) * n
+    kx, ky = np.meshgrid(wave, wave, indexing="ij")
+    mx, my = np.meshgrid(mode, mode, indexing="ij")
+    k2_operator = kx**2 + ky**2
+    cutoff = n // 3
+    spectral_operators = (
+        kx,
+        ky,
+        k2_operator,
+        (np.abs(mx) <= cutoff) & (np.abs(my) <= cutoff),
+    )
     step_dt = dt / substeps
     trajectory = [velocity.astype(np.float32)]
     for _ in range(n_frames):
@@ -330,24 +468,91 @@ def reference_trajectory(
                 omega_hat,
                 viscosity=viscosity,
                 domain_extent=domain_extent,
+                operators=spectral_operators,
             )
             k2 = _vorticity_rhs(
                 omega_hat + 0.5 * step_dt * k1,
                 viscosity=viscosity,
                 domain_extent=domain_extent,
+                operators=spectral_operators,
             )
             k3 = _vorticity_rhs(
                 omega_hat + 0.5 * step_dt * k2,
                 viscosity=viscosity,
                 domain_extent=domain_extent,
+                operators=spectral_operators,
             )
             k4 = _vorticity_rhs(
                 omega_hat + step_dt * k3,
                 viscosity=viscosity,
                 domain_extent=domain_extent,
+                operators=spectral_operators,
             )
             omega_hat = omega_hat + step_dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
         trajectory.append(_vorticity_hat_to_velocity(omega_hat, domain_extent))
+    return np.stack(trajectory)
+
+
+def finite_volume_reference_trajectory(
+    initial_velocity: Any,
+    *,
+    viscosity: float,
+    dt: float,
+    frame_steps: int,
+    n_frames: int,
+    substeps: int,
+    domain_extent: float,
+) -> np.ndarray:
+    """Integrate an independent conservative finite-volume reference with RK4."""
+    velocity = np.asarray(initial_velocity, dtype=np.float64)
+    omega = np.fft.ifft2(_velocity_to_vorticity_hat(velocity, domain_extent)).real
+    n = omega.shape[0]
+    dx = domain_extent / n
+    mode = np.fft.fftfreq(n) * n
+    mx, my = np.meshgrid(mode, mode, indexing="ij")
+    discrete_k2 = (
+        4.0 * (np.sin(np.pi * mx / n) ** 2 + np.sin(np.pi * my / n) ** 2) / dx**2
+    )
+    finite_volume_operators = (
+        dx,
+        np.where(discrete_k2 == 0.0, 1.0, discrete_k2),
+    )
+    step_dt = dt / substeps
+    trajectory = [velocity.astype(np.float32)]
+    for _ in range(n_frames):
+        for _ in range(frame_steps * substeps):
+            k1 = _finite_volume_vorticity_rhs(
+                omega,
+                viscosity=viscosity,
+                domain_extent=domain_extent,
+                operators=finite_volume_operators,
+            )
+            k2 = _finite_volume_vorticity_rhs(
+                omega + 0.5 * step_dt * k1,
+                viscosity=viscosity,
+                domain_extent=domain_extent,
+                operators=finite_volume_operators,
+            )
+            k3 = _finite_volume_vorticity_rhs(
+                omega + 0.5 * step_dt * k2,
+                viscosity=viscosity,
+                domain_extent=domain_extent,
+                operators=finite_volume_operators,
+            )
+            k4 = _finite_volume_vorticity_rhs(
+                omega + step_dt * k3,
+                viscosity=viscosity,
+                domain_extent=domain_extent,
+                operators=finite_volume_operators,
+            )
+            omega = omega + step_dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+        trajectory.append(
+            _finite_volume_vorticity_to_velocity(
+                omega,
+                dx=dx,
+                safe_k2=finite_volume_operators[1],
+            ).astype(np.float32)
+        )
     return np.stack(trajectory)
 
 
@@ -358,10 +563,12 @@ __all__ = [
     "corrected_velocity",
     "divergence_rms",
     "enstrophy",
+    "finite_volume_reference_trajectory",
     "init_corrector",
     "kinetic_energy",
     "project_periodic_correction",
     "reference_trajectory",
     "relative_l2",
+    "spectral_prolong",
     "spectral_restrict",
 ]

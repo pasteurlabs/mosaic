@@ -21,10 +21,12 @@ from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
     apply_corrector,
     centered_divergence_rms,
     divergence_rms,
+    finite_volume_reference_trajectory,
     init_corrector,
     project_periodic_correction,
     reference_trajectory,
     relative_l2,
+    spectral_prolong,
     spectral_restrict,
 )
 from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv, _tgv_analytic
@@ -38,6 +40,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
 )
 from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
     _evaluate_rollout,
+    _make_reference_datasets,
     _make_solver_self_reference_datasets,
     _passes_reference_accuracy_gate,
     _rollout_log_gain,
@@ -133,6 +136,35 @@ def test_shared_solver_loop_ranking_declares_forward_admission_bounds():
     assert self_reference_run["dataset"]["sigma_k"] == run["dataset"]["sigma_k"]
 
 
+def test_reference_sensitivity_declares_independent_converged_targets():
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    prefix = "optimization/solver_in_loop_reference_sensitivity/"
+    variants = {
+        key.removeprefix(prefix): inspect.signature(experiment.fn)
+        .parameters["_kw"]
+        .default["runs"][0]
+        for key, experiment in cfg.experiments.items()
+        if key.startswith(prefix)
+    }
+
+    assert set(variants) == {"spectral", "finite_volume"}
+    assert variants["spectral"]["dataset"]["reference_kind"] == (
+        "pseudo_spectral_multimode"
+    )
+    assert variants["finite_volume"]["dataset"]["reference_kind"] == (
+        "finite_volume_multimode"
+    )
+    for run in variants.values():
+        dataset = run["dataset"]
+        assert dataset["reference_factor"] == 4
+        assert dataset["reference_substeps"] == 4
+        assert dataset["reference_audit_factor"] == 8
+        assert dataset["reference_audit_substeps"] == 8
+        assert dataset["reference_convergence_tolerance"] == 0.005
+
+
 def test_self_reference_does_not_gate_the_learnable_refinement_signal():
     assert _passes_reference_accuracy_gate(
         "solver_self_refined",
@@ -203,6 +235,19 @@ def test_spectral_restriction_preserves_low_mode_tgv():
     np.testing.assert_allclose(coarse, _tgv(16), rtol=1e-5, atol=1e-5)
 
 
+def test_spectral_prolongation_preserves_low_mode_tgv():
+    coarse = _tgv(16)
+    fine = spectral_prolong(coarse, 32)
+
+    np.testing.assert_allclose(fine, _tgv(32), rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(
+        spectral_restrict(fine, 16),
+        coarse,
+        rtol=1e-5,
+        atol=1e-5,
+    )
+
+
 def test_spectral_reference_matches_tgv_decay():
     viscosity = 0.05
     dt = 0.01
@@ -225,6 +270,68 @@ def test_spectral_reference_matches_tgv_decay():
     )
 
     assert relative_l2(trajectory[-1], expected) < 1e-5
+
+
+def test_finite_volume_reference_converges_to_tgv_decay():
+    viscosity = 0.05
+    errors = []
+    for n in (16, 32):
+        initial = _tgv(n)
+        trajectory = finite_volume_reference_trajectory(
+            initial,
+            viscosity=viscosity,
+            dt=0.01,
+            frame_steps=4,
+            n_frames=1,
+            substeps=1,
+            domain_extent=2.0 * np.pi,
+        )
+        expected = _tgv_analytic(
+            initial,
+            nu=viscosity,
+            t=0.04,
+            L=2.0 * np.pi,
+        )
+        errors.append(relative_l2(trajectory[-1], expected))
+        assert np.isfinite(trajectory).all()
+
+    assert errors[1] < errors[0]
+    assert errors[1] < 0.01
+
+
+def test_finite_volume_reference_passes_space_time_convergence_audit():
+    train, train_rollouts, test, dataset_hash, audit = _make_reference_datasets(
+        physics={"N": 8, "nu": 0.01, "dt": 0.01, "steps": 1},
+        dataset={
+            "reference_kind": "finite_volume_multimode",
+            "reference_factor": 2,
+            "reference_substeps": 2,
+            "reference_audit_factor": 4,
+            "reference_audit_substeps": 4,
+            "reference_audit_seeds": [0, 100],
+            "reference_audit_frames": [1, 2],
+            "reference_convergence_tolerance": 0.2,
+            "train_seeds": [0],
+            "test_seeds": [100],
+            "train_frames": 2,
+            "k0": 1.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.1,
+        },
+        evaluation={"rollout_frames": 2},
+        training={"unroll": 1},
+        domain_extent=2.0 * np.pi,
+    )
+
+    assert train.shape == (1, 3, 8, 8, 1, 2)
+    assert train_rollouts.shape == train.shape
+    assert test.shape == train.shape
+    assert len(dataset_hash) == 16
+    assert audit["reference_convergence_passed"] is True
+    assert audit["eligible_for_corrector_training"] is True
+    assert audit["reference_production_grid_size"] == 16
+    assert audit["reference_audit_grid_size"] == 32
+    assert audit["reference_convergence_error_p95"] < 0.2
 
 
 def test_analytic_tgv_reference_has_exact_decay_and_distinct_phases():

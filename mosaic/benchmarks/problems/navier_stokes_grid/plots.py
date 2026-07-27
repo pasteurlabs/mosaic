@@ -361,6 +361,321 @@ def plot_solver_in_loop_self_reference(
     )
 
 
+def plot_solver_in_loop_reference_sensitivity(
+    cfg: Problem,
+    *,
+    sub_keys: list[str],
+    save: bool = True,
+    suffix: str = "",
+    **_kwargs: Any,
+) -> list:
+    """Render both reference variants and their cross-reference sensitivity."""
+    payloads: dict[str, tuple[dict, dict[str, np.ndarray], list[str], Path]] = {}
+    figs: list[plt.Figure] = []
+    for sub_key in sub_keys:
+        suite, _, exp_key = sub_key.partition("/")
+        variant = exp_key.rsplit("/", 1)[-1]
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            suite,
+            f"{exp_key}{suffix}",
+        )
+        result_path = out_dir / "result.json"
+        fields_path = out_dir / "corrector_fields.npz"
+        if not result_path.exists() or not fields_path.exists():
+            continue
+        data = v1_to_legacy(load_json(result_path))
+        arrays = try_load_npz(fields_path)
+        names = [str(v) for v in arrays.get("solver_names", np.array([])).tolist()]
+        if not names:
+            continue
+        payloads[variant] = (data, arrays, names, out_dir)
+        figs.extend(
+            plot_solver_in_loop(
+                cfg,
+                save=save,
+                suffix=suffix,
+                exp_key=exp_key,
+                title=f"Solver-in-the-loop correction: {variant.replace('_', ' ')} reference",
+            )
+        )
+
+    if {"spectral", "finite_volume"} - set(payloads):
+        return figs
+
+    reference_labels = {
+        "spectral": "Pseudo-spectral",
+        "finite_volume": "Finite-volume",
+    }
+    reference_colors = {
+        "spectral": "#6A51A3",
+        "finite_volume": "#238B45",
+    }
+    aliases: list[str] = []
+    names_by_variant: dict[str, dict[str, str]] = {}
+    for variant, (_data, _arrays, names, _out_dir) in payloads.items():
+        names_by_variant[variant] = {}
+        for name in names:
+            alias = resolve_solver_alias(name) or name
+            names_by_variant[variant][alias] = name
+            if alias not in aliases:
+                aliases.append(alias)
+    aliases.sort(
+        key=lambda alias: (
+            NS_ORDER.index(alias) if alias in NS_ORDER else len(NS_ORDER),
+            alias,
+        )
+    )
+
+    parent_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        "optimization",
+        f"solver_in_loop_reference_sensitivity{suffix}",
+    )
+    parent_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(2, 3, figsize=(TEXTWIDTH, 0.66 * TEXTWIDTH))
+    (
+        ax_disagreement,
+        ax_convergence,
+        ax_solver_only,
+        ax_corrected,
+        ax_gain,
+        ax_vjp,
+    ) = axes.ravel()
+
+    spectral_arrays = payloads["spectral"][1]
+    finite_volume_arrays = payloads["finite_volume"][1]
+    spectral_reference = np.asarray(
+        spectral_arrays.get("reference_rollout", np.array([]))
+    )
+    finite_volume_reference = np.asarray(
+        finite_volume_arrays.get("reference_rollout", np.array([]))
+    )
+    times = np.asarray(
+        spectral_arrays.get(
+            "evaluation_times",
+            np.arange(min(len(spectral_reference), len(finite_volume_reference))),
+        )
+    )
+    n_frames = min(len(spectral_reference), len(finite_volume_reference), len(times))
+    if n_frames:
+        disagreement = np.asarray(
+            [
+                np.linalg.norm(
+                    spectral_reference[index] - finite_volume_reference[index]
+                )
+                / (np.linalg.norm(spectral_reference[index]) + 1e-12)
+                for index in range(n_frames)
+            ]
+        )
+        ax_disagreement.plot(
+            times[:n_frames],
+            disagreement,
+            color="#333333",
+            marker="o",
+            markersize=2.5,
+        )
+    ax_disagreement.set_xlabel("Physical time")
+    ax_disagreement.set_ylabel("Reference disagreement")
+    ax_disagreement.set_title("Target sensitivity")
+
+    convergence_values: list[float] = []
+    for variant in ("spectral", "finite_volume"):
+        data = payloads[variant][0]
+        values = [
+            float(metrics["reference_convergence_error_p95"])
+            for metrics in data.get("by_solver", {}).values()
+            if metrics.get("reference_convergence_error_p95") is not None
+        ]
+        convergence_values.append(float(np.median(values)) if values else np.nan)
+    ax_convergence.bar(
+        np.arange(2),
+        convergence_values,
+        color=[reference_colors["spectral"], reference_colors["finite_volume"]],
+    )
+    tolerance = 0.05
+    for data, _arrays, _names, _out_dir in payloads.values():
+        for metrics in data.get("by_solver", {}).values():
+            if metrics.get("reference_convergence_tolerance") is not None:
+                tolerance = float(metrics["reference_convergence_tolerance"])
+                break
+    ax_convergence.axhline(tolerance, color="0.45", linestyle=":", linewidth=1.0)
+    ax_convergence.set_xticks(
+        np.arange(2),
+        [reference_labels["spectral"], reference_labels["finite_volume"]],
+        rotation=20,
+        ha="right",
+    )
+    ax_convergence.set_ylabel("128² vs 256² p95")
+    ax_convergence.set_title("Reference convergence")
+
+    x = np.arange(len(aliases), dtype=float)
+    width = 0.36
+
+    def metric_values(variant: str, key: str) -> np.ndarray:
+        data = payloads[variant][0]
+        by_solver = data.get("by_solver", {})
+        return np.asarray(
+            [
+                float(
+                    by_solver.get(names_by_variant[variant].get(alias, ""), {}).get(
+                        key, np.nan
+                    )
+                )
+                for alias in aliases
+            ]
+        )
+
+    for variant_index, variant in enumerate(("spectral", "finite_volume")):
+        offset = (variant_index - 0.5) * width
+        common = {
+            "width": width,
+            "color": reference_colors[variant],
+            "alpha": 0.88,
+            "label": reference_labels[variant],
+        }
+        ax_solver_only.bar(
+            x + offset,
+            metric_values(variant, "uncorrected_rollout_error"),
+            **common,
+        )
+        ax_corrected.bar(
+            x + offset,
+            metric_values(variant, "final_rollout_error"),
+            **common,
+        )
+        ax_gain.bar(
+            x + offset,
+            metric_values(variant, "geometric_error_reduction"),
+            **common,
+        )
+        lift = 100.0 * (metric_values(variant, "solver_vjp_geometric_lift") - 1.0)
+        data = payloads[variant][0]
+        by_solver = data.get("by_solver", {})
+        log_std = np.asarray(
+            [
+                np.hypot(
+                    float(
+                        by_solver.get(names_by_variant[variant].get(alias, ""), {}).get(
+                            "solver_vjp_log_lift_seed_std", 0.0
+                        )
+                    ),
+                    float(
+                        by_solver.get(names_by_variant[variant].get(alias, ""), {}).get(
+                            "solver_vjp_log_lift_ic_std", 0.0
+                        )
+                    ),
+                )
+                for alias in aliases
+            ]
+        )
+        lift_scale = metric_values(variant, "solver_vjp_geometric_lift")
+        ax_vjp.bar(
+            x + offset,
+            lift,
+            yerr=100.0 * lift_scale * log_std,
+            capsize=2,
+            **common,
+        )
+
+    for axis, ylabel, title in (
+        (ax_solver_only, "Final relative $L^2$ error", "Solver-only accuracy"),
+        (ax_corrected, "Final relative $L^2$ error", "Corrected accuracy"),
+        (ax_gain, "Geometric error reduction [×]", "Correctability"),
+        (ax_vjp, "Solver-VJP lift [%]", "VJP conclusion"),
+    ):
+        axis.set_xticks(x, [solver_props(alias)[0] for alias in aliases], rotation=28)
+        axis.set_ylabel(ylabel)
+        axis.set_title(title)
+    ax_gain.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_vjp.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
+    fig.legend(loc="outside lower center", ncol=2)
+    fig.suptitle("Solver-in-the-loop reference sensitivity")
+    fig.subplots_adjust(hspace=0.52, wspace=0.42)
+    if save:
+        save_fig(fig, "solver_in_loop_reference_sensitivity", parent_dir)
+    figs.append(fig)
+
+    if n_frames:
+        field_indices = sorted({0, max(1, n_frames * 2 // 3), n_frames - 1})
+        fields_fig, fields_axes = plt.subplots(
+            len(field_indices),
+            3,
+            figsize=(0.70 * TEXTWIDTH, 0.62 * TEXTWIDTH),
+            squeeze=False,
+        )
+        spectral_vorticity = [
+            _periodic_vorticity_2d(spectral_reference[index]) for index in field_indices
+        ]
+        finite_volume_vorticity = [
+            _periodic_vorticity_2d(finite_volume_reference[index])
+            for index in field_indices
+        ]
+        vmax = float(
+            np.percentile(
+                np.abs(
+                    np.concatenate(
+                        [
+                            *(value.ravel() for value in spectral_vorticity),
+                            *(value.ravel() for value in finite_volume_vorticity),
+                        ]
+                    )
+                ),
+                99,
+            )
+        )
+        differences = [
+            finite - spectral
+            for spectral, finite in zip(
+                spectral_vorticity, finite_volume_vorticity, strict=True
+            )
+        ]
+        diff_vmax = float(
+            np.percentile(
+                np.abs(np.concatenate([value.ravel() for value in differences])),
+                99,
+            )
+        )
+        for row, index in enumerate(field_indices):
+            for col, (value, scale) in enumerate(
+                (
+                    (spectral_vorticity[row], vmax),
+                    (finite_volume_vorticity[row], vmax),
+                    (differences[row], diff_vmax),
+                )
+            ):
+                image = fields_axes[row, col].imshow(
+                    value.T,
+                    origin="lower",
+                    cmap="RdBu_r",
+                    vmin=-max(scale, 1e-12),
+                    vmax=max(scale, 1e-12),
+                )
+                fields_axes[row, col].set_xticks([])
+                fields_axes[row, col].set_yticks([])
+                if col == 2:
+                    fields_fig.colorbar(image, ax=fields_axes[row, col], shrink=0.75)
+            fields_axes[row, 0].set_ylabel(f"$t={times[index]:.2f}$")
+        for axis, title in zip(
+            fields_axes[0],
+            ("Pseudo-spectral", "Finite-volume", "FV − spectral"),
+            strict=True,
+        ):
+            axis.set_title(title)
+        fields_fig.suptitle("Reference vorticity fields")
+        fields_fig.subplots_adjust(hspace=0.16, wspace=0.16)
+        if save:
+            save_fig(
+                fields_fig,
+                "solver_in_loop_reference_fields",
+                parent_dir,
+            )
+        figs.append(fields_fig)
+    return figs
+
+
 def _solver_reference_rollout(
     arrays: dict[str, np.ndarray],
     solver_index: int,

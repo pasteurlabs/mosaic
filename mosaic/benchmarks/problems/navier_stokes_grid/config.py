@@ -71,6 +71,7 @@ from .physics import DIAGNOSTICS, make_inputs
 from .plots import (
     plot_drag_opt,
     plot_solver_in_loop,
+    plot_solver_in_loop_reference_sensitivity,
     plot_solver_in_loop_self_reference,
     plot_solver_in_loop_tgv,
 )
@@ -544,6 +545,85 @@ problem.add_experiment(
     ],
     plot=plot_solver_in_loop,
 )
+
+
+def _reference_sensitivity_run(name: str, reference_kind: str) -> dict:
+    """Return one common-target solver-loop reference variant."""
+    return {
+        "name": name,
+        "ic": {"name": "multimode", "seed": 0},
+        "physics": {
+            "N": 32,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4,
+        },
+        "dataset": {
+            "reference_kind": reference_kind,
+            # Production targets use 128² and dt/4. A disjoint convergence
+            # audit compares selected frames against 256² and dt/8 before
+            # corrector training is admitted.
+            "reference_factor": 4,
+            "reference_substeps": 4,
+            "reference_audit_factor": 8,
+            "reference_audit_substeps": 8,
+            "reference_audit_seeds": [0, 100],
+            "reference_audit_frames": [1, 8, 24, 36],
+            "reference_convergence_tolerance": 0.005,
+            "train_seeds": list(range(16)),
+            "test_seeds": list(range(100, 108)),
+            "train_frames": 24,
+            "k0": 2.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.5,
+        },
+        "training": {
+            "max_updates": 200,
+            "unroll": 8,
+            "loss_mode": "solver_terminal",
+            "solver_loss_weight": 0.1,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-6,
+            "lr": 1e-4,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [0, 1, 2],
+            "check_grad": True,
+            "fd_epsilon": 1e-2,
+        },
+        "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.05,
+            "native_long_error_tolerance": 0.5,
+        },
+    }
+
+
+problem.add_experiment(
+    "optimization/solver_in_loop_reference_sensitivity",
+    solver_in_loop,
+    description=(
+        "Repeat the common all-solver corrector comparison against independently "
+        "discretized, space-time-converged pseudo-spectral and conservative "
+        "finite-volume references. Paired VJP conclusions are reported separately "
+        "from reference-dependent absolute error."
+    ),
+    plot_description=(
+        "Reference disagreement, convergence audits, absolute error, correction "
+        "gain, and paired solver-VJP lift under spectral and finite-volume targets."
+    ),
+    runs=[
+        _reference_sensitivity_run("spectral", "pseudo_spectral_multimode"),
+        _reference_sensitivity_run("finite_volume", "finite_volume_multimode"),
+    ],
+    plot=plot_solver_in_loop_reference_sensitivity,
+)
+
 problem.add_experiment(
     "optimization/solver_in_loop_tgv",
     solver_in_loop,
