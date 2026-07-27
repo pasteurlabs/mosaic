@@ -13,8 +13,17 @@ source changes add the independent reference audit and its plots.
 The benchmark trains the same zero-initialized Equinox periodic residual CNN
 (56,098 parameters) in two paired modes:
 
-1. full temporal differentiation through the solver transition;
-2. the identical recurrence with solver state stopped between intervals.
+1. full temporal differentiation through eight autoregressive
+   solver–corrector intervals;
+2. the identical forward recurrence with solver state stopped at every solver
+   output, reducing training to local correction supervision.
+
+Each interval contains four native solver steps (`4 × 0.02 = 0.08`) followed
+by a correction that is fed into the next solver call. Training windows span
+eight intervals with no teacher forcing inside the window; held-out evaluation
+free-runs 36 corrected intervals to `t=2.88`. This is best read as a temporal
+credit-assignment audit, not a claim that the VJP alone makes a corrector beat
+its uncorrected solver.
 
 JAX-CFD, INS.jl, PhiFlow, and XLB carry their opt-in native checkpoint through
 training, evaluation, finite-difference checks, and plotted rollouts. PICT and
