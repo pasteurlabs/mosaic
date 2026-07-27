@@ -470,7 +470,7 @@ def dummy_corpus(tmp_path_factory):
                 tags = dict.fromkeys(cfg.solver_names, tag)
                 try:
                     cfg.experiments[exp_key].fn(cfg, tags)
-                except Exception as exc:  # noqa: BLE001 - corpus records every failure
+                except Exception as exc:
                     errors[(problem, exp_key)] = exc
         yield {"results_root": results_root, "errors": errors}
     finally:
