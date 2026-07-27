@@ -190,7 +190,7 @@ def _run_lbfgs(
         rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         try:
             live = len(jax.live_arrays())
-        except Exception:  # noqa: BLE001 - optional diagnostics must never abort
+        except Exception:
             live = -1
         print(
             f"[lbfgs-diag] iter={i:3d} {label:10s} RSS={rss_kb / 1024:.1f}MiB live_arrays={live}"
