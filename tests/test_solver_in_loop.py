@@ -1392,6 +1392,7 @@ def test_solver_in_loop_curriculum_emits_one_nog_wig_checkpoints(
     assert metrics["training_warmup_solver_intervals_per_seed"] == 2
     assert metrics["training_loss_mode"] == "solver_mediated"
     assert metrics["training_local_loss_weight"] == 0.05
+    assert metrics["fd_check_scope"] == "differentiated_suffix_with_frozen_warmup"
     assert metrics["one_step_training_solver_intervals_per_seed"] == 2
     assert len(metrics["curriculum_checkpoint_summary"]) == 2
     assert [entry["unroll"] for entry in metrics["fd_horizon_summary"]] == [1, 2]

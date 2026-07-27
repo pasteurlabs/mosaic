@@ -776,10 +776,12 @@ def _window_loss(
     loss_scale: float,
     local_loss_weight: float = 1.0,
     warmup_intervals: int = 0,
+    initial_state: jax.Array | None = None,
+    initial_native_state: Any | None = None,
 ) -> jax.Array:
     """Normalized recurrent loss with configurable temporal credit assignment."""
-    state = targets[0]
-    native_state = None
+    state = targets[0] if initial_state is None else initial_state
+    native_state = initial_native_state
     losses: list[jax.Array] = []
     solver_mediated_losses: list[jax.Array] = []
     solver_terminal_loss: jax.Array | None = None
@@ -846,6 +848,36 @@ def _window_loss(
     else:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     return loss / jnp.asarray(loss_scale, dtype=loss.dtype)
+
+
+def _frozen_warmup_state(
+    model: Any,
+    targets: jax.Array,
+    *,
+    t: Any,
+    ctx: KernelContext,
+    frame_steps: int,
+    velocity_scale: float,
+    warmup_intervals: int,
+) -> tuple[jax.Array, Any | None]:
+    """Run pushforward warm-up once and freeze its recurrent suffix state."""
+    state = targets[0]
+    native_state = None
+    for _ in range(warmup_intervals):
+        state, native_state = _solver_advance(
+            t,
+            ctx,
+            state,
+            frame_steps=frame_steps,
+            native_state=native_state,
+        )
+        state = corrected_velocity(
+            model,
+            state,
+            velocity_scale=velocity_scale,
+            domain_extent=ctx.domain_extent,
+        )
+    return _stop_recurrent_gradient(state, native_state)
 
 
 def _directional_fd(
@@ -1043,9 +1075,39 @@ def _train_corrector(
                 and differentiate_solver
                 and bool(training.get("check_grad", True))
             ):
+                fd_loss_fn = loss_fn
+                if warmup_intervals:
+                    frozen_state, frozen_native_state = _frozen_warmup_state(
+                        model,
+                        targets,
+                        t=t,
+                        ctx=ctx,
+                        frame_steps=frame_steps,
+                        velocity_scale=velocity_scale,
+                        warmup_intervals=warmup_intervals,
+                    )
+                    # Stop-gradient warm-up defines a truncated derivative, not
+                    # the derivative of a fully perturbed forward rollout.
+                    # Freeze its base-model state for a like-for-like FD check.
+                    fd_loss_fn = partial(
+                        _window_loss,
+                        targets=targets[warmup_intervals:],
+                        t=t,
+                        ctx=ctx,
+                        frame_steps=frame_steps,
+                        velocity_scale=velocity_scale,
+                        differentiate_solver=differentiate_solver,
+                        loss_mode=loss_mode,
+                        solver_loss_weight=solver_loss_weight,
+                        loss_scale=loss_scale,
+                        local_loss_weight=local_loss_weight,
+                        warmup_intervals=0,
+                        initial_state=frozen_state,
+                        initial_native_state=frozen_native_state,
+                    )
                 checks = tuple(
                     _directional_fd(
-                        loss_fn,
+                        fd_loss_fn,
                         model,
                         grads,
                         jax.random.PRNGKey(model_seed + 1),
@@ -2327,6 +2389,11 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         ),
         "fd_check_summary": fd_check_summary,
         "fd_horizon_summary": fd_horizon_summary,
+        "fd_check_scope": (
+            "differentiated_suffix_with_frozen_warmup"
+            if warmup_intervals
+            else "full_training_window"
+        ),
         "final_divergence_rms": divergence_rms(first_corrected[-1], ctx.domain_extent)
         if first_corrected is not None
         else None,
