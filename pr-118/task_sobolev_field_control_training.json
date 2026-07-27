@@ -1,0 +1,19 @@
+{
+  "dataset_sha256": "0257c89ec3a8f4886f81960cc6867a24278de8b35b745cc98c6a1471ca3f6b8a",
+  "task_gradient_dataset_sha256": "ae2461d608751a0a93e80a39f17f1b8937937f70d5055220d4e3b3363b51fba6",
+  "initial_weights_sha256": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+  "weights_sha256": "0b74b75da4d42b4f0779cc9d7a2dbac3f48293f8dfdcc58db5114d12f828f7cb",
+  "updates": 1000,
+  "gradient_weight": 0.0,
+  "directional_gradient_scale": 2.7874404622707516e-05,
+  "gradient_estimator": "unit projected directional sketch; two low-k and two full-spectrum directions per state",
+  "selection_score": "validation field relative L2 + validation task-gradient relative L2",
+  "best_step": 300,
+  "best_validation_score": 4.642837457358837,
+  "best_validation": {
+    "field_relative_l2": 0.07524197548627853,
+    "task_gradient_relative_l2": 4.567595481872559,
+    "task_gradient_cosine": 0.571402907371521
+  },
+  "elapsed_seconds": 117.7142659399542
+}

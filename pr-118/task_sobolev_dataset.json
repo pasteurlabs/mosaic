@@ -1,0 +1,25 @@
+{
+  "train_paths": 96,
+  "validation_paths": 24,
+  "samples": 960,
+  "optimizer": "projected Adam",
+  "learning_rate": 0.03,
+  "updates": 80,
+  "snapshots": [
+    0,
+    1,
+    2,
+    5,
+    10,
+    20,
+    40,
+    80
+  ],
+  "seed": 20260728,
+  "gradient_rms_mean": 5.065811365057016e-06,
+  "gradient_rms_min": 1.2591911513482046e-08,
+  "gradient_rms_max": 2.5121069484157488e-05,
+  "direction_protocol": "four deterministic unit divergence-free directions per state: two |k|<=4 and two full-spectrum",
+  "teacher_directional_rms": 2.7874404622707516e-05,
+  "elapsed_seconds": 80.9978752459865
+}

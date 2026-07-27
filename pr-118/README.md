@@ -190,8 +190,63 @@ Surrogate inversion of XLB-generated targets remains a negative result:
 surrogate residual reaches 1.78%, but XLB re-evaluation leaves 17.77% mean
 final-field residual.
 
+## Task-aware Sobolev follow-up
+
+The derivative follow-up supervises projected directional derivatives of the
+actual recovery MSE along XLB-generated optimization paths. This is
+first-derivative Sobolev supervision; differentiating its loss with respect to
+network parameters uses mixed second-order autodiff. It does not train against
+an explicit teacher Hessian.
+
+The leakage-safe dataset contains 96 training and 24 validation paths, eight
+snapshots per path, and four deterministic divergence-free directions per
+state (two low-frequency and two full-spectrum). Benchmark seeds 0–2 and Adam
+calibration seeds 100–102 are excluded. All arms start from the packaged gated
+16k checkpoint and use 1,000 fine-tuning updates. The derivative weight is
+selected on validation field plus task-gradient relative error; only the
+selected `λ=1e-3` checkpoint sees the benchmark test seeds.
+
+| metric | packaged start | field-only continuation | task-Sobolev `λ=1e-3` |
+|---|---:|---:|---:|
+| validation task-gradient relative L2 | 5.305 | 4.568 | **4.088** |
+| validation task-gradient cosine | 0.553 | 0.571 | **0.599** |
+| held-out final-field error | 7.219% | **7.219%** | 7.506% |
+| excluded-seed forward error | **4.309%** | 4.343% | 4.528% |
+| low-frequency JVP error | 18.24% | 17.55% | **17.17%** |
+| full-spectrum JVP error | 26.00% | 25.67% | **25.26%** |
+
+The proxy improvement does not transfer to inverse recovery:
+
+| recovery metric | packaged checkpoint | task-Sobolev |
+|---|---:|---:|
+| projected L-BFGS self-recovery | **16.70%** | 17.05% |
+| projected Adam, 300 updates, LR `1e-2` | **33.99%** | 34.10% |
+| projected Adam, 300 updates, LR `3e-2` | 63.43% | **63.06%** |
+| XLB-target cross-model final IC error | **37.43%** | 42.19% |
+| XLB re-evaluation residual | **17.77%** | 19.77% |
+
+Residual-only Adam calibration selects `1e-2` for the packaged checkpoint and
+the upper-grid `3e-2` for task-Sobolev. The crossed fixed-rate controls show
+that the apparent 33.99% versus 63.06% regression is a learning-rate/branch
+effect: within each matched rate, the two checkpoints are nearly identical.
+The larger rate obtains a slightly smaller surrogate residual while recovering
+a much worse IC. Improving an average directional sensitivity metric on
+held-out Adam paths is therefore insufficient for this inverse problem. This
+does not establish that Sobolev training is generally ineffective: the current
+study uses four directional sketches, Adam-path data only, one fine-tuning
+seed, and retains the architecture's zero-start amplitude gate.
+
+Jobs: dataset `1697734`; field control `1697737`; Sobolev weight sweep
+`1697735`, `1697741`, `1697740`; evaluations `1697745`, `1697749`; selected
+image build and Pyxis round-trip `1697751`; L-BFGS `1697752`; Adam `1697753`;
+cross-model recovery `1697754`; crossed fixed-rate Adam controls `1697999`,
+`1698000`; final render `1698013`.
+
 ## Figures
 
+- `task_sobolev_followup.png`: validation task-gradient agreement, ordinary
+  forward/JVP metrics, selected-checkpoint self-recovery, and XLB-target
+  cross-model recovery.
 - `finite_difference_checks.png`: matched XLB/surrogate FD U-curves and
   directional agreement for both the paper energy objective and zero-start
   recovery MSE.
