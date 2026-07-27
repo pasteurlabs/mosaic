@@ -71,6 +71,8 @@ from .physics import DIAGNOSTICS, make_inputs
 from .plots import (
     plot_drag_opt,
     plot_solver_in_loop,
+    plot_solver_in_loop_curriculum,
+    plot_solver_in_loop_reference_sensitivity,
     plot_solver_in_loop_self_reference,
     plot_solver_in_loop_tgv,
 )
@@ -544,6 +546,173 @@ problem.add_experiment(
     ],
     plot=plot_solver_in_loop,
 )
+
+
+problem.add_experiment(
+    "optimization/solver_in_loop_curriculum",
+    solver_in_loop,
+    description=(
+        "Paper-aligned autoregressive correction study separating one-step "
+        "supervision (ONE), recurrent exposure without temporal solver gradients "
+        "(NOG), and full recurrent solver differentiation (WIG). The corrector is "
+        "trained with a 1→2→4→8→16→32 look-ahead curriculum and evaluated in a "
+        "300-interval free rollout."
+    ),
+    plot_description=(
+        "Curriculum checkpoints, ONE/NOG/WIG held-out errors, long-horizon "
+        "correlation and physics, final full fields, and autoregressive GIFs."
+    ),
+    runs=[
+        {
+            "ic": {"name": "multimode", "seed": 0},
+            "physics": {
+                "N": 32,
+                "nu": 0.001,
+                "dt": 0.02,
+                # Match the paper's hybrid-step semantics: the neural
+                # corrector intervenes after every native solver step.
+                "steps": 1,
+            },
+            "dataset": {
+                "reference_kind": "pseudo_spectral_multimode",
+                "reference_factor": 4,
+                "reference_substeps": 4,
+                "reference_audit_factor": 8,
+                "reference_audit_substeps": 8,
+                "reference_audit_seeds": [0, 100],
+                "reference_audit_frames": [1, 32, 96, 300],
+                "reference_convergence_tolerance": 0.005,
+                "train_seeds": list(range(32)),
+                "test_seeds": list(range(100, 108)),
+                "train_frames": 96,
+                "k0": 2.0,
+                "sigma_k": 0.5,
+                "amplitude": 0.5,
+            },
+            "training": {
+                "max_updates": 11000,
+                "unroll": 32,
+                "curriculum": [
+                    {"unroll": 1, "updates": 1000, "lr": 1e-4},
+                    {"unroll": 2, "updates": 1000, "lr": 1e-4},
+                    {"unroll": 4, "updates": 1500, "lr": 1e-4},
+                    {"unroll": 8, "updates": 2000, "lr": 1e-4},
+                    {"unroll": 16, "updates": 2500, "lr": 5e-5},
+                    {"unroll": 32, "updates": 3000, "lr": 2.5e-5},
+                ],
+                "include_one_step_baseline": True,
+                "one_step_updates": 11000,
+                # The original SOL_n objective supervises every corrected
+                # state; omit the solver-terminal diagnostic used by the
+                # compact VJP audit.
+                "loss_mode": "mean",
+                "solver_loss_weight": 0.0,
+                "loss_normalization": "solver_baseline",
+                "loss_scale_floor": 1e-6,
+                "lr": 1e-4,
+                "clip_norm": 5.0,
+                "architecture": "periodic_resnet",
+                "hidden_channels": 32,
+                "kernel_size": 5,
+                "residual_blocks": 5,
+                "seed": 2026,
+                "model_seeds": [0, 1, 2],
+                "check_grad": True,
+                "fd_epsilon": 1e-2,
+            },
+            "evaluation": {
+                "rollout_frames": 300,
+                "seen_ic_trajectories": 8,
+                "checkpoint_ic_trajectories": 2,
+                "checkpoint_rollout_frames": 100,
+                "stable_error_threshold": 1.0,
+                "correlation_threshold": 0.95,
+                "first_interval_error_tolerance": 0.05,
+                "native_long_error_tolerance": 1.0,
+            },
+        }
+    ],
+    plot=plot_solver_in_loop_curriculum,
+)
+
+
+def _reference_sensitivity_run(name: str, reference_kind: str) -> dict:
+    """Return one common-target solver-loop reference variant."""
+    return {
+        "name": name,
+        "ic": {"name": "multimode", "seed": 0},
+        "physics": {
+            "N": 32,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4,
+        },
+        "dataset": {
+            "reference_kind": reference_kind,
+            # Production targets use 128² and dt/4. A disjoint convergence
+            # audit compares selected frames against 256² and dt/8 before
+            # corrector training is admitted.
+            "reference_factor": 4,
+            "reference_substeps": 4,
+            "reference_audit_factor": 8,
+            "reference_audit_substeps": 8,
+            "reference_audit_seeds": [0, 100],
+            "reference_audit_frames": [1, 8, 24, 36],
+            "reference_convergence_tolerance": 0.005,
+            "train_seeds": list(range(16)),
+            "test_seeds": list(range(100, 108)),
+            "train_frames": 24,
+            "k0": 2.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.5,
+        },
+        "training": {
+            "max_updates": 200,
+            "unroll": 8,
+            "loss_mode": "solver_terminal",
+            "solver_loss_weight": 0.1,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-6,
+            "lr": 1e-4,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [0, 1, 2],
+            "check_grad": True,
+            "fd_epsilon": 1e-2,
+        },
+        "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.05,
+            "native_long_error_tolerance": 0.5,
+        },
+    }
+
+
+problem.add_experiment(
+    "optimization/solver_in_loop_reference_sensitivity",
+    solver_in_loop,
+    description=(
+        "Repeat the common all-solver corrector comparison against independently "
+        "discretized, space-time-converged pseudo-spectral and conservative "
+        "finite-volume references. Paired VJP conclusions are reported separately "
+        "from reference-dependent absolute error."
+    ),
+    plot_description=(
+        "Reference disagreement, convergence audits, absolute error, correction "
+        "gain, and paired solver-VJP lift under spectral and finite-volume targets."
+    ),
+    runs=[
+        _reference_sensitivity_run("spectral", "pseudo_spectral_multimode"),
+        _reference_sensitivity_run("finite_volume", "finite_volume_multimode"),
+    ],
+    plot=plot_solver_in_loop_reference_sensitivity,
+)
+
 problem.add_experiment(
     "optimization/solver_in_loop_tgv",
     solver_in_loop,

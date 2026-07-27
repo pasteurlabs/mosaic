@@ -281,17 +281,26 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
     experiment-local copy so the smaller smoke configuration cannot leak.
     No-op for experiments not in :data:`_SHRINK_PHYSICS`.
     """
-    if problem == "ns-grid" and exp_key in {
-        "optimization/solver_in_loop",
-        "optimization/solver_in_loop_self_reference",
-        "optimization/solver_in_loop_tgv",
-    }:
+    solver_loop_sensitivity = exp_key.startswith(
+        "optimization/solver_in_loop_reference_sensitivity/"
+    )
+    if problem == "ns-grid" and (
+        exp_key
+        in {
+            "optimization/solver_in_loop",
+            "optimization/solver_in_loop_curriculum",
+            "optimization/solver_in_loop_self_reference",
+            "optimization/solver_in_loop_tgv",
+        }
+        or solver_loop_sensitivity
+    ):
         from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
             solver_in_loop,
         )
 
         analytic = exp_key.endswith("_tgv")
         self_reference = exp_key.endswith("_self_reference")
+        finite_volume_reference = exp_key.endswith("/finite_volume")
         cfg.add_experiment(
             exp_key,
             solver_in_loop,
@@ -314,7 +323,11 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
                             else (
                                 "solver_self_refined"
                                 if self_reference
-                                else "pseudo_spectral_multimode"
+                                else (
+                                    "finite_volume_multimode"
+                                    if finite_volume_reference
+                                    else "pseudo_spectral_multimode"
+                                )
                             )
                         ),
                         "reference_factor": 2,
