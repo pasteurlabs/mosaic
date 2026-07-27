@@ -1,134 +1,141 @@
-# PR 116 local Slurm artifacts
+# PR 116 offline solver-in-the-loop results
 
-These generated results support draft PR 116 and intentionally live outside
-the source diff. They were produced from the solver-in-loop implementation at
-source commit `7d6a683`.
+These artifacts support draft PR 116. The source branch is
+`feat/ns-grid-solver-in-loop` at `04b56d8`, stacked on the canonical recurrent
+state contract in PR 121 at `d685a33`. Numerical runs used the behaviorally
+identical source snapshot `e1133ff`; the two later commits only adjust an import
+and documentation.
 
-## What the benchmark measures
+## Benchmark state
 
 The benchmark trains the same zero-initialized Equinox periodic residual CNN
-(56,098 parameters; not a U-Net) in two paired modes:
+(56,098 parameters) in two paired modes:
 
-1. through the differentiable solver, including its VJP;
-2. with the solver transition stopped, keeping all other training choices
-   identical.
+1. full temporal differentiation through the solver transition;
+2. the identical recurrence with solver state stopped between intervals.
 
-The nonlinear task uses a doubly periodic 32² domain, a 64² dealiased
-pseudo-spectral reference, 16 training ICs (seeds 0–15), eight disjoint held-out
-ICs (100–107), and a held-out rollout to `t=2.88`. The TGV control uses exact
-analytic viscous decay. The self-reference task instead compares each admitted
-solver with its own spatially and temporally refined trajectory.
+JAX-CFD, INS.jl, PhiFlow, and XLB carry their opt-in native checkpoint through
+training, evaluation, finite-difference checks, and plotted rollouts. PICT and
+Warp-NS remain velocity-complete and need no extra checkpoint. The canonical
+velocity and native state are both stopped in the paired control.
 
-## All-six forward and recurrence admission
+All six solvers pass the nonlinear and Taylor–Green recurrence gate:
 
-No differentiable solver is omitted from the control. All six first pass an
-a-priori 1% analytic forward gate. XLB receives four internal substeps per
-canonical interval, the smallest tested Mach-safe budget that also passes the
-uninterrupted `t=1` gate.
+| Solver | Recurrent representation | Nonlinear closure p95 | Admitted |
+|---|---|---:|:---:|
+| JAX-CFD | native checkpoint | 0 | yes |
+| INS.jl | native checkpoint | 2.92e-7 | yes |
+| PhiFlow | native checkpoint | 4.72e-7 | yes |
+| PICT | velocity-complete | 0 | yes |
+| Warp-NS | velocity-complete | 0 | yes |
+| XLB | native checkpoint | 1.75e-3 | yes |
 
-| Solver | First interval | Uninterrupted `t=1` | 100-call closure | Ranking eligible |
-|---|---:|---:|---:|:---:|
-| JAX-CFD | 0.243% | 0.441% | 21.203% | no |
-| INS.jl | 0.241% | 0.233% | 21.230% | no |
-| PhiFlow | 0.241% | 0.238% | 21.230% | no |
-| PICT | 0.0056% | 0.0122% | 0.000% | yes |
-| Warp-NS | 0.0090% | 0.0098% | 0.000% | yes |
-| XLB | 0.677% | 0.804% | 10.351% | no |
+![All-solver recurrence and generalization diagnostics](multimode/solver_in_loop_diagnostics.png)
 
-Thus the initial discrepancy is not a broken forward solve. JAX-CFD, INS.jl,
-and PhiFlow lose their native staggered face state at the canonical
-collocated-velocity boundary. XLB reconstructs equilibrium populations on every
-call, losing density and non-equilibrium moments. These adapter failures remain
-visible in every all-solver plot; they are not used to rank the native VJPs.
+## Nonlinear shared-reference task
 
-The complete six-solver intrinsic ranking is therefore withheld. PICT and
-Warp-NS form a conditional two-adapter pilot because they are the two current
-interfaces that pass forward, long-forward, and recurrent-closure admission.
+The task uses a 64² dealiased pseudo-spectral reference restricted to the
+shared 32² grid, 16 training ICs, eight held-out ICs, three paired model seeds,
+200 optimizer updates, recurrent training to `t=1.92`, and evaluation to
+`t=2.88`.
 
-![All-solver forward calibration](forward-calibration/forward-calibration.png)
+The solver-VJP lift compares full VJP with the paired stop-gradient corrector.
+A correction gain above one means the full-VJP corrector also beats the
+uncorrected solver.
 
-![All-solver admission diagnostics](tgv/solver_in_loop_diagnostics.png)
+| Solver | Correction gain | Solver-VJP lift | Bootstrap 95% CI | Corrected / solver-only error | Median update | FD rel. error |
+|---|---:|---:|---:|---:|---:|---:|
+| JAX-CFD | 0.886× | 31.4% | 18.7–47.7% | 0.156 / 0.0719 | 0.727 s | 1.44e-4 |
+| INS.jl | 0.737× | 38.1% | 30.3–49.8% | 0.156 / 0.0553 | 0.855 s | 2.69e-4 |
+| PhiFlow | 0.667× | 35.3% | 28.1–42.9% | 0.155 / 0.0466 | 0.962 s | 2.68e-4 |
+| PICT | 1.244× | 2.18% | −1.11–7.34% | 0.0414 / 0.0544 | 2.322 s | 1.80e-3 |
+| Warp-NS | 0.869× | −1.77% | −10.5–10.8% | 0.0445 / 0.0368 | 0.808 s | 2.48e-3 |
+| XLB | 0.741× | 14.6% | 7.62–20.2% | 0.113 / 0.0364 | 0.734 s | 8.69e-5 |
 
-## Conditional nonlinear comparison
+PICT is the only nonlinear cell whose learned correction improves absolute
+solver-only error. JAX-CFD, INS.jl, PhiFlow, and XLB nevertheless show a
+statistically resolved benefit from differentiating through the solver when
+compared with their paired stop-gradient correctors. Warp-NS is inconclusive.
 
-PICT and Warp-NS begin the nonlinear task at matched first-interval error
-(6.32% and 6.28% p95) and both close recurrently.
-
-| Quantity | PICT | Warp-NS |
-|---|---:|---:|
-| Geometric correction gain | 2.091× | 1.608× |
-| Final held-out error | 0.182 | 0.207 |
-| Incremental solver-VJP lift | 1.08% | 3.34% |
-| Paired bootstrap 95% CI | −0.69% to 2.40% | 2.09% to 4.44% |
-| Median full-VJP update | 2.234 s | 0.846 s |
-
-Warp-NS's incremental VJP lift is distinguishably larger: its lift ratio over
-PICT is 1.022× (95% CI 1.008–1.036×). PICT nevertheless produces the lower
-absolute corrected error and larger total correction gain. Warp-NS is about
-2.6× faster per full-VJP optimizer update.
-
-![Nonlinear fields](multimode/solver_in_loop_fields.png)
+![Nonlinear final fields](multimode/solver_in_loop_fields.png)
 
 ![Nonlinear paired comparison](multimode/solver_in_loop_fairness.png)
 
-The trajectory GIF shows reference, solver-only, and solver-plus-corrector
-evolution over the complete held-out horizon:
-[nonlinear trajectory GIF](multimode/solver_in_loop_trajectory.gif).
+![Nonlinear physics diagnostics](multimode/solver_in_loop_physics.png)
 
-## Solver-specific refined-reference comparison
+[Nonlinear trajectory GIF](multimode/solver_in_loop_trajectory.gif)
 
-This control asks whether each solver can learn an upscaling/refinement
-correction relative to its own higher-compute solution. Absolute errors are not
-compared across solvers because the targets differ.
+## Solver-specific refined-reference task
 
-| Quantity | PICT | Warp-NS |
-|---|---:|---:|
-| Geometric correction gain | 1.923× | 1.527× |
-| Incremental solver-VJP lift | 3.56% | 4.05% |
-| Paired bootstrap 95% CI | 1.72% to 5.27% | 2.32% to 5.83% |
-| Median full-VJP update | 2.214 s | 0.810 s |
+Each admitted cell learns against that solver's own 64², half-step reference.
+Absolute errors are not compared across solvers because the targets differ.
 
-Both VJPs help, but their lift difference is not significant. Warp-NS remains
-about 2.7× faster.
+| Solver | Correction gain | Solver-VJP lift | Bootstrap 95% CI | Corrected / solver-only error | Median update | FD rel. error |
+|---|---:|---:|---:|---:|---:|---:|
+| JAX-CFD | 0.669× | 37.0% | 30.0–43.9% | 0.163 / 0.0556 | 0.721 s | 1.51e-4 |
+| INS.jl | 0.505× | 29.8% | 21.5–43.7% | 0.172 / 0.0413 | 0.908 s | 3.24e-4 |
+| PICT | 1.119× | 4.60% | 2.47–7.29% | 0.0359 / 0.0409 | 2.328 s | 2.11e-3 |
+| Warp-NS | 0.821× | −3.35% | −8.61–1.81% | 0.0363 / 0.0278 | 0.802 s | 3.40e-3 |
+| XLB | 0.570× | 13.3% | 9.28–17.4% | 0.117 / 0.0269 | 0.735 s | 2.86e-4 |
 
-![Self-reference fields](self-reference/solver_in_loop_fields.png)
+PhiFlow is intentionally absent from this task. Its native checkpoint closes
+the shared-reference task, but its chaotic refined self-reference audit
+contains long-horizon closure spikes: maximum coarse/fine residuals are
+0.0101/0.0252 and reach 22.8%/70.7% of the refinement signal. The benchmark
+therefore rejects that target before training instead of presenting a
+misleading comparison.
+
+![Self-reference final fields](self-reference/solver_in_loop_fields.png)
 
 ![Self-reference paired comparison](self-reference/solver_in_loop_fairness.png)
 
-[self-reference trajectory GIF](self-reference/solver_in_loop_trajectory.gif)
+![Self-reference physics diagnostics](self-reference/solver_in_loop_physics.png)
 
-## Analytic TGV control
+[Self-reference trajectory GIF](self-reference/solver_in_loop_trajectory.gif)
 
-The forward-conformant TGV cell is a smooth, near-floor null control rather
-than the nonlinear learning stress task. PICT and Warp-NS obtain incremental
-VJP lifts of 2.19% and 0.69%, respectively. Their total correction gains are
-1.421× and 1.055×. The other four solver cells remain present but are not
-ranked because they fail recurrent closure.
+## Analytic Taylor–Green control
 
-![TGV fields](tgv/solver_in_loop_fields.png)
+All six solvers are admitted in the smooth analytic control. PICT, Warp-NS,
+JAX-CFD, INS.jl, and PhiFlow improve absolute error; XLB is close to neutral.
+The VJP-versus-stop-gradient effect is deliberately small near this error
+floor.
 
-![TGV paired comparison](tgv/solver_in_loop_fairness.png)
+| Solver | Correction gain | Solver-VJP lift | Corrected / solver-only error |
+|---|---:|---:|---:|
+| JAX-CFD | 1.382× | 0.005% | 0.00250 / 0.00441 |
+| INS.jl | 1.899× | 0.052% | 0.000579 / 0.00233 |
+| PhiFlow | 1.878× | 0.047% | 0.000599 / 0.00238 |
+| PICT | 1.422× | 2.20% | 5.69e-5 / 1.22e-4 |
+| Warp-NS | 1.055× | 0.693% | 8.56e-5 / 9.82e-5 |
+| XLB | 1.083× | 0.010% | 0.00782 / 0.00805 |
 
-[TGV trajectory GIF](tgv/solver_in_loop_trajectory.gif)
+![Taylor–Green final fields](tgv/solver_in_loop_fields.png)
+
+![Taylor–Green paired comparison](tgv/solver_in_loop_fairness.png)
+
+![Taylor–Green recurrence diagnostics](tgv/solver_in_loop_diagnostics.png)
+
+[Taylor–Green trajectory GIF](tgv/solver_in_loop_trajectory.gif)
 
 ## Files and provenance
 
 Each result directory contains merged `result.json`, `params.json`,
-`comparison_summary.json`, complete `corrector_fields.npz`, the main training
-and rollout plot, reference/solver/corrector fields, fairness and physics
-diagnostics, and an animated trajectory. Shared-reference runs additionally
-contain the all-solver admission/generalization diagnostic.
+`comparison_summary.json`, complete `corrector_fields.npz`, training and
+rollout plots, full-field panels, fairness and physics diagnostics, and a
+trajectory GIF.
 
-Production jobs:
+Offline Kander jobs:
 
-- nonlinear: JAX-CFD `1642897`, INS.jl `1642898`, PhiFlow `1642899`,
-  PICT `1642900`, Warp-NS `1642901`, XLB `1642902`; merge `1644051`;
-- self-reference: PICT `1642930`, Warp-NS `1642931`; merge `1644052`;
-- final all-six TGV: JAX-CFD `1644252`, INS.jl `1644253`, PhiFlow `1644254`,
-  PICT `1644255`, Warp-NS `1644256`, XLB `1644258`; merge `1644264`;
-- forward calibration: `1640390`–`1640395`; render `1644086`.
+- nonlinear: JAX-CFD `1697213`, INS.jl `1697215`, PhiFlow `1697238`,
+  PICT `1697199`, Warp-NS `1697218`, XLB `1697220`;
+- Taylor–Green: JAX-CFD `1697182`, INS.jl `1697186`, PhiFlow `1697239`,
+  PICT `1697202`, Warp-NS `1697194`, XLB `1697198`;
+- self-reference: JAX-CFD `1697214`, INS.jl `1697216`, PICT `1697200`,
+  Warp-NS `1697219`, XLB `1697221`; rejected PhiFlow audit `1697228`;
+- merge/render `1697277`;
+- source validation `1696130`: Ruff and format passed; 514 tests passed and
+  three were skipped.
 
-Final source validation: Ruff `1644419`, format `1644422`, full pytest
-`1644423` (499 passed, three skipped), problem configs `1644424`, Tesseract
-configs `1644425`, git-aware pre-commit `1644426`, and final artifact
-integrity `1644825`.
+No hosted benchmark label was used. PR 116 is marked `benchmark:none`; all
+numerical evidence here was generated offline through the shared
+Slurm/Pyxis solver tooling.

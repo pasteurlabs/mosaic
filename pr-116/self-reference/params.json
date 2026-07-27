@@ -42,8 +42,8 @@
       107
     ],
     "train_frames": 24,
-    "k0": 6.0,
-    "sigma_k": 1.0,
+    "k0": 2.0,
+    "sigma_k": 0.5,
     "amplitude": 0.5,
     "prefix_audit_seeds": [
       0,

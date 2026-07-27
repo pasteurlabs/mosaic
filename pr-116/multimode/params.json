@@ -42,8 +42,8 @@
       107
     ],
     "train_frames": 24,
-    "k0": 6.0,
-    "sigma_k": 1.0,
+    "k0": 2.0,
+    "sigma_k": 0.5,
     "amplitude": 0.5
   },
   "training": {
@@ -70,7 +70,9 @@
   "evaluation": {
     "rollout_frames": 36,
     "seen_ic_trajectories": 8,
-    "stable_error_threshold": 1.0
+    "stable_error_threshold": 1.0,
+    "first_interval_error_tolerance": 0.05,
+    "native_long_error_tolerance": 0.5
   },
-  "description": "Train an identical Equinox periodic residual corrector through each differentiable solver. A solver-terminal recurrent auxiliary, paired stop-gradient controls, native versus restarted rollouts, and seen versus held-out IC horizons separate integration, coupling, trainability, and the incremental benefit of the solver VJP."
+  "description": "Train an identical Equinox periodic residual corrector through each differentiable solver. A solver-terminal recurrent auxiliary, paired stop-gradient controls, native versus repeated-call rollouts, and seen versus held-out IC horizons separate integration, coupling, trainability, and the incremental benefit of the solver VJP."
 }

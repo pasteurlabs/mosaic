@@ -55,5 +55,5 @@
     "first_interval_error_tolerance": 0.01,
     "native_long_error_tolerance": 0.01
   },
-  "description": "Run an all-solver solver-in-the-loop control using the N=64 cell from forward/baseline, where every differentiable solver has less than 0.75% one-step error. Repeated calls expose recurrent-state defects instead of hiding them behind solver exclusions; the nonlinear multimode experiment remains the learning stress task."
+  "description": "Run an all-solver solver-in-the-loop control using the analytic N=64 forward/baseline case, with an explicit Mach-safe XLB substep budget so every differentiable solver passes both one-interval and uninterrupted forward gates. Repeated calls then expose recurrent-state defects instead of hiding them behind solver exclusions; the nonlinear multimode experiment remains the learning stress task."
 }
