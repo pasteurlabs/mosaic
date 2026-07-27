@@ -501,11 +501,11 @@ problem.add_experiment(
                 "train_seeds": list(range(16)),
                 "test_seeds": list(range(100, 108)),
                 "train_frames": 24,
-                "k0": 6.0,
-                "sigma_k": 1.0,
-                # The stronger field and longer held-out horizon produce
-                # substantial nonlinear evolution (rather than testing a
-                # nearly frozen decaying texture).
+                # Begin from the well-resolved spectrum used by the forward
+                # agreement benchmark. The stronger amplitude and long horizon
+                # still allow nonlinear transfer to populate smaller scales.
+                "k0": 2.0,
+                "sigma_k": 0.5,
                 "amplitude": 0.5,
             },
             "training": {
@@ -537,7 +537,7 @@ problem.add_experiment(
                 # Long chaotic trajectories may decorrelate, but a candidate
                 # must start close to the common reference and remain finite
                 # enough for a meaningful relative-gain comparison.
-                "first_interval_error_tolerance": 0.15,
+                "first_interval_error_tolerance": 0.05,
                 "native_long_error_tolerance": 0.5,
             },
         }
@@ -642,8 +642,8 @@ problem.add_experiment(
                 "train_seeds": list(range(16)),
                 "test_seeds": list(range(100, 108)),
                 "train_frames": 24,
-                "k0": 6.0,
-                "sigma_k": 1.0,
+                "k0": 2.0,
+                "sigma_k": 0.5,
                 "amplitude": 0.5,
                 "prefix_audit_seeds": [0, 1, 100, 101],
                 "prefix_audit_frames": [1, 8, 24, 36],
@@ -672,8 +672,6 @@ problem.add_experiment(
                 "rollout_frames": 36,
                 "seen_ic_trajectories": 8,
                 "stable_error_threshold": 1.0,
-                "first_interval_error_tolerance": 0.15,
-                "native_long_error_tolerance": 0.5,
             },
         }
     ],

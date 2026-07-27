@@ -276,6 +276,23 @@ def _stop_recurrent_gradient(
     )
 
 
+def _passes_reference_accuracy_gate(
+    reference_kind: str,
+    *,
+    first_interval_error: float,
+    first_interval_tolerance: float,
+    native_long_error: float,
+    native_long_tolerance: float,
+) -> bool:
+    """Gate only references whose absolute accuracy is shared across solvers."""
+    if reference_kind == "solver_self_refined":
+        return True
+    return bool(
+        first_interval_error <= first_interval_tolerance
+        and native_long_error <= native_long_tolerance
+    )
+
+
 def _make_solver_self_reference_datasets(
     t: Any,
     ctx: KernelContext,
@@ -1082,9 +1099,14 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     )
     valid_for_vjp_ranking = bool(
         valid_for_vjp_ranking
-        and first_interval_error_p95 <= first_interval_error_tolerance
         and long_closure_p95 <= long_closure_tolerance
-        and native_final_error_p95 <= native_long_error_tolerance
+        and _passes_reference_accuracy_gate(
+            reference_kind,
+            first_interval_error=first_interval_error_p95,
+            first_interval_tolerance=first_interval_error_tolerance,
+            native_long_error=native_final_error_p95,
+            native_long_tolerance=native_long_error_tolerance,
+        )
     )
 
     uncorrected_error = np.mean(uncorrected_errors_array, axis=0)
@@ -1352,6 +1374,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         **reference_audit,
         "eligible_for_corrector_training": True,
         "valid_for_vjp_ranking": valid_for_vjp_ranking,
+        "reference_accuracy_gate_applied": reference_kind != "solver_self_refined",
         "semigroup_error_median": semigroup_median,
         "semigroup_error_p95": semigroup_p95,
         "semigroup_error_samples": semigroup_errors,

@@ -39,6 +39,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
 from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
     _evaluate_rollout,
     _make_solver_self_reference_datasets,
+    _passes_reference_accuracy_gate,
     _rollout_log_gain,
     _solver_advance,
     _stop_recurrent_gradient,
@@ -114,15 +115,39 @@ def test_multimode_forward_agreement_does_not_use_tgv_reference():
     assert run["reference"] == "consensus"
 
 
-def test_solver_loop_rankings_declare_forward_admission_bounds():
+def test_shared_solver_loop_ranking_declares_forward_admission_bounds():
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config("ns-grid")
-    for name in ("solver_in_loop", "solver_in_loop_self_reference"):
-        experiment = cfg.experiments[f"optimization/{name}"]
-        run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
-        assert run["evaluation"]["first_interval_error_tolerance"] == 0.15
-        assert run["evaluation"]["native_long_error_tolerance"] == 0.5
+    experiment = cfg.experiments["optimization/solver_in_loop"]
+    run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
+    assert run["dataset"]["k0"] == 2.0
+    assert run["dataset"]["sigma_k"] == 0.5
+    assert run["evaluation"]["first_interval_error_tolerance"] == 0.05
+    assert run["evaluation"]["native_long_error_tolerance"] == 0.5
+    self_reference = cfg.experiments["optimization/solver_in_loop_self_reference"]
+    self_reference_run = (
+        inspect.signature(self_reference.fn).parameters["_kw"].default["runs"][0]
+    )
+    assert self_reference_run["dataset"]["k0"] == run["dataset"]["k0"]
+    assert self_reference_run["dataset"]["sigma_k"] == run["dataset"]["sigma_k"]
+
+
+def test_self_reference_does_not_gate_the_learnable_refinement_signal():
+    assert _passes_reference_accuracy_gate(
+        "solver_self_refined",
+        first_interval_error=0.6,
+        first_interval_tolerance=0.15,
+        native_long_error=0.7,
+        native_long_tolerance=0.5,
+    )
+    assert not _passes_reference_accuracy_gate(
+        "pseudo_spectral_multimode",
+        first_interval_error=0.6,
+        first_interval_tolerance=0.15,
+        native_long_error=0.7,
+        native_long_tolerance=0.5,
+    )
 
 
 def test_periodic_corrector_is_translation_equivariant():
