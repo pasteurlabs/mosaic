@@ -74,12 +74,14 @@ On the exact self-recovery benchmark, projected L-BFGS recovers the three ICs
 to 6.97%, 7.85%, and 9.54% relative L2 error (8.12% mean), compared with
 4.70%, 5.02%, and 5.94% for XLB (5.22% mean).
 
-Warm in-process RTX 5090 medians are 8.09 ms for the 20-macro-step forward
-rollout and 16.81 ms for its end-to-end VJP. XLB takes 4.81 ms and 14.37 ms on
+Warm packaged in-process RTX 5090 medians are 7.12 ms for the 20-macro-step
+forward rollout and 14.86 ms for its end-to-end VJP. XLB takes 4.81 ms and 14.37 ms on
 the same task. Unlike the replaced direct IC-to-final checkpoint, the
 autoregressive surrogate is therefore not a kernel-level speedup: repeatedly
-applying the shared operator makes it 1.68× slower for forward and 1.17×
-slower for VJP.
+applying the shared operator makes it 1.48× slower for forward and 1.03×
+slower for VJP. The matched RTX 5090 recovery harness takes 33.17 s versus
+30.96 s for XLB (1.07× slower); shared RPC, optimizer, projection, and
+line-search overhead narrows the kernel difference.
 
 ## Limitation: XLB-target inversion
 
