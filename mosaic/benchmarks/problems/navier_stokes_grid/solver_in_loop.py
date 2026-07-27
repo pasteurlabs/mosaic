@@ -760,11 +760,14 @@ def _window_loss(
     loss_mode: str,
     solver_loss_weight: float,
     loss_scale: float,
+    local_loss_weight: float = 1.0,
+    warmup_intervals: int = 0,
 ) -> jax.Array:
     """Normalized recurrent loss with configurable temporal credit assignment."""
     state = targets[0]
     native_state = None
     losses: list[jax.Array] = []
+    solver_mediated_losses: list[jax.Array] = []
     solver_terminal_loss: jax.Array | None = None
     for step, target in enumerate(targets[1:]):
         provisional, native_state = _solver_advance(
@@ -774,26 +777,35 @@ def _window_loss(
             frame_steps=frame_steps,
             native_state=native_state,
         )
-        if not differentiate_solver:
+        if not differentiate_solver or step < warmup_intervals:
             # Keep the identical recurrent forward trajectory but cut the
             # backward graph through both canonical and solver-native recurrent
-            # state. This counterfactual measures what the same corrector can
-            # learn without the solver VJP.
+            # state. Warm-up intervals expose inference-like states without
+            # extending the differentiated chain.
             provisional, native_state = _stop_recurrent_gradient(
                 provisional,
                 native_state,
             )
+        provisional_loss = jnp.sum((provisional - target) ** 2) / (
+            jnp.sum(target**2) + 1e-12
+        )
         if step == targets.shape[0] - 2:
-            solver_terminal_loss = jnp.sum((provisional - target) ** 2) / (
-                jnp.sum(target**2) + 1e-12
-            )
+            solver_terminal_loss = provisional_loss
         state = corrected_velocity(
             model,
             provisional,
             velocity_scale=velocity_scale,
             domain_extent=ctx.domain_extent,
         )
+        if step < warmup_intervals:
+            state, native_state = _stop_recurrent_gradient(state, native_state)
+            continue
         losses.append(jnp.sum((state - target) ** 2) / (jnp.sum(target**2) + 1e-12))
+        # The first provisional state after warm-up precedes any differentiated
+        # correction. Later provisional states measure how earlier corrections
+        # survive the intervening numerical solver and therefore require its VJP.
+        if step > warmup_intervals:
+            solver_mediated_losses.append(provisional_loss)
     if loss_mode == "mean":
         loss = jnp.mean(jnp.stack(losses))
     elif loss_mode == "terminal":
@@ -802,6 +814,14 @@ def _window_loss(
         if solver_terminal_loss is None:
             raise RuntimeError("solver-terminal loss requires a non-empty rollout")
         loss = solver_loss_weight * solver_terminal_loss + jnp.mean(jnp.stack(losses))
+    elif loss_mode == "solver_mediated":
+        local_loss = jnp.mean(jnp.stack(losses))
+        mediated_loss = (
+            jnp.mean(jnp.stack(solver_mediated_losses))
+            if solver_mediated_losses
+            else jnp.zeros_like(local_loss)
+        )
+        loss = local_loss_weight * local_loss + solver_loss_weight * mediated_loss
     else:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     return loss / jnp.asarray(loss_scale, dtype=loss.dtype)
@@ -883,6 +903,8 @@ def _train_corrector(
     residual_blocks = int(training.get("residual_blocks", 5))
     loss_mode = str(training.get("loss_mode", "mean"))
     solver_loss_weight = float(training.get("solver_loss_weight", 0.1))
+    local_loss_weight = float(training.get("local_loss_weight", 1.0))
+    warmup_intervals = int(training.get("warmup_intervals", 0))
     fd_epsilon = float(training.get("fd_epsilon", 1e-2))
     configured_fd_epsilons = training.get("fd_epsilons")
     if configured_fd_epsilons is None:
@@ -898,14 +920,24 @@ def _train_corrector(
     if not fd_epsilons or any(value <= 0 for value in fd_epsilons):
         raise ValueError("training.fd_epsilons must contain positive values")
     maximum_unroll = max(stage.unroll for stage in stages)
-    if train.shape[1] < maximum_unroll + 1:
+    if train.shape[1] < warmup_intervals + maximum_unroll + 1:
         raise ValueError(
-            "the largest training look-ahead must fit inside dataset.train_frames"
+            "the warm-up plus largest look-ahead must fit inside dataset.train_frames"
         )
-    if loss_mode not in {"mean", "terminal", "solver_terminal"}:
+    if loss_mode not in {"mean", "terminal", "solver_terminal", "solver_mediated"}:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     if solver_loss_weight < 0:
         raise ValueError("training.solver_loss_weight must be non-negative")
+    if local_loss_weight < 0:
+        raise ValueError("training.local_loss_weight must be non-negative")
+    if warmup_intervals < 0:
+        raise ValueError("training.warmup_intervals must be non-negative")
+    if (
+        loss_mode == "solver_mediated"
+        and solver_loss_weight == 0
+        and local_loss_weight == 0
+    ):
+        raise ValueError("solver-mediated training needs a non-zero loss weight")
 
     model = init_corrector(
         jax.random.PRNGKey(model_seed),
@@ -937,10 +969,11 @@ def _train_corrector(
         for stage_update in range(stage.updates):
             update_started = time.perf_counter()
             trajectory_idx = int(rng.randint(train.shape[0]))
-            max_start = train.shape[1] - stage.unroll - 1
+            window_intervals = warmup_intervals + stage.unroll
+            max_start = train.shape[1] - window_intervals - 1
             start = int(rng.randint(max_start + 1)) if max_start > 0 else 0
             targets = jnp.asarray(
-                train[trajectory_idx, start : start + stage.unroll + 1]
+                train[trajectory_idx, start : start + window_intervals + 1]
             )
 
             loss_fn = partial(
@@ -954,6 +987,8 @@ def _train_corrector(
                 loss_mode=loss_mode,
                 solver_loss_weight=solver_loss_weight,
                 loss_scale=loss_scale,
+                local_loss_weight=local_loss_weight,
+                warmup_intervals=warmup_intervals,
             )
 
             loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
@@ -1589,6 +1624,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                 ],
                 "loss_mode": "mean",
                 "solver_loss_weight": 0.0,
+                "local_loss_weight": 1.0,
+                "warmup_intervals": 0,
                 "check_grad": False,
             }
             one_step_started = time.perf_counter()
@@ -1917,8 +1954,15 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         [stage.updates for stage in curriculum_stages],
         dtype=np.int64,
     )
+    warmup_intervals = int(training.get("warmup_intervals", 0))
+    warmup_solver_intervals_per_seed = warmup_intervals * sum(
+        stage.updates for stage in curriculum_stages
+    )
     recurrent_solver_intervals_per_seed = int(
-        sum(stage.unroll * stage.updates for stage in curriculum_stages)
+        sum(
+            (warmup_intervals + stage.unroll) * stage.updates
+            for stage in curriculum_stages
+        )
     )
     checkpoint_full_error: np.ndarray | None = None
     checkpoint_stop_error: np.ndarray | None = None
@@ -2207,8 +2251,24 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "training_solver_intervals_per_seed": recurrent_solver_intervals_per_seed,
         "training_solver_intervals_total": recurrent_solver_intervals_per_seed
         * len(model_seeds),
+        "training_native_steps_per_seed": (
+            recurrent_solver_intervals_per_seed * frame_steps
+        ),
+        "training_native_steps_total": (
+            recurrent_solver_intervals_per_seed * frame_steps * len(model_seeds)
+        ),
+        "training_warmup_solver_intervals_per_seed": (warmup_solver_intervals_per_seed),
+        "training_warmup_solver_intervals_total": (
+            warmup_solver_intervals_per_seed * len(model_seeds)
+        ),
         "training_loss_mode": str(training.get("loss_mode", "mean")),
         "training_solver_loss_weight": float(training.get("solver_loss_weight", 0.1)),
+        "training_local_loss_weight": float(training.get("local_loss_weight", 1.0)),
+        "training_warmup_intervals": int(training.get("warmup_intervals", 0)),
+        "training_warmup_native_steps": warmup_intervals * frame_steps,
+        "training_differentiated_native_horizon": (
+            max(stage.unroll for stage in curriculum_stages) * frame_steps
+        ),
         "training_loss_normalization": loss_normalization,
         "training_loss_scale": training_loss_scale,
         "matched_horizon_time": matched_horizon_frame * interval_time,
@@ -2309,6 +2369,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                 else None,
                 "one_step_training_solver_intervals_per_seed": len(one_step_losses),
                 "one_step_training_solver_intervals_total": one_step_total_updates,
+                "one_step_training_native_steps_per_seed": (
+                    len(one_step_losses) * frame_steps
+                ),
+                "one_step_training_native_steps_total": (
+                    one_step_total_updates * frame_steps
+                ),
                 "one_step_final_divergence_rms": divergence_rms(
                     first_one_step[-1],
                     ctx.domain_extent,

@@ -2059,36 +2059,36 @@ def _plot_solver_in_loop_curriculum_summary(
         full = np.asarray(
             arrays.get(f"curriculum_checkpoint_error_full_{index}", np.array([]))
         )
-        native = np.asarray(
-            arrays.get(f"curriculum_checkpoint_error_native_{index}", np.array([]))
+        stopped = np.asarray(
+            arrays.get(f"curriculum_checkpoint_error_nog_{index}", np.array([]))
         )
-        if not unrolls.size or full.ndim != 2 or native.size < 2:
+        if (
+            not unrolls.size
+            or full.ndim != 2
+            or stopped.shape != full.shape
+            or full.shape[1] < 2
+        ):
             continue
-        reductions = [
+        vjp_lifts = [
             np.exp(
-                np.mean(
-                    np.log(
-                        (native[1 : stage_error.size] + 1e-12)
-                        / (stage_error[1:] + 1e-12)
-                    )
-                )
+                np.mean(np.log((stopped_stage[1:] + 1e-12) / (full_stage[1:] + 1e-12)))
             )
-            for stage_error in full
+            for full_stage, stopped_stage in zip(full, stopped, strict=True)
         ]
         _label, color, _linestyle, marker = solver_props(name)
         ax_horizon.plot(
             unrolls,
-            reductions,
+            vjp_lifts,
             color=color,
             marker=marker,
             label=_label,
         )
     ax_horizon.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
     ax_horizon.set_xscale("log", base=2)
-    ax_horizon.set_xticks([1, 2, 4, 8, 16, 32], [1, 2, 4, 8, 16, 32])
-    ax_horizon.set_xlabel("Curriculum look-ahead")
-    ax_horizon.set_ylabel("WIG error reduction [×]")
-    ax_horizon.set_title("Checkpoint quality versus horizon")
+    ax_horizon.set_xticks([1, 2, 4, 8, 16], [1, 2, 4, 8, 16])
+    ax_horizon.set_xlabel("Differentiated correction intervals")
+    ax_horizon.set_ylabel("WIG / NOG rollout lift [×]")
+    ax_horizon.set_title("Solver-mediated credit versus horizon")
 
     one_cost = [metric(name, "one_step_training_wall_time_s") for _index, name in rows]
     nog_cost = [
@@ -2124,7 +2124,7 @@ def _plot_solver_in_loop_curriculum_summary(
     ax_cost.legend(fontsize=6.5)
 
     _solver_loop_legend(fig, [name for _index, name in rows])
-    fig.suptitle("ONE/NOG/WIG decomposition and curriculum")
+    fig.suptitle("Sparse delayed-credit solver-in-loop curriculum")
     if save:
         save_fig(fig, "solver_in_loop_curriculum_summary", out_dir)
     return fig

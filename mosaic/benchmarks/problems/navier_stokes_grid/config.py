@@ -552,15 +552,17 @@ problem.add_experiment(
     "optimization/solver_in_loop_curriculum",
     solver_in_loop,
     description=(
-        "Paper-aligned autoregressive correction study separating one-step "
+        "Sparse-intervention, delayed-credit correction study separating one-step "
         "supervision (ONE), recurrent exposure without temporal solver gradients "
-        "(NOG), and full recurrent solver differentiation (WIG). The corrector is "
-        "trained with a 1→2→4→8→16→32 look-ahead curriculum and evaluated in a "
-        "300-interval free rollout."
+        "(NOG), and full recurrent solver differentiation (WIG). The dominant loss "
+        "is measured only after a learned correction has passed through four native "
+        "solver steps. Two stopped-gradient warm-up intervals precede a "
+        "1→2→4→8→16 look-ahead curriculum."
     ),
     plot_description=(
-        "Curriculum checkpoints, ONE/NOG/WIG held-out errors, long-horizon "
-        "correlation and physics, final full fields, and autoregressive GIFs."
+        "Delayed-credit curriculum checkpoints, ONE/NOG/WIG held-out errors, "
+        "long-horizon correlation and physics, final full fields, and "
+        "autoregressive GIFs."
     ),
     runs=[
         {
@@ -569,9 +571,9 @@ problem.add_experiment(
                 "N": 32,
                 "nu": 0.001,
                 "dt": 0.02,
-                # Match the paper's hybrid-step semantics: the neural
-                # corrector intervenes after every native solver step.
-                "steps": 1,
+                # Sparse intervention forces each learned correction to survive
+                # several native updates before the next corrective action.
+                "steps": 4,
             },
             "dataset": {
                 "reference_kind": "pseudo_spectral_multimode",
@@ -580,33 +582,38 @@ problem.add_experiment(
                 "reference_audit_factor": 8,
                 "reference_audit_substeps": 8,
                 "reference_audit_seeds": [0, 100],
-                "reference_audit_frames": [1, 32, 96, 300],
+                "reference_audit_frames": [1, 16, 64, 120],
                 "reference_convergence_tolerance": 0.005,
                 "train_seeds": list(range(32)),
                 "test_seeds": list(range(100, 108)),
-                "train_frames": 96,
-                "k0": 2.0,
-                "sigma_k": 0.5,
+                "train_frames": 64,
+                # Put appreciable energy near the coarse grid's under-resolved
+                # range so the numerical prior and its downstream response matter.
+                "k0": 4.0,
+                "sigma_k": 0.75,
                 "amplitude": 0.5,
             },
             "training": {
-                "max_updates": 11000,
-                "unroll": 32,
+                "max_updates": 4000,
+                "unroll": 16,
                 "curriculum": [
-                    {"unroll": 1, "updates": 1000, "lr": 1e-4},
-                    {"unroll": 2, "updates": 1000, "lr": 1e-4},
-                    {"unroll": 4, "updates": 1500, "lr": 1e-4},
-                    {"unroll": 8, "updates": 2000, "lr": 1e-4},
-                    {"unroll": 16, "updates": 2500, "lr": 5e-5},
-                    {"unroll": 32, "updates": 3000, "lr": 2.5e-5},
+                    {"unroll": 1, "updates": 250, "lr": 1e-4},
+                    {"unroll": 2, "updates": 500, "lr": 1e-4},
+                    {"unroll": 4, "updates": 750, "lr": 1e-4},
+                    {"unroll": 8, "updates": 1000, "lr": 5e-5},
+                    {"unroll": 16, "updates": 1500, "lr": 2.5e-5},
                 ],
                 "include_one_step_baseline": True,
-                "one_step_updates": 11000,
-                # The original SOL_n objective supervises every corrected
-                # state; omit the solver-terminal diagnostic used by the
-                # compact VJP audit.
-                "loss_mode": "mean",
-                "solver_loss_weight": 0.0,
+                "one_step_updates": 4000,
+                # WIG's dominant signal is the error before the next correction,
+                # after the previous action has traversed the solver. A small
+                # local term keeps the identical NOG forward rollout trainable.
+                "loss_mode": "solver_mediated",
+                "solver_loss_weight": 1.0,
+                "local_loss_weight": 0.05,
+                # Sample states from the learned rollout distribution without
+                # extending an already long differentiated chain.
+                "warmup_intervals": 2,
                 "loss_normalization": "solver_baseline",
                 "loss_scale_floor": 1e-6,
                 "lr": 1e-4,
@@ -621,10 +628,10 @@ problem.add_experiment(
                 "fd_epsilon": 1e-2,
             },
             "evaluation": {
-                "rollout_frames": 300,
+                "rollout_frames": 120,
                 "seen_ic_trajectories": 8,
                 "checkpoint_ic_trajectories": 2,
-                "checkpoint_rollout_frames": 100,
+                "checkpoint_rollout_frames": 64,
                 "stable_error_threshold": 1.0,
                 "correlation_threshold": 0.95,
                 "first_interval_error_tolerance": 0.05,

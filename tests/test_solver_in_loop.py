@@ -174,7 +174,7 @@ def test_reference_sensitivity_declares_independent_converged_targets():
         assert dataset["reference_convergence_tolerance"] == 0.005
 
 
-def test_paper_aligned_curriculum_declares_one_nog_wig_protocol():
+def test_delayed_credit_curriculum_declares_one_nog_wig_protocol():
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config("ns-grid")
@@ -182,11 +182,15 @@ def test_paper_aligned_curriculum_declares_one_nog_wig_protocol():
     run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
     training = run["training"]
 
-    assert run["physics"]["steps"] == 1
+    assert run["physics"]["steps"] == 4
     assert run["dataset"]["train_seeds"] == list(range(32))
-    assert run["evaluation"]["rollout_frames"] == 300
+    assert run["dataset"]["k0"] == 4.0
+    assert run["evaluation"]["rollout_frames"] == 120
     assert training["include_one_step_baseline"] is True
-    assert training["loss_mode"] == "mean"
+    assert training["loss_mode"] == "solver_mediated"
+    assert training["solver_loss_weight"] == 1.0
+    assert training["local_loss_weight"] == 0.05
+    assert training["warmup_intervals"] == 2
     assert training["architecture"] == "periodic_resnet"
     assert training["residual_blocks"] == 5
     assert [stage["unroll"] for stage in training["curriculum"]] == [
@@ -195,9 +199,8 @@ def test_paper_aligned_curriculum_declares_one_nog_wig_protocol():
         4,
         8,
         16,
-        32,
     ]
-    assert sum(stage["updates"] for stage in training["curriculum"]) == 11000
+    assert sum(stage["updates"] for stage in training["curriculum"]) == 4000
 
 
 def test_curriculum_normalization_preserves_stage_learning_rates():
@@ -768,6 +771,46 @@ def test_training_window_threads_corrected_velocity_and_native_state(monkeypatch
     np.testing.assert_array_equal(calls[1][0], 12.0 * np.ones_like(targets[0]))
 
 
+def test_solver_mediated_loss_requires_the_solver_vjp(monkeypatch):
+    def _advance(_t, _ctx, velocity, *, frame_steps, native_state=None):
+        del frame_steps, native_state
+        return 2.0 * jnp.asarray(velocity), None
+
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop._solver_advance",
+        _advance,
+    )
+    monkeypatch.setattr(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop."
+        "corrected_velocity",
+        lambda model, velocity, **_kwargs: velocity + model,
+    )
+    targets = jnp.ones((3, 1, 1, 1, 1))
+    ctx = SimpleNamespace(domain_extent=2.0 * np.pi)
+
+    def objective(model, differentiate_solver):
+        return _window_loss(
+            model,
+            targets,
+            t=None,
+            ctx=ctx,
+            frame_steps=1,
+            velocity_scale=1.0,
+            differentiate_solver=differentiate_solver,
+            loss_mode="solver_mediated",
+            solver_loss_weight=1.0,
+            local_loss_weight=0.0,
+            loss_scale=1.0,
+        )
+
+    full_loss, full_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), True)
+    stopped_loss, stopped_grad = jax.value_and_grad(objective)(jnp.asarray(0.0), False)
+
+    assert float(full_loss) == float(stopped_loss)
+    assert abs(float(full_grad)) > 1.0
+    assert float(stopped_grad) == 0.0
+
+
 def test_stop_gradient_cuts_velocity_and_native_state():
     def stopped(value):
         velocity, native_state = _stop_recurrent_gradient(
@@ -1050,6 +1093,9 @@ def test_curriculum_plots_render_all_training_protocols(tmp_path):
         "curriculum_checkpoint_error_full_0": np.asarray(
             [[0.0, 0.015, 0.03, 0.045], [0.0, 0.005, 0.01, 0.015]]
         ),
+        "curriculum_checkpoint_error_nog_0": np.asarray(
+            [[0.0, 0.018, 0.036, 0.054], [0.0, 0.01, 0.02, 0.03]]
+        ),
     }
     data = {
         "by_solver": {
@@ -1091,6 +1137,7 @@ def test_curriculum_plots_render_all_training_protocols(tmp_path):
     _save_solver_in_loop_curriculum_animation(arrays, ["jax-cfd"], tmp_path)
 
     assert all(figure is not None for figure in figures)
+    assert figures[3].axes[2].get_ylabel() == "WIG / NOG rollout lift [×]"
     for filename in (
         "solver_in_loop_curriculum_rollouts.png",
         "solver_in_loop_curriculum_correlations.png",
