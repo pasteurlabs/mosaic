@@ -1,474 +1,60 @@
 {
-  "weights": "/surrogate-output/recovery_3d_autoregressive_weights_ft20.npz",
-  "architecture": {
-    "kind": "autoregressive_fourier_neural_operator",
-    "width": 32,
-    "modes": 6,
-    "layers": 6,
-    "snapshot_stride_solver_steps": 5,
-    "macro_dt": 0.1,
-    "rollout_steps": 20,
-    "shared_weights_at_every_macro_step": true
+  "solver": "xlb-3d-surrogate-autoregressive",
+  "task": {
+    "N": 16,
+    "viscosity": 0.01,
+    "dt": 0.02,
+    "steps": 100,
+    "domain_extent": 6.283185307179586
   },
-  "test": {
-    "count": 512,
-    "nonzero_count": 491,
-    "rollout_relative_l2_mean_nonzero": 0.10295084863901138,
-    "final_relative_l2_mean_nonzero": 0.09905124455690384,
-    "final_relative_l2_median_nonzero": 0.08092472702264786,
-    "final_relative_l2_p95_nonzero": 0.20702654123306274,
-    "relative_l2_by_macro_step_nonzero": [
-      0.16969670355319977,
-      0.13681311905384064,
-      0.13591085374355316,
-      0.12062018364667892,
-      0.11712812632322311,
-      0.10699091851711273,
-      0.10321924835443497,
-      0.09606578946113586,
-      0.09316029399633408,
-      0.08872175216674805,
-      0.0870506763458252,
-      0.08495520055294037,
-      0.08465270698070526,
-      0.08436781913042068,
-      0.08571598678827286,
-      0.08718203753232956,
-      0.08972593396902084,
-      0.09233701229095459,
-      0.09565122425556183,
-      0.09905128180980682
-    ]
-  },
-  "exact_benchmark_seeds": [
-    {
-      "seed": 0,
-      "forward_relative_l2": 0.0748911863042295,
-      "forward_cosine": 0.9976455626430248,
-      "jvp": {
-        "low_frequency_k_le_4": [
-          {
-            "total_cosine": 0.9906814689653024,
-            "total_relative_l2": 0.1398071471773556,
-            "nonlinear_residual_cosine": 0.9857623599022175,
-            "nonlinear_residual_relative_l2": 0.16815578786838853,
-            "teacher_nonlinear_fraction": 0.8314144611358643
-          },
-          {
-            "total_cosine": 0.9867448105555002,
-            "total_relative_l2": 0.16719237331301523,
-            "nonlinear_residual_cosine": 0.9785947789849438,
-            "nonlinear_residual_relative_l2": 0.20582358059478212,
-            "teacher_nonlinear_fraction": 0.8123091459274292
-          },
-          {
-            "total_cosine": 0.989577537848915,
-            "total_relative_l2": 0.1472374053505472,
-            "nonlinear_residual_cosine": 0.9832533409914207,
-            "nonlinear_residual_relative_l2": 0.1822561603061449,
-            "teacher_nonlinear_fraction": 0.8078597187995911
-          },
-          {
-            "total_cosine": 0.9893687988484339,
-            "total_relative_l2": 0.1504709652109907,
-            "nonlinear_residual_cosine": 0.9832347062508904,
-            "nonlinear_residual_relative_l2": 0.18243359141646665,
-            "teacher_nonlinear_fraction": 0.824798583984375
-          },
-          {
-            "total_cosine": 0.9880087253737271,
-            "total_relative_l2": 0.15581509439114036,
-            "nonlinear_residual_cosine": 0.9808740356938357,
-            "nonlinear_residual_relative_l2": 0.19497778768610913,
-            "teacher_nonlinear_fraction": 0.7991427779197693
-          },
-          {
-            "total_cosine": 0.976451034683077,
-            "total_relative_l2": 0.21836399057753225,
-            "nonlinear_residual_cosine": 0.9608772049445791,
-            "nonlinear_residual_relative_l2": 0.2781289418803643,
-            "teacher_nonlinear_fraction": 0.7851178050041199
-          },
-          {
-            "total_cosine": 0.9849900890543618,
-            "total_relative_l2": 0.17495901251440918,
-            "nonlinear_residual_cosine": 0.979388413798143,
-            "nonlinear_residual_relative_l2": 0.20268014070527426,
-            "teacher_nonlinear_fraction": 0.8632271885871887
-          },
-          {
-            "total_cosine": 0.9900339002089388,
-            "total_relative_l2": 0.14322632119142725,
-            "nonlinear_residual_cosine": 0.9847164945429043,
-            "nonlinear_residual_relative_l2": 0.17416925218007456,
-            "teacher_nonlinear_fraction": 0.8223398923873901
-          }
-        ],
-        "full_spectrum_white": [
-          {
-            "total_cosine": 0.938109568583529,
-            "total_relative_l2": 0.347495336130604,
-            "nonlinear_residual_cosine": 0.9769228059508104,
-            "nonlinear_residual_relative_l2": 0.21990859167313775,
-            "teacher_nonlinear_fraction": 1.5801807641983032
-          },
-          {
-            "total_cosine": 0.9340107104795511,
-            "total_relative_l2": 0.3630684407550615,
-            "nonlinear_residual_cosine": 0.9779398979714966,
-            "nonlinear_residual_relative_l2": 0.21364662002298063,
-            "teacher_nonlinear_fraction": 1.699387788772583
-          },
-          {
-            "total_cosine": 0.9263064001853092,
-            "total_relative_l2": 0.3805701796480919,
-            "nonlinear_residual_cosine": 0.9780166462287886,
-            "nonlinear_residual_relative_l2": 0.2150166292989445,
-            "teacher_nonlinear_fraction": 1.7699570655822754
-          },
-          {
-            "total_cosine": 0.9165287675076945,
-            "total_relative_l2": 0.4036877511776073,
-            "nonlinear_residual_cosine": 0.9752774880180144,
-            "nonlinear_residual_relative_l2": 0.2263663523555039,
-            "teacher_nonlinear_fraction": 1.7833380699157715
-          },
-          {
-            "total_cosine": 0.9255182353857405,
-            "total_relative_l2": 0.3811459287941137,
-            "nonlinear_residual_cosine": 0.9746218708242335,
-            "nonlinear_residual_relative_l2": 0.22857156811650162,
-            "teacher_nonlinear_fraction": 1.6675125360488892
-          },
-          {
-            "total_cosine": 0.9272384008923702,
-            "total_relative_l2": 0.3781201952952298,
-            "nonlinear_residual_cosine": 0.9775251308843309,
-            "nonlinear_residual_relative_l2": 0.21657327819456454,
-            "teacher_nonlinear_fraction": 1.7459226846694946
-          },
-          {
-            "total_cosine": 0.9388550590149447,
-            "total_relative_l2": 0.34725160879258626,
-            "nonlinear_residual_cosine": 0.9769397234750692,
-            "nonlinear_residual_relative_l2": 0.21838114942520873,
-            "teacher_nonlinear_fraction": 1.59011709690094
-          },
-          {
-            "total_cosine": 0.9215185683985314,
-            "total_relative_l2": 0.39374455083819526,
-            "nonlinear_residual_cosine": 0.9767046907925624,
-            "nonlinear_residual_relative_l2": 0.22013219694923689,
-            "teacher_nonlinear_fraction": 1.7886731624603271
-          }
-        ]
-      }
-    },
-    {
-      "seed": 1,
-      "forward_relative_l2": 0.07276294151973714,
-      "forward_cosine": 0.9977815586550784,
-      "jvp": {
-        "low_frequency_k_le_4": [
-          {
-            "total_cosine": 0.9851263640846796,
-            "total_relative_l2": 0.17443528076061768,
-            "nonlinear_residual_cosine": 0.9774044151656545,
-            "nonlinear_residual_relative_l2": 0.2114542224884027,
-            "teacher_nonlinear_fraction": 0.8249316215515137
-          },
-          {
-            "total_cosine": 0.9757224199423006,
-            "total_relative_l2": 0.22328934539674544,
-            "nonlinear_residual_cosine": 0.9652478932071092,
-            "nonlinear_residual_relative_l2": 0.2615142665673768,
-            "teacher_nonlinear_fraction": 0.8538323640823364
-          },
-          {
-            "total_cosine": 0.9797874043670456,
-            "total_relative_l2": 0.20410744870368708,
-            "nonlinear_residual_cosine": 0.9618508168962534,
-            "nonlinear_residual_relative_l2": 0.27381941380465613,
-            "teacher_nonlinear_fraction": 0.7454089522361755
-          },
-          {
-            "total_cosine": 0.9860260021952442,
-            "total_relative_l2": 0.1715644807259444,
-            "nonlinear_residual_cosine": 0.9757065747916976,
-            "nonlinear_residual_relative_l2": 0.21975806536519574,
-            "teacher_nonlinear_fraction": 0.7806971073150635
-          },
-          {
-            "total_cosine": 0.9836962207068689,
-            "total_relative_l2": 0.1850068788798401,
-            "nonlinear_residual_cosine": 0.9711962188481038,
-            "nonlinear_residual_relative_l2": 0.23828247432193084,
-            "teacher_nonlinear_fraction": 0.7764183878898621
-          },
-          {
-            "total_cosine": 0.9870265890800441,
-            "total_relative_l2": 0.16460478937014253,
-            "nonlinear_residual_cosine": 0.9777304104675415,
-            "nonlinear_residual_relative_l2": 0.20986680585446651,
-            "teacher_nonlinear_fraction": 0.7843297719955444
-          },
-          {
-            "total_cosine": 0.9843465632516877,
-            "total_relative_l2": 0.17950557693730151,
-            "nonlinear_residual_cosine": 0.9738152386520569,
-            "nonlinear_residual_relative_l2": 0.22736671400096434,
-            "teacher_nonlinear_fraction": 0.7894980311393738
-          },
-          {
-            "total_cosine": 0.9903803512157321,
-            "total_relative_l2": 0.1450208521038866,
-            "nonlinear_residual_cosine": 0.9840370176185828,
-            "nonlinear_residual_relative_l2": 0.17866454400278456,
-            "teacher_nonlinear_fraction": 0.811693549156189
-          }
-        ],
-        "full_spectrum_white": [
-          {
-            "total_cosine": 0.9245532281813645,
-            "total_relative_l2": 0.3866917700973646,
-            "nonlinear_residual_cosine": 0.9764659175461601,
-            "nonlinear_residual_relative_l2": 0.2237846875883541,
-            "teacher_nonlinear_fraction": 1.7279634475708008
-          },
-          {
-            "total_cosine": 0.9224955245666652,
-            "total_relative_l2": 0.39061433202126933,
-            "nonlinear_residual_cosine": 0.9754009542324716,
-            "nonlinear_residual_relative_l2": 0.22735693185093564,
-            "teacher_nonlinear_fraction": 1.7180665731430054
-          },
-          {
-            "total_cosine": 0.9225625429721658,
-            "total_relative_l2": 0.38977576339911946,
-            "nonlinear_residual_cosine": 0.9751890029238868,
-            "nonlinear_residual_relative_l2": 0.22798506217436726,
-            "teacher_nonlinear_fraction": 1.7096549272537231
-          },
-          {
-            "total_cosine": 0.9175951388588566,
-            "total_relative_l2": 0.40194389169308375,
-            "nonlinear_residual_cosine": 0.9731585942703411,
-            "nonlinear_residual_relative_l2": 0.2363401802410967,
-            "teacher_nonlinear_fraction": 1.7007006406784058
-          },
-          {
-            "total_cosine": 0.9259056986373227,
-            "total_relative_l2": 0.3839497473955766,
-            "nonlinear_residual_cosine": 0.9754293776800895,
-            "nonlinear_residual_relative_l2": 0.22735374301719433,
-            "teacher_nonlinear_fraction": 1.688776969909668
-          },
-          {
-            "total_cosine": 0.9248975330142715,
-            "total_relative_l2": 0.38472346181723155,
-            "nonlinear_residual_cosine": 0.9762254870234863,
-            "nonlinear_residual_relative_l2": 0.22469475504285275,
-            "teacher_nonlinear_fraction": 1.712204933166504
-          },
-          {
-            "total_cosine": 0.9313078518919786,
-            "total_relative_l2": 0.36962684309450233,
-            "nonlinear_residual_cosine": 0.974284228791997,
-            "nonlinear_residual_relative_l2": 0.2333186458085393,
-            "teacher_nonlinear_fraction": 1.5842148065567017
-          },
-          {
-            "total_cosine": 0.9304467552926007,
-            "total_relative_l2": 0.36980988865353165,
-            "nonlinear_residual_cosine": 0.9757361876269794,
-            "nonlinear_residual_relative_l2": 0.2258898220020117,
-            "teacher_nonlinear_fraction": 1.6371252536773682
-          }
-        ]
-      }
-    },
-    {
-      "seed": 2,
-      "forward_relative_l2": 0.07654573616782082,
-      "forward_cosine": 0.9974309993211868,
-      "jvp": {
-        "low_frequency_k_le_4": [
-          {
-            "total_cosine": 0.9827106584555608,
-            "total_relative_l2": 0.1909840402988371,
-            "nonlinear_residual_cosine": 0.9721473105794054,
-            "nonlinear_residual_relative_l2": 0.23439155743504772,
-            "teacher_nonlinear_fraction": 0.8148077130317688
-          },
-          {
-            "total_cosine": 0.9819016669236477,
-            "total_relative_l2": 0.1908109643667148,
-            "nonlinear_residual_cosine": 0.9714387568310449,
-            "nonlinear_residual_relative_l2": 0.2373753652119131,
-            "teacher_nonlinear_fraction": 0.8038364052772522
-          },
-          {
-            "total_cosine": 0.9751482977458191,
-            "total_relative_l2": 0.2272287227758171,
-            "nonlinear_residual_cosine": 0.9599789638917614,
-            "nonlinear_residual_relative_l2": 0.28063057732694213,
-            "teacher_nonlinear_fraction": 0.8097077012062073
-          },
-          {
-            "total_cosine": 0.9877479785472271,
-            "total_relative_l2": 0.1600584652460434,
-            "nonlinear_residual_cosine": 0.9788423557473319,
-            "nonlinear_residual_relative_l2": 0.20462213599131823,
-            "teacher_nonlinear_fraction": 0.7822148203849792
-          },
-          {
-            "total_cosine": 0.9841885972427223,
-            "total_relative_l2": 0.18070673463601597,
-            "nonlinear_residual_cosine": 0.9745646649463369,
-            "nonlinear_residual_relative_l2": 0.22420093987474427,
-            "teacher_nonlinear_fraction": 0.8060034513473511
-          },
-          {
-            "total_cosine": 0.9889645603178777,
-            "total_relative_l2": 0.15294933783991865,
-            "nonlinear_residual_cosine": 0.9837550515490194,
-            "nonlinear_residual_relative_l2": 0.18022813442136024,
-            "teacher_nonlinear_fraction": 0.848642885684967
-          },
-          {
-            "total_cosine": 0.98737702543196,
-            "total_relative_l2": 0.1604643485457403,
-            "nonlinear_residual_cosine": 0.9809168512340569,
-            "nonlinear_residual_relative_l2": 0.19447341804099272,
-            "teacher_nonlinear_fraction": 0.8251222968101501
-          },
-          {
-            "total_cosine": 0.9753496218281468,
-            "total_relative_l2": 0.22549337960549348,
-            "nonlinear_residual_cosine": 0.9588356918901058,
-            "nonlinear_residual_relative_l2": 0.2852225232473919,
-            "teacher_nonlinear_fraction": 0.7905875444412231
-          }
-        ],
-        "full_spectrum_white": [
-          {
-            "total_cosine": 0.9282029821926917,
-            "total_relative_l2": 0.3744840484182635,
-            "nonlinear_residual_cosine": 0.9750811695481668,
-            "nonlinear_residual_relative_l2": 0.2272670735103508,
-            "teacher_nonlinear_fraction": 1.6477707624435425
-          },
-          {
-            "total_cosine": 0.9212761752282962,
-            "total_relative_l2": 0.39404394359000555,
-            "nonlinear_residual_cosine": 0.9770662820957648,
-            "nonlinear_residual_relative_l2": 0.21940912987541064,
-            "teacher_nonlinear_fraction": 1.7959322929382324
-          },
-          {
-            "total_cosine": 0.916604419314467,
-            "total_relative_l2": 0.40163785915938205,
-            "nonlinear_residual_cosine": 0.9722298209703182,
-            "nonlinear_residual_relative_l2": 0.23912059918817238,
-            "teacher_nonlinear_fraction": 1.6796455383300781
-          },
-          {
-            "total_cosine": 0.9170406989429614,
-            "total_relative_l2": 0.40295198710834423,
-            "nonlinear_residual_cosine": 0.9760356735728862,
-            "nonlinear_residual_relative_l2": 0.22343336925994564,
-            "teacher_nonlinear_fraction": 1.8034547567367554
-          },
-          {
-            "total_cosine": 0.921740538997493,
-            "total_relative_l2": 0.39050382220395813,
-            "nonlinear_residual_cosine": 0.9738119918652461,
-            "nonlinear_residual_relative_l2": 0.2313860299903423,
-            "teacher_nonlinear_fraction": 1.6876723766326904
-          },
-          {
-            "total_cosine": 0.9191836906875167,
-            "total_relative_l2": 0.39758298647496176,
-            "nonlinear_residual_cosine": 0.9739777525472566,
-            "nonlinear_residual_relative_l2": 0.23154706911107437,
-            "teacher_nonlinear_fraction": 1.7170720100402832
-          },
-          {
-            "total_cosine": 0.9285027112344997,
-            "total_relative_l2": 0.3746099782029503,
-            "nonlinear_residual_cosine": 0.9767967549224771,
-            "nonlinear_residual_relative_l2": 0.21912626791923465,
-            "teacher_nonlinear_fraction": 1.7095621824264526
-          },
-          {
-            "total_cosine": 0.9263639148788525,
-            "total_relative_l2": 0.37923336883503994,
-            "nonlinear_residual_cosine": 0.9765359195012022,
-            "nonlinear_residual_relative_l2": 0.22179783951928314,
-            "teacher_nonlinear_fraction": 1.709815502166748
-          }
-        ]
-      }
-    }
+  "compile_plus_first_forward_seconds": 2.2318775659659877,
+  "forward_seconds": [
+    0.007367534039076418,
+    0.007122053008060902,
+    0.0070980440359562635,
+    0.007097834022715688,
+    0.0070946430205367506,
+    0.0071055139997042716,
+    0.007111724000424147,
+    0.007115553016774356,
+    0.007105224009137601,
+    0.007108023972250521,
+    0.007084032986313105,
+    0.007116133987437934,
+    0.007107334036845714,
+    0.0071454530116170645,
+    0.007173743972089142,
+    0.007188152987509966,
+    0.007134614046663046,
+    0.007946473022457212,
+    0.007169963035266846,
+    0.007142484013456851
   ],
-  "exact_forward_relative_l2_mean": 0.07473328799726249,
-  "exact_forward_cosine_mean": 0.9976193735397634,
-  "jvp_summary": {
-    "low_frequency_k_le_4": {
-      "total_cosine": {
-        "mean": 0.9846398619531175,
-        "min": 0.9751482977458191,
-        "max": 0.9906814689653024
-      },
-      "total_relative_l2": {
-        "mean": 0.1763876231632985,
-        "min": 0.1398071471773556,
-        "max": 0.2272287227758171
-      },
-      "nonlinear_residual_cosine": {
-        "mean": 0.9751737319760415,
-        "min": 0.9588356918901058,
-        "max": 0.9857623599022175
-      },
-      "nonlinear_residual_relative_l2": {
-        "mean": 0.21877068335804553,
-        "min": 0.16815578786838853,
-        "max": 0.2852225232473919
-      },
-      "teacher_nonlinear_fraction": {
-        "mean": 0.8080809240539869,
-        "min": 0.7454089522361755,
-        "max": 0.8632271885871887
-      }
-    },
-    "full_spectrum_white": {
-      "total_cosine": {
-        "mean": 0.9252818798058198,
-        "min": 0.9165287675076945,
-        "max": 0.9388550590149447
-      },
-      "total_relative_l2": {
-        "mean": 0.3828028201498364,
-        "min": 0.34725160879258626,
-        "max": 0.4036877511776073
-      },
-      "nonlinear_residual_cosine": {
-        "mean": 0.9757238903860014,
-        "min": 0.9722298209703182,
-        "max": 0.9780166462287886
-      },
-      "nonlinear_residual_relative_l2": {
-        "mean": 0.22493364967230187,
-        "min": 0.21364662002298063,
-        "max": 0.23912059918817238
-      },
-      "teacher_nonlinear_fraction": {
-        "mean": 1.7022800892591476,
-        "min": 1.5801807641983032,
-        "max": 1.8034547567367554
-      }
-    }
-  },
-  "surrogate_forward_seconds": 0.008090950950281695,
-  "surrogate_vjp_seconds": 0.0168135895015439
+  "forward_median_seconds": 0.007115843502106145,
+  "compile_plus_first_vjp_seconds": 2.021922013023868,
+  "vjp_seconds": [
+    0.014939416025299579,
+    0.014848876977339387,
+    0.014854417007882148,
+    0.01480157597688958,
+    0.014797726995311677,
+    0.014836727001238614,
+    0.01478487701388076,
+    0.014827505976427346,
+    0.014845387020613998,
+    0.014859796967357397,
+    0.016621524991933256,
+    0.01628464600071311,
+    0.014986396010499448,
+    0.014890777005348355,
+    0.014868537022266537,
+    0.01486967597156763,
+    0.01487119699595496,
+    0.014880207017995417,
+    0.01486452599056065,
+    0.014836927002761513
+  ],
+  "vjp_median_seconds": 0.014862161478959024,
+  "result_l2": 16.812929153442383,
+  "vjp_l2": 12.144535064697266
 }

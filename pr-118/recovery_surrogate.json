@@ -296,8 +296,8 @@
           2.0533050815174647e-08,
           4.562579647426901e-08
         ],
-        "vram_peak_mib": 1512.0625,
-        "ram_peak_mib": 1245.110272
+        "vram_peak_mib": 1395.375,
+        "ram_peak_mib": 1151.143936
       }
     }
   ],
@@ -308,26 +308,26 @@
   },
   "provenance": {
     "tesseract_hashes": {
-      "XLB 3D surrogate": "df7c3cd51c2984e9"
+      "XLB 3D surrogate": "f5f942982e4b44fd"
     },
     "harness_hash": "18c0f72496e4470a",
     "harness_fn": "mosaic.benchmarks.problems.navier_stokes_3d_grid.optimization.recovery",
     "wall_time_s": {
-      "XLB 3D surrogate": 35.48301232792437
+      "XLB 3D surrogate": 33.166444489965215
     },
     "environment": {
       "python_version": "3.12.3",
-      "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.39",
-      "mosaic_version": "0.1.2.dev33+g99dfbbdf2",
-      "timestamp": "2026-07-27T07:35:59.382190+00:00"
+      "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.1.2.dev33+g99dfbbdf2.d20260727",
+      "timestamp": "2026-07-27T07:44:46.265074+00:00"
     },
     "run_meta": {
-      "timestamp": "2026-07-27T07:35:59Z",
+      "timestamp": "2026-07-27T07:44:46Z",
       "ci": false,
       "runner": "",
       "github_run_id": "",
       "github_sha": "",
-      "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.39"
+      "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39"
     }
   }
 }
