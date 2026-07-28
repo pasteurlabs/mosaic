@@ -19,8 +19,6 @@ import jax  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
 import xlb  # noqa: E402
 import xlb.velocity_set  # noqa: E402
-from pydantic import Field  # noqa: E402
-from tesseract_core.runtime import Array, Differentiable, Float32  # noqa: E402
 
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
@@ -37,45 +35,19 @@ from mosaic_shared.schema_types import make_differentiable  # noqa: E402
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema,
+        ["v0", "state", "viscosity", "dt", "inflow_profile"],
     )
 ):
     """XLB solver input schema with optional differentiable recurrent state."""
 
     supports_recurrent_state: ClassVar[bool] = True
 
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Optional recurrent checkpoint, shape (q+d, nx, ny, nz), containing "
-            "q LBM populations followed by d canonical velocity channels. q=9 "
-            "in 2-D (nz=1) and q=27 in 3-D. When supplied, the change from the "
-            "checkpointed canonical velocity to v0 replaces the macroscopic velocity "
-            "while density and non-equilibrium moments are preserved. "
-            "The grid, timestep, domain, substep policy, and collision configuration "
-            "must be unchanged."
-        ),
-    )
-    return_state: bool = Field(
-        default=False,
-        description=(
-            "Return recurrent checkpoint state for continuation. Static control "
-            "flag; state is also returned whenever an input state is supplied."
-        ),
-    )
 
-
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
+class OutputSchema(
+    make_differentiable(_CanonicalOutputSchema, ["result", "state", "drag"])
+):
     """XLB solver output schema including differentiable recurrent state."""
-
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Final recurrent checkpoint when requested, shape "
-            "(q+d, nx, ny, nz): q populations followed by d canonical velocity "
-            "channels."
-        ),
-    )
 
 
 from xlb.compute_backend import ComputeBackend  # noqa: E402

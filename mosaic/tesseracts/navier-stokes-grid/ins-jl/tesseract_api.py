@@ -14,44 +14,21 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.schema_types import make_differentiable
-from pydantic import Field
-from tesseract_core.runtime import Array, Differentiable, Float32
 
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema,
+        ["v0", "state", "viscosity", "dt", "inflow_profile"],
     )
 ):
     """Input schema for the incompressible Navier-Stokes Julia solver."""
 
     supports_recurrent_state: ClassVar[bool] = True
 
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Optional native staggered face velocity returned by a previous call. "
-            "When provided, v0 is interpreted as the desired corrected canonical "
-            "velocity and is reconciled with this state before advancing. The grid, "
-            "boundary conditions, timestep, and solver configuration must be unchanged."
-        ),
-    )
-    return_state: bool = Field(
-        default=False,
-        description="Return native staggered state for recurrent continuation.",
-    )
 
-
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state"])):
     """Output schema for the incompressible Navier-Stokes Julia solver."""
-
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Float32 native staggered interior velocity for recurrent continuation. "
-            "Unavailable for the obstacle/channel path."
-        ),
-    )
 
 
 # ---------------------------------------------------------------------------

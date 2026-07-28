@@ -25,25 +25,12 @@ from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_pat
 
 
 class InputSchema(
-    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
+    make_differentiable(_CanonicalInputSchema, ["v0", "state", "viscosity", "dt"])
 ):
     """Input schema for jax-cfd Navier-Stokes solver."""
 
     supports_recurrent_state: ClassVar[bool] = True
 
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Optional native staggered face velocity returned by a previous call. "
-            "When provided, v0 is interpreted as the desired corrected canonical "
-            "velocity and is reconciled with this state before advancing. The grid, "
-            "boundary conditions, timestep, and solver configuration must be unchanged."
-        ),
-    )
-    return_state: bool = Field(
-        default=False,
-        description="Return native staggered state for recurrent continuation.",
-    )
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
     )
@@ -77,13 +64,8 @@ class InputSchema(
         return self
 
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state"])):
     """Output schema for jax-cfd Navier-Stokes solver."""
-
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description="Native staggered face velocity for recurrent continuation.",
-    )
 
 
 def _jaxcfd_bc(

@@ -31,40 +31,19 @@ from phi.jax.flow import (
     geom,
     math,
 )
-from pydantic import Field, model_validator
-from tesseract_core.runtime import Array, Differentiable, Float32
+from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema,
+        ["v0", "state", "viscosity", "dt", "inflow_profile"],
     )
 ):
     """PhiFlow Navier-Stokes input schema with differentiable velocity and physics params."""
 
     supports_recurrent_state: ClassVar[bool] = True
-
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Optional recurrent checkpoint returned by a previous call. The final "
-            "axis packs the native staggered velocity followed by the canonical "
-            "cell-centred velocity, so its size is twice that of v0. Periodic native "
-            "state uses Mosaic's high-face indexing and is translated to PhiFlow's "
-            "lower-face indexing internally. "
-            "When provided, v0 is interpreted as the desired corrected canonical "
-            "velocity and is reconciled with this state before advancing. The grid, "
-            "boundary conditions, timestep, and solver configuration must be unchanged."
-        ),
-    )
-    return_state: bool = Field(
-        default=False,
-        description=(
-            "Return a recurrent checkpoint containing native staggered velocity "
-            "and the exact canonical result."
-        ),
-    )
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
@@ -78,17 +57,10 @@ class InputSchema(
         return self
 
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
+class OutputSchema(
+    make_differentiable(_CanonicalOutputSchema, ["result", "state", "drag"])
+):
     """PhiFlow Navier-Stokes output schema with differentiable result and drag."""
-
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Recurrent checkpoint for continuation. The final axis packs native "
-            "staggered velocity followed by the exact canonical result; periodic "
-            "native state uses Mosaic's high-face indexing."
-        ),
-    )
 
 
 def _phiflow_extrapolation(bc_dict: dict, ndim: int):
