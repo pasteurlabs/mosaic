@@ -148,12 +148,12 @@ def _run(
     Returns ``(result, drag, state)``. ``drag`` is non-None only in channel
     mode; native recurrent state is currently available only in periodic mode.
 
-    2-D: velocity (nx, ny, 1, 2) → result (nx, ny, 1, 2)
-    3-D: velocity (nx, ny, nz, 3) → result (nx, ny, nz, 3)
+    2-D: v0 (nx, ny, 1, 2) → result (nx, ny, 1, 2)
+    3-D: v0 (nx, ny, nz, 3) → result (nx, ny, nz, 3)
     2-D channel: obstacle provided
                  → result (nx, ny, 1, 2)
                  Inflow at x=0 face: either inflow_profile (shape (N,), ux
-                 only; uy=0) when given, else derived from velocity[:, 0, 0].
+                 only; uy=0) when given, else derived from v0[:, 0, 0].
 
     inflow_profile without an obstacle is not supported: plain inflow_profile
     in a periodic domain has no physical meaning in this solver (periodic
@@ -164,13 +164,13 @@ def _run(
             f"INS.jl state has shape {np.shape(state)}, expected {np.shape(v0)}"
         )
     # Channel mode: obstacle present. Inflow may be either an explicit
-    # inflow_profile (drag_opt path) or derived from velocity.
+    # inflow_profile (drag_opt path) or derived from v0.
     if obstacle is not None:
         if state is not None:
             raise NotImplementedError(
                 "INS.jl native recurrent state is supported only for periodic flow"
             )
-        # velocity is (nx, ny, 1, 2) — squeeze z=1 dimension
+        # v0 is (nx, ny, 1, 2) — squeeze z=1 dimension
         v0_2d = np.asarray(v0, dtype=np.float32)[:, :, 0, :]  # (N, N, 2)
         N = v0_2d.shape[0]
         if inflow_profile is not None:
@@ -185,7 +185,7 @@ def _run(
                 np.float32
             )  # (N, 2)
         else:
-            # Fall-back: derive inflow column from velocity left face.
+            # Fall-back: derive inflow column from v0 left face.
             inflow_col = v0_2d[:, 0, 0]  # (N,) — ux values at x=0 column
             inflow_np = np.stack(
                 [inflow_col, np.zeros_like(inflow_col)], axis=-1
@@ -318,10 +318,10 @@ def _vjp(
 
     In channel mode (obstacle present), when inflow_profile is given, the
     gradient w.r.t. inflow_profile (shape (N,)) is returned. Otherwise the
-    gradient w.r.t. the inflow column derived from velocity[:, 0, 0, :] is computed.
+    gradient w.r.t. the inflow column derived from v0[:, 0, 0, :] is computed.
     """
     # Channel mode VJP: obstacle present. Either inflow_profile (drag_opt)
-    # or velocity-derived inflow.
+    # or v0-derived inflow.
     #
     # cotangent is a dict with keys "result" and/or "drag".  We pass both to
     # ns_vjp_channel_2d_drag_window so that Zygote can differentiate through
@@ -393,14 +393,14 @@ def _vjp(
                     np.float32
                 )
             out["inflow_profile"] = grad_prof_full.astype(np.float32)
-            # velocity is still a constant uniform flow in drag_opt; provide a
+            # v0 is still a constant uniform flow in drag_opt; provide a
             # zero-valued gradient at the same shape for completeness.
             out["v0"] = np.zeros(
                 (v0_2d.shape[0], v0_2d.shape[1], 1, v0_2d.shape[2]),
                 dtype=np.float32,
             )
         else:
-            # Map gradient back to velocity shape: only the x=0 column carries gradient.
+            # Map gradient back to v0 shape: only the x=0 column carries gradient.
             grad_v0 = np.zeros_like(v0_2d)  # (N, N, 2)
             grad_v0[:, 0, 0] = grad_inflow[:, 0]  # ux component
             grad_v0[:, 0, 1] = grad_inflow[:, 1]  # uy (≡0 but propagate)
@@ -423,12 +423,12 @@ def _vjp(
             int(nx),
             float(domain_extent),
         )
-        grad_velocity_2d = _to_numpy(result[0])
+        grad_v0_2d = _to_numpy(result[0])
         grad_nu = float(result[1])
         grad_dt_val = float(result[2])
         grad_L = float(result[3])
         return {
-            "v0": grad_velocity_2d[:, :, np.newaxis, :].astype(np.float32),
+            "v0": grad_v0_2d[:, :, np.newaxis, :].astype(np.float32),
             "viscosity": np.array([grad_nu], dtype=np.float32),
             "dt": np.array([grad_dt_val], dtype=np.float32),
             "domain_extent": np.float32(grad_L),
@@ -597,12 +597,12 @@ def _drag_cotangent_to_result(
 ) -> np.ndarray:
     """Back-propagate the drag cotangent into a cotangent on ``result``.
 
-    Propagates through _compute_drag_numpy (shape velocity_shape). Since pressure is
+    Propagates through _compute_drag_numpy (shape v0_shape). Since pressure is
     forced to zero in our drag computation, only the viscous term contributes
     and the drag is linear in ux; the Jacobian is a fixed mask determined by the
     obstacle surface layout.
 
-    velocity_shape: (N, N, 1, 2).
+    v0_shape: (N, N, 1, 2).
     """
     N = v0_shape[0]
     cx = obstacle["center"][0] * N

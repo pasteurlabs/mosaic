@@ -14,6 +14,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.problems.navier_stokes_grid import (
+    boundary_conditions_are_fully_periodic,
     collocated_to_staggered_periodic,
     lift_collocated_to_staggered_periodic,
     staggered_to_collocated_periodic,
@@ -247,10 +248,9 @@ def cfd_fwd(
     domain_sizes = (domain_extent,) * ndim
 
     bc = _jaxcfd_bc(boundary_conditions, ndim)
-    periodic = all(
-        boundary_conditions[key]["type"] == "periodic"
-        for key in ("x_lo", "x_hi", "y_lo", "y_hi")
-        + (("z_lo", "z_hi") if ndim == 3 else ())
+    periodic = boundary_conditions_are_fully_periodic(
+        boundary_conditions,
+        ndim,
     )
 
     spatial_shape = v0.shape[:-1]

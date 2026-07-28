@@ -13,9 +13,12 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.problems.navier_stokes_grid import (
+    boundary_conditions_are_fully_periodic,
     collocated_to_staggered_periodic,
     drag_jax,
     lift_collocated_to_staggered_periodic,
+    staggered_high_to_low_periodic,
+    staggered_low_to_high_periodic,
     staggered_to_collocated_periodic,
 )
 from mosaic_shared.schema_types import make_differentiable
@@ -216,10 +219,9 @@ def phiflow_fwd(
     ext = raw_ext
     obstacle_obj = _make_phiflow_obstacle(obstacle, domain_extent, ndim)
     obstacles = (obstacle_obj,) if obstacle_obj is not None else ()
-    periodic = all(
-        boundary_conditions[key]["type"] == "periodic"
-        for key in ("x_lo", "x_hi", "y_lo", "y_hi")
-        + (("z_lo", "z_hi") if ndim == 3 else ())
+    periodic = boundary_conditions_are_fully_periodic(
+        boundary_conditions,
+        ndim,
     )
 
     # Obstacle mask for drag computation (2-D only)
@@ -309,32 +311,12 @@ def phiflow_fwd(
             axis=0,
         )
 
-    def high_faces_to_phiflow(face_values: jnp.ndarray) -> jnp.ndarray:
-        """Convert canonical high-face indexing to PhiFlow's lower faces."""
-        return jnp.stack(
-            [
-                jnp.roll(face_values[..., component], 1, axis=component)
-                for component in range(ndim)
-            ],
-            axis=-1,
-        )
-
-    def phiflow_faces_to_high(face_values: jnp.ndarray) -> jnp.ndarray:
-        """Convert PhiFlow's lower-face indexing to canonical high faces."""
-        return jnp.stack(
-            [
-                jnp.roll(face_values[..., component], -1, axis=component)
-                for component in range(ndim)
-            ],
-            axis=-1,
-        )
-
     def centered_to_faces(v0: jnp.ndarray) -> jnp.ndarray:
         """Canonical component-last velocity → native component-first faces."""
         if periodic:
             high_faces = collocated_to_staggered_periodic(v0, xp=jnp)
             return jnp.moveaxis(
-                high_faces_to_phiflow(high_faces),
+                staggered_high_to_low_periodic(high_faces, xp=jnp),
                 -1,
                 0,
             )
@@ -362,7 +344,7 @@ def phiflow_fwd(
         if periodic:
             lower_faces = jnp.moveaxis(face_values, 0, -1)
             return staggered_to_collocated_periodic(
-                phiflow_faces_to_high(lower_faces),
+                staggered_low_to_high_periodic(lower_faces, xp=jnp),
                 xp=jnp,
             )
         staggered = faces_to_staggered(face_values)
@@ -377,7 +359,7 @@ def phiflow_fwd(
         """Right-invert PhiFlow's periodic face-to-center resampling."""
         high_faces = lift_collocated_to_staggered_periodic(delta, xp=jnp)
         return jnp.moveaxis(
-            high_faces_to_phiflow(high_faces),
+            staggered_high_to_low_periodic(high_faces, xp=jnp),
             -1,
             0,
         )
@@ -477,7 +459,11 @@ def phiflow_fwd(
     if native_state is None:
         face_init = centered_to_faces(v0)
     else:
-        state_values = high_faces_to_phiflow(native_state) if periodic else native_state
+        state_values = (
+            staggered_high_to_low_periodic(native_state, xp=jnp)
+            if periodic
+            else native_state
+        )
         face_state = jnp.moveaxis(state_values, -1, 0)
         correction = v0 - canonical_checkpoint
         correction_faces = (
@@ -504,7 +490,10 @@ def phiflow_fwd(
     result = faces_to_centered(face_final)
     native_state_out = jnp.moveaxis(face_final, 0, -1)
     if periodic:
-        native_state_out = phiflow_faces_to_high(native_state_out)
+        native_state_out = staggered_low_to_high_periodic(
+            native_state_out,
+            xp=jnp,
+        )
     if ndim == 2:
         # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
         result = result[:, :, None, :]
