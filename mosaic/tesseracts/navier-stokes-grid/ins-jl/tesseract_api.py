@@ -38,14 +38,9 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state
 jl = juliacall.newmodule("ins_ns")
 jl.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
 jl.seval("using IncompressibleNavierStokes, Zygote")
-jl.include(
-    str(
-        Path(mosaic_shared.__file__).parent
-        / "problems"
-        / "navier_stokes_grid"
-        / "ns_solver.jl"
-    )
-)
+_JULIA_SOURCE = Path(mosaic_shared.__file__).parent / "problems" / "navier_stokes_grid"
+jl.include(str(_JULIA_SOURCE / "grid_layout.jl"))
+jl.include(str(_JULIA_SOURCE / "ns_solver.jl"))
 
 
 # ---------------------------------------------------------------------------
