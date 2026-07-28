@@ -575,3 +575,150 @@ def test_add_experiment_sweep_mode_default_still_auto_sweeps(tmp_path):
     # Auto-sweep: physics.nu list collapses to scalar placeholder + sweep block.
     assert run["physics"]["nu"] == 0.05
     assert run["sweep"] == {"key": "nu", "values": [0.05, 0.01, 0.005, 0.001]}
+
+
+# ── Docker setup diagnostics ──────────────────────────────────────────────────
+#
+# The three failure modes a first-time user hits, plus the two ways the hint
+# could do harm: firing on an unrelated error, or replacing the raw detail.
+
+
+@pytest.fixture
+def uncached_daemon(monkeypatch):
+    """Clear the process-wide daemon probe cache around a test."""
+    monkeypatch.setattr(runner, "_daemon_reachable", None)
+    yield
+    monkeypatch.setattr(runner, "_daemon_reachable", None)
+
+
+@pytest.fixture
+def daemon_up(monkeypatch):
+    """Pretend the Docker daemon answers, so the probe is not the deciding factor."""
+    monkeypatch.setattr(runner, "_docker_daemon_reachable", lambda: True)
+
+
+@pytest.fixture
+def daemon_down(monkeypatch):
+    """Pretend the Docker daemon is unreachable."""
+    monkeypatch.setattr(runner, "_docker_daemon_reachable", lambda: False)
+
+
+def test_hint_gpu_runtime_missing(daemon_up):
+    """The CDI error Docker Desktop emits without an NVIDIA runtime is recognised."""
+    exc = RuntimeError(
+        "docker: Error response from daemon: failed to discover GPU vendor "
+        "from CDI: no known GPU vendor found"
+    )
+    hint = runner._docker_setup_hint(exc)
+    assert hint is not None
+    assert "--gpus none" in hint
+    assert "NVIDIA Container Toolkit" in hint
+
+
+def test_hint_gpu_runtime_checked_before_daemon(daemon_down):
+    """A GPU error stays a GPU error even when the daemon probe also fails.
+
+    The probe shells out, so a host mid-restart can report both. The GPU
+    marker is the more specific signal and must win.
+    """
+    exc = RuntimeError("could not select device driver with capabilities: [[gpu]]")
+    assert "NVIDIA" in (runner._docker_setup_hint(exc) or "")
+
+
+def test_hint_daemon_down_beats_image_not_found(daemon_down):
+    """A dead daemon is reported as such, not as a missing image.
+
+    tesseract_core's ``Images.get`` cannot tell "no daemon" from "no such
+    image" — ``docker inspect`` fails either way — so it raises ImageNotFound
+    for both. Telling the user to rebuild would send them down a dead end.
+    """
+    exc = RuntimeError("Image navier-stokes-jax:latest not found.")
+    hint = runner._docker_setup_hint(exc)
+    assert hint is not None
+    assert "daemon is not reachable" in hint
+    assert "--no-build" not in hint
+
+
+def test_hint_missing_image_when_daemon_is_up(daemon_up):
+    """With the daemon answering, a not-found really is a missing image."""
+    exc = RuntimeError("Image navier-stokes-jax:latest not found.")
+    hint = runner._docker_setup_hint(exc)
+    assert hint is not None
+    assert "--no-build" in hint
+
+
+def test_hint_none_for_unrecognised_error(daemon_up):
+    """An unrelated failure gets no hint — a wrong guess is worse than none."""
+    exc = ValueError("solver returned a non-finite Jacobian")
+    assert runner._docker_setup_hint(exc) is None
+
+
+def test_hint_reads_exception_type_not_just_message(daemon_up):
+    """Classification also sees the type name, which is where ImageNotFound lives."""
+
+    class ImageNotFound(Exception):
+        pass
+
+    hint = runner._docker_setup_hint(ImageNotFound("navier-stokes-jax:latest"))
+    assert hint is not None
+    assert "--no-build" in hint
+
+
+def test_warn_keeps_raw_error_alongside_the_hint(daemon_up, capsys):
+    """The hint leads, but the original Docker text is still printed."""
+    exc = RuntimeError(
+        "docker: Error response from daemon: failed to discover GPU vendor from CDI"
+    )
+    runner._warn_docker_failure("jax_cfd failed: ", exc)
+    # rich hard-wraps at terminal width, so compare on collapsed whitespace.
+    out = " ".join(capsys.readouterr().out.split())
+    assert "NVIDIA container runtime" in out
+    assert "failed to discover GPU vendor" in out
+    assert "jax_cfd failed:" in out
+
+
+def test_warn_falls_back_to_raw_error_only(daemon_up, capsys):
+    """With no hint, output is exactly what it was before this change."""
+    runner._warn_docker_failure("jax_cfd failed: ", ValueError("boom"))
+    out = " ".join(capsys.readouterr().out.split())
+    assert "jax_cfd failed: boom" in out
+    assert "Docker reported" not in out
+
+
+def test_daemon_probe_false_when_docker_binary_is_absent(monkeypatch):
+    """A missing docker executable reads as unreachable, not as a crash."""
+
+    def no_binary(*_args, **_kwargs):
+        raise FileNotFoundError("docker")
+
+    monkeypatch.setattr(runner.subprocess, "run", no_binary)
+    assert runner._probe_docker_daemon() is False
+
+
+def test_daemon_probe_false_on_timeout(monkeypatch):
+    """A hung probe reads as unreachable rather than hanging the run."""
+
+    def hangs(*_args, **_kwargs):
+        raise runner.subprocess.TimeoutExpired(cmd="docker info", timeout=5.0)
+
+    monkeypatch.setattr(runner.subprocess, "run", hangs)
+    assert runner._probe_docker_daemon() is False
+
+
+def test_daemon_probe_is_cached(monkeypatch, uncached_daemon):
+    """The daemon is probed once, not once per failing solver.
+
+    The GPU pool fails every solver at the same instant, so an uncached probe
+    would add one subprocess per failure to an already-failing run.
+    """
+    calls = []
+
+    def counting_probe():
+        calls.append(1)
+        return False
+
+    monkeypatch.setattr(runner, "_probe_docker_daemon", counting_probe)
+    assert runner._docker_daemon_reachable() is False
+    assert runner._docker_daemon_reachable() is False
+    assert runner._docker_daemon_reachable() is False
+    assert len(calls) == 1
