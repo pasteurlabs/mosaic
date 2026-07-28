@@ -76,7 +76,11 @@ def load_template(name_or_path: str) -> DomainTemplate:
     with open(path) as f:
         doc = yaml.safe_load(f)
     if not isinstance(doc, dict):
-        raise ValueError(f"{path}: expected a YAML mapping, got {type(doc).__name__}")
+        # ValueError, not TypeError: this is malformed config-file content, not a
+        # programming-level argument-type violation.
+        raise ValueError(  # noqa: TRY004
+            f"{path}: expected a YAML mapping, got {type(doc).__name__}"
+        )
     for key in ("name", "schema_module", "output_key"):
         if key not in doc:
             raise ValueError(f"{path}: missing required field {key!r}")

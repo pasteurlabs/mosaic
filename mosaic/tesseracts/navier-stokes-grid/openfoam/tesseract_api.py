@@ -53,6 +53,7 @@ def _run_of(cmd: str, cwd: Path) -> None:
         cwd=str(cwd),
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(

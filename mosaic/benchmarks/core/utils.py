@@ -161,11 +161,9 @@ def exclusion_lookup(
     # Full path: "<suite>", "<suite>/<exp>", "<suite>/<exp>/<sub>".
     parts: list[str] = [suite]
     if experiment:
-        for p in experiment.split("/"):
-            parts.append(p)
+        parts.extend(experiment.split("/"))
     if sub:
-        for p in sub.split("/"):
-            parts.append(p)
+        parts.extend(sub.split("/"))
     # Try longest prefix first.
     for n in range(len(parts), 0, -1):
         key = "/".join(parts[:n])

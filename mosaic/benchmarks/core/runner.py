@@ -9,6 +9,7 @@ import atexit
 import concurrent.futures
 import contextlib
 import json
+import logging
 import os
 import queue
 import subprocess
@@ -64,6 +65,8 @@ from .console import (  # noqa: E402
     print_warn,
 )
 from .resources import container_memory_args  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 _tl = threading.local()  # thread-local state (image_tag, gpu_id, last_apply_error)
 
@@ -130,9 +133,10 @@ def _force_remove_containers() -> None:
                 ["docker", "rm", "-f", name],
                 capture_output=True,
                 timeout=10,
+                check=False,
             )
         except Exception:
-            pass
+            logger.debug("force-remove of container %s failed", name, exc_info=True)
 
 
 atexit.register(_force_remove_containers)
@@ -238,6 +242,7 @@ def build_all(
             ["tesseract", "build", "--tag", tag, str(tesseract_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         elapsed = time.monotonic() - t0
         if r.returncode != 0:
@@ -429,7 +434,7 @@ def run_suite(
 
                 jax.clear_caches()
             except Exception:
-                pass
+                logger.debug("jax.clear_caches() failed", exc_info=True)
 
     if plots and plot_fns:
         print_rule("plots")

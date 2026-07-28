@@ -47,7 +47,7 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
     keyed by tesseract-dir basename, so the generated page's section headings
     are sourced from the problem configs rather than from this file.
     """
-    global _SOLVER_SPECS, _CATEGORY_LABELS
+    global _SOLVER_SPECS
     if _SOLVER_SPECS is not None:
         return _SOLVER_SPECS
 
@@ -60,7 +60,7 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
     for prob in PROBLEMS:
         try:
             cfg = get_config(prob)
-        except Exception:
+        except Exception:  # noqa: S112 — skip problems that don't import in the docs env
             continue
         domain_dir = cfg.tesseract_dir.name
         # First non-empty category_label per tesseract dir wins. Multiple
@@ -125,7 +125,7 @@ def _extract_description(call_node: ast.Call | None) -> str:
             if raw.startswith(("'", '"')):
                 try:
                     return ast.literal_eval(raw)
-                except Exception:
+                except Exception:  # noqa: S110 — fall back to the raw source text
                     pass
             return raw
     return ""
