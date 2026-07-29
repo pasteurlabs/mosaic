@@ -48,7 +48,7 @@ def main() -> None:
     for p in problem_list:
         try:
             names = {s.name for s in get_config(p).solvers}
-        except Exception:
+        except Exception:  # noqa: S112 — unimportable problems can't match the filter
             continue
         if wanted & names:
             hits.append(p)

@@ -42,9 +42,9 @@ from mosaic.benchmarks.problems import PROBLEMS, get_config
 def _pull_and_retag(remote: str, local_tag: str) -> bool:
     """Pull *remote* and retag it to *local_tag*. Returns True on success."""
     print(f"Pulling {remote}")
-    if subprocess.run(["docker", "pull", remote]).returncode != 0:
+    if subprocess.run(["docker", "pull", remote], check=False).returncode != 0:
         return False
-    subprocess.run(["docker", "tag", remote, local_tag])
+    subprocess.run(["docker", "tag", remote, local_tag], check=False)
     print(f"  Tagged as {local_tag}")
     return True
 
@@ -106,7 +106,10 @@ def main() -> None:
     for p in problem_list:
         try:
             cfg = get_config(p)
-        except Exception:
+        except Exception as e:
+            print(
+                f"  warning: skipping {p}, config failed to load: {e}", file=sys.stderr
+            )
             continue
         for spec in cfg.solvers:
             # --solvers filter: skip solvers not in the requested set

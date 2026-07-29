@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,8 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     save_fig,
     vorticity_2d,
 )
+
+logger = logging.getLogger(__name__)
 
 apply_style()
 
@@ -173,6 +176,7 @@ def plot_ic(
             try:
                 arr = spec(**plot_params)
             except Exception:
+                logger.debug("IC spec %s failed to render", name, exc_info=True)
                 continue
         projected = _ic_to_2d(
             arr,

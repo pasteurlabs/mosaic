@@ -14,10 +14,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import gridspec
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import (

@@ -344,7 +344,7 @@ def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
             continue
         best_cos = None
         best_rel = None
-        for _eps, st in sweep.items():
+        for st in sweep.values():
             if not isinstance(st, dict):
                 continue
             c = st.get("cosine")
