@@ -120,6 +120,9 @@ ignore = [
     "RUF001", # Ambiguous unicode in string — Greek letters (ρ, π, ∂) are intentional in math code
     "RUF002", # Ambiguous unicode in docstring — same
     "RUF003", # Ambiguous unicode in comment — same
+    "BLE001", # Blind `except Exception` — intentional throughout: solvers are untrusted external
+              # Docker containers, hardware/NVML probing is best-effort, and config/result parsing
+              # must degrade gracefully rather than crash the whole run.
 ]
 
 [tool.ruff.lint.pydocstyle]

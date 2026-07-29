@@ -76,7 +76,11 @@ def load_template(name_or_path: str) -> DomainTemplate:
     with open(path) as f:
         doc = yaml.safe_load(f)
     if not isinstance(doc, dict):
-        raise ValueError(f"{path}: expected a YAML mapping, got {type(doc).__name__}")
+        # ValueError, not TypeError: this is malformed config-file content, not a
+        # programming-level argument-type violation.
+        raise ValueError(  # noqa: TRY004
+            f"{path}: expected a YAML mapping, got {type(doc).__name__}"
+        )
     for key in ("name", "schema_module", "output_key"):
         if key not in doc:
             raise ValueError(f"{path}: missing required field {key!r}")
@@ -270,8 +274,7 @@ def scaffold_domain(
     experiment_todos_block = (
         "# Template-suggested experiments (uncomment + flesh out as you wire each one up):\n"
         + "\n".join(
-            f"# {line[2:] if line.startswith('# ') else line}"
-            for line in experiment_todos.splitlines()
+            f"# {line.removeprefix('# ')}" for line in experiment_todos.splitlines()
         )
         if experiment_todos.strip()
         else "# (template has no suite defaults; add experiments as you implement them.)"

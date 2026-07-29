@@ -149,7 +149,9 @@ def _write_inputs(inputs: InputSchema, wd: Path) -> None:
 def _run_solver(wd: Path) -> None:
     """Invoke the deal.II heat_solver binary."""
     cmd = [_DEALII_SOLVER, str(wd / "input.json")]
-    result = subprocess.run(cmd, cwd=str(wd), capture_output=True, text=True)
+    result = subprocess.run(
+        cmd, cwd=str(wd), capture_output=True, text=True, check=False
+    )
     if result.returncode != 0:
         raise RuntimeError(
             f"deal.II solver failed:\n"

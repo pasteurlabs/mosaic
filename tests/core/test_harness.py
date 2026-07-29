@@ -205,7 +205,6 @@ def test_run_timed_trials_trial_failure_keeps_earlier_times():
         # Sequence: 1=warmup, 2=trial-0 (ok), 3=trial-1 (raise)
         if state["i"] == 3:
             raise RuntimeError("CUDA_ERROR_OUT_OF_MEMORY at trial 2")
-        return None
 
     result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
 

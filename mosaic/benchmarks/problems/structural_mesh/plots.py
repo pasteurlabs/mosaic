@@ -162,11 +162,11 @@ def _field_solver_names(npz: Any, by_solver: dict | None = None) -> list[str]:
     n_fields = sum(1 for k in npz_keys if k.startswith("rho_final_"))
 
     stored = list(npz["solver_names"]) if "solver_names" in npz_keys else []
-    if len(stored) >= n_fields and n_fields > 0:
+    if len(stored) >= n_fields > 0:
         return [str(s) for s in stored[:n_fields]]
 
     by_solver_names = list((by_solver or {}).keys())
-    if len(by_solver_names) >= n_fields and n_fields > 0:
+    if len(by_solver_names) >= n_fields > 0:
         return [str(s) for s in by_solver_names[:n_fields]]
 
     # Last resort: pad whatever names we have so every field array is drawn.

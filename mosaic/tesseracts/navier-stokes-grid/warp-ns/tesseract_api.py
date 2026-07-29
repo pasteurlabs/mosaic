@@ -37,17 +37,15 @@ def sanitize_float(v: float, clip: float) -> float:
     Extracted as a @wp.func so it can be reused in multiple kernels without
     code duplication and benefits from Warp compiler inlining.
     """
-    # NaN check: v != v is true only for NaN
-    if v != v:
+    # NaN check: v != v is true only for NaN (wp.isnan unavailable in this context)
+    if v != v:  # noqa: PLR0124
         v = wp.float32(0.0)
     if v > wp.float32(1.0e30):
         v = wp.float32(0.0)
     if v < wp.float32(-1.0e30):
         v = wp.float32(0.0)
-    if v > clip:
-        v = clip
-    if v < -clip:
-        v = -clip
+    v = min(v, clip)
+    v = max(v, -clip)
     return v
 
 

@@ -29,6 +29,7 @@ def _docker_available() -> bool:
                 ["docker", "info"],
                 capture_output=True,
                 timeout=10,
+                check=False,
             ).returncode
             == 0
         )
@@ -53,6 +54,7 @@ def built_solver():
         capture_output=True,
         text=True,
         timeout=600,
+        check=False,
     )
     if result.returncode != 0:
         pytest.skip(f"tesseract build failed:\n{result.stderr[-500:]}")
