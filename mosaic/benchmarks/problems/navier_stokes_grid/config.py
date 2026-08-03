@@ -696,15 +696,22 @@ problem.add_experiment(
     "optimization/solver_in_loop_self_reference",
     solver_in_loop,
     description=(
-        "Train the paired full-VJP and stop-gradient Equinox correctors against "
-        "each admitted solver's own spatially and temporally refined trajectory. "
-        "A direct semigroup audit gates training so the comparison measures "
-        "solver-in-the-loop credit assignment rather than state-reset artifacts."
+        "Rank solvers for solver-in-the-loop use. Each admitted solver's corrector "
+        "is trained against that solver's own spatially and temporally refined "
+        "trajectory, so every solver faces the same task -- remove your own "
+        "discretization error using your own gradients -- and the ranked quantity "
+        "is the fraction of its own coarse-to-fine gap the corrector closes. This "
+        "mirrors the fairness of 3D initial-condition recovery, where each solver "
+        "inverts its own forward map, and avoids the shared-target comparison's "
+        "confound with raw forward accuracy. A direct semigroup audit gates "
+        "training so the comparison measures credit assignment rather than "
+        "state-reset artifacts."
     ),
     plot_description=(
-        "Within-solver refined-reference correction, recurrence admission, paired "
-        "solver-VJP lift, held-out trajectories, and training cost. Absolute errors "
-        "are not compared across solver-specific references."
+        "Refinement-gap closure per solver (the ranked quantity), recurrence "
+        "admission, paired solver-VJP lift, held-out trajectories, and training "
+        "cost. Raw errors are not compared across solver-specific references; the "
+        "normalized closure is."
     ),
     runs=[
         {
@@ -732,10 +739,19 @@ problem.add_experiment(
                 "minimum_refinement_signal": 1e-4,
             },
             "training": {
-                "max_updates": 200,
+                # A ranking at a non-converged budget ranks whoever trains
+                # fastest. A 200 -> 1000 -> 4000 update ladder on the shared
+                # -target task showed correction gain still climbing well past
+                # 1000 updates for every solver, so the ranked protocol trains
+                # to 3000 -- the largest matched budget that fits the 4h GPU
+                # scheduling slot for the slowest solver.
+                "max_updates": 3000,
                 "unroll": 8,
-                "loss_mode": "solver_terminal",
-                "solver_loss_weight": 0.1,
+                # The plain mean over corrected states beat the solver-terminal
+                # objective at equal budget in a paired probe (JAX-CFD 1.059x
+                # versus 0.988x correction gain at 4000 updates).
+                "loss_mode": "mean",
+                "solver_loss_weight": 0.0,
                 "loss_normalization": "solver_baseline",
                 "loss_scale_floor": 1e-6,
                 "lr": 1e-4,

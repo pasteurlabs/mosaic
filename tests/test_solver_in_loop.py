@@ -165,6 +165,36 @@ def test_reference_sensitivity_declares_independent_converged_targets():
         assert dataset["reference_convergence_tolerance"] == 0.005
 
 
+def test_ranked_self_reference_protocol_is_converged_and_per_solver():
+    """The ranked comparison must be fair and trained past the ladder's knee.
+
+    Fairness comes from the per-solver refined target: every solver faces the
+    same task (remove its own discretization error through its own gradients),
+    exactly as 3D IC recovery has every solver invert its own forward map.
+    A 200-update budget ranked whoever trained fastest, so the protocol trains
+    to a converged budget under the objective that won the paired probe.
+    """
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    experiment = cfg.experiments["optimization/solver_in_loop_self_reference"]
+    run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
+
+    # Per-solver target: what makes the ranking fair.
+    assert run["dataset"]["reference_kind"] == "solver_self_refined"
+    assert run["dataset"]["reference_factor"] == 2
+    assert run["dataset"]["reference_temporal_factor"] == 2
+    # Converged budget and the objective that beat solver_terminal at equal cost.
+    assert run["training"]["max_updates"] >= 3000
+    assert run["training"]["loss_mode"] == "mean"
+    assert run["training"]["solver_loss_weight"] == 0.0
+    # Multiple model seeds, so the ranked gap can be read against seed spread.
+    assert len(run["training"]["model_seeds"]) >= 3
+    # The refinement signal gate keeps the normalized closure meaningful for
+    # solvers whose own coarse-to-fine gap is small.
+    assert run["dataset"]["minimum_refinement_signal"] > 0
+
+
 def test_self_reference_does_not_gate_the_learnable_refinement_signal():
     assert _passes_reference_accuracy_gate(
         "solver_self_refined",
