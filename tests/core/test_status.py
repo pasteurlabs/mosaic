@@ -304,7 +304,7 @@ class TestWeightColorLadder(unittest.TestCase):
         self.assertEqual(cell_color(c), "dim")
 
     def test_every_score_weight_maps_to_a_colour(self) -> None:
-        for _key, w in SCORE_WEIGHTS.items():
+        for w in SCORE_WEIGHTS.values():
             color = weight_color(w)
             self.assertTrue(
                 color == "dim" or _HEX_RE.match(color),

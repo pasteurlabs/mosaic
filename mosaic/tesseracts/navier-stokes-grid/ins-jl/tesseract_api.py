@@ -14,44 +14,21 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.schema_types import make_differentiable
-from pydantic import Field
-from tesseract_core.runtime import Array, Differentiable, Float32
 
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema,
+        ["v0", "state", "viscosity", "dt", "inflow_profile"],
     )
 ):
     """Input schema for the incompressible Navier-Stokes Julia solver."""
 
     supports_recurrent_state: ClassVar[bool] = True
 
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Optional native staggered face velocity returned by a previous call. "
-            "When provided, v0 is interpreted as the desired corrected canonical "
-            "velocity and is reconciled with this state before advancing. The grid, "
-            "boundary conditions, timestep, and solver configuration must be unchanged."
-        ),
-    )
-    return_state: bool = Field(
-        default=False,
-        description="Return native staggered state for recurrent continuation.",
-    )
 
-
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state"])):
     """Output schema for the incompressible Navier-Stokes Julia solver."""
-
-    state: Differentiable[Array[(None, None, None, None), Float32]] | None = Field(
-        default=None,
-        description=(
-            "Float32 native staggered interior velocity for recurrent continuation. "
-            "Unavailable for the obstacle/channel path."
-        ),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -61,14 +38,9 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
 jl = juliacall.newmodule("ins_ns")
 jl.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
 jl.seval("using IncompressibleNavierStokes, Zygote")
-jl.include(
-    str(
-        Path(mosaic_shared.__file__).parent
-        / "problems"
-        / "navier_stokes_grid"
-        / "ns_solver.jl"
-    )
-)
+_JULIA_SOURCE = Path(mosaic_shared.__file__).parent / "problems" / "navier_stokes_grid"
+jl.include(str(_JULIA_SOURCE / "grid_layout.jl"))
+jl.include(str(_JULIA_SOURCE / "ns_solver.jl"))
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +56,48 @@ def _to_julia(arr: np.ndarray):
 def _to_numpy(jl_arr: Any) -> np.ndarray:
     """Convert a Julia array back to numpy."""
     return np.asarray(jl_arr).copy()
+
+
+def _is_public_2d_field(value: np.ndarray) -> bool:
+    """Return whether a public field has the canonical 2-D dummy-z layout."""
+    return value.ndim == 4 and value.shape[2] == 1 and value.shape[-1] == 2
+
+
+def _field_for_julia(
+    value: np.ndarray | None,
+    *,
+    is_2d: bool,
+) -> np.ndarray | None:
+    """Cast a public field and remove the canonical dummy-z axis for 2-D."""
+    if value is None:
+        return None
+    field = np.asarray(value, dtype=np.float32)
+    return field[:, :, 0, :] if is_2d else field
+
+
+def _field_from_julia(value: np.ndarray, *, is_2d: bool) -> np.ndarray:
+    """Restore the canonical dummy-z axis on a field returned by Julia."""
+    return value[:, :, np.newaxis, :] if is_2d else value
+
+
+def _periodic_vjp_output(
+    grad_v0: np.ndarray,
+    grad_nu: float,
+    grad_dt: float,
+    grad_domain_extent: float,
+    *,
+    grad_state: np.ndarray | None = None,
+) -> dict[str, Any]:
+    """Pack periodic INS.jl gradients into the public Tesseract layout."""
+    out: dict[str, Any] = {
+        "v0": grad_v0.astype(np.float32),
+        "viscosity": np.array([grad_nu], dtype=np.float32),
+        "dt": np.array([grad_dt], dtype=np.float32),
+        "domain_extent": np.float32(grad_domain_extent),
+    }
+    if grad_state is not None:
+        out["state"] = grad_state.astype(np.float32)
+    return out
 
 
 def _compute_drag_numpy(
@@ -171,12 +185,12 @@ def _run(
     Returns ``(result, drag, state)``. ``drag`` is non-None only in channel
     mode; native recurrent state is currently available only in periodic mode.
 
-    2-D: velocity (nx, ny, 1, 2) → result (nx, ny, 1, 2)
-    3-D: velocity (nx, ny, nz, 3) → result (nx, ny, nz, 3)
+    2-D: v0 (nx, ny, 1, 2) → result (nx, ny, 1, 2)
+    3-D: v0 (nx, ny, nz, 3) → result (nx, ny, nz, 3)
     2-D channel: obstacle provided
                  → result (nx, ny, 1, 2)
                  Inflow at x=0 face: either inflow_profile (shape (N,), ux
-                 only; uy=0) when given, else derived from velocity[:, 0, 0].
+                 only; uy=0) when given, else derived from v0[:, 0, 0].
 
     inflow_profile without an obstacle is not supported: plain inflow_profile
     in a periodic domain has no physical meaning in this solver (periodic
@@ -187,13 +201,13 @@ def _run(
             f"INS.jl state has shape {np.shape(state)}, expected {np.shape(v0)}"
         )
     # Channel mode: obstacle present. Inflow may be either an explicit
-    # inflow_profile (drag_opt path) or derived from velocity.
+    # inflow_profile (drag_opt path) or derived from v0.
     if obstacle is not None:
         if state is not None:
             raise NotImplementedError(
                 "INS.jl native recurrent state is supported only for periodic flow"
             )
-        # velocity is (nx, ny, 1, 2) — squeeze z=1 dimension
+        # v0 is (nx, ny, 1, 2) — squeeze z=1 dimension
         v0_2d = np.asarray(v0, dtype=np.float32)[:, :, 0, :]  # (N, N, 2)
         N = v0_2d.shape[0]
         if inflow_profile is not None:
@@ -208,7 +222,7 @@ def _run(
                 np.float32
             )  # (N, 2)
         else:
-            # Fall-back: derive inflow column from velocity left face.
+            # Fall-back: derive inflow column from v0 left face.
             inflow_col = v0_2d[:, 0, 0]  # (N,) — ux values at x=0 column
             inflow_np = np.stack(
                 [inflow_col, np.zeros_like(inflow_col)], axis=-1
@@ -236,94 +250,40 @@ def _run(
             "combined with an obstacle (channel mode)."
         )
 
-    nx = v0.shape[0]
-    ndim = v0.shape[-1]
-    nz = v0.shape[2]
+    v0_arr = np.asarray(v0, dtype=np.float32)
+    nx = v0_arr.shape[0]
+    is_2d = _is_public_2d_field(v0_arr)
+    v0_in = _field_for_julia(v0_arr, is_2d=is_2d)
+    state_in = _field_for_julia(state, is_2d=is_2d)
+    solver_args = (
+        float(viscosity),
+        float(dt),
+        int(steps),
+        int(nx),
+        float(domain_extent),
+    )
 
-    if ndim == 2 and nz == 1:
-        # 2-D path: squeeze the z=1 dimension before passing to Julia
-        v0_in = v0[:, :, 0, :]  # (nx, ny, 2)
-        if state is None and not return_state:
-            result = _to_numpy(
-                jl.ns_apply(
-                    _to_julia(v0_in),
-                    float(viscosity),
-                    float(dt),
-                    int(steps),
-                    int(nx),
-                    float(domain_extent),
-                )
-            )
-            state_out = None
-        elif state is None:
-            jl_result = jl.ns_apply_state(
-                _to_julia(v0_in),
-                float(viscosity),
-                float(dt),
-                int(steps),
-                int(nx),
-                float(domain_extent),
-            )
-            result = _to_numpy(jl_result[0])
-            state_out = _to_numpy(jl_result[1])
-        else:
-            state_in = np.asarray(state, dtype=np.float32)[:, :, 0, :]
-            jl_result = jl.ns_apply_state_continue(
-                _to_julia(v0_in),
-                _to_julia(state_in),
-                float(viscosity),
-                float(dt),
-                int(steps),
-                int(nx),
-                float(domain_extent),
-            )
-            result = _to_numpy(jl_result[0])
-            state_out = _to_numpy(jl_result[1])
-        result_4d = result[:, :, np.newaxis, :]  # (nx, ny, 1, 2)
-        state_4d = state_out[:, :, np.newaxis, :] if state_out is not None else None
-        ux = result[:, :, 0]
-        drag = _compute_drag_numpy(
-            ux, np.zeros_like(ux), obstacle, viscosity, domain_extent
+    if state_in is not None:
+        jl_result = jl.ns_apply_state_continue(
+            _to_julia(v0_in),
+            _to_julia(state_in),
+            *solver_args,
         )
-        return result_4d, drag, state_4d
+        result = _to_numpy(jl_result[0])
+        state_out = _to_numpy(jl_result[1])
+    elif return_state:
+        jl_result = jl.ns_apply_state(_to_julia(v0_in), *solver_args)
+        result = _to_numpy(jl_result[0])
+        state_out = _to_numpy(jl_result[1])
     else:
-        # 3-D path: pass the full (nx, ny, nz, 3) array
-        if state is None and not return_state:
-            result = _to_numpy(
-                jl.ns_apply(
-                    _to_julia(v0),
-                    float(viscosity),
-                    float(dt),
-                    int(steps),
-                    int(nx),
-                    float(domain_extent),
-                )
-            )
-            state_out = None
-        elif state is None:
-            jl_result = jl.ns_apply_state(
-                _to_julia(v0),
-                float(viscosity),
-                float(dt),
-                int(steps),
-                int(nx),
-                float(domain_extent),
-            )
-            result = _to_numpy(jl_result[0])
-            state_out = _to_numpy(jl_result[1])
-        else:
-            jl_result = jl.ns_apply_state_continue(
-                _to_julia(v0),
-                _to_julia(np.asarray(state, dtype=np.float32)),
-                float(viscosity),
-                float(dt),
-                int(steps),
-                int(nx),
-                float(domain_extent),
-            )
-            result = _to_numpy(jl_result[0])
-            state_out = _to_numpy(jl_result[1])
-        return result, None, state_out
+        result = _to_numpy(jl.ns_apply(_to_julia(v0_in), *solver_args))
+        state_out = None
+
+    result = _field_from_julia(result, is_2d=is_2d)
+    state_out = (
+        _field_from_julia(state_out, is_2d=is_2d) if state_out is not None else None
+    )
+    return result, None, state_out
 
 
 def _vjp(
@@ -341,10 +301,10 @@ def _vjp(
 
     In channel mode (obstacle present), when inflow_profile is given, the
     gradient w.r.t. inflow_profile (shape (N,)) is returned. Otherwise the
-    gradient w.r.t. the inflow column derived from velocity[:, 0, 0, :] is computed.
+    gradient w.r.t. the inflow column derived from v0[:, 0, 0, :] is computed.
     """
     # Channel mode VJP: obstacle present. Either inflow_profile (drag_opt)
-    # or velocity-derived inflow.
+    # or v0-derived inflow.
     #
     # cotangent is a dict with keys "result" and/or "drag".  We pass both to
     # ns_vjp_channel_2d_drag_window so that Zygote can differentiate through
@@ -416,66 +376,38 @@ def _vjp(
                     np.float32
                 )
             out["inflow_profile"] = grad_prof_full.astype(np.float32)
-            # velocity is still a constant uniform flow in drag_opt; provide a
+            # v0 is still a constant uniform flow in drag_opt; provide a
             # zero-valued gradient at the same shape for completeness.
             out["v0"] = np.zeros(
                 (v0_2d.shape[0], v0_2d.shape[1], 1, v0_2d.shape[2]),
                 dtype=np.float32,
             )
         else:
-            # Map gradient back to velocity shape: only the x=0 column carries gradient.
+            # Map gradient back to v0 shape: only the x=0 column carries gradient.
             grad_v0 = np.zeros_like(v0_2d)  # (N, N, 2)
             grad_v0[:, 0, 0] = grad_inflow[:, 0]  # ux component
             grad_v0[:, 0, 1] = grad_inflow[:, 1]  # uy (≡0 but propagate)
             out["v0"] = grad_v0[:, :, np.newaxis, :].astype(np.float32)
         return out
 
-    nx = v0.shape[0]
-    ndim = v0.shape[-1]
-    nz = v0.shape[2]
-
-    if ndim == 2 and nz == 1:
-        v0_in = v0[:, :, 0, :]
-        cot_in = cotangent[:, :, 0, :]
-        result = jl.ns_vjp(
-            _to_julia(v0_in),
-            _to_julia(cot_in),
-            float(viscosity),
-            float(dt),
-            int(steps),
-            int(nx),
-            float(domain_extent),
-        )
-        grad_velocity_2d = _to_numpy(result[0])
-        grad_nu = float(result[1])
-        grad_dt_val = float(result[2])
-        grad_L = float(result[3])
-        return {
-            "v0": grad_velocity_2d[:, :, np.newaxis, :].astype(np.float32),
-            "viscosity": np.array([grad_nu], dtype=np.float32),
-            "dt": np.array([grad_dt_val], dtype=np.float32),
-            "domain_extent": np.float32(grad_L),
-        }
-    else:
-        result = jl.ns_vjp(
-            _to_julia(v0),
-            _to_julia(cotangent),
-            float(viscosity),
-            float(dt),
-            int(steps),
-            int(nx),
-            float(domain_extent),
-        )
-        grad_v0 = _to_numpy(result[0])
-        grad_nu = float(result[1])
-        grad_dt_val = float(result[2])
-        grad_L = float(result[3])
-        return {
-            "v0": grad_v0.astype(np.float32),
-            "viscosity": np.array([grad_nu], dtype=np.float32),
-            "dt": np.array([grad_dt_val], dtype=np.float32),
-            "domain_extent": np.float32(grad_L),
-        }
+    v0_arr = np.asarray(v0, dtype=np.float32)
+    is_2d = _is_public_2d_field(v0_arr)
+    result = jl.ns_vjp(
+        _to_julia(_field_for_julia(v0_arr, is_2d=is_2d)),
+        _to_julia(_field_for_julia(cotangent, is_2d=is_2d)),
+        float(viscosity),
+        float(dt),
+        int(steps),
+        int(v0_arr.shape[0]),
+        float(domain_extent),
+    )
+    grad_v0 = _field_from_julia(_to_numpy(result[0]), is_2d=is_2d)
+    return _periodic_vjp_output(
+        grad_v0,
+        float(result[1]),
+        float(result[2]),
+        float(result[3]),
+    )
 
 
 def _vjp_recurrent(
@@ -490,45 +422,31 @@ def _vjp_recurrent(
 ) -> dict[str, Any]:
     """VJP for the periodic canonical-plus-native recurrent output."""
     v0_arr = np.asarray(v0, dtype=np.float32)
-    cot = (
-        np.asarray(cotangent, dtype=np.float32)
-        if cotangent is not None
-        else np.zeros_like(v0_arr)
+    is_2d = _is_public_2d_field(v0_arr)
+    v0_in = _field_for_julia(v0_arr, is_2d=is_2d)
+    state_in = _field_for_julia(state, is_2d=is_2d)
+    cot_in = _field_for_julia(
+        cotangent if cotangent is not None else np.zeros_like(v0_arr),
+        is_2d=is_2d,
     )
-    cot_state = (
-        np.asarray(cotangent_state, dtype=np.float32)
-        if cotangent_state is not None
-        else np.zeros_like(v0_arr)
+    cot_state_in = _field_for_julia(
+        cotangent_state if cotangent_state is not None else np.zeros_like(v0_arr),
+        is_2d=is_2d,
     )
-    nx = v0_arr.shape[0]
-    ndim = v0_arr.shape[-1]
-    is_2d = ndim == 2 and v0_arr.shape[2] == 1
-
-    if is_2d:
-        v0_in = v0_arr[:, :, 0, :]
-        cot_in = cot[:, :, 0, :]
-        cot_state_in = cot_state[:, :, 0, :]
-        state_in = (
-            np.asarray(state, dtype=np.float32)[:, :, 0, :]
-            if state is not None
-            else None
-        )
-    else:
-        v0_in = v0_arr
-        cot_in = cot
-        cot_state_in = cot_state
-        state_in = np.asarray(state, dtype=np.float32) if state is not None else None
+    solver_args = (
+        float(viscosity),
+        float(dt),
+        int(steps),
+        int(v0_arr.shape[0]),
+        float(domain_extent),
+    )
 
     if state_in is None:
         result = jl.ns_vjp_state(
             _to_julia(v0_in),
             _to_julia(cot_in),
             _to_julia(cot_state_in),
-            float(viscosity),
-            float(dt),
-            int(steps),
-            int(nx),
-            float(domain_extent),
+            *solver_args,
         )
         grad_v0 = _to_numpy(result[0])
         grad_state = None
@@ -541,11 +459,7 @@ def _vjp_recurrent(
             _to_julia(state_in),
             _to_julia(cot_in),
             _to_julia(cot_state_in),
-            float(viscosity),
-            float(dt),
-            int(steps),
-            int(nx),
-            float(domain_extent),
+            *solver_args,
         )
         grad_v0 = _to_numpy(result[0])
         grad_state = _to_numpy(result[1])
@@ -553,20 +467,17 @@ def _vjp_recurrent(
         grad_dt_val = float(result[3])
         grad_L = float(result[4])
 
-    if is_2d:
-        grad_v0 = grad_v0[:, :, np.newaxis, :]
-        if grad_state is not None:
-            grad_state = grad_state[:, :, np.newaxis, :]
-
-    out: dict[str, Any] = {
-        "v0": grad_v0.astype(np.float32),
-        "viscosity": np.array([grad_nu], dtype=np.float32),
-        "dt": np.array([grad_dt_val], dtype=np.float32),
-        "domain_extent": np.float32(grad_L),
-    }
-    if grad_state is not None:
-        out["state"] = grad_state.astype(np.float32)
-    return out
+    grad_v0 = _field_from_julia(grad_v0, is_2d=is_2d)
+    grad_state = (
+        _field_from_julia(grad_state, is_2d=is_2d) if grad_state is not None else None
+    )
+    return _periodic_vjp_output(
+        grad_v0,
+        grad_nu,
+        grad_dt_val,
+        grad_L,
+        grad_state=grad_state,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -620,12 +531,12 @@ def _drag_cotangent_to_result(
 ) -> np.ndarray:
     """Back-propagate the drag cotangent into a cotangent on ``result``.
 
-    Propagates through _compute_drag_numpy (shape velocity_shape). Since pressure is
+    Propagates through _compute_drag_numpy (shape v0_shape). Since pressure is
     forced to zero in our drag computation, only the viscous term contributes
     and the drag is linear in ux; the Jacobian is a fixed mask determined by the
     obstacle surface layout.
 
-    velocity_shape: (N, N, 1, 2).
+    v0_shape: (N, N, 1, 2).
     """
     N = v0_shape[0]
     cx = obstacle["center"][0] * N

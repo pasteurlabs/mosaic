@@ -114,7 +114,8 @@ def _merge_npz(paths: list[Path], out_path: Path) -> None:
                     # Metadata keys (sweep_values, solver_names, etc.) are
                     # overwritten; per-solver keys accumulate.
                     merged[key] = np.asarray(data[key])
-        except Exception:
+        except Exception as e:
+            print(f"  warning: failed to merge {p}: {e}", file=sys.stderr)
             continue
     if merged:
         out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -26,6 +26,7 @@ def _run_help(args: list[str]) -> subprocess.CompletedProcess:
         text=True,
         timeout=30,
         env=_NO_COLOR_ENV,
+        check=False,
     )
 
 

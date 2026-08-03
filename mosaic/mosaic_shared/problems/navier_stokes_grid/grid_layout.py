@@ -7,8 +7,10 @@ The public Mosaic velocity layout is collocated and component-last:
 ``(*spatial, ndim)``.  The staggered layout used here has the same dense shape,
 with component ``i`` stored on the high face of each cell along spatial axis
 ``i``.  Two-dimensional canonical arrays may retain their singleton z axis.
+Helpers that translate lower-face conventions keep this component-last shape.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -31,6 +33,57 @@ def _velocity_ndim(velocity: Any) -> int:
             "spatial axis per component"
         )
     return ndim
+
+
+def boundary_conditions_are_fully_periodic(
+    boundary_conditions: Mapping[str, Any],
+    ndim: int,
+) -> bool:
+    """Return whether every active domain face is periodic."""
+    if ndim not in (2, 3):
+        raise ValueError("ndim must be two or three")
+    active_axes = "xyz"[:ndim]
+    return all(
+        boundary_conditions[f"{axis}_{side}"]["type"] == "periodic"
+        for axis in active_axes
+        for side in ("lo", "hi")
+    )
+
+
+def _shift_staggered_face_index(
+    velocity: Any,
+    shift: int,
+    *,
+    xp: Any | None = None,
+) -> Any:
+    """Shift each velocity component along its own staggered axis."""
+    xp = _array_module(velocity, xp)
+    ndim = _velocity_ndim(velocity)
+    return xp.stack(
+        [
+            xp.roll(velocity[..., component], shift, axis=component)
+            for component in range(ndim)
+        ],
+        axis=-1,
+    )
+
+
+def staggered_high_to_low_periodic(
+    velocity: Any,
+    *,
+    xp: Any | None = None,
+) -> Any:
+    """Translate periodic staggered velocity from high- to lower-face indexing."""
+    return _shift_staggered_face_index(velocity, 1, xp=xp)
+
+
+def staggered_low_to_high_periodic(
+    velocity: Any,
+    *,
+    xp: Any | None = None,
+) -> Any:
+    """Translate periodic staggered velocity from lower- to high-face indexing."""
+    return _shift_staggered_face_index(velocity, -1, xp=xp)
 
 
 def collocated_to_staggered_periodic(

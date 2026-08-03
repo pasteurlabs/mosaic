@@ -19,6 +19,7 @@ Two modes:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import typer
@@ -30,6 +31,8 @@ from mosaic.benchmarks.core.reference import (
     extract_references_from_fields,
     save_reference,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @app.command()
@@ -175,7 +178,9 @@ def _count_sweep_values(result_path: Path, fields_path: Path) -> int:
             if sweep and "values" in sweep:
                 return len(sweep["values"])
         except Exception:
-            pass
+            logger.debug(
+                "reading sweep count from %s failed", result_path, exc_info=True
+            )
 
     # Fallback: count consensus_* keys in the NPZ.
     try:
@@ -194,7 +199,7 @@ def _read_sweep_values(fields_path: Path) -> list | None:
             if "sweep_values" in data:
                 return data["sweep_values"].tolist()
     except Exception:
-        pass
+        logger.debug("reading sweep_values from %s failed", fields_path, exc_info=True)
     return None
 
 

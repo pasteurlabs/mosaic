@@ -73,6 +73,8 @@ def test_ns_grid_input_declares_canonical_fields():
 @needs_runtime
 def test_ns_grid_recurrent_state_is_canonical_but_opt_in():
     """The common schema names recurrent fields without enabling every solver."""
+    from mosaic_shared.schema_types import make_differentiable
+
     from mosaic.mosaic_shared.problems.navier_stokes_grid import (
         InputSchema,
         OutputSchema,
@@ -89,10 +91,21 @@ def test_ns_grid_recurrent_state_is_canonical_but_opt_in():
     with pytest.raises(ValueError, match="does not opt in"):
         InputSchema(return_state=True)
 
-    class RecurrentInputSchema(InputSchema):
+    class RecurrentInputSchema(make_differentiable(InputSchema, ["state"])):
         supports_recurrent_state: ClassVar[bool] = True
 
+    RecurrentOutputSchema = make_differentiable(OutputSchema, ["state"])
     continued = RecurrentInputSchema(state=state)
     requested = RecurrentInputSchema(return_state=True)
+    output = RecurrentOutputSchema(result=continued.v0, state=state)
     np.testing.assert_array_equal(continued.state, state)
+    np.testing.assert_array_equal(output.state, state)
     assert requested.return_state is True
+    assert (
+        RecurrentInputSchema.model_fields["state"].description
+        == InputSchema.model_fields["state"].description
+    )
+    assert (
+        RecurrentOutputSchema.model_fields["state"].description
+        == OutputSchema.model_fields["state"].description
+    )

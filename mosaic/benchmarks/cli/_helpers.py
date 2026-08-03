@@ -12,6 +12,7 @@ readability. All helpers preserve the exact behaviour of the pre-split
 from __future__ import annotations
 
 import dataclasses
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,8 @@ from mosaic.benchmarks.core.console import console, print_rule, print_skip, prin
 from mosaic.benchmarks.core.runner import build_all, image_tags_no_build
 from mosaic.benchmarks.problems import get_config
 from mosaic.benchmarks.problems.shared import SUITES
+
+logger = logging.getLogger(__name__)
 
 _ALL_SUITES = list(SUITES)
 
@@ -357,7 +360,7 @@ def _plots_only(
 
         cfg = get_config(cfg.name)
     except Exception:
-        pass
+        logger.debug("re-loading full config for %s failed", cfg.name, exc_info=True)
     if to_run:
         names = to_run
     else:
@@ -475,6 +478,7 @@ def _validate_solver_csv(solvers_csv: str | None, problem_list: list[str]) -> No
             # Skip problems that fail to import — they'll surface as
             # "build failed" later in the loop and aren't relevant to a
             # name-typo check.
+            logger.debug("solver-name lookup for %s failed", problem, exc_info=True)
             continue
     # Match case-insensitively against the canonical names.
     known_lower = {n.lower() for n in all_names}

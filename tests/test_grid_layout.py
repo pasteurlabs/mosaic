@@ -6,8 +6,11 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from mosaic_shared.problems.navier_stokes_grid import (
+    boundary_conditions_are_fully_periodic,
     collocated_to_staggered_periodic,
     lift_collocated_to_staggered_periodic,
+    staggered_high_to_low_periodic,
+    staggered_low_to_high_periodic,
     staggered_to_collocated_periodic,
 )
 
@@ -43,6 +46,38 @@ def test_periodic_layout_conversions_follow_high_face_convention(shape):
         axis=-1,
     )
     np.testing.assert_array_equal(collocated, expected_collocated)
+
+
+@pytest.mark.parametrize("shape", [(8, 10, 1, 2), (6, 8, 10, 3)])
+def test_periodic_face_index_conversions_round_trip(shape):
+    high_faces = np.arange(np.prod(shape), dtype=np.float32).reshape(shape)
+
+    lower_faces = staggered_high_to_low_periodic(high_faces)
+    restored = staggered_low_to_high_periodic(lower_faces)
+
+    expected_lower = np.stack(
+        [
+            np.roll(high_faces[..., component], 1, axis=component)
+            for component in range(shape[-1])
+        ],
+        axis=-1,
+    )
+    np.testing.assert_array_equal(lower_faces, expected_lower)
+    np.testing.assert_array_equal(restored, high_faces)
+
+
+def test_active_boundary_conditions_must_all_be_periodic():
+    boundary_conditions = {
+        f"{axis}_{side}": {"type": "periodic"}
+        for axis in "xyz"
+        for side in ("lo", "hi")
+    }
+    boundary_conditions["z_lo"] = {"type": "no_slip"}
+
+    assert boundary_conditions_are_fully_periodic(boundary_conditions, 2)
+    assert not boundary_conditions_are_fully_periodic(boundary_conditions, 3)
+    with pytest.raises(ValueError, match="ndim"):
+        boundary_conditions_are_fully_periodic(boundary_conditions, 1)
 
 
 @pytest.mark.parametrize("shape", [(16, 12, 1, 2), (8, 10, 12, 3)])

@@ -1,8 +1,6 @@
 using IncompressibleNavierStokes
 using Zygote
 
-include(joinpath(@__DIR__, "grid_layout.jl"))
-
 # ---------------------------------------------------------------------------
 # Setup cache (indexed by (n, L, ndim))
 # ---------------------------------------------------------------------------
