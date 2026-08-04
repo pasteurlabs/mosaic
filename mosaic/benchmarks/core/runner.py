@@ -171,12 +171,24 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
     :meth:`Tesseract.from_tesseract_api` (no Docker, just imports a
     ``tesseract_api.py``) — meant for end-to-end framework tests
     with the dummy tesseracts in ``tests/dummy_tesseracts/``.
+    Tags prefixed with ``url:`` connect to an already-running Tesseract
+    service, which supports daemon-free launchers such as Slurm + Pyxis.
     Every other tag is a Docker image and goes through
     :meth:`Tesseract.from_image`.
     """
     if tag.startswith("inprocess:"):
         # Cached + reused across opens; no container, nothing to tear down.
         yield _inprocess_tesseract(tag[len("inprocess:") :])
+        return
+
+    if tag.startswith("url:"):
+        # The remote service is owned by the caller (for example an enclosing
+        # Slurm allocation), so Mosaic must neither enter a serve context nor
+        # attempt container cleanup.
+        yield Tesseract.from_url(
+            tag[len("url:") :],
+            timeout=MOSAIC_TESSERACT_TIMEOUT_TUPLE,
+        )
         return
 
     t = Tesseract.from_image(

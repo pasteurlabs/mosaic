@@ -75,12 +75,6 @@ XLB_DX2_FLOOR = Exclusion(
     "at all nu values (0.0001–0.05); 0.0309 at nu=0.05 is 12.0× peer median; "
     "not reducible by further sub-stepping (tested k=9..27); valid=True",
 )
-PHIFLOW_TGV_DAMPING = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "phiflow's double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude "
-    "damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average "
-    "output conversion fix worsened error 9×; upstream library change required",
-)
 XLB_TGV_LBM_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
     "automatic k=9 sub-steps reduce Ma 0.88→0.098 (81× Ma² reduction); "
@@ -88,7 +82,6 @@ XLB_TGV_LBM_FLOOR = Exclusion(
     "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
     "by further sub-stepping (tested k=9..27); valid=True",
 )
-
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
@@ -109,7 +102,7 @@ def register(problem: Problem) -> None:
     )
     problem.exclude(
         "forward/agreement/tgv",
-        {"phiflow": PHIFLOW_TGV_DAMPING, "xlb": XLB_TGV_LBM_FLOOR},
+        {"xlb": XLB_TGV_LBM_FLOOR},
     )
     problem.exclude("forward/tgv_nu_sweep", {"xlb": XLB_DX2_FLOOR})
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)

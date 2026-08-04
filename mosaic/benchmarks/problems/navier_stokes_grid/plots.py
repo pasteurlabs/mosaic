@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Per-problem plots for the navier-stokes-grid drag-optimisation experiments."""
+"""Per-problem plots for 2D Navier--Stokes optimisation experiments."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from typing import Any
 import matplotlib.animation as manimation
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib import gridspec
 
@@ -42,6 +43,1661 @@ from mosaic.benchmarks.problems.shared.plots.style import (
 
 # Solvers shown in the drag_opt paper panel, in display order.
 _DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "pict"]
+
+
+def _solver_loop_legend(
+    fig: plt.Figure,
+    names: list[str],
+    *,
+    extra_handles: list[Any] | None = None,
+) -> None:
+    """Identify solvers by colour/marker while reserving line style for semantics."""
+    by_alias = {
+        alias: name
+        for name in names
+        if (alias := resolve_solver_alias(name)) is not None
+    }
+    handles: list[Any] = []
+    for alias in NS_ORDER:
+        name = by_alias.get(alias)
+        if name is None:
+            continue
+        label, color, _linestyle, marker = solver_props(name)
+        handles.append(
+            mlines.Line2D(
+                [],
+                [],
+                color=color,
+                marker=marker,
+                linestyle="-",
+                label=label,
+            )
+        )
+    handles.extend(extra_handles or [])
+    if handles:
+        fig.legend(
+            handles=handles,
+            loc="outside lower center",
+            ncol=min(len(handles), 6),
+            handlelength=2.0,
+        )
+
+
+def plot_solver_in_loop(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "solver_in_loop",
+    title: str = "Solver-in-the-loop neural correction",
+    solver_specific_reference: bool = False,
+    **_kw: Any,
+) -> list:
+    """Plot corrector trainability, rollout quality, and time-to-quality."""
+    out_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        "optimization",
+        f"{exp_key}{suffix}",
+    )
+    result_path = out_dir / "result.json"
+    fields_path = out_dir / "corrector_fields.npz"
+    if not result_path.exists() or not fields_path.exists():
+        print(f"[solver_in_loop] missing results in {out_dir} — skipping")
+        return []
+
+    data = v1_to_legacy(load_json(result_path))
+    arrays = try_load_npz(fields_path)
+    names = [str(v) for v in arrays.get("solver_names", np.array([])).tolist()]
+    if not names:
+        return []
+
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    fig, axes = paper_row(3, squeeze=False)
+    ax_loss, ax_roll, ax_cost = np.atleast_1d(axes).ravel()
+    present: list[str] = []
+    has_stopped_rollout = False
+
+    for idx, name in enumerate(names):
+        metrics = data.get("by_solver", {}).get(name, {})
+        label, color, _linestyle, marker = solver_props(name)
+        loss = np.asarray(arrays.get(f"loss_{idx}", np.array([])))
+        loss_std = np.asarray(arrays.get(f"loss_seed_std_{idx}", np.array([])))
+        stopped_loss = np.asarray(arrays.get(f"loss_stop_gradient_{idx}", np.array([])))
+        corrected = np.asarray(arrays.get(f"error_corrected_{idx}", np.array([])))
+        corrected_std = np.asarray(
+            arrays.get(f"error_corrected_seed_std_{idx}", np.array([]))
+        )
+        corrected_ic_std = np.asarray(
+            arrays.get(f"error_corrected_ic_std_{idx}", np.array([]))
+        )
+        stopped = np.asarray(arrays.get(f"error_stop_gradient_{idx}", np.array([])))
+        uncorrected = np.asarray(arrays.get(f"error_uncorrected_{idx}", np.array([])))
+        if solver_specific_reference and uncorrected.size:
+            # Each self-reference cell has a different target.  Divide by that
+            # cell's raw trajectory so shared axes show within-solver correction
+            # gain rather than incomparable absolute target errors.
+            baseline = np.maximum(uncorrected, 1e-12)
+            if corrected.size:
+                corrected = corrected / baseline
+            if corrected_std.size:
+                corrected_std = corrected_std / baseline
+            if corrected_ic_std.size:
+                corrected_ic_std = corrected_ic_std / baseline
+            if stopped.size:
+                stopped = stopped / baseline
+            uncorrected = np.ones_like(uncorrected)
+        if loss.size:
+            updates = np.arange(1, loss.size + 1)
+            ax_loss.plot(
+                updates,
+                loss,
+                color=color,
+                linestyle="-",
+                label=label,
+            )
+            if loss_std.shape == loss.shape:
+                ax_loss.fill_between(
+                    updates,
+                    np.maximum(loss - loss_std, 0.2 * loss),
+                    loss + loss_std,
+                    color=color,
+                    alpha=0.12,
+                    linewidth=0,
+                )
+        if stopped_loss.size:
+            ax_loss.plot(
+                np.arange(1, stopped_loss.size + 1),
+                stopped_loss,
+                color=color,
+                linestyle="--",
+                alpha=0.55,
+            )
+        if corrected.size:
+            x = times[: corrected.size] if times.size else np.arange(corrected.size)
+            ax_roll.plot(
+                x[1:],
+                corrected[1:],
+                color=color,
+                linestyle="-",
+                label=label,
+            )
+            if corrected_std.shape == corrected.shape:
+                rollout_uncertainty = corrected_std
+                if corrected_ic_std.shape == corrected.shape:
+                    rollout_uncertainty = np.hypot(
+                        corrected_std,
+                        corrected_ic_std,
+                    )
+                ax_roll.fill_between(
+                    x[1:],
+                    np.maximum(corrected[1:] - rollout_uncertainty[1:], 1e-12),
+                    corrected[1:] + rollout_uncertainty[1:],
+                    color=color,
+                    alpha=0.12,
+                    linewidth=0,
+                )
+        if stopped.size:
+            has_stopped_rollout = True
+            x = times[: stopped.size] if times.size else np.arange(stopped.size)
+            ax_roll.plot(
+                x[1:],
+                stopped[1:],
+                color=color,
+                linestyle="--",
+                alpha=0.55,
+            )
+        if uncorrected.size:
+            x = times[: uncorrected.size] if times.size else np.arange(uncorrected.size)
+            ax_roll.plot(
+                x[1:],
+                uncorrected[1:],
+                color=color,
+                linestyle=":",
+                alpha=0.45,
+            )
+
+        wall = metrics.get("training_wall_time_s")
+        admitted = bool(metrics.get("valid_for_vjp_ranking", False))
+        quality = (
+            100.0 * (float(metrics["solver_vjp_geometric_lift"]) - 1.0)
+            if solver_specific_reference
+            and admitted
+            and metrics.get("solver_vjp_geometric_lift") is not None
+            else (
+                None
+                if solver_specific_reference
+                else metrics.get("final_rollout_error")
+            )
+        )
+        if wall is not None and quality is not None:
+            ax_cost.scatter(
+                [wall],
+                [quality],
+                color=color,
+                marker=marker,
+                s=30,
+                label=label,
+            )
+        present.append(name)
+
+    if any(
+        np.any(np.asarray(arrays.get(f"loss_{idx}", np.array([]))) > 0)
+        for idx in range(len(names))
+    ):
+        ax_loss.set_yscale("log")
+    ax_loss.set_xlabel("Optimizer update")
+    ax_loss.set_ylabel("Normalized training loss")
+    ax_loss.set_title("Corrector training")
+
+    ax_roll.set_yscale("log")
+    ax_roll.set_xlabel("Physical time")
+    ax_roll.set_ylabel(
+        "Error / solver-only error"
+        if solver_specific_reference
+        else "Relative $L^2$ error"
+    )
+    ax_roll.set_title("Held-out rollout")
+    ax_roll.text(
+        0.98,
+        0.04,
+        (
+            "solid: full VJP\n dashed: stop-gradient\n dotted: solver only"
+            if has_stopped_rollout
+            else "solid: solver + corrector\n dotted: solver only"
+        ),
+        transform=ax_roll.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=6.5,
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75},
+    )
+
+    ax_cost.set_xlabel("Training wall time [s]")
+    ax_cost.set_ylabel(
+        "Solver-VJP lift [%]" if solver_specific_reference else "Final rollout error"
+    )
+    ax_cost.set_title(
+        "VJP benefit versus cost (admitted only)"
+        if solver_specific_reference
+        else "Time to quality"
+    )
+    if solver_specific_reference:
+        ax_cost.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
+
+    _solver_loop_legend(fig, present)
+    fig.suptitle(title)
+    figs = [fig]
+    if save:
+        save_fig(fig, "solver_in_loop", out_dir)
+    fields_fig = _plot_solver_in_loop_fields(arrays, names, out_dir, save=save)
+    if fields_fig is not None:
+        figs.append(fields_fig)
+    fairness_fig = _plot_solver_in_loop_fairness(
+        data,
+        names,
+        out_dir,
+        save=save,
+        solver_specific_reference=solver_specific_reference,
+    )
+    if fairness_fig is not None:
+        figs.append(fairness_fig)
+    physics_fig = _plot_solver_in_loop_physics(
+        arrays,
+        names,
+        out_dir,
+        save=save,
+        solver_specific_reference=solver_specific_reference,
+    )
+    if physics_fig is not None:
+        figs.append(physics_fig)
+    if not solver_specific_reference:
+        diagnostics_fig = _plot_solver_in_loop_diagnostics(
+            data,
+            names,
+            out_dir,
+            save=save,
+        )
+        if diagnostics_fig is not None:
+            figs.append(diagnostics_fig)
+    if save:
+        _save_solver_in_loop_animation(arrays, names, out_dir)
+    return figs
+
+
+def plot_solver_in_loop_tgv(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **kwargs: Any,
+) -> list:
+    """Plot the analytic Taylor--Green solver-in-the-loop sanity regime."""
+    return plot_solver_in_loop(
+        cfg,
+        save=save,
+        suffix=suffix,
+        exp_key="solver_in_loop_tgv",
+        **kwargs,
+    )
+
+
+def plot_solver_in_loop_self_reference(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **kwargs: Any,
+) -> list:
+    """Plot the recurrence-admitted, solver-specific refined-reference task."""
+    return plot_solver_in_loop(
+        cfg,
+        save=save,
+        suffix=suffix,
+        exp_key="solver_in_loop_self_reference",
+        title="Solver-specific refined-reference neural correction",
+        solver_specific_reference=True,
+        **kwargs,
+    )
+
+
+def plot_solver_in_loop_reference_sensitivity(
+    cfg: Problem,
+    *,
+    sub_keys: list[str],
+    save: bool = True,
+    suffix: str = "",
+    **_kwargs: Any,
+) -> list:
+    """Render both reference variants and their cross-reference sensitivity."""
+    payloads: dict[str, tuple[dict, dict[str, np.ndarray], list[str], Path]] = {}
+    figs: list[plt.Figure] = []
+    for sub_key in sub_keys:
+        suite, _, exp_key = sub_key.partition("/")
+        variant = exp_key.rsplit("/", 1)[-1]
+        out_dir = experiment_dir(
+            results_dir(),
+            cfg.name,
+            suite,
+            f"{exp_key}{suffix}",
+        )
+        result_path = out_dir / "result.json"
+        fields_path = out_dir / "corrector_fields.npz"
+        if not result_path.exists() or not fields_path.exists():
+            continue
+        data = v1_to_legacy(load_json(result_path))
+        arrays = try_load_npz(fields_path)
+        names = [str(v) for v in arrays.get("solver_names", np.array([])).tolist()]
+        if not names:
+            continue
+        payloads[variant] = (data, arrays, names, out_dir)
+        figs.extend(
+            plot_solver_in_loop(
+                cfg,
+                save=save,
+                suffix=suffix,
+                exp_key=exp_key,
+                title=f"Solver-in-the-loop correction: {variant.replace('_', ' ')} reference",
+            )
+        )
+
+    if {"spectral", "finite_volume"} - set(payloads):
+        return figs
+
+    reference_labels = {
+        "spectral": "Pseudo-spectral",
+        "finite_volume": "Finite-volume",
+    }
+    reference_colors = {
+        "spectral": "#6A51A3",
+        "finite_volume": "#238B45",
+    }
+    aliases: list[str] = []
+    names_by_variant: dict[str, dict[str, str]] = {}
+    for variant, (_data, _arrays, names, _out_dir) in payloads.items():
+        names_by_variant[variant] = {}
+        for name in names:
+            alias = resolve_solver_alias(name) or name
+            names_by_variant[variant][alias] = name
+            if alias not in aliases:
+                aliases.append(alias)
+    aliases.sort(
+        key=lambda alias: (
+            NS_ORDER.index(alias) if alias in NS_ORDER else len(NS_ORDER),
+            alias,
+        )
+    )
+
+    parent_dir = experiment_dir(
+        results_dir(),
+        cfg.name,
+        "optimization",
+        f"solver_in_loop_reference_sensitivity{suffix}",
+    )
+    parent_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(
+        2,
+        3,
+        figsize=(TEXTWIDTH, 0.72 * TEXTWIDTH),
+        layout="constrained",
+    )
+    (
+        ax_disagreement,
+        ax_convergence,
+        ax_solver_only,
+        ax_corrected,
+        ax_gain,
+        ax_vjp,
+    ) = axes.ravel()
+
+    spectral_arrays = payloads["spectral"][1]
+    finite_volume_arrays = payloads["finite_volume"][1]
+    spectral_reference = np.asarray(
+        spectral_arrays.get("reference_rollout", np.array([]))
+    )
+    finite_volume_reference = np.asarray(
+        finite_volume_arrays.get("reference_rollout", np.array([]))
+    )
+    times = np.asarray(
+        spectral_arrays.get(
+            "evaluation_times",
+            np.arange(min(len(spectral_reference), len(finite_volume_reference))),
+        )
+    )
+    n_frames = min(len(spectral_reference), len(finite_volume_reference), len(times))
+    if n_frames:
+        disagreement = np.asarray(
+            [
+                np.linalg.norm(
+                    spectral_reference[index] - finite_volume_reference[index]
+                )
+                / (np.linalg.norm(spectral_reference[index]) + 1e-12)
+                for index in range(n_frames)
+            ]
+        )
+        ax_disagreement.plot(
+            times[:n_frames],
+            disagreement,
+            color="#333333",
+            marker="o",
+            markersize=2.5,
+        )
+    ax_disagreement.set_xlabel("Physical time")
+    ax_disagreement.set_ylabel("Reference disagreement")
+    ax_disagreement.set_title("Target sensitivity")
+
+    convergence_values: list[float] = []
+    for variant in ("spectral", "finite_volume"):
+        data = payloads[variant][0]
+        values = [
+            float(metrics["reference_convergence_error_p95"])
+            for metrics in data.get("by_solver", {}).values()
+            if metrics.get("reference_convergence_error_p95") is not None
+        ]
+        convergence_values.append(float(np.median(values)) if values else np.nan)
+    ax_convergence.bar(
+        np.arange(2),
+        convergence_values,
+        color=[reference_colors["spectral"], reference_colors["finite_volume"]],
+    )
+    tolerance = 0.05
+    for data, _arrays, _names, _out_dir in payloads.values():
+        for metrics in data.get("by_solver", {}).values():
+            if metrics.get("reference_convergence_tolerance") is not None:
+                tolerance = float(metrics["reference_convergence_tolerance"])
+                break
+    ax_convergence.axhline(tolerance, color="0.45", linestyle=":", linewidth=1.0)
+    ax_convergence.set_xticks(
+        np.arange(2),
+        [reference_labels["spectral"], reference_labels["finite_volume"]],
+        rotation=20,
+        ha="right",
+    )
+    ax_convergence.set_ylabel("128² vs 256² p95")
+    ax_convergence.set_title("Reference convergence")
+
+    x = np.arange(len(aliases), dtype=float)
+    width = 0.36
+
+    def metric_values(variant: str, key: str) -> np.ndarray:
+        data = payloads[variant][0]
+        by_solver = data.get("by_solver", {})
+        return np.asarray(
+            [
+                float(
+                    by_solver.get(names_by_variant[variant].get(alias, ""), {}).get(
+                        key, np.nan
+                    )
+                )
+                for alias in aliases
+            ]
+        )
+
+    for variant_index, variant in enumerate(("spectral", "finite_volume")):
+        offset = (variant_index - 0.5) * width
+        common = {
+            "width": width,
+            "color": reference_colors[variant],
+            "alpha": 0.88,
+        }
+        ax_solver_only.bar(
+            x + offset,
+            metric_values(variant, "uncorrected_rollout_error"),
+            **common,
+        )
+        ax_corrected.bar(
+            x + offset,
+            metric_values(variant, "final_rollout_error"),
+            **common,
+        )
+        ax_gain.bar(
+            x + offset,
+            metric_values(variant, "geometric_error_reduction"),
+            **common,
+        )
+        lift = 100.0 * (metric_values(variant, "solver_vjp_geometric_lift") - 1.0)
+        data = payloads[variant][0]
+        by_solver = data.get("by_solver", {})
+        log_std = np.asarray(
+            [
+                np.hypot(
+                    float(
+                        by_solver.get(names_by_variant[variant].get(alias, ""), {}).get(
+                            "solver_vjp_log_lift_seed_std", 0.0
+                        )
+                    ),
+                    float(
+                        by_solver.get(names_by_variant[variant].get(alias, ""), {}).get(
+                            "solver_vjp_log_lift_ic_std", 0.0
+                        )
+                    ),
+                )
+                for alias in aliases
+            ]
+        )
+        lift_scale = metric_values(variant, "solver_vjp_geometric_lift")
+        ax_vjp.bar(
+            x + offset,
+            lift,
+            yerr=100.0 * lift_scale * log_std,
+            capsize=2,
+            **common,
+        )
+
+    for axis, ylabel, title in (
+        (ax_solver_only, "Final relative $L^2$ error", "Solver-only accuracy"),
+        (ax_corrected, "Final relative $L^2$ error", "Corrected accuracy"),
+        (ax_gain, "Geometric error reduction [×]", "Correctability"),
+        (ax_vjp, "Solver-VJP lift [%]", "VJP conclusion"),
+    ):
+        axis.set_xticks(
+            x,
+            [solver_props(alias)[0] for alias in aliases],
+            rotation=50,
+            ha="right",
+            rotation_mode="anchor",
+            fontsize=6.5,
+        )
+        axis.set_ylabel(ylabel)
+        axis.set_title(title)
+    ax_gain.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_vjp.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
+    reference_handles = [
+        mlines.Line2D(
+            [],
+            [],
+            color=reference_colors[variant],
+            linewidth=6.0,
+            label=reference_labels[variant],
+        )
+        for variant in ("spectral", "finite_volume")
+    ]
+    fig.legend(
+        handles=reference_handles,
+        loc="outside lower center",
+        ncol=2,
+        frameon=False,
+    )
+    fig.suptitle("Solver-in-the-loop reference sensitivity")
+    if save:
+        save_fig(fig, "solver_in_loop_reference_sensitivity", parent_dir)
+    figs.append(fig)
+
+    if n_frames:
+        field_indices = sorted({0, max(1, n_frames * 2 // 3), n_frames - 1})
+        fields_fig, fields_axes = plt.subplots(
+            len(field_indices),
+            3,
+            figsize=(0.70 * TEXTWIDTH, 0.62 * TEXTWIDTH),
+            squeeze=False,
+        )
+        spectral_vorticity = [
+            _periodic_vorticity_2d(spectral_reference[index]) for index in field_indices
+        ]
+        finite_volume_vorticity = [
+            _periodic_vorticity_2d(finite_volume_reference[index])
+            for index in field_indices
+        ]
+        vmax = float(
+            np.percentile(
+                np.abs(
+                    np.concatenate(
+                        [
+                            *(value.ravel() for value in spectral_vorticity),
+                            *(value.ravel() for value in finite_volume_vorticity),
+                        ]
+                    )
+                ),
+                99,
+            )
+        )
+        differences = [
+            finite - spectral
+            for spectral, finite in zip(
+                spectral_vorticity, finite_volume_vorticity, strict=True
+            )
+        ]
+        diff_vmax = float(
+            np.percentile(
+                np.abs(np.concatenate([value.ravel() for value in differences])),
+                99,
+            )
+        )
+        for row, index in enumerate(field_indices):
+            for col, (value, scale) in enumerate(
+                (
+                    (spectral_vorticity[row], vmax),
+                    (finite_volume_vorticity[row], vmax),
+                    (differences[row], diff_vmax),
+                )
+            ):
+                image = fields_axes[row, col].imshow(
+                    value.T,
+                    origin="lower",
+                    cmap="RdBu_r",
+                    vmin=-max(scale, 1e-12),
+                    vmax=max(scale, 1e-12),
+                )
+                fields_axes[row, col].set_xticks([])
+                fields_axes[row, col].set_yticks([])
+                if col == 2:
+                    fields_fig.colorbar(image, ax=fields_axes[row, col], shrink=0.75)
+            fields_axes[row, 0].set_ylabel(f"$t={times[index]:.2f}$")
+        for axis, title in zip(
+            fields_axes[0],
+            ("Pseudo-spectral", "Finite-volume", "FV − spectral"),
+            strict=True,
+        ):
+            axis.set_title(title)
+        fields_fig.suptitle("Reference vorticity fields")
+        fields_fig.subplots_adjust(hspace=0.16, wspace=0.16)
+        if save:
+            save_fig(
+                fields_fig,
+                "solver_in_loop_reference_fields",
+                parent_dir,
+            )
+        figs.append(fields_fig)
+    return figs
+
+
+def _solver_reference_rollout(
+    arrays: dict[str, np.ndarray],
+    solver_index: int,
+) -> np.ndarray:
+    """Return a solver-specific target when present, else the shared target."""
+    return np.asarray(
+        arrays.get(
+            f"reference_rollout_{solver_index}",
+            arrays.get("reference_rollout", np.array([])),
+        )
+    )
+
+
+def _periodic_vorticity_2d(
+    velocity: np.ndarray,
+    *,
+    domain_extent: float = 2.0 * np.pi,
+) -> np.ndarray:
+    """Return centered-difference vorticity for a periodic 2-D velocity field."""
+    ux, uy = _vel_components_2d(np.asarray(velocity))
+    dx = domain_extent / ux.shape[0]
+    dy = domain_extent / ux.shape[1]
+    d_uy_dx = (np.roll(uy, -1, axis=0) - np.roll(uy, 1, axis=0)) / (2.0 * dx)
+    d_ux_dy = (np.roll(ux, -1, axis=1) - np.roll(ux, 1, axis=1)) / (2.0 * dy)
+    return d_uy_dx - d_ux_dy
+
+
+def _periodic_divergence_2d(
+    velocity: np.ndarray,
+    *,
+    domain_extent: float = 2.0 * np.pi,
+    spectral: bool,
+) -> np.ndarray:
+    """Return a common spectral or centered periodic divergence diagnostic."""
+    ux, uy = _vel_components_2d(np.asarray(velocity))
+    dx = domain_extent / ux.shape[0]
+    dy = domain_extent / ux.shape[1]
+    if spectral:
+        kx = 2.0 * np.pi * np.fft.fftfreq(ux.shape[0], d=dx)
+        ky = 2.0 * np.pi * np.fft.fftfreq(ux.shape[1], d=dy)
+        kx_grid, ky_grid = np.meshgrid(kx, ky, indexing="ij")
+        divergence_hat = 1j * (kx_grid * np.fft.fft2(ux) + ky_grid * np.fft.fft2(uy))
+        return np.fft.ifft2(divergence_hat).real
+    du_dx = (np.roll(ux, -1, axis=0) - np.roll(ux, 1, axis=0)) / (2.0 * dx)
+    dv_dy = (np.roll(uy, -1, axis=1) - np.roll(uy, 1, axis=1)) / (2.0 * dy)
+    return du_dx + dv_dy
+
+
+def _trajectory_diagnostics(
+    trajectory: np.ndarray,
+    *,
+    domain_extent: float = 2.0 * np.pi,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Return energy, enstrophy, and two divergence curves for a trajectory."""
+    energy: list[float] = []
+    enstrophy_values: list[float] = []
+    spectral_divergence: list[float] = []
+    centered_divergence: list[float] = []
+    for frame in np.asarray(trajectory):
+        ux, uy = _vel_components_2d(frame)
+        vorticity = _periodic_vorticity_2d(frame, domain_extent=domain_extent)
+        energy.append(float(0.5 * np.mean(ux**2 + uy**2)))
+        enstrophy_values.append(float(0.5 * np.mean(vorticity**2)))
+        spectral_divergence.append(
+            float(
+                np.sqrt(
+                    np.mean(
+                        _periodic_divergence_2d(
+                            frame,
+                            domain_extent=domain_extent,
+                            spectral=True,
+                        )
+                        ** 2
+                    )
+                )
+            )
+        )
+        centered_divergence.append(
+            float(
+                np.sqrt(
+                    np.mean(
+                        _periodic_divergence_2d(
+                            frame,
+                            domain_extent=domain_extent,
+                            spectral=False,
+                        )
+                        ** 2
+                    )
+                )
+            )
+        )
+    return (
+        np.asarray(energy),
+        np.asarray(enstrophy_values),
+        np.asarray(spectral_divergence),
+        np.asarray(centered_divergence),
+    )
+
+
+def _plot_solver_in_loop_fields(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Render final held-out reference, raw-solver, and corrected vorticity.
+
+    Each solver gets one row. The reference column is deliberately repeated so
+    every raw/corrected pair can be read horizontally without looking across
+    rows. All panels share one robust symmetric colour scale.
+    """
+    rows = _ordered_solver_rollouts(arrays, names)
+    if not rows:
+        return None
+
+    rendered_rows: list[tuple[str, np.ndarray, np.ndarray, np.ndarray]] = []
+    scale_fields: list[np.ndarray] = []
+    for name, raw, corrected in rows:
+        reference = _solver_reference_rollout(arrays, names.index(name))
+        if reference.size == 0 or reference.shape[0] == 0:
+            continue
+        reference_vorticity = _periodic_vorticity_2d(reference[-1])
+        raw_vorticity = _periodic_vorticity_2d(raw[-1])
+        corrected_vorticity = _periodic_vorticity_2d(corrected[-1])
+        rendered_rows.append(
+            (name, reference_vorticity, raw_vorticity, corrected_vorticity)
+        )
+        scale_fields.extend((reference_vorticity, raw_vorticity, corrected_vorticity))
+    if not rendered_rows:
+        return None
+
+    magnitudes = np.concatenate([np.abs(field).ravel() for field in scale_fields])
+    vmax = float(np.percentile(magnitudes, 99.0)) or 1.0
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        len(rendered_rows),
+        3,
+        figsize=(TEXTWIDTH, max(1.8, 0.95 * len(rendered_rows))),
+        squeeze=False,
+        layout="constrained",
+    )
+    column_titles = ("Reference", "Solver only", "Solver + corrector")
+    image = None
+    for row_idx, (
+        name,
+        reference_vorticity,
+        raw_vorticity,
+        corrected_vorticity,
+    ) in enumerate(rendered_rows):
+        label, _color, _linestyle, _marker = solver_props(name)
+        for col_idx, field in enumerate(
+            (reference_vorticity, raw_vorticity, corrected_vorticity)
+        ):
+            ax = axes[row_idx, col_idx]
+            image = ax.imshow(
+                field.T,
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                interpolation="nearest",
+            )
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if row_idx == 0:
+                ax.set_title(column_titles[col_idx])
+        axes[row_idx, 0].set_ylabel(
+            label,
+            rotation=0,
+            ha="right",
+            va="center",
+            labelpad=8,
+        )
+
+    if image is not None:
+        colorbar = fig.colorbar(
+            image,
+            ax=axes.ravel().tolist(),
+            location="right",
+            shrink=0.82,
+            pad=0.02,
+        )
+        colorbar.set_label(r"Vorticity $\omega$")
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    time_suffix = f" at $t={float(times[-1]):g}$" if times.size else ""
+    fig.suptitle(f"Held-out final-frame flow{time_suffix}")
+
+    if save:
+        save_fig(fig, "solver_in_loop_fields", out_dir)
+    return fig
+
+
+def _ordered_solver_rollouts(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+) -> list[tuple[str, np.ndarray, np.ndarray]]:
+    """Return complete raw/corrected rollouts in canonical solver order."""
+    rows: list[tuple[str, np.ndarray, np.ndarray]] = []
+    for idx, name in enumerate(names):
+        raw = np.asarray(arrays.get(f"rollout_uncorrected_{idx}", np.array([])))
+        corrected = np.asarray(arrays.get(f"rollout_corrected_{idx}", np.array([])))
+        if raw.size and corrected.size and raw.shape[0] and corrected.shape[0]:
+            rows.append((name, raw, corrected))
+    solver_order = {alias: idx for idx, alias in enumerate(NS_ORDER)}
+    rows.sort(
+        key=lambda row: solver_order.get(
+            resolve_solver_alias(row[0]) or row[0],
+            len(solver_order),
+        )
+    )
+    return rows
+
+
+def _plot_solver_in_loop_physics(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+    solver_specific_reference: bool = False,
+) -> plt.Figure | None:
+    """Compare energy, enstrophy, and divergence along held-out rollouts."""
+    rows = _ordered_solver_rollouts(arrays, names)
+    solver_references = {
+        name: _solver_reference_rollout(arrays, names.index(name))
+        for name, _raw, _corrected in rows
+    }
+    rows = [row for row in rows if solver_references[row[0]].size]
+    if not rows:
+        return None
+
+    n_frames = min(
+        [
+            min(
+                solver_references[name].shape[0],
+                raw.shape[0],
+                corrected.shape[0],
+            )
+            for name, raw, corrected in rows
+        ]
+    )
+    times = np.asarray(arrays.get("evaluation_times", np.array([])))[:n_frames]
+    if times.size != n_frames:
+        times = np.arange(n_frames, dtype=float)
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(TEXTWIDTH, 4.5),
+        squeeze=False,
+        layout="constrained",
+    )
+    ax_energy, ax_enstrophy, ax_spectral, ax_centered = axes.ravel()
+    diagnostic_axes = (ax_energy, ax_enstrophy, ax_spectral, ax_centered)
+
+    present: list[str] = []
+    for row_index, (name, raw, corrected) in enumerate(rows):
+        _label, color, _linestyle, _marker = solver_props(name)
+        reference_diagnostics = _trajectory_diagnostics(
+            solver_references[name][:n_frames]
+        )
+        energy_scale = reference_diagnostics[0][0] + 1e-12
+        enstrophy_scale = reference_diagnostics[1][0] + 1e-12
+        reference_curves = (
+            reference_diagnostics[0] / energy_scale,
+            reference_diagnostics[1] / enstrophy_scale,
+            reference_diagnostics[2],
+            reference_diagnostics[3],
+        )
+        raw_diagnostics = _trajectory_diagnostics(raw[:n_frames])
+        corrected_diagnostics = _trajectory_diagnostics(corrected[:n_frames])
+        raw_curves = (
+            raw_diagnostics[0] / energy_scale,
+            raw_diagnostics[1] / enstrophy_scale,
+            raw_diagnostics[2],
+            raw_diagnostics[3],
+        )
+        corrected_curves = (
+            corrected_diagnostics[0] / energy_scale,
+            corrected_diagnostics[1] / enstrophy_scale,
+            corrected_diagnostics[2],
+            corrected_diagnostics[3],
+        )
+        for ax, reference_curve, raw_curve, corrected_curve in zip(
+            diagnostic_axes,
+            reference_curves,
+            raw_curves,
+            corrected_curves,
+            strict=True,
+        ):
+            if solver_specific_reference or row_index == 0:
+                ax.plot(
+                    times,
+                    np.maximum(reference_curve, 1e-12),
+                    color=color if solver_specific_reference else "0.25",
+                    linestyle="--",
+                    alpha=0.7,
+                )
+            ax.plot(times, np.maximum(raw_curve, 1e-12), color=color, linestyle=":")
+            ax.plot(
+                times,
+                np.maximum(corrected_curve, 1e-12),
+                color=color,
+                linestyle="-",
+            )
+        present.append(name)
+
+    ax_energy.set_ylabel("Energy / initial reference")
+    ax_energy.set_title("Kinetic energy")
+    ax_enstrophy.set_ylabel("Enstrophy / initial reference")
+    ax_enstrophy.set_title("Resolved enstrophy")
+    ax_spectral.set_ylabel("RMS divergence")
+    ax_spectral.set_title("Common spectral divergence")
+    ax_centered.set_ylabel("RMS divergence")
+    ax_centered.set_title("Common centered-grid divergence")
+    for ax in diagnostic_axes:
+        ax.set_xlabel("Physical time")
+    ax_spectral.set_yscale("log")
+    ax_centered.set_yscale("log")
+
+    _solver_loop_legend(
+        fig,
+        present,
+        extra_handles=[
+            mlines.Line2D(
+                [],
+                [],
+                color="0.4",
+                linestyle="--",
+                label=(
+                    "solver-specific reference"
+                    if solver_specific_reference
+                    else "shared reference"
+                ),
+            ),
+            mlines.Line2D([], [], color="0.4", linestyle=":", label="solver only"),
+            mlines.Line2D([], [], color="0.4", linestyle="-", label="full corrector"),
+        ],
+    )
+    fig.suptitle("Held-out trajectory physics (divergence is operator-dependent)")
+    if save:
+        save_fig(fig, "solver_in_loop_physics", out_dir)
+    return fig
+
+
+def _plot_solver_in_loop_fairness(
+    data: dict[str, Any],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+    solver_specific_reference: bool = False,
+) -> plt.Figure | None:
+    """Separate raw quality, correctability, and benefit from the solver VJP."""
+    by_solver = data.get("by_solver", {})
+    rows: list[tuple[str, dict[str, Any]]] = []
+    solver_order = {alias: idx for idx, alias in enumerate(NS_ORDER)}
+    for name in names:
+        metrics = by_solver.get(name, {})
+        if (
+            metrics.get("uncorrected_mean_rollout_error") is not None
+            and metrics.get("mean_rollout_error") is not None
+        ):
+            rows.append((name, metrics))
+    rows.sort(
+        key=lambda row: solver_order.get(
+            resolve_solver_alias(row[0]) or row[0],
+            len(solver_order),
+        )
+    )
+    if not rows:
+        return None
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(TEXTWIDTH, 4.5),
+        squeeze=False,
+        layout="constrained",
+    )
+    ax_quality, ax_gain, ax_vjp, ax_efficiency = axes.ravel()
+    positions = np.arange(len(rows), dtype=float)
+    labels: list[str] = []
+
+    all_errors: list[float] = []
+    normalized_full_errors: list[float] = []
+    normalized_stopped_errors: list[float] = []
+    full_gain: list[float] = []
+    stopped_gain: list[float] = []
+    vjp_lift: list[float] = []
+    full_gain_log_std: list[float] = []
+    stopped_gain_log_std: list[float] = []
+    vjp_lift_log_std: list[float] = []
+    update_times: list[float] = []
+    has_counterfactual = True
+    has_cost = True
+    has_seed_uncertainty = False
+    has_ic_uncertainty = False
+    for name, metrics in rows:
+        label, color, _linestyle, marker = solver_props(name)
+        labels.append(label)
+        raw = float(metrics["uncorrected_mean_rollout_error"])
+        corrected = float(metrics["mean_rollout_error"])
+        normalized_full_errors.append(corrected / max(raw, 1e-12))
+        stopped_error = metrics.get("stop_gradient_mean_rollout_error")
+        if solver_specific_reference:
+            has_counterfactual &= stopped_error is not None
+        normalized_stopped_errors.append(
+            float(stopped_error) / max(raw, 1e-12)
+            if stopped_error is not None
+            else np.nan
+        )
+        if not solver_specific_reference:
+            all_errors.extend((raw, corrected))
+            ax_quality.scatter(raw, corrected, color=color, marker=marker, s=30)
+        update_time = metrics.get("median_update_time_s")
+        has_cost &= update_time is not None
+        update_times.append(float(update_time) if update_time is not None else np.nan)
+
+        full = metrics.get("geometric_error_reduction")
+        if full is None:
+            full = raw / max(corrected, 1e-12)
+        full_gain.append(float(full))
+        full_gain_log_std.append(
+            float(
+                np.hypot(
+                    float(metrics.get("rollout_log_gain_seed_std", 0.0)),
+                    float(metrics.get("rollout_log_gain_ic_std", 0.0)),
+                )
+            )
+        )
+        has_seed_uncertainty |= "rollout_log_gain_seed_std" in metrics
+        has_ic_uncertainty |= "rollout_log_gain_ic_std" in metrics
+
+        stopped = metrics.get("stop_gradient_geometric_error_reduction")
+        lift = metrics.get("solver_vjp_geometric_lift")
+        if stopped is None or lift is None:
+            has_counterfactual = False
+        stopped_gain.append(float(stopped) if stopped is not None else np.nan)
+        vjp_lift.append(float(lift) if lift is not None else np.nan)
+        stopped_gain_log_std.append(
+            float(
+                np.hypot(
+                    float(
+                        metrics.get(
+                            "stop_gradient_rollout_log_gain_seed_std",
+                            0.0,
+                        )
+                    ),
+                    float(
+                        metrics.get(
+                            "stop_gradient_rollout_log_gain_ic_std",
+                            0.0,
+                        )
+                    ),
+                )
+            )
+        )
+        seed_lift_std = float(metrics.get("solver_vjp_log_lift_seed_std", 0.0))
+        ic_lift_std = float(metrics.get("solver_vjp_log_lift_ic_std", 0.0))
+        vjp_lift_log_std.append(float(np.hypot(seed_lift_std, ic_lift_std)))
+        has_ic_uncertainty |= "solver_vjp_log_lift_ic_std" in metrics
+
+    width = 0.36 if has_counterfactual else 0.62
+    colors = [solver_props(name)[1] for name, _metrics in rows]
+    if solver_specific_reference:
+        ax_quality.bar(
+            positions - (width / 2 if has_counterfactual else 0.0),
+            normalized_full_errors,
+            width=width,
+            color=colors,
+            alpha=0.9,
+            label="full solver VJP",
+        )
+        if has_counterfactual:
+            ax_quality.bar(
+                positions + width / 2,
+                normalized_stopped_errors,
+                width=width,
+                color=colors,
+                alpha=0.35,
+                hatch="//",
+                label="stop-gradient",
+            )
+            ax_quality.legend(loc="best", fontsize=6.5)
+        ax_quality.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+        ax_quality.set_xticks(positions, labels, rotation=35, ha="right")
+        ax_quality.set_ylabel("Mean error / solver-only error")
+        ax_quality.set_title("Target-normalized quality")
+    else:
+        error_min = max(min(all_errors) * 0.8, 1e-4)
+        error_max = max(all_errors) * 1.25
+        ax_quality.plot(
+            [error_min, error_max],
+            [error_min, error_max],
+            color="0.45",
+            linestyle=":",
+            linewidth=1.0,
+        )
+        if error_max / error_min >= 10.0:
+            ax_quality.set_xscale("log")
+            ax_quality.set_yscale("log")
+            ax_quality.xaxis.set_minor_formatter(mticker.NullFormatter())
+            ax_quality.yaxis.set_minor_formatter(mticker.NullFormatter())
+        ax_quality.set_xlim(error_min, error_max)
+        ax_quality.set_ylim(error_min, error_max)
+        ax_quality.set_xlabel("Solver-only mean error")
+        ax_quality.set_ylabel("Corrected mean error")
+        ax_quality.set_title("Absolute quality")
+
+    full_error = _log_scale_errorbars(full_gain, full_gain_log_std)
+    ax_gain.bar(
+        positions - (width / 2 if has_counterfactual else 0.0),
+        full_gain,
+        width=width,
+        color=colors,
+        alpha=0.9,
+        label="full solver VJP",
+        yerr=full_error,
+        capsize=2,
+    )
+    if has_counterfactual:
+        ax_gain.bar(
+            positions + width / 2,
+            stopped_gain,
+            width=width,
+            color=colors,
+            alpha=0.35,
+            hatch="//",
+            label="stop-gradient",
+            yerr=_log_scale_errorbars(stopped_gain, stopped_gain_log_std),
+            capsize=2,
+        )
+        ax_gain.legend(loc="best", fontsize=6.5)
+    ax_gain.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_gain.set_xticks(positions, labels, rotation=35, ha="right")
+    ax_gain.set_ylabel("Geometric error reduction [×]")
+    ax_gain.set_title("Correctability")
+
+    if has_counterfactual:
+        admitted = [
+            idx
+            for idx, (_name, metrics) in enumerate(rows)
+            if metrics.get("valid_for_vjp_ranking", False)
+        ]
+        admitted_positions = np.arange(len(admitted), dtype=float)
+        admitted_labels = [labels[idx] for idx in admitted]
+        admitted_colors = [colors[idx] for idx in admitted]
+        vjp_lift_pct = [100.0 * (vjp_lift[idx] - 1.0) for idx in admitted]
+        vjp_error = _log_scale_errorbars(vjp_lift, vjp_lift_log_std)
+        if vjp_error is not None:
+            vjp_error = 100.0 * vjp_error[:, admitted]
+        ax_vjp.bar(
+            admitted_positions,
+            vjp_lift_pct,
+            color=admitted_colors,
+            alpha=0.9,
+            yerr=vjp_error,
+            capsize=2,
+        )
+        ax_vjp.axhline(0.0, color="0.45", linestyle=":", linewidth=1.0)
+        ax_vjp.set_xticks(
+            admitted_positions,
+            admitted_labels,
+            rotation=35,
+            ha="right",
+        )
+        ax_vjp.set_ylabel("Solver-VJP lift [%]")
+        title_suffix = " (admitted only)" if len(admitted) < len(rows) else ""
+        ax_vjp.set_title(f"Benefit from solver VJP{title_suffix}")
+        if has_cost:
+            for ranked_idx, idx in enumerate(admitted):
+                name, _metrics = rows[idx]
+                _label, color, _linestyle, marker = solver_props(name)
+                error = (
+                    None
+                    if vjp_error is None
+                    else vjp_error[:, ranked_idx].reshape(2, 1)
+                )
+                ax_efficiency.errorbar(
+                    update_times[idx],
+                    vjp_lift_pct[ranked_idx],
+                    yerr=error,
+                    color=color,
+                    marker=marker,
+                    linestyle="none",
+                    capsize=2,
+                )
+            positive_times = [
+                update_times[idx] for idx in admitted if update_times[idx] > 0
+            ]
+            if positive_times and max(positive_times) / min(positive_times) >= 10.0:
+                ax_efficiency.set_xscale("log")
+            ax_efficiency.axhline(
+                0.0,
+                color="0.45",
+                linestyle=":",
+                linewidth=1.0,
+            )
+            ax_efficiency.set_xlabel("Full-VJP update time [s]")
+            ax_efficiency.set_ylabel("Solver-VJP lift [%]")
+            ax_efficiency.set_title(f"VJP benefit versus cost{title_suffix}")
+        else:
+            ax_efficiency.axis("off")
+    else:
+        ax_vjp.axis("off")
+        ax_vjp.text(
+            0.5,
+            0.5,
+            "VJP counterfactual\nnot available in this run",
+            ha="center",
+            va="center",
+            transform=ax_vjp.transAxes,
+        )
+        ax_efficiency.axis("off")
+
+    _solver_loop_legend(fig, [name for name, _metrics in rows])
+    uncertainty_suffix = ""
+    if has_seed_uncertainty and has_ic_uncertainty:
+        uncertainty_suffix = " (error bars: combined seed/IC SD)"
+    elif has_seed_uncertainty:
+        uncertainty_suffix = " (error bars: ±1 seed SD)"
+    title = (
+        "Solver-specific self-consistency decomposition"
+        if solver_specific_reference
+        else "Fair solver-in-the-loop decomposition"
+    )
+    fig.suptitle(f"{title}{uncertainty_suffix}")
+    if save:
+        save_fig(fig, "solver_in_loop_fairness", out_dir)
+    return fig
+
+
+def _plot_solver_in_loop_diagnostics(
+    data: dict[str, Any],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Separate solver-interface effects, IC generalization, and extrapolation."""
+    by_solver = data.get("by_solver", {})
+    required = (
+        "first_interval_rollout_error",
+        "native_final_rollout_error",
+        "uncorrected_rollout_error",
+        "recurrent_to_native_error_ratio",
+        "seen_ic_matched_horizon_error",
+        "heldout_ic_matched_horizon_error",
+        "seen_ic_long_horizon_error",
+        "heldout_ic_long_horizon_error",
+    )
+    solver_order = {alias: idx for idx, alias in enumerate(NS_ORDER)}
+    rows = [
+        (name, by_solver[name])
+        for name in names
+        if name in by_solver
+        and all(by_solver[name].get(key) is not None for key in required)
+    ]
+    rows.sort(
+        key=lambda row: solver_order.get(
+            resolve_solver_alias(row[0]) or row[0],
+            len(solver_order),
+        )
+    )
+    if not rows:
+        return None
+
+    labels = [solver_props(name)[0] for name, _metrics in rows]
+    colors = [solver_props(name)[1] for name, _metrics in rows]
+    markers = [solver_props(name)[3] for name, _metrics in rows]
+    positions = np.arange(len(rows), dtype=float)
+    width = 0.36
+
+    def values(key: str) -> list[float]:
+        return [float(metrics.get(key, 0.0)) for _name, metrics in rows]
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        2,
+        3,
+        figsize=(TEXTWIDTH, 5.0),
+        squeeze=False,
+        layout="constrained",
+    )
+    ax_first, ax_recurrent, ax_closure, ax_matched, ax_long, ax_gaps = axes.ravel()
+
+    ax_first.bar(
+        positions,
+        values("first_interval_rollout_error"),
+        color=colors,
+        yerr=values("first_interval_rollout_error_ic_std"),
+        capsize=2,
+    )
+    ax_first.set_ylabel("Relative $L^2$ error")
+    ax_first.set_title("First canonical interval")
+
+    native = values("native_final_rollout_error")
+    recurrent = values("uncorrected_rollout_error")
+    lower = max(min(native + recurrent) * 0.8, 1e-5)
+    upper = max(native + recurrent) * 1.25
+    ax_recurrent.plot(
+        [lower, upper],
+        [lower, upper],
+        color="0.45",
+        linestyle=":",
+        linewidth=1.0,
+    )
+    for x_value, y_value, color, marker in zip(
+        native,
+        recurrent,
+        colors,
+        markers,
+        strict=True,
+    ):
+        ax_recurrent.scatter(x_value, y_value, color=color, marker=marker, s=30)
+    if upper / lower >= 10.0:
+        ax_recurrent.set_xscale("log")
+        ax_recurrent.set_yscale("log")
+    ax_recurrent.set(xlim=(lower, upper), ylim=(lower, upper))
+    ax_recurrent.set_xlabel("Native final error")
+    ax_recurrent.set_ylabel("Repeated-call final error")
+    ax_recurrent.set_title("Repeated calls vs native")
+
+    if all(
+        metrics.get("long_closure_error_p95") is not None for _name, metrics in rows
+    ):
+        closure_pct = 100.0 * np.asarray(values("long_closure_error_p95"))
+        tolerance_pct = 100.0 * max(values("long_closure_tolerance"))
+        ax_closure.bar(positions, closure_pct, color=colors)
+        ax_closure.axhline(
+            tolerance_pct,
+            color="0.45",
+            linestyle=":",
+            linewidth=1.0,
+            label="admission limit",
+        )
+        positive = closure_pct[closure_pct > 0]
+        if positive.size and max(positive) / min(positive) >= 10.0:
+            ax_closure.set_yscale("log")
+        ax_closure.set_ylabel("95th percentile residual [%]")
+        ax_closure.set_title("K-step closure gate")
+    elif all(metrics.get("semigroup_error_p95") is not None for _name, metrics in rows):
+        closure_pct = 100.0 * np.asarray(values("semigroup_error_p95"))
+        tolerance_pct = 100.0 * max(values("semigroup_p95_tolerance"))
+        ax_closure.bar(positions, closure_pct, color=colors)
+        ax_closure.axhline(
+            tolerance_pct,
+            color="0.45",
+            linestyle=":",
+            linewidth=1.0,
+            label="admission limit",
+        )
+        positive = closure_pct[closure_pct > 0]
+        if positive.size and max(positive) / min(positive) >= 10.0:
+            ax_closure.set_yscale("log")
+        ax_closure.set_ylabel("95th percentile residual [%]")
+        ax_closure.set_title("Two-step closure admission")
+    else:
+        ax_closure.bar(
+            positions,
+            values("recurrent_to_native_error_ratio"),
+            color=colors,
+        )
+        ax_closure.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+        ax_closure.set_ylabel("Repeated / native error [×]")
+        ax_closure.set_title("Repeated-call penalty")
+
+    for ax, horizon, title in (
+        (ax_matched, "matched_horizon", "Matched training horizon"),
+        (ax_long, "long_horizon", "Long rollout horizon"),
+    ):
+        seen = values(f"seen_ic_{horizon}_error")
+        heldout = values(f"heldout_ic_{horizon}_error")
+        ax.bar(
+            positions - width / 2,
+            seen,
+            width,
+            color=colors,
+            alpha=0.9,
+            label="seen IC",
+            yerr=values(f"seen_ic_{horizon}_error_ic_std"),
+            capsize=2,
+        )
+        ax.bar(
+            positions + width / 2,
+            heldout,
+            width,
+            color=colors,
+            alpha=0.35,
+            hatch="//",
+            label="held-out IC",
+            yerr=values(f"heldout_ic_{horizon}_error_ic_std"),
+            capsize=2,
+        )
+        positive = [value for value in (*seen, *heldout) if value > 0]
+        if positive and max(positive) / min(positive) >= 10.0:
+            ax.set_yscale("log")
+        ax.set_xticks(positions, labels, rotation=35, ha="right")
+        ax.set_ylabel("Corrected relative $L^2$ error")
+        ax.set_title(title)
+    ax_matched.legend(loc="best", fontsize=6.5)
+
+    gap_width = 0.24
+    for offset, key, label, alpha in (
+        (
+            -gap_width,
+            "ic_generalization_ratio_at_matched_horizon",
+            "held-out / seen",
+            0.9,
+        ),
+        (0.0, "seen_ic_temporal_extrapolation_ratio", "seen long / matched", 0.6),
+        (
+            gap_width,
+            "heldout_ic_temporal_extrapolation_ratio",
+            "held-out long / matched",
+            0.3,
+        ),
+    ):
+        ax_gaps.bar(
+            positions + offset,
+            values(key),
+            gap_width,
+            color=colors,
+            alpha=alpha,
+            label=label,
+        )
+    ax_gaps.axhline(1.0, color="0.45", linestyle=":", linewidth=1.0)
+    ax_gaps.set_ylabel("Error ratio [×]")
+    ax_gaps.set_title("Generalization gaps")
+    ax_gaps.legend(loc="lower left", fontsize=6.0)
+
+    for ax in (ax_first, ax_closure, ax_matched, ax_long, ax_gaps):
+        ax.set_xticks(positions, labels, rotation=35, ha="right")
+
+    matched_time = rows[0][1].get("matched_horizon_time")
+    long_time = rows[0][1].get("rollout_final_time")
+    suffix = ""
+    if matched_time is not None and long_time is not None:
+        suffix = f" ($t_\\mathrm{{match}}={matched_time:g}$, $t_\\mathrm{{long}}={long_time:g}$)"
+    fig.suptitle(f"Solver interface and corrector generalization{suffix}")
+    if save:
+        save_fig(fig, "solver_in_loop_diagnostics", out_dir)
+    return fig
+
+
+def _log_scale_errorbars(
+    values: list[float],
+    log_standard_deviations: list[float],
+) -> np.ndarray | None:
+    """Convert symmetric log-space uncertainty to asymmetric linear bars."""
+    centers = np.asarray(values, dtype=float)
+    deviations = np.asarray(log_standard_deviations, dtype=float)
+    if not np.any(deviations > 0):
+        return None
+    lower = centers - centers * np.exp(-deviations)
+    upper = centers * np.exp(deviations) - centers
+    return np.stack((lower, upper))
+
+
+def _save_solver_in_loop_animation(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+) -> None:
+    """Animate reference, solver-only, and fully corrected held-out rollouts."""
+    rows = _ordered_solver_rollouts(arrays, names)
+    solver_references = {
+        name: _solver_reference_rollout(arrays, names.index(name))
+        for name, _raw, _corrected in rows
+    }
+    rows = [row for row in rows if solver_references[row[0]].size]
+    if not rows:
+        return
+
+    available_frames = min(
+        [
+            min(
+                solver_references[name].shape[0],
+                raw.shape[0],
+                corrected.shape[0],
+            )
+            for name, raw, corrected in rows
+        ]
+    )
+    # Keep the full simulated horizon in the animation while bounding the GIF
+    # payload embedded in PRs.  Evenly spaced samples retain both endpoints.
+    frame_indices = np.unique(
+        np.linspace(
+            0,
+            available_frames - 1,
+            num=min(available_frames, 24),
+            dtype=int,
+        )
+    )
+    n_frames = len(frame_indices)
+    rollout_vorticity = [
+        (
+            name,
+            [
+                _periodic_vorticity_2d(solver_references[name][index])
+                for index in frame_indices
+            ],
+            [_periodic_vorticity_2d(raw[index]) for index in frame_indices],
+            [_periodic_vorticity_2d(corrected[index]) for index in frame_indices],
+        )
+        for name, raw, corrected in rows
+    ]
+    scale_fields: list[np.ndarray] = []
+    for _name, reference_fields, raw_fields, corrected_fields in rollout_vorticity:
+        scale_fields.extend(reference_fields)
+        scale_fields.extend(raw_fields)
+        scale_fields.extend(corrected_fields)
+    magnitudes = np.concatenate([np.abs(field).ravel() for field in scale_fields])
+    vmax = float(np.percentile(magnitudes, 99.0)) or 1.0
+
+    plt.rcParams.update(RCPARAMS)
+    fig, axes = plt.subplots(
+        len(rows),
+        3,
+        figsize=(TEXTWIDTH, max(1.8, 0.95 * len(rows))),
+        dpi=100,
+        squeeze=False,
+        layout="constrained",
+    )
+    images: list[tuple[Any, int, int]] = []
+    for row_idx, (
+        name,
+        reference_fields,
+        raw_fields,
+        corrected_fields,
+    ) in enumerate(rollout_vorticity):
+        label, _color, _linestyle, _marker = solver_props(name)
+        for col_idx, fields in enumerate(
+            (reference_fields, raw_fields, corrected_fields)
+        ):
+            ax = axes[row_idx, col_idx]
+            image = ax.imshow(
+                fields[0].T,
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                interpolation="nearest",
+                animated=True,
+            )
+            images.append((image, row_idx, col_idx))
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if row_idx == 0:
+                ax.set_title(
+                    ("Reference", "Solver only", "Solver + corrector")[col_idx]
+                )
+        axes[row_idx, 0].set_ylabel(
+            label,
+            rotation=0,
+            ha="right",
+            va="center",
+            labelpad=8,
+        )
+
+    colorbar = fig.colorbar(
+        images[-1][0],
+        ax=axes.ravel().tolist(),
+        location="right",
+        shrink=0.82,
+        pad=0.02,
+    )
+    colorbar.set_label(r"Vorticity $\omega$")
+    all_times = np.asarray(arrays.get("evaluation_times", np.array([])))
+    times = (
+        all_times[frame_indices] if all_times.size >= available_frames else np.array([])
+    )
+    title = fig.suptitle("Held-out trajectory at $t=0$")
+
+    def _update(frame: int) -> tuple[Any, ...]:
+        for image, row_idx, col_idx in images:
+            field = rollout_vorticity[row_idx][col_idx + 1][frame]
+            image.set_data(field.T)
+        time_value = float(times[frame]) if frame < times.size else float(frame)
+        title.set_text(f"Held-out trajectory at $t={time_value:g}$")
+        artists = [image for image, _row, _col in images]
+        artists.append(title)
+        return tuple(artists)
+
+    animation = manimation.FuncAnimation(
+        fig,
+        _update,
+        frames=n_frames,
+        interval=180,
+        blit=False,
+    )
+    _save_animation(animation, "solver_in_loop_trajectory", out_dir, fps=6)
 
 
 def plot_drag_opt(

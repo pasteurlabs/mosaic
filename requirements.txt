@@ -61,6 +61,8 @@ debugpy==1.8.21
     # via tesseract-core
 docker==7.2.0
     # via mosaic-bench
+equinox==0.13.8
+    # via mosaic-bench
 exceptiongroup==1.3.1 ; python_full_version < '3.11'
     # via anyio
 fastapi==0.139.2
@@ -96,16 +98,19 @@ importlib-metadata==9.0.0
     # via mlflow-skinny
 jax==0.6.2 ; python_full_version < '3.11'
     # via
+    #   equinox
     #   mosaic-bench
     #   optax
     #   tesseract-jax
 jax==0.10.2 ; python_full_version == '3.11.*'
     # via
+    #   equinox
     #   mosaic-bench
     #   optax
     #   tesseract-jax
 jax==0.11.0 ; python_full_version >= '3.12'
     # via
+    #   equinox
     #   mosaic-bench
     #   optax
     #   tesseract-jax
@@ -121,6 +126,10 @@ jaxlib==0.11.0 ; python_full_version >= '3.12'
     # via
     #   jax
     #   optax
+jaxtyping==0.3.7 ; python_full_version < '3.11'
+    # via equinox
+jaxtyping==0.3.11 ; python_full_version >= '3.11'
+    # via equinox
 jinja2==3.1.6
     # via tesseract-core
 jmespath==1.1.0
@@ -327,6 +336,7 @@ typing-extensions==4.16.0
     #   aiosignal
     #   anyio
     #   cryptography
+    #   equinox
     #   exceptiongroup
     #   fastapi
     #   mlflow-skinny
@@ -355,6 +365,10 @@ uvicorn==0.51.0
     # via
     #   mlflow-skinny
     #   tesseract-core
+wadler-lindig==0.1.7
+    # via
+    #   equinox
+    #   jaxtyping
 wrapt==2.2.2
     # via aiobotocore
 yarl==1.24.5

@@ -9,6 +9,10 @@ build_config:
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
 
+env:
+  NVIDIA_VISIBLE_DEVICES: "all"
+  NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+
 metadata:
   mosaic:
     name: "Warp-NS"

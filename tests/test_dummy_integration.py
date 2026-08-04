@@ -25,6 +25,7 @@ integration tests in :mod:`test_integration`.
 from __future__ import annotations
 
 import contextlib
+import copy
 import json
 import warnings
 from pathlib import Path
@@ -276,10 +277,84 @@ _SHRINK_PHYSICS: dict[tuple[str, str], dict] = {
 def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
     """Re-register ``exp_key`` at a smaller N if it's a known heavy case.
 
-    Mutates ``cfg.experiments[exp_key]`` in place (the config object is a
-    fresh per-call ``get_config(problem)``, so this never leaks across tests).
+    Mutates ``cfg.experiments[exp_key]`` in place. Callers must pass an
+    experiment-local copy so the smaller smoke configuration cannot leak.
     No-op for experiments not in :data:`_SHRINK_PHYSICS`.
     """
+    solver_loop_sensitivity = exp_key.startswith(
+        "optimization/solver_in_loop_reference_sensitivity/"
+    )
+    if problem == "ns-grid" and (
+        exp_key
+        in {
+            "optimization/solver_in_loop",
+            "optimization/solver_in_loop_self_reference",
+            "optimization/solver_in_loop_tgv",
+        }
+        or solver_loop_sensitivity
+    ):
+        from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
+            solver_in_loop,
+        )
+
+        analytic = exp_key.endswith("_tgv")
+        self_reference = exp_key.endswith("_self_reference")
+        finite_volume_reference = exp_key.endswith("/finite_volume")
+        cfg.add_experiment(
+            exp_key,
+            solver_in_loop,
+            runs=[
+                {
+                    "ic": {
+                        "name": "tgv" if analytic else "multimode",
+                        "seed": 0,
+                    },
+                    "physics": {
+                        "N": 8,
+                        "nu": 0.05 if analytic else 0.001,
+                        "dt": 0.02,
+                        "steps": 1,
+                    },
+                    "dataset": {
+                        "reference_kind": (
+                            "analytic_tgv"
+                            if analytic
+                            else (
+                                "solver_self_refined"
+                                if self_reference
+                                else (
+                                    "finite_volume_multimode"
+                                    if finite_volume_reference
+                                    else "pseudo_spectral_multimode"
+                                )
+                            )
+                        ),
+                        "reference_factor": 2,
+                        "reference_temporal_factor": 2,
+                        "reference_substeps": 1,
+                        "train_seeds": [0],
+                        "test_seeds": [100],
+                        "train_frames": 2,
+                        "k0": 2.0,
+                        "prefix_audit_seeds": [0, 100],
+                        "prefix_audit_frames": [1, 2],
+                    },
+                    "training": {
+                        "max_updates": 1,
+                        "unroll": 2,
+                        "hidden_channels": 4,
+                        "kernel_size": 3,
+                        "check_grad": False,
+                    },
+                    "evaluation": {
+                        "rollout_frames": 2,
+                        "stable_error_threshold": 1.0,
+                    },
+                }
+            ],
+        )
+        return
+
     physics = _SHRINK_PHYSICS.get((problem, exp_key))
     if physics is None:
         return
@@ -388,7 +463,7 @@ def dummy_corpus(tmp_path_factory):
     try:
         with _suppress_dummy_warnings():
             for problem, exp_key in _all_experiments():
-                cfg = get_config(problem)
+                cfg = copy.deepcopy(get_config(problem))
                 _maybe_shrink(cfg, problem, exp_key)
                 tag = f"inprocess:{_DUMMY_FOR[problem]}"
                 tags = dict.fromkeys(cfg.solver_names, tag)

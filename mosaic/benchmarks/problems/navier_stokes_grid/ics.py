@@ -11,13 +11,21 @@ import jax
 import jax.numpy as jnp
 
 
-def _multimode(N: int, L: float = 2 * jnp.pi, seed: int = 42, **_: Any) -> jax.Array:
-    """Energy ring at k=2, σ=0.5, max speed normalised to 0.3."""
+def _multimode(
+    N: int,
+    L: float = 2 * jnp.pi,
+    seed: int = 42,
+    k0: float = 2.0,
+    sigma_k: float = 0.5,
+    amplitude: float = 0.3,
+    **_: Any,
+) -> jax.Array:
+    """Random divergence-free field with energy concentrated in a Fourier ring."""
     key = jax.random.PRNGKey(seed)
     kn = jnp.fft.fftfreq(N, d=1.0 / N)
     KX, KY = jnp.meshgrid(kn, kn, indexing="ij")
     K_abs = jnp.sqrt(KX**2 + KY**2)
-    envelope = jnp.exp(-0.5 * ((K_abs - 2.0) / 0.5) ** 2)
+    envelope = jnp.exp(-0.5 * ((K_abs - k0) / sigma_k) ** 2)
     phases = jax.random.uniform(key, (N, N), minval=0.0, maxval=2.0 * jnp.pi)
     psi_hat = envelope * jnp.exp(1j * phases)
     psi_hat = 0.5 * (psi_hat + jnp.conj(psi_hat[::-1, ::-1]))
@@ -26,7 +34,7 @@ def _multimode(N: int, L: float = 2 * jnp.pi, seed: int = 42, **_: Any) -> jax.A
     vx = jnp.real(jnp.fft.ifft2(1j * KY * kfac * psi_hat))
     vy = jnp.real(jnp.fft.ifft2(-1j * KX * kfac * psi_hat))
     u_max = float(jnp.sqrt(vx**2 + vy**2).max()) or 1.0
-    vx, vy = vx / u_max * 0.3, vy / u_max * 0.3
+    vx, vy = vx / u_max * amplitude, vy / u_max * amplitude
     return jnp.stack([vx, vy], axis=-1)[:, :, None, :].astype(jnp.float32)
 
 

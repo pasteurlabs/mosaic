@@ -85,6 +85,14 @@ def _analytic_reference(
 # ── agreement ────────────────────────────────────────────────────────────────
 
 
+def _agreement_analytic_reference(run: dict, fallback: Any) -> Any:
+    """Resolve a per-run analytic reference, allowing explicit consensus."""
+    reference = run.get("reference")
+    if reference == "consensus":
+        return None
+    return reference if callable(reference) else fallback
+
+
 def _agreement_aggregate(
     by_solver: Any,
     *,
@@ -114,8 +122,7 @@ def _agreement_aggregate(
     seed = ic_cfg.get("seed", 0)
     phys = run.get("physics", {})
 
-    run_reference = run.get("reference")
-    analytic_fn = run_reference if callable(run_reference) else cfg.reference
+    analytic_fn = _agreement_analytic_reference(run, cfg.reference)
     analytic_params = (
         set(inspect.signature(analytic_fn).parameters) if analytic_fn else set()
     )
