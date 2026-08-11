@@ -7,11 +7,11 @@ Replaces the binary ``% ok`` metric with a per-cell weighted sum. See
 ``core/status.py::SCORE_WEIGHTS`` for the table. The tests here pin:
 
   1. Extremes: all-ok → +1.0, all-fail → 0.0, empty → None.
-  2. Monotonicity: a cell going ok* → ok moves the score by exactly the
-     expected ΔN; a cell going ok → fail moves it by 1.0/N in the
-     other direction.
-  3. Categorical exclusions are off the books (numerator + denominator).
-  4. Boundary agreement with ``% ok``: all-ok ⇒ score=1.0 & pct=100;
+  2. Monotonicity: a cell going ok → fail moves the score by exactly 1.0/N.
+  3. Staleness invisibility: the ``*`` marker never moves the score — a
+     stale cell scores identically to its fresh counterpart.
+  4. Categorical exclusions are off the books (numerator + denominator).
+  5. Boundary agreement with ``% ok``: all-ok ⇒ score=1.0 & pct=100;
      all non-ok (fail/anom/missing) ⇒ score in [0, 0.53] & pct=0.
 """
 
@@ -113,15 +113,19 @@ class TestScoreExtremes(unittest.TestCase):
 class TestScoreTransitions(unittest.TestCase):
     """Direction and magnitude of single-cell status flips."""
 
-    def test_ok_star_to_ok_increases_over_n(self) -> None:
-        """ok* (0.67) → ok (1.00) shifts average by (1.0 − 0.67)/N."""
-        n = 4
-        before = [Cell(OK, stale=True)] + [Cell(OK) for _ in range(n - 1)]
-        after = [Cell(OK)] + [Cell(OK) for _ in range(n - 1)]
-        s_before, _ = compute_score(before)
-        s_after, _ = compute_score(after)
-        self.assertAlmostEqual(s_after - s_before, (1.0 - 0.67) / n)
-        self.assertGreater(s_after, s_before)
+    def test_stale_does_not_move_score(self) -> None:
+        """The ``*`` marker is invisible to the score.
+
+        Staleness is a "re-run recommended" hint for humans, not a health
+        signal — a stale cell scores identically to its fresh counterpart,
+        for every underlying status. This is the invariant that keeps the
+        headline score from drifting on the incremental PR-preview path when
+        carried-over baselines hash-mismatch the current tree.
+        """
+        for status in (OK, ANOMALY, FAILED):
+            fresh, _ = compute_score([Cell(status) for _ in range(4)])
+            stale, _ = compute_score([Cell(status, stale=True) for _ in range(4)])
+            self.assertAlmostEqual(fresh, stale, msg=f"stale moved score for {status}")
 
     def test_ok_to_fail_decreases_by_one_over_n(self) -> None:
         """Ok (1.0) → fail (0.0) shifts average by −1.0/N."""
@@ -134,8 +138,11 @@ class TestScoreTransitions(unittest.TestCase):
         self.assertLess(s_after, s_before)
 
     def test_transition_across_all_weight_keys(self) -> None:
-        """Every mapped weight key is reachable via some (status, stale,
-        category) combination — catches silent dead keys.
+        """Every mapped weight key is reachable via some (status, category)
+        combination — catches silent dead keys.
+
+        Stale probes are included to pin that they collapse onto the same
+        (non-star) keys as their fresh counterparts.
         """
         produced: set[str] = set()
         probes: list[Cell] = [
@@ -151,6 +158,7 @@ class TestScoreTransitions(unittest.TestCase):
         for c in probes:
             key = cell_weight_key(c)
             self.assertIsNotNone(key, f"unmapped: {c}")
+            self.assertNotIn("*", key, f"stale key leaked into score table: {key}")
             produced.add(key)  # type: ignore[arg-type]
         missing = set(SCORE_WEIGHTS.keys()) - produced
         self.assertFalse(
@@ -287,8 +295,10 @@ class TestWeightColorLadder(unittest.TestCase):
         self.assertEqual(cell_weight(c), 1.0)
         self.assertTrue(_HEX_RE.match(cell_color(c)))
 
+        # Staleness doesn't dim the weight — a stale ok weighs the same as a
+        # fresh ok. The ``*`` glyph carries the "re-run" hint on its own.
         c = Cell(OK, stale=True)
-        self.assertEqual(cell_weight(c), 0.67)
+        self.assertEqual(cell_weight(c), 1.0)
 
         c_fail = Cell(FAILED)
         self.assertEqual(cell_weight(c_fail), 0.0)
