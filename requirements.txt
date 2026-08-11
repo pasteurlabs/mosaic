@@ -2,7 +2,7 @@
 #    uv export --frozen --color never --no-emit-project --no-hashes
 absl-py==2.5.0
     # via optax
-aiobotocore==3.8.0
+aiobotocore==3.9.0
     # via s3fs
 aiohappyeyeballs==2.7.1
     # via aiohttp
@@ -15,7 +15,7 @@ aioitertools==0.13.0
     # via aiobotocore
 aiosignal==1.4.0
     # via aiohttp
-annotated-doc==0.0.4
+annotated-doc==0.0.5
     # via
     #   fastapi
     #   typer
@@ -27,13 +27,13 @@ async-timeout==5.0.1 ; python_full_version < '3.11'
     # via aiohttp
 attrs==26.1.0
     # via aiohttp
-botocore==1.43.46
+botocore==1.43.56
     # via aiobotocore
-cachetools==7.1.6
+cachetools==7.1.7
     # via mlflow-skinny
 certifi==2026.7.22
     # via requests
-cffi==2.1.0 ; platform_python_implementation != 'PyPy'
+cffi==2.1.1 ; platform_python_implementation != 'PyPy'
     # via cryptography
 charset-normalizer==3.4.9
     # via requests
@@ -51,11 +51,11 @@ contourpy==1.3.2 ; python_full_version < '3.11'
     # via matplotlib
 contourpy==1.3.3 ; python_full_version >= '3.11'
     # via matplotlib
-cryptography==49.0.0
+cryptography==50.0.0
     # via google-auth
 cycler==0.12.1
     # via matplotlib
-databricks-sdk==0.122.0
+databricks-sdk==0.125.0
     # via mlflow-skinny
 debugpy==1.8.21
     # via tesseract-core
@@ -67,7 +67,7 @@ fastapi==0.139.2
     # via
     #   mlflow-skinny
     #   tesseract-core
-filelock==3.32.0
+filelock==3.32.2
     # via mosaic-bench
 fonttools==4.63.0
     # via matplotlib
@@ -81,9 +81,9 @@ fsspec==2026.6.0
     #   tesseract-core
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.57
+gitpython==3.1.58
     # via mlflow-skinny
-google-auth==2.56.2
+google-auth==2.56.3
     # via databricks-sdk
 h11==0.16.0
     # via uvicorn
@@ -207,7 +207,7 @@ optax==0.2.8
     # via mosaic-bench
 orjson==3.11.9
     # via tesseract-core
-packaging==26.2
+packaging==26.3
     # via
     #   matplotlib
     #   mlflow-skinny
@@ -218,7 +218,7 @@ pandas==3.0.5 ; python_full_version >= '3.11'
     # via mosaic-bench
 pillow==12.3.0
     # via matplotlib
-pip==26.1.2
+pip==26.2.1
     # via tesseract-core
 propcache==0.5.2
     # via
@@ -302,7 +302,7 @@ smmap==5.0.3
     # via gitdb
 sqlparse==0.5.5
     # via mlflow-skinny
-starlette==1.3.1
+starlette==1.6.0
     # via
     #   fastapi
     #   mlflow-skinny
@@ -355,7 +355,7 @@ uvicorn==0.51.0
     # via
     #   mlflow-skinny
     #   tesseract-core
-wrapt==2.2.2
+wrapt==2.3.0
     # via aiobotocore
 yarl==1.24.5
     # via aiohttp
