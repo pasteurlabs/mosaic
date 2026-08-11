@@ -117,7 +117,8 @@ def test_dummy_apply_loads_via_tesseract_api():
         assert "vector_jacobian_product" in t.available_endpoints
         v0 = np.zeros((4, 4, 1, 2), dtype=np.float32)
         out = t.apply({"v0": v0})
-        assert set(out) == {"result", "drag"}
+        assert set(out) == {"result", "drag", "state"}
+        assert out["state"] is None
         assert np.asarray(out["result"]).shape == v0.shape
 
 

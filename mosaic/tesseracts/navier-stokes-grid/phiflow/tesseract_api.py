@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+from typing import Any, ClassVar
 
 import equinox as eqx
 import jax
@@ -12,7 +12,15 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import drag_jax
+from mosaic_shared.problems.navier_stokes_grid import (
+    boundary_conditions_are_fully_periodic,
+    collocated_to_staggered_periodic,
+    drag_jax,
+    lift_collocated_to_staggered_periodic,
+    staggered_high_to_low_periodic,
+    staggered_low_to_high_periodic,
+    staggered_to_collocated_periodic,
+)
 from mosaic_shared.schema_types import make_differentiable
 from phi.jax.flow import (
     Box,
@@ -32,10 +40,13 @@ from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_pat
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema,
+        ["v0", "state", "viscosity", "dt", "inflow_profile"],
     )
 ):
     """PhiFlow Navier-Stokes input schema with differentiable velocity and physics params."""
+
+    supports_recurrent_state: ClassVar[bool] = True
 
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
@@ -49,7 +60,9 @@ class InputSchema(
         return self
 
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
+class OutputSchema(
+    make_differentiable(_CanonicalOutputSchema, ["result", "state", "drag"])
+):
     """PhiFlow Navier-Stokes output schema with differentiable result and drag."""
 
 
@@ -133,12 +146,14 @@ def phiflow_fwd(
     boundary_conditions: dict,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
-) -> tuple[jnp.ndarray, jnp.ndarray | None]:
+    state: jnp.ndarray | None = None,
+    return_state: bool = False,
+) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
     Uses semi-Lagrangian advection, explicit diffusion, and pressure projection
     for incompressibility on a periodic domain. Dimensionality is inferred from
-    v0.shape[-1] (2 → 2D, 3 → 3D).
+    ``v0.shape[-1]`` (2 → 2D, 3 → 3D).
 
     Args:
         v0: Initial velocity field, shape (*spatial, ndim).
@@ -149,14 +164,30 @@ def phiflow_fwd(
         boundary_conditions: Dict mapping face keys to BC type/value dicts.
         obstacle: Optional obstacle dict.
         inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
+        state: Optional recurrent checkpoint from a previous call. Its final axis
+            packs native staggered velocity followed by canonical velocity.
+        return_state: Static output-control flag consumed by the public apply path.
 
     Returns:
-        (result, drag): result same shape as v0; drag shape (1,) or None.
+        ``(result, drag, state)`` where result has the same shape as v0,
+        drag has shape ``(1,)`` or is None, and state's final axis packs serialized
+        native staggered velocity followed by the exact canonical result. Periodic
+        native state uses Mosaic's high-face indexing.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
+    expected_state_shape = (*v0.shape[:-1], 2 * ndim)
+    if state is not None and state.shape != expected_state_shape:
+        raise ValueError(
+            f"PhiFlow state has shape {state.shape}, expected {expected_state_shape}"
+        )
+    native_state = state[..., :ndim] if state is not None else None
+    canonical_checkpoint = state[..., ndim:] if state is not None else None
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
+        if native_state is not None:
+            native_state = native_state[:, :, 0, :]
+            canonical_checkpoint = canonical_checkpoint[:, :, 0, :]
 
     if ndim == 2:
         nx, ny = v0.shape[:2]
@@ -188,6 +219,10 @@ def phiflow_fwd(
     ext = raw_ext
     obstacle_obj = _make_phiflow_obstacle(obstacle, domain_extent, ndim)
     obstacles = (obstacle_obj,) if obstacle_obj is not None else ()
+    periodic = boundary_conditions_are_fully_periodic(
+        boundary_conditions,
+        ndim,
+    )
 
     # Obstacle mask for drag computation (2-D only)
     if ndim == 2 and obstacle is not None and obstacle.get("shape"):
@@ -276,6 +311,102 @@ def phiflow_fwd(
             axis=0,
         )
 
+    def centered_to_faces(v0: jnp.ndarray) -> jnp.ndarray:
+        """Canonical component-last velocity → native component-first faces."""
+        if periodic:
+            high_faces = collocated_to_staggered_periodic(v0, xp=jnp)
+            return jnp.moveaxis(
+                staggered_high_to_low_periodic(high_faces, xp=jnp),
+                -1,
+                0,
+            )
+        v0_components = jnp.moveaxis(v0, -1, 0)
+        channel = math.stack(
+            [
+                math.tensor(
+                    v0_components[i],
+                    math.spatial(spatial_str),
+                )
+                for i in range(ndim)
+            ],
+            dim=math.channel("vector"),
+        )
+        staggered = StaggeredGrid(
+            CenteredGrid(channel, ext, bounds=bounds, **grid_kwargs),
+            ext,
+            bounds=bounds,
+            **grid_kwargs,
+        )
+        return staggered_to_faces(staggered)
+
+    def faces_to_centered(face_values: jnp.ndarray) -> jnp.ndarray:
+        """Native component-first faces → canonical component-last velocity."""
+        if periodic:
+            lower_faces = jnp.moveaxis(face_values, 0, -1)
+            return staggered_to_collocated_periodic(
+                staggered_low_to_high_periodic(lower_faces, xp=jnp),
+                xp=jnp,
+            )
+        staggered = faces_to_staggered(face_values)
+        centered = CenteredGrid(staggered, ext, bounds=bounds, **grid_kwargs)
+        components = jnp.stack(
+            [centered.vector[i].values.native(spatial_str) for i in range(ndim)],
+            axis=0,
+        )
+        return jnp.moveaxis(components, 0, -1)
+
+    def lift_periodic_correction(delta: jnp.ndarray) -> jnp.ndarray:
+        """Right-invert PhiFlow's periodic face-to-center resampling."""
+        high_faces = lift_collocated_to_staggered_periodic(delta, xp=jnp)
+        return jnp.moveaxis(
+            staggered_high_to_low_periodic(high_faces, xp=jnp),
+            -1,
+            0,
+        )
+
+    # The periodic pressure projection is linear. Defining it once lets both
+    # recurrent correction assimilation and the time step share its VJP.
+    _cg_solve = math.Solve("CG", 1e-10, 1e-10)
+
+    def project_periodic_faces_impl(face_arr: jnp.ndarray) -> jnp.ndarray:
+        projected, _ = fluid.make_incompressible(
+            faces_to_staggered(face_arr), (), solve=_cg_solve
+        )
+        return staggered_to_faces(projected)
+
+    def project_periodic_faces_primal(face_arr: jnp.ndarray) -> jnp.ndarray:
+        # Avoid injecting a CG residual when an uncorrected recurrent call
+        # assimilates an exactly zero canonical increment. Keep the custom VJP
+        # below so this zero-valued primal still has the linear projection as
+        # its derivative.
+        return jax.lax.cond(
+            jnp.all(face_arr == 0),
+            jnp.zeros_like,
+            project_periodic_faces_impl,
+            face_arr,
+        )
+
+    @jax.custom_vjp
+    def project_periodic_faces(face_arr: jnp.ndarray) -> jnp.ndarray:
+        return project_periodic_faces_primal(face_arr)
+
+    def project_periodic_faces_fwd(
+        face_arr: jnp.ndarray,
+    ) -> tuple[jnp.ndarray, None]:
+        return project_periodic_faces_primal(face_arr), None
+
+    def project_periodic_faces_bwd(
+        _residual: None, cotangent: jnp.ndarray
+    ) -> tuple[jnp.ndarray]:
+        # The projection is self-adjoint. Applying it again gives its VJP up to
+        # the CG tolerance and avoids PhiML's cross-request solve cache.
+        return (project_periodic_faces_impl(cotangent),)
+
+    project_periodic_faces.defvjp(
+        project_periodic_faces_fwd,
+        project_periodic_faces_bwd,
+    )
+
     if inflow_profile is not None and ndim == 2:
         # Resample inflow_profile to ny if needed
         prof_len = inflow_profile.shape[0]
@@ -309,8 +440,6 @@ def phiflow_fwd(
         # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
         # Tightened rel_tol/abs_tol to 1e-10 on the 3D
         # periodic path to prevent adjoint-side residual bias in fd_check.
-        _cg_solve = math.Solve("CG", 1e-10, 1e-10)
-
         def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
             vel = faces_to_staggered(face_arr)
             # Use explicit Euler differential advection to
@@ -320,24 +449,31 @@ def phiflow_fwd(
             # Restored here: 7f9213f accidentally reverted this to semi_lagrangian.
             vel = vel + dt * advect.differential(vel, vel)
             vel = diffuse.explicit(vel, viscosity, dt)
+            if periodic and not obstacles:
+                return project_periodic_faces(staggered_to_faces(vel)), None
             vel, _ = fluid.make_incompressible(vel, obstacles, solve=_cg_solve)
             return staggered_to_faces(vel), None
 
-    # Convert IC from collocated to staggered face values once using PhiFlow's
-    # native CenteredGrid→StaggeredGrid resampling.  The scan carry then stays
-    # in face-value space so no smoothing accumulates across steps.
-    v_arr = jnp.moveaxis(v0, -1, 0)  # (*spatial, ndim) → (ndim, *spatial)
-    channel = math.stack(
-        [math.tensor(v_arr[i], math.spatial(spatial_str)) for i in range(ndim)],
-        dim=math.channel("vector"),
-    )
-    vel_init = StaggeredGrid(
-        CenteredGrid(channel, ext, bounds=bounds, **grid_kwargs),
-        ext,
-        bounds=bounds,
-        **grid_kwargs,
-    )
-    face_init = staggered_to_faces(vel_init)
+    # Convert the initial canonical field once. On continuation, retain the
+    # serialized staggered state and assimilate only the canonical correction.
+    if native_state is None:
+        face_init = centered_to_faces(v0)
+    else:
+        state_values = (
+            staggered_high_to_low_periodic(native_state, xp=jnp)
+            if periodic
+            else native_state
+        )
+        face_state = jnp.moveaxis(state_values, -1, 0)
+        correction = v0 - canonical_checkpoint
+        correction_faces = (
+            lift_periodic_correction(correction)
+            if periodic
+            else centered_to_faces(correction)
+        )
+        if periodic:
+            correction_faces = project_periodic_faces(correction_faces)
+        face_init = face_state + correction_faces
 
     # fluid.make_incompressible's CG while_loop is wrapped with custom_vjp,
     # so the backward pass does an adjoint solve rather than differentiating
@@ -349,18 +485,20 @@ def phiflow_fwd(
     else:
         _face_hist, _p_hist = scan_hist, None
 
-    # Convert final face values back to collocated once.
-    vel_final = faces_to_staggered(face_final)
-    centered_final = CenteredGrid(vel_final, ext, bounds=bounds, **grid_kwargs)
-    v_final = jnp.stack(
-        [centered_final.vector[i].values.native(spatial_str) for i in range(ndim)],
-        axis=0,
-    )
-
-    result = jnp.moveaxis(v_final, 0, -1)  # (ndim, *spatial) → (*spatial, ndim)
+    # Convert final face values back to collocated once and serialize the
+    # staggered carry for the next recurrent call.
+    result = faces_to_centered(face_final)
+    native_state_out = jnp.moveaxis(face_final, 0, -1)
+    if periodic:
+        native_state_out = staggered_low_to_high_periodic(
+            native_state_out,
+            xp=jnp,
+        )
     if ndim == 2:
         # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
         result = result[:, :, None, :]
+        native_state_out = native_state_out[:, :, None, :]
+    state_out = jnp.concatenate([native_state_out, result], axis=-1)
 
     # --- drag from RANS-averaged pressure + velocity ----------------------
     drag = None
@@ -369,21 +507,24 @@ def phiflow_fwd(
         # Average over the last 50% of steps to smooth Kármán shedding oscillations.
         n_tail = max(1, steps // 2)
         rans_faces = jnp.mean(_face_hist[-n_tail:], axis=0)  # (2, nx, ny)
-        ux_rans = 0.5 * (rans_faces[0] + jnp.roll(rans_faces[0], 1, axis=0))
+        ux_rans = faces_to_centered(rans_faces)[..., 0]
         # Surface-integral drag from RANS mean pressure + velocity.
         # Time-averaging the per-step CG pressure (collected in-loop) gives the
         # correct RANS pressure; constant offset cancels on the closed cylinder surface.
         p_rans = jnp.mean(_p_hist[-n_tail:], axis=0)  # (nx, ny)
         drag = drag_jax(ux_rans, p_rans, obs_mask, viscosity, dx)
 
-    return result, drag
+    return result, drag, state_out
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass returning result and drag arrays."""
-    result, drag = phiflow_fwd(**inputs)
-    out = {"result": result}
+    result, drag, state = phiflow_fwd(**inputs)
+    include_state = (
+        bool(inputs.get("return_state", False)) or inputs.get("state") is not None
+    )
+    out = {"result": result, "state": state if include_state else None}
     out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
     return out
 
@@ -411,15 +552,31 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     """Compute the vector-Jacobian product via JAX autodiff."""
+    # PhiML caches the implicit pressure-solve trace. Alternating between a
+    # result-only pullback at the rollout horizon and a result+state pullback
+    # one interval earlier makes that cache compare values from distinct JAX
+    # traces. Keep the recurrent output pytree fixed and use explicit zero
+    # cotangents for outputs that do not influence the caller's objective.
+    if inputs.return_state or inputs.state is not None:
+        vjp_outputs = {*vjp_outputs, "result", "state"}
+        zero_state = jnp.concatenate(
+            [jnp.zeros_like(inputs.v0), jnp.zeros_like(inputs.v0)],
+            axis=-1,
+        )
+        cotangent_vector = {
+            "result": jnp.zeros_like(inputs.v0),
+            "state": zero_state,
+            **cotangent_vector,
+        }
     return vjp_jit(
         _unpack_scalars(inputs.model_dump()),
-        tuple(vjp_inputs),
-        tuple(vjp_outputs),
+        tuple(sorted(vjp_inputs)),
+        tuple(sorted(vjp_outputs)),
         cotangent_vector,
     )
 
 
-def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
+def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     """Calculate output shape of apply from the shape of its inputs.
 
     For phiflow the output ``result`` always has the same shape as ``v0``,
@@ -439,6 +596,14 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
     out = {
         "result": {"shape": v0_shape, "dtype": v0_dtype},
         "drag": {"shape": (1,), "dtype": "float32"},
+        "state": (
+            {
+                "shape": (*v0_shape[:-1], 2 * v0_shape[-1]),
+                "dtype": v0_dtype,
+            }
+            if bool(raw.get("return_state", False)) or raw.get("state") is not None
+            else None
+        ),
     }
     obstacle_raw = raw.get("obstacle") or {}
     _has_obstacle = bool(

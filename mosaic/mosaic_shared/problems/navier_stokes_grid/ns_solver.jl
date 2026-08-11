@@ -76,77 +76,19 @@ strip_ghosts_3d(u::AbstractArray, n::Int) = u[2:n+1, 2:n+1, 2:n+1, :]
 
 
 # ---------------------------------------------------------------------------
-# Grid interpolation helpers — 2-D
-# ---------------------------------------------------------------------------
-
-"""Collocated (n,n,2) → staggered (n,n,2) via periodic linear interpolation."""
-function coloc_to_stag_2d(u::AbstractArray, n::Int)
-    ux = u[:, :, 1]
-    uy = u[:, :, 2]
-    ux_s = 0.5 .* (ux .+ cat(ux[2:end, :], ux[1:1, :]; dims=1))
-    uy_s = 0.5 .* (uy .+ cat(uy[:, 2:end], uy[:, 1:1]; dims=2))
-    return cat(reshape(ux_s, n, n, 1), reshape(uy_s, n, n, 1); dims=3)
-end
-
-"""Staggered (n,n,2) → collocated (n,n,2)."""
-function stag_to_coloc_2d(u::AbstractArray, n::Int)
-    ux_s = u[:, :, 1]
-    uy_s = u[:, :, 2]
-    ux = 0.5 .* (cat(ux_s[end:end, :], ux_s[1:end-1, :]; dims=1) .+ ux_s)
-    uy = 0.5 .* (cat(uy_s[:, end:end], uy_s[:, 1:end-1]; dims=2) .+ uy_s)
-    return cat(reshape(ux, n, n, 1), reshape(uy, n, n, 1); dims=3)
-end
-
-
-# ---------------------------------------------------------------------------
-# Grid interpolation helpers — 3-D
-# ---------------------------------------------------------------------------
-
-"""Collocated (n,n,n,3) → staggered (n,n,n,3) via periodic linear interpolation."""
-function coloc_to_stag_3d(u::AbstractArray, n::Int)
-    ux = u[:, :, :, 1]
-    uy = u[:, :, :, 2]
-    uz = u[:, :, :, 3]
-    ux_s = 0.5 .* (ux .+ cat(ux[2:end, :, :], ux[1:1, :, :]; dims=1))
-    uy_s = 0.5 .* (uy .+ cat(uy[:, 2:end, :], uy[:, 1:1, :]; dims=2))
-    uz_s = 0.5 .* (uz .+ cat(uz[:, :, 2:end], uz[:, :, 1:1]; dims=3))
-    return cat(
-        reshape(ux_s, n, n, n, 1),
-        reshape(uy_s, n, n, n, 1),
-        reshape(uz_s, n, n, n, 1);
-        dims=4,
-    )
-end
-
-"""Staggered (n,n,n,3) → collocated (n,n,n,3)."""
-function stag_to_coloc_3d(u::AbstractArray, n::Int)
-    ux_s = u[:, :, :, 1]
-    uy_s = u[:, :, :, 2]
-    uz_s = u[:, :, :, 3]
-    ux = 0.5 .* (cat(ux_s[end:end, :, :], ux_s[1:end-1, :, :]; dims=1) .+ ux_s)
-    uy = 0.5 .* (cat(uy_s[:, end:end, :], uy_s[:, 1:end-1, :]; dims=2) .+ uy_s)
-    uz = 0.5 .* (cat(uz_s[:, :, end:end], uz_s[:, :, 1:end-1]; dims=3) .+ uz_s)
-    return cat(
-        reshape(ux, n, n, n, 1),
-        reshape(uy, n, n, n, 1),
-        reshape(uz, n, n, n, 1);
-        dims=4,
-    )
-end
-
-
-# ---------------------------------------------------------------------------
 # Forward passes (RK4, non-mutating, Zygote-differentiable)
 # ---------------------------------------------------------------------------
 
-"""2-D forward: v0 (n,n,2) → v_out (n,n,2)."""
-function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
-                       nu::Real, dt::Real, steps::Int, n::Int)
+"""Advance a native 2-D staggered interior state and return (collocated, staggered)."""
+function _ns_forward_2d_from_stag(velocity_stag::AbstractArray, rhs, setup, psolver,
+                                  nu::Real, dt::Real, steps::Int, n::Int,
+                                  project_initial::Bool)
     p = (; viscosity = nu)
-    v0_stag = coloc_to_stag_2d(v0, n)
-    u = add_ghosts_2d(v0_stag, n)
-    u = project(u, setup; psolver)
-    u = add_ghosts_2d(strip_ghosts_2d(u, n), n)
+    u = add_ghosts_2d(velocity_stag, n)
+    if project_initial
+        u = project(u, setup; psolver)
+        u = add_ghosts_2d(strip_ghosts_2d(u, n), n)
+    end
 
     for _ in 1:steps
         k1 = rhs(u, p, 0.0)
@@ -157,17 +99,48 @@ function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
             u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4), n), n)
     end
 
-    return stag_to_coloc_2d(strip_ghosts_2d(u, n), n)
+    state = strip_ghosts_2d(u, n)
+    return staggered_to_collocated_periodic_2d(state, n), state
 end
 
-"""3-D forward: v0 (n,n,n,3) → v_out (n,n,n,3)."""
-function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
+"""2-D forward from a canonical collocated initial condition."""
+function ns_forward_2d_state(v0::AbstractArray, rhs, setup, psolver,
+                             nu::Real, dt::Real, steps::Int, n::Int)
+    return _ns_forward_2d_from_stag(
+        collocated_to_staggered_periodic_2d(v0, n), rhs, setup, psolver,
+        nu, dt, steps, n, true)
+end
+
+"""2-D continuation preserving native faces and assimilating the canonical correction."""
+function ns_forward_2d_continue(v0::AbstractArray, state::AbstractArray,
+                                rhs, setup, psolver,
+                                nu::Real, dt::Real, steps::Int, n::Int)
+    canonical_state = staggered_to_collocated_periodic_2d(state, n)
+    correction = lift_collocated_to_staggered_periodic_2d(
+        v0 .- canonical_state, n)
+    projected_correction = strip_ghosts_2d(
+        project(add_ghosts_2d(correction, n), setup; psolver), n)
+    reconciled = state .+ projected_correction
+    return _ns_forward_2d_from_stag(
+        reconciled, rhs, setup, psolver, nu, dt, steps, n, false)
+end
+
+"""2-D forward returning only canonical velocity."""
+function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
+    return first(ns_forward_2d_state(v0, rhs, setup, psolver, nu, dt, steps, n))
+end
+
+"""Advance a native 3-D staggered interior state and return (collocated, staggered)."""
+function _ns_forward_3d_from_stag(velocity_stag::AbstractArray, rhs, setup, psolver,
+                                  nu::Real, dt::Real, steps::Int, n::Int,
+                                  project_initial::Bool)
     p = (; viscosity = nu)
-    v0_stag = coloc_to_stag_3d(v0, n)
-    u = add_ghosts_3d(v0_stag, n)
-    u = project(u, setup; psolver)
-    u = add_ghosts_3d(strip_ghosts_3d(u, n), n)
+    u = add_ghosts_3d(velocity_stag, n)
+    if project_initial
+        u = project(u, setup; psolver)
+        u = add_ghosts_3d(strip_ghosts_3d(u, n), n)
+    end
 
     for _ in 1:steps
         k1 = rhs(u, p, 0.0)
@@ -178,7 +151,36 @@ function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
             u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4), n), n)
     end
 
-    return stag_to_coloc_3d(strip_ghosts_3d(u, n), n)
+    state = strip_ghosts_3d(u, n)
+    return staggered_to_collocated_periodic_3d(state, n), state
+end
+
+"""3-D forward from a canonical collocated initial condition."""
+function ns_forward_3d_state(v0::AbstractArray, rhs, setup, psolver,
+                             nu::Real, dt::Real, steps::Int, n::Int)
+    return _ns_forward_3d_from_stag(
+        collocated_to_staggered_periodic_3d(v0, n), rhs, setup, psolver,
+        nu, dt, steps, n, true)
+end
+
+"""3-D continuation preserving native faces and assimilating the canonical correction."""
+function ns_forward_3d_continue(v0::AbstractArray, state::AbstractArray,
+                                rhs, setup, psolver,
+                                nu::Real, dt::Real, steps::Int, n::Int)
+    canonical_state = staggered_to_collocated_periodic_3d(state, n)
+    correction = lift_collocated_to_staggered_periodic_3d(
+        v0 .- canonical_state, n)
+    projected_correction = strip_ghosts_3d(
+        project(add_ghosts_3d(correction, n), setup; psolver), n)
+    reconciled = state .+ projected_correction
+    return _ns_forward_3d_from_stag(
+        reconciled, rhs, setup, psolver, nu, dt, steps, n, false)
+end
+
+"""3-D forward returning only canonical velocity."""
+function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
+                       nu::Real, dt::Real, steps::Int, n::Int)
+    return first(ns_forward_3d_state(v0, rhs, setup, psolver, nu, dt, steps, n))
 end
 
 
@@ -205,6 +207,43 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
         v_out = ns_forward_3d(v0, rhs, setup, psolver, nu, dt, steps, n)
     end
     return Float32.(v_out)
+end
+
+"""Forward pass returning both canonical velocity and native staggered state."""
+function ns_apply_state(v0_np, nu::Float64, dt::Float64,
+                        steps::Int, n::Int, L::Float64)
+    v0 = Float32.(v0_np)
+    ndim = size(v0, ndims(v0))
+    setup, psolver = get_setup_and_psolver(n, L, ndim)
+    rhs = create_right_hand_side(setup, psolver)
+
+    if ndim == 2
+        v_out, state_out = ns_forward_2d_state(
+            v0, rhs, setup, psolver, nu, dt, steps, n)
+    else
+        v_out, state_out = ns_forward_3d_state(
+            v0, rhs, setup, psolver, nu, dt, steps, n)
+    end
+    return Float32.(v_out), Float32.(state_out)
+end
+
+"""Continue from native staggered state after reconciling a corrected canonical velocity."""
+function ns_apply_state_continue(v0_np, state_np, nu::Float64, dt::Float64,
+                                 steps::Int, n::Int, L::Float64)
+    v0 = Float32.(v0_np)
+    state = Float32.(state_np)
+    ndim = size(v0, ndims(v0))
+    setup, psolver = get_setup_and_psolver(n, L, ndim)
+    rhs = create_right_hand_side(setup, psolver)
+
+    if ndim == 2
+        v_out, state_out = ns_forward_2d_continue(
+            v0, state, rhs, setup, psolver, nu, dt, steps, n)
+    else
+        v_out, state_out = ns_forward_3d_continue(
+            v0, state, rhs, setup, psolver, nu, dt, steps, n)
+    end
+    return Float32.(v_out), Float32.(state_out)
 end
 
 """
@@ -263,6 +302,94 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
         grad_dt,
         Float64(0.0),
     )
+end
+
+"""VJP for an initial call that returns canonical and native staggered outputs."""
+function ns_vjp_state(v0_np, cotangent_np, cotangent_state_np,
+                      nu::Float64, dt::Float64,
+                      steps::Int, n::Int, L::Float64)
+    v0 = Float32.(v0_np)
+    cot = Float32.(cotangent_np)
+    cot_state = Float32.(cotangent_state_np)
+    ndim = size(v0, ndims(v0))
+
+    setup, psolver = get_setup_and_psolver(n, L, ndim)
+    rhs = create_right_hand_side(setup, psolver)
+    if ndim == 2
+        fwd = (v, dt_) -> ns_forward_2d_state(
+            v, rhs, setup, psolver, nu, dt_, steps, n)
+    else
+        fwd = (v, dt_) -> ns_forward_3d_state(
+            v, rhs, setup, psolver, nu, dt_, steps, n)
+    end
+
+    _, back = Zygote.pullback(fwd, v0, Float32(dt))
+    grads = back((cot, cot_state))
+    grad_v0 = Float32.(grads[1])
+    grad_dt = Float64(something(grads[2], 0.0))
+
+    eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
+    if ndim == 2
+        plus = ns_forward_2d_state(
+            v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+        minus = ns_forward_2d_state(
+            v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+    else
+        plus = ns_forward_3d_state(
+            v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+        minus = ns_forward_3d_state(
+            v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+    end
+    jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
+    jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
+    grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
+
+    return grad_v0, grad_nu, grad_dt, Float64(0.0)
+end
+
+"""VJP for a recurrent call initialized from native staggered state."""
+function ns_vjp_state_continue(v0_np, state_np, cotangent_np,
+                               cotangent_state_np, nu::Float64, dt::Float64,
+                               steps::Int, n::Int, L::Float64)
+    v0 = Float32.(v0_np)
+    state = Float32.(state_np)
+    cot = Float32.(cotangent_np)
+    cot_state = Float32.(cotangent_state_np)
+    ndim = size(v0, ndims(v0))
+
+    setup, psolver = get_setup_and_psolver(n, L, ndim)
+    rhs = create_right_hand_side(setup, psolver)
+    if ndim == 2
+        fwd = (v, s, dt_) -> ns_forward_2d_continue(
+            v, s, rhs, setup, psolver, nu, dt_, steps, n)
+    else
+        fwd = (v, s, dt_) -> ns_forward_3d_continue(
+            v, s, rhs, setup, psolver, nu, dt_, steps, n)
+    end
+
+    _, back = Zygote.pullback(fwd, v0, state, Float32(dt))
+    grads = back((cot, cot_state))
+    grad_v0 = Float32.(grads[1])
+    grad_state = Float32.(grads[2])
+    grad_dt = Float64(something(grads[3], 0.0))
+
+    eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
+    if ndim == 2
+        plus = ns_forward_2d_continue(
+            v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+        minus = ns_forward_2d_continue(
+            v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+    else
+        plus = ns_forward_3d_continue(
+            v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+        minus = ns_forward_3d_continue(
+            v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+    end
+    jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
+    jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
+    grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
+
+    return grad_v0, grad_state, grad_nu, grad_dt, Float64(0.0)
 end
 
 
@@ -489,7 +616,7 @@ function ns_channel_2d_forward(
     n = n1 - 2
     T = eltype(inflow_field)
     # Convert collocated IC to staggered
-    v0_stag = coloc_to_stag_2d(v0, n)  # (n, n, 2)
+    v0_stag = collocated_to_staggered_periodic_2d(v0, n)  # (n, n, 2)
     # Build initial ghost array consistent with channel BCs:
     #   x: left ghost = inflow, right ghost = outflow (copy rightmost interior col)
     #   y: periodic (bottom ghost = top interior row, top ghost = bottom interior row)
@@ -560,7 +687,9 @@ function ns_apply_channel_2d(
         setup, psolver, mask_inflow,
     )
 
-    return Float32.(stag_to_coloc_2d(strip_ghosts_2d(u_full, n), n))
+    return Float32.(
+        staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
+    )
 end
 
 """
@@ -599,7 +728,7 @@ function ns_vjp_channel_2d(
             v0, inflow_f, obs, Float32(nu), Float32(dt), steps,
             setup, psolver, mask_inflow,
         )
-        stag_to_coloc_2d(strip_ghosts_2d(u_full, n), n)
+        staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
     end
 
     _, back = Zygote.pullback(fwd, inflow)
@@ -695,7 +824,7 @@ function ns_channel_2d_forward_with_drag(
     nu_T = T(nu)
 
     # Initial staggered state (same as ns_channel_2d_forward)
-    v0_stag = coloc_to_stag_2d(v0, n)
+    v0_stag = collocated_to_staggered_periodic_2d(v0, n)
     bot_y_ghost = v0_stag[:, n:n, :]
     top_y_ghost = v0_stag[:, 1:1, :]
     inner_ypad  = cat(bot_y_ghost, v0_stag, top_y_ghost; dims = 2)
@@ -731,7 +860,8 @@ function ns_channel_2d_forward_with_drag(
         u = _apply_brinkman_2d(u, obstacle_mask, n1, n2)
 
         if step_i >= tail_start
-            u_coloc = stag_to_coloc_2d(strip_ghosts_2d(u, n), n)
+            u_coloc =
+                staggered_to_collocated_periodic_2d(strip_ghosts_2d(u, n), n)
             drag_sum = drag_sum + _compute_drag_julia_2d(u_coloc, solid_mask, nu_T)
             velocity_sum = velocity_sum .+ u_coloc
         end
@@ -785,7 +915,9 @@ function ns_apply_channel_2d_drag_window(
         setup, psolver, mask_inflow,
     )
 
-    v_out = Float32.(stag_to_coloc_2d(strip_ghosts_2d(u_full, n), n))
+    v_out = Float32.(
+        staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
+    )
     return v_out, Float32(mean_drag), Float32.(mean_velocity)
 end
 
@@ -833,7 +965,8 @@ function ns_vjp_channel_2d_drag_window(
             v0, inflow_f, obs, solid_mask, Float32(nu), Float32(dt), steps,
             setup, psolver, mask_inflow,
         )
-        v_out = stag_to_coloc_2d(strip_ghosts_2d(u_full, n), n)
+        v_out =
+            staggered_to_collocated_periodic_2d(strip_ghosts_2d(u_full, n), n)
         return v_out, mean_drag
     end
 
