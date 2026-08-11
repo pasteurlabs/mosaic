@@ -178,12 +178,17 @@ def tentative_vel_3d_kernel(
     ux_star: wp.array3d(dtype=wp.float32),
     uy_star: wp.array3d(dtype=wp.float32),
     uz_star: wp.array3d(dtype=wp.float32),
-    dt: float,
+    dt: wp.array(dtype=wp.float32),
     inv_2h: float,
     inv_h2: float,
-    nu: float,
+    nu: wp.array(dtype=wp.float32),
 ) -> None:
-    """3-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u)."""
+    """3-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u).
+
+    ``dt``/``nu`` are 1-element arrays (like the 2-D kernel) so the tape
+    tracks gradients w.r.t. them when called from :func:`ns3d_solve_tape`;
+    :func:`ns3d_solve_forward` passes non-grad-tracked 1-element arrays.
+    """
     i, j, k = wp.tid()
     n = ux.shape[0]
     ip1 = (i + 1) % n
@@ -192,6 +197,9 @@ def tentative_vel_3d_kernel(
     jm1 = (j - 1 + n) % n
     kp1 = (k + 1) % n
     km1 = (k - 1 + n) % n
+
+    dt_ = dt[0]
+    nu_ = nu[0]
 
     ui = ux[i, j, k]
     vi = uy[i, j, k]
@@ -212,7 +220,7 @@ def tentative_vel_3d_kernel(
         + vi * (ux[i, jp1, k] - ux[i, jm1, k]) * inv_2h
         + wi * (ux[i, j, kp1] - ux[i, j, km1]) * inv_2h
     )
-    ux_star[i, j, k] = ui + dt * (-adv_ux + nu * lap_ux)
+    ux_star[i, j, k] = ui + dt_ * (-adv_ux + nu_ * lap_ux)
 
     # uy component
     lap_uy = (
@@ -229,7 +237,7 @@ def tentative_vel_3d_kernel(
         + vi * (uy[i, jp1, k] - uy[i, jm1, k]) * inv_2h
         + wi * (uy[i, j, kp1] - uy[i, j, km1]) * inv_2h
     )
-    uy_star[i, j, k] = vi + dt * (-adv_uy + nu * lap_uy)
+    uy_star[i, j, k] = vi + dt_ * (-adv_uy + nu_ * lap_uy)
 
     # uz component
     lap_uz = (
@@ -246,7 +254,7 @@ def tentative_vel_3d_kernel(
         + vi * (uz[i, jp1, k] - uz[i, jm1, k]) * inv_2h
         + wi * (uz[i, j, kp1] - uz[i, j, km1]) * inv_2h
     )
-    uz_star[i, j, k] = wi + dt * (-adv_uz + nu * lap_uz)
+    uz_star[i, j, k] = wi + dt_ * (-adv_uz + nu_ * lap_uz)
 
 
 @wp.kernel
@@ -255,13 +263,16 @@ def divergence_3d_to_complex_kernel(
     uy: wp.array3d(dtype=wp.float32),
     uz: wp.array3d(dtype=wp.float32),
     div_c: wp.array3d(dtype=wp.vec2f),
-    inv_2h_over_dt: float,
+    dt: wp.array(dtype=wp.float32),
+    inv_2h: float,
 ) -> None:
     """Compute ∇·u*/dt for pressure Poisson RHS, packed directly as complex.
 
     Writes directly into a complex (vec2f) buffer with zero imaginary part.
     Fuses the divergence kernel with the "pack real->complex" step that would
     otherwise precede the spectral Poisson FFT (discussion recommendation #2).
+    ``dt`` is a 1-element array (like the 2-D kernel) so the tape tracks
+    gradients w.r.t. it.
     """
     i, j, k = wp.tid()
     n = ux.shape[0]
@@ -271,6 +282,7 @@ def divergence_3d_to_complex_kernel(
     jm1 = (j - 1 + n) % n
     kp1 = (k + 1) % n
     km1 = (k - 1 + n) % n
+    inv_2h_over_dt = inv_2h / dt[0]
     div = (
         (ux[ip1, j, k] - ux[im1, j, k])
         + (uy[i, jp1, k] - uy[i, jm1, k])
@@ -289,14 +301,15 @@ def pressure_correct_3d_from_complex_kernel(
     ux_new: wp.array3d(dtype=wp.float32),
     uy_new: wp.array3d(dtype=wp.float32),
     uz_new: wp.array3d(dtype=wp.float32),
-    dt: float,
+    dt: wp.array(dtype=wp.float32),
     inv_2h: float,
 ) -> None:
     """u^(n+1) = u* - dt·∇p, reading p directly from the complex IFFT output.
 
     Reads the real part (normalized) instead of a separate materialized
     pressure array. Fuses the "extract real + normalize" step with the
-    pressure-correction kernel (discussion recommendation #2).
+    pressure-correction kernel (discussion recommendation #2). ``dt`` is a
+    1-element array (like the 2-D kernel) so the tape tracks gradients w.r.t. it.
     """
     i, j, k = wp.tid()
     n = p_c.shape[0]
@@ -306,6 +319,7 @@ def pressure_correct_3d_from_complex_kernel(
     jm1 = (j - 1 + n) % n
     kp1 = (k + 1) % n
     km1 = (k - 1 + n) % n
+    dt_ = dt[0]
     p_im1 = p_c[im1, j, k][0] / p_divisor
     p_ip1 = p_c[ip1, j, k][0] / p_divisor
     p_jm1 = p_c[i, jm1, k][0] / p_divisor
@@ -315,9 +329,9 @@ def pressure_correct_3d_from_complex_kernel(
     dpdx = (p_ip1 - p_im1) * inv_2h
     dpdy = (p_jp1 - p_jm1) * inv_2h
     dpdz = (p_kp1 - p_km1) * inv_2h
-    ux_new[i, j, k] = ux_star[i, j, k] - dt * dpdx
-    uy_new[i, j, k] = uy_star[i, j, k] - dt * dpdy
-    uz_new[i, j, k] = uz_star[i, j, k] - dt * dpdz
+    ux_new[i, j, k] = ux_star[i, j, k] - dt_ * dpdx
+    uy_new[i, j, k] = uy_star[i, j, k] - dt_ * dpdy
+    uz_new[i, j, k] = uz_star[i, j, k] - dt_ * dpdz
 
 
 @wp.kernel
@@ -365,16 +379,10 @@ def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
 ####################################################################
 
 
-@wp.kernel
-def _multiply_inv_lambda_2d_kernel(
-    inv_lambda: wp.array2d(dtype=wp.float32),
-    rhs_hat: wp.array2d(dtype=wp.vec2f),
-    p_hat: wp.array2d(dtype=wp.vec2f),
-) -> None:
-    i, j = wp.tid()
-    v = rhs_hat[i, j]
-    scale = inv_lambda[i, j]
-    p_hat[i, j] = wp.vec2f(v[0] * scale, v[1] * scale)
+@wp.func
+def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
+    """Multiply a complex value (as vec2f) by a real scalar."""
+    return wp.vec2f(v[0] * s, v[1] * s)
 
 
 @functools.cache
@@ -399,6 +407,27 @@ def _fft_kernels_2d(n: int):
         wp.tile_ifft(row)
         wp.tile_store(y, row, offset=(i, 0))
 
+    @wp.kernel(module=f"dft2d_{n}")
+    def fft_multiply_ifft_tiled(
+        x: wp.array2d(dtype=wp.vec2f),
+        inv_lambda_row: wp.array2d(dtype=wp.float32),
+        y: wp.array2d(dtype=wp.vec2f),
+    ) -> None:
+        """Fused middle stage: last forward FFT pass, spectral multiply, first inverse FFT pass.
+
+        These three operations act on the same (already-transposed) row
+        layout with no intervening transpose, so the row stays resident in
+        registers/shared memory across all three (discussion recommendation
+        #2: fuse spectral multiplication with the middle FFT/IFFT stage).
+        """
+        i, _, _ = wp.tid()
+        row = wp.tile_load(x, shape=(1, n), offset=(i, 0))
+        scale_row = wp.tile_load(inv_lambda_row, shape=(1, n), offset=(i, 0))
+        wp.tile_fft(row)
+        scaled = wp.tile_map(_scale_complex, row, scale_row)
+        wp.tile_ifft(scaled)
+        wp.tile_store(y, scaled, offset=(i, 0))
+
     @wp.kernel(module=f"transpose2d_{n}")
     def transpose_kernel(
         x: wp.array2d(dtype=wp.vec2f), y: wp.array2d(dtype=wp.vec2f)
@@ -416,6 +445,7 @@ def _fft_kernels_2d(n: int):
     return {
         "fft_tiled": fft_tiled,
         "ifft_tiled": ifft_tiled,
+        "fft_multiply_ifft_tiled": fft_multiply_ifft_tiled,
         "transpose_kernel": transpose_kernel,
         "block_dim": block_dim,
         "tile_transpose_dim": tile_transpose_dim,
@@ -429,6 +459,9 @@ def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
     Matches the eigenvalues used by the previous NumPy implementation exactly
     (continuous -(2π/L)²k², not the discrete FD eigenvalues used in 3-D) —
     preserving the existing discretization per discussion recommendation #7.
+    ``kx``/``ky`` enter symmetrically, so this array is safe to index either
+    as-is or transposed (the fused FFT pipeline below reads it in
+    transposed/row-major order relative to how it is built here).
     """
     kfreq = np.fft.fftfreq(n, d=1.0 / n)
     kx, ky = np.meshgrid(kfreq, kfreq, indexing="ij")
@@ -439,14 +472,44 @@ def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
     return wp.array2d(inv_lambda.astype(np.float32), dtype=wp.float32, device=device)
 
 
-def _fft_2d(kernels: dict, src: wp.array, dst: wp.array, n: int, device: str) -> None:
-    """2-D FFT/IFFT via row-wise 1-D transform, transpose, row-wise 1-D transform."""
-    tmp1 = wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
-    tmp2 = wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+def _spectral_poisson_2d_core(
+    rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
+) -> wp.array:
+    """Core 2-D spectral Poisson solve on an already-packed complex RHS.
+
+    Returns the complex (unnormalized) pressure field. Split out from the
+    original ``_spectral_poisson_2d_tape`` wrapper so call sites that
+    produce/consume complex buffers directly (e.g. a divergence kernel fused
+    with the real->complex pack, or a pressure-correction kernel fused with
+    the extract+normalize step) can skip the redundant pack/unpack kernels —
+    discussion recommendation #2.
+
+    The middle stage (last forward FFT pass, spectral multiply, first inverse
+    FFT pass) runs as a single fused tiled kernel instead of three separate
+    launches with two intermediate global-memory round trips (recommendation
+    #2, follow-up). Pass ``workspace`` (from :func:`_poisson_workspace_2d`) to
+    reuse pre-allocated scratch buffers across steps instead of allocating
+    fresh ones on every call — required for the forward-only (non-taped) path
+    and a minor win for the taped path too.
+    """
+    n = rhs_c.shape[0]
+    kernels = _fft_kernels_2d(n)
+    inv_lambda = _inv_lambda_2d(n, domain_extent, device)
+
+    tmp1 = (
+        workspace["tmp1"]
+        if workspace
+        else wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    )
+    rhs_hat = (
+        workspace["rhs_hat"]
+        if workspace
+        else wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    )
     wp.launch_tiled(
-        kernels["fft_tiled"] if kernels["_dir"] == "fwd" else kernels["ifft_tiled"],
+        kernels["fft_tiled"],
         dim=[n, 1],
-        inputs=[src],
+        inputs=[rhs_c],
         outputs=[tmp1],
         block_dim=kernels["block_dim"],
         device=device,
@@ -456,55 +519,75 @@ def _fft_2d(kernels: dict, src: wp.array, dst: wp.array, n: int, device: str) ->
         kernels["transpose_kernel"],
         dim=(n // td, n // td),
         inputs=[tmp1],
+        outputs=[rhs_hat],
+        block_dim=td * td,
+        device=device,
+    )
+
+    p_hat = (
+        workspace["p_hat"]
+        if workspace
+        else wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    )
+    wp.launch_tiled(
+        kernels["fft_multiply_ifft_tiled"],
+        dim=[n, 1],
+        inputs=[rhs_hat, inv_lambda],
+        outputs=[p_hat],
+        block_dim=kernels["block_dim"],
+        device=device,
+    )
+
+    tmp2 = (
+        workspace["tmp2"]
+        if workspace
+        else wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    )
+    p_c = (
+        workspace["p_c"]
+        if workspace
+        else wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    )
+    wp.launch_tiled(
+        kernels["transpose_kernel"],
+        dim=(n // td, n // td),
+        inputs=[p_hat],
         outputs=[tmp2],
         block_dim=td * td,
         device=device,
     )
     wp.launch_tiled(
-        kernels["fft_tiled"] if kernels["_dir"] == "fwd" else kernels["ifft_tiled"],
+        kernels["ifft_tiled"],
         dim=[n, 1],
         inputs=[tmp2],
-        outputs=[dst],
+        outputs=[p_c],
         block_dim=kernels["block_dim"],
         device=device,
     )
-
-
-def _spectral_poisson_2d_core(
-    rhs_c: wp.array, domain_extent: float, device: str
-) -> wp.array:
-    """Core 2-D spectral Poisson solve on an already-packed complex RHS.
-
-    Returns the complex (unnormalized) pressure field. Split out from
-    :func:`_spectral_poisson_2d_tape` so call sites that produce/consume
-    complex buffers directly (e.g. a divergence kernel fused with the
-    real->complex pack, or a pressure-correction kernel fused with the
-    extract+normalize step) can skip the redundant pack/unpack kernels —
-    discussion recommendation #2.
-    """
-    n = rhs_c.shape[0]
-    kernels = _fft_kernels_2d(n)
-    inv_lambda = _inv_lambda_2d(n, domain_extent, device)
-
-    rhs_hat = wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
-    _fft_2d({**kernels, "_dir": "fwd"}, rhs_c, rhs_hat, n, device)
-
-    p_hat = wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
-    wp.launch(
-        _multiply_inv_lambda_2d_kernel,
-        dim=(n, n),
-        inputs=[inv_lambda, rhs_hat],
-        outputs=[p_hat],
-        device=device,
-    )
-
-    p_c = wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
-    _fft_2d({**kernels, "_dir": "bwd"}, p_hat, p_c, n, device)
     return p_c
 
 
+def _poisson_workspace_2d(n: int, device: str) -> dict:
+    """Pre-allocate (non-differentiable) scratch buffers for the forward-only path.
+
+    Reused across every timestep instead of allocating fresh buffers per
+    step, since the forward-only path has no tape to track per-step
+    dependencies for (discussion recommendation: separate buffer policies for
+    forward vs. taped execution).
+    """
+    return {
+        "tmp1": wp.zeros((n, n), dtype=wp.vec2f, device=device),
+        "rhs_hat": wp.zeros((n, n), dtype=wp.vec2f, device=device),
+        "p_hat": wp.zeros((n, n), dtype=wp.vec2f, device=device),
+        "tmp2": wp.zeros((n, n), dtype=wp.vec2f, device=device),
+        "p_c": wp.zeros((n, n), dtype=wp.vec2f, device=device),
+    }
+
+
 @functools.cache
-def _inv_lambda_3d(n: int, domain_extent: float, device: str) -> wp.array:
+def _inv_lambda_3d(
+    n: int, domain_extent: float, device: str, permute: tuple | None = None
+) -> wp.array:
     """Precompute 1/λ for the 3-D discrete-FD-eigenvalue spectral Poisson solve.
 
     Uses the discrete finite-difference Laplacian eigenvalues:
@@ -518,6 +601,12 @@ def _inv_lambda_3d(n: int, domain_extent: float, device: str) -> wp.array:
     relative error per wavenumber (≈1.3% at k=1, N=16), which compounds across
     the VJP chain and causes a flat-plateau gradient magnitude bias in the
     fd_check — see discussion recommendation #7 (preserve discretization).
+
+    ``permute`` optionally applies an axis permutation to the returned array:
+    the eigenvalue formula is symmetric in kx/ky/kz, so a permuted copy of
+    this array can be indexed against an intermediate FFT buffer that is
+    itself axis-permuted (e.g. the pre-axis-swap layout inside the fused
+    middle FFT/multiply/IFFT kernel) without changing the underlying values.
     """
     h = domain_extent / n
     kfreq = np.fft.fftfreq(n, d=1.0 / n)
@@ -530,19 +619,13 @@ def _inv_lambda_3d(n: int, domain_extent: float, device: str) -> wp.array:
     inv_lambda = np.zeros_like(lam)
     nonzero = lam != 0
     inv_lambda[nonzero] = 1.0 / lam[nonzero]
-    return wp.array3d(inv_lambda.astype(np.float32), dtype=wp.float32, device=device)
-
-
-@wp.kernel
-def _multiply_inv_lambda_3d_kernel(
-    inv_lambda: wp.array3d(dtype=wp.float32),
-    rhs_hat: wp.array3d(dtype=wp.vec2f),
-    p_hat: wp.array3d(dtype=wp.vec2f),
-) -> None:
-    i, j, k = wp.tid()
-    v = rhs_hat[i, j, k]
-    scale = inv_lambda[i, j, k]
-    p_hat[i, j, k] = wp.vec2f(v[0] * scale, v[1] * scale)
+    if permute is not None:
+        inv_lambda = np.transpose(inv_lambda, permute)
+    return wp.array3d(
+        np.ascontiguousarray(inv_lambda.astype(np.float32)),
+        dtype=wp.float32,
+        device=device,
+    )
 
 
 @functools.cache
@@ -574,6 +657,26 @@ def _fft_kernels_3d(n: int):
         wp.tile_ifft(row)
         wp.tile_store(y, row, offset=(i, 0))
 
+    @wp.kernel(module=f"dft3d_{n}")
+    def fft_multiply_tiled(
+        x: wp.array2d(dtype=wp.vec2f),
+        inv_lambda_row: wp.array2d(dtype=wp.float32),
+        y: wp.array2d(dtype=wp.vec2f),
+    ) -> None:
+        """Fused: last forward-transform row-pass + spectral multiply.
+
+        Keeps the row resident across both operations instead of a separate
+        multiply kernel reading/writing it back to global memory (discussion
+        recommendation #2). The swap into the next pass's layout still
+        happens as a separate kernel — see :func:`_fft3_pass`.
+        """
+        i, _, _ = wp.tid()
+        row = wp.tile_load(x, shape=(1, n), offset=(i, 0))
+        scale_row = wp.tile_load(inv_lambda_row, shape=(1, n), offset=(i, 0))
+        wp.tile_fft(row)
+        scaled = wp.tile_map(_scale_complex, row, scale_row)
+        wp.tile_store(y, scaled, offset=(i, 0))
+
     @wp.kernel(module=f"axisswap3d_{n}")
     def swap_axes_012_to_120(
         x: wp.array3d(dtype=wp.vec2f), y: wp.array3d(dtype=wp.vec2f)
@@ -585,33 +688,67 @@ def _fft_kernels_3d(n: int):
     return {
         "fft_tiled": fft_tiled,
         "ifft_tiled": ifft_tiled,
+        "fft_multiply_tiled": fft_multiply_tiled,
         "swap_axes": swap_axes_012_to_120,
         "block_dim": block_dim,
     }
 
 
 def _fft3_pass(
-    kernels: dict, direction: str, src: wp.array, n: int, device: str
+    kernels: dict,
+    direction: str,
+    src: wp.array,
+    n: int,
+    device: str,
+    inv_lambda_row: wp.array | None = None,
+    workspace: tuple | None = None,
 ) -> wp.array:
     """Run one axis's row-wise FFT/IFFT over a (n,n,n) complex array.
 
     Cyclically permutes axes (0,1,2)->(2,0,1) afterward so the next pass's
     target axis becomes the new contiguous last axis. Three passes = full
     3-D transform, ending back at the original axis order.
+
+    When ``inv_lambda_row`` is given (only for the last forward pass), the
+    spectral multiply is fused into this pass's row-transform kernel
+    (discussion recommendation #2) instead of a separate elementwise launch.
+
+    ``workspace``, when given, is a ``(flat_dst, swapped)`` pair of
+    pre-allocated (non-differentiable) buffers to write into instead of
+    allocating fresh ones — used by the forward-only path.
     """
     flat_src = src.reshape((n * n, n))
-    flat_dst = wp.zeros((n * n, n), dtype=wp.vec2f, requires_grad=True, device=device)
-    kernel = kernels["fft_tiled"] if direction == "fwd" else kernels["ifft_tiled"]
-    wp.launch_tiled(
-        kernel,
-        dim=[n * n, 1],
-        inputs=[flat_src],
-        outputs=[flat_dst],
-        block_dim=kernels["block_dim"],
-        device=device,
+    grad = workspace is None
+    flat_dst = (
+        workspace[0]
+        if workspace
+        else wp.zeros((n * n, n), dtype=wp.vec2f, requires_grad=grad, device=device)
     )
+    if inv_lambda_row is not None:
+        wp.launch_tiled(
+            kernels["fft_multiply_tiled"],
+            dim=[n * n, 1],
+            inputs=[flat_src, inv_lambda_row.reshape((n * n, n))],
+            outputs=[flat_dst],
+            block_dim=kernels["block_dim"],
+            device=device,
+        )
+    else:
+        kernel = kernels["fft_tiled"] if direction == "fwd" else kernels["ifft_tiled"]
+        wp.launch_tiled(
+            kernel,
+            dim=[n * n, 1],
+            inputs=[flat_src],
+            outputs=[flat_dst],
+            block_dim=kernels["block_dim"],
+            device=device,
+        )
     dst_3d = flat_dst.reshape((n, n, n))
-    swapped = wp.zeros((n, n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    swapped = (
+        workspace[1]
+        if workspace
+        else wp.zeros((n, n, n), dtype=wp.vec2f, requires_grad=grad, device=device)
+    )
     wp.launch(
         kernels["swap_axes"],
         dim=(n, n, n),
@@ -623,44 +760,96 @@ def _fft3_pass(
 
 
 def _fft_3d(
-    kernels: dict, direction: str, src: wp.array, n: int, device: str
+    kernels: dict,
+    direction: str,
+    src: wp.array,
+    n: int,
+    device: str,
+    inv_lambda_row: wp.array | None = None,
+    workspaces: list | None = None,
 ) -> wp.array:
-    """Full 3-D FFT/IFFT via three row-wise-transform + cyclic-axis-swap passes."""
+    """Full 3-D FFT/IFFT via three row-wise-transform + cyclic-axis-swap passes.
+
+    ``inv_lambda_row`` (forward direction only) fuses the spectral multiply
+    into the final pass — see :func:`_fft3_pass`. ``workspaces``, when given,
+    is a 3-element list of per-pass ``(flat_dst, swapped)`` buffer pairs from
+    :func:`_poisson_workspace_3d` (forward-only path).
+    """
     x = src
-    for _ in range(3):
-        x = _fft3_pass(kernels, direction, x, n, device)
+    for pass_i in range(3):
+        is_last_fwd = direction == "fwd" and pass_i == 2
+        x = _fft3_pass(
+            kernels,
+            direction,
+            x,
+            n,
+            device,
+            inv_lambda_row=inv_lambda_row if is_last_fwd else None,
+            workspace=workspaces[pass_i] if workspaces else None,
+        )
     return x
 
 
 def _spectral_poisson_3d_core(
-    rhs_c: wp.array, domain_extent: float, device: str
+    rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
     """Core 3-D spectral Poisson solve on an already-packed complex RHS.
 
-    Returns the complex (unnormalized) pressure field. Split out from
-    :func:`_spectral_poisson_3d_tape` so call sites that produce/consume
-    complex buffers directly can skip the redundant pack/unpack kernels —
-    discussion recommendation #2.
+    Returns the complex (unnormalized) pressure field. Split out from the
+    original ``_spectral_poisson_3d_tape`` wrapper so call sites that
+    produce/consume complex buffers directly can skip the redundant
+    pack/unpack kernels — discussion recommendation #2.
+
+    The spectral multiply is fused into the last forward-FFT pass instead of
+    running as a separate elementwise kernel (recommendation #2, follow-up):
+    right before that pass's axis-swap, the array is permuted (1,2,0) relative
+    to the original (kx,ky,kz) axis order, so we index a matching
+    (1,2,0)-permuted copy of 1/λ (cheap to precompute once, cached) rather
+    than the natural-order array used elsewhere.
+
+    Pass ``workspace`` (from :func:`_poisson_workspace_3d`) to reuse
+    pre-allocated scratch buffers across steps instead of allocating fresh
+    ones on every call — used by the forward-only (non-taped) path.
     """
     n = rhs_c.shape[0]
     kernels = _fft_kernels_3d(n)
-    inv_lambda = _inv_lambda_3d(n, domain_extent, device)
+    inv_lambda_permuted = _inv_lambda_3d(n, domain_extent, device, permute=(1, 2, 0))
 
-    rhs_hat = _fft_3d(kernels, "fwd", rhs_c, n, device)
-
-    p_hat = wp.zeros((n, n, n), dtype=wp.vec2f, requires_grad=True, device=device)
-    wp.launch(
-        _multiply_inv_lambda_3d_kernel,
-        dim=(n, n, n),
-        inputs=[inv_lambda, rhs_hat],
-        outputs=[p_hat],
-        device=device,
+    fwd_ws = workspace["fwd"] if workspace else None
+    bwd_ws = workspace["bwd"] if workspace else None
+    p_c = _fft_3d(
+        kernels,
+        "fwd",
+        rhs_c,
+        n,
+        device,
+        inv_lambda_row=inv_lambda_permuted,
+        workspaces=fwd_ws,
     )
+    return _fft_3d(kernels, "bwd", p_c, n, device, workspaces=bwd_ws)
 
-    return _fft_3d(kernels, "bwd", p_hat, n, device)
+
+def _poisson_workspace_3d(n: int, device: str) -> dict:
+    """Pre-allocate (non-differentiable) scratch buffers for the forward-only 3-D path.
+
+    Reused across every timestep instead of allocating fresh buffers per
+    step and per FFT pass (3 passes x 2 buffers x 2 directions = 12 fresh
+    allocations per Poisson solve otherwise).
+    """
+
+    def _pass_bufs():
+        return (
+            wp.zeros((n * n, n), dtype=wp.vec2f, device=device),
+            wp.zeros((n, n, n), dtype=wp.vec2f, device=device),
+        )
+
+    return {
+        "fwd": [_pass_bufs() for _ in range(3)],
+        "bwd": [_pass_bufs() for _ in range(3)],
+    }
 
 
-def ns2d_solve(
+def ns2d_solve_tape(
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -668,14 +857,14 @@ def ns2d_solve(
     domain_extent: float,
     num_iters_poisson: int,
     device: str = "cpu",
-) -> tuple[
-    np.ndarray, wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array
-]:
-    """Run periodic 2-D incompressible NS via IPCS (Chorin-Temam).
+    track_scalar_grads: bool = False,
+) -> tuple[wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array]:
+    """Run periodic 2-D incompressible NS via IPCS (Chorin-Temam) under a tape.
 
     [2D-only function]
 
-    Steps per time-step:
+    Used only by :func:`vector_jacobian_product` — see :func:`ns2d_solve_forward`
+    for the plain-forward path used by :func:`apply`. Steps per time-step:
         1. Tentative velocity: u* = u + dt·(-u·∇u + ν∇²u)
         2. Pressure Poisson: ∇²p = (1/dt)·∇·u*  (spectral FFT, periodic)
         3. Velocity correction: u^(n+1) = u* - dt·∇p
@@ -684,20 +873,33 @@ def ns2d_solve(
     (verified to agree with a from-scratch analytical adjoint and a central-FD
     ground truth to float32 roundoff — see repo history for the check). ``nu``
     and ``dt`` are passed to kernels as 1-element arrays rather than plain
-    floats so that the tape also tracks gradients w.r.t. them, with no manual
+    floats so that the tape can track gradients w.r.t. them, with no manual
     ``record_func`` bookkeeping required.
+
+    ``track_scalar_grads`` gates ``requires_grad`` on the ``nu``/``dt``
+    arrays: leave it False unless the caller actually requested a viscosity
+    or dt gradient. Every ``requires_grad=True`` array adds bookkeeping to
+    every tape node that reads it, and for a 3-D solve over many timesteps
+    that overhead is measurable (~50% higher VJP wall-clock in testing) even
+    though these are 1-element arrays — so this must not be unconditional
+    when the caller only wants d(loss)/d(v0).
 
     Each step allocates fresh output buffers (rather than ping-ponging between
     two reused buffers) so the tape's per-step data dependencies are
     unambiguous — this also removes the need to manually zero stale adjoints
     between steps.
 
+    Unlike a plain forward solve, this does NOT materialize the final result
+    as a NumPy array: the caller (VJP) only needs the tape and the Warp
+    arrays to seed cotangents on and read .grad from, so skipping the
+    device->host copy of the (unused) forward result avoids a wasted sync.
+
     Returns:
-        (result_np, tape,
-         ux_final_wp, uy_final_wp, ux_ic_wp, uy_ic_wp, nu_wp, dt_wp)
+        (tape, ux_final_wp, uy_final_wp, ux_ic_wp, uy_ic_wp, nu_wp, dt_wp)
         The final velocity Warp arrays have requires_grad=True so
         tape.backward() fills their .grad attributes.  nu_wp / dt_wp are
-        (1,) scalar leaves; their grads are filled directly by tape.backward().
+        (1,) scalar leaves; their grads are filled directly by tape.backward()
+        only when track_scalar_grads=True (otherwise .grad stays None).
     """
     n = v0_np.shape[0]
     h = domain_extent / n
@@ -717,13 +919,13 @@ def ns2d_solve(
     nu_wp = wp.array(
         np.array([viscosity], dtype=np.float32),
         dtype=wp.float32,
-        requires_grad=True,
+        requires_grad=track_scalar_grads,
         device=device,
     )
     dt_wp = wp.array(
         np.array([dt], dtype=np.float32),
         dtype=wp.float32,
-        requires_grad=True,
+        requires_grad=track_scalar_grads,
         device=device,
     )
 
@@ -792,12 +994,7 @@ def ns2d_solve(
 
             cur_ux, cur_uy = next_ux, next_uy
 
-    ux_out = cur_ux.numpy()
-    uy_out = cur_uy.numpy()
-    result = np.stack([ux_out, uy_out], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
-
     return (
-        result,
         tape,
         cur_ux,
         cur_uy,
@@ -806,6 +1003,104 @@ def ns2d_solve(
         nu_wp,
         dt_wp,
     )
+
+
+def ns2d_solve_forward(
+    v0_np: np.ndarray,
+    viscosity: float,
+    dt: float,
+    steps: int,
+    domain_extent: float,
+    device: str = "cpu",
+) -> np.ndarray:
+    """Forward-only periodic 2-D incompressible NS via IPCS — no gradients.
+
+    [2D-only function]
+
+    Same physics as :func:`ns2d_solve_tape`, but structurally distinct (discussion
+    recommendation: separate buffer policies for forward vs. taped
+    execution): no ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
+    velocity buffers reused every step instead of fresh per-step allocations
+    (mirrors Warp's own ``example_wave.py`` grid-swap pattern), and one
+    pre-allocated FFT workspace reused across all steps instead of allocating
+    fresh scratch buffers on every Poisson solve.
+    """
+    n = v0_np.shape[0]
+    h = domain_extent / n
+    inv_2h = 0.5 / h
+    inv_h2 = 1.0 / (h * h)
+    _bd_2d = 256
+
+    ux_np = v0_np[:, :, 0, 0]
+    uy_np = v0_np[:, :, 0, 1]
+
+    vel_bufs_x = [
+        wp.array(ux_np, dtype=wp.float32, device=device),
+        wp.zeros((n, n), dtype=wp.float32, device=device),
+    ]
+    vel_bufs_y = [
+        wp.array(uy_np, dtype=wp.float32, device=device),
+        wp.zeros((n, n), dtype=wp.float32, device=device),
+    ]
+    nu_wp = wp.array(
+        np.array([viscosity], dtype=np.float32), dtype=wp.float32, device=device
+    )
+    dt_wp = wp.array(np.array([dt], dtype=np.float32), dtype=wp.float32, device=device)
+
+    ux_star = wp.zeros((n, n), dtype=wp.float32, device=device)
+    uy_star = wp.zeros((n, n), dtype=wp.float32, device=device)
+    div_star_c = wp.zeros((n, n), dtype=wp.vec2f, device=device)
+    poisson_ws = _poisson_workspace_2d(n, device)
+
+    src, dst = 0, 1
+    for _step_i in range(steps):
+        wp.launch(
+            tentative_vel_2d_kernel,
+            dim=(n, n),
+            inputs=[
+                vel_bufs_x[src],
+                vel_bufs_y[src],
+                ux_star,
+                uy_star,
+                dt_wp,
+                inv_2h,
+                inv_h2,
+                nu_wp,
+            ],
+            block_dim=_bd_2d,
+            device=device,
+        )
+        wp.launch(
+            divergence_2d_to_complex_kernel,
+            dim=(n, n),
+            inputs=[ux_star, uy_star, div_star_c, dt_wp, inv_2h],
+            block_dim=_bd_2d,
+            device=device,
+        )
+        p_c = _spectral_poisson_2d_core(
+            div_star_c, domain_extent, device, workspace=poisson_ws
+        )
+        wp.launch(
+            pressure_correct_2d_from_complex_kernel,
+            dim=(n, n),
+            inputs=[
+                ux_star,
+                uy_star,
+                p_c,
+                float(n * n),
+                vel_bufs_x[dst],
+                vel_bufs_y[dst],
+                dt_wp,
+                inv_2h,
+            ],
+            block_dim=_bd_2d,
+            device=device,
+        )
+        src, dst = dst, src
+
+    ux_out = vel_bufs_x[src].numpy()
+    uy_out = vel_bufs_y[src].numpy()
+    return np.stack([ux_out, uy_out], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
 
 
 def ns2d_vjp(
@@ -825,7 +1120,7 @@ def ns2d_vjp(
 
     v0, viscosity, and dt are all ordinary tape leaves (nu_wp/dt_wp are the
     1-element arrays passed into tentative_vel_2d_kernel, divergence_2d_kernel,
-    and pressure_correct_2d_kernel in ns2d_solve), so tape.backward() fills
+    and pressure_correct_2d_kernel in ns2d_solve_tape), so tape.backward() fills
     their .grad directly via Warp's native reverse-mode AD — no manual
     per-step gradient accumulation needed.
     """
@@ -864,7 +1159,7 @@ def ns2d_vjp(
 # ============================================================
 
 
-def ns3d_solve(
+def ns3d_solve_tape(
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -873,22 +1168,52 @@ def ns3d_solve(
     num_iters_poisson_3d: int,
     device: str = "cpu",
     adjoint_grad_clip: float | None = None,
+    track_scalar_grads: bool = False,
 ) -> tuple[
-    np.ndarray, wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array
+    wp.Tape,
+    wp.array,
+    wp.array,
+    wp.array,
+    wp.array,
+    wp.array,
+    wp.array,
+    wp.array,
+    wp.array,
 ]:
-    """Run 3-D incompressible NS via IPCS (Chorin-Temam).
+    """Run 3-D incompressible NS via IPCS (Chorin-Temam) under a tape.
 
-    Uses Warp's native reverse-mode AD for every kernel (verified to agree
-    with a from-scratch analytical adjoint and a central-FD ground truth to
-    float32 roundoff). Each step allocates fresh output buffers instead of
-    ping-ponging between two reused buffers, so the tape's per-step data
-    dependencies are unambiguous and no manual adjoint-zeroing is needed.
+    Used only by :func:`vector_jacobian_product` — see :func:`ns3d_solve_forward`
+    for the plain-forward path used by :func:`apply`. Uses Warp's native
+    reverse-mode AD for every kernel (verified to agree with a from-scratch
+    analytical adjoint and a central-FD ground truth to float32 roundoff).
+    Each step allocates fresh output buffers instead of ping-ponging between
+    two reused buffers, so the tape's per-step data dependencies are
+    unambiguous and no manual adjoint-zeroing is needed.
+
+    ``nu``/``dt`` are passed to kernels as 1-element arrays (like the 2-D
+    solver) so the tape can track gradients w.r.t. them — previously this
+    path always returned zero for viscosity/dt (schema advertised them as
+    differentiable but the 3-D kernels only accepted plain floats).
+
+    ``track_scalar_grads`` gates ``requires_grad`` on the ``nu``/``dt``
+    arrays: leave it False unless the caller actually requested a viscosity
+    or dt gradient. Measured ~50% higher 3-D VJP wall-clock when these are
+    unconditionally grad-tracked, even though they are 1-element arrays —
+    each additional requires_grad=True array adds bookkeeping to every tape
+    node that reads it, across every timestep. Must not be unconditional
+    when the caller only wants d(loss)/d(v0).
+
+    Unlike a plain forward solve, this does NOT materialize the final result
+    as a NumPy array — the caller (VJP) only needs the tape and Warp arrays,
+    so skipping that device->host copy avoids a wasted sync.
 
     Returns:
-        (result_np, tape, ux_final_wp, uy_final_wp, uz_final_wp,
-         ux_ic_wp, uy_ic_wp, uz_ic_wp)
+        (tape, ux_final_wp, uy_final_wp, uz_final_wp,
+         ux_ic_wp, uy_ic_wp, uz_ic_wp, nu_wp, dt_wp)
         The final velocity Warp arrays have requires_grad=True so
-        tape.backward() fills their .grad attributes.
+        tape.backward() fills their .grad attributes.  nu_wp / dt_wp are
+        (1,) scalar leaves; their grads are filled directly by tape.backward()
+        only when track_scalar_grads=True (otherwise .grad stays None).
     """
     n = v0_np.shape[0]
     h = domain_extent / n
@@ -907,6 +1232,18 @@ def ns3d_solve(
     )
     uz_wp = wp.array(
         v0_np[:, :, :, 2], dtype=wp.float32, requires_grad=True, device=device
+    )
+    nu_wp = wp.array(
+        np.array([viscosity], dtype=np.float32),
+        dtype=wp.float32,
+        requires_grad=track_scalar_grads,
+        device=device,
+    )
+    dt_wp = wp.array(
+        np.array([dt], dtype=np.float32),
+        dtype=wp.float32,
+        requires_grad=track_scalar_grads,
+        device=device,
     )
 
     tape = wp.Tape()
@@ -978,10 +1315,10 @@ def ns3d_solve(
                     ux_star,
                     uy_star,
                     uz_star,
-                    dt,
+                    dt_wp,
                     inv_2h,
                     inv_h2,
-                    viscosity,
+                    nu_wp,
                 ],
                 block_dim=_bd_3d,
                 device=device,
@@ -994,11 +1331,10 @@ def ns3d_solve(
             div_star_c = wp.zeros(
                 (n, n, n), dtype=wp.vec2f, requires_grad=True, device=device
             )
-            inv_2h_over_dt = inv_2h / dt
             _wlaunch(
                 divergence_3d_to_complex_kernel,
                 dim=(n, n, n),
-                inputs=[ux_star, uy_star, uz_star, div_star_c, inv_2h_over_dt],
+                inputs=[ux_star, uy_star, uz_star, div_star_c, dt_wp, inv_2h],
                 block_dim=_bd_3d,
                 device=device,
             )
@@ -1029,7 +1365,7 @@ def ns3d_solve(
                     next_ux,
                     next_uy,
                     next_uz,
-                    dt,
+                    dt_wp,
                     inv_2h,
                 ],
                 block_dim=_bd_3d,
@@ -1038,13 +1374,7 @@ def ns3d_solve(
 
             cur_ux, cur_uy, cur_uz = next_ux, next_uy, next_uz
 
-    ux_out = cur_ux.numpy()
-    uy_out = cur_uy.numpy()
-    uz_out = cur_uz.numpy()
-    result = np.stack([ux_out, uy_out, uz_out], axis=-1)  # (N,N,N,3)
-
     return (
-        result,
         tape,
         cur_ux,
         cur_uy,
@@ -1052,7 +1382,111 @@ def ns3d_solve(
         ux_wp,
         uy_wp,
         uz_wp,
+        nu_wp,
+        dt_wp,
     )
+
+
+def ns3d_solve_forward(
+    v0_np: np.ndarray,
+    viscosity: float,
+    dt: float,
+    steps: int,
+    domain_extent: float,
+    device: str = "cpu",
+) -> np.ndarray:
+    """Forward-only 3-D incompressible NS via IPCS — no gradients.
+
+    Same physics as :func:`ns3d_solve_tape`, but structurally distinct (discussion
+    recommendation: separate buffer policies for forward vs. taped
+    execution): no ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
+    velocity buffers per component reused every step instead of fresh
+    per-step allocations, and one pre-allocated FFT workspace reused across
+    all steps.
+    """
+    n = v0_np.shape[0]
+    h = domain_extent / n
+    inv_2h = 0.5 / h
+    inv_h2 = 1.0 / (h * h)
+    _bd_3d = 256
+
+    vel_bufs_x = [
+        wp.array(v0_np[:, :, :, 0], dtype=wp.float32, device=device),
+        wp.zeros((n, n, n), dtype=wp.float32, device=device),
+    ]
+    vel_bufs_y = [
+        wp.array(v0_np[:, :, :, 1], dtype=wp.float32, device=device),
+        wp.zeros((n, n, n), dtype=wp.float32, device=device),
+    ]
+    vel_bufs_z = [
+        wp.array(v0_np[:, :, :, 2], dtype=wp.float32, device=device),
+        wp.zeros((n, n, n), dtype=wp.float32, device=device),
+    ]
+
+    ux_star = wp.zeros((n, n, n), dtype=wp.float32, device=device)
+    uy_star = wp.zeros((n, n, n), dtype=wp.float32, device=device)
+    uz_star = wp.zeros((n, n, n), dtype=wp.float32, device=device)
+    div_star_c = wp.zeros((n, n, n), dtype=wp.vec2f, device=device)
+    poisson_ws = _poisson_workspace_3d(n, device)
+    nu_wp = wp.array(
+        np.array([viscosity], dtype=np.float32), dtype=wp.float32, device=device
+    )
+    dt_wp = wp.array(np.array([dt], dtype=np.float32), dtype=wp.float32, device=device)
+
+    src, dst = 0, 1
+    for _step_i in range(steps):
+        wp.launch(
+            tentative_vel_3d_kernel,
+            dim=(n, n, n),
+            inputs=[
+                vel_bufs_x[src],
+                vel_bufs_y[src],
+                vel_bufs_z[src],
+                ux_star,
+                uy_star,
+                uz_star,
+                dt_wp,
+                inv_2h,
+                inv_h2,
+                nu_wp,
+            ],
+            block_dim=_bd_3d,
+            device=device,
+        )
+        wp.launch(
+            divergence_3d_to_complex_kernel,
+            dim=(n, n, n),
+            inputs=[ux_star, uy_star, uz_star, div_star_c, dt_wp, inv_2h],
+            block_dim=_bd_3d,
+            device=device,
+        )
+        p_c = _spectral_poisson_3d_core(
+            div_star_c, domain_extent, device, workspace=poisson_ws
+        )
+        wp.launch(
+            pressure_correct_3d_from_complex_kernel,
+            dim=(n, n, n),
+            inputs=[
+                ux_star,
+                uy_star,
+                uz_star,
+                p_c,
+                float(n * n * n),
+                vel_bufs_x[dst],
+                vel_bufs_y[dst],
+                vel_bufs_z[dst],
+                dt_wp,
+                inv_2h,
+            ],
+            block_dim=_bd_3d,
+            device=device,
+        )
+        src, dst = dst, src
+
+    ux_out = vel_bufs_x[src].numpy()
+    uy_out = vel_bufs_y[src].numpy()
+    uz_out = vel_bufs_z[src].numpy()
+    return np.stack([ux_out, uy_out, uz_out], axis=-1)  # (N,N,N,3)
 
 
 def ns3d_vjp(
@@ -1065,8 +1499,17 @@ def ns3d_vjp(
     uz_ic: wp.array,
     cotangent_np: np.ndarray,
     device: str,
+    nu_wp: "wp.array | None" = None,
+    dt_wp: "wp.array | None" = None,
 ) -> dict[str, np.ndarray]:
-    """Propagate cotangents through the 3-D IPCS tape."""
+    """Propagate cotangents through the 3-D IPCS tape.
+
+    v0, viscosity, and dt are all ordinary tape leaves (nu_wp/dt_wp are the
+    1-element arrays passed into tentative_vel_3d_kernel,
+    divergence_3d_to_complex_kernel, and pressure_correct_3d_from_complex_kernel
+    in ns3d_solve_tape), so tape.backward() fills their .grad directly —
+    previously this function always returned zero for viscosity/dt.
+    """
     ux_final.grad = wp.array(
         cotangent_np[:, :, :, 0].astype(np.float32), dtype=wp.float32, device=device
     )
@@ -1087,13 +1530,19 @@ def ns3d_vjp(
     if uz_ic.grad is not None:
         grad_v0[:, :, :, 2] = uz_ic.grad.numpy()
 
-    grads: dict[str, np.ndarray] = {
-        "v0": grad_v0.astype(np.float32),
-        "viscosity": np.zeros(1, dtype=np.float32),
-        "dt": np.zeros(1, dtype=np.float32),
-    }
+    grad_nu = np.zeros(1, dtype=np.float32)
+    if nu_wp is not None and nu_wp.grad is not None:
+        grad_nu[0] = float(nu_wp.grad.numpy()[0])
 
-    return grads
+    grad_dt = np.zeros(1, dtype=np.float32)
+    if dt_wp is not None and dt_wp.grad is not None:
+        grad_dt[0] = float(dt_wp.grad.numpy()[0])
+
+    return {
+        "v0": grad_v0.astype(np.float32),
+        "viscosity": grad_nu,
+        "dt": grad_dt,
+    }
 
 
 # ============================================================
@@ -1163,7 +1612,12 @@ def _check_periodic(inputs: InputSchema) -> None:
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Run the Warp NS forward solver (2-D or 3-D) and return the result."""
+    """Run the Warp NS forward solver (2-D or 3-D) and return the result.
+
+    Uses the forward-only solve path (no wp.Tape, no gradient-enabled
+    arrays, ping-pong buffers) since apply() never needs gradients —
+    discussion recommendation: give apply() a separate forward-only path.
+    """
     _check_periodic(inputs)
     v0 = np.asarray(inputs.v0, dtype=np.float32)
     nu = float(inputs.viscosity[0])
@@ -1171,24 +1625,12 @@ def apply(inputs: InputSchema) -> OutputSchema:
     device = _warp_device()
 
     if _is_3d(v0):
-        result, _tape, *_ = ns3d_solve(
-            v0,
-            nu,
-            dt,
-            inputs.steps,
-            inputs.domain_extent,
-            inputs.num_iters_poisson_3d,
-            device=device,
+        result = ns3d_solve_forward(
+            v0, nu, dt, inputs.steps, inputs.domain_extent, device=device
         )
     else:
-        result, _tape, *_ = ns2d_solve(
-            v0,
-            nu,
-            dt,
-            inputs.steps,
-            inputs.domain_extent,
-            inputs.num_iters_poisson,
-            device=device,
+        result = ns2d_solve_forward(
+            v0, nu, dt, inputs.steps, inputs.domain_extent, device=device
         )
     return OutputSchema(result=result, drag=None)
 
@@ -1206,32 +1648,51 @@ def vector_jacobian_product(
 
     Differentiable inputs: v0, viscosity, dt (2D and 3D).
     Both 2D and 3D use IPCS with spectral FFT Poisson for numerically exact VJPs.
+
+    Gradient tracking for the ``viscosity``/``dt`` scalars is only turned on
+    when the caller actually requests them via ``vjp_inputs``: each
+    additional requires_grad=True array adds tape bookkeeping on every read
+    across every timestep, and doing this unconditionally measured ~50%
+    higher 3-D VJP wall-clock for the common v0-only case.
     """
     _check_periodic(inputs)
     v0 = np.asarray(inputs.v0, dtype=np.float32)
     nu = float(inputs.viscosity[0])
     dt = float(inputs.dt[0])
     device = _warp_device()
+    track_scalar_grads = bool(vjp_inputs & {"viscosity", "dt"})
 
     if _is_3d(v0):
-        _result_np, tape, ux_f, uy_f, uz_f, ux_ic, uy_ic, uz_ic = ns3d_solve(
-            v0,
-            nu,
-            dt,
-            inputs.steps,
-            inputs.domain_extent,
-            inputs.num_iters_poisson_3d,
-            device=device,
+        tape, ux_f, uy_f, uz_f, ux_ic, uy_ic, uz_ic, nu_wp_3d, dt_wp_3d = (
+            ns3d_solve_tape(
+                v0,
+                nu,
+                dt,
+                inputs.steps,
+                inputs.domain_extent,
+                inputs.num_iters_poisson_3d,
+                device=device,
+                track_scalar_grads=track_scalar_grads,
+            )
         )
         cot_result = np.asarray(
             cotangent_vector.get("result", np.zeros_like(v0)), dtype=np.float32
         )
         grads = ns3d_vjp(
-            tape, ux_f, uy_f, uz_f, ux_ic, uy_ic, uz_ic, cot_result, device
+            tape,
+            ux_f,
+            uy_f,
+            uz_f,
+            ux_ic,
+            uy_ic,
+            uz_ic,
+            cot_result,
+            device,
+            nu_wp=nu_wp_3d,
+            dt_wp=dt_wp_3d,
         )
     else:
         (
-            _result_np,
             tape,
             ux_f,
             uy_f,
@@ -1239,7 +1700,7 @@ def vector_jacobian_product(
             uy_ic,
             nu_wp_2d,
             dt_wp_2d,
-        ) = ns2d_solve(
+        ) = ns2d_solve_tape(
             v0,
             nu,
             dt,
@@ -1247,6 +1708,7 @@ def vector_jacobian_product(
             inputs.domain_extent,
             inputs.num_iters_poisson,
             device=device,
+            track_scalar_grads=track_scalar_grads,
         )
         cot_result = np.asarray(
             cotangent_vector.get("result", np.zeros_like(v0)), dtype=np.float32
