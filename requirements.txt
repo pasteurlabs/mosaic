@@ -33,7 +33,7 @@ cachetools==7.1.7
     # via mlflow-skinny
 certifi==2026.7.22
     # via requests
-cffi==2.1.0 ; platform_python_implementation != 'PyPy'
+cffi==2.1.1 ; platform_python_implementation != 'PyPy'
     # via cryptography
 charset-normalizer==3.4.9
     # via requests
@@ -55,7 +55,7 @@ cryptography==50.0.0
     # via google-auth
 cycler==0.12.1
     # via matplotlib
-databricks-sdk==0.123.0
+databricks-sdk==0.125.0
     # via mlflow-skinny
 debugpy==1.8.21
     # via tesseract-core
@@ -81,9 +81,9 @@ fsspec==2026.6.0
     #   tesseract-core
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.57
+gitpython==3.1.58
     # via mlflow-skinny
-google-auth==2.56.2
+google-auth==2.56.3
     # via databricks-sdk
 h11==0.16.0
     # via uvicorn
@@ -207,7 +207,7 @@ optax==0.2.8
     # via mosaic-bench
 orjson==3.11.9
     # via tesseract-core
-packaging==26.2
+packaging==26.3
     # via
     #   matplotlib
     #   mlflow-skinny
@@ -218,7 +218,7 @@ pandas==3.0.5 ; python_full_version >= '3.11'
     # via mosaic-bench
 pillow==12.3.0
     # via matplotlib
-pip==26.2
+pip==26.2.1
     # via tesseract-core
 propcache==0.5.2
     # via
@@ -302,7 +302,7 @@ smmap==5.0.3
     # via gitdb
 sqlparse==0.5.5
     # via mlflow-skinny
-starlette==1.3.1
+starlette==1.6.0
     # via
     #   fastapi
     #   mlflow-skinny
