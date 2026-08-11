@@ -75,14 +75,21 @@ EXCL_PERMANENT_VALUES: frozenset[str] = frozenset(c.value for c in EXCL_PERMANEN
 # A single scalar in [0.0, +1.0] summarising campaign state.  Each
 # non-categorical cell contributes its weight; categorical exclusions are
 # excluded from both numerator and denominator.
+#
+# Staleness (the ``*`` marker) does not affect the weight: it's a "re-run
+# recommended" hint for humans, not a health signal, and folding it into the
+# score made the headline number move on the incremental PR-preview path for
+# reasons a PR author couldn't see or fix (baseline cells carried over from
+# ``main`` hash-mismatch the current tree and get flagged even when the PR
+# didn't touch them). Releases always re-run the full suite from scratch, so
+# nothing is ever legitimately stale there. Keeping stale weights equal to
+# their fresh counterparts preserves the invariant "no status change ⇒ no
+# score change" that reviewers expect. The ``*`` glyph is still rendered.
 SCORE_WEIGHTS: dict[str, float] = {
     "ok": 1.00,
-    "ok*": 0.67,
     "anom": 0.53,
-    "anom*": 0.43,
     "missing": 0.33,
     "excl": 0.33,  # all non-categorical exclusions
-    "fail*": 0.17,
     "fail": 0.00,
     # "perm" (EXCLUDED + categorical) is excluded from the denominator.
 }
@@ -93,14 +100,16 @@ def cell_weight_key(cell: Cell) -> str | None:
 
     Categorical (permanent) exclusions return None — the caller should skip
     them entirely (no numerator contribution, not counted in denominator).
+
+    Staleness is intentionally ignored: a stale cell scores identically to
+    its fresh counterpart (see :data:`SCORE_WEIGHTS`).
     """
-    stale = getattr(cell, "stale", False)
     if cell.status == OK:
-        return "ok*" if stale else "ok"
+        return "ok"
     if cell.status == ANOMALY:
-        return "anom*" if stale else "anom"
+        return "anom"
     if cell.status == FAILED:
-        return "fail*" if stale else "fail"
+        return "fail"
     if cell.status == NOT_RUN:
         return "missing"
     if cell.status == EXCLUDED:
@@ -1196,12 +1205,14 @@ def format_score(score: float | None) -> str:
 # 1.0; linearly interpolated between stops. Designed to read as a traffic-light
 # ramp: red (fail) → orange → yellow → green → bright green (ok).
 #
-# Ansi (hex via rich):
+# Ansi (hex via rich). Score weights annotated where they land; intermediate
+# stops are ramp positions used for gradient fill / the status progress bar
+# (e.g. its stale-ok segment sits at 0.67), not score weights themselves:
 #   w = 0.00 → red           #cc0d0d   fail
-#   w = 0.17 → red-orange    #e03a0b   fail*
-#   w = 0.33 → orange        #f78005   missing / neutral
+#   w = 0.17 → red-orange    #e03a0b
+#   w = 0.33 → orange        #f78005   missing / neutral / excl (work)
 #   w = 0.53 → yellow        #f5d80f   anom
-#   w = 0.67 → yellow-green  #73d114   ok*
+#   w = 0.67 → yellow-green  #73d114
 #   w = 1.00 → bright green  #00e659   ok
 #   None     → dim
 #
