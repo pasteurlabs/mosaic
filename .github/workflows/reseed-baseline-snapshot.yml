@@ -9,8 +9,14 @@
 # re-run; only the snapshot is regenerated. Delete this file after use.
 name: Reseed baseline snapshot (temp)
 
+# workflow_dispatch requires the file on the default branch, which we don't want
+# for a throwaway. Trigger on push to this temp branch instead, but only when
+# this workflow file itself changes, so re-pushing perturbation commits doesn't
+# re-run it.
 on:
-  workflow_dispatch:
+  push:
+    branches: [dion/reporting-smoke-test]
+    paths: [.github/workflows/reseed-baseline-snapshot.yml]
 
 permissions:
   contents: read
