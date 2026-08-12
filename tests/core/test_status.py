@@ -710,5 +710,189 @@ class TestMetricCollection(unittest.TestCase):
         self.assertEqual(cells["s"].metrics, {})
 
 
+class TestDiffScoping(unittest.TestCase):
+    """Only cells actually re-measured this run are attributed to the PR.
+
+    A ``benchmark:solver`` run re-runs one solver on one problem; every other
+    cell in the overlaid tree is carried-over baseline data. Baseline drift on
+    those cells (e.g. an infra flake recorded as failed) must not surface as a
+    PR regression (F3)."""
+
+    @staticmethod
+    def _cell(status: str, **extra) -> dict:
+        return {
+            "status": status,
+            "reason": "",
+            "category": "",
+            "stale": False,
+            "resource_frontier": extra.get("frontier", ""),
+            "metrics": extra.get("metrics", {}),
+        }
+
+    def _snap(self, cells_by_problem: dict) -> dict:
+        problems = {}
+        for problem, rows in cells_by_problem.items():
+            problems[problem] = {
+                "problem": problem,
+                "solvers": sorted({s for r in rows.values() for s in r}),
+                "rows": [
+                    {
+                        "suite": "cost",
+                        "experiment": lbl,
+                        "label": f"cost/{lbl}",
+                        "cells": c,
+                    }
+                    for lbl, c in rows.items()
+                ],
+            }
+        return {"score": 0.9, "problems": problems}
+
+    def _pair(self):
+        # jax-cfd (in scope) unchanged; PhiFlow (out of scope) drifts ok->fail.
+        old = self._snap(
+            {
+                "ns-grid": {
+                    "spatial": {
+                        "jax-cfd": self._cell("ok"),
+                        "PhiFlow": self._cell("ok"),
+                    }
+                }
+            }
+        )
+        new = self._snap(
+            {
+                "ns-grid": {
+                    "spatial": {
+                        "jax-cfd": self._cell("ok"),
+                        "PhiFlow": self._cell("failed"),
+                    }
+                }
+            }
+        )
+        return old, new
+
+    def test_unscoped_diff_reports_baseline_drift(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots
+
+        old, new = self._pair()
+        d = diff_snapshots(old, new)  # measured=None → diff everything
+        self.assertEqual(len(d["regressions"]), 1)
+        self.assertEqual(d["regressions"][0]["solver"], "PhiFlow")
+
+    def test_scoped_diff_suppresses_out_of_scope_regression(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots
+
+        old, new = self._pair()
+        d = diff_snapshots(
+            old, new, measured={"problems": ["ns-grid"], "solvers": ["jax-cfd"]}
+        )
+        self.assertEqual(d["regressions"], [])
+
+    def test_scoped_diff_keeps_in_scope_regression(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots
+
+        old = self._snap({"ns-grid": {"spatial": {"jax-cfd": self._cell("ok")}}})
+        new = self._snap({"ns-grid": {"spatial": {"jax-cfd": self._cell("failed")}}})
+        d = diff_snapshots(
+            old, new, measured={"problems": ["ns-grid"], "solvers": ["jax-cfd"]}
+        )
+        self.assertEqual(len(d["regressions"]), 1)
+        self.assertEqual(d["regressions"][0]["solver"], "jax-cfd")
+
+    def test_scope_filters_by_problem_too(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots
+
+        # jax-cfd drifts on a problem NOT in scope → suppressed.
+        old = self._snap({"ns-3d-grid": {"spatial": {"jax-cfd": self._cell("ok")}}})
+        new = self._snap({"ns-3d-grid": {"spatial": {"jax-cfd": self._cell("failed")}}})
+        d = diff_snapshots(
+            old, new, measured={"problems": ["ns-grid"], "solvers": ["jax-cfd"]}
+        )
+        self.assertEqual(d["regressions"], [])
+
+    def test_empty_problem_list_means_all_problems(self) -> None:
+        from mosaic.benchmarks.core.status import _cell_measured
+
+        m = {"problems": [], "solvers": ["jax-cfd"]}
+        self.assertTrue(_cell_measured(m, "ns-grid", "jax-cfd"))
+        self.assertTrue(_cell_measured(m, "ns-3d-grid", "jax-cfd"))
+        self.assertFalse(_cell_measured(m, "ns-grid", "PhiFlow"))
+
+    def test_scope_suppresses_frontier_and_metric_shifts(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots
+
+        old = self._snap(
+            {
+                "ns-grid": {
+                    "spatial": {
+                        "PhiFlow": self._cell(
+                            "ok", frontier="", metrics={"cost_time_s": 1.0}
+                        )
+                    }
+                }
+            }
+        )
+        new = self._snap(
+            {
+                "ns-grid": {
+                    "spatial": {
+                        "PhiFlow": self._cell(
+                            "ok", frontier="64", metrics={"cost_time_s": 5.0}
+                        )
+                    }
+                }
+            }
+        )
+        d = diff_snapshots(
+            old, new, measured={"problems": ["ns-grid"], "solvers": ["jax-cfd"]}
+        )
+        self.assertEqual(d["frontier_shifts"], [])
+        self.assertEqual(d["metric_shifts"], [])
+
+
+class TestDiffScopeHelper(unittest.TestCase):
+    """`_diff_scope` maps a run-scope dict to the diff's ``measured`` filter."""
+
+    def _import(self):
+        from mosaic.benchmarks.cli._status_helpers import _diff_scope
+
+        return _diff_scope
+
+    def test_none_scope_is_none(self) -> None:
+        self.assertIsNone(self._import()(None))
+
+    def test_all_label_is_none(self) -> None:
+        self.assertIsNone(
+            self._import()(
+                {"label": "all", "is_release_pr": False, "solvers": [], "problems": []}
+            )
+        )
+
+    def test_release_pr_is_none(self) -> None:
+        self.assertIsNone(
+            self._import()(
+                {"label": "", "is_release_pr": True, "solvers": [], "problems": []}
+            )
+        )
+
+    def test_solver_label_scopes(self) -> None:
+        m = self._import()(
+            {
+                "label": "solver",
+                "is_release_pr": False,
+                "solvers": ["jax-cfd"],
+                "problems": ["ns-grid"],
+            }
+        )
+        self.assertEqual(m, {"problems": ["ns-grid"], "solvers": ["jax-cfd"]})
+
+    def test_unlabelled_is_none(self) -> None:
+        self.assertIsNone(
+            self._import()(
+                {"label": "", "is_release_pr": False, "solvers": [], "problems": []}
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

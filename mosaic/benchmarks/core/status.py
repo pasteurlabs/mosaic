@@ -1790,7 +1790,25 @@ def _diff_metrics(
         )
 
 
-def diff_snapshots(old: dict, new: dict) -> dict:
+def _cell_measured(measured: dict | None, problem: str, solver: str) -> bool:
+    """Whether ``(problem, solver)`` was actually re-measured this run.
+
+    ``measured`` is ``None`` for a full run (everything measured → True for
+    all). Otherwise it carries ``problems`` (empty = every problem) and
+    ``solvers`` (the solvers actually re-run). A cell counts as measured only
+    when both match — carried-over baseline cells return False so their
+    transitions aren't mis-attributed to the PR.
+    """
+    if measured is None:
+        return True
+    problems = measured.get("problems") or []
+    solvers = measured.get("solvers") or []
+    problem_ok = not problems or problem in problems
+    solver_ok = not solvers or solver in solvers
+    return problem_ok and solver_ok
+
+
+def diff_snapshots(old: dict, new: dict, measured: dict | None = None) -> dict:
     """Compute transitions between two JSON snapshots produced by ``snapshot_to_dict``.
 
     Returns a dict with:
@@ -1799,6 +1817,12 @@ def diff_snapshots(old: dict, new: dict) -> dict:
       other        — same-severity transitions (e.g. missing → excl)
       added_rows   — experiment rows present in new but not old
       removed_rows — experiment rows present in old but not new
+
+    ``measured`` optionally scopes the diff to the (problem × solver) cells that
+    were actually re-run this PR (``{"problems": [...], "solvers": [...]}``);
+    cells outside it are carried-over baseline data, so any apparent transition
+    is baseline drift rather than a PR effect and is skipped. ``None`` (default)
+    diffs every cell — correct for full runs and local ``compare``.
     """
     out: dict = {
         "regressions": [],
@@ -1837,6 +1861,12 @@ def diff_snapshots(old: dict, new: dict) -> dict:
             for solver, new_cell in new_row["cells"].items():
                 old_cell = old_row["cells"].get(solver)
                 if old_cell is None:
+                    continue
+                # Skip cells this run didn't re-measure: their new value is
+                # carried-over baseline data, so a transition is baseline drift,
+                # not a PR effect (F3). Full runs / local compare pass
+                # measured=None and diff everything.
+                if not _cell_measured(measured, problem, solver):
                     continue
                 # Resource frontier move (independent of the status transition).
                 _diff_frontier(out, problem, label, solver, old_cell, new_cell)
