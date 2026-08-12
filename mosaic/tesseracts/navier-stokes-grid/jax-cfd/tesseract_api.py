@@ -1,6 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from typing import Any
 
 import equinox as eqx
@@ -203,6 +204,34 @@ def _extract_pressure_jaxcfd(v_grid: Any, grid: Any, bc: Any) -> jnp.ndarray:
     return q.data.astype(jnp.float32)
 
 
+# ---------------------------------------------------------------------------
+# TEMPORARY: reporting-pipeline smoke test (remove before merge)
+#
+# Two knobs deliberately regress this solver so the PR benchmark comment has
+# real signal to render against the main baseline:
+#   * MOSAIC_TEST_ACCURACY_BIAS scales the final field, inflating forward error
+#     (a *firm* metric regression — deterministic, trustworthy cross-run).
+#   * MOSAIC_TEST_BUSY_ITERS runs throwaway FFT round-trips on the result to
+#     burn wall-clock (an *indicative* timing regression).
+# Both default ON with modest magnitudes; set to "1.0" / 0 to disable. The
+# block reverts cleanly — it only reads these two vars and touches `result`.
+_TEST_ACCURACY_BIAS = float(os.environ.get("MOSAIC_TEST_ACCURACY_BIAS", "1.10"))
+_TEST_BUSY_ITERS = int(os.environ.get("MOSAIC_TEST_BUSY_ITERS", "80"))
+
+
+def _test_perturb(result: jax.Array) -> jax.Array:
+    """Apply the temporary accuracy + timing perturbations to a result field."""
+    if _TEST_BUSY_ITERS > 0:
+        # Throwaway FFT→iFFT round-trips: real wall-clock, identity transform.
+        # Fold a 1e-30 slice back so JIT can't dead-code-eliminate the work.
+        def _busy(carry: jax.Array, _: Any) -> tuple[jax.Array, None]:
+            return jnp.real(jnp.fft.ifftn(jnp.fft.fftn(carry))), None
+
+        busy, _ = jax.lax.scan(_busy, result, None, length=_TEST_BUSY_ITERS)
+        result = result + 1e-30 * busy
+    return result * _TEST_ACCURACY_BIAS
+
+
 def cfd_fwd(
     v0: jnp.ndarray,
     density: float,
@@ -386,6 +415,8 @@ def cfd_fwd(
 
     if ndim == 2:
         result = result[:, :, None, :]  # (nx, ny, 2) → (nx, ny, 1, 2)
+    # TEMPORARY (reporting smoke test): perturb accuracy + timing. Remove before merge.
+    result = _test_perturb(result)
     return result, drag
 
 
