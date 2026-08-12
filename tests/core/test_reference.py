@@ -10,9 +10,11 @@ import pytest
 
 from mosaic.benchmarks.core.reference import (
     PRECOMPUTED_EXPERIMENTS,
+    _domain_slug_to_package,
     _reference_dir,
     _reference_filename,
     extract_references_from_fields,
+    is_precomputed_experiment,
     load_reference,
     reference_exists,
     save_reference,
@@ -28,6 +30,28 @@ class TestReferenceFilename:
             _reference_filename("forward/source_linearity")
             == "forward_source_linearity.npz"
         )
+
+
+class TestSlugToPackage:
+    def test_default_hyphen_to_underscore(self):
+        assert _domain_slug_to_package("structural-mesh") == "structural_mesh"
+        assert _domain_slug_to_package("ns-grid") == "ns_grid"
+
+    def test_ns_3d_grid_alias(self):
+        # The 3D slug does not follow the ``-`` -> ``_`` convention; its
+        # package (and reference dir) is navier_stokes_3d_grid.
+        assert _domain_slug_to_package("ns-3d-grid") == "navier_stokes_3d_grid"
+
+
+class TestIsPrecomputedExperiment:
+    def test_designated(self):
+        assert is_precomputed_experiment("ns-3d-grid", "forward/agreement")
+
+    def test_not_designated(self):
+        assert not is_precomputed_experiment("ns-3d-grid", "forward/baseline")
+
+    def test_unknown_domain(self):
+        assert not is_precomputed_experiment("nope", "forward/agreement")
 
 
 class TestSaveAndLoadReference:
@@ -125,8 +149,11 @@ class TestPrecomputedExperiments:
         assert "forward/source_baseline" in exps
         assert "forward/source_linearity" in exps
 
-    def test_ns_3d_grid_not_listed(self):
-        assert "ns-3d-grid" not in PRECOMPUTED_EXPERIMENTS
+    def test_ns_3d_grid_experiments(self):
+        # forward/agreement uses a converged spectral reference, not the
+        # linearized analytic decay (issue #123).
+        exps = PRECOMPUTED_EXPERIMENTS["ns-3d-grid"]
+        assert "forward/agreement" in exps
 
 
 class TestCheckedInReferences:

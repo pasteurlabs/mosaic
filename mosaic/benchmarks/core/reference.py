@@ -44,8 +44,16 @@ log = logging.getLogger(__name__)
 _PROBLEMS_DIR: Path = Path(__file__).resolve().parents[1] / "problems"
 
 
+# Domains whose CLI slug does not map to the package name by ``-`` → ``_``.
+_PACKAGE_ALIASES: dict[str, str] = {
+    "ns-3d-grid": "navier_stokes_3d_grid",
+}
+
+
 def _domain_slug_to_package(domain: str) -> str:
     """Convert a CLI domain slug (e.g. ``structural-mesh``) to the Python package name."""
+    if domain in _PACKAGE_ALIASES:
+        return _PACKAGE_ALIASES[domain]
     return domain.replace("-", "_")
 
 
@@ -164,6 +172,13 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     "ns-grid": [
         "forward/cylinder",
     ],
+    # The 3D TGV forward/agreement reference is a *converged* spectral run
+    # (high-N Exponax, spectrally downsampled), not the linearized analytic
+    # decay — which is only a short-horizon approximation and biases the
+    # accuracy ranking. See navier_stokes_3d_grid/references/README.md.
+    "ns-3d-grid": [
+        "forward/agreement",
+    ],
     "structural-mesh": [
         "forward/baseline",
         "forward/agreement",
@@ -178,3 +193,13 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
 
 # Backward-compat alias
 CONSENSUS_EXPERIMENTS = PRECOMPUTED_EXPERIMENTS
+
+
+def is_precomputed_experiment(domain: str, exp_key: str) -> bool:
+    """Whether ``domain``/``exp_key`` is served by a checked-in reference.
+
+    Designated precomputed experiments prefer their reference NPZ over any
+    runtime reference selection (analytic or consensus) — the checked-in
+    field is the intended ground truth for the accuracy metric.
+    """
+    return exp_key in PRECOMPUTED_EXPERIMENTS.get(domain, [])

@@ -195,7 +195,9 @@ problem.add_experiment(
     agreement,
     plot_description=(
         "3D velocity magnitude fields and kinetic energy spectra per solver, swept over"
-        " viscosity \u03bd, compared against the analytic TGV reference."
+        " viscosity \u03bd, compared against a converged spectral reference. (The 3D TGV"
+        " initial condition is not advection-free, so the linearized analytic decay is"
+        " only a short-horizon consistency check, not an accuracy reference.)"
     ),
     ic={"name": "tgv3d", "seed": 0},
     physics={
