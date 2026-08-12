@@ -422,7 +422,7 @@ def _run_one_seed_trial(
             lr,
             max_iters,
             patience,
-            snap_interval=snap_interval if snap_interval > 0 else 0,
+            snap_interval=max(0, snap_interval),
             history=_hist,
             snap_error_fn=lambda ic, _ict=ic_true_k: float(error_fn(ic, _ict)),
             error_history=_ic_err_hist if (snap_interval > 0 and is_primary) else None,

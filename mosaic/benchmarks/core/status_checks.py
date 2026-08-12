@@ -106,8 +106,10 @@ def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
         ratio = worst[1] / max(worst[2], 1e-300)
         return (
             "anomaly",
-            f"error {worst[1]:.3g} at sweep={worst[0]} is {ratio:.1f}× peer median ({worst[2]:.3g}); "
-            f"threshold k={k}",
+            (
+                f"error {worst[1]:.3g} at sweep={worst[0]} is {ratio:.1f}× peer median "
+                f"({worst[2]:.3g}); threshold k={k}"
+            ),
         )
 
     return _check
@@ -140,8 +142,10 @@ def max_peer_k(k: float) -> Callable[[CostSummary], CheckOutcome]:
         ratio = s.solver_median_time / s.peer_median_time
         return (
             "anomaly",
-            f"median time {s.solver_median_time:.1f}s is {ratio:.0f}× peer median "
-            f"({s.peer_median_time:.2f}s); threshold k={k}",
+            (
+                f"median time {s.solver_median_time:.1f}s is {ratio:.0f}× peer median "
+                f"({s.peer_median_time:.2f}s); threshold k={k}"
+            ),
         )
 
     return _check
@@ -185,8 +189,10 @@ def rel_err_peer_outlier(k: float) -> Callable[[FdCheckSummary], CheckOutcome]:
         ratio = s.best_rel_err / s.peer_rel_err_median
         return (
             "anomaly",
-            f"best-ε rel_err {s.best_rel_err:.2e} is {ratio:.1f}× peer median "
-            f"({s.peer_rel_err_median:.2e}); threshold k={k}",
+            (
+                f"best-ε rel_err {s.best_rel_err:.2e} is {ratio:.1f}× peer median "
+                f"({s.peer_rel_err_median:.2e}); threshold k={k}"
+            ),
         )
 
     return _check
