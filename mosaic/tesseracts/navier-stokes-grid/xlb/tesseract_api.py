@@ -347,6 +347,52 @@ def _compute_drag_lbm(
     return jnp.reshape(drag, (1,))
 
 
+def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
+    """Run ``steps`` LBM steps with sqrt-checkpointing for memory-bounded AD.
+
+    A plain ``jax.lax.scan`` stores every step's populations for the reverse
+    pass, so reverse-mode VJP memory grows as ``steps × q × N^d`` — quartic in
+    N here (steps scale ∝ N), which OOMs the trajectory long before the forward
+    does (110 GB at N=64 vs a 0.3 GB forward).  We split the scan into
+    ``outer × inner ≈ √steps`` blocks and wrap the inner block in
+    ``jax.checkpoint``: only the ``√steps`` block-boundary carries are kept, and
+    each block is recomputed once during the backward pass.  Peak AD memory
+    drops from O(steps) to O(√steps) at the cost of one extra forward per block.
+
+    The pure forward pass is unaffected — ``jax.checkpoint`` only recomputes
+    when a backward pass actually differentiates through it.
+    """
+    import math as _math_ck
+
+    if steps <= 1:
+        return jax.lax.scan(body, f0, None, length=steps)
+
+    inner = max(1, round(_math_ck.sqrt(steps)))
+    outer, rem = divmod(steps, inner)
+
+    ckpt_body = jax.checkpoint(body)
+
+    def block(carry: jnp.ndarray, _: Any):
+        c, ys = jax.lax.scan(ckpt_body, carry, None, length=inner)
+        return c, ys
+
+    f_cur, ys_blocks = jax.lax.scan(block, f0, None, length=outer)
+    # ys_blocks: (outer, inner, *per_step_out) -> flatten to (outer*inner, ...)
+    drag_hist = jax.tree_util.tree_map(
+        lambda a: a.reshape((outer * inner, *a.shape[2:])), ys_blocks
+    )
+
+    # Remainder steps that didn't fit into a full block (steps not a perfect
+    # multiple of ``inner``); run them checkpointed too and concatenate.
+    if rem:
+        f_cur, ys_rem = jax.lax.scan(ckpt_body, f_cur, None, length=rem)
+        drag_hist = jax.tree_util.tree_map(
+            lambda a, b: jnp.concatenate([a, b], axis=0), drag_hist, ys_rem
+        )
+
+    return f_cur, drag_hist
+
+
 def xlb_fwd(
     v0: jnp.ndarray,
     viscosity: float,
@@ -580,7 +626,7 @@ def xlb_fwd(
             )
             return f_next, drag_step
 
-    f_final, drag_history = jax.lax.scan(body, f0, None, length=steps_eff)
+    f_final, drag_history = _checkpointed_scan(body, f0, steps_eff)
 
     # Extract macroscopic velocity using XLB Macroscopic operator
     _rho_f, u_out = xlb_macro(f_final)  # rho: (1, *spatial), u: (d, *spatial)
