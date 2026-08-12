@@ -90,8 +90,34 @@ def _timed_kernel(
         record = result.as_record(grad_norm=grad_norm)
         snapshot = np.array(result.last_value)
 
-    stop = result.failure is not None or result.wall_limit_hit
-    return {"metrics": record, "snapshot": snapshot, "stop_sweep": stop}
+    # Tell the framework *why* the sweep should (or shouldn't) stop here.
+    # Two axes matter — whether to continue, and whether it's a real bug:
+    #
+    #   wall_limit  — this point was already too slow; every larger point is
+    #                 slower still. Monotone in size → stop. Not a bug.
+    #   resource    — OOM / timeout. Monotone in size (a bigger problem won't
+    #                 fit if this one didn't) → stop. Platform-dependent
+    #                 resource ceiling, NOT a solver bug: expected at large
+    #                 sizes and can't be encoded as an explicit exclusion.
+    #   error       — compile error, NaN, container death. Point-specific: a
+    #                 larger sweep value may well succeed (e.g. a power-of-two
+    #                 grid after a non-power-of-two crashed) → CONTINUE, and
+    #                 this IS a bug the report must surface.
+    #
+    # ``stop_sweep`` (legacy boolean) stays True for the two monotone stops.
+    if result.wall_limit_hit:
+        stop_reason = "wall_limit"
+    elif result.failure is not None:
+        ftype = result.failure.get("failure_type")
+        stop_reason = "resource" if ftype in ("OOM", "timeout") else "error"
+    else:
+        stop_reason = None
+    return {
+        "metrics": record,
+        "snapshot": snapshot,
+        "stop_sweep": stop_reason in ("wall_limit", "resource"),
+        "stop_reason": stop_reason,
+    }
 
 
 # ── Aggregates ───────────────────────────────────────────────────────────────

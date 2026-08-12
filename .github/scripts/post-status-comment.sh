@@ -6,9 +6,10 @@
 # Finds an existing comment by the bot with "## Mosaic" header and updates it,
 # or creates a new one. Requires GH_TOKEN with write permissions.
 #
-# The markdown file (the benchmark status report) is optional: PRs that ran no
-# benchmarks (benchmark:none, docs-only) skip it, since the report would just be
-# an all-zero diff against the baseline. In that case the comment is only the
+# The markdown file (the benchmark status report) is optional here, but the
+# report job now always ships one on PRs: the full status+diff when benchmarks
+# ran, or a one-line "**Benchmarks:** …" verdict when they didn't (so silence is
+# never mistaken for a clean run). When genuinely absent, the comment is only the
 # docs-preview banner.
 #
 # When DOCS_PREVIEW_URL is set, a prominent banner linking to the rendered
