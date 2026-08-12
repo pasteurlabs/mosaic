@@ -189,3 +189,75 @@ def test_build_unknown_problem_records_failure(monkeypatch):
     result = runner.invoke(app, ["build", "-p", "definitely-not-a-real-problem"])
     assert result.exit_code == 1
     assert "definitely-not-a-real-problem" in result.output
+
+
+# ── run: -s validation across problems ──────────────────────────────────────────
+
+
+class _StopBeforeRun(BaseException):
+    """Sentinel: raised in place of the per-problem work so ``run`` gets past
+    ``-s`` validation without building images or launching a benchmark.
+
+    Subclasses ``BaseException`` (not ``Exception``) so the per-problem
+    ``try/except Exception`` in ``run`` — which turns build errors into an
+    "error" status and swallows them — lets it propagate to the test.
+    """
+
+
+@pytest.fixture
+def stop_before_run(monkeypatch):
+    """Make ``run`` reach the per-problem loop and then stop immediately.
+
+    ``_run_prepare_problem`` is the first thing ``run`` calls per problem,
+    after suite and ``-s`` validation. Replacing it with a raiser proves a run
+    cleared validation while guaranteeing no Docker/build/run work happens.
+    """
+    from mosaic.benchmarks.cli import run as run_mod
+
+    def _raise(*_args, **_kwargs):
+        raise _StopBeforeRun
+
+    monkeypatch.setattr(run_mod, "_run_prepare_problem", _raise)
+
+
+def test_run_flat_solvers_from_other_problem_passes_validation(stop_before_run):
+    """The sharded-benchmark reproducer: a flat ``-s`` list spanning problem
+    domains must clear validation on a single-problem leg.
+
+    ``TopOpt.jl`` lives on structural-mesh, not ns-grid; the union-set ``-s``
+    is applied per problem downstream, so it must not be rejected up front.
+    """
+    # Reaching _run_prepare_problem means validation passed; the sentinel then
+    # aborts before any real work. A validation failure would exit 1 first,
+    # before the loop, so the sentinel would never be raised.
+    with pytest.raises(_StopBeforeRun):
+        runner.invoke(
+            app,
+            ["run", "-p", "ns-grid", "-s", "INS.jl,TopOpt.jl", "--plots-only"],
+            catch_exceptions=False,
+        )
+
+
+def test_run_flat_solvers_reverse_direction_passes_validation(stop_before_run):
+    """The reproducer fails in both directions: structural-mesh must likewise
+    accept ``INS.jl`` (an ns-grid solver) in the flat union list."""
+    with pytest.raises(_StopBeforeRun):
+        runner.invoke(
+            app,
+            ["run", "-p", "structural-mesh", "-s", "INS.jl,TopOpt.jl", "--plots-only"],
+            catch_exceptions=False,
+        )
+
+
+def test_run_genuine_typo_still_fails_fast(stop_before_run):
+    """A name on no registered problem is a real typo and must still exit 1 at
+    validation — before the per-problem loop (the sentinel) is ever reached."""
+    # Validation exits via typer.Exit(1) before the per-problem loop, so the
+    # sentinel is never raised — invoke() returns normally with exit_code 1.
+    result = runner.invoke(
+        app, ["run", "-p", "ns-grid", "-s", "INS.jl,TopOptt.jl", "--plots-only"]
+    )
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, _StopBeforeRun)
+    assert "Unknown solver 'TopOptt.jl'" in result.output
+    assert "TopOpt.jl" in result.output  # "did you mean" suggestion
