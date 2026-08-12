@@ -1,0 +1,55 @@
+# TEMPORARY (do not merge): one-shot manual re-seed of the baseline snapshot.
+#
+# The metrics-reporting feature (#137) merged as benchmark:none, so
+# publish-results.yml never re-uploaded the baseline artifact and its
+# snapshot.json predates per-cell metrics. This workflow downloads the current
+# baseline result tree, regenerates snapshot.json with the current
+# (metrics-aware) `mosaic status`, and re-uploads the baseline artifact — so a
+# benchmark:solver demo PR has real metrics to diff against. No result data is
+# re-run; only the snapshot is regenerated. Delete this file after use.
+name: Reseed baseline snapshot (temp)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  reseed:
+    name: Regenerate baseline snapshot with metrics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Mosaic
+        run: cp production.uv.lock uv.lock && uv sync --frozen
+
+      - name: Download current baseline artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          bash .github/scripts/fetch-artifact.sh baseline mosaic-results/
+          test -d mosaic-results && [ "$(ls mosaic-results/ 2>/dev/null)" ] \
+            || { echo "::error::baseline artifact empty or missing"; exit 1; }
+
+      - name: Regenerate snapshot + report (metrics-aware)
+        run: |
+          uv run mosaic status --format json > mosaic-results/snapshot.json
+          uv run mosaic status --format md > mosaic-results/status-report.md
+          echo "cells with metrics:"
+          python3 -c "import json;d=json.load(open('mosaic-results/snapshot.json'));print(sum(1 for p in d['problems'].values() for r in p['rows'] for c in r['cells'].values() if c.get('metrics')))"
+
+      - name: Re-upload baseline artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: baseline
+          path: mosaic-results/
+          overwrite: true
+          retention-days: 400
