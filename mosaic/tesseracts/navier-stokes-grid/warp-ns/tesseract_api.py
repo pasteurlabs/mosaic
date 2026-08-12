@@ -385,6 +385,324 @@ def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
     return wp.vec2f(v[0] * s, v[1] * s)
 
 
+####################################################################
+# Non-power-of-two support via Bluestein's algorithm
+#
+# wp.tile_fft (cuFFTDx) only compiles power-of-two FFT lengths on GPU — Warp's
+# own codegen rejects everything else (its non-pow2 tile_fft tests are CPU
+# only). The benchmark spatial sweeps include non-pow2 resolutions (N=192 in
+# 2-D, N=48 in 3-D), which crashed the solver at LTO-compile time.
+#
+# Bluestein's algorithm expresses an arbitrary-length-N DFT exactly as a
+# length-M convolution, where M = next_pow2(2N-1) is a power of two — so the
+# convolution is evaluated with the same pow2 tile_fft primitives that already
+# work. This is exact (matches np.fft to float32 roundoff, verified in NumPy
+# against the reference solver's eigenvalue solve), so the discretization is
+# unchanged: pow2 grids keep the fast, fully-fused native path untouched; only
+# non-pow2 grids take this (slightly slower, on-GPU, still-differentiable)
+# route.
+#
+#   X[k] = conj(a[k]) * sum_j (b[j] * conj(a[j]) * x[j])   as a convolution
+#   with the chirp a[j] = exp(-i·pi·j²/N). See _bluestein_setup for the packed
+#   form actually launched.
+####################################################################
+
+
+def _is_pow2(n: int) -> bool:
+    return n > 0 and (n & (n - 1)) == 0
+
+
+def _next_pow2(n: int) -> int:
+    return 1 << (n - 1).bit_length()
+
+
+@functools.cache
+def _bluestein_setup(n: int, device: str) -> dict:
+    """Precompute the Bluestein chirp and the (pre-FFT'd) kernel for length ``n``.
+
+    Returns the chirp ``w`` (length ``n``, as a complex vec2f array broadcast
+    to a row) and ``B = fft(b)`` (length ``m = next_pow2(2n-1)``), both device
+    arrays. ``b`` is the zero-padded, wrapped conjugate-chirp convolution
+    kernel; its FFT is precomputed on the host once per ``n`` since it is
+    constant across timesteps and carries no gradient.
+    """
+    m = _next_pow2(2 * n - 1)
+    j = np.arange(n)
+    # chirp a[j] = exp(-i pi j^2 / n); w stored as the forward chirp
+    w = np.exp(-1j * np.pi * (j * j % (2 * n)) / n)
+    b = np.zeros(m, dtype=np.complex128)
+    b[:n] = np.conj(w)
+    b[m - n + 1 :] = np.conj(w[1:])[::-1]
+    B = np.fft.fft(b)
+
+    def _to_row_vec2f(arr: np.ndarray) -> wp.array:
+        # shape (len, 2) -> (1, len, 2) so Warp reads it as a (1, len) array of
+        # vec2f, matching the ``w[0, j]`` / ``B[0, k]`` row indexing in kernels.
+        row = np.stack([arr.real, arr.imag], axis=-1).astype(np.float32)[None, ...]
+        return wp.array2d(row, dtype=wp.vec2f, device=device)
+
+    return {
+        "m": m,
+        "w": _to_row_vec2f(w),
+        "B": _to_row_vec2f(B),
+    }
+
+
+@wp.func
+def _cmul(a: wp.vec2f, b: wp.vec2f) -> wp.vec2f:
+    """Complex multiply (a, b interpreted as complex, stored as vec2f)."""
+    return wp.vec2f(a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0])
+
+
+@functools.cache
+def _bluestein_kernels(n: int, m: int):
+    """Build the pre/post chirp + pointwise-multiply kernels for length ``n``.
+
+    The two pow2 transforms themselves reuse the length-``m`` pow2 tile-FFT
+    kernels from :func:`_fft_kernels_2d`; these kernels only handle the
+    chirp-multiply/pad (before) and crop/chirp-multiply (after) around them,
+    plus the frequency-domain multiply by the precomputed ``B``. All are plain
+    elementwise ``wp.tile_map``-free kernels so they differentiate natively
+    through ``wp.Tape``.
+    """
+
+    @wp.kernel(module=f"bluestein_{n}_{m}")
+    def premul(
+        x: wp.array2d(dtype=wp.vec2f),
+        w: wp.array2d(dtype=wp.vec2f),
+        a: wp.array2d(dtype=wp.vec2f),
+    ) -> None:
+        """Pre-multiply by the chirp.
+
+        ``a[row, j] = x[row, j] * w[0, j]``. Launched over ``j<n`` only; ``a``
+        is a fresh zero buffer of width ``m``, so columns ``n..m-1`` stay zero
+        (the pad).
+        """
+        row, j = wp.tid()
+        a[row, j] = _cmul(x[row, j], w[0, j])
+
+    @wp.kernel(module=f"bluestein_{n}_{m}")
+    def freqmul(
+        A: wp.array2d(dtype=wp.vec2f),
+        B: wp.array2d(dtype=wp.vec2f),
+        out: wp.array2d(dtype=wp.vec2f),
+    ) -> None:
+        """out[row, k] = A[row, k] * B[0, k] (length-m frequency-domain multiply)."""
+        row, k = wp.tid()
+        out[row, k] = _cmul(A[row, k], B[0, k])
+
+    @wp.kernel(module=f"bluestein_{n}_{m}")
+    def postmul(
+        c: wp.array2d(dtype=wp.vec2f),
+        w: wp.array2d(dtype=wp.vec2f),
+        y: wp.array2d(dtype=wp.vec2f),
+    ) -> None:
+        """y[row, k] = c[row, k] * w[0, k] for the length-n crop of the conv."""
+        row, k = wp.tid()
+        y[row, k] = _cmul(c[row, k], w[0, k])
+
+    return {"premul": premul, "freqmul": freqmul, "postmul": postmul}
+
+
+def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.array:
+    """Length-``n`` DFT along the last axis of a ``(batch, n)`` complex array.
+
+    ``direction`` is ``"fwd"`` or ``"bwd"`` (inverse). The inverse reuses the
+    forward transform via ``ifft(x) = conj(fft(conj(x)))/n``; here that identity
+    is folded into the chirp so a single code path serves both. Uses only
+    power-of-two (length-``m``) tile FFTs, so it compiles on GPU for any ``n``.
+
+    Every launch writes fresh ``requires_grad`` buffers so ``wp.Tape`` tracks
+    the whole chain natively (no ``record_func`` needed) — the chirp/kernel
+    multiplies and the pow2 FFTs are all differentiable Warp kernels.
+    """
+    batch = x.shape[0]
+    setup = _bluestein_setup(n, device)
+    m = setup["m"]
+    bk = _bluestein_kernels(n, m)
+    pow2 = _fft_kernels_2d(m)
+
+    # For the inverse, conjugate on the way in and out and rescale by 1/n.
+    conj_in = direction == "bwd"
+
+    src = x
+    if conj_in:
+        src = _conj_rows(x, device)
+
+    a = wp.zeros((batch, m), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        bk["premul"],
+        dim=(batch, n),
+        inputs=[src, setup["w"]],
+        outputs=[a],
+        device=device,
+    )
+    A = wp.zeros((batch, m), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch_tiled(
+        pow2["fft_tiled"],
+        dim=[batch, 1],
+        inputs=[a],
+        outputs=[A],
+        block_dim=pow2["block_dim"],
+        device=device,
+    )
+    AB = wp.zeros((batch, m), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        bk["freqmul"],
+        dim=(batch, m),
+        inputs=[A, setup["B"]],
+        outputs=[AB],
+        device=device,
+    )
+    c = wp.zeros((batch, m), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch_tiled(
+        pow2["ifft_tiled"],
+        dim=[batch, 1],
+        inputs=[AB],
+        outputs=[c],
+        block_dim=pow2["block_dim"],
+        device=device,
+    )
+    # crop to length n (launch only n columns; c stays full-width m) and apply
+    # the trailing chirp
+    y = wp.zeros((batch, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        bk["postmul"],
+        dim=(batch, n),
+        inputs=[c, setup["w"]],
+        outputs=[y],
+        device=device,
+    )
+    if conj_in:
+        y = _conj_scale_rows(y, 1.0 / float(n), device)
+    return y
+
+
+@functools.cache
+def _conj_kernels(_tag: str = "bluestein_conj"):
+    """Conjugate / conjugate-and-scale kernels shared across all Bluestein sizes."""
+
+    @wp.kernel(module="bluestein_conj")
+    def conj_k(x: wp.array2d(dtype=wp.vec2f), y: wp.array2d(dtype=wp.vec2f)) -> None:
+        i, j = wp.tid()
+        y[i, j] = wp.vec2f(x[i, j][0], -x[i, j][1])
+
+    @wp.kernel(module="bluestein_conj")
+    def conj_scale_k(
+        x: wp.array2d(dtype=wp.vec2f), s: float, y: wp.array2d(dtype=wp.vec2f)
+    ) -> None:
+        i, j = wp.tid()
+        y[i, j] = wp.vec2f(x[i, j][0] * s, -x[i, j][1] * s)
+
+    return {"conj": conj_k, "conj_scale": conj_scale_k}
+
+
+def _conj_rows(x: wp.array, device: str) -> wp.array:
+    y = wp.zeros(x.shape, dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        _conj_kernels()["conj"], dim=x.shape, inputs=[x], outputs=[y], device=device
+    )
+    return y
+
+
+@functools.cache
+def _generic_transpose_kernel(_tag: str = "bluestein_T"):
+    """Elementwise (non-tiled) square transpose, valid for any ``n``.
+
+    The tiled ``transpose_kernel`` in :func:`_fft_kernels_2d` needs
+    ``n``-divisible tiles; this plain per-element copy has no such constraint
+    and is only used on the (rare) non-pow2 path, so the loss of tiling is
+    immaterial. Differentiates natively.
+    """
+
+    @wp.kernel(module="bluestein_T")
+    def transpose_k(
+        x: wp.array2d(dtype=wp.vec2f), y: wp.array2d(dtype=wp.vec2f)
+    ) -> None:
+        i, j = wp.tid()
+        y[j, i] = x[i, j]
+
+    return transpose_k
+
+
+def _transpose_rows(x: wp.array, device: str) -> wp.array:
+    n0, n1 = x.shape
+    y = wp.zeros((n1, n0), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        _generic_transpose_kernel(),
+        dim=(n0, n1),
+        inputs=[x],
+        outputs=[y],
+        device=device,
+    )
+    return y
+
+
+@functools.cache
+def _scale_by_field_kernel(_tag: str = "bluestein_scale"):
+    """out[i,j] = z[i,j] * s[i,j] with z complex (vec2f) and s a real field."""
+
+    @wp.kernel(module="bluestein_scale")
+    def scale_k(
+        z: wp.array2d(dtype=wp.vec2f),
+        s: wp.array2d(dtype=wp.float32),
+        out: wp.array2d(dtype=wp.vec2f),
+    ) -> None:
+        i, j = wp.tid()
+        out[i, j] = _scale_complex(z[i, j], s[i, j])
+
+    return scale_k
+
+
+def _spectral_poisson_2d_bluestein(
+    rhs_c: wp.array, domain_extent: float, device: str
+) -> wp.array:
+    """Non-pow2 2-D spectral Poisson solve (Bluestein FFTs, on-GPU, differentiable).
+
+    Numerically identical to :func:`_spectral_poisson_2d_core` (same continuous
+    eigenvalues, same DFT), but each 1-D transform goes through
+    :func:`_bluestein_fft_rows` so it compiles for non-power-of-two ``n``. The
+    spectral multiply is a separate elementwise kernel here rather than fused
+    into the FFT — the non-pow2 path trades a little fusion for correctness.
+    """
+    n = rhs_c.shape[0]
+    inv_lambda = _inv_lambda_2d(n, domain_extent, device)
+
+    # forward 2-D FFT: rows (axis 1), then transpose, rows (axis 0), transpose back
+    hat = _bluestein_fft_rows(rhs_c, n, "fwd", device)
+    hat = _transpose_rows(hat, device)
+    hat = _bluestein_fft_rows(hat, n, "fwd", device)
+    hat = _transpose_rows(hat, device)
+
+    scaled = wp.zeros((n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        _scale_by_field_kernel(),
+        dim=(n, n),
+        inputs=[hat, inv_lambda],
+        outputs=[scaled],
+        device=device,
+    )
+
+    # inverse 2-D FFT, same two-pass structure
+    out = _bluestein_fft_rows(scaled, n, "bwd", device)
+    out = _transpose_rows(out, device)
+    out = _bluestein_fft_rows(out, n, "bwd", device)
+    out = _transpose_rows(out, device)
+    return out
+
+
+def _conj_scale_rows(x: wp.array, s: float, device: str) -> wp.array:
+    y = wp.zeros(x.shape, dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        _conj_kernels()["conj_scale"],
+        dim=x.shape,
+        inputs=[x, s],
+        outputs=[y],
+        device=device,
+    )
+    return y
+
+
 @functools.cache
 def _fft_kernels_2d(n: int):
     """Build (and cache) the tiled FFT/transpose kernels for an N×N grid."""
@@ -493,6 +811,10 @@ def _spectral_poisson_2d_core(
     and a minor win for the taped path too.
     """
     n = rhs_c.shape[0]
+    if not _is_pow2(n):
+        # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path
+        # (workspace fusion doesn't apply — always allocates fresh buffers).
+        return _spectral_poisson_2d_bluestein(rhs_c, domain_extent, device)
     kernels = _fft_kernels_2d(n)
     inv_lambda = _inv_lambda_2d(n, domain_extent, device)
 
@@ -790,6 +1112,83 @@ def _fft_3d(
     return x
 
 
+@functools.cache
+def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):
+    """y[k, i, j] = x[i, j, k]: cyclic axis permutation, valid for any ``n``."""
+
+    @wp.kernel(module="bluestein_swap3d")
+    def swap_k(x: wp.array3d(dtype=wp.vec2f), y: wp.array3d(dtype=wp.vec2f)) -> None:
+        i, j, k = wp.tid()
+        y[k, i, j] = x[i, j, k]
+
+    return swap_k
+
+
+@functools.cache
+def _scale_by_field_kernel_3d(_tag: str = "bluestein_scale3d"):
+    """out[i,j,k] = z[i,j,k] * s[i,j,k] with z complex and s a real field."""
+
+    @wp.kernel(module="bluestein_scale3d")
+    def scale_k(
+        z: wp.array3d(dtype=wp.vec2f),
+        s: wp.array3d(dtype=wp.float32),
+        out: wp.array3d(dtype=wp.vec2f),
+    ) -> None:
+        i, j, k = wp.tid()
+        out[i, j, k] = _scale_complex(z[i, j, k], s[i, j, k])
+
+    return scale_k
+
+
+def _bluestein_fft_3d(src: wp.array, n: int, direction: str, device: str) -> wp.array:
+    """Full 3-D DFT via three (Bluestein-rows + cyclic-axis-swap) passes.
+
+    Mirrors :func:`_fft_3d` but uses the non-pow2-capable Bluestein row
+    transform. Three cyclic swaps return the array to its original axis order.
+    """
+    x = src
+    for _ in range(3):
+        flat = _bluestein_fft_rows(x.reshape((n * n, n)), n, direction, device).reshape(
+            (n, n, n)
+        )
+        swapped = wp.zeros((n, n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+        wp.launch(
+            _swap_axes_kernel(),
+            dim=(n, n, n),
+            inputs=[flat],
+            outputs=[swapped],
+            device=device,
+        )
+        x = swapped
+    return x
+
+
+def _spectral_poisson_3d_bluestein(
+    rhs_c: wp.array, domain_extent: float, device: str
+) -> wp.array:
+    """Non-pow2 3-D spectral Poisson solve (Bluestein FFTs, on-GPU, differentiable).
+
+    Numerically identical to :func:`_spectral_poisson_3d_core` (same discrete
+    FD-Laplacian eigenvalues). The spectral multiply is a separate elementwise
+    kernel in natural axis order — after the forward transform's three cyclic
+    swaps the array is back in ``(kx, ky, kz)`` order, so the un-permuted
+    ``_inv_lambda_3d`` applies directly (no fused-pass permutation needed).
+    """
+    n = rhs_c.shape[0]
+    inv_lambda = _inv_lambda_3d(n, domain_extent, device)
+
+    hat = _bluestein_fft_3d(rhs_c, n, "fwd", device)
+    scaled = wp.zeros((n, n, n), dtype=wp.vec2f, requires_grad=True, device=device)
+    wp.launch(
+        _scale_by_field_kernel_3d(),
+        dim=(n, n, n),
+        inputs=[hat, inv_lambda],
+        outputs=[scaled],
+        device=device,
+    )
+    return _bluestein_fft_3d(scaled, n, "bwd", device)
+
+
 def _spectral_poisson_3d_core(
     rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
@@ -812,6 +1211,9 @@ def _spectral_poisson_3d_core(
     ones on every call — used by the forward-only (non-taped) path.
     """
     n = rhs_c.shape[0]
+    if not _is_pow2(n):
+        # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path.
+        return _spectral_poisson_3d_bluestein(rhs_c, domain_extent, device)
     kernels = _fft_kernels_3d(n)
     inv_lambda_permuted = _inv_lambda_3d(n, domain_extent, device, permute=(1, 2, 0))
 
