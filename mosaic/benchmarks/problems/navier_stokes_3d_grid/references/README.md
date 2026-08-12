@@ -20,7 +20,7 @@ that correctly integrates the nonlinear dynamics is penalized by a large
 common-mode bias (~0.11 relative) that swamps the real per-solver differences.
 See issue #123.
 
-Cross-validation at generation time (`generate.py`):
+Cross-validation (measured when the reference was generated):
 
 | nu    | ‖converged − analytic‖ | ‖bench − converged‖ (truncation err) |
 | ----- | ---------------------- | ------------------------------------ |
@@ -29,14 +29,16 @@ Cross-validation at generation time (`generate.py`):
 | 0.05  | 1.14e-01               | 3.0e-06                              |
 
 The left column is the common-mode bias the analytic reference was measuring;
-the right column shows the converged reference is resolution-independent to
-~1e-5, far below any meaningful solver error.
+the right column shows the truncation to `N=16` loses nothing meaningful (the
+field is band-limited well below the `N=16` Nyquist cutoff), so the downsampled
+high-`N` run is a faithful ground truth on the benchmark grid.
 
 ### Regenerating
 
 ```
-python -m mosaic.benchmarks.problems.navier_stokes_3d_grid.references.generate
+mosaic reference -p ns-3d-grid -e forward/agreement
 ```
 
-Requires `exponax` and `equinox` importable (the same packages the Exponax
-tesseract pins).
+The converged strategy (reference solver + resolution) is registered in
+`CONVERGED_REFERENCES` in `mosaic/benchmarks/core/reference.py`. Regeneration
+builds the reference solver's tesseract image (Docker required).
