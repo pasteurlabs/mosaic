@@ -82,16 +82,18 @@ jobs:
             SUITES="${{ github.event.inputs.suites }}"
           fi
 
-          # PR: three-label system (benchmark:none / benchmark:solver / benchmark:all)
+          # PR: four-label system (benchmark:none / benchmark:solver /
+          # benchmark:domain / benchmark:all)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
             HAS_NONE=$(echo "$LABELS" | grep -c '"benchmark:none"' || true)
             HAS_SOLVER=$(echo "$LABELS" | grep -c '"benchmark:solver"' || true)
+            HAS_DOMAIN=$(echo "$LABELS" | grep -c '"benchmark:domain"' || true)
             HAS_ALL=$(echo "$LABELS" | grep -c '"benchmark:all"' || true)
-            LABEL_COUNT=$((HAS_NONE + HAS_SOLVER + HAS_ALL))
+            LABEL_COUNT=$((HAS_NONE + HAS_SOLVER + HAS_DOMAIN + HAS_ALL))
 
             if [[ "$LABEL_COUNT" -gt 1 ]]; then
-              echo "::error::Multiple benchmark labels found. Use exactly one of: benchmark:none, benchmark:solver, benchmark:all"
+              echo "::error::Multiple benchmark labels found. Use exactly one of: benchmark:none, benchmark:solver, benchmark:domain, benchmark:all"
               exit 1
             fi
 
@@ -99,6 +101,8 @@ jobs:
               LABEL="none"
             elif [[ "$HAS_SOLVER" -gt 0 ]]; then
               LABEL="solver"
+            elif [[ "$HAS_DOMAIN" -gt 0 ]]; then
+              LABEL="domain"
             elif [[ "$HAS_ALL" -gt 0 ]]; then
               LABEL="all"
             fi
@@ -125,6 +129,35 @@ jobs:
                   # Derived from the solver set (not the diff), so it stays
                   # narrow even when harness files also changed.
                   PROBLEMS=$(uv run python .github/scripts/filter-problems-by-solver.py --problems all --solvers "$SOLVERS")
+                  if [[ -z "$PROBLEMS" ]]; then
+                    SHOULD_RUN="false"
+                  else
+                    SHOULD_RUN="true"
+                  fi
+                fi
+                ;;
+              domain)
+                # Run every solver in the single domain whose problem
+                # definition changed. The domain comes from the changed files
+                # under mosaic/benchmarks/problems/ (detect-changed-domains) —
+                # NOT from changed solver dirs. A problem/physics/config change
+                # alters the reference the whole domain is benchmarked against,
+                # so every solver in that domain re-runs; SOLVERS stays unset.
+                # Solver code changes are benchmark:solver's job and are ignored
+                # here. This label is single-domain by design; a PR changing
+                # more than one domain's problem must use benchmark:all.
+                DOMAIN_LIST=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-domains.py)
+                NUM_DOMAINS=$(echo "$DOMAIN_LIST" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+                if [[ "$NUM_DOMAINS" -eq 0 ]]; then
+                  # No problem definition changed — nothing to do
+                  SHOULD_RUN="false"
+                elif [[ "$NUM_DOMAINS" -gt 1 ]]; then
+                  echo "::error::benchmark:domain requires a problem change within a single domain, but $NUM_DOMAINS domains changed. Use benchmark:all instead."
+                  exit 1
+                else
+                  DOMAIN=$(echo "$DOMAIN_LIST" | python3 -c "import json,sys; print(json.load(sys.stdin)[0])")
+                  # Scope problems to every problem in the changed domain.
+                  PROBLEMS=$(uv run python .github/scripts/filter-problems-by-domain.py --problems all --domains "$DOMAIN")
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
                   else
