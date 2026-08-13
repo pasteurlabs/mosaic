@@ -21,7 +21,6 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.schema_types import make_differentiable
-from pydantic import Field
 
 wp.init()
 
@@ -1257,7 +1256,6 @@ def ns2d_solve_tape(
     dt: float,
     steps: int,
     domain_extent: float,
-    num_iters_poisson: int,
     device: str = "cpu",
     track_scalar_grads: bool = False,
 ) -> tuple[wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array]:
@@ -1567,7 +1565,6 @@ def ns3d_solve_tape(
     dt: float,
     steps: int,
     domain_extent: float,
-    num_iters_poisson_3d: int,
     device: str = "cpu",
     adjoint_grad_clip: float | None = None,
     track_scalar_grads: bool = False,
@@ -1957,24 +1954,6 @@ class InputSchema(
 ):
     """Warp NS solver input schema."""
 
-    num_iters_poisson: int = Field(
-        default=500,
-        description=(
-            "Minimum number of Jacobi iterations per 2-D streamfunction Poisson solve. "
-            "The solver auto-scales to max(this value, min(4*N², 8000)) at runtime, "
-            "so convergence is maintained across grid sizes N=16..128 without manual "
-            "tuning.  For N≥128 with production accuracy, a multigrid or FFT Poisson "
-            "solver is recommended as Jacobi is capped at 8000 iterations."
-        ),
-    )
-    num_iters_poisson_3d: int = Field(
-        default=800,
-        description=(
-            "Number of Jacobi iterations per 3-D pressure Poisson solve. "
-            "800 iterations is adequate for N≤32; increase for larger grids."
-        ),
-    )
-
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Warp NS solver output schema."""
@@ -2072,7 +2051,6 @@ def vector_jacobian_product(
                 dt,
                 inputs.steps,
                 inputs.domain_extent,
-                inputs.num_iters_poisson_3d,
                 device=device,
                 track_scalar_grads=track_scalar_grads,
             )
@@ -2108,7 +2086,6 @@ def vector_jacobian_product(
             dt,
             inputs.steps,
             inputs.domain_extent,
-            inputs.num_iters_poisson,
             device=device,
             track_scalar_grads=track_scalar_grads,
         )
