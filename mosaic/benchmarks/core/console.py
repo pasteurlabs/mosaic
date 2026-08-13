@@ -63,6 +63,28 @@ def print_skip(msg: str) -> None:
     console.print(f"[dim][SKIP] {msg}[/dim]")
 
 
+def github_annotation(level: str, msg: str, *, title: str | None = None) -> None:
+    """Emit a GitHub Actions workflow annotation when running under CI.
+
+    ``level`` is ``"warning"`` or ``"error"``. GitHub renders these on the
+    Checks tab and inline in the job log, so a per-sweep-point solver failure
+    surfaces without anyone downloading result artifacts. Outside CI (no
+    ``GITHUB_ACTIONS`` env var) this is a no-op — the plain rich message the
+    caller already printed is enough on a developer's terminal.
+
+    The message is flattened to a single line: GitHub's ``::`` command syntax
+    is line-oriented and would truncate at the first newline otherwise.
+    """
+    import os
+
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    flat = " ".join(msg.splitlines())
+    title_part = f" title={title}" if title else ""
+    # Printed raw (not via rich) so GitHub's log parser sees the bare command.
+    print(f"::{level}{title_part}::{flat}", flush=True)
+
+
 def print_saved(path: object) -> None:
     """Print a cyan confirmation that a file was saved at *path*."""
     console.print(f"[cyan]  Saved \u2192 {path}[/cyan]")
