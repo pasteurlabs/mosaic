@@ -137,26 +137,26 @@ jobs:
                 fi
                 ;;
               domain)
-                # Run every solver in the single domain the PR touched. The
-                # domain comes from SOLVER_MATRIX (detect-changed-solvers keys
-                # off the changed tesseract dirs), so harness/core changes never
-                # widen the run — that's what benchmark:all is for. Unlike
-                # benchmark:solver, we don't scope to the changed solvers:
-                # SOLVERS stays unset so the whole domain runs. This label is
-                # single-domain by design; a PR spanning multiple domains must
-                # use benchmark:all.
-                NUM_DOMAINS=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(len({e['domain'] for e in json.load(sys.stdin)}))")
+                # Run every solver in the single domain whose problem
+                # definition changed. The domain comes from the changed files
+                # under mosaic/benchmarks/problems/ (detect-changed-domains) —
+                # NOT from changed solver dirs. A problem/physics/config change
+                # alters the reference the whole domain is benchmarked against,
+                # so every solver in that domain re-runs; SOLVERS stays unset.
+                # Solver code changes are benchmark:solver's job and are ignored
+                # here. This label is single-domain by design; a PR changing
+                # more than one domain's problem must use benchmark:all.
+                DOMAIN_LIST=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-domains.py)
+                NUM_DOMAINS=$(echo "$DOMAIN_LIST" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
                 if [[ "$NUM_DOMAINS" -eq 0 ]]; then
-                  # No solver Tesseract changed — nothing to do
+                  # No problem definition changed — nothing to do
                   SHOULD_RUN="false"
                 elif [[ "$NUM_DOMAINS" -gt 1 ]]; then
-                  echo "::error::benchmark:domain requires changes within a single domain, but $NUM_DOMAINS domains changed. Use benchmark:all instead."
+                  echo "::error::benchmark:domain requires a problem change within a single domain, but $NUM_DOMAINS domains changed. Use benchmark:all instead."
                   exit 1
                 else
-                  DOMAIN=$(echo "$SOLVER_MATRIX" | python3 -c "import json,sys; print(next(iter({e['domain'] for e in json.load(sys.stdin)})))")
+                  DOMAIN=$(echo "$DOMAIN_LIST" | python3 -c "import json,sys; print(json.load(sys.stdin)[0])")
                   # Scope problems to every problem in the changed domain.
-                  # Derived from the domain (not the diff), so it stays narrow
-                  # even when harness files also changed.
                   PROBLEMS=$(uv run python .github/scripts/filter-problems-by-domain.py --problems all --domains "$DOMAIN")
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
