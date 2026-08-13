@@ -53,6 +53,13 @@ def status(
         help="Path to a JSON snapshot (produced by --format json). When set with --format md, "
         "prepend a diff section (regressions, improvements, new/removed rows) before the full tables.",
     ),
+    run_scope: str | None = typer.Option(
+        None,
+        "--run-scope",
+        help="Path to a run-scope JSON ({label, solvers, problems, is_release_pr}). "
+        "With --format md, prepend a coverage banner stating what was actually measured "
+        "this run vs. shown from the baseline.",
+    ),
     output_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--output-dir",
@@ -98,7 +105,7 @@ def status(
 
     # ── non-rich formats: skip terminal rendering and emit a snapshot ─────
     if format in ("md", "json"):
-        _status_emit_snapshot(problem_list, suite_list, format, diff_against)
+        _status_emit_snapshot(problem_list, suite_list, format, diff_against, run_scope)
         return
 
     failure_records: list[

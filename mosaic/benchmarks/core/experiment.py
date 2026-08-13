@@ -109,6 +109,47 @@ def _truncate_error(msg: str, limit: int = MAX_ERROR_LEN) -> str:
     return f"{msg[:head]}{marker}{msg[-tail:]}"
 
 
+def _emit_sweep_failure(
+    console_: Any,
+    color: str,
+    name: str,
+    sweep_key: str | None,
+    val: Any,
+    metrics: dict,
+) -> None:
+    """Surface a per-sweep-point solver failure in the console and CI log.
+
+    A *resource ceiling* (OOM / timeout) is an expected, platform-dependent
+    scaling limit — printed dimly and NOT annotated (it would be noise on the
+    Checks tab of every run). A real crash (compile error, NaN, container
+    death) is a bug: printed red and, under GitHub Actions, emitted as a
+    ``::warning`` so it shows on the Checks tab without anyone downloading
+    result artifacts.
+    """
+    from mosaic.benchmarks.core.console import github_annotation
+
+    failure_type = metrics.get("failure_type") or "error"
+    exc_msg = metrics.get("exc_msg") or metrics.get("error") or ""
+    short = str(exc_msg).strip().splitlines()[0][:120] if exc_msg else ""
+    label = f"{sweep_key}={val}" if sweep_key is not None else "value"
+    is_resource_ceiling = failure_type in ("OOM", "timeout")
+    if is_resource_ceiling:
+        console_.print(
+            f"  [dim]{name} {label} resource ceiling ({failure_type}) — "
+            f"expected at large sizes[/]"
+        )
+        return
+    console_.print(
+        f"  [{color}]{name}[/] [red]FAIL[/] {label} ({failure_type})"
+        + (f": {short}" if short else "")
+    )
+    github_annotation(
+        "warning",
+        f"{name} failed at {label} ({failure_type})" + (f": {short}" if short else ""),
+        title=f"Benchmark solver failure: {name}",
+    )
+
+
 def _flatten_by_solver(by_solver: dict, sweep_key: str | None) -> list[dict]:
     """Convert the kernel's ``by_solver`` accumulator into a flat results list.
 
@@ -522,23 +563,51 @@ def run_experiment(
             solver_snaps: dict[str, np.ndarray] = {}
 
             if sweep_mode == "default":
+                color = cfg.solver(name).color
                 stopped_at: int | None = None
                 for idx, val in enumerate(_sweep_values):
                     out = _call_with_sampler(name, t, val)
-                    solver_results[val] = out.get("metrics", {})
+                    metrics = out.get("metrics", {})
+                    solver_results[val] = metrics
                     _absorb(out, solver_snaps, str(idx))
-                    # Kernels may request that the framework abandon
-                    # this solver's sweep after the current value (e.g.
-                    # cost kernels do this on wall-limit-hit so a slow
-                    # solver doesn't burn the remaining trials). The
-                    # value at which we stopped is included; everything
-                    # after gets marked ``None``.
-                    if out.get("stop_sweep"):
+                    # A kernel signals it wants the sweep abandoned via
+                    # ``stop_reason`` ("wall_limit" | "error") — or, for legacy
+                    # kernels, a bare ``stop_sweep`` boolean.
+                    #
+                    # We short-circuit the remaining values on any *monotone*
+                    # stop — wall-limit, or a resource ceiling (OOM / timeout),
+                    # or a legacy kernel that short-circuits because the failure
+                    # is a function of the solver rather than the sweep value.
+                    # Larger sizes would only fare worse, so trying them wastes
+                    # time. A hard *error* (compile error, NaN) is NOT monotone
+                    # — a larger sweep value may compile/run fine (e.g. a
+                    # power-of-two grid size after a non-power-of-two crashed) —
+                    # so we log it and CONTINUE rather than hiding the untried
+                    # points behind an empty cell.
+                    stop_reason = out.get("stop_reason")
+                    if stop_reason is None and out.get("stop_sweep"):
+                        stop_reason = "wall_limit"
+                    if isinstance(metrics, dict) and metrics.get("status") == "failed":
+                        _emit_sweep_failure(
+                            console, color, name, _sweep_key, val, metrics
+                        )
+                    if stop_reason is not None and stop_reason != "error":
                         stopped_at = idx
                         break
                 if stopped_at is not None:
+                    # Distinct, visible "skipped" state — NOT ``None``/``{}``,
+                    # which is indistinguishable from "never selected". The
+                    # status classifier treats it as a benign "didn't run" and
+                    # the cost plots draw it as a gap rather than a data point.
+                    skip_reason = (
+                        f"skipped after sweep stopped at "
+                        f"{_sweep_key}={_sweep_values[stopped_at]}"
+                    )
                     for remaining in _sweep_values[stopped_at + 1 :]:
-                        solver_results[remaining] = None
+                        solver_results[remaining] = {
+                            "status": "skipped",
+                            "reason": skip_reason,
+                        }
                 _by_solver[name] = solver_results
                 if solver_snaps:
                     _snapshots[name] = solver_snaps

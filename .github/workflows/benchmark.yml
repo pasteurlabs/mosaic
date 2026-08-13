@@ -328,12 +328,31 @@ jobs:
 
       - name: Generate status report (markdown)
         if: needs.plan.outputs.should_run == 'true'
+        env:
+          RUN_LABEL: ${{ needs.plan.outputs.label }}
+          RUN_SOLVERS: ${{ needs.plan.outputs.solvers }}
+          RUN_PROBLEMS: ${{ needs.plan.outputs.problems }}
+          RUN_IS_RELEASE: ${{ needs.plan.outputs.is_release_pr }}
         run: |
+          # Coverage banner input: what actually ran this PR (see F3 in the
+          # reporting audit) so "0 regressions" is honest about scope.
+          uv run python - <<'PY' > run-scope.json
+          import json, os
+          solvers = [s for s in os.environ.get("RUN_SOLVERS", "").split(",") if s]
+          problems_raw = os.environ.get("RUN_PROBLEMS", "")
+          problems = [] if problems_raw in ("", "all") else [p for p in problems_raw.split(",") if p]
+          print(json.dumps({
+              "label": os.environ.get("RUN_LABEL", ""),
+              "solvers": solvers,
+              "problems": problems,
+              "is_release_pr": os.environ.get("RUN_IS_RELEASE") == "true",
+          }))
+          PY
           DIFF_FLAG=""
           if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
             DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
           fi
-          uv run mosaic status --format md $DIFF_FLAG > status-report.md
+          uv run mosaic status --format md $DIFF_FLAG --run-scope run-scope.json > status-report.md
 
       # ── Render docs site on GHA ────────────────────────────────────────
       # The docs are rendered here (where the full mosaic/jax stack is already
@@ -372,16 +391,38 @@ jobs:
       # can't otherwise recover: the PR number and whether benchmarks ran.
       - name: Write publish metadata
         if: github.event_name == 'pull_request'
+        env:
+          SHOULD_RUN: ${{ needs.plan.outputs.should_run }}
+          RUN_LABEL: ${{ needs.plan.outputs.label }}
+          MOSAIC_TOUCHED: ${{ needs.plan.outputs.mosaic_touched }}
         run: |
           {
             echo "pr_number=${{ github.event.pull_request.number }}"
-            echo "should_run=${{ needs.plan.outputs.should_run }}"
+            echo "should_run=${SHOULD_RUN}"
           } > publish-meta.txt
-          # Ship the status report alongside the site so the downstream comment
-          # can include it. Absent (benchmark:none) → downstream posts only the
-          # preview banner.
-          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
+          # Ship a status report alongside the site so the downstream comment
+          # always carries a benchmark verdict. When benchmarks ran, that's the
+          # full report; when they didn't (benchmark:none / unlabelled), it's a
+          # one-line explanation so silence is never mistaken for "clean" (F4).
+          if [[ "${SHOULD_RUN}" == "true" ]]; then
             cp status-report.md _site-status-report.md
+          else
+            case "${RUN_LABEL}" in
+              none)
+                VERDICT='**Benchmarks:** skipped by the `benchmark:none` label.'
+                ;;
+              "")
+                if [[ "${MOSAIC_TOUCHED}" == "true" ]]; then
+                  VERDICT='**Benchmarks:** not run — add a `benchmark:solver` or `benchmark:all` label (`mosaic/` was changed).'
+                else
+                  VERDICT='**Benchmarks:** not applicable (no `mosaic/` changes).'
+                fi
+                ;;
+              *)
+                VERDICT='**Benchmarks:** not run for this PR.'
+                ;;
+            esac
+            printf '## Mosaic status\n\n%s\n' "${VERDICT}" > _site-status-report.md
           fi
 
       - name: Upload rendered docs site

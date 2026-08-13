@@ -18,16 +18,103 @@ from mosaic.benchmarks.core.console import console, print_rule, print_warn
 from mosaic.benchmarks.problems import get_config
 
 
+def _load_run_scope(run_scope: str | None) -> dict | None:
+    """Read and normalise a ``run-scope.json`` file, or None if absent/unreadable.
+
+    Normalises ``solvers`` / ``problems`` to lists (CI may emit comma-joined
+    strings) and coerces ``is_release_pr`` to bool. Best-effort: a missing or
+    malformed file returns None rather than raising.
+    """
+    import json as _json
+
+    if not run_scope:
+        return None
+    try:
+        with open(run_scope) as f:
+            scope = _json.load(f)
+    except Exception as exc:
+        print_warn(f"could not read --run-scope file: {exc}")
+        return None
+    solvers = scope.get("solvers") or []
+    problems = scope.get("problems") or []
+    if isinstance(solvers, str):
+        solvers = [s for s in solvers.split(",") if s]
+    if isinstance(problems, str):
+        problems = [p for p in problems.split(",") if p and p != "all"]
+    return {
+        "label": scope.get("label") or "",
+        "is_release_pr": bool(scope.get("is_release_pr")),
+        "solvers": list(solvers),
+        "problems": list(problems),
+    }
+
+
+def _diff_scope(scope: dict | None) -> dict | None:
+    """Translate a run-scope into the ``measured`` filter ``diff_snapshots`` takes.
+
+    Returns ``None`` — meaning "everything was measured, diff the whole thing" —
+    for full runs (``benchmark:all``, release PRs) and when no scope is known.
+    For a ``benchmark:solver`` run it returns ``{"problems": [...], "solvers":
+    [...]}`` so the diff attributes regressions/improvements only to the
+    (problem × solver) cells that were actually re-run this PR — every other
+    cell is carried-over baseline data and a change there is baseline drift, not
+    a PR effect (see F3 in the reporting audit).
+    """
+    if scope is None:
+        return None
+    if scope["is_release_pr"] or scope["label"] == "all":
+        return None
+    if scope["label"] == "solver" and scope["solvers"]:
+        return {"problems": scope["problems"], "solvers": scope["solvers"]}
+    # Unknown / unlabelled: no reliable measured-set, so don't over-filter.
+    return None
+
+
+def _coverage_banner(run_scope: str | None) -> str:
+    """Build a one-line markdown coverage banner from a ``run-scope.json`` file.
+
+    Makes "0 regressions" honest about *what actually ran*: under
+    ``benchmark:solver`` only the changed solvers on affected problems are
+    re-run, so unchanged cells are baseline copies that can never diff. Without
+    this line a reviewer reads "0 regressions" as "everything is clean" when it
+    may mean "almost nothing was measured". Returns ``""`` when no scope file is
+    given or it can't be read (banner is best-effort, never fatal).
+    """
+    scope = _load_run_scope(run_scope)
+    if scope is None:
+        return ""
+    if scope["is_release_pr"] or scope["label"] == "all":
+        return "**Coverage:** all solvers × all problems this run."
+    if scope["label"] == "solver" and scope["solvers"]:
+        s = ", ".join(f"`{x}`" for x in scope["solvers"])
+        p = (
+            ", ".join(f"`{x}`" for x in scope["problems"])
+            if scope["problems"]
+            else "affected problems"
+        )
+        return (
+            f"**Coverage:** measured {s} on {p} this run. Other cells are shown "
+            f'from the baseline — "no regressions" applies only to what ran.'
+        )
+    # Unknown / unlabelled: state plainly that scope is partial.
+    return (
+        "**Coverage:** partial run — some cells are shown from the baseline "
+        "rather than measured this run."
+    )
+
+
 def _status_emit_snapshot(
     problem_list: list[str],
     suite_list: list[str],
     output_format: str,
     diff_against: str | None,
+    run_scope: str | None = None,
 ) -> None:
     """Handle --format md/json: build snapshot(s) and emit to stdout.
 
     For ``json`` writes a dict snapshot; for ``md`` renders a markdown report,
-    optionally prepended with a diff against a saved snapshot file.
+    optionally prepended with a diff against a saved snapshot file and a
+    coverage banner built from ``run_scope``.
     """
     import json as _json
 
@@ -52,6 +139,10 @@ def _status_emit_snapshot(
         return
     # output_format == "md"
     out_parts: list[str] = []
+    banner = _coverage_banner(run_scope)
+    if banner:
+        out_parts.append(banner)
+    diff_rendered = False
     if diff_against:
         try:
             with open(diff_against) as f:
@@ -61,17 +152,23 @@ def _status_emit_snapshot(
             old_snapshot = None
         if old_snapshot is not None:
             new_snapshot = snapshot_to_dict(statuses)
+            # Scope the diff to what this run actually re-measured so baseline
+            # drift on carried-over cells isn't mis-attributed as a PR change.
+            measured = _diff_scope(_load_run_scope(run_scope))
             out_parts.append(
-                render_diff_markdown(diff_snapshots(old_snapshot, new_snapshot))
+                render_diff_markdown(
+                    diff_snapshots(old_snapshot, new_snapshot, measured=measured)
+                )
             )
+            diff_rendered = True
     report = render_markdown(statuses)
-    if out_parts:
-        # A diff was rendered above, so the diff is the headline. Collapse the
-        # full absolute status behind a <details> to keep the comment short —
-        # it carries baseline context the reader rarely needs at a glance.
-        # The <details>/summary must not be indented (GFM breaks HTML blocks
-        # inside list items with leading whitespace), and blank lines around
-        # the body let the inner markdown tables render.
+    if diff_rendered:
+        # The diff is the headline. Collapse the full absolute status behind a
+        # <details> to keep the comment short — it carries baseline context the
+        # reader rarely needs at a glance. The <details>/summary must not be
+        # indented (GFM breaks HTML blocks inside list items with leading
+        # whitespace), and blank lines around the body let the inner markdown
+        # tables render.
         out_parts.append(
             f"<details><summary>Full Mosaic status</summary>\n\n{report}\n</details>"
         )

@@ -75,14 +75,21 @@ EXCL_PERMANENT_VALUES: frozenset[str] = frozenset(c.value for c in EXCL_PERMANEN
 # A single scalar in [0.0, +1.0] summarising campaign state.  Each
 # non-categorical cell contributes its weight; categorical exclusions are
 # excluded from both numerator and denominator.
+#
+# Staleness (the ``*`` marker) does not affect the weight: it's a "re-run
+# recommended" hint for humans, not a health signal, and folding it into the
+# score made the headline number move on the incremental PR-preview path for
+# reasons a PR author couldn't see or fix (baseline cells carried over from
+# ``main`` hash-mismatch the current tree and get flagged even when the PR
+# didn't touch them). Releases always re-run the full suite from scratch, so
+# nothing is ever legitimately stale there. Keeping stale weights equal to
+# their fresh counterparts preserves the invariant "no status change ⇒ no
+# score change" that reviewers expect. The ``*`` glyph is still rendered.
 SCORE_WEIGHTS: dict[str, float] = {
     "ok": 1.00,
-    "ok*": 0.67,
     "anom": 0.53,
-    "anom*": 0.43,
     "missing": 0.33,
     "excl": 0.33,  # all non-categorical exclusions
-    "fail*": 0.17,
     "fail": 0.00,
     # "perm" (EXCLUDED + categorical) is excluded from the denominator.
 }
@@ -93,14 +100,16 @@ def cell_weight_key(cell: Cell) -> str | None:
 
     Categorical (permanent) exclusions return None — the caller should skip
     them entirely (no numerator contribution, not counted in denominator).
+
+    Staleness is intentionally ignored: a stale cell scores identically to
+    its fresh counterpart (see :data:`SCORE_WEIGHTS`).
     """
-    stale = getattr(cell, "stale", False)
     if cell.status == OK:
-        return "ok*" if stale else "ok"
+        return "ok"
     if cell.status == ANOMALY:
-        return "anom*" if stale else "anom"
+        return "anom"
     if cell.status == FAILED:
-        return "fail*" if stale else "fail"
+        return "fail"
     if cell.status == NOT_RUN:
         return "missing"
     if cell.status == EXCLUDED:
@@ -185,6 +194,20 @@ class Cell:
     # `*` on the cell's glyph (e.g. `ok*`, `anom*`), never replaces the
     # underlying status.
     stale: bool = False
+    # Resource frontier for swept experiments: the first sweep value at which
+    # the solver hit a *resource ceiling* (OOM / timeout). ``None`` when the
+    # solver ran to completion at every value. A ceiling is NOT a failure — a
+    # solver that OOMs only at the largest sizes is still OK — but the frontier
+    # is carried into the snapshot so ``diff_snapshots`` can tell when the
+    # ceiling *moves* (OOM starting earlier than baseline = regression). This
+    # is the platform-dependent case that can't be encoded as an exclusion.
+    resource_frontier: str = ""
+    # Numeric scalars for this cell, keyed by a stable metric name (see
+    # ``METRIC_SPECS``). Diffed across snapshots by ``_diff_metrics`` so a cell
+    # that stays ``ok`` still surfaces a numeric regression / improvement — the
+    # status ladder alone hides most of what optimisation PRs actually move.
+    # Empty when the suite has no comparable scalar or the solver didn't run.
+    metrics: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -564,32 +587,100 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
             cells[solver] = Cell(NOT_RUN)
             continue
 
-        # Check if any entry has valid metrics
+        # Walk each sweep point and classify it into one of these signals:
+        #   crash          — ``status: "failed"`` with a failure_type that is a
+        #                    real bug (error / nan / container_died, or an
+        #                    unlabelled failure). A crash at ANY size fails the
+        #                    whole cell — a larger value succeeding doesn't
+        #                    excuse it (e.g. PR #132's non-power-of-two compile
+        #                    error). The failure record carries finite mem
+        #                    fields, so ``_has_any_finite`` alone would mis-read
+        #                    it as OK — we must consult ``status`` explicitly.
+        #   resource ceiling — ``status: "failed"`` with failure_type OOM /
+        #                    timeout. This is a platform-dependent scaling
+        #                    limit, expected at large sizes and not encodable as
+        #                    an exclusion. It does NOT fail the cell; we only
+        #                    record the frontier (first value that hit it) so
+        #                    the diff can tell when the ceiling moves.
+        #   valid          — real, finite result data.
+        #   empty / skipped — ``{}`` (never ran) or a deliberately-skipped
+        #                    point; benign "didn't run", ignored.
+        #   valid: False   — the forward/gradient suites' invalid sentinel.
         has_valid = False
         has_any = False
-        reason = ""
+        fail_reason = ""
+        valid_false_reason = ""
+        frontier: str | None = None
+        _RESOURCE_CEILING = ("OOM", "timeout")
         for entry in entries:
             metrics = entry.get("metrics")
             if metrics is None:
                 continue
+            # A "skipped" point (a value the framework deliberately didn't run
+            # after an earlier ceiling / wall-limit hit) is a benign "didn't
+            # run" — treat it like an absent/empty cell.
+            if isinstance(metrics, dict) and metrics.get("status") == "skipped":
+                continue
             has_any = True
-            if isinstance(metrics, dict):
-                if metrics.get("valid") is True:
-                    has_valid = True
-                elif metrics.get("valid") is False:
-                    if not reason:
-                        reason = _reason_from_entry(metrics) or ""
-                elif _has_any_finite(metrics):
-                    has_valid = True
+            if not isinstance(metrics, dict):
+                continue
+            if metrics.get("status") == "failed":
+                if metrics.get("failure_type") in _RESOURCE_CEILING:
+                    # Resource ceiling — not a failure. Record the first value
+                    # at which it bit, in on-disk sweep order.
+                    if frontier is None:
+                        frontier = str(entry.get("sweep_value") or "")
+                elif not fail_reason:
+                    fail_reason = _fail_reason_from_metrics(metrics)
+            elif metrics.get("valid") is True:
+                has_valid = True
+            elif metrics.get("valid") is False:
+                if not valid_false_reason:
+                    valid_false_reason = _reason_from_entry(metrics) or ""
+            elif _has_any_finite(metrics):
+                has_valid = True
 
-        if not has_any:
+        frontier = frontier or ""
+        if fail_reason:
+            cells[solver] = Cell(FAILED, fail_reason, resource_frontier=frontier)
+        elif not has_any:
             cells[solver] = Cell(NOT_RUN)
         elif has_valid:
-            cells[solver] = Cell(OK)
+            cells[solver] = Cell(OK, resource_frontier=frontier)
         else:
-            cells[solver] = Cell(FAILED, reason or "all entries failed")
+            # No valid data and no real crash. If a resource ceiling was the
+            # only outcome (OOM at every attempted size), the solver can't run
+            # this experiment on this platform at all — surface it as FAILED so
+            # it isn't a silent all-empty, but keep the frontier for the diff.
+            if frontier:
+                cells[solver] = Cell(
+                    FAILED,
+                    f"resource ceiling at all sizes (from {frontier})",
+                    resource_frontier=frontier,
+                )
+            else:
+                cells[solver] = Cell(FAILED, valid_false_reason or "all entries failed")
 
     return cells
+
+
+def _fail_reason_from_metrics(metrics: dict) -> str:
+    """Build a short human-readable reason from a ``status: "failed"`` record.
+
+    Cost/timing failures carry ``failure_type`` + ``exc_type`` + ``exc_msg``
+    (see :meth:`TimedResult.as_record`); prefer those over the generic
+    ``error``/``message``/``reason`` fields the other suites use.
+    """
+    exc_type = metrics.get("exc_type")
+    exc_msg = metrics.get("exc_msg") or metrics.get("error")
+    failure_type = metrics.get("failure_type")
+    if exc_type and exc_msg:
+        head = str(exc_msg).strip().splitlines()[0][:160]
+        prefix = f"{failure_type}: " if failure_type else ""
+        return f"{prefix}{exc_type}: {head}"
+    if failure_type:
+        return str(failure_type)
+    return _reason_from_entry(metrics) or "failed"
 
 
 def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
@@ -747,6 +838,174 @@ def _refine_for_suite(
         _refine_fd_check(view, cells, checks)
     elif suite == "optimization":
         _refine_recovery(view, cells, checks)
+
+
+# ── per-cell numeric metric collection ───────────────────────────────────────
+#
+# The status ladder (ok / anom / fail / …) is coarse: a solver that stays ``ok``
+# while getting 2× slower or doubling its gradient error produces no transition.
+# We therefore carry a small dict of numeric scalars per cell into the snapshot
+# so ``diff_snapshots`` can surface a same-status numeric regression /
+# improvement (see ``_diff_metrics``). These collectors run *unconditionally*
+# from ``_build_row`` — independent of whether an anomaly check is configured —
+# and compute the same scalars the ``_refine_*`` functions already use.
+
+
+# Metric name → (relative-change threshold to surface, "lower"|"higher" is
+# better, confidence). Wall-clock ("cost_time_s") is noisy across GitHub-hosted
+# runners (shared-host contention) so it gets a wide threshold and an
+# "indicative" confidence; the deterministic correctness metrics are compared
+# firmly. NOTE: this firm/indicative split assumes every benchmark run uses one
+# GH-hosted hardware class — revisit if that ever stops holding.
+METRIC_SPECS: dict[str, tuple[float, str, str]] = {
+    "rel_err": (0.15, "lower", "firm"),
+    "cosine": (0.02, "higher", "firm"),
+    "final_ratio": (0.15, "lower", "firm"),
+    "final_loss": (0.15, "lower", "firm"),
+    "fwd_error": (0.15, "lower", "firm"),
+    "cost_time_s": (0.35, "lower", "indicative"),
+}
+
+
+def _store_metric(cell: Cell, key: str, value: float | None) -> None:
+    """Record a finite metric scalar on a cell; skip None / NaN / inf."""
+    if isinstance(value, int | float) and math.isfinite(value):
+        cell.metrics[key] = float(value)
+
+
+def _collect_cost_metrics(data: dict, cells: dict[str, Cell]) -> None:
+    """Store each OK solver's median wall-clock time as ``cost_time_s``."""
+    key = "by_N" if "by_N" in data else "by_steps" if "by_steps" in data else None
+    top = data.get(key, {}) if key else data.get("by_solver", {})
+    if not isinstance(top, dict):
+        return
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        vals = top.get(solver, {})
+        if not isinstance(vals, dict):
+            continue
+        times = [
+            v["mean"]
+            for v in vals.values()
+            if isinstance(v, dict) and math.isfinite(v.get("mean", float("nan")))
+        ]
+        if times:
+            _store_metric(cell, "cost_time_s", _median(times))
+
+
+def _collect_fd_metrics(data: dict, cells: dict[str, Cell]) -> None:
+    """Store best-ε ``rel_err`` and ``cosine`` per OK solver (mirrors ``_refine_fd_check``)."""
+    by_solver = data.get("by_solver", {})
+    if not isinstance(by_solver, dict):
+        return
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = by_solver.get(solver)
+        sweep = entry.get("eps_sweep") if isinstance(entry, dict) else None
+        if not isinstance(sweep, dict):
+            continue
+        best_cos = None
+        best_rel = None
+        for st in sweep.values():
+            if not isinstance(st, dict):
+                continue
+            c = st.get("cosine")
+            if isinstance(c, int | float) and math.isfinite(c):
+                best_cos = c if best_cos is None else max(best_cos, c)
+            vals = [
+                r
+                for r in (st.get("rel_error") or [])
+                if isinstance(r, int | float) and math.isfinite(r)
+            ]
+            if vals:
+                med = _median(vals)
+                best_rel = med if best_rel is None else min(best_rel, med)
+        _store_metric(cell, "rel_err", best_rel)
+        _store_metric(cell, "cosine", best_cos)
+
+
+def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
+    """Store the worst-case ``final_ratio`` (and ``final_loss`` when present) per OK solver."""
+    top = data.get("by_solver") or data.get("by_sweep") or {}
+    if not isinstance(top, dict):
+        return
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = top.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        series = _worst_case_trajectory(entry)
+        if series:
+            initial = abs(series[0])
+            final = abs(series[-1])
+            if initial > 0 and math.isfinite(final):
+                _store_metric(cell, "final_ratio", final / initial)
+        # ``final_loss`` is only written by some domains (e.g. ns-3d IC
+        # recovery); store it when directly present, else fall back to the
+        # trajectory endpoint so the metric exists for every optimisation cell.
+        fl = entry.get("final_loss")
+        if isinstance(fl, int | float) and math.isfinite(fl):
+            _store_metric(cell, "final_loss", fl)
+        elif series and math.isfinite(abs(series[-1])):
+            _store_metric(cell, "final_loss", abs(series[-1]))
+
+
+def _collect_forward_metrics(data: dict, cells: dict[str, Cell]) -> None:
+    """Store each OK solver's median forward ``error`` as ``fwd_error``.
+
+    Forward results are ``by_solver[solver] = {error, valid}`` (non-swept) or
+    ``by_solver[solver][pval] = {error, valid}`` (swept). Only valid points
+    contribute; the per-solver scalar is the median across valid sweep points.
+    """
+    by_solver = data.get("by_solver", {})
+    if not isinstance(by_solver, dict):
+        return
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = by_solver.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        errs: list[float] = []
+        # Swept: values are per-pval dicts. Non-swept: entry is the metrics dict.
+        subs = (
+            list(entry.values())
+            if entry and all(isinstance(v, dict) for v in entry.values())
+            else [entry]
+        )
+        for sub in subs:
+            if not isinstance(sub, dict) or sub.get("valid") is False:
+                continue
+            e = sub.get("error")
+            if isinstance(e, int | float) and math.isfinite(e):
+                errs.append(float(e))
+        if errs:
+            _store_metric(cell, "fwd_error", _median(errs))
+
+
+def _collect_metrics_for_suite(
+    suite: str, exp_label: str, data: dict, cells: dict[str, Cell]
+) -> None:
+    """Populate ``cell.metrics`` with the suite's comparable numeric scalars.
+
+    Runs unconditionally (no threshold needed) so a same-status numeric shift
+    is diffable even for problems that configure no anomaly checks.
+    """
+    view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
+    if suite == "cost":
+        _collect_cost_metrics(view, cells)
+    elif suite == "gradient" and exp_label.split("/")[0] in (
+        "fd_check",
+        "source_fd_check",
+    ):
+        _collect_fd_metrics(view, cells)
+    elif suite == "optimization":
+        _collect_recovery_metrics(view, cells)
+    elif suite == "forward":
+        _collect_forward_metrics(view, cells)
 
 
 def _row_harness_stale(data: dict, harness_hash_cache: dict[str, str | None]) -> bool:
@@ -907,6 +1166,9 @@ def _build_row(
         return row
     checks = _lookup_check(cfg, suite, exp_label)
     row.cells = _classify_result(data, solvers, checks)
+    # Capture numeric scalars *before* anomaly refinement downgrades any OK
+    # cell — the scalar is worth diffing whether or not it trips a threshold.
+    _collect_metrics_for_suite(suite, exp_label, data, row.cells)
     _refine_for_suite(suite, exp_label, data, row.cells, checks)
     _apply_staleness(
         cfg, data, row.cells, solvers, tesseract_hash_cache, harness_hash_cache
@@ -1032,6 +1294,8 @@ def status_to_dict(st: ProblemStatus) -> dict:
                         "reason": c.reason,
                         "category": c.category,
                         "stale": c.stale,
+                        "resource_frontier": c.resource_frontier,
+                        "metrics": c.metrics,
                     }
                     for s, c in r.cells.items()
                 },
@@ -1196,12 +1460,14 @@ def format_score(score: float | None) -> str:
 # 1.0; linearly interpolated between stops. Designed to read as a traffic-light
 # ramp: red (fail) → orange → yellow → green → bright green (ok).
 #
-# Ansi (hex via rich):
+# Ansi (hex via rich). Score weights annotated where they land; intermediate
+# stops are ramp positions used for gradient fill / the status progress bar
+# (e.g. its stale-ok segment sits at 0.67), not score weights themselves:
 #   w = 0.00 → red           #cc0d0d   fail
-#   w = 0.17 → red-orange    #e03a0b   fail*
-#   w = 0.33 → orange        #f78005   missing / neutral
+#   w = 0.17 → red-orange    #e03a0b
+#   w = 0.33 → orange        #f78005   missing / neutral / excl (work)
 #   w = 0.53 → yellow        #f5d80f   anom
-#   w = 0.67 → yellow-green  #73d114   ok*
+#   w = 0.67 → yellow-green  #73d114
 #   w = 1.00 → bright green  #00e659   ok
 #   None     → dim
 #
@@ -1415,7 +1681,134 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
 _SEVERITY = {OK: 0, EXCLUDED: 1, NOT_RUN: 2, ANOMALY: 3, FAILED: 4}
 
 
-def diff_snapshots(old: dict, new: dict) -> dict:
+def _frontier_num(v: str) -> float | None:
+    """Parse a frontier sweep-value string to a float for ordering, or None."""
+    if not v:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _diff_frontier(
+    out: dict,
+    problem: str,
+    label: str,
+    solver: str,
+    old_cell: dict,
+    new_cell: dict,
+) -> None:
+    """Record a resource-ceiling frontier move into ``out["frontier_shifts"]``.
+
+    A frontier is the first sweep value at which the solver hit an OOM /
+    timeout. Comparing old vs new answers "did the ceiling move?":
+      * ceiling appears where there was none, or moves to a *smaller* value
+        → regression (solver now fails to scale as far as before)
+      * ceiling disappears, or moves to a *larger* value → improvement
+    Frontiers that don't parse as numbers are compared for equality only
+    (a change is reported as a neutral shift rather than a direction).
+    """
+    old_f = old_cell.get("resource_frontier", "") or ""
+    new_f = new_cell.get("resource_frontier", "") or ""
+    if old_f == new_f:
+        return
+    rec = {
+        "problem": problem,
+        "label": label,
+        "solver": solver,
+        "from_frontier": old_f,
+        "to_frontier": new_f,
+    }
+    old_n = _frontier_num(old_f)
+    new_n = _frontier_num(new_f)
+    # Direction: a ceiling that bites at a smaller size is worse. Treat "no
+    # ceiling" as +∞ (scales further is better).
+    old_v = old_n if old_n is not None else float("inf") if not old_f else None
+    new_v = new_n if new_n is not None else float("inf") if not new_f else None
+    if old_v is not None and new_v is not None:
+        rec["direction"] = "regression" if new_v < old_v else "improvement"
+    else:
+        rec["direction"] = "changed"
+    out["frontier_shifts"].append(rec)
+
+
+def _diff_metrics(
+    out: dict,
+    problem: str,
+    label: str,
+    solver: str,
+    old_cell: dict,
+    new_cell: dict,
+) -> None:
+    """Record numeric-metric shifts into ``out["metric_shifts"]``.
+
+    Only compares cells that are ``ok`` in *both* snapshots: a status
+    transition is already reported by the main diff path (comparing numbers
+    across a fail↔ok boundary is meaningless and would double-report the
+    event). For each metric present in both cells, surfaces a shift when the
+    relative change exceeds that metric's ``METRIC_SPECS`` threshold. Wall-clock
+    (``cost_time_s``) is flagged ``confidence="indicative"`` — noisy across
+    shared CI runners — while deterministic correctness metrics are ``firm``.
+    """
+    if old_cell.get("status") != OK or new_cell.get("status") != OK:
+        return
+    old_m = old_cell.get("metrics") or {}
+    new_m = new_cell.get("metrics") or {}
+    if not isinstance(old_m, dict) or not isinstance(new_m, dict):
+        return
+    for metric, (threshold, better, confidence) in METRIC_SPECS.items():
+        if metric not in old_m or metric not in new_m:
+            continue
+        old_v = old_m[metric]
+        new_v = new_m[metric]
+        if not (isinstance(old_v, int | float) and isinstance(new_v, int | float)):
+            continue
+        if not (math.isfinite(old_v) and math.isfinite(new_v)):
+            continue
+        # Relative change against the old magnitude; a near-zero baseline uses
+        # a tiny floor so a 0 → ε move doesn't report an infinite regression.
+        denom = max(abs(old_v), 1e-12)
+        pct = (new_v - old_v) / denom
+        if abs(pct) < threshold:
+            continue
+        got_bigger = new_v > old_v
+        # "lower is better": bigger = regression. "higher is better": flip.
+        is_regression = got_bigger if better == "lower" else not got_bigger
+        out["metric_shifts"].append(
+            {
+                "problem": problem,
+                "label": label,
+                "solver": solver,
+                "metric": metric,
+                "from": old_v,
+                "to": new_v,
+                "pct_change": pct,
+                "direction": "regression" if is_regression else "improvement",
+                "confidence": confidence,
+            }
+        )
+
+
+def _cell_measured(measured: dict | None, problem: str, solver: str) -> bool:
+    """Whether ``(problem, solver)`` was actually re-measured this run.
+
+    ``measured`` is ``None`` for a full run (everything measured → True for
+    all). Otherwise it carries ``problems`` (empty = every problem) and
+    ``solvers`` (the solvers actually re-run). A cell counts as measured only
+    when both match — carried-over baseline cells return False so their
+    transitions aren't mis-attributed to the PR.
+    """
+    if measured is None:
+        return True
+    problems = measured.get("problems") or []
+    solvers = measured.get("solvers") or []
+    problem_ok = not problems or problem in problems
+    solver_ok = not solvers or solver in solvers
+    return problem_ok and solver_ok
+
+
+def diff_snapshots(old: dict, new: dict, measured: dict | None = None) -> dict:
     """Compute transitions between two JSON snapshots produced by ``snapshot_to_dict``.
 
     Returns a dict with:
@@ -1424,11 +1817,27 @@ def diff_snapshots(old: dict, new: dict) -> dict:
       other        — same-severity transitions (e.g. missing → excl)
       added_rows   — experiment rows present in new but not old
       removed_rows — experiment rows present in old but not new
+
+    ``measured`` optionally scopes the diff to the (problem × solver) cells that
+    were actually re-run this PR (``{"problems": [...], "solvers": [...]}``);
+    cells outside it are carried-over baseline data, so any apparent transition
+    is baseline drift rather than a PR effect and is skipped. ``None`` (default)
+    diffs every cell — correct for full runs and local ``compare``.
     """
     out: dict = {
         "regressions": [],
         "improvements": [],
         "other": [],
+        # Resource-ceiling (OOM / timeout) frontier moves between snapshots,
+        # even when both cells stay OK. This is the signal a PR author cares
+        # about most for scaling behaviour: did the solver start OOMing at a
+        # *smaller* size than baseline (regression) or push the ceiling out
+        # (improvement)?
+        "frontier_shifts": [],
+        # Numeric-metric shifts between cells that stay OK in both snapshots
+        # (e.g. gradient rel-error worsened, converged loss improved). The
+        # status ladder alone hides these; see ``_diff_metrics``.
+        "metric_shifts": [],
         "added_rows": [],
         "removed_rows": [],
         # Snapshot-level score kept under underscored keys so existing callers
@@ -1453,6 +1862,16 @@ def diff_snapshots(old: dict, new: dict) -> dict:
                 old_cell = old_row["cells"].get(solver)
                 if old_cell is None:
                     continue
+                # Skip cells this run didn't re-measure: their new value is
+                # carried-over baseline data, so a transition is baseline drift,
+                # not a PR effect (F3). Full runs / local compare pass
+                # measured=None and diff everything.
+                if not _cell_measured(measured, problem, solver):
+                    continue
+                # Resource frontier move (independent of the status transition).
+                _diff_frontier(out, problem, label, solver, old_cell, new_cell)
+                # Numeric-metric shift for cells that stay OK (no status change).
+                _diff_metrics(out, problem, label, solver, old_cell, new_cell)
                 same_status = old_cell["status"] == new_cell["status"]
                 # A same-status change in category (e.g. excluded → excluded
                 # but category moved from not_implemented to categorical) is
@@ -1487,6 +1906,73 @@ def diff_snapshots(old: dict, new: dict) -> dict:
     return out
 
 
+# Human-readable labels for the metric keys in ``METRIC_SPECS``.
+_METRIC_LABELS: dict[str, str] = {
+    "rel_err": "gradient rel-error",
+    "cosine": "gradient cosine",
+    "final_ratio": "final/initial loss ratio",
+    "final_loss": "final loss",
+    "fwd_error": "forward error",
+    "cost_time_s": "median time",
+}
+
+
+def _fmt_metric_value(metric: str, value: float) -> str:
+    """Format a metric scalar: seconds for timing, else compact scientific."""
+    if metric == "cost_time_s":
+        return f"{value:.3g}s"
+    return f"{value:.3g}"
+
+
+def _fmt_metric_shift(r: dict) -> str:
+    """One bullet line for a metric shift: glyph, location, from → to (±pct)."""
+    g = "🔴" if r.get("direction") == "regression" else "🟢"
+    metric = r["metric"]
+    label = _METRIC_LABELS.get(metric, metric)
+    old_s = _fmt_metric_value(metric, r["from"])
+    new_s = _fmt_metric_value(metric, r["to"])
+    pct = r.get("pct_change", 0.0) * 100.0
+    sign = "+" if pct >= 0 else ""
+    return (
+        f"- {g} `{r['problem']}` · `{r['label']}` · **{r['solver']}** · "
+        f"{label} {old_s} → {new_s} ({sign}{pct:.0f}%)"
+    )
+
+
+def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
+    """Render numeric-metric shifts, splitting firm from indicative (timing).
+
+    Firm (deterministic correctness) metrics go under a headline section;
+    indicative wall-clock shifts go under a clearly-labelled sub-section so a
+    contributor never mistakes a shared-runner timing wobble for a hard
+    regression (see F2 in the reporting audit).
+    """
+    firm = [r for r in metric_shifts if r.get("confidence") != "indicative"]
+    indicative = [r for r in metric_shifts if r.get("confidence") == "indicative"]
+    if firm:
+        lines.append("### 📊 Metric changes")
+        lines.append("")
+        lines.append(
+            "_Numeric shifts for solvers that stayed `ok` — the status ladder "
+            "alone wouldn't surface these._"
+        )
+        lines.append("")
+        for r in firm:
+            lines.append(_fmt_metric_shift(r))
+        lines.append("")
+    if indicative:
+        lines.append("### ⏱ Timing (indicative — shared-runner contention)")
+        lines.append("")
+        lines.append(
+            "_Wall-clock varies with CI-runner load, so treat these as "
+            "indicative rather than controlled measurements._"
+        )
+        lines.append("")
+        for r in indicative:
+            lines.append(_fmt_metric_shift(r))
+        lines.append("")
+
+
 def render_diff_markdown(diff: dict) -> str:
     """Render a snapshot diff as markdown suitable for a PR comment."""
     lines: list[str] = ["## Status diff vs base", "", _MD_LEGEND, ""]
@@ -1495,6 +1981,10 @@ def render_diff_markdown(diff: dict) -> str:
     n_oth = len(diff["other"])
     n_add = len(diff["added_rows"])
     n_rm = len(diff["removed_rows"])
+    frontier_shifts = diff.get("frontier_shifts", [])
+    n_front = len(frontier_shifts)
+    metric_shifts = diff.get("metric_shifts", [])
+    n_metric = len(metric_shifts)
 
     # Score delta header: uses snapshot-level score if present, falls back to
     # None for legacy snapshots where the field is absent.
@@ -1510,7 +2000,7 @@ def render_diff_markdown(diff: dict) -> str:
     old_score = _snap_score(diff.get("_old_snapshot"))
     new_score = _snap_score(diff.get("_new_snapshot"))
 
-    if n_reg == n_imp == n_oth == n_add == n_rm == 0:
+    if n_reg == n_imp == n_oth == n_add == n_rm == n_front == n_metric == 0:
         if old_score is not None or new_score is not None:
             lines.append(
                 f"_No status changes._ · score "
@@ -1523,7 +2013,9 @@ def render_diff_markdown(diff: dict) -> str:
     header_bits = [
         f"**{n_reg} regression(s)**",
         f"**{n_imp} improvement(s)**",
+        f"{n_metric} metric change(s)",
         f"{n_oth} other transition(s)",
+        f"{n_front} resource-frontier shift(s)",
         f"{n_add} new row(s)",
         f"{n_rm} removed row(s)",
     ]
@@ -1562,6 +2054,28 @@ def render_diff_markdown(diff: dict) -> str:
         lines.append("")
         for r in diff["improvements"]:
             lines.append(_fmt_rec(r))
+        lines.append("")
+
+    if metric_shifts:
+        _render_metric_shifts(lines, metric_shifts)
+
+    if frontier_shifts:
+        lines.append("### Resource-frontier shifts (OOM / timeout)")
+        lines.append("")
+        lines.append(
+            "_The size at which a solver first hits a resource ceiling. "
+            "A smaller frontier means it now fails to scale as far as before._"
+        )
+        lines.append("")
+        _dir_glyph = {"regression": "🔴", "improvement": "🟢", "changed": "⚪"}
+        for r in frontier_shifts:
+            g = _dir_glyph.get(r.get("direction", "changed"), "⚪")
+            old_f = r.get("from_frontier") or "none"
+            new_f = r.get("to_frontier") or "none"
+            lines.append(
+                f"- {g} `{r['problem']}` · `{r['label']}` · **{r['solver']}** · "
+                f"ceiling {old_f} → {new_f}"
+            )
         lines.append("")
 
     if diff["other"]:
