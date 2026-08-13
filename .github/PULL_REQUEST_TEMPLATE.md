@@ -29,14 +29,6 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 - [ ] Before/after `mosaic status --format json` snapshots compared
 - [ ] No regressions to other solvers
 
-## Status output
-
-<!-- Paste the output of `mosaic status -p <domain> -f` here -->
-
-```
-
-```
-
 ## Benchmark label
 
 <!-- If this PR touches mosaic/ code, CI will block until a maintainer adds one of these labels:
