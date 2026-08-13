@@ -94,7 +94,7 @@ def _coverage_banner(run_scope: str | None) -> str:
         )
         return (
             f"**Coverage:** measured {s} on {p} this run. Other cells are shown "
-            f'from the baseline — "no regressions" applies only to what ran.'
+            f"from the baseline."
         )
     # Unknown / unlabelled: state plainly that scope is partial.
     return (

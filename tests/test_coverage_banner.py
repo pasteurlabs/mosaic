@@ -48,7 +48,6 @@ def test_solver_label_names_what_ran(tmp_path):
     )
     assert "`exponax`" in banner
     assert "`ns-grid`" in banner
-    assert "applies only to what ran" in banner
 
 
 def test_solver_label_accepts_csv_strings(tmp_path):
