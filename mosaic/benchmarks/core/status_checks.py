@@ -157,7 +157,7 @@ def min_cosine(threshold: float) -> Callable[[FdCheckSummary], CheckOutcome]:
     def _check(s: FdCheckSummary) -> CheckOutcome:
         if s.best_cosine is None or s.best_cosine >= threshold:
             return None
-        return ("anom", f"best FD cosine {s.best_cosine:.4f} < {threshold}")
+        return ("anomaly", f"best FD cosine {s.best_cosine:.4f} < {threshold}")
 
     return _check
 
