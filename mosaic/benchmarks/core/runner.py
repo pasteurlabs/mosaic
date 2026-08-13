@@ -60,6 +60,7 @@ from .console import (  # noqa: E402
     console,
     make_build_progress,
     make_sweep_progress,
+    print_hint,
     print_rule,
     print_skip,
     print_warn,
@@ -215,9 +216,13 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
 # rebuild an image that is already there. So we probe the daemon rather than
 # trust the exception type.
 #
-# The hint is *prepended*, never substituted. The original error still prints
-# underneath, so no detail that used to be visible is lost — a friendlier first
-# line must not cost the person debugging the thing they actually need.
+# The raw error keeps its per-solver line: it is the part that varies, and no
+# detail that used to be visible is lost. The hint does not go there. One bad
+# host setup fails every solver in the pool at the same instant, so a per-solver
+# hint would repeat the same paragraph once per solver and bury the one line
+# that differs. Instead each distinct hint is collected and printed once at the
+# end of the run, naming the solvers it covers — which also makes it obvious
+# when one solver failed for a *different* reason than the rest.
 
 _DOCKER_PROBE_TIMEOUT = 5.0
 
@@ -311,19 +316,41 @@ def _docker_setup_hint(exc: BaseException) -> str | None:
     return None
 
 
-def _warn_docker_failure(prefix: str, exc: BaseException) -> None:
-    """Warn about *exc*, leading with a setup hint where we recognise one.
+_pending_hints: dict[str, list[str]] = {}
+_hint_lock = threading.Lock()
+
+
+def _warn_docker_failure(prefix: str, exc: BaseException, solver: str) -> None:
+    """Warn about *exc* and stash any setup hint for the end-of-run summary.
 
     *prefix* carries its own separator so each call site keeps the wording it
-    already had. With a hint, the raw error moves to a dimmed second line
-    rather than disappearing.
+    already had. *solver* names the failure for the hint summary; it is not
+    used in the warning line, which the caller has already worded.
     """
+    print_warn(f"{prefix}{exc}")
     hint = _docker_setup_hint(exc)
     if hint is None:
-        print_warn(f"{prefix}{exc}")
         return
-    print_warn(f"{prefix}{hint}")
-    console.print(f"[dim]       Docker reported: {exc}[/dim]")
+    with _hint_lock:
+        _pending_hints.setdefault(hint, []).append(solver)
+
+
+def flush_docker_hints() -> None:
+    """Print each collected setup hint once, naming the solvers it covers.
+
+    Called at the end of a build or a solver pool. A no-op when nothing
+    recognisable failed, so callers can invoke it unconditionally. Draining
+    the accumulator keeps a later pool in the same process from re-reporting
+    hints an earlier one already showed.
+    """
+    with _hint_lock:
+        pending = dict(_pending_hints)
+        _pending_hints.clear()
+    if not pending:
+        return
+    console.print()
+    for hint, solvers in pending.items():
+        print_hint(f"{', '.join(sorted(set(solvers)))}: {hint}")
 
 
 # ── Image management ──────────────────────────────────────────────────────────
@@ -410,13 +437,16 @@ def build_all(
                     images[name] = img_tag
                 except Exception as exc:
                     failed.append(solver_name)
-                    _warn_docker_failure(f"BUILD FAILED: {solver_name} — ", exc)
+                    _warn_docker_failure(
+                        f"BUILD FAILED: {solver_name} — ", exc, solver_name
+                    )
                 progress.advance(task)
     if failed:
         console.print(
             f"\n[bold yellow]⚠ {len(failed)} solver(s) failed to build and will "
             f"be skipped: {', '.join(sorted(failed))}[/bold yellow]\n"
         )
+    flush_docker_hints()
     return images
 
 
@@ -809,9 +839,10 @@ def run_with_gpu_pool(
                 with _tracked_tesseract(tags[name], _gpus, _NO_HC) as t:
                     fn(name, t)
             except Exception as exc:
-                _warn_docker_failure(f"{name} failed: ", exc)
+                _warn_docker_failure(f"{name} failed: ", exc, name)
                 if on_error is not None:
                     on_error(name, exc)
+        flush_docker_hints()
         return
 
     # If gpu_ids=[] was handled above (cpu-only), we never reach here.
@@ -828,7 +859,7 @@ def run_with_gpu_pool(
             with _tracked_tesseract(tags[name], [gid], _NO_HC) as t:
                 fn(name, t)
         except Exception as exc:
-            _warn_docker_failure(f"{name} failed: ", exc)
+            _warn_docker_failure(f"{name} failed: ", exc, name)
             if on_error is not None:
                 on_error(name, exc)
         finally:
@@ -836,6 +867,7 @@ def run_with_gpu_pool(
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(gpu_ids)) as pool:
         list(pool.map(_work, solver_names))
+    flush_docker_hints()
 
 
 # ── Solver execution ──────────────────────────────────────────────────────────

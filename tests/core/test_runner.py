@@ -664,25 +664,123 @@ def test_hint_reads_exception_type_not_just_message(daemon_up):
     assert "--no-build" in hint
 
 
-def test_warn_keeps_raw_error_alongside_the_hint(daemon_up, capsys):
-    """The hint leads, but the original Docker text is still printed."""
-    exc = RuntimeError(
-        "docker: Error response from daemon: failed to discover GPU vendor from CDI"
-    )
-    runner._warn_docker_failure("jax_cfd failed: ", exc)
-    # rich hard-wraps at terminal width, so compare on collapsed whitespace.
-    out = " ".join(capsys.readouterr().out.split())
-    assert "NVIDIA container runtime" in out
+GPU_ERROR = (
+    "docker: Error response from daemon: failed to discover GPU vendor from CDI: "
+    "no known GPU vendor found"
+)
+
+
+@pytest.fixture
+def no_pending_hints(monkeypatch):
+    """Isolate the process-wide hint accumulator around a test."""
+    monkeypatch.setattr(runner, "_pending_hints", {})
+    yield
+
+
+def _flat(capsys):
+    """Collapse whitespace — rich hard-wraps at terminal width."""
+    return " ".join(capsys.readouterr().out.split())
+
+
+def test_warn_prints_the_raw_error_and_defers_the_hint(
+    daemon_up, no_pending_hints, capsys
+):
+    """The per-solver line is the raw error; the hint waits for the summary."""
+    runner._warn_docker_failure("jax_cfd failed: ", RuntimeError(GPU_ERROR), "jax_cfd")
+    out = _flat(capsys)
+    assert "jax_cfd failed: docker: Error response from daemon" in out
     assert "failed to discover GPU vendor" in out
-    assert "jax_cfd failed:" in out
+    # The advice is collected, not printed inline.
+    assert "NVIDIA container runtime" not in out
+    assert runner._pending_hints
 
 
-def test_warn_falls_back_to_raw_error_only(daemon_up, capsys):
+def test_warn_falls_back_to_raw_error_only(daemon_up, no_pending_hints, capsys):
     """With no hint, output is exactly what it was before this change."""
-    runner._warn_docker_failure("jax_cfd failed: ", ValueError("boom"))
-    out = " ".join(capsys.readouterr().out.split())
-    assert "jax_cfd failed: boom" in out
-    assert "Docker reported" not in out
+    runner._warn_docker_failure("jax_cfd failed: ", ValueError("boom"), "jax_cfd")
+    assert "jax_cfd failed: boom" in _flat(capsys)
+    assert runner._pending_hints == {}
+
+
+def test_one_cause_across_many_solvers_reports_the_hint_once(
+    daemon_up, no_pending_hints, capsys
+):
+    """The GPU pool fails every solver at once; the advice should not repeat.
+
+    This is the whole point of deferring: a per-solver hint would print the
+    same paragraph once per solver and bury the line that differs.
+    """
+    for name in ("jax_cfd", "phiflow", "warp_ns"):
+        runner._warn_docker_failure(f"{name} failed: ", RuntimeError(GPU_ERROR), name)
+    capsys.readouterr()
+
+    runner.flush_docker_hints()
+    out = _flat(capsys)
+    assert out.count("NVIDIA container runtime") == 1
+    assert "jax_cfd, phiflow, warp_ns:" in out
+
+
+def test_distinct_causes_are_grouped_separately(daemon_up, no_pending_hints, capsys):
+    """A solver that failed for another reason stays visible, not lumped in."""
+    runner._warn_docker_failure("jax_cfd failed: ", RuntimeError(GPU_ERROR), "jax_cfd")
+    runner._warn_docker_failure(
+        "xlb failed: ", RuntimeError("Image xlb:latest not found."), "xlb"
+    )
+    capsys.readouterr()
+
+    runner.flush_docker_hints()
+    out = _flat(capsys)
+    assert "jax_cfd: no NVIDIA container runtime" in out
+    assert "xlb: the solver image is missing" in out
+
+
+def test_repeated_failure_names_the_solver_once(daemon_up, no_pending_hints, capsys):
+    """A solver failing twice (build, then run) is not listed twice."""
+    for _ in range(3):
+        runner._warn_docker_failure(
+            "jax_cfd failed: ", RuntimeError(GPU_ERROR), "jax_cfd"
+        )
+    capsys.readouterr()
+
+    runner.flush_docker_hints()
+    assert _flat(capsys).count("jax_cfd") == 1
+
+
+def test_flush_is_a_noop_and_drains(daemon_up, no_pending_hints, capsys):
+    """Callers flush unconditionally, and a later pool does not re-report."""
+    runner.flush_docker_hints()
+    assert _flat(capsys) == ""
+
+    runner._warn_docker_failure("jax_cfd failed: ", RuntimeError(GPU_ERROR), "jax_cfd")
+    capsys.readouterr()
+    runner.flush_docker_hints()
+    assert "NVIDIA container runtime" in _flat(capsys)
+
+    runner.flush_docker_hints()
+    assert _flat(capsys) == ""
+
+
+def test_accumulator_is_safe_under_the_gpu_pool(daemon_up, no_pending_hints, capsys):
+    """The parallel path calls this from ThreadPoolExecutor workers."""
+    import concurrent.futures
+
+    names = [f"solver_{i}" for i in range(24)]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        list(
+            pool.map(
+                lambda n: runner._warn_docker_failure(
+                    f"{n} failed: ", RuntimeError(GPU_ERROR), n
+                ),
+                names,
+            )
+        )
+    capsys.readouterr()
+
+    runner.flush_docker_hints()
+    out = _flat(capsys)
+    assert out.count("NVIDIA container runtime") == 1
+    for n in names:
+        assert n in out
 
 
 def test_daemon_probe_false_when_docker_binary_is_absent(monkeypatch):
