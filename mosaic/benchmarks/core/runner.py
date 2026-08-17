@@ -60,6 +60,7 @@ from .console import (  # noqa: E402
     console,
     make_build_progress,
     make_sweep_progress,
+    print_hint,
     print_rule,
     print_skip,
     print_warn,
@@ -204,6 +205,154 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
                     _live_containers.discard(container_name)
 
 
+# ── Docker setup diagnostics ──────────────────────────────────────────────────
+#
+# A container-launch failure surfaces as whatever tesseract_core raised, and
+# that text is a Docker stderr dump: it says what went wrong at the daemon but
+# nothing about what the user should do next. Worse, one of the three common
+# causes is mislabelled at the source — when the daemon is unreachable,
+# ``Images.get`` sees ``docker inspect`` fail, cannot tell "no daemon" from "no
+# such image", and raises ``ImageNotFound``. The runner then tells you to
+# rebuild an image that is already there. So we probe the daemon rather than
+# trust the exception type.
+#
+# The raw error keeps its per-solver line: it is the part that varies, and no
+# detail that used to be visible is lost. The hint does not go there. One bad
+# host setup fails every solver in the pool at the same instant, so a per-solver
+# hint would repeat the same paragraph once per solver and bury the one line
+# that differs. Instead each distinct hint is collected and printed once at the
+# end of the run, naming the solvers it covers — which also makes it obvious
+# when one solver failed for a *different* reason than the rest.
+
+_DOCKER_PROBE_TIMEOUT = 5.0
+
+# Substrings Docker/NVIDIA emit when a GPU was requested and no container
+# runtime can provide one. Matched case-insensitively.
+_GPU_RUNTIME_MARKERS = (
+    "failed to discover gpu vendor",
+    "no known gpu vendor",
+    "could not select device driver",
+    "nvidia-container-cli",
+    "nvidia-container-runtime",
+)
+
+_MISSING_IMAGE_MARKERS = (
+    "not found",
+    "no such image",
+    "repository does not exist",
+    "pull access denied",
+    # tesseract_core's exception class name, matched so the classification
+    # survives a reworded message upstream.
+    "imagenotfound",
+)
+
+
+def _probe_docker_daemon() -> bool:
+    """Shell out to ``docker info``. Best-effort; False on any failure."""
+    try:
+        return (
+            subprocess.run(
+                ["docker", "info"],
+                capture_output=True,
+                check=False,
+                timeout=_DOCKER_PROBE_TIMEOUT,
+            ).returncode
+            == 0
+        )
+    except (OSError, subprocess.SubprocessError):
+        # No docker binary on PATH, or the probe itself timed out. Either way
+        # we cannot reach a daemon, which is exactly what the caller asked.
+        return False
+
+
+_daemon_reachable: bool | None = None
+_daemon_probe_lock = threading.Lock()
+
+
+def _docker_daemon_reachable() -> bool:
+    """True when the Docker daemon answers. Probed once per process.
+
+    The GPU pool fails every solver at the same instant when the daemon is
+    down, so probing per failure would bolt one subprocess — up to
+    ``_DOCKER_PROBE_TIMEOUT`` each — onto a run that is already going wrong.
+    Daemon availability is effectively constant across a benchmark run, and a
+    stale answer costs at worst a less precise hint, never a wrong result.
+    """
+    global _daemon_reachable
+    with _daemon_probe_lock:
+        if _daemon_reachable is None:
+            _daemon_reachable = _probe_docker_daemon()
+        return _daemon_reachable
+
+
+def _docker_setup_hint(exc: BaseException) -> str | None:
+    """Actionable one-liner for a common Docker setup failure, else None.
+
+    Returning None means "we don't recognise this", and the caller falls back
+    to printing the raw error alone. Guessing wrong is worse than not guessing.
+    """
+    text = f"{type(exc).__name__}: {exc}".lower()
+
+    if any(marker in text for marker in _GPU_RUNTIME_MARKERS):
+        return (
+            "no NVIDIA container runtime on this host, so a GPU container cannot "
+            "start. Re-run with `--gpus none` to skip GPU usage (or `--hardware "
+            "cpu` to filter to CPU solvers), or install the NVIDIA Container "
+            "Toolkit."
+        )
+
+    looks_like_missing_image = any(m in text for m in _MISSING_IMAGE_MARKERS)
+
+    # Probed before the image verdict, because a dead daemon arrives here
+    # wearing an ImageNotFound label and no amount of rebuilding will fix it.
+    if not _docker_daemon_reachable():
+        return "the Docker daemon is not reachable — is Docker running?"
+
+    if looks_like_missing_image:
+        return (
+            "the solver image is missing. Run `mosaic run` without `--no-build` "
+            "to build it first."
+        )
+    return None
+
+
+_pending_hints: dict[str, list[str]] = {}
+_hint_lock = threading.Lock()
+
+
+def _warn_docker_failure(prefix: str, exc: BaseException, solver: str) -> None:
+    """Warn about *exc* and stash any setup hint for the end-of-run summary.
+
+    *prefix* carries its own separator so each call site keeps the wording it
+    already had. *solver* names the failure for the hint summary; it is not
+    used in the warning line, which the caller has already worded.
+    """
+    print_warn(f"{prefix}{exc}")
+    hint = _docker_setup_hint(exc)
+    if hint is None:
+        return
+    with _hint_lock:
+        _pending_hints.setdefault(hint, []).append(solver)
+
+
+def flush_docker_hints() -> None:
+    """Print each collected setup hint once, naming the solvers it covers.
+
+    Called at the end of a build or a solver pool. A no-op when nothing
+    recognisable failed, so callers can invoke it unconditionally. Draining
+    the accumulator keeps a later pool in the same process from re-reporting
+    hints an earlier one already showed.
+    """
+    with _hint_lock:
+        pending = dict(_pending_hints)
+        _pending_hints.clear()
+    if not pending:
+        return
+    console.print()
+    for hint, solvers in pending.items():
+        print_hint(f"{', '.join(sorted(set(solvers)))}: {hint}")
+
+
 # ── Image management ──────────────────────────────────────────────────────────
 
 
@@ -288,13 +437,16 @@ def build_all(
                     images[name] = img_tag
                 except Exception as exc:
                     failed.append(solver_name)
-                    print_warn(f"BUILD FAILED: {solver_name} — {exc}")
+                    _warn_docker_failure(
+                        f"BUILD FAILED: {solver_name} — ", exc, solver_name
+                    )
                 progress.advance(task)
     if failed:
         console.print(
             f"\n[bold yellow]⚠ {len(failed)} solver(s) failed to build and will "
             f"be skipped: {', '.join(sorted(failed))}[/bold yellow]\n"
         )
+    flush_docker_hints()
     return images
 
 
@@ -687,9 +839,10 @@ def run_with_gpu_pool(
                 with _tracked_tesseract(tags[name], _gpus, _NO_HC) as t:
                     fn(name, t)
             except Exception as exc:
-                print_warn(f"{name} failed: {exc}")
+                _warn_docker_failure(f"{name} failed: ", exc, name)
                 if on_error is not None:
                     on_error(name, exc)
+        flush_docker_hints()
         return
 
     # If gpu_ids=[] was handled above (cpu-only), we never reach here.
@@ -706,7 +859,7 @@ def run_with_gpu_pool(
             with _tracked_tesseract(tags[name], [gid], _NO_HC) as t:
                 fn(name, t)
         except Exception as exc:
-            print_warn(f"{name} failed: {exc}")
+            _warn_docker_failure(f"{name} failed: ", exc, name)
             if on_error is not None:
                 on_error(name, exc)
         finally:
@@ -714,6 +867,7 @@ def run_with_gpu_pool(
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(gpu_ids)) as pool:
         list(pool.map(_work, solver_names))
+    flush_docker_hints()
 
 
 # ── Solver execution ──────────────────────────────────────────────────────────
