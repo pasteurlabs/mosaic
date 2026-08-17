@@ -35,7 +35,7 @@ certifi==2026.7.22
     # via requests
 cffi==2.1.1 ; platform_python_implementation != 'PyPy'
     # via cryptography
-charset-normalizer==3.4.9
+charset-normalizer==3.5.1
     # via requests
 click==8.4.2
     # via
@@ -55,7 +55,7 @@ cryptography==50.0.0
     # via google-auth
 cycler==0.12.1
     # via matplotlib
-databricks-sdk==0.125.0
+databricks-sdk==0.130.0
     # via mlflow-skinny
 debugpy==1.8.21
     # via tesseract-core
@@ -67,7 +67,7 @@ fastapi==0.139.2
     # via
     #   mlflow-skinny
     #   tesseract-core
-filelock==3.32.2
+filelock==3.32.3
     # via mosaic-bench
 fonttools==4.63.0
     # via matplotlib
@@ -81,7 +81,7 @@ fsspec==2026.6.0
     #   tesseract-core
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.58
+gitpython==3.1.59
     # via mlflow-skinny
 google-auth==2.56.3
     # via databricks-sdk
@@ -141,7 +141,7 @@ matplotlib==3.11.1 ; python_full_version >= '3.11'
     # via mosaic-bench
 mdurl==0.1.2
     # via markdown-it-py
-ml-dtypes==0.5.4
+ml-dtypes==0.6.0
     # via
     #   jax
     #   jaxlib
@@ -256,7 +256,7 @@ python-dateutil==2.9.0.post0
     #   botocore
     #   matplotlib
     #   pandas
-python-dotenv==1.2.2
+python-dotenv==1.2.3
     # via mlflow-skinny
 pytz==2026.3.post1 ; python_full_version < '3.11'
     # via pandas
@@ -300,7 +300,7 @@ six==1.17.0
     # via python-dateutil
 smmap==5.0.3
     # via gitdb
-sqlparse==0.5.5
+sqlparse==0.6.0
     # via mlflow-skinny
 starlette==1.6.0
     # via
@@ -339,7 +339,7 @@ typing-extensions==4.16.0
     #   starlette
     #   typing-inspection
     #   uvicorn
-typing-inspection==0.4.2
+typing-inspection==0.4.4
     # via
     #   fastapi
     #   pydantic
