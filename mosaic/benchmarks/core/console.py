@@ -65,7 +65,7 @@ def print_skip(msg: str) -> None:
 
 def print_hint(msg: str) -> None:
     """Print an actionable hint. Yellow like a warning, but not itself a failure."""
-    console.print(f"[yellow][HINT] {msg}[/yellow]")
+    console.print(f"[yellow][HINT][/yellow] {msg}")
 
 
 def github_annotation(level: str, msg: str, *, title: str | None = None) -> None:
