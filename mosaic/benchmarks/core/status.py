@@ -1952,11 +1952,6 @@ def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
     if firm:
         lines.append("### 📊 Metric changes")
         lines.append("")
-        lines.append(
-            "_Numeric shifts for solvers that stayed `ok` — the status ladder "
-            "alone wouldn't surface these._"
-        )
-        lines.append("")
         for r in firm:
             lines.append(_fmt_metric_shift(r))
         lines.append("")

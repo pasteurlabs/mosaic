@@ -42,7 +42,7 @@ if [[ -n "${DOCS_PREVIEW_URL:-}" ]]; then
   RESULTS_URL="${DOCS_PREVIEW_URL%/}/docs/results.html"
   # Tailor the blurb to whether a status report follows.
   if [[ -n "$REPORT" ]]; then
-    PREVIEW_BLURB="The rendered docs preview has every plot for this run (forward accuracy,
+    PREVIEW_BLURB="The rendered docs preview has every plot for this run (forward accuracy, \
 gradients, cost, optimization) merged with existing baseline results on \`main\`. The summary below reports pass/fail status."
   else
     PREVIEW_BLURB="No benchmarks ran for this PR, so there is no status report."

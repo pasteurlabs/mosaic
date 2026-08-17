@@ -63,6 +63,11 @@ def print_skip(msg: str) -> None:
     console.print(f"[dim][SKIP] {msg}[/dim]")
 
 
+def print_hint(msg: str) -> None:
+    """Print an actionable hint. Yellow like a warning, but not itself a failure."""
+    console.print(f"[yellow][HINT][/yellow] {msg}")
+
+
 def github_annotation(level: str, msg: str, *, title: str | None = None) -> None:
     """Emit a GitHub Actions workflow annotation when running under CI.
 
