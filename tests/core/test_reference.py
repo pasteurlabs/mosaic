@@ -9,13 +9,19 @@ import numpy as np
 import pytest
 
 from mosaic.benchmarks.core.reference import (
+    CONVERGED_REFERENCES,
     PRECOMPUTED_EXPERIMENTS,
+    ConvergedSpec,
+    _domain_slug_to_package,
     _reference_dir,
     _reference_filename,
+    converged_spec,
     extract_references_from_fields,
+    is_precomputed_experiment,
     load_reference,
     reference_exists,
     save_reference,
+    spectral_downsample,
 )
 
 
@@ -28,6 +34,72 @@ class TestReferenceFilename:
             _reference_filename("forward/source_linearity")
             == "forward_source_linearity.npz"
         )
+
+
+class TestSlugToPackage:
+    def test_default_hyphen_to_underscore(self):
+        assert _domain_slug_to_package("structural-mesh") == "structural_mesh"
+        assert _domain_slug_to_package("ns-grid") == "ns_grid"
+
+    def test_ns_3d_grid_alias(self):
+        # The 3D slug does not follow the ``-`` -> ``_`` convention; its
+        # package (and reference dir) is navier_stokes_3d_grid.
+        assert _domain_slug_to_package("ns-3d-grid") == "navier_stokes_3d_grid"
+
+
+class TestIsPrecomputedExperiment:
+    def test_designated(self):
+        assert is_precomputed_experiment("ns-3d-grid", "forward/agreement")
+
+    def test_not_designated(self):
+        assert not is_precomputed_experiment("ns-3d-grid", "forward/baseline")
+
+    def test_unknown_domain(self):
+        assert not is_precomputed_experiment("nope", "forward/agreement")
+
+
+class TestConvergedReference:
+    def test_ns_3d_grid_agreement_is_converged(self):
+        spec = converged_spec("ns-3d-grid", "forward/agreement")
+        assert isinstance(spec, ConvergedSpec)
+        assert spec.high_n > 16  # above the benchmark grid
+
+    def test_consensus_experiment_has_no_converged_spec(self):
+        # structural-mesh agreement is a plain consensus reference.
+        assert converged_spec("structural-mesh", "forward/agreement") is None
+
+    def test_every_converged_experiment_is_precomputed(self):
+        # A converged strategy only makes sense for a checked-in reference.
+        for domain, exp_key in CONVERGED_REFERENCES:
+            assert is_precomputed_experiment(domain, exp_key)
+
+
+class TestSpectralDownsample:
+    def test_band_limited_is_exact(self):
+        """A field with no energy above the target Nyquist truncates exactly."""
+        n, nt = 32, 16
+        x = np.linspace(0, 2 * np.pi, n, endpoint=False)
+        X, Y, _ = np.meshgrid(x, x, x, indexing="ij")
+        # Modes at |k|<=1, well below the nt=16 cutoff.
+        field = np.stack(
+            [np.sin(X) * np.cos(Y), -np.cos(X) * np.sin(Y), np.zeros_like(X)],
+            axis=-1,
+        )
+        ds = spectral_downsample(field, nt)
+
+        x2 = np.linspace(0, 2 * np.pi, nt, endpoint=False)
+        X2, Y2, _ = np.meshgrid(x2, x2, x2, indexing="ij")
+        direct = np.stack(
+            [np.sin(X2) * np.cos(Y2), -np.cos(X2) * np.sin(Y2), np.zeros_like(X2)],
+            axis=-1,
+        )
+        assert ds.shape == (nt, nt, nt, 3)
+        np.testing.assert_allclose(ds, direct, atol=1e-12)
+
+    def test_upsample_rejected(self):
+        field = np.zeros((8, 8, 8, 3))
+        with pytest.raises(ValueError):
+            spectral_downsample(field, 16)
 
 
 class TestSaveAndLoadReference:
@@ -125,8 +197,11 @@ class TestPrecomputedExperiments:
         assert "forward/source_baseline" in exps
         assert "forward/source_linearity" in exps
 
-    def test_ns_3d_grid_not_listed(self):
-        assert "ns-3d-grid" not in PRECOMPUTED_EXPERIMENTS
+    def test_ns_3d_grid_experiments(self):
+        # forward/agreement uses a converged spectral reference, not the
+        # linearized analytic decay (issue #123).
+        exps = PRECOMPUTED_EXPERIMENTS["ns-3d-grid"]
+        assert "forward/agreement" in exps
 
 
 class TestCheckedInReferences:
