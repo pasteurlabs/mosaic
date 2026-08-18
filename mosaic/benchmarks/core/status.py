@@ -331,6 +331,66 @@ def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
             cells[solver] = Cell(*verdict)
 
 
+def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
+    """Walk ``checks`` against per-solver :class:`ForwardSummary` instances.
+
+    Forward results are ``by_solver[solver] = {error, valid}`` (non-swept) or
+    ``by_solver[solver][pval] = {error, valid}`` (swept), the same layout
+    :func:`_collect_forward_metrics` reads. Peer medians are formed per sweep
+    point across OK solvers, so a solver is compared against its peers at the
+    same resolution rather than against a pooled figure. First anomaly wins.
+    """
+    from .status_checks import ForwardSummary
+
+    if not checks:
+        return
+    by_solver = data.get("by_solver", {})
+    if not isinstance(by_solver, dict):
+        return
+
+    errs_per_solver: dict[str, dict[Any, float]] = {}
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = by_solver.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        # Swept: values are per-pval dicts. Non-swept: entry is the metrics dict.
+        swept = bool(entry) and all(isinstance(v, dict) for v in entry.values())
+        points = entry.items() if swept else [("", entry)]
+        errs: dict[Any, float] = {}
+        for pval, sub in points:
+            if not isinstance(sub, dict) or sub.get("valid") is False:
+                continue
+            err = sub.get("error")
+            if isinstance(err, int | float) and math.isfinite(err):
+                errs[pval] = float(err)
+        if errs:
+            errs_per_solver[solver] = errs
+
+    if not errs_per_solver:
+        return
+
+    # Peer median per sweep point; needs >= 2 solvers to mean anything, and
+    # median_k skips any point whose peer median is absent or non-positive.
+    peer_medians: dict[Any, float] = {}
+    all_pvals = {p for errs in errs_per_solver.values() for p in errs}
+    for pval in all_pvals:
+        vals = [e[pval] for e in errs_per_solver.values() if pval in e]
+        if len(vals) >= 2:
+            peer_medians[pval] = _median(vals)
+
+    for solver, errs in errs_per_solver.items():
+        summary = ForwardSummary(
+            errs_by_pval=dict(errs),
+            peer_medians_by_pval=dict(peer_medians),
+            n_valid_points=len(errs),
+        )
+        verdict = _run_checks(checks, summary)
+        if verdict:
+            cells[solver] = Cell(*verdict)
+
+
 def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
     """Anomaly checks for fd_check / source_fd_check.
 
@@ -829,7 +889,9 @@ def _refine_for_suite(
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
-    if suite == "cost":
+    if suite == "forward":
+        _refine_forward(view, cells, checks)
+    elif suite == "cost":
         _refine_cost(view, cells, checks)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
