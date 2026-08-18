@@ -512,7 +512,7 @@ jobs:
              && "${{ needs.plan.outputs.is_release_pr }}" != "true" \
              && -z "${{ needs.plan.outputs.label }}" ]]; then
             echo "::error::This PR modifies mosaic/ code but has no benchmark label."
-            echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:all"
+            echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:domain, benchmark:all"
             exit 1
           fi
 
