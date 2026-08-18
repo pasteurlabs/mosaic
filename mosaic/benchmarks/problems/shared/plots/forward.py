@@ -415,7 +415,11 @@ def _agreement_figure(
     data = v1_to_legacy(load_json(out_dir / "result.json"))
     sweep_key = data.get("sweep_key", "param")
     reference_label = data.get("reference_label", "consensus")
-    ref_desc = "analytic" if reference_label == "analytic" else "consensus"
+    _REF_DESC = {
+        "analytic": "analytic",
+        "converged": "converged reference",
+    }
+    ref_desc = _REF_DESC.get(reference_label, "consensus")
 
     fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.55, TEXTWIDTH * 0.42), dpi=300)
     fig.subplots_adjust(bottom=0.34, left=0.18, right=0.95, top=0.88)

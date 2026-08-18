@@ -34,6 +34,7 @@ File layout::
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -44,8 +45,16 @@ log = logging.getLogger(__name__)
 _PROBLEMS_DIR: Path = Path(__file__).resolve().parents[1] / "problems"
 
 
+# Domains whose CLI slug does not map to the package name by ``-`` → ``_``.
+_PACKAGE_ALIASES: dict[str, str] = {
+    "ns-3d-grid": "navier_stokes_3d_grid",
+}
+
+
 def _domain_slug_to_package(domain: str) -> str:
     """Convert a CLI domain slug (e.g. ``structural-mesh``) to the Python package name."""
+    if domain in _PACKAGE_ALIASES:
+        return _PACKAGE_ALIASES[domain]
     return domain.replace("-", "_")
 
 
@@ -164,6 +173,12 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     "ns-grid": [
         "forward/cylinder",
     ],
+    # The 3D TGV forward/agreement reference is a *converged* spectral run,
+    # not the linearized analytic decay (issue #123). Its strategy lives in
+    # CONVERGED_REFERENCES below.
+    "ns-3d-grid": [
+        "forward/agreement",
+    ],
     "structural-mesh": [
         "forward/baseline",
         "forward/agreement",
@@ -178,3 +193,71 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
 
 # Backward-compat alias
 CONSENSUS_EXPERIMENTS = PRECOMPUTED_EXPERIMENTS
+
+
+@dataclass(frozen=True)
+class ConvergedSpec:
+    """How to build a *converged* reference for one experiment.
+
+    A converged reference is a single high-fidelity solver run at a resolution
+    well above the benchmark grid, spectrally truncated back down — the true
+    continuous solution sampled on the benchmark grid, as opposed to a
+    trimmed-mean *consensus* across peers (which shares their common-mode bias).
+
+    Attributes:
+        solver: Name of the reference solver (must be a spectral, periodic
+            solver so spectral downsampling is exact).
+        high_n: Grid resolution to integrate at before downsampling.
+    """
+
+    solver: str
+    high_n: int
+
+
+# (domain, exp_key) → ConvergedSpec for experiments whose reference is a
+# converged spectral run rather than a peer consensus. Experiments in
+# PRECOMPUTED_EXPERIMENTS but absent here default to the consensus strategy.
+CONVERGED_REFERENCES: dict[tuple[str, str], ConvergedSpec] = {
+    # 3D TGV forward accuracy: the linearized analytic decay is only a
+    # short-horizon approximation, so score against a converged spectral run
+    # instead (issue #123). Exponax is spectral and enforces incompressibility
+    # to machine precision; at N=64 the field is band-limited well below the
+    # N=16 Nyquist cutoff, so truncation to the benchmark grid is exact.
+    ("ns-3d-grid", "forward/agreement"): ConvergedSpec(solver="Exponax", high_n=64),
+}
+
+
+def converged_spec(domain: str, exp_key: str) -> ConvergedSpec | None:
+    """Return the converged-reference spec for an experiment, or None."""
+    return CONVERGED_REFERENCES.get((domain, exp_key))
+
+
+def spectral_downsample(field: np.ndarray, n_target: int) -> np.ndarray:
+    """Spectrally truncate a periodic field to ``n_target`` points per axis.
+
+    ``field`` has shape ``(N, N, N, C)`` (or ``(N, N, C)``) on a uniform
+    periodic grid. Truncation keeps the ``n_target`` lowest-|k| Fourier modes
+    per spatial axis; it is exact when the field carries no energy above the
+    target Nyquist cutoff. Returns the same layout at ``n_target`` per axis.
+    """
+    spatial = field.ndim - 1
+    axes = tuple(range(spatial))
+    n = field.shape[0]
+    if n_target > n:
+        raise ValueError(f"n_target={n_target} exceeds source resolution {n}")
+    fh = np.fft.fftn(field, axes=axes)
+    h = n_target // 2
+    idx = np.concatenate([np.arange(h), np.arange(n - h, n)])
+    fh = fh[np.ix_(*([idx] * spatial), range(field.shape[-1]))]
+    out = np.fft.ifftn(fh, axes=axes) * (n_target / n) ** spatial
+    return np.real(out)
+
+
+def is_precomputed_experiment(domain: str, exp_key: str) -> bool:
+    """Whether ``domain``/``exp_key`` is served by a checked-in reference.
+
+    Designated precomputed experiments prefer their reference NPZ over any
+    runtime reference selection (analytic or consensus) — the checked-in
+    field is the intended ground truth for the accuracy metric.
+    """
+    return exp_key in PRECOMPUTED_EXPERIMENTS.get(domain, [])

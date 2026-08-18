@@ -33,7 +33,10 @@ from mosaic.benchmarks.core.io import (
     save_csv,
     save_field_snapshots_npz,
 )
-from mosaic.benchmarks.core.reference import load_reference
+from mosaic.benchmarks.core.reference import (
+    is_precomputed_experiment,
+    load_reference,
+)
 from mosaic.benchmarks.core.runner import (
     get_last_apply_error,
     safe_apply,
@@ -164,15 +167,24 @@ def _agreement_aggregate(
     suite = _kw.get("suite", "forward")
     ref_key = f"{suite}/{exp_key}"
 
+    # Designated precomputed experiments ship a converged reference that is the
+    # intended ground truth; it takes precedence over the runtime analytic
+    # reference (which, for 3D TGV, is only a short-horizon approximation).
+    prefer_precomputed = is_precomputed_experiment(cfg.name, ref_key)
+
     for i, val in enumerate(sweep_values):
         comparable = outputs_per_val.get(val, {})
         for n, arr in comparable.items():
             per_solver_for_npz.setdefault(n, {})[str(i)] = np.asarray(arr)
 
-        has_analytic = analytic_fn is not None and "obstacle" not in phys
-        has_ref_solver = reference_solver is not None and reference_solver in comparable
         precomputed = load_reference(cfg.name, ref_key, i)
         has_precomputed = precomputed is not None
+        has_analytic = (
+            analytic_fn is not None
+            and "obstacle" not in phys
+            and not (prefer_precomputed and has_precomputed)
+        )
+        has_ref_solver = reference_solver is not None and reference_solver in comparable
 
         if len(comparable) == 0 or (
             len(comparable) < 2
@@ -196,7 +208,10 @@ def _agreement_aggregate(
                 )
             continue
 
-        if has_analytic:
+        if prefer_precomputed and has_precomputed:
+            reference = precomputed
+            reference_label = "converged"
+        elif has_analytic:
             reference = _analytic_reference(
                 ic_name=ic_name,
                 seed=seed,
