@@ -26,9 +26,16 @@ Nothing enforced that contract, so the tests here pin:
 from __future__ import annotations
 
 import unittest
+from typing import ClassVar
 
 from mosaic.benchmarks.core import status_checks
-from mosaic.benchmarks.core.status import ANOMALY, OK, Cell, _refine_fd_check
+from mosaic.benchmarks.core.status import (
+    ANOMALY,
+    OK,
+    Cell,
+    _refine_fd_check,
+    _refine_for_suite,
+)
 from mosaic.benchmarks.core.status_checks import (
     CostSummary,
     FdCheckSummary,
@@ -197,3 +204,79 @@ class TestFdCheckPipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestForwardPipeline:
+    """The forward suite must actually apply its configured checks.
+
+    ``ForwardSummary`` had no producer: ``_refine_for_suite`` dispatched cost,
+    gradient and optimization but not forward, and ``_classify_from_v1`` takes
+    a ``checks`` argument it never reads. So every ``"forward"`` entry in a
+    problem config was inert, including the two in ns-grid.
+    """
+
+    DATA: ClassVar[dict] = {
+        "by_solver": {
+            "peer_a": {
+                "16": {"error": 1.0, "valid": True},
+                "32": {"error": 1.0, "valid": True},
+            },
+            "peer_b": {
+                "16": {"error": 1.0, "valid": True},
+                "32": {"error": 1.0, "valid": True},
+            },
+            "outlier": {
+                "16": {"error": 10.0, "valid": True},
+                "32": {"error": 12.0, "valid": True},
+            },
+        }
+    }
+
+    def _run(self, checks, data=None):
+        data = self.DATA if data is None else data
+        cells = {s: Cell(OK) for s in data["by_solver"]}
+        _refine_for_suite("forward", "agreement", data, cells, checks)
+        return cells
+
+    def test_peer_outlier_is_flagged(self) -> None:
+        cells = self._run([median_k(3.0)])
+        assert cells["outlier"].status == ANOMALY
+        assert cells["peer_a"].status == OK
+        assert cells["peer_b"].status == OK
+
+    def test_absolute_threshold_is_applied(self) -> None:
+        cells = self._run([max_error(0.5)])
+        assert all(c.status == ANOMALY for c in cells.values())
+
+    def test_no_checks_is_a_noop(self) -> None:
+        assert all(c.status == OK for c in self._run([]).values())
+
+    def test_invalid_points_are_ignored(self) -> None:
+        data = {
+            "by_solver": {
+                "peer_a": {"16": {"error": 1.0, "valid": True}},
+                "peer_b": {"16": {"error": 1.0, "valid": True}},
+                # its only bad point is marked invalid, so nothing should fire
+                "outlier": {
+                    "16": {"error": 1.0, "valid": True},
+                    "32": {"error": 99.0, "valid": False},
+                },
+            }
+        }
+        assert self._run([median_k(3.0), max_error(2.0)], data)["outlier"].status == OK
+
+    def test_peer_median_needs_two_solvers(self) -> None:
+        """A lone solver has no peers, so a relative check must stay quiet."""
+        data = {"by_solver": {"only": {"16": {"error": 99.0, "valid": True}}}}
+        assert self._run([median_k(3.0)], data)["only"].status == OK
+
+    def test_non_swept_layout_is_handled(self) -> None:
+        """Non-swept forward results are a flat metrics dict per solver."""
+        data = {
+            "by_solver": {
+                "peer_a": {"error": 1.0, "valid": True},
+                "peer_b": {"error": 1.0, "valid": True},
+                "outlier": {"error": 50.0, "valid": True},
+            }
+        }
+        assert self._run([median_k(3.0)], data)["outlier"].status == ANOMALY
