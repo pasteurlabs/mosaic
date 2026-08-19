@@ -29,12 +29,16 @@ import unittest
 from typing import ClassVar
 
 from mosaic.benchmarks.core import status_checks
+from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.experiment import kernel
 from mosaic.benchmarks.core.status import (
     ANOMALY,
     OK,
     Cell,
+    _lookup_check,
     _refine_fd_check,
     _refine_for_suite,
+    _run_checks,
 )
 from mosaic.benchmarks.core.status_checks import (
     CostSummary,
@@ -280,3 +284,72 @@ class TestForwardPipeline:
             }
         }
         assert self._run([median_k(3.0)], data)["outlier"].status == ANOMALY
+
+
+@kernel(sweep_mode="none")
+def _noop(t, ctx) -> dict:
+    return {"metrics": {}}
+
+
+class TestLookupCheckPrecedence:
+    """A more-specific status-check source *replaces* the suite default.
+
+    The regression this pins: ns-grid gives ``forward/agreement/multimode`` a
+    looser ``max_error(1.5)`` override, but ``_lookup_check`` used to *append*
+    it to the suite default ``max_error(0.5)``. Since ``_run_checks``
+    short-circuits on the first anomaly, the stricter default fired first and
+    the override never applied — flagging every solver at error 1.03. Sources
+    must replace, not accumulate.
+    """
+
+    # An error that trips the strict default (0.5) but not the loose override
+    # (1.5) — the exact multimode case from the v0.2.0 run.
+    SUMMARY: ClassVar[ForwardSummary] = ForwardSummary(
+        errs_by_pval={"0.001": 1.03},
+        peer_medians_by_pval={"0.001": 1.03},
+        n_valid_points=1,
+    )
+
+    def _problem(self, status_checks: dict) -> Problem:
+        return Problem(name="t", status_checks=status_checks)
+
+    def test_suite_default_applies_without_an_override(self) -> None:
+        p = self._problem({"forward": [median_k(3.0), max_error(0.5)]})
+        checks = _lookup_check(p, "forward", "agreement/tgv")
+        assert _run_checks(checks, self.SUMMARY) is not None
+
+    def test_per_ic_override_replaces_the_suite_default(self) -> None:
+        # The looser per-IC override must win outright — no strict default
+        # left behind to fire first.
+        p = self._problem(
+            {
+                "forward": [median_k(3.0), max_error(0.5)],
+                "forward/agreement/multimode": [median_k(3.0), max_error(1.5)],
+            }
+        )
+        checks = _lookup_check(p, "forward", "agreement/multimode")
+        assert len(checks) == 2
+        assert _run_checks(checks, self.SUMMARY) is None
+
+    def test_full_label_beats_leading_token(self) -> None:
+        # A per-IC key ("agreement/multimode") is more specific than a
+        # per-experiment key ("agreement") and must take precedence.
+        p = self._problem(
+            {
+                "forward/agreement": [max_error(0.5)],
+                "forward/agreement/multimode": [max_error(1.5)],
+            }
+        )
+        checks = _lookup_check(p, "forward", "agreement/multimode")
+        assert _run_checks(checks, self.SUMMARY) is None
+
+    def test_inline_override_replaces_dict_sources(self) -> None:
+        p = self._problem({"forward": [max_error(0.5)]})
+        p.add_experiment(
+            "forward/loose", _noop, physics={"N": 16}, status_check=[max_error(1.5)]
+        )
+        checks = _lookup_check(p, "forward", "loose")
+        assert _run_checks(checks, self.SUMMARY) is None
+
+    def test_no_config_means_no_checks(self) -> None:
+        assert _lookup_check(self._problem({}), "forward", "agreement/tgv") == []

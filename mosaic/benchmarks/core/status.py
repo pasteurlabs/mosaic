@@ -143,42 +143,46 @@ def compute_score(cells: list[Cell]) -> tuple[float | None, int]:
 
 
 def _lookup_check(cfg: Problem, suite: str, experiment: str) -> list:
-    """Return the merged list of check callables for (suite, experiment).
+    """Return the check callables for (suite, experiment).
 
-    Sources are accumulated in order of increasing specificity; suite-level
-    defaults come first so per-experiment checks can override them by
-    short-circuiting (the classifier walks the list and stops on the first
-    ``anom``, so more-specific entries should appear *later* — placing them
-    at the tail ensures they're consulted last and thus have the final say
-    only when earlier checks pass).
+    The most-specific source that supplies any checks *replaces* the less
+    specific ones — it does not merge with them. Replacement (rather than
+    accumulation) is required because the classifier short-circuits on the
+    first ``anom`` (see :func:`_run_checks`): an appended looser override
+    could never overturn a stricter default that fires first. Every override
+    site in the configs already lists a complete set of checks for its suite,
+    so replacement matches the intent.
 
-    Sources:
-      1. ``cfg.status_checks[suite]`` — suite-level defaults
+    Sources, from most to least specific — the first non-empty one wins:
+      1. ``cfg.experiments[key].params["status_check"]`` — inline override on
+         the ``.add_experiment(..., status_check=[...])`` call
       2. ``cfg.status_checks[<suite>/<experiment>]`` /
          ``cfg.status_checks[<suite>/<leading>]`` — per-experiment / per-IC
-         overrides from the Problem-level dict
-      3. ``cfg.experiments[full].params["status_check"]`` — inline overrides
-         set on the ``.add_experiment(..., status_check=[...])`` call
+         override from the Problem-level dict
+      3. ``cfg.status_checks[suite]`` — suite-level defaults
 
-    Each source is a list of callables (or a single callable); both shapes
-    are normalised via :func:`status_checks.normalize`.
+    Experiment labels may include an IC sub-dir (e.g. ``agreement/tgv``), so
+    the full label is tried before its leading token. Each source is a list
+    of callables (or a single callable); both shapes are normalised via
+    :func:`status_checks.normalize`.
     """
     from .status_checks import normalize
 
     checks = cfg.status_checks
-    merged: list = []
-    merged.extend(normalize(checks.get(suite)))
-    # experiment labels may include an IC sub-dir (e.g. "agreement/tgv");
-    # match both the full label and the leading token.
+    # Most-specific first: full experiment label, then its leading token.
     for key in (f"{suite}/{experiment}", f"{suite}/{experiment.split('/', 1)[0]}"):
-        merged.extend(normalize(checks.get(key)))
         exp = cfg.experiments.get(key)
-        if exp is not None:
-            inline = (
-                exp.params.get("status_check") if isinstance(exp.params, dict) else None
-            )
-            merged.extend(normalize(inline))
-    return merged
+        inline = (
+            exp.params.get("status_check")
+            if exp and isinstance(exp.params, dict)
+            else None
+        )
+        if inline:
+            return normalize(inline)
+        override = checks.get(key)
+        if override:
+            return normalize(override)
+    return normalize(checks.get(suite))
 
 
 @dataclass
