@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.0] - 2026-08-18
+## [0.2.0] - 2026-08-19
 
 ### Features
 
@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - *(harness)* Report the anomaly status from min_cosine (#141)
 - Use proper reference for 3D TGV (#136)
 - Publish race (#146)
+- Result merge and plotting (#151)
+- *(harness)* Apply the forward suite's status checks (#148)
 
 ### Documentation
 
