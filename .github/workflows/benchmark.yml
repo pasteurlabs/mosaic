@@ -338,6 +338,38 @@ jobs:
             fi
           fi
 
+      # Release PRs compare against the *previous release* rather than main's
+      # rolling baseline: fetch the prior release's results asset (which bundles
+      # its snapshot.json) into the same baseline/ location the extract step
+      # below reads from. The release PR runs the full suite and its results are
+      # NOT overlaid onto the baseline (the overlay step above is gated off for
+      # release PRs), so this is a clean release-vs-release diff. Degrades to no
+      # diff (plain report) when there's no prior release or its asset predates
+      # the results-bundle scheme (older releases have no mosaic-results-*.zip).
+      - name: Download previous release snapshot
+        id: prev_release
+        if: >-
+          needs.plan.outputs.should_run == 'true'
+          && needs.plan.outputs.is_release_pr == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG=$(gh release view --json tagName --jq '.tagName' 2>/dev/null || true)
+          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+          if [ -z "$PREV_TAG" ]; then
+            echo "No prior release found — release comparison will be skipped."
+            exit 0
+          fi
+          mkdir -p /tmp/prev-release
+          if ! gh release download "$PREV_TAG" \
+              --pattern 'mosaic-results-*.zip' --dir /tmp/prev-release 2>/dev/null; then
+            echo "Prior release $PREV_TAG has no mosaic-results-*.zip asset — skipping comparison."
+            exit 0
+          fi
+          mkdir -p baseline/mosaic-results
+          unzip -q -o /tmp/prev-release/mosaic-results-*.zip -d baseline/mosaic-results
+          echo "Fetched previous release snapshot ($PREV_TAG)"
+
       # The status snapshot/report exist only to summarise *this run's* results
       # against the baseline. When no benchmarks ran (e.g. benchmark:none or a
       # docs-only PR), the result tree is just a copy of the baseline, so the
@@ -384,6 +416,11 @@ jobs:
           DIFF_FLAG=""
           if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
             DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
+            # Release PRs diff against the previous release tag; name it in the
+            # header so the comment reads "vs v0.1.1" instead of "vs base".
+            if [[ "${{ needs.plan.outputs.is_release_pr }}" == "true" && -n "${{ steps.prev_release.outputs.tag }}" ]]; then
+              DIFF_FLAG="$DIFF_FLAG --diff-label ${{ steps.prev_release.outputs.tag }}"
+            fi
           fi
           uv run mosaic status --format md $DIFF_FLAG --run-scope run-scope.json > status-report.md
 
