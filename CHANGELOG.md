@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Surface numeric metric regressions and scope PR benchmark diffs (#137)
 - Implement checkpointing for XLB (#135)
 - Implement auto-rescaling to fix anisotropy of thermal mesh (#140)
+- Compare release PRs against the previous release (#153)
 
 ### Bug Fixes
 
@@ -23,6 +24,7 @@ All notable changes to this project will be documented in this file.
 - Publish race (#146)
 - Result merge and plotting (#151)
 - *(harness)* Apply the forward suite's status checks (#148)
+- Status-check overrides replace suite defaults (#152)
 
 ### Documentation
 
