@@ -22,13 +22,12 @@ import numpy as np
 
 from mosaic.benchmarks.core.io import load_json, results_dir
 from mosaic.benchmarks.problems.shared.plots.style import (
-    NS_ORDER,
     RCPARAMS,
-    STRUCTURAL_ORDER,
-    THERMAL_ORDER,
     dedup_handles,
     make_handle,
     paper_grid,
+    resolve_solver_alias,
+    solver_order_for_problem,
     solver_props,
 )
 
@@ -185,17 +184,12 @@ def plot_cost_overview(
     failure_types_seen: set[str] = set()
 
     for solver in all_solvers:
-        alias = solver.lower().replace("-", "_").replace(".", "_")
-        # Direct alias lookup: SOLVER_STYLES keys are aliases (jax_cfd, openfoam, ...)
-        # and result.json keys are display names ("OpenFOAM", "jax-cfd"). Normalise.
-        from mosaic.benchmarks.problems.shared.plots.style import SOLVER_STYLES
-
-        if alias not in SOLVER_STYLES:
-            # Try matching by stripping common label tweaks.
-            for key, (label, *_rest) in SOLVER_STYLES.items():
-                if label == solver:
-                    alias = key
-                    break
+        # SOLVER_STYLES keys are aliases (jax_cfd, openfoam, ...) and
+        # result.json keys are display names ("OpenFOAM", "jax-cfd"); prefer
+        # this domain's aliases so shared labels (e.g. the structural and
+        # thermal "FEniCS") resolve into ``solver_order`` and stay in the
+        # legend. Unresolvable names fall through to the grey style.
+        alias = resolve_solver_alias(solver, prefer=solver_order) or solver
         _label, color, ls, mk = solver_props(alias)
         kw = {
             "color": color,
@@ -340,17 +334,6 @@ def plot_cost_overview(
     print(f"Saved {out}")
 
 
-# Default solver-order lookup keyed by ``Problem.name``. Lets the helper
-# below auto-pick the right ordering without each domain importing the
-# style module to thread the constant through.
-_DEFAULT_ORDER_BY_PROBLEM: dict[str, list[str]] = {
-    "ns-grid": NS_ORDER,
-    "ns-3d-grid": NS_ORDER,
-    "structural-mesh": STRUCTURAL_ORDER,
-    "thermal-mesh": THERMAL_ORDER,
-}
-
-
 def plot_cost_overview_for(
     cfg: Any,
     *,
@@ -361,13 +344,13 @@ def plot_cost_overview_for(
 
     Reads ``cfg.tesseract_dir.name`` as the results subdirectory and
     ``cfg.category_label`` (with ``cfg.name`` fallback) as the panel
-    label. ``solver_order`` defaults to the per-domain entry in
-    ``_DEFAULT_ORDER_BY_PROBLEM`` keyed by ``cfg.name``.
+    label. ``solver_order`` defaults to the problem's canonical ordering
+    via :func:`solver_order_for_problem`.
     """
     out_dir = results_dir() / cfg.name / "_extra"
     out_dir.mkdir(parents=True, exist_ok=True)
     if solver_order is None:
-        solver_order = _DEFAULT_ORDER_BY_PROBLEM.get(cfg.name, cfg.solver_names)
+        solver_order = solver_order_for_problem(cfg.name)
     plot_cost_overview(
         out_dir,
         subdir=cfg.tesseract_dir.name,
