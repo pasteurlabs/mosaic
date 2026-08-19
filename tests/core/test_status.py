@@ -613,6 +613,18 @@ class TestMetricDiff(unittest.TestCase):
         self.assertIn("### ⏱ Timing (indicative", md)
         self.assertIn("2 metric change(s)", md)
 
+    def test_render_label_names_the_comparison_point(self) -> None:
+        """The diff header names its comparison point (e.g. a release tag)."""
+        from mosaic.benchmarks.core.status import diff_snapshots, render_diff_markdown
+
+        diff = diff_snapshots(
+            self._snap({"rel_err": 1e-4}), self._snap({"rel_err": 1e-4})
+        )
+        self.assertIn("## Status diff vs base", render_diff_markdown(diff))
+        self.assertIn(
+            "## Status diff vs v0.1.1", render_diff_markdown(diff, label="v0.1.1")
+        )
+
 
 class TestMetricCollection(unittest.TestCase):
     """``_collect_metrics_for_suite`` populates ``cell.metrics`` from v1 results."""
