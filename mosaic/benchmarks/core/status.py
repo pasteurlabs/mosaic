@@ -2030,9 +2030,14 @@ def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
         lines.append("")
 
 
-def render_diff_markdown(diff: dict) -> str:
-    """Render a snapshot diff as markdown suitable for a PR comment."""
-    lines: list[str] = ["## Status diff vs base", "", _MD_LEGEND, ""]
+def render_diff_markdown(diff: dict, label: str = "base") -> str:
+    """Render a snapshot diff as markdown suitable for a PR comment.
+
+    ``label`` names the comparison point in the header (e.g. ``"base"`` for a
+    PR-vs-main diff, or a prior release tag like ``"v0.1.1"`` for a
+    release-to-release diff).
+    """
+    lines: list[str] = [f"## Status diff vs {label}", "", _MD_LEGEND, ""]
     n_reg = len(diff["regressions"])
     n_imp = len(diff["improvements"])
     n_oth = len(diff["other"])

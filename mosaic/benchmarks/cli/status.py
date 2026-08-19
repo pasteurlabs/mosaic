@@ -60,6 +60,12 @@ def status(
         "With --format md, prepend a coverage banner stating what was actually measured "
         "this run vs. shown from the baseline.",
     ),
+    diff_label: str | None = typer.Option(
+        None,
+        "--diff-label",
+        help="Name for the --diff-against comparison point in the diff header "
+        "(e.g. a prior release tag like 'v0.1.1'). Defaults to 'base'.",
+    ),
     output_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--output-dir",
@@ -105,7 +111,9 @@ def status(
 
     # ── non-rich formats: skip terminal rendering and emit a snapshot ─────
     if format in ("md", "json"):
-        _status_emit_snapshot(problem_list, suite_list, format, diff_against, run_scope)
+        _status_emit_snapshot(
+            problem_list, suite_list, format, diff_against, run_scope, diff_label
+        )
         return
 
     failure_records: list[
