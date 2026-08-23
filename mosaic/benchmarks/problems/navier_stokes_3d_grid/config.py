@@ -30,7 +30,9 @@ from mosaic.benchmarks.core.config import (
 )
 from mosaic.benchmarks.core.status_checks import (
     max_final_ratio,
+    max_peer_k,
     max_rel_err,
+    median_k,
     min_cosine,
     rel_err_peer_outlier,
 )
@@ -131,6 +133,15 @@ problem = Problem(
     reference=_tgv3d_analytic,
     domain_extent=2 * float(jnp.pi),
     status_checks={
+        # Peer-relative and dimensionless gates only. These carry across
+        # problems by construction: median_k and max_peer_k are multiples of
+        # the peer median, and min_cosine is a direction comparison. The
+        # absolute thresholds ns-grid also sets (max_error, max_rel_err) are
+        # scale-dependent and want calibrating against published numbers for
+        # this problem, so they are deliberately left out here.
+        "forward": [median_k(3.0)],
+        "cost": [max_peer_k(20.0)],
+        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         # Suite-level default — applies to every `optimization/*` experiment.
         "optimization": [max_final_ratio(0.5)],
     },
