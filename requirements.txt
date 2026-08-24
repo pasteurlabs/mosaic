@@ -55,7 +55,7 @@ cryptography==50.0.0
     # via google-auth
 cycler==0.12.1
     # via matplotlib
-databricks-sdk==0.130.0
+databricks-sdk==0.133.0
     # via mlflow-skinny
 debugpy==1.8.21
     # via tesseract-core
@@ -67,7 +67,7 @@ fastapi==0.139.2
     # via
     #   mlflow-skinny
     #   tesseract-core
-filelock==3.32.3
+filelock==3.32.4
     # via mosaic-bench
 fonttools==4.63.0
     # via matplotlib
@@ -87,7 +87,7 @@ google-auth==2.56.3
     # via databricks-sdk
 h11==0.16.0
     # via uvicorn
-idna==3.18
+idna==3.19
     # via
     #   anyio
     #   requests
@@ -104,7 +104,7 @@ jax==0.10.2 ; python_full_version == '3.11.*'
     #   mosaic-bench
     #   optax
     #   tesseract-jax
-jax==0.11.0 ; python_full_version >= '3.12'
+jax==0.11.1 ; python_full_version >= '3.12'
     # via
     #   mosaic-bench
     #   optax
@@ -117,7 +117,7 @@ jaxlib==0.10.2 ; python_full_version == '3.11.*'
     # via
     #   jax
     #   optax
-jaxlib==0.11.0 ; python_full_version >= '3.12'
+jaxlib==0.11.1 ; python_full_version >= '3.12'
     # via
     #   jax
     #   optax
@@ -246,7 +246,7 @@ pydantic==2.13.4
     #   tesseract-core
 pydantic-core==2.46.4
     # via pydantic
-pygments==2.20.0
+pygments==2.21.0
     # via rich
 pyparsing==3.3.2
     # via matplotlib
@@ -290,7 +290,7 @@ scipy==1.17.1 ; python_full_version == '3.11.*'
     # via
     #   jax
     #   jaxlib
-scipy==1.18.0 ; python_full_version >= '3.12'
+scipy==1.18.1 ; python_full_version >= '3.12'
     # via
     #   jax
     #   jaxlib
