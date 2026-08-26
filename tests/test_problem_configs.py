@@ -77,3 +77,28 @@ def test_exclusion_keys_are_strings(problem_config):
 def test_unknown_problem_raises():
     with pytest.raises(ValueError, match="Unknown problem"):
         get_config("nonexistent-problem")
+
+
+#: Problems that deliberately publish without any status check. Adding a name
+#: here is the opt-out: it should come with a reason, so that an ungated
+#: problem is a decision on the record rather than something nobody noticed.
+_UNGATED_BY_DESIGN: frozenset[str] = frozenset()
+
+
+def test_problem_configures_at_least_one_status_check(problem_config):
+    """A problem with no status checks publishes ok for anything finite.
+
+    Without a check a solver only shows up as anom if someone wrote an
+    explicit exclusion for it, so a wrong answer looks the same as a right
+    one. Failing here makes that state opt-in: either configure a check, or
+    add the problem to ``_UNGATED_BY_DESIGN`` with a reason.
+    """
+    if problem_config.name in _UNGATED_BY_DESIGN:
+        pytest.skip(f"{problem_config.name} is ungated by design")
+
+    assert problem_config.status_checks, (
+        f"{problem_config.name} configures no status checks, so every suite "
+        f"publishes ok for any solver that returns finite numbers. Add one to "
+        f"the Problem(...) status_checks dict, or list the problem in "
+        f"_UNGATED_BY_DESIGN with a reason."
+    )
