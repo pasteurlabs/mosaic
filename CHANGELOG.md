@@ -2,7 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.1] - 2026-06-24
+## [0.2.0] - 2026-08-19
+
+### Features
+
+- Surface numeric metric regressions and scope PR benchmark diffs (#137)
+- Implement checkpointing for XLB (#135)
+- Implement auto-rescaling to fix anisotropy of thermal mesh (#140)
+- Compare release PRs against the previous release (#153)
+
+### Bug Fixes
+
+- Stop overlapping text in topopt_3d figure (#91)
+- External contributor friendly doc builds (#111)
+- Update installation instructions (#114)
+- Validate -s solver names against all problems, not just -p (#131)
+- Implement warp suggestions (#132)
+- *(harness)* Diagnose common Docker setup failures instead of dumping stderr (#126)
+- *(harness)* Report the anomaly status from min_cosine (#141)
+- Use proper reference for 3D TGV (#136)
+- Publish race (#146)
+- Result merge and plotting (#151)
+- *(harness)* Apply the forward suite's status checks (#148)
+- Status-check overrides replace suite defaults (#152)
+
+### Documentation
+
+- Link the Mosaic arXiv paper in the README (#88)
+- Fix solver reference pages dropping all canonical IO fields (#84) (#90)
+- Add which solver is best section to readme (#101)
+- Surface numerical ranking for 3D NS optimization (#86) (#92)
+- Correct INS.jl solver description and exclusion rationale (#102)
+- Add disclaimer on llm usage (#134)
+
+### Performance
+
+- Upgrade INS.jl tesseract to v5.0.0 (native ν gradient, in-place forward, float32) (#103)
+
+## [0.1.1] - 2026-06-25
 
 ### Bug Fixes
 

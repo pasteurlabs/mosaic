@@ -36,6 +36,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     resolve_solver_alias,
     save_fig,
     solver_legend,
+    solver_order_for_problem,
     solver_plot_props,
     solver_props,
     solver_styles,
@@ -293,27 +294,29 @@ def _agreement_plot_curves_styled(
 ) -> list[float]:
     """Plot per-solver error-vs-sweep curves onto ``ax``.
 
-    Walks :data:`NS_ORDER`, drawing every solver that produced at least
-    one valid finite positive error. Updates ``seen`` so the caller can
-    build a legend covering only solvers that actually appear, and returns
-    the flat list of plotted error values (so the caller can pick a tick
-    strategy that stays legible when the spread is sub-decade).
+    Walks the problem's canonical solver order, drawing every solver that
+    produced at least one valid finite positive error. Updates ``seen`` so
+    the caller can build a legend covering only solvers that actually
+    appear, and returns the flat list of plotted error values (so the
+    caller can pick a tick strategy that stays legible when the spread is
+    sub-decade).
     """
     all_errors: list[float] = []
     by_param = data.get("by_param", {})
     if not by_param:
         return all_errors
+    order = solver_order_for_problem(cfg.name)
     params = sorted(by_param.keys(), key=float)
     # ``by_param`` may be keyed by alias ('jax_cfd') or display name ('jax-cfd')
     # depending on the run; resolve every present key to its canonical alias so
-    # the NS_ORDER walk finds the data regardless of which form was written.
+    # the ordered walk finds the data regardless of which form was written.
     alias_to_key: dict[str, str] = {}
     for p in params:
         for k in by_param[p]:
-            a = resolve_solver_alias(k) or k
+            a = resolve_solver_alias(k, prefer=order) or k
             alias_to_key.setdefault(a, k)
 
-    for solver in NS_ORDER:
+    for solver in order:
         data_key = alias_to_key.get(solver)
         if data_key is None:
             continue
@@ -443,7 +446,11 @@ def _agreement_figure(
     )
 
     handles = dedup_handles(
-        [make_handle(s) for s in NS_ORDER if s in seen and s in SOLVER_STYLES]
+        [
+            make_handle(s)
+            for s in solver_order_for_problem(cfg.name)
+            if s in seen and s in SOLVER_STYLES
+        ]
     )
     if handles:
         fig.legend(

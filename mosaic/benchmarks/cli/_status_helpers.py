@@ -109,6 +109,7 @@ def _status_emit_snapshot(
     output_format: str,
     diff_against: str | None,
     run_scope: str | None = None,
+    diff_label: str | None = None,
 ) -> None:
     """Handle --format md/json: build snapshot(s) and emit to stdout.
 
@@ -157,7 +158,8 @@ def _status_emit_snapshot(
             measured = _diff_scope(_load_run_scope(run_scope))
             out_parts.append(
                 render_diff_markdown(
-                    diff_snapshots(old_snapshot, new_snapshot, measured=measured)
+                    diff_snapshots(old_snapshot, new_snapshot, measured=measured),
+                    label=diff_label or "base",
                 )
             )
             diff_rendered = True

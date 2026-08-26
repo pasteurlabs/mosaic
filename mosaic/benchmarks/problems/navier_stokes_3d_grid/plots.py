@@ -24,11 +24,8 @@ from mosaic.benchmarks.core.io import (
 )
 from mosaic.benchmarks.problems.shared.plots.optimization import _save_animation
 from mosaic.benchmarks.problems.shared.plots.style import (
-    NS_ORDER,
     RCPARAMS,
-    STRUCTURAL_ORDER,
     TEXTWIDTH,
-    THERMAL_ORDER,
     apply_style,
     dedup_handles,
     fig_shared_legend,
@@ -37,6 +34,7 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     paper_image_grid,
     resolve_solver_alias,
     save_fig,
+    solver_order_for_problem,
     solver_plot_props,
     solver_props,
     solver_styles,
@@ -403,17 +401,6 @@ def _plot_per_sigma_grid(
             save_fig(fig_sg, f"recovery_sigma_{sv_str}", out_dir)
 
 
-def _solver_order_for(cfg_name: str) -> list[str]:
-    """Heuristic solver-ordering pick by problem name."""
-    if "ns" in cfg_name:
-        return NS_ORDER
-    if "structural" in cfg_name:
-        return STRUCTURAL_ORDER
-    if "thermal" in cfg_name:
-        return THERMAL_ORDER
-    return NS_ORDER
-
-
 def _plot_ns_recovery(
     ax: Any, data: dict, solver_order: list[str], title: str, seen: set[str]
 ) -> None:
@@ -423,7 +410,7 @@ def _plot_ns_recovery(
     # ``by_sweep`` is keyed by spec.name (display form); build alias→display.
     alias_to_display: dict[str, str] = {}
     for display_name in by_sweep:
-        a = resolve_solver_alias(display_name)
+        a = resolve_solver_alias(display_name, prefer=solver_order)
         if a is not None:
             alias_to_display[a] = display_name
 
@@ -485,7 +472,7 @@ def _plot_recovery_experiment(
     fig.subplots_adjust(bottom=0.36, top=0.90, left=0.13, right=0.96)
 
     seen: set[str] = set()
-    solver_order = _solver_order_for(cfg.name)
+    solver_order = solver_order_for_problem(cfg.name)
 
     if "by_sweep" in data or "by_horizon" in data:
         _plot_ns_recovery(
@@ -520,7 +507,7 @@ def _plot_recovery_experiment(
         # ``by_solver`` keyed by spec.name; bridge to alias for ordering.
         alias_to_display: dict[str, str] = {}
         for display_name in by_solver:
-            a = resolve_solver_alias(display_name)
+            a = resolve_solver_alias(display_name, prefer=solver_order)
             if a is not None:
                 alias_to_display[a] = display_name
         for alias in solver_order:

@@ -143,42 +143,46 @@ def compute_score(cells: list[Cell]) -> tuple[float | None, int]:
 
 
 def _lookup_check(cfg: Problem, suite: str, experiment: str) -> list:
-    """Return the merged list of check callables for (suite, experiment).
+    """Return the check callables for (suite, experiment).
 
-    Sources are accumulated in order of increasing specificity; suite-level
-    defaults come first so per-experiment checks can override them by
-    short-circuiting (the classifier walks the list and stops on the first
-    ``anom``, so more-specific entries should appear *later* — placing them
-    at the tail ensures they're consulted last and thus have the final say
-    only when earlier checks pass).
+    The most-specific source that supplies any checks *replaces* the less
+    specific ones — it does not merge with them. Replacement (rather than
+    accumulation) is required because the classifier short-circuits on the
+    first ``anom`` (see :func:`_run_checks`): an appended looser override
+    could never overturn a stricter default that fires first. Every override
+    site in the configs already lists a complete set of checks for its suite,
+    so replacement matches the intent.
 
-    Sources:
-      1. ``cfg.status_checks[suite]`` — suite-level defaults
+    Sources, from most to least specific — the first non-empty one wins:
+      1. ``cfg.experiments[key].params["status_check"]`` — inline override on
+         the ``.add_experiment(..., status_check=[...])`` call
       2. ``cfg.status_checks[<suite>/<experiment>]`` /
          ``cfg.status_checks[<suite>/<leading>]`` — per-experiment / per-IC
-         overrides from the Problem-level dict
-      3. ``cfg.experiments[full].params["status_check"]`` — inline overrides
-         set on the ``.add_experiment(..., status_check=[...])`` call
+         override from the Problem-level dict
+      3. ``cfg.status_checks[suite]`` — suite-level defaults
 
-    Each source is a list of callables (or a single callable); both shapes
-    are normalised via :func:`status_checks.normalize`.
+    Experiment labels may include an IC sub-dir (e.g. ``agreement/tgv``), so
+    the full label is tried before its leading token. Each source is a list
+    of callables (or a single callable); both shapes are normalised via
+    :func:`status_checks.normalize`.
     """
     from .status_checks import normalize
 
     checks = cfg.status_checks
-    merged: list = []
-    merged.extend(normalize(checks.get(suite)))
-    # experiment labels may include an IC sub-dir (e.g. "agreement/tgv");
-    # match both the full label and the leading token.
+    # Most-specific first: full experiment label, then its leading token.
     for key in (f"{suite}/{experiment}", f"{suite}/{experiment.split('/', 1)[0]}"):
-        merged.extend(normalize(checks.get(key)))
         exp = cfg.experiments.get(key)
-        if exp is not None:
-            inline = (
-                exp.params.get("status_check") if isinstance(exp.params, dict) else None
-            )
-            merged.extend(normalize(inline))
-    return merged
+        inline = (
+            exp.params.get("status_check")
+            if exp and isinstance(exp.params, dict)
+            else None
+        )
+        if inline:
+            return normalize(inline)
+        override = checks.get(key)
+        if override:
+            return normalize(override)
+    return normalize(checks.get(suite))
 
 
 @dataclass
@@ -326,6 +330,66 @@ def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
         return
     for solver, med in solver_medians.items():
         summary = CostSummary(solver_median_time=med, peer_median_time=peer_median)
+        verdict = _run_checks(checks, summary)
+        if verdict:
+            cells[solver] = Cell(*verdict)
+
+
+def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
+    """Walk ``checks`` against per-solver :class:`ForwardSummary` instances.
+
+    Forward results are ``by_solver[solver] = {error, valid}`` (non-swept) or
+    ``by_solver[solver][pval] = {error, valid}`` (swept), the same layout
+    :func:`_collect_forward_metrics` reads. Peer medians are formed per sweep
+    point across OK solvers, so a solver is compared against its peers at the
+    same resolution rather than against a pooled figure. First anomaly wins.
+    """
+    from .status_checks import ForwardSummary
+
+    if not checks:
+        return
+    by_solver = data.get("by_solver", {})
+    if not isinstance(by_solver, dict):
+        return
+
+    errs_per_solver: dict[str, dict[Any, float]] = {}
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = by_solver.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        # Swept: values are per-pval dicts. Non-swept: entry is the metrics dict.
+        swept = bool(entry) and all(isinstance(v, dict) for v in entry.values())
+        points = entry.items() if swept else [("", entry)]
+        errs: dict[Any, float] = {}
+        for pval, sub in points:
+            if not isinstance(sub, dict) or sub.get("valid") is False:
+                continue
+            err = sub.get("error")
+            if isinstance(err, int | float) and math.isfinite(err):
+                errs[pval] = float(err)
+        if errs:
+            errs_per_solver[solver] = errs
+
+    if not errs_per_solver:
+        return
+
+    # Peer median per sweep point; needs >= 2 solvers to mean anything, and
+    # median_k skips any point whose peer median is absent or non-positive.
+    peer_medians: dict[Any, float] = {}
+    all_pvals = {p for errs in errs_per_solver.values() for p in errs}
+    for pval in all_pvals:
+        vals = [e[pval] for e in errs_per_solver.values() if pval in e]
+        if len(vals) >= 2:
+            peer_medians[pval] = _median(vals)
+
+    for solver, errs in errs_per_solver.items():
+        summary = ForwardSummary(
+            errs_by_pval=dict(errs),
+            peer_medians_by_pval=dict(peer_medians),
+            n_valid_points=len(errs),
+        )
         verdict = _run_checks(checks, summary)
         if verdict:
             cells[solver] = Cell(*verdict)
@@ -829,7 +893,9 @@ def _refine_for_suite(
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
-    if suite == "cost":
+    if suite == "forward":
+        _refine_forward(view, cells, checks)
+    elif suite == "cost":
         _refine_cost(view, cells, checks)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
@@ -1968,9 +2034,14 @@ def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
         lines.append("")
 
 
-def render_diff_markdown(diff: dict) -> str:
-    """Render a snapshot diff as markdown suitable for a PR comment."""
-    lines: list[str] = ["## Status diff vs base", "", _MD_LEGEND, ""]
+def render_diff_markdown(diff: dict, label: str = "base") -> str:
+    """Render a snapshot diff as markdown suitable for a PR comment.
+
+    ``label`` names the comparison point in the header (e.g. ``"base"`` for a
+    PR-vs-main diff, or a prior release tag like ``"v0.1.1"`` for a
+    release-to-release diff).
+    """
+    lines: list[str] = [f"## Status diff vs {label}", "", _MD_LEGEND, ""]
     n_reg = len(diff["regressions"])
     n_imp = len(diff["improvements"])
     n_oth = len(diff["other"])
