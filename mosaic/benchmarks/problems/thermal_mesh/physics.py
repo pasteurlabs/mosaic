@@ -156,19 +156,10 @@ def _approx_target_temperature(
         mask[: len(mask_raw)] = mask_raw[:n_nodes]
         values_arr = np.asarray(values_raw, dtype=np.float64)
         # Consistent FEM lumping: each right-face element contributes
-        # q_n * A_face / 4 to each of its 4 face nodes. Accumulating per
-        # element rather than per node is what makes the total come out at
-        # q_n * Ly * Lz, since an interior face node is shared by 4 elements,
-        # an edge node by 2 and a corner by 1. Adding a single corner-weight
-        # share to each unique node instead applies only
-        # (ny+1)(nz+1) / (4*ny*nz) of the prescribed flux, which is 0.5625 on
-        # the configured 16x8x1 mesh and changes with resolution.
-        #
-        # This mirrors the solvers, which do it correctly: see the
-        # torch-fem-thermal tesseract, whose Neumann block states the same
-        # contract and walks cells the same way. Matching it element for
-        # element also keeps hot_spot mode consistent, where the mask marks
-        # only part of the face.
+        # q_n * A_face / 4 to each of its 4 face nodes, so the total comes out
+        # at q_n * Ly * Lz. Accumulating per element rather than per unique
+        # node is what gives a face node shared by 4 elements its 4 shares,
+        # an edge node 2 and a corner 1.
         x_max = points[:, 0].max()
         tol = 1e-8 * max(float(x_max), 1.0) + 1e-10
         on_face_plane = np.abs(points[:, 0] - x_max) < tol
