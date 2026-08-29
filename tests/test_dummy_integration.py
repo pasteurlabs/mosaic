@@ -487,3 +487,33 @@ def test_plot_runs_on_dummy_results(problem, plot_key, dummy_corpus):
     except (ValueError, ZeroDivisionError) as exc:
         _skip_if_degenerate(exc)
         raise
+
+
+@pytest.mark.parametrize(
+    "ic_name,expected_label",
+    [("tgv", "analytic"), ("multimode", "consensus")],
+    ids=["tgv-has-a-closed-form", "multimode-does-not"],
+)
+def test_agreement_reference_matches_the_ic(
+    ns_grid_tags, tmp_path, monkeypatch, ic_name, expected_label
+):
+    """An analytic reference must only score the IC it actually solves.
+
+    ``_tgv_analytic`` rebuilds the Taylor-Green field from the grid size and
+    ignores the IC it is handed, so before ``supported_ics`` the multimode
+    run was scored against a TGV field. That error measures the gap between
+    two unrelated flows, which is why every solver reported the same one.
+    """
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+
+    from mosaic.benchmarks.problems.shared.forward import agreement
+
+    cfg.add_experiment(
+        f"forward/dummy_ref_{ic_name}",
+        agreement,
+        ic={"name": ic_name, "seed": 0},
+        physics={"N": [4, 8], "nu": 0.05, "dt": 0.01, "steps": 1},
+    )
+    result = cfg.experiments[f"forward/dummy_ref_{ic_name}"].fn(cfg, tags)
+    assert result["extras"]["reference_label"] == expected_label
