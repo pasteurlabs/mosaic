@@ -122,12 +122,8 @@ problem = Problem(
     domain_extent=2.0,
     resolution_key="nx",
     status_checks={
-        # Peer-relative and dimensionless gates only. These carry across
-        # problems by construction: median_k and max_peer_k are multiples of
-        # the peer median, and min_cosine is a direction comparison. The
-        # absolute thresholds ns-grid also sets (max_error, max_rel_err) are
-        # scale-dependent and want calibrating against published numbers for
-        # this problem, so they are deliberately left out here.
+        # Peer-relative only: absolute thresholds are scale-dependent and
+        # want calibrating per problem before they are added here.
         "forward": [median_k(3.0)],
         "cost": [max_peer_k(20.0)],
         "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
