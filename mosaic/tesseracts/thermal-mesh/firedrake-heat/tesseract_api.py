@@ -227,13 +227,13 @@ def _solve_heat(
         C = ∮_Γ_N q_n · T dΓ
 
     Identification error (optional):
-        I = ∫_Ω (T - T_target)² dΩ    (source identification objective)
+        I = Σ_nodes (T - T_target)²   (source identification objective)
 
     Gradients:
         ∂C/∂ρ  via firedrake-adjoint ReducedFunctional (if compute_gradient)
         ∂C/∂f  via firedrake-adjoint ReducedFunctional (if vjp_wrt_source)
-        ∂I/∂f  via firedrake-adjoint ReducedFunctional (if vjp_wrt_source_id_error,
-                requires target_temperature)
+        ∂I/∂f  via a direct adjoint solve seeded with 2(T - T_target)
+                (if vjp_wrt_source_id_error, requires target_temperature)
         ∂I/∂ρ  via firedrake-adjoint ReducedFunctional (if vjp_rho_id_error,
                 requires target_temperature)
 
@@ -439,18 +439,19 @@ def _solve_heat(
 
     dI_dsource = None
     if vjp_wrt_source_id_error and target_temperature is not None:
-        # Gradient of identification_error = ∫(T - T_target)² dΩ w.r.t. source.
-        # Uses a fresh tape recording: source → T_sol → I = ∫(T-T_target)² dΩ.
+        # Gradient of identification_error = sum((T_nodes - T_target)²) w.r.t. source.
         #
-        # NOTE: This VJP uses the L2-integral functional ∫(T-T_target)² dΩ, while the
-        # forward apply() uses the nodal sum sum((T_nodes-T_target)²).  These differ by
-        # the cell area (∫(T-T_target)² dΩ ≈ cell_area * sum(...)).  The gradient
-        # DIRECTION is correct (cosine ≈ 0.9996 vs FD), but the magnitude differs by
-        # approximately cell_area / 1 from the true gradient of the forward functional.
-        # For gradient-based optimisation (Adam), the direction is what matters, so
-        # source_recovery still works correctly (98.85% error reduction verified).
-        set_working_tape(Tape())
-        continue_annotation()
+        # The forward reports a nodal sum, so the adjoint has to be seeded with that
+        # functional's derivative, 2(T - T_target) at the nodes.  Assembling
+        # ∫(T - T_target)² dΩ seeds it with 2·M·(T - T_target) instead, and the mass
+        # weighting sits inside the contraction over nodes, so no rescaling of the
+        # result can undo it: the factor that would is state dependent.
+        #
+        # The problem is linear and the operator is symmetric, so the adjoint is
+        #   A λ = 2(T - T_target),  homogeneous Dirichlet,
+        # and because the source enters the residual as source·v·dx,
+        #   dI/ds_k = ∫_{cell k} λ dΩ.
+        # Prescribed nodes carry no sensitivity, so the seed is zeroed there.
         rho_fn3 = Function(DG0, name="rho3")
         rho_fn3.dat.data[:] = rho_reordered
         source_fn3 = Function(DG0, name="source3")
@@ -477,26 +478,18 @@ def _solve_heat(
             if inp_idx < len(T_tgt):
                 T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
         T_target_fd.dat.data[:] = T_tgt_reordered
-        # Identification error functional: I = ∫(T - T_target)² dΩ
-        # NOTE: The forward uses sum((T_nodes-T_target)²) (nodal sum, no area weighting).
-        # The L2 functional ∫(T-T_target)²dΩ = M_lump * nodal_sum (Galerkin mass weighting).
-        # Correcting by (n_nodes / domain_vol) ≈ 1/M_lump_avg cancels this discrepancy,
-        # reducing the VJP magnitude error from ~50× to <5%.
-        _coords = mesh.coordinates.dat.data_ro
-        domain_vol = float(
-            np.prod(
-                [
-                    _coords[:, i].max() - _coords[:, i].min()
-                    for i in range(_coords.shape[1])
-                ]
-            )
-        )
-        n_nodes = mesh.num_vertices()
-        nodal_correction = float(n_nodes) / domain_vol
-        J3 = assemble(inner(T_sol3 - T_target_fd, T_sol3 - T_target_fd) * dx)
-        Jhat3 = ReducedFunctional(J3, Control(source_fn3))
-        dI_src_fn = Jhat3.derivative()
-        dI_src_fd = dI_src_fn.dat.data_ro.copy() * nodal_correction
+        # Adjoint seed: dI/dT for the nodal-sum functional the forward reports.
+        adjoint_rhs = assemble(inner(Constant(0.0), TestFunction(V)) * dx)
+        adjoint_rhs.dat.data[:] = 2.0 * (T_sol3.dat.data_ro - T_target_fd.dat.data_ro)
+        hom_bcs = [
+            DirichletBC(V, Constant(0.0), k + 1) for k in range(n_dirichlet_groups)
+        ]
+        for bc in hom_bcs:
+            bc.zero(adjoint_rhs)
+        lam = Function(V)
+        solve(assemble(a3, bcs=hom_bcs), lam, adjoint_rhs)
+        dI_src_fn = assemble(lam * TestFunction(DG0) * dx)
+        dI_src_fd = dI_src_fn.dat.data_ro.copy()
         dI_src_input = np.zeros(len(source_values))
         for fd_idx, inp_idx in enumerate(fd_to_input_cells):
             dI_src_input[inp_idx] = dI_src_fd[fd_idx]
