@@ -439,18 +439,11 @@ def _solve_heat(
 
     dI_dsource = None
     if vjp_wrt_source_id_error and target_temperature is not None:
-        # Gradient of identification_error = sum((T_nodes - T_target)²) w.r.t. source.
-        #
-        # The forward reports a nodal sum, so the adjoint has to be seeded with that
-        # functional's derivative, 2(T - T_target) at the nodes.  Assembling
-        # ∫(T - T_target)² dΩ seeds it with 2·M·(T - T_target) instead, and the mass
-        # weighting sits inside the contraction over nodes, so no rescaling of the
-        # result can undo it: the factor that would is state dependent.
-        #
-        # The problem is linear and the operator is symmetric, so the adjoint is
-        #   A λ = 2(T - T_target),  homogeneous Dirichlet,
-        # and because the source enters the residual as source·v·dx,
-        #   dI/ds_k = ∫_{cell k} λ dΩ.
+        # I = sum((T_nodes - T_target)²), so the adjoint is seeded with the
+        # derivative of that, 2(T - T_target) at the nodes. The operator is
+        # symmetric and the source enters the residual as source·v·dx, so
+        #   A λ = 2(T - T_target),  homogeneous Dirichlet
+        #   dI/ds_k = ∫_{cell k} λ dΩ
         # Prescribed nodes carry no sensitivity, so the seed is zeroed there.
         rho_fn3 = Function(DG0, name="rho3")
         rho_fn3.dat.data[:] = rho_reordered
@@ -478,7 +471,6 @@ def _solve_heat(
             if inp_idx < len(T_tgt):
                 T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
         T_target_fd.dat.data[:] = T_tgt_reordered
-        # Adjoint seed: dI/dT for the nodal-sum functional the forward reports.
         adjoint_rhs = assemble(inner(Constant(0.0), TestFunction(V)) * dx)
         adjoint_rhs.dat.data[:] = 2.0 * (T_sol3.dat.data_ro - T_target_fd.dat.data_ro)
         hom_bcs = [
