@@ -79,26 +79,59 @@ def test_unknown_problem_raises():
         get_config("nonexistent-problem")
 
 
-#: Problems that deliberately publish without any status check. Adding a name
-#: here is the opt-out: it should come with a reason, so that an ungated
-#: problem is a decision on the record rather than something nobody noticed.
-_UNGATED_BY_DESIGN: frozenset[str] = frozenset()
+#: Suites that run but carry no pass/fail notion, so a check would have
+#: nothing to assert. ``ics`` registrations render initial conditions and are
+#: never compared across solvers; the sweeps below publish a spectrum or a
+#: curve rather than a value with a correct answer.
+_UNGATED_BY_DESIGN: frozenset[str] = frozenset(
+    {
+        "ns-grid/ics",
+        "ns-3d-grid/ics",
+        "thermal-mesh/ics",
+        "structural-mesh/ics",
+        "ns-grid/gradient/jacobian_svd",
+        "ns-grid/gradient/jacobian_svd_nu01",
+        "ns-grid/gradient/jacobian_svd_steps20",
+        "ns-grid/gradient/jacobian_svd_steps40",
+        "ns-grid/gradient/horizon_sweep",
+        "ns-grid/gradient/param_sweep",
+        "ns-3d-grid/gradient/jacobian_svd",
+        "ns-3d-grid/gradient/jacobian_svd_nu01",
+        "ns-3d-grid/gradient/jacobian_svd_steps20",
+        "ns-3d-grid/gradient/jacobian_svd_steps40",
+        "ns-3d-grid/gradient/horizon_sweep_limits",
+        "thermal-mesh/gradient/param_sweep",
+        "thermal-mesh/gradient/source_width_sweep",
+        "structural-mesh/gradient/param_sweep",
+    }
+)
 
 
-def test_problem_configures_at_least_one_status_check(problem_config):
-    """A problem with no status checks publishes ok for anything finite.
+def test_every_experiment_resolves_a_status_check(problem_config):
+    """An experiment that runs but resolves no check publishes ok regardless.
 
-    Without a check a solver only shows up as anom if someone wrote an
-    explicit exclusion for it, so a wrong answer looks the same as a right
-    one. Failing here makes that state opt-in: either configure a check, or
-    add the problem to ``_UNGATED_BY_DESIGN`` with a reason.
+    A problem-level check is not enough on its own: the lookup is per suite,
+    so a problem can gate ``forward`` and leave ``optimization`` open. Failing
+    here makes an ungated experiment opt-in, either by configuring a check or
+    by naming it in ``_UNGATED_BY_DESIGN`` with a reason.
     """
-    if problem_config.name in _UNGATED_BY_DESIGN:
-        pytest.skip(f"{problem_config.name} is ungated by design")
+    from mosaic.benchmarks.core.status import _lookup_check
 
-    assert problem_config.status_checks, (
-        f"{problem_config.name} configures no status checks, so every suite "
-        f"publishes ok for any solver that returns finite numbers. Add one to "
-        f"the Problem(...) status_checks dict, or list the problem in "
-        f"_UNGATED_BY_DESIGN with a reason."
+    ungated = []
+    for key in sorted(problem_config.experiments):
+        suite, _, experiment = key.partition("/")
+        full = f"{problem_config.name}/{key}"
+        if (
+            full in _UNGATED_BY_DESIGN
+            or f"{problem_config.name}/{suite}" in _UNGATED_BY_DESIGN
+        ):
+            continue
+        if not _lookup_check(problem_config, suite, experiment):
+            ungated.append(key)
+
+    assert not ungated, (
+        f"{problem_config.name} runs {len(ungated)} experiment(s) that resolve "
+        f"no status check, so they publish ok for any solver returning finite "
+        f"numbers: {', '.join(ungated)}. Configure a check for the suite, or "
+        f"list each in _UNGATED_BY_DESIGN with a reason."
     )

@@ -128,7 +128,7 @@ problem = Problem(
         "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         "gradient/source_fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         # Recovery / optimisation experiments must actually reduce loss,
-        # not just complete. Same 50% floor as the other problems — solvers
+        # not just complete. Same 50% floor as the other problems, so solvers
         # landing at final/initial > 0.5 show up as anom so the status
         # accurately reflects "hasn't converged".
         "optimization": [max_final_ratio(0.5)],

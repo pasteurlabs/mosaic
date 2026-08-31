@@ -30,6 +30,7 @@ from mosaic.benchmarks.core.config import (
 )
 from mosaic.benchmarks.core.status_checks import (
     max_error,
+    max_final_ratio,
     max_peer_k,
     max_rel_err,
     median_k,
@@ -130,6 +131,7 @@ problem = Problem(
         # overridden by an inline `status_check=` on the `.add_experiment()` call.
         "forward": [median_k(3.0), max_error(0.5)],
         "cost": [max_peer_k(20.0)],
+        "optimization": [max_final_ratio(0.5)],
         # Per-IC override (the `forward/agreement` parent run-list contains
         # both tgv and multimode; the multimode variant has a looser bound).
         "forward/agreement/multimode": [median_k(3.0), max_error(1.5)],

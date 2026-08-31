@@ -28,6 +28,7 @@ from mosaic.benchmarks.core.config import (
     discover_solvers,
 )
 from mosaic.benchmarks.core.status_checks import (
+    max_final_ratio,
     max_peer_k,
     median_k,
     min_cosine,
@@ -127,6 +128,7 @@ problem = Problem(
         "forward": [median_k(3.0)],
         "cost": [max_peer_k(20.0)],
         "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
+        "optimization": [max_final_ratio(0.5)],
     },
 )
 
