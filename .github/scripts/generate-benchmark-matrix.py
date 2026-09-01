@@ -110,9 +110,8 @@ def main() -> None:
     include = []
     for problem in problem_list:
         cfg = get_config(problem)
-        if solver_filter:
-            if not any(s.name in solver_filter for s in cfg.solvers):
-                continue
+        if solver_filter and not any(s.name in solver_filter for s in cfg.solvers):
+            continue
         for suite in suite_list:
             if _has_runnable_solvers(cfg, suite, "gpu", solver_filter):
                 include.append({"suite": suite, "problem": problem, "hardware": "gpu"})
