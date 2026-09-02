@@ -30,6 +30,7 @@ from mosaic.benchmarks.core.config import (
 )
 from mosaic.benchmarks.core.status_checks import (
     max_error,
+    max_final_ratio,
     max_peer_k,
     max_rel_err,
     median_k,
@@ -130,10 +131,9 @@ problem = Problem(
         # overridden by an inline `status_check=` on the `.add_experiment()` call.
         "forward": [median_k(3.0), max_error(0.5)],
         "cost": [max_peer_k(20.0)],
-        # Per-IC override: multimode has no closed form, so it is scored
-        # against the cross-solver consensus. An absolute bound on the
-        # distance to that is not a solver-accuracy statement, so only the
-        # peer-relative check applies here.
+        "optimization": [max_final_ratio(0.5)],
+        # multimode has no closed form, so it scores against the consensus;
+        # an absolute bound on the distance to that says nothing about accuracy.
         "forward/agreement/multimode": [median_k(3.0)],
     },
 )

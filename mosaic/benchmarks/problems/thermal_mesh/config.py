@@ -27,7 +27,13 @@ from mosaic.benchmarks.core.config import (
     SolverSpec,
     discover_solvers,
 )
-from mosaic.benchmarks.core.status_checks import max_final_ratio
+from mosaic.benchmarks.core.status_checks import (
+    max_final_ratio,
+    max_peer_k,
+    median_k,
+    min_cosine,
+    rel_err_peer_outlier,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
     spatial_cost,
@@ -115,8 +121,14 @@ problem = Problem(
     domain_extent=2.0,
     resolution_key="nx",
     status_checks={
+        # Peer-relative only: absolute thresholds are scale-dependent and
+        # want calibrating per problem before they are added here.
+        "forward": [median_k(3.0)],
+        "cost": [max_peer_k(20.0)],
+        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
+        "gradient/source_fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         # Recovery / optimisation experiments must actually reduce loss,
-        # not just complete. Same 50% floor as the other problems — solvers
+        # not just complete. Same 50% floor as the other problems, so solvers
         # landing at final/initial > 0.5 show up as anom so the status
         # accurately reflects "hasn't converged".
         "optimization": [max_final_ratio(0.5)],
