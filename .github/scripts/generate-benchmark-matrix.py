@@ -21,12 +21,56 @@ Usage (in CI):
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import sys
+from typing import Any
 
+from mosaic.benchmarks.core.utils import active_solvers
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
 SOLVER_SUITES = ["forward", "cost", "gradient", "optimization"]
+
+
+def _experiment_keys_for_suite(cfg: Any, suite: str) -> list[str]:
+    prefix = f"{suite}/"
+    return [
+        key[len(prefix) :]
+        for key in cfg.experiments
+        if key.startswith(prefix) and key[len(prefix) :]
+    ]
+
+
+def _has_runnable_solvers(
+    cfg: Any,
+    suite: str,
+    hardware: str,
+    solver_filter: set[str] | None,
+) -> bool:
+    """True when at least one solver would run for *suite* on *hardware*.
+
+    Mirrors the CLI's ``--hardware`` filter and per-experiment exclusion
+    gating so CI does not dispatch runners for empty (suite, problem,
+    hardware) combos — e.g. ns-grid optimization on CPU, where every
+    runnable solver is GPU-only.
+    """
+    experiments = _experiment_keys_for_suite(cfg, suite)
+    if not experiments:
+        return False
+
+    want_gpu = hardware == "gpu"
+    for experiment in experiments:
+        with contextlib.redirect_stdout(io.StringIO()):
+            names = active_solvers(cfg, suite, experiment)
+        for name in names:
+            if solver_filter and name not in solver_filter:
+                continue
+            spec = cfg.solver(name)
+            is_gpu = getattr(spec, "uses_gpu", True)
+            if want_gpu == is_gpu:
+                return True
+    return False
 
 
 def main() -> None:
@@ -66,17 +110,12 @@ def main() -> None:
     include = []
     for problem in problem_list:
         cfg = get_config(problem)
-        solvers = cfg.solvers
-        if solver_filter:
-            solvers = [s for s in solvers if s.name in solver_filter]
-            if not solvers:
-                continue
-        has_gpu = any(getattr(s, "uses_gpu", True) for s in solvers)
-        has_cpu = any(not getattr(s, "uses_gpu", True) for s in solvers)
+        if solver_filter and not any(s.name in solver_filter for s in cfg.solvers):
+            continue
         for suite in suite_list:
-            if has_gpu:
+            if _has_runnable_solvers(cfg, suite, "gpu", solver_filter):
                 include.append({"suite": suite, "problem": problem, "hardware": "gpu"})
-            if has_cpu:
+            if _has_runnable_solvers(cfg, suite, "cpu", solver_filter):
                 include.append({"suite": suite, "problem": problem, "hardware": "cpu"})
 
     json.dump({"include": include}, sys.stdout)
