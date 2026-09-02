@@ -445,47 +445,56 @@ def _solve_heat(
         #   A λ = 2(T - T_target),  homogeneous Dirichlet
         #   dI/ds_k = ∫_{cell k} λ dΩ
         # Prescribed nodes carry no sensitivity, so the seed is zeroed there.
-        rho_fn3 = Function(DG0, name="rho3")
-        rho_fn3.dat.data[:] = rho_reordered
-        source_fn3 = Function(DG0, name="source3")
-        source_fn3.dat.data[:] = src_reordered
-        k_field3 = k_min_val + (Constant(k_max) - k_min_val) * rho_fn3 ** Constant(
-            p_exp
-        )
-        a3 = inner(k_field3 * grad(TrialFunction(V)), grad(TestFunction(V))) * dx
-        L3 = inner(Constant(0.0), TestFunction(V)) * dx
-        for k in range(n_neumann_groups):
-            tag3 = neumann_offset + (k + 1)
-            if tag3 not in active_neumann_tags:
-                continue
-            q_n3 = Constant(float(neumann_values_vals[k, 0]))
-            L3 = L3 + q_n3 * TestFunction(V) * ds(tag3)
-        L3 = L3 + source_fn3 * TestFunction(V) * dx
-        T_sol3 = Function(V)
-        solve(a3 == L3, T_sol3, bcs)
-        # Map target_temperature (in input-node ordering) to firedrake node ordering.
-        T_target_fd = Function(V)
-        T_tgt = np.asarray(target_temperature, dtype=np.float64)
-        T_tgt_reordered = np.zeros(mesh.num_vertices(), dtype=np.float64)
-        for fd_idx, inp_idx in enumerate(fd_to_input_nodes):
-            if inp_idx < len(T_tgt):
-                T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
-        T_target_fd.dat.data[:] = T_tgt_reordered
-        adjoint_rhs = assemble(inner(Constant(0.0), TestFunction(V)) * dx)
-        adjoint_rhs.dat.data[:] = 2.0 * (T_sol3.dat.data_ro - T_target_fd.dat.data_ro)
-        hom_bcs = [
-            DirichletBC(V, Constant(0.0), k + 1) for k in range(n_dirichlet_groups)
-        ]
-        for bc in hom_bcs:
-            bc.zero(adjoint_rhs)
-        lam = Function(V)
-        solve(assemble(a3, bcs=hom_bcs), lam, adjoint_rhs)
-        dI_src_fn = assemble(lam * TestFunction(DG0) * dx)
-        dI_src_fd = dI_src_fn.dat.data_ro.copy()
-        dI_src_input = np.zeros(len(source_values))
-        for fd_idx, inp_idx in enumerate(fd_to_input_cells):
-            dI_src_input[inp_idx] = dI_src_fd[fd_idx]
-        dI_dsource = dI_src_input
+        #
+        # This is a hand-rolled adjoint, so it must not be annotated: annotation
+        # is still on from the enclosing solve, and the low-level solve(A, x, b)
+        # form is not tape-compatible — it makes firedrake build a SolveBlock
+        # over the assembled operator and fail. stop_annotating keeps every
+        # solve/assemble below off the tape.
+        with stop_annotating():
+            rho_fn3 = Function(DG0, name="rho3")
+            rho_fn3.dat.data[:] = rho_reordered
+            source_fn3 = Function(DG0, name="source3")
+            source_fn3.dat.data[:] = src_reordered
+            k_field3 = k_min_val + (Constant(k_max) - k_min_val) * rho_fn3 ** Constant(
+                p_exp
+            )
+            a3 = inner(k_field3 * grad(TrialFunction(V)), grad(TestFunction(V))) * dx
+            L3 = inner(Constant(0.0), TestFunction(V)) * dx
+            for k in range(n_neumann_groups):
+                tag3 = neumann_offset + (k + 1)
+                if tag3 not in active_neumann_tags:
+                    continue
+                q_n3 = Constant(float(neumann_values_vals[k, 0]))
+                L3 = L3 + q_n3 * TestFunction(V) * ds(tag3)
+            L3 = L3 + source_fn3 * TestFunction(V) * dx
+            T_sol3 = Function(V)
+            solve(a3 == L3, T_sol3, bcs)
+            # Map target_temperature (input-node ordering) to firedrake ordering.
+            T_target_fd = Function(V)
+            T_tgt = np.asarray(target_temperature, dtype=np.float64)
+            T_tgt_reordered = np.zeros(mesh.num_vertices(), dtype=np.float64)
+            for fd_idx, inp_idx in enumerate(fd_to_input_nodes):
+                if inp_idx < len(T_tgt):
+                    T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
+            T_target_fd.dat.data[:] = T_tgt_reordered
+            adjoint_rhs = assemble(inner(Constant(0.0), TestFunction(V)) * dx)
+            adjoint_rhs.dat.data[:] = 2.0 * (
+                T_sol3.dat.data_ro - T_target_fd.dat.data_ro
+            )
+            hom_bcs = [
+                DirichletBC(V, Constant(0.0), k + 1) for k in range(n_dirichlet_groups)
+            ]
+            for bc in hom_bcs:
+                bc.zero(adjoint_rhs)
+            lam = Function(V)
+            solve(assemble(a3, bcs=hom_bcs), lam, adjoint_rhs)
+            dI_src_fn = assemble(lam * TestFunction(DG0) * dx)
+            dI_src_fd = dI_src_fn.dat.data_ro.copy()
+            dI_src_input = np.zeros(len(source_values))
+            for fd_idx, inp_idx in enumerate(fd_to_input_cells):
+                dI_src_input[inp_idx] = dI_src_fd[fd_idx]
+            dI_dsource = dI_src_input
 
     return float(J), T_nodes, dJ_drho, dJ_dsource, dI_dsource, dI_drho
 
