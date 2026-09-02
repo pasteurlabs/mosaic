@@ -687,7 +687,14 @@ def vector_jacobian_product(
                 for bc_adj in hom_bcs:
                     bc_adj.apply(A_adj, adjoint_rhs.vector())
                 lam = Function(V)
-                solve(A_adj, lam.vector(), adjoint_rhs.vector())
+                # Solve the adjoint system as plain linear algebra. This is a
+                # hand-rolled adjoint, so it must not be recorded on the
+                # dolfin_adjoint tape: the overridden `solve`/`LUSolver` accept
+                # the variational `a == L` form and try `b.form` on an
+                # assembled vector. `stop_annotating` suppresses recording so
+                # the assembled (A, x, b) signature runs at the backend level.
+                with stop_annotating():
+                    LUSolver(A_adj).solve(lam.vector(), adjoint_rhs.vector())
                 dJ_src_vec = assemble(lam * TestFunction(DG0) * dx).get_local().copy()
 
                 # ---- Map FEniCS DG0 DOF order → input cell order ---------
