@@ -30,7 +30,9 @@ from mosaic.benchmarks.core.config import (
 )
 from mosaic.benchmarks.core.status_checks import (
     max_final_ratio,
+    max_peer_k,
     max_rel_err,
+    median_k,
     min_cosine,
     rel_err_peer_outlier,
 )
@@ -131,7 +133,12 @@ problem = Problem(
     reference=_tgv3d_analytic,
     domain_extent=2 * float(jnp.pi),
     status_checks={
-        # Suite-level default — applies to every `optimization/*` experiment.
+        # Peer-relative only: absolute thresholds are scale-dependent and
+        # want calibrating per problem before they are added here.
+        "forward": [median_k(3.0)],
+        "cost": [max_peer_k(20.0)],
+        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
+        # Suite-level default, applies to every `optimization/*` experiment.
         "optimization": [max_final_ratio(0.5)],
     },
 )
