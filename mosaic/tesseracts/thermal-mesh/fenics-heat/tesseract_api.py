@@ -622,57 +622,6 @@ def vector_jacobian_product(
             T_sol = Function(V)
             solve(a == L, T_sol, bcs)
 
-            # ---- Nodal correction factor (matches firedrake fix) -----------
-            # identification_error = sum((T_nodes - T_target)^2)  (nodal, no area)
-            # J_id (dolfin-adjoint) = integral((T-T_t)^2 dΩ)     (area-weighted)
-            # Correction: nodal_correction = n_nodes / domain_vol
-            coords = mesh.coordinates()  # numpy array (n_vertices, 3)
-            domain_vol = float(
-                np.prod(
-                    [
-                        coords[:, i].max() - coords[:, i].min()
-                        for i in range(coords.shape[1])
-                    ]
-                )
-            )
-            n_nodes_mesh = mesh.num_vertices()
-            nodal_correction = float(n_nodes_mesh) / domain_vol
-
-            # ---- Branch: ∂(identification_error)/∂source -----------------
-            if cot_src != 0.0:
-                # ---- Target temperature as P1 function -------------------
-                target_temp = np.asarray(inputs.target_temperature, dtype=np.float64)
-                T_target_fn = Function(V)
-                # Map nodal target values: FEniCS vertex ordering may differ from input.
-                # Use compute_vertex_values-style assignment via dof_to_vertex_map.
-                d2v = dof_to_vertex_map(V)
-                target_at_dofs = np.zeros(V.dim(), dtype=np.float64)
-                for dof_i in range(V.dim()):
-                    vert_i = int(d2v[dof_i])
-                    if vert_i < len(target_temp):
-                        target_at_dofs[dof_i] = float(target_temp[vert_i])
-                T_target_fn.vector()[:] = target_at_dofs
-
-                # ---- Identification error functional (Galerkin) -----------
-                diff = T_sol - T_target_fn
-                J_id = assemble(inner(diff, diff) * dx)
-
-                # ---- Adjoint differentiation for identification_error -----
-                Jhat_id = ReducedFunctional(J_id, source_ctrl)
-                dJ_src_fenics = Jhat_id.derivative()
-                dJ_src_vec = (
-                    dJ_src_fenics.vector().get_local().copy() * nodal_correction
-                )
-
-                # ---- Map FEniCS DG0 DOF order → input cell order ---------
-                dJ_src_input = np.zeros(hm.n_faces, dtype=np.float64)
-                for fenics_cell in range(len(fenics_to_input)):
-                    inp_cell = int(fenics_to_input[fenics_cell])
-                    if inp_cell < hm.n_faces:
-                        dJ_src_input[inp_cell] = dJ_src_vec[fenics_cell]
-
-                grad_source[: hm.n_faces] += (dJ_src_input * cot_src).astype(np.float32)
-
             # ---- Branch: ∂(thermal_compliance)/∂source -------------------
             # thermal_compliance C = ∮_ΓN q_n T dΓ  (Neumann surface integral,
             # same functional used in _solve_heat).
@@ -703,6 +652,59 @@ def vector_jacobian_product(
                 grad_source[: hm.n_faces] += (dJ_c_src_input * cot_tc).astype(
                     np.float32
                 )
+
+            # ---- Branch: ∂(identification_error)/∂source -----------------
+            if cot_src != 0.0:
+                # ---- Target temperature as P1 function -------------------
+                target_temp = np.asarray(inputs.target_temperature, dtype=np.float64)
+                T_target_fn = Function(V)
+                # Map nodal target values: FEniCS vertex ordering may differ from input.
+                # Use compute_vertex_values-style assignment via dof_to_vertex_map.
+                d2v = dof_to_vertex_map(V)
+                target_at_dofs = np.zeros(V.dim(), dtype=np.float64)
+                for dof_i in range(V.dim()):
+                    vert_i = int(d2v[dof_i])
+                    if vert_i < len(target_temp):
+                        target_at_dofs[dof_i] = float(target_temp[vert_i])
+                T_target_fn.vector()[:] = target_at_dofs
+
+                # ---- Adjoint seeded with the nodal functional -------------
+                # I = sum((T_nodes - T_target)^2), so the adjoint is seeded
+                # with 2(T - T_target) at the nodes. The operator is symmetric
+                # and the source enters the residual as source*v*dx, so
+                #   A lam = 2(T - T_target),  homogeneous Dirichlet
+                #   dI/ds_k = integral of lam over cell k
+                # Prescribed nodes carry no sensitivity, so the seed is zeroed.
+                hom_bcs = [
+                    DirichletBC(V, Constant(0.0), dirichlet_facet_markers, k_bc + 1)
+                    for k_bc in range(dv.shape[0])
+                ]
+                A_adj = assemble(a)
+                adjoint_rhs = Function(V)
+                adjoint_rhs.vector()[:] = 2.0 * (
+                    T_sol.vector().get_local() - T_target_fn.vector().get_local()
+                )
+                for bc_adj in hom_bcs:
+                    bc_adj.apply(A_adj, adjoint_rhs.vector())
+                lam = Function(V)
+                # Solve the adjoint system as plain linear algebra. This is a
+                # hand-rolled adjoint, so it must not be recorded on the
+                # dolfin_adjoint tape: the overridden `solve`/`LUSolver` accept
+                # the variational `a == L` form and try `b.form` on an
+                # assembled vector. `stop_annotating` suppresses recording so
+                # the assembled (A, x, b) signature runs at the backend level.
+                with stop_annotating():
+                    LUSolver(A_adj).solve(lam.vector(), adjoint_rhs.vector())
+                dJ_src_vec = assemble(lam * TestFunction(DG0) * dx).get_local().copy()
+
+                # ---- Map FEniCS DG0 DOF order → input cell order ---------
+                dJ_src_input = np.zeros(hm.n_faces, dtype=np.float64)
+                for fenics_cell in range(len(fenics_to_input)):
+                    inp_cell = int(fenics_to_input[fenics_cell])
+                    if inp_cell < hm.n_faces:
+                        dJ_src_input[inp_cell] = dJ_src_vec[fenics_cell]
+
+                grad_source[: hm.n_faces] += (dJ_src_input * cot_src).astype(np.float32)
 
         result["source"] = grad_source
 
