@@ -227,13 +227,13 @@ def _solve_heat(
         C = ∮_Γ_N q_n · T dΓ
 
     Identification error (optional):
-        I = ∫_Ω (T - T_target)² dΩ    (source identification objective)
+        I = Σ_nodes (T - T_target)²   (source identification objective)
 
     Gradients:
         ∂C/∂ρ  via firedrake-adjoint ReducedFunctional (if compute_gradient)
         ∂C/∂f  via firedrake-adjoint ReducedFunctional (if vjp_wrt_source)
-        ∂I/∂f  via firedrake-adjoint ReducedFunctional (if vjp_wrt_source_id_error,
-                requires target_temperature)
+        ∂I/∂f  via a direct adjoint solve seeded with 2(T - T_target)
+                (if vjp_wrt_source_id_error, requires target_temperature)
         ∂I/∂ρ  via firedrake-adjoint ReducedFunctional (if vjp_rho_id_error,
                 requires target_temperature)
 
@@ -439,68 +439,62 @@ def _solve_heat(
 
     dI_dsource = None
     if vjp_wrt_source_id_error and target_temperature is not None:
-        # Gradient of identification_error = ∫(T - T_target)² dΩ w.r.t. source.
-        # Uses a fresh tape recording: source → T_sol → I = ∫(T-T_target)² dΩ.
+        # I = sum((T_nodes - T_target)²), so the adjoint is seeded with the
+        # derivative of that, 2(T - T_target) at the nodes. The operator is
+        # symmetric and the source enters the residual as source·v·dx, so
+        #   A λ = 2(T - T_target),  homogeneous Dirichlet
+        #   dI/ds_k = ∫_{cell k} λ dΩ
+        # Prescribed nodes carry no sensitivity, so the seed is zeroed there.
         #
-        # NOTE: This VJP uses the L2-integral functional ∫(T-T_target)² dΩ, while the
-        # forward apply() uses the nodal sum sum((T_nodes-T_target)²).  These differ by
-        # the cell area (∫(T-T_target)² dΩ ≈ cell_area * sum(...)).  The gradient
-        # DIRECTION is correct (cosine ≈ 0.9996 vs FD), but the magnitude differs by
-        # approximately cell_area / 1 from the true gradient of the forward functional.
-        # For gradient-based optimisation (Adam), the direction is what matters, so
-        # source_recovery still works correctly (98.85% error reduction verified).
-        set_working_tape(Tape())
-        continue_annotation()
-        rho_fn3 = Function(DG0, name="rho3")
-        rho_fn3.dat.data[:] = rho_reordered
-        source_fn3 = Function(DG0, name="source3")
-        source_fn3.dat.data[:] = src_reordered
-        k_field3 = k_min_val + (Constant(k_max) - k_min_val) * rho_fn3 ** Constant(
-            p_exp
-        )
-        a3 = inner(k_field3 * grad(TrialFunction(V)), grad(TestFunction(V))) * dx
-        L3 = inner(Constant(0.0), TestFunction(V)) * dx
-        for k in range(n_neumann_groups):
-            tag3 = neumann_offset + (k + 1)
-            if tag3 not in active_neumann_tags:
-                continue
-            q_n3 = Constant(float(neumann_values_vals[k, 0]))
-            L3 = L3 + q_n3 * TestFunction(V) * ds(tag3)
-        L3 = L3 + source_fn3 * TestFunction(V) * dx
-        T_sol3 = Function(V)
-        solve(a3 == L3, T_sol3, bcs)
-        # Map target_temperature (in input-node ordering) to firedrake node ordering.
-        T_target_fd = Function(V)
-        T_tgt = np.asarray(target_temperature, dtype=np.float64)
-        T_tgt_reordered = np.zeros(mesh.num_vertices(), dtype=np.float64)
-        for fd_idx, inp_idx in enumerate(fd_to_input_nodes):
-            if inp_idx < len(T_tgt):
-                T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
-        T_target_fd.dat.data[:] = T_tgt_reordered
-        # Identification error functional: I = ∫(T - T_target)² dΩ
-        # NOTE: The forward uses sum((T_nodes-T_target)²) (nodal sum, no area weighting).
-        # The L2 functional ∫(T-T_target)²dΩ = M_lump * nodal_sum (Galerkin mass weighting).
-        # Correcting by (n_nodes / domain_vol) ≈ 1/M_lump_avg cancels this discrepancy,
-        # reducing the VJP magnitude error from ~50× to <5%.
-        _coords = mesh.coordinates.dat.data_ro
-        domain_vol = float(
-            np.prod(
-                [
-                    _coords[:, i].max() - _coords[:, i].min()
-                    for i in range(_coords.shape[1])
-                ]
+        # This is a hand-rolled adjoint, so it must not be annotated: annotation
+        # is still on from the enclosing solve, and the low-level solve(A, x, b)
+        # form is not tape-compatible — it makes firedrake build a SolveBlock
+        # over the assembled operator and fail. stop_annotating keeps every
+        # solve/assemble below off the tape.
+        with stop_annotating():
+            rho_fn3 = Function(DG0, name="rho3")
+            rho_fn3.dat.data[:] = rho_reordered
+            source_fn3 = Function(DG0, name="source3")
+            source_fn3.dat.data[:] = src_reordered
+            k_field3 = k_min_val + (Constant(k_max) - k_min_val) * rho_fn3 ** Constant(
+                p_exp
             )
-        )
-        n_nodes = mesh.num_vertices()
-        nodal_correction = float(n_nodes) / domain_vol
-        J3 = assemble(inner(T_sol3 - T_target_fd, T_sol3 - T_target_fd) * dx)
-        Jhat3 = ReducedFunctional(J3, Control(source_fn3))
-        dI_src_fn = Jhat3.derivative()
-        dI_src_fd = dI_src_fn.dat.data_ro.copy() * nodal_correction
-        dI_src_input = np.zeros(len(source_values))
-        for fd_idx, inp_idx in enumerate(fd_to_input_cells):
-            dI_src_input[inp_idx] = dI_src_fd[fd_idx]
-        dI_dsource = dI_src_input
+            a3 = inner(k_field3 * grad(TrialFunction(V)), grad(TestFunction(V))) * dx
+            L3 = inner(Constant(0.0), TestFunction(V)) * dx
+            for k in range(n_neumann_groups):
+                tag3 = neumann_offset + (k + 1)
+                if tag3 not in active_neumann_tags:
+                    continue
+                q_n3 = Constant(float(neumann_values_vals[k, 0]))
+                L3 = L3 + q_n3 * TestFunction(V) * ds(tag3)
+            L3 = L3 + source_fn3 * TestFunction(V) * dx
+            T_sol3 = Function(V)
+            solve(a3 == L3, T_sol3, bcs)
+            # Map target_temperature (input-node ordering) to firedrake ordering.
+            T_target_fd = Function(V)
+            T_tgt = np.asarray(target_temperature, dtype=np.float64)
+            T_tgt_reordered = np.zeros(mesh.num_vertices(), dtype=np.float64)
+            for fd_idx, inp_idx in enumerate(fd_to_input_nodes):
+                if inp_idx < len(T_tgt):
+                    T_tgt_reordered[fd_idx] = T_tgt[inp_idx]
+            T_target_fd.dat.data[:] = T_tgt_reordered
+            adjoint_rhs = assemble(inner(Constant(0.0), TestFunction(V)) * dx)
+            adjoint_rhs.dat.data[:] = 2.0 * (
+                T_sol3.dat.data_ro - T_target_fd.dat.data_ro
+            )
+            hom_bcs = [
+                DirichletBC(V, Constant(0.0), k + 1) for k in range(n_dirichlet_groups)
+            ]
+            for bc in hom_bcs:
+                bc.zero(adjoint_rhs)
+            lam = Function(V)
+            solve(assemble(a3, bcs=hom_bcs), lam, adjoint_rhs)
+            dI_src_fn = assemble(lam * TestFunction(DG0) * dx)
+            dI_src_fd = dI_src_fn.dat.data_ro.copy()
+            dI_src_input = np.zeros(len(source_values))
+            for fd_idx, inp_idx in enumerate(fd_to_input_cells):
+                dI_src_input[inp_idx] = dI_src_fd[fd_idx]
+            dI_dsource = dI_src_input
 
     return float(J), T_nodes, dJ_drho, dJ_dsource, dI_dsource, dI_drho
 
