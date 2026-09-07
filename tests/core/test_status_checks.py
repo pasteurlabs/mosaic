@@ -28,6 +28,8 @@ from __future__ import annotations
 import unittest
 from typing import ClassVar
 
+import pytest
+
 from mosaic.benchmarks.core import status_checks
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.experiment import kernel
@@ -208,6 +210,32 @@ class TestFdCheckPipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMedianKMinority:
+    """``median_k`` needs half the valid points, and half rounds up.
+
+    Truncating instead would fire on a minority whenever the count is odd,
+    and the live sweeps include three- and five-point ones.
+    """
+
+    @staticmethod
+    def _summary(n_bad: int, n_points: int) -> ForwardSummary:
+        return ForwardSummary(
+            errs_by_pval={i: (100.0 if i < n_bad else 1.0) for i in range(n_points)},
+            peer_medians_by_pval={i: 1.0 for i in range(n_points)},
+            n_valid_points=n_points,
+        )
+
+    @pytest.mark.parametrize("n_points", [2, 3, 4, 5, 6, 7])
+    def test_fires_at_half_rounded_up(self, n_points: int) -> None:
+        check = median_k(3.0)
+        half = (n_points + 1) // 2
+        assert check(self._summary(half - 1, n_points)) is None
+        assert check(self._summary(half, n_points)) is not None
+
+    def test_a_single_bad_point_of_three_is_not_enough(self) -> None:
+        assert median_k(3.0)(self._summary(1, 3)) is None
 
 
 class TestForwardPipeline:

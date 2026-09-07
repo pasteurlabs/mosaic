@@ -100,7 +100,9 @@ def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
             med = s.peer_medians_by_pval.get(pval, 0.0)
             if med > 0 and err > k * med:
                 bad.append((pval, err, med))
-        if not bad or len(bad) < max(1, s.n_valid_points // 2):
+        # Half rounded up: with an odd number of points, // 2 would fire on a
+        # minority of them, and a three-point sweep on a single one.
+        if not bad or len(bad) < max(1, (s.n_valid_points + 1) // 2):
             return None
         worst = max(bad, key=lambda t: t[1] / max(t[2], 1e-300))
         ratio = worst[1] / max(worst[2], 1e-300)
