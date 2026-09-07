@@ -1,0 +1,41 @@
+name: openfoam_ad_navier_stokes_grid
+version: "0.1.0"
+description: >
+  OpenFOAM icoFoam built against DAFoam's OpenFOAM-AD (OpenFOAM v2506).
+  The whole PISO time loop is taped, so the VJP is the exact discrete
+  adjoint of the final velocity field with respect to the initial condition. Periodic mode only.
+build_config:
+  # Pinned by digest: the :v5 tag is rebuilt and overwritten by DAFoam CI on every
+  # commit to the v2506-ad branch, so the tag alone is not reproducible.
+  base_image: "dafoam/opt-packages@sha256:89de4d074dd3085f158c6194954b0bc0ad9d0438af5e8ef89535df2375e9cf55"
+  target_platform: "linux/x86_64"
+
+  package_data:
+    - ["./src", "/opt/openfoam-ad/src"]
+
+  custom_build_steps:
+    - USER root
+    # The image ships both an ADF and an ADR build; select reverse mode, then
+    # compile the solver against the ADR-suffixed libraries.
+    - |
+      RUN sed -i 's/export WM_AD_MODE=.*/export WM_AD_MODE=ADR/' \
+            /home/dafoamuser/dafoam/OpenFOAM/OpenFOAM-AD/etc/bashrc && \
+          bash -c '. /home/dafoamuser/dafoam/OpenFOAM/OpenFOAM-AD/etc/bashrc && \
+                   cd /opt/openfoam-ad/src/icoFoamADR && wmake'
+    # The base image leaves /home/dafoamuser at 0750, so the unprivileged
+    # runtime user cannot traverse it to source the OpenFOAM-AD bashrc.
+    - RUN chmod o+x /home/dafoamuser
+
+metadata:
+  mosaic:
+    name: "OpenFOAM-AD"
+    backend: cpp
+    family: projection
+    scheme: "icoFoam PISO"
+    discretization: FV
+    numerics: "PISO, Euler, GAMG"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    doc_url: "https://github.com/DAFoam/OpenFOAM-AD"

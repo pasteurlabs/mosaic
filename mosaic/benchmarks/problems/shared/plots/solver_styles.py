@@ -26,6 +26,7 @@ SOLVER_STYLES: dict[str, dict[str, Any]] = {
     "phiflow": {"color": "#EE3333", "linestyle": "--", "marker": "s"},
     "ins_jl": {"color": "#228833", "linestyle": "-.", "marker": "^"},
     "openfoam": {"color": "#DDAA33", "linestyle": ":", "marker": "D"},
+    "openfoam_ad": {"color": "#996611", "linestyle": (0, (7, 2)), "marker": "d"},
     "pict": {"color": "#AA44AA", "linestyle": (0, (5, 1)), "marker": "v"},
     "warp_ns": {"color": "#EE7733", "linestyle": (0, (1, 1)), "marker": "X"},
     "xlb": {"color": "#66CCEE", "linestyle": (0, (3, 1, 1, 1)), "marker": "P"},
