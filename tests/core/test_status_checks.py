@@ -283,6 +283,38 @@ class TestForwardPipeline:
     def test_no_checks_is_a_noop(self) -> None:
         assert all(c.status == OK for c in self._run([]).values())
 
+    def test_points_no_peer_reached_do_not_raise_the_bar(self) -> None:
+        """A point only one solver reached must not count toward the majority.
+
+        Solvers drop out at the larger sweep sizes, and those points have no
+        peer median to compare against. Counting them anyway raised the bar
+        above what the comparable points could ever reach, so a solver far
+        worse than its peers everywhere they overlap went unflagged.
+        """
+        data = {
+            "by_solver": {
+                "peer_a": {
+                    "16": {"error": 1.0, "valid": True},
+                    "32": {"error": 1.0, "valid": True},
+                },
+                "peer_b": {
+                    "16": {"error": 1.0, "valid": True},
+                    "32": {"error": 1.0, "valid": True},
+                },
+                # 1000x worse wherever a peer reached, plus three sizes it had
+                # to itself, which nothing can be compared against.
+                "outlier": {
+                    "16": {"error": 1000.0, "valid": True},
+                    "32": {"error": 1000.0, "valid": True},
+                    "64": {"error": 1000.0, "valid": True},
+                    "128": {"error": 1000.0, "valid": True},
+                    "256": {"error": 1000.0, "valid": True},
+                },
+            }
+        }
+        cells = self._run([median_k(3.0)], data)
+        assert cells["outlier"].status == ANOMALY
+
     def test_invalid_points_are_ignored(self) -> None:
         data = {
             "by_solver": {

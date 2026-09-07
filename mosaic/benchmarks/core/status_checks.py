@@ -41,6 +41,11 @@ class ForwardSummary:
     ``errs_by_pval`` and ``peer_medians_by_pval`` are aligned: the keys are
     sweep-parameter values (e.g. ``"N"`` values, ``"nu"`` values). Entries
     only appear for sweep points where the solver produced a valid result.
+
+    ``n_valid_points`` counts the points that can actually be judged, i.e.
+    those carrying a positive peer median. A point only this solver reached
+    has nothing to compare against, so counting it would raise the bar for a
+    majority that no amount of bad results could clear.
     """
 
     errs_by_pval: dict[Any, float] = field(default_factory=dict)

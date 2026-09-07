@@ -388,7 +388,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
         summary = ForwardSummary(
             errs_by_pval=dict(errs),
             peer_medians_by_pval=dict(peer_medians),
-            n_valid_points=len(errs),
+            n_valid_points=sum(1 for p in errs if peer_medians.get(p, 0.0) > 0),
         )
         verdict = _run_checks(checks, summary)
         if verdict:
