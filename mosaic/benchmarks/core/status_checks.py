@@ -78,14 +78,9 @@ class OptimizationSummary:
     ``final_initial_ratio``: ``loss_final / loss_initial`` for the
     worst-case (highest-initial-loss) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
-
-    ``peer_final_loss_by_sweep``: per-sweep-value ratio of this solver's
-    final loss to the best (minimum) final loss across all peers at the
-    same sweep value. Empty when the experiment isn't a numeric sweep.
     """
 
     final_initial_ratio: float | None = None
-    peer_final_loss_by_sweep: dict[Any, float] = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────
@@ -210,27 +205,6 @@ def max_final_ratio(threshold: float) -> Callable[[OptimizationSummary], CheckOu
         return (
             "anomaly",
             f"final/initial = {s.final_initial_ratio:.2f} (> {threshold})",
-        )
-
-    return _check
-
-
-def peer_final_loss_k(k: float) -> Callable[[OptimizationSummary], CheckOutcome]:
-    """Optimization suite (sweeps only): anomaly if final loss exceeds ``k×`` the best peer.
-
-    Fires when any sweep value has this solver's final loss above the threshold.
-    """
-
-    def _check(s: OptimizationSummary) -> CheckOutcome:
-        if not s.peer_final_loss_by_sweep:
-            return None
-        worst = max(s.peer_final_loss_by_sweep.items(), key=lambda kv: kv[1])
-        sweep_k, ratio = worst
-        if ratio <= k:
-            return None
-        return (
-            "anomaly",
-            f"final_loss at sweep={sweep_k} is {ratio:.1f}× best peer (threshold {k}×)",
         )
 
     return _check
