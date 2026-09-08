@@ -315,6 +315,35 @@ class TestForwardPipeline:
         cells = self._run([median_k(3.0)], data)
         assert cells["outlier"].status == ANOMALY
 
+    def test_a_non_positive_peer_median_is_not_judgeable(self) -> None:
+        """A point whose peers all scored zero cannot be judged either.
+
+        An error is only required to be finite, so a peer median can legally
+        be zero or below, and ``median_k`` refuses to compare against one.
+        Counting such points toward the majority buried the two that could be
+        judged, both of which were a thousand times the peer median.
+        """
+        flat = {str(p): {"error": 0.0, "valid": True} for p in range(5)}
+        peer = {
+            **flat,
+            "64": {"error": 1.0, "valid": True},
+            "128": {"error": 1.0, "valid": True},
+        }
+        data = {
+            "by_solver": {
+                "peer_a": dict(peer),
+                "peer_b": dict(peer),
+                "outlier": {
+                    **flat,
+                    "64": {"error": 1000.0, "valid": True},
+                    "128": {"error": 1000.0, "valid": True},
+                },
+            }
+        }
+        cells = self._run([median_k(3.0)], data)
+        assert cells["outlier"].status == ANOMALY
+        assert cells["peer_a"].status == OK
+
     def test_invalid_points_are_ignored(self) -> None:
         data = {
             "by_solver": {

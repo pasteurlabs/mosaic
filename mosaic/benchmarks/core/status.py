@@ -384,11 +384,16 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
         if len(vals) >= 2:
             peer_medians[pval] = _median(vals)
 
+    # The points median_k can actually judge. It skips any whose peer median
+    # is absent or non-positive, and an error is only required to be finite,
+    # so ask the medians rather than assume what they can hold.
+    judgeable = {pval for pval, med in peer_medians.items() if med > 0}
+
     for solver, errs in errs_per_solver.items():
         summary = ForwardSummary(
             errs_by_pval=dict(errs),
             peer_medians_by_pval=dict(peer_medians),
-            n_valid_points=sum(1 for p in errs if peer_medians.get(p, 0.0) > 0),
+            n_valid_points=sum(1 for pval in errs if pval in judgeable),
         )
         verdict = _run_checks(checks, summary)
         if verdict:
