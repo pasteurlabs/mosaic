@@ -53,7 +53,6 @@ from mosaic.benchmarks.core.status_checks import (
     max_rel_err,
     median_k,
     min_cosine,
-    peer_final_loss_k,
     rel_err_peer_outlier,
 )
 
@@ -110,12 +109,6 @@ CHECK_CASES = [
         max_final_ratio(0.5),
         OptimizationSummary(final_initial_ratio=1.2),
         OptimizationSummary(final_initial_ratio=0.1),
-    ),
-    (
-        "peer_final_loss_k",
-        peer_final_loss_k(5.0),
-        OptimizationSummary(peer_final_loss_by_sweep={"0.01": 40.0}),
-        OptimizationSummary(peer_final_loss_by_sweep={"0.01": 1.2}),
     ),
 ]
 

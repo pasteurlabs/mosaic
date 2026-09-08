@@ -482,53 +482,6 @@ def _is_sweep_key(k: Any) -> bool:
     return False
 
 
-def _sweep_sub_entry(entry: dict, sweep_k: str) -> Any:
-    """Look up a sweep sub-entry by string key, falling back to a float key when the string parses as a plain number."""
-    sub = entry.get(sweep_k)
-    if sub is not None:
-        return sub
-    if sweep_k.replace(".", "").lstrip("-").isdigit():
-        return entry.get(float(sweep_k))
-    return entry.get(sweep_k)
-
-
-def _collect_sweep_keys(top: dict) -> set[str]:
-    """Return the union of numeric-style keys across all solver entries."""
-    keys: set[str] = set()
-    for entry in top.values():
-        if not isinstance(entry, dict):
-            continue
-        for k in entry:
-            if _is_sweep_key(k):
-                keys.add(str(k))
-    return keys
-
-
-def _peer_finals_at(top: dict, sweep_k: str) -> dict[str, float]:
-    """Gather non-trivial, finite final_loss values across all solvers at sweep value *sweep_k*.
-
-    Trivial points (initial_loss <= 0) are skipped.
-    """
-    peer_finals: dict[str, float] = {}
-    for solver, entry in top.items():
-        if not isinstance(entry, dict):
-            continue
-        sub = _sweep_sub_entry(entry, sweep_k)
-        if not isinstance(sub, dict):
-            continue
-        fl = sub.get("final_loss")
-        il = sub.get("initial_loss", 0.0)
-        if (
-            isinstance(fl, int | float)
-            and math.isfinite(fl)
-            and fl >= 0
-            and isinstance(il, int | float)
-            and float(il) > 0
-        ):
-            peer_finals[solver] = float(fl)
-    return peer_finals
-
-
 def _worst_case_trajectory(entry: dict) -> list[float] | None:
     """Pick the worst-case (highest initial loss) trajectory from a numeric-sweep dict.
 
@@ -559,13 +512,8 @@ def _worst_case_trajectory(entry: dict) -> list[float] | None:
 def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
     """Walk ``checks`` against per-solver :class:`OptimizationSummary` instances.
 
-    Builds two metrics per solver: ``final_initial_ratio`` (from the
-    worst-case trajectory) and ``peer_final_loss_by_sweep`` (per-sweep
-    ratio to the best peer final loss). Then iterates each solver's check
-    list — first anomaly wins.
-
-    Note that peer values include categorically-excluded solvers since
-    their loss values still represent self-consistent optimisations.
+    Builds ``final_initial_ratio`` per solver from the worst-case
+    trajectory, then iterates each solver's check list — first anomaly wins.
     """
     from .status_checks import OptimizationSummary
 
@@ -574,16 +522,6 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
     top = data.get("by_solver") or data.get("by_sweep") or {}
     if not isinstance(top, dict):
         return
-
-    # Per-sweep peer-min final losses (used for peer_final_loss_k checks).
-    peer_min_by_sweep: dict[Any, float] = {}
-    sweep_keys = _collect_sweep_keys(top)
-    for sweep_k in sweep_keys:
-        peer_finals = _peer_finals_at(top, sweep_k)
-        if len(peer_finals) >= 2:
-            best = min(peer_finals.values())
-            if best > 0:
-                peer_min_by_sweep[sweep_k] = best
 
     for solver in list(cells):
         if cells[solver].status != OK:
@@ -599,19 +537,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
             final = abs(series[-1])
             if initial > 0 and math.isfinite(final):
                 ratio = final / initial
-        # Per-sweep ratios to peer-min final.
-        per_sweep: dict[Any, float] = {}
-        for sweep_k, peer_min in peer_min_by_sweep.items():
-            sub = _sweep_sub_entry(entry, sweep_k)
-            if not isinstance(sub, dict):
-                continue
-            fl = sub.get("final_loss")
-            if isinstance(fl, int | float) and math.isfinite(fl):
-                per_sweep[sweep_k] = float(fl) / peer_min
-        summary = OptimizationSummary(
-            final_initial_ratio=ratio,
-            peer_final_loss_by_sweep=per_sweep,
-        )
+        summary = OptimizationSummary(final_initial_ratio=ratio)
         verdict = _run_checks(checks, summary)
         if verdict:
             cells[solver] = Cell(*verdict)
