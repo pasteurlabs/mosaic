@@ -28,6 +28,8 @@ from __future__ import annotations
 import unittest
 from typing import ClassVar
 
+import pytest
+
 from mosaic.benchmarks.core import status_checks
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.experiment import kernel
@@ -203,6 +205,32 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class TestMedianKMinority:
+    """``median_k`` needs half the valid points, and half rounds up.
+
+    Truncating instead would fire on a minority whenever the count is odd,
+    and the live sweeps include three- and five-point ones.
+    """
+
+    @staticmethod
+    def _summary(n_bad: int, n_points: int) -> ForwardSummary:
+        return ForwardSummary(
+            errs_by_pval={i: (100.0 if i < n_bad else 1.0) for i in range(n_points)},
+            peer_medians_by_pval={i: 1.0 for i in range(n_points)},
+            n_valid_points=n_points,
+        )
+
+    @pytest.mark.parametrize("n_points", [2, 3, 4, 5, 6, 7])
+    def test_fires_at_half_rounded_up(self, n_points: int) -> None:
+        check = median_k(3.0)
+        half = (n_points + 1) // 2
+        assert check(self._summary(half - 1, n_points)) is None
+        assert check(self._summary(half, n_points)) is not None
+
+    def test_a_single_bad_point_of_three_is_not_enough(self) -> None:
+        assert median_k(3.0)(self._summary(1, 3)) is None
+
+
 class TestForwardPipeline:
     """The forward suite must actually apply its configured checks.
 
@@ -247,6 +275,67 @@ class TestForwardPipeline:
 
     def test_no_checks_is_a_noop(self) -> None:
         assert all(c.status == OK for c in self._run([]).values())
+
+    def test_points_no_peer_reached_do_not_raise_the_bar(self) -> None:
+        """A point only one solver reached must not count toward the majority.
+
+        Solvers drop out at the larger sweep sizes, and those points have no
+        peer median to compare against. Counting them anyway raised the bar
+        above what the comparable points could ever reach, so a solver far
+        worse than its peers everywhere they overlap went unflagged.
+        """
+        data = {
+            "by_solver": {
+                "peer_a": {
+                    "16": {"error": 1.0, "valid": True},
+                    "32": {"error": 1.0, "valid": True},
+                },
+                "peer_b": {
+                    "16": {"error": 1.0, "valid": True},
+                    "32": {"error": 1.0, "valid": True},
+                },
+                # 1000x worse wherever a peer reached, plus three sizes it had
+                # to itself, which nothing can be compared against.
+                "outlier": {
+                    "16": {"error": 1000.0, "valid": True},
+                    "32": {"error": 1000.0, "valid": True},
+                    "64": {"error": 1000.0, "valid": True},
+                    "128": {"error": 1000.0, "valid": True},
+                    "256": {"error": 1000.0, "valid": True},
+                },
+            }
+        }
+        cells = self._run([median_k(3.0)], data)
+        assert cells["outlier"].status == ANOMALY
+
+    def test_a_non_positive_peer_median_is_not_judgeable(self) -> None:
+        """A point whose peers all scored zero cannot be judged either.
+
+        An error is only required to be finite, so a peer median can legally
+        be zero or below, and ``median_k`` refuses to compare against one.
+        Counting such points toward the majority buried the two that could be
+        judged, both of which were a thousand times the peer median.
+        """
+        flat = {str(p): {"error": 0.0, "valid": True} for p in range(5)}
+        peer = {
+            **flat,
+            "64": {"error": 1.0, "valid": True},
+            "128": {"error": 1.0, "valid": True},
+        }
+        data = {
+            "by_solver": {
+                "peer_a": dict(peer),
+                "peer_b": dict(peer),
+                "outlier": {
+                    **flat,
+                    "64": {"error": 1000.0, "valid": True},
+                    "128": {"error": 1000.0, "valid": True},
+                },
+            }
+        }
+        cells = self._run([median_k(3.0)], data)
+        assert cells["outlier"].status == ANOMALY
+        assert cells["peer_a"].status == OK
 
     def test_invalid_points_are_ignored(self) -> None:
         data = {

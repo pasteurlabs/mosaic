@@ -41,6 +41,11 @@ class ForwardSummary:
     ``errs_by_pval`` and ``peer_medians_by_pval`` are aligned: the keys are
     sweep-parameter values (e.g. ``"N"`` values, ``"nu"`` values). Entries
     only appear for sweep points where the solver produced a valid result.
+
+    ``n_valid_points`` counts the points that can actually be judged, i.e.
+    those carrying a positive peer median. A point only this solver reached
+    has nothing to compare against, so counting it would raise the bar for a
+    majority that no amount of bad results could clear.
     """
 
     errs_by_pval: dict[Any, float] = field(default_factory=dict)
@@ -95,7 +100,9 @@ def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
             med = s.peer_medians_by_pval.get(pval, 0.0)
             if med > 0 and err > k * med:
                 bad.append((pval, err, med))
-        if not bad or len(bad) < max(1, s.n_valid_points // 2):
+        # Half rounded up: with an odd number of points, // 2 would fire on a
+        # minority of them, and a three-point sweep on a single one.
+        if not bad or len(bad) < max(1, (s.n_valid_points + 1) // 2):
             return None
         worst = max(bad, key=lambda t: t[1] / max(t[2], 1e-300))
         ratio = worst[1] / max(worst[2], 1e-300)
