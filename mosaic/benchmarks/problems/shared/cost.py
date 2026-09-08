@@ -123,11 +123,6 @@ def _timed_kernel(
 # ── Aggregates ───────────────────────────────────────────────────────────────
 
 
-def _axis_key(sweep_key: str) -> str:
-    """``sweep_key`` to ``by_N`` / ``by_steps`` output dict key."""
-    return "by_N" if sweep_key != "steps" else "by_steps"
-
-
 _CI_ISOLATION_NOTE = (
     "Wall-clock times measured on dedicated per-suite VM in CI."
     " Relative rankings reliable; absolute times may vary"
