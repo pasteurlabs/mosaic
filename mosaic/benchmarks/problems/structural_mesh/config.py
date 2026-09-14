@@ -247,11 +247,17 @@ _MESH_PHYS = {
     "rho_0": 0.5,
     "corner_load": False,
 }
+# Resolution sweep for the cost suites. The canonical thin-slab geometry ties
+# ny=2 and nz=nx//2 to nx, so the top point nx=128 gives a 128×2×64 mesh — the
+# same resolution used for the paper's structural timing table. Points below it
+# trace the wall-clock scaling curve; a per-trial wall limit truncates the
+# sweep gracefully for any solver that gets too slow at the high end.
+_COST_NX = [4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128]
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh resolution $N$ at one assembly step.",
-    physics={**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
+    physics={**_MESH_PHYS, "steps": 1, "nx": _COST_NX},
     cost={"n_trials": 3},
     plot=plot_cost,
 )
@@ -274,7 +280,7 @@ problem.add_experiment(
     runs=[
         {
             "name": "by_N",
-            "physics": {**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
+            "physics": {**_MESH_PHYS, "steps": 1, "nx": _COST_NX},
             "cost": {"n_trials": 3},
         },
         {
