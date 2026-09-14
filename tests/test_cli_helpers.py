@@ -84,11 +84,10 @@ class TestApplySolverFilter:
         result = self.filter(cfg, "ns-grid=XLB;thermal=FEniCSx")
         assert [s.name for s in result.solvers] == ["XLB", "jax-cfd", "Firedrake"]
 
-    def test_per_problem_map_no_match_returns_none(self):
+    def test_per_problem_map_unknown_name_exits(self):
         cfg = _make_problem(name="ns-grid")
-        result = self.filter(cfg, "ns-grid=DoesNotExist")
-        # Unknown solver in addressed problem → returns None after warning.
-        assert result is None
+        with pytest.raises(SystemExit):
+            self.filter(cfg, "ns-grid=DoesNotExist")
 
     def test_preserves_solver_order(self):
         cfg = _make_problem()
@@ -255,3 +254,36 @@ class TestPlatformWarnings:
     def test_missing_docker_info_skips_desktop_check(self):
         # docker info unavailable (Docker not running) → no Desktop warning.
         assert self.warn(system="Linux", docker_info=None) == []
+
+
+class TestFailUnknownSolvers:
+    def test_prints_available_and_exits(self, capsys):
+        from mosaic.benchmarks.cli._helpers import _fail_unknown_solvers
+
+        with pytest.raises(SystemExit):
+            _fail_unknown_solvers({"fenics"}, {"fenics_structural", "dealii_structural"})
+        out = capsys.readouterr().out
+        assert "Unknown solver 'fenics'" in out
+        assert "fenics_structural" in out
+        assert "Available solvers:" in out
+
+    def test_validate_flat_csv_unknown_exits(self, monkeypatch):
+        from mosaic.benchmarks.cli import _helpers as helpers
+
+        class _Cfg:
+            solver_names = ["fenics_structural", "dealii_structural"]
+
+        monkeypatch.setattr(helpers, "PROBLEMS", ["structural-mesh"])
+        monkeypatch.setattr(helpers, "get_config", lambda name: _Cfg())
+        with pytest.raises(SystemExit):
+            helpers._validate_solver_csv("fenics")
+
+    def test_validate_flat_csv_known_passes(self, monkeypatch):
+        from mosaic.benchmarks.cli import _helpers as helpers
+
+        class _Cfg:
+            solver_names = ["fenics_structural", "dealii_structural"]
+
+        monkeypatch.setattr(helpers, "PROBLEMS", ["structural-mesh"])
+        monkeypatch.setattr(helpers, "get_config", lambda name: _Cfg())
+        helpers._validate_solver_csv("fenics_structural")
