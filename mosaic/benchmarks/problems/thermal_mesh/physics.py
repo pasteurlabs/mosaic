@@ -266,7 +266,7 @@ def make_inputs(
     nz: int = 1,
     Lx: float = 2.0,
     Ly: float = 1.0,
-    Lz: float = 1.0,
+    Lz: float | None = None,
     Q_total: float = 1.0,
     rho_0: float | None = None,
     hot_spot: bool = False,
@@ -295,6 +295,13 @@ def make_inputs(
     N, if provided, overrides nx (resolution_sweep convention: N = nx).
     If ic does not match the expected (nx * ny * nz) shape, nx is inferred
     from ic.size to keep the mesh consistent with the density field.
+
+    Lz defaults to the in-plane element size (Lx / nx) for the quasi-2D case
+    (nz == 1), so the single-layer HEX8 elements stay roughly cubic as the mesh
+    is refined instead of becoming increasingly elongated in z. With the flux
+    formula q_n = Q_total / (Ly * Lz), shrinking Lz keeps the injected power
+    comparable across refinements — i.e. Q_total is a flux per unit slab depth.
+    Pass an explicit Lz to override (e.g. for nz > 1).
 
     jax_fem      expects rho shape (n_cells, 1).
     fenics_heat  expects rho shape (n_cells,) and extra k_max/p_exp params
@@ -328,6 +335,12 @@ def make_inputs(
             else ic.astype(np.float32)
         )
         source_data = np.zeros(nx * ny * nz, dtype=np.float32)
+
+    # Quasi-2D (nz == 1): scale the slab thickness with the in-plane element
+    # size so the single-layer elements stay ~cubic under refinement instead of
+    # becoming elongated in z (which degrades conditioning for some solvers).
+    if Lz is None:
+        Lz = Lx / nx if nz == 1 else 1.0
 
     points, cells = _hex_mesh_arrays(nx, ny, nz, Lx, Ly, Lz)
     bc = _heated_block_bcs(points, Lx, Ly, Lz, Q_total=Q_total, hot_spot=hot_spot)

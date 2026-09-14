@@ -296,7 +296,7 @@ def _problem_description(problem: str) -> str:
         desc = _get_config(problem).description
         if desc:
             return desc
-    except Exception:
+    except Exception:  # noqa: S110 — fall back to the static description table
         pass
     return PROBLEM_DESCRIPTIONS.get(problem, "")
 
@@ -307,7 +307,7 @@ def _bc_description(problem: str) -> str:
         bc = _get_config(problem).bc_description
         if bc:
             return bc
-    except Exception:
+    except Exception:  # noqa: S110 — fall back to the static BC description table
         pass
     return PROBLEM_BC_DESCRIPTIONS.get(problem, "")
 
@@ -648,7 +648,7 @@ def _load_params(params_path: Path) -> dict | None:
             ):
                 params = {**params, "sweep": result["sweep"]}
             return params
-        except Exception:
+        except Exception:  # noqa: S110 — malformed result file, skip its params
             pass
     return None
 
@@ -786,8 +786,10 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
     illustration = PROBLEM_ILLUSTRATIONS.get(problem)
     if illustration and (OUTPUT_DIR / illustration).exists():
         lines += [
-            f"![]({illustration}){{width=100% "
-            'style="max-width:560px; display:block; margin:0 auto 0.5rem;"}',
+            (
+                f"![]({illustration}){{width=100% "
+                'style="max-width:560px; display:block; margin:0 auto 0.5rem;"}'
+            ),
             "",
         ]
         tagline = PROBLEM_TAGLINES.get(problem)

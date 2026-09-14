@@ -29,19 +29,12 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 - [ ] Before/after `mosaic status --format json` snapshots compared
 - [ ] No regressions to other solvers
 
-## Status output
-
-<!-- Paste the output of `mosaic status -p <domain> -f` here -->
-
-```
-
-```
-
 ## Benchmark label
 
 <!-- If this PR touches mosaic/ code, CI will block until a maintainer adds one of these labels:
   - benchmark:none    — skip benchmarks (no answer-changing code)
   - benchmark:solver  — benchmark only the solvers whose Tesseract code changed (scoped to their problems)
+  - benchmark:domain  — benchmark every solver in the domain whose problem definition changed (single domain only)
   - benchmark:all     — full benchmark suite from scratch
 -->
 

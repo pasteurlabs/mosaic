@@ -36,13 +36,9 @@ _OF_BASHRC = "/opt/openfoam12/etc/bashrc"
 class InputSchema(_CanonicalInputSchema):
     """Input schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
 
-    pass
-
 
 class OutputSchema(_CanonicalOutputSchema):
     """Output schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
-
-    pass
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +53,7 @@ def _run_of(cmd: str, cwd: Path) -> None:
         cwd=str(cwd),
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(

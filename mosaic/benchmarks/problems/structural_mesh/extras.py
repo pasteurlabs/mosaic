@@ -15,12 +15,11 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.colors as mcolors
-import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import numpy as np
+from matplotlib import gridspec, ticker
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from mosaic.benchmarks.core.config import Problem
@@ -337,7 +336,7 @@ def _plot_convergence(
         # ``by_solver`` keyed by spec.name (display form); bridge to alias.
         alias_to_display: dict[str, str] = {}
         for display_name in by_solver:
-            a = resolve_solver_alias(display_name)
+            a = resolve_solver_alias(display_name, prefer=STRUCTURAL_ORDER)
             if a is not None:
                 alias_to_display[a] = display_name
         for alias in STRUCTURAL_ORDER:
@@ -429,7 +428,7 @@ def _topopt_overview_generate(out_dir: Path) -> None:
         # canonical order while resolving back to the npz key when needed.
         _npz_alias_to_display: dict[str, str] = {}
         for display_name in npz_solvers:
-            a = resolve_solver_alias(display_name)
+            a = resolve_solver_alias(display_name, prefer=STRUCTURAL_ORDER)
             if a is not None:
                 _npz_alias_to_display[a] = display_name
         field_solvers = [s for s in STRUCTURAL_ORDER if s in _npz_alias_to_display]

@@ -422,7 +422,7 @@ def _run_one_seed_trial(
             lr,
             max_iters,
             patience,
-            snap_interval=snap_interval if snap_interval > 0 else 0,
+            snap_interval=max(0, snap_interval),
             history=_hist,
             snap_error_fn=lambda ic, _ict=ic_true_k: float(error_fn(ic, _ict)),
             error_history=_ic_err_hist if (snap_interval > 0 and is_primary) else None,
@@ -497,19 +497,6 @@ def _precompute_sigma_target(
 
 
 # ── Aggregate ────────────────────────────────────────────────────────────────
-
-
-def _decode_snap_key(key: str) -> tuple[str, str]:
-    """Split a ``"prefix:suffix"`` framework snapshot key.
-
-    The framework's ``_absorb`` writes per-call snapshots under
-    ``f"{prefix}:{idx}"`` where ``idx`` is the sweep-iteration index
-    (stringified). Empty suffix means a single (non-per-val) array.
-    """
-    if ":" in key:
-        p, s = key.split(":", 1)
-        return p, s
-    return key, ""
 
 
 def _collect_per_val_arrays(

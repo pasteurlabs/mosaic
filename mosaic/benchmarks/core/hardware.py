@@ -5,7 +5,15 @@
 
 from __future__ import annotations
 
+import logging
+from typing import TYPE_CHECKING
+
 from mosaic.benchmarks.core.memory import _nvml_ready, sample_vram_mib
+
+if TYPE_CHECKING:
+    from typing import Self
+
+logger = logging.getLogger(__name__)
 
 # ── Hardware info ─────────────────────────────────────────────────────────────
 
@@ -55,7 +63,7 @@ def get_hardware_info() -> dict:
                     info["cpu"] = line.split(":", 1)[1].strip()
                     break
     except Exception:
-        pass
+        logger.debug("CPU model probe failed", exc_info=True)
 
     # Total RAM via psutil
     try:
@@ -63,7 +71,7 @@ def get_hardware_info() -> dict:
 
         info["ram_gb"] = round(psutil.virtual_memory().total / 1e9, 1)
     except Exception:
-        pass
+        logger.debug("RAM probe failed", exc_info=True)
 
     return info
 
@@ -116,7 +124,7 @@ class ResourceSampler:
         self._final_vram_mib: float | None = None
         self._ram_mib: float | None = None
 
-    def __enter__(self) -> ResourceSampler:
+    def __enter__(self) -> Self:
         self._baseline_vram_mib = sample_vram_mib(self.gpu_id)
         return self
 
@@ -127,7 +135,7 @@ class ResourceSampler:
 
             self._ram_mib = psutil.Process().memory_info().rss / 1e6
         except Exception:
-            pass
+            logger.debug("RSS sampling failed", exc_info=True)
 
     @property
     def summary(self) -> dict:

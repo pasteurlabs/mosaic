@@ -110,7 +110,16 @@ def _rand_div_free_3d(
 def _tgv3d_analytic(
     ic: jax.Array, nu: float, t: float, L: float = 2 * jnp.pi
 ) -> jax.Array:
-    """Exact 3D TGV viscous decay: u(t) = u(0) * exp(-2*nu*t)."""
+    """Linearized short-time 3D TGV decay: u(t) ≈ u(0) * exp(-2*nu*t).
+
+    This is *not* the exact solution of the nonlinear equations. Unlike the
+    2D TGV, the 3D TGV initial condition is not advection-free: the nonlinear
+    term immediately generates a ``w`` component and z-structure (vortex
+    stretching), so ``exp(-2*nu*t)`` only holds in the short-time / low-Re
+    limit before that structure develops. Use it as a short-horizon
+    consistency check, not as an accuracy reference for the full nonlinear
+    dynamics (see the converged reference wired for ``forward/agreement``).
+    """
     N = ic.shape[0]
     x = jnp.linspace(0, L, N, endpoint=False)
     y = jnp.linspace(0, L, N, endpoint=False)

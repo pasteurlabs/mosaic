@@ -18,6 +18,7 @@ during ``mosaic run --plots-only`` or saved off-line.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -150,7 +151,7 @@ def _norm_solver_name(s: str) -> str:
     return s.lower().replace("-", "").replace("_", "").replace(".", "").replace(" ", "")
 
 
-def resolve_solver_alias(name: str) -> str | None:
+def resolve_solver_alias(name: str, prefer: Sequence[str] | None = None) -> str | None:
     """Map a solver string to its canonical alias in :data:`SOLVER_STYLES`.
 
     Handles three forms:
@@ -161,14 +162,38 @@ def resolve_solver_alias(name: str) -> str | None:
     Returns ``None`` if no entry matches. Used to bridge ``result.json``
     keys (which are ``spec.name``) and ``NS_ORDER`` / ``FEM_ORDER`` /
     ``SOLVER_STYLES`` (which are alias-keyed).
+
+    ``prefer`` breaks label ties between domains: structural and thermal
+    both label their FEniCS solver "FEniCS", so a bare lookup resolves to
+    whichever entry comes first in :data:`SOLVER_STYLES` (the structural
+    one) — and thermal plots that filter against :data:`THERMAL_ORDER`
+    then silently drop the solver. Pass the domain's canonical order
+    (e.g. ``THERMAL_ORDER``) so matches from that domain win.
     """
     if name in SOLVER_STYLES:
         return name
     target = _norm_solver_name(name)
-    for k, v in SOLVER_STYLES.items():
-        if _norm_solver_name(k) == target or _norm_solver_name(v[0]) == target:
-            return k
-    return None
+    matches = [
+        k
+        for k, v in SOLVER_STYLES.items()
+        if _norm_solver_name(k) == target or _norm_solver_name(v[0]) == target
+    ]
+    if not matches:
+        return None
+    if prefer:
+        for p in prefer:
+            if p in matches:
+                return p
+    return matches[0]
+
+
+def solver_order_for_problem(name: str) -> list[str]:
+    """Canonical solver ordering for a problem, picked by problem name."""
+    if "thermal" in name:
+        return THERMAL_ORDER
+    if "structural" in name:
+        return STRUCTURAL_ORDER
+    return NS_ORDER
 
 
 def solver_props(name: str) -> tuple:

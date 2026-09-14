@@ -12,6 +12,7 @@ readability. All helpers preserve the exact behaviour of the pre-split
 from __future__ import annotations
 
 import dataclasses
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +20,10 @@ import typer
 
 from mosaic.benchmarks.core.console import console, print_rule, print_skip, print_warn
 from mosaic.benchmarks.core.runner import build_all, image_tags_no_build
-from mosaic.benchmarks.problems import get_config
+from mosaic.benchmarks.problems import PROBLEMS, get_config
 from mosaic.benchmarks.problems.shared import SUITES
+
+logger = logging.getLogger(__name__)
 
 _ALL_SUITES = list(SUITES)
 
@@ -357,7 +360,7 @@ def _plots_only(
 
         cfg = get_config(cfg.name)
     except Exception:
-        pass
+        logger.debug("re-loading full config for %s failed", cfg.name, exc_info=True)
     if to_run:
         names = to_run
     else:
@@ -452,11 +455,20 @@ def _run_prepare_problem(
     return cfg, {}, gpus
 
 
-def _validate_solver_csv(solvers_csv: str | None, problem_list: list[str]) -> None:
+def _validate_solver_csv(solvers_csv: str | None) -> None:
     """Up-front typo check: every name in a flat -s CSV must exist on at least one problem.
 
     Raises ``typer.Exit(1)`` when an unknown name is found so the user gets
     immediate feedback instead of "no solvers matched" warnings on every problem.
+
+    Checked against *every registered* problem, not just the ones this
+    invocation runs: a flat CSV is a union set that :func:`_apply_solver_filter`
+    deliberately applies per problem, ignoring names that belong elsewhere. A
+    run is often sharded one problem per job (CI does this) while -s still
+    carries the full cross-problem set, so scoping the check to *problem_list*
+    would reject a perfectly good name -- e.g. ``-s "INS.jl,TopOpt.jl"`` with
+    ``--problems ns-grid``, where TopOpt.jl lives on structural-mesh. A name is
+    a typo only when no registered problem has it.
 
     Per-problem maps (``<problem>=<csv>;...``) skip this check — the
     per-problem dispatcher already warns about unknown names against the
@@ -468,13 +480,14 @@ def _validate_solver_csv(solvers_csv: str | None, problem_list: list[str]) -> No
     if not requested:
         return
     all_names: set[str] = set()
-    for problem in problem_list:
+    for problem in PROBLEMS:
         try:
             all_names |= set(get_config(problem).solver_names)
         except Exception:
             # Skip problems that fail to import — they'll surface as
             # "build failed" later in the loop and aren't relevant to a
             # name-typo check.
+            logger.debug("solver-name lookup for %s failed", problem, exc_info=True)
             continue
     # Match case-insensitively against the canonical names.
     known_lower = {n.lower() for n in all_names}

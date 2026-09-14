@@ -21,6 +21,10 @@ hosts.
 from __future__ import annotations
 
 import threading
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Self
 
 # Lazy / optional imports: NVML and Docker may be absent on CI / CPU-only
 # hosts. We import inside the helpers so module import never fails — every
@@ -167,7 +171,7 @@ class MemoryPoller:
         self._ram: list[float] = []
         self._thread: threading.Thread | None = None
 
-    def __enter__(self) -> MemoryPoller:
+    def __enter__(self) -> Self:
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
         return self

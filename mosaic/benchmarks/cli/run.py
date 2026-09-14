@@ -175,8 +175,10 @@ def run(
     # Validate suite names early — before any builds start.
     _run_validate_suites(suite_list)
     # Same fast-fail for ``-s`` typos: a name in a flat CSV must exist on
-    # at least one problem in -p (per-problem maps validate downstream).
-    _validate_solver_csv(solvers, problem_list)
+    # at least one registered problem — not just those in -p, since a sharded
+    # run passes the full cross-problem set (per-problem maps validate
+    # downstream).
+    _validate_solver_csv(solvers)
 
     to_run = [exp_seg] if exp_seg is not None else None
 

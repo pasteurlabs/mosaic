@@ -14,10 +14,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import gridspec
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import (
@@ -104,7 +104,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
                 continue
             alias_to_display: dict[str, str] = {}
             for display_name in by_solver_d:
-                a = resolve_solver_alias(display_name)
+                a = resolve_solver_alias(display_name, prefer=THERMAL_ORDER)
                 if a is not None:
                     alias_to_display[a] = display_name
             for alias in THERMAL_ORDER:
@@ -176,7 +176,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
             ]
             alias_to_display: dict[str, str] = {}
             for display_name in _display_names:
-                a = resolve_solver_alias(display_name)
+                a = resolve_solver_alias(display_name, prefer=THERMAL_ORDER)
                 if a is not None:
                     alias_to_display[a] = display_name
             for alias in THERMAL_ORDER:

@@ -16,6 +16,7 @@ The two inner optimisation primitives ``_run_optim`` (Adam) and
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import jax
@@ -32,6 +33,8 @@ from mosaic.benchmarks.core.io import (
 )
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
+
+logger = logging.getLogger(__name__)
 
 _SUITE = "optimization"
 
@@ -59,7 +62,7 @@ def _drag_capture_flow(
         if vel is not None:
             return np.array(vel)
     except Exception:
-        pass
+        logger.debug("drag-capture forward for %s failed", name, exc_info=True)
     return None
 
 

@@ -53,6 +53,8 @@ from filelock import FileLock
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import print_saved
 
+logger = logging.getLogger(__name__)
+
 # ── Paths ────────────────────────────────────────────────────────────────────
 
 RESULTS_DIR_ENV = "MOSAIC_RESULTS_DIR"
@@ -905,7 +907,7 @@ def save_experiment(
     # for whatever blocked the write.
     _flock_dt = time.monotonic() - _flock_t0
     if _flock_dt > 60:
-        logging.warning(
+        logger.warning(
             "save_experiment flock held for %.1fs at %s (solvers=%s)",
             _flock_dt,
             result_path,

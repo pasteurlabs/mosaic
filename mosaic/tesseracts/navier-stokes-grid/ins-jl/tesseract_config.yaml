@@ -13,8 +13,25 @@ build_config:
     # one container across many calls, so a one-time JIT cost on first call
     # is a net win over paying the sysimage build cost every push. Removed
     # PackageCompiler from the package list — it's no longer imported.
-    - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="4.0.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10")]); Pkg.precompile()'''
-    - "RUN chmod -R 777 /app"
+    - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="5.0.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10")]); Pkg.precompile()'''
+    # Warm up juliacall's Julia environment here, as root, mirroring the init
+    # that tesseract_api.py does at import time — then chmod in the same layer.
+    # The first `import juliacall` is what resolves the environment: juliapkg
+    # adds PythonCall to /app/julia_env, precompiles it into /app/julia_depot,
+    # and guards the whole thing with a lock file at /app/julia_env/lock.pid
+    # (mode 644). Left to itself that first import is Tesseract's own
+    # `tesseract-runtime check`, which the generated Dockerfile runs as uid
+    # 9999 *after* all custom build steps — so the lock file and ~700 depot
+    # entries end up owned by 9999, out of reach of the chmod. `tesseract
+    # serve` starts the container as the *host* uid, which then cannot open
+    # the lock file:
+    #   PermissionError: [Errno 13] Permission denied: '/app/julia_env/lock.pid'
+    # and every call fails with "Tesseract container ... failed to start".
+    # Doing it here leaves nothing under /app owned by 9999, and the build-time
+    # check finds the environment resolved (juliapkg skips straight past it).
+    # Keep the chmod in this same RUN: as a separate layer it would copy up
+    # every file this step just created (+130 MB in the image).
+    - 'RUN python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using IncompressibleNavierStokes, Zygote")'' && chmod -R 777 /app'
 env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
@@ -33,5 +50,5 @@ metadata:
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: false
-    internal_dtype: float64
+    internal_dtype: float32
     doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"

@@ -16,7 +16,11 @@ const _CHANNEL_2D_SETUP_CACHE = Dict{Tuple{Int,Float64}, Tuple}()
 function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
     key = (n, L, ndim)
     if !haskey(_SETUP_CACHE, key)
-        ax = LinRange(0.0, L, n + 1)
+        # Float32 grid coordinates make the whole solve run in Float32: the
+        # non-mutating INS.jl operators allocate their outputs from the setup
+        # grid eltype, so a Float64 grid would silently promote the state (and
+        # the Zygote pullback) to Float64 after the first projection.
+        ax = LinRange(0f0, Float32(L), n + 1)
         if ndim == 2
             setup = Setup(;
                 x = (ax, ax),
@@ -81,19 +85,21 @@ strip_ghosts_3d(u::AbstractArray, n::Int) = u[2:n+1, 2:n+1, 2:n+1, :]
 
 """Collocated (n,n,2) → staggered (n,n,2) via periodic linear interpolation."""
 function coloc_to_stag_2d(u::AbstractArray, n::Int)
+    half = eltype(u)(1) / 2  # eltype-preserving (a 0.5 literal promotes Float32 → Float64)
     ux = u[:, :, 1]
     uy = u[:, :, 2]
-    ux_s = 0.5 .* (ux .+ cat(ux[2:end, :], ux[1:1, :]; dims=1))
-    uy_s = 0.5 .* (uy .+ cat(uy[:, 2:end], uy[:, 1:1]; dims=2))
+    ux_s = half .* (ux .+ cat(ux[2:end, :], ux[1:1, :]; dims=1))
+    uy_s = half .* (uy .+ cat(uy[:, 2:end], uy[:, 1:1]; dims=2))
     return cat(reshape(ux_s, n, n, 1), reshape(uy_s, n, n, 1); dims=3)
 end
 
 """Staggered (n,n,2) → collocated (n,n,2)."""
 function stag_to_coloc_2d(u::AbstractArray, n::Int)
+    half = eltype(u)(1) / 2
     ux_s = u[:, :, 1]
     uy_s = u[:, :, 2]
-    ux = 0.5 .* (cat(ux_s[end:end, :], ux_s[1:end-1, :]; dims=1) .+ ux_s)
-    uy = 0.5 .* (cat(uy_s[:, end:end], uy_s[:, 1:end-1]; dims=2) .+ uy_s)
+    ux = half .* (cat(ux_s[end:end, :], ux_s[1:end-1, :]; dims=1) .+ ux_s)
+    uy = half .* (cat(uy_s[:, end:end], uy_s[:, 1:end-1]; dims=2) .+ uy_s)
     return cat(reshape(ux, n, n, 1), reshape(uy, n, n, 1); dims=3)
 end
 
@@ -104,12 +110,13 @@ end
 
 """Collocated (n,n,n,3) → staggered (n,n,n,3) via periodic linear interpolation."""
 function coloc_to_stag_3d(u::AbstractArray, n::Int)
+    half = eltype(u)(1) / 2
     ux = u[:, :, :, 1]
     uy = u[:, :, :, 2]
     uz = u[:, :, :, 3]
-    ux_s = 0.5 .* (ux .+ cat(ux[2:end, :, :], ux[1:1, :, :]; dims=1))
-    uy_s = 0.5 .* (uy .+ cat(uy[:, 2:end, :], uy[:, 1:1, :]; dims=2))
-    uz_s = 0.5 .* (uz .+ cat(uz[:, :, 2:end], uz[:, :, 1:1]; dims=3))
+    ux_s = half .* (ux .+ cat(ux[2:end, :, :], ux[1:1, :, :]; dims=1))
+    uy_s = half .* (uy .+ cat(uy[:, 2:end, :], uy[:, 1:1, :]; dims=2))
+    uz_s = half .* (uz .+ cat(uz[:, :, 2:end], uz[:, :, 1:1]; dims=3))
     return cat(
         reshape(ux_s, n, n, n, 1),
         reshape(uy_s, n, n, n, 1),
@@ -120,12 +127,13 @@ end
 
 """Staggered (n,n,n,3) → collocated (n,n,n,3)."""
 function stag_to_coloc_3d(u::AbstractArray, n::Int)
+    half = eltype(u)(1) / 2
     ux_s = u[:, :, :, 1]
     uy_s = u[:, :, :, 2]
     uz_s = u[:, :, :, 3]
-    ux = 0.5 .* (cat(ux_s[end:end, :, :], ux_s[1:end-1, :, :]; dims=1) .+ ux_s)
-    uy = 0.5 .* (cat(uy_s[:, end:end, :], uy_s[:, 1:end-1, :]; dims=2) .+ uy_s)
-    uz = 0.5 .* (cat(uz_s[:, :, end:end], uz_s[:, :, 1:end-1]; dims=3) .+ uz_s)
+    ux = half .* (cat(ux_s[end:end, :, :], ux_s[1:end-1, :, :]; dims=1) .+ ux_s)
+    uy = half .* (cat(uy_s[:, end:end, :], uy_s[:, 1:end-1, :]; dims=2) .+ uy_s)
+    uz = half .* (cat(uz_s[:, :, end:end], uz_s[:, :, 1:end-1]; dims=3) .+ uz_s)
     return cat(
         reshape(ux, n, n, n, 1),
         reshape(uy, n, n, n, 1),
@@ -146,15 +154,17 @@ function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
     v0_stag = coloc_to_stag_2d(v0, n)
     u = add_ghosts_2d(v0_stag, n)
     u = project(u, setup; psolver)
-    u = add_ghosts_2d(strip_ghosts_2d(u, n), n)
 
+    # rhs (create_right_hand_side) applies the periodic BCs to its input and
+    # projects its output, so no ghost refresh is needed between stages; the
+    # state's own ghost entries go stale but are never read and are stripped
+    # at the end.
     for _ in 1:steps
         k1 = rhs(u, p, 0.0)
-        k2 = rhs(add_ghosts_2d(strip_ghosts_2d(u .+ (dt/2) .* k1, n), n), p, 0.0)
-        k3 = rhs(add_ghosts_2d(strip_ghosts_2d(u .+ (dt/2) .* k2, n), n), p, 0.0)
-        k4 = rhs(add_ghosts_2d(strip_ghosts_2d(u .+ dt .* k3, n), n), p, 0.0)
-        u = add_ghosts_2d(strip_ghosts_2d(
-            u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4), n), n)
+        k2 = rhs(u .+ (dt/2) .* k1, p, 0.0)
+        k3 = rhs(u .+ (dt/2) .* k2, p, 0.0)
+        k4 = rhs(u .+ dt .* k3, p, 0.0)
+        u = u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
     end
 
     return stag_to_coloc_2d(strip_ghosts_2d(u, n), n)
@@ -167,15 +177,14 @@ function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
     v0_stag = coloc_to_stag_3d(v0, n)
     u = add_ghosts_3d(v0_stag, n)
     u = project(u, setup; psolver)
-    u = add_ghosts_3d(strip_ghosts_3d(u, n), n)
 
+    # See ns_forward_2d for why no per-stage ghost refresh is needed.
     for _ in 1:steps
         k1 = rhs(u, p, 0.0)
-        k2 = rhs(add_ghosts_3d(strip_ghosts_3d(u .+ (dt/2) .* k1, n), n), p, 0.0)
-        k3 = rhs(add_ghosts_3d(strip_ghosts_3d(u .+ (dt/2) .* k2, n), n), p, 0.0)
-        k4 = rhs(add_ghosts_3d(strip_ghosts_3d(u .+ dt .* k3, n), n), p, 0.0)
-        u = add_ghosts_3d(strip_ghosts_3d(
-            u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4), n), n)
+        k2 = rhs(u .+ (dt/2) .* k1, p, 0.0)
+        k3 = rhs(u .+ (dt/2) .* k2, p, 0.0)
+        k4 = rhs(u .+ dt .* k3, p, 0.0)
+        u = u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
     end
 
     return stag_to_coloc_3d(strip_ghosts_3d(u, n), n)
@@ -192,19 +201,43 @@ end
 Forward pass.
   2-D: v0_np (n,n,2) Float32 → returns (n,n,2) Float32
   3-D: v0_np (n,n,n,3) Float32 → returns (n,n,n,3) Float32
+
+Forward-only rollouts use the in-place `solve_unsteady` time stepper (no AD
+tape needed), which is several times faster than the non-mutating rollout
+used for the VJP primal. `RKMethods.RK44` applies the same per-stage BC +
+projection as the projected RHS in `ns_forward_*`, so the two paths agree to
+round-off.
 """
 function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64)
-    v0   = Float32.(v0_np)
+    T = Float32
+    v0   = T.(v0_np)
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
-    rhs  = create_right_hand_side(setup, psolver)
 
-    if ndim == 2
-        v_out = ns_forward_2d(v0, rhs, setup, psolver, nu, dt, steps, n)
+    # Staggered, ghosted, divergence-free initial state
+    u = if ndim == 2
+        add_ghosts_2d(coloc_to_stag_2d(v0, n), n)
     else
-        v_out = ns_forward_3d(v0, rhs, setup, psolver, nu, dt, steps, n)
+        add_ghosts_3d(coloc_to_stag_3d(v0, n), n)
     end
-    return Float32.(v_out)
+    u = project(u, setup; psolver)
+
+    state, _ = solve_unsteady(;
+        setup,
+        tlims = (T(0), T(steps) * T(dt)),
+        start = (; u),
+        method = RKMethods.RK44(; T),
+        psolver,
+        Δt = T(dt),
+        params = (; viscosity = T(nu)),
+    )
+
+    v_out = if ndim == 2
+        stag_to_coloc_2d(strip_ghosts_2d(state.u, n), n)
+    else
+        stag_to_coloc_3d(strip_ghosts_3d(state.u, n), n)
+    end
+    return T.(v_out)
 end
 
 """
@@ -213,12 +246,11 @@ end
 
 VJP. Shapes match v0_np. grad_L is always 0.0 (L is structural).
 
-grad_v0 and grad_dt are computed via Zygote reverse-mode AD.
-grad_nu is computed via central finite differences because INS.jl's
-`diffusion` rrule returns NoTangent() for the viscosity argument (the
-library registers its own ChainRulesCore rrule that only differentiates
-through the velocity field, not through nu). This is a scalar FD and
-therefore cheap: two extra forward passes.
+grad_v0, grad_dt, and grad_nu all come from a single Zygote reverse-mode
+pullback. IncompressibleNavierStokes >= 5 provides the viscosity cotangent
+in its `diffusion` rrule (the diffusive term is linear in nu, so this is
+exact), which removed the need for the finite-difference fallback (and its
+two extra forward rollouts per VJP call) that earlier versions required.
 """
 function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
                 steps::Int, n::Int, L::Float64)
@@ -230,32 +262,16 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
     rhs  = create_right_hand_side(setup, psolver)
 
     if ndim == 2
-        fwd = (v, dt_) -> ns_forward_2d(v, rhs, setup, psolver, nu, dt_, steps, n)
+        fwd = (v, dt_, nu_) -> ns_forward_2d(v, rhs, setup, psolver, nu_, dt_, steps, n)
     else
-        fwd = (v, dt_) -> ns_forward_3d(v, rhs, setup, psolver, nu, dt_, steps, n)
+        fwd = (v, dt_, nu_) -> ns_forward_3d(v, rhs, setup, psolver, nu_, dt_, steps, n)
     end
 
-    # Zygote pullback for grad_v0 and grad_dt.
-    # nu is captured as a constant here so Zygote does not attempt to
-    # differentiate through INS.jl's diffusion rrule (which returns
-    # NoTangent() for viscosity). grad_nu is handled separately below.
-    _, back = Zygote.pullback(fwd, v0, Float32(dt))
+    _, back = Zygote.pullback(fwd, v0, Float32(dt), Float32(nu))
     grads = back(cot)
     grad_v0  = Float32.(grads[1])
     grad_dt  = Float64(something(grads[2], 0.0))
-
-    # grad_nu via central finite differences (scalar nu, two extra forward passes).
-    # ε is chosen relative to nu so the FD stencil is accurate regardless of scale.
-    eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
-    if ndim == 2
-        f_plus  = ns_forward_2d(v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        f_minus = ns_forward_2d(v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
-    else
-        f_plus  = ns_forward_3d(v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        f_minus = ns_forward_3d(v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
-    end
-    jvp_nu  = (f_plus .- f_minus) ./ (2 * eps_nu)  # ∂f/∂nu (same shape as cot)
-    grad_nu = Float64(sum(cot .* jvp_nu))
+    grad_nu  = Float64(something(grads[3], 0.0))
 
     return (
         grad_v0,
