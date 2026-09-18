@@ -50,6 +50,23 @@ _SUITE = "forward"
 # ── Shared helpers ───────────────────────────────────────────────────────────
 
 
+def _analytic_for_ic(analytic_fn: Any, ic_name: str) -> Any:
+    """Return the analytic reference only when it solves this IC.
+
+    A reference registered on the problem applies to every IC by default.
+    ``supported_ics`` narrows it, which is what an IC with no closed form
+    needs: without it the run is scored against a field belonging to a
+    different IC, and the error measures the distance between two unrelated
+    flows rather than solver accuracy.
+    """
+    if not callable(analytic_fn):
+        return None
+    supported = getattr(analytic_fn, "supported_ics", None)
+    if supported is not None and ic_name not in supported:
+        return None
+    return analytic_fn
+
+
 def _analytic_reference(
     *,
     ic_name: str,
@@ -118,7 +135,9 @@ def _agreement_aggregate(
     phys = run.get("physics", {})
 
     run_reference = run.get("reference")
-    analytic_fn = run_reference if callable(run_reference) else cfg.reference
+    analytic_fn = _analytic_for_ic(
+        run_reference if callable(run_reference) else cfg.reference, ic_name
+    )
     analytic_params = (
         set(inspect.signature(analytic_fn).parameters) if analytic_fn else set()
     )
@@ -376,7 +395,7 @@ def _physical_laws_aggregate(
     seed = ic_cfg.get("seed", 0)
     phys = run.get("physics", {})
 
-    analytic_fn = cfg.reference if callable(cfg.reference) else None
+    analytic_fn = _analytic_for_ic(cfg.reference, ic_name)
     analytic_params = (
         set(inspect.signature(analytic_fn).parameters) if analytic_fn else set()
     )

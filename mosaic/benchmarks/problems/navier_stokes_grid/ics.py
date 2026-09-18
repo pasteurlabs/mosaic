@@ -64,3 +64,9 @@ def _tgv_analytic(
     vx = jnp.sin(X) * jnp.cos(Y) * decay
     vy = -jnp.cos(X) * jnp.sin(Y) * decay
     return jnp.stack([vx, vy], axis=-1)[:, :, None, :].astype(jnp.float32)
+
+
+# Rebuilt from the grid size alone, so it is the TGV field whatever IC it is
+# handed. ``multimode`` is a random ring with no closed form, and scoring it
+# against this would measure the gap between two unrelated flows.
+_tgv_analytic.supported_ics = frozenset({"tgv"})
