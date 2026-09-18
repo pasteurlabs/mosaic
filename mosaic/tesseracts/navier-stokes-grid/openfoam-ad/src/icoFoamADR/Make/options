@@ -1,0 +1,11 @@
+EXE_INC = \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude
+
+/* OpenFOAM-AD renames every library with the WM_AD_MODE suffix (renameAD.sh),
+   including libOpenFOAM, so the wmake default PROJECT_LIBS no longer resolves. */
+PROJECT_LIBS = -lOpenFOAM$(WM_AD_MODE) -ldl
+
+EXE_LIBS = \
+    -lfiniteVolume$(WM_AD_MODE) \
+    -lmeshTools$(WM_AD_MODE)

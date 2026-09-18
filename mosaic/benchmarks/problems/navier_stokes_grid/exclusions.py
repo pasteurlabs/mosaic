@@ -62,6 +62,18 @@ OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "standard icoFoam is non-differentiable forward-only solver",
 )
+OPENFOAM_AD_NO_OBSTACLE = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "openfoam-ad wraps icoFoam on a fully cyclic mesh; obstacle and "
+    "inflow-profile cases would need the ESI channel case writers, which this "
+    "tesseract does not implement",
+)
+OPENFOAM_AD_TAPE_MEMORY = Exclusion(
+    ExclusionCategory.INFEASIBLE,
+    "the CoDiPack tape covers the whole time loop, costing about 45 MiB per step "
+    "at N=16 and reaching 14.5 GiB at 320 steps, so the cost sweeps are out of "
+    "reach; needs step-wise re-taping with checkpointing",
+)
 XLB_MA_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
     "irreducible O(Ma²) LBM compressibility error floor: at fixed "
@@ -93,6 +105,7 @@ _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
     "warp_ns": WARP_NS_NO_OBSTACLE,
+    "openfoam_ad": OPENFOAM_AD_NO_OBSTACLE,
 }
 
 
@@ -115,12 +128,21 @@ def register(problem: Problem) -> None:
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost
-    problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
+    problem.exclude(
+        "cost/vjp_cost",
+        {"openfoam": OPENFOAM_NO_VJP, "openfoam_ad": OPENFOAM_AD_TAPE_MEMORY},
+    )
 
     # Gradient — suite-level, covers every gradient/* below
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
 
     # Optimization — suite-level + per-experiment obstacle gates
-    problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
+    problem.exclude(
+        "optimization",
+        {
+            "openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT,
+            "openfoam_ad": OPENFOAM_AD_NO_OBSTACLE,
+        },
+    )
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
