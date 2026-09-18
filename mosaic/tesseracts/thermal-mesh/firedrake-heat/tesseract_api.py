@@ -234,7 +234,7 @@ def _solve_heat(
         ∂C/∂f  via firedrake-adjoint ReducedFunctional (if vjp_wrt_source)
         ∂I/∂f  via a direct adjoint solve seeded with 2(T - T_target)
                 (if vjp_wrt_source_id_error, requires target_temperature)
-        ∂I/∂ρ  via firedrake-adjoint ReducedFunctional (if vjp_rho_id_error,
+        ∂I/∂ρ  via the same adjoint solve (if vjp_rho_id_error,
                 requires target_temperature)
 
     Returns:
@@ -387,28 +387,6 @@ def _solve_heat(
 
     dI_drho = None
     if vjp_rho_id_error and target_temperature is not None:
-        # Gradient of identification_error = ∫(T - T_target)² dΩ w.r.t. rho.
-        # Uses a fresh tape recording: rho → T_sol → I = ∫(T-T_target)² dΩ.
-        set_working_tape(Tape())
-        continue_annotation()
-        rho_fn4 = Function(DG0, name="rho4")
-        rho_fn4.dat.data[:] = rho_reordered
-        source_fn4 = Function(DG0, name="source4")
-        source_fn4.dat.data[:] = src_reordered
-        k_field4 = k_min_val + (Constant(k_max) - k_min_val) * rho_fn4 ** Constant(
-            p_exp
-        )
-        a4 = inner(k_field4 * grad(TrialFunction(V)), grad(TestFunction(V))) * dx
-        L4 = inner(Constant(0.0), TestFunction(V)) * dx
-        for k in range(n_neumann_groups):
-            tag4 = neumann_offset + (k + 1)
-            if tag4 not in active_neumann_tags:
-                continue
-            q_n4 = Constant(float(neumann_values_vals[k, 0]))
-            L4 = L4 + q_n4 * TestFunction(V) * ds(tag4)
-        L4 = L4 + source_fn4 * TestFunction(V) * dx
-        T_sol4 = Function(V)
-        solve(a4 == L4, T_sol4, bcs)
         # Map target_temperature (in input-node ordering) to firedrake node ordering.
         T_target_fd4 = Function(V)
         T_tgt4 = np.asarray(target_temperature, dtype=np.float64)
@@ -417,22 +395,22 @@ def _solve_heat(
             if inp_idx < len(T_tgt4):
                 T_tgt_reordered4[fd_idx] = T_tgt4[inp_idx]
         T_target_fd4.dat.data[:] = T_tgt_reordered4
-        # Identification error functional: I = ∫(T - T_target)² dΩ
-        _coords4 = mesh.coordinates.dat.data_ro
-        domain_vol4 = float(
-            np.prod(
-                [
-                    _coords4[:, i].max() - _coords4[:, i].min()
-                    for i in range(_coords4.shape[1])
-                ]
+        with stop_annotating():
+            adjoint_rhs4 = assemble(inner(Constant(0.0), TestFunction(V)) * dx)
+            adjoint_rhs4.dat.data[:] = 2.0 * (
+                T_sol.dat.data_ro - T_target_fd4.dat.data_ro
             )
-        )
-        n_nodes4 = mesh.num_vertices()
-        nodal_correction4 = float(n_nodes4) / domain_vol4
-        I_rho = assemble(inner(T_sol4 - T_target_fd4, T_sol4 - T_target_fd4) * dx)
-        dI_rho_hat = ReducedFunctional(I_rho, Control(rho_fn4))
-        dI_rho_fn = dI_rho_hat.derivative()
-        dI_rho_vec = dI_rho_fn.dat.data_ro.copy() * nodal_correction4
+            hom_bcs4 = [
+                DirichletBC(V, Constant(0.0), k + 1) for k in range(n_dirichlet_groups)
+            ]
+            for bc in hom_bcs4:
+                bc.zero(adjoint_rhs4)
+            lam4 = Function(V)
+            solve(assemble(a, bcs=hom_bcs4), lam4, adjoint_rhs4)
+            dI_rho_fn = assemble(
+                -derivative(k_field * inner(grad(T_sol), grad(lam4)) * dx, rho_fn)
+            )
+        dI_rho_vec = dI_rho_fn.dat.data_ro.copy()
         dI_rho_input = np.zeros(len(rho_values))
         dI_rho_input[fd_to_input_cells] = dI_rho_vec
         dI_drho = dI_rho_input
