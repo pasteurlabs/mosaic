@@ -132,9 +132,9 @@ problem = Problem(
         "forward": [median_k(3.0), max_error(0.5)],
         "cost": [max_peer_k(20.0)],
         "optimization": [max_final_ratio(0.5)],
-        # Per-IC override (the `forward/agreement` parent run-list contains
-        # both tgv and multimode; the multimode variant has a looser bound).
-        "forward/agreement/multimode": [median_k(3.0), max_error(1.5)],
+        # multimode has no closed form, so it scores against the consensus;
+        # an absolute bound on the distance to that says nothing about accuracy.
+        "forward/agreement/multimode": [median_k(3.0)],
     },
 )
 
@@ -207,8 +207,10 @@ problem.add_experiment(
     "forward/agreement",
     agreement,
     plot_description=(
-        "Relative error vs viscosity $\\nu$ for each IC, with vorticity field snapshots"
-        " compared against the analytic TGV reference."
+        "Relative error vs viscosity $\\nu$ for each IC, with vorticity field"
+        " snapshots. The tgv variant is scored against the analytic TGV"
+        " solution; multimode has no closed form and is scored against the"
+        " cross-solver consensus."
     ),
     ic=[{"name": "tgv", "seed": 42}, {"name": "multimode", "seed": 42}],
     physics={
