@@ -179,10 +179,10 @@ def _apply_solver_filter(cfg: Any, solvers_csv: str | None) -> Any:
         # explicitly addressed this problem.
         unknown = requested - set(by_lower)
         if unknown:
-            print_warn(
-                f"{cfg.name}: unknown solver(s) in -s map: "
-                f"{', '.join(sorted(unknown))} — skipping"
-            )
+            # Explicit per-problem names that don't exist here are typos.
+            # Fail loudly with the names that *are* valid for this problem
+            # instead of warning and later falling back to every solver.
+            _fail_unknown_solvers(unknown, set(by_lower.values()))
     else:
         requested = {s.strip().lower() for s in solvers_csv.split(",") if s.strip()}
         # Flat CSV: silently ignore names that don't apply here — they
@@ -455,6 +455,25 @@ def _run_prepare_problem(
     return cfg, {}, gpus
 
 
+
+def _fail_unknown_solvers(unknown: set[str], available: set[str]) -> None:
+    """Print unknown solver names, list available names, and abort the CLI.
+
+    Used when ``--solvers`` contains a name that is not registered. The
+    previous fallback of "skip the filter and run every solver" hid typos
+    such as ``--solvers=fenics`` (the registered name is ``fenics_structural``).
+    """
+    from difflib import get_close_matches
+
+    available_sorted = sorted(available)
+    for name in sorted(unknown):
+        suggestion = get_close_matches(name, available_sorted, n=1, cutoff=0.5)
+        hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
+        console.print(f"[red]Unknown solver {name!r}.{hint}[/red]")
+    console.print(f"Available solvers: {', '.join(available_sorted)}")
+    raise typer.Exit(1)
+
+
 def _validate_solver_csv(solvers_csv: str | None) -> None:
     """Up-front typo check: every name in a flat -s CSV must exist on at least one problem.
 
@@ -470,11 +489,15 @@ def _validate_solver_csv(solvers_csv: str | None) -> None:
     ``--problems ns-grid``, where TopOpt.jl lives on structural-mesh. A name is
     a typo only when no registered problem has it.
 
-    Per-problem maps (``<problem>=<csv>;...``) skip this check — the
-    per-problem dispatcher already warns about unknown names against the
-    specific cfg.
+    Per-problem maps (``<problem>=<csv>;...``) skip this global check —
+    :func:`_apply_solver_filter` fails loudly against that problem's
+    solver list instead.
     """
-    if not solvers_csv or "=" in solvers_csv:
+    if not solvers_csv:
+        return
+    if "=" in solvers_csv:
+        # Per-problem maps are validated against each addressed problem
+        # when that problem is prepared. Nothing to do globally here.
         return
     requested = {s.strip() for s in solvers_csv.split(",") if s.strip()}
     if not requested:
@@ -493,14 +516,7 @@ def _validate_solver_csv(solvers_csv: str | None) -> None:
     known_lower = {n.lower() for n in all_names}
     unknown = {name for name in requested if name.lower() not in known_lower}
     if unknown:
-        from difflib import get_close_matches
-
-        for name in sorted(unknown):
-            suggestion = get_close_matches(name, sorted(all_names), n=1, cutoff=0.5)
-            hint = f" Did you mean {suggestion[0]!r}?" if suggestion else ""
-            console.print(f"[red]Unknown solver {name!r}.{hint}[/red]")
-        console.print(f"Available solvers: {', '.join(sorted(all_names))}")
-        raise typer.Exit(1)
+        _fail_unknown_solvers(unknown, all_names)
 
 
 def _parse_experiments_path(
