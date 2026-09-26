@@ -69,18 +69,13 @@ class OutputSchema(
 # silently reverting to CPU (which would trigger device mismatches once our
 # mesh / material / force tensors are on CUDA).
 #
-# Sparse linear solve fallback: PyTorch's native CUDA sparse solver support
-# is limited; torch-fem's GPU ``_solve_gpu`` path requires CuPy, which we do
-# not ship in this tesseract to keep the image small.  Instead we pass
-# ``device="cpu"`` to ``model.solve(...)`` — torch-fem then moves just the
-# (A, b) sparse system to CPU for a SciPy ``spsolve``, and the resulting ``x``
-# is returned on the original (``b.device``) device so the surrounding autograd
-# graph (assembly, boundary conditions, compliance integral, VJP) remains on
-# GPU.  For the grid sizes exercised in thermal-mesh (n_dofs <= ~17k at N=128,
-# with ny=N/2, nz=1), the per-iteration GPU↔CPU copy of the COO is negligible
-# relative to the assembly cost we gain back by running on GPU.
+# Sparse linear solve: on GPU we use Jacobi-preconditioned CG in torch, so the
+# forward and adjoint solves stay on the device.  On CPU-only hosts torch-fem
+# picks the solver automatically (SciPy).
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_SPARSE_SOLVE_DEVICE = "cpu"  # SciPy-backed fallback; see comment above.
+_SOLVE_KWARGS: dict[str, Any] = (
+    {"method": "cg", "preconditioner": "jacobi"} if _DEVICE.type == "cuda" else {}
+)
 _DTYPE = torch.float64  # torch-fem defaults to float64 for solver stability
 
 # torch-fem internals assume torch.get_default_dtype() matches the tensors we
@@ -93,53 +88,6 @@ _DTYPE = torch.float64  # torch-fem defaults to float64 for solver stability
 torch.set_default_dtype(_DTYPE)
 torch.set_default_device(_DEVICE)
 
-
-# ---------------------------------------------------------------------------
-# torch-fem sparse_solve device patch
-# ---------------------------------------------------------------------------
-# torch-fem's ``sparse.sparse_solve`` moves only (A, b) when the caller
-# passes ``device="cpu"``, but ``compute_B()`` (null-space rigid-body modes)
-# allocates on the default device (CUDA) and ``_solve_cpu`` then calls
-# ``B.data.numpy()`` without a ``.cpu()`` — raising
-# ``TypeError: can't convert cuda:0 device type tensor to numpy``.
-#
-# We wrap the function to also migrate ``B``, ``M`` (preconditioner), and
-# ``x0`` (warm-start) to the target device before the underlying solve runs.
-# This is the smallest possible change that lets us keep the outer autograd
-# graph on GPU while routing the numerical spsolve through SciPy on CPU.
-import torchfem.sparse as _tfem_sparse  # noqa: E402
-
-_ORIG_SPARSE_SOLVE = _tfem_sparse.sparse_solve
-
-
-def _sparse_solve_device_safe(
-    A: Any,
-    b: Any,
-    B: Any = None,
-    stol: float = 1e-10,
-    device: Any = None,
-    method: Any = None,
-    M: Any = None,
-    x0: Any = None,
-) -> Any:
-    if device is not None:
-        if B is not None and hasattr(B, "to"):
-            B = B.to(device)
-        if x0 is not None and hasattr(x0, "to"):
-            x0 = x0.to(device)
-        # M is a scipy.sparse LinearOperator when non-None on the CPU path; it
-        # does not need a torch .to() call.  If M is a torch Tensor (rare), we
-        # migrate it too; otherwise pass through unchanged.
-        if (
-            M is not None
-            and hasattr(M, "to")
-            and not callable(getattr(M, "matvec", None))
-        ):
-            M = M.to(device)
-    return _ORIG_SPARSE_SOLVE(A, b, B, stol, device, method, M, x0)
-
-
-_tfem_sparse.sparse_solve = _sparse_solve_device_safe
 
 # SIMP parameters (baked into the InputSchema defaults but kept here as fallbacks)
 _K_MIN_RATIO = 1e-3
@@ -168,9 +116,9 @@ def _build_bc_tensors(
     source_np: np.ndarray,
     cell_volume: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Build constraint / displacement / force tensors (all shape (n_nodes, 1)).
+    """Build constraint / temperature / heat-flux tensors (all shape (n_nodes, 1)).
 
-    - Dirichlet nodes: constraints[i]=True, displacements[i]=value.
+    - Dirichlet nodes: constraints[i]=True, temperatures[i]=value.
     - Neumann face flux: lumped to nodes as q_n · face_area / 4 per right-face
       node.  Uses the canonical "right face" identification (x == x_max) that
       matches the heated-block problem; the mask itself marks which nodes the
@@ -179,12 +127,12 @@ def _build_bc_tensors(
 
     All boundary-condition tensors are allocated on _DEVICE with the
     appropriate dtype (bool for the constraints mask, _DTYPE for the nodal
-    displacement/force values) so they can be assigned directly to the
+    temperature/heat-flux values) so they can be assigned directly to the
     corresponding ``model.*`` properties without a device hop.
     """
     constraints = torch.zeros(n_nodes, 1, dtype=torch.bool, device=_DEVICE)
-    displacements = torch.zeros(n_nodes, 1, dtype=_DTYPE, device=_DEVICE)
-    forces = torch.zeros(n_nodes, 1, dtype=_DTYPE, device=_DEVICE)
+    temperatures = torch.zeros(n_nodes, 1, dtype=_DTYPE, device=_DEVICE)
+    heat_flux = torch.zeros(n_nodes, 1, dtype=_DTYPE, device=_DEVICE)
 
     # --- Dirichlet ---
     d_bc = bc_dict.get("dirichlet") or {}
@@ -208,7 +156,7 @@ def _build_bc_tensors(
             )
             c_idx = torch.as_tensor(constrained, dtype=torch.long, device=_DEVICE)
             constraints[c_idx, 0] = True
-            displacements[c_idx, 0] = torch.as_tensor(
+            temperatures[c_idx, 0] = torch.as_tensor(
                 prescribed, dtype=_DTYPE, device=_DEVICE
             )
 
@@ -261,7 +209,7 @@ def _build_bc_tensors(
             face_nodes_flat = np.concatenate(add_indices)  # (n_contrib,)
             idx = torch.as_tensor(face_nodes_flat, dtype=torch.long, device=_DEVICE)
             vals = torch.full((idx.shape[0],), per_node, dtype=_DTYPE, device=_DEVICE)
-            forces[:, 0] = forces[:, 0].scatter_add(0, idx, vals)
+            heat_flux[:, 0] = heat_flux[:, 0].scatter_add(0, idx, vals)
 
     # --- Volumetric source (lumped): f_i += source_e · vol_e / 8 per cell node
     if source_np is not None and np.any(source_np != 0.0):
@@ -271,9 +219,9 @@ def _build_bc_tensors(
         # Scatter-add node_contrib to each of the 8 nodes of each cell
         flat_idx = cells_t.reshape(-1)  # (n_cells*8,)
         flat_vals = node_contrib.unsqueeze(1).expand(-1, 8).reshape(-1)
-        forces[:, 0].scatter_add_(0, flat_idx, flat_vals)
+        heat_flux[:, 0].scatter_add_(0, flat_idx, flat_vals)
 
-    return constraints, displacements, forces
+    return constraints, temperatures, heat_flux
 
 
 def _cell_volume_from_points(points_np: np.ndarray) -> float:
@@ -308,7 +256,7 @@ def _forward_torchfem(
           the base material is created at ``kappa = k_max`` so the final
           per-element conductivity is ``k = k_max · (k_min_ratio + (1-k_min_ratio)·ρ^p)
           = k_min + (k_max-k_min)·ρ^p``.
-        - The source contributes to ``model.forces`` through ``source_t``; if
+        - The source contributes to ``model.heat_flux`` through ``source_t``; if
           ``source_t`` is a live autograd leaf its grad flows back too.
     """
     n_cells = cells_np.shape[0]
@@ -331,9 +279,9 @@ def _forward_torchfem(
     # model.material.KAPPA shape (n_cells, 3, 3); multiply elementwise along elem dim
     model.material.KAPPA = simp_scale[:, None, None] * model.material.KAPPA
 
-    # Boundary conditions and forces (source baked into forces via scatter-add)
+    # Boundary conditions and heat flux (source added separately below)
     cell_volume = _cell_volume_from_points(points_np)
-    constraints, displacements, forces_base = _build_bc_tensors(
+    constraints, temperatures, heat_flux_base = _build_bc_tensors(
         n_nodes,
         n_cells,
         points_np,
@@ -344,42 +292,39 @@ def _forward_torchfem(
     )
 
     # Add source contribution as a differentiable scatter_add from source_t into
-    # a per-node forces tensor.  We always build the source nodal contribution
+    # a per-node heat-flux tensor.  We always build the source nodal contribution
     # so torch-fem's NewtonRaphsonAdjoint sees source_t as a live dependency of
-    # ``model.forces`` (otherwise ``eval_residual`` has no path back to source
+    # ``model.heat_flux`` (otherwise ``eval_residual`` has no path back to source
     # and ``torch.autograd.grad`` returns None for that parameter).
     cells_t = torch.as_tensor(cells_np[:n_cells], dtype=torch.long, device=_DEVICE)
     node_contrib = source_t * (cell_volume / 8.0)  # (n_cells,)
     flat_idx = cells_t.reshape(-1)
     flat_vals = node_contrib.unsqueeze(1).expand(-1, 8).reshape(-1)
     # ``index_add`` is functional (differentiable); use ``view_as`` to re-stack
-    # into the (n_nodes, 1) layout that ``model.forces`` expects, and combine
-    # with the base forces via a plain addition.
+    # into the (n_nodes, 1) layout that ``model.heat_flux`` expects, and combine
+    # with the base heat flux via a plain addition.
     src_nodal = torch.zeros(n_nodes, dtype=_DTYPE, device=_DEVICE).index_add(
         0, flat_idx, flat_vals
     )  # (n_nodes,)
-    forces_final = forces_base + src_nodal.unsqueeze(1)  # (n_nodes, 1)
+    heat_flux_final = heat_flux_base + src_nodal.unsqueeze(1)  # (n_nodes, 1)
 
     model.constraints = constraints
-    model.displacements = displacements
-    model.forces = forces_final
+    model.temperatures = temperatures
+    model.heat_flux = heat_flux_final
 
-    # Linear solve: torch-fem routes through ``device=_SPARSE_SOLVE_DEVICE``,
-    # moving the assembled sparse A and rhs b to that device for the numerical
-    # solve (SciPy ``spsolve`` on CPU — CuPy not installed in this tesseract),
-    # then returns the solution on the original ``b.device`` (= _DEVICE).  The
-    # returned tensor path goes through SolidHeat's custom autograd so
-    # gradients flow back to differentiable_parameters on _DEVICE.
+    # Linear solve (solver choice: see ``_SOLVE_KWARGS`` above).  The returned
+    # tensor path goes through SolidHeat's custom autograd so gradients flow
+    # back to differentiable_parameters on _DEVICE.
     u_k, f_k, *_ = model.solve(
         differentiable_parameters=differentiable_params,
-        device=_SPARSE_SOLVE_DEVICE,
+        **_SOLVE_KWARGS,
     )
     # Return u (nodal T), f_k (full internal force = f_ext at equilibrium),
     # and the Neumann-only sub-force needed to compute the boundary integral
     # ∮_Γ_N q_n T dΓ = f_Neumann^T · T.  Without this split, compliance and
     # source-gradient would pick up the volumetric source contribution too,
     # which disagrees with the peer solvers that integrate over Γ_N only.
-    return u_k, f_k, forces_base
+    return u_k, f_k, heat_flux_base
 
 
 def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:
