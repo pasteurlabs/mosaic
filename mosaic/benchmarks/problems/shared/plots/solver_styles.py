@@ -40,6 +40,11 @@ SOLVER_STYLES: dict[str, dict[str, Any]] = {
         "linestyle": (0, (5, 2)),
         "marker": "^",
     },
+    "torch_fem_structural": {
+        "color": "#EE6677",
+        "linestyle": (0, (3, 1, 1, 1)),
+        "marker": "h",
+    },
     # ── Heat conduction ──────────────────────────────────────────────────
     "dealii_heat": {"color": "#228833", "linestyle": "-", "marker": "X"},
     "fenics_heat": {"color": "#AA3377", "linestyle": "--", "marker": "v"},

@@ -1,9 +1,9 @@
-name: torch_fem_thermal_mesh
+name: torch_fem_structural_mesh
 version: "0.1.0"
 description: >
-  torch-fem SolidHeat HEX8 heat-conduction solver with IsotropicConductivity3D SIMP material
-  — the first PyTorch backend in thermal-mesh. Gradients via PyTorch autograd through the FE
-  solve; GPU-native.
+  torch-fem Solid HEX8 linear-elasticity solver with SIMP stiffness E(ρ) = E_min +
+  (E_max − E_min)·ρ^p — the PyTorch backend in structural-mesh. Gradient ∂C/∂ρ via
+  PyTorch autograd through the FE solve (implicit-function-theorem adjoint); GPU-native.
 build_config:
   package_data: []
   # No CUDA base image needed: the cu121 torch wheel installs its own CUDA
@@ -22,7 +22,7 @@ metadata:
     name: "torch-fem"
     backend: pytorch
     family: fem
-    scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
+    scheme: "FEM HEX8 linear elasticity (SIMP, PyTorch autograd adjoint)"
     discretization: FE
     numerics: "CG+Jacobi"
     ad_strategy: autodiff
