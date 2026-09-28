@@ -91,14 +91,20 @@ class OptimizationSummary:
 # ── Built-in check factories ─────────────────────────────────────────────────
 
 
-def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if the solver's error exceeds ``k × peer-median`` on at least half of valid sweep points."""
+def median_k(k: float, floor: float = 0.0) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if the solver's error exceeds ``k × peer-median`` on at least half of valid sweep points.
+
+    ``floor`` is a lower bound on the peer median. Set it where the peers
+    agree to within round-off, e.g. when solvers return a float32 scalar.
+    A peer median at that level is noise, and a peer-relative ratio would
+    flag solvers that differ from it by a few ulp.
+    """
 
     def _check(s: ForwardSummary) -> CheckOutcome:
         bad: list[tuple[Any, float, float]] = []
         for pval, err in s.errs_by_pval.items():
             med = s.peer_medians_by_pval.get(pval, 0.0)
-            if med > 0 and err > k * med:
+            if med > 0 and err > k * max(med, floor):
                 bad.append((pval, err, med))
         # Half rounded up: with an odd number of points, // 2 would fire on a
         # minority of them, and a three-point sweep on a single one.
@@ -111,6 +117,7 @@ def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
             (
                 f"error {worst[1]:.3g} at sweep={worst[0]} is {ratio:.1f}× peer median "
                 f"({worst[2]:.3g}); threshold k={k}"
+                + (f", floor={floor:g}" if floor else "")
             ),
         )
 

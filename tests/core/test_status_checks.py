@@ -231,6 +231,38 @@ class TestMedianKMinority:
         assert median_k(3.0)(self._summary(1, 3)) is None
 
 
+class TestMedianKFloor:
+    """``floor`` bounds the peer median from below.
+
+    Peers that agree to float32 round-off have a peer median near 1e-7, and a
+    solver a few ulp further off would otherwise be several times that.
+    """
+
+    @staticmethod
+    def _summary(err: float, med: float) -> ForwardSummary:
+        return ForwardSummary(
+            errs_by_pval={0: err}, peer_medians_by_pval={0: med}, n_valid_points=1
+        )
+
+    def test_round_off_outlier_passes_above_floor(self) -> None:
+        s = self._summary(err=3.6e-7, med=8.9e-8)
+        assert median_k(3.0)(s) is not None
+        assert median_k(3.0, floor=1e-5)(s) is None
+
+    def test_outlier_above_k_times_floor_still_fires(self) -> None:
+        outcome = median_k(3.0, floor=1e-5)(self._summary(err=1e-4, med=8.9e-8))
+        assert outcome is not None
+        assert "floor=1e-05" in outcome[1]
+
+    @pytest.mark.parametrize(("err", "fires"), [(2e-2, False), (4e-2, True)])
+    def test_floor_below_peer_median_changes_nothing(
+        self, err: float, fires: bool
+    ) -> None:
+        s = self._summary(err=err, med=1e-2)
+        assert (median_k(3.0)(s) is not None) is fires
+        assert (median_k(3.0, floor=1e-5)(s) is not None) is fires
+
+
 class TestForwardPipeline:
     """The forward suite must actually apply its configured checks.
 

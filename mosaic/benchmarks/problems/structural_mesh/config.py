@@ -82,7 +82,12 @@ apply_styles(_SOLVERS)
 # differs (TopOpt.jl uses ``E``, FEM backends use ``E_max``).
 _MAT_SHARED = {"nu": _NU, "xmin": _XMIN}
 _SOLVERS["topopt_jl"].input_overrides = {"E": _E_MAX, **_MAT_SHARED}
-for _key in ("dealii_structural", "fenics_structural", "firedrake_structural"):
+for _key in (
+    "dealii_structural",
+    "fenics_structural",
+    "firedrake_structural",
+    "torch_fem_structural",
+):
     _SOLVERS[_key].input_overrides = {"E_max": _E_MAX, **_MAT_SHARED}
 
 
@@ -123,9 +128,10 @@ problem = Problem(
     domain_extent=2.0,
     resolution_key="nx",
     status_checks={
-        # Peer-relative only: absolute thresholds are scale-dependent and
-        # want calibrating per problem before they are added here.
-        "forward": [median_k(3.0)],
+        # Every solver returns the compliance as a float32 scalar, so peers
+        # agree to within a few ulp (~6e-8 relative each). The floor stops
+        # median_k from ranking solvers on that round-off.
+        "forward": [median_k(3.0, floor=1e-5)],
         "cost": [max_peer_k(20.0)],
         "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         "optimization": [max_final_ratio(0.5)],
