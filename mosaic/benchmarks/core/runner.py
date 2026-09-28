@@ -187,10 +187,8 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
         num_workers=1,
         timeout=MOSAIC_TESSERACT_TIMEOUT_TUPLE,
     )
-    # Entering the context manager starts the container and populates
-    # _serve_context, which contains the container name we need to track.
     t.__enter__()
-    container_name = (t._serve_context or {}).get("container_name")
+    container_name = t.container_info().name
     if container_name:
         with _live_containers_lock:
             _live_containers.add(container_name)
