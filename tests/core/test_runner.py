@@ -820,3 +820,32 @@ def test_daemon_probe_is_cached(monkeypatch, uncached_daemon):
     assert runner._docker_daemon_reachable() is False
     assert runner._docker_daemon_reachable() is False
     assert len(calls) == 1
+
+
+def test_tracked_tesseract_tracks_the_served_container_by_name(monkeypatch):
+    """The container name comes from the public ``container_info()``.
+
+    tesseract-core 1.14 keeps the served container as an object rather than a
+    dict, so reading the private ``_serve_context`` as a mapping raised
+    ``'Container' object has no attribute 'get'`` for every solver.
+    """
+
+    class Container:
+        name = "tesseract-abc123"
+
+    class FakeTesseract:
+        _serve_context = Container()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return None
+
+        def container_info(self):
+            return self._serve_context
+
+    monkeypatch.setattr(runner.Tesseract, "from_image", lambda *a, **k: FakeTesseract())
+    with runner._tracked_tesseract("solver:latest", None, None):
+        assert "tesseract-abc123" in runner._live_containers
+    assert "tesseract-abc123" not in runner._live_containers
