@@ -121,9 +121,10 @@ problem = Problem(
     domain_extent=2.0,
     resolution_key="nx",
     status_checks={
-        # Peer-relative only: absolute thresholds are scale-dependent and
-        # want calibrating per problem before they are added here.
-        "forward": [median_k(3.0)],
+        # Every solver returns the compliance as a float32 scalar, so peers
+        # agree to within a few ulp (~6e-8 relative each). The floor stops
+        # median_k from ranking solvers on that round-off.
+        "forward": [median_k(3.0, floor=1e-5)],
         "cost": [max_peer_k(20.0)],
         "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         "gradient/source_fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
