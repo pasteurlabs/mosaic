@@ -1,6 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import hashlib
 import os
 
 # Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
@@ -761,9 +762,34 @@ _DIFF_INPUT_KEYS: tuple[str, ...] = (
     "inflow_profile",
 )
 
-# Module-level cache: (v0_shape, steps, present_keys, vjp_outputs) -> jit-compiled fn.
+# Module-level cache: (v0_shape, steps, present_keys, vjp_outputs) -> (inputs digest, jit-compiled fn).
 # Avoids recompiling the XLA kernel on every HTTP request (optimizer iteration).
 _vjp_compiled_cache: dict = {}
+
+
+def _inputs_digest(inputs: dict, skip: tuple[str, ...]) -> str:
+    """Digest of every input but ``skip``, which a cached VJP closure freezes."""
+    import numpy as np
+
+    digest = hashlib.sha256()
+
+    def update(value: Any) -> None:
+        if isinstance(value, dict):
+            for key in sorted(value):
+                digest.update(str(key).encode())
+                update(value[key])
+        elif isinstance(value, list | tuple):
+            for item in value:
+                update(item)
+        elif isinstance(value, np.ndarray | jax.Array):
+            array = np.asarray(value)
+            digest.update(f"{array.dtype}{array.shape}".encode())
+            digest.update(array.tobytes())
+        else:
+            digest.update(repr(value).encode())
+
+    update({key: value for key, value in inputs.items() if key not in skip})
+    return digest.hexdigest()
 
 
 def _run_forward_diff(inputs: dict, diff_bundle: dict) -> tuple:
@@ -912,7 +938,9 @@ def vjp_jit(
         tuple(sorted(vjp_outputs)),
     )
 
-    if cache_key not in _vjp_compiled_cache:
+    frozen = _inputs_digest(inputs, present)
+    cached = _vjp_compiled_cache.get(cache_key)
+    if cached is None or cached[0] != frozen:
         # Capture static inputs in closure once; only bundle/cotan are traced.
         _inputs_frozen = inputs
         _vjp_outputs_frozen = vjp_outputs
@@ -933,9 +961,9 @@ def vjp_jit(
             _, vjp_func = jax.vjp(_fwd_static, bundle)
             return vjp_func(cotan)[0]
 
-        _vjp_compiled_cache[cache_key] = _vjp_compiled
+        _vjp_compiled_cache[cache_key] = (frozen, _vjp_compiled)
 
-    grads = _vjp_compiled_cache[cache_key](diff_bundle, cotangent_vector)
+    grads = _vjp_compiled_cache[cache_key][1](diff_bundle, cotangent_vector)
 
     out: dict = {}
     for k, g in grads.items():
