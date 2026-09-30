@@ -489,7 +489,7 @@ problem.add_experiment(
         "snap_interval": 10,
         "target_rho_from_two_gaussians": True,
     },
-    optim={"max_iters": 500},
+    optim={"max_iters": 1000},
     plot=plot_conductivity_recovery,
 )
 
