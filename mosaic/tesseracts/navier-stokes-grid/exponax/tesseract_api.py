@@ -17,6 +17,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
+from tesseract_core.runtime.jax_recipes import jax_vjp
 
 
 class InputSchema(
@@ -240,62 +241,16 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
 
 # ---------------------------------------------------------------------------
-# Float64 gradient helpers (mirrors XLB pattern)
+# Gradient helpers
 # ---------------------------------------------------------------------------
 
-_DIFF_INPUT_KEYS: tuple[str, ...] = (
-    "v0",
-    "viscosity",
-    "dt",
-    "drag",
-    "injection_scale",
-)
 
-# Module-level caches: static config -> jit-compiled fn. Avoids recompiling the
-# XLA kernel on every HTTP request (optimizer iteration).
-_vjp_compiled_cache: dict = {}
-_jvp_compiled_cache: dict = {}
-
-
-def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:
-    """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys."""
-    bundle: dict = {}
-    for k in include:
-        if k not in _DIFF_INPUT_KEYS:
-            continue
-        v = inputs.get(k)
-        if v is None:
-            continue
-        if k in _SCALAR_KEYS:
-            bundle[k] = jnp.asarray(float(v[0]) if hasattr(v, "__len__") else float(v))
-        else:
-            bundle[k] = jnp.asarray(v)
-    return bundle
-
-
-def _run_forward(inputs: dict, diff_bundle: dict) -> jnp.ndarray:
-    """Run exponax_fwd with diff inputs overridden from diff_bundle."""
-    fwd_kwargs = {}
-    for k in (
-        "steps",
-        "domain_extent",
-        "boundary_conditions",
-        "order",
-        "kolmogorov_forcing",
-        "injection_mode",
-    ):
-        if k in inputs:
-            fwd_kwargs[k] = inputs[k]
-
-    fwd_kwargs["v0"] = jnp.asarray(diff_bundle.get("v0", inputs["v0"]))
-
-    for k in ("viscosity", "dt", "drag", "injection_scale"):
-        src = diff_bundle.get(k, inputs.get(k))
-        if src is None:
-            continue
-        fwd_kwargs[k] = float(src)
-
-    return exponax_fwd(**fwd_kwargs)
+def _diff_apply(inputs: dict) -> dict:
+    """Forward pass differentiated by jax_vjp, with the scalar params traced."""
+    fwd_kwargs = dict(inputs)
+    for k in _SCALAR_KEYS:
+        fwd_kwargs[k] = jnp.reshape(fwd_kwargs[k], ())
+    return {"result": exponax_fwd(**fwd_kwargs)}
 
 
 def vector_jacobian_product(
@@ -305,12 +260,10 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     """Compute reverse-mode vector-Jacobian product for differentiable inputs."""
-    return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
-        tuple(vjp_inputs),
-        tuple(vjp_outputs),
-        cotangent_vector,
-    )
+    vjp_inputs = {k for k in vjp_inputs if getattr(inputs, k) is not None}
+    if not vjp_inputs:
+        return {}
+    return jax_vjp(_diff_apply, inputs, vjp_inputs, vjp_outputs, cotangent_vector)
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
@@ -347,50 +300,3 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
         jax_shapes,
         is_leaf=is_shapedtype_struct,
     )
-
-
-def vjp_jit(
-    inputs: dict,
-    vjp_inputs: tuple[str],
-    vjp_outputs: tuple[str],
-    cotangent_vector: dict,
-) -> dict:
-    """Reverse-mode VJP over any subset of diff inputs."""
-    present = tuple(
-        k for k in vjp_inputs if k in _DIFF_INPUT_KEYS and inputs.get(k) is not None
-    )
-    if not present:
-        return {}
-
-    diff_bundle = _build_diff_bundle(inputs, present)
-
-    v0_src = inputs.get("v0")
-    v0_shape = tuple(v0_src.shape) if hasattr(v0_src, "shape") else ()
-    cache_key = (v0_shape, inputs.get("steps"), present, tuple(sorted(vjp_outputs)))
-
-    if cache_key not in _vjp_compiled_cache:
-        _inputs_frozen = inputs
-        _vjp_outputs_frozen = vjp_outputs
-
-        def _fwd_static(bundle: dict) -> dict:
-            result = _run_forward(_inputs_frozen, bundle)
-            out = {}
-            if "result" in _vjp_outputs_frozen:
-                out["result"] = result
-            return out
-
-        @jax.jit
-        def _vjp_compiled(bundle: dict, cotan: dict) -> dict:
-            _, vjp_func = jax.vjp(_fwd_static, bundle)
-            return vjp_func(cotan)[0]
-
-        _vjp_compiled_cache[cache_key] = _vjp_compiled
-
-    grads = _vjp_compiled_cache[cache_key](diff_bundle, cotangent_vector)
-
-    out: dict = {}
-    for k, g in grads.items():
-        if k in _SCALAR_KEYS or g.ndim == 0:
-            g = jnp.atleast_1d(g)
-        out[k] = g
-    return out
