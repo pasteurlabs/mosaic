@@ -859,6 +859,7 @@ METRIC_SPECS: dict[str, tuple[float, str, str]] = {
     "cosine": (0.02, "higher", "firm"),
     "final_ratio": (0.15, "lower", "firm"),
     "final_loss": (0.15, "lower", "firm"),
+    "field_error": (0.15, "lower", "firm"),
     "fwd_error": (0.15, "lower", "firm"),
     "cost_time_s": (0.35, "lower", "indicative"),
 }
@@ -924,7 +925,7 @@ def _collect_fd_metrics(data: dict, cells: dict[str, Cell]) -> None:
 
 
 def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
-    """Store the worst-case ``final_ratio`` (and ``final_loss`` when present) per OK solver."""
+    """Store the worst-case ``final_ratio``, plus ``final_loss`` / ``field_error`` when present."""
     top = data.get("by_solver") or data.get("by_sweep") or {}
     if not isinstance(top, dict):
         return
@@ -948,6 +949,9 @@ def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
             _store_metric(cell, "final_loss", fl)
         elif series and math.isfinite(abs(series[-1])):
             _store_metric(cell, "final_loss", abs(series[-1]))
+        # Distance of the recovered field to the ground truth, for experiments
+        # that know it (e.g. thermal conductivity recovery).
+        _store_metric(cell, "field_error", entry.get("final_field_error"))
 
 
 def _collect_forward_metrics(data: dict, cells: dict[str, Cell]) -> None:
@@ -1909,6 +1913,7 @@ _METRIC_LABELS: dict[str, str] = {
     "cosine": "gradient cosine",
     "final_ratio": "final/initial loss ratio",
     "final_loss": "final loss",
+    "field_error": "recovered-field error vs truth",
     "fwd_error": "forward error",
     "cost_time_s": "median time",
 }

@@ -708,6 +708,22 @@ class TestMetricCollection(unittest.TestCase):
         cell = self._collect("optimization", "recovery", data)
         self.assertAlmostEqual(cell.metrics["final_ratio"], 0.2)
         self.assertAlmostEqual(cell.metrics["final_loss"], 2.0)
+        self.assertNotIn("field_error", cell.metrics)
+
+    def test_optimization_field_error(self) -> None:
+        data = {
+            "schema_version": 1,
+            "sweep": None,
+            "results": [
+                {
+                    "solver": "s",
+                    "sweep_value": None,
+                    "metrics": {"errors": [10.0, 2.0], "final_field_error": 0.3},
+                }
+            ],
+        }
+        cell = self._collect("optimization", "recovery", data)
+        self.assertAlmostEqual(cell.metrics["field_error"], 0.3)
 
     def test_non_ok_cell_gets_no_metrics(self) -> None:
         from mosaic.benchmarks.core.status import _collect_metrics_for_suite

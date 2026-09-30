@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 from tesseract_jax import apply_tesseract
@@ -26,6 +27,7 @@ from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import save_npz_merged
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
+from mosaic.benchmarks.problems.thermal_mesh.physics import _P_EXP
 
 
 def _merge_rho_fields_npz(
@@ -133,7 +135,7 @@ def _conductivity_recovery_aggregate(
 def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     """One solver's full conductivity-recovery optimisation.
 
-    Recovers the SIMP density field ``rho`` (clipped to ``[x_min, 1]``) from
+    Recovers the SIMP density field ``rho`` (bounded to ``[x_min, 1]``) from
     temperature observations by minimising
     ``identification_error = ||T(rho) - T_target||^2``. The target
     temperature is produced by a forward solve with a two-Gaussian
@@ -144,7 +146,8 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     by ``Problem.add_experiment``):
 
       * ``"adam"`` — vanilla Adam (default).
-      * ``"bfgs"`` — L-BFGS with zoom line-search.
+      * ``"bfgs"`` — L-BFGS with zoom line-search, on a sigmoid
+        reparametrisation of ``rho`` instead of clipping.
 
     Each run dict must contain:
         ic:     {name, seed}         — IC generator for initial rho (e.g. "uniform")
@@ -154,9 +157,10 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
 
     Returns ``metrics`` keyed by solver name (``errors``, ``initial_error``,
     ``final_error``, ``error_reduction_pct``, ``n_iters``, ``converged``,
-    ``grad_norms``) plus the per-solver ``rho_final`` / ``rho_history``
-    snapshots and the shared ``rho_init`` / ``rho_truth`` arrays consumed
-    by :func:`_conductivity_recovery_aggregate`.
+    ``grad_norms``, and ``initial_field_error`` / ``final_field_error``, the
+    relative L2 distance of ``rho`` to ``rho_truth``) plus the per-solver
+    ``rho_final`` / ``rho_history`` snapshots and the shared ``rho_init`` /
+    ``rho_truth`` arrays consumed by :func:`_conductivity_recovery_aggregate`.
     """
     run = ctx.run
     phys = run.get("physics", {})
@@ -211,18 +215,36 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     # optim_cfg with those defaults so callers don't need to know which
     # optimiser is in use.
     if optimizer == "bfgs":
+        # L-BFGS runs on an unconstrained latent ``z`` instead of clipping
+        # ``rho`` after each step, which the line search does not see. The map
+        # makes ``rho**p``, and therefore the SIMP conductivity, affine in
+        # ``sigmoid(z)``; that keeps low-density cells, where ``k(rho)`` is
+        # nearly flat, sensitive to ``z``. On this problem it reaches a given
+        # field error in far fewer iterations than clipping or a sigmoid on
+        # ``rho``.
+        s_min = x_min**_P_EXP
+
+        def to_rho(z: Any) -> Any:
+            s = s_min + (1.0 - s_min) * jax.nn.sigmoid(z)
+            return s ** (1.0 / _P_EXP)
+
+        def to_latent(rho: Any) -> Any:
+            s = (jnp.clip(rho, x_min, 1.0) ** _P_EXP - s_min) / (1.0 - s_min)
+            return jax.scipy.special.logit(jnp.clip(s, 1e-6, 1.0 - 1e-6))
+
         max_iters = int(optim_cfg.get("max_iters", 500))
-        rho_opt, losses, diag = _run_lbfgs(
-            loss_components,
-            rho_init,
+        z_opt, losses, diag = _run_lbfgs(
+            lambda z: loss_components(to_rho(z)),
+            to_latent(rho_init),
             max_iters=max_iters,
             has_aux=True,
             aux_history=aux_history,
-            clip_fn=clip_fn,
             snap_interval=snap_interval,
             history=rho_history if snap_interval > 0 else None,
             log_interval=10,
         )
+        rho_opt = to_rho(z_opt)
+        rho_history = [np.asarray(to_rho(z)) for z in rho_history]
     else:
         lr = float(optim_cfg.get("lr", 1e-2))
         max_iters = int(optim_cfg.get("max_iters", 500))
@@ -248,6 +270,18 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     converged = len(losses) < max_iters
     grad_norms = (diag or {}).get("grad_norms")
 
+    # A small identification error does not imply a recovered density: cells
+    # with low density barely change the conductivity (SIMP, p=3), so the loss
+    # can plateau while the field is still far from the truth. Report the
+    # field error directly.
+    def _field_error(rho: Any) -> float | None:
+        if rho_truth is None:
+            return None
+        return float(
+            np.linalg.norm(np.asarray(rho).ravel() - rho_truth.ravel())
+            / np.linalg.norm(rho_truth.ravel())
+        )
+
     metrics = {
         "errors": errors,
         "initial_error": errors[0] if errors else None,
@@ -260,6 +294,8 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
         "n_iters": len(errors),
         "converged": converged,
         "grad_norms": grad_norms,
+        "initial_field_error": _field_error(rho_init),
+        "final_field_error": _field_error(rho_opt),
     }
 
     snapshots: dict[str, np.ndarray] = {"rho_final": np.asarray(rho_opt)}
