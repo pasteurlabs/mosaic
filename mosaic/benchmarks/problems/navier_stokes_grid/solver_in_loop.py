@@ -375,7 +375,64 @@ def _supports_native_state(t: Any) -> bool:
     return supports_native_state
 
 
+def _kolmogorov_force(
+    velocity: jax.Array, *, amplitude: float, wavenumber: int
+) -> jax.Array:
+    """Sample a zero-mean divergence-free x-force on the canonical periodic grid."""
+    if velocity.ndim != 4 or velocity.shape[2:] != (1, 2):
+        raise ValueError("Kolmogorov forcing requires a canonical 2-D velocity field")
+    if not np.isfinite(amplitude) or not 1 <= wavenumber < velocity.shape[1] / 2:
+        raise ValueError(
+            "forcing requires finite amplitude and a resolved positive wavenumber"
+        )
+    y = jnp.arange(velocity.shape[1], dtype=velocity.dtype) / velocity.shape[1]
+    profile = amplitude * jnp.sin(2 * jnp.pi * wavenumber * y)
+    return jnp.zeros_like(velocity).at[..., 0].set(profile[None, :, None])
+
+
 def _solver_advance_with_physics(
+    t: Any,
+    ctx: KernelContext,
+    velocity: jax.Array | np.ndarray,
+    *,
+    dt: float,
+    steps: int,
+    native_state: Any | None = None,
+) -> tuple[jax.Array, Any | None]:
+    """Apply the same Strang-split body force around each solver's native step.
+
+    A final half-kick changes the canonical velocity while retaining the native
+    checkpoint from the drift. The next call reconciles that delta through the
+    same interface used for neural corrections. Refining dt also refines the
+    force splitting, so reference time audits cover the entire forced map.
+    """
+    amplitude = float(ctx.phys.get("forcing_amplitude", 0.0))
+    if amplitude == 0.0:
+        return _unforced_solver_advance(
+            t, ctx, velocity, dt=dt, steps=steps, native_state=native_state
+        )
+    if steps < 1 or dt <= 0:
+        raise ValueError("forced stepping requires positive steps and dt")
+    state = jnp.asarray(velocity)
+    force = _kolmogorov_force(
+        state,
+        amplitude=amplitude,
+        wavenumber=int(ctx.phys.get("forcing_wavenumber", 6)),
+    )
+    for _ in range(steps):
+        state, native_state = _unforced_solver_advance(
+            t,
+            ctx,
+            state + 0.5 * dt * force,
+            dt=dt,
+            steps=1,
+            native_state=native_state,
+        )
+        state = state + 0.5 * dt * force
+    return state, native_state
+
+
+def _unforced_solver_advance(
     t: Any,
     ctx: KernelContext,
     velocity: jax.Array | np.ndarray,
@@ -475,6 +532,13 @@ def _make_solver_self_reference_datasets(
     k0 = float(dataset.get("k0", 6.0))
     sigma_k = float(dataset.get("sigma_k", 1.0))
     amplitude = float(dataset.get("amplitude", 0.3))
+    forcing_amplitude = float(ctx.phys.get("forcing_amplitude", 0.0))
+    forcing_wavenumber = int(ctx.phys.get("forcing_wavenumber", 6))
+    burn_in_time = float(dataset.get("burn_in_time", 0.0))
+    burn_in_steps = round(burn_in_time / fine_dt)
+    if burn_in_time < 0 or not np.isclose(burn_in_steps * fine_dt, burn_in_time):
+        raise ValueError("burn_in_time must be a non-negative multiple of reference dt")
+    burn_in_diagnostics = []
 
     apply_count = 0
 
@@ -486,7 +550,7 @@ def _make_solver_self_reference_datasets(
         native_state: Any | None = None,
     ) -> tuple[np.ndarray, Any | None]:
         nonlocal apply_count
-        apply_count += 1
+        apply_count += steps if forcing_amplitude else 1
         next_velocity, next_native_state = _solver_advance_with_physics(
             t,
             ctx,
@@ -511,6 +575,43 @@ def _make_solver_self_reference_datasets(
             ),
             dtype=np.float32,
         )
+        if forcing_amplitude:
+            fine_state = (
+                fine_state
+                + np.asarray(
+                    _kolmogorov_force(
+                        jnp.asarray(fine_state),
+                        amplitude=forcing_amplitude,
+                        wavenumber=forcing_wavenumber,
+                    )
+                )
+                * 0.1
+            )
+        burn_native = None
+        initial_rms = float(np.sqrt(np.mean(fine_state**2)))
+        for burn_start in range(0, burn_in_steps, fine_steps):
+            fine_state, burn_native = advance(
+                fine_state,
+                dt=fine_dt,
+                steps=min(fine_steps, burn_in_steps - burn_start),
+                native_state=burn_native,
+            )
+            if not np.isfinite(fine_state).all():
+                raise RuntimeError(
+                    f"nonfinite reference during burn-in for seed {seed}"
+                )
+        burn_in_diagnostics.append(
+            {
+                "seed": seed,
+                "initial_velocity_rms": initial_rms,
+                "final_velocity_rms": float(np.sqrt(np.mean(fine_state**2))),
+            }
+        )
+        print(
+            f"reference seed={seed} burn_in_time={burn_in_time:g} complete", flush=True
+        )
+        # Start all reference/closure/audit paths from this same canonical
+        # field, with a fresh checkpoint. Burn-in is not counted as rollout.
         fine_initials[seed] = fine_state
         frames = [spectral_restrict(fine_state, n)]
         fine_native_state = None
@@ -683,6 +784,10 @@ def _make_solver_self_reference_datasets(
 
     config = {
         "reference_kind": "solver_self_refined",
+        "forcing_amplitude": forcing_amplitude,
+        "forcing_wavenumber": forcing_wavenumber,
+        "forcing_scheme": "strang_per_native_step" if forcing_amplitude else "none",
+        "burn_in_time": burn_in_time,
         "solver": ctx.name,
         "n": n,
         "reference_factor": reference_factor,
@@ -716,6 +821,12 @@ def _make_solver_self_reference_datasets(
         "eligible_for_corrector_training": eligible,
         "reference_generation_wall_time_s": time.perf_counter() - started,
         "reference_generation_apply_count": apply_count,
+        "forcing_amplitude": forcing_amplitude,
+        "forcing_wavenumber": forcing_wavenumber,
+        "forcing_scheme": "strang_per_native_step" if forcing_amplitude else "none",
+        "burn_in_time": burn_in_time,
+        "burn_in_diagnostics": burn_in_diagnostics,
+        "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
         "reference_grid_size": fine_n,
         "reference_dt": fine_dt,
         "reference_steps_per_interval": fine_steps,
@@ -1447,10 +1558,37 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             domain_extent=ctx.domain_extent,
         )
     interval_time = float(ctx.phys["dt"]) * frame_steps
-    if not reference_audit.get("eligible_for_corrector_training", True):
+    reference_only = bool(evaluation.get("reference_only", False))
+    if reference_only and reference_kind != "solver_self_refined":
+        raise ValueError("reference_only requires same-solver refined references")
+    if reference_only and reference_audit.get("eligible_for_corrector_training", False):
+        # Audit gradients through two forced intervals and their native-state
+        # connection before spending any optimizer updates on this new physics.
+        initial = jnp.asarray(test[0, 0])
+        cotangent = jax.random.normal(jax.random.PRNGKey(116), initial.shape)
+
+        def audit_loss(value: jax.Array) -> jax.Array:
+            first, native = _solver_advance(t, ctx, value, frame_steps=frame_steps)
+            final, _ = _solver_advance(
+                t, ctx, first, frame_steps=frame_steps, native_state=native
+            )
+            return jnp.mean(final * cotangent)
+
+        grads = jax.grad(audit_loss)(initial)
+        error = _directional_fd(
+            audit_loss, initial, grads, jax.random.PRNGKey(117), epsilon=1e-2
+        )
+        reference_audit["reference_only_fd_relative_error"] = error
+        reference_audit["reference_only_gradient_passed"] = bool(
+            np.isfinite(error) and error < 0.05
+        )
+    if reference_only or not reference_audit.get(
+        "eligible_for_corrector_training", True
+    ):
         return {
             "metrics": {
                 **reference_audit,
+                "reference_only": reference_only,
                 "completed": True,
                 "n_updates": 0,
                 "stop_gradient_n_updates": 0,

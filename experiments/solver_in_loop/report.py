@@ -407,7 +407,7 @@ def main() -> None:
     parser.add_argument("--plots", type=Path)
     args = parser.parse_args()
     groups = defaultdict(list)
-    pending, failures = [], []
+    pending, failures, reference_checks = [], [], []
     for config in sorted((args.campaign / "configs").glob("*.json")):
         payload = json.loads(config.read_text())
         run = payload["run"]
@@ -435,6 +435,11 @@ def main() -> None:
             metrics, errors = _read_result(archive)
         except (KeyError, ValueError) as exc:
             failures.append({"cell": config.stem, "reason": str(exc)})
+            continue
+        if metrics.get("reference_only"):
+            reference_checks.append(
+                {"cell": config.stem, "solver": payload["solver"], "metrics": metrics}
+            )
             continue
         if not metrics.get("completed") or len(errors) != 4:
             failures.append(
@@ -544,7 +549,12 @@ def main() -> None:
                 ),
             }
         )
-    result = {"comparisons": rows, "pending": pending, "failures": failures}
+    result = {
+        "comparisons": rows,
+        "pending": pending,
+        "failures": failures,
+        "reference_checks": reference_checks,
+    }
     if args.plots:
         _plot_comparisons(rows, args.plots)
     text = json.dumps(result, indent=2)

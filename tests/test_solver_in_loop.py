@@ -396,11 +396,13 @@ def test_analytic_tgv_reference_has_exact_decay_and_distinct_phases():
     "convergence_tolerance, expected", [(0.01, True), (1e-8, False)]
 )
 @pytest.mark.parametrize("audit_factor", [2, 4])
+@pytest.mark.parametrize("burn_in_time", [0.0, 0.04])
 def test_solver_self_reference_matches_physical_time_and_passes_closure(
     monkeypatch,
     convergence_tolerance,
     expected,
     audit_factor,
+    burn_in_time,
 ):
     calls: list[tuple[int, float, int, object | None]] = []
 
@@ -442,6 +444,7 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
                 "reference_audit_factor": audit_factor,
                 "reference_audit_temporal_factor": 4,
                 "reference_convergence_tolerance": convergence_tolerance,
+                "burn_in_time": burn_in_time,
                 "train_seeds": [0, 1],
                 "test_seeds": [100],
                 "train_frames": 2,
@@ -455,6 +458,12 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
         )
     )
 
+    assert audit["burn_in_time"] == burn_in_time
+    for diagnostic in audit["burn_in_diagnostics"]:
+        expected_decay = (1 - 0.01 / 16) ** round(burn_in_time / 0.01)
+        assert diagnostic["final_velocity_rms"] / diagnostic[
+            "initial_velocity_rms"
+        ] == pytest.approx(expected_decay, rel=1e-6)
     assert train.shape == (2, 3, 8, 8, 1, 2)
     assert train_rollouts.shape == (2, 4, 8, 8, 1, 2)
     assert test.shape == (1, 4, 8, 8, 1, 2)
@@ -1294,3 +1303,110 @@ def test_training_curriculum_rejects_inconsistent_protocol(stage, match):
         module._training_stages(
             {"max_updates": 4, "unroll": 4, "curriculum": [stage]}, 4
         )
+
+
+def test_forced_split_matches_damped_shear_and_refines_in_time(monkeypatch):
+    """Forced exact diffusion has a known solution and second-order split error."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    calls = []
+
+    def diffuse(_t, _ctx, velocity, *, dt, steps, native_state=None):
+        assert steps == 1
+        calls.append(native_state)
+        result = jnp.exp(-dt) * velocity
+        return result, result
+
+    monkeypatch.setattr(module, "_unforced_solver_advance", diffuse)
+    ctx = SimpleNamespace(phys={"forcing_amplitude": 1.0, "forcing_wavenumber": 2})
+    initial = jnp.zeros((16, 16, 1, 2))
+    force = module._kolmogorov_force(initial, amplitude=1.0, wavenumber=2)
+    assert float(jnp.mean(force)) == pytest.approx(0, abs=1e-7)
+    assert float(divergence_rms(force, 2 * np.pi)) < 1e-6
+    exact = force * (1 - np.exp(-1))
+    errors = []
+    for steps in (4, 8):
+        result, native = module._solver_advance_with_physics(
+            None, ctx, initial, dt=1 / steps, steps=steps
+        )
+        errors.append(float(jnp.linalg.norm(result - exact)))
+        # The final half-kick intentionally sits outside the native checkpoint.
+        np.testing.assert_allclose(result - native, force / (2 * steps), atol=1e-7)
+    assert errors[0] / errors[1] == pytest.approx(4, rel=0.02)
+    assert calls[0] is None
+    assert calls[1] is not None
+
+
+def test_forced_recurrent_state_and_gradients_match_grouped_steps(monkeypatch):
+    """Forced interval boundaries must preserve native memory and its VJP path."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+
+    def drift(_t, _ctx, velocity, *, dt, steps, native_state=None):
+        assert steps == 1
+        memory = jnp.zeros_like(velocity) if native_state is None else native_state
+        result = 0.8 * velocity + 0.1 * memory
+        return result, 0.7 * result + 0.2 * memory
+
+    monkeypatch.setattr(module, "_unforced_solver_advance", drift)
+    ctx = SimpleNamespace(phys={"forcing_amplitude": 1.0, "forcing_wavenumber": 2})
+    initial = jnp.ones((16, 16, 1, 2))
+
+    def rollout(value, grouped):
+        native = None
+        for steps in [4] if grouped else [2, 2]:
+            value, native = module._solver_advance_with_physics(
+                None, ctx, value, dt=0.02, steps=steps, native_state=native
+            )
+        return value, native
+
+    together = rollout(initial, True)
+    separate = rollout(initial, False)
+    for actual, expected in zip(separate, together, strict=True):
+        np.testing.assert_allclose(actual, expected, atol=1e-7)
+    loss = lambda scale: jnp.mean(rollout(initial * scale, False)[0])
+    derivative = float(jax.grad(loss)(1.0))
+    finite_difference = float((loss(1.001) - loss(0.999)) / 0.002)
+    assert derivative == pytest.approx(finite_difference, rel=5e-3)
+    assert derivative > 0
+
+
+def test_reference_only_checks_gradients_without_training(monkeypatch):
+    """An admitted reference-only probe verifies the recurrent VJP, then stops."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    data = np.ones((1, 3, 8, 8, 1, 2), dtype=np.float32)
+    monkeypatch.setattr(
+        module,
+        "_make_solver_self_reference_datasets",
+        lambda *a, **k: (
+            data,
+            data,
+            data,
+            "probe",
+            {"eligible_for_corrector_training": True},
+        ),
+    )
+    monkeypatch.setattr(
+        module, "_solver_advance", lambda _t, _ctx, v, **k: (v * 0.9, None)
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("reference-only probes must not train")
+
+    monkeypatch.setattr(module, "_train_corrector", forbidden)
+    ctx = SimpleNamespace(
+        run={
+            "dataset": {"reference_kind": "solver_self_refined"},
+            "evaluation": {"reference_only": True},
+        },
+        phys={"steps": 1, "dt": 0.02},
+    )
+    result = solver_in_loop(None, ctx)
+    assert result["metrics"]["reference_only"]
+    assert result["metrics"]["n_updates"] == 0
+    assert result["metrics"]["reference_only_gradient_passed"]
+    assert result["snapshots"]["reference_rollout"].shape == (3, 8, 8, 1, 2)

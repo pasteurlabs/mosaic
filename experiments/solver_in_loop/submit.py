@@ -100,6 +100,13 @@ def main() -> None:
     parser.add_argument("--time-limit", default="04:00:00")
     parser.add_argument("--pretrain-unroll", type=int, default=8)
     parser.add_argument("--amplitude", type=float, default=0.5)
+    parser.add_argument("--dt", type=float, default=0.02)
+    parser.add_argument("--train-frames", type=int, default=24)
+    parser.add_argument("--eval-frames", type=int, default=48)
+    parser.add_argument("--forcing-amplitude", type=float, default=0.0)
+    parser.add_argument("--forcing-wavenumber", type=int, default=6)
+    parser.add_argument("--burn-in-time", type=float, default=0.0)
+    parser.add_argument("--reference-only", action="store_true")
     parser.add_argument("--reference-factor", type=int)
     parser.add_argument("--reference-temporal-factor", type=int)
     parser.add_argument("--audit-factor", type=int)
@@ -171,7 +178,29 @@ def main() -> None:
                                 "pretrain_seed": 2025,
                             }
                         )
+                    run["physics"]["dt"] = args.dt
+                    run["dataset"]["train_frames"] = args.train_frames
+                    run["evaluation"]["rollout_frames"] = args.eval_frames
+                    run["dataset"]["prefix_audit_frames"] = sorted(
+                        {1, 8, args.train_frames, args.eval_frames}
+                    )
                     run["dataset"]["amplitude"] = args.amplitude
+                    if args.forcing_amplitude:
+                        run["physics"].update(
+                            {
+                                "forcing_amplitude": args.forcing_amplitude,
+                                "forcing_wavenumber": args.forcing_wavenumber,
+                            }
+                        )
+                        cell += f"-force{args.forcing_amplitude:g}"
+                    if args.burn_in_time:
+                        run["dataset"]["burn_in_time"] = args.burn_in_time
+                    if args.reference_only:
+                        run["evaluation"]["reference_only"] = True
+                        run["dataset"]["train_seeds"] = [0]
+                        run["dataset"]["test_seeds"] = [1000 if args.confirm else 100]
+                        cell += "-reference"
+
                     for option, field in (
                         (args.reference_factor, "reference_factor"),
                         (args.reference_temporal_factor, "reference_temporal_factor"),
