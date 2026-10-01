@@ -992,10 +992,29 @@ def test_solver_vjp_panels_only_show_recurrence_admitted_cells(tmp_path):
     assert figure.axes[2].get_title() == "Benefit from solver VJP (admitted only)"
 
 
-def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
+@pytest.mark.parametrize("pretrain_updates", [0, 2])
+def test_solver_in_loop_runs_recurrently_through_dummy(
+    tmp_path, monkeypatch, pretrain_updates
+):
     """One update crosses the apply/VJP boundary and writes canonical artifacts."""
+    import importlib
+
     from mosaic.benchmarks.problems import get_config
 
+    module = importlib.import_module(solver_in_loop.__module__)
+    original_train = module._train_corrector
+    branch_starts = []
+
+    def record_train(*args, **kwargs):
+        initial = kwargs.get("initial_model")
+        if initial is not None:
+            leaves = jax.tree_util.tree_leaves(eqx.filter(initial, eqx.is_array))
+            branch_starts.append(
+                (kwargs["model_seed"], initial, [np.asarray(x).copy() for x in leaves])
+            )
+        return original_train(*args, **kwargs)
+
+    monkeypatch.setattr(module, "_train_corrector", record_train)
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
     base = get_config("ns-grid")
     jax_cfd = next(spec for spec in base.solvers if spec.key == "jax_cfd")
@@ -1017,6 +1036,8 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
                 },
                 "training": {
                     "max_updates": 1,
+                    "pretrain_updates": pretrain_updates,
+                    "pretrain_unroll": 2,
                     "include_supervised_baseline": True,
                     "unroll": 2,
                     "loss_mode": "solver_terminal",
@@ -1068,9 +1089,33 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["seen_ic_matched_horizon_error"] >= 0
     assert metrics["heldout_ic_long_horizon_error"] >= 0
     assert metrics["final_rollout_error_ic_std"] == 0
+    if pretrain_updates:
+        assert metrics["pretrain_total_optimizer_updates"] == 4
+        assert metrics["finetune_optimizer_reset"] is True
+        assert len(set(metrics["pretrain_checkpoint_sha256_by_seed"])) == 2
+        assert (
+            metrics["full_including_pretrain_wall_time_s"]
+            > metrics["training_wall_time_s"]
+        )
+        assert len(branch_starts) == 6
+        for seed in (0, 1):
+            starts = [
+                (model, leaves) for key, model, leaves in branch_starts if key == seed
+            ]
+            assert len(starts) == 3
+            assert all(model is starts[0][0] for model, _ in starts)
+            for model, saved in starts:
+                leaves = jax.tree_util.tree_leaves(eqx.filter(model, eqx.is_array))
+                for leaf, before in zip(leaves, saved, strict=True):
+                    np.testing.assert_array_equal(leaf, before)
+    else:
+        assert not branch_starts
     out_dir = tmp_path / "ns-grid" / "optimization" / "solver_in_loop_smoke"
     assert (out_dir / "result.json").exists()
     with np.load(out_dir / "corrector_fields.npz") as snapshots:
+        if pretrain_updates:
+            assert snapshots["error_pretrained_samples_0"].shape == (2, 1, 3)
+            assert snapshots["loss_pretrained_0"].shape == (2,)
         assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)
         assert snapshots["error_supervised_samples_0"].shape == (2, 1, 3)
         assert snapshots["solver_in_loop_vs_supervised_log_lift_samples_0"].shape == (

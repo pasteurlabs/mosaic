@@ -918,6 +918,7 @@ def _train_corrector(
     differentiate_solver: bool,
     model_seed: int,
     supervised_inputs: np.ndarray | None = None,
+    initial_model: Any = None,
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
     """Train one solver-specific corrector with a fixed stochastic schedule."""
     max_updates = int(training.get("max_updates", 100))
@@ -942,12 +943,16 @@ def _train_corrector(
     if supervised_inputs is not None and supervised_inputs.shape != train[:, 1:].shape:
         raise ValueError("supervised inputs must match the training target frames")
 
-    model = init_corrector(
-        jax.random.PRNGKey(model_seed),
-        hidden_channels=hidden_channels,
-        kernel_size=kernel_size,
-        architecture=architecture,
-    )
+    model = initial_model
+    if model is None:
+        model = init_corrector(
+            jax.random.PRNGKey(model_seed),
+            hidden_channels=hidden_channels,
+            kernel_size=kernel_size,
+            architecture=architecture,
+        )
+    # All fine-tuning arms reset Adam, including continued supervision.
+    # Equinox/JAX models are immutable: updates cannot mutate the shared start.
     optimiser = optax.chain(
         optax.clip_by_global_norm(clip_norm),
         optax.adam(lr),
@@ -1115,6 +1120,8 @@ def _compare_supervised(
     uncorrected_errors: np.ndarray,
     interval_time: float,
     stable_error_threshold: float,
+    initial_models: dict[int, Any] | None = None,
+    supervised_inputs: np.ndarray | None = None,
 ) -> tuple[dict, dict]:
     """Compare fixed-pair supervision with both free-running training arms.
 
@@ -1124,7 +1131,9 @@ def _compare_supervised(
     paired analysis without treating frames as independent replicates.
     """
     started = time.perf_counter()
-    inputs = _make_supervised_inputs(t, ctx, train, frame_steps=frame_steps)
+    inputs = supervised_inputs
+    if inputs is None:
+        inputs = _make_supervised_inputs(t, ctx, train, frame_steps=frame_steps)
     dataset_wall = time.perf_counter() - started
     curves, losses, timings, completed, walls = [], [], [], [], []
     first_rollout = None
@@ -1141,6 +1150,7 @@ def _compare_supervised(
             differentiate_solver=False,
             model_seed=model_seed,
             supervised_inputs=inputs,
+            initial_model=(initial_models or {}).get(model_seed),
         )
         walls.append(time.perf_counter() - started)
         evaluated = _evaluate_reference_set(
@@ -1334,6 +1344,10 @@ def _std(values: list[float]) -> float:
         "solver_in_loop_vs_supervised_log_lift_samples",
         "stopped_vs_supervised_log_lift_samples",
         "rollout_supervised",
+        "loss_pretrained",
+        "error_pretrained",
+        "error_pretrained_samples",
+        "rollout_pretrained",
     ),
 )
 def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
@@ -1531,6 +1545,72 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     else:
         raise ValueError(f"unknown training.loss_normalization: {loss_normalization!r}")
 
+    # Pretrain once per seed, then branch from the same immutable model.
+    # A fixed pretraining horizon and RNG schedule allow paired horizon sweeps.
+    pretrain_updates = int(training.get("pretrain_updates", 0))
+    if pretrain_updates < 0:
+        raise ValueError("training.pretrain_updates must be non-negative")
+    if pretrain_updates and not training.get("include_supervised_baseline", False):
+        raise ValueError("pretraining comparison requires the supervised baseline")
+    initial_models: dict[int, Any] = {}
+    supervised_inputs = None
+    pretrain_losses, pretrain_errors, pretrain_walls, pretrain_hashes = [], [], [], []
+    pretrain_dataset_wall = 0.0
+    first_pretrained = None
+    if pretrain_updates:
+        started = time.perf_counter()
+        supervised_inputs = _make_supervised_inputs(
+            t, ctx, train, frame_steps=frame_steps
+        )
+        pretrain_dataset_wall = time.perf_counter() - started
+        for model_seed in model_seeds:
+            started = time.perf_counter()
+            initial_model, loss, _grads, _times, _fd, done = _train_corrector(
+                t,
+                ctx,
+                train,
+                frame_steps=frame_steps,
+                training={
+                    **training,
+                    "max_updates": pretrain_updates,
+                    "unroll": int(training.get("pretrain_unroll", 8)),
+                    "seed": int(training.get("pretrain_seed", 2025)),
+                    "loss_mode": "mean",
+                    "solver_loss_weight": 0.0,
+                    "check_grad": False,
+                },
+                velocity_scale=velocity_scale,
+                loss_scale=training_loss_scale,
+                differentiate_solver=False,
+                model_seed=model_seed,
+                supervised_inputs=supervised_inputs,
+            )
+            pretrain_walls.append(time.perf_counter() - started)
+            if not done or len(loss) != pretrain_updates:
+                raise RuntimeError(
+                    f"supervised pretraining failed for seed {model_seed}"
+                )
+            initial_models[model_seed] = initial_model
+            pretrain_losses.append(loss)
+            digest = hashlib.sha256()
+            for leaf in jax.tree_util.tree_leaves(
+                eqx.filter(initial_model, eqx.is_array)
+            ):
+                digest.update(np.asarray(leaf).tobytes())
+            pretrain_hashes.append(digest.hexdigest())
+            evaluated = _evaluate_reference_set(
+                t,
+                ctx,
+                initial_model,
+                test,
+                frame_steps=frame_steps,
+                velocity_scale=velocity_scale,
+                corrected=True,
+            )
+            pretrain_errors.append(evaluated.errors)
+            if first_pretrained is None:
+                first_pretrained = evaluated.first_rollout
+
     models: list[Any] = []
     losses_by_seed: list[list[float]] = []
     grad_norms_by_seed: list[list[float]] = []
@@ -1576,6 +1656,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             loss_scale=training_loss_scale,
             differentiate_solver=True,
             model_seed=model_seed,
+            initial_model=initial_models.get(model_seed),
         )
         training_walls.append(time.perf_counter() - started)
 
@@ -1597,6 +1678,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             loss_scale=training_loss_scale,
             differentiate_solver=False,
             model_seed=model_seed,
+            initial_model=initial_models.get(model_seed),
         )
         stop_gradient_training_walls.append(time.perf_counter() - stop_gradient_started)
 
@@ -2099,10 +2181,45 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             uncorrected_errors=uncorrected_errors_array,
             interval_time=interval_time,
             stable_error_threshold=threshold,
+            initial_models=initial_models,
+            supervised_inputs=supervised_inputs,
         )
         metrics.update(supervised_metrics)
         snapshots.update(supervised_snapshots)
         metrics["completed"] &= supervised_metrics["supervised_completed"]
+    if pretrain_updates:
+        pretrain_array = np.stack(pretrain_errors)
+        common_cost = pretrain_dataset_wall + float(sum(pretrain_walls))
+        metrics.update(
+            {
+                "pretrain_updates_per_seed": pretrain_updates,
+                "pretrain_total_optimizer_updates": pretrain_updates * len(model_seeds),
+                "pretrain_unroll": int(training.get("pretrain_unroll", 8)),
+                "pretrain_checkpoint_sha256_by_seed": pretrain_hashes,
+                "finetune_optimizer_reset": True,
+                "pretrain_dataset_wall_time_s": pretrain_dataset_wall,
+                "pretrain_training_wall_time_s": float(sum(pretrain_walls)),
+                "pretrain_common_wall_time_s": common_cost,
+                "pretrained_mean_rollout_error": float(
+                    np.mean(pretrain_array[..., 1:])
+                ),
+                "full_including_pretrain_wall_time_s": common_cost + training_wall,
+                "stopped_including_pretrain_wall_time_s": common_cost
+                + stop_gradient_training_wall,
+                "supervised_including_pretrain_wall_time_s": common_cost
+                + metrics["supervised_total_wall_time_s"],
+            }
+        )
+        snapshots.update(
+            {
+                "loss_pretrained": _mean_curve(pretrain_losses),
+                "error_pretrained_samples": pretrain_array.astype(np.float32),
+                "error_pretrained": np.mean(pretrain_array, axis=(0, 1)).astype(
+                    np.float32
+                ),
+                "rollout_pretrained": first_pretrained,
+            }
+        )
     return {
         "metrics": metrics,
         "snapshots": snapshots,

@@ -35,6 +35,12 @@ def _plot_cell(
         ("stop_gradient", "Recurrent, stopped", "tab:blue", "--"),
         ("corrected", "Recurrent, full", "tab:green", "-"),
     )
+    if "error_pretrained_0" in arrays:
+        arms = (
+            arms[0],
+            ("pretrained", "Pretrained start", "tab:purple", ":"),
+            *arms[1:],
+        )
     times = arrays["evaluation_times"]
     fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
     for arm, label, color, style in arms:
@@ -99,7 +105,9 @@ def _plot_cell(
         else "Reference"
     )
     vmax = float(np.nanpercentile(np.abs([row[0] for row in fields]), 99)) or 1
-    fig, axes = plt.subplots(2, 5, figsize=(13, 5), layout="constrained")
+    fig, axes = plt.subplots(
+        2, len(trajectories), figsize=(2.6 * len(trajectories), 5), layout="constrained"
+    )
     for row, frame in enumerate(frames):
         for col, field in enumerate(fields[row]):
             im = axes[row, col].imshow(
@@ -121,8 +129,9 @@ def _plot_cell(
     fig.savefig(destination / "fields.png", dpi=170)
     plt.close(fig)
 
+    common_cost = metrics.get("pretrain_common_wall_time_s", 0.0)
     seconds = [
-        metrics[k]
+        common_cost + metrics[k]
         for k in (
             "supervised_total_wall_time_s",
             "stop_gradient_training_wall_time_s",
@@ -145,7 +154,13 @@ def _plot_cell(
         xlabel="Training wall time (minutes)",
     )
     ax.set_title(
-        "Training cost at equal updates", loc="left", fontsize=15, weight="bold", pad=14
+        "Training cost including shared pretraining"
+        if common_cost
+        else "Training cost at equal updates",
+        loc="left",
+        fontsize=15,
+        weight="bold",
+        pad=14,
     )
     fig.savefig(destination / "cost.png", dpi=170)
     plt.close(fig)
@@ -481,6 +496,17 @@ def main() -> None:
                 "amplitude": amplitude,
                 "unroll": unroll,
                 "updates": updates,
+                "pretrain_updates": cells[0][0].get("pretrain_updates_per_seed", 0),
+                "pretrained_mean_rollout_error": (
+                    float(
+                        np.mean([m["pretrained_mean_rollout_error"] for m, _ in cells])
+                    )
+                    if "pretrained_mean_rollout_error" in cells[0][0]
+                    else None
+                ),
+                "pretrain_common_seconds": sum(
+                    m.get("pretrain_common_wall_time_s", 0.0) for m, _ in cells
+                ),
                 "n_model_seeds": errors["corrected"].shape[0],
                 "source_sha256": source,
                 "protocol_sha256": protocol_hash,
@@ -494,13 +520,19 @@ def main() -> None:
                     r["ci95"] is not None and r["ci95"][0] > 1 for r in ratios.values()
                 ),
                 "full_training_seconds": sum(
-                    m["training_wall_time_s"] for m, _ in cells
+                    m.get("pretrain_common_wall_time_s", 0.0)
+                    + m["training_wall_time_s"]
+                    for m, _ in cells
                 ),
                 "supervised_total_seconds": sum(
-                    m["supervised_total_wall_time_s"] for m, _ in cells
+                    m.get("pretrain_common_wall_time_s", 0.0)
+                    + m["supervised_total_wall_time_s"]
+                    for m, _ in cells
                 ),
                 "stopped_training_seconds": sum(
-                    m["stop_gradient_training_wall_time_s"] for m, _ in cells
+                    m.get("pretrain_common_wall_time_s", 0.0)
+                    + m["stop_gradient_training_wall_time_s"]
+                    for m, _ in cells
                 ),
             }
         )

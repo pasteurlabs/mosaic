@@ -93,6 +93,8 @@ def main() -> None:
     parser.add_argument("--regimes", default="64:4:8")
     parser.add_argument("--seeds", default="0")
     parser.add_argument("--updates", type=int, default=300)
+    parser.add_argument("--pretrain-updates", type=int, default=0)
+    parser.add_argument("--pretrain-unroll", type=int, default=8)
     parser.add_argument("--amplitude", type=float, default=0.5)
     parser.add_argument("--reference-factor", type=int)
     parser.add_argument("--reference-temporal-factor", type=int)
@@ -135,6 +137,15 @@ def main() -> None:
                     run = protocol(
                         int(n), float(k0), int(unroll), args.updates, seed, args.confirm
                     )
+                    if args.pretrain_updates:
+                        cell += f"-pre{args.pretrain_updates}"
+                        run["training"].update(
+                            {
+                                "pretrain_updates": args.pretrain_updates,
+                                "pretrain_unroll": args.pretrain_unroll,
+                                "pretrain_seed": 2025,
+                            }
+                        )
                     run["dataset"]["amplitude"] = args.amplitude
                     for option, field in (
                         (args.reference_factor, "reference_factor"),
