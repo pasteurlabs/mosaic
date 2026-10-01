@@ -14,6 +14,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from mosaic.benchmarks.core.utils import _debug_run, active_solvers
 from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
@@ -391,8 +392,13 @@ def test_analytic_tgv_reference_has_exact_decay_and_distinct_phases():
     assert len(dataset_hash) == 16
 
 
+@pytest.mark.parametrize(
+    "convergence_tolerance, expected", [(0.01, True), (1e-8, False)]
+)
 def test_solver_self_reference_matches_physical_time_and_passes_closure(
     monkeypatch,
+    convergence_tolerance,
+    expected,
 ):
     calls: list[tuple[int, float, int, object | None]] = []
 
@@ -431,6 +437,9 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
             dataset={
                 "reference_factor": 2,
                 "reference_temporal_factor": 2,
+                "reference_audit_factor": 4,
+                "reference_audit_temporal_factor": 4,
+                "reference_convergence_tolerance": convergence_tolerance,
                 "train_seeds": [0, 1],
                 "test_seeds": [100],
                 "train_frames": 2,
@@ -448,13 +457,16 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
     assert train_rollouts.shape == (2, 4, 8, 8, 1, 2)
     assert test.shape == (1, 4, 8, 8, 1, 2)
     assert len(dataset_hash) == 16
-    assert audit["eligible_for_corrector_training"] is True
+    assert audit["eligible_for_corrector_training"] is expected
+    assert audit["reference_convergence_passed"] is expected
+    assert audit["reference_audit_grid_size"] == 32
     assert audit["max_coarse_closure_error"] < 1e-5
     assert audit["max_fine_closure_error"] < 1e-5
     assert audit["max_coarse_closure_to_signal_ratio"] < 1e-4
     assert audit["max_fine_closure_to_signal_ratio"] < 1e-4
     assert audit["mean_refinement_signal"] > 1e-5
     assert any(call[:3] == (16, 0.01, 2) for call in calls)
+    assert any(call[:3] == (32, 0.005, 4) for call in calls)
     assert any(call[:3] == (8, 0.02, 1) for call in calls)
     assert any(call[3] is not None for call in calls)
     assert 0.01 * 2 == 0.02 * 1

@@ -93,6 +93,11 @@ def _plot_cell(
         ) / (2 * dx)
 
     fields = [[vorticity(value[frame]) for value in trajectories] for frame in frames]
+    reference_label = (
+        "Fine reference\n(restricted)"
+        if payload["run"]["dataset"]["reference_kind"] == "solver_self_refined"
+        else "Reference"
+    )
     vmax = float(np.nanpercentile(np.abs([row[0] for row in fields]), 99)) or 1
     fig, axes = plt.subplots(2, 5, figsize=(13, 5), layout="constrained")
     for row, frame in enumerate(frames):
@@ -107,7 +112,9 @@ def _plot_cell(
             axes[row, col].set_xticks([])
             axes[row, col].set_yticks([])
             if row == 0:
-                axes[row, col].set_title((["Reference"] + [a[1] for a in arms])[col])
+                axes[row, col].set_title(
+                    ([reference_label] + [a[1] for a in arms])[col]
+                )
         axes[row, 0].set_ylabel(f"t={times[frame]:.2f}")
     fig.colorbar(im, ax=axes.ravel().tolist(), label="Vorticity", shrink=0.8)
     fig.suptitle("Vorticity across the full domain", fontsize=16, weight="bold")
@@ -303,6 +310,14 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
             fontsize=10,
             color="0.35",
         )
+        if exemplar.get("reference_kind") == "solver_self_refined":
+            fig.text(
+                0.13,
+                0.80,
+                "Each solver uses its own refined reference; compare training methods within each row.",
+                fontsize=9,
+                color="0.35",
+            )
         fig.text(
             0.55,
             0.13,
@@ -435,6 +450,7 @@ def main() -> None:
         rows.append(
             {
                 "phase": phase,
+                "reference_kind": cells[0][0].get("reference_kind"),
                 "solver": solver,
                 "N": n,
                 "k0": k0,

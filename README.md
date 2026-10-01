@@ -164,7 +164,10 @@ mosaic run -p ns-grid --suites optimization -e solver_in_loop_supervised
 ```
 
 All models are evaluated on held-out, free-running trajectories alongside the
-uncorrected solver. Improving on supervised training measures the benefit of
+uncorrected solver. Each solver uses its own higher-resolution, smaller-timestep
+trajectory as the reference, with a further refinement check. Absolute errors
+against these different targets are not an accuracy ranking across solvers.
+Improving on supervised training measures the benefit of
 the training setup; improving on the recurrent stopped-gradient control isolates
 the additional benefit of differentiating through the solver. Training costs
 include the supervised baseline's fixed-data generation.

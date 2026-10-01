@@ -630,6 +630,50 @@ def _make_solver_self_reference_datasets(
         and mean_signal > minimum_signal
     )
 
+    convergence = {}
+    audit_factor = dataset.get("reference_audit_factor")
+    if audit_factor is not None:
+        audit_n = n * int(audit_factor)
+        audit_temporal = int(
+            dataset.get("reference_audit_temporal_factor", 2 * temporal_factor)
+        )
+        if audit_n <= fine_n or audit_temporal < temporal_factor:
+            raise ValueError(
+                "reference audit must refine space without coarsening time"
+            )
+        disagreements = []
+        for seed in requested_audit_seeds:
+            # Prolong the actual production IC: regenerating random modes on
+            # another grid can change the physical initial condition.
+            state = np.asarray(spectral_prolong(fine_initials[seed], audit_n))
+            native = None
+            for frame in range(1, max_audit_frame + 1):
+                state, native = advance(
+                    state,
+                    dt=coarse_dt / audit_temporal,
+                    steps=coarse_steps * audit_temporal,
+                    native_state=native,
+                )
+                if frame in audit_frame_set:
+                    disagreements.append(
+                        relative_l2(
+                            trajectories[seed][frame], spectral_restrict(state, n)
+                        )
+                    )
+        tolerance = float(dataset.get("reference_convergence_tolerance", 0.01))
+        passed = bool(
+            np.all(np.isfinite(disagreements)) and max(disagreements) <= tolerance
+        )
+        eligible = eligible and passed
+        convergence = {
+            "reference_audit_grid_size": audit_n,
+            "reference_audit_temporal_factor": audit_temporal,
+            "reference_convergence_errors": disagreements,
+            "reference_convergence_max_relative_error": float(max(disagreements)),
+            "reference_convergence_tolerance": tolerance,
+            "reference_convergence_passed": passed,
+        }
+
     config = {
         "reference_kind": "solver_self_refined",
         "solver": ctx.name,
@@ -653,6 +697,7 @@ def _make_solver_self_reference_datasets(
         "closure_relative_tolerance": closure_tolerance,
         "closure_to_signal_tolerance": closure_to_signal_tolerance,
         "minimum_refinement_signal": minimum_signal,
+        "reference_convergence": convergence,
     }
     all_trajectories = np.stack([trajectories[seed] for seed in all_seeds])
     n_train = len(train_seeds)
@@ -660,6 +705,7 @@ def _make_solver_self_reference_datasets(
     train_rollouts = all_trajectories[:n_train, : eval_frames + 1]
     test = all_trajectories[n_train:, : eval_frames + 1]
     audit = {
+        **convergence,
         "eligible_for_corrector_training": eligible,
         "reference_generation_wall_time_s": time.perf_counter() - started,
         "reference_generation_apply_count": apply_count,

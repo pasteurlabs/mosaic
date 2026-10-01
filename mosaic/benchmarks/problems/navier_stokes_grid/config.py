@@ -611,9 +611,19 @@ def _reference_sensitivity_run(name: str, reference_kind: str) -> dict:
 
 def _supervised_comparison_run() -> dict:
     """Declare a matched three-arm experiment on interacting periodic vortices."""
-    run = _reference_sensitivity_run("supervised", "pseudo_spectral_multimode")
+    run = _reference_sensitivity_run("supervised", "solver_self_refined")
     run.pop("name")
-    run["dataset"].update({"k0": 4.0, "sigma_k": 1.0})
+    dataset = run["dataset"]
+    dataset["reference_temporal_factor"] = dataset.pop("reference_substeps")
+    dataset["reference_audit_temporal_factor"] = dataset.pop("reference_audit_substeps")
+    dataset.update(
+        {
+            "k0": 4.0,
+            "sigma_k": 1.0,
+            "prefix_audit_seeds": [0, 100],
+            "prefix_audit_frames": [1, 8, 24, 36],
+        }
+    )
     run["training"].update(
         {
             "max_updates": 3000,
@@ -631,6 +641,7 @@ problem.add_experiment(
     description=(
         "Test whether differentiating through a solver produces a useful corrector "
         "beyond fixed-pair supervised training and stopped-gradient recurrent training. "
+        "Each solver learns against its own spatially and temporally refined reference. "
         "All arms share initial weights, training windows and optimizer updates; "
         "evaluation uses held-out free-running trajectories."
     ),

@@ -368,7 +368,7 @@ def plot_solver_in_loop_supervised(
     suffix: str = "",
     **_kwargs: Any,
 ) -> list:
-    """Show all four free-running evaluation arms against the same target."""
+    """Show all four evaluation arms against each solver's refined target."""
     out_dir = experiment_dir(
         results_dir(), cfg.name, "optimization", f"solver_in_loop_supervised{suffix}"
     )
@@ -432,7 +432,7 @@ def _plot_supervised_fields(
     the choice of IC and model seed never depends on the measured error.
     """
     columns = (
-        (None, "Reference"),
+        (None, "Fine reference\n(restricted)"),
         ("rollout_uncorrected", "Solver only"),
         ("rollout_supervised", "Supervised"),
         ("rollout_stop_gradient", "Recurrent, stopped"),
