@@ -1,0 +1,219 @@
+{
+  "comparisons": [],
+  "pending": [],
+  "failures": [],
+  "reference_checks": [
+    {
+      "cell": "explore-ins-jl-n64-k4-h8-u1-s0-a0.05-force1-reference-30c177d1",
+      "solver": "ins-jl",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          9.670100697344055e-07,
+          6.367108209952555e-06,
+          2.3715277631239364e-05,
+          4.246860723181147e-05,
+          8.254947891709619e-07,
+          4.0138643361114755e-06,
+          1.1947745115340289e-05,
+          2.994021662565814e-05
+        ],
+        "reference_convergence_max_relative_error": 4.246860723181147e-05,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": true,
+        "eligible_for_corrector_training": true,
+        "reference_generation_wall_time_s": 273.00621671401314,
+        "reference_generation_apply_count": 9432,
+        "forcing_amplitude": 1.0,
+        "forcing_wavenumber": 6,
+        "forcing_scheme": "strang_per_native_step",
+        "burn_in_time": 5.0,
+        "burn_in_diagnostics": [
+          {
+            "seed": 0,
+            "initial_velocity_rms": 0.05167967453598976,
+            "final_velocity_rms": 1.4413172006607056
+          },
+          {
+            "seed": 100,
+            "initial_velocity_rms": 0.051525965332984924,
+            "final_velocity_rms": 1.3435368537902832
+          }
+        ],
+        "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+        "reference_grid_size": 192,
+        "reference_dt": 0.0033333333333333335,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fine_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "refinement_signals": [
+          0.03954062149812154,
+          0.13112363251229822,
+          0.24883152541093023,
+          0.4858831202451918,
+          0.03199696801558943,
+          0.10100564488999819,
+          0.24087584133349224,
+          0.46976448376874697
+        ],
+        "max_coarse_closure_error": 0.0,
+        "max_fine_closure_error": 0.0,
+        "max_coarse_closure_to_signal_ratio": 0.0,
+        "max_fine_closure_to_signal_ratio": 0.0,
+        "mean_refinement_signal": 0.21862772970929606,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "reference_only_fd_relative_error": 0.00011846124107250944,
+        "reference_only_gradient_passed": true,
+        "reference_only": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "5a4fe6940478ab6c",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 1.92,
+        "native_state_threading": true,
+        "vram_peak_mib": 70.0625,
+        "ram_peak_mib": 1043.267584
+      }
+    },
+    {
+      "cell": "explore-jax-cfd-n64-k4-h8-u1-s0-a0.05-force1-reference-c1eda8cd",
+      "solver": "jax-cfd",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          0.0016207349044299686,
+          0.009883135184166194,
+          0.033483871702383296,
+          0.09352943613278494,
+          0.001376207107549419,
+          0.009807562420115566,
+          0.027805729416602355,
+          0.0957440531594714
+        ],
+        "reference_convergence_max_relative_error": 0.0957440531594714,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 131.04507444400224,
+        "reference_generation_apply_count": 9432,
+        "forcing_amplitude": 1.0,
+        "forcing_wavenumber": 6,
+        "forcing_scheme": "strang_per_native_step",
+        "burn_in_time": 5.0,
+        "burn_in_diagnostics": [
+          {
+            "seed": 0,
+            "initial_velocity_rms": 0.05167967453598976,
+            "final_velocity_rms": 1.3230400085449219
+          },
+          {
+            "seed": 100,
+            "initial_velocity_rms": 0.051525965332984924,
+            "final_velocity_rms": 1.2391804456710815
+          }
+        ],
+        "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+        "reference_grid_size": 192,
+        "reference_dt": 0.0033333333333333335,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fine_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "refinement_signals": [
+          0.030677658769578738,
+          0.07705660199537231,
+          0.17597587586731275,
+          0.3708898643933192,
+          0.030062615930363093,
+          0.07847971732654392,
+          0.17276465426119642,
+          0.3834923006954038
+        ],
+        "max_coarse_closure_error": 0.0,
+        "max_fine_closure_error": 0.0,
+        "max_coarse_closure_to_signal_ratio": 0.0,
+        "max_fine_closure_to_signal_ratio": 0.0,
+        "mean_refinement_signal": 0.16492491115488628,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "reference_only": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "634080ecd0b923df",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 1.92,
+        "native_state_threading": true,
+        "vram_peak_mib": 633.375,
+        "ram_peak_mib": 1038.118912
+      }
+    }
+  ]
+}

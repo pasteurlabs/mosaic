@@ -1,0 +1,89 @@
+{
+  "comparisons": [
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "jax-cfd",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 1000,
+      "pretrain_updates": 3000,
+      "pretrained_mean_rollout_error": 0.022111886619997634,
+      "pretrain_common_seconds": 5038.652693583921,
+      "n_model_seeds": 3,
+      "source_sha256": "edf720e5ed2b7a5447c585ded2828ea8da82cd75d3a02ef0e1fcb1a95e2ebebe",
+      "protocol_sha256": "494220a26e4ecc20f0b90654b97cbcc0ec6414c118d43c0e1fc23972465798cf",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.0012989010429009795,
+        0.22253189980983734,
+        0.0003674443578347564
+      ],
+      "vs_supervised": {
+        "ratio": 0.36659759283065796,
+        "ci95": [
+          0.3515787422657013,
+          0.38604339957237244
+        ]
+      },
+      "vs_stopped": {
+        "ratio": 1.3133702278137207,
+        "ci95": [
+          1.2897248268127441,
+          1.339978814125061
+        ]
+      },
+      "vs_uncorrected": {
+        "ratio": 0.7741830348968506,
+        "ci95": [
+          0.715273916721344,
+          0.8310626149177551
+        ]
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.0627162754535675,
+          "mean_final_error": 0.13770872354507446,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.08236967772245407,
+          "mean_final_error": 0.17705470323562622,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.022991634905338287,
+          "mean_final_error": 0.03416169807314873,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.048553869128227234,
+          "mean_final_error": 0.07937051355838776,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 7351.643378023902,
+      "supervised_total_seconds": 6697.239568387915,
+      "stopped_training_seconds": 6986.183924175915
+    }
+  ],
+  "pending": [
+    "explore-ins-jl-n64-k4-h16-u1000-s0-pre3000-1eec8ff7",
+    "explore-ins-jl-n64-k4-h16-u1000-s1-pre3000-050a3223",
+    "explore-ins-jl-n64-k4-h16-u1000-s2-pre3000-88599da5",
+    "explore-ins-jl-n64-k4-h8-u1000-s0-pre3000-de6d92b9",
+    "explore-ins-jl-n64-k4-h8-u1000-s1-pre3000-4d702b84",
+    "explore-ins-jl-n64-k4-h8-u1000-s2-pre3000-9d098da1",
+    "explore-jax-cfd-n64-k4-h16-u1000-s0-pre3000-e1794f04",
+    "explore-jax-cfd-n64-k4-h16-u1000-s1-pre3000-ad8cdaf3",
+    "explore-jax-cfd-n64-k4-h16-u1000-s2-pre3000-edb94c32"
+  ],
+  "failures": []
+}
