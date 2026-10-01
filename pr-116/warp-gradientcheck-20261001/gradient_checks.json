@@ -1,0 +1,189 @@
+{
+  "description": "Initial-model directional finite-difference refinement; not a training comparison.",
+  "matching_rule": "Exact solver, image, source and run configuration equality after removing only max_updates and fd_epsilon; no pretraining or curriculum.",
+  "original_validation_unchanged": true,
+  "checks": [
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u1-s2-77efcc65",
+      "initial_problem_sha256": "8f5ba61626c0cd5f4695e475b9acf9971d51a5890c0118eb5af9b16df50070c7",
+      "model_seed": 2,
+      "unroll": 8,
+      "epsilon": 0.0003,
+      "fd_relative_error": 2.0524923911580117e-06,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u1-s2-60a7b42d",
+      "initial_problem_sha256": "8f5ba61626c0cd5f4695e475b9acf9971d51a5890c0118eb5af9b16df50070c7",
+      "model_seed": 2,
+      "unroll": 8,
+      "epsilon": 0.001,
+      "fd_relative_error": 0.0005284002982079983,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u1-s2-d85a6c31",
+      "initial_problem_sha256": "8f5ba61626c0cd5f4695e475b9acf9971d51a5890c0118eb5af9b16df50070c7",
+      "model_seed": 2,
+      "unroll": 8,
+      "epsilon": 0.003,
+      "fd_relative_error": 0.003270799992606044,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u1-s2-7ec45969",
+      "initial_problem_sha256": "8f5ba61626c0cd5f4695e475b9acf9971d51a5890c0118eb5af9b16df50070c7",
+      "model_seed": 2,
+      "unroll": 8,
+      "epsilon": 0.01,
+      "fd_relative_error": 0.038669440895318985,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u1-s2-35b246fa",
+      "initial_problem_sha256": "8f5ba61626c0cd5f4695e475b9acf9971d51a5890c0118eb5af9b16df50070c7",
+      "model_seed": 2,
+      "unroll": 8,
+      "epsilon": 0.03,
+      "fd_relative_error": 0.5057083368301392,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s0-059180cb",
+      "initial_problem_sha256": "d7f41dd17cf53a6f067a38c89d5406a05a63a523892e7b0536d16f387dad433c",
+      "model_seed": 0,
+      "unroll": 16,
+      "epsilon": 0.003,
+      "fd_relative_error": 5.236580182099715e-05,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s0-e3222b24",
+      "initial_problem_sha256": "d7f41dd17cf53a6f067a38c89d5406a05a63a523892e7b0536d16f387dad433c",
+      "model_seed": 0,
+      "unroll": 16,
+      "epsilon": 0.01,
+      "fd_relative_error": 0.0013614626368507743,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s1-ab53390b",
+      "initial_problem_sha256": "311f63b3b08a15e5b94b3ced5efcf70bbc0c5426662fc348fc958ba9e22e41ed",
+      "model_seed": 1,
+      "unroll": 16,
+      "epsilon": 0.003,
+      "fd_relative_error": 4.488303966354579e-05,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s1-6cccb4d2",
+      "initial_problem_sha256": "311f63b3b08a15e5b94b3ced5efcf70bbc0c5426662fc348fc958ba9e22e41ed",
+      "model_seed": 1,
+      "unroll": 16,
+      "epsilon": 0.01,
+      "fd_relative_error": 0.0044455574825406075,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s2-9a24bd3d",
+      "initial_problem_sha256": "2dd4965b1e5f24bc125117f478687dd42d302a12c3836dc67d1e9044898e48bf",
+      "model_seed": 2,
+      "unroll": 16,
+      "epsilon": 0.0003,
+      "fd_relative_error": 5.2736537327291444e-05,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s2-0657888c",
+      "initial_problem_sha256": "2dd4965b1e5f24bc125117f478687dd42d302a12c3836dc67d1e9044898e48bf",
+      "model_seed": 2,
+      "unroll": 16,
+      "epsilon": 0.001,
+      "fd_relative_error": 0.0007070553256198764,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s2-407b72ce",
+      "initial_problem_sha256": "2dd4965b1e5f24bc125117f478687dd42d302a12c3836dc67d1e9044898e48bf",
+      "model_seed": 2,
+      "unroll": 16,
+      "epsilon": 0.003,
+      "fd_relative_error": 0.00534466840326786,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h16-u1-s2-fd4e7bc8",
+      "initial_problem_sha256": "2dd4965b1e5f24bc125117f478687dd42d302a12c3836dc67d1e9044898e48bf",
+      "model_seed": 2,
+      "unroll": 16,
+      "epsilon": 0.01,
+      "fd_relative_error": 0.06309988349676132,
+      "dataset_hash": "ad6c309b59b3a43c",
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh"
+    }
+  ],
+  "matching_training_cells": [
+    {
+      "training_cell": "explore-warp-ns-n64-k4-h16-u3000-s0-5153376b",
+      "initial_problem_sha256": "d7f41dd17cf53a6f067a38c89d5406a05a63a523892e7b0536d16f387dad433c",
+      "diagnostic_cells": [
+        "explore-warp-ns-n64-k4-h16-u1-s0-059180cb",
+        "explore-warp-ns-n64-k4-h16-u1-s0-e3222b24"
+      ]
+    },
+    {
+      "training_cell": "explore-warp-ns-n64-k4-h16-u3000-s1-f80b6b97",
+      "initial_problem_sha256": "311f63b3b08a15e5b94b3ced5efcf70bbc0c5426662fc348fc958ba9e22e41ed",
+      "diagnostic_cells": [
+        "explore-warp-ns-n64-k4-h16-u1-s1-6cccb4d2",
+        "explore-warp-ns-n64-k4-h16-u1-s1-ab53390b"
+      ]
+    },
+    {
+      "training_cell": "explore-warp-ns-n64-k4-h16-u3000-s2-e0affb79",
+      "initial_problem_sha256": "2dd4965b1e5f24bc125117f478687dd42d302a12c3836dc67d1e9044898e48bf",
+      "diagnostic_cells": [
+        "explore-warp-ns-n64-k4-h16-u1-s2-0657888c",
+        "explore-warp-ns-n64-k4-h16-u1-s2-407b72ce",
+        "explore-warp-ns-n64-k4-h16-u1-s2-9a24bd3d",
+        "explore-warp-ns-n64-k4-h16-u1-s2-fd4e7bc8"
+      ]
+    },
+    {
+      "training_cell": "explore-warp-ns-n64-k4-h8-u3000-s2-43002bd0",
+      "initial_problem_sha256": "8f5ba61626c0cd5f4695e475b9acf9971d51a5890c0118eb5af9b16df50070c7",
+      "diagnostic_cells": [
+        "explore-warp-ns-n64-k4-h8-u1-s2-35b246fa",
+        "explore-warp-ns-n64-k4-h8-u1-s2-60a7b42d",
+        "explore-warp-ns-n64-k4-h8-u1-s2-77efcc65",
+        "explore-warp-ns-n64-k4-h8-u1-s2-7ec45969",
+        "explore-warp-ns-n64-k4-h8-u1-s2-d85a6c31"
+      ]
+    }
+  ]
+}
