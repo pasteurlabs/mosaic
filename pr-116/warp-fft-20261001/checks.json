@@ -1,0 +1,54 @@
+{
+  "source_commit": "078d4d8",
+  "validation_job": 2856598,
+  "baseline_image_job": 2853705,
+  "baseline_failure_expected": true,
+  "baseline": [
+    {
+      "check": "DFT N=12",
+      "relative_error": 30.9999975064748
+    }
+  ],
+  "patched": [
+    {
+      "check": "DFT N=12",
+      "relative_error": 1.2011692170722174e-07
+    },
+    {
+      "check": "unnormalized inverse N=12",
+      "relative_error": 1.1918914565981016e-07
+    },
+    {
+      "check": "DFT N=192",
+      "relative_error": 1.5654861109024514e-07
+    },
+    {
+      "check": "unnormalized inverse N=192",
+      "relative_error": 1.500006336803944e-07
+    },
+    {
+      "check": "Poisson 2D N=64",
+      "relative_error": 1.6267101570991826e-07
+    },
+    {
+      "check": "Poisson VJP 2D N=64",
+      "relative_error": 1.977691484768133e-07
+    },
+    {
+      "check": "Poisson 2D N=192",
+      "relative_error": 3.203409422776308e-07
+    },
+    {
+      "check": "Poisson VJP 2D N=192",
+      "relative_error": 3.335003911583921e-07
+    },
+    {
+      "check": "Poisson 3D N=12",
+      "relative_error": 3.9630211876987913e-07
+    },
+    {
+      "check": "Poisson VJP 3D N=12",
+      "relative_error": 4.0353178317808494e-07
+    }
+  ]
+}

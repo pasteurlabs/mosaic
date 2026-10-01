@@ -121,6 +121,65 @@
     {
       "phase": "explore",
       "reference_kind": "solver_self_refined",
+      "solver": "jax-cfd",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 3000,
+      "n_model_seeds": 1,
+      "source_sha256": "b348bbb79c639df41daa9855c56aac06b11467abaaba16b5d74ddccc97e0e155",
+      "protocol_sha256": "937c2ac38514b5ca9f910bdf92b3ee6c47a5ccf9fac835ffce4b61ffef7e8440",
+      "admitted": true,
+      "fd_relative_errors": [
+        2.0550984118017368e-05
+      ],
+      "vs_supervised": {
+        "ratio": 0.3537924885749817,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 1.429910659790039,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 0.7446863055229187,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.06520044058561325,
+          "mean_final_error": 0.1434440016746521,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.09323078393936157,
+          "mean_final_error": 0.1995176374912262,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.023067424073815346,
+          "mean_final_error": 0.032486412674188614,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.04855387285351753,
+          "mean_final_error": 0.07937050610780716,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 2259.822550135985,
+      "supervised_total_seconds": 1734.9873183609452,
+      "stopped_training_seconds": 1859.3393854620226
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
       "solver": "pict",
       "N": 64,
       "k0": 4.0,
@@ -180,7 +239,6 @@
   ],
   "pending": [
     "explore-ins-jl-n64-k4-h8-u3000-s0-fce18130",
-    "explore-jax-cfd-n64-k4-h8-u3000-s0-f495fb4e",
     "explore-pict-n64-k4-h8-u3000-s0-a20a3fcd"
   ],
   "failures": [
