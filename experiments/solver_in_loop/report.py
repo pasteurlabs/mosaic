@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import subprocess
 import tarfile
 from collections import defaultdict
 from pathlib import Path
@@ -269,6 +270,42 @@ def _read_result(path: Path) -> tuple[dict, dict]:
     return metrics, errors
 
 
+def _job_states(campaign: Path) -> dict[str, str]:
+    """Read accounting once; numerical results remain independent of Slurm."""
+    manifest = campaign / "job_ids.json"
+    if not manifest.exists():
+        return {}
+    jobs = json.loads(manifest.read_text())
+    if not jobs:
+        return {}
+    try:
+        result = subprocess.run(
+            [
+                "sacct",
+                "--noheader",
+                "--parsable2",
+                "--allocations",
+                "--jobs",
+                ",".join(str(int(job)) for job in jobs.values()),
+                "--format",
+                "JobIDRaw,State%30",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"Slurm accounting unavailable; missing results remain pending: {exc}")
+        return {}
+    states = {}
+    for line in result.stdout.splitlines():
+        fields = line.split("|")
+        if len(fields) >= 2 and fields[1].strip():
+            states[fields[0]] = fields[1].split()[0].rstrip("+")
+    return {cell: states[str(job)] for cell, job in jobs.items() if str(job) in states}
+
+
 def _ratio(baseline: np.ndarray, corrected: np.ndarray) -> dict:
     """Bootstrap paired model seeds and shared held-out ICs, never frames."""
     # Integrate over time first so tiny early errors cannot outweigh a poor
@@ -476,6 +513,19 @@ def main() -> None:
     args = parser.parse_args()
     groups = defaultdict(list)
     pending, failures, reference_checks = [], [], []
+    job_states = _job_states(args.campaign)
+    terminal_states = {
+        "BOOT_FAIL",
+        "CANCELLED",
+        "COMPLETED",
+        "DEADLINE",
+        "FAILED",
+        "NODE_FAIL",
+        "OUT_OF_MEMORY",
+        "PREEMPTED",
+        "REVOKED",
+        "TIMEOUT",
+    }
     for config in sorted((args.campaign / "configs").glob("*.json")):
         payload = json.loads(config.read_text())
         run = payload["run"]
@@ -497,7 +547,16 @@ def main() -> None:
         )
         archive = args.campaign / "results" / config.stem / "results.tar"
         if not archive.exists():
-            pending.append(config.stem)
+            state = job_states.get(config.stem)
+            if state in terminal_states:
+                failures.append(
+                    {
+                        "cell": config.stem,
+                        "reason": f"Slurm {state}: no result archive",
+                    }
+                )
+            else:
+                pending.append(config.stem)
             continue
         try:
             metrics, errors = _read_result(archive)
@@ -624,6 +683,7 @@ def main() -> None:
         "pending": pending,
         "failures": failures,
         "reference_checks": reference_checks,
+        "job_states": job_states,
     }
     if args.plots:
         _plot_comparisons(rows, args.plots)

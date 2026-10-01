@@ -123,6 +123,19 @@ def main() -> None:
     campaign = Path(args.campaign)
     registry = JobRegistry(Path("mosaic-results/slurm-registry") / campaign.name)
     runner = Runner(registry, args.toolkit, transport=SshTransport(args.host))
+    if args.phase == "report" and not args.dry_run:
+        # Preserve the latest submission per cell so reports can distinguish
+        # active jobs from terminated jobs that never published an archive.
+        job_ids = {
+            job.name.removeprefix("m116-train-"): job.slurm_id
+            for job in registry.query()
+            if job.name.startswith("m116-train-") and job.slurm_id is not None
+        }
+        _remote(
+            args.host,
+            ["tee", str(campaign / "job_ids.json")],
+            json.dumps(job_ids, indent=2),
+        )
     source_hash = _remote(
         args.host, ["sha256sum", str(campaign / "source.tar")]
     ).split()[0]
