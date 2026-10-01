@@ -141,7 +141,18 @@
       "stopped_training_seconds": 1962.2653551640105
     }
   ],
-  "pending": [],
+  "pending": [
+    "confirm-warp-ns-n64-k4-h8-u3000-s0-7cd6caba",
+    "confirm-warp-ns-n64-k4-h8-u3000-s1-3d332a57",
+    "confirm-warp-ns-n64-k4-h8-u3000-s2-2810535d",
+    "explore-warp-ns-n64-k4-h8-u3000-s0-curr8x8-36a96cc1",
+    "explore-warp-ns-n64-k4-h8-u3000-s1-curr8x8-4c17ee1b",
+    "explore-warp-ns-n64-k4-h8-u3000-s1-dbaff101",
+    "explore-warp-ns-n64-k4-h8-u3000-s2-43002bd0",
+    "explore-warp-ns-n64-k4-h8-u3000-s2-curr8x8-b0dfd35b",
+    "explore-warp-ns-n64-k4-h8-u3000-s3-2f34272d",
+    "explore-warp-ns-n64-k4-h8-u3000-s4-727b319e"
+  ],
   "failures": [],
   "reference_checks": []
 }
