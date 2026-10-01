@@ -94,6 +94,10 @@ def main() -> None:
     parser.add_argument("--seeds", default="0")
     parser.add_argument("--updates", type=int, default=300)
     parser.add_argument("--pretrain-updates", type=int, default=0)
+    parser.add_argument(
+        "--curriculum", help="comma-separated horizon:updates:lr stages"
+    )
+    parser.add_argument("--time-limit", default="04:00:00")
     parser.add_argument("--pretrain-unroll", type=int, default=8)
     parser.add_argument("--amplitude", type=float, default=0.5)
     parser.add_argument("--reference-factor", type=int)
@@ -137,6 +141,27 @@ def main() -> None:
                     run = protocol(
                         int(n), float(k0), int(unroll), args.updates, seed, args.confirm
                     )
+                    if args.curriculum:
+                        stages = []
+                        for stage in args.curriculum.split(","):
+                            horizon, count, rate = stage.split(":")
+                            stages.append(
+                                {
+                                    "unroll": int(horizon),
+                                    "updates": int(count),
+                                    "lr": float(rate),
+                                }
+                            )
+                        if sum(stage["updates"] for stage in stages) != args.updates:
+                            raise ValueError("curriculum updates must equal --updates")
+                        if max(stage["unroll"] for stage in stages) != int(unroll):
+                            raise ValueError(
+                                "regime horizon must equal maximum curriculum horizon"
+                            )
+                        run["training"]["curriculum"] = stages
+                        cell += "-curr" + "x".join(
+                            str(stage["unroll"]) for stage in stages
+                        )
                     if args.pretrain_updates:
                         cell += f"-pre{args.pretrain_updates}"
                         run["training"].update(
@@ -205,7 +230,7 @@ def main() -> None:
             account="research",
             partition="dev",
             qos="rtx5090-pool" if gpu else "dev",
-            time_limit="04:00:00" if gpu else "02:00:00",
+            time_limit=args.time_limit if gpu else "02:00:00",
             gpus="gpu:5090:1" if gpu else None,
             cpus=8,
             mem="64G",

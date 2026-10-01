@@ -332,11 +332,15 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
             fontsize=17,
             weight="bold",
         )
+        curriculum = exemplar.get("curriculum", [])
+        horizon_label = "→".join(str(stage["unroll"]) for stage in curriculum) or str(
+            exemplar["unroll"]
+        )
         fig.text(
             0.13,
             0.87,
             f"{exemplar['phase'].capitalize()} · {exemplar['N']}² grid · vortex scale {exemplar['k0']:g} · "
-            f"amplitude {exemplar['amplitude']:g} · unroll {exemplar['unroll']} · {exemplar['updates']:,} updates",
+            f"amplitude {exemplar['amplitude']:g} · unroll {horizon_label} · {exemplar['updates']:,} updates",
             fontsize=10,
             color="0.35",
         )
@@ -497,6 +501,10 @@ def main() -> None:
                 "unroll": unroll,
                 "updates": updates,
                 "pretrain_updates": cells[0][0].get("pretrain_updates_per_seed", 0),
+                "curriculum": cells[0][0].get("training_curriculum", []),
+                "training_examples_per_seed": cells[0][0].get(
+                    "training_examples_per_seed"
+                ),
                 "pretrained_mean_rollout_error": (
                     float(
                         np.mean([m["pretrained_mean_rollout_error"] for m, _ in cells])

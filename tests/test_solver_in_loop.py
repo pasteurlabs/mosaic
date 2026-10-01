@@ -1037,6 +1037,11 @@ def test_solver_in_loop_runs_recurrently_through_dummy(
                 "training": {
                     "max_updates": 1,
                     "pretrain_updates": pretrain_updates,
+                    "curriculum": (
+                        [{"updates": 1, "unroll": 2, "lr": 1e-4}]
+                        if pretrain_updates
+                        else None
+                    ),
                     "pretrain_unroll": 2,
                     "include_supervised_baseline": True,
                     "unroll": 2,
@@ -1225,3 +1230,67 @@ def test_solver_self_reference_skips_training_below_refinement_floor(
     assert metrics["eligible_for_corrector_training"] is False
     assert metrics["mean_refinement_signal"] == 0
     assert metrics["n_updates"] == 0
+
+
+@pytest.mark.parametrize("supervised", [False, True])
+def test_training_curriculum_changes_horizon_and_learning_rate(monkeypatch, supervised):
+    """Stage boundaries change sampled windows and Adam's rate in both arms."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    observed = []
+
+    def loss(model, *, targets, **kwargs):
+        observed.append(len(targets) if supervised else len(targets) - 1)
+        # Constant gradient makes the accumulated scheduled Adam step known.
+        return model
+
+    monkeypatch.setattr(
+        module, "_supervised_loss" if supervised else "_window_loss", loss
+    )
+    train = np.zeros((1, 5, 1), dtype=np.float32)
+    model, losses, *_ = module._train_corrector(
+        None,
+        SimpleNamespace(domain_extent=2 * np.pi),
+        train,
+        frame_steps=1,
+        training={
+            "max_updates": 4,
+            "unroll": 4,
+            "curriculum": [
+                {"updates": 2, "unroll": 1, "lr": 0.01},
+                {"updates": 2, "unroll": 4, "lr": 0.001},
+            ],
+            "check_grad": False,
+        },
+        velocity_scale=1.0,
+        loss_scale=1.0,
+        differentiate_solver=not supervised,
+        model_seed=0,
+        supervised_inputs=np.zeros_like(train[:, 1:]) if supervised else None,
+        initial_model=jnp.asarray(1.0),
+    )
+    assert observed == [1, 1, 4, 4]
+    assert len(losses) == 4
+    assert float(model) == pytest.approx(1.0 - 2 * 0.01 - 2 * 0.001, abs=1e-6)
+
+
+@pytest.mark.parametrize(
+    "stage, match",
+    [
+        ({"updates": 0, "unroll": 4, "lr": 1e-4}, "positive"),
+        ({"updates": 4, "unroll": 5, "lr": 1e-4}, "fitting"),
+        ({"updates": 4, "unroll": 4, "lr": float("nan")}, "positive"),
+        ({"updates": 3, "unroll": 4, "lr": 1e-4}, "sum"),
+        ({"updates": 4, "unroll": 2, "lr": 1e-4}, "maximum"),
+    ],
+)
+def test_training_curriculum_rejects_inconsistent_protocol(stage, match):
+    """Invalid schedules must fail before producing incomparable training arms."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    with pytest.raises(ValueError, match=match):
+        module._training_stages(
+            {"max_updates": 4, "unroll": 4, "curriculum": [stage]}, 4
+        )

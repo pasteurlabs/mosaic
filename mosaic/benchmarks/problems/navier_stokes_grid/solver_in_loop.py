@@ -906,6 +906,45 @@ def _supervised_loss(
     return jnp.mean(jnp.stack(losses)) / loss_scale
 
 
+def _training_stages(training: dict[str, Any], train_frames: int) -> list[dict]:
+    """Validate a fixed or staged schedule before training any comparison arm."""
+    max_updates = int(training.get("max_updates", 100))
+    maximum_unroll = int(training.get("unroll", 4))
+    stages = training.get("curriculum")
+    if stages is None:
+        stages = [
+            {
+                "updates": max_updates,
+                "unroll": maximum_unroll,
+                "lr": float(training.get("lr", 1e-4)),
+            }
+        ]
+    if not stages or max_updates < 1:
+        raise ValueError("training requires non-empty stages and positive max_updates")
+    normalized = []
+    for stage in stages:
+        updates, unroll, lr = (
+            int(stage["updates"]),
+            int(stage["unroll"]),
+            float(stage["lr"]),
+        )
+        if (
+            updates < 1
+            or not 1 <= unroll <= train_frames
+            or not np.isfinite(lr)
+            or lr <= 0
+        ):
+            raise ValueError(
+                "curriculum requires positive updates/lr and horizons fitting train_frames"
+            )
+        normalized.append({"updates": updates, "unroll": unroll, "lr": lr})
+    if sum(stage["updates"] for stage in normalized) != max_updates:
+        raise ValueError("curriculum updates must sum to max_updates")
+    if max(stage["unroll"] for stage in normalized) != maximum_unroll:
+        raise ValueError("training.unroll must equal the maximum curriculum horizon")
+    return normalized
+
+
 def _train_corrector(
     t: Any,
     ctx: KernelContext,
@@ -922,8 +961,11 @@ def _train_corrector(
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
     """Train one solver-specific corrector with a fixed stochastic schedule."""
     max_updates = int(training.get("max_updates", 100))
-    unroll = int(training.get("unroll", 4))
-    lr = float(training.get("lr", 1e-4))
+    stages = _training_stages(training, train.shape[1] - 1)
+    boundaries = np.cumsum([stage["updates"] for stage in stages]).tolist()
+    lr = optax.join_schedules(
+        [optax.constant_schedule(stage["lr"]) for stage in stages], boundaries[:-1]
+    )
     clip_norm = float(training.get("clip_norm", 1.0))
     seed = int(training.get("seed", 2026))
     hidden_channels = int(training.get("hidden_channels", 32))
@@ -932,10 +974,6 @@ def _train_corrector(
     loss_mode = str(training.get("loss_mode", "mean"))
     solver_loss_weight = float(training.get("solver_loss_weight", 0.1))
     fd_epsilon = float(training.get("fd_epsilon", 1e-2))
-    if unroll < 1 or train.shape[1] < unroll + 1:
-        raise ValueError(
-            "training.unroll must be positive and fit inside dataset.train_frames"
-        )
     if loss_mode not in {"mean", "terminal", "solver_terminal"}:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     if solver_loss_weight < 0:
@@ -965,7 +1003,23 @@ def _train_corrector(
     fd_error: float | None = None
     completed = True
 
+    stage_idx = 0
+    arm = (
+        "supervised"
+        if supervised_inputs is not None
+        else ("full" if differentiate_solver else "stopped")
+    )
     for update in range(max_updates):
+        if update >= boundaries[stage_idx]:
+            stage_idx += 1
+        unroll = stages[stage_idx]["unroll"]
+        if update == 0 or update == boundaries[stage_idx - 1]:
+            print(
+                f"train seed={model_seed} arm={arm} stage={stage_idx + 1} "
+                f"unroll={unroll} lr={stages[stage_idx]['lr']:g} "
+                f"update={update}/{max_updates}",
+                flush=True,
+            )
         update_started = time.perf_counter()
         trajectory_idx = int(rng.randint(train.shape[0]))
         max_start = train.shape[1] - unroll - 1
@@ -1024,6 +1078,12 @@ def _train_corrector(
         losses.append(loss_value)
         grad_norms.append(grad_norm)
         update_times.append(time.perf_counter() - update_started)
+        if (update + 1) % 100 == 0 or update + 1 == max_updates:
+            print(
+                f"train seed={model_seed} arm={arm} update={update + 1}/{max_updates} "
+                f"loss={loss_value:.6g} grad_norm={grad_norm:.6g}",
+                flush=True,
+            )
     return model, losses, grad_norms, update_times, fd_error, completed
 
 
@@ -1573,6 +1633,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                 training={
                     **training,
                     "max_updates": pretrain_updates,
+                    "curriculum": None,
                     "unroll": int(training.get("pretrain_unroll", 8)),
                     "seed": int(training.get("pretrain_seed", 2025)),
                     "loss_mode": "mean",
@@ -2069,6 +2130,11 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "n_seen_ic_evaluation_trajectories": seen_trajectory_count,
         "training_frames": int(train.shape[1] - 1),
         "training_unroll": int(training.get("unroll", 4)),
+        "training_curriculum": _training_stages(training, train.shape[1] - 1),
+        "training_examples_per_seed": sum(
+            stage["updates"] * stage["unroll"]
+            for stage in _training_stages(training, train.shape[1] - 1)
+        ),
         "training_loss_mode": str(training.get("loss_mode", "mean")),
         "training_solver_loss_weight": float(training.get("solver_loss_weight", 0.1)),
         "training_loss_normalization": loss_normalization,
