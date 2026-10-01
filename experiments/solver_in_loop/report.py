@@ -371,6 +371,13 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
     ]
     if primary:
         render(primary, destination / "comparisons.png", overview=True)
+    elif groups:
+        # Select the most widely evaluated protocol, never the best outcome.
+        render(
+            max(groups.values(), key=len),
+            destination / "comparisons.png",
+            overview=True,
+        )
 
 
 def main() -> None:

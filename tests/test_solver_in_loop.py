@@ -395,10 +395,12 @@ def test_analytic_tgv_reference_has_exact_decay_and_distinct_phases():
 @pytest.mark.parametrize(
     "convergence_tolerance, expected", [(0.01, True), (1e-8, False)]
 )
+@pytest.mark.parametrize("audit_factor", [2, 4])
 def test_solver_self_reference_matches_physical_time_and_passes_closure(
     monkeypatch,
     convergence_tolerance,
     expected,
+    audit_factor,
 ):
     calls: list[tuple[int, float, int, object | None]] = []
 
@@ -437,7 +439,7 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
             dataset={
                 "reference_factor": 2,
                 "reference_temporal_factor": 2,
-                "reference_audit_factor": 4,
+                "reference_audit_factor": audit_factor,
                 "reference_audit_temporal_factor": 4,
                 "reference_convergence_tolerance": convergence_tolerance,
                 "train_seeds": [0, 1],
@@ -459,14 +461,17 @@ def test_solver_self_reference_matches_physical_time_and_passes_closure(
     assert len(dataset_hash) == 16
     assert audit["eligible_for_corrector_training"] is expected
     assert audit["reference_convergence_passed"] is expected
-    assert audit["reference_audit_grid_size"] == 32
+    assert audit["reference_audit_grid_size"] == 8 * audit_factor
+    assert audit["reference_convergence_scope"] == (
+        "time" if audit_factor == 2 else "space_time"
+    )
     assert audit["max_coarse_closure_error"] < 1e-5
     assert audit["max_fine_closure_error"] < 1e-5
     assert audit["max_coarse_closure_to_signal_ratio"] < 1e-4
     assert audit["max_fine_closure_to_signal_ratio"] < 1e-4
     assert audit["mean_refinement_signal"] > 1e-5
     assert any(call[:3] == (16, 0.01, 2) for call in calls)
-    assert any(call[:3] == (32, 0.005, 4) for call in calls)
+    assert any(call[:3] == (8 * audit_factor, 0.005, 4) for call in calls)
     assert any(call[:3] == (8, 0.02, 1) for call in calls)
     assert any(call[3] is not None for call in calls)
     assert 0.01 * 2 == 0.02 * 1

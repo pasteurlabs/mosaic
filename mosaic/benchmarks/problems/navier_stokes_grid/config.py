@@ -613,6 +613,7 @@ def _supervised_comparison_run() -> dict:
     """Declare a matched three-arm experiment on interacting periodic vortices."""
     run = _reference_sensitivity_run("supervised", "solver_self_refined")
     run.pop("name")
+    run["physics"]["N"] = 64
     dataset = run["dataset"]
     dataset["reference_temporal_factor"] = dataset.pop("reference_substeps")
     dataset["reference_audit_temporal_factor"] = dataset.pop("reference_audit_substeps")
@@ -620,6 +621,10 @@ def _supervised_comparison_run() -> dict:
         {
             "k0": 4.0,
             "sigma_k": 1.0,
+            "reference_factor": 3,
+            "reference_temporal_factor": 3,
+            "reference_audit_factor": 3,
+            "reference_audit_temporal_factor": 6,
             "prefix_audit_seeds": [0, 100],
             "prefix_audit_frames": [1, 8, 24, 36],
         }
@@ -642,6 +647,7 @@ problem.add_experiment(
         "Test whether differentiating through a solver produces a useful corrector "
         "beyond fixed-pair supervised training and stopped-gradient recurrent training. "
         "Each solver learns against its own spatially and temporally refined reference. "
+        "The fixed 192² reference for a 64² coarse grid is checked in time, not certified spatially converged. "
         "All arms share initial weights, training windows and optimizer updates; "
         "evaluation uses held-out free-running trajectories."
     ),

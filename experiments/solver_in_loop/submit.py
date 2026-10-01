@@ -38,10 +38,10 @@ def protocol(
         "physics": {"N": n, "nu": 0.001, "dt": 0.02, "steps": 4},
         "dataset": {
             "reference_kind": "solver_self_refined",
-            "reference_factor": 128 // n,
-            "reference_temporal_factor": 4,
-            "reference_audit_factor": 256 // n,
-            "reference_audit_temporal_factor": 8,
+            "reference_factor": 3,
+            "reference_temporal_factor": 3,
+            "reference_audit_factor": 3,
+            "reference_audit_temporal_factor": 6,
             "prefix_audit_seeds": [0, 1000 if confirm else 100],
             "prefix_audit_frames": [1, 8, 24, 48],
             "reference_convergence_tolerance": 0.005,
@@ -90,10 +90,14 @@ def main() -> None:
         "--toolkit", type=Path, default=Path("/home/andrinr/slurm-runner/runner")
     )
     parser.add_argument("--solvers", default="jax-cfd,phiflow,pict,warp-ns,xlb,ins-jl")
-    parser.add_argument("--regimes", default="32:2:8,32:4:8,32:4:16,16:4:8")
+    parser.add_argument("--regimes", default="64:4:8")
     parser.add_argument("--seeds", default="0")
     parser.add_argument("--updates", type=int, default=300)
     parser.add_argument("--amplitude", type=float, default=0.5)
+    parser.add_argument("--reference-factor", type=int)
+    parser.add_argument("--reference-temporal-factor", type=int)
+    parser.add_argument("--audit-factor", type=int)
+    parser.add_argument("--audit-temporal-factor", type=int)
     parser.add_argument("--confirm", action="store_true")
     parser.add_argument(
         "--after", default="", help="comma-separated prerequisite job IDs"
@@ -132,6 +136,14 @@ def main() -> None:
                         int(n), float(k0), int(unroll), args.updates, seed, args.confirm
                     )
                     run["dataset"]["amplitude"] = args.amplitude
+                    for option, field in (
+                        (args.reference_factor, "reference_factor"),
+                        (args.reference_temporal_factor, "reference_temporal_factor"),
+                        (args.audit_factor, "reference_audit_factor"),
+                        (args.audit_temporal_factor, "reference_audit_temporal_factor"),
+                    ):
+                        if option is not None:
+                            run["dataset"][field] = option
                     payload = json.dumps(
                         {
                             "solver": solver,
@@ -157,6 +169,14 @@ def main() -> None:
         cells = args.solvers.split(",") if args.phase == "build" else ["gate"]
     for cell in cells:
         gpu = args.phase == "train"
+        prerequisites = [
+            int(job) for job in args.after.split(",") if job
+        ] + dependencies.get(cell, [])
+        report_dependencies = (
+            ["--dependency=afterany:" + ":".join(map(str, prerequisites))]
+            if args.phase == "report" and prerequisites
+            else []
+        )
         spec = JobSpec(
             name=f"m116-{args.phase}-{cell}",
             cmd=(
@@ -179,15 +199,14 @@ def main() -> None:
             cpus=8,
             mem="64G",
             out_path=campaign / "results" / cell,
-            depends_on=[int(job) for job in args.after.split(",") if job]
-            + dependencies.get(cell, []),
+            depends_on=[] if args.phase == "report" else prerequisites,
             env={
                 "PROJECT_ISOLATED_COMMAND": "1",
                 "PROJECT_REPO_ROOT": str(campaign),
                 "PYTHONUNBUFFERED": "1",
                 "MLFLOW_DISABLE_AGENT_HINT": "1",
             },
-            extra_sbatch=[f"--output={campaign}/logs/%x-%j.out"],
+            extra_sbatch=[f"--output={campaign}/logs/%x-%j.out", *report_dependencies],
         )
         result = runner.submit(spec, cluster="kander", dry_run=args.dry_run)
         print(

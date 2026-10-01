@@ -637,9 +637,13 @@ def _make_solver_self_reference_datasets(
         audit_temporal = int(
             dataset.get("reference_audit_temporal_factor", 2 * temporal_factor)
         )
-        if audit_n <= fine_n or audit_temporal < temporal_factor:
+        if (
+            audit_n < fine_n
+            or audit_temporal < temporal_factor
+            or (audit_n == fine_n and audit_temporal == temporal_factor)
+        ):
             raise ValueError(
-                "reference audit must refine space without coarsening time"
+                "reference audit must refine space or time without coarsening either"
             )
         disagreements = []
         for seed in requested_audit_seeds:
@@ -666,6 +670,9 @@ def _make_solver_self_reference_datasets(
         )
         eligible = eligible and passed
         convergence = {
+            "reference_convergence_scope": "time"
+            if audit_n == fine_n
+            else "space_time",
             "reference_audit_grid_size": audit_n,
             "reference_audit_temporal_factor": audit_temporal,
             "reference_convergence_errors": disagreements,
