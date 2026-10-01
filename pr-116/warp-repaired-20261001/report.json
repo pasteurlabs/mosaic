@@ -154,5 +154,19 @@
     "explore-warp-ns-n64-k4-h8-u3000-s4-727b319e"
   ],
   "failures": [],
-  "reference_checks": []
+  "reference_checks": [],
+  "job_states": {
+    "explore-warp-ns-n64-k4-h8-u300-s0-4b5802c8": "COMPLETED",
+    "explore-warp-ns-n64-k4-h8-u3000-s0-96562860": "COMPLETED",
+    "explore-warp-ns-n64-k4-h8-u3000-s1-dbaff101": "RUNNING",
+    "explore-warp-ns-n64-k4-h8-u3000-s2-43002bd0": "RUNNING",
+    "explore-warp-ns-n64-k4-h8-u3000-s3-2f34272d": "RUNNING",
+    "explore-warp-ns-n64-k4-h8-u3000-s4-727b319e": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s0-7cd6caba": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s1-3d332a57": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s2-2810535d": "RUNNING",
+    "explore-warp-ns-n64-k4-h8-u3000-s0-curr8x8-36a96cc1": "RUNNING",
+    "explore-warp-ns-n64-k4-h8-u3000-s1-curr8x8-4c17ee1b": "RUNNING",
+    "explore-warp-ns-n64-k4-h8-u3000-s2-curr8x8-b0dfd35b": "RUNNING"
+  }
 }
