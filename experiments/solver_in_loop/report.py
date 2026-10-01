@@ -400,13 +400,12 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
                         fontsize=9,
                     )
                     continue
+                rankable = row["admitted"] and row["gradient_checks_passed"]
                 color = (
-                    ("#147d64" if value > 1 else "#b55b35")
-                    if row["admitted"]
-                    else "#888888"
+                    ("#147d64" if value > 1 else "#b55b35") if rankable else "#888888"
                 )
                 ax.plot([1, value], [i, i], color=color, alpha=0.4, lw=2)
-                ax.plot(value, i, "o" if row["admitted"] else "x", color=color, ms=6)
+                ax.plot(value, i, "o" if rankable else "x", color=color, ms=6)
                 interval = row[key]["ci95"]
                 if interval:
                     ax.plot(interval, [i, i], color=color, lw=2)
@@ -470,8 +469,8 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
             if seeds == [1]
             else "Bars: paired model-seed / initial-condition bootstrap 95% intervals."
         )
-        if any(not r["admitted"] for r in group):
-            note += "  ×: admission check failed."
+        if any(not (r["admitted"] and r["gradient_checks_passed"]) for r in group):
+            note += "  ×: reference or gradient check failed."
         fig.text(0.13, 0.035, note, fontsize=9, color="0.4")
         fig.savefig(path, dpi=180, facecolor="white")
         plt.close(fig)
@@ -653,6 +652,7 @@ def main() -> None:
                 "source_sha256": source,
                 "protocol_sha256": protocol_hash,
                 "admitted": admitted,
+                "gradient_checks_passed": gradient_checked,
                 "fd_relative_errors": fd,
                 **ratios,
                 "arm_summaries": summaries,
