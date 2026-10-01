@@ -36,21 +36,42 @@ def _plot_cell(
         ("corrected", "Recurrent, full", "tab:green", "-"),
     )
     times = arrays["evaluation_times"]
-    fig, ax = plt.subplots(figsize=(7, 4), layout="constrained")
+    fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
     for arm, label, color, style in arms:
         ax.plot(
-            times[1:], arrays[f"error_{arm}_0"][1:], label=label, color=color, ls=style
+            times[1:],
+            arrays[f"error_{arm}_0"][1:],
+            label=label,
+            color=color,
+            ls=style,
+            lw=2,
         )
     ax.set(
         yscale="log", xlabel="Physical time", ylabel="Held-out mean relative L2 error"
     )
     ax.axvline(
         payload["run"]["dataset"]["train_frames"] * (times[1] - times[0]),
-        color="0.8",
-        label="Training trajectory horizon",
+        color="0.7",
+        ls=":",
+        lw=1,
     )
-    ax.legend(fontsize=8)
-    ax.set_title(archive_path.parent.name)
+    ax.text(
+        0.51,
+        0.96,
+        "Beyond training horizon →",
+        transform=ax.transAxes,
+        fontsize=9,
+        color="0.4",
+        va="top",
+    )
+    ax.legend(
+        fontsize=10, loc="upper left", bbox_to_anchor=(0, -0.17), ncol=2, frameon=False
+    )
+    ax.set_title(
+        "How does rollout error grow?", loc="left", fontsize=15, weight="bold", pad=14
+    )
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.grid(axis="y", alpha=0.15)
     fig.savefig(destination / "rollout.png", dpi=170)
     plt.close(fig)
 
@@ -89,9 +110,7 @@ def _plot_cell(
                 axes[row, col].set_title((["Reference"] + [a[1] for a in arms])[col])
         axes[row, 0].set_ylabel(f"t={times[frame]:.2f}")
     fig.colorbar(im, ax=axes.ravel().tolist(), label="Vorticity", shrink=0.8)
-    fig.suptitle(
-        "First model seed and first held-out IC; common scale clipped at reference p99"
-    )
+    fig.suptitle("Vorticity across the full domain", fontsize=16, weight="bold")
     fig.savefig(destination / "fields.png", dpi=170)
     plt.close(fig)
 
@@ -103,15 +122,23 @@ def _plot_cell(
             "training_wall_time_s",
         )
     ]
-    fig, ax = plt.subplots(figsize=(6, 3), layout="constrained")
-    ax.bar(
-        ["Supervised + pairs", "Recurrent, stopped", "Recurrent, full"],
+    fig, ax = plt.subplots(figsize=(7, 3), layout="constrained")
+    bars = ax.barh(
+        ["Supervised (including pairs)", "Recurrent, stopped", "Recurrent, full"],
         np.array(seconds) / 60,
         color=["tab:orange", "tab:blue", "tab:green"],
+        height=0.5,
     )
+    ax.bar_label(bars, fmt="%.1f min", padding=6, fontsize=10)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(seconds) / 60 * 1.25)
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.tick_params(axis="y", length=0)
     ax.set(
-        ylabel="Training wall time (minutes)",
-        title="Equal updates; measured compute cost",
+        xlabel="Training wall time (minutes)",
+    )
+    ax.set_title(
+        "Training cost at equal updates", loc="left", fontsize=15, weight="bold", pad=14
     )
     fig.savefig(destination / "cost.png", dpi=170)
     plt.close(fig)
@@ -159,53 +186,161 @@ def _ratio(baseline: np.ndarray, corrected: np.ndarray) -> dict:
 
 
 def _plot_comparisons(rows: list[dict], destination: Path) -> None:
-    """Keep every completed configuration visible, including admission failures."""
+    """Compare solvers within a fixed protocol on identical, readable axes."""
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 
     if not rows:
         return
-    fig, axes = plt.subplots(
-        1, 3, figsize=(12, max(4, len(rows) * 0.3)), sharey=True, layout="constrained"
-    )
-    labels = [
-        f"{r['phase']} {r['solver']} N={r['N']} k={r['k0']:g} "
-        f"H={r['unroll']} U={r['updates']} seeds={r['n_model_seeds']}"
-        + (" [admission failed]" if not r["admitted"] else "")
-        for r in rows
-    ]
-    for ax, comparison, title in zip(
-        axes,
-        ("vs_supervised", "vs_stopped", "vs_uncorrected"),
-        ("Supervised / full error", "Stopped / full error", "Solver only / full error"),
-        strict=True,
-    ):
-        for index, row in enumerate(rows):
-            result = row[comparison]
-            value, interval = result["ratio"], result["ci95"]
-            if value is None or not np.isfinite(value):
-                ax.text(
-                    0.98,
-                    index,
-                    "nonfinite rollout",
-                    transform=ax.get_yaxis_transform(),
-                    ha="right",
-                    fontsize=7,
+    names = {
+        "jax-cfd": "JAX-CFD",
+        "phiflow": "PhiFlow",
+        "pict": "PICT",
+        "warp-ns": "Warp",
+        "xlb": "XLB",
+        "ins-jl": "INS.jl",
+    }
+    groups = defaultdict(list)
+    for row in rows:
+        groups[(row["phase"], row["protocol_sha256"], row["source_sha256"])].append(row)
+
+    def render(group: list[dict], path: Path, overview: bool = False) -> None:
+        exemplar = group[0]
+        by_solver = {r["solver"]: r for r in group}
+        solvers = list(names) if overview else [s for s in names if s in by_solver]
+        fig, axes = plt.subplots(1, 3, figsize=(10.5, 4.5), sharex=True, sharey=True)
+        fig.subplots_adjust(left=0.13, right=0.98, bottom=0.25, top=0.72, wspace=0.13)
+        finite = [
+            r[k]["ratio"]
+            for r in group
+            for k in ("vs_supervised", "vs_stopped", "vs_uncorrected")
+            if r[k]["ratio"] is not None and r[k]["ratio"] > 0
+        ]
+        bounds = finite + [
+            v
+            for r in group
+            for k in ("vs_supervised", "vs_stopped", "vs_uncorrected")
+            for v in (r[k]["ci95"] or [])
+            if np.isfinite(v) and v > 0
+        ]
+        lo = min(0.25, 2 ** np.floor(np.log2(min(bounds)))) if bounds else 0.25
+        hi = max(2, 2 ** np.ceil(np.log2(max(bounds)))) if bounds else 2
+        ticks = [lo, 0.5, 1, hi] if lo < 0.5 else [lo, 1, hi]
+        for ax, key, title in zip(
+            axes,
+            ("vs_supervised", "vs_stopped", "vs_uncorrected"),
+            ("vs supervised", "vs stopped gradients", "vs solver only"),
+            strict=True,
+        ):
+            ax.axvspan(lo * 0.8, 1, color="#faf4ef", zorder=0)
+            ax.axvspan(1, hi * 1.3, color="#edf6f3", zorder=0)
+            ax.axvline(1, color="#555555", lw=1, ls="--")
+            for i, solver in enumerate(solvers):
+                row = by_solver.get(solver)
+                if row is None:
+                    ax.text(
+                        0.04,
+                        i,
+                        "Pending",
+                        transform=ax.get_yaxis_transform(),
+                        color="0.5",
+                        fontsize=9,
+                    )
+                    continue
+                value = row[key]["ratio"]
+                if value is None or not np.isfinite(value) or value <= 0:
+                    ax.text(
+                        0.04,
+                        i,
+                        "Nonfinite rollout",
+                        transform=ax.get_yaxis_transform(),
+                        color="0.5",
+                        fontsize=9,
+                    )
+                    continue
+                color = (
+                    ("#147d64" if value > 1 else "#b55b35")
+                    if row["admitted"]
+                    else "#888888"
                 )
-                continue
-            color = "tab:green" if row["admitted"] else "0.6"
-            ax.plot(value, index, "o", color=color, ms=4)
-            if interval:
-                ax.plot(interval, [index, index], color=color)
-        ax.axvline(1, color="black", ls="--", lw=0.8)
-        ax.set(xscale="log", xlabel=title)
-        ax.grid(axis="x", alpha=0.2)
-    axes[0].set_yticks(range(len(rows)), labels, fontsize=7)
-    axes[0].invert_yaxis()
-    fig.suptitle(
-        "Mean rollout error ratios: >1 favours full gradients; paired seed/IC 95% intervals when ≥3 seeds"
-    )
-    fig.savefig(destination / "comparisons.png", dpi=170)
-    plt.close(fig)
+                ax.plot([1, value], [i, i], color=color, alpha=0.4, lw=2)
+                ax.plot(value, i, "o" if row["admitted"] else "x", color=color, ms=6)
+                interval = row[key]["ci95"]
+                if interval:
+                    ax.plot(interval, [i, i], color=color, lw=2)
+                ax.annotate(
+                    f"{value:.2f}×",
+                    (value, i),
+                    xytext=(0, 9),
+                    textcoords="offset points",
+                    ha="center",
+                    fontsize=9,
+                    color=color,
+                )
+            ax.set_xscale("log", base=2)
+            ax.set_xlim(lo * 0.8, hi * 1.3)
+            ax.set_ylim(len(solvers) - 0.5, -0.65)
+            ax.xaxis.set_major_locator(FixedLocator(ticks))
+            ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x:g}×"))
+            ax.xaxis.set_minor_locator(NullLocator())
+            ax.set_title(title, fontsize=12, pad=15, weight="bold")
+            ax.tick_params(axis="both", length=0, labelsize=10, pad=8)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+        axes[0].set_yticks(range(len(solvers)), [names[s] for s in solvers])
+        fig.text(
+            0.13,
+            0.94,
+            "Does differentiating through the solver help?",
+            fontsize=17,
+            weight="bold",
+        )
+        fig.text(
+            0.13,
+            0.87,
+            f"{exemplar['phase'].capitalize()} · {exemplar['N']}² grid · vortex scale {exemplar['k0']:g} · "
+            f"amplitude {exemplar['amplitude']:g} · unroll {exemplar['unroll']} · {exemplar['updates']:,} updates",
+            fontsize=10,
+            color="0.35",
+        )
+        fig.text(
+            0.55,
+            0.13,
+            "Baseline error / full-gradient error    ·    Below 1: worse    |    Above 1: better",
+            ha="center",
+            fontsize=10,
+        )
+        seeds = sorted({r["n_model_seeds"] for r in group})
+        note = (
+            "Single model seed; exploratory estimates without confidence intervals."
+            if seeds == [1]
+            else "Bars: paired model-seed / initial-condition bootstrap 95% intervals."
+        )
+        if any(not r["admitted"] for r in group):
+            note += "  ×: admission check failed."
+        fig.text(0.13, 0.035, note, fontsize=9, color="0.4")
+        fig.savefig(path, dpi=180, facecolor="white")
+        plt.close(fig)
+
+    for group in groups.values():
+        row = group[0]
+        render(
+            group,
+            destination / f"comparison-{row['phase']}-{row['protocol_sha256'][:8]}.png",
+        )
+    # The headline uses the common, original pilot protocol, never the best result.
+    primary = [
+        r
+        for r in rows
+        if r["phase"] == "explore"
+        and r["N"] == 32
+        and r["k0"] == 4
+        and r["amplitude"] == 0.5
+        and r["unroll"] == 8
+        and r["updates"] == 300
+    ]
+    if primary:
+        render(primary, destination / "comparisons.png", overview=True)
 
 
 def main() -> None:
@@ -230,6 +365,7 @@ def main() -> None:
             payload["solver"],
             run["physics"]["N"],
             run["dataset"]["k0"],
+            run["dataset"]["amplitude"],
             run["training"]["unroll"],
             run["training"]["max_updates"],
             payload["source_sha256"],
@@ -258,7 +394,7 @@ def main() -> None:
         groups[key].append((metrics, errors))
     rows = []
     for key, cells in groups.items():
-        phase, solver, n, k0, unroll, updates, source, protocol_hash = key
+        phase, solver, n, k0, amplitude, unroll, updates, source, protocol_hash = key
         errors = {
             arm: np.concatenate([e[arm] for _, e in cells], axis=0)
             for arm in cells[0][1]
@@ -302,6 +438,7 @@ def main() -> None:
                 "solver": solver,
                 "N": n,
                 "k0": k0,
+                "amplitude": amplitude,
                 "unroll": unroll,
                 "updates": updates,
                 "n_model_seeds": errors["corrected"].shape[0],

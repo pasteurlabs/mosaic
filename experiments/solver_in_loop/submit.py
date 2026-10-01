@@ -93,6 +93,7 @@ def main() -> None:
     parser.add_argument("--regimes", default="32:2:8,32:4:8,32:4:16,16:4:8")
     parser.add_argument("--seeds", default="0")
     parser.add_argument("--updates", type=int, default=300)
+    parser.add_argument("--amplitude", type=float, default=0.5)
     parser.add_argument("--confirm", action="store_true")
     parser.add_argument(
         "--after", default="", help="comma-separated prerequisite job IDs"
@@ -125,19 +126,18 @@ def main() -> None:
                     cell = (
                         f"{phase}-{solver}-n{n}-k{k0}-h{unroll}-u{args.updates}-s{seed}"
                     )
+                    if args.amplitude != 0.5:
+                        cell += f"-a{args.amplitude:g}"
+                    run = protocol(
+                        int(n), float(k0), int(unroll), args.updates, seed, args.confirm
+                    )
+                    run["dataset"]["amplitude"] = args.amplitude
                     payload = json.dumps(
                         {
                             "solver": solver,
                             "image": images[solver],
                             "source_sha256": source_hash,
-                            "run": protocol(
-                                int(n),
-                                float(k0),
-                                int(unroll),
-                                args.updates,
-                                seed,
-                                args.confirm,
-                            ),
+                            "run": run,
                         },
                         indent=2,
                     )
