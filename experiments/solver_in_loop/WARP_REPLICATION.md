@@ -65,3 +65,31 @@ Fresh-IC confirmation also completed: mean errors are 0.01166 (full), 0.01187
 All reference and initial gradient checks pass. The supervised advantage
 replicates on fresh held-out ICs; the added solver-derivative advantage remains
 unresolved. The longer-horizon and learning-rate checks remain exploratory.
+
+## Directional derivative refinement
+
+A separate diagnostic campaign (`pr116-warp-gradientcheck-20261001`) repeats
+only the first training update. For each matched initial-model check, the
+solver, image, source, ICs and complete run configuration are identical after
+removing only `max_updates` and `fd_epsilon`. These short runs are not evidence
+of training quality. `gradient_checks.json` records the matching configuration
+hashes and dataset hashes. The original validation metrics remain unchanged.
+
+Seed 2 has the largest original-step discrepancy. Refining the finite-difference
+perturbation gives these relative errors (fractions, not percentages):
+
+| Epsilon | Horizon 8 | Horizon 16 |
+| --- | ---: | ---: |
+| 0.03 | 0.505708 | not run |
+| 0.01 | 0.038669 | 0.063100 |
+| 0.003 | 0.003271 | 0.005345 |
+| 0.001 | 0.000528 | 0.000707 |
+| 0.0003 | 0.00000205 | 0.0000527 |
+
+This convergence supports the initial-model derivative and indicates truncation
+error at larger perturbations. It does not validate derivatives everywhere along
+a trained trajectory. Horizon-16 seeds 0 and 1 also improve from errors 0.00136
+and 0.00445 at epsilon 0.01 to 0.0000524 and 0.0000449 at epsilon 0.003. The
+original horizon-16 seed-2 check exceeds the unchanged 0.05 threshold; retain
+that failure and report this independent refinement alongside it. The CLI's
+`--fd-epsilon` controls this diagnostic, with the original default 0.01 retained.
