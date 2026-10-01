@@ -45,3 +45,23 @@ constant-rate optimizer without changing the update budget. It is not
 hyperparameter selection on a validation set; report the schedule separately
 whether or not it favors full gradients. Jobs 2858621–2858623 use the same frozen
 source and image as the original run.
+
+## Longer credit-assignment horizon
+
+The five-seed original-protocol report gives baseline/full error ratios of
+1.166 [1.011, 1.367] versus supervision and 1.043 [0.983, 1.115] versus stopped
+gradients (paired bootstrap 95% intervals). Thus the additional derivative
+benefit is unresolved, despite the favorable mean. This motivates a separate
+exploratory horizon-16 comparison: three model seeds, 3,000 updates, constant
+lr=1e-4, original training and evaluation ICs. All methods receive horizon 16
+and therefore 48,000 target examples per seed. Update budgets match horizon 8;
+target counts and compute do not. Jobs 2858727–2858729 use the existing frozen
+source and image. Report this as a new configuration, not part of the original
+replication or fresh-IC confirmation.
+
+Fresh-IC confirmation also completed: mean errors are 0.01166 (full), 0.01187
+(stopped), 0.01427 (supervised), and 0.02776 (native). Baseline/full ratios are
+1.224 [1.154, 1.298] versus supervision and 1.018 [0.995, 1.042] versus stopped.
+All reference and initial gradient checks pass. The supervised advantage
+replicates on fresh held-out ICs; the added solver-derivative advantage remains
+unresolved. The longer-horizon and learning-rate checks remain exploratory.

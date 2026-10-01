@@ -413,16 +413,22 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
                     )
                     continue
                 rankable = row["admitted"] and row["gradient_checks_passed"]
+                interval = row[key]["ci95"]
+                unresolved = interval is not None and interval[0] <= 1 <= interval[1]
                 color = (
-                    ("#147d64" if value > 1 else "#b55b35") if rankable else "#888888"
+                    ("#147d64" if value > 1 else "#b55b35")
+                    if rankable and not unresolved
+                    else "#888888"
                 )
                 ax.plot([1, value], [i, i], color=color, alpha=0.4, lw=2)
                 ax.plot(value, i, "o" if rankable else "x", color=color, ms=6)
-                interval = row[key]["ci95"]
                 if interval:
                     ax.plot(interval, [i, i], color=color, lw=2)
+                label = f"{value:.2f}×"
+                if interval:
+                    label += f"\n[{interval[0]:.2f}, {interval[1]:.2f}]"
                 ax.annotate(
-                    f"{value:.2f}×",
+                    label,
                     (value, i),
                     xytext=(0, 9),
                     textcoords="offset points",
