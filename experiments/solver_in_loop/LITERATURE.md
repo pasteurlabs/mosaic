@@ -7,8 +7,8 @@ not. All previous campaigns and unsuccessful configurations remain reportable.
 
 ## Evidence and differences from this benchmark
 
-List et al., *Differentiability in Unrolled Training of Neural Physics Simulators
-on Transient Dynamics*, CMAME 433 (2025), 117441:
+List et al., _Differentiability in Unrolled Training of Neural Physics Simulators
+on Transient Dynamics_, CMAME 433 (2025), 117441:
 https://doi.org/10.1016/j.cma.2024.117441
 Accessible methods: https://arxiv.org/html/2402.12971v2
 Code: https://github.com/tum-pbs/unrolling
