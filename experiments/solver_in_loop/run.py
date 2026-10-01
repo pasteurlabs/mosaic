@@ -51,7 +51,11 @@ def main() -> None:
         cfg, {solver.name: f"url:{args.url}"}, gpu_ids=["0"]
     )
     print(json.dumps(result, indent=2, default=str), flush=True)
-    metrics = result["results"][0]["metrics"]
+    metrics = (
+        result["results"][0]["metrics"]
+        if result["results"]
+        else {"completed": False, "solver_failures": result.get("_solver_failures", {})}
+    )
     # Keep numerical/admission failures as results, rather than silently dropping them.
     (args.out / "outcome.json").write_text(json.dumps(metrics, indent=2))
 

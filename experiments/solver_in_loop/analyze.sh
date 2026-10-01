@@ -47,5 +47,5 @@ for path in sorted((campaign / "results").glob("*/results.tar")):
         print(f"Repository field renderer checked against {path.parent.name}", flush=True)
         break
 else:
-    raise RuntimeError("No completed supervised rollout available to check the field renderer")
+    print("No trained rollout available; consult report.json for admission or runtime failures")
 PY

@@ -153,13 +153,28 @@ def _plot_cell(
 
 def _read_result(path: Path) -> tuple[dict, dict]:
     with tarfile.open(path) as archive:
-        outcome = archive.extractfile("./outcome.json")
+        try:
+            outcome = archive.extractfile("./outcome.json")
+        except KeyError:
+            result = archive.extractfile(
+                "./ns-grid/optimization/solver_in_loop_supervised/result.json"
+            )
+            raw = json.load(result) if result is not None else {}
+            return {
+                "completed": False,
+                "solver_failures": raw.get("_solver_failures", raw),
+            }, {}
         if outcome is None:
             raise ValueError("outcome.json is missing")
         metrics = json.load(outcome)
-        fields = archive.extractfile(
-            "./ns-grid/optimization/solver_in_loop_supervised/corrector_fields.npz"
-        )
+        if not metrics.get("eligible_for_corrector_training", True):
+            return metrics, {}
+        try:
+            fields = archive.extractfile(
+                "./ns-grid/optimization/solver_in_loop_supervised/corrector_fields.npz"
+            )
+        except KeyError:
+            return metrics, {}
         if fields is None:
             raise ValueError("corrector_fields.npz is missing")
         with np.load(io.BytesIO(fields.read())) as arrays:
@@ -399,7 +414,9 @@ def main() -> None:
             failures.append(
                 {
                     "cell": config.stem,
-                    "reason": "incomplete or reference admission failed",
+                    "reason": "reference admission failed"
+                    if not metrics.get("eligible_for_corrector_training", True)
+                    else "incomplete run",
                     "metrics": metrics,
                 }
             )
