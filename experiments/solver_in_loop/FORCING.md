@@ -53,3 +53,21 @@ PYTHONPATH=/home/andrinr/slurm-runner .venv/bin/python \
 Reference-only outcomes are stored under `reference_checks` in the report,
 separately from trained comparisons and runtime failures. All numerical testing,
 reference generation, VJP checks and rendering run through Slurm on the cluster.
+
+## Preflight results and next check (2026-10-01)
+
+Both short-burn-in probes completed without training. INS-JL passed the temporal
+reference audit (maximum relative difference 0.00004247) and recurrent directional
+VJP check (relative difference 0.0001185). JAX-CFD failed the temporal audit
+(0.09574 against the unchanged 0.005 limit), so its gradient check was not run.
+These are engineering checks, not evidence that learned correction helps.
+
+The next reference-only campaign, `pr116-forced-longburn-20261001`, keeps both
+solvers at 64²→192², coarse dt=0.01 and four steps per correction. It increases
+burn-in to 75 physical units and refines reference/audit timesteps to 0.01/12
+and 0.01/24 respectively. Both solvers use identical settings and seeds 0/100.
+The rollout duration stays 1.92; the accuracy threshold stays 0.005. This tests
+longer-developed flow and finer reference integration together; it does not
+isolate which change explains a different audit outcome. Passing still requires
+flow inspection before choosing a training protocol, and does not certify
+stationarity or spatial convergence.
