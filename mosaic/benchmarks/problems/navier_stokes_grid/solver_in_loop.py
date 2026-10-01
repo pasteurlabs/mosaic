@@ -797,6 +797,62 @@ def _directional_fd(
     return float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12))
 
 
+def _make_supervised_inputs(
+    t: Any,
+    ctx: KernelContext,
+    train: np.ndarray,
+    *,
+    frame_steps: int,
+) -> np.ndarray:
+    """Precompute teacher-forced solver outputs without any learned feedback.
+
+    Each input is a solver advance from a reference frame, paired with the
+    next reference frame. Native checkpoints are preserved and reconciled
+    with the reference velocity at every interval, using the same transition
+    as free-running evaluation. Only training ICs enter this fixed dataset.
+    """
+    predictions = []
+    for reference in train:
+        native_state = None
+        frames = []
+        for velocity in reference[:-1]:
+            provisional, native_state = _solver_advance(
+                t,
+                ctx,
+                jnp.asarray(velocity),
+                frame_steps=frame_steps,
+                native_state=native_state,
+            )
+            frames.append(np.asarray(provisional))
+        predictions.append(np.stack(frames))
+    inputs = np.stack(predictions)
+    if not np.all(np.isfinite(inputs)):
+        raise ValueError("supervised training inputs contain non-finite solver outputs")
+    return inputs
+
+
+def _supervised_loss(
+    model: Any,
+    inputs: jax.Array,
+    targets: jax.Array,
+    *,
+    velocity_scale: float,
+    domain_extent: float,
+    loss_scale: float,
+) -> jax.Array:
+    """Fit independent fixed pairs; no solver or recurrent model graph is used."""
+    losses = []
+    for provisional, target in zip(inputs, targets, strict=True):
+        corrected = corrected_velocity(
+            model,
+            provisional,
+            velocity_scale=velocity_scale,
+            domain_extent=domain_extent,
+        )
+        losses.append(jnp.sum((corrected - target) ** 2) / (jnp.sum(target**2) + 1e-12))
+    return jnp.mean(jnp.stack(losses)) / loss_scale
+
+
 def _train_corrector(
     t: Any,
     ctx: KernelContext,
@@ -808,6 +864,7 @@ def _train_corrector(
     loss_scale: float,
     differentiate_solver: bool,
     model_seed: int,
+    supervised_inputs: np.ndarray | None = None,
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
     """Train one solver-specific corrector with a fixed stochastic schedule."""
     max_updates = int(training.get("max_updates", 100))
@@ -829,6 +886,8 @@ def _train_corrector(
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     if solver_loss_weight < 0:
         raise ValueError("training.solver_loss_weight must be non-negative")
+    if supervised_inputs is not None and supervised_inputs.shape != train[:, 1:].shape:
+        raise ValueError("supervised inputs must match the training target frames")
 
     model = init_corrector(
         jax.random.PRNGKey(model_seed),
@@ -855,18 +914,30 @@ def _train_corrector(
         start = int(rng.randint(max_start + 1)) if max_start > 0 else 0
         targets = jnp.asarray(train[trajectory_idx, start : start + unroll + 1])
 
-        loss_fn = partial(
-            _window_loss,
-            targets=targets,
-            t=t,
-            ctx=ctx,
-            frame_steps=frame_steps,
-            velocity_scale=velocity_scale,
-            differentiate_solver=differentiate_solver,
-            loss_mode=loss_mode,
-            solver_loss_weight=solver_loss_weight,
-            loss_scale=loss_scale,
-        )
+        if supervised_inputs is None:
+            loss_fn = partial(
+                _window_loss,
+                targets=targets,
+                t=t,
+                ctx=ctx,
+                frame_steps=frame_steps,
+                velocity_scale=velocity_scale,
+                differentiate_solver=differentiate_solver,
+                loss_mode=loss_mode,
+                solver_loss_weight=solver_loss_weight,
+                loss_scale=loss_scale,
+            )
+        else:
+            loss_fn = partial(
+                _supervised_loss,
+                inputs=jnp.asarray(
+                    supervised_inputs[trajectory_idx, start : start + unroll]
+                ),
+                targets=targets[1:],
+                velocity_scale=velocity_scale,
+                domain_extent=ctx.domain_extent,
+                loss_scale=loss_scale,
+            )
 
         loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
         loss_value = float(loss)
@@ -973,6 +1044,120 @@ def _evaluate_reference_set(
         errors=np.asarray(errors, dtype=np.float64),
         final_states=np.asarray(final_states),
     )
+
+
+def _compare_supervised(
+    t: Any,
+    ctx: KernelContext,
+    train: np.ndarray,
+    test: np.ndarray,
+    *,
+    training: dict[str, Any],
+    model_seeds: tuple[int, ...],
+    frame_steps: int,
+    velocity_scale: float,
+    loss_scale: float,
+    corrected_errors: np.ndarray,
+    stopped_errors: np.ndarray,
+    uncorrected_errors: np.ndarray,
+    interval_time: float,
+    stable_error_threshold: float,
+) -> tuple[dict, dict]:
+    """Compare fixed-pair supervision with both free-running training arms.
+
+    Seeds, sampled windows, examples per update and optimizer settings match
+    recurrent training. Preprocessing and optimization cost are reported
+    separately. Raw seed/IC/time errors retain failures and support subsequent
+    paired analysis without treating frames as independent replicates.
+    """
+    started = time.perf_counter()
+    inputs = _make_supervised_inputs(t, ctx, train, frame_steps=frame_steps)
+    dataset_wall = time.perf_counter() - started
+    curves, losses, timings, completed, walls = [], [], [], [], []
+    first_rollout = None
+    for model_seed in model_seeds:
+        started = time.perf_counter()
+        model, loss, _grads, times, _fd, done = _train_corrector(
+            t,
+            ctx,
+            train,
+            frame_steps=frame_steps,
+            training={**training, "loss_mode": "mean", "solver_loss_weight": 0.0},
+            velocity_scale=velocity_scale,
+            loss_scale=loss_scale,
+            differentiate_solver=False,
+            model_seed=model_seed,
+            supervised_inputs=inputs,
+        )
+        walls.append(time.perf_counter() - started)
+        evaluated = _evaluate_reference_set(
+            t,
+            ctx,
+            model,
+            test,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            corrected=True,
+        )
+        curves.append(evaluated.errors)
+        losses.append(loss)
+        timings.append(times)
+        completed.append(done)
+        if first_rollout is None:
+            first_rollout = evaluated.first_rollout
+    errors = np.stack(curves)
+    mean_error, seed_std, ic_std = _ensemble_curve_stats(errors)
+    gain = _rollout_log_gain_samples(uncorrected_errors, errors)
+    lift = _rollout_log_gain_samples(errors, corrected_errors)
+    exposure_lift = _rollout_log_gain_samples(errors, stopped_errors)
+    seed_lift = np.mean(lift, axis=1)
+    seed_gain = np.mean(gain, axis=1)
+    # This is a descriptive conjunction, not a significance test. Admission
+    # and all-arm completion remain separate requirements for interpretation.
+    metrics = {
+        "supervised_completed": all(completed),
+        "supervised_completed_by_seed": completed,
+        "supervised_updates_by_seed": [len(loss) for loss in losses],
+        "supervised_total_optimizer_updates": sum(map(len, losses)),
+        "supervised_dataset_wall_time_s": dataset_wall,
+        "supervised_training_wall_time_s": float(sum(walls)),
+        "supervised_total_wall_time_s": dataset_wall + float(sum(walls)),
+        "supervised_median_update_time_s": _median_steady_update_time(
+            [value for times in timings for value in times[1:]]
+        ),
+        "supervised_final_rollout_error": float(mean_error[-1]),
+        "supervised_mean_rollout_error": float(np.mean(mean_error[1:])),
+        "supervised_geometric_error_reduction": float(np.exp(np.mean(gain))),
+        "supervised_rollout_log_gain_seed_std": _std(seed_gain.tolist()),
+        "solver_in_loop_vs_supervised_geometric_lift": float(np.exp(np.mean(lift))),
+        "solver_in_loop_vs_supervised_log_lift_seed_std": _std(seed_lift.tolist()),
+        "stopped_vs_supervised_geometric_lift": float(np.exp(np.mean(exposure_lift))),
+        "supervised_stable_horizon": _first_unstable(
+            mean_error.tolist(), stable_error_threshold
+        )
+        * interval_time,
+        "solver_in_loop_beats_supervised_and_uncorrected": bool(
+            np.mean(lift) > 0
+            and np.mean(_rollout_log_gain_samples(uncorrected_errors, corrected_errors))
+            > 0
+        ),
+    }
+    snapshots = {
+        "error_supervised": mean_error.astype(np.float32),
+        "error_supervised_seed_std": seed_std.astype(np.float32),
+        "error_supervised_ic_std": ic_std.astype(np.float32),
+        "error_supervised_samples": errors.astype(np.float32),
+        "error_corrected_samples": corrected_errors.astype(np.float32),
+        "error_stop_gradient_samples": stopped_errors.astype(np.float32),
+        "error_uncorrected_samples": uncorrected_errors.astype(np.float32),
+        "loss_supervised": _mean_curve(losses),
+        "supervised_rollout_log_gain_samples": gain.astype(np.float32),
+        "solver_in_loop_vs_supervised_log_lift_samples": lift.astype(np.float32),
+        "stopped_vs_supervised_log_lift_samples": exposure_lift.astype(np.float32),
+    }
+    if first_rollout is not None:
+        snapshots["rollout_supervised"] = first_rollout
+    return metrics, snapshots
 
 
 def _first_unstable(errors: list[float], threshold: float) -> int:
@@ -1084,6 +1269,18 @@ def _std(values: list[float]) -> float:
         "rollout_stop_gradient",
         "rollout_uncorrected",
         "reference_rollout",
+        "error_supervised",
+        "error_supervised_seed_std",
+        "error_supervised_ic_std",
+        "error_supervised_samples",
+        "error_corrected_samples",
+        "error_stop_gradient_samples",
+        "error_uncorrected_samples",
+        "loss_supervised",
+        "supervised_rollout_log_gain_samples",
+        "solver_in_loop_vs_supervised_log_lift_samples",
+        "stopped_vs_supervised_log_lift_samples",
+        "rollout_supervised",
     ),
 )
 def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
@@ -1833,6 +2030,26 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             "evaluation_times": np.arange(test.shape[1], dtype=np.float32)
             * interval_time,
         }
+    if training.get("include_supervised_baseline", False):
+        supervised_metrics, supervised_snapshots = _compare_supervised(
+            t,
+            ctx,
+            train,
+            test,
+            training=training,
+            model_seeds=model_seeds,
+            frame_steps=frame_steps,
+            velocity_scale=velocity_scale,
+            loss_scale=training_loss_scale,
+            corrected_errors=corrected_errors_array,
+            stopped_errors=stop_gradient_errors_array,
+            uncorrected_errors=uncorrected_errors_array,
+            interval_time=interval_time,
+            stable_error_threshold=threshold,
+        )
+        metrics.update(supervised_metrics)
+        snapshots.update(supervised_snapshots)
+        metrics["completed"] &= supervised_metrics["supervised_completed"]
     return {
         "metrics": metrics,
         "snapshots": snapshots,

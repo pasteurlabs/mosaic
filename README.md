@@ -156,6 +156,19 @@ States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combine with `-p` / `-
 
 </details>
 
+The 2D neural-correction experiment compares fixed-pair supervised training,
+recurrent training with stopped gradients, and training through the solver:
+
+```bash
+mosaic run -p ns-grid --suites optimization -e solver_in_loop_supervised
+```
+
+All models are evaluated on held-out, free-running trajectories alongside the
+uncorrected solver. Improving on supervised training measures the benefit of
+the training setup; improving on the recurrent stopped-gradient control isolates
+the additional benefit of differentiating through the solver. Training costs
+include the supervised baseline's fixed-data generation.
+
 The full CLI reference and smoke-test workflow live in [Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html).
 
 ## Use Tesseracts in your own code

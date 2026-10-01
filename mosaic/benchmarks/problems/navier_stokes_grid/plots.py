@@ -361,6 +361,60 @@ def plot_solver_in_loop_self_reference(
     )
 
 
+def plot_solver_in_loop_supervised(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **_kwargs: Any,
+) -> list:
+    """Show all four free-running evaluation arms against the same target."""
+    out_dir = experiment_dir(
+        results_dir(), cfg.name, "optimization", f"solver_in_loop_supervised{suffix}"
+    )
+    path = out_dir / "corrector_fields.npz"
+    if not path.exists():
+        return []
+    arrays = try_load_npz(path)
+    names = arrays.get("solver_names", np.array([])).tolist()
+    if not names:
+        return []
+    times = arrays["evaluation_times"]
+    cols = min(3, len(names))
+    rows = (len(names) + cols - 1) // cols
+    fig, axes = plt.subplots(
+        rows,
+        cols,
+        figsize=(TEXTWIDTH, 2.2 * rows),
+        squeeze=False,
+        layout="constrained",
+    )
+    arms = (
+        ("error_uncorrected", "Solver only", ":", "0.5"),
+        ("error_supervised", "Supervised", "-.", "tab:orange"),
+        ("error_stop_gradient", "Recurrent, stopped gradient", "--", "tab:blue"),
+        ("error_corrected", "Recurrent, full gradient", "-", "tab:green"),
+    )
+    for idx, (name, ax) in enumerate(zip(names, axes.ravel(), strict=False)):
+        for prefix, label, style, color in arms:
+            values = arrays.get(f"{prefix}_{idx}")
+            if values is not None:
+                ax.plot(
+                    times[1:], values[1:], label=label, linestyle=style, color=color
+                )
+        ax.set_title(solver_props(name)[0])
+        ax.set_yscale("log")
+        ax.set_xlabel("Physical time")
+        ax.set_ylabel("Relative $L^2$ error")
+    for ax in axes.ravel()[len(names) :]:
+        ax.set_visible(False)
+    handles, labels = axes.ravel()[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=2)
+    if save:
+        save_fig(fig, "solver_in_loop_supervised", out_dir)
+    return [fig]
+
+
 def plot_solver_in_loop_reference_sensitivity(
     cfg: Problem,
     *,

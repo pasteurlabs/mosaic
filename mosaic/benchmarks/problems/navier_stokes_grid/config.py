@@ -74,6 +74,7 @@ from .plots import (
     plot_solver_in_loop,
     plot_solver_in_loop_reference_sensitivity,
     plot_solver_in_loop_self_reference,
+    plot_solver_in_loop_supervised,
     plot_solver_in_loop_tgv,
 )
 from .solver_in_loop import solver_in_loop
@@ -606,6 +607,41 @@ def _reference_sensitivity_run(name: str, reference_kind: str) -> dict:
             "native_long_error_tolerance": 0.5,
         },
     }
+
+
+def _supervised_comparison_run() -> dict:
+    """Declare a matched three-arm experiment on interacting periodic vortices."""
+    run = _reference_sensitivity_run("supervised", "pseudo_spectral_multimode")
+    run.pop("name")
+    run["dataset"].update({"k0": 4.0, "sigma_k": 1.0})
+    run["training"].update(
+        {
+            "max_updates": 3000,
+            "loss_mode": "mean",
+            "solver_loss_weight": 0.0,
+            "include_supervised_baseline": True,
+        }
+    )
+    return run
+
+
+problem.add_experiment(
+    "optimization/solver_in_loop_supervised",
+    solver_in_loop,
+    description=(
+        "Test whether differentiating through a solver produces a useful corrector "
+        "beyond fixed-pair supervised training and stopped-gradient recurrent training. "
+        "All arms share initial weights, training windows and optimizer updates; "
+        "evaluation uses held-out free-running trajectories."
+    ),
+    plot_description=(
+        "Held-out rollout errors for supervised, stopped-gradient, full-gradient "
+        "and uncorrected solvers. Training and supervised preprocessing costs are "
+        "reported separately; superiority is a hypothesis, not an admission rule."
+    ),
+    runs=[_supervised_comparison_run()],
+    plot=plot_solver_in_loop_supervised,
+)
 
 
 problem.add_experiment(

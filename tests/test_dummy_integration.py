@@ -290,6 +290,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
             "optimization/solver_in_loop",
             "optimization/solver_in_loop_self_reference",
             "optimization/solver_in_loop_tgv",
+            "optimization/solver_in_loop_supervised",
         }
         or solver_loop_sensitivity
     ):
@@ -341,6 +342,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
                     },
                     "training": {
                         "max_updates": 1,
+                        "include_supervised_baseline": exp_key.endswith("_supervised"),
                         "unroll": 2,
                         "hidden_channels": 4,
                         "kernel_size": 3,

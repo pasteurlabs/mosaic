@@ -42,10 +42,12 @@ from mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop import (
     _evaluate_rollout,
     _make_reference_datasets,
     _make_solver_self_reference_datasets,
+    _make_supervised_inputs,
     _passes_reference_accuracy_gate,
     _rollout_log_gain,
     _solver_advance,
     _stop_recurrent_gradient,
+    _supervised_loss,
     _window_loss,
     make_reference_dataset,
     solver_in_loop,
@@ -998,6 +1000,7 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
                 },
                 "training": {
                     "max_updates": 1,
+                    "include_supervised_baseline": True,
                     "unroll": 2,
                     "loss_mode": "solver_terminal",
                     "solver_loss_weight": 0.1,
@@ -1025,6 +1028,9 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert metrics["n_updates"] == 1
     assert metrics["total_optimizer_updates"] == 2
     assert metrics["stop_gradient_total_optimizer_updates"] == 2
+    assert metrics["supervised_total_optimizer_updates"] == 2
+    assert metrics["supervised_completed"] is True
+    assert metrics["solver_in_loop_vs_supervised_geometric_lift"] > 0
     assert metrics["n_model_seeds"] == 2
     assert metrics["completed"] is True
     assert metrics["final_grad_norm"] > 0
@@ -1049,6 +1055,63 @@ def test_solver_in_loop_runs_recurrently_through_dummy(tmp_path, monkeypatch):
     assert (out_dir / "result.json").exists()
     with np.load(out_dir / "corrector_fields.npz") as snapshots:
         assert snapshots["solver_vjp_log_lift_samples_0"].shape == (2, 1)
+        assert snapshots["error_supervised_samples_0"].shape == (2, 1, 3)
+        assert snapshots["solver_in_loop_vs_supervised_log_lift_samples_0"].shape == (
+            2,
+            1,
+        )
+
+
+def test_supervised_pairs_teacher_force_velocity_and_preserve_native_state(monkeypatch):
+    """Fixed pairs use reference inputs, never the preceding solver prediction."""
+    import importlib
+
+    module = importlib.import_module(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop"
+    )
+    calls = []
+
+    def advance(t, ctx, velocity, *, frame_steps, native_state=None):
+        calls.append((np.asarray(velocity).copy(), native_state))
+        return velocity + 7, 1 if native_state is None else native_state + 1
+
+    monkeypatch.setattr(module, "_solver_advance", advance)
+    train = np.arange(6, dtype=np.float32).reshape(2, 3, 1, 1, 1, 1)
+    inputs = _make_supervised_inputs(None, None, train, frame_steps=4)
+    np.testing.assert_array_equal(inputs, train[:, :-1] + 7)
+    assert [state for _, state in calls] == [None, 1, None, 1]
+    np.testing.assert_array_equal(calls[1][0], train[0, 1])
+
+
+def test_supervised_loss_has_independent_pairs_and_correct_parameter_gradient(
+    monkeypatch,
+):
+    """A scalar independent reference checks normalization and gradient exactly."""
+    import importlib
+
+    module = importlib.import_module(
+        "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop"
+    )
+    monkeypatch.setattr(
+        module, "corrected_velocity", lambda model, velocity, **kwargs: model * velocity
+    )
+    inputs = jnp.asarray([2.0, 3.0])
+    targets = jnp.asarray([4.0, 5.0])
+
+    def loss(model):
+        return _supervised_loss(
+            model,
+            inputs,
+            targets,
+            velocity_scale=1.0,
+            domain_extent=1.0,
+            loss_scale=2.0,
+        )
+
+    expected = (((2 * 1.5 - 4) ** 2 / 16) + ((3 * 1.5 - 5) ** 2 / 25)) / 4
+    expected_grad = (2 * 2 * (2 * 1.5 - 4) / 16 + 2 * 3 * (3 * 1.5 - 5) / 25) / 4
+    np.testing.assert_allclose(loss(1.5), expected, atol=1e-7)
+    np.testing.assert_allclose(jax.grad(loss)(1.5), expected_grad, atol=1e-7)
 
 
 def test_solver_self_reference_skips_training_below_refinement_floor(
