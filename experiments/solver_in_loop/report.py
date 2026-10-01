@@ -263,7 +263,7 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
                     ax.text(
                         0.04,
                         i,
-                        "Pending",
+                        "No trained result",
                         transform=ax.get_yaxis_transform(),
                         color="0.5",
                         fontsize=9,
