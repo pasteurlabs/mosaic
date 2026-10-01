@@ -83,7 +83,7 @@ def protocol(
 def main() -> None:
     """Submit validation, exact-source image builds, or independent GPU cells."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["validate", "build", "train"])
+    parser.add_argument("phase", choices=["validate", "build", "train", "report"])
     parser.add_argument("--campaign", required=True)
     parser.add_argument("--host", default="kander-login")
     parser.add_argument(
@@ -159,7 +159,17 @@ def main() -> None:
         gpu = args.phase == "train"
         spec = JobSpec(
             name=f"m116-{args.phase}-{cell}",
-            cmd=["bash", str(campaign / "node.sh"), str(campaign), args.phase, cell],
+            cmd=(
+                ["bash", str(campaign / "analyze.sh"), str(campaign)]
+                if args.phase == "report"
+                else [
+                    "bash",
+                    str(campaign / "node.sh"),
+                    str(campaign),
+                    args.phase,
+                    cell,
+                ]
+            ),
             template="gpu" if gpu else "cpu",
             account="research",
             partition="dev",

@@ -412,7 +412,77 @@ def plot_solver_in_loop_supervised(
     fig.legend(handles, labels, loc="outside lower center", ncol=2)
     if save:
         save_fig(fig, "solver_in_loop_supervised", out_dir)
-    return [fig]
+    figures = [fig]
+    fields = _plot_supervised_fields(arrays, names, out_dir, save=save)
+    if fields is not None:
+        figures.append(fields)
+    return figures
+
+
+def _plot_supervised_fields(
+    arrays: dict[str, np.ndarray],
+    names: list[str],
+    out_dir: Path,
+    *,
+    save: bool,
+) -> plt.Figure | None:
+    """Show complete spatial fields for the first seed and held-out IC.
+
+    Midpoint and final snapshots use a common reference-based colour scale;
+    the choice of IC and model seed never depends on the measured error.
+    """
+    columns = (
+        (None, "Reference"),
+        ("rollout_uncorrected", "Solver only"),
+        ("rollout_supervised", "Supervised"),
+        ("rollout_stop_gradient", "Recurrent, stopped"),
+        ("rollout_corrected", "Recurrent, full"),
+    )
+    rows = []
+    for idx, name in enumerate(names):
+        reference = _solver_reference_rollout(arrays, idx)
+        trajectories = [
+            reference if prefix is None else arrays.get(f"{prefix}_{idx}")
+            for prefix, _ in columns
+        ]
+        if any(value is None or len(value) == 0 for value in trajectories):
+            continue
+        for frame in sorted({(len(reference) - 1) // 2, len(reference) - 1}):
+            fields = [_periodic_vorticity_2d(value[frame]) for value in trajectories]
+            rows.append((name, frame, fields))
+    if not rows:
+        return None
+    reference_values = np.concatenate(
+        [np.abs(fields[0]).ravel() for _, _, fields in rows]
+    )
+    vmax = float(np.nanpercentile(reference_values, 99)) or 1.0
+    fig, axes = plt.subplots(
+        len(rows), 5, figsize=(12, 2 * len(rows)), squeeze=False, layout="constrained"
+    )
+    times = arrays["evaluation_times"]
+    for row, (name, frame, fields) in enumerate(rows):
+        for col, field in enumerate(fields):
+            im = axes[row, col].imshow(
+                np.ma.masked_invalid(field.T),
+                origin="lower",
+                cmap="RdBu_r",
+                vmin=-vmax,
+                vmax=vmax,
+                extent=(0, 2 * np.pi, 0, 2 * np.pi),
+                interpolation="nearest",
+            )
+            axes[row, col].set_xticks([])
+            axes[row, col].set_yticks([])
+            if row == 0:
+                axes[row, col].set_title(columns[col][1])
+        axes[row, 0].set_ylabel(f"{solver_props(name)[0]}\nt={times[frame]:.2f}")
+    fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.8, label="Vorticity")
+    fig.suptitle(
+        "First model seed and first held-out IC; common scale clipped at reference p99"
+    )
+    if save:
+        save_fig(fig, "solver_in_loop_supervised_fields", out_dir)
+    return fig
 
 
 def plot_solver_in_loop_reference_sensitivity(
