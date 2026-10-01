@@ -139,14 +139,20 @@ def _plot_cell(
         ]
         for frame in frames
     ]
-    error_max = float(np.max(errors)) or 1
+    finite_errors = np.asarray(errors)
+    finite_errors = finite_errors[np.isfinite(finite_errors)]
+    error_max = (float(finite_errors.max()) or 1) if finite_errors.size else 1
     fig, axes = plt.subplots(
         2, len(arms), figsize=(2.6 * len(arms), 5), layout="constrained"
     )
     for row, frame in enumerate(frames):
         for col, field in enumerate(errors[row]):
             im = axes[row, col].imshow(
-                field.T, origin="lower", cmap="magma", vmin=0, vmax=error_max
+                np.ma.masked_invalid(field.T),
+                origin="lower",
+                cmap="magma",
+                vmin=0,
+                vmax=error_max,
             )
             axes[row, col].set_xticks([])
             axes[row, col].set_yticks([])
@@ -218,11 +224,17 @@ def _plot_reference(archive_path: Path, destination: Path, metrics: dict) -> Non
     ) / (2 * dx)
     times = np.linspace(0, metrics["rollout_final_time"], len(reference))
     frames = [0, (len(reference) - 1) // 2, len(reference) - 1]
-    vmax = float(np.max(np.abs(curl[frames]))) or 1
+    finite_curl = np.abs(curl[frames])
+    finite_curl = finite_curl[np.isfinite(finite_curl)]
+    vmax = (float(finite_curl.max()) or 1) if finite_curl.size else 1
     fig, axes = plt.subplots(1, 3, figsize=(10, 3.6), layout="constrained")
     for ax, frame in zip(axes, frames, strict=True):
         im = ax.imshow(
-            curl[frame].T, origin="lower", cmap="RdBu_r", vmin=-vmax, vmax=vmax
+            np.ma.masked_invalid(curl[frame].T),
+            origin="lower",
+            cmap="RdBu_r",
+            vmin=-vmax,
+            vmax=vmax,
         )
         ax.set_title(f"After burn-in: t={times[frame]:.2f}")
         ax.set_xticks([])
