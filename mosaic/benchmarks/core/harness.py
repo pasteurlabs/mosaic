@@ -47,10 +47,22 @@ def classify_failure(exc_name: str, exc_str: str) -> str:
     s = exc_str.lower()
     if exc_name == "ContainerDied":
         return "container_died"
+    # Unambiguous out-of-memory markers across CUDA / XLA / Torch / cuBLAS /
+    # cuDNN / the OS OOM-killer. Kept conservative (only memory-specific
+    # phrases) so a genuine crash is never hidden as a resource ceiling — a
+    # mislabelled OOM should surface as a louder `fail`, not a quieter frontier
+    # move (see the frontier caveat in the reporting docs).
     if (
         "resource_exhausted" in s
         or "out of memory" in s
+        or "out-of-memory" in s
+        or "oom killer" in s
+        or "oom-killer" in s
         or "cuda_error_out_of_memory" in s
+        or "cudaerrormemoryallocation" in s
+        or "cublas_status_alloc_failed" in s
+        or "cudnn_status_alloc_failed" in s
+        or "failed to allocate" in s
     ):
         return "OOM"
     if (

@@ -151,7 +151,11 @@ def test_score_computation():
 
 
 def test_cell_weight_key_mapping():
-    """cell_weight_key returns the correct SCORE_WEIGHTS key for each status."""
+    """cell_weight_key returns the correct SCORE_WEIGHTS key for each status.
+
+    Staleness is invisible to the score: a stale cell maps to the same key as
+    its fresh counterpart, so the ``*`` marker never moves the headline number.
+    """
     from mosaic.benchmarks.core.config import ExclusionCategory
     from mosaic.benchmarks.core.status import (
         ANOMALY,
@@ -164,11 +168,11 @@ def test_cell_weight_key_mapping():
     )
 
     assert cell_weight_key(Cell(status=OK)) == "ok"
-    assert cell_weight_key(Cell(status=OK, stale=True)) == "ok*"
+    assert cell_weight_key(Cell(status=OK, stale=True)) == "ok"
     assert cell_weight_key(Cell(status=ANOMALY)) == "anom"
-    assert cell_weight_key(Cell(status=ANOMALY, stale=True)) == "anom*"
+    assert cell_weight_key(Cell(status=ANOMALY, stale=True)) == "anom"
     assert cell_weight_key(Cell(status=FAILED)) == "fail"
-    assert cell_weight_key(Cell(status=FAILED, stale=True)) == "fail*"
+    assert cell_weight_key(Cell(status=FAILED, stale=True)) == "fail"
     assert cell_weight_key(Cell(status=NOT_RUN)) == "missing"
     assert (
         cell_weight_key(

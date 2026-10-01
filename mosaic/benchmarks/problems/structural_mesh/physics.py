@@ -59,13 +59,15 @@ def _cantilever_bcs(
     n_mask = np.zeros(n_nodes, dtype=np.int32)
 
     # Solvers that apply Neumann BCs via surface integration in the weak form
-    # (FEniCS, Firedrake, JAX-FEM, deal.II) need traction [force/area].
+    # (FEniCS, Firedrake, JAX-FEM, deal.II, torch-fem) need traction [force/area].
     # Node-force solvers (TopOpt.jl) split force evenly across right-face nodes.
+    # Solver discovery does not infer this; new solvers must be listed here.
     _traction_solvers = {
         "jax_fem",
         "fenics_structural",
         "firedrake_structural",
         "dealii_structural",
+        "torch_fem_structural",
     }
     use_traction = solver_name in _traction_solvers
 

@@ -1,6 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import os
 
 # Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
@@ -19,11 +20,30 @@ import jax  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
 import xlb  # noqa: E402
 import xlb.velocity_set  # noqa: E402
+from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
 
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
 jax.config.update("jax_enable_x64", True)
+
+# Precision of the differentiation path (apply() forward + VJP/JVP).
+#
+# The default is float64: near omega≈2 the LBM develops float32 cancellation
+# errors that corrupt gradients, so the accuracy-motivated default runs the
+# whole differentiated computation in float64 (see issue #125).  That default
+# is also the dominant cost in the measured VJP/forward wall-clock ratio
+# (~270x 2D, ~1100x 3D at N=32), since the timed forward runs float32 while
+# the gradient path runs float64 on 19–27 distribution fields plus a doubled
+# stored trajectory.
+#
+# Set XLB_VJP_FP32=1 to run the differentiation path in float32 instead,
+# which cuts that overhead by roughly an order of magnitude.  Use only when
+# the benchmark's gradient/fd_check stays acceptable at the configuration of
+# interest — at low viscosity (omega≈2) float32 gradients may degrade.  The
+# apply() forward and the VJP path share this flag so they compute the same
+# function, which the fd_check requires.
+_USE_F64_DIFF = os.environ.get("XLB_VJP_FP32", "0") == "0"
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
 )
@@ -367,6 +387,52 @@ def _state_from_internal(
     return jnp.concatenate([populations, canonical_velocity], axis=0)
 
 
+def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
+    """Run ``steps`` LBM steps with sqrt-checkpointing for memory-bounded AD.
+
+    A plain ``jax.lax.scan`` stores every step's populations for the reverse
+    pass, so reverse-mode VJP memory grows as ``steps × q × N^d`` — quartic in
+    N here (steps scale ∝ N), which OOMs the trajectory long before the forward
+    does (110 GB at N=64 vs a 0.3 GB forward).  We split the scan into
+    ``outer × inner ≈ √steps`` blocks and wrap the inner block in
+    ``jax.checkpoint``: only the ``√steps`` block-boundary carries are kept, and
+    each block is recomputed once during the backward pass.  Peak AD memory
+    drops from O(steps) to O(√steps) at the cost of one extra forward per block.
+
+    The pure forward pass is unaffected — ``jax.checkpoint`` only recomputes
+    when a backward pass actually differentiates through it.
+    """
+    import math as _math_ck
+
+    if steps <= 1:
+        return jax.lax.scan(body, f0, None, length=steps)
+
+    inner = max(1, round(_math_ck.sqrt(steps)))
+    outer, rem = divmod(steps, inner)
+
+    ckpt_body = jax.checkpoint(body)
+
+    def block(carry: jnp.ndarray, _: Any):
+        c, ys = jax.lax.scan(ckpt_body, carry, None, length=inner)
+        return c, ys
+
+    f_cur, ys_blocks = jax.lax.scan(block, f0, None, length=outer)
+    # ys_blocks: (outer, inner, *per_step_out) -> flatten to (outer*inner, ...)
+    drag_hist = jax.tree_util.tree_map(
+        lambda a: a.reshape((outer * inner, *a.shape[2:])), ys_blocks
+    )
+
+    # Remainder steps that didn't fit into a full block (steps not a perfect
+    # multiple of ``inner``); run them checkpointed too and concatenate.
+    if rem:
+        f_cur, ys_rem = jax.lax.scan(ckpt_body, f_cur, None, length=rem)
+        drag_hist = jax.tree_util.tree_map(
+            lambda a, b: jnp.concatenate([a, b], axis=0), drag_hist, ys_rem
+        )
+
+    return f_cur, drag_hist
+
+
 def xlb_fwd(
     v0: jnp.ndarray,
     viscosity: float,
@@ -464,7 +530,7 @@ def xlb_fwd(
             # when dt is a Python float (apply/apply_jit path) but would raise
             # ConcretizationTypeError when dt is a JAX abstract value (VJP/JVP path).
             # Callers that differentiate w.r.t. dt must pre-compute _sub_k from the
-            # concrete primal dt and pass it explicitly — see _run_forward_f64.
+            # concrete primal dt and pass it explicitly — see _diff_statics.
             _Ma_full = _u_max_conservative * float(scale) / _cs
             _sub_k = max(1, _math.ceil(_Ma_full / _MA_TARGET))
 
@@ -634,7 +700,7 @@ def xlb_fwd(
             )
             return f_next, drag_step
 
-    f_final, drag_history = jax.lax.scan(body, f0, None, length=steps_eff)
+    f_final, drag_history = _checkpointed_scan(body, f0, steps_eff)
 
     # Extract macroscopic velocity using XLB Macroscopic operator
     _rho_f, u_out = xlb_macro(f_final)  # rho: (1, *spatial), u: (d, *spatial)
@@ -696,12 +762,14 @@ def _unpack_scalars(d: dict) -> dict:
 def apply(inputs: InputSchema) -> OutputSchema:
     """Run the XLB forward solver on the given inputs."""
     d = _unpack_scalars(inputs.model_dump())
-    # Run forward pass in float64 so apply() and vjp_jit() compute the same
-    # function. Without this the FD check calls apply() in float32 while
-    # vjp_jit() runs in float64, and float32 quantisation noise swamps the FD
-    # numerator at fine ε (omega≈2 at low viscosity). xlb_fwd casts output to
-    # float32 before returning so the schema contract holds.
-    d["_use_f64"] = True
+    # Run the forward pass in the same precision as the VJP so apply() and
+    # the VJP compute the same function. Without this the FD check calls
+    # apply() in one precision while the VJP runs in another, and float32
+    # quantisation noise swamps the FD numerator at fine ε (omega≈2 at low
+    # viscosity). Precision follows _USE_F64_DIFF (see XLB_VJP_FP32). xlb_fwd
+    # casts float64 output back to float32 before returning so the schema
+    # contract holds either way.
+    d["_use_f64"] = _USE_F64_DIFF
     return apply_jit(d)
 
 
@@ -712,10 +780,15 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict:
     """Compute the vector-Jacobian product for the XLB solver."""
-    return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
-        tuple(vjp_inputs),
-        tuple(vjp_outputs),
+    d = _unpack_scalars(inputs.model_dump())
+    vjp_inputs = {k for k in vjp_inputs if d.get(k) is not None}
+    if not vjp_inputs:
+        return {}
+    return jax_vjp(
+        _diff_apply(*_diff_statics(d)),
+        inputs,
+        vjp_inputs,
+        vjp_outputs,
         cotangent_vector,
     )
 
@@ -755,100 +828,18 @@ def abstract_eval(abstract_inputs: Any) -> dict:
 # ---------------------------------------------------------------------------
 # VJP / JVP plumbing
 # ---------------------------------------------------------------------------
-#
-# xlb exposes five differentiable array-valued inputs: v0, viscosity, dt,
-# inflow_profile, and recurrent population state. The VJP must return a gradient for every
-# input requested in `vjp_inputs` under its *own* path key, otherwise the
-# tesseract_jax dispatcher falls back to a NaN filler (in particular the
-# drag_opt harness asks for the `inflow_profile` gradient — returning only
-# `{"v0": ...}` would leave the optimiser with zero/NaN gradient for the
-# inflow DOF, which is exactly the symptom the suite reported).
-#
-# We build a single `_fwd_all` that takes the full diff-input bundle as a
-# dict, promotes each array to float64, runs `xlb_fwd`, and returns the
-# requested outputs.  jax.vjp then differentiates w.r.t. *every* requested
-# input in one pass, and we emit the gradients under their original key.
-# This mirrors the jax-cfd / phiflow pattern (filter_func + flatten_with_paths)
-# but without the eqx.filter_jit boundary that previously blocked reverse
-# mode here.
-
-_DIFF_INPUT_KEYS: tuple[str, ...] = (
-    "v0",
-    "viscosity",
-    "dt",
-    "inflow_profile",
-    "state",
-)
-
-# Module-level cache for static solver configurations. All supplied array
-# primals remain dynamic arguments so a cached VJP cannot retain stale state.
-_vjp_compiled_cache: dict = {}
 
 
-def _scalar_f64(x: Any):
-    """Coerce a scalar-like (Python float, 0-D / 1-D array) to a float64 scalar."""
-    if hasattr(x, "astype"):
-        return jnp.asarray(x, dtype=jnp.float64)
-    return jnp.asarray(x, dtype=jnp.float64)
+def _diff_statics(inputs: dict) -> tuple[int, str]:
+    """Return (_sub_k, collision kind) from the concrete primal inputs.
 
-
-def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
-    """Run xlb_fwd in float64 with diff inputs overridden from diff_bundle.
-
-    Non-diff inputs (steps, boundary_conditions, obstacle, domain_extent) are
-    read from ``inputs``. Returns (result, drag, state) with float32 dtype.
-
-    Pre-computes ``_sub_k`` from the concrete (non-traced) ``inputs["dt"]`` so
-    that ``xlb_fwd`` does not need to call ``float()`` on a potentially-traced
-    JAX array when dt is in the diff bundle (VJP/JVP w.r.t. dt path).
+    Both select the traced graph, so they are fixed per call and never
+    evaluated on a JAX tracer inside the differentiated forward pass.
     """
     import math as _math_run
 
-    fwd_kwargs = {}
-    for k in (
-        "steps",
-        "domain_extent",
-        "boundary_conditions",
-        "obstacle",
-        "return_state",
-    ):
-        if k in inputs:
-            fwd_kwargs[k] = inputs[k]
-
-    # v0: always required
-    v0 = diff_bundle.get("v0", inputs["v0"])
-    fwd_kwargs["v0"] = jnp.asarray(v0, dtype=jnp.float64)
-
-    # viscosity / dt: xlb_fwd consumes as Python-ish scalars via fdtype casts;
-    # passing the 0-D float64 array is fine because _unpack_scalars only runs
-    # at the public `apply()` boundary, not here.
-    for k in ("viscosity", "dt"):
-        src = diff_bundle.get(k, inputs.get(k))
-        if src is None:
-            continue
-        fwd_kwargs[k] = _scalar_f64(src)
-
-    # Optional fields: only pass when the caller actually supplied them
-    # (either via diff_bundle or via the primal input dict).  Passing None
-    # is also fine because xlb_fwd treats both as "no such BC".
-    for k in ("inflow_profile", "state"):
-        if k in diff_bundle and diff_bundle[k] is not None:
-            fwd_kwargs[k] = jnp.asarray(diff_bundle[k], dtype=jnp.float64)
-        elif inputs.get(k) is not None:
-            fwd_kwargs[k] = jnp.asarray(inputs[k], dtype=jnp.float64)
-
-    # Pre-compute _sub_k and the related concrete primal values so xlb_fwd
-    # never needs to call float() on a JAX abstract tracer.  When dt is in the
-    # diff bundle, it becomes a traced dual number inside jax.vjp / jax.jvp,
-    # which would cause ConcretizationTypeError if xlb_fwd tried to extract a
-    # Python float from it.  Using the concrete inputs["dt"] here keeps _sub_k
-    # static.  These also feed _collision_kind_override below.
     _dt_concrete = float(inputs.get("dt", 0.05))
-    _v0_shape = inputs["v0"]
-    if hasattr(_v0_shape, "shape"):
-        _nx = _v0_shape.shape[0]
-    else:
-        _nx = _v0_shape["shape"][0] if isinstance(_v0_shape, dict) else 16
+    _nx = inputs["v0"].shape[0]
     _domain_extent_concrete = float(inputs.get("domain_extent", 1.0))
     _dx_concrete = _domain_extent_concrete / _nx
     if os.environ.get("XLB_SUB_K_DISABLE", "1") != "0":
@@ -860,132 +851,45 @@ def _run_forward_f64(inputs: dict, diff_bundle: dict) -> tuple:
         _cs_run = 1.0 / _math_run.sqrt(3.0)
         _Ma_full_run = 1.0 * _scale_concrete / _cs_run
         _sub_k_concrete = max(1, _math_run.ceil(_Ma_full_run / 0.1))
-    fwd_kwargs["_sub_k"] = _sub_k_concrete
 
-    # Pre-compute _collision_kind from concrete primal values so xlb_fwd never
-    # evaluates `omega > 1.8` on a traced JAX value inside jax.jit.
     _visc_concrete = float(inputs.get("viscosity", 0.001))
     _dt_eff_concrete = _dt_concrete / _sub_k_concrete
     _nu_lb_concrete = _visc_concrete * _dt_eff_concrete / _dx_concrete**2
     _omega_concrete = 1.0 / (3.0 * _nu_lb_concrete + 0.5)
-    _obstacle_concrete = inputs.get("obstacle")
-    _needs_kbc_concrete = (_obstacle_concrete is not None) or (_omega_concrete > 1.8)
-    _ndim = _v0_shape.shape[-1] if hasattr(_v0_shape, "shape") else 2
+    _needs_kbc_concrete = (inputs.get("obstacle") is not None) or (
+        _omega_concrete > 1.8
+    )
+    _ndim = inputs["v0"].shape[-1]
     _ck = "kbc" if _needs_kbc_concrete else "bgk"
-    if _ck == "kbc" and (_ndim, True, "kbc") not in _OPS:
+    if _ck == "kbc" and (_ndim, _USE_F64_DIFF, "kbc") not in _OPS:
         _ck = "bgk"
-    fwd_kwargs["_collision_kind_override"] = _ck
-
-    result, drag, state = xlb_fwd(_use_f64=True, **fwd_kwargs)
-    return result, drag, state
+    return _sub_k_concrete, _ck
 
 
-def _build_diff_bundle(inputs: dict, include: tuple[str, ...]) -> dict:
-    """Build a {path: value} dict for jax.vjp / jax.jvp over `include` keys.
+@functools.cache
+def _diff_apply(sub_k: int, collision_kind: str) -> Any:
+    """Forward pass differentiated by jax_vjp, for one (_sub_k, kind) pair.
 
-    Only includes paths that are actually present (non-None) in the primal
-    inputs, so jax.vjp never needs to trace through a Python None.  Scalar
-    inputs (viscosity, dt) are promoted from 1-element arrays or plain floats
-    to 0-D float64 arrays.
+    Runs in float64 by default, or float32 when XLB_VJP_FP32=1 (see
+    _USE_F64_DIFF). viscosity and dt arrive as traced (1,) arrays.
     """
-    bundle: dict = {}
-    for k in include:
-        if k not in _DIFF_INPUT_KEYS:
-            continue
-        v = inputs.get(k)
-        if v is None:
-            continue
-        if k in ("viscosity", "dt"):
-            bundle[k] = _scalar_f64(v)
-        else:
-            bundle[k] = jnp.asarray(v, dtype=jnp.float64)
-    return bundle
+    _diff_dtype = jnp.float64 if _USE_F64_DIFF else jnp.float32
 
+    def fn(inputs: dict) -> dict:
+        fwd_kwargs = dict(inputs)
+        for k in ("v0", "inflow_profile", "state"):
+            if fwd_kwargs.get(k) is not None:
+                fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype)
+        for k in ("viscosity", "dt"):
+            fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype).reshape(())
+        result, drag, state = xlb_fwd(
+            _use_f64=_USE_F64_DIFF,
+            _sub_k=sub_k,
+            _collision_kind_override=collision_kind,
+            **fwd_kwargs,
+        )
+        out = {"result": result, "state": state}
+        out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
+        return out
 
-def vjp_jit(
-    inputs: dict,
-    vjp_inputs: tuple[str],
-    vjp_outputs: tuple[str],
-    cotangent_vector: dict,
-) -> dict:
-    """Reverse-mode VJP over any subset of diff inputs.
-
-    Returns a dict keyed by the requested `vjp_inputs` paths.  Scalar grads
-    (viscosity, dt) are reshaped to (1,) to match the declared input schema.
-    """
-    # Only keep requested paths that are actually present in inputs (so a
-    # caller asking for inflow_profile when none was provided gets an empty
-    # bundle — jax.vjp will refuse anyway, and the harness should have
-    # filtered this upstream via the `differentiable_input_paths` check).
-    present = tuple(
-        k for k in vjp_inputs if k in _DIFF_INPUT_KEYS and inputs.get(k) is not None
-    )
-    if not present:
-        return {}
-
-    all_present = tuple(k for k in _DIFF_INPUT_KEYS if inputs.get(k) is not None)
-    constant = tuple(k for k in all_present if k not in present)
-    diff_bundle = _build_diff_bundle(inputs, present)
-    constant_bundle = _build_diff_bundle(inputs, constant)
-
-    # Build a cache key from static aspects of the computation graph.
-    # All array bundles and the cotangent are traced variable arguments.
-    v0_src = inputs.get("v0")
-    v0_shape = tuple(v0_src.shape) if hasattr(v0_src, "shape") else ()
-    cache_key = (
-        v0_shape,
-        inputs.get("steps"),
-        inputs.get("domain_extent"),
-        repr(inputs.get("boundary_conditions")),
-        repr(inputs.get("obstacle")),
-        bool(inputs.get("return_state", False)),
-        float(inputs.get("viscosity", 0.001)),
-        float(inputs.get("dt", 0.05)),
-        os.environ.get("XLB_SUB_K_DISABLE", "1"),
-        present,
-        constant,
-        tuple(sorted(vjp_outputs)),
-    )
-
-    if cache_key not in _vjp_compiled_cache:
-        # Capture only non-array configuration in the closure.
-        _inputs_frozen = inputs
-        _vjp_outputs_frozen = vjp_outputs
-
-        def _fwd_static(diff: dict, constants: dict) -> dict:
-            bundle = {**constants, **diff}
-            result, drag, state = _run_forward_f64(_inputs_frozen, bundle)
-            out = {}
-            if "result" in _vjp_outputs_frozen:
-                out["result"] = result
-            if "drag" in _vjp_outputs_frozen:
-                out["drag"] = (
-                    drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
-                )
-            if "state" in _vjp_outputs_frozen:
-                out["state"] = state
-            return out
-
-        @jax.jit
-        def _vjp_compiled(diff: dict, constants: dict, cotan: dict) -> dict:
-            _, vjp_func = jax.vjp(lambda bundle: _fwd_static(bundle, constants), diff)
-            return vjp_func(cotan)[0]
-
-        _vjp_compiled_cache[cache_key] = _vjp_compiled
-
-    grads = _vjp_compiled_cache[cache_key](
-        diff_bundle,
-        constant_bundle,
-        cotangent_vector,
-    )
-
-    out: dict = {}
-    for k, g in grads.items():
-        g = g.astype(jnp.float32)
-        if k in ("viscosity", "dt"):
-            # Canonical schema has shape (1,); jax returns 0-D for promoted scalars.
-            g = jnp.atleast_1d(g)
-        elif g.ndim == 0:
-            g = jnp.atleast_1d(g)
-        out[k] = g
-    return out
+    return fn

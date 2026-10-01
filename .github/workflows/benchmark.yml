@@ -82,16 +82,18 @@ jobs:
             SUITES="${{ github.event.inputs.suites }}"
           fi
 
-          # PR: three-label system (benchmark:none / benchmark:solver / benchmark:all)
+          # PR: four-label system (benchmark:none / benchmark:solver /
+          # benchmark:domain / benchmark:all)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
             HAS_NONE=$(echo "$LABELS" | grep -c '"benchmark:none"' || true)
             HAS_SOLVER=$(echo "$LABELS" | grep -c '"benchmark:solver"' || true)
+            HAS_DOMAIN=$(echo "$LABELS" | grep -c '"benchmark:domain"' || true)
             HAS_ALL=$(echo "$LABELS" | grep -c '"benchmark:all"' || true)
-            LABEL_COUNT=$((HAS_NONE + HAS_SOLVER + HAS_ALL))
+            LABEL_COUNT=$((HAS_NONE + HAS_SOLVER + HAS_DOMAIN + HAS_ALL))
 
             if [[ "$LABEL_COUNT" -gt 1 ]]; then
-              echo "::error::Multiple benchmark labels found. Use exactly one of: benchmark:none, benchmark:solver, benchmark:all"
+              echo "::error::Multiple benchmark labels found. Use exactly one of: benchmark:none, benchmark:solver, benchmark:domain, benchmark:all"
               exit 1
             fi
 
@@ -99,6 +101,8 @@ jobs:
               LABEL="none"
             elif [[ "$HAS_SOLVER" -gt 0 ]]; then
               LABEL="solver"
+            elif [[ "$HAS_DOMAIN" -gt 0 ]]; then
+              LABEL="domain"
             elif [[ "$HAS_ALL" -gt 0 ]]; then
               LABEL="all"
             fi
@@ -125,6 +129,35 @@ jobs:
                   # Derived from the solver set (not the diff), so it stays
                   # narrow even when harness files also changed.
                   PROBLEMS=$(uv run python .github/scripts/filter-problems-by-solver.py --problems all --solvers "$SOLVERS")
+                  if [[ -z "$PROBLEMS" ]]; then
+                    SHOULD_RUN="false"
+                  else
+                    SHOULD_RUN="true"
+                  fi
+                fi
+                ;;
+              domain)
+                # Run every solver in the single domain whose problem
+                # definition changed. The domain comes from the changed files
+                # under mosaic/benchmarks/problems/ (detect-changed-domains) —
+                # NOT from changed solver dirs. A problem/physics/config change
+                # alters the reference the whole domain is benchmarked against,
+                # so every solver in that domain re-runs; SOLVERS stays unset.
+                # Solver code changes are benchmark:solver's job and are ignored
+                # here. This label is single-domain by design; a PR changing
+                # more than one domain's problem must use benchmark:all.
+                DOMAIN_LIST=$(echo "$DIFF_FILES" | uv run python .github/scripts/detect-changed-domains.py)
+                NUM_DOMAINS=$(echo "$DOMAIN_LIST" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+                if [[ "$NUM_DOMAINS" -eq 0 ]]; then
+                  # No problem definition changed — nothing to do
+                  SHOULD_RUN="false"
+                elif [[ "$NUM_DOMAINS" -gt 1 ]]; then
+                  echo "::error::benchmark:domain requires a problem change within a single domain, but $NUM_DOMAINS domains changed. Use benchmark:all instead."
+                  exit 1
+                else
+                  DOMAIN=$(echo "$DOMAIN_LIST" | python3 -c "import json,sys; print(json.load(sys.stdin)[0])")
+                  # Scope problems to every problem in the changed domain.
+                  PROBLEMS=$(uv run python .github/scripts/filter-problems-by-domain.py --problems all --domains "$DOMAIN")
                   if [[ -z "$PROBLEMS" ]]; then
                     SHOULD_RUN="false"
                   else
@@ -305,6 +338,38 @@ jobs:
             fi
           fi
 
+      # Release PRs compare against the *previous release* rather than main's
+      # rolling baseline: fetch the prior release's results asset (which bundles
+      # its snapshot.json) into the same baseline/ location the extract step
+      # below reads from. The release PR runs the full suite and its results are
+      # NOT overlaid onto the baseline (the overlay step above is gated off for
+      # release PRs), so this is a clean release-vs-release diff. Degrades to no
+      # diff (plain report) when there's no prior release or its asset predates
+      # the results-bundle scheme (older releases have no mosaic-results-*.zip).
+      - name: Download previous release snapshot
+        id: prev_release
+        if: >-
+          needs.plan.outputs.should_run == 'true'
+          && needs.plan.outputs.is_release_pr == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG=$(gh release view --json tagName --jq '.tagName' 2>/dev/null || true)
+          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+          if [ -z "$PREV_TAG" ]; then
+            echo "No prior release found — release comparison will be skipped."
+            exit 0
+          fi
+          mkdir -p /tmp/prev-release
+          if ! gh release download "$PREV_TAG" \
+              --pattern 'mosaic-results-*.zip' --dir /tmp/prev-release 2>/dev/null; then
+            echo "Prior release $PREV_TAG has no mosaic-results-*.zip asset — skipping comparison."
+            exit 0
+          fi
+          mkdir -p baseline/mosaic-results
+          unzip -q -o /tmp/prev-release/mosaic-results-*.zip -d baseline/mosaic-results
+          echo "Fetched previous release snapshot ($PREV_TAG)"
+
       # The status snapshot/report exist only to summarise *this run's* results
       # against the baseline. When no benchmarks ran (e.g. benchmark:none or a
       # docs-only PR), the result tree is just a copy of the baseline, so the
@@ -328,12 +393,36 @@ jobs:
 
       - name: Generate status report (markdown)
         if: needs.plan.outputs.should_run == 'true'
+        env:
+          RUN_LABEL: ${{ needs.plan.outputs.label }}
+          RUN_SOLVERS: ${{ needs.plan.outputs.solvers }}
+          RUN_PROBLEMS: ${{ needs.plan.outputs.problems }}
+          RUN_IS_RELEASE: ${{ needs.plan.outputs.is_release_pr }}
         run: |
+          # Coverage banner input: what actually ran this PR (see F3 in the
+          # reporting audit) so "0 regressions" is honest about scope.
+          uv run python - <<'PY' > run-scope.json
+          import json, os
+          solvers = [s for s in os.environ.get("RUN_SOLVERS", "").split(",") if s]
+          problems_raw = os.environ.get("RUN_PROBLEMS", "")
+          problems = [] if problems_raw in ("", "all") else [p for p in problems_raw.split(",") if p]
+          print(json.dumps({
+              "label": os.environ.get("RUN_LABEL", ""),
+              "solvers": solvers,
+              "problems": problems,
+              "is_release_pr": os.environ.get("RUN_IS_RELEASE") == "true",
+          }))
+          PY
           DIFF_FLAG=""
           if [[ -n "${{ steps.baseline.outputs.path }}" ]]; then
             DIFF_FLAG="--diff-against ${{ steps.baseline.outputs.path }}"
+            # Release PRs diff against the previous release tag; name it in the
+            # header so the comment reads "vs v0.1.1" instead of "vs base".
+            if [[ "${{ needs.plan.outputs.is_release_pr }}" == "true" && -n "${{ steps.prev_release.outputs.tag }}" ]]; then
+              DIFF_FLAG="$DIFF_FLAG --diff-label ${{ steps.prev_release.outputs.tag }}"
+            fi
           fi
-          uv run mosaic status --format md $DIFF_FLAG > status-report.md
+          uv run mosaic status --format md $DIFF_FLAG --run-scope run-scope.json > status-report.md
 
       # ── Render docs site on GHA ────────────────────────────────────────
       # The docs are rendered here (where the full mosaic/jax stack is already
@@ -372,16 +461,38 @@ jobs:
       # can't otherwise recover: the PR number and whether benchmarks ran.
       - name: Write publish metadata
         if: github.event_name == 'pull_request'
+        env:
+          SHOULD_RUN: ${{ needs.plan.outputs.should_run }}
+          RUN_LABEL: ${{ needs.plan.outputs.label }}
+          MOSAIC_TOUCHED: ${{ needs.plan.outputs.mosaic_touched }}
         run: |
           {
             echo "pr_number=${{ github.event.pull_request.number }}"
-            echo "should_run=${{ needs.plan.outputs.should_run }}"
+            echo "should_run=${SHOULD_RUN}"
           } > publish-meta.txt
-          # Ship the status report alongside the site so the downstream comment
-          # can include it. Absent (benchmark:none) → downstream posts only the
-          # preview banner.
-          if [[ "${{ needs.plan.outputs.should_run }}" == "true" ]]; then
+          # Ship a status report alongside the site so the downstream comment
+          # always carries a benchmark verdict. When benchmarks ran, that's the
+          # full report; when they didn't (benchmark:none / unlabelled), it's a
+          # one-line explanation so silence is never mistaken for "clean" (F4).
+          if [[ "${SHOULD_RUN}" == "true" ]]; then
             cp status-report.md _site-status-report.md
+          else
+            case "${RUN_LABEL}" in
+              none)
+                VERDICT='**Benchmarks:** skipped by the `benchmark:none` label.'
+                ;;
+              "")
+                if [[ "${MOSAIC_TOUCHED}" == "true" ]]; then
+                  VERDICT='**Benchmarks:** not run — add a `benchmark:solver` or `benchmark:all` label (`mosaic/` was changed).'
+                else
+                  VERDICT='**Benchmarks:** not applicable (no `mosaic/` changes).'
+                fi
+                ;;
+              *)
+                VERDICT='**Benchmarks:** not run for this PR.'
+                ;;
+            esac
+            printf '## Mosaic status\n\n%s\n' "${VERDICT}" > _site-status-report.md
           fi
 
       - name: Upload rendered docs site
@@ -438,7 +549,7 @@ jobs:
              && "${{ needs.plan.outputs.is_release_pr }}" != "true" \
              && -z "${{ needs.plan.outputs.label }}" ]]; then
             echo "::error::This PR modifies mosaic/ code but has no benchmark label."
-            echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:all"
+            echo "::error::A maintainer must add exactly one of: benchmark:none, benchmark:solver, benchmark:domain, benchmark:all"
             exit 1
           fi
 

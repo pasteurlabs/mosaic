@@ -12,6 +12,20 @@ on:
   push:
     branches: [main]
 
+# Serialize publishes. The job is a read-modify-write on a single mutable
+# `baseline` artifact (download newest → overlay this merge's results → upload
+# a new baseline). Two publishes running concurrently both read the same parent
+# baseline and the later writer wins wholesale, silently dropping the earlier
+# merge's results — this is how #135's XLB checkpointing frontiers were lost
+# when it merged seconds apart from another PR. Queueing publishes makes each
+# one overlay onto its predecessor's output instead.
+#
+# cancel-in-progress MUST be false: a cancelled publish drops that merge's
+# results just as surely as the race did.
+concurrency:
+  group: publish-baseline
+  cancel-in-progress: false
+
 permissions:
   contents: write
   actions: read

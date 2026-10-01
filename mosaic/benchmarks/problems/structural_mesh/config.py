@@ -27,6 +27,13 @@ from mosaic.benchmarks.core.config import (
     SolverSpec,
     discover_solvers,
 )
+from mosaic.benchmarks.core.status_checks import (
+    max_final_ratio,
+    max_peer_k,
+    median_k,
+    min_cosine,
+    rel_err_peer_outlier,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
     spatial_cost,
@@ -75,7 +82,12 @@ apply_styles(_SOLVERS)
 # differs (TopOpt.jl uses ``E``, FEM backends use ``E_max``).
 _MAT_SHARED = {"nu": _NU, "xmin": _XMIN}
 _SOLVERS["topopt_jl"].input_overrides = {"E": _E_MAX, **_MAT_SHARED}
-for _key in ("dealii_structural", "fenics_structural", "firedrake_structural"):
+for _key in (
+    "dealii_structural",
+    "fenics_structural",
+    "firedrake_structural",
+    "torch_fem_structural",
+):
     _SOLVERS[_key].input_overrides = {"E_max": _E_MAX, **_MAT_SHARED}
 
 
@@ -115,6 +127,15 @@ problem = Problem(
     error_fn=l2_error_rel,
     domain_extent=2.0,
     resolution_key="nx",
+    status_checks={
+        # Every solver returns the compliance as a float32 scalar, so peers
+        # agree to within a few ulp (~6e-8 relative each). The floor stops
+        # median_k from ranking solvers on that round-off.
+        "forward": [median_k(3.0, floor=1e-5)],
+        "cost": [max_peer_k(20.0)],
+        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
+        "optimization": [max_final_ratio(0.5)],
+    },
 )
 
 
@@ -232,11 +253,17 @@ _MESH_PHYS = {
     "rho_0": 0.5,
     "corner_load": False,
 }
+# Resolution sweep for the cost suites. The canonical thin-slab geometry ties
+# ny=2 and nz=nx//2 to nx, so the top point nx=128 gives a 128×2×64 mesh — the
+# same resolution used for the paper's structural timing table. Points below it
+# trace the wall-clock scaling curve; a per-trial wall limit truncates the
+# sweep gracefully for any solver that gets too slow at the high end.
+_COST_NX = [4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128]
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh resolution $N$ at one assembly step.",
-    physics={**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
+    physics={**_MESH_PHYS, "steps": 1, "nx": _COST_NX},
     cost={"n_trials": 3},
     plot=plot_cost,
 )
@@ -259,7 +286,7 @@ problem.add_experiment(
     runs=[
         {
             "name": "by_N",
-            "physics": {**_MESH_PHYS, "steps": 1, "nx": [4, 6, 8, 12, 16]},
+            "physics": {**_MESH_PHYS, "steps": 1, "nx": _COST_NX},
             "cost": {"n_trials": 3},
         },
         {

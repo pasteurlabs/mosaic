@@ -200,6 +200,42 @@ mosaic status --format md > report.md     # export as markdown
 mosaic status --format json > snap.json   # machine-readable snapshot
 ```
 
+### The PR benchmark comment
+
+On a pull request, CI posts (and keeps updated) a single sticky comment
+summarising the run. It diffs this PR's results against the published `main`
+baseline and surfaces, in order of what a reviewer cares about:
+
+- **Regressions / improvements** — cells that changed *status* (e.g. a solver
+  that went `ok` → `fail`, or `fail` → `ok`).
+- **Metric changes** — solvers that stayed `ok` but whose *numbers* moved past a
+  relative threshold (gradient rel-error, converged loss, forward error). The
+  coarse status ladder alone would hide these, so an optimisation PR that
+  improves accuracy without crossing a bucket boundary still shows up.
+- **Timing (indicative)** — wall-clock shifts. These sit in a separate section
+  and are labelled *indicative*: CI runners share hardware, so timing varies
+  with load between runs. Trust the direction of a large move, not the exact
+  percentage.
+- **Resource-frontier shifts** — the sweep size at which a solver first hits an
+  OOM / timeout ceiling. A ceiling that bites at a *smaller* size than baseline
+  is a scaling regression; one that pushes further out is an improvement.
+
+A **coverage banner** at the top states what actually ran. Under the
+`benchmark:solver` label only the changed solvers on affected problems re-run,
+so "no regressions" means "no regressions *among what was measured*" — the other
+cells are shown from the baseline unchanged. A PR that runs no benchmarks
+(`benchmark:none`, or an unlabelled non-`mosaic/` change) still gets a one-line
+verdict so an empty comment is never mistaken for a clean pass.
+
+::: {.callout-note}
+Resource-frontier tracking depends on the solver container reporting a
+`failure_type` of `OOM` or `timeout`. A container that dies from memory pressure
+but reports a *generic* error is classified as a crash (a hard `fail`), not a
+frontier move. This is the safe direction — a mislabelled OOM surfaces as a
+louder regression, never a quieter one — but it means the frontier signal is
+best-effort, not an exhaustive OOM detector.
+:::
+
 ## Troubleshooting
 
 ### Container start failures

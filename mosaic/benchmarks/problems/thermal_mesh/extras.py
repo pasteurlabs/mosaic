@@ -104,7 +104,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
                 continue
             alias_to_display: dict[str, str] = {}
             for display_name in by_solver_d:
-                a = resolve_solver_alias(display_name)
+                a = resolve_solver_alias(display_name, prefer=THERMAL_ORDER)
                 if a is not None:
                     alias_to_display[a] = display_name
             for alias in THERMAL_ORDER:
@@ -176,7 +176,7 @@ def _conductivity_overview_generate(out_dir: Path) -> None:
             ]
             alias_to_display: dict[str, str] = {}
             for display_name in _display_names:
-                a = resolve_solver_alias(display_name)
+                a = resolve_solver_alias(display_name, prefer=THERMAL_ORDER)
                 if a is not None:
                     alias_to_display[a] = display_name
             for alias in THERMAL_ORDER:

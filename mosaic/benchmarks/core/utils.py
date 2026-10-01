@@ -36,20 +36,32 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
     When the quantile bracket eliminates all values at a position (e.g. 4 nearly
     identical scalars where float interpolation pushes lo above every value),
     the plain mean is used at those positions as a fallback.
+
+    Non-finite entries are left out per element. A solver that returns NaN at
+    one point would otherwise carry it into the reference, and every other
+    solver's error against that reference becomes NaN with it. A position where
+    no solver is finite stays NaN, which is the honest answer there.
     """
     stacked = jnp.stack(arrays, axis=0)  # (n, ...)
+    finite = jnp.isfinite(stacked)
+    n_finite = finite.sum(axis=0)
+
+    def _mean_where(keep: jax.Array, n: jax.Array) -> jax.Array:
+        # jnp.where rather than a product: inf * False is nan, so multiplying
+        # by the mask would reintroduce the value being excluded.
+        total = jnp.where(keep, stacked, 0.0).sum(axis=0)
+        return jnp.where(n > 0, total / jnp.maximum(n, 1), jnp.nan)
+
+    finite_mean = _mean_where(finite, n_finite)
     if len(arrays) <= 2:
-        return stacked.mean(axis=0)
-    lo = jnp.quantile(stacked, q_lo, axis=0)
-    hi = jnp.quantile(stacked, q_hi, axis=0)
-    mask = (stacked >= lo) & (stacked <= hi)
+        return finite_mean
+
+    masked = jnp.where(finite, stacked, jnp.nan)
+    lo = jnp.nanquantile(masked, q_lo, axis=0)
+    hi = jnp.nanquantile(masked, q_hi, axis=0)
+    mask = finite & (stacked >= lo) & (stacked <= hi)
     count = mask.sum(axis=0)
-    trimmed = jnp.where(
-        count > 0,
-        (stacked * mask).sum(axis=0) / jnp.maximum(count, 1),
-        stacked.mean(axis=0),
-    )
-    return trimmed
+    return jnp.where(count > 0, _mean_where(mask, count), finite_mean)
 
 
 def l2_error_rel(pred: object, ref: object) -> float:
