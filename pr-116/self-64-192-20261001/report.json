@@ -117,12 +117,70 @@
       "full_training_seconds": 244.33093725697836,
       "supervised_total_seconds": 173.10210797406035,
       "stopped_training_seconds": 203.10459184402134
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "pict",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 300,
+      "n_model_seeds": 1,
+      "source_sha256": "b348bbb79c639df41daa9855c56aac06b11467abaaba16b5d74ddccc97e0e155",
+      "protocol_sha256": "ff5c4c30df470b5c69a6b34baee348bcbbb798b1adbe46fb337afb47813ecdbc",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.0005322633078321815
+      ],
+      "vs_supervised": {
+        "ratio": 0.8770431280136108,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 0.9631184339523315,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 1.77434504032135,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.02096513658761978,
+          "mean_final_error": 0.03904954344034195,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.020191913470625877,
+          "mean_final_error": 0.03703289479017258,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.018387330695986748,
+          "mean_final_error": 0.03341146558523178,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.037199389189481735,
+          "mean_final_error": 0.06631854176521301,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 894.9564700610063,
+      "supervised_total_seconds": 178.89262175600743,
+      "stopped_training_seconds": 439.75762026698794
     }
   ],
   "pending": [
     "explore-ins-jl-n64-k4-h8-u3000-s0-fce18130",
     "explore-jax-cfd-n64-k4-h8-u3000-s0-f495fb4e",
-    "explore-pict-n64-k4-h8-u300-s0-5fd6d1ba",
     "explore-pict-n64-k4-h8-u3000-s0-a20a3fcd"
   ],
   "failures": [
