@@ -78,13 +78,13 @@ hashes and dataset hashes. The original validation metrics remain unchanged.
 Seed 2 has the largest original-step discrepancy. Refining the finite-difference
 perturbation gives these relative errors (fractions, not percentages):
 
-| Epsilon | Horizon 8 | Horizon 16 |
-| --- | ---: | ---: |
-| 0.03 | 0.505708 | not run |
-| 0.01 | 0.038669 | 0.063100 |
-| 0.003 | 0.003271 | 0.005345 |
-| 0.001 | 0.000528 | 0.000707 |
-| 0.0003 | 0.00000205 | 0.0000527 |
+| Epsilon |  Horizon 8 | Horizon 16 |
+| ------- | ---------: | ---------: |
+| 0.03    |   0.505708 |    not run |
+| 0.01    |   0.038669 |   0.063100 |
+| 0.003   |   0.003271 |   0.005345 |
+| 0.001   |   0.000528 |   0.000707 |
+| 0.0003  | 0.00000205 |  0.0000527 |
 
 This convergence supports the initial-model derivative and indicates truncation
 error at larger perturbations. It does not validate derivatives everywhere along
