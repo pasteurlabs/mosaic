@@ -129,6 +129,36 @@ def _plot_cell(
     fig.savefig(destination / "fields.png", dpi=170)
     plt.close(fig)
 
+    # Absolute fields can hide small but meaningful correction errors. Show
+    # velocity error separately, using one scale across methods and times.
+    errors = [
+        [
+            np.linalg.norm(value[frame] - reference[frame], axis=-1).squeeze()
+            for value in trajectories[1:]
+        ]
+        for frame in frames
+    ]
+    error_max = float(np.max(errors)) or 1
+    fig, axes = plt.subplots(
+        2, len(arms), figsize=(2.6 * len(arms), 5), layout="constrained"
+    )
+    for row, frame in enumerate(frames):
+        for col, field in enumerate(errors[row]):
+            im = axes[row, col].imshow(
+                field.T, origin="lower", cmap="magma", vmin=0, vmax=error_max
+            )
+            axes[row, col].set_xticks([])
+            axes[row, col].set_yticks([])
+            if row == 0:
+                axes[row, col].set_title(arms[col][1])
+        axes[row, 0].set_ylabel(f"t={times[frame]:.2f}")
+    fig.colorbar(
+        im, ax=axes.ravel().tolist(), label="Velocity error magnitude", shrink=0.8
+    )
+    fig.suptitle("Where does the rollout differ from the reference?", fontsize=16)
+    fig.savefig(destination / "field_errors.png", dpi=170)
+    plt.close(fig)
+
     common_cost = metrics.get("pretrain_common_wall_time_s", 0.0)
     seconds = [
         common_cost + metrics[k]
@@ -163,6 +193,44 @@ def _plot_cell(
         pad=14,
     )
     fig.savefig(destination / "cost.png", dpi=170)
+    plt.close(fig)
+
+
+def _plot_reference(archive_path: Path, destination: Path, metrics: dict) -> None:
+    """Inspect post-burn-in flow without implying a learned or stationary result."""
+    import matplotlib.pyplot as plt
+
+    with tarfile.open(archive_path) as archive:
+        member = archive.extractfile(
+            "./ns-grid/optimization/solver_in_loop_supervised/corrector_fields.npz"
+        )
+        with np.load(io.BytesIO(member.read())) as data:
+            reference = data["reference_rollout_0"]
+    destination.mkdir(parents=True, exist_ok=True)
+    velocity = reference[:, :, :, 0, :]
+    dx = 2 * np.pi / velocity.shape[1]
+    curl = (
+        np.roll(velocity[..., 1], -1, axis=1)
+        - np.roll(velocity[..., 1], 1, axis=1)
+        - np.roll(velocity[..., 0], -1, axis=2)
+        + np.roll(velocity[..., 0], 1, axis=2)
+    ) / (2 * dx)
+    times = np.linspace(0, metrics["rollout_final_time"], len(reference))
+    frames = [0, (len(reference) - 1) // 2, len(reference) - 1]
+    vmax = float(np.max(np.abs(curl[frames]))) or 1
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3.6), layout="constrained")
+    for ax, frame in zip(axes, frames, strict=True):
+        im = ax.imshow(
+            curl[frame].T, origin="lower", cmap="RdBu_r", vmin=-vmax, vmax=vmax
+        )
+        ax.set_title(f"After burn-in: t={times[frame]:.2f}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+    fig.colorbar(im, ax=axes, label="Vorticity", shrink=0.75)
+    fig.suptitle(
+        "Restricted fine reference · first held-out IC · no learned correction"
+    )
+    fig.savefig(destination / "reference_fields.png", dpi=170)
     plt.close(fig)
 
 
@@ -437,6 +505,8 @@ def main() -> None:
             failures.append({"cell": config.stem, "reason": str(exc)})
             continue
         if metrics.get("reference_only"):
+            if args.plots:
+                _plot_reference(archive, args.plots / config.stem, metrics)
             reference_checks.append(
                 {"cell": config.stem, "solver": payload["solver"], "metrics": metrics}
             )

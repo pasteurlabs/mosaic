@@ -34,3 +34,14 @@ Slurm jobs: exploration 2858339–2858342; confirmation 2858344–2858346;
 CPU report 2858348 runs after all seven jobs terminate. Numerical work and
 rendering run on the cluster. Existing unforced warm-start/curriculum losses
 and forced-reference failures remain part of the PR evidence.
+
+## Learning-rate robustness check
+
+Before the replication results are available, launch a separate three-seed
+comparison on the exploration ICs: 1,500 updates at lr=1e-4, then 1,500 at
+lr=1e-5, with horizon 8 throughout. Apply the identical schedule to all three
+methods and retain Adam state across the change. This tests sensitivity to the
+constant-rate optimizer without changing the update budget. It is not
+hyperparameter selection on a validation set; report the schedule separately
+whether or not it favors full gradients. Jobs 2858621–2858623 use the same frozen
+source and image as the original run.
