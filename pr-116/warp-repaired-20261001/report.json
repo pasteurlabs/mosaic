@@ -1,0 +1,147 @@
+{
+  "comparisons": [
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "warp-ns",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 300,
+      "pretrain_updates": 0,
+      "curriculum": [
+        {
+          "updates": 300,
+          "unroll": 8,
+          "lr": 0.0001
+        }
+      ],
+      "training_examples_per_seed": 2400,
+      "pretrained_mean_rollout_error": null,
+      "pretrain_common_seconds": 0.0,
+      "n_model_seeds": 1,
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "protocol_sha256": "ff5c4c30df470b5c69a6b34baee348bcbbb798b1adbe46fb337afb47813ecdbc",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.000544471200555563
+      ],
+      "vs_supervised": {
+        "ratio": 0.9522380232810974,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 1.1159813404083252,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 1.4353790283203125,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.01858912967145443,
+          "mean_final_error": 0.034464031457901,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.02074511907994747,
+          "mean_final_error": 0.03912799432873726,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.017701273784041405,
+          "mean_final_error": 0.03272893279790878,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.026682445779442787,
+          "mean_final_error": 0.04960587993264198,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 262.300735857978,
+      "supervised_total_seconds": 189.42927717400016,
+      "stopped_training_seconds": 232.06096640101168
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "warp-ns",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 3000,
+      "pretrain_updates": 0,
+      "curriculum": [
+        {
+          "updates": 3000,
+          "unroll": 8,
+          "lr": 0.0001
+        }
+      ],
+      "training_examples_per_seed": 24000,
+      "pretrained_mean_rollout_error": null,
+      "pretrain_common_seconds": 0.0,
+      "n_model_seeds": 1,
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "protocol_sha256": "937c2ac38514b5ca9f910bdf92b3ee6c47a5ccf9fac835ffce4b61ffef7e8440",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.0005437539075501263
+      ],
+      "vs_supervised": {
+        "ratio": 1.4050178527832031,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 1.0815178155899048,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 2.1079893112182617,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.0126577690243721,
+          "mean_final_error": 0.02280854433774948,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.01368960365653038,
+          "mean_final_error": 0.025122743099927902,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.017784392461180687,
+          "mean_final_error": 0.034038152545690536,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.026682445779442787,
+          "mean_final_error": 0.04960587993264198,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 2373.7763262689696,
+      "supervised_total_seconds": 1570.456507408002,
+      "stopped_training_seconds": 1962.2653551640105
+    }
+  ],
+  "pending": [],
+  "failures": [],
+  "reference_checks": []
+}

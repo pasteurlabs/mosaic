@@ -1,0 +1,350 @@
+{
+  "comparisons": [
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "ins-jl",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 16,
+      "updates": 2000,
+      "pretrain_updates": 3000,
+      "curriculum": [
+        {
+          "updates": 1000,
+          "unroll": 16,
+          "lr": 1e-05
+        },
+        {
+          "updates": 1000,
+          "unroll": 16,
+          "lr": 1e-06
+        }
+      ],
+      "training_examples_per_seed": 32000,
+      "pretrained_mean_rollout_error": 0.018361173448043226,
+      "pretrain_common_seconds": 4715.119982470962,
+      "n_model_seeds": 3,
+      "source_sha256": "660233f1476005a2e728d8cab82e7be7884dad050c9e7913d6b6441d704f914b",
+      "protocol_sha256": "08a022377b0c337debe37e099894ed94bdb2fe5ffb0344ecc2dbd7acdf5849df",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.007394648157060146,
+        0.01801327057182789,
+        0.004715818911790848
+      ],
+      "vs_supervised": {
+        "ratio": 0.5951148867607117,
+        "ci95": [
+          0.5714251399040222,
+          0.616620659828186
+        ]
+      },
+      "vs_stopped": {
+        "ratio": 1.3994040489196777,
+        "ci95": [
+          1.3796825408935547,
+          1.420696496963501
+        ]
+      },
+      "vs_uncorrected": {
+        "ratio": 1.3233944177627563,
+        "ci95": [
+          1.2726521492004395,
+          1.3627378940582275
+        ]
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.028429189696907997,
+          "mean_final_error": 0.06453228741884232,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.03978392109274864,
+          "mean_final_error": 0.0872948095202446,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.01691863313317299,
+          "mean_final_error": 0.022069847211241722,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.037623029202222824,
+          "mean_final_error": 0.06253307312726974,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 18411.494746336917,
+      "supervised_total_seconds": 11195.093046064954,
+      "stopped_training_seconds": 12896.620287754951
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "ins-jl",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 16,
+      "updates": 2000,
+      "pretrain_updates": 3000,
+      "curriculum": [
+        {
+          "updates": 1000,
+          "unroll": 4,
+          "lr": 1e-05
+        },
+        {
+          "updates": 1000,
+          "unroll": 16,
+          "lr": 1e-06
+        }
+      ],
+      "training_examples_per_seed": 20000,
+      "pretrained_mean_rollout_error": 0.018442354274012963,
+      "pretrain_common_seconds": 4715.412403745082,
+      "n_model_seeds": 3,
+      "source_sha256": "660233f1476005a2e728d8cab82e7be7884dad050c9e7913d6b6441d704f914b",
+      "protocol_sha256": "31b61ca5e04edc14e381076ef2a0a54892402845cc8225f93618c96b8187c9cd",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.0027055039536207914,
+        0.015274462290108204,
+        0.0030290219001471996
+      ],
+      "vs_supervised": {
+        "ratio": 0.5899088382720947,
+        "ci95": [
+          0.5727264285087585,
+          0.60576331615448
+        ]
+      },
+      "vs_stopped": {
+        "ratio": 1.3955023288726807,
+        "ci95": [
+          1.378553867340088,
+          1.411499261856079
+        ]
+      },
+      "vs_uncorrected": {
+        "ratio": 1.278849720954895,
+        "ci95": [
+          1.2369730472564697,
+          1.3143742114305497
+        ]
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.02941943146288395,
+          "mean_final_error": 0.06694101542234421,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.04105488210916519,
+          "mean_final_error": 0.09134020656347275,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.017354778945446014,
+          "mean_final_error": 0.02296113781630993,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.037623029202222824,
+          "mean_final_error": 0.06253307312726974,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 13463.393517207092,
+      "supervised_total_seconds": 8726.655184059084,
+      "stopped_training_seconds": 9961.741010580095
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "jax-cfd",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 16,
+      "updates": 2000,
+      "pretrain_updates": 3000,
+      "curriculum": [
+        {
+          "updates": 1000,
+          "unroll": 16,
+          "lr": 1e-05
+        },
+        {
+          "updates": 1000,
+          "unroll": 16,
+          "lr": 1e-06
+        }
+      ],
+      "training_examples_per_seed": 32000,
+      "pretrained_mean_rollout_error": 0.022075580664516273,
+      "pretrain_common_seconds": 4682.480474909011,
+      "n_model_seeds": 3,
+      "source_sha256": "660233f1476005a2e728d8cab82e7be7884dad050c9e7913d6b6441d704f914b",
+      "protocol_sha256": "08a022377b0c337debe37e099894ed94bdb2fe5ffb0344ecc2dbd7acdf5849df",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.002302658511325717,
+        0.03436645120382309,
+        0.0013170475140213966
+      ],
+      "vs_supervised": {
+        "ratio": 0.6730872392654419,
+        "ci95": [
+          0.6582014560699463,
+          0.6880894899368286
+        ]
+      },
+      "vs_stopped": {
+        "ratio": 1.3683470487594604,
+        "ci95": [
+          1.3519428968429565,
+          1.384139060974121
+        ]
+      },
+      "vs_uncorrected": {
+        "ratio": 1.6337920427322388,
+        "ci95": [
+          1.532647728919983,
+          1.7360962629318237
+        ]
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.029718510806560516,
+          "mean_final_error": 0.06465248018503189,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.040665242820978165,
+          "mean_final_error": 0.08751397579908371,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.020003153011202812,
+          "mean_final_error": 0.02767440862953663,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.048553869128227234,
+          "mean_final_error": 0.07937051355838776,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 13905.220844582014,
+      "supervised_total_seconds": 11114.171142965963,
+      "stopped_training_seconds": 12128.940644490009
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "jax-cfd",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 16,
+      "updates": 2000,
+      "pretrain_updates": 3000,
+      "curriculum": [
+        {
+          "updates": 1000,
+          "unroll": 4,
+          "lr": 1e-05
+        },
+        {
+          "updates": 1000,
+          "unroll": 16,
+          "lr": 1e-06
+        }
+      ],
+      "training_examples_per_seed": 20000,
+      "pretrained_mean_rollout_error": 0.022105968655330405,
+      "pretrain_common_seconds": 4949.95710156695,
+      "n_model_seeds": 3,
+      "source_sha256": "660233f1476005a2e728d8cab82e7be7884dad050c9e7913d6b6441d704f914b",
+      "protocol_sha256": "31b61ca5e04edc14e381076ef2a0a54892402845cc8225f93618c96b8187c9cd",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.0030890817288309336,
+        0.015239388681948185,
+        0.00663538696244359
+      ],
+      "vs_supervised": {
+        "ratio": 0.6708934903144836,
+        "ci95": [
+          0.6575165390968323,
+          0.6826664209365845
+        ]
+      },
+      "vs_stopped": {
+        "ratio": 1.354541301727295,
+        "ci95": [
+          1.3416824340820312,
+          1.3643696308135986
+        ]
+      },
+      "vs_uncorrected": {
+        "ratio": 1.5859907865524292,
+        "ci95": [
+          1.480414867401123,
+          1.6891319751739502
+        ]
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.030614223331212997,
+          "mean_final_error": 0.06663432717323303,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.04146822169423103,
+          "mean_final_error": 0.08994323015213013,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.020538881421089172,
+          "mean_final_error": 0.028597399592399597,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.048553869128227234,
+          "mean_final_error": 0.07937051355838776,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 11354.249930744932,
+      "supervised_total_seconds": 8995.603857338923,
+      "stopped_training_seconds": 9830.693014786957
+    }
+  ],
+  "pending": [],
+  "failures": []
+}
