@@ -1,0 +1,652 @@
+{
+  "comparisons": [
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "ins-jl",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 300,
+      "n_model_seeds": 1,
+      "source_sha256": "b348bbb79c639df41daa9855c56aac06b11467abaaba16b5d74ddccc97e0e155",
+      "protocol_sha256": "ff5c4c30df470b5c69a6b34baee348bcbbb798b1adbe46fb337afb47813ecdbc",
+      "admitted": true,
+      "fd_relative_errors": [
+        0.00027363497065380216
+      ],
+      "vs_supervised": {
+        "ratio": 0.35298630595207214,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 1.239021897315979,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 0.5633058547973633,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.06678969413042068,
+          "mean_final_error": 0.14794816076755524,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.08275390416383743,
+          "mean_final_error": 0.1819329559803009,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.02357584796845913,
+          "mean_final_error": 0.03565283119678497,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.037623029202222824,
+          "mean_final_error": 0.06253307312726974,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 369.0159718449868,
+      "supervised_total_seconds": 160.01583196400316,
+      "stopped_training_seconds": 202.86321762000443
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "jax-cfd",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 300,
+      "n_model_seeds": 1,
+      "source_sha256": "b348bbb79c639df41daa9855c56aac06b11467abaaba16b5d74ddccc97e0e155",
+      "protocol_sha256": "ff5c4c30df470b5c69a6b34baee348bcbbb798b1adbe46fb337afb47813ecdbc",
+      "admitted": true,
+      "fd_relative_errors": [
+        2.0550984118017368e-05
+      ],
+      "vs_supervised": {
+        "ratio": 0.4728742241859436,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 1.3192342519760132,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 0.7123100757598877,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.06816395372152328,
+          "mean_final_error": 0.1460178643465042,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.08992421627044678,
+          "mean_final_error": 0.19262149930000305,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.03223297372460365,
+          "mean_final_error": 0.05098811537027359,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.04855387285351753,
+          "mean_final_error": 0.07937050610780716,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 244.33093725697836,
+      "supervised_total_seconds": 173.10210797406035,
+      "stopped_training_seconds": 203.10459184402134
+    }
+  ],
+  "pending": [
+    "explore-ins-jl-n64-k4-h8-u3000-s0-fce18130",
+    "explore-jax-cfd-n64-k4-h8-u3000-s0-f495fb4e",
+    "explore-pict-n64-k4-h8-u300-s0-5fd6d1ba",
+    "explore-pict-n64-k4-h8-u3000-s0-a20a3fcd"
+  ],
+  "failures": [
+    {
+      "cell": "explore-phiflow-n64-k4-h8-u300-s0-7d134722",
+      "reason": "reference admission failed",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          0.0014173281718720676,
+          0.0013027334176048716,
+          0.003070095254033512,
+          0.004533842490534782,
+          0.00043724428701644456,
+          0.001142542737665532,
+          0.6499158350475132,
+          0.586278525530453
+        ],
+        "reference_convergence_max_relative_error": 0.6499158350475132,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 620.0902491909801,
+        "reference_generation_apply_count": 784,
+        "reference_grid_size": 192,
+        "reference_dt": 0.006666666666666667,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          5.067660209743553e-08,
+          1.2146333505717674e-07,
+          0.2612455665559774,
+          2.4307965707987606e-07,
+          5.614675090647783e-08,
+          1.1924146092626587e-07,
+          1.9628587003319138e-07,
+          2.535695602780802e-07
+        ],
+        "fine_closure_errors": [
+          0.0011617736600289007,
+          0.0018103672123907341,
+          0.003295057181639491,
+          0.007573097995398694,
+          4.126407151817073e-07,
+          0.001310991836160257,
+          0.002160551554774423,
+          0.007305251056469735
+        ],
+        "refinement_signals": [
+          0.017147763522306143,
+          0.018176587728385332,
+          0.025862486091573593,
+          0.04291925919618744,
+          0.016488617713063165,
+          0.01901995325587109,
+          0.03331427463462523,
+          0.06301540275457572
+        ],
+        "max_coarse_closure_error": 0.2612455665559774,
+        "max_fine_closure_error": 0.007573097995398694,
+        "max_coarse_closure_to_signal_ratio": 10.1013323166559,
+        "max_fine_closure_to_signal_ratio": 0.1764498767465905,
+        "mean_refinement_signal": 0.029493043112073465,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "5e23c6d6c9dd242f",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 3.84,
+        "native_state_threading": true,
+        "vram_peak_mib": 164.0,
+        "ram_peak_mib": 1042.415616
+      }
+    },
+    {
+      "cell": "explore-phiflow-n64-k4-h8-u3000-s0-62d43b90",
+      "reason": "reference admission failed",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          0.0003547310774539947,
+          0.0013778119615443557,
+          0.015307172904669606,
+          0.016150209571238378,
+          1.6130194081154376e-05,
+          0.001582527703662932,
+          0.003040013024656018,
+          0.13523860093143156
+        ],
+        "reference_convergence_max_relative_error": 0.13523860093143156,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 599.5220550910162,
+        "reference_generation_apply_count": 784,
+        "reference_grid_size": 192,
+        "reference_dt": 0.006666666666666667,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          4.9148405241854434e-08,
+          1.1959351942642784e-07,
+          2.055428408592978e-07,
+          6.027506127218635e-07,
+          5.238037739267875e-08,
+          1.231004175808226e-07,
+          1.915391408368134e-07,
+          2.5751013650496536e-07
+        ],
+        "fine_closure_errors": [
+          1.1502577626107632e-07,
+          0.001553795058349425,
+          0.0149951323217974,
+          0.016744242459808212,
+          3.806981908453735e-06,
+          0.004165281515707043,
+          0.005842673548974346,
+          0.004314103888515056
+        ],
+        "refinement_signals": [
+          0.01706232533122727,
+          0.018105127072788166,
+          0.029613914652959587,
+          0.044089911554812886,
+          0.016488637618970875,
+          0.01905804582120488,
+          0.03351114839091984,
+          0.06344310573866752
+        ],
+        "max_coarse_closure_error": 6.027506127218635e-07,
+        "max_fine_closure_error": 0.016744242459808212,
+        "max_coarse_closure_to_signal_ratio": 1.3670941751807525e-05,
+        "max_fine_closure_to_signal_ratio": 0.5063542762588615,
+        "mean_refinement_signal": 0.030171527022693878,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "5174dda7142432cb",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 3.84,
+        "native_state_threading": true,
+        "vram_peak_mib": 164.0,
+        "ram_peak_mib": 1059.16416
+      }
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u300-s0-8b698eaa",
+      "reason": "reference admission failed",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ],
+        "reference_convergence_max_relative_error": NaN,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 40.387370446987916,
+        "reference_generation_apply_count": 784,
+        "reference_grid_size": 192,
+        "reference_dt": 0.006666666666666667,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fine_closure_errors": [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ],
+        "refinement_signals": [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ],
+        "max_coarse_closure_error": 0.0,
+        "max_fine_closure_error": NaN,
+        "max_coarse_closure_to_signal_ratio": NaN,
+        "max_fine_closure_to_signal_ratio": NaN,
+        "mean_refinement_signal": NaN,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": false,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "ba0922128bcbef27",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 3.84,
+        "native_state_threading": false,
+        "vram_peak_mib": 611.3125,
+        "ram_peak_mib": 1035.07968
+      }
+    },
+    {
+      "cell": "explore-warp-ns-n64-k4-h8-u3000-s0-093b2757",
+      "reason": "reference admission failed",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ],
+        "reference_convergence_max_relative_error": NaN,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 35.696356686996296,
+        "reference_generation_apply_count": 784,
+        "reference_grid_size": 192,
+        "reference_dt": 0.006666666666666667,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fine_closure_errors": [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ],
+        "refinement_signals": [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ],
+        "max_coarse_closure_error": 0.0,
+        "max_fine_closure_error": NaN,
+        "max_coarse_closure_to_signal_ratio": NaN,
+        "max_fine_closure_to_signal_ratio": NaN,
+        "mean_refinement_signal": NaN,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": false,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "ba0922128bcbef27",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 3.84,
+        "native_state_threading": false,
+        "vram_peak_mib": 611.3125,
+        "ram_peak_mib": 1057.574912
+      }
+    },
+    {
+      "cell": "explore-xlb-n64-k4-h8-u300-s0-d7254fd1",
+      "reason": "reference admission failed",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          0.02610581293168238,
+          0.03713757493384396,
+          0.02654402709324121,
+          0.023524263797212164,
+          0.021013387401522598,
+          0.0359622015274112,
+          0.03307681072330908,
+          0.024514771416638645
+        ],
+        "reference_convergence_max_relative_error": 0.03713757493384396,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 34.619179202010855,
+        "reference_generation_apply_count": 784,
+        "reference_grid_size": 192,
+        "reference_dt": 0.006666666666666667,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          2.6335178136400914e-06,
+          0.0024067644721591456,
+          0.0025470921258434025,
+          0.0,
+          5.799332032655937e-06,
+          0.0026727652896081093,
+          0.0030717683591539673
+        ],
+        "fine_closure_errors": [
+          0.0,
+          0.00023525939381657774,
+          0.0003227312277965642,
+          0.0002645889140393985,
+          0.0,
+          0.0002763121442061308,
+          0.0003461711319677461,
+          0.00029522841818628115
+        ],
+        "refinement_signals": [
+          0.007103160573824441,
+          0.020182636220086776,
+          0.024612686785919748,
+          0.03048236087366181,
+          0.006592724261922003,
+          0.019140766895490435,
+          0.025017107200569738,
+          0.036276851430449716
+        ],
+        "max_coarse_closure_error": 0.0030717683591539673,
+        "max_fine_closure_error": 0.0003461711319677461,
+        "max_coarse_closure_to_signal_ratio": 0.10683750395570926,
+        "max_fine_closure_to_signal_ratio": 0.014435792761093295,
+        "mean_refinement_signal": 0.021176036780240583,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "73c45d849e54e920",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 3.84,
+        "native_state_threading": true,
+        "vram_peak_mib": 106.0,
+        "ram_peak_mib": 1079.78752
+      }
+    },
+    {
+      "cell": "explore-xlb-n64-k4-h8-u3000-s0-d4256780",
+      "reason": "reference admission failed",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          0.02610581293168238,
+          0.03713757493384396,
+          0.02654402709324121,
+          0.023524263797212164,
+          0.021013387401522598,
+          0.0359622015274112,
+          0.03307681072330908,
+          0.024514771416638645
+        ],
+        "reference_convergence_max_relative_error": 0.03713757493384396,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": false,
+        "eligible_for_corrector_training": false,
+        "reference_generation_wall_time_s": 32.762255606998224,
+        "reference_generation_apply_count": 784,
+        "reference_grid_size": 192,
+        "reference_dt": 0.006666666666666667,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          2.6335178136400914e-06,
+          0.0024067644721591456,
+          0.0025470921258434025,
+          0.0,
+          5.799332032655937e-06,
+          0.0026727652896081093,
+          0.0030717683591539673
+        ],
+        "fine_closure_errors": [
+          0.0,
+          0.00023525939381657774,
+          0.0003227312277965642,
+          0.0002645889140393985,
+          0.0,
+          0.0002763121442061308,
+          0.0003461711319677461,
+          0.00029522841818628115
+        ],
+        "refinement_signals": [
+          0.007103160573824441,
+          0.020182636220086776,
+          0.024612686785919748,
+          0.03048236087366181,
+          0.006592724261922003,
+          0.019140766895490435,
+          0.025017107200569738,
+          0.036276851430449716
+        ],
+        "max_coarse_closure_error": 0.0030717683591539673,
+        "max_fine_closure_error": 0.0003461711319677461,
+        "max_coarse_closure_to_signal_ratio": 0.10683750395570926,
+        "max_fine_closure_to_signal_ratio": 0.014435792761093295,
+        "mean_refinement_signal": 0.021176036780240583,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "73c45d849e54e920",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 3.84,
+        "native_state_threading": true,
+        "vram_peak_mib": 106.0,
+        "ram_peak_mib": 1078.25152
+      }
+    }
+  ]
+}
