@@ -91,10 +91,38 @@ solver-specific references.
 
 ## Continuing without an open chat turn
 
-The one-shot controller and frozen launcher are in
-`mosaic-results/pr116-next-round/`. `status.json`, `submissions.jsonl`,
+The one-shot controller and frozen launcher run on `kander-login` in
+`/data/personal/andrinr/runner/results/mosaic/pr116-controller-20261002/`
+(PID 3163552); local drafts are in `mosaic-results/pr116-next-round/`. `status.json`, `submissions.jsonl`,
 `baseline-selection.json` and `controller.log` record progress and decisions.
-It performs only lightweight JSON/SSH orchestration on this machine. Training,
+It performs only lightweight JSON and Slurm submission on the login node. Training,
 reference generation, tests and rendering remain cluster jobs. Failed gates
-stop their dependent branch and remain reported. The publication step checks
+stop their dependent branch and remain reported. Cluster validation including the cache passed 697 tests, with three skips.
+The publication step checks
 for intervening PR edits before replacing its description.
+
+## Speed work
+
+INS final comparisons also use the verified burn-in cache, prefilled in
+`pr116-ins-burn-cache-20261002` before reading final test outcomes. This changes
+reference-generation cost, not the dynamics or training protocol. Every IC is
+still audited, and state hashes are recorded. Common training IC 0 is prepared
+once before dependent jobs to avoid simultaneous duplicate burn-in. The cached
+campaign source is the same validated source as the JAX transfer campaign;
+solver images are unchanged for these frozen comparisons.
+
+The INS recurrent VJP formerly ran two extra forward solves for a viscosity
+finite difference even when viscosity was absent from `vjp_inputs`. The adapter
+now passes a request flag and skips only those unused solves. The requested
+viscosity path remains unchanged. Cluster check 2860184 compares old/new forward
+outputs and all requested derivatives in 2D at 64/192 and 3D at 8, with initial
+and recurrent state. Requested velocity/state/timestep gradients match exactly
+between the candidate's complete and reduced-gradient paths; old/new checks
+also pass. Five interleaved warmed-call samples give 1.34× median speedup for
+64² recurrent four-step VJPs, 1.38× for 64² initial one-step VJPs, and 1.28–1.30×
+in the 3D checks. The 192² timings have substantial variability. These are
+in-process VJP timings, not measured end-to-end training speedups. Raw timings
+are in `pr116-ins-vjp-speed-20261002/verification.json`. The initial test job
+2860159 failed in its Python assertion helper before any gradient comparison;
+the corrected test passed. Existing experiment images remain frozen; the
+optimization is built and verified separately before future use.

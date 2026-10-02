@@ -321,7 +321,8 @@ end
 """VJP for an initial call that returns canonical and native staggered outputs."""
 function ns_vjp_state(v0_np, cotangent_np, cotangent_state_np,
                       nu::Float64, dt::Float64,
-                      steps::Int, n::Int, L::Float64)
+                      steps::Int, n::Int, L::Float64,
+                      compute_viscosity::Bool=true)
     v0 = Float32.(v0_np)
     cot = Float32.(cotangent_np)
     cot_state = Float32.(cotangent_state_np)
@@ -342,21 +343,26 @@ function ns_vjp_state(v0_np, cotangent_np, cotangent_state_np,
     grad_v0 = Float32.(grads[1])
     grad_dt = Float64(something(grads[2], 0.0))
 
-    eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
-    if ndim == 2
-        plus = ns_forward_2d_state(
-            v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        minus = ns_forward_2d_state(
-            v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
-    else
-        plus = ns_forward_3d_state(
-            v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        minus = ns_forward_3d_state(
-            v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+    # Neural-corrector training requests velocity/state cotangents only.
+    # Preserve the viscosity path for callers that actually request it.
+    grad_nu = 0.0
+    if compute_viscosity
+        eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
+        if ndim == 2
+            plus = ns_forward_2d_state(
+                v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            minus = ns_forward_2d_state(
+                v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+        else
+            plus = ns_forward_3d_state(
+                v0, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            minus = ns_forward_3d_state(
+                v0, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+        end
+        jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
+        jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
+        grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
     end
-    jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
-    jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
-    grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
 
     return grad_v0, grad_nu, grad_dt, Float64(0.0)
 end
@@ -364,7 +370,8 @@ end
 """VJP for a recurrent call initialized from native staggered state."""
 function ns_vjp_state_continue(v0_np, state_np, cotangent_np,
                                cotangent_state_np, nu::Float64, dt::Float64,
-                               steps::Int, n::Int, L::Float64)
+                               steps::Int, n::Int, L::Float64,
+                               compute_viscosity::Bool=true)
     v0 = Float32.(v0_np)
     state = Float32.(state_np)
     cot = Float32.(cotangent_np)
@@ -387,21 +394,26 @@ function ns_vjp_state_continue(v0_np, state_np, cotangent_np,
     grad_state = Float32.(grads[2])
     grad_dt = Float64(something(grads[3], 0.0))
 
-    eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
-    if ndim == 2
-        plus = ns_forward_2d_continue(
-            v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        minus = ns_forward_2d_continue(
-            v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
-    else
-        plus = ns_forward_3d_continue(
-            v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
-        minus = ns_forward_3d_continue(
-            v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+    # Neural-corrector training requests velocity/state cotangents only.
+    # Preserve the viscosity path for callers that actually request it.
+    grad_nu = 0.0
+    if compute_viscosity
+        eps_nu = max(1f-4, Float32(abs(nu)) * 1f-3)
+        if ndim == 2
+            plus = ns_forward_2d_continue(
+                v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            minus = ns_forward_2d_continue(
+                v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+        else
+            plus = ns_forward_3d_continue(
+                v0, state, rhs, setup, psolver, nu + eps_nu, Float32(dt), steps, n)
+            minus = ns_forward_3d_continue(
+                v0, state, rhs, setup, psolver, nu - eps_nu, Float32(dt), steps, n)
+        end
+        jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
+        jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
+        grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
     end
-    jvp_result = (plus[1] .- minus[1]) ./ (2 * eps_nu)
-    jvp_state = (plus[2] .- minus[2]) ./ (2 * eps_nu)
-    grad_nu = Float64(sum(cot .* jvp_result) + sum(cot_state .* jvp_state))
 
     return grad_v0, grad_state, grad_nu, grad_dt, Float64(0.0)
 end
