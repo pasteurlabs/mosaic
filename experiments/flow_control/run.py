@@ -52,7 +52,11 @@ def main() -> None:
     try:
         with Tesseract.from_url(args.url, timeout=(30, 1200)) as solver:
             print(f"solver_health={solver.health()}", flush=True)
-            if phase == "prepare":
+            if phase == "direct_compare":
+                from experiments.flow_control.direct_compare import run_direct_compare
+
+                result = run_direct_compare(solver, ctx, control, payload=payload)
+            elif phase == "prepare":
                 from experiments.flow_control.dataset import prepare_shard
 
                 result = prepare_shard(
