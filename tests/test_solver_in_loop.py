@@ -1468,6 +1468,47 @@ def test_reference_only_checks_gradients_without_training(monkeypatch):
     assert result["snapshots"]["reference_rollout"].shape == (3, 8, 8, 1, 2)
 
 
+def test_reference_only_fd_refinement_preserves_failed_primary_check(monkeypatch):
+    """Refine a known quartic at one state without replacing its primary result."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    data = np.full((1, 3, 1), 0.7, dtype=np.float32)
+    monkeypatch.setattr(
+        module,
+        "_make_solver_self_reference_datasets",
+        lambda *a, **k: (
+            data,
+            data,
+            data,
+            "probe",
+            {"eligible_for_corrector_training": True},
+        ),
+    )
+    monkeypatch.setattr(
+        module, "_solver_advance", lambda _t, _ctx, v, **k: (v**2, None)
+    )
+    ctx = SimpleNamespace(
+        run={
+            "dataset": {"reference_kind": "solver_self_refined"},
+            "evaluation": {"reference_only": True},
+            "training": {"fd_epsilon": 0.5, "fd_epsilons": [0.1, 0.01, 0.1]},
+        },
+        phys={"steps": 1, "dt": 0.02},
+    )
+    metrics = solver_in_loop(None, ctx)["metrics"]
+    checks = metrics["reference_only_fd_checks"]
+    assert [check["epsilon"] for check in checks] == [0.5, 0.1, 0.01]
+    assert len({check["autodiff"] for check in checks}) == 1
+    assert all(np.isfinite(check["finite_difference"]) for check in checks)
+    assert checks[0]["relative_error"] > 0.05 > checks[1]["relative_error"]
+    assert checks[1]["relative_error"] > checks[2]["relative_error"]
+    assert metrics["reference_only_fd_relative_error"] == checks[0]["relative_error"]
+    assert not metrics["reference_only_gradient_passed"]
+    assert metrics["eligible_for_corrector_training"]
+    assert metrics["n_updates"] == 0
+
+
 def test_supervised_time_budget_stops_before_extra_updates(monkeypatch):
     """A compute limit stops optimization without marking numerical failure."""
     import importlib

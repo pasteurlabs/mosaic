@@ -1758,9 +1758,26 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             return jnp.mean(final * cotangent)
 
         grads = jax.grad(audit_loss)(initial)
-        error = _directional_fd(
-            audit_loss, initial, grads, jax.random.PRNGKey(117), epsilon=1e-2
+        fd_epsilon = float(training.get("fd_epsilon", 1e-2))
+        fd_epsilons = list(
+            dict.fromkeys([fd_epsilon, *map(float, training.get("fd_epsilons", []))])
         )
+        if any(not np.isfinite(value) or value <= 0 for value in fd_epsilons):
+            raise ValueError("finite-difference steps must be finite and positive")
+        checks: list[dict[str, float]] = []
+        for epsilon in fd_epsilons:
+            diagnostic: dict[str, float] = {}
+            _directional_fd(
+                audit_loss,
+                initial,
+                grads,
+                jax.random.PRNGKey(117),
+                epsilon=epsilon,
+                diagnostics=diagnostic,
+            )
+            checks.append(diagnostic)
+        error = checks[0]["relative_error"]
+        reference_audit["reference_only_fd_checks"] = checks
         reference_audit["reference_only_fd_relative_error"] = error
         reference_audit["reference_only_gradient_passed"] = bool(
             np.isfinite(error) and error < 0.05

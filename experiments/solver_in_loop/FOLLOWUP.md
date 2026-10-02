@@ -46,8 +46,11 @@ and eight model seeds 0–7:
   with a training-time budget equal to measured full-gradient training time,
   subtracting fixed-pair generation cost. Stop before the next update after
   exhausting that budget; report actual time and update counts. One update can
-  overshoot the budget. Reference generation and diagnostic evaluation are
-  excluded for every arm. The optimizer has a 100,000-update safety cap.
+  overshoot the budget. Shared reference generation and post-training evaluation
+  are excluded. The measured full-gradient time includes its initial finite-
+  difference check, giving supervision a conservative extra allowance. The
+  entire first update bounds this overhead by 2.61% in the three pilot runs;
+  the diagnostic alone costs less. The optimizer has a 100,000-update safety cap.
 
 The settings, sample sizes and selection metric are fixed before those tests.
 Report both comparisons even if the advantage disappears. Separate supervised
@@ -126,3 +129,39 @@ are in `pr116-ins-vjp-speed-20261002/verification.json`. The initial test job
 2860159 failed in its Python assertion helper before any gradient comparison;
 the corrected test passed. Existing experiment images remain frozen; the
 optimization is built and verified separately before future use.
+
+## Completed checks and selected baseline (2026-10-02)
+
+The eight-seed confirmation on ICs 2000–2003 completed with mean rollout errors
+3.582% full, 4.447% stopped, 50.211% original supervision, and 5.407% uncorrected.
+All training gradient checks passed. This confirms the original recipe's result,
+not superiority to tuned supervision. Validation selected supervision lr=1e-5,
+1,000 updates (2.663% validation error). Final tuned and compute comparisons on
+ICs 4000–4003 are separate runs; validation and confirmation errors must not be
+compared as though they used the same test data.
+
+Reference-only diagnostics now honor the configured perturbation and retain raw
+AD/FD values for every requested step. Cluster validation 2860645 passed 698
+tests, with three skipped. The earlier INS cache IC6 primary check remains failed
+(72.33% at epsilon .01). Exact saved-state probes reproduce it. Four additional
+fixed directions pass at .01 (0.13–0.47%); the original directional derivative
+is only 2.62e-8. A near-null direction in control IC5 exhibits the same issue.
+This supports float32 cancellation as the explanation, without replacing the
+failed primary check. Raw curves: `pr116-saved-reference-fd-20261002`, retry
+jobs 2860656 and 2860830; the initial diagnostic-wrapper failure is retained.
+
+The optimized INS image gives 1.064× end-to-end speedup in a 30-sample repeat,
+with exactly matching loss, gradients and Adam updates. Optional RPC-boundary
+JIT gives another 1.080× in an isolated measurement with strict comparisons
+passing. Full-graph JIT gives 2.16–2.35× but fails strict numerical equivalence;
+it is exploratory and is not used in frozen scientific comparisons.
+
+PhiFlow's periodic pressure projection now uses the exact discrete staggered
+FFT operator instead of its unstable singular float32 CG solve. Isolated GPU
+checks cover native divergence/gradient operators, rectangular 2D/3D grids,
+self-adjointness, whole-step forward agreement and finite differences (2860841).
+Repeated reference jobs 2860836/37 produce identical dataset hashes, zero prefix
+closure error, 0.0614% temporal discrepancy and 0.0168% gradient discrepancy.
+Reference generation takes 14–15 seconds versus 275–341 seconds with the original
+image. These are reference-generation timings, not training speedups. A rebuilt
+image must pass admission before training; existing campaigns retain old images.

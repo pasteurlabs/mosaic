@@ -240,9 +240,10 @@ def _plot_reference(archive_path: Path, destination: Path, metrics: dict) -> Non
         ax.set_xticks([])
         ax.set_yticks([])
     fig.colorbar(im, ax=axes, label="Vorticity", shrink=0.75)
-    fig.suptitle(
-        "Restricted fine reference · first held-out IC · no learned correction"
-    )
+    title = "Restricted fine reference · first held-out IC · no learned correction"
+    if metrics.get("reference_only_gradient_passed") is False:
+        title += "\nInitial-state gradient check failed"
+    fig.suptitle(title)
     fig.savefig(destination / "reference_fields.png", dpi=170)
     plt.close(fig)
 
