@@ -435,6 +435,17 @@ def _solver_advance_with_physics(
     return state, native_state
 
 
+@eqx.filter_jit
+def _compiled_solver_rpc(t: Any, inputs: dict[str, Any]) -> dict[str, Any]:
+    """Cache only the RPC graph; leave forcing and neural arithmetic unchanged.
+
+    Equinox specializes on non-array inputs (including the client and step
+    count) and JAX array shapes/dtypes. Canonical and native state values remain
+    dynamic, so changing a checkpoint never reuses a previous solver result.
+    """
+    return apply_tesseract(t, inputs)
+
+
 def _unforced_solver_advance(
     t: Any,
     ctx: KernelContext,
@@ -462,7 +473,13 @@ def _unforced_solver_advance(
                 "'state' and 'return_state' apply inputs"
             )
         inputs = {**inputs, "state": native_state}
-    outputs = apply_tesseract(t, inputs)
+    execution = getattr(ctx, "run", {}).get("execution", {})
+    rpc = (
+        _compiled_solver_rpc
+        if execution.get("jit_solver_rpc", False)
+        else apply_tesseract
+    )
+    outputs = rpc(t, inputs)
     if ctx.output_key not in outputs:
         raise RuntimeError(
             f"Solver '{ctx.name}' did not return output {ctx.output_key!r}"

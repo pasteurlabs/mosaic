@@ -10,7 +10,6 @@ import time
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 
 import equinox as eqx
 import jax
@@ -74,21 +73,27 @@ def main() -> None:
             solver_module = importlib.import_module(
                 "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop"
             )
-            original_apply = solver_module.apply_tesseract
-            compiled_apply = eqx.filter_jit(original_apply)
-
-            def selected_apply(tesseract: Any, inputs: dict):
-                if tesseract is services["candidate"]:
-                    return compiled_apply(tesseract, inputs)
-                return original_apply(tesseract, inputs)
-
-            solver_module.apply_tesseract = selected_apply
+            if not hasattr(solver_module, "_compiled_solver_rpc"):
+                raise RuntimeError(
+                    "RPC JIT requires the optional production stepping implementation"
+                )
+        contexts = {
+            name: SimpleNamespace(
+                **vars(ctx),
+                run={
+                    "execution": {
+                        "jit_solver_rpc": args.jit_rpc_candidate and name == "candidate"
+                    }
+                },
+            )
+            for name in services
+        }
         functions = {
             name: eqx.filter_value_and_grad(
                 partial(
                     _window_loss,
                     t=service,
-                    ctx=ctx,
+                    ctx=contexts[name],
                     frame_steps=4,
                     velocity_scale=0.05,
                     differentiate_solver=True,
@@ -106,7 +111,11 @@ def main() -> None:
             velocity, native = initial, None
             for _ in range(8):
                 velocity, native = _solver_advance(
-                    service, ctx, velocity, frame_steps=4, native_state=native
+                    service,
+                    contexts[name],
+                    velocity,
+                    frame_steps=4,
+                    native_state=native,
                 )
             forward[name] = (np.asarray(velocity), np.asarray(native))
         for original, candidate in zip(
