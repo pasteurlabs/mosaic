@@ -1,0 +1,97 @@
+{
+  "comparisons": [
+    {
+      "phase": "confirm",
+      "reference_kind": "solver_self_refined",
+      "solver": "warp-ns",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 1,
+      "pretrain_updates": 0,
+      "curriculum": [
+        {
+          "updates": 1,
+          "unroll": 8,
+          "lr": 0.0001
+        }
+      ],
+      "training_examples_per_seed": 8,
+      "pretrained_mean_rollout_error": null,
+      "pretrain_common_seconds": 0.0,
+      "n_model_seeds": 1,
+      "n_test_ics": 8,
+      "forcing_amplitude": 0.0,
+      "forcing_wavenumber": 6,
+      "burn_in_time": 0.0,
+      "source_sha256": "4b4741ba2f3e52fc8e84a4ad7578b60efa261ca94b0db7e98cabc88116530ba5",
+      "protocol_sha256": "5f84963d0164dbc6d228ec7e4dedf8faf86983b81faf816cd0b24e61929358fe",
+      "admitted": true,
+      "gradient_checks_passed": false,
+      "fd_relative_errors": [
+        0.09278926998376846
+      ],
+      "vs_supervised": {
+        "ratio": 0.9538718461990356,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 0.9463124871253967,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 0.04933226853609085,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.4876299798488617,
+          "model_seed_means": [
+            0.4876299798488617
+          ],
+          "mean_final_error": 0.9550135135650635,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 0.875
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.46145033836364746,
+          "model_seed_means": [
+            0.46145033836364746
+          ],
+          "mean_final_error": 0.8783634901046753,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.46513643860816956,
+          "model_seed_means": [
+            0.46513643860816956
+          ],
+          "mean_final_error": 0.8879470229148865,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.02405589260160923,
+          "model_seed_means": [
+            0.02405589260160923
+          ],
+          "mean_final_error": 0.04445139691233635,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 16.581192238023505,
+      "supervised_total_seconds": 3.500888306996785,
+      "stopped_training_seconds": 0.5710563880275004
+    }
+  ],
+  "pending": [],
+  "failures": [],
+  "reference_checks": [],
+  "job_states": {
+    "confirm-warp-ns-n64-k4-h8-u1-s7-test2000-e3839756": "COMPLETED"
+  }
+}
