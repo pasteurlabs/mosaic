@@ -1,0 +1,7025 @@
+{
+  "phase": "residual_development_pilot",
+  "method": "improved_imitation",
+  "model_seed": 0,
+  "control": {
+    "coarse_n": 64,
+    "reference_n": 192,
+    "dt": 0.02,
+    "steps_per_slot": 20,
+    "control_slots": 8,
+    "nu": 0.001,
+    "domain_extent": 6.283185307179586,
+    "control_bound": 0.25,
+    "velocity_scale": 0.5,
+    "effort_weight": 0.01,
+    "reference_temporal_factor": 3,
+    "audit_temporal_factor": 6,
+    "reference_tolerance": 0.005,
+    "gradient_tolerance": 0.05,
+    "gradient_epsilons": [
+      0.001,
+      0.01,
+      0.0001
+    ],
+    "shooting_updates": 25,
+    "shooting_lr": 0.05
+  },
+  "train_seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029,
+    1030,
+    1031,
+    1032,
+    1033,
+    1034,
+    1035,
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041,
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051,
+    1052,
+    1053,
+    1054,
+    1055,
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063
+  ],
+  "validation_seeds": [
+    2000,
+    2001,
+    2002,
+    2003,
+    2004,
+    2005,
+    2006,
+    2007,
+    2008,
+    2009,
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015
+  ],
+  "completed": true,
+  "admitted": true,
+  "held_out_test_used": false,
+  "settings_tuned": false,
+  "compute_matched": false,
+  "query_counts_complete": true,
+  "architecture": "linear_residual",
+  "inference_requires_one_coarse_rollout": true,
+  "cost_scope": "Job costs exclude separately reported immutable dataset preparation. Standalone method cost adds common preparation; improved imitation additionally adds shared expert-label cost.",
+  "dataset_sha256": "deead2fb02bedbe3c3b4a2199114e0d08a0ebe00ac66ced553316cead8ba4a83",
+  "shared_dataset_costs": {
+    "phases": {
+      "common_data_preparation": {
+        "wall_time_s": 2020.7971064000158,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 240,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 0,
+        "label_examples": 0
+      },
+      "label_generation": {
+        "wall_time_s": 7501.437023105973,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 1728,
+        "gradient_rollout_count": 1600,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 1600,
+        "label_examples": 64
+      }
+    },
+    "total": {
+      "wall_time_s": 9522.234129505989,
+      "oracle_wall_time_s": 0.0,
+      "rollout_count": 1968,
+      "gradient_rollout_count": 1600,
+      "failed_rollout_count": 0,
+      "optimizer_updates": 1600,
+      "label_examples": 64
+    },
+    "accounting": "wall_time_s includes oracle_wall_time_s; each scalar objective query counts one requested full rollout, including failed queries. This is not a count of backend-internal replay solves."
+  },
+  "initial_model_sha256": "cfccc98a350946926f0517689d756ee109ea955a4e526026366c90c7257edc04",
+  "training_trace": [
+    {
+      "update": 1,
+      "task_index": 54,
+      "action_mse": 0.041750140488147736
+    },
+    {
+      "update": 2,
+      "task_index": 40,
+      "action_mse": 0.08456510305404663
+    },
+    {
+      "update": 3,
+      "task_index": 32,
+      "action_mse": 0.0483643040060997
+    },
+    {
+      "update": 4,
+      "task_index": 17,
+      "action_mse": 0.04745950549840927
+    },
+    {
+      "update": 5,
+      "task_index": 19,
+      "action_mse": 0.06615687161684036
+    },
+    {
+      "update": 6,
+      "task_index": 2,
+      "action_mse": 0.057750582695007324
+    },
+    {
+      "update": 7,
+      "task_index": 4,
+      "action_mse": 0.053377922624349594
+    },
+    {
+      "update": 8,
+      "task_index": 1,
+      "action_mse": 0.056694261729717255
+    },
+    {
+      "update": 9,
+      "task_index": 11,
+      "action_mse": 0.06269505620002747
+    },
+    {
+      "update": 10,
+      "task_index": 52,
+      "action_mse": 0.06169569492340088
+    },
+    {
+      "update": 11,
+      "task_index": 41,
+      "action_mse": 0.04534405469894409
+    },
+    {
+      "update": 12,
+      "task_index": 58,
+      "action_mse": 0.05073690414428711
+    },
+    {
+      "update": 13,
+      "task_index": 32,
+      "action_mse": 0.047169189900159836
+    },
+    {
+      "update": 14,
+      "task_index": 38,
+      "action_mse": 0.04791371524333954
+    },
+    {
+      "update": 15,
+      "task_index": 62,
+      "action_mse": 0.05098120868206024
+    },
+    {
+      "update": 16,
+      "task_index": 46,
+      "action_mse": 0.0535566583275795
+    },
+    {
+      "update": 17,
+      "task_index": 40,
+      "action_mse": 0.08245383948087692
+    },
+    {
+      "update": 18,
+      "task_index": 34,
+      "action_mse": 0.05658204108476639
+    },
+    {
+      "update": 19,
+      "task_index": 35,
+      "action_mse": 0.04720817133784294
+    },
+    {
+      "update": 20,
+      "task_index": 59,
+      "action_mse": 0.051557451486587524
+    },
+    {
+      "update": 21,
+      "task_index": 17,
+      "action_mse": 0.04583610221743584
+    },
+    {
+      "update": 22,
+      "task_index": 52,
+      "action_mse": 0.060438886284828186
+    },
+    {
+      "update": 23,
+      "task_index": 42,
+      "action_mse": 0.034380123019218445
+    },
+    {
+      "update": 24,
+      "task_index": 0,
+      "action_mse": 0.04048645496368408
+    },
+    {
+      "update": 25,
+      "task_index": 25,
+      "action_mse": 0.03715262562036514
+    },
+    {
+      "update": 26,
+      "task_index": 54,
+      "action_mse": 0.040896814316511154
+    },
+    {
+      "update": 27,
+      "task_index": 35,
+      "action_mse": 0.04629391431808472
+    },
+    {
+      "update": 28,
+      "task_index": 2,
+      "action_mse": 0.056064337491989136
+    },
+    {
+      "update": 29,
+      "task_index": 48,
+      "action_mse": 0.058856941759586334
+    },
+    {
+      "update": 30,
+      "task_index": 46,
+      "action_mse": 0.053469397127628326
+    },
+    {
+      "update": 31,
+      "task_index": 54,
+      "action_mse": 0.04060988873243332
+    },
+    {
+      "update": 32,
+      "task_index": 11,
+      "action_mse": 0.06144019961357117
+    },
+    {
+      "update": 33,
+      "task_index": 5,
+      "action_mse": 0.05356207862496376
+    },
+    {
+      "update": 34,
+      "task_index": 55,
+      "action_mse": 0.06497162580490112
+    },
+    {
+      "update": 35,
+      "task_index": 1,
+      "action_mse": 0.05353314429521561
+    },
+    {
+      "update": 36,
+      "task_index": 34,
+      "action_mse": 0.05544791370630264
+    },
+    {
+      "update": 37,
+      "task_index": 5,
+      "action_mse": 0.05330630764365196
+    },
+    {
+      "update": 38,
+      "task_index": 19,
+      "action_mse": 0.06611726433038712
+    },
+    {
+      "update": 39,
+      "task_index": 30,
+      "action_mse": 0.057449836283922195
+    },
+    {
+      "update": 40,
+      "task_index": 27,
+      "action_mse": 0.06938710808753967
+    },
+    {
+      "update": 41,
+      "task_index": 25,
+      "action_mse": 0.037050582468509674
+    },
+    {
+      "update": 42,
+      "task_index": 1,
+      "action_mse": 0.05270090699195862
+    },
+    {
+      "update": 43,
+      "task_index": 0,
+      "action_mse": 0.039823975414037704
+    },
+    {
+      "update": 44,
+      "task_index": 7,
+      "action_mse": 0.037409547716379166
+    },
+    {
+      "update": 45,
+      "task_index": 0,
+      "action_mse": 0.03958447277545929
+    },
+    {
+      "update": 46,
+      "task_index": 42,
+      "action_mse": 0.03342757374048233
+    },
+    {
+      "update": 47,
+      "task_index": 33,
+      "action_mse": 0.03235377371311188
+    },
+    {
+      "update": 48,
+      "task_index": 41,
+      "action_mse": 0.043916720896959305
+    },
+    {
+      "update": 49,
+      "task_index": 16,
+      "action_mse": 0.06537200510501862
+    },
+    {
+      "update": 50,
+      "task_index": 39,
+      "action_mse": 0.054096370935440063
+    },
+    {
+      "update": 51,
+      "task_index": 48,
+      "action_mse": 0.05812603235244751
+    },
+    {
+      "update": 52,
+      "task_index": 24,
+      "action_mse": 0.050630345940589905
+    },
+    {
+      "update": 53,
+      "task_index": 29,
+      "action_mse": 0.039120446890592575
+    },
+    {
+      "update": 54,
+      "task_index": 63,
+      "action_mse": 0.049808233976364136
+    },
+    {
+      "update": 55,
+      "task_index": 51,
+      "action_mse": 0.08314893394708633
+    },
+    {
+      "update": 56,
+      "task_index": 62,
+      "action_mse": 0.04954361170530319
+    },
+    {
+      "update": 57,
+      "task_index": 24,
+      "action_mse": 0.0501345731317997
+    },
+    {
+      "update": 58,
+      "task_index": 43,
+      "action_mse": 0.07539882510900497
+    },
+    {
+      "update": 59,
+      "task_index": 60,
+      "action_mse": 0.040747709572315216
+    },
+    {
+      "update": 60,
+      "task_index": 41,
+      "action_mse": 0.043740712106227875
+    },
+    {
+      "update": 61,
+      "task_index": 53,
+      "action_mse": 0.08222363144159317
+    },
+    {
+      "update": 62,
+      "task_index": 44,
+      "action_mse": 0.07212312519550323
+    },
+    {
+      "update": 63,
+      "task_index": 45,
+      "action_mse": 0.04451403766870499
+    },
+    {
+      "update": 64,
+      "task_index": 24,
+      "action_mse": 0.049352072179317474
+    },
+    {
+      "update": 65,
+      "task_index": 56,
+      "action_mse": 0.04118069261312485
+    },
+    {
+      "update": 66,
+      "task_index": 8,
+      "action_mse": 0.06442603468894958
+    },
+    {
+      "update": 67,
+      "task_index": 37,
+      "action_mse": 0.03628048673272133
+    },
+    {
+      "update": 68,
+      "task_index": 46,
+      "action_mse": 0.05229831486940384
+    },
+    {
+      "update": 69,
+      "task_index": 54,
+      "action_mse": 0.03884701430797577
+    },
+    {
+      "update": 70,
+      "task_index": 33,
+      "action_mse": 0.0314362533390522
+    },
+    {
+      "update": 71,
+      "task_index": 24,
+      "action_mse": 0.048431940376758575
+    },
+    {
+      "update": 72,
+      "task_index": 19,
+      "action_mse": 0.06537642329931259
+    },
+    {
+      "update": 73,
+      "task_index": 27,
+      "action_mse": 0.06705492734909058
+    },
+    {
+      "update": 74,
+      "task_index": 31,
+      "action_mse": 0.045147329568862915
+    },
+    {
+      "update": 75,
+      "task_index": 46,
+      "action_mse": 0.051443081349134445
+    },
+    {
+      "update": 76,
+      "task_index": 56,
+      "action_mse": 0.04091070964932442
+    },
+    {
+      "update": 77,
+      "task_index": 4,
+      "action_mse": 0.05302631855010986
+    },
+    {
+      "update": 78,
+      "task_index": 59,
+      "action_mse": 0.051122695207595825
+    },
+    {
+      "update": 79,
+      "task_index": 34,
+      "action_mse": 0.05476001277565956
+    },
+    {
+      "update": 80,
+      "task_index": 22,
+      "action_mse": 0.047266870737075806
+    },
+    {
+      "update": 81,
+      "task_index": 43,
+      "action_mse": 0.07458768784999847
+    },
+    {
+      "update": 82,
+      "task_index": 36,
+      "action_mse": 0.06406129896640778
+    },
+    {
+      "update": 83,
+      "task_index": 16,
+      "action_mse": 0.06375227123498917
+    },
+    {
+      "update": 84,
+      "task_index": 20,
+      "action_mse": 0.026901518926024437
+    },
+    {
+      "update": 85,
+      "task_index": 46,
+      "action_mse": 0.05050794407725334
+    },
+    {
+      "update": 86,
+      "task_index": 38,
+      "action_mse": 0.04753165692090988
+    },
+    {
+      "update": 87,
+      "task_index": 32,
+      "action_mse": 0.04451217129826546
+    },
+    {
+      "update": 88,
+      "task_index": 21,
+      "action_mse": 0.05904235690832138
+    },
+    {
+      "update": 89,
+      "task_index": 48,
+      "action_mse": 0.05709611997008324
+    },
+    {
+      "update": 90,
+      "task_index": 25,
+      "action_mse": 0.03763793408870697
+    },
+    {
+      "update": 91,
+      "task_index": 21,
+      "action_mse": 0.05866353586316109
+    },
+    {
+      "update": 92,
+      "task_index": 56,
+      "action_mse": 0.0404907763004303
+    },
+    {
+      "update": 93,
+      "task_index": 16,
+      "action_mse": 0.06309443712234497
+    },
+    {
+      "update": 94,
+      "task_index": 14,
+      "action_mse": 0.05370958149433136
+    },
+    {
+      "update": 95,
+      "task_index": 45,
+      "action_mse": 0.043188974261283875
+    },
+    {
+      "update": 96,
+      "task_index": 39,
+      "action_mse": 0.05090307071805
+    },
+    {
+      "update": 97,
+      "task_index": 3,
+      "action_mse": 0.06423081457614899
+    },
+    {
+      "update": 98,
+      "task_index": 5,
+      "action_mse": 0.0528920441865921
+    },
+    {
+      "update": 99,
+      "task_index": 24,
+      "action_mse": 0.047210268676280975
+    },
+    {
+      "update": 100,
+      "task_index": 53,
+      "action_mse": 0.07983285188674927
+    },
+    {
+      "update": 101,
+      "task_index": 25,
+      "action_mse": 0.03738994151353836
+    },
+    {
+      "update": 102,
+      "task_index": 50,
+      "action_mse": 0.06569452583789825
+    },
+    {
+      "update": 103,
+      "task_index": 20,
+      "action_mse": 0.026383761316537857
+    },
+    {
+      "update": 104,
+      "task_index": 15,
+      "action_mse": 0.0737541913986206
+    },
+    {
+      "update": 105,
+      "task_index": 50,
+      "action_mse": 0.06518745422363281
+    },
+    {
+      "update": 106,
+      "task_index": 56,
+      "action_mse": 0.03971612825989723
+    },
+    {
+      "update": 107,
+      "task_index": 5,
+      "action_mse": 0.052296221256256104
+    },
+    {
+      "update": 108,
+      "task_index": 3,
+      "action_mse": 0.06271255016326904
+    },
+    {
+      "update": 109,
+      "task_index": 42,
+      "action_mse": 0.03388011455535889
+    },
+    {
+      "update": 110,
+      "task_index": 21,
+      "action_mse": 0.056833188980817795
+    },
+    {
+      "update": 111,
+      "task_index": 36,
+      "action_mse": 0.06302787363529205
+    },
+    {
+      "update": 112,
+      "task_index": 9,
+      "action_mse": 0.04074843227863312
+    },
+    {
+      "update": 113,
+      "task_index": 55,
+      "action_mse": 0.06268545985221863
+    },
+    {
+      "update": 114,
+      "task_index": 28,
+      "action_mse": 0.06742887198925018
+    },
+    {
+      "update": 115,
+      "task_index": 57,
+      "action_mse": 0.04468558356165886
+    },
+    {
+      "update": 116,
+      "task_index": 50,
+      "action_mse": 0.06313963979482651
+    },
+    {
+      "update": 117,
+      "task_index": 45,
+      "action_mse": 0.04330139607191086
+    },
+    {
+      "update": 118,
+      "task_index": 14,
+      "action_mse": 0.05171079933643341
+    },
+    {
+      "update": 119,
+      "task_index": 49,
+      "action_mse": 0.03568442910909653
+    },
+    {
+      "update": 120,
+      "task_index": 3,
+      "action_mse": 0.06102685630321503
+    },
+    {
+      "update": 121,
+      "task_index": 36,
+      "action_mse": 0.06182163953781128
+    },
+    {
+      "update": 122,
+      "task_index": 25,
+      "action_mse": 0.036361705511808395
+    },
+    {
+      "update": 123,
+      "task_index": 63,
+      "action_mse": 0.04944567382335663
+    },
+    {
+      "update": 124,
+      "task_index": 12,
+      "action_mse": 0.04146261513233185
+    },
+    {
+      "update": 125,
+      "task_index": 60,
+      "action_mse": 0.04096769541501999
+    },
+    {
+      "update": 126,
+      "task_index": 5,
+      "action_mse": 0.05101832002401352
+    },
+    {
+      "update": 127,
+      "task_index": 39,
+      "action_mse": 0.04927029833197594
+    },
+    {
+      "update": 128,
+      "task_index": 37,
+      "action_mse": 0.03436452895402908
+    },
+    {
+      "update": 129,
+      "task_index": 57,
+      "action_mse": 0.04376114532351494
+    },
+    {
+      "update": 130,
+      "task_index": 19,
+      "action_mse": 0.06727081537246704
+    },
+    {
+      "update": 131,
+      "task_index": 57,
+      "action_mse": 0.04354953393340111
+    },
+    {
+      "update": 132,
+      "task_index": 43,
+      "action_mse": 0.07290167361497879
+    },
+    {
+      "update": 133,
+      "task_index": 56,
+      "action_mse": 0.03844738379120827
+    },
+    {
+      "update": 134,
+      "task_index": 12,
+      "action_mse": 0.040524646639823914
+    },
+    {
+      "update": 135,
+      "task_index": 48,
+      "action_mse": 0.055098071694374084
+    },
+    {
+      "update": 136,
+      "task_index": 60,
+      "action_mse": 0.04055089130997658
+    },
+    {
+      "update": 137,
+      "task_index": 3,
+      "action_mse": 0.059152185916900635
+    },
+    {
+      "update": 138,
+      "task_index": 23,
+      "action_mse": 0.05749677121639252
+    },
+    {
+      "update": 139,
+      "task_index": 40,
+      "action_mse": 0.0832185447216034
+    },
+    {
+      "update": 140,
+      "task_index": 6,
+      "action_mse": 0.04256646707653999
+    },
+    {
+      "update": 141,
+      "task_index": 32,
+      "action_mse": 0.04311460256576538
+    },
+    {
+      "update": 142,
+      "task_index": 40,
+      "action_mse": 0.08286115527153015
+    },
+    {
+      "update": 143,
+      "task_index": 48,
+      "action_mse": 0.053868718445301056
+    },
+    {
+      "update": 144,
+      "task_index": 59,
+      "action_mse": 0.04809749871492386
+    },
+    {
+      "update": 145,
+      "task_index": 26,
+      "action_mse": 0.04114890098571777
+    },
+    {
+      "update": 146,
+      "task_index": 28,
+      "action_mse": 0.06571339815855026
+    },
+    {
+      "update": 147,
+      "task_index": 30,
+      "action_mse": 0.057887960225343704
+    },
+    {
+      "update": 148,
+      "task_index": 61,
+      "action_mse": 0.0664624273777008
+    },
+    {
+      "update": 149,
+      "task_index": 12,
+      "action_mse": 0.03904731944203377
+    },
+    {
+      "update": 150,
+      "task_index": 31,
+      "action_mse": 0.046150438487529755
+    },
+    {
+      "update": 151,
+      "task_index": 3,
+      "action_mse": 0.057368241250514984
+    },
+    {
+      "update": 152,
+      "task_index": 27,
+      "action_mse": 0.06493105739355087
+    },
+    {
+      "update": 153,
+      "task_index": 60,
+      "action_mse": 0.03999355807900429
+    },
+    {
+      "update": 154,
+      "task_index": 39,
+      "action_mse": 0.04911131411790848
+    },
+    {
+      "update": 155,
+      "task_index": 22,
+      "action_mse": 0.04743748903274536
+    },
+    {
+      "update": 156,
+      "task_index": 63,
+      "action_mse": 0.04845733568072319
+    },
+    {
+      "update": 157,
+      "task_index": 38,
+      "action_mse": 0.04685812443494797
+    },
+    {
+      "update": 158,
+      "task_index": 60,
+      "action_mse": 0.03956194594502449
+    },
+    {
+      "update": 159,
+      "task_index": 1,
+      "action_mse": 0.05219561606645584
+    },
+    {
+      "update": 160,
+      "task_index": 29,
+      "action_mse": 0.03763267397880554
+    },
+    {
+      "update": 161,
+      "task_index": 53,
+      "action_mse": 0.07639463245868683
+    },
+    {
+      "update": 162,
+      "task_index": 48,
+      "action_mse": 0.05171104520559311
+    },
+    {
+      "update": 163,
+      "task_index": 26,
+      "action_mse": 0.04036082327365875
+    },
+    {
+      "update": 164,
+      "task_index": 31,
+      "action_mse": 0.04549301415681839
+    },
+    {
+      "update": 165,
+      "task_index": 26,
+      "action_mse": 0.04003806412220001
+    },
+    {
+      "update": 166,
+      "task_index": 33,
+      "action_mse": 0.028126493096351624
+    },
+    {
+      "update": 167,
+      "task_index": 14,
+      "action_mse": 0.05057665705680847
+    },
+    {
+      "update": 168,
+      "task_index": 50,
+      "action_mse": 0.06016654148697853
+    },
+    {
+      "update": 169,
+      "task_index": 4,
+      "action_mse": 0.05284293740987778
+    },
+    {
+      "update": 170,
+      "task_index": 26,
+      "action_mse": 0.03902653604745865
+    },
+    {
+      "update": 171,
+      "task_index": 18,
+      "action_mse": 0.04186905175447464
+    },
+    {
+      "update": 172,
+      "task_index": 47,
+      "action_mse": 0.04028550907969475
+    },
+    {
+      "update": 173,
+      "task_index": 47,
+      "action_mse": 0.04010016471147537
+    },
+    {
+      "update": 174,
+      "task_index": 45,
+      "action_mse": 0.044377993792295456
+    },
+    {
+      "update": 175,
+      "task_index": 59,
+      "action_mse": 0.046519942581653595
+    },
+    {
+      "update": 176,
+      "task_index": 59,
+      "action_mse": 0.04639802128076553
+    },
+    {
+      "update": 177,
+      "task_index": 11,
+      "action_mse": 0.062040358781814575
+    },
+    {
+      "update": 178,
+      "task_index": 7,
+      "action_mse": 0.037523359060287476
+    },
+    {
+      "update": 179,
+      "task_index": 8,
+      "action_mse": 0.06590684503316879
+    },
+    {
+      "update": 180,
+      "task_index": 46,
+      "action_mse": 0.051226869225502014
+    },
+    {
+      "update": 181,
+      "task_index": 62,
+      "action_mse": 0.04652412235736847
+    },
+    {
+      "update": 182,
+      "task_index": 59,
+      "action_mse": 0.04526728391647339
+    },
+    {
+      "update": 183,
+      "task_index": 42,
+      "action_mse": 0.031845733523368835
+    },
+    {
+      "update": 184,
+      "task_index": 61,
+      "action_mse": 0.06400004029273987
+    },
+    {
+      "update": 185,
+      "task_index": 55,
+      "action_mse": 0.060485899448394775
+    },
+    {
+      "update": 186,
+      "task_index": 0,
+      "action_mse": 0.04082497954368591
+    },
+    {
+      "update": 187,
+      "task_index": 7,
+      "action_mse": 0.03710198402404785
+    },
+    {
+      "update": 188,
+      "task_index": 55,
+      "action_mse": 0.0599062405526638
+    },
+    {
+      "update": 189,
+      "task_index": 5,
+      "action_mse": 0.05083569884300232
+    },
+    {
+      "update": 190,
+      "task_index": 62,
+      "action_mse": 0.04536936432123184
+    },
+    {
+      "update": 191,
+      "task_index": 52,
+      "action_mse": 0.05883156135678291
+    },
+    {
+      "update": 192,
+      "task_index": 61,
+      "action_mse": 0.06248241662979126
+    },
+    {
+      "update": 193,
+      "task_index": 23,
+      "action_mse": 0.059179484844207764
+    },
+    {
+      "update": 194,
+      "task_index": 9,
+      "action_mse": 0.040099821984767914
+    },
+    {
+      "update": 195,
+      "task_index": 33,
+      "action_mse": 0.027883362025022507
+    },
+    {
+      "update": 196,
+      "task_index": 62,
+      "action_mse": 0.0442890003323555
+    },
+    {
+      "update": 197,
+      "task_index": 23,
+      "action_mse": 0.05874431133270264
+    },
+    {
+      "update": 198,
+      "task_index": 56,
+      "action_mse": 0.03849917650222778
+    },
+    {
+      "update": 199,
+      "task_index": 24,
+      "action_mse": 0.050571564584970474
+    },
+    {
+      "update": 200,
+      "task_index": 52,
+      "action_mse": 0.05771041661500931
+    },
+    {
+      "update": 201,
+      "task_index": 14,
+      "action_mse": 0.05026222765445709
+    },
+    {
+      "update": 202,
+      "task_index": 30,
+      "action_mse": 0.05766516923904419
+    },
+    {
+      "update": 203,
+      "task_index": 20,
+      "action_mse": 0.025063447654247284
+    },
+    {
+      "update": 204,
+      "task_index": 14,
+      "action_mse": 0.04971341788768768
+    },
+    {
+      "update": 205,
+      "task_index": 57,
+      "action_mse": 0.041071392595767975
+    },
+    {
+      "update": 206,
+      "task_index": 51,
+      "action_mse": 0.08344806730747223
+    },
+    {
+      "update": 207,
+      "task_index": 8,
+      "action_mse": 0.06386759877204895
+    },
+    {
+      "update": 208,
+      "task_index": 59,
+      "action_mse": 0.04171742871403694
+    },
+    {
+      "update": 209,
+      "task_index": 62,
+      "action_mse": 0.04221479967236519
+    },
+    {
+      "update": 210,
+      "task_index": 17,
+      "action_mse": 0.047798313200473785
+    },
+    {
+      "update": 211,
+      "task_index": 27,
+      "action_mse": 0.06256154179573059
+    },
+    {
+      "update": 212,
+      "task_index": 34,
+      "action_mse": 0.05565886199474335
+    },
+    {
+      "update": 213,
+      "task_index": 42,
+      "action_mse": 0.03154531493782997
+    },
+    {
+      "update": 214,
+      "task_index": 28,
+      "action_mse": 0.062232621014118195
+    },
+    {
+      "update": 215,
+      "task_index": 9,
+      "action_mse": 0.040425509214401245
+    },
+    {
+      "update": 216,
+      "task_index": 59,
+      "action_mse": 0.040505893528461456
+    },
+    {
+      "update": 217,
+      "task_index": 44,
+      "action_mse": 0.0727575495839119
+    },
+    {
+      "update": 218,
+      "task_index": 2,
+      "action_mse": 0.05357442796230316
+    },
+    {
+      "update": 219,
+      "task_index": 52,
+      "action_mse": 0.055302612483501434
+    },
+    {
+      "update": 220,
+      "task_index": 46,
+      "action_mse": 0.05024310201406479
+    },
+    {
+      "update": 221,
+      "task_index": 11,
+      "action_mse": 0.06260410696268082
+    },
+    {
+      "update": 222,
+      "task_index": 39,
+      "action_mse": 0.04972429201006889
+    },
+    {
+      "update": 223,
+      "task_index": 32,
+      "action_mse": 0.037629831582307816
+    },
+    {
+      "update": 224,
+      "task_index": 1,
+      "action_mse": 0.048408716917037964
+    },
+    {
+      "update": 225,
+      "task_index": 59,
+      "action_mse": 0.038748495280742645
+    },
+    {
+      "update": 226,
+      "task_index": 46,
+      "action_mse": 0.049353744834661484
+    },
+    {
+      "update": 227,
+      "task_index": 19,
+      "action_mse": 0.06787334382534027
+    },
+    {
+      "update": 228,
+      "task_index": 1,
+      "action_mse": 0.04750766605138779
+    },
+    {
+      "update": 229,
+      "task_index": 5,
+      "action_mse": 0.050362102687358856
+    },
+    {
+      "update": 230,
+      "task_index": 48,
+      "action_mse": 0.04783898591995239
+    },
+    {
+      "update": 231,
+      "task_index": 9,
+      "action_mse": 0.040189120918512344
+    },
+    {
+      "update": 232,
+      "task_index": 32,
+      "action_mse": 0.036067359149456024
+    },
+    {
+      "update": 233,
+      "task_index": 57,
+      "action_mse": 0.039903804659843445
+    },
+    {
+      "update": 234,
+      "task_index": 59,
+      "action_mse": 0.036915168166160583
+    },
+    {
+      "update": 235,
+      "task_index": 17,
+      "action_mse": 0.04653582349419594
+    },
+    {
+      "update": 236,
+      "task_index": 4,
+      "action_mse": 0.05027686804533005
+    },
+    {
+      "update": 237,
+      "task_index": 31,
+      "action_mse": 0.04555901512503624
+    },
+    {
+      "update": 238,
+      "task_index": 53,
+      "action_mse": 0.07655790448188782
+    },
+    {
+      "update": 239,
+      "task_index": 39,
+      "action_mse": 0.04912763088941574
+    },
+    {
+      "update": 240,
+      "task_index": 4,
+      "action_mse": 0.049865566194057465
+    },
+    {
+      "update": 241,
+      "task_index": 41,
+      "action_mse": 0.04374922066926956
+    },
+    {
+      "update": 242,
+      "task_index": 22,
+      "action_mse": 0.04671459645032883
+    },
+    {
+      "update": 243,
+      "task_index": 14,
+      "action_mse": 0.04748380184173584
+    },
+    {
+      "update": 244,
+      "task_index": 27,
+      "action_mse": 0.061956360936164856
+    },
+    {
+      "update": 245,
+      "task_index": 55,
+      "action_mse": 0.057076603174209595
+    },
+    {
+      "update": 246,
+      "task_index": 61,
+      "action_mse": 0.06118515878915787
+    },
+    {
+      "update": 247,
+      "task_index": 9,
+      "action_mse": 0.03998607397079468
+    },
+    {
+      "update": 248,
+      "task_index": 35,
+      "action_mse": 0.04270836338400841
+    },
+    {
+      "update": 249,
+      "task_index": 48,
+      "action_mse": 0.04540411755442619
+    },
+    {
+      "update": 250,
+      "task_index": 16,
+      "action_mse": 0.06259182095527649
+    },
+    {
+      "update": 251,
+      "task_index": 17,
+      "action_mse": 0.04467454180121422
+    },
+    {
+      "update": 252,
+      "task_index": 15,
+      "action_mse": 0.06738217175006866
+    },
+    {
+      "update": 253,
+      "task_index": 13,
+      "action_mse": 0.059394024312496185
+    },
+    {
+      "update": 254,
+      "task_index": 56,
+      "action_mse": 0.03842908516526222
+    },
+    {
+      "update": 255,
+      "task_index": 13,
+      "action_mse": 0.058906883001327515
+    },
+    {
+      "update": 256,
+      "task_index": 14,
+      "action_mse": 0.04657713323831558
+    },
+    {
+      "update": 257,
+      "task_index": 8,
+      "action_mse": 0.06322673708200455
+    },
+    {
+      "update": 258,
+      "task_index": 7,
+      "action_mse": 0.03556320071220398
+    },
+    {
+      "update": 259,
+      "task_index": 49,
+      "action_mse": 0.03678780049085617
+    },
+    {
+      "update": 260,
+      "task_index": 18,
+      "action_mse": 0.04256497323513031
+    },
+    {
+      "update": 261,
+      "task_index": 51,
+      "action_mse": 0.08478235453367233
+    },
+    {
+      "update": 262,
+      "task_index": 37,
+      "action_mse": 0.03285267949104309
+    },
+    {
+      "update": 263,
+      "task_index": 54,
+      "action_mse": 0.03743022307753563
+    },
+    {
+      "update": 264,
+      "task_index": 35,
+      "action_mse": 0.041988275945186615
+    },
+    {
+      "update": 265,
+      "task_index": 48,
+      "action_mse": 0.042335353791713715
+    },
+    {
+      "update": 266,
+      "task_index": 51,
+      "action_mse": 0.0836097002029419
+    },
+    {
+      "update": 267,
+      "task_index": 3,
+      "action_mse": 0.05442631244659424
+    },
+    {
+      "update": 268,
+      "task_index": 35,
+      "action_mse": 0.04153144359588623
+    },
+    {
+      "update": 269,
+      "task_index": 29,
+      "action_mse": 0.038274675607681274
+    },
+    {
+      "update": 270,
+      "task_index": 18,
+      "action_mse": 0.04135727882385254
+    },
+    {
+      "update": 271,
+      "task_index": 28,
+      "action_mse": 0.059529613703489304
+    },
+    {
+      "update": 272,
+      "task_index": 26,
+      "action_mse": 0.03734644502401352
+    },
+    {
+      "update": 273,
+      "task_index": 31,
+      "action_mse": 0.045270998030900955
+    },
+    {
+      "update": 274,
+      "task_index": 52,
+      "action_mse": 0.052473343908786774
+    },
+    {
+      "update": 275,
+      "task_index": 52,
+      "action_mse": 0.05224917083978653
+    },
+    {
+      "update": 276,
+      "task_index": 40,
+      "action_mse": 0.08184946328401566
+    },
+    {
+      "update": 277,
+      "task_index": 45,
+      "action_mse": 0.04808227717876434
+    },
+    {
+      "update": 278,
+      "task_index": 61,
+      "action_mse": 0.060531727969646454
+    },
+    {
+      "update": 279,
+      "task_index": 40,
+      "action_mse": 0.08126715570688248
+    },
+    {
+      "update": 280,
+      "task_index": 23,
+      "action_mse": 0.05831950902938843
+    },
+    {
+      "update": 281,
+      "task_index": 5,
+      "action_mse": 0.05091635882854462
+    },
+    {
+      "update": 282,
+      "task_index": 35,
+      "action_mse": 0.04041386768221855
+    },
+    {
+      "update": 283,
+      "task_index": 14,
+      "action_mse": 0.04552288353443146
+    },
+    {
+      "update": 284,
+      "task_index": 38,
+      "action_mse": 0.044942013919353485
+    },
+    {
+      "update": 285,
+      "task_index": 1,
+      "action_mse": 0.04454205185174942
+    },
+    {
+      "update": 286,
+      "task_index": 54,
+      "action_mse": 0.03563797473907471
+    },
+    {
+      "update": 287,
+      "task_index": 60,
+      "action_mse": 0.03964659571647644
+    },
+    {
+      "update": 288,
+      "task_index": 9,
+      "action_mse": 0.03824681043624878
+    },
+    {
+      "update": 289,
+      "task_index": 52,
+      "action_mse": 0.0490160696208477
+    },
+    {
+      "update": 290,
+      "task_index": 26,
+      "action_mse": 0.036048997193574905
+    },
+    {
+      "update": 291,
+      "task_index": 2,
+      "action_mse": 0.05253111571073532
+    },
+    {
+      "update": 292,
+      "task_index": 58,
+      "action_mse": 0.06234489381313324
+    },
+    {
+      "update": 293,
+      "task_index": 60,
+      "action_mse": 0.039051949977874756
+    },
+    {
+      "update": 294,
+      "task_index": 2,
+      "action_mse": 0.052348293364048004
+    },
+    {
+      "update": 295,
+      "task_index": 37,
+      "action_mse": 0.03228047490119934
+    },
+    {
+      "update": 296,
+      "task_index": 52,
+      "action_mse": 0.04727249592542648
+    },
+    {
+      "update": 297,
+      "task_index": 50,
+      "action_mse": 0.06022433191537857
+    },
+    {
+      "update": 298,
+      "task_index": 26,
+      "action_mse": 0.03508773446083069
+    },
+    {
+      "update": 299,
+      "task_index": 55,
+      "action_mse": 0.05435081198811531
+    },
+    {
+      "update": 300,
+      "task_index": 53,
+      "action_mse": 0.0723392590880394
+    },
+    {
+      "update": 301,
+      "task_index": 7,
+      "action_mse": 0.03568435460329056
+    },
+    {
+      "update": 302,
+      "task_index": 0,
+      "action_mse": 0.040305715054273605
+    },
+    {
+      "update": 303,
+      "task_index": 6,
+      "action_mse": 0.04207794368267059
+    },
+    {
+      "update": 304,
+      "task_index": 23,
+      "action_mse": 0.05833299458026886
+    },
+    {
+      "update": 305,
+      "task_index": 7,
+      "action_mse": 0.03555503487586975
+    },
+    {
+      "update": 306,
+      "task_index": 5,
+      "action_mse": 0.04997538775205612
+    },
+    {
+      "update": 307,
+      "task_index": 16,
+      "action_mse": 0.05982251465320587
+    },
+    {
+      "update": 308,
+      "task_index": 41,
+      "action_mse": 0.04313153401017189
+    },
+    {
+      "update": 309,
+      "task_index": 33,
+      "action_mse": 0.02929498441517353
+    },
+    {
+      "update": 310,
+      "task_index": 17,
+      "action_mse": 0.04228821024298668
+    },
+    {
+      "update": 311,
+      "task_index": 60,
+      "action_mse": 0.03798721730709076
+    },
+    {
+      "update": 312,
+      "task_index": 44,
+      "action_mse": 0.07195931673049927
+    },
+    {
+      "update": 313,
+      "task_index": 40,
+      "action_mse": 0.07818708568811417
+    },
+    {
+      "update": 314,
+      "task_index": 60,
+      "action_mse": 0.03760837763547897
+    },
+    {
+      "update": 315,
+      "task_index": 50,
+      "action_mse": 0.05923258885741234
+    },
+    {
+      "update": 316,
+      "task_index": 8,
+      "action_mse": 0.06289194524288177
+    },
+    {
+      "update": 317,
+      "task_index": 2,
+      "action_mse": 0.050692781805992126
+    },
+    {
+      "update": 318,
+      "task_index": 55,
+      "action_mse": 0.052535101771354675
+    },
+    {
+      "update": 319,
+      "task_index": 26,
+      "action_mse": 0.03316805511713028
+    },
+    {
+      "update": 320,
+      "task_index": 3,
+      "action_mse": 0.053918782621622086
+    },
+    {
+      "update": 321,
+      "task_index": 30,
+      "action_mse": 0.05489793419837952
+    },
+    {
+      "update": 322,
+      "task_index": 24,
+      "action_mse": 0.04822517931461334
+    },
+    {
+      "update": 323,
+      "task_index": 27,
+      "action_mse": 0.061809226870536804
+    },
+    {
+      "update": 324,
+      "task_index": 27,
+      "action_mse": 0.06158054620027542
+    },
+    {
+      "update": 325,
+      "task_index": 20,
+      "action_mse": 0.025138523429632187
+    },
+    {
+      "update": 326,
+      "task_index": 31,
+      "action_mse": 0.04361787438392639
+    },
+    {
+      "update": 327,
+      "task_index": 31,
+      "action_mse": 0.043387338519096375
+    },
+    {
+      "update": 328,
+      "task_index": 62,
+      "action_mse": 0.044072747230529785
+    },
+    {
+      "update": 329,
+      "task_index": 44,
+      "action_mse": 0.0702214241027832
+    },
+    {
+      "update": 330,
+      "task_index": 49,
+      "action_mse": 0.03387550264596939
+    },
+    {
+      "update": 331,
+      "task_index": 0,
+      "action_mse": 0.038315609097480774
+    },
+    {
+      "update": 332,
+      "task_index": 19,
+      "action_mse": 0.06481039524078369
+    },
+    {
+      "update": 333,
+      "task_index": 62,
+      "action_mse": 0.043309662491083145
+    },
+    {
+      "update": 334,
+      "task_index": 17,
+      "action_mse": 0.040521107614040375
+    },
+    {
+      "update": 335,
+      "task_index": 32,
+      "action_mse": 0.036122992634773254
+    },
+    {
+      "update": 336,
+      "task_index": 55,
+      "action_mse": 0.05013394355773926
+    },
+    {
+      "update": 337,
+      "task_index": 40,
+      "action_mse": 0.07723500579595566
+    },
+    {
+      "update": 338,
+      "task_index": 56,
+      "action_mse": 0.03901445120573044
+    },
+    {
+      "update": 339,
+      "task_index": 10,
+      "action_mse": 0.04912108927965164
+    },
+    {
+      "update": 340,
+      "task_index": 32,
+      "action_mse": 0.0352679006755352
+    },
+    {
+      "update": 341,
+      "task_index": 40,
+      "action_mse": 0.07662490755319595
+    },
+    {
+      "update": 342,
+      "task_index": 22,
+      "action_mse": 0.044350460171699524
+    },
+    {
+      "update": 343,
+      "task_index": 36,
+      "action_mse": 0.06291907280683517
+    },
+    {
+      "update": 344,
+      "task_index": 63,
+      "action_mse": 0.04842990264296532
+    },
+    {
+      "update": 345,
+      "task_index": 47,
+      "action_mse": 0.04076753929257393
+    },
+    {
+      "update": 346,
+      "task_index": 20,
+      "action_mse": 0.025046098977327347
+    },
+    {
+      "update": 347,
+      "task_index": 4,
+      "action_mse": 0.04878820851445198
+    },
+    {
+      "update": 348,
+      "task_index": 11,
+      "action_mse": 0.06063518673181534
+    },
+    {
+      "update": 349,
+      "task_index": 17,
+      "action_mse": 0.03903350234031677
+    },
+    {
+      "update": 350,
+      "task_index": 56,
+      "action_mse": 0.038554854691028595
+    },
+    {
+      "update": 351,
+      "task_index": 17,
+      "action_mse": 0.038537606596946716
+    },
+    {
+      "update": 352,
+      "task_index": 51,
+      "action_mse": 0.08114968985319138
+    },
+    {
+      "update": 353,
+      "task_index": 17,
+      "action_mse": 0.03767962008714676
+    },
+    {
+      "update": 354,
+      "task_index": 42,
+      "action_mse": 0.029972681775689125
+    },
+    {
+      "update": 355,
+      "task_index": 33,
+      "action_mse": 0.030030155554413795
+    },
+    {
+      "update": 356,
+      "task_index": 61,
+      "action_mse": 0.05947347730398178
+    },
+    {
+      "update": 357,
+      "task_index": 36,
+      "action_mse": 0.059745945036411285
+    },
+    {
+      "update": 358,
+      "task_index": 59,
+      "action_mse": 0.036722488701343536
+    },
+    {
+      "update": 359,
+      "task_index": 61,
+      "action_mse": 0.058751363307237625
+    },
+    {
+      "update": 360,
+      "task_index": 47,
+      "action_mse": 0.03894190117716789
+    },
+    {
+      "update": 361,
+      "task_index": 40,
+      "action_mse": 0.07184824347496033
+    },
+    {
+      "update": 362,
+      "task_index": 55,
+      "action_mse": 0.050317369401454926
+    },
+    {
+      "update": 363,
+      "task_index": 63,
+      "action_mse": 0.047103118151426315
+    },
+    {
+      "update": 364,
+      "task_index": 15,
+      "action_mse": 0.06339035928249359
+    },
+    {
+      "update": 365,
+      "task_index": 36,
+      "action_mse": 0.057014890015125275
+    },
+    {
+      "update": 366,
+      "task_index": 9,
+      "action_mse": 0.038550592958927155
+    },
+    {
+      "update": 367,
+      "task_index": 6,
+      "action_mse": 0.040238820016384125
+    },
+    {
+      "update": 368,
+      "task_index": 42,
+      "action_mse": 0.029168717563152313
+    },
+    {
+      "update": 369,
+      "task_index": 3,
+      "action_mse": 0.05610157176852226
+    },
+    {
+      "update": 370,
+      "task_index": 45,
+      "action_mse": 0.0474771112203598
+    },
+    {
+      "update": 371,
+      "task_index": 52,
+      "action_mse": 0.04704215005040169
+    },
+    {
+      "update": 372,
+      "task_index": 10,
+      "action_mse": 0.04611077904701233
+    },
+    {
+      "update": 373,
+      "task_index": 43,
+      "action_mse": 0.07673190534114838
+    },
+    {
+      "update": 374,
+      "task_index": 25,
+      "action_mse": 0.03676841780543327
+    },
+    {
+      "update": 375,
+      "task_index": 57,
+      "action_mse": 0.04295453429222107
+    },
+    {
+      "update": 376,
+      "task_index": 58,
+      "action_mse": 0.06311395764350891
+    },
+    {
+      "update": 377,
+      "task_index": 36,
+      "action_mse": 0.05345020443201065
+    },
+    {
+      "update": 378,
+      "task_index": 35,
+      "action_mse": 0.04026157036423683
+    },
+    {
+      "update": 379,
+      "task_index": 45,
+      "action_mse": 0.04687746986746788
+    },
+    {
+      "update": 380,
+      "task_index": 37,
+      "action_mse": 0.03243405371904373
+    },
+    {
+      "update": 381,
+      "task_index": 47,
+      "action_mse": 0.036555491387844086
+    },
+    {
+      "update": 382,
+      "task_index": 12,
+      "action_mse": 0.03325513005256653
+    },
+    {
+      "update": 383,
+      "task_index": 50,
+      "action_mse": 0.058255985379219055
+    },
+    {
+      "update": 384,
+      "task_index": 33,
+      "action_mse": 0.0288655087351799
+    },
+    {
+      "update": 385,
+      "task_index": 48,
+      "action_mse": 0.03820974379777908
+    },
+    {
+      "update": 386,
+      "task_index": 33,
+      "action_mse": 0.028636669740080833
+    },
+    {
+      "update": 387,
+      "task_index": 19,
+      "action_mse": 0.06469060480594635
+    },
+    {
+      "update": 388,
+      "task_index": 5,
+      "action_mse": 0.050374265760183334
+    },
+    {
+      "update": 389,
+      "task_index": 33,
+      "action_mse": 0.028151461854577065
+    },
+    {
+      "update": 390,
+      "task_index": 62,
+      "action_mse": 0.04427965357899666
+    },
+    {
+      "update": 391,
+      "task_index": 2,
+      "action_mse": 0.051428474485874176
+    },
+    {
+      "update": 392,
+      "task_index": 36,
+      "action_mse": 0.050230711698532104
+    },
+    {
+      "update": 393,
+      "task_index": 28,
+      "action_mse": 0.06019727885723114
+    },
+    {
+      "update": 394,
+      "task_index": 0,
+      "action_mse": 0.037997130304574966
+    },
+    {
+      "update": 395,
+      "task_index": 34,
+      "action_mse": 0.054762158542871475
+    },
+    {
+      "update": 396,
+      "task_index": 49,
+      "action_mse": 0.03407996892929077
+    },
+    {
+      "update": 397,
+      "task_index": 47,
+      "action_mse": 0.03434531390666962
+    },
+    {
+      "update": 398,
+      "task_index": 62,
+      "action_mse": 0.042293839156627655
+    },
+    {
+      "update": 399,
+      "task_index": 33,
+      "action_mse": 0.026910018175840378
+    },
+    {
+      "update": 400,
+      "task_index": 37,
+      "action_mse": 0.030837370082736015
+    },
+    {
+      "update": 401,
+      "task_index": 61,
+      "action_mse": 0.056235820055007935
+    },
+    {
+      "update": 402,
+      "task_index": 20,
+      "action_mse": 0.026029463857412338
+    },
+    {
+      "update": 403,
+      "task_index": 51,
+      "action_mse": 0.07877691835165024
+    },
+    {
+      "update": 404,
+      "task_index": 12,
+      "action_mse": 0.03163223713636398
+    },
+    {
+      "update": 405,
+      "task_index": 23,
+      "action_mse": 0.06104454770684242
+    },
+    {
+      "update": 406,
+      "task_index": 43,
+      "action_mse": 0.07443021237850189
+    },
+    {
+      "update": 407,
+      "task_index": 37,
+      "action_mse": 0.02992340177297592
+    },
+    {
+      "update": 408,
+      "task_index": 12,
+      "action_mse": 0.030960140749812126
+    },
+    {
+      "update": 409,
+      "task_index": 42,
+      "action_mse": 0.030590152367949486
+    },
+    {
+      "update": 410,
+      "task_index": 36,
+      "action_mse": 0.046568743884563446
+    },
+    {
+      "update": 411,
+      "task_index": 58,
+      "action_mse": 0.06168631836771965
+    },
+    {
+      "update": 412,
+      "task_index": 38,
+      "action_mse": 0.041846003383398056
+    },
+    {
+      "update": 413,
+      "task_index": 56,
+      "action_mse": 0.03818317875266075
+    },
+    {
+      "update": 414,
+      "task_index": 61,
+      "action_mse": 0.05625299736857414
+    },
+    {
+      "update": 415,
+      "task_index": 5,
+      "action_mse": 0.050412360578775406
+    },
+    {
+      "update": 416,
+      "task_index": 4,
+      "action_mse": 0.0464882031083107
+    },
+    {
+      "update": 417,
+      "task_index": 32,
+      "action_mse": 0.03484366089105606
+    },
+    {
+      "update": 418,
+      "task_index": 31,
+      "action_mse": 0.04003250226378441
+    },
+    {
+      "update": 419,
+      "task_index": 35,
+      "action_mse": 0.039084285497665405
+    },
+    {
+      "update": 420,
+      "task_index": 47,
+      "action_mse": 0.03303195536136627
+    },
+    {
+      "update": 421,
+      "task_index": 20,
+      "action_mse": 0.025823239237070084
+    },
+    {
+      "update": 422,
+      "task_index": 11,
+      "action_mse": 0.05771040916442871
+    },
+    {
+      "update": 423,
+      "task_index": 43,
+      "action_mse": 0.07292883843183517
+    },
+    {
+      "update": 424,
+      "task_index": 24,
+      "action_mse": 0.04964178055524826
+    },
+    {
+      "update": 425,
+      "task_index": 59,
+      "action_mse": 0.03520067781209946
+    },
+    {
+      "update": 426,
+      "task_index": 4,
+      "action_mse": 0.04555242508649826
+    },
+    {
+      "update": 427,
+      "task_index": 45,
+      "action_mse": 0.04409386217594147
+    },
+    {
+      "update": 428,
+      "task_index": 46,
+      "action_mse": 0.0519811250269413
+    },
+    {
+      "update": 429,
+      "task_index": 17,
+      "action_mse": 0.036483876407146454
+    },
+    {
+      "update": 430,
+      "task_index": 5,
+      "action_mse": 0.04948172718286514
+    },
+    {
+      "update": 431,
+      "task_index": 20,
+      "action_mse": 0.025088168680667877
+    },
+    {
+      "update": 432,
+      "task_index": 25,
+      "action_mse": 0.03661348670721054
+    },
+    {
+      "update": 433,
+      "task_index": 62,
+      "action_mse": 0.04002269357442856
+    },
+    {
+      "update": 434,
+      "task_index": 55,
+      "action_mse": 0.04979914426803589
+    },
+    {
+      "update": 435,
+      "task_index": 14,
+      "action_mse": 0.056199342012405396
+    },
+    {
+      "update": 436,
+      "task_index": 30,
+      "action_mse": 0.055905453860759735
+    },
+    {
+      "update": 437,
+      "task_index": 38,
+      "action_mse": 0.03940017521381378
+    },
+    {
+      "update": 438,
+      "task_index": 58,
+      "action_mse": 0.05991728603839874
+    },
+    {
+      "update": 439,
+      "task_index": 8,
+      "action_mse": 0.06838776171207428
+    },
+    {
+      "update": 440,
+      "task_index": 49,
+      "action_mse": 0.03353242576122284
+    },
+    {
+      "update": 441,
+      "task_index": 59,
+      "action_mse": 0.03378712758421898
+    },
+    {
+      "update": 442,
+      "task_index": 58,
+      "action_mse": 0.0585009902715683
+    },
+    {
+      "update": 443,
+      "task_index": 17,
+      "action_mse": 0.03565839305520058
+    },
+    {
+      "update": 444,
+      "task_index": 8,
+      "action_mse": 0.06703291833400726
+    },
+    {
+      "update": 445,
+      "task_index": 38,
+      "action_mse": 0.03803424537181854
+    },
+    {
+      "update": 446,
+      "task_index": 4,
+      "action_mse": 0.044842734932899475
+    },
+    {
+      "update": 447,
+      "task_index": 8,
+      "action_mse": 0.06570997834205627
+    },
+    {
+      "update": 448,
+      "task_index": 4,
+      "action_mse": 0.044559430330991745
+    },
+    {
+      "update": 449,
+      "task_index": 13,
+      "action_mse": 0.05842334032058716
+    },
+    {
+      "update": 450,
+      "task_index": 55,
+      "action_mse": 0.0473380982875824
+    },
+    {
+      "update": 451,
+      "task_index": 43,
+      "action_mse": 0.07167015969753265
+    },
+    {
+      "update": 452,
+      "task_index": 40,
+      "action_mse": 0.07269980013370514
+    },
+    {
+      "update": 453,
+      "task_index": 63,
+      "action_mse": 0.045649535953998566
+    },
+    {
+      "update": 454,
+      "task_index": 31,
+      "action_mse": 0.039229556918144226
+    },
+    {
+      "update": 455,
+      "task_index": 2,
+      "action_mse": 0.05073115974664688
+    },
+    {
+      "update": 456,
+      "task_index": 10,
+      "action_mse": 0.04538007080554962
+    },
+    {
+      "update": 457,
+      "task_index": 16,
+      "action_mse": 0.05983439087867737
+    },
+    {
+      "update": 458,
+      "task_index": 43,
+      "action_mse": 0.0710669457912445
+    },
+    {
+      "update": 459,
+      "task_index": 22,
+      "action_mse": 0.04260942339897156
+    },
+    {
+      "update": 460,
+      "task_index": 20,
+      "action_mse": 0.024455487728118896
+    },
+    {
+      "update": 461,
+      "task_index": 7,
+      "action_mse": 0.03616110980510712
+    },
+    {
+      "update": 462,
+      "task_index": 45,
+      "action_mse": 0.04353002831339836
+    },
+    {
+      "update": 463,
+      "task_index": 1,
+      "action_mse": 0.04766886681318283
+    },
+    {
+      "update": 464,
+      "task_index": 29,
+      "action_mse": 0.03457482159137726
+    },
+    {
+      "update": 465,
+      "task_index": 47,
+      "action_mse": 0.03371380642056465
+    },
+    {
+      "update": 466,
+      "task_index": 32,
+      "action_mse": 0.033934734761714935
+    },
+    {
+      "update": 467,
+      "task_index": 43,
+      "action_mse": 0.06954369693994522
+    },
+    {
+      "update": 468,
+      "task_index": 50,
+      "action_mse": 0.060798801481723785
+    },
+    {
+      "update": 469,
+      "task_index": 14,
+      "action_mse": 0.05353948846459389
+    },
+    {
+      "update": 470,
+      "task_index": 5,
+      "action_mse": 0.048247355967760086
+    },
+    {
+      "update": 471,
+      "task_index": 3,
+      "action_mse": 0.05567118525505066
+    },
+    {
+      "update": 472,
+      "task_index": 37,
+      "action_mse": 0.029517948627471924
+    },
+    {
+      "update": 473,
+      "task_index": 16,
+      "action_mse": 0.05771157890558243
+    },
+    {
+      "update": 474,
+      "task_index": 12,
+      "action_mse": 0.028634916990995407
+    },
+    {
+      "update": 475,
+      "task_index": 47,
+      "action_mse": 0.033235322684049606
+    },
+    {
+      "update": 476,
+      "task_index": 51,
+      "action_mse": 0.07880918681621552
+    },
+    {
+      "update": 477,
+      "task_index": 61,
+      "action_mse": 0.05565086752176285
+    },
+    {
+      "update": 478,
+      "task_index": 31,
+      "action_mse": 0.0386987067759037
+    },
+    {
+      "update": 479,
+      "task_index": 33,
+      "action_mse": 0.02821349911391735
+    },
+    {
+      "update": 480,
+      "task_index": 63,
+      "action_mse": 0.04448023810982704
+    },
+    {
+      "update": 481,
+      "task_index": 32,
+      "action_mse": 0.03310158848762512
+    },
+    {
+      "update": 482,
+      "task_index": 11,
+      "action_mse": 0.05819058045744896
+    },
+    {
+      "update": 483,
+      "task_index": 16,
+      "action_mse": 0.055942289531230927
+    },
+    {
+      "update": 484,
+      "task_index": 61,
+      "action_mse": 0.05433829873800278
+    },
+    {
+      "update": 485,
+      "task_index": 2,
+      "action_mse": 0.048372697085142136
+    },
+    {
+      "update": 486,
+      "task_index": 51,
+      "action_mse": 0.07808578014373779
+    },
+    {
+      "update": 487,
+      "task_index": 41,
+      "action_mse": 0.045115821063518524
+    },
+    {
+      "update": 488,
+      "task_index": 30,
+      "action_mse": 0.055952977389097214
+    },
+    {
+      "update": 489,
+      "task_index": 53,
+      "action_mse": 0.0691201463341713
+    },
+    {
+      "update": 490,
+      "task_index": 52,
+      "action_mse": 0.05350197106599808
+    },
+    {
+      "update": 491,
+      "task_index": 28,
+      "action_mse": 0.057511042803525925
+    },
+    {
+      "update": 492,
+      "task_index": 38,
+      "action_mse": 0.03712194040417671
+    },
+    {
+      "update": 493,
+      "task_index": 48,
+      "action_mse": 0.03611410781741142
+    },
+    {
+      "update": 494,
+      "task_index": 41,
+      "action_mse": 0.04465456306934357
+    },
+    {
+      "update": 495,
+      "task_index": 31,
+      "action_mse": 0.03799750655889511
+    },
+    {
+      "update": 496,
+      "task_index": 58,
+      "action_mse": 0.054437197744846344
+    },
+    {
+      "update": 497,
+      "task_index": 56,
+      "action_mse": 0.03918055444955826
+    },
+    {
+      "update": 498,
+      "task_index": 4,
+      "action_mse": 0.04312542825937271
+    },
+    {
+      "update": 499,
+      "task_index": 35,
+      "action_mse": 0.03788379207253456
+    },
+    {
+      "update": 500,
+      "task_index": 53,
+      "action_mse": 0.06719978153705597
+    },
+    {
+      "update": 501,
+      "task_index": 5,
+      "action_mse": 0.04892309755086899
+    },
+    {
+      "update": 502,
+      "task_index": 24,
+      "action_mse": 0.04857131093740463
+    },
+    {
+      "update": 503,
+      "task_index": 32,
+      "action_mse": 0.03147871792316437
+    },
+    {
+      "update": 504,
+      "task_index": 20,
+      "action_mse": 0.02447664737701416
+    },
+    {
+      "update": 505,
+      "task_index": 44,
+      "action_mse": 0.07007665932178497
+    },
+    {
+      "update": 506,
+      "task_index": 63,
+      "action_mse": 0.043116990476846695
+    },
+    {
+      "update": 507,
+      "task_index": 23,
+      "action_mse": 0.058319613337516785
+    },
+    {
+      "update": 508,
+      "task_index": 49,
+      "action_mse": 0.033479705452919006
+    },
+    {
+      "update": 509,
+      "task_index": 7,
+      "action_mse": 0.035467106848955154
+    },
+    {
+      "update": 510,
+      "task_index": 31,
+      "action_mse": 0.0365348719060421
+    },
+    {
+      "update": 511,
+      "task_index": 0,
+      "action_mse": 0.038187671452760696
+    },
+    {
+      "update": 512,
+      "task_index": 27,
+      "action_mse": 0.058523986488580704
+    },
+    {
+      "update": 513,
+      "task_index": 0,
+      "action_mse": 0.037721771746873856
+    },
+    {
+      "update": 514,
+      "task_index": 56,
+      "action_mse": 0.03833957016468048
+    },
+    {
+      "update": 515,
+      "task_index": 62,
+      "action_mse": 0.04140385985374451
+    },
+    {
+      "update": 516,
+      "task_index": 5,
+      "action_mse": 0.04830107465386391
+    },
+    {
+      "update": 517,
+      "task_index": 52,
+      "action_mse": 0.05144420266151428
+    },
+    {
+      "update": 518,
+      "task_index": 45,
+      "action_mse": 0.04142361879348755
+    },
+    {
+      "update": 519,
+      "task_index": 19,
+      "action_mse": 0.06284452974796295
+    },
+    {
+      "update": 520,
+      "task_index": 50,
+      "action_mse": 0.05968247354030609
+    },
+    {
+      "update": 521,
+      "task_index": 61,
+      "action_mse": 0.052666425704956055
+    },
+    {
+      "update": 522,
+      "task_index": 51,
+      "action_mse": 0.07562262564897537
+    },
+    {
+      "update": 523,
+      "task_index": 44,
+      "action_mse": 0.06681106984615326
+    },
+    {
+      "update": 524,
+      "task_index": 20,
+      "action_mse": 0.023961324244737625
+    },
+    {
+      "update": 525,
+      "task_index": 38,
+      "action_mse": 0.03555269539356232
+    },
+    {
+      "update": 526,
+      "task_index": 50,
+      "action_mse": 0.05878923088312149
+    },
+    {
+      "update": 527,
+      "task_index": 45,
+      "action_mse": 0.03994584456086159
+    },
+    {
+      "update": 528,
+      "task_index": 14,
+      "action_mse": 0.05602836608886719
+    },
+    {
+      "update": 529,
+      "task_index": 26,
+      "action_mse": 0.0357540063560009
+    },
+    {
+      "update": 530,
+      "task_index": 23,
+      "action_mse": 0.05653319135308266
+    },
+    {
+      "update": 531,
+      "task_index": 44,
+      "action_mse": 0.06444966793060303
+    },
+    {
+      "update": 532,
+      "task_index": 26,
+      "action_mse": 0.03530518710613251
+    },
+    {
+      "update": 533,
+      "task_index": 26,
+      "action_mse": 0.03501947224140167
+    },
+    {
+      "update": 534,
+      "task_index": 34,
+      "action_mse": 0.051854319870471954
+    },
+    {
+      "update": 535,
+      "task_index": 37,
+      "action_mse": 0.029989730566740036
+    },
+    {
+      "update": 536,
+      "task_index": 7,
+      "action_mse": 0.034334104508161545
+    },
+    {
+      "update": 537,
+      "task_index": 59,
+      "action_mse": 0.03576337546110153
+    },
+    {
+      "update": 538,
+      "task_index": 26,
+      "action_mse": 0.03339006006717682
+    },
+    {
+      "update": 539,
+      "task_index": 11,
+      "action_mse": 0.05839318037033081
+    },
+    {
+      "update": 540,
+      "task_index": 0,
+      "action_mse": 0.03315768390893936
+    },
+    {
+      "update": 541,
+      "task_index": 27,
+      "action_mse": 0.05689727142453194
+    },
+    {
+      "update": 542,
+      "task_index": 47,
+      "action_mse": 0.034293435513973236
+    },
+    {
+      "update": 543,
+      "task_index": 18,
+      "action_mse": 0.04053998738527298
+    },
+    {
+      "update": 544,
+      "task_index": 54,
+      "action_mse": 0.03138565644621849
+    },
+    {
+      "update": 545,
+      "task_index": 12,
+      "action_mse": 0.030209137126803398
+    },
+    {
+      "update": 546,
+      "task_index": 8,
+      "action_mse": 0.06318629533052444
+    },
+    {
+      "update": 547,
+      "task_index": 25,
+      "action_mse": 0.03813710808753967
+    },
+    {
+      "update": 548,
+      "task_index": 45,
+      "action_mse": 0.03766215592622757
+    },
+    {
+      "update": 549,
+      "task_index": 19,
+      "action_mse": 0.0594705305993557
+    },
+    {
+      "update": 550,
+      "task_index": 52,
+      "action_mse": 0.050219736993312836
+    },
+    {
+      "update": 551,
+      "task_index": 1,
+      "action_mse": 0.04954155534505844
+    },
+    {
+      "update": 552,
+      "task_index": 62,
+      "action_mse": 0.039620622992515564
+    },
+    {
+      "update": 553,
+      "task_index": 3,
+      "action_mse": 0.054346442222595215
+    },
+    {
+      "update": 554,
+      "task_index": 54,
+      "action_mse": 0.03043767437338829
+    },
+    {
+      "update": 555,
+      "task_index": 0,
+      "action_mse": 0.03148363530635834
+    },
+    {
+      "update": 556,
+      "task_index": 27,
+      "action_mse": 0.0549413338303566
+    },
+    {
+      "update": 557,
+      "task_index": 19,
+      "action_mse": 0.05768495798110962
+    },
+    {
+      "update": 558,
+      "task_index": 62,
+      "action_mse": 0.03857443854212761
+    },
+    {
+      "update": 559,
+      "task_index": 41,
+      "action_mse": 0.04450308904051781
+    },
+    {
+      "update": 560,
+      "task_index": 62,
+      "action_mse": 0.03789849579334259
+    },
+    {
+      "update": 561,
+      "task_index": 26,
+      "action_mse": 0.030147895216941833
+    },
+    {
+      "update": 562,
+      "task_index": 32,
+      "action_mse": 0.030816558748483658
+    },
+    {
+      "update": 563,
+      "task_index": 32,
+      "action_mse": 0.030544232577085495
+    },
+    {
+      "update": 564,
+      "task_index": 48,
+      "action_mse": 0.03416827321052551
+    },
+    {
+      "update": 565,
+      "task_index": 32,
+      "action_mse": 0.029731210321187973
+    },
+    {
+      "update": 566,
+      "task_index": 58,
+      "action_mse": 0.056011781096458435
+    },
+    {
+      "update": 567,
+      "task_index": 12,
+      "action_mse": 0.03030865639448166
+    },
+    {
+      "update": 568,
+      "task_index": 30,
+      "action_mse": 0.05582582205533981
+    },
+    {
+      "update": 569,
+      "task_index": 15,
+      "action_mse": 0.06407789140939713
+    },
+    {
+      "update": 570,
+      "task_index": 55,
+      "action_mse": 0.046879954636096954
+    },
+    {
+      "update": 571,
+      "task_index": 8,
+      "action_mse": 0.06070538982748985
+    },
+    {
+      "update": 572,
+      "task_index": 44,
+      "action_mse": 0.0610053613781929
+    },
+    {
+      "update": 573,
+      "task_index": 58,
+      "action_mse": 0.0540788359940052
+    },
+    {
+      "update": 574,
+      "task_index": 18,
+      "action_mse": 0.04008548706769943
+    },
+    {
+      "update": 575,
+      "task_index": 17,
+      "action_mse": 0.038270629942417145
+    },
+    {
+      "update": 576,
+      "task_index": 49,
+      "action_mse": 0.03232170641422272
+    },
+    {
+      "update": 577,
+      "task_index": 37,
+      "action_mse": 0.029779840260744095
+    },
+    {
+      "update": 578,
+      "task_index": 36,
+      "action_mse": 0.055336322635412216
+    },
+    {
+      "update": 579,
+      "task_index": 56,
+      "action_mse": 0.0368134044110775
+    },
+    {
+      "update": 580,
+      "task_index": 6,
+      "action_mse": 0.042680107057094574
+    },
+    {
+      "update": 581,
+      "task_index": 17,
+      "action_mse": 0.037530068308115005
+    },
+    {
+      "update": 582,
+      "task_index": 25,
+      "action_mse": 0.037579089403152466
+    },
+    {
+      "update": 583,
+      "task_index": 58,
+      "action_mse": 0.05101311206817627
+    },
+    {
+      "update": 584,
+      "task_index": 4,
+      "action_mse": 0.046701982617378235
+    },
+    {
+      "update": 585,
+      "task_index": 28,
+      "action_mse": 0.05787081643939018
+    },
+    {
+      "update": 586,
+      "task_index": 30,
+      "action_mse": 0.05379124730825424
+    },
+    {
+      "update": 587,
+      "task_index": 0,
+      "action_mse": 0.031252067536115646
+    },
+    {
+      "update": 588,
+      "task_index": 27,
+      "action_mse": 0.054206352680921555
+    },
+    {
+      "update": 589,
+      "task_index": 41,
+      "action_mse": 0.044759105890989304
+    },
+    {
+      "update": 590,
+      "task_index": 27,
+      "action_mse": 0.053728342056274414
+    },
+    {
+      "update": 591,
+      "task_index": 19,
+      "action_mse": 0.05548781901597977
+    },
+    {
+      "update": 592,
+      "task_index": 37,
+      "action_mse": 0.028743110597133636
+    },
+    {
+      "update": 593,
+      "task_index": 62,
+      "action_mse": 0.03397594392299652
+    },
+    {
+      "update": 594,
+      "task_index": 7,
+      "action_mse": 0.035425372421741486
+    },
+    {
+      "update": 595,
+      "task_index": 18,
+      "action_mse": 0.03846660256385803
+    },
+    {
+      "update": 596,
+      "task_index": 59,
+      "action_mse": 0.0360267348587513
+    },
+    {
+      "update": 597,
+      "task_index": 18,
+      "action_mse": 0.03802652657032013
+    },
+    {
+      "update": 598,
+      "task_index": 43,
+      "action_mse": 0.07066671550273895
+    },
+    {
+      "update": 599,
+      "task_index": 22,
+      "action_mse": 0.041465774178504944
+    },
+    {
+      "update": 600,
+      "task_index": 52,
+      "action_mse": 0.05168813839554787
+    },
+    {
+      "update": 601,
+      "task_index": 37,
+      "action_mse": 0.027949098497629166
+    },
+    {
+      "update": 602,
+      "task_index": 57,
+      "action_mse": 0.0434517003595829
+    },
+    {
+      "update": 603,
+      "task_index": 40,
+      "action_mse": 0.07649029046297073
+    },
+    {
+      "update": 604,
+      "task_index": 37,
+      "action_mse": 0.02744755707681179
+    },
+    {
+      "update": 605,
+      "task_index": 31,
+      "action_mse": 0.036523133516311646
+    },
+    {
+      "update": 606,
+      "task_index": 2,
+      "action_mse": 0.053076453506946564
+    },
+    {
+      "update": 607,
+      "task_index": 7,
+      "action_mse": 0.03598182275891304
+    },
+    {
+      "update": 608,
+      "task_index": 45,
+      "action_mse": 0.038636401295661926
+    },
+    {
+      "update": 609,
+      "task_index": 40,
+      "action_mse": 0.07542481273412704
+    },
+    {
+      "update": 610,
+      "task_index": 36,
+      "action_mse": 0.053708646446466446
+    },
+    {
+      "update": 611,
+      "task_index": 7,
+      "action_mse": 0.03577229008078575
+    },
+    {
+      "update": 612,
+      "task_index": 52,
+      "action_mse": 0.05015663430094719
+    },
+    {
+      "update": 613,
+      "task_index": 50,
+      "action_mse": 0.05774278938770294
+    },
+    {
+      "update": 614,
+      "task_index": 34,
+      "action_mse": 0.04980286955833435
+    },
+    {
+      "update": 615,
+      "task_index": 16,
+      "action_mse": 0.0564756765961647
+    },
+    {
+      "update": 616,
+      "task_index": 52,
+      "action_mse": 0.04899870604276657
+    },
+    {
+      "update": 617,
+      "task_index": 33,
+      "action_mse": 0.029399149119853973
+    },
+    {
+      "update": 618,
+      "task_index": 63,
+      "action_mse": 0.045177116990089417
+    },
+    {
+      "update": 619,
+      "task_index": 17,
+      "action_mse": 0.03537357598543167
+    },
+    {
+      "update": 620,
+      "task_index": 22,
+      "action_mse": 0.039722297340631485
+    },
+    {
+      "update": 621,
+      "task_index": 51,
+      "action_mse": 0.0759190171957016
+    },
+    {
+      "update": 622,
+      "task_index": 10,
+      "action_mse": 0.04354359954595566
+    },
+    {
+      "update": 623,
+      "task_index": 20,
+      "action_mse": 0.026493962854146957
+    },
+    {
+      "update": 624,
+      "task_index": 25,
+      "action_mse": 0.03675044700503349
+    },
+    {
+      "update": 625,
+      "task_index": 46,
+      "action_mse": 0.052141983062028885
+    },
+    {
+      "update": 626,
+      "task_index": 48,
+      "action_mse": 0.03364357352256775
+    },
+    {
+      "update": 627,
+      "task_index": 50,
+      "action_mse": 0.05671737715601921
+    },
+    {
+      "update": 628,
+      "task_index": 28,
+      "action_mse": 0.05590055137872696
+    },
+    {
+      "update": 629,
+      "task_index": 39,
+      "action_mse": 0.05179800093173981
+    },
+    {
+      "update": 630,
+      "task_index": 37,
+      "action_mse": 0.026574671268463135
+    },
+    {
+      "update": 631,
+      "task_index": 49,
+      "action_mse": 0.03112625889480114
+    },
+    {
+      "update": 632,
+      "task_index": 8,
+      "action_mse": 0.06177649646997452
+    },
+    {
+      "update": 633,
+      "task_index": 20,
+      "action_mse": 0.02615988440811634
+    },
+    {
+      "update": 634,
+      "task_index": 46,
+      "action_mse": 0.05041797459125519
+    },
+    {
+      "update": 635,
+      "task_index": 12,
+      "action_mse": 0.030655203387141228
+    },
+    {
+      "update": 636,
+      "task_index": 17,
+      "action_mse": 0.03419242799282074
+    },
+    {
+      "update": 637,
+      "task_index": 62,
+      "action_mse": 0.0358249731361866
+    },
+    {
+      "update": 638,
+      "task_index": 12,
+      "action_mse": 0.0302343238145113
+    },
+    {
+      "update": 639,
+      "task_index": 63,
+      "action_mse": 0.04434392601251602
+    },
+    {
+      "update": 640,
+      "task_index": 55,
+      "action_mse": 0.04861467331647873
+    },
+    {
+      "update": 641,
+      "task_index": 9,
+      "action_mse": 0.040495745837688446
+    },
+    {
+      "update": 642,
+      "task_index": 36,
+      "action_mse": 0.05130735784769058
+    },
+    {
+      "update": 643,
+      "task_index": 20,
+      "action_mse": 0.025743436068296432
+    },
+    {
+      "update": 644,
+      "task_index": 31,
+      "action_mse": 0.035192832350730896
+    },
+    {
+      "update": 645,
+      "task_index": 39,
+      "action_mse": 0.05006914585828781
+    },
+    {
+      "update": 646,
+      "task_index": 57,
+      "action_mse": 0.04360416159033775
+    },
+    {
+      "update": 647,
+      "task_index": 59,
+      "action_mse": 0.03526158258318901
+    },
+    {
+      "update": 648,
+      "task_index": 5,
+      "action_mse": 0.050353795289993286
+    },
+    {
+      "update": 649,
+      "task_index": 11,
+      "action_mse": 0.057556796818971634
+    },
+    {
+      "update": 650,
+      "task_index": 44,
+      "action_mse": 0.06119050830602646
+    },
+    {
+      "update": 651,
+      "task_index": 13,
+      "action_mse": 0.05771692842245102
+    },
+    {
+      "update": 652,
+      "task_index": 20,
+      "action_mse": 0.025000154972076416
+    },
+    {
+      "update": 653,
+      "task_index": 37,
+      "action_mse": 0.025335613638162613
+    },
+    {
+      "update": 654,
+      "task_index": 11,
+      "action_mse": 0.05702455714344978
+    },
+    {
+      "update": 655,
+      "task_index": 63,
+      "action_mse": 0.04257215932011604
+    },
+    {
+      "update": 656,
+      "task_index": 43,
+      "action_mse": 0.06981567293405533
+    },
+    {
+      "update": 657,
+      "task_index": 14,
+      "action_mse": 0.05869848653674126
+    },
+    {
+      "update": 658,
+      "task_index": 23,
+      "action_mse": 0.056292079389095306
+    },
+    {
+      "update": 659,
+      "task_index": 41,
+      "action_mse": 0.04391586780548096
+    },
+    {
+      "update": 660,
+      "task_index": 21,
+      "action_mse": 0.06222797930240631
+    },
+    {
+      "update": 661,
+      "task_index": 39,
+      "action_mse": 0.04846210777759552
+    },
+    {
+      "update": 662,
+      "task_index": 60,
+      "action_mse": 0.036903366446495056
+    },
+    {
+      "update": 663,
+      "task_index": 23,
+      "action_mse": 0.05523041635751724
+    },
+    {
+      "update": 664,
+      "task_index": 12,
+      "action_mse": 0.027194496244192123
+    },
+    {
+      "update": 665,
+      "task_index": 18,
+      "action_mse": 0.03476640209555626
+    },
+    {
+      "update": 666,
+      "task_index": 32,
+      "action_mse": 0.02824145182967186
+    },
+    {
+      "update": 667,
+      "task_index": 35,
+      "action_mse": 0.039768483489751816
+    },
+    {
+      "update": 668,
+      "task_index": 1,
+      "action_mse": 0.04973800480365753
+    },
+    {
+      "update": 669,
+      "task_index": 41,
+      "action_mse": 0.04315527155995369
+    },
+    {
+      "update": 670,
+      "task_index": 10,
+      "action_mse": 0.04281683266162872
+    },
+    {
+      "update": 671,
+      "task_index": 40,
+      "action_mse": 0.07354622334241867
+    },
+    {
+      "update": 672,
+      "task_index": 56,
+      "action_mse": 0.03612839803099632
+    },
+    {
+      "update": 673,
+      "task_index": 12,
+      "action_mse": 0.02624526619911194
+    },
+    {
+      "update": 674,
+      "task_index": 50,
+      "action_mse": 0.056579478085041046
+    },
+    {
+      "update": 675,
+      "task_index": 2,
+      "action_mse": 0.051720891147851944
+    },
+    {
+      "update": 676,
+      "task_index": 35,
+      "action_mse": 0.03888966888189316
+    },
+    {
+      "update": 677,
+      "task_index": 42,
+      "action_mse": 0.034144654870033264
+    },
+    {
+      "update": 678,
+      "task_index": 14,
+      "action_mse": 0.05590980499982834
+    },
+    {
+      "update": 679,
+      "task_index": 50,
+      "action_mse": 0.05598177760839462
+    },
+    {
+      "update": 680,
+      "task_index": 35,
+      "action_mse": 0.03818085044622421
+    },
+    {
+      "update": 681,
+      "task_index": 26,
+      "action_mse": 0.031732428818941116
+    },
+    {
+      "update": 682,
+      "task_index": 0,
+      "action_mse": 0.03306218609213829
+    },
+    {
+      "update": 683,
+      "task_index": 8,
+      "action_mse": 0.06098568066954613
+    },
+    {
+      "update": 684,
+      "task_index": 45,
+      "action_mse": 0.04023447632789612
+    },
+    {
+      "update": 685,
+      "task_index": 26,
+      "action_mse": 0.031401507556438446
+    },
+    {
+      "update": 686,
+      "task_index": 45,
+      "action_mse": 0.04006264731287956
+    },
+    {
+      "update": 687,
+      "task_index": 61,
+      "action_mse": 0.05698191747069359
+    },
+    {
+      "update": 688,
+      "task_index": 41,
+      "action_mse": 0.042115919291973114
+    },
+    {
+      "update": 689,
+      "task_index": 47,
+      "action_mse": 0.03474719822406769
+    },
+    {
+      "update": 690,
+      "task_index": 39,
+      "action_mse": 0.046839624643325806
+    },
+    {
+      "update": 691,
+      "task_index": 19,
+      "action_mse": 0.058491792529821396
+    },
+    {
+      "update": 692,
+      "task_index": 4,
+      "action_mse": 0.04600435122847557
+    },
+    {
+      "update": 693,
+      "task_index": 39,
+      "action_mse": 0.0464557409286499
+    },
+    {
+      "update": 694,
+      "task_index": 15,
+      "action_mse": 0.060715995728969574
+    },
+    {
+      "update": 695,
+      "task_index": 7,
+      "action_mse": 0.03540211543440819
+    },
+    {
+      "update": 696,
+      "task_index": 36,
+      "action_mse": 0.048861708492040634
+    },
+    {
+      "update": 697,
+      "task_index": 39,
+      "action_mse": 0.04569971561431885
+    },
+    {
+      "update": 698,
+      "task_index": 25,
+      "action_mse": 0.035763632506132126
+    },
+    {
+      "update": 699,
+      "task_index": 40,
+      "action_mse": 0.07190069556236267
+    },
+    {
+      "update": 700,
+      "task_index": 63,
+      "action_mse": 0.04187233746051788
+    },
+    {
+      "update": 701,
+      "task_index": 48,
+      "action_mse": 0.03440481796860695
+    },
+    {
+      "update": 702,
+      "task_index": 59,
+      "action_mse": 0.03423785790801048
+    },
+    {
+      "update": 703,
+      "task_index": 4,
+      "action_mse": 0.0449533574283123
+    },
+    {
+      "update": 704,
+      "task_index": 9,
+      "action_mse": 0.03923210874199867
+    },
+    {
+      "update": 705,
+      "task_index": 22,
+      "action_mse": 0.04100155085325241
+    },
+    {
+      "update": 706,
+      "task_index": 37,
+      "action_mse": 0.025710329413414
+    },
+    {
+      "update": 707,
+      "task_index": 44,
+      "action_mse": 0.0596734881401062
+    },
+    {
+      "update": 708,
+      "task_index": 44,
+      "action_mse": 0.05936933681368828
+    },
+    {
+      "update": 709,
+      "task_index": 58,
+      "action_mse": 0.05703818425536156
+    },
+    {
+      "update": 710,
+      "task_index": 8,
+      "action_mse": 0.05887081101536751
+    },
+    {
+      "update": 711,
+      "task_index": 10,
+      "action_mse": 0.041168875992298126
+    },
+    {
+      "update": 712,
+      "task_index": 20,
+      "action_mse": 0.024149760603904724
+    },
+    {
+      "update": 713,
+      "task_index": 10,
+      "action_mse": 0.04080849885940552
+    },
+    {
+      "update": 714,
+      "task_index": 45,
+      "action_mse": 0.038781531155109406
+    },
+    {
+      "update": 715,
+      "task_index": 26,
+      "action_mse": 0.030015606433153152
+    },
+    {
+      "update": 716,
+      "task_index": 57,
+      "action_mse": 0.04331989586353302
+    },
+    {
+      "update": 717,
+      "task_index": 18,
+      "action_mse": 0.03447593003511429
+    },
+    {
+      "update": 718,
+      "task_index": 21,
+      "action_mse": 0.05971762165427208
+    },
+    {
+      "update": 719,
+      "task_index": 19,
+      "action_mse": 0.05620202794671059
+    },
+    {
+      "update": 720,
+      "task_index": 15,
+      "action_mse": 0.057854607701301575
+    },
+    {
+      "update": 721,
+      "task_index": 53,
+      "action_mse": 0.06720525771379471
+    },
+    {
+      "update": 722,
+      "task_index": 52,
+      "action_mse": 0.05065913125872612
+    },
+    {
+      "update": 723,
+      "task_index": 18,
+      "action_mse": 0.033591292798519135
+    },
+    {
+      "update": 724,
+      "task_index": 37,
+      "action_mse": 0.024821151047945023
+    },
+    {
+      "update": 725,
+      "task_index": 56,
+      "action_mse": 0.034771181643009186
+    },
+    {
+      "update": 726,
+      "task_index": 30,
+      "action_mse": 0.051367565989494324
+    },
+    {
+      "update": 727,
+      "task_index": 57,
+      "action_mse": 0.041917163878679276
+    },
+    {
+      "update": 728,
+      "task_index": 16,
+      "action_mse": 0.05693279206752777
+    },
+    {
+      "update": 729,
+      "task_index": 14,
+      "action_mse": 0.05439472198486328
+    },
+    {
+      "update": 730,
+      "task_index": 4,
+      "action_mse": 0.04448917880654335
+    },
+    {
+      "update": 731,
+      "task_index": 40,
+      "action_mse": 0.06944053620100021
+    },
+    {
+      "update": 732,
+      "task_index": 1,
+      "action_mse": 0.0482342392206192
+    },
+    {
+      "update": 733,
+      "task_index": 11,
+      "action_mse": 0.05491086468100548
+    },
+    {
+      "update": 734,
+      "task_index": 37,
+      "action_mse": 0.0240828525274992
+    },
+    {
+      "update": 735,
+      "task_index": 28,
+      "action_mse": 0.05925125256180763
+    },
+    {
+      "update": 736,
+      "task_index": 12,
+      "action_mse": 0.027204491198062897
+    },
+    {
+      "update": 737,
+      "task_index": 32,
+      "action_mse": 0.02993735298514366
+    },
+    {
+      "update": 738,
+      "task_index": 62,
+      "action_mse": 0.041167549788951874
+    },
+    {
+      "update": 739,
+      "task_index": 62,
+      "action_mse": 0.04087064042687416
+    },
+    {
+      "update": 740,
+      "task_index": 6,
+      "action_mse": 0.04094422981142998
+    },
+    {
+      "update": 741,
+      "task_index": 48,
+      "action_mse": 0.03269102796912193
+    },
+    {
+      "update": 742,
+      "task_index": 28,
+      "action_mse": 0.05699310079216957
+    },
+    {
+      "update": 743,
+      "task_index": 29,
+      "action_mse": 0.03349738195538521
+    },
+    {
+      "update": 744,
+      "task_index": 25,
+      "action_mse": 0.035175591707229614
+    },
+    {
+      "update": 745,
+      "task_index": 53,
+      "action_mse": 0.06496652960777283
+    },
+    {
+      "update": 746,
+      "task_index": 14,
+      "action_mse": 0.05219094455242157
+    },
+    {
+      "update": 747,
+      "task_index": 37,
+      "action_mse": 0.0234987773001194
+    },
+    {
+      "update": 748,
+      "task_index": 47,
+      "action_mse": 0.03334813192486763
+    },
+    {
+      "update": 749,
+      "task_index": 26,
+      "action_mse": 0.02932974509894848
+    },
+    {
+      "update": 750,
+      "task_index": 41,
+      "action_mse": 0.04218694567680359
+    },
+    {
+      "update": 751,
+      "task_index": 7,
+      "action_mse": 0.03710499405860901
+    },
+    {
+      "update": 752,
+      "task_index": 46,
+      "action_mse": 0.050390616059303284
+    },
+    {
+      "update": 753,
+      "task_index": 19,
+      "action_mse": 0.054146766662597656
+    },
+    {
+      "update": 754,
+      "task_index": 5,
+      "action_mse": 0.050992321223020554
+    },
+    {
+      "update": 755,
+      "task_index": 18,
+      "action_mse": 0.0315050445497036
+    },
+    {
+      "update": 756,
+      "task_index": 22,
+      "action_mse": 0.03890399634838104
+    },
+    {
+      "update": 757,
+      "task_index": 41,
+      "action_mse": 0.04180042818188667
+    },
+    {
+      "update": 758,
+      "task_index": 33,
+      "action_mse": 0.02911105751991272
+    },
+    {
+      "update": 759,
+      "task_index": 53,
+      "action_mse": 0.06319461017847061
+    },
+    {
+      "update": 760,
+      "task_index": 27,
+      "action_mse": 0.053857557475566864
+    },
+    {
+      "update": 761,
+      "task_index": 56,
+      "action_mse": 0.03377774357795715
+    },
+    {
+      "update": 762,
+      "task_index": 2,
+      "action_mse": 0.050052277743816376
+    },
+    {
+      "update": 763,
+      "task_index": 20,
+      "action_mse": 0.024654153734445572
+    },
+    {
+      "update": 764,
+      "task_index": 12,
+      "action_mse": 0.026672646403312683
+    },
+    {
+      "update": 765,
+      "task_index": 24,
+      "action_mse": 0.05007149651646614
+    },
+    {
+      "update": 766,
+      "task_index": 60,
+      "action_mse": 0.03549443185329437
+    },
+    {
+      "update": 767,
+      "task_index": 8,
+      "action_mse": 0.05803631246089935
+    },
+    {
+      "update": 768,
+      "task_index": 10,
+      "action_mse": 0.038541197776794434
+    },
+    {
+      "update": 769,
+      "task_index": 26,
+      "action_mse": 0.029239941388368607
+    },
+    {
+      "update": 770,
+      "task_index": 54,
+      "action_mse": 0.03184846043586731
+    },
+    {
+      "update": 771,
+      "task_index": 0,
+      "action_mse": 0.033685583621263504
+    },
+    {
+      "update": 772,
+      "task_index": 52,
+      "action_mse": 0.05075576901435852
+    },
+    {
+      "update": 773,
+      "task_index": 49,
+      "action_mse": 0.03133592754602432
+    },
+    {
+      "update": 774,
+      "task_index": 25,
+      "action_mse": 0.03410870581865311
+    },
+    {
+      "update": 775,
+      "task_index": 2,
+      "action_mse": 0.04842445254325867
+    },
+    {
+      "update": 776,
+      "task_index": 29,
+      "action_mse": 0.03161869943141937
+    },
+    {
+      "update": 777,
+      "task_index": 44,
+      "action_mse": 0.05821479111909866
+    },
+    {
+      "update": 778,
+      "task_index": 52,
+      "action_mse": 0.04967792332172394
+    },
+    {
+      "update": 779,
+      "task_index": 10,
+      "action_mse": 0.03747384622693062
+    },
+    {
+      "update": 780,
+      "task_index": 43,
+      "action_mse": 0.07046599686145782
+    },
+    {
+      "update": 781,
+      "task_index": 35,
+      "action_mse": 0.037860237061977386
+    },
+    {
+      "update": 782,
+      "task_index": 53,
+      "action_mse": 0.06032945215702057
+    },
+    {
+      "update": 783,
+      "task_index": 45,
+      "action_mse": 0.039479419589042664
+    },
+    {
+      "update": 784,
+      "task_index": 48,
+      "action_mse": 0.03172919899225235
+    },
+    {
+      "update": 785,
+      "task_index": 54,
+      "action_mse": 0.03057289868593216
+    },
+    {
+      "update": 786,
+      "task_index": 44,
+      "action_mse": 0.05650407820940018
+    },
+    {
+      "update": 787,
+      "task_index": 25,
+      "action_mse": 0.033620335161685944
+    },
+    {
+      "update": 788,
+      "task_index": 58,
+      "action_mse": 0.061206839978694916
+    },
+    {
+      "update": 789,
+      "task_index": 35,
+      "action_mse": 0.03687190264463425
+    },
+    {
+      "update": 790,
+      "task_index": 52,
+      "action_mse": 0.04729092866182327
+    },
+    {
+      "update": 791,
+      "task_index": 6,
+      "action_mse": 0.039777208119630814
+    },
+    {
+      "update": 792,
+      "task_index": 11,
+      "action_mse": 0.05499376729130745
+    },
+    {
+      "update": 793,
+      "task_index": 35,
+      "action_mse": 0.03615013509988785
+    },
+    {
+      "update": 794,
+      "task_index": 47,
+      "action_mse": 0.031744956970214844
+    },
+    {
+      "update": 795,
+      "task_index": 60,
+      "action_mse": 0.03423736244440079
+    },
+    {
+      "update": 796,
+      "task_index": 5,
+      "action_mse": 0.05104835331439972
+    },
+    {
+      "update": 797,
+      "task_index": 55,
+      "action_mse": 0.05402370169758797
+    },
+    {
+      "update": 798,
+      "task_index": 27,
+      "action_mse": 0.05138865113258362
+    },
+    {
+      "update": 799,
+      "task_index": 60,
+      "action_mse": 0.03361101821064949
+    },
+    {
+      "update": 800,
+      "task_index": 25,
+      "action_mse": 0.03288714960217476
+    },
+    {
+      "update": 801,
+      "task_index": 58,
+      "action_mse": 0.059108804911375046
+    },
+    {
+      "update": 802,
+      "task_index": 12,
+      "action_mse": 0.028273461386561394
+    },
+    {
+      "update": 803,
+      "task_index": 21,
+      "action_mse": 0.058646731078624725
+    },
+    {
+      "update": 804,
+      "task_index": 60,
+      "action_mse": 0.03253467381000519
+    },
+    {
+      "update": 805,
+      "task_index": 63,
+      "action_mse": 0.043645769357681274
+    },
+    {
+      "update": 806,
+      "task_index": 6,
+      "action_mse": 0.03900386393070221
+    },
+    {
+      "update": 807,
+      "task_index": 9,
+      "action_mse": 0.03901597857475281
+    },
+    {
+      "update": 808,
+      "task_index": 0,
+      "action_mse": 0.03315454348921776
+    },
+    {
+      "update": 809,
+      "task_index": 59,
+      "action_mse": 0.03428013622760773
+    },
+    {
+      "update": 810,
+      "task_index": 20,
+      "action_mse": 0.024880394339561462
+    },
+    {
+      "update": 811,
+      "task_index": 33,
+      "action_mse": 0.02846183069050312
+    },
+    {
+      "update": 812,
+      "task_index": 63,
+      "action_mse": 0.042985446751117706
+    },
+    {
+      "update": 813,
+      "task_index": 53,
+      "action_mse": 0.059752292931079865
+    },
+    {
+      "update": 814,
+      "task_index": 16,
+      "action_mse": 0.058133840560913086
+    },
+    {
+      "update": 815,
+      "task_index": 23,
+      "action_mse": 0.05734198912978172
+    },
+    {
+      "update": 816,
+      "task_index": 53,
+      "action_mse": 0.05905863270163536
+    },
+    {
+      "update": 817,
+      "task_index": 31,
+      "action_mse": 0.039167024195194244
+    },
+    {
+      "update": 818,
+      "task_index": 11,
+      "action_mse": 0.05294831097126007
+    },
+    {
+      "update": 819,
+      "task_index": 60,
+      "action_mse": 0.030249206349253654
+    },
+    {
+      "update": 820,
+      "task_index": 37,
+      "action_mse": 0.024425949901342392
+    },
+    {
+      "update": 821,
+      "task_index": 49,
+      "action_mse": 0.030997678637504578
+    },
+    {
+      "update": 822,
+      "task_index": 61,
+      "action_mse": 0.05881165713071823
+    },
+    {
+      "update": 823,
+      "task_index": 39,
+      "action_mse": 0.04743439331650734
+    },
+    {
+      "update": 824,
+      "task_index": 45,
+      "action_mse": 0.03741607442498207
+    },
+    {
+      "update": 825,
+      "task_index": 54,
+      "action_mse": 0.028277067467570305
+    },
+    {
+      "update": 826,
+      "task_index": 62,
+      "action_mse": 0.04076462239027023
+    },
+    {
+      "update": 827,
+      "task_index": 34,
+      "action_mse": 0.05396796390414238
+    },
+    {
+      "update": 828,
+      "task_index": 36,
+      "action_mse": 0.049707747995853424
+    },
+    {
+      "update": 829,
+      "task_index": 42,
+      "action_mse": 0.03465087711811066
+    },
+    {
+      "update": 830,
+      "task_index": 62,
+      "action_mse": 0.04008591175079346
+    },
+    {
+      "update": 831,
+      "task_index": 28,
+      "action_mse": 0.057429954409599304
+    },
+    {
+      "update": 832,
+      "task_index": 53,
+      "action_mse": 0.05566606670618057
+    },
+    {
+      "update": 833,
+      "task_index": 17,
+      "action_mse": 0.0379655659198761
+    },
+    {
+      "update": 834,
+      "task_index": 49,
+      "action_mse": 0.029386213049292564
+    },
+    {
+      "update": 835,
+      "task_index": 7,
+      "action_mse": 0.037211887538433075
+    },
+    {
+      "update": 836,
+      "task_index": 56,
+      "action_mse": 0.03333819657564163
+    },
+    {
+      "update": 837,
+      "task_index": 21,
+      "action_mse": 0.057879768311977386
+    },
+    {
+      "update": 838,
+      "task_index": 40,
+      "action_mse": 0.06936724483966827
+    },
+    {
+      "update": 839,
+      "task_index": 9,
+      "action_mse": 0.03725651651620865
+    },
+    {
+      "update": 840,
+      "task_index": 22,
+      "action_mse": 0.038427434861660004
+    },
+    {
+      "update": 841,
+      "task_index": 6,
+      "action_mse": 0.03808196634054184
+    },
+    {
+      "update": 842,
+      "task_index": 33,
+      "action_mse": 0.02776724472641945
+    },
+    {
+      "update": 843,
+      "task_index": 63,
+      "action_mse": 0.040719591081142426
+    },
+    {
+      "update": 844,
+      "task_index": 14,
+      "action_mse": 0.055929869413375854
+    },
+    {
+      "update": 845,
+      "task_index": 17,
+      "action_mse": 0.03685248643159866
+    },
+    {
+      "update": 846,
+      "task_index": 49,
+      "action_mse": 0.027995385229587555
+    },
+    {
+      "update": 847,
+      "task_index": 12,
+      "action_mse": 0.026326563209295273
+    },
+    {
+      "update": 848,
+      "task_index": 10,
+      "action_mse": 0.03543802350759506
+    },
+    {
+      "update": 849,
+      "task_index": 13,
+      "action_mse": 0.058319129049777985
+    },
+    {
+      "update": 850,
+      "task_index": 36,
+      "action_mse": 0.04560505226254463
+    },
+    {
+      "update": 851,
+      "task_index": 32,
+      "action_mse": 0.029187273234128952
+    },
+    {
+      "update": 852,
+      "task_index": 34,
+      "action_mse": 0.05244176462292671
+    },
+    {
+      "update": 853,
+      "task_index": 1,
+      "action_mse": 0.05003456771373749
+    },
+    {
+      "update": 854,
+      "task_index": 43,
+      "action_mse": 0.07069340348243713
+    },
+    {
+      "update": 855,
+      "task_index": 20,
+      "action_mse": 0.025100788101553917
+    },
+    {
+      "update": 856,
+      "task_index": 48,
+      "action_mse": 0.03034241497516632
+    },
+    {
+      "update": 857,
+      "task_index": 53,
+      "action_mse": 0.053272925317287445
+    },
+    {
+      "update": 858,
+      "task_index": 7,
+      "action_mse": 0.0359848290681839
+    },
+    {
+      "update": 859,
+      "task_index": 18,
+      "action_mse": 0.03183446824550629
+    },
+    {
+      "update": 860,
+      "task_index": 39,
+      "action_mse": 0.045374736189842224
+    },
+    {
+      "update": 861,
+      "task_index": 11,
+      "action_mse": 0.052406374365091324
+    },
+    {
+      "update": 862,
+      "task_index": 26,
+      "action_mse": 0.03042427822947502
+    },
+    {
+      "update": 863,
+      "task_index": 22,
+      "action_mse": 0.0378134548664093
+    },
+    {
+      "update": 864,
+      "task_index": 39,
+      "action_mse": 0.04487340897321701
+    },
+    {
+      "update": 865,
+      "task_index": 47,
+      "action_mse": 0.031960755586624146
+    },
+    {
+      "update": 866,
+      "task_index": 44,
+      "action_mse": 0.05403871834278107
+    },
+    {
+      "update": 867,
+      "task_index": 20,
+      "action_mse": 0.02474546991288662
+    },
+    {
+      "update": 868,
+      "task_index": 37,
+      "action_mse": 0.02479192614555359
+    },
+    {
+      "update": 869,
+      "task_index": 51,
+      "action_mse": 0.0742788314819336
+    },
+    {
+      "update": 870,
+      "task_index": 46,
+      "action_mse": 0.04983353242278099
+    },
+    {
+      "update": 871,
+      "task_index": 50,
+      "action_mse": 0.0578966960310936
+    },
+    {
+      "update": 872,
+      "task_index": 33,
+      "action_mse": 0.027329707518219948
+    },
+    {
+      "update": 873,
+      "task_index": 37,
+      "action_mse": 0.024230070412158966
+    },
+    {
+      "update": 874,
+      "task_index": 29,
+      "action_mse": 0.029997438192367554
+    },
+    {
+      "update": 875,
+      "task_index": 39,
+      "action_mse": 0.04318711906671524
+    },
+    {
+      "update": 876,
+      "task_index": 18,
+      "action_mse": 0.03022453561425209
+    },
+    {
+      "update": 877,
+      "task_index": 29,
+      "action_mse": 0.029648974537849426
+    },
+    {
+      "update": 878,
+      "task_index": 14,
+      "action_mse": 0.05383286625146866
+    },
+    {
+      "update": 879,
+      "task_index": 32,
+      "action_mse": 0.028231775388121605
+    },
+    {
+      "update": 880,
+      "task_index": 44,
+      "action_mse": 0.051981326192617416
+    },
+    {
+      "update": 881,
+      "task_index": 50,
+      "action_mse": 0.05657646059989929
+    },
+    {
+      "update": 882,
+      "task_index": 44,
+      "action_mse": 0.05136657506227493
+    },
+    {
+      "update": 883,
+      "task_index": 11,
+      "action_mse": 0.052029795944690704
+    },
+    {
+      "update": 884,
+      "task_index": 12,
+      "action_mse": 0.025407351553440094
+    },
+    {
+      "update": 885,
+      "task_index": 23,
+      "action_mse": 0.05818258225917816
+    },
+    {
+      "update": 886,
+      "task_index": 62,
+      "action_mse": 0.03824625164270401
+    },
+    {
+      "update": 887,
+      "task_index": 1,
+      "action_mse": 0.048757992684841156
+    },
+    {
+      "update": 888,
+      "task_index": 42,
+      "action_mse": 0.03473541885614395
+    },
+    {
+      "update": 889,
+      "task_index": 18,
+      "action_mse": 0.028491009026765823
+    },
+    {
+      "update": 890,
+      "task_index": 33,
+      "action_mse": 0.026459718123078346
+    },
+    {
+      "update": 891,
+      "task_index": 5,
+      "action_mse": 0.053746603429317474
+    },
+    {
+      "update": 892,
+      "task_index": 53,
+      "action_mse": 0.05179709568619728
+    },
+    {
+      "update": 893,
+      "task_index": 55,
+      "action_mse": 0.05355173721909523
+    },
+    {
+      "update": 894,
+      "task_index": 31,
+      "action_mse": 0.04030437022447586
+    },
+    {
+      "update": 895,
+      "task_index": 49,
+      "action_mse": 0.026581060141324997
+    },
+    {
+      "update": 896,
+      "task_index": 30,
+      "action_mse": 0.050105683505535126
+    },
+    {
+      "update": 897,
+      "task_index": 46,
+      "action_mse": 0.04678511247038841
+    },
+    {
+      "update": 898,
+      "task_index": 16,
+      "action_mse": 0.05634850263595581
+    },
+    {
+      "update": 899,
+      "task_index": 20,
+      "action_mse": 0.02498360350728035
+    },
+    {
+      "update": 900,
+      "task_index": 9,
+      "action_mse": 0.03492556884884834
+    },
+    {
+      "update": 901,
+      "task_index": 29,
+      "action_mse": 0.027924682945013046
+    },
+    {
+      "update": 902,
+      "task_index": 45,
+      "action_mse": 0.037895821034908295
+    },
+    {
+      "update": 903,
+      "task_index": 50,
+      "action_mse": 0.05442604422569275
+    },
+    {
+      "update": 904,
+      "task_index": 54,
+      "action_mse": 0.027050288394093513
+    },
+    {
+      "update": 905,
+      "task_index": 12,
+      "action_mse": 0.02482939139008522
+    },
+    {
+      "update": 906,
+      "task_index": 43,
+      "action_mse": 0.06954489648342133
+    },
+    {
+      "update": 907,
+      "task_index": 17,
+      "action_mse": 0.036945492029190063
+    },
+    {
+      "update": 908,
+      "task_index": 23,
+      "action_mse": 0.05620475858449936
+    },
+    {
+      "update": 909,
+      "task_index": 23,
+      "action_mse": 0.055893510580062866
+    },
+    {
+      "update": 910,
+      "task_index": 36,
+      "action_mse": 0.04439520090818405
+    },
+    {
+      "update": 911,
+      "task_index": 37,
+      "action_mse": 0.022392433136701584
+    },
+    {
+      "update": 912,
+      "task_index": 36,
+      "action_mse": 0.04384549707174301
+    },
+    {
+      "update": 913,
+      "task_index": 4,
+      "action_mse": 0.049049071967601776
+    },
+    {
+      "update": 914,
+      "task_index": 59,
+      "action_mse": 0.03624189645051956
+    },
+    {
+      "update": 915,
+      "task_index": 54,
+      "action_mse": 0.025659065693616867
+    },
+    {
+      "update": 916,
+      "task_index": 24,
+      "action_mse": 0.05044310539960861
+    },
+    {
+      "update": 917,
+      "task_index": 36,
+      "action_mse": 0.04137822240591049
+    },
+    {
+      "update": 918,
+      "task_index": 10,
+      "action_mse": 0.036618128418922424
+    },
+    {
+      "update": 919,
+      "task_index": 40,
+      "action_mse": 0.07115389406681061
+    },
+    {
+      "update": 920,
+      "task_index": 56,
+      "action_mse": 0.033246271312236786
+    },
+    {
+      "update": 921,
+      "task_index": 59,
+      "action_mse": 0.035086147487163544
+    },
+    {
+      "update": 922,
+      "task_index": 57,
+      "action_mse": 0.04628022760152817
+    },
+    {
+      "update": 923,
+      "task_index": 3,
+      "action_mse": 0.059657324105501175
+    },
+    {
+      "update": 924,
+      "task_index": 3,
+      "action_mse": 0.0593847930431366
+    },
+    {
+      "update": 925,
+      "task_index": 47,
+      "action_mse": 0.03207302838563919
+    },
+    {
+      "update": 926,
+      "task_index": 12,
+      "action_mse": 0.022682029753923416
+    },
+    {
+      "update": 927,
+      "task_index": 12,
+      "action_mse": 0.0224873349070549
+    },
+    {
+      "update": 928,
+      "task_index": 40,
+      "action_mse": 0.06973670423030853
+    },
+    {
+      "update": 929,
+      "task_index": 3,
+      "action_mse": 0.05728635936975479
+    },
+    {
+      "update": 930,
+      "task_index": 50,
+      "action_mse": 0.05341945216059685
+    },
+    {
+      "update": 931,
+      "task_index": 11,
+      "action_mse": 0.05333463475108147
+    },
+    {
+      "update": 932,
+      "task_index": 38,
+      "action_mse": 0.03942006081342697
+    },
+    {
+      "update": 933,
+      "task_index": 40,
+      "action_mse": 0.06804019212722778
+    },
+    {
+      "update": 934,
+      "task_index": 12,
+      "action_mse": 0.020789947360754013
+    },
+    {
+      "update": 935,
+      "task_index": 25,
+      "action_mse": 0.032725073397159576
+    },
+    {
+      "update": 936,
+      "task_index": 7,
+      "action_mse": 0.03835711628198624
+    },
+    {
+      "update": 937,
+      "task_index": 62,
+      "action_mse": 0.039001889526844025
+    },
+    {
+      "update": 938,
+      "task_index": 32,
+      "action_mse": 0.030910618603229523
+    },
+    {
+      "update": 939,
+      "task_index": 9,
+      "action_mse": 0.03532390296459198
+    },
+    {
+      "update": 940,
+      "task_index": 52,
+      "action_mse": 0.05567311495542526
+    },
+    {
+      "update": 941,
+      "task_index": 47,
+      "action_mse": 0.03147711604833603
+    },
+    {
+      "update": 942,
+      "task_index": 13,
+      "action_mse": 0.056648220866918564
+    },
+    {
+      "update": 943,
+      "task_index": 21,
+      "action_mse": 0.057316213846206665
+    },
+    {
+      "update": 944,
+      "task_index": 4,
+      "action_mse": 0.046597473323345184
+    },
+    {
+      "update": 945,
+      "task_index": 35,
+      "action_mse": 0.03818003460764885
+    },
+    {
+      "update": 946,
+      "task_index": 35,
+      "action_mse": 0.03801334649324417
+    },
+    {
+      "update": 947,
+      "task_index": 3,
+      "action_mse": 0.05299792438745499
+    },
+    {
+      "update": 948,
+      "task_index": 12,
+      "action_mse": 0.019339341670274734
+    },
+    {
+      "update": 949,
+      "task_index": 29,
+      "action_mse": 0.029056377708911896
+    },
+    {
+      "update": 950,
+      "task_index": 4,
+      "action_mse": 0.04581744596362114
+    },
+    {
+      "update": 951,
+      "task_index": 47,
+      "action_mse": 0.03033512271940708
+    },
+    {
+      "update": 952,
+      "task_index": 49,
+      "action_mse": 0.027628609910607338
+    },
+    {
+      "update": 953,
+      "task_index": 45,
+      "action_mse": 0.04023575037717819
+    },
+    {
+      "update": 954,
+      "task_index": 52,
+      "action_mse": 0.05306354910135269
+    },
+    {
+      "update": 955,
+      "task_index": 51,
+      "action_mse": 0.07291063666343689
+    },
+    {
+      "update": 956,
+      "task_index": 25,
+      "action_mse": 0.031950514763593674
+    },
+    {
+      "update": 957,
+      "task_index": 28,
+      "action_mse": 0.06165565550327301
+    },
+    {
+      "update": 958,
+      "task_index": 18,
+      "action_mse": 0.028844235464930534
+    },
+    {
+      "update": 959,
+      "task_index": 10,
+      "action_mse": 0.03576469421386719
+    },
+    {
+      "update": 960,
+      "task_index": 17,
+      "action_mse": 0.03522214666008949
+    },
+    {
+      "update": 961,
+      "task_index": 46,
+      "action_mse": 0.04817577451467514
+    },
+    {
+      "update": 962,
+      "task_index": 23,
+      "action_mse": 0.051382407546043396
+    },
+    {
+      "update": 963,
+      "task_index": 63,
+      "action_mse": 0.04259898141026497
+    },
+    {
+      "update": 964,
+      "task_index": 36,
+      "action_mse": 0.037281621247529984
+    },
+    {
+      "update": 965,
+      "task_index": 42,
+      "action_mse": 0.03182367980480194
+    },
+    {
+      "update": 966,
+      "task_index": 33,
+      "action_mse": 0.0253413338214159
+    },
+    {
+      "update": 967,
+      "task_index": 51,
+      "action_mse": 0.07122552394866943
+    },
+    {
+      "update": 968,
+      "task_index": 22,
+      "action_mse": 0.039071932435035706
+    },
+    {
+      "update": 969,
+      "task_index": 39,
+      "action_mse": 0.043183162808418274
+    },
+    {
+      "update": 970,
+      "task_index": 40,
+      "action_mse": 0.06475125253200531
+    },
+    {
+      "update": 971,
+      "task_index": 55,
+      "action_mse": 0.054516829550266266
+    },
+    {
+      "update": 972,
+      "task_index": 43,
+      "action_mse": 0.06917038559913635
+    },
+    {
+      "update": 973,
+      "task_index": 38,
+      "action_mse": 0.037614449858665466
+    },
+    {
+      "update": 974,
+      "task_index": 35,
+      "action_mse": 0.03607209771871567
+    },
+    {
+      "update": 975,
+      "task_index": 3,
+      "action_mse": 0.05162549018859863
+    },
+    {
+      "update": 976,
+      "task_index": 24,
+      "action_mse": 0.05152973532676697
+    },
+    {
+      "update": 977,
+      "task_index": 19,
+      "action_mse": 0.06289993226528168
+    },
+    {
+      "update": 978,
+      "task_index": 39,
+      "action_mse": 0.04253111779689789
+    },
+    {
+      "update": 979,
+      "task_index": 20,
+      "action_mse": 0.026476634666323662
+    },
+    {
+      "update": 980,
+      "task_index": 37,
+      "action_mse": 0.023175843060016632
+    },
+    {
+      "update": 981,
+      "task_index": 31,
+      "action_mse": 0.039190106093883514
+    },
+    {
+      "update": 982,
+      "task_index": 21,
+      "action_mse": 0.05606492608785629
+    },
+    {
+      "update": 983,
+      "task_index": 32,
+      "action_mse": 0.031365491449832916
+    },
+    {
+      "update": 984,
+      "task_index": 19,
+      "action_mse": 0.06120564043521881
+    },
+    {
+      "update": 985,
+      "task_index": 13,
+      "action_mse": 0.05514031648635864
+    },
+    {
+      "update": 986,
+      "task_index": 34,
+      "action_mse": 0.04953136295080185
+    },
+    {
+      "update": 987,
+      "task_index": 63,
+      "action_mse": 0.04230324551463127
+    },
+    {
+      "update": 988,
+      "task_index": 39,
+      "action_mse": 0.04100854694843292
+    },
+    {
+      "update": 989,
+      "task_index": 39,
+      "action_mse": 0.0407286174595356
+    },
+    {
+      "update": 990,
+      "task_index": 39,
+      "action_mse": 0.040298573672771454
+    },
+    {
+      "update": 991,
+      "task_index": 56,
+      "action_mse": 0.03262538090348244
+    },
+    {
+      "update": 992,
+      "task_index": 24,
+      "action_mse": 0.04969695210456848
+    },
+    {
+      "update": 993,
+      "task_index": 27,
+      "action_mse": 0.05448068678379059
+    },
+    {
+      "update": 994,
+      "task_index": 36,
+      "action_mse": 0.037534210830926895
+    },
+    {
+      "update": 995,
+      "task_index": 35,
+      "action_mse": 0.03522045537829399
+    },
+    {
+      "update": 996,
+      "task_index": 63,
+      "action_mse": 0.04123827815055847
+    },
+    {
+      "update": 997,
+      "task_index": 11,
+      "action_mse": 0.052430182695388794
+    },
+    {
+      "update": 998,
+      "task_index": 27,
+      "action_mse": 0.053199563175439835
+    },
+    {
+      "update": 999,
+      "task_index": 13,
+      "action_mse": 0.053308047354221344
+    },
+    {
+      "update": 1000,
+      "task_index": 53,
+      "action_mse": 0.05080083757638931
+    }
+  ],
+  "updates": 1000,
+  "planned_updates": 1000,
+  "learning_rate": 0.001,
+  "training_fit": {
+    "tasks": [
+      {
+        "task_seed": 1000,
+        "objective": 0.025262949988245964
+      },
+      {
+        "task_seed": 1001,
+        "objective": 0.035219818353652954
+      },
+      {
+        "task_seed": 1002,
+        "objective": 0.04670889675617218
+      },
+      {
+        "task_seed": 1003,
+        "objective": 0.01839667744934559
+      },
+      {
+        "task_seed": 1004,
+        "objective": 0.016970761120319366
+      },
+      {
+        "task_seed": 1005,
+        "objective": 0.03797850385308266
+      },
+      {
+        "task_seed": 1006,
+        "objective": 0.005807211622595787
+      },
+      {
+        "task_seed": 1007,
+        "objective": 0.0232540275901556
+      },
+      {
+        "task_seed": 1008,
+        "objective": 0.018950127065181732
+      },
+      {
+        "task_seed": 1009,
+        "objective": 0.009090363048017025
+      },
+      {
+        "task_seed": 1010,
+        "objective": 0.01327888946980238
+      },
+      {
+        "task_seed": 1011,
+        "objective": 0.02218000963330269
+      },
+      {
+        "task_seed": 1012,
+        "objective": 0.01068367063999176
+      },
+      {
+        "task_seed": 1013,
+        "objective": 0.021580874919891357
+      },
+      {
+        "task_seed": 1014,
+        "objective": 0.04170136898756027
+      },
+      {
+        "task_seed": 1015,
+        "objective": 0.03763074055314064
+      },
+      {
+        "task_seed": 1016,
+        "objective": 0.01698947697877884
+      },
+      {
+        "task_seed": 1017,
+        "objective": 0.028577709570527077
+      },
+      {
+        "task_seed": 1018,
+        "objective": 0.03682495281100273
+      },
+      {
+        "task_seed": 1019,
+        "objective": 0.03382336348295212
+      },
+      {
+        "task_seed": 1020,
+        "objective": 0.02365681901574135
+      },
+      {
+        "task_seed": 1021,
+        "objective": 0.01925305463373661
+      },
+      {
+        "task_seed": 1022,
+        "objective": 0.013026139698922634
+      },
+      {
+        "task_seed": 1023,
+        "objective": 0.03717657923698425
+      },
+      {
+        "task_seed": 1024,
+        "objective": 0.016896018758416176
+      },
+      {
+        "task_seed": 1025,
+        "objective": 0.0045358226634562016
+      },
+      {
+        "task_seed": 1026,
+        "objective": 0.011220591142773628
+      },
+      {
+        "task_seed": 1027,
+        "objective": 0.016423843801021576
+      },
+      {
+        "task_seed": 1028,
+        "objective": 0.025890661403536797
+      },
+      {
+        "task_seed": 1029,
+        "objective": 0.016321465373039246
+      },
+      {
+        "task_seed": 1030,
+        "objective": 0.010731663554906845
+      },
+      {
+        "task_seed": 1031,
+        "objective": 0.028278851881623268
+      },
+      {
+        "task_seed": 1032,
+        "objective": 0.013668345287442207
+      },
+      {
+        "task_seed": 1033,
+        "objective": 0.0036652125418186188
+      },
+      {
+        "task_seed": 1034,
+        "objective": 0.01190956961363554
+      },
+      {
+        "task_seed": 1035,
+        "objective": 0.010023586452007294
+      },
+      {
+        "task_seed": 1036,
+        "objective": 0.024976395070552826
+      },
+      {
+        "task_seed": 1037,
+        "objective": 0.0161505788564682
+      },
+      {
+        "task_seed": 1038,
+        "objective": 0.015700342133641243
+      },
+      {
+        "task_seed": 1039,
+        "objective": 0.01844574511051178
+      },
+      {
+        "task_seed": 1040,
+        "objective": 0.014279315248131752
+      },
+      {
+        "task_seed": 1041,
+        "objective": 0.02182346023619175
+      },
+      {
+        "task_seed": 1042,
+        "objective": 0.019987381994724274
+      },
+      {
+        "task_seed": 1043,
+        "objective": 0.01796668767929077
+      },
+      {
+        "task_seed": 1044,
+        "objective": 0.0240285936743021
+      },
+      {
+        "task_seed": 1045,
+        "objective": 0.022773269563913345
+      },
+      {
+        "task_seed": 1046,
+        "objective": 0.017339449375867844
+      },
+      {
+        "task_seed": 1047,
+        "objective": 0.008553418330848217
+      },
+      {
+        "task_seed": 1048,
+        "objective": 0.020649895071983337
+      },
+      {
+        "task_seed": 1049,
+        "objective": 0.01495227962732315
+      },
+      {
+        "task_seed": 1050,
+        "objective": 0.03492347523570061
+      },
+      {
+        "task_seed": 1051,
+        "objective": 0.02415338158607483
+      },
+      {
+        "task_seed": 1052,
+        "objective": 0.042709819972515106
+      },
+      {
+        "task_seed": 1053,
+        "objective": 0.025823580101132393
+      },
+      {
+        "task_seed": 1054,
+        "objective": 0.014754422940313816
+      },
+      {
+        "task_seed": 1055,
+        "objective": 0.018502265214920044
+      },
+      {
+        "task_seed": 1056,
+        "objective": 0.02631608210504055
+      },
+      {
+        "task_seed": 1057,
+        "objective": 0.01848532259464264
+      },
+      {
+        "task_seed": 1058,
+        "objective": 0.03822729364037514
+      },
+      {
+        "task_seed": 1059,
+        "objective": 0.016147080808877945
+      },
+      {
+        "task_seed": 1060,
+        "objective": 0.014342380687594414
+      },
+      {
+        "task_seed": 1061,
+        "objective": 0.022029966115951538
+      },
+      {
+        "task_seed": 1062,
+        "objective": 0.016000578179955482
+      },
+      {
+        "task_seed": 1063,
+        "objective": 0.009143796749413013
+      }
+    ],
+    "mean_objective": 0.020980857450922485,
+    "resolution": 64,
+    "scope": "post-training diagnostic; not optimizer work"
+  },
+  "linear_validation": {
+    "tasks": [
+      {
+        "task_seed": 2000,
+        "initial_seed": 2000,
+        "goal_seed": 10002000,
+        "objective": 0.04953114315867424,
+        "terminal_mse_normalized": 0.04927794635295868,
+        "control_effort": 0.02531948871910572,
+        "temporal_relative_error": 0.001479047117754817,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2001,
+        "initial_seed": 2001,
+        "goal_seed": 10002001,
+        "objective": 0.013836925849318504,
+        "terminal_mse_normalized": 0.013780743815004826,
+        "control_effort": 0.0056180828250944614,
+        "temporal_relative_error": 0.0008265961660072207,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2002,
+        "initial_seed": 2002,
+        "goal_seed": 10002002,
+        "objective": 0.03024190664291382,
+        "terminal_mse_normalized": 0.029916780069470406,
+        "control_effort": 0.03251223638653755,
+        "temporal_relative_error": 0.0008361484506167471,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2003,
+        "initial_seed": 2003,
+        "goal_seed": 10002003,
+        "objective": 0.012094536796212196,
+        "terminal_mse_normalized": 0.011841858737170696,
+        "control_effort": 0.02526780590415001,
+        "temporal_relative_error": 0.001297302427701652,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2004,
+        "initial_seed": 2004,
+        "goal_seed": 10002004,
+        "objective": 0.018606247380375862,
+        "terminal_mse_normalized": 0.01826658844947815,
+        "control_effort": 0.033965885639190674,
+        "temporal_relative_error": 0.0017348907422274351,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2005,
+        "initial_seed": 2005,
+        "goal_seed": 10002005,
+        "objective": 0.021188605576753616,
+        "terminal_mse_normalized": 0.020860493183135986,
+        "control_effort": 0.03281121328473091,
+        "temporal_relative_error": 0.001463998225517571,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2006,
+        "initial_seed": 2006,
+        "goal_seed": 10002006,
+        "objective": 0.025344498455524445,
+        "terminal_mse_normalized": 0.02502014860510826,
+        "control_effort": 0.03243472799658775,
+        "temporal_relative_error": 0.0013691812055185437,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2007,
+        "initial_seed": 2007,
+        "goal_seed": 10002007,
+        "objective": 0.032402899116277695,
+        "terminal_mse_normalized": 0.03218593820929527,
+        "control_effort": 0.021696047857403755,
+        "temporal_relative_error": 0.0010710261994972825,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2008,
+        "initial_seed": 2008,
+        "goal_seed": 10002008,
+        "objective": 0.024371515959501266,
+        "terminal_mse_normalized": 0.02411738410592079,
+        "control_effort": 0.02541317418217659,
+        "temporal_relative_error": 0.001343218726105988,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2009,
+        "initial_seed": 2009,
+        "goal_seed": 10002009,
+        "objective": 0.017559653148055077,
+        "terminal_mse_normalized": 0.017183786258101463,
+        "control_effort": 0.03758663311600685,
+        "temporal_relative_error": 0.0014429253060370684,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2010,
+        "initial_seed": 2010,
+        "goal_seed": 10002010,
+        "objective": 0.014936907216906548,
+        "terminal_mse_normalized": 0.014845149591565132,
+        "control_effort": 0.009175540879368782,
+        "temporal_relative_error": 0.0006645390531048179,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2011,
+        "initial_seed": 2011,
+        "goal_seed": 10002011,
+        "objective": 0.038376376032829285,
+        "terminal_mse_normalized": 0.03797892853617668,
+        "control_effort": 0.03974461555480957,
+        "temporal_relative_error": 0.0018189995316788554,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2012,
+        "initial_seed": 2012,
+        "goal_seed": 10002012,
+        "objective": 0.027198128402233124,
+        "terminal_mse_normalized": 0.027118466794490814,
+        "control_effort": 0.007966185919940472,
+        "temporal_relative_error": 0.0008111886563710868,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2013,
+        "initial_seed": 2013,
+        "goal_seed": 10002013,
+        "objective": 0.03747812658548355,
+        "terminal_mse_normalized": 0.03697783499956131,
+        "control_effort": 0.050029207020998,
+        "temporal_relative_error": 0.0022785752080380917,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2014,
+        "initial_seed": 2014,
+        "goal_seed": 10002014,
+        "objective": 0.0366210862994194,
+        "terminal_mse_normalized": 0.036449022591114044,
+        "control_effort": 0.017206264659762383,
+        "temporal_relative_error": 0.0012519293231889606,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 2015,
+        "initial_seed": 2015,
+        "goal_seed": 10002015,
+        "objective": 0.017094604671001434,
+        "terminal_mse_normalized": 0.01677577756345272,
+        "control_effort": 0.031882669776678085,
+        "temporal_relative_error": 0.0014483446720987558,
+        "finite": true,
+        "admitted": true
+      }
+    ],
+    "mean_objective": 0.026055197580717504,
+    "admitted": true
+  },
+  "validation_checkpoints": [
+    {
+      "update": 0,
+      "tasks": [
+        {
+          "task_seed": 2000,
+          "initial_seed": 2000,
+          "goal_seed": 10002000,
+          "objective": 0.049531128257513046,
+          "terminal_mse_normalized": 0.049277935177087784,
+          "terminal_relative_error": 0.4027184844017029,
+          "control_effort": 0.025319484993815422,
+          "weighted_control_effort": 0.00025319484993815424,
+          "zero_objective": 0.37312936782836914,
+          "temporal_relative_error": 0.001479022903367877,
+          "time_discrepancy_to_control_signal": 0.0013363895704969764,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001677519001532346
+        },
+        {
+          "task_seed": 2001,
+          "initial_seed": 2001,
+          "goal_seed": 10002001,
+          "objective": 0.013836934231221676,
+          "terminal_mse_normalized": 0.013780752196907997,
+          "terminal_relative_error": 0.3638943135738373,
+          "control_effort": 0.005618082359433174,
+          "weighted_control_effort": 5.6180823594331745e-05,
+          "zero_objective": 0.08844976872205734,
+          "temporal_relative_error": 0.0008266995428130031,
+          "time_discrepancy_to_control_signal": 0.0008815255714580417,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016703109722584486
+        },
+        {
+          "task_seed": 2002,
+          "initial_seed": 2002,
+          "goal_seed": 10002002,
+          "objective": 0.030241886153817177,
+          "terminal_mse_normalized": 0.029916763305664062,
+          "terminal_relative_error": 0.2927914261817932,
+          "control_effort": 0.03251223266124725,
+          "weighted_control_effort": 0.00032512232661247254,
+          "zero_objective": 0.3852403461933136,
+          "temporal_relative_error": 0.0008362217922694981,
+          "time_discrepancy_to_control_signal": 0.0007953764870762825,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016510990099050105
+        },
+        {
+          "task_seed": 2003,
+          "initial_seed": 2003,
+          "goal_seed": 10002003,
+          "objective": 0.01209454145282507,
+          "terminal_mse_normalized": 0.01184186339378357,
+          "terminal_relative_error": 0.19858691096305847,
+          "control_effort": 0.02526780217885971,
+          "weighted_control_effort": 0.0002526780217885971,
+          "zero_objective": 0.31872236728668213,
+          "temporal_relative_error": 0.0012972305994480848,
+          "time_discrepancy_to_control_signal": 0.0012484289472922683,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017383790109306574
+        },
+        {
+          "task_seed": 2004,
+          "initial_seed": 2004,
+          "goal_seed": 10002004,
+          "objective": 0.01860625483095646,
+          "terminal_mse_normalized": 0.018266595900058746,
+          "terminal_relative_error": 0.21755044162273407,
+          "control_effort": 0.033965881913900375,
+          "weighted_control_effort": 0.00033965881913900376,
+          "zero_objective": 0.4206130802631378,
+          "temporal_relative_error": 0.0017348245019093156,
+          "time_discrepancy_to_control_signal": 0.001649858197197318,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017531790072098374
+        },
+        {
+          "task_seed": 2005,
+          "initial_seed": 2005,
+          "goal_seed": 10002005,
+          "objective": 0.02118859812617302,
+          "terminal_mse_normalized": 0.02086048573255539,
+          "terminal_relative_error": 0.23675520718097687,
+          "control_effort": 0.03281120955944061,
+          "weighted_control_effort": 0.0003281120955944061,
+          "zero_objective": 0.40334394574165344,
+          "temporal_relative_error": 0.0014639977598562837,
+          "time_discrepancy_to_control_signal": 0.0013972477754577994,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001750668976455927
+        },
+        {
+          "task_seed": 2006,
+          "initial_seed": 2006,
+          "goal_seed": 10002006,
+          "objective": 0.025344520807266235,
+          "terminal_mse_normalized": 0.0250201728194952,
+          "terminal_relative_error": 0.2601962983608246,
+          "control_effort": 0.032434724271297455,
+          "weighted_control_effort": 0.00032434724271297456,
+          "zero_objective": 0.38435643911361694,
+          "temporal_relative_error": 0.0013692931970581412,
+          "time_discrepancy_to_control_signal": 0.0013409367529675364,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001743799017276615
+        },
+        {
+          "task_seed": 2007,
+          "initial_seed": 2007,
+          "goal_seed": 10002007,
+          "objective": 0.0324028879404068,
+          "terminal_mse_normalized": 0.03218592703342438,
+          "terminal_relative_error": 0.3480570316314697,
+          "control_effort": 0.021696047857403755,
+          "weighted_control_effort": 0.00021696047857403756,
+          "zero_objective": 0.30916404724121094,
+          "temporal_relative_error": 0.0010710939532145858,
+          "time_discrepancy_to_control_signal": 0.0009856832912191749,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017265190253965557
+        },
+        {
+          "task_seed": 2008,
+          "initial_seed": 2008,
+          "goal_seed": 10002008,
+          "objective": 0.02437152899801731,
+          "terminal_mse_normalized": 0.024117397144436836,
+          "terminal_relative_error": 0.28045418858528137,
+          "control_effort": 0.02541317045688629,
+          "weighted_control_effort": 0.00025413170456886294,
+          "zero_objective": 0.3393990099430084,
+          "temporal_relative_error": 0.0013432777486741543,
+          "time_discrepancy_to_control_signal": 0.0012690150178968906,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017880090163089335
+        },
+        {
+          "task_seed": 2009,
+          "initial_seed": 2009,
+          "goal_seed": 10002009,
+          "objective": 0.01755966804921627,
+          "terminal_mse_normalized": 0.017183801159262657,
+          "terminal_relative_error": 0.20284362137317657,
+          "control_effort": 0.037586625665426254,
+          "weighted_control_effort": 0.00037586625665426255,
+          "zero_objective": 0.4426974058151245,
+          "temporal_relative_error": 0.0014428936410695314,
+          "time_discrepancy_to_control_signal": 0.0013942115474492311,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001747430011164397
+        },
+        {
+          "task_seed": 2010,
+          "initial_seed": 2010,
+          "goal_seed": 10002010,
+          "objective": 0.014936905354261398,
+          "terminal_mse_normalized": 0.014845149591565132,
+          "terminal_relative_error": 0.33257701992988586,
+          "control_effort": 0.009175539948046207,
+          "weighted_control_effort": 9.175539948046207e-05,
+          "zero_objective": 0.13840411603450775,
+          "temporal_relative_error": 0.0006645951070822775,
+          "time_discrepancy_to_control_signal": 0.0006521129398606718,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017449489678256214
+        },
+        {
+          "task_seed": 2011,
+          "initial_seed": 2011,
+          "goal_seed": 10002011,
+          "objective": 0.0383763425052166,
+          "terminal_mse_normalized": 0.037978895008563995,
+          "terminal_relative_error": 0.28171396255493164,
+          "control_effort": 0.03974460810422897,
+          "weighted_control_effort": 0.0003974460810422897,
+          "zero_objective": 0.510184109210968,
+          "temporal_relative_error": 0.0018190562259405851,
+          "time_discrepancy_to_control_signal": 0.0017562034772709012,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017780490452423692
+        },
+        {
+          "task_seed": 2012,
+          "initial_seed": 2012,
+          "goal_seed": 10002012,
+          "objective": 0.027198126539587975,
+          "terminal_mse_normalized": 0.027118464931845665,
+          "terminal_relative_error": 0.4728325605392456,
+          "control_effort": 0.007966184057295322,
+          "weighted_control_effort": 7.966184057295322e-05,
+          "zero_objective": 0.13260512053966522,
+          "temporal_relative_error": 0.0008111330098472536,
+          "time_discrepancy_to_control_signal": 0.0007773947436362505,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001759718987159431
+        },
+        {
+          "task_seed": 2013,
+          "initial_seed": 2013,
+          "goal_seed": 10002013,
+          "objective": 0.037478141486644745,
+          "terminal_mse_normalized": 0.036977849900722504,
+          "terminal_relative_error": 0.2566967308521271,
+          "control_effort": 0.0500292032957077,
+          "weighted_control_effort": 0.000500292032957077,
+          "zero_objective": 0.5760872960090637,
+          "temporal_relative_error": 0.002278589177876711,
+          "time_discrepancy_to_control_signal": 0.0022275622468441725,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017744790529832244
+        },
+        {
+          "task_seed": 2014,
+          "initial_seed": 2014,
+          "goal_seed": 10002014,
+          "objective": 0.036621078848838806,
+          "terminal_mse_normalized": 0.03644901514053345,
+          "terminal_relative_error": 0.40734410285949707,
+          "control_effort": 0.017206260934472084,
+          "weighted_control_effort": 0.00017206260934472085,
+          "zero_objective": 0.24214018881320953,
+          "temporal_relative_error": 0.0012519822921603918,
+          "time_discrepancy_to_control_signal": 0.0011838919017463923,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016716690151952207
+        },
+        {
+          "task_seed": 2015,
+          "initial_seed": 2015,
+          "goal_seed": 10002015,
+          "objective": 0.017094597220420837,
+          "terminal_mse_normalized": 0.016775770112872124,
+          "terminal_relative_error": 0.21258653700351715,
+          "control_effort": 0.03188266605138779,
+          "weighted_control_effort": 0.0003188266605138779,
+          "zero_objective": 0.41270214319229126,
+          "temporal_relative_error": 0.0014484063722193241,
+          "time_discrepancy_to_control_signal": 0.0013699446571990848,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016675589722581208
+        }
+      ],
+      "mean_objective": 0.026055196300148964,
+      "mean_zero_objective": 0.3423274219967425,
+      "mean_terminal_mse_normalized": 0.025787302409298718,
+      "mean_control_effort": 0.026789357769303024,
+      "finite_fraction": 1.0,
+      "admitted": true
+    },
+    {
+      "update": 250,
+      "tasks": [
+        {
+          "task_seed": 2000,
+          "initial_seed": 2000,
+          "goal_seed": 10002000,
+          "objective": 0.037970077246427536,
+          "terminal_mse_normalized": 0.037697263062000275,
+          "terminal_relative_error": 0.3522331416606903,
+          "control_effort": 0.027281340211629868,
+          "weighted_control_effort": 0.0002728134021162987,
+          "zero_objective": 0.37312936782836914,
+          "temporal_relative_error": 0.0014568970073014498,
+          "time_discrepancy_to_control_signal": 0.001308307284489274,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016935990424826741
+        },
+        {
+          "task_seed": 2001,
+          "initial_seed": 2001,
+          "goal_seed": 10002001,
+          "objective": 0.017384948208928108,
+          "terminal_mse_normalized": 0.017306139692664146,
+          "terminal_relative_error": 0.40779221057891846,
+          "control_effort": 0.007880805991590023,
+          "weighted_control_effort": 7.880805991590023e-05,
+          "zero_objective": 0.08844976872205734,
+          "temporal_relative_error": 0.000869379669893533,
+          "time_discrepancy_to_control_signal": 0.0009321755496785045,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016514589660800993
+        },
+        {
+          "task_seed": 2002,
+          "initial_seed": 2002,
+          "goal_seed": 10002002,
+          "objective": 0.03511171415448189,
+          "terminal_mse_normalized": 0.03474317491054535,
+          "terminal_relative_error": 0.31552648544311523,
+          "control_effort": 0.03685365617275238,
+          "weighted_control_effort": 0.0003685365617275238,
+          "zero_objective": 0.3852403461933136,
+          "temporal_relative_error": 0.0009160137851722538,
+          "time_discrepancy_to_control_signal": 0.0008772320579737425,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016290090279653668
+        },
+        {
+          "task_seed": 2003,
+          "initial_seed": 2003,
+          "goal_seed": 10002003,
+          "objective": 0.011612365953624249,
+          "terminal_mse_normalized": 0.011351586319506168,
+          "terminal_relative_error": 0.19443251192569733,
+          "control_effort": 0.02607790008187294,
+          "weighted_control_effort": 0.0002607790008187294,
+          "zero_objective": 0.31872236728668213,
+          "temporal_relative_error": 0.0013706289464607835,
+          "time_discrepancy_to_control_signal": 0.0013154735788702965,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016634190105833113
+        },
+        {
+          "task_seed": 2004,
+          "initial_seed": 2004,
+          "goal_seed": 10002004,
+          "objective": 0.02092427760362625,
+          "terminal_mse_normalized": 0.02057533524930477,
+          "terminal_relative_error": 0.2308897078037262,
+          "control_effort": 0.03489428758621216,
+          "weighted_control_effort": 0.0003489428758621216,
+          "zero_objective": 0.4206130802631378,
+          "temporal_relative_error": 0.0018008878687396646,
+          "time_discrepancy_to_control_signal": 0.0017110055778175592,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016551800072193146
+        },
+        {
+          "task_seed": 2005,
+          "initial_seed": 2005,
+          "goal_seed": 10002005,
+          "objective": 0.022069524973630905,
+          "terminal_mse_normalized": 0.021714042872190475,
+          "terminal_relative_error": 0.24155043065547943,
+          "control_effort": 0.03554827719926834,
+          "weighted_control_effort": 0.00035548277199268344,
+          "zero_objective": 0.40334394574165344,
+          "temporal_relative_error": 0.0013873912394046783,
+          "time_discrepancy_to_control_signal": 0.0013231312623247504,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.00169484899379313
+        },
+        {
+          "task_seed": 2006,
+          "initial_seed": 2006,
+          "goal_seed": 10002006,
+          "objective": 0.026036009192466736,
+          "terminal_mse_normalized": 0.025698982179164886,
+          "terminal_relative_error": 0.26370230317115784,
+          "control_effort": 0.03370251879096031,
+          "weighted_control_effort": 0.0003370251879096031,
+          "zero_objective": 0.38435643911361694,
+          "temporal_relative_error": 0.0013309625210240483,
+          "time_discrepancy_to_control_signal": 0.0013050399720668793,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017642189632169902
+        },
+        {
+          "task_seed": 2007,
+          "initial_seed": 2007,
+          "goal_seed": 10002007,
+          "objective": 0.03466417267918587,
+          "terminal_mse_normalized": 0.03442778438329697,
+          "terminal_relative_error": 0.3599746525287628,
+          "control_effort": 0.023638710379600525,
+          "weighted_control_effort": 0.00023638710379600525,
+          "zero_objective": 0.30916404724121094,
+          "temporal_relative_error": 0.0011585570173338056,
+          "time_discrepancy_to_control_signal": 0.0010626709554344416,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017624389729462564
+        },
+        {
+          "task_seed": 2008,
+          "initial_seed": 2008,
+          "goal_seed": 10002008,
+          "objective": 0.023563580587506294,
+          "terminal_mse_normalized": 0.0233010221272707,
+          "terminal_relative_error": 0.27566662430763245,
+          "control_effort": 0.02625586837530136,
+          "weighted_control_effort": 0.0002625586837530136,
+          "zero_objective": 0.3393990099430084,
+          "temporal_relative_error": 0.0013196885120123625,
+          "time_discrepancy_to_control_signal": 0.0012425140012055635,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017050289898179471
+        },
+        {
+          "task_seed": 2009,
+          "initial_seed": 2009,
+          "goal_seed": 10002009,
+          "objective": 0.018819916993379593,
+          "terminal_mse_normalized": 0.01842847652733326,
+          "terminal_relative_error": 0.21006149053573608,
+          "control_effort": 0.0391438826918602,
+          "weighted_control_effort": 0.000391438826918602,
+          "zero_objective": 0.4426974058151245,
+          "temporal_relative_error": 0.001436309190467,
+          "time_discrepancy_to_control_signal": 0.0013861528132110834,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017372590373270214
+        },
+        {
+          "task_seed": 2010,
+          "initial_seed": 2010,
+          "goal_seed": 10002010,
+          "objective": 0.012448607943952084,
+          "terminal_mse_normalized": 0.012331516481935978,
+          "terminal_relative_error": 0.3031155467033386,
+          "control_effort": 0.011709119193255901,
+          "weighted_control_effort": 0.00011709119193255902,
+          "zero_objective": 0.13840411603450775,
+          "temporal_relative_error": 0.0007224606815725565,
+          "time_discrepancy_to_control_signal": 0.0007074622553773224,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016376900020986795
+        },
+        {
+          "task_seed": 2011,
+          "initial_seed": 2011,
+          "goal_seed": 10002011,
+          "objective": 0.036204781383275986,
+          "terminal_mse_normalized": 0.03579709306359291,
+          "terminal_relative_error": 0.273502379655838,
+          "control_effort": 0.040768884122371674,
+          "weighted_control_effort": 0.00040768884122371673,
+          "zero_objective": 0.510184109210968,
+          "temporal_relative_error": 0.0018291400047019124,
+          "time_discrepancy_to_control_signal": 0.0017746012890711427,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001680728979408741
+        },
+        {
+          "task_seed": 2012,
+          "initial_seed": 2012,
+          "goal_seed": 10002012,
+          "objective": 0.026217317208647728,
+          "terminal_mse_normalized": 0.026129238307476044,
+          "terminal_relative_error": 0.4641284644603729,
+          "control_effort": 0.008807681500911713,
+          "weighted_control_effort": 8.807681500911712e-05,
+          "zero_objective": 0.13260512053966522,
+          "temporal_relative_error": 0.0007782577886246145,
+          "time_discrepancy_to_control_signal": 0.0007396081346087158,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017522790003567934
+        },
+        {
+          "task_seed": 2013,
+          "initial_seed": 2013,
+          "goal_seed": 10002013,
+          "objective": 0.03672187030315399,
+          "terminal_mse_normalized": 0.03621095418930054,
+          "terminal_relative_error": 0.25402092933654785,
+          "control_effort": 0.05109152942895889,
+          "weighted_control_effort": 0.0005109152942895889,
+          "zero_objective": 0.5760872960090637,
+          "temporal_relative_error": 0.002178065711632371,
+          "time_discrepancy_to_control_signal": 0.0021292613819241524,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016615000204183161
+        },
+        {
+          "task_seed": 2014,
+          "initial_seed": 2014,
+          "goal_seed": 10002014,
+          "objective": 0.03732927143573761,
+          "terminal_mse_normalized": 0.03714059665799141,
+          "terminal_relative_error": 0.41119036078453064,
+          "control_effort": 0.018867438659071922,
+          "weighted_control_effort": 0.00018867438659071924,
+          "zero_objective": 0.24214018881320953,
+          "temporal_relative_error": 0.001437721075490117,
+          "time_discrepancy_to_control_signal": 0.001353180268779397,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016285909805446863
+        },
+        {
+          "task_seed": 2015,
+          "initial_seed": 2015,
+          "goal_seed": 10002015,
+          "objective": 0.02171768806874752,
+          "terminal_mse_normalized": 0.021346619352698326,
+          "terminal_relative_error": 0.23980547487735748,
+          "control_effort": 0.03710641339421272,
+          "weighted_control_effort": 0.00037106413394212724,
+          "zero_objective": 0.41270214319229126,
+          "temporal_relative_error": 0.0014706227229908109,
+          "time_discrepancy_to_control_signal": 0.0013993269531056285,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016832000110298395
+        }
+      ],
+      "mean_objective": 0.02617475774604827,
+      "mean_zero_objective": 0.3423274219967425,
+      "mean_terminal_mse_normalized": 0.025887489086017013,
+      "mean_control_effort": 0.028726769611239433,
+      "finite_fraction": 1.0,
+      "admitted": true
+    },
+    {
+      "update": 500,
+      "tasks": [
+        {
+          "task_seed": 2000,
+          "initial_seed": 2000,
+          "goal_seed": 10002000,
+          "objective": 0.037630435079336166,
+          "terminal_mse_normalized": 0.03734710440039635,
+          "terminal_relative_error": 0.3505934476852417,
+          "control_effort": 0.028332965448498726,
+          "weighted_control_effort": 0.0002833296544849873,
+          "zero_objective": 0.37312936782836914,
+          "temporal_relative_error": 0.0015580074395984411,
+          "time_discrepancy_to_control_signal": 0.001382444053888321,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001636530039831996
+        },
+        {
+          "task_seed": 2001,
+          "initial_seed": 2001,
+          "goal_seed": 10002001,
+          "objective": 0.01999550685286522,
+          "terminal_mse_normalized": 0.0199102982878685,
+          "terminal_relative_error": 0.43739888072013855,
+          "control_effort": 0.008521048352122307,
+          "weighted_control_effort": 8.521048352122307e-05,
+          "zero_objective": 0.08844976872205734,
+          "temporal_relative_error": 0.0008537853718735278,
+          "time_discrepancy_to_control_signal": 0.0009162576752714813,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016835090355016291
+        },
+        {
+          "task_seed": 2002,
+          "initial_seed": 2002,
+          "goal_seed": 10002002,
+          "objective": 0.040164440870285034,
+          "terminal_mse_normalized": 0.039764948189258575,
+          "terminal_relative_error": 0.33756023645401,
+          "control_effort": 0.039948970079422,
+          "weighted_control_effort": 0.00039948970079421996,
+          "zero_objective": 0.3852403461933136,
+          "temporal_relative_error": 0.0009720822563394904,
+          "time_discrepancy_to_control_signal": 0.0009210580610670149,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016340300207957625
+        },
+        {
+          "task_seed": 2003,
+          "initial_seed": 2003,
+          "goal_seed": 10002003,
+          "objective": 0.012182001955807209,
+          "terminal_mse_normalized": 0.011923099867999554,
+          "terminal_relative_error": 0.19926689565181732,
+          "control_effort": 0.025890234857797623,
+          "weighted_control_effort": 0.00025890234857797625,
+          "zero_objective": 0.31872236728668213,
+          "temporal_relative_error": 0.0013550055446103215,
+          "time_discrepancy_to_control_signal": 0.001296530244871974,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016666000010445714
+        },
+        {
+          "task_seed": 2004,
+          "initial_seed": 2004,
+          "goal_seed": 10002004,
+          "objective": 0.019323406741023064,
+          "terminal_mse_normalized": 0.018969973549246788,
+          "terminal_relative_error": 0.22169941663742065,
+          "control_effort": 0.03534336015582085,
+          "weighted_control_effort": 0.00035343360155820847,
+          "zero_objective": 0.4206130802631378,
+          "temporal_relative_error": 0.0018494132673367858,
+          "time_discrepancy_to_control_signal": 0.0017613153904676437,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016595699707977474
+        },
+        {
+          "task_seed": 2005,
+          "initial_seed": 2005,
+          "goal_seed": 10002005,
+          "objective": 0.02539992891252041,
+          "terminal_mse_normalized": 0.025003407150506973,
+          "terminal_relative_error": 0.25920116901397705,
+          "control_effort": 0.03965221345424652,
+          "weighted_control_effort": 0.00039652213454246523,
+          "zero_objective": 0.40334394574165344,
+          "temporal_relative_error": 0.0014059015084058046,
+          "time_discrepancy_to_control_signal": 0.0013395944843068719,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017050590249709785
+        },
+        {
+          "task_seed": 2006,
+          "initial_seed": 2006,
+          "goal_seed": 10002006,
+          "objective": 0.027441421523690224,
+          "terminal_mse_normalized": 0.027090635150671005,
+          "terminal_relative_error": 0.27074816823005676,
+          "control_effort": 0.03507859259843826,
+          "weighted_control_effort": 0.00035078592598438265,
+          "zero_objective": 0.38435643911361694,
+          "temporal_relative_error": 0.0014132964424788952,
+          "time_discrepancy_to_control_signal": 0.0013849203241989017,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001661860034801066
+        },
+        {
+          "task_seed": 2007,
+          "initial_seed": 2007,
+          "goal_seed": 10002007,
+          "objective": 0.036978982388973236,
+          "terminal_mse_normalized": 0.03673591837286949,
+          "terminal_relative_error": 0.3718457520008087,
+          "control_effort": 0.024306580424308777,
+          "weighted_control_effort": 0.00024306580424308778,
+          "zero_objective": 0.30916404724121094,
+          "temporal_relative_error": 0.0011704349890351295,
+          "time_discrepancy_to_control_signal": 0.0010749261127784848,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001643739000428468
+        },
+        {
+          "task_seed": 2008,
+          "initial_seed": 2008,
+          "goal_seed": 10002008,
+          "objective": 0.022236276417970657,
+          "terminal_mse_normalized": 0.021972810849547386,
+          "terminal_relative_error": 0.2676945626735687,
+          "control_effort": 0.026346426457166672,
+          "weighted_control_effort": 0.00026346426457166675,
+          "zero_objective": 0.3393990099430084,
+          "temporal_relative_error": 0.0013277607504278421,
+          "time_discrepancy_to_control_signal": 0.0012442413717508316,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001623379997909069
+        },
+        {
+          "task_seed": 2009,
+          "initial_seed": 2009,
+          "goal_seed": 10002009,
+          "objective": 0.019624458625912666,
+          "terminal_mse_normalized": 0.01922096125781536,
+          "terminal_relative_error": 0.21453063189983368,
+          "control_effort": 0.04034970700740814,
+          "weighted_control_effort": 0.0004034970700740814,
+          "zero_objective": 0.4426974058151245,
+          "temporal_relative_error": 0.001410478143952787,
+          "time_discrepancy_to_control_signal": 0.0013636033982038498,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016813899856060743
+        },
+        {
+          "task_seed": 2010,
+          "initial_seed": 2010,
+          "goal_seed": 10002010,
+          "objective": 0.01272726058959961,
+          "terminal_mse_normalized": 0.012593705207109451,
+          "terminal_relative_error": 0.3063209652900696,
+          "control_effort": 0.013355444185435772,
+          "weighted_control_effort": 0.0001335544418543577,
+          "zero_objective": 0.13840411603450775,
+          "temporal_relative_error": 0.0007819876191206276,
+          "time_discrepancy_to_control_signal": 0.0007637114613316953,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0017009199946187437
+        },
+        {
+          "task_seed": 2011,
+          "initial_seed": 2011,
+          "goal_seed": 10002011,
+          "objective": 0.040681079030036926,
+          "terminal_mse_normalized": 0.04026040807366371,
+          "terminal_relative_error": 0.29005229473114014,
+          "control_effort": 0.04206722229719162,
+          "weighted_control_effort": 0.0004206722229719162,
+          "zero_objective": 0.510184109210968,
+          "temporal_relative_error": 0.001865607569925487,
+          "time_discrepancy_to_control_signal": 0.0017980255652219057,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016833000117912889
+        },
+        {
+          "task_seed": 2012,
+          "initial_seed": 2012,
+          "goal_seed": 10002012,
+          "objective": 0.02542577125132084,
+          "terminal_mse_normalized": 0.02533295378088951,
+          "terminal_relative_error": 0.45700159668922424,
+          "control_effort": 0.00928167998790741,
+          "weighted_control_effort": 9.28167998790741e-05,
+          "zero_objective": 0.13260512053966522,
+          "temporal_relative_error": 0.000788622593972832,
+          "time_discrepancy_to_control_signal": 0.0007526066619902849,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001662449969444424
+        },
+        {
+          "task_seed": 2013,
+          "initial_seed": 2013,
+          "goal_seed": 10002013,
+          "objective": 0.03335071727633476,
+          "terminal_mse_normalized": 0.03277280554175377,
+          "terminal_relative_error": 0.24166087806224823,
+          "control_effort": 0.05779116973280907,
+          "weighted_control_effort": 0.0005779116973280906,
+          "zero_objective": 0.5760872960090637,
+          "temporal_relative_error": 0.002223146380856633,
+          "time_discrepancy_to_control_signal": 0.0022172604221850634,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001641569018829614
+        },
+        {
+          "task_seed": 2014,
+          "initial_seed": 2014,
+          "goal_seed": 10002014,
+          "objective": 0.03557264432311058,
+          "terminal_mse_normalized": 0.035379357635974884,
+          "terminal_relative_error": 0.40132254362106323,
+          "control_effort": 0.019328324124217033,
+          "weighted_control_effort": 0.00019328324124217035,
+          "zero_objective": 0.24214018881320953,
+          "temporal_relative_error": 0.0013761116424575448,
+          "time_discrepancy_to_control_signal": 0.0012892169179394841,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016803800244815648
+        },
+        {
+          "task_seed": 2015,
+          "initial_seed": 2015,
+          "goal_seed": 10002015,
+          "objective": 0.0258500874042511,
+          "terminal_mse_normalized": 0.025457987561821938,
+          "terminal_relative_error": 0.2618825435638428,
+          "control_effort": 0.03920971602201462,
+          "weighted_control_effort": 0.0003920971602201462,
+          "zero_objective": 0.41270214319229126,
+          "temporal_relative_error": 0.0014255421701818705,
+          "time_discrepancy_to_control_signal": 0.0013422692427411675,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016465699882246554
+        }
+      ],
+      "mean_objective": 0.027161526202689856,
+      "mean_zero_objective": 0.3423274219967425,
+      "mean_terminal_mse_normalized": 0.026858523429837078,
+      "mean_control_effort": 0.030300228449050337,
+      "finite_fraction": 1.0,
+      "admitted": true
+    },
+    {
+      "update": 1000,
+      "tasks": [
+        {
+          "task_seed": 2000,
+          "initial_seed": 2000,
+          "goal_seed": 10002000,
+          "objective": 0.039701253175735474,
+          "terminal_mse_normalized": 0.03938461095094681,
+          "terminal_relative_error": 0.3600298762321472,
+          "control_effort": 0.03166413679718971,
+          "weighted_control_effort": 0.00031664136797189714,
+          "zero_objective": 0.37312936782836914,
+          "temporal_relative_error": 0.0016511145513504744,
+          "time_discrepancy_to_control_signal": 0.0014663322363048792,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001678009983152151
+        },
+        {
+          "task_seed": 2001,
+          "initial_seed": 2001,
+          "goal_seed": 10002001,
+          "objective": 0.020551860332489014,
+          "terminal_mse_normalized": 0.020459085702896118,
+          "terminal_relative_error": 0.4433859884738922,
+          "control_effort": 0.00927744060754776,
+          "weighted_control_effort": 9.277440607547761e-05,
+          "zero_objective": 0.08844976872205734,
+          "temporal_relative_error": 0.0009040356962941587,
+          "time_discrepancy_to_control_signal": 0.0009847278706729412,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016904289950616658
+        },
+        {
+          "task_seed": 2002,
+          "initial_seed": 2002,
+          "goal_seed": 10002002,
+          "objective": 0.03916114568710327,
+          "terminal_mse_normalized": 0.03873930498957634,
+          "terminal_relative_error": 0.33317849040031433,
+          "control_effort": 0.04218420386314392,
+          "weighted_control_effort": 0.0004218420386314392,
+          "zero_objective": 0.3852403461933136,
+          "temporal_relative_error": 0.0010163584956899285,
+          "time_discrepancy_to_control_signal": 0.0009669319842942059,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016896399902179837
+        },
+        {
+          "task_seed": 2003,
+          "initial_seed": 2003,
+          "goal_seed": 10002003,
+          "objective": 0.010998633690178394,
+          "terminal_mse_normalized": 0.010732165537774563,
+          "terminal_relative_error": 0.18905331194400787,
+          "control_effort": 0.026646802201867104,
+          "weighted_control_effort": 0.000266468022018671,
+          "zero_objective": 0.31872236728668213,
+          "temporal_relative_error": 0.0013578905491158366,
+          "time_discrepancy_to_control_signal": 0.0013009452959522605,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001633170002605766
+        },
+        {
+          "task_seed": 2004,
+          "initial_seed": 2004,
+          "goal_seed": 10002004,
+          "objective": 0.018487777560949326,
+          "terminal_mse_normalized": 0.018070824444293976,
+          "terminal_relative_error": 0.2163814902305603,
+          "control_effort": 0.041695550084114075,
+          "weighted_control_effort": 0.00041695550084114074,
+          "zero_objective": 0.4206130802631378,
+          "temporal_relative_error": 0.0017923262203112245,
+          "time_discrepancy_to_control_signal": 0.0016900423215702176,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016845889622345567
+        },
+        {
+          "task_seed": 2005,
+          "initial_seed": 2005,
+          "goal_seed": 10002005,
+          "objective": 0.0322062149643898,
+          "terminal_mse_normalized": 0.031753890216350555,
+          "terminal_relative_error": 0.2921029031276703,
+          "control_effort": 0.04523254930973053,
+          "weighted_control_effort": 0.0004523254930973053,
+          "zero_objective": 0.40334394574165344,
+          "temporal_relative_error": 0.0014773444272577763,
+          "time_discrepancy_to_control_signal": 0.0014118780381977558,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016844200436025858
+        },
+        {
+          "task_seed": 2006,
+          "initial_seed": 2006,
+          "goal_seed": 10002006,
+          "objective": 0.029217474162578583,
+          "terminal_mse_normalized": 0.028829209506511688,
+          "terminal_relative_error": 0.27930086851119995,
+          "control_effort": 0.038826677948236465,
+          "weighted_control_effort": 0.0003882667794823647,
+          "zero_objective": 0.38435643911361694,
+          "temporal_relative_error": 0.001411727862432599,
+          "time_discrepancy_to_control_signal": 0.0013874804135411978,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016865100478753448
+        },
+        {
+          "task_seed": 2007,
+          "initial_seed": 2007,
+          "goal_seed": 10002007,
+          "objective": 0.03929191455245018,
+          "terminal_mse_normalized": 0.0390406996011734,
+          "terminal_relative_error": 0.3833329379558563,
+          "control_effort": 0.0251210555434227,
+          "weighted_control_effort": 0.000251210555434227,
+          "zero_objective": 0.30916404724121094,
+          "temporal_relative_error": 0.0011434785556048155,
+          "time_discrepancy_to_control_signal": 0.001058296300470829,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016479400219395757
+        },
+        {
+          "task_seed": 2008,
+          "initial_seed": 2008,
+          "goal_seed": 10002008,
+          "objective": 0.021329408511519432,
+          "terminal_mse_normalized": 0.021051065996289253,
+          "terminal_relative_error": 0.2620195746421814,
+          "control_effort": 0.027834339067339897,
+          "weighted_control_effort": 0.000278343390673399,
+          "zero_objective": 0.3393990099430084,
+          "temporal_relative_error": 0.0013362818863242865,
+          "time_discrepancy_to_control_signal": 0.0012609113473445177,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016866290243342519
+        },
+        {
+          "task_seed": 2009,
+          "initial_seed": 2009,
+          "goal_seed": 10002009,
+          "objective": 0.021447008475661278,
+          "terminal_mse_normalized": 0.020983008667826653,
+          "terminal_relative_error": 0.22414837777614594,
+          "control_effort": 0.04640022665262222,
+          "weighted_control_effort": 0.00046400226652622224,
+          "zero_objective": 0.4426974058151245,
+          "temporal_relative_error": 0.0015063912142068148,
+          "time_discrepancy_to_control_signal": 0.0014605235774070024,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001662160037085414
+        },
+        {
+          "task_seed": 2010,
+          "initial_seed": 2010,
+          "goal_seed": 10002010,
+          "objective": 0.01139758713543415,
+          "terminal_mse_normalized": 0.011244873516261578,
+          "terminal_relative_error": 0.2894524335861206,
+          "control_effort": 0.01527148112654686,
+          "weighted_control_effort": 0.0001527148112654686,
+          "zero_objective": 0.13840411603450775,
+          "temporal_relative_error": 0.0008481034892611206,
+          "time_discrepancy_to_control_signal": 0.00082740857033059,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016461900086142123
+        },
+        {
+          "task_seed": 2011,
+          "initial_seed": 2011,
+          "goal_seed": 10002011,
+          "objective": 0.04837032034993172,
+          "terminal_mse_normalized": 0.04787169769406319,
+          "terminal_relative_error": 0.31628358364105225,
+          "control_effort": 0.04986194148659706,
+          "weighted_control_effort": 0.0004986194148659706,
+          "zero_objective": 0.510184109210968,
+          "temporal_relative_error": 0.0019279575208202004,
+          "time_discrepancy_to_control_signal": 0.0018329611048102379,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016422999906353652
+        },
+        {
+          "task_seed": 2012,
+          "initial_seed": 2012,
+          "goal_seed": 10002012,
+          "objective": 0.02432261034846306,
+          "terminal_mse_normalized": 0.024212267249822617,
+          "terminal_relative_error": 0.446778804063797,
+          "control_effort": 0.011034234426915646,
+          "weighted_control_effort": 0.00011034234426915646,
+          "zero_objective": 0.13260512053966522,
+          "temporal_relative_error": 0.0007669627666473389,
+          "time_discrepancy_to_control_signal": 0.000737216614652425,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.001660108973737806
+        },
+        {
+          "task_seed": 2013,
+          "initial_seed": 2013,
+          "goal_seed": 10002013,
+          "objective": 0.0356813445687294,
+          "terminal_mse_normalized": 0.035015497356653214,
+          "terminal_relative_error": 0.24979263544082642,
+          "control_effort": 0.06658454239368439,
+          "weighted_control_effort": 0.0006658454239368438,
+          "zero_objective": 0.5760872960090637,
+          "temporal_relative_error": 0.002387761836871505,
+          "time_discrepancy_to_control_signal": 0.0023671493399888277,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016601000097580254
+        },
+        {
+          "task_seed": 2014,
+          "initial_seed": 2014,
+          "goal_seed": 10002014,
+          "objective": 0.033939898014068604,
+          "terminal_mse_normalized": 0.033736735582351685,
+          "terminal_relative_error": 0.3918952941894531,
+          "control_effort": 0.02031628042459488,
+          "weighted_control_effort": 0.00020316280424594879,
+          "zero_objective": 0.24214018881320953,
+          "temporal_relative_error": 0.0013319285353645682,
+          "time_discrepancy_to_control_signal": 0.0012517799623310566,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016369600198231637
+        },
+        {
+          "task_seed": 2015,
+          "initial_seed": 2015,
+          "goal_seed": 10002015,
+          "objective": 0.03060814179480076,
+          "terminal_mse_normalized": 0.03017510659992695,
+          "terminal_relative_error": 0.28511425852775574,
+          "control_effort": 0.04330349713563919,
+          "weighted_control_effort": 0.0004330349713563919,
+          "zero_objective": 0.41270214319229126,
+          "temporal_relative_error": 0.0015074777184054255,
+          "time_discrepancy_to_control_signal": 0.001434970647096634,
+          "finite": true,
+          "admitted": true,
+          "median_policy_inference_s": 0.0016465499647893012
+        }
+      ],
+      "mean_objective": 0.028544537082780153,
+      "mean_zero_objective": 0.3423274219967425,
+      "mean_terminal_mse_normalized": 0.02820625272579491,
+      "mean_control_effort": 0.033828434941824526,
+      "finite_fraction": 1.0,
+      "admitted": true
+    }
+  ],
+  "final_validation": {
+    "update": 1000,
+    "tasks": [
+      {
+        "task_seed": 2000,
+        "initial_seed": 2000,
+        "goal_seed": 10002000,
+        "objective": 0.039701253175735474,
+        "terminal_mse_normalized": 0.03938461095094681,
+        "terminal_relative_error": 0.3600298762321472,
+        "control_effort": 0.03166413679718971,
+        "weighted_control_effort": 0.00031664136797189714,
+        "zero_objective": 0.37312936782836914,
+        "temporal_relative_error": 0.0016511145513504744,
+        "time_discrepancy_to_control_signal": 0.0014663322363048792,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.001678009983152151
+      },
+      {
+        "task_seed": 2001,
+        "initial_seed": 2001,
+        "goal_seed": 10002001,
+        "objective": 0.020551860332489014,
+        "terminal_mse_normalized": 0.020459085702896118,
+        "terminal_relative_error": 0.4433859884738922,
+        "control_effort": 0.00927744060754776,
+        "weighted_control_effort": 9.277440607547761e-05,
+        "zero_objective": 0.08844976872205734,
+        "temporal_relative_error": 0.0009040356962941587,
+        "time_discrepancy_to_control_signal": 0.0009847278706729412,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016904289950616658
+      },
+      {
+        "task_seed": 2002,
+        "initial_seed": 2002,
+        "goal_seed": 10002002,
+        "objective": 0.03916114568710327,
+        "terminal_mse_normalized": 0.03873930498957634,
+        "terminal_relative_error": 0.33317849040031433,
+        "control_effort": 0.04218420386314392,
+        "weighted_control_effort": 0.0004218420386314392,
+        "zero_objective": 0.3852403461933136,
+        "temporal_relative_error": 0.0010163584956899285,
+        "time_discrepancy_to_control_signal": 0.0009669319842942059,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016896399902179837
+      },
+      {
+        "task_seed": 2003,
+        "initial_seed": 2003,
+        "goal_seed": 10002003,
+        "objective": 0.010998633690178394,
+        "terminal_mse_normalized": 0.010732165537774563,
+        "terminal_relative_error": 0.18905331194400787,
+        "control_effort": 0.026646802201867104,
+        "weighted_control_effort": 0.000266468022018671,
+        "zero_objective": 0.31872236728668213,
+        "temporal_relative_error": 0.0013578905491158366,
+        "time_discrepancy_to_control_signal": 0.0013009452959522605,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.001633170002605766
+      },
+      {
+        "task_seed": 2004,
+        "initial_seed": 2004,
+        "goal_seed": 10002004,
+        "objective": 0.018487777560949326,
+        "terminal_mse_normalized": 0.018070824444293976,
+        "terminal_relative_error": 0.2163814902305603,
+        "control_effort": 0.041695550084114075,
+        "weighted_control_effort": 0.00041695550084114074,
+        "zero_objective": 0.4206130802631378,
+        "temporal_relative_error": 0.0017923262203112245,
+        "time_discrepancy_to_control_signal": 0.0016900423215702176,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016845889622345567
+      },
+      {
+        "task_seed": 2005,
+        "initial_seed": 2005,
+        "goal_seed": 10002005,
+        "objective": 0.0322062149643898,
+        "terminal_mse_normalized": 0.031753890216350555,
+        "terminal_relative_error": 0.2921029031276703,
+        "control_effort": 0.04523254930973053,
+        "weighted_control_effort": 0.0004523254930973053,
+        "zero_objective": 0.40334394574165344,
+        "temporal_relative_error": 0.0014773444272577763,
+        "time_discrepancy_to_control_signal": 0.0014118780381977558,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016844200436025858
+      },
+      {
+        "task_seed": 2006,
+        "initial_seed": 2006,
+        "goal_seed": 10002006,
+        "objective": 0.029217474162578583,
+        "terminal_mse_normalized": 0.028829209506511688,
+        "terminal_relative_error": 0.27930086851119995,
+        "control_effort": 0.038826677948236465,
+        "weighted_control_effort": 0.0003882667794823647,
+        "zero_objective": 0.38435643911361694,
+        "temporal_relative_error": 0.001411727862432599,
+        "time_discrepancy_to_control_signal": 0.0013874804135411978,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016865100478753448
+      },
+      {
+        "task_seed": 2007,
+        "initial_seed": 2007,
+        "goal_seed": 10002007,
+        "objective": 0.03929191455245018,
+        "terminal_mse_normalized": 0.0390406996011734,
+        "terminal_relative_error": 0.3833329379558563,
+        "control_effort": 0.0251210555434227,
+        "weighted_control_effort": 0.000251210555434227,
+        "zero_objective": 0.30916404724121094,
+        "temporal_relative_error": 0.0011434785556048155,
+        "time_discrepancy_to_control_signal": 0.001058296300470829,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016479400219395757
+      },
+      {
+        "task_seed": 2008,
+        "initial_seed": 2008,
+        "goal_seed": 10002008,
+        "objective": 0.021329408511519432,
+        "terminal_mse_normalized": 0.021051065996289253,
+        "terminal_relative_error": 0.2620195746421814,
+        "control_effort": 0.027834339067339897,
+        "weighted_control_effort": 0.000278343390673399,
+        "zero_objective": 0.3393990099430084,
+        "temporal_relative_error": 0.0013362818863242865,
+        "time_discrepancy_to_control_signal": 0.0012609113473445177,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016866290243342519
+      },
+      {
+        "task_seed": 2009,
+        "initial_seed": 2009,
+        "goal_seed": 10002009,
+        "objective": 0.021447008475661278,
+        "terminal_mse_normalized": 0.020983008667826653,
+        "terminal_relative_error": 0.22414837777614594,
+        "control_effort": 0.04640022665262222,
+        "weighted_control_effort": 0.00046400226652622224,
+        "zero_objective": 0.4426974058151245,
+        "temporal_relative_error": 0.0015063912142068148,
+        "time_discrepancy_to_control_signal": 0.0014605235774070024,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.001662160037085414
+      },
+      {
+        "task_seed": 2010,
+        "initial_seed": 2010,
+        "goal_seed": 10002010,
+        "objective": 0.01139758713543415,
+        "terminal_mse_normalized": 0.011244873516261578,
+        "terminal_relative_error": 0.2894524335861206,
+        "control_effort": 0.01527148112654686,
+        "weighted_control_effort": 0.0001527148112654686,
+        "zero_objective": 0.13840411603450775,
+        "temporal_relative_error": 0.0008481034892611206,
+        "time_discrepancy_to_control_signal": 0.00082740857033059,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016461900086142123
+      },
+      {
+        "task_seed": 2011,
+        "initial_seed": 2011,
+        "goal_seed": 10002011,
+        "objective": 0.04837032034993172,
+        "terminal_mse_normalized": 0.04787169769406319,
+        "terminal_relative_error": 0.31628358364105225,
+        "control_effort": 0.04986194148659706,
+        "weighted_control_effort": 0.0004986194148659706,
+        "zero_objective": 0.510184109210968,
+        "temporal_relative_error": 0.0019279575208202004,
+        "time_discrepancy_to_control_signal": 0.0018329611048102379,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016422999906353652
+      },
+      {
+        "task_seed": 2012,
+        "initial_seed": 2012,
+        "goal_seed": 10002012,
+        "objective": 0.02432261034846306,
+        "terminal_mse_normalized": 0.024212267249822617,
+        "terminal_relative_error": 0.446778804063797,
+        "control_effort": 0.011034234426915646,
+        "weighted_control_effort": 0.00011034234426915646,
+        "zero_objective": 0.13260512053966522,
+        "temporal_relative_error": 0.0007669627666473389,
+        "time_discrepancy_to_control_signal": 0.000737216614652425,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.001660108973737806
+      },
+      {
+        "task_seed": 2013,
+        "initial_seed": 2013,
+        "goal_seed": 10002013,
+        "objective": 0.0356813445687294,
+        "terminal_mse_normalized": 0.035015497356653214,
+        "terminal_relative_error": 0.24979263544082642,
+        "control_effort": 0.06658454239368439,
+        "weighted_control_effort": 0.0006658454239368438,
+        "zero_objective": 0.5760872960090637,
+        "temporal_relative_error": 0.002387761836871505,
+        "time_discrepancy_to_control_signal": 0.0023671493399888277,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016601000097580254
+      },
+      {
+        "task_seed": 2014,
+        "initial_seed": 2014,
+        "goal_seed": 10002014,
+        "objective": 0.033939898014068604,
+        "terminal_mse_normalized": 0.033736735582351685,
+        "terminal_relative_error": 0.3918952941894531,
+        "control_effort": 0.02031628042459488,
+        "weighted_control_effort": 0.00020316280424594879,
+        "zero_objective": 0.24214018881320953,
+        "temporal_relative_error": 0.0013319285353645682,
+        "time_discrepancy_to_control_signal": 0.0012517799623310566,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016369600198231637
+      },
+      {
+        "task_seed": 2015,
+        "initial_seed": 2015,
+        "goal_seed": 10002015,
+        "objective": 0.03060814179480076,
+        "terminal_mse_normalized": 0.03017510659992695,
+        "terminal_relative_error": 0.28511425852775574,
+        "control_effort": 0.04330349713563919,
+        "weighted_control_effort": 0.0004330349713563919,
+        "zero_objective": 0.41270214319229126,
+        "temporal_relative_error": 0.0015074777184054255,
+        "time_discrepancy_to_control_signal": 0.001434970647096634,
+        "finite": true,
+        "admitted": true,
+        "median_policy_inference_s": 0.0016465499647893012
+      }
+    ],
+    "mean_objective": 0.028544537082780153,
+    "mean_zero_objective": 0.3423274219967425,
+    "mean_terminal_mse_normalized": 0.02820625272579491,
+    "mean_control_effort": 0.033828434941824526,
+    "finite_fraction": 1.0,
+    "admitted": true
+  },
+  "costs": {
+    "phases": {
+      "policy_training": {
+        "wall_time_s": 24.467437184997834,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 0,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 1000,
+        "label_examples": 0
+      },
+      "training_fit_diagnostic": {
+        "wall_time_s": 71.60206325596664,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 64,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 0,
+        "label_examples": 0
+      },
+      "validation": {
+        "wall_time_s": 1407.049385332095,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 192,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 0,
+        "label_examples": 0
+      }
+    },
+    "total": {
+      "wall_time_s": 1503.1188857730594,
+      "oracle_wall_time_s": 0.0,
+      "rollout_count": 256,
+      "gradient_rollout_count": 0,
+      "failed_rollout_count": 0,
+      "optimizer_updates": 1000,
+      "label_examples": 0
+    },
+    "accounting": "wall_time_s includes oracle_wall_time_s; each scalar objective query counts one requested full rollout, including failed queries. This is not a count of backend-internal replay solves."
+  },
+  "standalone_training_costs": {
+    "phases": {
+      "common_data_preparation": {
+        "wall_time_s": 2020.7971064000158,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 240,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 0,
+        "label_examples": 0
+      },
+      "label_generation": {
+        "wall_time_s": 7501.437023105973,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 1728,
+        "gradient_rollout_count": 1600,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 1600,
+        "label_examples": 64
+      },
+      "policy_training": {
+        "wall_time_s": 24.467437184997834,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 0,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 1000,
+        "label_examples": 0
+      }
+    },
+    "total": {
+      "wall_time_s": 9546.701566690987,
+      "oracle_wall_time_s": 0.0,
+      "rollout_count": 1968,
+      "gradient_rollout_count": 1600,
+      "failed_rollout_count": 0,
+      "optimizer_updates": 2600,
+      "label_examples": 64
+    },
+    "accounting": "wall_time_s includes oracle_wall_time_s; each scalar objective query counts one requested full rollout, including failed queries. This is not a count of backend-internal replay solves."
+  },
+  "total_job_wall_time_s": 1506.6436068680487
+}

@@ -1,0 +1,52 @@
+{
+  "solver": "phiflow",
+  "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+  "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+  "source_sha256": "daf2c7d02e49952f574ca8da1a4d7a3f6ffd91dac6b719afe31c350de8255423",
+  "control": {
+    "coarse_n": 64,
+    "reference_n": 192,
+    "dt": 0.02,
+    "steps_per_slot": 20,
+    "control_slots": 8,
+    "nu": 0.001,
+    "domain_extent": 6.283185307179586,
+    "control_bound": 0.25,
+    "velocity_scale": 0.5,
+    "effort_weight": 0.01,
+    "reference_temporal_factor": 3,
+    "audit_temporal_factor": 6,
+    "reference_tolerance": 0.005,
+    "gradient_tolerance": 0.05,
+    "gradient_epsilons": [
+      0.001,
+      0.01,
+      0.0001
+    ],
+    "shooting_updates": 25,
+    "shooting_lr": 0.05
+  },
+  "phase": "prepare",
+  "task_seeds": [
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063,
+    2014,
+    2015
+  ],
+  "training_seeds": [
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063
+  ]
+}

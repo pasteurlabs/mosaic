@@ -1,0 +1,95 @@
+{
+  "state": "jobs_finished_report_complete",
+  "updated_at": "2026-10-02T16:37:17.312042+00:00",
+  "jobs": {
+    "prepare-0": {
+      "slurm_id": 2862249,
+      "state": "COMPLETED"
+    },
+    "prepare-1": {
+      "slurm_id": 2862250,
+      "state": "COMPLETED"
+    },
+    "prepare-2": {
+      "slurm_id": 2862251,
+      "state": "COMPLETED"
+    },
+    "prepare-3": {
+      "slurm_id": 2862252,
+      "state": "COMPLETED"
+    },
+    "prepare-4": {
+      "slurm_id": 2862253,
+      "state": "COMPLETED"
+    },
+    "prepare-5": {
+      "slurm_id": 2862254,
+      "state": "COMPLETED"
+    },
+    "prepare-6": {
+      "slurm_id": 2862255,
+      "state": "COMPLETED"
+    },
+    "prepare-7": {
+      "slurm_id": 2862256,
+      "state": "COMPLETED"
+    },
+    "assemble": {
+      "slurm_id": 2862258,
+      "state": "COMPLETED"
+    },
+    "full-0": {
+      "slurm_id": 2862260,
+      "state": "COMPLETED"
+    },
+    "full-1": {
+      "slurm_id": 2862261,
+      "state": "COMPLETED"
+    },
+    "full-2": {
+      "slurm_id": 2862262,
+      "state": "COMPLETED"
+    },
+    "spsa-0": {
+      "slurm_id": 2862263,
+      "state": "COMPLETED"
+    },
+    "spsa-1": {
+      "slurm_id": 2862264,
+      "state": "COMPLETED"
+    },
+    "spsa-2": {
+      "slurm_id": 2862265,
+      "state": "COMPLETED"
+    },
+    "demonstration_imitation-0": {
+      "slurm_id": 2862266,
+      "state": "COMPLETED"
+    },
+    "demonstration_imitation-1": {
+      "slurm_id": 2862267,
+      "state": "COMPLETED"
+    },
+    "demonstration_imitation-2": {
+      "slurm_id": 2862268,
+      "state": "COMPLETED"
+    },
+    "improved_imitation-0": {
+      "slurm_id": 2862269,
+      "state": "COMPLETED"
+    },
+    "improved_imitation-1": {
+      "slurm_id": 2862270,
+      "state": "COMPLETED"
+    },
+    "improved_imitation-2": {
+      "slurm_id": 2862271,
+      "state": "COMPLETED"
+    },
+    "report": {
+      "slurm_id": 2862448,
+      "state": "COMPLETED"
+    }
+  },
+  "note": "Slurm completion alone does not establish numerical admission or a learning advantage."
+}
