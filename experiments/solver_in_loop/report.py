@@ -433,6 +433,8 @@ def _plot_outcomes(rows: list[dict], destination: Path) -> None:
         )
         if rates:
             subtitle += f" · LR {rates}"
+        if row.get("supervised_overrides") or row.get("supervised_compute_matched"):
+            subtitle += " · separate supervised budget"
         fig.text(
             0.05, 0.94, "How much do solver gradients help?", fontsize=18, weight="bold"
         )
@@ -781,6 +783,10 @@ def main() -> None:
                 "unroll": unroll,
                 "updates": updates,
                 "pretrain_updates": cells[0][0].get("pretrain_updates_per_seed", 0),
+                "supervised_overrides": cells[0][0].get("supervised_overrides", {}),
+                "supervised_compute_matched": cells[0][0].get(
+                    "supervised_compute_matched", False
+                ),
                 "curriculum": cells[0][0].get("training_curriculum", []),
                 "training_examples_per_seed": cells[0][0].get(
                     "training_examples_per_seed"

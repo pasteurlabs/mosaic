@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 import threading
 import time
 import weakref
 from functools import lru_cache, partial
+from pathlib import Path
 from typing import Any, NamedTuple
 
 import equinox as eqx
@@ -500,6 +503,67 @@ def _passes_reference_accuracy_gate(
     )
 
 
+def _burn_in_reference(
+    initial: np.ndarray,
+    advance: Any,
+    *,
+    steps: int,
+    frame_steps: int,
+    dt: float,
+    cache_dir: str | None,
+    identity: dict[str, Any],
+) -> tuple[np.ndarray, bool]:
+    """Reuse only a verified canonical burn-in state; always rerun rollout audits."""
+    metadata = {
+        **identity,
+        "steps": steps,
+        "frame_steps": frame_steps,
+        "dt": dt,
+        "initial_sha256": hashlib.sha256(initial.tobytes()).hexdigest(),
+        "shape": list(initial.shape),
+        "dtype": str(initial.dtype),
+    }
+    key = hashlib.sha256(json.dumps(metadata, sort_keys=True).encode()).hexdigest()
+    path = Path(cache_dir) / f"{key}.npz" if cache_dir else None
+    if path is not None and path.exists():
+        with np.load(path, allow_pickle=False) as data:
+            state = data["state"]
+            digest = str(data["sha256"])
+            stored_key = str(data["key"])
+        if (
+            stored_key != key
+            or state.shape != initial.shape
+            or state.dtype != initial.dtype
+            or not np.isfinite(state).all()
+            or hashlib.sha256(state.tobytes()).hexdigest() != digest
+        ):
+            raise ValueError(f"invalid reference burn-in cache: {path}")
+        return state, True
+    state, native = initial, None
+    for start in range(0, steps, frame_steps):
+        state, native = advance(
+            state, dt=dt, steps=min(frame_steps, steps - start), native_state=native
+        )
+        state = np.asarray(state)
+        if not np.isfinite(state).all():
+            raise RuntimeError("nonfinite reference during burn-in")
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=path.parent, suffix=".part", delete=False
+        ) as stream:
+            temporary = stream.name
+            np.savez(
+                stream,
+                state=state,
+                key=key,
+                sha256=hashlib.sha256(state.tobytes()).hexdigest(),
+                metadata=json.dumps(metadata, sort_keys=True),
+            )
+        os.replace(temporary, path)
+    return state, False
+
+
 def _make_solver_self_reference_datasets(
     t: Any,
     ctx: KernelContext,
@@ -587,23 +651,33 @@ def _make_solver_self_reference_datasets(
                 )
                 * 0.1
             )
-        burn_native = None
         initial_rms = float(np.sqrt(np.mean(fine_state**2)))
-        for burn_start in range(0, burn_in_steps, fine_steps):
-            fine_state, burn_native = advance(
-                fine_state,
-                dt=fine_dt,
-                steps=min(fine_steps, burn_in_steps - burn_start),
-                native_state=burn_native,
-            )
-            if not np.isfinite(fine_state).all():
-                raise RuntimeError(
-                    f"nonfinite reference during burn-in for seed {seed}"
-                )
+        cache_dir = dataset.get("burn_in_cache_dir")
+        binding = os.environ.get("MOSAIC_REFERENCE_CACHE_ID", "")
+        if cache_dir and not binding:
+            raise ValueError("burn-in cache requires an explicit source/image binding")
+        fine_state, cache_hit = _burn_in_reference(
+            fine_state,
+            advance,
+            steps=burn_in_steps,
+            frame_steps=fine_steps,
+            dt=fine_dt,
+            cache_dir=cache_dir,
+            identity={
+                "binding": binding,
+                "solver": ctx.name,
+                "physics": ctx.phys,
+                "domain_extent": ctx.domain_extent,
+            },
+        )
         burn_in_diagnostics.append(
             {
                 "seed": seed,
                 "initial_velocity_rms": initial_rms,
+                "burn_in_cache_hit": cache_hit,
+                "burn_in_state_sha256": hashlib.sha256(
+                    fine_state.tobytes()
+                ).hexdigest(),
                 "final_velocity_rms": float(np.sqrt(np.mean(fine_state**2))),
             }
         )
@@ -1082,6 +1156,12 @@ def _train_corrector(
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
     """Train one solver-specific corrector with a fixed stochastic schedule."""
     max_updates = int(training.get("max_updates", 100))
+    wall_budget = training.get("wall_time_budget_s")
+    if wall_budget is not None:
+        wall_budget = float(wall_budget)
+        if not np.isfinite(wall_budget) or wall_budget <= 0:
+            raise ValueError("wall_time_budget_s must be finite and positive")
+    training_started = time.perf_counter()
     stages = _training_stages(training, train.shape[1] - 1)
     boundaries = np.cumsum([stage["updates"] for stage in stages]).tolist()
     lr = optax.join_schedules(
@@ -1136,6 +1216,12 @@ def _train_corrector(
         else ("full" if differentiate_solver else "stopped")
     )
     for update in range(max_updates):
+        if (
+            wall_budget is not None
+            and time.perf_counter() - training_started >= wall_budget
+        ):
+            print(f"training time budget reached after {update} updates", flush=True)
+            break
         if update >= boundaries[stage_idx]:
             stage_idx += 1
         unroll = stages[stage_idx]["unroll"]
@@ -1334,6 +1420,28 @@ def _compare_supervised(
     if inputs is None:
         inputs = _make_supervised_inputs(t, ctx, train, frame_steps=frame_steps)
     dataset_wall = time.perf_counter() - started
+    supervised_training = {**training, "loss_mode": "mean", "solver_loss_weight": 0.0}
+    overrides = dict(training.get("supervised_overrides", {}))
+    if set(overrides) - {"lr", "max_updates"}:
+        raise ValueError("supervised_overrides supports only lr and max_updates")
+    if overrides:
+        supervised_training.pop("curriculum", None)
+        supervised_training.update(overrides)
+    match_compute = bool(training.get("supervised_match_compute", False))
+    if match_compute:
+        supervised_training.pop("curriculum", None)
+        supervised_training["max_updates"] = 100000
+        supervised_training["wall_time_budget_s"] = max(
+            1e-6,
+            float(training["full_seconds_per_seed"]) - dataset_wall / len(model_seeds),
+        )
+    audit_pairs = bool(training.get("supervised_audit_pairs", False))
+    test_inputs = (
+        _make_supervised_inputs(t, ctx, test, frame_steps=frame_steps)
+        if audit_pairs
+        else None
+    )
+    pair_errors = {"train": [], "held_out": []}
     curves, losses, timings, completed, walls = [], [], [], [], []
     first_rollout = None
     for model_seed in model_seeds:
@@ -1343,7 +1451,7 @@ def _compare_supervised(
             ctx,
             train,
             frame_steps=frame_steps,
-            training={**training, "loss_mode": "mean", "solver_loss_weight": 0.0},
+            training=supervised_training,
             velocity_scale=velocity_scale,
             loss_scale=loss_scale,
             differentiate_solver=False,
@@ -1352,6 +1460,26 @@ def _compare_supervised(
             initial_model=(initial_models or {}).get(model_seed),
         )
         walls.append(time.perf_counter() - started)
+        if audit_pairs:
+            for label, provisional_set, reference_set in (
+                ("train", inputs, train),
+                ("held_out", test_inputs, test),
+            ):
+                values = []
+                for provisional_frames, reference_frames in zip(
+                    provisional_set, reference_set, strict=True
+                ):
+                    for provisional, target in zip(
+                        provisional_frames, reference_frames[1:], strict=True
+                    ):
+                        corrected = corrected_velocity(
+                            model,
+                            jnp.asarray(provisional),
+                            velocity_scale=velocity_scale,
+                            domain_extent=ctx.domain_extent,
+                        )
+                        values.append(relative_l2(np.asarray(corrected), target))
+                pair_errors[label].append(float(np.mean(values)))
         evaluated = _evaluate_reference_set(
             t,
             ctx,
@@ -1378,6 +1506,33 @@ def _compare_supervised(
     # and all-arm completion remain separate requirements for interpretation.
     metrics = {
         "supervised_completed": all(completed),
+        "supervised_overrides": overrides,
+        "supervised_compute_matched": match_compute,
+        "supervised_optimization_budget_s": supervised_training.get(
+            "wall_time_budget_s"
+        ),
+        "supervised_pair_error_by_seed": pair_errors if audit_pairs else None,
+        "supervised_uncorrected_pair_error": {
+            label: float(
+                np.mean(
+                    [
+                        relative_l2(provisional, target)
+                        for provisional_frames, reference_frames in zip(
+                            provisionals, references, strict=True
+                        )
+                        for provisional, target in zip(
+                            provisional_frames, reference_frames[1:], strict=True
+                        )
+                    ]
+                )
+            )
+            for label, provisionals, references in (
+                ("train", inputs, train),
+                ("held_out", test_inputs, test),
+            )
+        }
+        if audit_pairs
+        else None,
         "supervised_completed_by_seed": completed,
         "supervised_updates_by_seed": [len(loss) for loss in losses],
         "supervised_total_optimizer_updates": sum(map(len, losses)),
@@ -2408,7 +2563,10 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             ctx,
             train,
             test,
-            training=training,
+            training={
+                **training,
+                "full_seconds_per_seed": training_wall / len(model_seeds),
+            },
             model_seeds=model_seeds,
             frame_steps=frame_steps,
             velocity_scale=velocity_scale,

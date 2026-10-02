@@ -94,10 +94,15 @@ def main() -> None:
     parser.add_argument("--seeds", default="0")
     parser.add_argument("--updates", type=int, default=300)
     parser.add_argument("--pretrain-updates", type=int, default=0)
+    parser.add_argument("--supervised-lr", type=float)
+    parser.add_argument("--supervised-updates", type=int)
+    parser.add_argument("--supervised-match-compute", action="store_true")
+    parser.add_argument("--supervised-audit-pairs", action="store_true")
     parser.add_argument(
         "--curriculum", help="comma-separated horizon:updates:lr stages"
     )
     parser.add_argument("--time-limit", default="04:00:00")
+    parser.add_argument("--exclude", default="", help="Slurm nodes to exclude")
     parser.add_argument("--pretrain-unroll", type=int, default=8)
     parser.add_argument("--amplitude", type=float, default=0.5)
     parser.add_argument("--dt", type=float, default=0.02)
@@ -116,6 +121,7 @@ def main() -> None:
     parser.add_argument("--forcing-amplitude", type=float, default=0.0)
     parser.add_argument("--forcing-wavenumber", type=int, default=6)
     parser.add_argument("--burn-in-time", type=float, default=0.0)
+    parser.add_argument("--burn-in-cache-dir")
     parser.add_argument("--reference-only", action="store_true")
     parser.add_argument("--reference-factor", type=int)
     parser.add_argument("--reference-temporal-factor", type=int)
@@ -171,6 +177,17 @@ def main() -> None:
                     run = protocol(
                         int(n), float(k0), int(unroll), args.updates, seed, args.confirm
                     )
+                    overrides = {}
+                    if args.supervised_lr is not None:
+                        overrides["lr"] = args.supervised_lr
+                    if args.supervised_updates is not None:
+                        overrides["max_updates"] = args.supervised_updates
+                    if overrides:
+                        run["training"]["supervised_overrides"] = overrides
+                    if args.supervised_match_compute:
+                        run["training"]["supervised_match_compute"] = True
+                    if args.supervised_audit_pairs:
+                        run["training"]["supervised_audit_pairs"] = True
                     if args.curriculum:
                         stages = []
                         for stage in args.curriculum.split(","):
@@ -221,6 +238,8 @@ def main() -> None:
                             }
                         )
                         cell += f"-force{args.forcing_amplitude:g}"
+                    if args.burn_in_cache_dir:
+                        run["dataset"]["burn_in_cache_dir"] = args.burn_in_cache_dir
                     if args.burn_in_time:
                         run["dataset"]["burn_in_time"] = args.burn_in_time
                     if args.reference_only:
@@ -320,7 +339,11 @@ def main() -> None:
                 "PYTHONUNBUFFERED": "1",
                 "MLFLOW_DISABLE_AGENT_HINT": "1",
             },
-            extra_sbatch=[f"--output={campaign}/logs/%x-%j.out", *report_dependencies],
+            extra_sbatch=[
+                f"--output={campaign}/logs/%x-%j.out",
+                *report_dependencies,
+                *([f"--exclude={args.exclude}"] if args.exclude else []),
+            ],
         )
         result = runner.submit(spec, cluster="kander", dry_run=args.dry_run)
         print(

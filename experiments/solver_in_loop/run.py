@@ -26,6 +26,9 @@ def main() -> None:
     args = parser.parse_args()
     payload = json.loads(args.config.read_text())
     os.environ["MOSAIC_RESULTS_DIR"] = str(args.out)
+    os.environ["MOSAIC_REFERENCE_CACHE_ID"] = (
+        payload["source_sha256"] + ":" + payload["image"]
+    )
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "protocol.json").write_text(json.dumps(payload, indent=2))
     print(f"client_devices={jax.devices()}", flush=True)

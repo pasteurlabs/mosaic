@@ -1002,8 +1002,9 @@ def test_solver_vjp_panels_only_show_recurrence_admitted_cells(tmp_path):
 
 
 @pytest.mark.parametrize("pretrain_updates", [0, 2])
+@pytest.mark.parametrize("audit_supervision", [False, True])
 def test_solver_in_loop_runs_recurrently_through_dummy(
-    tmp_path, monkeypatch, pretrain_updates
+    tmp_path, monkeypatch, pretrain_updates, audit_supervision
 ):
     """One update crosses the apply/VJP boundary and writes canonical artifacts."""
     import importlib
@@ -1053,6 +1054,10 @@ def test_solver_in_loop_runs_recurrently_through_dummy(
                     ),
                     "pretrain_unroll": 2,
                     "include_supervised_baseline": True,
+                    "supervised_audit_pairs": audit_supervision,
+                    "supervised_overrides": {"max_updates": 3, "lr": 1e-5}
+                    if audit_supervision
+                    else {},
                     "unroll": 2,
                     "loss_mode": "solver_terminal",
                     "solver_loss_weight": 0.1,
@@ -1080,7 +1085,13 @@ def test_solver_in_loop_runs_recurrently_through_dummy(
     assert metrics["n_updates"] == 1
     assert metrics["total_optimizer_updates"] == 2
     assert metrics["stop_gradient_total_optimizer_updates"] == 2
-    assert metrics["supervised_total_optimizer_updates"] == 2
+    assert metrics["supervised_total_optimizer_updates"] == (
+        6 if audit_supervision else 2
+    )
+    if audit_supervision:
+        assert len(metrics["supervised_pair_error_by_seed"]["train"]) == 2
+        assert len(metrics["supervised_pair_error_by_seed"]["held_out"]) == 2
+        assert metrics["supervised_uncorrected_pair_error"]["train"] >= 0
     assert metrics["supervised_completed"] is True
     assert metrics["solver_in_loop_vs_supervised_geometric_lift"] > 0
     assert metrics["n_model_seeds"] == 2
@@ -1455,3 +1466,74 @@ def test_reference_only_checks_gradients_without_training(monkeypatch):
     assert result["metrics"]["n_updates"] == 0
     assert result["metrics"]["reference_only_gradient_passed"]
     assert result["snapshots"]["reference_rollout"].shape == (3, 8, 8, 1, 2)
+
+
+def test_supervised_time_budget_stops_before_extra_updates(monkeypatch):
+    """A compute limit stops optimization without marking numerical failure."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    clock = [0.0]
+
+    def loss(model, **kwargs):
+        clock[0] += 1.0
+        return model**2
+
+    monkeypatch.setattr(module, "_supervised_loss", loss)
+    monkeypatch.setattr(module.time, "perf_counter", lambda: clock[0])
+    train = np.zeros((1, 2, 1), dtype=np.float32)
+    result = module._train_corrector(
+        None,
+        SimpleNamespace(domain_extent=2 * np.pi),
+        train,
+        frame_steps=1,
+        training={"max_updates": 10, "unroll": 1, "wall_time_budget_s": 2.0},
+        velocity_scale=1.0,
+        loss_scale=1.0,
+        differentiate_solver=False,
+        model_seed=0,
+        supervised_inputs=train[:, 1:],
+        initial_model=jnp.asarray(1.0),
+    )
+    assert len(result[1]) == 2
+    assert result[-1] is True
+    assert float(result[0]) < 1.0
+
+
+def test_burn_in_cache_binds_physics_and_rejects_corruption(tmp_path):
+    """Cached canonical fields reproduce burn-in and cannot cross solver bindings."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    calls = []
+
+    def advance(value, *, dt, steps, native_state):
+        calls.append(steps)
+        return value + dt * steps, None
+
+    initial = np.ones((2, 2, 1, 2), dtype=np.float32)
+    arguments = {
+        "steps": 5,
+        "frame_steps": 2,
+        "dt": 0.1,
+        "cache_dir": str(tmp_path),
+        "identity": {"binding": "source:image"},
+    }
+    first, hit = module._burn_in_reference(initial, advance, **arguments)
+    assert not hit
+    assert calls == [2, 2, 1]
+    repeated, hit = module._burn_in_reference(initial, advance, **arguments)
+    assert hit
+    assert calls == [2, 2, 1]
+    np.testing.assert_array_equal(first, repeated)
+    module._burn_in_reference(
+        initial, advance, **{**arguments, "identity": {"binding": "different"}}
+    )
+    assert calls == [2, 2, 1, 2, 2, 1]
+    for path in tmp_path.glob("*.npz"):
+        with np.load(path) as data:
+            values = dict(data)
+        values["state"] = values["state"] + 1
+        np.savez(path, **values)
+    with pytest.raises(ValueError, match="invalid reference burn-in cache"):
+        module._burn_in_reference(initial, advance, **arguments)
