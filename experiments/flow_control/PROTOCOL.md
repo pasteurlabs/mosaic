@@ -75,3 +75,39 @@ plots, force effort, failures, inference cost and label/training cost.
 All numerical work, tests and rendering run through Slurm. Frozen source,
 configuration and image identities accompany every campaign. Existing correction
 experiments and solver fixes remain archived separately.
+
+## Development gate outcomes and next probe
+
+All eight short-horizon (T=.64) tasks passed the numerical gates in
+`pr116-control-gate-v2-20261002` (jobs 2861675–2861678). The cheap linear controller
+had a lower fine-grid objective than 25 Adam updates initialized at zero on all
+eight tasks. No neural training was launched on that basis. This does not rule
+out better optimization: zero initialization and 25 updates can be insufficient.
+The first source failed one actuator-precision unit test; immutable Fourier
+constants now use float64 construction and one float32 cast. All 24 tests passed
+on Slurm 2861674 without relaxing tolerances.
+
+The next development probe changes only native steps per control slot from 4 to 20,
+so T becomes 3.2. Image, numerical source, all eight development tasks, actuator
+bound, dt, spatial grids and admission thresholds stay fixed. Campaign:
+`pr116-control-long-gate-20261002`, jobs 2861713–2861716. Comparisons are within each
+horizon: normalized effort divides by duration, so scores across horizons do not
+represent equal physical integrated effort. A separate linear-initialized
+shooting diagnostic will distinguish optimizer convergence from task difficulty.
+Neither development probe is held-out confirmation.
+
+The prepared neural pilot uses 16 training tasks 1000–1015 and 8 validation tasks
+2000–2007, model seeds 0–2. Full-gradient and action-SPSA policies use 300 updates;
+imitation uses one uninterrupted 1000-update run with 250/500/1000 checkpoints.
+This is an explicitly untuned development pilot with unequal update budgets and
+measured costs, not a superiority test. The T=3.2 pilot is selected for launch after source validation: its direct-control
+gate beats the cheap linear controller on every development task. Final test tasks remain untouched.
+
+The longer-horizon gate passed all eight tasks. Mean fine-grid objective was
+0.008297 for 25 gradient updates from zero versus 0.025083 for the linear
+controller (66.9% lower); all eight paired comparisons favored optimization.
+Maximum goal/controlled time-refinement discrepancy was 0.311%. This supports
+launching the neural development pilot, but establishes neither amortized policy
+quality nor an advantage over imitation or gradient-free learning. Both horizon
+results remain reported. Separate short/long linear-warm-start diagnostics are
+engineering checks and do not select neural checkpoints.
