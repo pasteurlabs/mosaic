@@ -1,0 +1,26 @@
+{
+  "selection_metric": "mean supervised validation rollout L2 across 3 seeds and 4 ICs",
+  "validation_ics": [
+    3000,
+    3001,
+    3002,
+    3003
+  ],
+  "final_test_ics": [
+    4000,
+    4001,
+    4002,
+    4003
+  ],
+  "lr": 1e-05,
+  "updates": 1000,
+  "validation_error": 0.026633156463503838,
+  "candidate_protocols": [
+    "3527f937d2e37375df146e353c705b52b4fb0976cfcf51ee8fc9b690c64e4e5b",
+    "57b031475b5b18c24231a3b533a2ee6151ceb8d612125429963c92d6427812e8",
+    "92d2f25d4ad1cd7674c6d1dc5e304310fbe9977a391ebcdbf388694d8d6191f8",
+    "93f54d7ab569835b79dabdca368ec6c384ac87c0ddee2a0b67bb63b4bc8bdeb3",
+    "2832564748677837db39d0d983dfa6d9ad26be6384c9e05514e8a57e77c85d77",
+    "4e2ea3eaaab4b5f53a772ea2ffea5505386ead34415390ba797b2fb79439fbfe"
+  ]
+}

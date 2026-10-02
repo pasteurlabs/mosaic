@@ -1,0 +1,6 @@
+{
+  "status": "correction_approach_discontinued_at_user_request",
+  "new_objective": "neural fluid control",
+  "final_tuned_comparison": "supervised wins; full solver gradients beat stopped gradients",
+  "remaining_runs": "cancelled, partial artifacts retained on cluster"
+}
