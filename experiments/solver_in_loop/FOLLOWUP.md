@@ -165,3 +165,13 @@ closure error, 0.0614% temporal discrepancy and 0.0168% gradient discrepancy.
 Reference generation takes 14–15 seconds versus 275–341 seconds with the original
 image. These are reference-generation timings, not training speedups. A rebuilt
 image must pass admission before training; existing campaigns retain old images.
+
+The final tuned comparison has now completed on all eight seeds and fresh ICs
+4000–4003: full 3.4984%, stopped 4.2997%, tuned supervision 2.8319%, native 5.9978%.
+All run admission and training-gradient checks pass. The paired supervision/full
+error ratio is 0.8095 (95% CI 0.7519–0.8770): tuned supervision is better. Full
+beats stopped by 18.6%, but does not establish superiority over strong supervision.
+Full training took 13,818 seconds summed across seeds, versus 4,410 seconds for
+supervision including pair generation. The compute-matched comparison cannot
+reverse this conclusion: forcing supervision to spend more time can overtrain,
+and a within-budget baseline may select the cheaper validation-optimal schedule.
