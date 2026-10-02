@@ -38,6 +38,35 @@ from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
+def _project_periodic_faces_fft(faces: jnp.ndarray) -> jnp.ndarray:
+    """Orthogonal projection for low-face periodic MAC velocities.
+
+    Use the exact staggered finite-difference symbols, including Nyquist,
+    rather than the continuum wave numbers. The common domain extent
+    cancels; relative axis spacings are retained for rectangular grids.
+    """
+    shape = faces.shape[1:]
+    axes = tuple(range(1, faces.ndim))
+    symbols = []
+    for axis, size in enumerate(shape):
+        wave = 2 * jnp.pi * jnp.fft.fftfreq(size)
+        view = [1] * len(shape)
+        view[axis] = size
+        symbols.append(((jnp.exp(1j * wave) - 1) * (size / shape[0])).reshape(view))
+    denominator = sum(jnp.abs(symbol) ** 2 for symbol in symbols)
+    safe_denominator = jnp.where(denominator > 0, denominator, 1)
+    transformed = jnp.fft.fftn(faces, axes=axes)
+    divergence = sum(symbol * transformed[i] for i, symbol in enumerate(symbols))
+    pressure = divergence / safe_denominator
+    projected = jnp.stack(
+        [
+            transformed[i] - jnp.conj(symbol) * pressure
+            for i, symbol in enumerate(symbols)
+        ]
+    )
+    return jnp.fft.ifftn(projected, axes=axes).real.astype(faces.dtype)
+
+
 class InputSchema(
     make_differentiable(
         _CanonicalInputSchema,
@@ -151,7 +180,8 @@ def phiflow_fwd(
 ) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
-    Uses semi-Lagrangian advection, explicit diffusion, and pressure projection
+    Uses explicit Euler differential advection on periodic grids, semi-Lagrangian
+    advection for 2D inflow, explicit diffusion, and pressure projection
     for incompressibility on a periodic domain. Dimensionality is inferred from
     ``v0.shape[-1]`` (2 → 2D, 3 → 3D).
 
@@ -364,18 +394,16 @@ def phiflow_fwd(
             0,
         )
 
-    # The periodic pressure projection is linear. Defining it once lets both
-    # recurrent correction assimilation and the time step share its VJP.
+    # The periodic pressure projection is linear. Use its exact discrete FFT
+    # solve to avoid a singular float32 CG solve at every step and correction.
+    # Keep CG for the non-periodic/obstacle paths below.
     _cg_solve = math.Solve("CG", 1e-10, 1e-10)
 
     def project_periodic_faces_impl(face_arr: jnp.ndarray) -> jnp.ndarray:
-        projected, _ = fluid.make_incompressible(
-            faces_to_staggered(face_arr), (), solve=_cg_solve
-        )
-        return staggered_to_faces(projected)
+        return _project_periodic_faces_fft(face_arr)
 
     def project_periodic_faces_primal(face_arr: jnp.ndarray) -> jnp.ndarray:
-        # Avoid injecting a CG residual when an uncorrected recurrent call
+        # Preserve an exact zero when an uncorrected recurrent call
         # assimilates an exactly zero canonical increment. Keep the custom VJP
         # below so this zero-valued primal still has the linear projection as
         # its derivative.
@@ -398,8 +426,8 @@ def phiflow_fwd(
     def project_periodic_faces_bwd(
         _residual: None, cotangent: jnp.ndarray
     ) -> tuple[jnp.ndarray]:
-        # The projection is self-adjoint. Applying it again gives its VJP up to
-        # the CG tolerance and avoids PhiML's cross-request solve cache.
+        # The discrete orthogonal projection is self-adjoint. Its FFT solve
+        # also avoids PhiML's cross-request implicit-solve cache.
         return (project_periodic_faces_impl(cotangent),)
 
     project_periodic_faces.defvjp(
