@@ -1,0 +1,538 @@
+[runner] node=rtx07 cluster=kander runtime=uv
+[runner] job-env=/etc/kander/job-env.sh scratch=/scratch/jobs/2861676 cache=/cache/users/10002
+[runner] isolated_command=1 (command manages Python and dependencies)
+[runner] uv_cache=/cache/users/10002/uv policy=auto
+[runner] venv=<uv default: $REPO_ROOT/.venv>
+=== 2026-10-02T14:36:12+02:00 host=rtx07 job=m116-control-gate-1 id=2861676 ===
+=== cmd: bash /data/personal/andrinr/runner/results/mosaic/pr116-control-gate-v2-20261002/node.sh /data/personal/andrinr/runner/results/mosaic/pr116-control-gate-v2-20261002 train gate-1 ===
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: /scratch/jobs/2861676/mosaic-venv
+   Building mosaic-shared @ file:///scratch/jobs/2861676/work/mosaic/mosaic/mosaic_shared
+   Building mosaic-bench @ file:///scratch/jobs/2861676/work/mosaic
+Downloading pip (1.7MiB)
+Downloading aiohttp (1.7MiB)
+Downloading pandas (10.3MiB)
+Downloading lz4 (1.3MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading pygments (1.2MiB)
+Downloading scipy (33.7MiB)
+Downloading jax-cuda12-pjrt (179.5MiB)
+Downloading pillow (6.6MiB)
+Downloading cryptography (4.5MiB)
+Downloading numpy (15.9MiB)
+Downloading virtualenv (5.2MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading matplotlib (9.4MiB)
+Downloading mlflow-skinny (3.6MiB)
+Downloading fonttools (5.1MiB)
+Downloading nvidia-cuda-runtime-cu12 (3.3MiB)
+Downloading jax (3.2MiB)
+Downloading jaxlib (85.7MiB)
+Downloading nvidia-cufft-cu12 (191.6MiB)
+Downloading jax-cuda12-plugin (8.2MiB)
+Downloading nvidia-cuda-cupti-cu12 (10.3MiB)
+Downloading nvidia-cudnn-cu12 (730.7MiB)
+Downloading nvidia-cublas-cu12 (554.3MiB)
+Downloading nvidia-cuda-nvcc-cu12 (38.7MiB)
+Downloading ruff (9.9MiB)
+Downloading databricks-sdk (1.0MiB)
+Downloading botocore (14.9MiB)
+Downloading nvidia-cusolver-cu12 (322.5MiB)
+Downloading nvidia-nccl-cu12 (335.2MiB)
+Downloading debugpy (3.8MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (85.4MiB)
+Downloading nvidia-nvjitlink-cu12 (37.9MiB)
+Downloading nvidia-cusparse-cu12 (349.5MiB)
+Downloading nvidia-cuda-cccl-cu12 (3.0MiB)
+Downloading nvidia-nvshmem-cu12 (267.8MiB)
+ Downloaded databricks-sdk
+ Downloaded lz4
+ Downloaded kiwisolver
+ Downloaded aiohttp
+ Downloaded pydantic-core
+ Downloaded pygments
+ Downloaded pip
+ Downloaded jax
+ Downloaded nvidia-cuda-runtime-cu12
+ Downloaded debugpy
+ Downloaded cryptography
+ Downloaded virtualenv
+ Downloaded mlflow-skinny
+      Built mosaic-bench @ file:///scratch/jobs/2861676/work/mosaic
+ Downloaded fonttools
+      Built mosaic-shared @ file:///scratch/jobs/2861676/work/mosaic/mosaic/mosaic_shared
+ Downloaded pillow
+ Downloaded jax-cuda12-plugin
+ Downloaded nvidia-cuda-cccl-cu12
+ Downloaded ruff
+ Downloaded matplotlib
+ Downloaded nvidia-cuda-cupti-cu12
+ Downloaded numpy
+ Downloaded pandas
+ Downloaded botocore
+ Downloaded nvidia-nvjitlink-cu12
+ Downloaded nvidia-cuda-nvcc-cu12
+ Downloaded scipy
+ Downloaded nvidia-cuda-nvrtc-cu12
+ Downloaded jaxlib
+ Downloaded jax-cuda12-pjrt
+ Downloaded nvidia-cufft-cu12
+ Downloaded nvidia-nvshmem-cu12
+ Downloaded nvidia-cusolver-cu12
+ Downloaded nvidia-nccl-cu12
+ Downloaded nvidia-cusparse-cu12
+ Downloaded nvidia-cublas-cu12
+ Downloaded nvidia-cudnn-cu12
+Prepared 127 packages in 23.85s
+Installed 127 packages in 3.35s
+ + absl-py==2.5.0
+ + aiobotocore==3.9.1
+ + aiohappyeyeballs==2.7.1
+ + aiohttp==3.14.3
+ + aioitertools==0.13.0
+ + aiosignal==1.4.0
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + attrs==26.1.0
+ + botocore==1.43.75
+ + cachetools==7.2.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + cfgv==3.5.0
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + contourpy==1.4.0
+ + coverage==7.16.2
+ + cryptography==50.0.1
+ + cycler==0.12.1
+ + databricks-sdk==0.143.0
+ + debugpy==1.8.22
+ + distlib==0.4.3
+ + docker==7.2.0
+ + equinox==0.13.8
+ + fastapi==0.141.1
+ + filelock==4.0.4
+ + fonttools==4.66.0
+ + frozenlist==1.8.0
+ + fsspec==2026.9.0
+ + gitdb==4.0.12
+ + gitpython==3.1.62
+ + google-auth==2.58.1
+ + h11==0.16.0
+ + identify==2.6.20
+ + idna==3.20
+ + importlib-metadata==9.0.1
+ + iniconfig==2.3.0
+ + jax==0.11.2
+ + jax-cuda12-pjrt==0.11.2
+ + jax-cuda12-plugin==0.11.2
+ + jaxlib==0.11.2
+ + jaxtyping==0.3.11
+ + jinja2==3.1.6
+ + jmespath==1.1.0
+ + kiwisolver==1.5.1
+ + lz4==4.4.5
+ + markdown-it-py==4.2.0
+ + markupsafe==3.0.3
+ + matplotlib==3.11.2
+ + mdurl==0.1.2
+ + ml-dtypes==0.6.0
+ + mlflow-skinny==3.16.1
+ + mosaic-bench==0.0.0+unknown (from file:///scratch/jobs/2861676/work/mosaic)
+ + mosaic-shared==0.1.0 (from file:///scratch/jobs/2861676/work/mosaic/mosaic/mosaic_shared)
+ + multidict==6.9.1
+ + nodeenv==1.11.0
+ + numpy==2.5.3
+ + nvidia-cublas-cu12==12.9.2.10
+ + nvidia-cuda-cccl-cu12==12.9.27
+ + nvidia-cuda-cupti-cu12==12.9.79
+ + nvidia-cuda-nvcc-cu12==12.9.86
+ + nvidia-cuda-nvrtc-cu12==12.9.86
+ + nvidia-cuda-runtime-cu12==12.9.79
+ + nvidia-cudnn-cu12==9.27.0.42
+ + nvidia-cufft-cu12==11.4.1.4
+ + nvidia-cusolver-cu12==11.7.5.82
+ + nvidia-cusparse-cu12==12.5.10.65
+ + nvidia-ml-py==13.615.71
+ + nvidia-nccl-cu12==2.32.3
+ + nvidia-nvjitlink-cu12==12.9.86
+ + nvidia-nvshmem-cu12==3.8.0
+ + opentelemetry-api==1.45.0
+ + opentelemetry-proto==1.45.0
+ + opentelemetry-sdk==1.45.0
+ + opentelemetry-semantic-conventions==0.66b0
+ + opt-einsum==3.4.0
+ + optax==0.2.8
+ + orjson==3.12.0
+ + packaging==26.3
+ + pandas==3.0.6
+ + pillow==12.3.0
+ + pip==26.2.1
+ + platformdirs==4.12.0
+ + pluggy==1.6.0
+ + pre-commit==4.6.2
+ + propcache==0.5.4
+ + protobuf==6.33.6
+ + psutil==7.2.2
+ + pyasn1==0.6.4
+ + pyasn1-modules==0.4.2
+ + pybase64==1.5.0
+ + pycparser==3.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pygments==2.21.0
+ + pyparsing==3.3.3
+ + pytest==9.1.1
+ + pytest-cov==7.1.0
+ + python-dateutil==2.9.0.post0
+ + python-discovery==1.6.1
+ + python-dotenv==1.2.3
+ + pyyaml==6.0.3
+ + requests==2.34.2
+ + rich==15.0.0
+ + ruff==0.16.9
+ + s3fs==2026.9.0
+ + scipy==1.18.1
+ + shellingham==1.5.4
+ + six==1.17.0
+ + smmap==5.0.3
+ + sqlparse==0.6.0
+ + starlette==1.7.0
+ + tesseract-core==1.14.0
+ + tesseract-jax==0.4.1
+ + typer==0.27.2
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + urllib3==2.8.0
+ + uvicorn==0.53.0
+ + virtualenv==21.13.0
+ + wadler-lindig==0.1.7
+ + wrapt==2.5.0
+ + yarl==1.25.1
+ + zipp==4.1.0
+{"status":"ok"}solver_health={'status': 'ok'}
+flow-control task seed=2 generated
+flow-control task seed=3 generated
+flow-control gate seed=2 passed=True initial=0.007056716829538345 final=0.0003089437959715724
+flow-control gate seed=3 passed=True initial=0.022676797583699226 final=0.0011896071955561638
+{
+  "passed": true,
+  "tasks": [
+    {
+      "seed": 2,
+      "initial_seed": 2,
+      "goal_seed": 10000002,
+      "gradient_check": {
+        "gradient_norm": 0.054187119007110596,
+        "primary_epsilon": 0.001,
+        "checks": [
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.001,
+            "autodiff": 0.05418712645769119,
+            "finite_difference": 0.05418737232685089,
+            "absolute_error": 2.4586915969848633e-07,
+            "relative_error": 4.537388493677768e-06,
+            "directional_signal_fraction": 1.0000001374972638
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.01,
+            "autodiff": 0.05418712645769119,
+            "finite_difference": 0.054187096655368805,
+            "absolute_error": 2.9802322387695312e-08,
+            "relative_error": 5.499889795958214e-07,
+            "directional_signal_fraction": 1.0000001374972638
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.0001,
+            "autodiff": 0.05418712645769119,
+            "finite_difference": 0.05418900400400162,
+            "absolute_error": 1.8775463104248047e-06,
+            "relative_error": 3.464810518174787e-05,
+            "directional_signal_fraction": 1.0000001374972638
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.012074311263859272,
+            "finite_difference": 0.01207436341792345,
+            "absolute_error": 5.21540641784668e-08,
+            "relative_error": 4.319404872396681e-06,
+            "directional_signal_fraction": 0.22282622669558877
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.012074311263859272,
+            "finite_difference": 0.012074294500052929,
+            "absolute_error": 1.6763806343078613e-08,
+            "relative_error": 1.3883861345579105e-06,
+            "directional_signal_fraction": 0.22282622669558877
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.012074311263859272,
+            "finite_difference": 0.012074597179889679,
+            "absolute_error": 2.859160304069519e-07,
+            "relative_error": 2.3679136135750098e-05,
+            "directional_signal_fraction": 0.22282622669558877
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.002522351685911417,
+            "finite_difference": 0.00252248696051538,
+            "absolute_error": 1.3527460396289825e-07,
+            "relative_error": 5.362747402874968e-05,
+            "directional_signal_fraction": 0.04654891664530876
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.002522351685911417,
+            "finite_difference": 0.0025223474949598312,
+            "absolute_error": 4.190951585769653e-09,
+            "relative_error": 1.6615254760778177e-06,
+            "directional_signal_fraction": 0.04654891664530876
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.002522351685911417,
+            "finite_difference": 0.0025192275643348694,
+            "absolute_error": 3.1241215765476227e-06,
+            "relative_error": 0.00123857493544512,
+            "directional_signal_fraction": 0.04654891664530876
+          }
+        ],
+        "passed": true
+      },
+      "shooting": {
+        "trace": [
+          0.007056716829538345,
+          0.00375364045612514,
+          0.0018246995750814676,
+          0.0008817219641059637,
+          0.0005687703378498554,
+          0.0006164963124319911,
+          0.0008667211513966322,
+          0.001179767306894064,
+          0.001399582251906395,
+          0.0014316185843199492,
+          0.0012964879861101508,
+          0.0010825967183336616,
+          0.0008676458965055645,
+          0.0006790704792365432,
+          0.000514195766299963,
+          0.00038503261748701334,
+          0.00032156542874872684,
+          0.00033793586771935225,
+          0.00040920538594946265,
+          0.0004844863433390856,
+          0.0005219499580562115,
+          0.0005102038849145174,
+          0.00046304502757266164,
+          0.00040230638114735484,
+          0.00034686410799622536
+        ],
+        "initial_loss": 0.007056716829538345,
+        "final_loss": 0.0003089437959715724,
+        "last_iterate_loss": 0.0003089437959715724,
+        "completed": true,
+        "wall_time_s": 24.32996698503848,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "updates": 25
+      },
+      "goal_temporal_error": 0.00016106093244161457,
+      "controlled_temporal_error": 0.00014844763791188598,
+      "fine_objective": 0.0002956100506708026,
+      "fine_terminal_mse_normalized": 0.0001566112186992541,
+      "weighted_control_effort": 0.00013899884652346373,
+      "linear_fine_objective": 0.00019007499213330448,
+      "linear_fine_terminal_error": 0.021815912798047066,
+      "linear_control_effort": 0.01659487932920456,
+      "fine_zero_objective": 0.007063010707497597,
+      "fine_terminal_error": 0.05558279901742935,
+      "zero_terminal_error": 0.373270720243454,
+      "control_effort": 0.01389988511800766,
+      "finite": true,
+      "passed": true
+    },
+    {
+      "seed": 3,
+      "initial_seed": 3,
+      "goal_seed": 10000003,
+      "gradient_check": {
+        "gradient_norm": 0.09764332324266434,
+        "primary_epsilon": 0.001,
+        "checks": [
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.001,
+            "autodiff": 0.09764333814382553,
+            "finite_difference": 0.09764543920755386,
+            "absolute_error": 2.1010637283325195e-06,
+            "relative_error": 2.1517274594530996e-05,
+            "directional_signal_fraction": 1.0000001526080913
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.01,
+            "autodiff": 0.09764333814382553,
+            "finite_difference": 0.09764330089092255,
+            "absolute_error": 3.725290298461914e-08,
+            "relative_error": 3.815201701702045e-07,
+            "directional_signal_fraction": 1.0000001526080913
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.0001,
+            "autodiff": 0.09764333814382553,
+            "finite_difference": 0.09765848517417908,
+            "absolute_error": 1.5147030353546143e-05,
+            "relative_error": 0.00015510204081632654,
+            "directional_signal_fraction": 1.0000001526080913
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": -0.009721186012029648,
+            "finite_difference": -0.00972114410251379,
+            "absolute_error": 4.190951585769653e-08,
+            "relative_error": 4.311152549270725e-06,
+            "directional_signal_fraction": 0.09955812327147491
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": -0.009721186012029648,
+            "finite_difference": -0.009721145033836365,
+            "absolute_error": 4.0978193283081055e-08,
+            "relative_error": 4.215349159286932e-06,
+            "directional_signal_fraction": 0.09955812327147491
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": -0.009721186012029648,
+            "finite_difference": -0.00973232090473175,
+            "absolute_error": 1.1134892702102661e-05,
+            "relative_error": 0.0011441148325358852,
+            "directional_signal_fraction": 0.09955812327147491
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": -0.021480225026607513,
+            "finite_difference": -0.021480953320860863,
+            "absolute_error": 7.282942533493042e-07,
+            "relative_error": 3.390418676819309e-05,
+            "directional_signal_fraction": 0.21998662390079254
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": -0.021480225026607513,
+            "finite_difference": -0.02148030325770378,
+            "absolute_error": 7.82310962677002e-08,
+            "relative_error": 3.641992169716835e-06,
+            "directional_signal_fraction": 0.21998662390079254
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": -0.021480225026607513,
+            "finite_difference": -0.021476298570632935,
+            "absolute_error": 3.926455974578857e-06,
+            "relative_error": 0.00018279398701434292,
+            "directional_signal_fraction": 0.21998662390079254
+          }
+        ],
+        "passed": true
+      },
+      "shooting": {
+        "trace": [
+          0.022676797583699226,
+          0.01558317057788372,
+          0.010501055978238583,
+          0.00690685398876667,
+          0.004605273250490427,
+          0.003325140569359064,
+          0.002689886372536421,
+          0.0023585669696331024,
+          0.002132569905370474,
+          0.0019528637640178204,
+          0.0018270984292030334,
+          0.001765345223248005,
+          0.001757194520905614,
+          0.0017803707160055637,
+          0.001814275630749762,
+          0.0018453455995768309,
+          0.001864047022536397,
+          0.0018619948532432318,
+          0.0018339676316827536,
+          0.00178028573282063,
+          0.0017062065890058875,
+          0.0016183515544980764,
+          0.0015207950491458178,
+          0.0014151043724268675,
+          0.001303240074776113
+        ],
+        "initial_loss": 0.022676797583699226,
+        "final_loss": 0.0011896071955561638,
+        "last_iterate_loss": 0.0011896071955561638,
+        "completed": true,
+        "wall_time_s": 25.793359323055483,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "updates": 25
+      },
+      "goal_temporal_error": 0.00015261028602253646,
+      "controlled_temporal_error": 0.00015434352098964155,
+      "fine_objective": 0.0011770190903916955,
+      "fine_terminal_mse_normalized": 0.0005677070003002882,
+      "weighted_control_effort": 0.0006093120318837464,
+      "linear_fine_objective": 0.0005850382149219513,
+      "linear_fine_terminal_error": 0.025605402886867523,
+      "linear_control_effort": 0.053306832909584045,
+      "fine_zero_objective": 0.02270732820034027,
+      "fine_terminal_error": 0.08462871611118317,
+      "zero_terminal_error": 0.5352277755737305,
+      "control_effort": 0.06093120574951172,
+      "finite": true,
+      "passed": true
+    }
+  ],
+  "wall_time_s": 106.1360567130032,
+  "task_seeds": [
+    2,
+    3
+  ],
+  "reference_scope": "same_solver192_time_refinement",
+  "neural_training_started": false
+}
+=== 2026-10-02T14:39:14+02:00 done ===

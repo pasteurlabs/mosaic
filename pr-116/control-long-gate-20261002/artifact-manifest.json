@@ -1,0 +1,47 @@
+{
+  "campaign": "pr116-control-long-gate-20261002",
+  "source_sha256": "4bf513c30942019b10b9fc4082cc66c4c3dadc0bf0477df6824ec2b0f8cf3eba",
+  "source_archive_bytes": 5744640,
+  "job_ids": [
+    2861713,
+    2861714,
+    2861715,
+    2861716,
+    2861802
+  ],
+  "field_arrays": [
+    {
+      "cell": "gate-0",
+      "archive": "/data/personal/andrinr/runner/results/mosaic/pr116-control-long-gate-20261002/results/gate-0/results.tar",
+      "member": "./fields.npz",
+      "size_bytes": 21409574,
+      "sha256": "c187e66b607159deb17a74c2f1ddc705374f5e09f07bc05b6317428e66e22b3e",
+      "published_to_git": false
+    },
+    {
+      "cell": "gate-1",
+      "archive": "/data/personal/andrinr/runner/results/mosaic/pr116-control-long-gate-20261002/results/gate-1/results.tar",
+      "member": "./fields.npz",
+      "size_bytes": 21408430,
+      "sha256": "76fe2c42f9a00fa70f28071de0e893bff06bffb67c96e302175567f0373bec43",
+      "published_to_git": false
+    },
+    {
+      "cell": "gate-2",
+      "archive": "/data/personal/andrinr/runner/results/mosaic/pr116-control-long-gate-20261002/results/gate-2/results.tar",
+      "member": "./fields.npz",
+      "size_bytes": 21387475,
+      "sha256": "20274dda36c343154011d8df1e98078aa9948057b57d43a651eb7cc1cb4a034f",
+      "published_to_git": false
+    },
+    {
+      "cell": "gate-3",
+      "archive": "/data/personal/andrinr/runner/results/mosaic/pr116-control-long-gate-20261002/results/gate-3/results.tar",
+      "member": "./fields.npz",
+      "size_bytes": 21407570,
+      "sha256": "90cf93a4f8f3e5832440aee338dcef26e8d9dba33091240896e59f27fe60544b",
+      "published_to_git": false
+    }
+  ],
+  "note": "Full numerical field arrays remain in their cluster result archives; all full-field PNGs and raw scalar diagnostics are published here."
+}

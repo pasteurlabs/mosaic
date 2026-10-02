@@ -1,0 +1,187 @@
+[runner] node=rtx06 cluster=kander runtime=uv
+[runner] job-env=/etc/kander/job-env.sh scratch=/scratch/jobs/2861674 cache=/cache/users/10002
+[runner] isolated_command=1 (command manages Python and dependencies)
+[runner] uv_cache=/cache/users/10002/uv policy=auto
+[runner] venv=<uv default: $REPO_ROOT/.venv>
+=== 2026-10-02T14:35:37+02:00 host=rtx06 job=m116-control-validation id=2861674 ===
+=== cmd: bash /data/personal/andrinr/runner/results/mosaic/pr116-control-gate-v2-20261002/node.sh /data/personal/andrinr/runner/results/mosaic/pr116-control-gate-v2-20261002 validate validation ===
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: /scratch/jobs/2861674/mosaic-venv
+   Building mosaic-bench @ file:///scratch/jobs/2861674/work/mosaic
+   Building mosaic-shared @ file:///scratch/jobs/2861674/work/mosaic/mosaic/mosaic_shared
+Downloading numpy (15.9MiB)
+Downloading pip (1.7MiB)
+Downloading cryptography (4.5MiB)
+Downloading aiohttp (1.7MiB)
+Downloading matplotlib (9.4MiB)
+Downloading jax (3.2MiB)
+Downloading databricks-sdk (1.0MiB)
+Downloading pillow (6.6MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading ruff (9.9MiB)
+Downloading pygments (1.2MiB)
+Downloading pandas (10.3MiB)
+Downloading lz4 (1.3MiB)
+Downloading debugpy (3.8MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading fonttools (5.1MiB)
+Downloading jaxlib (85.7MiB)
+Downloading mlflow-skinny (3.6MiB)
+Downloading scipy (33.7MiB)
+Downloading botocore (14.9MiB)
+Downloading virtualenv (5.2MiB)
+ Downloaded databricks-sdk
+ Downloaded lz4
+ Downloaded kiwisolver
+ Downloaded aiohttp
+ Downloaded pydantic-core
+ Downloaded pygments
+ Downloaded pip
+ Downloaded debugpy
+ Downloaded jax
+ Downloaded cryptography
+ Downloaded virtualenv
+ Downloaded fonttools
+ Downloaded pillow
+ Downloaded mlflow-skinny
+      Built mosaic-bench @ file:///scratch/jobs/2861674/work/mosaic
+ Downloaded matplotlib
+ Downloaded ruff
+      Built mosaic-shared @ file:///scratch/jobs/2861674/work/mosaic/mosaic/mosaic_shared
+ Downloaded numpy
+ Downloaded pandas
+ Downloaded botocore
+ Downloaded scipy
+ Downloaded jaxlib
+Prepared 112 packages in 2.96s
+Installed 112 packages in 449ms
+ + absl-py==2.5.0
+ + aiobotocore==3.9.1
+ + aiohappyeyeballs==2.7.1
+ + aiohttp==3.14.3
+ + aioitertools==0.13.0
+ + aiosignal==1.4.0
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + attrs==26.1.0
+ + botocore==1.43.75
+ + cachetools==7.2.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + cfgv==3.5.0
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + contourpy==1.4.0
+ + coverage==7.16.2
+ + cryptography==50.0.1
+ + cycler==0.12.1
+ + databricks-sdk==0.143.0
+ + debugpy==1.8.22
+ + distlib==0.4.3
+ + docker==7.2.0
+ + equinox==0.13.8
+ + fastapi==0.141.1
+ + filelock==4.0.4
+ + fonttools==4.66.0
+ + frozenlist==1.8.0
+ + fsspec==2026.9.0
+ + gitdb==4.0.12
+ + gitpython==3.1.62
+ + google-auth==2.58.1
+ + h11==0.16.0
+ + identify==2.6.20
+ + idna==3.20
+ + importlib-metadata==9.0.1
+ + iniconfig==2.3.0
+ + jax==0.11.2
+ + jaxlib==0.11.2
+ + jaxtyping==0.3.11
+ + jinja2==3.1.6
+ + jmespath==1.1.0
+ + kiwisolver==1.5.1
+ + lz4==4.4.5
+ + markdown-it-py==4.2.0
+ + markupsafe==3.0.3
+ + matplotlib==3.11.2
+ + mdurl==0.1.2
+ + ml-dtypes==0.6.0
+ + mlflow-skinny==3.16.1
+ + mosaic-bench==0.0.0+unknown (from file:///scratch/jobs/2861674/work/mosaic)
+ + mosaic-shared==0.1.0 (from file:///scratch/jobs/2861674/work/mosaic/mosaic/mosaic_shared)
+ + multidict==6.9.1
+ + nodeenv==1.11.0
+ + numpy==2.5.3
+ + nvidia-ml-py==13.615.71
+ + opentelemetry-api==1.45.0
+ + opentelemetry-proto==1.45.0
+ + opentelemetry-sdk==1.45.0
+ + opentelemetry-semantic-conventions==0.66b0
+ + opt-einsum==3.4.0
+ + optax==0.2.8
+ + orjson==3.12.0
+ + packaging==26.3
+ + pandas==3.0.6
+ + pillow==12.3.0
+ + pip==26.2.1
+ + platformdirs==4.12.0
+ + pluggy==1.6.0
+ + pre-commit==4.6.2
+ + propcache==0.5.4
+ + protobuf==6.33.6
+ + psutil==7.2.2
+ + pyasn1==0.6.4
+ + pyasn1-modules==0.4.2
+ + pybase64==1.5.0
+ + pycparser==3.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pygments==2.21.0
+ + pyparsing==3.3.3
+ + pytest==9.1.1
+ + pytest-cov==7.1.0
+ + python-dateutil==2.9.0.post0
+ + python-discovery==1.6.1
+ + python-dotenv==1.2.3
+ + pyyaml==6.0.3
+ + requests==2.34.2
+ + rich==15.0.0
+ + ruff==0.16.9
+ + s3fs==2026.9.0
+ + scipy==1.18.1
+ + shellingham==1.5.4
+ + six==1.17.0
+ + smmap==5.0.3
+ + sqlparse==0.6.0
+ + starlette==1.7.0
+ + tesseract-core==1.14.0
+ + tesseract-jax==0.4.1
+ + typer==0.27.2
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + urllib3==2.8.0
+ + uvicorn==0.53.0
+ + virtualenv==21.13.0
+ + wadler-lindig==0.1.7
+ + wrapt==2.5.0
+ + yarl==1.25.1
+ + zipp==4.1.0
+All checks passed!
+8 files already formatted
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /scratch/jobs/2861674/work/mosaic
+configfile: pyproject.toml
+plugins: jaxtyping-0.3.11, platformdirs-4.12.0, cov-7.1.0, anyio-4.15.1
+collected 24 items
+
+tests/test_flow_control.py .............                                 [ 54%]
+tests/test_flow_control_baselines.py .......                             [ 83%]
+tests/test_solver_rpc_jit.py ....                                        [100%]
+
+============================= 24 passed in 14.82s ==============================
+Validated 4 problem configs
+Checked 19 tesseract configs
+All valid.
+=== 2026-10-02T14:36:00+02:00 done ===

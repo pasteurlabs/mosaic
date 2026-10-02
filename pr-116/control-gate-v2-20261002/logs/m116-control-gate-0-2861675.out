@@ -1,0 +1,538 @@
+[runner] node=rtx07 cluster=kander runtime=uv
+[runner] job-env=/etc/kander/job-env.sh scratch=/scratch/jobs/2861675 cache=/cache/users/10002
+[runner] isolated_command=1 (command manages Python and dependencies)
+[runner] uv_cache=/cache/users/10002/uv policy=auto
+[runner] venv=<uv default: $REPO_ROOT/.venv>
+=== 2026-10-02T14:36:10+02:00 host=rtx07 job=m116-control-gate-0 id=2861675 ===
+=== cmd: bash /data/personal/andrinr/runner/results/mosaic/pr116-control-gate-v2-20261002/node.sh /data/personal/andrinr/runner/results/mosaic/pr116-control-gate-v2-20261002 train gate-0 ===
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: /scratch/jobs/2861675/mosaic-venv
+   Building mosaic-shared @ file:///scratch/jobs/2861675/work/mosaic/mosaic/mosaic_shared
+   Building mosaic-bench @ file:///scratch/jobs/2861675/work/mosaic
+Downloading kiwisolver (1.4MiB)
+Downloading numpy (15.9MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading mlflow-skinny (3.6MiB)
+Downloading nvidia-cuda-nvcc-cu12 (38.7MiB)
+Downloading nvidia-cublas-cu12 (554.3MiB)
+Downloading nvidia-nvjitlink-cu12 (37.9MiB)
+Downloading cryptography (4.5MiB)
+Downloading pygments (1.2MiB)
+Downloading databricks-sdk (1.0MiB)
+Downloading lz4 (1.3MiB)
+Downloading nvidia-cusparse-cu12 (349.5MiB)
+Downloading aiohttp (1.7MiB)
+Downloading pip (1.7MiB)
+Downloading nvidia-cuda-cccl-cu12 (3.0MiB)
+Downloading fonttools (5.1MiB)
+Downloading pillow (6.6MiB)
+Downloading nvidia-nccl-cu12 (335.2MiB)
+Downloading nvidia-cuda-runtime-cu12 (3.3MiB)
+Downloading matplotlib (9.4MiB)
+Downloading pandas (10.3MiB)
+Downloading nvidia-cudnn-cu12 (730.7MiB)
+Downloading jax (3.2MiB)
+Downloading botocore (14.9MiB)
+Downloading nvidia-cufft-cu12 (191.6MiB)
+Downloading scipy (33.7MiB)
+Downloading jax-cuda12-pjrt (179.5MiB)
+Downloading nvidia-cusolver-cu12 (322.5MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (85.4MiB)
+Downloading nvidia-nvshmem-cu12 (267.8MiB)
+Downloading jax-cuda12-plugin (8.2MiB)
+Downloading jaxlib (85.7MiB)
+Downloading debugpy (3.8MiB)
+Downloading virtualenv (5.2MiB)
+Downloading nvidia-cuda-cupti-cu12 (10.3MiB)
+Downloading ruff (9.9MiB)
+ Downloaded databricks-sdk
+ Downloaded lz4
+ Downloaded kiwisolver
+ Downloaded aiohttp
+ Downloaded pydantic-core
+ Downloaded pygments
+ Downloaded pip
+ Downloaded nvidia-cuda-runtime-cu12
+ Downloaded jax
+ Downloaded debugpy
+ Downloaded cryptography
+      Built mosaic-bench @ file:///scratch/jobs/2861675/work/mosaic
+ Downloaded fonttools
+ Downloaded virtualenv
+      Built mosaic-shared @ file:///scratch/jobs/2861675/work/mosaic/mosaic/mosaic_shared
+ Downloaded mlflow-skinny
+ Downloaded pillow
+ Downloaded jax-cuda12-plugin
+ Downloaded nvidia-cuda-cccl-cu12
+ Downloaded ruff
+ Downloaded nvidia-cuda-cupti-cu12
+ Downloaded matplotlib
+ Downloaded numpy
+ Downloaded pandas
+ Downloaded botocore
+ Downloaded nvidia-nvjitlink-cu12
+ Downloaded scipy
+ Downloaded nvidia-cuda-nvcc-cu12
+ Downloaded nvidia-cuda-nvrtc-cu12
+ Downloaded jaxlib
+ Downloaded jax-cuda12-pjrt
+ Downloaded nvidia-cufft-cu12
+ Downloaded nvidia-nvshmem-cu12
+ Downloaded nvidia-cusolver-cu12
+ Downloaded nvidia-nccl-cu12
+ Downloaded nvidia-cusparse-cu12
+ Downloaded nvidia-cublas-cu12
+ Downloaded nvidia-cudnn-cu12
+Prepared 127 packages in 22.71s
+Installed 127 packages in 1.93s
+ + absl-py==2.5.0
+ + aiobotocore==3.9.1
+ + aiohappyeyeballs==2.7.1
+ + aiohttp==3.14.3
+ + aioitertools==0.13.0
+ + aiosignal==1.4.0
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + attrs==26.1.0
+ + botocore==1.43.75
+ + cachetools==7.2.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + cfgv==3.5.0
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + contourpy==1.4.0
+ + coverage==7.16.2
+ + cryptography==50.0.1
+ + cycler==0.12.1
+ + databricks-sdk==0.143.0
+ + debugpy==1.8.22
+ + distlib==0.4.3
+ + docker==7.2.0
+ + equinox==0.13.8
+ + fastapi==0.141.1
+ + filelock==4.0.4
+ + fonttools==4.66.0
+ + frozenlist==1.8.0
+ + fsspec==2026.9.0
+ + gitdb==4.0.12
+ + gitpython==3.1.62
+ + google-auth==2.58.1
+ + h11==0.16.0
+ + identify==2.6.20
+ + idna==3.20
+ + importlib-metadata==9.0.1
+ + iniconfig==2.3.0
+ + jax==0.11.2
+ + jax-cuda12-pjrt==0.11.2
+ + jax-cuda12-plugin==0.11.2
+ + jaxlib==0.11.2
+ + jaxtyping==0.3.11
+ + jinja2==3.1.6
+ + jmespath==1.1.0
+ + kiwisolver==1.5.1
+ + lz4==4.4.5
+ + markdown-it-py==4.2.0
+ + markupsafe==3.0.3
+ + matplotlib==3.11.2
+ + mdurl==0.1.2
+ + ml-dtypes==0.6.0
+ + mlflow-skinny==3.16.1
+ + mosaic-bench==0.0.0+unknown (from file:///scratch/jobs/2861675/work/mosaic)
+ + mosaic-shared==0.1.0 (from file:///scratch/jobs/2861675/work/mosaic/mosaic/mosaic_shared)
+ + multidict==6.9.1
+ + nodeenv==1.11.0
+ + numpy==2.5.3
+ + nvidia-cublas-cu12==12.9.2.10
+ + nvidia-cuda-cccl-cu12==12.9.27
+ + nvidia-cuda-cupti-cu12==12.9.79
+ + nvidia-cuda-nvcc-cu12==12.9.86
+ + nvidia-cuda-nvrtc-cu12==12.9.86
+ + nvidia-cuda-runtime-cu12==12.9.79
+ + nvidia-cudnn-cu12==9.27.0.42
+ + nvidia-cufft-cu12==11.4.1.4
+ + nvidia-cusolver-cu12==11.7.5.82
+ + nvidia-cusparse-cu12==12.5.10.65
+ + nvidia-ml-py==13.615.71
+ + nvidia-nccl-cu12==2.32.3
+ + nvidia-nvjitlink-cu12==12.9.86
+ + nvidia-nvshmem-cu12==3.8.0
+ + opentelemetry-api==1.45.0
+ + opentelemetry-proto==1.45.0
+ + opentelemetry-sdk==1.45.0
+ + opentelemetry-semantic-conventions==0.66b0
+ + opt-einsum==3.4.0
+ + optax==0.2.8
+ + orjson==3.12.0
+ + packaging==26.3
+ + pandas==3.0.6
+ + pillow==12.3.0
+ + pip==26.2.1
+ + platformdirs==4.12.0
+ + pluggy==1.6.0
+ + pre-commit==4.6.2
+ + propcache==0.5.4
+ + protobuf==6.33.6
+ + psutil==7.2.2
+ + pyasn1==0.6.4
+ + pyasn1-modules==0.4.2
+ + pybase64==1.5.0
+ + pycparser==3.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pygments==2.21.0
+ + pyparsing==3.3.3
+ + pytest==9.1.1
+ + pytest-cov==7.1.0
+ + python-dateutil==2.9.0.post0
+ + python-discovery==1.6.1
+ + python-dotenv==1.2.3
+ + pyyaml==6.0.3
+ + requests==2.34.2
+ + rich==15.0.0
+ + ruff==0.16.9
+ + s3fs==2026.9.0
+ + scipy==1.18.1
+ + shellingham==1.5.4
+ + six==1.17.0
+ + smmap==5.0.3
+ + sqlparse==0.6.0
+ + starlette==1.7.0
+ + tesseract-core==1.14.0
+ + tesseract-jax==0.4.1
+ + typer==0.27.2
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + urllib3==2.8.0
+ + uvicorn==0.53.0
+ + virtualenv==21.13.0
+ + wadler-lindig==0.1.7
+ + wrapt==2.5.0
+ + yarl==1.25.1
+ + zipp==4.1.0
+{"status":"ok"}solver_health={'status': 'ok'}
+flow-control task seed=0 generated
+flow-control task seed=1 generated
+flow-control gate seed=0 passed=True initial=0.010220076888799667 final=0.00040150160202756524
+flow-control gate seed=1 passed=True initial=0.007810523733496666 final=0.0003082256589550525
+{
+  "passed": true,
+  "tasks": [
+    {
+      "seed": 0,
+      "initial_seed": 0,
+      "goal_seed": 10000000,
+      "gradient_check": {
+        "gradient_norm": 0.0653163269162178,
+        "primary_epsilon": 0.001,
+        "checks": [
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.001,
+            "autodiff": 0.0653163269162178,
+            "finite_difference": 0.06531643867492676,
+            "absolute_error": 1.1175870895385742e-07,
+            "relative_error": 1.711034943440029e-06,
+            "directional_signal_fraction": 1.0
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.01,
+            "autodiff": 0.0653163269162178,
+            "finite_difference": 0.06531625986099243,
+            "absolute_error": 6.705522537231445e-08,
+            "relative_error": 1.0266227226513695e-06,
+            "directional_signal_fraction": 1.0
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.0001,
+            "autodiff": 0.0653163269162178,
+            "finite_difference": 0.06530899554491043,
+            "absolute_error": 7.331371307373047e-06,
+            "relative_error": 0.0001122440843432164,
+            "directional_signal_fraction": 1.0
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.012081178836524487,
+            "finite_difference": 0.012081115506589413,
+            "absolute_error": 6.332993507385254e-08,
+            "relative_error": 5.242032746207678e-06,
+            "directional_signal_fraction": 0.1849641491938331
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.012081178836524487,
+            "finite_difference": 0.012081209570169449,
+            "absolute_error": 3.073364496231079e-08,
+            "relative_error": 2.543921184696387e-06,
+            "directional_signal_fraction": 0.1849641491938331
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.012081178836524487,
+            "finite_difference": 0.012083910405635834,
+            "absolute_error": 2.7315691113471985e-06,
+            "relative_error": 0.00022605009633911368,
+            "directional_signal_fraction": 0.1849641491938331
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.006222755182534456,
+            "finite_difference": 0.006222165655344725,
+            "absolute_error": 5.895271897315979e-07,
+            "relative_error": 9.473732654407437e-05,
+            "directional_signal_fraction": 0.09527105206813717
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.006222755182534456,
+            "finite_difference": 0.0062226783484220505,
+            "absolute_error": 7.683411240577698e-08,
+            "relative_error": 1.2347281895554717e-05,
+            "directional_signal_fraction": 0.09527105206813717
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.006222755182534456,
+            "finite_difference": 0.006225891411304474,
+            "absolute_error": 3.136228770017624e-06,
+            "relative_error": 0.0005037397157816006,
+            "directional_signal_fraction": 0.09527105206813717
+          }
+        ],
+        "passed": true
+      },
+      "shooting": {
+        "trace": [
+          0.010220076888799667,
+          0.005683616269379854,
+          0.002984091639518738,
+          0.0014700500760227442,
+          0.0009054029360413551,
+          0.0009902941528707743,
+          0.0013117867056280375,
+          0.0015714651672169566,
+          0.0016654268838465214,
+          0.0016059529734775424,
+          0.0014486846048384905,
+          0.0012559837196022272,
+          0.0010866927914321423,
+          0.0009822804713621736,
+          0.0009461029549129307,
+          0.0009425220778211951,
+          0.0009248568676412106,
+          0.0008663627086207271,
+          0.0007703037117607892,
+          0.0006586809176951647,
+          0.000554326397832483,
+          0.00047214890946634114,
+          0.0004201651900075376,
+          0.00040150160202756524,
+          0.00041312669054605067
+        ],
+        "initial_loss": 0.010220076888799667,
+        "final_loss": 0.00040150160202756524,
+        "last_iterate_loss": 0.0004441710188984871,
+        "completed": true,
+        "wall_time_s": 28.680986499995925,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "updates": 25
+      },
+      "goal_temporal_error": 0.00013545148249249905,
+      "controlled_temporal_error": 0.00012271769810467958,
+      "fine_objective": 0.00038521643728017807,
+      "fine_terminal_mse_normalized": 0.00017515166837256402,
+      "weighted_control_effort": 0.00021006476890761405,
+      "linear_fine_objective": 0.00027644113288260996,
+      "linear_fine_terminal_error": 0.02643764764070511,
+      "linear_control_effort": 0.02413496933877468,
+      "fine_zero_objective": 0.010216467082500458,
+      "fine_terminal_error": 0.059064872562885284,
+      "zero_terminal_error": 0.45109960436820984,
+      "control_effort": 0.021006477996706963,
+      "finite": true,
+      "passed": true
+    },
+    {
+      "seed": 1,
+      "initial_seed": 1,
+      "goal_seed": 10000001,
+      "gradient_check": {
+        "gradient_norm": 0.05718164145946503,
+        "primary_epsilon": 0.001,
+        "checks": [
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.001,
+            "autodiff": 0.057181648910045624,
+            "finite_difference": 0.05718250572681427,
+            "absolute_error": 8.568167686462402e-07,
+            "relative_error": 1.498389687117992e-05,
+            "directional_signal_fraction": 1.0000001302967247
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.01,
+            "autodiff": 0.057181648910045624,
+            "finite_difference": 0.057181645184755325,
+            "absolute_error": 3.725290298461914e-09,
+            "relative_error": 6.514835387699808e-08,
+            "directional_signal_fraction": 1.0000001302967247
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.0001,
+            "autodiff": 0.057181648910045624,
+            "finite_difference": 0.057176221162080765,
+            "absolute_error": 5.427747964859009e-06,
+            "relative_error": 9.492115159878621e-05,
+            "directional_signal_fraction": 1.0000001302967247
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.0013478731270879507,
+            "finite_difference": 0.0013476236490532756,
+            "absolute_error": 2.494780346751213e-07,
+            "relative_error": 0.0001850901465882868,
+            "directional_signal_fraction": 0.023571780954267152
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.0013478731270879507,
+            "finite_difference": 0.0013479264453053474,
+            "absolute_error": 5.3318217396736145e-08,
+            "relative_error": 3.955573212650925e-05,
+            "directional_signal_fraction": 0.023571780954267152
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.0013478731270879507,
+            "finite_difference": 0.0013504177331924438,
+            "absolute_error": 2.544606104493141e-06,
+            "relative_error": 0.0018843103448275861,
+            "directional_signal_fraction": 0.023571780954267152
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": -0.005602159537374973,
+            "finite_difference": -0.00560213765129447,
+            "absolute_error": 2.1886080503463745e-08,
+            "relative_error": 3.906722105546997e-06,
+            "directional_signal_fraction": 0.09797129628302534
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": -0.005602159537374973,
+            "finite_difference": -0.005602184683084488,
+            "absolute_error": 2.514570951461792e-08,
+            "relative_error": 4.4885541868236e-06,
+            "directional_signal_fraction": 0.09797129628302534
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": -0.005602159537374973,
+            "finite_difference": -0.005606561899185181,
+            "absolute_error": 4.402361810207367e-06,
+            "relative_error": 0.0007852159468438538,
+            "directional_signal_fraction": 0.09797129628302534
+          }
+        ],
+        "passed": true
+      },
+      "shooting": {
+        "trace": [
+          0.007810523733496666,
+          0.004900814034044743,
+          0.0034252838231623173,
+          0.0026433863677084446,
+          0.0019111917354166508,
+          0.001190825249068439,
+          0.0006747582228854299,
+          0.0004388387897051871,
+          0.000428461586125195,
+          0.0005375518812797964,
+          0.0006825365126132965,
+          0.0008173848036676645,
+          0.0009208413539454341,
+          0.0009843942243605852,
+          0.001005305559374392,
+          0.0009905996266752481,
+          0.0009548758389428258,
+          0.0009074253612197936,
+          0.000846610520966351,
+          0.00076524936594069,
+          0.0006613857112824917,
+          0.0005466298898681998,
+          0.0004422661440912634,
+          0.00036640139296650887,
+          0.0003242510138079524
+        ],
+        "initial_loss": 0.007810523733496666,
+        "final_loss": 0.0003082256589550525,
+        "last_iterate_loss": 0.0003082256589550525,
+        "completed": true,
+        "wall_time_s": 26.35013501602225,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "updates": 25
+      },
+      "goal_temporal_error": 0.00018664066737983376,
+      "controlled_temporal_error": 0.00018826441373676062,
+      "fine_objective": 0.00029236669070087373,
+      "fine_terminal_mse_normalized": 9.3491529696621e-05,
+      "weighted_control_effort": 0.00019887516100425273,
+      "linear_fine_objective": 0.00029073288897052407,
+      "linear_fine_terminal_error": 0.03658861666917801,
+      "linear_control_effort": 0.018192686140537262,
+      "fine_zero_objective": 0.007792566437274218,
+      "fine_terminal_error": 0.03391607850790024,
+      "zero_terminal_error": 0.30964186787605286,
+      "control_effort": 0.019887516275048256,
+      "finite": true,
+      "passed": true
+    }
+  ],
+  "wall_time_s": 122.78439312800765,
+  "task_seeds": [
+    0,
+    1
+  ],
+  "reference_scope": "same_solver192_time_refinement",
+  "neural_training_started": false
+}
+=== 2026-10-02T14:39:31+02:00 done ===

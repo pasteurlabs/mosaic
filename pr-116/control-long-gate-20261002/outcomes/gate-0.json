@@ -1,0 +1,318 @@
+{
+  "passed": true,
+  "tasks": [
+    {
+      "seed": 0,
+      "initial_seed": 0,
+      "goal_seed": 10000000,
+      "gradient_check": {
+        "gradient_norm": 1.7331018447875977,
+        "primary_epsilon": 0.001,
+        "checks": [
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.001,
+            "autodiff": 1.7331018447875977,
+            "finite_difference": 1.7331092357635498,
+            "absolute_error": 7.3909759521484375e-06,
+            "relative_error": 4.2645759422614934e-06,
+            "directional_signal_fraction": 1.0
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.01,
+            "autodiff": 1.7331018447875977,
+            "finite_difference": 1.7330795526504517,
+            "absolute_error": 2.2292137145996094e-05,
+            "relative_error": 1.2862566163114397e-05,
+            "directional_signal_fraction": 1.0
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.0001,
+            "autodiff": 1.7331018447875977,
+            "finite_difference": 1.7330050468444824,
+            "absolute_error": 9.679794311523438e-05,
+            "relative_error": 5.585242633395129e-05,
+            "directional_signal_fraction": 1.0
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.32483726739883423,
+            "finite_difference": 0.3248750865459442,
+            "absolute_error": 3.781914710998535e-05,
+            "relative_error": 0.0001164113490882808,
+            "directional_signal_fraction": 0.18743114743995037
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.32483726739883423,
+            "finite_difference": 0.324837863445282,
+            "absolute_error": 5.960464477539062e-07,
+            "relative_error": 1.8349044702860158e-06,
+            "directional_signal_fraction": 0.18743114743995037
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.32483726739883423,
+            "finite_difference": 0.3248453140258789,
+            "absolute_error": 8.046627044677734e-06,
+            "relative_error": 2.477064220183486e-05,
+            "directional_signal_fraction": 0.18743114743995037
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.1736724078655243,
+            "finite_difference": 0.1736879199743271,
+            "absolute_error": 1.551210880279541e-05,
+            "relative_error": 8.931023415496175e-05,
+            "directional_signal_fraction": 0.10020900294339535
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.1736724078655243,
+            "finite_difference": 0.17366409301757812,
+            "absolute_error": 8.314847946166992e-06,
+            "relative_error": 4.787662040480969e-05,
+            "directional_signal_fraction": 0.10020900294339535
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.1736724078655243,
+            "finite_difference": 0.17374753952026367,
+            "absolute_error": 7.513165473937988e-05,
+            "relative_error": 0.00043241852487135504,
+            "directional_signal_fraction": 0.10020900294339535
+          }
+        ],
+        "passed": true
+      },
+      "shooting": {
+        "trace": [
+          0.31896889209747314,
+          0.1959945410490036,
+          0.10875129699707031,
+          0.052754148840904236,
+          0.029327237978577614,
+          0.031774334609508514,
+          0.0455462783575058,
+          0.05719194561243057,
+          0.06009267643094063,
+          0.05448738858103752,
+          0.04454728960990906,
+          0.034656375646591187,
+          0.027599671855568886,
+          0.024210620671510696,
+          0.023687737062573433,
+          0.02436472661793232,
+          0.024593248963356018,
+          0.023344380781054497,
+          0.02046852558851242,
+          0.016563881188631058,
+          0.012594472616910934,
+          0.009480330161750317,
+          0.007780635263770819,
+          0.007576604839414358,
+          0.008488990366458893
+        ],
+        "initial_loss": 0.31896889209747314,
+        "final_loss": 0.007576604839414358,
+        "last_iterate_loss": 0.009773163124918938,
+        "completed": true,
+        "wall_time_s": 119.82724361895816,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "updates": 25
+      },
+      "goal_temporal_error": 0.0022630298044532537,
+      "controlled_temporal_error": 0.0019834309350699186,
+      "fine_objective": 0.007120867259800434,
+      "fine_terminal_mse_normalized": 0.006815246306359768,
+      "weighted_control_effort": 0.00030562098254449666,
+      "linear_fine_objective": 0.018184851855039597,
+      "linear_fine_terminal_error": 0.2486482709646225,
+      "linear_control_effort": 0.02477014809846878,
+      "fine_zero_objective": 0.32014158368110657,
+      "fine_terminal_error": 0.1532672792673111,
+      "zero_terminal_error": 1.0504604578018188,
+      "control_effort": 0.03056209906935692,
+      "finite": true,
+      "passed": true
+    },
+    {
+      "seed": 1,
+      "initial_seed": 1,
+      "goal_seed": 10000001,
+      "gradient_check": {
+        "gradient_norm": 1.7596302032470703,
+        "primary_epsilon": 0.001,
+        "checks": [
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.001,
+            "autodiff": 1.759630560874939,
+            "finite_difference": 1.759588599205017,
+            "absolute_error": 4.1961669921875e-05,
+            "relative_error": 2.3846863571754774e-05,
+            "directional_signal_fraction": 1.0000002032403559
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.01,
+            "autodiff": 1.759630560874939,
+            "finite_difference": 1.7592265605926514,
+            "absolute_error": 0.00040400028228759766,
+            "relative_error": 0.00022959380864965036,
+            "directional_signal_fraction": 1.0000002032403559
+          },
+          {
+            "direction": 0,
+            "kind": "gradient_aligned",
+            "epsilon": 0.0001,
+            "autodiff": 1.759630560874939,
+            "finite_difference": 1.7595291137695312,
+            "absolute_error": 0.00010144710540771484,
+            "relative_error": 5.7652502555577587e-05,
+            "directional_signal_fraction": 1.0000002032403559
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": 0.05285169184207916,
+            "finite_difference": 0.05283951386809349,
+            "absolute_error": 1.2177973985671997e-05,
+            "relative_error": 0.00023041786480667033,
+            "directional_signal_fraction": 0.030035681215604956
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": 0.05285169184207916,
+            "finite_difference": 0.05285441875457764,
+            "absolute_error": 2.726912498474121e-06,
+            "relative_error": 5.159289540456724e-05,
+            "directional_signal_fraction": 0.030035681215604956
+          },
+          {
+            "direction": 1,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": 0.05285169184207916,
+            "finite_difference": 0.05289912223815918,
+            "absolute_error": 4.743039608001709e-05,
+            "relative_error": 0.0008966197183098592,
+            "directional_signal_fraction": 0.030035681215604956
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.001,
+            "autodiff": -0.18451282382011414,
+            "finite_difference": -0.18453596532344818,
+            "absolute_error": 2.314150333404541e-05,
+            "relative_error": 0.0001254037568962982,
+            "directional_signal_fraction": 0.10485886379969497
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.01,
+            "autodiff": -0.18451282382011414,
+            "finite_difference": -0.18450915813446045,
+            "absolute_error": 3.6656856536865234e-06,
+            "relative_error": 1.9866834064933536e-05,
+            "directional_signal_fraction": 0.10485886379969497
+          },
+          {
+            "direction": 2,
+            "kind": "random",
+            "epsilon": 0.0001,
+            "autodiff": -0.18451282382011414,
+            "finite_difference": -0.18462538719177246,
+            "absolute_error": 0.0001125633716583252,
+            "relative_error": 0.0006096852300242131,
+            "directional_signal_fraction": 0.10485886379969497
+          }
+        ],
+        "passed": true
+      },
+      "shooting": {
+        "trace": [
+          0.2829238772392273,
+          0.18195408582687378,
+          0.12324424833059311,
+          0.09455037117004395,
+          0.07351677119731903,
+          0.05281189829111099,
+          0.035504065454006195,
+          0.025072792544960976,
+          0.023432262241840363,
+          0.02813250944018364,
+          0.03422932326793671,
+          0.03799023851752281,
+          0.038141485303640366,
+          0.03532569855451584,
+          0.031012045219540596,
+          0.026459433138370514,
+          0.022145194932818413,
+          0.01786217838525772,
+          0.013366890139877796,
+          0.008942775428295135,
+          0.005362172145396471,
+          0.003383679548278451,
+          0.0032069094013422728,
+          0.004340199753642082,
+          0.005966581404209137
+        ],
+        "initial_loss": 0.2829238772392273,
+        "final_loss": 0.0032069094013422728,
+        "last_iterate_loss": 0.0073876213282346725,
+        "completed": true,
+        "wall_time_s": 112.80421193002257,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "updates": 25
+      },
+      "goal_temporal_error": 0.0016804075567051768,
+      "controlled_temporal_error": 0.0017017730278894305,
+      "fine_objective": 0.0032594779040664434,
+      "fine_terminal_mse_normalized": 0.0028415897395461798,
+      "weighted_control_effort": 0.00041788819362409413,
+      "linear_fine_objective": 0.037790730595588684,
+      "linear_fine_terminal_error": 0.3899228274822235,
+      "linear_control_effort": 0.01730646938085556,
+      "fine_zero_objective": 0.28371790051460266,
+      "fine_terminal_error": 0.10716757923364639,
+      "zero_terminal_error": 1.0708438158035278,
+      "control_effort": 0.041788820177316666,
+      "finite": true,
+      "passed": true
+    }
+  ],
+  "wall_time_s": 438.85042559099384,
+  "task_seeds": [
+    0,
+    1
+  ],
+  "reference_scope": "same_solver192_time_refinement",
+  "neural_training_started": false
+}

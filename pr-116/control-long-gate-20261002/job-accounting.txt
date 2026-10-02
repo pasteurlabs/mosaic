@@ -1,0 +1,5 @@
+2861713|m116-control-gate-0|COMPLETED|00:08:20|rtx04
+2861714|m116-control-gate-1|COMPLETED|00:09:32|rtx04
+2861715|m116-control-gate-2|COMPLETED|00:09:22|rtx04
+2861716|m116-control-gate-3|COMPLETED|00:08:30|rtx04
+2861802|m116-control-report|COMPLETED|00:00:17|rtx25
