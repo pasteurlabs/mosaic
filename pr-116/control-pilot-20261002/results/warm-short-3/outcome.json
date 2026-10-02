@@ -1,0 +1,196 @@
+{
+  "phase": "linear_warm_start_diagnostic",
+  "control": {
+    "coarse_n": 64,
+    "reference_n": 192,
+    "dt": 0.02,
+    "steps_per_slot": 4,
+    "control_slots": 8,
+    "nu": 0.001,
+    "domain_extent": 6.283185307179586,
+    "control_bound": 0.25,
+    "velocity_scale": 0.5,
+    "effort_weight": 0.01,
+    "reference_temporal_factor": 3,
+    "audit_temporal_factor": 6,
+    "reference_tolerance": 0.005,
+    "gradient_tolerance": 0.05,
+    "gradient_epsilons": [
+      0.001,
+      0.01,
+      0.0001
+    ],
+    "shooting_updates": 25,
+    "shooting_lr": 0.05
+  },
+  "tasks": [
+    {
+      "task_seed": 6,
+      "shooting": {
+        "initialization": "provided_controls",
+        "initial_controls_sha256": "f7fa7d7f0974369d03106c03a85d988dc972d14a1abc4eb86c1aef38af056a64",
+        "initial_controls_max_transform_error": 7.450580596923828e-09,
+        "trace": [
+          0.0003654220490716398,
+          0.0010371896205469966,
+          0.00043870648369193077,
+          0.0005268985405564308,
+          0.0007328449282795191,
+          0.0006326043512672186,
+          0.0004371821414679289,
+          0.00037466463982127607,
+          0.00046395190292969346,
+          0.0005418685032054782,
+          0.0005110501078888774,
+          0.00042126307380385697,
+          0.00036541622830554843,
+          0.0003822879516519606,
+          0.0004334033001214266,
+          0.00045277111348696053,
+          0.0004198764218017459,
+          0.00037238464574329555,
+          0.0003572835121303797,
+          0.00037897570291534066,
+          0.0004019227053504437,
+          0.00039845501305535436,
+          0.00037668447475880384,
+          0.0003606446261983365,
+          0.00036075900425203145
+        ],
+        "initial_loss": 0.0003654220490716398,
+        "final_loss": 0.0003572835121303797,
+        "last_iterate_loss": 0.0003698029322549701,
+        "completed": true,
+        "failure": null,
+        "wall_time_s": 31.028527153015602,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "failed_rollout_count": 0,
+        "updates": 25
+      },
+      "fine_objective": 0.0003447633935138583,
+      "linear_fine_objective": 0.0003531545808073133,
+      "temporal_relative_error": 0.0001706264156382531,
+      "admitted": true
+    },
+    {
+      "task_seed": 7,
+      "shooting": {
+        "initialization": "provided_controls",
+        "initial_controls_sha256": "50d2c382a8e00b695283c7d358dfcae7e3ee3a1729cff22a8250e57908d748f4",
+        "initial_controls_max_transform_error": 3.725290298461914e-09,
+        "trace": [
+          0.00021563505288213491,
+          0.0010827520163729787,
+          0.0002624527260195464,
+          0.00042733846930786967,
+          0.0007071348372846842,
+          0.0005440704408101737,
+          0.0002852642210200429,
+          0.00022998641361482441,
+          0.00035951612517237663,
+          0.00045171348028816283,
+          0.00039617609581910074,
+          0.00027761043747887015,
+          0.0002187212521675974,
+          0.00025270256446674466,
+          0.00031463458435609937,
+          0.00032762219780124724,
+          0.0002829098084475845,
+          0.00023036541824694723,
+          0.00021615155856125057,
+          0.00024063640739768744,
+          0.0002668472588993609,
+          0.000264154514297843,
+          0.00023770505504217,
+          0.00021507489145733416,
+          0.0002144606114597991
+        ],
+        "initial_loss": 0.00021563505288213491,
+        "final_loss": 0.0002144606114597991,
+        "last_iterate_loss": 0.00022907319362275302,
+        "completed": true,
+        "failure": null,
+        "wall_time_s": 28.533473787014373,
+        "rollout_count": 26,
+        "gradient_rollout_count": 25,
+        "failed_rollout_count": 0,
+        "updates": 25
+      },
+      "fine_objective": 0.00019754093955270946,
+      "linear_fine_objective": 0.00019973302551079541,
+      "temporal_relative_error": 0.00014733534771949053,
+      "admitted": true
+    }
+  ],
+  "linear_baseline": {
+    "tasks": [
+      {
+        "task_seed": 6,
+        "initial_seed": 6,
+        "goal_seed": 10000006,
+        "objective": 0.0003531545808073133,
+        "terminal_mse_normalized": 3.9985767216421664e-05,
+        "control_effort": 0.03131688013672829,
+        "temporal_relative_error": 0.00016839859017636627,
+        "finite": true,
+        "admitted": true
+      },
+      {
+        "task_seed": 7,
+        "initial_seed": 7,
+        "goal_seed": 10000007,
+        "objective": 0.00019973302551079541,
+        "terminal_mse_normalized": 3.403490700293332e-05,
+        "control_effort": 0.01656981185078621,
+        "temporal_relative_error": 0.00014940588152967393,
+        "finite": true,
+        "admitted": true
+      }
+    ],
+    "mean_objective": 0.00027644380315905437,
+    "admitted": true
+  },
+  "costs": {
+    "phases": {
+      "common_data_preparation": {
+        "wall_time_s": 8.527071315969806,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 2,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 0,
+        "label_examples": 0
+      },
+      "baseline": {
+        "wall_time_s": 17.681462727021426,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 6,
+        "gradient_rollout_count": 0,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 0,
+        "label_examples": 0
+      },
+      "warm_start_shooting": {
+        "wall_time_s": 72.84551941102836,
+        "oracle_wall_time_s": 0.0,
+        "rollout_count": 56,
+        "gradient_rollout_count": 50,
+        "failed_rollout_count": 0,
+        "optimizer_updates": 50,
+        "label_examples": 0
+      }
+    },
+    "total": {
+      "wall_time_s": 99.0540534540196,
+      "oracle_wall_time_s": 0.0,
+      "rollout_count": 64,
+      "gradient_rollout_count": 50,
+      "failed_rollout_count": 0,
+      "optimizer_updates": 50,
+      "label_examples": 0
+    },
+    "accounting": "wall_time_s includes oracle_wall_time_s; each scalar objective query counts one requested full rollout, including failed queries. This is not a count of backend-internal replay solves."
+  },
+  "admitted": true
+}

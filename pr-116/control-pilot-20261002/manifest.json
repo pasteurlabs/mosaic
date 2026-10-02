@@ -1,0 +1,1394 @@
+{
+  "campaign": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002",
+  "source_archive": {
+    "path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/source.tar",
+    "sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+    "size_bytes": 5826560
+  },
+  "report_slurm_job": 2862238,
+  "cells": {
+    "demonstration_imitation-0": {
+      "slurm_job_id": 2861884,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/demonstration_imitation-0/results.tar",
+      "archive_size_bytes": 202352640,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1175,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 10635023,
+          "published": false
+        },
+        {
+          "name": "./model-update1000.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1727359,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1699356,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 132160,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update500.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update250.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 186958472,
+          "published": false
+        }
+      ]
+    },
+    "demonstration_imitation-1": {
+      "slurm_job_id": 2861885,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/demonstration_imitation-1/results.tar",
+      "archive_size_bytes": 202311680,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./model-update250.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 132165,
+          "published": true
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 186962222,
+          "published": false
+        },
+        {
+          "name": "./model-update500.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update1000.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1175,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 10635024,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1682675,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1694687,
+          "published": false
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        }
+      ]
+    },
+    "demonstration_imitation-2": {
+      "slurm_job_id": 2861886,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/demonstration_imitation-2/results.tar",
+      "archive_size_bytes": 202362880,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./model-update250.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 132176,
+          "published": true
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 186979528,
+          "published": false
+        },
+        {
+          "name": "./model-update500.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update1000.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1175,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 10635024,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1726406,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1687054,
+          "published": false
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        }
+      ]
+    },
+    "full-0": {
+      "slurm_job_id": 2861878,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/full-0/results.tar",
+      "archive_size_bytes": 164792320,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1156,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 17378063,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1742092,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1726683,
+          "published": false
+        },
+        {
+          "name": "./model-update300.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 74851,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 143261213,
+          "published": false
+        }
+      ]
+    },
+    "full-1": {
+      "slurm_job_id": 2861879,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/full-1/results.tar",
+      "archive_size_bytes": 164812800,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1156,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 17378063,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1757538,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1723181,
+          "published": false
+        },
+        {
+          "name": "./model-update300.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 74836,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 143271641,
+          "published": false
+        }
+      ]
+    },
+    "full-2": {
+      "slurm_job_id": 2861880,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/full-2/results.tar",
+      "archive_size_bytes": 164823040,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1156,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 17378063,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1752851,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1728681,
+          "published": false
+        },
+        {
+          "name": "./model-update300.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 74785,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 143280075,
+          "published": false
+        }
+      ]
+    },
+    "improved_imitation-0": {
+      "slurm_job_id": 2861887,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/improved_imitation-0/results.tar",
+      "archive_size_bytes": 215808000,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./model-update250.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 147753,
+          "published": true
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 186958187,
+          "published": false
+        },
+        {
+          "name": "./model-update500.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update1000.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1170,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 24069904,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1727680,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1700255,
+          "published": false
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        }
+      ]
+    },
+    "improved_imitation-1": {
+      "slurm_job_id": 2861888,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/improved_imitation-1/results.tar",
+      "archive_size_bytes": 215756800,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./model-update250.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 147699,
+          "published": true
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 186961748,
+          "published": false
+        },
+        {
+          "name": "./model-update500.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update1000.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1170,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 24069904,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1683284,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1695341,
+          "published": false
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        }
+      ]
+    },
+    "improved_imitation-2": {
+      "slurm_job_id": 2861889,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/improved_imitation-2/results.tar",
+      "archive_size_bytes": 215808000,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./model-update250.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 147706,
+          "published": true
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 186978243,
+          "published": false
+        },
+        {
+          "name": "./model-update500.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./model-update1000.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1170,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 24069904,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1727190,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1687944,
+          "published": false
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        }
+      ]
+    },
+    "spsa-0": {
+      "slurm_job_id": 2861881,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/spsa-0/results.tar",
+      "archive_size_bytes": 167229440,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1156,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 19682063,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1776539,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1747287,
+          "published": false
+        },
+        {
+          "name": "./model-update300.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 136616,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 143283275,
+          "published": false
+        }
+      ]
+    },
+    "spsa-1": {
+      "slurm_job_id": 2861882,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/spsa-1/results.tar",
+      "archive_size_bytes": 167208960,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1156,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 19682063,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1774800,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1758835,
+          "published": false
+        },
+        {
+          "name": "./model-update300.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 136560,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 143246501,
+          "published": false
+        }
+      ]
+    },
+    "spsa-2": {
+      "slurm_job_id": 2861883,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/spsa-2/results.tar",
+      "archive_size_bytes": 167188480,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./protocol.json",
+          "size_bytes": 1156,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 19682063,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2001.png",
+          "size_bytes": 1763371,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2000.png",
+          "size_bytes": 1732354,
+          "published": false
+        },
+        {
+          "name": "./model-update300.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 136535,
+          "published": true
+        },
+        {
+          "name": "./model.eqx",
+          "size_bytes": 296448,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 143271999,
+          "published": false
+        }
+      ]
+    },
+    "warm-long-0": {
+      "slurm_job_id": 2861894,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-long-0/results.tar",
+      "archive_size_bytes": 21893120,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./plots/task-0.png",
+          "size_bytes": 1089853,
+          "published": false
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 36804,
+          "published": false
+        },
+        {
+          "name": "./plots/task-1.png",
+          "size_bytes": 1213692,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17021336,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6060,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 2513423,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 876,
+          "published": true
+        }
+      ]
+    },
+    "warm-long-1": {
+      "slurm_job_id": 2861896,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-long-1/results.tar",
+      "archive_size_bytes": 21903360,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17015453,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 876,
+          "published": true
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6067,
+          "published": true
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 33747,
+          "published": false
+        },
+        {
+          "name": "./plots/task-3.png",
+          "size_bytes": 1159638,
+          "published": false
+        },
+        {
+          "name": "./plots/task-2.png",
+          "size_bytes": 1160618,
+          "published": false
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 2513421,
+          "published": false
+        }
+      ]
+    },
+    "warm-long-2": {
+      "slurm_job_id": 2861897,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-long-2/results.tar",
+      "archive_size_bytes": 21985280,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./fields.npz",
+          "size_bytes": 16988372,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 876,
+          "published": true
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6065,
+          "published": true
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 33726,
+          "published": false
+        },
+        {
+          "name": "./plots/task-4.png",
+          "size_bytes": 1136462,
+          "published": false
+        },
+        {
+          "name": "./plots/task-5.png",
+          "size_bytes": 1290500,
+          "published": false
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 2513421,
+          "published": false
+        }
+      ]
+    },
+    "warm-long-3": {
+      "slurm_job_id": 2861899,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-long-3/results.tar",
+      "archive_size_bytes": 21964800,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17018196,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 876,
+          "published": true
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6058,
+          "published": true
+        },
+        {
+          "name": "./plots/task-7.png",
+          "size_bytes": 1177783,
+          "published": false
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 33749,
+          "published": false
+        },
+        {
+          "name": "./plots/task-6.png",
+          "size_bytes": 1199909,
+          "published": false
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 2513421,
+          "published": false
+        }
+      ]
+    },
+    "warm-short-0": {
+      "slurm_job_id": 2861890,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-short-0/results.tar",
+      "archive_size_bytes": 20224000,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./plots/task-0.png",
+          "size_bytes": 1239889,
+          "published": false
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 36012,
+          "published": false
+        },
+        {
+          "name": "./plots/task-1.png",
+          "size_bytes": 1308652,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17122045,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6141,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 503311,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 875,
+          "published": true
+        }
+      ]
+    },
+    "warm-short-1": {
+      "slurm_job_id": 2861891,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-short-1/results.tar",
+      "archive_size_bytes": 20193280,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./plots/task-2.png",
+          "size_bytes": 1288360,
+          "published": false
+        },
+        {
+          "name": "./plots/task-3.png",
+          "size_bytes": 1217468,
+          "published": false
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 36022,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17130895,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6137,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 503311,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 875,
+          "published": true
+        }
+      ]
+    },
+    "warm-short-2": {
+      "slurm_job_id": 2861892,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-short-2/results.tar",
+      "archive_size_bytes": 20254720,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./plots/task-5.png",
+          "size_bytes": 1358692,
+          "published": false
+        },
+        {
+          "name": "./plots/task-4.png",
+          "size_bytes": 1218046,
+          "published": false
+        },
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 38567,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17121442,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6135,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 503311,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 875,
+          "published": true
+        }
+      ]
+    },
+    "warm-short-3": {
+      "slurm_job_id": 2861893,
+      "archive_path": "/data/personal/andrinr/runner/results/mosaic/pr116-control-pilot-20261002/results/warm-short-3/results.tar",
+      "archive_size_bytes": 20183040,
+      "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+      "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+      "source_sha256": "cbf57ceda0813fc7394a90edad6055ab72d151a6b203e84bfa9188fb24373e40",
+      "members": [
+        {
+          "name": "./plots/objectives.png",
+          "size_bytes": 37607,
+          "published": false
+        },
+        {
+          "name": "./plots/task-7.png",
+          "size_bytes": 1283886,
+          "published": false
+        },
+        {
+          "name": "./plots/task-6.png",
+          "size_bytes": 1220608,
+          "published": false
+        },
+        {
+          "name": "./fields.npz",
+          "size_bytes": 17117095,
+          "published": false
+        },
+        {
+          "name": "./outcome.json",
+          "size_bytes": 6148,
+          "published": true
+        },
+        {
+          "name": "./service.log",
+          "size_bytes": 503311,
+          "published": false
+        },
+        {
+          "name": "./protocol.json",
+          "size_bytes": 875,
+          "published": true
+        }
+      ]
+    }
+  },
+  "large_artifact_note": "Large archives, NPZ fields and model checkpoints remain on the cluster. Members and sizes below locate them precisely; archive/member hashes are not recomputed. Dataset, model, image and source identities recorded by the experiments remain in the raw outcomes/protocols/configs and audits.",
+  "audits": {
+    "dataset": "/data/personal/andrinr/runner/results/mosaic/pr116-control-dataset-audit-20261003/report/dataset-audit.json",
+    "policy": "/data/personal/andrinr/runner/results/mosaic/pr116-policy-audit-20261002/audit.json"
+  },
+  "published_files": {
+    "README.md": {
+      "sha256": "0737e81313dbfa8c951974c9b1cfc69627a2904b56677238f3296da6d8291d32",
+      "size_bytes": 1589
+    },
+    "analyze_pilot.sh": {
+      "sha256": "7f1974a4adbb40f16063b2dcddf36ae4ae22d3a716ba124ceda76efb0e766415",
+      "size_bytes": 623
+    },
+    "audits/dataset-audit.json": {
+      "sha256": "62ffe8ec18804fea02a32d71b6095130dbb863cfdcb3d64e927d519e8dae7485",
+      "size_bytes": 868307
+    },
+    "audits/policy-audit.json": {
+      "sha256": "51862f7b6b65dd8d18682c53348dad5aa4b739f870853f332ca309659a196668",
+      "size_bytes": 322938
+    },
+    "configs/demonstration_imitation-0.json": {
+      "sha256": "c67d9d20d9bd266ee96481ec6bb80164e6371c93228934e1a420379d63484c01",
+      "size_bytes": 1175
+    },
+    "configs/demonstration_imitation-1.json": {
+      "sha256": "b7c79055721516aa8c1f36cd673358574f78404b0d2392d7066c6964c64469b0",
+      "size_bytes": 1175
+    },
+    "configs/demonstration_imitation-2.json": {
+      "sha256": "328a8eba6c5024ccb551e9c158dd5d9737f651cf134fceb740b88bae905a723b",
+      "size_bytes": 1175
+    },
+    "configs/full-0.json": {
+      "sha256": "c17669d8f8eaf46ddfd52889b7ac0141d79b8170014fb8b1d9f2beeeba22d41b",
+      "size_bytes": 1156
+    },
+    "configs/full-1.json": {
+      "sha256": "f6b76047612cc7f2e674ab9aea3aaf67ae1e1bd746abb6c9b8ec8bd4929813a5",
+      "size_bytes": 1156
+    },
+    "configs/full-2.json": {
+      "sha256": "9a712f49c7b0754371dde0c94ae1be7258bfc095ac7c1eb199b7fe517f4126d9",
+      "size_bytes": 1156
+    },
+    "configs/improved_imitation-0.json": {
+      "sha256": "d4edf00f6111718db5521be192308ea81fceff56e894063774a48d5ce79faedd",
+      "size_bytes": 1170
+    },
+    "configs/improved_imitation-1.json": {
+      "sha256": "86d9738ac8770e48be466647692a4476dbdfc50d28346cddfb60032d3e918e6f",
+      "size_bytes": 1170
+    },
+    "configs/improved_imitation-2.json": {
+      "sha256": "349f9715e164d90f3bc8b99664763709a074c001da6fd5351c873783e7775b41",
+      "size_bytes": 1170
+    },
+    "configs/spsa-0.json": {
+      "sha256": "cd5ad62747823b53a04e045da919e11e08d7172ac937ebff2e984b7b757773eb",
+      "size_bytes": 1156
+    },
+    "configs/spsa-1.json": {
+      "sha256": "83d205abd136619194baba2ca8e1faec30b5470f31628ecac2e6aa63914178b4",
+      "size_bytes": 1156
+    },
+    "configs/spsa-2.json": {
+      "sha256": "b7bdddfd1f0d21ef02fcd6e5d91231b8d2edc908356c3aeab15bf00a45af72e5",
+      "size_bytes": 1156
+    },
+    "configs/warm-long-0.json": {
+      "sha256": "43a50af12e90dd7a234e6695bb9f033ccb943f17713e96d8a8a5fa9e6812854b",
+      "size_bytes": 876
+    },
+    "configs/warm-long-1.json": {
+      "sha256": "f637e54d492172f957250a7c113e5c3bf06bfe56d8d2e66c05120ba15312cdfb",
+      "size_bytes": 876
+    },
+    "configs/warm-long-2.json": {
+      "sha256": "cfd0acf4189b94d73efa5ca4a3a4efd4045a99951bdc8633103f7636c1cf41d4",
+      "size_bytes": 876
+    },
+    "configs/warm-long-3.json": {
+      "sha256": "4ba863f1d4376b9342d2b201242b6baf67369ae91d10cd20e2130c27d7124c60",
+      "size_bytes": 876
+    },
+    "configs/warm-short-0.json": {
+      "sha256": "99a1ef27b75d4437f8833c4c27ec31b143ea37a43b54cd4beeda596aa9a30031",
+      "size_bytes": 875
+    },
+    "configs/warm-short-1.json": {
+      "sha256": "9ec90d19b014f9714771a0cb9d3f703c9b05df678333d01e1aba9ece8092ab77",
+      "size_bytes": 875
+    },
+    "configs/warm-short-2.json": {
+      "sha256": "d59210360ac87d19f4e26779dd1ea7e31d82155c2b392ea8626b1187d9012598",
+      "size_bytes": 875
+    },
+    "configs/warm-short-3.json": {
+      "sha256": "ab657e4e39b51a9a8ac4d1e46b127de3777b30d09f3d1c7aadaf8ba9583b9470",
+      "size_bytes": 875
+    },
+    "control-status.json": {
+      "sha256": "3cbdc75c1f3e3019d381b2403cdb5f8e8e9032d6d3bd27d362ac8b8660726777",
+      "size_bytes": 1057
+    },
+    "frozen-source/experiments/flow_control/PROTOCOL.md": {
+      "sha256": "88a4618e7fd8c1a97f485e85255d60accf3bc28fc963a7ff51ebecb3db24ccf0",
+      "size_bytes": 6973
+    },
+    "frozen-source/experiments/flow_control/analyze.sh": {
+      "sha256": "4755741c0861dc19eedbaf8bc0bcf24d3680441c5593641153117bc3e3d28a3c",
+      "size_bytes": 779
+    },
+    "frozen-source/experiments/flow_control/baselines.py": {
+      "sha256": "843ae6ce85d38e518155ce81091ac6d8e7a3bd0160b7675ab09c378d4574addd",
+      "size_bytes": 18618
+    },
+    "frozen-source/experiments/flow_control/control.py": {
+      "sha256": "b731cef707902ba1a39b61516e94ebac46e6d9b0e732df8c94f66e2673cfa134",
+      "size_bytes": 28719
+    },
+    "frozen-source/experiments/flow_control/node.sh": {
+      "sha256": "3ae5c096b343e574d0499d5e88b9b1497b2e05a4ebf43466cf9e232fcd00d0a7",
+      "size_bytes": 2792
+    },
+    "frozen-source/experiments/flow_control/orchestrate.py": {
+      "sha256": "d06cbe46ad9122db53e939a705b4345a21c2ee630b96aae88a381b6a54672ccc",
+      "size_bytes": 3431
+    },
+    "frozen-source/experiments/flow_control/pilot.py": {
+      "sha256": "933574fbf967fa4a6ba529438a48253a3954ef0c09713fdc62ff0e741a6edfa6",
+      "size_bytes": 24117
+    },
+    "frozen-source/experiments/flow_control/plots.py": {
+      "sha256": "9c810c3560b8d78a1d0315e97866540c622044f9a57eca7afa3e35d4582d2f3d",
+      "size_bytes": 9076
+    },
+    "frozen-source/experiments/flow_control/report.py": {
+      "sha256": "e45882627c8c7855dfa691e613c6bce01ce97e5161db33ef3179fe539e9d1fa5",
+      "size_bytes": 3030
+    },
+    "frozen-source/experiments/flow_control/run.py": {
+      "sha256": "595260e749cdd6a9fcc1ea588633cca716b3fd1704f59d853ae824f4b386d2c8",
+      "size_bytes": 3801
+    },
+    "frozen-source/experiments/flow_control/shooting_diagnostic.py": {
+      "sha256": "792ffa130e10a8ad428ee26b0fb2dd94ed30d42e20e59279f64f3e33be44f11b",
+      "size_bytes": 4969
+    },
+    "frozen-source/experiments/flow_control/submit.py": {
+      "sha256": "f21fd47e16fdb67f3f36e54f15bce462deefc41f2ca97e869bc4d917220cba4a",
+      "size_bytes": 2732
+    },
+    "node.sh": {
+      "sha256": "3ae5c096b343e574d0499d5e88b9b1497b2e05a4ebf43466cf9e232fcd00d0a7",
+      "size_bytes": 2792
+    },
+    "orchestrate.py": {
+      "sha256": "d06cbe46ad9122db53e939a705b4345a21c2ee630b96aae88a381b6a54672ccc",
+      "size_bytes": 3431
+    },
+    "pilot_report.py": {
+      "sha256": "fd37dab1477a27e5d4a9f1cccabd48eec7049700acc7e9d143d7273341c9f762",
+      "size_bytes": 17258
+    },
+    "report/README.md": {
+      "sha256": "de3d075d4ea9067bcf0283b896c692c937fb8fbe737de527d43aa6f50395a68f",
+      "size_bytes": 3356
+    },
+    "report/full-0-task-2000.png": {
+      "sha256": "e85331d4b2288cc23216884cccc329c5b2ba1327a8b137d887f229a0f8b3ed5c",
+      "size_bytes": 1726683
+    },
+    "report/pilot_costs.png": {
+      "sha256": "b9b688e610cdf5c5960fa00e3770a32e88b9e91f6e6f07195ac71afb6cb06c56",
+      "size_bytes": 104681
+    },
+    "report/pilot_objectives.png": {
+      "sha256": "b704926320144968eb12189e1c67d76a2b99121d079aabc277e5ac050e73562b",
+      "size_bytes": 168780
+    },
+    "report/report.json": {
+      "sha256": "055dd44c60b356d67cb3c64ffc25624e504ed04947daf9dfad253f5be522cb92",
+      "size_bytes": 1981469
+    },
+    "report/warm-long-0-task-0.png": {
+      "sha256": "9dce900c8940858edb39ba6e00d7ed1c1f7271b186ae239d042836a3d65402f0",
+      "size_bytes": 1089853
+    },
+    "report/warm_start.png": {
+      "sha256": "d9799b4b420e3b91a46cb8a14887fe89ff04bf500665064a27127f65472fc4c8",
+      "size_bytes": 137574
+    },
+    "results/demonstration_imitation-0/outcome.json": {
+      "sha256": "67a9cefad3b78545d35df09f0ac0bfd0ac232ece65e7f2ad61db3d6719e31473",
+      "size_bytes": 132160
+    },
+    "results/demonstration_imitation-0/protocol.json": {
+      "sha256": "c67d9d20d9bd266ee96481ec6bb80164e6371c93228934e1a420379d63484c01",
+      "size_bytes": 1175
+    },
+    "results/demonstration_imitation-1/outcome.json": {
+      "sha256": "cc496212b26972039fdb600827e6d5242bf4e2eccd4f7942880d3aa1ec4d420e",
+      "size_bytes": 132165
+    },
+    "results/demonstration_imitation-1/protocol.json": {
+      "sha256": "b7c79055721516aa8c1f36cd673358574f78404b0d2392d7066c6964c64469b0",
+      "size_bytes": 1175
+    },
+    "results/demonstration_imitation-2/outcome.json": {
+      "sha256": "2b84485868fcb061481dd3dc85f7c65cb11946c65e0ea891055098e7c8767ba4",
+      "size_bytes": 132176
+    },
+    "results/demonstration_imitation-2/protocol.json": {
+      "sha256": "328a8eba6c5024ccb551e9c158dd5d9737f651cf134fceb740b88bae905a723b",
+      "size_bytes": 1175
+    },
+    "results/full-0/outcome.json": {
+      "sha256": "14bc9177c7b71f05e55849351ad55a615119813448665e9b16afb324eb20a6e9",
+      "size_bytes": 74851
+    },
+    "results/full-0/protocol.json": {
+      "sha256": "c17669d8f8eaf46ddfd52889b7ac0141d79b8170014fb8b1d9f2beeeba22d41b",
+      "size_bytes": 1156
+    },
+    "results/full-1/outcome.json": {
+      "sha256": "cd8590e83ccd845bc10b15da472cc8db58df3479f4d20ed9070d7cb4c36d97e5",
+      "size_bytes": 74836
+    },
+    "results/full-1/protocol.json": {
+      "sha256": "f6b76047612cc7f2e674ab9aea3aaf67ae1e1bd746abb6c9b8ec8bd4929813a5",
+      "size_bytes": 1156
+    },
+    "results/full-2/outcome.json": {
+      "sha256": "d84fc37f79f7f1a9a86dd995ba3ab81bd94974632918b83a16bfdf5958469beb",
+      "size_bytes": 74785
+    },
+    "results/full-2/protocol.json": {
+      "sha256": "9a712f49c7b0754371dde0c94ae1be7258bfc095ac7c1eb199b7fe517f4126d9",
+      "size_bytes": 1156
+    },
+    "results/improved_imitation-0/outcome.json": {
+      "sha256": "a648e63cc71a115159e948084cb7073a9f35c01911dc58aae69b37920e7b37c5",
+      "size_bytes": 147753
+    },
+    "results/improved_imitation-0/protocol.json": {
+      "sha256": "d4edf00f6111718db5521be192308ea81fceff56e894063774a48d5ce79faedd",
+      "size_bytes": 1170
+    },
+    "results/improved_imitation-1/outcome.json": {
+      "sha256": "4a03ba2efb24480ea327f2f74ca51d5580b015b3682a1c4568cc7f72de10e41d",
+      "size_bytes": 147699
+    },
+    "results/improved_imitation-1/protocol.json": {
+      "sha256": "86d9738ac8770e48be466647692a4476dbdfc50d28346cddfb60032d3e918e6f",
+      "size_bytes": 1170
+    },
+    "results/improved_imitation-2/outcome.json": {
+      "sha256": "9b2b90892fca9953c849aa11fccd3d5708bff15d8000fa0a0a391fa982e72db3",
+      "size_bytes": 147706
+    },
+    "results/improved_imitation-2/protocol.json": {
+      "sha256": "349f9715e164d90f3bc8b99664763709a074c001da6fd5351c873783e7775b41",
+      "size_bytes": 1170
+    },
+    "results/spsa-0/outcome.json": {
+      "sha256": "1f0362138be66b71d810b749e8ac8f5ee911c9e51e027fa280133ce23b8a97de",
+      "size_bytes": 136616
+    },
+    "results/spsa-0/protocol.json": {
+      "sha256": "cd5ad62747823b53a04e045da919e11e08d7172ac937ebff2e984b7b757773eb",
+      "size_bytes": 1156
+    },
+    "results/spsa-1/outcome.json": {
+      "sha256": "9bae8e99cb729331cf6521eb1af90f88c96c18ebfef3cff191f0804e94ebf5d7",
+      "size_bytes": 136560
+    },
+    "results/spsa-1/protocol.json": {
+      "sha256": "83d205abd136619194baba2ca8e1faec30b5470f31628ecac2e6aa63914178b4",
+      "size_bytes": 1156
+    },
+    "results/spsa-2/outcome.json": {
+      "sha256": "f2829ba9b3cd33b69867f97c48cbda9143d2d80d5bdfcc24b82e61d77071bddf",
+      "size_bytes": 136535
+    },
+    "results/spsa-2/protocol.json": {
+      "sha256": "b7bdddfd1f0d21ef02fcd6e5d91231b8d2edc908356c3aeab15bf00a45af72e5",
+      "size_bytes": 1156
+    },
+    "results/warm-long-0/outcome.json": {
+      "sha256": "f10a92fe727098b82ae0095d63cced2d8b403d58f27abf08d2664adf59dc306a",
+      "size_bytes": 6060
+    },
+    "results/warm-long-0/protocol.json": {
+      "sha256": "43a50af12e90dd7a234e6695bb9f033ccb943f17713e96d8a8a5fa9e6812854b",
+      "size_bytes": 876
+    },
+    "results/warm-long-1/outcome.json": {
+      "sha256": "09ba3b68797daf6f5c68507e3e01b64f9cf7e7925e3de71a78f4c8c2fbeb82e1",
+      "size_bytes": 6067
+    },
+    "results/warm-long-1/protocol.json": {
+      "sha256": "f637e54d492172f957250a7c113e5c3bf06bfe56d8d2e66c05120ba15312cdfb",
+      "size_bytes": 876
+    },
+    "results/warm-long-2/outcome.json": {
+      "sha256": "9967c3bc8411c43f244c02bde619ea050047dc404c2e9ce792d1676b4aed88dc",
+      "size_bytes": 6065
+    },
+    "results/warm-long-2/protocol.json": {
+      "sha256": "cfd0acf4189b94d73efa5ca4a3a4efd4045a99951bdc8633103f7636c1cf41d4",
+      "size_bytes": 876
+    },
+    "results/warm-long-3/outcome.json": {
+      "sha256": "3788124e1188c2af67cc76eb1706dee663ec6a0932ea0bafd4cdb27416f30002",
+      "size_bytes": 6058
+    },
+    "results/warm-long-3/protocol.json": {
+      "sha256": "4ba863f1d4376b9342d2b201242b6baf67369ae91d10cd20e2130c27d7124c60",
+      "size_bytes": 876
+    },
+    "results/warm-short-0/outcome.json": {
+      "sha256": "706a5eef819baf8ecdf29f717329348e8da6e7853bc6e17fb33d341ce993b276",
+      "size_bytes": 6141
+    },
+    "results/warm-short-0/protocol.json": {
+      "sha256": "99a1ef27b75d4437f8833c4c27ec31b143ea37a43b54cd4beeda596aa9a30031",
+      "size_bytes": 875
+    },
+    "results/warm-short-1/outcome.json": {
+      "sha256": "cbb4b670f92278badfecb47a567b4bea18f5c3affa0d91a08a1ac450f5308fa0",
+      "size_bytes": 6137
+    },
+    "results/warm-short-1/protocol.json": {
+      "sha256": "9ec90d19b014f9714771a0cb9d3f703c9b05df678333d01e1aba9ece8092ab77",
+      "size_bytes": 875
+    },
+    "results/warm-short-2/outcome.json": {
+      "sha256": "f339198fa36629a74c36ee919fbbcc8cc026ca341c8fd99d7c8081f8a9afa746",
+      "size_bytes": 6135
+    },
+    "results/warm-short-2/protocol.json": {
+      "sha256": "d59210360ac87d19f4e26779dd1ea7e31d82155c2b392ea8626b1187d9012598",
+      "size_bytes": 875
+    },
+    "results/warm-short-3/outcome.json": {
+      "sha256": "7a2e5cb7166252e72359fd773d4959e399c1770b88b7d209c26ee4cc49bb6d56",
+      "size_bytes": 6148
+    },
+    "results/warm-short-3/protocol.json": {
+      "sha256": "ab657e4e39b51a9a8ac4d1e46b127de3777b30d09f3d1c7aadaf8ba9583b9470",
+      "size_bytes": 875
+    },
+    "submissions.json": {
+      "sha256": "b554857314be3ceddb1254aa483ace21cb4b050c158bcba49d27ec0f993ae0ec",
+      "size_bytes": 565
+    },
+    "submit.py": {
+      "sha256": "f21fd47e16fdb67f3f36e54f15bce462deefc41f2ca97e869bc4d917220cba4a",
+      "size_bytes": 2732
+    }
+  }
+}
