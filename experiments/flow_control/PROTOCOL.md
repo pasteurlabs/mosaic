@@ -111,3 +111,60 @@ launching the neural development pilot, but establishes neither amortized policy
 quality nor an advantage over imitation or gradient-free learning. Both horizon
 results remain reported. Separate short/long linear-warm-start diagnostics are
 engineering checks and do not select neural checkpoints.
+
+## Pilot findings and fixed follow-up
+
+The first 12 neural jobs completed and passed temporal admission. All learned
+controllers were worse than the cheap linear controller on validation tasks.
+Mean final objective: full gradients .163527, action SPSA .239359, imitation
+.171955, versus linear .025406. Imitation at 500 updates scored .165283, so the
+final checkpoint comparison is not a tuned-supervision claim. The 73,920-parameter
+field MLP fit only 16 training tasks: imitation training action MSE was
+.00056–.00195 while validation action MSE was .079–.088. Longer imitation training
+worsened validation in every seed. The original expert optimizer replaced none
+of the demonstration labels, despite about 31 minutes of extra work per seed.
+
+Separate linear-initialized direct optimization improved all eight development
+tasks at both horizons. At T=3.2, 25 updates reduced mean objective from .025083
+to .001868 (92.55%); at T=.64 the reduction was only 3.67%. These are per-instance
+optimization results, not learned-controller performance.
+
+Dataset audit job 2862236 found identical initial fields, controls and seeds,
+but two bytewise goal groups. Goal differences were about 1e-6 relative L2;
+common-target rescoring shifted mean terminal MSE by at most 5e-8. This is far too
+small to explain the observed validation gap, but does not establish bitwise
+identical training trajectories. Original files remain intact.
+
+The follow-up changes the model and dataset together to address this failure;
+it does not isolate their individual effects. Freeze 64 training tasks 1000–1063
+and 16 validation tasks 2000–2015. Generate and audit each task once, save its
+coarse unforced terminal field, and assemble one hashed dataset. Every method
+must read exactly those bytes, with matching physics/image and split identities.
+Any task admission failure blocks assembly; tasks cannot be silently excluded.
+Final test tasks remain untouched.
+
+All four methods use the same 4,192-parameter residual policy: 64 physical features,
+a 32-unit hidden layer and a zero-initialized output layer. It begins at the
+linear controller, up to the documented inward tanh-bound transformation.
+Features use initial low-frequency modes, actuator projections of the observed
+goal discrepancy, and linear control coefficients. Generating controls and fine
+targets cannot enter these features. Deployment requires one coarse free rollout;
+report that cost separately from neural inference.
+
+Model seeds remain 0–2. Full gradients and SPSA use 300 updates at lr=1e-3,
+with checkpoints 0/100/300. SPSA uses one antithetic direction and perturbation
+.05. Imitation uses 1000 updates at lr=1e-3, checkpoints 0/250/500/1000. Every
+checkpoint is evaluated only after training. Report final training objectives
+at 64² and validation objectives at 192² to expose generalization gaps.
+The zero-update checkpoint is the untrained baseline, not an optimization success.
+This remains an untuned, unequal-budget development pilot.
+
+For improved imitation, refine each public training demonstration with 25
+coarse-grid Adam updates at lr=.01 and retain whichever has lower coarse loss.
+Never generate optimized validation labels. Save the actual choice, trace and
+label cost. Common dataset preparation is reported once as shared work and
+included in each standalone method comparison; only improved imitation includes
+expert refinement cost. Per-job costs exclude precomputed shared work, preventing
+double-counting. Full-grid validation and fit diagnostics are separate from
+training cost. No revised superiority claim is justified until these comparisons
+have completed and baselines have been tuned on validation data.

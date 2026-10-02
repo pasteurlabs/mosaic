@@ -19,19 +19,22 @@ def main() -> None:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--validate", action="store_true")
     mode.add_argument("--report", action="store_true")
-    parser.add_argument("--after", type=int)
+    mode.add_argument("--assemble", action="store_true")
+    parser.add_argument("--after", type=int, nargs="+")
     args = parser.parse_args()
     runner = Runner(
         JobRegistry(Path("mosaic-results/slurm-registry") / args.campaign.name),
         Path("/home/andrinr/slurm-runner/runner"),
         transport=LocalTransport() if args.host == "local" else SshTransport(args.host),
     )
-    gpu = not (args.validate or args.report)
+    gpu = not (args.validate or args.report or args.assemble)
     cells = (
         ["validation"]
         if args.validate
         else ["report"]
         if args.report
+        else ["assemble"]
+        if args.assemble
         else args.cells.split(",")
     )
     for cell in cells:
@@ -43,7 +46,11 @@ def main() -> None:
                 "bash",
                 str(args.campaign / "node.sh"),
                 str(args.campaign),
-                "validate" if args.validate else "train",
+                "validate"
+                if args.validate
+                else "assemble"
+                if args.assemble
+                else "train",
                 cell,
             ],
             template="gpu" if gpu else "cpu",
@@ -55,7 +62,7 @@ def main() -> None:
             cpus=8,
             mem="64G",
             out_path=args.campaign / "results" / cell,
-            depends_on=[args.after] if args.after else [],
+            depends_on=args.after or [],
             env={
                 "PROJECT_ISOLATED_COMMAND": "1",
                 "PROJECT_REPO_ROOT": str(args.campaign),

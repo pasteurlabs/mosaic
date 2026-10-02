@@ -29,6 +29,11 @@ if [[ "$mode" == validate ]]; then
   python .github/scripts/validate-tesseract-configs.py
   exit
 fi
+if [[ "$mode" == assemble ]]; then
+  export JAX_PLATFORMS=cpu
+  python -m experiments.flow_control.dataset --campaign "$campaign"
+  exit
+fi
 if [[ "$mode" == build ]]; then
   export MOSAIC_TESSERACT_SLUG="$cell" MOSAIC_JAX_BUNDLED_CUDA=1
   bash /data/personal/andrinr/tools/mosaic-tesseract-buildah-roundtrip.sh

@@ -274,11 +274,20 @@ def train_spsa_policy(
     perturbation: float = 0.05,
     directions: int = 1,
     wall_time_budget_s: float | None = None,
+    model: Any | None = None,
+    checkpoint_updates: Sequence[int] = (),
 ) -> dict[str, Any]:
     """Train the shared policy using estimated action gradients and exact policy VJPs."""
     from .control import init_policy, objective, policy_latents
 
     _training_inputs(tasks, updates, lr, wall_time_budget_s)
+    if any(
+        int(value) != value or not 1 <= value <= updates for value in checkpoint_updates
+    ):
+        raise ValueError(
+            "checkpoint updates must be integers within the training budget"
+        )
+    checkpoint_models = {}
     ledger = CostLedger()
     work = ledger.phase("policy_training")
     accounted_before = work.wall_time_s
@@ -286,7 +295,7 @@ def train_spsa_policy(
     trace = []
     completed, failure = True, None
     try:
-        model = init_policy(seed, config)
+        model = init_policy(seed, config) if model is None else model
         optimizer = optax.chain(optax.clip_by_global_norm(5), optax.adam(lr))
         state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
         rng = np.random.default_rng(seed)
@@ -331,6 +340,8 @@ def train_spsa_policy(
             model = eqx.apply_updates(model, delta)
             jax.block_until_ready((model, state))
             work.optimizer_updates += 1
+            if update + 1 in checkpoint_updates:
+                checkpoint_models[update + 1] = model
             trace.append(
                 {
                     "update": update + 1,
@@ -347,6 +358,9 @@ def train_spsa_policy(
         work.wall_time_s += max(0.0, elapsed - already_charged)
     return {
         "model": model,
+        "checkpoint_models": checkpoint_models
+        if checkpoint_updates
+        else {len(trace): model},
         "trace": trace,
         "completed": completed,
         "failure": failure,
@@ -369,6 +383,7 @@ def train_imitation_policy(
     lr: float = 1e-3,
     wall_time_budget_s: float | None = None,
     checkpoint_updates: Sequence[int] = (),
+    model: Any | None = None,
 ) -> dict[str, Any]:
     """Fit fixed training labels, charging their generation against the total budget.
 
@@ -413,7 +428,7 @@ def train_imitation_policy(
     trace = []
     completed, failure = True, None
     try:
-        model = init_policy(seed, config)
+        model = init_policy(seed, config) if model is None else model
         optimizer = optax.chain(optax.clip_by_global_norm(5), optax.adam(lr))
         state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
         rng = np.random.default_rng(seed)

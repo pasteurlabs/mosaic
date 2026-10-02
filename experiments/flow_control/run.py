@@ -52,7 +52,23 @@ def main() -> None:
     try:
         with Tesseract.from_url(args.url, timeout=(30, 1200)) as solver:
             print(f"solver_health={solver.health()}", flush=True)
-            if phase == "gate":
+            if phase == "prepare":
+                from experiments.flow_control.dataset import prepare_shard
+
+                result = prepare_shard(
+                    solver,
+                    ctx,
+                    control,
+                    seeds=payload["task_seeds"],
+                    training_seeds=payload["training_seeds"],
+                )
+            elif phase == "residual_pilot":
+                from experiments.flow_control.residual_pilot import run_residual_pilot
+
+                result = run_residual_pilot(
+                    solver, ctx, control, payload=payload, out_dir=args.out
+                )
+            elif phase == "gate":
                 result = run_gate(solver, ctx, control, seeds=payload["task_seeds"])
             elif phase == "shooting_diagnostic":
                 from experiments.flow_control.shooting_diagnostic import (
@@ -90,7 +106,7 @@ def main() -> None:
         plot_shooting_diagnostic(
             result["arrays"], result["metrics"], args.out / "plots"
         )
-    else:
+    elif phase in {"pilot", "residual_pilot"}:
         plot_pilot(result["arrays"], result["metrics"], args.out / "plots")
         if result.get("model_checkpoint") is not None:
             (args.out / "model.eqx").write_bytes(result["model_checkpoint"])

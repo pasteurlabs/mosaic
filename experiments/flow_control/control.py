@@ -99,6 +99,8 @@ class Task:
     initial_seed: int | None = None
     goal_seed: int | None = None
     fine_goal_rollout: np.ndarray | None = None
+    policy_features: np.ndarray | None = None
+    baseline_latents: np.ndarray | None = None
 
 
 @lru_cache(maxsize=16)
@@ -454,13 +456,29 @@ class ControlPolicy(eqx.Module):
         return self.layers[-1](hidden).reshape(self.slots, 8)
 
 
-def init_policy(seed: int, config: ControlConfig) -> ControlPolicy:
+def init_policy(
+    seed: int, config: ControlConfig, *, architecture: str = "field_mlp"
+) -> Any:
     """Initialize all policy-training methods from the same model seed."""
+    if architecture == "linear_residual":
+        from .residual_policy import init_residual_policy
+
+        return init_residual_policy(seed, config)
+    if architecture != "field_mlp":
+        raise ValueError(f"Unknown policy architecture: {architecture}")
     return ControlPolicy(jax.random.PRNGKey(seed), config)
 
 
 def policy_latents(model: ControlPolicy, task: Task) -> jax.Array:
     """Compute action latents before applying the common bound."""
+    from .residual_policy import ResidualPolicy
+
+    if isinstance(model, ResidualPolicy):
+        if task.policy_features is None or task.baseline_latents is None:
+            raise ValueError("residual policies require cached task features")
+        return model(
+            jnp.asarray(task.policy_features), jnp.asarray(task.baseline_latents)
+        )
     return model(jnp.asarray(task.initial), jnp.asarray(task.goal))
 
 
@@ -481,14 +499,23 @@ def train_policy(
     updates: int = 500,
     lr: float = 1e-3,
     wall_time_budget_s: float | None = None,
+    model: Any | None = None,
+    checkpoint_updates: tuple[int, ...] = (),
 ) -> dict[str, Any]:
     """Train directly on terminal objectives; no expert action labels are used."""
     if not tasks or updates < 1 or lr <= 0:
         raise ValueError("training needs tasks and positive updates/learning rate")
     if wall_time_budget_s is not None and wall_time_budget_s <= 0:
         raise ValueError("wall_time_budget_s must be positive")
+    if any(
+        int(value) != value or not 1 <= value <= updates for value in checkpoint_updates
+    ):
+        raise ValueError(
+            "checkpoint updates must be integers within the training budget"
+        )
+    checkpoint_models = {}
     started = time.perf_counter()
-    model = init_policy(seed, config)
+    model = init_policy(seed, config) if model is None else model
     optimizer = optax.chain(optax.clip_by_global_norm(5), optax.adam(lr))
     state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
     rng = np.random.default_rng(seed)
@@ -528,6 +555,8 @@ def train_policy(
         )
         model = eqx.apply_updates(model, change)
         jax.block_until_ready((model, state))
+        if update + 1 in checkpoint_updates:
+            checkpoint_models[update + 1] = model
         trace.append(
             {
                 "update": update + 1,
@@ -544,6 +573,9 @@ def train_policy(
             )
     return {
         "model": model,
+        "checkpoint_models": checkpoint_models
+        if checkpoint_updates
+        else {len(trace): model},
         "trace": trace,
         "completed": completed,
         "failure": failure,
