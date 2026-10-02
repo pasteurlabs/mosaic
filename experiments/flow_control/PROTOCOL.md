@@ -168,3 +168,20 @@ expert refinement cost. Per-job costs exclude precomputed shared work, preventin
 double-counting. Full-grid validation and fit diagnostics are separate from
 training cost. No revised superiority claim is justified until these comparisons
 have completed and baselines have been tuned on validation data.
+
+## Residual pilot closure
+
+All 12 residual-policy jobs completed and passed admission on the shared dataset
+`deead2fb02bedbe3c3b4a2199114e0d08a0ebe00ac66ced553316cead8ba4a83`.
+Mean final objectives were full gradients .02729366, SPSA .02639340,
+demonstration imitation .02787517 and refined-label imitation .02810713,
+versus linear initialization .02605520. For every method, the best mean over
+its registered validation checkpoints was update zero. Expert refinement did
+improve all 64 training labels, so the residual pilot is no longer affected by
+the earlier unchanged-label issue. These outcomes close this policy architecture
+without a neural-training advantage; no additional runs of it are planned.
+
+The separate direct-control experiment in [DIRECT_PROTOCOL.md](DIRECT_PROTOCOL.md)
+now tests solver-gradient optimization against tuned SPSA and Powell at matched
+wall-time budgets. Its untouched confirmation runs are gated on development-only
+selection. Direct optimization results cannot be relabeled as neural training.
