@@ -35,3 +35,19 @@ pretraining updates and one subsequent update, with epsilon 0.01 plus
 0.003, 0.001, 0.0003 and 0.0001. It is a new repeat of the protocol, not a
 reconstruction of the missing original checkpoint. This diagnostic is not a
 training-quality comparison.
+
+The fixed-model study completed. The autodiff directional derivative was
+-0.0021608025 at every step; the finite differences did **not** converge:
+
+| Epsilon | Finite difference | Relative discrepancy |
+| ------: | ----------------: | -------------------: |
+|    0.01 |     -0.0019237399 |              0.05804 |
+|   0.003 |     -0.0014677644 |              0.19100 |
+|   0.001 |     -0.0152811399 |              0.75223 |
+|  0.0003 |      0.0000496705 |              1.00000 |
+|  0.0001 |     -0.0544637442 |              0.92368 |
+
+The primary check exceeds the unchanged 5% threshold. The erratic smaller-step
+values do not establish derivative correctness or identify the source of the
+mismatch. Keep this run and the original warm-start failure flagged. The Warp
+results are independent of this JAX-CFD diagnostic.

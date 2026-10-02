@@ -339,6 +339,118 @@ def _ratio(baseline: np.ndarray, corrected: np.ndarray) -> dict:
     return {"ratio": point, "ci95": np.quantile(draws, [0.025, 0.975]).tolist()}
 
 
+def _plot_outcomes(rows: list[dict], destination: Path) -> None:
+    """Show absolute error and small paired effects without a broad ratio axis."""
+    import matplotlib.pyplot as plt
+
+    arms = ["uncorrected", "supervised", "stop_gradient", "corrected"]
+    labels = ["Solver only", "Supervised", "Recurrent, stopped", "Recurrent, full"]
+    colors = ["0.5", "tab:orange", "tab:blue", "tab:green"]
+    for row in rows:
+        means = [row["arm_summaries"][a]["mean_rollout_error"] for a in arms]
+        if any(v is None or not np.isfinite(v) or v <= 0 for v in means):
+            continue
+        fig, (absolute, effect) = plt.subplots(1, 2, figsize=(11, 4.7))
+        fig.subplots_adjust(left=0.18, right=0.97, bottom=0.25, top=0.72, wspace=0.8)
+        for i, (arm, color, mean) in enumerate(zip(arms, colors, means, strict=True)):
+            values = np.asarray(row["arm_summaries"][arm]["model_seed_means"])
+            absolute.scatter(
+                100 * values, np.full(len(values), i), color=color, alpha=0.5, s=25
+            )
+            absolute.plot(100 * mean, i, "D", color=color, ms=7)
+            absolute.annotate(
+                f"{100 * mean:.3f}%",
+                (100 * mean, i),
+                xytext=(0, 10),
+                textcoords="offset points",
+                ha="center",
+                fontsize=9,
+            )
+        absolute.set_yticks(range(4), labels)
+        absolute.set_ylim(3.55, -0.65)
+        absolute.set_xlim(
+            left=0,
+            right=125
+            * max(max(row["arm_summaries"][a]["model_seed_means"]) for a in arms),
+        )
+        absolute.set_xlabel("Mean relative L2 error (%)")
+        absolute.set_title("Absolute rollout error", loc="left", weight="bold")
+        full = np.asarray(row["arm_summaries"]["corrected"]["model_seed_means"])
+        bounds = [0.0]
+        for i, (key, arm) in enumerate(
+            [("vs_supervised", "supervised"), ("vs_stopped", "stop_gradient")]
+        ):
+            result = row[key]
+            value = 100 * (1 - 1 / result["ratio"])
+            interval = result["ci95"]
+            interval = [100 * (1 - 1 / x) for x in interval] if interval else None
+            seed_base = np.asarray(row["arm_summaries"][arm]["model_seed_means"])
+            seed_gain = 100 * (1 - full / seed_base)
+            bounds.extend(seed_gain.tolist() + [value] + (interval or []))
+            checked = row["admitted"] and row["gradient_checks_passed"]
+            resolved = interval is not None and not interval[0] <= 0 <= interval[1]
+            color = (
+                ("#147d64" if value > 0 else "#b55b35")
+                if checked and resolved
+                else "0.5"
+            )
+            effect.scatter(
+                seed_gain, np.full(len(seed_gain), i), color=color, alpha=0.4, s=25
+            )
+            if interval:
+                effect.plot(interval, [i, i], color=color, lw=2)
+            effect.plot(value, i, "D" if checked else "x", color=color, ms=7)
+            label = f"{value:+.2f}%"
+            if interval:
+                label += f" [{interval[0]:+.2f}, {interval[1]:+.2f}]"
+            effect.annotate(
+                label,
+                (value, i),
+                xytext=(0, 13),
+                textcoords="offset points",
+                ha="center",
+                fontsize=9,
+            )
+        pad = max(1.0, (max(bounds) - min(bounds)) * 0.3)
+        effect.set_xlim(min(bounds) - pad, max(bounds) + pad)
+        effect.axvline(0, color="0.5", ls="--", lw=1)
+        effect.set_yticks([0, 1], ["vs supervised", "vs stopped"])
+        effect.set_ylim(1.65, -0.65)
+        effect.set_xlabel("Error reduction with full gradients (%)")
+        effect.set_title(
+            "Paired benefit · positive is better", loc="left", weight="bold"
+        )
+        for ax in (absolute, effect):
+            ax.spines[["top", "right", "left"]].set_visible(False)
+            ax.tick_params(axis="y", length=0)
+            ax.grid(axis="x", alpha=0.1)
+        curriculum = row.get("curriculum", [])
+        rates = " → ".join(f"{s['lr']:g}" for s in curriculum)
+        subtitle = (
+            f"{row['phase'].capitalize()} · {row['solver']} · "
+            f"{row['n_model_seeds']} model seeds × {row['n_test_ics']} held-out ICs · "
+            f"{row['updates']:,} updates · horizon {row['unroll']}"
+        )
+        if rates:
+            subtitle += f" · LR {rates}"
+        fig.text(
+            0.05, 0.94, "How much do solver gradients help?", fontsize=18, weight="bold"
+        )
+        fig.text(0.05, 0.86, subtitle, fontsize=10, color="0.3")
+        note = "Diamonds: pooled means/effects. Dots: model-seed means/effects."
+        note += "\nIntervals: paired model-seed/IC bootstrap, 95%. Error averages all noninitial rollout frames."
+        if not (row["admitted"] and row["gradient_checks_passed"]):
+            note += "\n×: reference or gradient check failed; not an admitted gradient-benefit result."
+        fig.text(0.05, 0.06, note, fontsize=9, color="0.35")
+        fig.savefig(
+            destination
+            / f"outcome-{row['phase']}-{row['solver']}-{row['protocol_sha256'][:8]}.png",
+            dpi=180,
+            facecolor="white",
+        )
+        plt.close(fig)
+
+
 def _plot_comparisons(rows: list[dict], destination: Path) -> None:
     """Compare solvers within a fixed protocol on identical, readable axes."""
     import matplotlib.pyplot as plt
@@ -642,6 +754,10 @@ def main() -> None:
             mean = samples[..., 1:].mean()
             summaries[arm] = {
                 "mean_rollout_error": float(mean) if np.isfinite(mean) else None,
+                "model_seed_means": [
+                    float(v) if np.isfinite(v) else None
+                    for v in samples[..., 1:].mean(axis=(1, 2))
+                ],
                 "mean_final_error": float(final.mean())
                 if np.all(np.isfinite(final))
                 else None,
@@ -722,6 +838,7 @@ def main() -> None:
     }
     if args.plots:
         _plot_comparisons(rows, args.plots)
+        _plot_outcomes(rows, args.plots)
     text = json.dumps(result, indent=2)
     if args.out:
         args.out.write_text(text)
