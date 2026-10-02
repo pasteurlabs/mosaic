@@ -102,6 +102,10 @@ def main() -> None:
     parser.add_argument("--amplitude", type=float, default=0.5)
     parser.add_argument("--dt", type=float, default=0.02)
     parser.add_argument("--fd-epsilon", type=float, default=1e-2)
+    parser.add_argument(
+        "--fd-epsilons",
+        help="additional comma-separated diagnostic steps at the same initial model",
+    )
     parser.add_argument("--train-frames", type=int, default=24)
     parser.add_argument("--eval-frames", type=int, default=48)
     parser.add_argument("--forcing-amplitude", type=float, default=0.0)
@@ -194,6 +198,10 @@ def main() -> None:
                         )
                     run["physics"]["dt"] = args.dt
                     run["training"]["fd_epsilon"] = args.fd_epsilon
+                    if args.fd_epsilons:
+                        run["training"]["fd_epsilons"] = [
+                            float(value) for value in args.fd_epsilons.split(",")
+                        ]
                     run["dataset"]["train_frames"] = args.train_frames
                     run["evaluation"]["rollout_frames"] = args.eval_frames
                     run["dataset"]["prefix_audit_frames"] = sorted(

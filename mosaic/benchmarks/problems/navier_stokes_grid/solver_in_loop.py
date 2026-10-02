@@ -914,6 +914,7 @@ def _directional_fd(
     key: jax.Array,
     *,
     epsilon: float,
+    diagnostics: dict[str, float] | None = None,
 ) -> float:
     """Relative error of one end-to-end directional finite difference."""
     dynamic, static = eqx.partition(model, eqx.is_inexact_array)
@@ -958,7 +959,15 @@ def _directional_fd(
             strict=True,
         )
     )
-    return float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12))
+    error = float(jnp.abs(fd - ad) / (jnp.abs(fd) + jnp.abs(ad) + 1e-12))
+    if diagnostics is not None:
+        diagnostics.update(
+            epsilon=epsilon,
+            finite_difference=float(fd),
+            autodiff=float(ad),
+            relative_error=error,
+        )
+    return error
 
 
 def _make_supervised_inputs(
@@ -1069,6 +1078,7 @@ def _train_corrector(
     model_seed: int,
     supervised_inputs: np.ndarray | None = None,
     initial_model: Any = None,
+    fd_checks: list[dict[str, float]] | None = None,
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
     """Train one solver-specific corrector with a fixed stochastic schedule."""
     max_updates = int(training.get("max_updates", 100))
@@ -1085,6 +1095,11 @@ def _train_corrector(
     loss_mode = str(training.get("loss_mode", "mean"))
     solver_loss_weight = float(training.get("solver_loss_weight", 0.1))
     fd_epsilon = float(training.get("fd_epsilon", 1e-2))
+    fd_epsilons = list(
+        dict.fromkeys([fd_epsilon, *map(float, training.get("fd_epsilons", []))])
+    )
+    if any(not np.isfinite(value) or value <= 0 for value in fd_epsilons):
+        raise ValueError("finite-difference steps must be finite and positive")
     if loss_mode not in {"mean", "terminal", "solver_terminal"}:
         raise ValueError(f"unknown training.loss_mode: {loss_mode!r}")
     if solver_loss_weight < 0:
@@ -1173,13 +1188,26 @@ def _train_corrector(
             and differentiate_solver
             and bool(training.get("check_grad", True))
         ):
-            fd_error = _directional_fd(
-                loss_fn,
-                model,
-                grads,
-                jax.random.PRNGKey(model_seed + 1),
-                epsilon=fd_epsilon,
-            )
+            for epsilon in fd_epsilons:
+                diagnostic: dict[str, float] = {}
+                error = _directional_fd(
+                    loss_fn,
+                    model,
+                    grads,
+                    jax.random.PRNGKey(model_seed + 1),
+                    epsilon=epsilon,
+                    diagnostics=diagnostic,
+                )
+                if epsilon == fd_epsilon:
+                    fd_error = error
+                if fd_checks is not None:
+                    fd_checks.append(diagnostic)
+                print(
+                    f"gradient_check seed={model_seed} epsilon={epsilon:g} "
+                    f"relative_error={error:g} ad={diagnostic['autodiff']:g} "
+                    f"fd={diagnostic['finite_difference']:g}",
+                    flush=True,
+                )
         updates, opt_state = optimiser.update(
             grads,
             opt_state,
@@ -1815,6 +1843,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     grad_norms_by_seed: list[list[float]] = []
     update_times_by_seed: list[list[float]] = []
     fd_errors: list[float | None] = []
+    fd_checks_by_seed: list[list[dict[str, float]]] = []
     completed_by_seed: list[bool] = []
     training_walls: list[float] = []
     stop_gradient_losses_by_seed: list[list[float]] = []
@@ -1830,6 +1859,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     first_stop_gradient: np.ndarray | None = None
 
     for seed_idx, model_seed in enumerate(model_seeds):
+        seed_fd_checks: list[dict[str, float]] = []
+        fd_checks_by_seed.append(seed_fd_checks)
         seed_training = {
             **training,
             # One end-to-end FD check is enough for a shared architecture and
@@ -1856,6 +1887,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             differentiate_solver=True,
             model_seed=model_seed,
             initial_model=initial_models.get(model_seed),
+            fd_checks=seed_fd_checks,
         )
         training_walls.append(time.perf_counter() - started)
 
@@ -2203,6 +2235,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         if stop_gradient_grad_norms.size
         else None,
         "end_to_end_fd_rel_error": _mean_optional(fd_errors),
+        "end_to_end_fd_checks_by_seed": fd_checks_by_seed,
         "final_divergence_rms": divergence_rms(first_corrected[-1], ctx.domain_extent)
         if first_corrected is not None
         else None,

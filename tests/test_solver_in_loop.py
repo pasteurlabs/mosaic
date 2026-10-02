@@ -1284,6 +1284,51 @@ def test_training_curriculum_changes_horizon_and_learning_rate(monkeypatch, supe
     assert float(model) == pytest.approx(1.0 - 2 * 0.01 - 2 * 0.001, abs=1e-6)
 
 
+def test_fd_refinement_uses_one_model_and_does_not_change_training(monkeypatch):
+    """A known nonlinear loss refines at one point before the unchanged update."""
+    import importlib
+
+    module = importlib.import_module(solver_in_loop.__module__)
+    monkeypatch.setattr(module, "_window_loss", lambda model, **kwargs: model**4)
+    train = np.zeros((1, 2, 1), dtype=np.float32)
+    arguments = {
+        "frame_steps": 1,
+        "velocity_scale": 1.0,
+        "loss_scale": 1.0,
+        "differentiate_solver": True,
+        "model_seed": 7,
+        "initial_model": jnp.asarray(0.7),
+    }
+    training = {"max_updates": 1, "unroll": 1, "fd_epsilon": 0.1}
+    baseline = module._train_corrector(
+        None,
+        SimpleNamespace(domain_extent=2 * np.pi),
+        train,
+        training=training,
+        **arguments,
+    )
+    checks = []
+    refined = module._train_corrector(
+        None,
+        SimpleNamespace(domain_extent=2 * np.pi),
+        train,
+        training={**training, "fd_epsilons": [0.03, 0.01, 0.03]},
+        fd_checks=checks,
+        **arguments,
+    )
+    assert float(baseline[0]) == float(refined[0])
+    assert baseline[1:3] == refined[1:3]
+    assert baseline[4] == refined[4] == checks[0]["relative_error"]
+    assert [check["epsilon"] for check in checks] == [0.1, 0.03, 0.01]
+    assert len({check["autodiff"] for check in checks}) == 1
+    assert abs(checks[0]["autodiff"]) == pytest.approx(4 * 0.7**3, abs=1e-6)
+    assert (
+        checks[0]["relative_error"]
+        > checks[1]["relative_error"]
+        > checks[2]["relative_error"]
+    )
+
+
 @pytest.mark.parametrize(
     "stage, match",
     [
