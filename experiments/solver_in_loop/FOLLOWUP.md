@@ -175,3 +175,51 @@ Full training took 13,818 seconds summed across seeds, versus 4,410 seconds for
 supervision including pair generation. The compute-matched comparison cannot
 reverse this conclusion: forcing supervision to spend more time can overtrain,
 and a within-budget baseline may select the cheaper validation-optimal schedule.
+
+## PICT runtime investigation
+
+The completed 300-update run spent 371.9 seconds generating references, 895.0
+training full gradients, 439.8 on stopped gradients and 178.9 on supervision.
+Scaling the training portion to 3,000 updates predicts about 4.3 hours, exceeding
+the four-hour allocation limit. The timeout is consistent with cumulative work;
+it does not by itself indicate a stalled solver. Splitting or resuming completed
+arms is the practical next step.
+
+GPU profile 2861273 (`pr116-pict-profile-20261002`) measured 64², four-step
+periodic calls: median forward 50.3 ms, VJP 182.0 ms, including a 118.7 ms
+adjoint. Domain construction takes only 0.085 ms and setup outside the simulation
+less than 1 ms. Sparse linear solves dominate, so caching mutable domains would
+add correctness risk for negligible benefit. Four pressure correctors and the
+original linear-solver tolerances remain unchanged.
+
+The following candidates were measured and retained without changing the
+production PICT adapter or frozen images:
+
+- Upstream BiCG preconditioning (2861302, `pr116-pict-precondition-20261002`)
+  was slower and failed strict forward parity; reject it.
+- Removing an unused scalar GPU synchronization (2861310,
+  `pr116-pict-sync-cleanup-20261002`) passed forward and velocity/viscosity VJP
+  comparisons across random periodic fields, 32²/64² grids, different timesteps,
+  viscosities and step counts. Timings were unchanged within variability;
+  the adapter edit was reverted.
+- Optional RPC-boundary JIT (2861280, `pr116-pict-rpc-boundary-20261002`) gave
+  1.081× median speedup over 30 paired horizon-eight training-step samples.
+  Loss matched and gradients passed strict comparison, but two Adam-updated
+  parameters failed the elementwise check (maximum difference 8.64e-6).
+  Preserve that failure; PICT scientific runs keep the option off. A subsequent
+  eager/eager control job 2861324 was cancelled before completing to prioritize
+  the allocation-limit fix.
+
+The profiling scripts are `check_pict_cost.py` and `check_ins_rpc_cost.py`
+(the latter also accepts a solver and physical parameters). All numerical work
+ran on Slurm. These probes do not provide new training-quality results.
+
+## Approach discontinued
+
+On 2026-10-02 the user requested abandoning correction learning in favor of
+neural fluid control. The old automatic controller was stopped; remaining INS
+compute-matched, PhiFlow correction and JAX reference jobs were cancelled.
+Completed results and partial logs remain preserved. The PICT continuation
+prototype is parked in git stash and frozen cluster archives, not integrated
+into this benchmark. The replacement hypothesis is described in
+`experiments/flow_control/PROTOCOL.md`.

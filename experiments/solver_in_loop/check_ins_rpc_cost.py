@@ -35,27 +35,31 @@ def main() -> None:
     parser.add_argument("--candidate-url", required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--samples", type=int, default=30)
+    parser.add_argument("--solver", default="ins_jl")
+    parser.add_argument("--forcing-amplitude", type=float, default=1.0)
+    parser.add_argument("--amplitude", type=float, default=0.05)
+    parser.add_argument("--dt", type=float, default=0.01)
     parser.add_argument("--jit-candidate", action="store_true")
     parser.add_argument("--prime-model", action="store_true")
     parser.add_argument("--jit-rpc-candidate", action="store_true")
     args = parser.parse_args()
     assert jax.default_backend() == "gpu"
-    spec = next(s for s in get_config("ns-grid").solvers if s.key == "ins_jl")
+    spec = next(s for s in get_config("ns-grid").solvers if s.key == args.solver)
     ctx = SimpleNamespace(
         name=spec.name,
         domain_extent=2 * np.pi,
         output_key="result",
         phys={
             "nu": 0.001,
-            "dt": 0.01,
+            "dt": args.dt,
             "steps": 4,
             "domain_extent": 2 * np.pi,
-            "forcing_amplitude": 1.0,
+            "forcing_amplitude": args.forcing_amplitude,
             "forcing_wavenumber": 6,
         },
         make_inputs=lambda name, value, **physics: make_inputs(spec, value, **physics),
     )
-    initial = _multimode(64, seed=116, k0=4, amplitude=0.05)
+    initial = _multimode(64, seed=116, k0=4, amplitude=args.amplitude)
     # Synthetic fixed targets exercise the production training graph, not accuracy.
     targets = jnp.stack([initial * (1 + 0.01 * frame) for frame in range(9)])
     model = init_corrector(jax.random.PRNGKey(116))
@@ -95,7 +99,7 @@ def main() -> None:
                     t=service,
                     ctx=contexts[name],
                     frame_steps=4,
-                    velocity_scale=0.05,
+                    velocity_scale=args.amplitude,
                     differentiate_solver=True,
                     loss_mode="mean",
                     solver_loss_weight=0.0,
@@ -117,11 +121,17 @@ def main() -> None:
                     frame_steps=4,
                     native_state=native,
                 )
-            forward[name] = (np.asarray(velocity), np.asarray(native))
+            forward[name] = (
+                np.asarray(velocity),
+                None if native is None else np.asarray(native),
+            )
         for original, candidate in zip(
             forward["original"], forward["candidate"], strict=True
         ):
-            np.testing.assert_allclose(candidate, original, rtol=1e-6, atol=1e-7)
+            if original is None:
+                assert candidate is None
+            else:
+                np.testing.assert_allclose(candidate, original, rtol=1e-6, atol=1e-7)
         if args.prime_model:
             _, gradient = functions["original"](model, targets)
             updates, optimizer_state = optimizer.update(
@@ -190,11 +200,12 @@ def main() -> None:
             "comparison_diagnostics": diagnostics,
             "candidate_loss_gradient_jitted": args.jit_candidate,
             "candidate_rpc_jitted": args.jit_rpc_candidate,
+            "solver": args.solver,
             "N": 64,
             "horizon": 8,
             "native_steps_per_interval": 4,
-            "forcing_amplitude": 1.0,
-            "dt": 0.01,
+            "forcing_amplitude": args.forcing_amplitude,
+            "dt": args.dt,
             "warmup_samples": 2,
             "timed_samples": args.samples,
             "seconds": timings,
