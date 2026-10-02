@@ -123,3 +123,22 @@ ICs have not been used in the previous comparisons. Jobs 2858906–2858910 and
 The CLI's `--test-seed-start` changes the held-out range and its reference-audit
 seed, retaining the protocol's IC counts and rejecting overlap with training.
 All eight seeds will be reported, irrespective of outcome.
+
+## Completion publication
+
+A one-shot completion publisher is running on `kander-login` (PID 1429458,
+started 2026-10-02 00:59 UTC). It waits for Slurm reports 2858787, 2858730,
+2858917 and 2858883, then copies all final Warp and forced-INS results and plots
+to `pr-116-local-results` and updates PR #116. It performs no numerical work.
+The fresh-IC decay result determines the conclusion; incomplete seeds or failed
+checks cannot produce a confirmation claim. Positive, unresolved, invalid and
+incomplete-result rendering paths were checked before launch.
+
+Its script, log and machine-readable status are in the campaign directory
+`/data/personal/andrinr/runner/results/mosaic/pr116-warp-repaired-20261001/`:
+`finish_campaign.py`, `completion-publisher.log` and `completion-status.json`.
+The publisher stops if a report fails, pending outcomes remain, the artifact
+worktree is dirty, or the PR description changes after launch. It has a six-hour
+waiting deadline. Inspect the status before restarting or editing the PR; a
+successful publication records the artifact commit. This is a one-time finish
+step, not a recurring experiment or an automatic claim of success.
