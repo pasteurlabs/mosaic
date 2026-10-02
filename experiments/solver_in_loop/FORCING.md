@@ -88,3 +88,12 @@ stay as in the probe. All three training methods use the same initialization,
 windows and update budget. Use finite-difference epsilon 0.001 for this new
 pilot, motivated by the independent Warp step-refinement diagnostics; retain
 the unchanged 0.05 gradient-error threshold. Report all seeds and failures.
+
+The cheaper INS probe passed: maximum time-audit difference 0.00001020,
+recurrent directional-gradient error 0.001022, and finite reference fields.
+Reference generation took 1,326 seconds for two ICs. Inspection of the stored
+fields shows evolving large vortices with finer shear structures; this is not
+a stationarity certificate. The planned three-seed training pilot was launched
+as jobs 2858879–2858881 in `pr116-forced-training-20261002`; report job 2858883
+runs after all three terminate. It retains the previously validated numerical
+source and solver image.

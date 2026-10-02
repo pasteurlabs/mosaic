@@ -108,6 +108,11 @@ def main() -> None:
     )
     parser.add_argument("--train-frames", type=int, default=24)
     parser.add_argument("--eval-frames", type=int, default=48)
+    parser.add_argument(
+        "--test-seed-start",
+        type=int,
+        help="start of a fresh held-out IC range; retain the protocol's test count",
+    )
     parser.add_argument("--forcing-amplitude", type=float, default=0.0)
     parser.add_argument("--forcing-wavenumber", type=int, default=6)
     parser.add_argument("--burn-in-time", type=float, default=0.0)
@@ -223,6 +228,27 @@ def main() -> None:
                         run["dataset"]["train_seeds"] = [0]
                         run["dataset"]["test_seeds"] = [1000 if args.confirm else 100]
                         cell += "-reference"
+
+                    if args.test_seed_start is not None:
+                        test_seeds = list(
+                            range(
+                                args.test_seed_start,
+                                args.test_seed_start
+                                + len(run["dataset"]["test_seeds"]),
+                            )
+                        )
+                        if args.test_seed_start < 0 or set(test_seeds).intersection(
+                            run["dataset"]["train_seeds"]
+                        ):
+                            raise ValueError(
+                                "held-out seeds must be nonnegative and disjoint from training"
+                            )
+                        run["dataset"]["test_seeds"] = test_seeds
+                        run["dataset"]["prefix_audit_seeds"] = [
+                            run["dataset"]["train_seeds"][0],
+                            test_seeds[0],
+                        ]
+                        cell += f"-test{args.test_seed_start}"
 
                     for option, field in (
                         (args.reference_factor, "reference_factor"),

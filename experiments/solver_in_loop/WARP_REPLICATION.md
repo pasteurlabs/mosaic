@@ -104,3 +104,22 @@ outcome; do not stop adding seeds when an interval first excludes a tie. This
 addresses the unresolved small derivative effect, and the earlier three-seed
 summary remains an interim result. This expansion is chosen after inspecting
 that summary and should be described as such.
+
+## Learning-rate result and new-IC confirmation
+
+The three-seed decay schedule completed with mean errors 0.011779 (full),
+0.012056 (stopped) and 0.012265 (supervised). The supervised/full ratio is
+1.041 [1.017, 1.062], and stopped/full is 1.024 [1.008, 1.039], using paired
+seed/IC bootstrap 95% intervals. Reference and initial gradient checks pass.
+The exploratory gain is small: about 4.0% versus supervision and 2.3% versus
+stopped gradients. Full training costs about 39% more than supervision and
+21% more than stopped training in these runs. Compare methods within each
+protocol; schedules have different completed seed counts and datasets.
+
+Freeze a separate eight-seed confirmation (model seeds 0–7) of this exact
+schedule on **new held-out ICs 2000–2007**, with training ICs 0–15. These test
+ICs have not been used in the previous comparisons. Jobs 2858906–2858910 and
+2858912–2858914 run all three methods, and report 2858917 follows them.
+The CLI's `--test-seed-start` changes the held-out range and its reference-audit
+seed, retaining the protocol's IC counts and rejecting overlap with training.
+All eight seeds will be reported, irrespective of outcome.

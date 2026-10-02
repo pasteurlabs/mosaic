@@ -458,11 +458,22 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
         horizon_label = "→".join(str(stage["unroll"]) for stage in curriculum) or str(
             exemplar["unroll"]
         )
+        if curriculum and len({stage["unroll"] for stage in curriculum}) == 1:
+            horizon_label = str(curriculum[0]["unroll"])
+        rate_label = ""
+        if len({stage["lr"] for stage in curriculum}) > 1:
+            rate_label = " · lr " + "→".join(f"{stage['lr']:g}" for stage in curriculum)
+        physical_label = (
+            f"forcing k={exemplar['forcing_wavenumber']} a={exemplar['forcing_amplitude']:g} · "
+            f"burn-in {exemplar['burn_in_time']:g}"
+            if exemplar.get("forcing_amplitude", 0)
+            else f"vortex scale {exemplar['k0']:g} · amplitude {exemplar['amplitude']:g}"
+        )
         fig.text(
             0.13,
             0.87,
-            f"{exemplar['phase'].capitalize()} · {exemplar['N']}² grid · vortex scale {exemplar['k0']:g} · "
-            f"amplitude {exemplar['amplitude']:g} · unroll {horizon_label} · {exemplar['updates']:,} updates",
+            f"{exemplar['phase'].capitalize()} · {exemplar['N']}² · {physical_label} · "
+            f"unroll {horizon_label} · {exemplar['updates']:,} updates{rate_label}",
             fontsize=10,
             color="0.35",
         )
@@ -482,10 +493,12 @@ def _plot_comparisons(rows: list[dict], destination: Path) -> None:
             fontsize=10,
         )
         seeds = sorted({r["n_model_seeds"] for r in group})
+        ic_counts = sorted({r["n_test_ics"] for r in group})
         note = (
             "Single model seed; exploratory estimates without confidence intervals."
             if seeds == [1]
-            else "Bars: paired model-seed / initial-condition bootstrap 95% intervals."
+            else f"Model seeds per row: {','.join(map(str, seeds))}; held-out ICs: {','.join(map(str, ic_counts))}. "
+            "Bars: paired bootstrap 95% intervals."
         )
         if any(not (r["admitted"] and r["gradient_checks_passed"]) for r in group):
             note += "  ×: reference or gradient check failed."
@@ -667,6 +680,10 @@ def main() -> None:
                     m.get("pretrain_common_wall_time_s", 0.0) for m, _ in cells
                 ),
                 "n_model_seeds": errors["corrected"].shape[0],
+                "n_test_ics": errors["corrected"].shape[1],
+                "forcing_amplitude": cells[0][0].get("forcing_amplitude", 0.0),
+                "forcing_wavenumber": cells[0][0].get("forcing_wavenumber"),
+                "burn_in_time": cells[0][0].get("burn_in_time", 0.0),
                 "source_sha256": source,
                 "protocol_sha256": protocol_hash,
                 "admitted": admitted,
