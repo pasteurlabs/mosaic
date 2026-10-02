@@ -4,6 +4,113 @@
   "failures": [],
   "reference_checks": [
     {
+      "cell": "explore-ins-jl-n64-k4-h8-u1-s0-a0.05-force1-reference-326863ef",
+      "solver": "ins-jl",
+      "metrics": {
+        "reference_convergence_scope": "time",
+        "reference_audit_grid_size": 192,
+        "reference_audit_temporal_factor": 6,
+        "reference_convergence_errors": [
+          1.316632307309195e-06,
+          3.5893420383510464e-06,
+          5.44935035587373e-06,
+          1.0201268458683919e-05,
+          1.1532928221182905e-06,
+          3.872032238241539e-06,
+          5.083322418844858e-06,
+          9.019029777750193e-06
+        ],
+        "reference_convergence_max_relative_error": 1.0201268458683919e-05,
+        "reference_convergence_tolerance": 0.005,
+        "reference_convergence_passed": true,
+        "eligible_for_corrector_training": true,
+        "reference_generation_wall_time_s": 1326.006733815011,
+        "reference_generation_apply_count": 51432,
+        "forcing_amplitude": 1.0,
+        "forcing_wavenumber": 6,
+        "forcing_scheme": "strang_per_native_step",
+        "burn_in_time": 75.0,
+        "burn_in_diagnostics": [
+          {
+            "seed": 0,
+            "initial_velocity_rms": 0.05167967453598976,
+            "final_velocity_rms": 1.988497257232666
+          },
+          {
+            "seed": 100,
+            "initial_velocity_rms": 0.051525965332984924,
+            "final_velocity_rms": 1.8570762872695923
+          }
+        ],
+        "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+        "reference_grid_size": 192,
+        "reference_dt": 0.0033333333333333335,
+        "reference_steps_per_interval": 12,
+        "prefix_audit_seeds": [
+          0,
+          100
+        ],
+        "prefix_audit_frames": [
+          1,
+          8,
+          24,
+          48
+        ],
+        "coarse_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fine_closure_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "refinement_signals": [
+          0.009203803761159512,
+          0.0263580799539489,
+          0.04901077690214674,
+          0.0767022326380871,
+          0.009043646847607112,
+          0.027943579411811553,
+          0.0457284700702033,
+          0.07784186504939274
+        ],
+        "max_coarse_closure_error": 0.0,
+        "max_fine_closure_error": 0.0,
+        "max_coarse_closure_to_signal_ratio": 0.0,
+        "max_fine_closure_to_signal_ratio": 0.0,
+        "mean_refinement_signal": 0.04022905682929462,
+        "closure_relative_tolerance": 0.01,
+        "closure_to_signal_tolerance": 0.1,
+        "minimum_refinement_signal": 0.0001,
+        "reference_states_finite": true,
+        "reference_only_fd_relative_error": 0.0010222765849903226,
+        "reference_only_gradient_passed": true,
+        "reference_only": true,
+        "completed": true,
+        "n_updates": 0,
+        "stop_gradient_n_updates": 0,
+        "dataset_hash": "a58a084191d76aeb",
+        "reference_kind": "solver_self_refined",
+        "correction_intervals": 48,
+        "rollout_final_time": 1.92,
+        "native_state_threading": true,
+        "vram_peak_mib": 70.0,
+        "ram_peak_mib": 1041.788928
+      }
+    },
+    {
       "cell": "explore-ins-jl-n64-k4-h8-u1-s0-a0.05-force1-reference-f45b89eb",
       "solver": "ins-jl",
       "metrics": {
