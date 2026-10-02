@@ -21,6 +21,10 @@
       "pretrained_mean_rollout_error": null,
       "pretrain_common_seconds": 0.0,
       "n_model_seeds": 3,
+      "n_test_ics": 8,
+      "forcing_amplitude": 0.0,
+      "forcing_wavenumber": 6,
+      "burn_in_time": 0.0,
       "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
       "protocol_sha256": "053a8d4dda99ece7850419bac772eb29f46fb612beafbb8a08918c0d9d76f12c",
       "admitted": true,
@@ -103,6 +107,10 @@
       "pretrained_mean_rollout_error": null,
       "pretrain_common_seconds": 0.0,
       "n_model_seeds": 1,
+      "n_test_ics": 4,
+      "forcing_amplitude": 0.0,
+      "forcing_wavenumber": 6,
+      "burn_in_time": 0.0,
       "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
       "protocol_sha256": "ff5c4c30df470b5c69a6b34baee348bcbbb798b1adbe46fb337afb47813ecdbc",
       "admitted": true,
@@ -174,6 +182,10 @@
       "pretrained_mean_rollout_error": null,
       "pretrain_common_seconds": 0.0,
       "n_model_seeds": 5,
+      "n_test_ics": 4,
+      "forcing_amplitude": 0.0,
+      "forcing_wavenumber": 6,
+      "burn_in_time": 0.0,
       "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
       "protocol_sha256": "937c2ac38514b5ca9f910bdf92b3ee6c47a5ccf9fac835ffce4b61ffef7e8440",
       "admitted": true,
@@ -236,15 +248,116 @@
       "full_training_seconds": 11403.399929260951,
       "supervised_total_seconds": 7972.710254994978,
       "stopped_training_seconds": 9621.987590892997
+    },
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "warp-ns",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 3000,
+      "pretrain_updates": 0,
+      "curriculum": [
+        {
+          "updates": 1500,
+          "unroll": 8,
+          "lr": 0.0001
+        },
+        {
+          "updates": 1500,
+          "unroll": 8,
+          "lr": 1e-05
+        }
+      ],
+      "training_examples_per_seed": 24000,
+      "pretrained_mean_rollout_error": null,
+      "pretrain_common_seconds": 0.0,
+      "n_model_seeds": 3,
+      "n_test_ics": 4,
+      "forcing_amplitude": 0.0,
+      "forcing_wavenumber": 6,
+      "burn_in_time": 0.0,
+      "source_sha256": "96bc14fb5e0f2da11c7d71a16ca3d930512d5347402d8899dc68ca1f90e3a1b6",
+      "protocol_sha256": "b8a37cfaef771e8d6f65bf67a67ab552f23132df523fa434a879eb205069fc10",
+      "admitted": true,
+      "gradient_checks_passed": true,
+      "fd_relative_errors": [
+        0.0005443754489533603,
+        0.003171393182128668,
+        0.038672175258398056
+      ],
+      "vs_supervised": {
+        "ratio": 1.0412250757217407,
+        "ci95": [
+          1.0173413753509521,
+          1.0624217987060547
+        ]
+      },
+      "vs_stopped": {
+        "ratio": 1.0235356092453003,
+        "ci95": [
+          1.0079200267791748,
+          1.0393023490905762
+        ]
+      },
+      "vs_uncorrected": {
+        "ratio": 2.265268564224243,
+        "ci95": [
+          2.182868003845215,
+          2.3756983280181885
+        ]
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.011778932064771652,
+          "mean_final_error": 0.02076161839067936,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.012056156061589718,
+          "mean_final_error": 0.021365687251091003,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.012264519929885864,
+          "mean_final_error": 0.021807998418807983,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.026682443916797638,
+          "mean_final_error": 0.04960587993264198,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": true,
+      "full_training_seconds": 6998.816404031008,
+      "supervised_total_seconds": 5044.062034629984,
+      "stopped_training_seconds": 5763.511190288933
     }
   ],
   "pending": [
+    "confirm-warp-ns-n64-k4-h8-u3000-s0-curr8x8-test2000-942d6e58",
+    "confirm-warp-ns-n64-k4-h8-u3000-s1-curr8x8-test2000-6a552dea",
+    "confirm-warp-ns-n64-k4-h8-u3000-s2-curr8x8-test2000-088eed44",
+    "confirm-warp-ns-n64-k4-h8-u3000-s3-a111ec92",
+    "confirm-warp-ns-n64-k4-h8-u3000-s3-curr8x8-test2000-aecc9033",
+    "confirm-warp-ns-n64-k4-h8-u3000-s4-2c1f40b2",
+    "confirm-warp-ns-n64-k4-h8-u3000-s4-curr8x8-test2000-9ff9b9b9",
+    "confirm-warp-ns-n64-k4-h8-u3000-s5-curr8x8-test2000-3a6c1251",
+    "confirm-warp-ns-n64-k4-h8-u3000-s5-f02191de",
+    "confirm-warp-ns-n64-k4-h8-u3000-s6-curr8x8-test2000-bd15f174",
+    "confirm-warp-ns-n64-k4-h8-u3000-s6-e7e2de24",
+    "confirm-warp-ns-n64-k4-h8-u3000-s7-curr8x8-test2000-85fcc59a",
+    "confirm-warp-ns-n64-k4-h8-u3000-s7-fcc0ad8b",
     "explore-warp-ns-n64-k4-h16-u3000-s0-5153376b",
     "explore-warp-ns-n64-k4-h16-u3000-s1-f80b6b97",
-    "explore-warp-ns-n64-k4-h16-u3000-s2-e0affb79",
-    "explore-warp-ns-n64-k4-h8-u3000-s0-curr8x8-36a96cc1",
-    "explore-warp-ns-n64-k4-h8-u3000-s1-curr8x8-4c17ee1b",
-    "explore-warp-ns-n64-k4-h8-u3000-s2-curr8x8-b0dfd35b"
+    "explore-warp-ns-n64-k4-h16-u3000-s2-e0affb79"
   ],
   "failures": [],
   "reference_checks": [],
@@ -258,8 +371,24 @@
     "confirm-warp-ns-n64-k4-h8-u3000-s0-7cd6caba": "COMPLETED",
     "confirm-warp-ns-n64-k4-h8-u3000-s1-3d332a57": "COMPLETED",
     "confirm-warp-ns-n64-k4-h8-u3000-s2-2810535d": "COMPLETED",
-    "explore-warp-ns-n64-k4-h8-u3000-s0-curr8x8-36a96cc1": "RUNNING",
-    "explore-warp-ns-n64-k4-h8-u3000-s1-curr8x8-4c17ee1b": "RUNNING",
-    "explore-warp-ns-n64-k4-h8-u3000-s2-curr8x8-b0dfd35b": "RUNNING"
+    "explore-warp-ns-n64-k4-h8-u3000-s0-curr8x8-36a96cc1": "COMPLETED",
+    "explore-warp-ns-n64-k4-h8-u3000-s1-curr8x8-4c17ee1b": "COMPLETED",
+    "explore-warp-ns-n64-k4-h8-u3000-s2-curr8x8-b0dfd35b": "COMPLETED",
+    "explore-warp-ns-n64-k4-h16-u3000-s0-5153376b": "RUNNING",
+    "explore-warp-ns-n64-k4-h16-u3000-s1-f80b6b97": "RUNNING",
+    "explore-warp-ns-n64-k4-h16-u3000-s2-e0affb79": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s3-a111ec92": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s4-2c1f40b2": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s5-f02191de": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s6-e7e2de24": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s7-fcc0ad8b": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s0-curr8x8-test2000-942d6e58": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s1-curr8x8-test2000-6a552dea": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s2-curr8x8-test2000-088eed44": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s3-curr8x8-test2000-aecc9033": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s4-curr8x8-test2000-9ff9b9b9": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s5-curr8x8-test2000-3a6c1251": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s6-curr8x8-test2000-bd15f174": "RUNNING",
+    "confirm-warp-ns-n64-k4-h8-u3000-s7-curr8x8-test2000-85fcc59a": "RUNNING"
   }
 }
