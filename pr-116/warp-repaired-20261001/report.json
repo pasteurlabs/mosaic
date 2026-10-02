@@ -58,24 +58,44 @@
       "arm_summaries": {
         "corrected": {
           "mean_rollout_error": 0.01166120171546936,
+          "model_seed_means": [
+            0.01174179743975401,
+            0.01186376716941595,
+            0.011378041468560696
+          ],
           "mean_final_error": 0.0209494736045599,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "stop_gradient": {
           "mean_rollout_error": 0.011870846152305603,
+          "model_seed_means": [
+            0.011989074759185314,
+            0.011873588897287846,
+            0.011749877594411373
+          ],
           "mean_final_error": 0.021450236439704895,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "supervised": {
           "mean_rollout_error": 0.014271901920437813,
+          "model_seed_means": [
+            0.013527359813451767,
+            0.015028710477054119,
+            0.014259636402130127
+          ],
           "mean_final_error": 0.026732107624411583,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "uncorrected": {
           "mean_rollout_error": 0.027759850025177002,
+          "model_seed_means": [
+            0.027759850025177002,
+            0.027759850025177002,
+            0.027759850025177002
+          ],
           "mean_final_error": 0.05214844271540642,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
@@ -133,24 +153,36 @@
       "arm_summaries": {
         "corrected": {
           "mean_rollout_error": 0.01858912967145443,
+          "model_seed_means": [
+            0.01858912967145443
+          ],
           "mean_final_error": 0.034464031457901,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "stop_gradient": {
           "mean_rollout_error": 0.02074511907994747,
+          "model_seed_means": [
+            0.02074511907994747
+          ],
           "mean_final_error": 0.03912799432873726,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "supervised": {
           "mean_rollout_error": 0.017701273784041405,
+          "model_seed_means": [
+            0.017701273784041405
+          ],
           "mean_final_error": 0.03272893279790878,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "uncorrected": {
           "mean_rollout_error": 0.026682445779442787,
+          "model_seed_means": [
+            0.026682445779442787
+          ],
           "mean_final_error": 0.04960587993264198,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
@@ -221,24 +253,52 @@
       "arm_summaries": {
         "corrected": {
           "mean_rollout_error": 0.012574107386171818,
+          "model_seed_means": [
+            0.0126577690243721,
+            0.012843686155974865,
+            0.012210190296173096,
+            0.012749711982905865,
+            0.012409180402755737
+          ],
           "mean_final_error": 0.022457649931311607,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "stop_gradient": {
           "mean_rollout_error": 0.013110355474054813,
+          "model_seed_means": [
+            0.01368960365653038,
+            0.01453979779034853,
+            0.012544537894427776,
+            0.01301752869039774,
+            0.011760309338569641
+          ],
           "mean_final_error": 0.023642193526029587,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "supervised": {
           "mean_rollout_error": 0.014666429720818996,
+          "model_seed_means": [
+            0.017784392461180687,
+            0.013137399218976498,
+            0.012129484675824642,
+            0.013225249946117401,
+            0.017055625095963478
+          ],
           "mean_final_error": 0.02727368101477623,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "uncorrected": {
           "mean_rollout_error": 0.026682443916797638,
+          "model_seed_means": [
+            0.026682445779442787,
+            0.026682445779442787,
+            0.026682445779442787,
+            0.026682445779442787,
+            0.026682445779442787
+          ],
           "mean_final_error": 0.04960588365793228,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
@@ -312,24 +372,44 @@
       "arm_summaries": {
         "corrected": {
           "mean_rollout_error": 0.011778932064771652,
+          "model_seed_means": [
+            0.012026160024106503,
+            0.011634618043899536,
+            0.011676019988954067
+          ],
           "mean_final_error": 0.02076161839067936,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "stop_gradient": {
           "mean_rollout_error": 0.012056156061589718,
+          "model_seed_means": [
+            0.012261681258678436,
+            0.011887448839843273,
+            0.012019339017570019
+          ],
           "mean_final_error": 0.021365687251091003,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "supervised": {
           "mean_rollout_error": 0.012264519929885864,
+          "model_seed_means": [
+            0.012491623871028423,
+            0.012253080494701862,
+            0.012048852629959583
+          ],
           "mean_final_error": 0.021807998418807983,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0
         },
         "uncorrected": {
           "mean_rollout_error": 0.026682443916797638,
+          "model_seed_means": [
+            0.026682445779442787,
+            0.026682445779442787,
+            0.026682445779442787
+          ],
           "mean_final_error": 0.04960587993264198,
           "finite_rollout_fraction": 1.0,
           "stable_rollout_fraction": 1.0

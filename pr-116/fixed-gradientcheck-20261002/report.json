@@ -1,0 +1,81 @@
+{
+  "comparisons": [
+    {
+      "phase": "explore",
+      "reference_kind": "solver_self_refined",
+      "solver": "jax-cfd",
+      "N": 64,
+      "k0": 4.0,
+      "amplitude": 0.5,
+      "unroll": 8,
+      "updates": 1,
+      "pretrain_updates": 3000,
+      "curriculum": [
+        {
+          "updates": 1,
+          "unroll": 8,
+          "lr": 0.0001
+        }
+      ],
+      "training_examples_per_seed": 8,
+      "pretrained_mean_rollout_error": 0.021810400443765556,
+      "pretrain_common_seconds": 1625.0164227630012,
+      "n_model_seeds": 1,
+      "source_sha256": "f96379764f3e508e12cbf29b01f3e8adc0333655fee803cdcd3cb47b9da03448",
+      "protocol_sha256": "b45b68931a12f98c4de891b4de0a59b88a6f27d0534c051d8969e2d6127c8182",
+      "admitted": true,
+      "gradient_checks_passed": false,
+      "fd_relative_errors": [
+        0.05803895741701126
+      ],
+      "vs_supervised": {
+        "ratio": 0.8545968532562256,
+        "ci95": null
+      },
+      "vs_stopped": {
+        "ratio": 1.014617919921875,
+        "ci95": null
+      },
+      "vs_uncorrected": {
+        "ratio": 1.0774930715560913,
+        "ci95": null
+      },
+      "arm_summaries": {
+        "corrected": {
+          "mean_rollout_error": 0.04506189003586769,
+          "mean_final_error": 0.09363646805286407,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "stop_gradient": {
+          "mean_rollout_error": 0.04572059586644173,
+          "mean_final_error": 0.09481002390384674,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "supervised": {
+          "mean_rollout_error": 0.03850974515080452,
+          "mean_final_error": 0.06275506317615509,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        },
+        "uncorrected": {
+          "mean_rollout_error": 0.04855387285351753,
+          "mean_final_error": 0.07937050610780716,
+          "finite_rollout_fraction": 1.0,
+          "stable_rollout_fraction": 1.0
+        }
+      },
+      "resolved_joint_benefit": false,
+      "full_training_seconds": 1640.735035796999,
+      "supervised_total_seconds": 1625.5365140810027,
+      "stopped_training_seconds": 1625.6228790649911
+    }
+  ],
+  "pending": [],
+  "failures": [],
+  "reference_checks": [],
+  "job_states": {
+    "explore-jax-cfd-n64-k4-h8-u1-s1-pre3000-d63d6592": "COMPLETED"
+  }
+}
