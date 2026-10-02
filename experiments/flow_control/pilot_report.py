@@ -21,7 +21,7 @@ NAMES = {
     "full": "Full gradients",
     "spsa": "Action SPSA",
     "demonstration_imitation": "Demonstration imitation",
-    "improved_imitation": "Expert-attempt imitation",
+    "improved_imitation": "Refined-label imitation",
 }
 COLORS = dict(zip(NAMES, ["#2166ac", "#d97706", "#278353", "#8051a5"], strict=True))
 
@@ -62,7 +62,8 @@ def summarize(cells: list[dict[str, Any]]) -> dict[str, Any]:
     pilots = [
         row
         for row in cells
-        if row.get("metrics", {}).get("phase") == "developmental_pilot"
+        if row.get("metrics", {}).get("phase")
+        in {"developmental_pilot", "residual_development_pilot"}
     ]
     checkpoints = defaultdict(list)
     hashes = defaultdict(list)
@@ -74,7 +75,9 @@ def summarize(cells: list[dict[str, Any]]) -> dict[str, Any]:
         initializations[data["model_seed"]].add(
             data.get("initial_model_sha256", "MISSING")
         )
-        phases = data.get("costs", {}).get("phases", {})
+        phases = data.get("standalone_training_costs", data.get("costs", {})).get(
+            "phases", {}
+        )
         cost_rows.append(
             {
                 "cell": row["cell"],
@@ -211,7 +214,7 @@ def plot_summary(summary: dict[str, Any], out: Path) -> None:
         )
         ax.set_yscale("log")
         ax.set_ylabel("192² validation objective · lower is better")
-        ax.set_title("The cheap controller beats every learned-policy checkpoint")
+        ax.set_title("Development validation: all policy checkpoints and model seeds")
         ax.legend(loc="upper left")
         ax.grid(axis="y", alpha=0.2)
         flag = (
@@ -268,7 +271,7 @@ def plot_summary(summary: dict[str, Any], out: Path) -> None:
         ax.set_yscale("log")
         ax.set_xlabel("Policy fitting + extra expert labels · measured minutes")
         ax.set_ylabel("Final-checkpoint validation objective")
-        ax.set_title("Extra zero-start teacher optimization produced no new labels")
+        ax.set_title("Final validation performance and measured training cost")
         ax.grid(alpha=0.2)
         ax.legend(fontsize=9)
         fig.supxlabel(
