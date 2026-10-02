@@ -93,3 +93,14 @@ and 0.00445 at epsilon 0.01 to 0.0000524 and 0.0000449 at epsilon 0.003. The
 original horizon-16 seed-2 check exceeds the unchanged 0.05 threshold; retain
 that failure and report this independent refinement alongside it. The CLI's
 `--fd-epsilon` controls this diagnostic, with the original default 0.01 retained.
+
+## Fixed expansion of confirmation seeds
+
+After the first three confirmation seeds, fix the final confirmation sample at
+**eight model seeds (0–7)**. Add seeds 3–7 with exactly the same source, image,
+16 training ICs, eight held-out ICs, horizon 8 and 3,000-update budget. Jobs
+2858782–2858786 perform this expansion. Report all eight seeds regardless of
+outcome; do not stop adding seeds when an interval first excludes a tie. This
+addresses the unresolved small derivative effect, and the earlier three-seed
+summary remains an interim result. This expansion is chosen after inspecting
+that summary and should be described as such.

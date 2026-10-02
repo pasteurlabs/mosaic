@@ -71,3 +71,20 @@ longer-developed flow and finer reference integration together; it does not
 isolate which change explains a different audit outcome. Passing still requires
 flow inspection before choosing a training protocol, and does not certify
 stationarity or spatial convergence.
+
+## INS runtime check and conditional training pilot
+
+Job 2858804 repeats the 75-unit burn-in INS reference-only check with reference
+and audit temporal factors 3 and 6, retaining the same 64²→192² grids and 0.005
+accuracy limit. This tests whether less expensive reference generation can fit
+a training job within the cluster's four-hour limit. The existing factor-12/24
+checks for both solvers remain reported; this is not a cross-solver comparison.
+
+If this reference and gradient probe passes and measured generation cost fits
+the limit, the next planned INS pilot uses three model seeds (0–2), eight
+training ICs (0–7), four held-out ICs (100–103), 1,000 updates, horizon 8 and
+lr=1e-4. The force, viscosity, coarse timestep, burn-in and evaluation duration
+stay as in the probe. All three training methods use the same initialization,
+windows and update budget. Use finite-difference epsilon 0.001 for this new
+pilot, motivated by the independent Warp step-refinement diagnostics; retain
+the unchanged 0.05 gradient-error threshold. Report all seeds and failures.
