@@ -15,7 +15,7 @@ build_config:
   # as Dockerfile ENV lines which support variable substitution.
 env:
   TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;9.0"
-  LD_LIBRARY_PATH: "/python-env/lib/python3.10/site-packages/torch/lib:${LD_LIBRARY_PATH}"
+  LD_LIBRARY_PATH: "/python-env/lib/python3.11/site-packages/torch/lib:${LD_LIBRARY_PATH}"
 
 metadata:
   mosaic:
@@ -24,7 +24,7 @@ metadata:
     family: fem
     scheme: "FEM HEX8 heat conduction (SIMP, PyTorch autograd adjoint)"
     discretization: FE
-    numerics: "Direct (spsolve)"
+    numerics: "CG+Jacobi"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true

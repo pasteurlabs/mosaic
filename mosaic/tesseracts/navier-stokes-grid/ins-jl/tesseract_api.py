@@ -419,6 +419,8 @@ def _vjp_recurrent(
     dt: float,
     steps: int,
     domain_extent: float,
+    *,
+    compute_viscosity: bool = True,
 ) -> dict[str, Any]:
     """VJP for the periodic canonical-plus-native recurrent output."""
     v0_arr = np.asarray(v0, dtype=np.float32)
@@ -439,6 +441,7 @@ def _vjp_recurrent(
         int(steps),
         int(v0_arr.shape[0]),
         float(domain_extent),
+        compute_viscosity,
     )
 
     if state_in is None:
@@ -633,6 +636,7 @@ def vector_jacobian_product(
             float(inputs.dt[0]),
             inputs.steps,
             inputs.domain_extent,
+            compute_viscosity="viscosity" in vjp_inputs,
         )
         return {key: value for key, value in grads.items() if key in vjp_inputs}
     ct = np.asarray(ct_result, dtype=np.float32)

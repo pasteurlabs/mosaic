@@ -28,15 +28,14 @@ from mosaic.benchmarks.problems.shared.plots.optimization import (
 from mosaic.benchmarks.problems.shared.plots.style import (
     RCPARAMS,
     SOLVER_STYLES,
-    STRUCTURAL_ORDER,
     TEXTWIDTH,
-    THERMAL_ORDER,
     dedup_handles,
     make_handle,
     paper_image_grid,
     paper_row,
     resolve_solver_alias,
     save_fig,
+    solver_order_for_problem,
     solver_props,
     solver_styles,
 )
@@ -134,15 +133,6 @@ def _voxel_facecolors(
     return fc
 
 
-def _solver_order_for(cfg_name: str) -> list[str]:
-    """Best-effort solver-ordering pick based on problem name."""
-    if "structural" in cfg_name:
-        return STRUCTURAL_ORDER
-    if "thermal" in cfg_name:
-        return THERMAL_ORDER
-    return STRUCTURAL_ORDER
-
-
 def _field_solver_names(npz: Any, by_solver: dict | None = None) -> list[str]:
     """Per-field solver names aligned with the ``rho_final_<j>`` arrays.
 
@@ -204,7 +194,7 @@ def _plot_topopt_figure(
     data = v1_to_legacy(load_json(result_path))
     by_solver = data.get("by_solver", {})
 
-    solver_order = _solver_order_for(cfg.name)
+    solver_order = solver_order_for_problem(cfg.name)
 
     # Optional fields npz + physics params
     fields_path = out_dir / "topopt_fields.npz"
@@ -242,7 +232,7 @@ def _plot_topopt_figure(
     # ── Compliance vs iteration ──────────────────────────────────────────────
     present: set[str] = set()
     for solver, sdata in by_solver.items():
-        alias = resolve_solver_alias(solver)
+        alias = resolve_solver_alias(solver, prefer=solver_order)
         _label, color, ls, _mk = solver_props(alias or solver)
         compliances = sdata.get("compliances", [])
         if compliances:
@@ -269,7 +259,7 @@ def _plot_topopt_figure(
             rho_xyz = rho_flat.reshape(nz, ny, nx).transpose(2, 1, 0)
             filled = rho_xyz > _THRESH
 
-            alias = resolve_solver_alias(sname)
+            alias = resolve_solver_alias(sname, prefer=solver_order)
             _label, color, _ls, _mk = solver_props(alias or sname)
             fc = _voxel_facecolors(rho_xyz, filled, color)
             ax.voxels(filled, facecolors=fc, edgecolors=fc, shade=True)

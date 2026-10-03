@@ -13,33 +13,13 @@ from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_json, results_dir, v1_to_legacy
 from mosaic.benchmarks.problems.shared.plots.style import (
     RCPARAMS,
-    SOLVER_STYLES,
     THERMAL_ORDER,
-    _norm_solver_name,
     paper_row,
+    resolve_solver_alias,
     save_fig,
     solver_plot_props,
     solver_styles,
 )
-
-# Map a result's solver display name (e.g. "FEniCS") to its *thermal* style
-# alias. The global resolve_solver_alias() is domain-blind: "FEniCS" and
-# "Firedrake" share a label with their structural entries and resolve to
-# ``*_structural`` first, which isn't in THERMAL_ORDER, so the shared legend
-# silently dropped them. Resolving against the thermal aliases fixes that.
-# Keyed on the normalised label so "torch-fem" matches the "TorchFEM" style.
-_THERMAL_ALIAS_BY_NORM = {
-    _norm_solver_name(SOLVER_STYLES[a][0]): a
-    for a in THERMAL_ORDER
-    if a in SOLVER_STYLES
-}
-
-
-def _thermal_alias(name: str) -> str | None:
-    """Resolve a solver display name to its THERMAL_ORDER alias, or None."""
-    if name in THERMAL_ORDER:
-        return name
-    return _THERMAL_ALIAS_BY_NORM.get(_norm_solver_name(name))
 
 
 def plot_conductivity_recovery(
@@ -85,7 +65,7 @@ def plot_conductivity_recovery(
                 label=sty.get("label", name),
                 **solver_plot_props(sty, marker=False),
             )
-            alias = _thermal_alias(name)
+            alias = resolve_solver_alias(name, prefer=THERMAL_ORDER)
             if alias is not None:
                 handles_by_alias[alias] = line
 

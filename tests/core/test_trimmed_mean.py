@@ -63,3 +63,40 @@ class TestTrimmedMean:
     def test_empty_list_raises(self):
         with pytest.raises(ValueError):
             trimmed_mean([])
+
+
+class TestTrimmedMeanNonFinite:
+    """A solver that returns NaN must not take the reference down with it.
+
+    The reference is what every solver's error is measured against, so a
+    single non-finite entry propagating into it turns every other solver's
+    error NaN and the whole cell reads as broken.
+    """
+
+    def test_nan_from_one_array_does_not_reach_the_result(self):
+        healthy = [jnp.array([1.0, 2.0, 3.0]) + 0.01 * i for i in range(6)]
+        result = trimmed_mean([*healthy, jnp.array([1.0, jnp.nan, 3.0])])
+        assert bool(jnp.all(jnp.isfinite(result)))
+
+    def test_inf_from_one_array_does_not_reach_the_result(self):
+        healthy = [jnp.array([1.0, 2.0, 3.0]) + 0.01 * i for i in range(6)]
+        result = trimmed_mean([*healthy, jnp.array([1.0, jnp.inf, 3.0])])
+        assert bool(jnp.all(jnp.isfinite(result)))
+
+    def test_an_all_nan_array_is_ignored_entirely(self):
+        healthy = [jnp.array([1.0, 2.0, 3.0]) + 0.01 * i for i in range(6)]
+        assert jnp.allclose(
+            trimmed_mean([*healthy, jnp.full((3,), jnp.nan)]), trimmed_mean(healthy)
+        )
+
+    def test_two_arrays_use_the_finite_one(self):
+        """The n <= 2 branch takes the same treatment as the quantile one."""
+        result = trimmed_mean([jnp.array([1.0, 2.0]), jnp.array([jnp.nan, 4.0])])
+        assert jnp.allclose(result, jnp.array([1.0, 3.0]))
+
+    def test_position_where_nothing_is_finite_stays_nan(self):
+        """No finite value to average is honestly NaN, not a silent zero."""
+        result = trimmed_mean([jnp.array([1.0, jnp.nan, 3.0])] * 4)
+        assert bool(jnp.isnan(result[1]))
+        assert float(result[0]) == 1.0
+        assert float(result[2]) == 3.0

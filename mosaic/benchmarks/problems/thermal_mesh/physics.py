@@ -155,17 +155,25 @@ def _approx_target_temperature(
         mask = np.zeros(n_nodes, dtype=np.int32)
         mask[: len(mask_raw)] = mask_raw[:n_nodes]
         values_arr = np.asarray(values_raw, dtype=np.float64)
-        # Distribute Neumann flux uniformly to marked nodes
-        on_right = np.where(mask > 0)[0]
+        # Consistent FEM lumping: each right-face element contributes
+        # q_n * A_face / 4 to each of its 4 face nodes, so the total comes out
+        # at q_n * Ly * Lz. Accumulating per element rather than per unique
+        # node is what gives a face node shared by 4 elements its 4 shares,
+        # an edge node 2 and a corner 1.
         x_max = points[:, 0].max()
-        face_nodes_right = on_right[
-            np.abs(points[on_right, 0] - x_max) < 1e-8 * x_max + 1e-10
-        ]
-        if len(face_nodes_right) > 0:
-            q_n = float(values_arr[0, 0]) if values_arr.size > 0 else 0.0
-            # Approximate: each right-face node gets q_n * dy * dz / 4 (shared by elements)
+        tol = 1e-8 * max(float(x_max), 1.0) + 1e-10
+        on_face_plane = np.abs(points[:, 0] - x_max) < tol
+        if values_arr.size > 0 and np.any(on_face_plane & (mask > 0)):
+            q_n = float(values_arr[0, 0])
             per_node_flux = q_n * dy * dz / 4.0
-            np.add.at(f, face_nodes_right, per_node_flux)
+            marked_face_node = on_face_plane & (mask > 0)
+            # A cell contributes only when exactly 4 of its nodes are both on
+            # the face plane and marked, i.e. it owns a full marked face.
+            face_hits = marked_face_node[cells]
+            owns_face = face_hits.sum(axis=1) == 4
+            if np.any(owns_face):
+                contributing = cells[owns_face][face_hits[owns_face]]
+                np.add.at(f, contributing.ravel(), per_node_flux)
 
     # Source RHS: distribute source uniformly to cell nodes (lumped)
     source_f = np.asarray(source, dtype=np.float64)
@@ -266,7 +274,7 @@ def make_inputs(
     nz: int = 1,
     Lx: float = 2.0,
     Ly: float = 1.0,
-    Lz: float = 1.0,
+    Lz: float | None = None,
     Q_total: float = 1.0,
     rho_0: float | None = None,
     hot_spot: bool = False,
@@ -295,6 +303,13 @@ def make_inputs(
     N, if provided, overrides nx (resolution_sweep convention: N = nx).
     If ic does not match the expected (nx * ny * nz) shape, nx is inferred
     from ic.size to keep the mesh consistent with the density field.
+
+    Lz defaults to the in-plane element size (Lx / nx) for the quasi-2D case
+    (nz == 1), so the single-layer HEX8 elements stay roughly cubic as the mesh
+    is refined instead of becoming increasingly elongated in z. With the flux
+    formula q_n = Q_total / (Ly * Lz), shrinking Lz keeps the injected power
+    comparable across refinements — i.e. Q_total is a flux per unit slab depth.
+    Pass an explicit Lz to override (e.g. for nz > 1).
 
     jax_fem      expects rho shape (n_cells, 1).
     fenics_heat  expects rho shape (n_cells,) and extra k_max/p_exp params
@@ -328,6 +343,12 @@ def make_inputs(
             else ic.astype(np.float32)
         )
         source_data = np.zeros(nx * ny * nz, dtype=np.float32)
+
+    # Quasi-2D (nz == 1): scale the slab thickness with the in-plane element
+    # size so the single-layer elements stay ~cubic under refinement instead of
+    # becoming elongated in z (which degrades conditioning for some solvers).
+    if Lz is None:
+        Lz = Lx / nx if nz == 1 else 1.0
 
     points, cells = _hex_mesh_arrays(nx, ny, nz, Lx, Ly, Lz)
     bc = _heated_block_bcs(points, Lx, Ly, Lz, Q_total=Q_total, hot_spot=hot_spot)

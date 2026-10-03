@@ -1,4 +1,4 @@
-https://download.pytorch.org/whl/cu121/torch-2.5.1%2Bcu121-cp311-cp311-linux_x86_64.whl
+https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl
 numpy==2.4.4
 scipy==1.17.1
 imageio==2.37.3

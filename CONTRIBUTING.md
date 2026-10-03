@@ -60,6 +60,7 @@ Solver behavior can be adjusted at three levels:
 - CI requires a maintainer to add a benchmark label to any PR that touches `mosaic/` code. The options are:
   - `benchmark:none` — skip benchmarks (maintainer trusts no answer-changing code).
   - `benchmark:solver` — run benchmarks only on the solvers whose Tesseract code changed, scoped to the problems containing them (any number of solvers; harness/core changes don't widen the run — use `benchmark:all` for that).
+  - `benchmark:domain` — run every solver in the domain whose problem definition changed (derived from the changed files under `mosaic/benchmarks/problems/`). Use when a change to a problem's physics/config alters the reference the whole domain is benchmarked against. Single-domain by design: a PR changing more than one domain's problem must use `benchmark:all`. Solver code changes are `benchmark:solver`'s job and don't trigger this label.
   - `benchmark:all` — run the full benchmark suite from scratch.
 - Include the diff output in your PR description so reviewers can see the impact at a glance.
 
@@ -126,7 +127,7 @@ $ pre-commit install
 1. Fork the repository and create a feature branch.
 2. Make your changes, ensuring `ruff check` and `pytest` pass.
 3. Open a pull request with a clear description of what you're adding.
-4. CI runs lint, tests, and tesseract config validation on every PR. If your PR touches `mosaic/` code, a maintainer will add one of three benchmark labels (`benchmark:none`, `benchmark:solver`, or `benchmark:all`) to control whether and how benchmarks run.
+4. CI runs lint, tests, and tesseract config validation on every PR. If your PR touches `mosaic/` code, a maintainer will add one of four benchmark labels (`benchmark:none`, `benchmark:solver`, `benchmark:domain`, or `benchmark:all`) to control whether and how benchmarks run.
 
 ## CI/CD
 

@@ -171,8 +171,9 @@ SUITE_DESCRIPTIONS = {
         "**Can you optimize through it?** End-to-end optimization benchmarks run a "
         "gradient-based optimizer using each solver's own gradients: recovery of "
         "initial conditions or physical parameters, topology optimization, and drag "
-        "minimization. This is the ultimate test, since a gradient can pass the "
-        "finite-difference check yet still fail to drive a full optimization loop."
+        "minimization, plus recurrent neural-corrector training in 2D flow. This is "
+        "the ultimate test, since a gradient can pass the finite-difference check yet "
+        "still fail to drive a full optimization or learning loop."
     ),
     "cost": (
         "**What does it cost?** Wall-clock scaling of the forward and VJP passes "
@@ -457,7 +458,13 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
 
 # final-objective metric name by domain optimization experiment, in priority
 # order (the first key present in a result's metrics is used to rank it).
-_OPT_FINAL_KEYS = ("final_error", "final_drag", "final_compliance", "final_ic_error")
+_OPT_FINAL_KEYS = (
+    "final_error",
+    "final_drag",
+    "final_compliance",
+    "final_ic_error",
+    "final_rollout_error",
+)
 
 # Human-readable column labels for the ranked metric. Falls back to a generic
 # de-underscored title when a key is missing here.
@@ -466,6 +473,7 @@ _OPT_METRIC_LABELS = {
     "final_drag": "Final drag",
     "final_compliance": "Final compliance",
     "final_ic_error": "Final IC recovery error",
+    "final_rollout_error": "Final rollout error",
 }
 
 

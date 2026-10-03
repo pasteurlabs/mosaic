@@ -38,7 +38,6 @@ from mosaic.benchmarks.problems.shared.plots.style import (
     paper_row,
     resolve_solver_alias,
     save_fig,
-    solver_plot_props,
     solver_props,
     solver_styles,
     vorticity_2d,
@@ -663,84 +662,6 @@ def plot_fd_check(
 # ── per-solver error plot helper ──────────────────────────────────────────────
 
 
-def _plot_error_per_solver(
-    by_solver: dict,
-    styles: dict,
-    title_prefix: str,
-    x_keys: Any,
-    x_to_float: Any,
-    x_label: str,
-    x_scale: str = "linear",
-) -> plt.Figure:
-    """One panel per solver: rel_error_mean vs x_keys, one line per ε value.
-
-    ε values are colour-coded with a sequential palette (small ε = light,
-    large ε = dark) so the U-curve shape becomes visible across panels.
-    """
-    solver_names = list(by_solver.keys())
-    n = len(solver_names)
-    n_cols = min(3, n)
-    n_rows = math.ceil(n / n_cols)
-
-    fig, axes = paper_grid(n_rows, n_cols)
-
-    # ε values from the first solver/key entry that actually carries an eps
-    # sweep — a failed run may record a step/param entry without one, so we
-    # can't blindly index the first entry.
-    eps_keys: list[str] = []
-    for name in solver_names:
-        for entry in by_solver[name].values():
-            if isinstance(entry, dict) and entry.get("eps_sweep"):
-                eps_keys = sorted(entry["eps_sweep"], key=float)
-                break
-        if eps_keys:
-            break
-    eps_colors = plt.cm.plasma(np.linspace(0.15, 0.85, len(eps_keys)))
-    markers = ["o", "s", "^", "D"]
-
-    for idx, name in enumerate(solver_names):
-        row, col = divmod(idx, n_cols)
-        ax = axes[row][col]
-
-        xs = [x_to_float(k) for k in x_keys]
-
-        for ei, eps in enumerate(eps_keys):
-            re_m = [
-                _finite_or_nan(
-                    by_solver[name]
-                    .get(k, {})
-                    .get("eps_sweep", {})
-                    .get(eps, {})
-                    .get("rel_error_mean")
-                )
-                for k in x_keys
-            ]
-            ax.semilogy(
-                xs,
-                re_m,
-                color=eps_colors[ei],
-                marker=markers[ei % len(markers)],
-                markersize=4,
-                linewidth=1.5,
-                label=f"ε={float(eps):.0e}",
-            )
-
-        ax.set_xscale(x_scale)
-        ax.set_xlabel(x_label)
-        ax.set_ylabel("Relative FD error")
-        ax.set_title(
-            styles[name]["label"], color=styles[name]["color"], fontweight="bold"
-        )
-
-    for idx in range(n, n_rows * n_cols):
-        row, col = divmod(idx, n_cols)
-        axes[row][col].set_visible(False)
-
-    fig.suptitle(title_prefix, fontweight="bold")
-    fig_shared_legend(fig, axes)
-    return fig
-
-
 # ── best-ε overlay helper ─────────────────────────────────────────────────────
 
 
@@ -840,81 +761,6 @@ def _plot_best_eps_overlay(
 
 
 # ── shared U-curve helper ─────────────────────────────────────────────────────
-
-
-def _best_eps_series(param_results: dict, param_keys: Any, metric: str) -> list[float]:
-    """For each param key pick the best-ε value of `metric` across the eps sweep.
-
-    ε entries with a missing ``rel_error_mean`` (``None`` — e.g. a failed or
-    non-finite ε run) can't be ranked and are skipped. A param key with no
-    rankable ε entry yields ``nan`` so the curve simply gaps there rather than
-    raising and dropping the whole figure.
-    """
-    out: list[float] = []
-    for k in param_keys:
-        ranked = [
-            v
-            for v in param_results[k]["eps_sweep"].values()
-            if v.get("rel_error_mean") is not None
-        ]
-        if not ranked:
-            out.append(float("nan"))
-            continue
-        val = min(ranked, key=lambda v: v["rel_error_mean"]).get(metric)
-        out.append(float("nan") if val is None else val)
-    return out
-
-
-def _plot_ucurve_overlay(
-    by_solver: dict,
-    sweep_keys: Any,
-    sweep_label: str,
-    styles: dict,
-    title_prefix: str,
-    ncols: int = 4,
-) -> plt.Figure:
-    """Overlay U-curves: one panel per sweep value, all solvers overlaid.
-
-    Each panel shows rel_error_mean ± std (shaded) vs ε for every solver,
-    with a shared legend below the figure.
-    """
-    n_panels = len(sweep_keys)
-    n_cols = min(ncols, n_panels)
-    n_rows = math.ceil(n_panels / n_cols)
-
-    fig, axes = paper_grid(n_rows, n_cols)
-
-    solver_names = list(by_solver.keys())
-
-    for idx, key in enumerate(sweep_keys):
-        row, col = divmod(idx, n_cols)
-        ax = axes[row][col]
-
-        for name in solver_names:
-            if name not in styles:
-                continue
-            entry = by_solver.get(name, {}).get(key)
-            sweep = entry.get("eps_sweep") if isinstance(entry, dict) else None
-            if not sweep:
-                continue
-            props = solver_plot_props(styles[name])
-            eps_f = sorted(sweep.keys(), key=float)
-            eps_fl = [float(e) for e in eps_f]
-            re_m = [_finite_or_nan(sweep[e].get("rel_error_mean")) for e in eps_f]
-
-            ax.loglog(eps_fl, re_m, label=styles[name]["label"], **props)
-
-        ax.set_xlabel("ε")
-        ax.set_ylabel("Relative FD error")
-        ax.set_title(f"{sweep_label} = {key}")
-
-    for idx in range(n_panels, n_rows * n_cols):
-        row, col = divmod(idx, n_cols)
-        axes[row][col].set_visible(False)
-
-    fig.suptitle(title_prefix, fontweight="bold")
-    fig_shared_legend(fig, axes)
-    return fig
 
 
 # ── G2a: parameter sweep ─────────────────────────────────────────────────────

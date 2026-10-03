@@ -36,20 +36,32 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
     When the quantile bracket eliminates all values at a position (e.g. 4 nearly
     identical scalars where float interpolation pushes lo above every value),
     the plain mean is used at those positions as a fallback.
+
+    Non-finite entries are left out per element. A solver that returns NaN at
+    one point would otherwise carry it into the reference, and every other
+    solver's error against that reference becomes NaN with it. A position where
+    no solver is finite stays NaN, which is the honest answer there.
     """
     stacked = jnp.stack(arrays, axis=0)  # (n, ...)
+    finite = jnp.isfinite(stacked)
+    n_finite = finite.sum(axis=0)
+
+    def _mean_where(keep: jax.Array, n: jax.Array) -> jax.Array:
+        # jnp.where rather than a product: inf * False is nan, so multiplying
+        # by the mask would reintroduce the value being excluded.
+        total = jnp.where(keep, stacked, 0.0).sum(axis=0)
+        return jnp.where(n > 0, total / jnp.maximum(n, 1), jnp.nan)
+
+    finite_mean = _mean_where(finite, n_finite)
     if len(arrays) <= 2:
-        return stacked.mean(axis=0)
-    lo = jnp.quantile(stacked, q_lo, axis=0)
-    hi = jnp.quantile(stacked, q_hi, axis=0)
-    mask = (stacked >= lo) & (stacked <= hi)
+        return finite_mean
+
+    masked = jnp.where(finite, stacked, jnp.nan)
+    lo = jnp.nanquantile(masked, q_lo, axis=0)
+    hi = jnp.nanquantile(masked, q_hi, axis=0)
+    mask = finite & (stacked >= lo) & (stacked <= hi)
     count = mask.sum(axis=0)
-    trimmed = jnp.where(
-        count > 0,
-        (stacked * mask).sum(axis=0) / jnp.maximum(count, 1),
-        stacked.mean(axis=0),
-    )
-    return trimmed
+    return jnp.where(count > 0, _mean_where(mask, count), finite_mean)
 
 
 def l2_error_rel(pred: object, ref: object) -> float:
@@ -131,6 +143,44 @@ def _debug_run(run: dict) -> None:
     for key, cap in [("max_iters", 50), ("patience", 10)]:
         if key in optim:
             optim[key] = min(optim[key], cap)
+    training = run.get("training", {})
+    for key, cap in [
+        ("max_updates", 2),
+        ("unroll", 2),
+        ("hidden_channels", 8),
+        ("kernel_size", 3),
+    ]:
+        if key in training:
+            training[key] = min(training[key], cap)
+    if training:
+        training["check_grad"] = False
+    if "model_seeds" in training:
+        training["model_seeds"] = list(training["model_seeds"])[:1]
+    dataset = run.get("dataset", {})
+    for key in ("train_seeds", "test_seeds"):
+        if key in dataset:
+            dataset[key] = list(dataset[key])[:1]
+    if "prefix_audit_seeds" in dataset:
+        retained_seeds = set(dataset.get("train_seeds", [])) | set(
+            dataset.get("test_seeds", [])
+        )
+        dataset["prefix_audit_seeds"] = [
+            seed for seed in dataset["prefix_audit_seeds"] if seed in retained_seeds
+        ]
+    if "train_frames" in dataset:
+        dataset["train_frames"] = min(dataset["train_frames"], 3)
+    evaluation = run.get("evaluation", {})
+    if "rollout_frames" in evaluation:
+        evaluation["rollout_frames"] = min(evaluation["rollout_frames"], 3)
+    if "prefix_audit_frames" in dataset:
+        max_frame = max(
+            int(dataset.get("train_frames", 0)),
+            int(evaluation.get("rollout_frames", 0)),
+            int(training.get("unroll", 0)),
+        )
+        dataset["prefix_audit_frames"] = [
+            frame for frame in dataset["prefix_audit_frames"] if frame <= max_frame
+        ]
     cost = run.get("cost", {})
     for key in ("N_values", "steps_values"):
         if key in cost:

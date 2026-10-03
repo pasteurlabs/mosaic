@@ -3,18 +3,26 @@
 
 """`mosaic reference` — generate precomputed reference solutions.
 
-Generates trimmed-mean reference NPZ files for consensus-based
-experiments (structural-mesh, thermal-mesh). These references decouple
-single-solver CI runs from needing all peers present.
+Generates reference NPZ files for experiments listed in
+``PRECOMPUTED_EXPERIMENTS``. These references decouple single-solver CI
+runs from needing all peers present.
+
+Most experiments use a **consensus** reference (trimmed mean across all
+solvers). Experiments in ``CONVERGED_REFERENCES`` instead use a
+**converged** reference: one spectral solver run at high resolution and
+spectrally downsampled to the benchmark grid — the true continuous
+solution, not a peer average that would share their common-mode bias.
 
 Two modes:
 
 1. **From existing results** (``--from-results``): reads field snapshots
    from a ``mosaic-results/`` directory and extracts the consensus
    arrays. Fast, no solver runs needed — just needs prior results.
+   (Consensus experiments only; converged references must be run.)
 
-2. **By running solvers** (default): builds + runs all solvers for the
-   target experiments, computes the trimmed mean, and writes the NPZ.
+2. **By running solvers** (default): builds + runs the solver(s) for the
+   target experiments and writes the NPZ — trimmed mean for consensus
+   experiments, high-N spectral run for converged ones.
 """
 
 from __future__ import annotations
@@ -28,8 +36,11 @@ from mosaic.benchmarks.cli import app
 from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.reference import (
     PRECOMPUTED_EXPERIMENTS,
+    ConvergedSpec,
+    converged_spec,
     extract_references_from_fields,
     save_reference,
+    spectral_downsample,
 )
 
 logger = logging.getLogger(__name__)
@@ -203,14 +214,202 @@ def _read_sweep_values(fields_path: Path) -> list | None:
     return None
 
 
+def _experiment_run(cfg: object, exp_key: str) -> dict | None:
+    """Recover the normalised run dict for an experiment.
+
+    ``Experiment.params`` is only a metadata manifest; the actual run config
+    (ic / physics / sweep) is captured in the experiment closure as ``runs``.
+    Returns the first (single-sweep) run dict, or None.
+    """
+    exp = cfg.experiments.get(exp_key)
+    if exp is None or exp.fn is None:
+        return None
+    for default in getattr(exp.fn, "__defaults__", ()) or ():
+        if isinstance(default, dict) and isinstance(default.get("runs"), list):
+            runs = default["runs"]
+            return runs[0] if runs else None
+    return None
+
+
+def _experiment_run_params(cfg: object, exp_key: str) -> dict | None:
+    """Extract sweep/IC/physics from an experiment registration.
+
+    Returns a dict with ``sweep_key``, ``sweep_values``, ``ic_name``, ``seed``,
+    ``phys`` — or None (after printing why) if the experiment is unusable for
+    reference generation.
+    """
+    if exp_key not in cfg.experiments:
+        console.print(f"    [yellow]SKIP[/] experiment {exp_key!r} not registered")
+        return None
+
+    run = _experiment_run(cfg, exp_key)
+    if run is None:
+        console.print("    [yellow]SKIP[/] could not recover run config")
+        return None
+
+    sweep_cfg = run.get("sweep", {})
+    sweep_key = sweep_cfg.get("key")
+    sweep_values = sweep_cfg.get("values", [])
+    if not sweep_key or not sweep_values:
+        console.print("    [yellow]SKIP[/] no sweep configured")
+        return None
+
+    ic_cfg = run.get("ic", {})
+    return {
+        "sweep_key": sweep_key,
+        "sweep_values": sweep_values,
+        "ic_name": ic_cfg.get("name", next(iter(cfg.make_ic))),
+        "seed": ic_cfg.get("seed", 0),
+        "phys": run.get("physics", {}),
+    }
+
+
+def _apply_via_image(tag: str, inputs: dict, output_key: str):
+    """Open a built image as a (CPU-only) Tesseract and run one forward pass.
+
+    ``safe_apply`` needs a live ``Tesseract`` object, not an image tag, so the
+    tag is opened through the same tracked-container context the runner uses.
+    ``gpus=None`` runs CPU-only (no ``--gpus`` flag).
+    """
+    from mosaic.benchmarks.core.resources import container_memory_args
+    from mosaic.benchmarks.core.runner import _tracked_tesseract, safe_apply
+
+    docker_args = ["--no-healthcheck", *container_memory_args()]
+    with _tracked_tesseract(tag, None, docker_args) as t:
+        return safe_apply(t, inputs, output_key)
+
+
+def _generate_consensus(cfg: object, exp_key: str, rp: dict) -> None:
+    """Trimmed-mean consensus reference: run all solvers, average per sweep value."""
+    import numpy as np
+
+    from mosaic.benchmarks.core.runner import build_all
+    from mosaic.benchmarks.core.utils import trimmed_mean
+
+    sweep_key, sweep_values = rp["sweep_key"], rp["sweep_values"]
+
+    console.print("    Building solvers...")
+    tags = build_all(cfg)
+
+    solver_outputs: dict[str, dict] = {s.name: {} for s in cfg.solvers}
+    for i, val in enumerate(sweep_values):
+        curr_phys = {**rp["phys"], sweep_key: val, "domain_extent": cfg.domain_extent}
+        ic = cfg.make_ic[rp["ic_name"]](
+            L=cfg.domain_extent, seed=rp["seed"], **curr_phys
+        )
+        for s in cfg.solvers:
+            try:
+                inputs_s = cfg.make_inputs(s.name, ic, **curr_phys)
+                result = _apply_via_image(tags[s.name], inputs_s, cfg.output_key)
+                if result is not None:
+                    norm = s.normalize_output
+                    out = norm(result) if norm is not None else result
+                    solver_outputs[s.name][i] = np.asarray(out)
+                    console.print(f"    [green]✓[/] {s.name} @ {sweep_key}={val}")
+                else:
+                    console.print(
+                        f"    [yellow]✗[/] {s.name} @ {sweep_key}={val}: apply failed"
+                    )
+            except Exception as e:
+                console.print(f"    [red]✗[/] {s.name} @ {sweep_key}={val}: {e}")
+
+    refs: dict[int, np.ndarray] = {}
+    for i, val in enumerate(sweep_values):
+        arrays = [
+            solver_outputs[s.name][i]
+            for s in cfg.solvers
+            if i in solver_outputs[s.name]
+        ]
+        if len(arrays) < 2:
+            console.print(
+                f"    [yellow]WARN[/] sweep {sweep_key}={val}: "
+                f"only {len(arrays)} solver(s), need >= 2 for consensus"
+            )
+            if arrays:
+                refs[i] = np.asarray(arrays[0])
+            continue
+        refs[i] = np.asarray(trimmed_mean(arrays))
+
+    _save(cfg, exp_key, refs, sweep_values)
+
+
+def _generate_converged(
+    cfg: object, exp_key: str, rp: dict, spec: ConvergedSpec
+) -> None:
+    """Converged reference: run one spectral solver at high N, spectrally downsample."""
+    from dataclasses import replace
+
+    import numpy as np
+
+    from mosaic.benchmarks.core.runner import build_all
+
+    sweep_key, sweep_values = rp["sweep_key"], rp["sweep_values"]
+    solver = next((s for s in cfg.solvers if s.name == spec.solver), None)
+    if solver is None:
+        console.print(f"    [red]✗[/] reference solver {spec.solver!r} not found")
+        return
+
+    n_bench = int(rp["phys"]["N"])
+    console.print(
+        f"    Converged reference via {spec.solver} at N={spec.high_n} "
+        f"→ N={n_bench} (spectral truncation)"
+    )
+    console.print(f"    Building {spec.solver}...")
+    # Only the reference solver is needed — build it alone rather than the
+    # whole ensemble.
+    tags = build_all(replace(cfg, solvers=[solver]))
+
+    refs: dict[int, np.ndarray] = {}
+    for i, val in enumerate(sweep_values):
+        # Integrate at the high resolution, then truncate back to the grid the
+        # benchmark (and the stored reference) lives on.
+        curr_phys = {
+            **rp["phys"],
+            "N": spec.high_n,
+            sweep_key: val,
+            "domain_extent": cfg.domain_extent,
+        }
+        ic = cfg.make_ic[rp["ic_name"]](
+            L=cfg.domain_extent, seed=rp["seed"], **curr_phys
+        )
+        try:
+            inputs_s = cfg.make_inputs(solver.name, ic, **curr_phys)
+            result = _apply_via_image(tags[solver.name], inputs_s, cfg.output_key)
+        except Exception as e:
+            console.print(f"    [red]✗[/] {spec.solver} @ {sweep_key}={val}: {e}")
+            continue
+        if result is None:
+            console.print(
+                f"    [yellow]✗[/] {spec.solver} @ {sweep_key}={val}: apply failed"
+            )
+            continue
+        norm = solver.normalize_output
+        hi = np.asarray(norm(result) if norm is not None else result)
+        refs[i] = spectral_downsample(hi, n_bench).astype(np.float32)
+        console.print(f"    [green]✓[/] {spec.solver} @ {sweep_key}={val}")
+
+    _save(cfg, exp_key, refs, sweep_values)
+
+
+def _save(cfg: object, exp_key: str, refs: dict, sweep_values: list) -> None:
+    """Persist generated references, or report that none were produced."""
+    if refs:
+        path = save_reference(cfg.name, exp_key, refs, sweep_values)
+        console.print(f"    [green]OK[/] {len(refs)} reference(s) → {path}")
+    else:
+        console.print("    [red]FAIL[/] no references generated")
+
+
 def _generate_by_running(
     domains: list[str],
     exp_filter: set[str] | None,
 ) -> None:
-    """Generate references by running all solvers and computing trimmed means."""
-    import numpy as np
+    """Generate references by running solvers.
 
-    from mosaic.benchmarks.core.utils import trimmed_mean
+    Consensus experiments run the full ensemble and store a trimmed mean;
+    converged experiments (``CONVERGED_REFERENCES``) run one spectral solver
+    at high resolution and spectrally downsample to the benchmark grid.
+    """
     from mosaic.benchmarks.problems import get_config
 
     console.print("[bold]Generating references by running solvers...[/]\n")
@@ -223,96 +422,13 @@ def _generate_by_running(
 
         for exp_key in exps:
             console.print(f"  [bold]{domain}/{exp_key}[/]")
-
-            # Look up the experiment registration.
-            full_key = exp_key
-            if full_key not in cfg.experiments:
-                console.print(
-                    f"    [yellow]SKIP[/] experiment {full_key!r} not registered"
-                )
+            rp = _experiment_run_params(cfg, exp_key)
+            if rp is None:
                 continue
-
-            exp = cfg.experiments[full_key]
-            run_params = exp.params
-
-            # Extract sweep info.
-            sweep_cfg = run_params.get("sweep", {})
-            sweep_key = sweep_cfg.get("key")
-            sweep_values = sweep_cfg.get("values", [])
-
-            if not sweep_key or not sweep_values:
-                console.print("    [yellow]SKIP[/] no sweep configured")
-                continue
-
-            # Get IC.
-            ic_cfg = run_params.get("ic", {})
-            ic_name = ic_cfg.get("name", next(iter(cfg.make_ic)))
-            seed = ic_cfg.get("seed", 0)
-            phys = run_params.get("physics", {})
-
-            # Build + run each solver at each sweep value.
-            console.print("    Building solvers...")
-            from mosaic.benchmarks.core.runner import build_all
-
-            tags = build_all(cfg)
-
-            solver_outputs: dict[str, dict] = {}  # solver -> {sweep_idx: array}
-            for s in cfg.solvers:
-                solver_outputs[s.name] = {}
-
-            for i, val in enumerate(sweep_values):
-                curr_phys = {
-                    **phys,
-                    sweep_key: val,
-                    "domain_extent": cfg.domain_extent,
-                }
-                ic = cfg.make_ic[ic_name](L=cfg.domain_extent, seed=seed, **curr_phys)
-
-                for s in cfg.solvers:
-                    try:
-                        from mosaic.benchmarks.core.runner import safe_apply
-
-                        inputs_s = cfg.make_inputs(s.name, ic, **curr_phys)
-                        t = tags[s.name]
-                        result = safe_apply(t, inputs_s, cfg.output_key)
-                        if result is not None:
-                            norm = s.normalize_output
-                            out = norm(result) if norm is not None else result
-                            solver_outputs[s.name][i] = np.asarray(out)
-                            console.print(
-                                f"    [green]✓[/] {s.name} @ {sweep_key}={val}"
-                            )
-                        else:
-                            console.print(
-                                f"    [yellow]✗[/] {s.name} @ {sweep_key}={val}: apply failed"
-                            )
-                    except Exception as e:
-                        console.print(
-                            f"    [red]✗[/] {s.name} @ {sweep_key}={val}: {e}"
-                        )
-
-            # Compute trimmed mean per sweep value.
-            refs: dict[int, np.ndarray] = {}
-            for i, val in enumerate(sweep_values):
-                arrays = [
-                    solver_outputs[s.name][i]
-                    for s in cfg.solvers
-                    if i in solver_outputs[s.name]
-                ]
-                if len(arrays) < 2:
-                    console.print(
-                        f"    [yellow]WARN[/] sweep {sweep_key}={val}: "
-                        f"only {len(arrays)} solver(s), need >= 2 for consensus"
-                    )
-                    if arrays:
-                        refs[i] = np.asarray(arrays[0])
-                    continue
-                refs[i] = np.asarray(trimmed_mean(arrays))
-
-            if refs:
-                path = save_reference(domain, exp_key, refs, sweep_values)
-                console.print(f"    [green]OK[/] {len(refs)} reference(s) → {path}")
+            spec = converged_spec(domain, exp_key)
+            if spec is not None:
+                _generate_converged(cfg, exp_key, rp, spec)
             else:
-                console.print("    [red]FAIL[/] no references generated")
+                _generate_consensus(cfg, exp_key, rp)
 
     console.print("\n[bold]Done.[/]")

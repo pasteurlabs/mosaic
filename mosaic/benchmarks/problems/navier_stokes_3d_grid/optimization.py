@@ -499,19 +499,6 @@ def _precompute_sigma_target(
 # ── Aggregate ────────────────────────────────────────────────────────────────
 
 
-def _decode_snap_key(key: str) -> tuple[str, str]:
-    """Split a ``"prefix:suffix"`` framework snapshot key.
-
-    The framework's ``_absorb`` writes per-call snapshots under
-    ``f"{prefix}:{idx}"`` where ``idx`` is the sweep-iteration index
-    (stringified). Empty suffix means a single (non-per-val) array.
-    """
-    if ":" in key:
-        p, s = key.split(":", 1)
-        return p, s
-    return key, ""
-
-
 def _collect_per_val_arrays(
     suf_map: dict[str, np.ndarray], prefix: str, n_vals: int, fallback: np.ndarray
 ) -> list[np.ndarray]:

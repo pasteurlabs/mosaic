@@ -10,8 +10,10 @@ structural compliance objective.
 
 CRITICAL import order: dolfin_adjoint must immediately follow dolfin so that
 it can monkey-patch solve/assemble and record operations on the adjoint tape.
+This is fixed on DOLFIN-adjoint main branch.
 """
 
+import hashlib
 import os
 import tempfile
 from typing import Any
@@ -20,6 +22,23 @@ import meshio
 import numpy as np
 from dolfin import *  # noqa: F403
 from dolfin_adjoint import *  # noqa: F403
+
+# Legacy dolfin-adjoint (e.g. dolfin-adjoint==2019.1.0 from conda-forge, as
+# pinned in tesseract_environment.yaml) does not propagate the forward
+# solve's `solver_parameters` to the adjoint linear solve, which then
+# defaults to UMFPACK and runs out of memory well before mumps would (see
+# pasteurlabs/mosaic#180).
+
+try:
+    import fenics_adjoint.types.compat as _fa_compat
+
+    def _adjoint_linalg_solve_mumps(*args: Any, **kwargs: Any) -> Any:
+        return _fa_compat.backend.solve(*args, "mumps")
+
+    _fa_compat.linalg_solve = _adjoint_linalg_solve_mumps
+except ImportError:
+    pass
+
 from mosaic_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
 )
@@ -165,10 +184,32 @@ def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunct
 # ---------------------------------------------------------------------------
 # Core solver
 # ---------------------------------------------------------------------------
+#
+# `_SETUP_CACHE` holds a persistent, replayable `ReducedFunctional` per
+# (mesh, BC, material) combination — everything the problem depends on
+# *except* rho.
+# Building it does ONE real solve: mesh build, function
+# spaces, facet marking, UFL form assembly and `solve()`. Every later
+# evaluation at a different rho,  the entire point of a topology-optimisation,
+# run calls `Jhat(new_rho)` instead.
+# dolfin-adjoint updates the control's checkpoint and replays each
+# already-recorded Block's `recompute()` in place.
+# `vector_jacobian_product` is self-contained: it replays `Jhat(rho)` at the
+# point it was handed and then takes `Jhat.derivative()` (dolfin-adjoint's
+# derivative is defined "around the last supplied value of the control" —
+# see `ReducedFunctional.derivative`). It deliberately does NOT reuse a
+# forward solution cached by a preceding `apply` call, even though
+# tesseract-jax always invokes the two back-to-back at the same point: every
+# other differentiable solver in the suite re-evaluates the forward pass
+# inside its own VJP endpoint (jax-fem calls `jax.vjp` fresh each time, and
+# tesseract-core's shared `jax_recipes` residual cache is disabled
+# everywhere), so reusing state across the two endpoints would make this
+# solver's measured VJP cost incomparable with the rest of the benchmark.
+
+_SETUP_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def _solve_elasticity(
-    rho_values: np.ndarray,
+def _setup_cache_key(
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -179,11 +220,43 @@ def _solve_elasticity(
     nu: float,
     xmin: float,
     penal: float,
-    compute_gradient: bool = False,
-):
-    """Solve 3-D linear elasticity topology optimisation problem.
+) -> str:
+    """Hash everything the ReducedFunctional's graph depends on.
 
-    Solves:
+    That is everything except rho, which `Jhat(rho)` replays the graph at.
+    """
+    h = hashlib.sha256()
+    for arr in (
+        pts,
+        cells,
+        dirichlet_mask_vals,
+        dirichlet_values_vals,
+        neumann_mask_vals,
+        neumann_values_vals,
+    ):
+        h.update(np.ascontiguousarray(arr).tobytes())
+    h.update(np.array([E_max, nu, xmin, penal], dtype=np.float64).tobytes())
+    return h.hexdigest()
+
+
+def _build_reduced_functional(
+    pts: np.ndarray,
+    cells: np.ndarray,
+    dirichlet_mask_vals: np.ndarray,
+    dirichlet_values_vals: np.ndarray,
+    neumann_mask_vals: np.ndarray,
+    neumann_values_vals: np.ndarray,
+    E_max: float,
+    nu: float,
+    xmin: float,
+    penal: float,
+) -> dict[str, Any]:
+    """One-time setup for a (mesh, BC, material) combination.
+
+    Builds the mesh, function spaces, and ONE annotated forward solve,
+    wrapped as a `ReducedFunctional`.
+
+    Solves 3-D linear elasticity topology optimisation problem:
         -div(sigma(u)) = 0    in Omega
 
     with SIMP stiffness:
@@ -200,43 +273,25 @@ def _solve_elasticity(
     Structural compliance objective:
         C = F^T U = assemble(action(L, u_sol))
 
-    The gradient dC/drho is computed via dolfin-adjoint's ReducedFunctional.
-
-    Args:
-        rho_values: Active per-cell density, shape (n_cells,), values in [0, 1].
-        pts: Mesh node coordinates, shape (n_nodes, 3).
-        cells: Hex cell connectivity, shape (n_cells, 8).
-        dirichlet_mask_vals: Per-node Dirichlet group index, shape (n_nodes,).
-        dirichlet_values_vals: Per-group prescribed displacement, shape (n_groups, 3).
-        neumann_mask_vals: Per-node Neumann group index, shape (n_nodes,).
-        neumann_values_vals: Per-group surface traction, shape (n_neumann_groups, 3).
-        E_max: Young's modulus of the fully solid material.
-        nu: Poisson's ratio.
-        xmin: Void stiffness ratio (E_min = xmin * E_max).
-        penal: SIMP penalisation exponent.
-        compute_gradient: If True, compute dC/drho via dolfin-adjoint.
-
     Returns:
-        Tuple (J_val, dJ_drho) where:
-            J_val: Scalar structural compliance.
-            dJ_drho: Gradient dC/drho, shape (n_input_cells,), or None if
-                     compute_gradient=False.
+        ``{"Jhat", "rho_space", "fenics_to_input"}`` — see module docstring
+        above for how ``Jhat`` gets reused at every later rho.
     """
-    # Fresh tape for every solve — prevents stale gradient accumulation.
-    set_working_tape(Tape())
-
     mesh = _build_fenics_mesh(pts, cells)
     fenics_to_input = _cell_reorder_map(pts, cells, mesh)
 
-    # ---- Function spaces --------------------------------------------------
     # CG1 vector space for displacement; DG0 for piecewise-constant density.
     V = VectorFunctionSpace(mesh, "CG", 1)
     DG0 = FunctionSpace(mesh, "DG", 0)
+    neumann_facet_markers = _mark_neumann_facets(mesh, neumann_mask_vals)
+    dirichlet_facet_markers = _mark_neumann_facets(mesh, dirichlet_mask_vals)
 
-    # ---- Density field ----------------------------------------------------
+    set_working_tape(Tape())
+
+    # ---- Density field (arbitrary initial value — every `apply` replays
+    # this graph at the real rho via `Jhat(rho)`) --------------------------
     rho_fn = Function(DG0, name="rho")
-    rho_vec = np.clip(rho_values[fenics_to_input], 0.0, 1.0)
-    rho_fn.vector()[:] = rho_vec
+    rho_fn.vector()[:] = 0.5
 
     # ---- SIMP stiffness ---------------------------------------------------
     # E(rho) = E_min + (E_max - E_min) * rho^penal,  E_min = xmin * E_max
@@ -255,7 +310,6 @@ def _solve_elasticity(
         return lam * tr(eps(w)) * Identity(3) + 2 * mu * eps(w)
 
     # ---- Neumann facet markers and traction linear form ------------------
-    neumann_facet_markers = _mark_neumann_facets(mesh, neumann_mask_vals)
     ds_N = Measure("ds", domain=mesh, subdomain_data=neumann_facet_markers)
 
     u, v = TrialFunction(V), TestFunction(V)
@@ -269,35 +323,136 @@ def _solve_elasticity(
         L = L + dot(t_k, v) * ds_N(k + 1)
 
     # ---- Dirichlet BCs ---------------------------------------------------
-    dirichlet_facet_markers = _mark_neumann_facets(mesh, dirichlet_mask_vals)
     bcs = []
     for k in range(dirichlet_values_vals.shape[0]):
         u_k = Constant(tuple(float(x) for x in dirichlet_values_vals[k]))
         bc = DirichletBC(V, u_k, dirichlet_facet_markers, k + 1)
         bcs.append(bc)
 
-    # ---- Solve -----------------------------------------------------------
+    # ---- Solve -------------------------------------------------------------
+    # mumps: UMFPACK (the FEniCS default) runs out of memory at moderate mesh
+    # sizes; the adjoint solve picks this up too (see the mumps patch above).
+    # This `solver_parameters` choice is captured on the Block and reused by
+    # every later `Jhat(rho)` replay automatically.
     u_sol = Function(V)
-    solve(a == L, u_sol, bcs)
+    solve(a == L, u_sol, bcs, solver_parameters={"linear_solver": "mumps"})
 
     # ---- Compliance: C = F^T U = assemble(action(L, u_sol)) -------------
     # action(L, u_sol) substitutes u_sol into the linear form L, giving the
     # scalar F^T U.  This keeps the compliance on the dolfin-adjoint tape.
     J = assemble(action(L, u_sol))
 
-    # ---- Gradient via adjoint --------------------------------------------
-    dJ_drho = None
-    if compute_gradient:
-        Jhat = ReducedFunctional(J, Control(rho_fn))
-        dJ_fenics = Jhat.derivative()
-        dJ_fenics_vec = dJ_fenics.vector().get_local().copy()
+    Jhat = ReducedFunctional(J, Control(rho_fn))
 
-        # Map FEniCS DG0 DOF order to input cell order.
-        dJ_input = np.zeros(len(rho_values))
-        dJ_input[fenics_to_input] = dJ_fenics_vec
-        dJ_drho = dJ_input
+    return {
+        "Jhat": Jhat,
+        "rho_space": DG0,
+        "fenics_to_input": fenics_to_input,
+    }
 
-    return float(J), dJ_drho
+
+def _get_reduced_functional(
+    pts: np.ndarray,
+    cells: np.ndarray,
+    dirichlet_mask_vals: np.ndarray,
+    dirichlet_values_vals: np.ndarray,
+    neumann_mask_vals: np.ndarray,
+    neumann_values_vals: np.ndarray,
+    E_max: float,
+    nu: float,
+    xmin: float,
+    penal: float,
+) -> dict[str, Any]:
+    """Build (or fetch) the cached `ReducedFunctional` for this combination.
+
+    Keyed on (mesh, BC, material).
+    """
+    key = _setup_cache_key(
+        pts,
+        cells,
+        dirichlet_mask_vals,
+        dirichlet_values_vals,
+        neumann_mask_vals,
+        neumann_values_vals,
+        E_max,
+        nu,
+        xmin,
+        penal,
+    )
+    entry = _SETUP_CACHE.get(key)
+    if entry is not None:
+        return entry
+
+    entry = _build_reduced_functional(
+        pts,
+        cells,
+        dirichlet_mask_vals,
+        dirichlet_values_vals,
+        neumann_mask_vals,
+        neumann_values_vals,
+        E_max,
+        nu,
+        xmin,
+        penal,
+    )
+    _SETUP_CACHE.clear()
+    _SETUP_CACHE[key] = entry
+    return entry
+
+
+def _gradient_from_state(state: dict[str, Any]) -> np.ndarray:
+    """Adjoint gradient dC/drho, around the point of the last `Jhat(rho)` call.
+
+    No mesh rebuild, no form reconstruction, no forward re-solve: dolfin-
+    adjoint's `ReducedFunctional.derivative()` walks the blocks already
+    recorded on the cached tape, using whichever value was last replayed in.
+    """
+    dJ_fenics_vec = state["Jhat"].derivative().vector().get_local().copy()
+
+    # Map FEniCS DG0 DOF order to input cell order.
+    dJ_input = np.zeros(state["n_input_cells"])
+    dJ_input[state["fenics_to_input"]] = dJ_fenics_vec
+    return dJ_input
+
+
+def _solve_forward(
+    rho_values: np.ndarray,
+    pts: np.ndarray,
+    cells: np.ndarray,
+    dirichlet_mask_vals: np.ndarray,
+    dirichlet_values_vals: np.ndarray,
+    neumann_mask_vals: np.ndarray,
+    neumann_values_vals: np.ndarray,
+    E_max: float,
+    nu: float,
+    xmin: float,
+    penal: float,
+) -> dict[str, Any]:
+    """Evaluate compliance at this rho by replaying the cached `Jhat`."""
+    entry = _get_reduced_functional(
+        pts,
+        cells,
+        dirichlet_mask_vals,
+        dirichlet_values_vals,
+        neumann_mask_vals,
+        neumann_values_vals,
+        E_max,
+        nu,
+        xmin,
+        penal,
+    )
+    fenics_to_input = entry["fenics_to_input"]
+    rho_fn = Function(entry["rho_space"])
+    rho_fn.vector()[:] = np.clip(rho_values[fenics_to_input], 0.0, 1.0)
+
+    J = entry["Jhat"](rho_fn)
+
+    return {
+        "Jhat": entry["Jhat"],
+        "J": J,
+        "fenics_to_input": fenics_to_input,
+        "n_input_cells": len(rho_values),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +488,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         bc.neumann.values if bc.neumann else np.zeros((0, 3)), dtype=np.float64
     )
 
-    J_val, _ = _solve_elasticity(
+    state = _solve_forward(
         rho_values,
         pts,
         cells,
@@ -345,9 +500,8 @@ def apply(inputs: InputSchema) -> OutputSchema:
         inputs.nu,
         inputs.xmin,
         inputs.penal,
-        compute_gradient=False,
     )
-    return OutputSchema(compliance=np.float32(J_val))
+    return OutputSchema(compliance=np.float32(float(state["J"])))
 
 
 def vector_jacobian_product(
@@ -357,6 +511,13 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     """VJP via dolfin-adjoint: gradient of compliance objective.
+
+    Self-contained, matching every other differentiable solver in the suite:
+    replays the forward problem at the rho it is given (``Jhat(rho)``) and
+    then computes the adjoint (``Jhat.derivative()``).
+    The replay reuses the cached mesh/function spaces and the
+    compiled UFL forms, so this is one forward linear solve plus one adjoint
+    linear solve, with no mesh rebuild or form reconstruction.
 
     Args:
         inputs: Validated InputSchema.
@@ -395,8 +556,7 @@ def vector_jacobian_product(
     nv = np.asarray(
         bc.neumann.values if bc.neumann else np.zeros((0, 3)), dtype=np.float64
     )
-
-    _, dJ_drho = _solve_elasticity(
+    state = _solve_forward(
         rho_values,
         pts,
         cells,
@@ -408,9 +568,9 @@ def vector_jacobian_product(
         inputs.nu,
         inputs.xmin,
         inputs.penal,
-        compute_gradient=True,
     )
 
+    dJ_drho = _gradient_from_state(state)
     grad_rho[: hm.n_faces] = (cot_c * dJ_drho).astype(np.float32)
     return {"rho": grad_rho}
 

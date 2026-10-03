@@ -17,6 +17,9 @@ Think OpenAI Gym, but for differentiable physics: a growing catalog of tasks acr
 
 ![Overview of Mosaic: diverse solver backends are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains.](docs/visual_abstract.png)
 
+> [!NOTE]
+> :robot: **Disclaimer on LLM usage.** Mosaic is an ambitious project driven by a _(so far)_ small community. This is only made tractable through judicious use of our robot friends. Don't let this fool you! Mosaic is very much assembled, curated, and cared for by [humans](https://github.com/pasteurlabs/mosaic/graphs/contributors). You can always talk to us (and get a hand-written response) by [opening an issue](https://github.com/pasteurlabs/mosaic/issues) or joining the [Tesseract Forum](https://si-tesseract.discourse.group/).
+
 ## What Mosaic measures
 
 If you optimize or train _through_ a physics simulation, the solver must return two correct things: the forward prediction **and** its gradient (the vector–Jacobian product, VJP). Most benchmarks check only the forward pass. Mosaic checks both, and scores every solver on three axes:
@@ -29,12 +32,12 @@ Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesserac
 
 ## Domains & solvers
 
-| ID     | Domain                     | Optimization task              | Solvers                                                |
-| :----- | :------------------------- | :----------------------------- | :----------------------------------------------------- |
-| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
-| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
-| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
-| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+| ID     | Domain                     | Optimization task                       | Solvers                                                |
+| :----- | :------------------------- | :-------------------------------------- | :----------------------------------------------------- |
+| **H**  | Heat transfer              | Conductivity inversion                  | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
+| **S**  | Structural mechanics       | Compliance minimization (SIMP)          | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
+| **F2** | Incompressible fluids (2D) | Drag optimization and neural correction | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
+| **F3** | 3D Navier–Stokes           | Initial condition recovery              | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
 
 ## 📊 Results
 
@@ -153,6 +156,24 @@ States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combine with `-p` / `-
 
 </details>
 
+The 2D neural-correction experiment compares fixed-pair supervised training,
+recurrent training with stopped gradients, and training through the solver:
+
+```bash
+mosaic run -p ns-grid --suites optimization -e solver_in_loop_supervised
+```
+
+All models are evaluated on held-out, free-running trajectories alongside the
+uncorrected solver. Each solver uses its own higher-resolution, smaller-timestep
+trajectory as the reference: 64² coarse and 192² fine for every solver. A
+smaller-timestep check at 192² tests time accuracy; it does not certify spatial
+convergence. Absolute errors
+against these different targets are not an accuracy ranking across solvers.
+Improving on supervised training measures the benefit of
+the training setup; improving on the recurrent stopped-gradient control isolates
+the additional benefit of differentiating through the solver. Training costs
+include the supervised baseline's fixed-data generation.
+
 The full CLI reference and smoke-test workflow live in [Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html).
 
 ## Use Tesseracts in your own code
@@ -181,9 +202,9 @@ inputs = {"v0": ic, "viscosity": jnp.array([0.01]), "steps": 50}
 
 with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     outputs = apply_tesseract(t, inputs)
-    grad_v0 = jax.grad(lambda v0: jnp.mean(
-        apply_tesseract(t, {**inputs, "v0": v0})["result"] ** 2
-    ))(inputs["v0"])
+    grad_v0 = jax.grad(
+        lambda v0: jnp.mean(apply_tesseract(t, {**inputs, "v0": v0})["result"] ** 2)
+    )(inputs["v0"])
 ```
 
 A **local (no Docker)** path is also available for Python-only solvers — see the full guide below.
@@ -196,8 +217,8 @@ A **local (no Docker)** path is also available for Python-only solvers — see t
 ```python
 from mosaic import get_config, PROBLEMS
 
-cfg = get_config("ns-grid")           # Problem for 2-D Navier-Stokes
-print(cfg.solver_names)               # available solver backends
+cfg = get_config("ns-grid")  # Problem for 2-D Navier-Stokes
+print(cfg.solver_names)  # available solver backends
 
 # Each (suite, experiment) is registered on the Problem as an Experiment
 # closure. Invoke one directly with a {solver_name: image_tag} mapping:

@@ -1,6 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import hashlib
 import os
 from collections.abc import Callable
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import meshio
+import numpy as np
 from jax_fem.generate_mesh import Mesh
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper
@@ -280,6 +282,52 @@ def setup(
     return problem, fwd_pred
 
 
+# `_SETUP_CACHE` holds one (problem, fwd_pred) pair per (mesh, BC)
+# combination, i.e. everything `setup` depends on. Building a JAX-FEM
+# `Problem` precomputes shape functions and boundary indices and compiles its
+# kernels, which dominates the cost of a call on the small meshes used here;
+# an optimisation run calls `apply` / `vector_jacobian_product` hundreds of
+# times against the same mesh. rho and source are set on the problem by
+# `fwd_pred` at every call, so they are never part of the key.
+#
+# Only the setup is cached. Each endpoint still runs its own forward solve,
+# so the measured VJP cost stays comparable with the other solvers, which
+# also re-evaluate the forward pass inside their VJP.
+
+_SETUP_CACHE: dict[str, tuple[HeatConduction, Callable]] = {}
+
+
+def _setup_cache_key(
+    pts: np.ndarray, cells: np.ndarray, boundary_conditions: dict | None
+) -> str:
+    """Hash the mesh and boundary conditions that `setup` depends on."""
+    bc = boundary_conditions or {}
+    arrays = [pts, cells]
+    for kind in ("dirichlet", "neumann"):
+        group = bc.get(kind) or {}
+        arrays += [group.get("mask"), group.get("values")]
+    h = hashlib.sha256()
+    for arr in arrays:
+        if arr is None:
+            h.update(b"none")
+            continue
+        arr = np.ascontiguousarray(arr)
+        h.update(f"{arr.dtype}{arr.shape}".encode())
+        h.update(arr.tobytes())
+    return h.hexdigest()
+
+
+def _cached_setup(
+    pts: np.ndarray, cells: np.ndarray, boundary_conditions: dict | None
+) -> tuple[HeatConduction, Callable]:
+    key = _setup_cache_key(pts, cells, boundary_conditions)
+    if key not in _SETUP_CACHE:
+        _SETUP_CACHE[key] = setup(
+            pts=pts, cells=cells, boundary_conditions=boundary_conditions
+        )
+    return _SETUP_CACHE[key]
+
+
 def apply_fn(inputs: dict) -> dict:
     """Compute the thermal compliance given a density field.
 
@@ -289,7 +337,7 @@ def apply_fn(inputs: dict) -> dict:
     Returns:
         Dictionary containing the thermal compliance and identification error.
     """
-    problem, fwd_pred = setup(
+    problem, fwd_pred = _cached_setup(
         pts=inputs["hex_mesh"]["points"][: inputs["hex_mesh"]["n_points"]],
         cells=inputs["hex_mesh"]["faces"][: inputs["hex_mesh"]["n_faces"]],
         boundary_conditions=inputs["boundary_conditions"],

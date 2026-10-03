@@ -27,7 +27,13 @@ from mosaic.benchmarks.core.config import (
     SolverSpec,
     discover_solvers,
 )
-from mosaic.benchmarks.core.status_checks import max_final_ratio
+from mosaic.benchmarks.core.status_checks import (
+    max_final_ratio,
+    max_peer_k,
+    median_k,
+    min_cosine,
+    rel_err_peer_outlier,
+)
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import (
     spatial_cost,
@@ -98,6 +104,9 @@ problem = Problem(
     ),
     bc_description=(
         "Quasi-2D heated slab on domain $[0,2]\\times[0,1]$ (a single HEX8 layer, $n_z=1$). "
+        "The slab thickness $L_z$ scales with the in-plane element size ($L_z = L_x/n_x$) so "
+        "the elements stay roughly cubic under refinement, keeping the linear system "
+        "well-conditioned; $Q_\\text{total}$ is thus a flux per unit slab depth. "
         "Dirichlet: all nodes at $x=0$ held at $T=0$ (fixed temperature). "
         "Neumann (uniform): uniform heat flux $Q_\\text{total}$ over the right face ($x=2$). "
         "Neumann (hot-spot): flux concentrated on the central $1/3$ stripe in $y$ "
@@ -112,8 +121,15 @@ problem = Problem(
     domain_extent=2.0,
     resolution_key="nx",
     status_checks={
+        # Every solver returns the compliance as a float32 scalar, so peers
+        # agree to within a few ulp (~6e-8 relative each). The floor stops
+        # median_k from ranking solvers on that round-off.
+        "forward": [median_k(3.0, floor=1e-5)],
+        "cost": [max_peer_k(20.0)],
+        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
+        "gradient/source_fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         # Recovery / optimisation experiments must actually reduce loss,
-        # not just complete. Same 50% floor as the other problems — solvers
+        # not just complete. Same 50% floor as the other problems, so solvers
         # landing at final/initial > 0.5 show up as anom so the status
         # accurately reflects "hasn't converged".
         "optimization": [max_final_ratio(0.5)],
@@ -205,7 +221,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "Q_total": 1.0,
     },
     plot=plot_agreement,
@@ -224,7 +239,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "Q_total": 1.0,
         "rho_0": [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95],
     },
@@ -244,7 +258,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "rho_0": 0.5,
         "hot_spot": True,
         "Q_total": [0.25, 0.5, 1.0, 2.0, 4.0],
@@ -264,7 +277,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "rho_0": 0.5,
         "ic_field": "source",
     },
@@ -281,7 +293,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "rho_0": 0.5,
         "ic_field": "source",
         "amplitude": [0.1, 0.25, 0.5, 1.0, 2.0, 4.0],
@@ -293,7 +304,6 @@ problem.add_experiment(
 _THERMAL_PHYS = {
     "Lx": 2.0,
     "Ly": 1.0,
-    "Lz": 1.0,
     "Q_total": 1.0,
     "rho_0": 0.5,
 }
@@ -348,7 +358,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "Q_total": 1.0,
     },
     fd={"eps_values": [1e0, 1e-1, 1e-2, 1e-3, 1e-4], "n_dirs": 6},
@@ -368,7 +377,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "Q_total": 1.0,
         "rho_0": [0.1, 0.2, 0.4, 0.6, 0.8],
     },
@@ -394,7 +402,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "rho_0": 0.5,
         "target_from_two_gaussians": True,
         "ic_field": "source",
@@ -447,7 +454,6 @@ if False:
             "nz": 1,
             "Lx": 2.0,
             "Ly": 1.0,
-            "Lz": 1.0,
             "rho_0": 0.5,
             "Q_total": 1.0,
             "compliance_key": "identification_error",
@@ -475,7 +481,6 @@ problem.add_experiment(
         "nz": 1,
         "Lx": 2.0,
         "Ly": 1.0,
-        "Lz": 1.0,
         "rho_0": 0.5,
         "Q_total": 1.0,
         "compliance_key": "identification_error",
@@ -484,7 +489,7 @@ problem.add_experiment(
         "snap_interval": 10,
         "target_rho_from_two_gaussians": True,
     },
-    optim={"max_iters": 200, "patience": 30},
+    optim={"max_iters": 1000},
     plot=plot_conductivity_recovery,
 )
 

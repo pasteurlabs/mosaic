@@ -34,6 +34,12 @@ from mosaic.benchmarks.core.harness import (
         ("RuntimeError", "RESOURCE_EXHAUSTED: out of memory on device", "OOM"),
         ("RuntimeError", "CUDA_ERROR_OUT_OF_MEMORY", "OOM"),
         ("Exception", "Operation crashed: out of memory.", "OOM"),
+        # Additional unambiguous memory-pressure markers (framework-specific).
+        ("RuntimeError", "CUBLAS_STATUS_ALLOC_FAILED", "OOM"),
+        ("RuntimeError", "cudnn_status_alloc_failed when planning conv", "OOM"),
+        ("RuntimeError", "cudaErrorMemoryAllocation", "OOM"),
+        ("XlaRuntimeError", "Failed to allocate 8.00GiB for buffer", "OOM"),
+        ("Exception", "Killed by OOM killer", "OOM"),
         # Timeout: matched by exception name
         ("TimeoutError", "deadline exceeded", "timeout"),
         ("WatchdogTimeout", "", "timeout"),

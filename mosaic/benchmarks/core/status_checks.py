@@ -41,6 +41,11 @@ class ForwardSummary:
     ``errs_by_pval`` and ``peer_medians_by_pval`` are aligned: the keys are
     sweep-parameter values (e.g. ``"N"`` values, ``"nu"`` values). Entries
     only appear for sweep points where the solver produced a valid result.
+
+    ``n_valid_points`` counts the points that can actually be judged, i.e.
+    those carrying a positive peer median. A point only this solver reached
+    has nothing to compare against, so counting it would raise the bar for a
+    majority that no amount of bad results could clear.
     """
 
     errs_by_pval: dict[Any, float] = field(default_factory=dict)
@@ -78,29 +83,32 @@ class OptimizationSummary:
     ``final_initial_ratio``: ``loss_final / loss_initial`` for the
     worst-case (highest-initial-loss) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
-
-    ``peer_final_loss_by_sweep``: per-sweep-value ratio of this solver's
-    final loss to the best (minimum) final loss across all peers at the
-    same sweep value. Empty when the experiment isn't a numeric sweep.
     """
 
     final_initial_ratio: float | None = None
-    peer_final_loss_by_sweep: dict[Any, float] = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────
 
 
-def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if the solver's error exceeds ``k × peer-median`` on at least half of valid sweep points."""
+def median_k(k: float, floor: float = 0.0) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if the solver's error exceeds ``k × peer-median`` on at least half of valid sweep points.
+
+    ``floor`` is a lower bound on the peer median. Set it where the peers
+    agree to within round-off, e.g. when solvers return a float32 scalar.
+    A peer median at that level is noise, and a peer-relative ratio would
+    flag solvers that differ from it by a few ulp.
+    """
 
     def _check(s: ForwardSummary) -> CheckOutcome:
         bad: list[tuple[Any, float, float]] = []
         for pval, err in s.errs_by_pval.items():
             med = s.peer_medians_by_pval.get(pval, 0.0)
-            if med > 0 and err > k * med:
+            if med > 0 and err > k * max(med, floor):
                 bad.append((pval, err, med))
-        if not bad or len(bad) < max(1, s.n_valid_points // 2):
+        # Half rounded up: with an odd number of points, // 2 would fire on a
+        # minority of them, and a three-point sweep on a single one.
+        if not bad or len(bad) < max(1, (s.n_valid_points + 1) // 2):
             return None
         worst = max(bad, key=lambda t: t[1] / max(t[2], 1e-300))
         ratio = worst[1] / max(worst[2], 1e-300)
@@ -109,6 +117,7 @@ def median_k(k: float) -> Callable[[ForwardSummary], CheckOutcome]:
             (
                 f"error {worst[1]:.3g} at sweep={worst[0]} is {ratio:.1f}× peer median "
                 f"({worst[2]:.3g}); threshold k={k}"
+                + (f", floor={floor:g}" if floor else "")
             ),
         )
 
@@ -157,7 +166,7 @@ def min_cosine(threshold: float) -> Callable[[FdCheckSummary], CheckOutcome]:
     def _check(s: FdCheckSummary) -> CheckOutcome:
         if s.best_cosine is None or s.best_cosine >= threshold:
             return None
-        return ("anom", f"best FD cosine {s.best_cosine:.4f} < {threshold}")
+        return ("anomaly", f"best FD cosine {s.best_cosine:.4f} < {threshold}")
 
     return _check
 
@@ -210,27 +219,6 @@ def max_final_ratio(threshold: float) -> Callable[[OptimizationSummary], CheckOu
         return (
             "anomaly",
             f"final/initial = {s.final_initial_ratio:.2f} (> {threshold})",
-        )
-
-    return _check
-
-
-def peer_final_loss_k(k: float) -> Callable[[OptimizationSummary], CheckOutcome]:
-    """Optimization suite (sweeps only): anomaly if final loss exceeds ``k×`` the best peer.
-
-    Fires when any sweep value has this solver's final loss above the threshold.
-    """
-
-    def _check(s: OptimizationSummary) -> CheckOutcome:
-        if not s.peer_final_loss_by_sweep:
-            return None
-        worst = max(s.peer_final_loss_by_sweep.items(), key=lambda kv: kv[1])
-        sweep_k, ratio = worst
-        if ratio <= k:
-            return None
-        return (
-            "anomaly",
-            f"final_loss at sweep={sweep_k} is {ratio:.1f}× best peer (threshold {k}×)",
         )
 
     return _check

@@ -336,7 +336,7 @@ def _plot_convergence(
         # ``by_solver`` keyed by spec.name (display form); bridge to alias.
         alias_to_display: dict[str, str] = {}
         for display_name in by_solver:
-            a = resolve_solver_alias(display_name)
+            a = resolve_solver_alias(display_name, prefer=STRUCTURAL_ORDER)
             if a is not None:
                 alias_to_display[a] = display_name
         for alias in STRUCTURAL_ORDER:
@@ -428,7 +428,7 @@ def _topopt_overview_generate(out_dir: Path) -> None:
         # canonical order while resolving back to the npz key when needed.
         _npz_alias_to_display: dict[str, str] = {}
         for display_name in npz_solvers:
-            a = resolve_solver_alias(display_name)
+            a = resolve_solver_alias(display_name, prefer=STRUCTURAL_ORDER)
             if a is not None:
                 _npz_alias_to_display[a] = display_name
         field_solvers = [s for s in STRUCTURAL_ORDER if s in _npz_alias_to_display]
