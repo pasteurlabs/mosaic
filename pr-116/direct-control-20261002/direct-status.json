@@ -1,0 +1,27 @@
+{
+  "state": "finished",
+  "updated_at": "2026-10-02T17:38:52.936204+00:00",
+  "test_jobs": {
+    "2862542": "COMPLETED",
+    "2862543": "COMPLETED",
+    "2862544": "COMPLETED",
+    "2862545": "COMPLETED",
+    "2862546": "COMPLETED",
+    "2862547": "COMPLETED",
+    "2862548": "COMPLETED",
+    "2862549": "COMPLETED",
+    "2862550": "COMPLETED",
+    "2862552": "COMPLETED",
+    "2862553": "COMPLETED",
+    "2862554": "COMPLETED",
+    "2862555": "COMPLETED",
+    "2862556": "COMPLETED",
+    "2862557": "COMPLETED",
+    "2862558": "COMPLETED"
+  },
+  "report_jobs": {
+    "2862580": "COMPLETED"
+  },
+  "selection_sha256": "10cf3ecb285b1813f22f9109d7f20930d84f1829f5f8a27a08d407bbba9e7935",
+  "note": "Inspect numerical admission and paired report before claiming an advantage."
+}

@@ -1,0 +1,125 @@
+{
+  "solver": "phiflow",
+  "image": "/data/personal/andrinr/runner/artifacts/mosaic/phiflow-2861222.sqsh",
+  "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+  "source_sha256": "7a090878358cc228f29166ae6bac829b1c6ea1160dfecd657baa689a1dd64635",
+  "control": {
+    "coarse_n": 64,
+    "reference_n": 192,
+    "dt": 0.02,
+    "steps_per_slot": 20,
+    "control_slots": 8,
+    "nu": 0.001,
+    "domain_extent": 6.283185307179586,
+    "control_bound": 0.25,
+    "velocity_scale": 0.5,
+    "effort_weight": 0.01,
+    "reference_temporal_factor": 3,
+    "audit_temporal_factor": 6,
+    "reference_tolerance": 0.005,
+    "gradient_tolerance": 0.05,
+    "gradient_epsilons": [
+      0.001,
+      0.01,
+      0.0001
+    ],
+    "shooting_updates": 25,
+    "shooting_lr": 0.05
+  },
+  "phase": "direct_compare",
+  "comparison_stage": "development",
+  "task_seed": 3001,
+  "settings": [
+    {
+      "setting_id": "adam-lr0.01",
+      "method": "adam",
+      "optimizer_settings": {
+        "lr": 0.01
+      }
+    },
+    {
+      "setting_id": "adam-lr0.05",
+      "method": "adam",
+      "optimizer_settings": {
+        "lr": 0.05
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.01-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.01,
+        "directions": 1
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.01-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.01,
+        "directions": 4
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.05-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.05,
+        "directions": 1
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.05-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.05,
+        "directions": 4
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.01-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.01,
+        "directions": 1
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.01-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.01,
+        "directions": 4
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.05-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.05,
+        "directions": 1
+      }
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.05-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.05,
+        "directions": 4
+      }
+    },
+    {
+      "setting_id": "powell",
+      "method": "powell",
+      "optimizer_settings": {}
+    }
+  ]
+}

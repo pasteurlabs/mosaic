@@ -1,0 +1,293 @@
+{
+  "selected": {
+    "adam": {
+      "setting_id": "adam-lr0.05",
+      "method": "adam",
+      "optimizer_settings": {
+        "lr": 0.05
+      }
+    },
+    "spsa": {
+      "setting_id": "spsa-lr0.01-eps0.05-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.05,
+        "directions": 1
+      }
+    },
+    "powell": {
+      "setting_id": "powell",
+      "method": "powell",
+      "optimizer_settings": {}
+    }
+  },
+  "development_scores": [
+    {
+      "setting_id": "adam-lr0.01",
+      "method": "adam",
+      "optimizer_settings": {
+        "lr": 0.01
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.004121648773434572,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.005779867526143789,
+        0.004760707728564739,
+        0.0042585046030581,
+        0.0022968431003391743,
+        0.004034902900457382,
+        0.0015370085602626204,
+        0.0012049307115375996,
+        0.00910042505711317
+      ]
+    },
+    {
+      "setting_id": "adam-lr0.05",
+      "method": "adam",
+      "optimizer_settings": {
+        "lr": 0.05
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.00201383295643609,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.002264194656163454,
+        0.0016746381297707558,
+        0.0024407703895121813,
+        0.0014253503177314997,
+        0.0028558699414134026,
+        0.0011776360915973783,
+        0.001786195207387209,
+        0.002486008917912841
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.01-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.01,
+        "directions": 1
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.01669086085166782,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.015893813222646713,
+        0.018836339935660362,
+        0.01705922931432724,
+        0.011393561027944088,
+        0.01944861188530922,
+        0.012877434492111206,
+        0.009563768282532692,
+        0.02845412865281105
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.01-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.01,
+        "directions": 4
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.018913035979494452,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.020554400980472565,
+        0.019159602001309395,
+        0.02040608786046505,
+        0.010905533097684383,
+        0.02246389351785183,
+        0.01588108390569687,
+        0.011541173793375492,
+        0.030392512679100037
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.05-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.05,
+        "directions": 1
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.01603105792310089,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.016117865219712257,
+        0.01754661649465561,
+        0.013151733204722404,
+        0.010602228343486786,
+        0.018883995711803436,
+        0.012029828503727913,
+        0.010877016000449657,
+        0.029039179906249046
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.01-eps0.05-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.01,
+        "epsilon": 0.05,
+        "directions": 4
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.018594362190924585,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.0190452691167593,
+        0.019922632724046707,
+        0.021075723692774773,
+        0.010736653581261635,
+        0.0214431993663311,
+        0.013524919748306274,
+        0.012227660976350307,
+        0.03077883832156658
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.01-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.01,
+        "directions": 1
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.023573073442094028,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.02224743738770485,
+        0.024290336295962334,
+        0.026956407353281975,
+        0.013144410215318203,
+        0.031005218625068665,
+        0.01691605895757675,
+        0.01914798468351364,
+        0.034876734018325806
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.01-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.01,
+        "directions": 4
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.017821445246227086,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.020357642322778702,
+        0.020610801875591278,
+        0.014822356402873993,
+        0.013078875839710236,
+        0.020503826439380646,
+        0.011316106654703617,
+        0.007497470825910568,
+        0.034384481608867645
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.05-d1",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.05,
+        "directions": 1
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.021612858399748802,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.017810532823204994,
+        0.024695295840501785,
+        0.02541167475283146,
+        0.013757927343249321,
+        0.02306201308965683,
+        0.017505552619695663,
+        0.01594989188015461,
+        0.034709978848695755
+      ]
+    },
+    {
+      "setting_id": "spsa-lr0.05-eps0.05-d4",
+      "method": "spsa",
+      "optimizer_settings": {
+        "lr": 0.05,
+        "epsilon": 0.05,
+        "directions": 4
+      },
+      "eligible": true,
+      "mean_fine_objective_120s": 0.016421693027950823,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.01863597147166729,
+        0.01968454383313656,
+        0.010235820896923542,
+        0.01345939002931118,
+        0.01733243279159069,
+        0.011361132375895977,
+        0.008624733425676823,
+        0.032039519399404526
+      ]
+    },
+    {
+      "setting_id": "powell",
+      "method": "powell",
+      "optimizer_settings": {},
+      "eligible": true,
+      "mean_fine_objective_120s": 0.019476033630780876,
+      "failed_task_seeds": [],
+      "task_values": [
+        0.020878097042441368,
+        0.01902267150580883,
+        0.012195004150271416,
+        0.008698656223714352,
+        0.026140933856368065,
+        0.01440151035785675,
+        0.017347197979688644,
+        0.03712419793009758
+      ]
+    }
+  ],
+  "development_task_seeds": [
+    3000,
+    3001,
+    3002,
+    3003,
+    3004,
+    3005,
+    3006,
+    3007
+  ],
+  "primary_budget_seconds": 120,
+  "rule": "minimum mean fine objective on every registered development task; exact ties retain manifest order",
+  "source_sha256": "7a090878358cc228f29166ae6bac829b1c6ea1160dfecd657baa689a1dd64635",
+  "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+  "test_task_seeds": [
+    5000,
+    5001,
+    5002,
+    5003,
+    5004,
+    5005,
+    5006,
+    5007,
+    5008,
+    5009,
+    5010,
+    5011,
+    5012,
+    5013,
+    5014,
+    5015
+  ]
+}
