@@ -345,8 +345,6 @@ def main() -> None:
         lines += [
             f"**{report['conclusion']}**",
             "",
-            "| Method | Mean rollout error ↓ |",
-            "|---|---:|",
         ]
         lines += [
             "",
@@ -356,6 +354,9 @@ def main() -> None:
                 else "The matched ablation does not establish a benefit from solver derivatives; "
                 "any advantage over supervision alone does not establish that mechanism."
             ),
+            "",
+            "| Method | Mean rollout error ↓ |",
+            "|---|---:|",
         ]
         lines.extend(
             f"| {LABELS[arm]} | {value * 100:.3f}% |"
