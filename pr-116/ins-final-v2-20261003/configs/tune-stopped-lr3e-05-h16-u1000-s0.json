@@ -1,0 +1,134 @@
+{
+  "solver": "ins-jl",
+  "image": "/data/personal/andrinr/runner/artifacts/mosaic/ins-jl-2853708.sqsh",
+  "source_sha256": "2026c628c5e1bfc4c9d31409b274777391d44fbf0c28474519757a5ff7513bfe",
+  "run": {
+    "ic": {
+      "name": "multimode",
+      "seed": 0
+    },
+    "physics": {
+      "N": 64,
+      "nu": 0.001,
+      "dt": 0.01,
+      "steps": 4,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6
+    },
+    "dataset": {
+      "reference_kind": "solver_self_refined",
+      "reference_factor": 3,
+      "reference_temporal_factor": 3,
+      "reference_audit_factor": 3,
+      "reference_audit_temporal_factor": 6,
+      "prefix_audit_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        10000,
+        10001,
+        10002,
+        10003,
+        10004,
+        10005,
+        10006,
+        10007,
+        10008,
+        10009,
+        10010,
+        10011,
+        10012,
+        10013,
+        10014,
+        10015
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "reference_convergence_tolerance": 0.005,
+      "train_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "test_seeds": [
+        10000,
+        10001,
+        10002,
+        10003,
+        10004,
+        10005,
+        10006,
+        10007,
+        10008,
+        10009,
+        10010,
+        10011,
+        10012,
+        10013,
+        10014,
+        10015
+      ],
+      "train_frames": 24,
+      "k0": 4.0,
+      "sigma_k": 1.0,
+      "amplitude": 0.05,
+      "burn_in_time": 75.0
+    },
+    "training": {
+      "max_updates": 1000,
+      "unroll": 16,
+      "loss_mode": "mean",
+      "solver_loss_weight": 0.0,
+      "loss_normalization": "solver_baseline",
+      "loss_scale_floor": 1e-06,
+      "lr": 3e-05,
+      "clip_norm": 5.0,
+      "architecture": "periodic_residual_cnn",
+      "hidden_channels": 32,
+      "kernel_size": 5,
+      "seed": 2026,
+      "model_seeds": [
+        0
+      ],
+      "check_grad": true,
+      "fd_epsilon": 0.001,
+      "include_supervised_baseline": true,
+      "pretrain_updates": 0
+    },
+    "evaluation": {
+      "rollout_frames": 48,
+      "seen_ic_trajectories": 4,
+      "stable_error_threshold": 1.0,
+      "first_interval_error_tolerance": 0.2,
+      "native_long_error_tolerance": 1.0
+    }
+  },
+  "image_sha256": "4078cb5122649570e8f9934738235f34035dd5457dc7022c8d20ce2a1c3b59fb",
+  "dataset_path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/prepare-validation/dataset.npz",
+  "dataset_metadata_path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/prepare-validation/dataset.json",
+  "dataset_sha256": "f1763ea08251fa6baaf09df5472e5f04585ae97d7dd591bd64ff902b7be78c02",
+  "arm": "stopped",
+  "model_seed": 0,
+  "candidate": {
+    "candidate_id": "stopped-lr3e-05-h16-u1000",
+    "arm": "stopped",
+    "lr": 3e-05,
+    "unroll": 16,
+    "updates": 1000,
+    "pretrain": null
+  }
+}

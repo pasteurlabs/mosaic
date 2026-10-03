@@ -1,0 +1,34 @@
+{
+  "full": {
+    "arm": "full",
+    "candidate_id": "full-lr0.0001-h16-u3000",
+    "lr": 0.0001,
+    "pretrain": null,
+    "unroll": 16,
+    "updates": 3000
+  },
+  "matched_stopped": {
+    "arm": "stopped",
+    "candidate_id": "stopped-lr0.0001-h16-u3000",
+    "lr": 0.0001,
+    "pretrain": null,
+    "unroll": 16,
+    "updates": 3000
+  },
+  "stopped": {
+    "arm": "stopped",
+    "candidate_id": "stopped-lr0.0001-h16-u3000",
+    "lr": 0.0001,
+    "pretrain": null,
+    "unroll": 16,
+    "updates": 3000
+  },
+  "supervised": {
+    "arm": "supervised",
+    "candidate_id": "supervised-lr1e-05-h8-u1000",
+    "lr": 1e-05,
+    "pretrain": null,
+    "unroll": 8,
+    "updates": 1000
+  }
+}

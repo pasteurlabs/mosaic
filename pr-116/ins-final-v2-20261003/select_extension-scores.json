@@ -1,0 +1,696 @@
+{
+  "dataset_sha256": "f1763ea08251fa6baaf09df5472e5f04585ae97d7dd591bd64ff902b7be78c02",
+  "decision": {
+    "full": [
+      {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      }
+    ],
+    "stopped": [
+      {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      }
+    ]
+  },
+  "model_seeds": [
+    0,
+    1,
+    2
+  ],
+  "scores": [
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr1e-05-h4-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 4,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.07038599763235484,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "8f2da42a8eb7daedecffc89c4de6838f5bdcc4dcce8abe3b0b72fb33ea35a583",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h4-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "0e60724ab5c1bc316408057825d22c5a07d4d54370e13d03e9f780450c0604e0",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h4-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "30fc4a651679d202c5fa06ca248978c1843cf88ace351e9c5329f866b63aa812",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h4-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.06702091940763756,
+        0.07355508982362989,
+        0.07058198366579709
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.038691581203342325,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "80cf635485b20e2b87e3d4f2bf5c15c090dd75f077eba5f078a390d03a4db598",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h8-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "4760887b8912f62e82e80158a8c5d27fe34935e11aa6fe6255e5d7e7110f4f91",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h8-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "42edea27192122cde671f394ee5a41af1ea3188f3c2570075d6f48c85dd898ba",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h8-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.03842624038176031,
+        0.036906069323206066,
+        0.0407424339050606
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr1e-05-h16-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.03679821850413814,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "c244a56034fdef0e45d35a46b4e950e7778e914a01548d8f9ef6077e6a8f5d5f",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h16-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "b668a1d802a698e6d4a1f051d0d8dbeb6ab2cbebe2b3069d711cb4e752a3febf",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h16-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "261d05a13d05eebe1c9e5cc8f2a9c4ae879d67a95c426268a735102257faa601",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h16-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.039844884572893,
+        0.03696400606991893,
+        0.033585764869602484
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h4-u1000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 4,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.08338138018091393,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "e392ae658419bb666da61e34b5cae815730a93eef85fba91dbcf3bce96b761d7",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h4-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "bbb0db8959867b2e2c4dded02f3641df8894d59b47003aaba6386081b06611a8",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h4-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "8090aa06106658e901f78517aea7f5ddbd58bf777389a9b9bb1fd88ab4470c00",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h4-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.07789339234354431,
+        0.08397312103371979,
+        0.0882776271654777
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h8-u1000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.03855871268926391,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "74e2402c6850685a9609b45a835115f332f8b37d665cf5a4b69408c7fb0c4f1f",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h8-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "80769c8d04caba4d0186f9525a7d7dc164adff809fcadf27ca2ff777e1d4826c",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h8-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "e99833348c1f73a1e0ef92905e6f2e85633004cd1d7bc1f35339ba14a0cfd633",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h8-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.036117360098880724,
+        0.043001294138980316,
+        0.0365574838299307
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h16-u1000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.031701730504593906,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "3ec35d5344ab69975ae03849dd99528560e592b0f85d81d59bfb70d37d47d744",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "e1ce60d57711426302deabfad468479e435da42600455539b821c1f84482f41f",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "4ae6740b11250e040420e21a42dc49bc80b5bee5af9ecc8c74f089b52a4b0f1d",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.031449839145718576,
+        0.03325701060805077,
+        0.03039834176001238
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h4-u1000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 4,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.11789582188440335,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "0fc3dae6b3dfb4bb89ce83966ceb580a9c7720bc3bf014b6c917457fd8251485",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h4-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "3a04057129f961912c0bf0b464e1fb5fd025abcfc5221024fc3ddfc5f76bb3e1",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h4-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "05977b26aa7d1b73cc0360330166e43162f028ffa42f4d9155d4a66cf4aed866",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h4-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.11194723446508369,
+        0.12112639513911189,
+        0.12061383604901448
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h8-u1000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.040774038201029705,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "689bbfa3b484586fd2c36d8eee9a50fed6e4b2124821e6daf84024ec8d82f15a",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h8-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "83ed284208227f26f87bfd37b9f10225af58aefadf7decaa095c51921a130691",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h8-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "aebabea8d2f472403c8deb5419224f642d66674c9e6f5d9c299ef4f21b7dfd00",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h8-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.037906068885941564,
+        0.040581384641345676,
+        0.04383466107580188
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u1000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.02671880617797919,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "e3f2470b9a721e96e1e7c8ad31126902520581c3ecad738bc64edcf4e689f375",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "82dfcceef0bf0aeba8b82a3edd2f1058ed9fb8fc8554c152048d9f95277b060b",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "7b4377a78af514c6d9506c4a692856f9bf26828286912c6e4f00d7934e9811c7",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.026961984541631717,
+        0.02703109547399068,
+        0.026163338518315173
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr1e-05-h4-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 4,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.09356720741583684,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "ef52b5e090da5c9507c6aa38dbdd991813115fbc5460d6dc6e419b723ddf3f2f",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h4-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "8783a8c74d2c629b509e52d7a9b8ee0e541d53702f2a617f3468ec24e7f31a4a",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h4-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "2f460cc154fbfa7ea3a0fb8a635e5dfae12d57799b87e8b8028b3adbd06e28b3",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h4-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.08718331115601159,
+        0.09945718532793846,
+        0.09406112576356046
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.044864660770411735,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "a6eceea22bbbf79ccd0e870c155b0f0309eadcc5d6d040d0264aa260015029c4",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h8-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "23cbc1d6b4d8c3be524b0239b297eeeffb770e457dd9e3afbfb1b4719e6edb8d",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h8-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "cd239f4124678939fdccbb105cc9fe7c09fbef314b5bfde87cbcef104594efc9",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h8-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.042826862221681944,
+        0.04774168004839149,
+        0.04402544004116177
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr1e-05-h16-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.038544476379708655,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "037203fe7441623691925dfc9ad757bc9388ae65b08b79363d75f7ea5767c390",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h16-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "f38ac0caf4a140e9275863637b36752fd7343bc5092c532c4ce0eaa07b8407d3",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h16-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "288002493216c8b9bc52b035353b1a2d3594858560cab0dba3d4a56d3357ab71",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h16-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.03871944106459311,
+        0.0360467151776771,
+        0.040867272896855746
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h4-u1000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 4,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.11835174761944307,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "b7e0975f1d15eab164d87bc692989f16931bb8f8af2a73b762ae7541db2919fb",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h4-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "b42a4394de9acbc3155eded9fa5a90f099c2b8386255e0a64e2ab199a3ed0ba2",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h4-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "dbb05176bbb74c879be9826cfeafc4f45f5fd2d1072ca9379a1831eccf46718a",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h4-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.10560189854221354,
+        0.1266536180889775,
+        0.12279972622713821
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h8-u1000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.04496212036965998,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "988ef8cdf614f95bc51e43b2a637a23ae94ee205035ce4764165708e0ed3e879",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h8-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "26ebae1b7dff6452afe38f74eb1813f671a0844bd0a8d543e576c16a736784d0",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h8-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "666b343b45c15dff9be29974d19e2e23d9d88472902b204006ff7b5ba40d753b",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h8-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.042588864208725485,
+        0.0438064488468182,
+        0.04849104805343624
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h16-u1000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.034380909890029315,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "28725bfba13f02129a0ffefd9e33c49e08f7dcf877d30a0d2b51341d45bb6d29",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "44505737636463bf22a710e3d89d56227916093c0ad0eecbb7050d789a7b3855",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "b28171fd1a660557e5c94066def91bd8b1cc55e82b2a03f2b9c74b5bb213ce46",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.033335565605988306,
+        0.03383684741384377,
+        0.03597031665025587
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h4-u1000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 4,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.16835158078057375,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "c47e240cd6cb2db84ba62eaedb1befa7d9bc109a965e32bcb52c68d6bf9272f0",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h4-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "9252e5bff3253b189bb187f5c5f92868062e1ed20373e2610ef258a94c4c99f4",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h4-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "faaef302a252e0d93c40577e62b6ca52df78460834adcb61e64ecf77d4550cdf",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h4-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.15504665097759204,
+        0.1757389008521318,
+        0.17426919051199738
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h8-u1000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.04704956240894202,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "2047a20c1bfc40b06982511822f417141ddb1b474e4ff1f643993ac080a3eda7",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h8-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "14c39b1e6769011e07d936a21b3b1280e106565587356cd9ddd35c048e2be41a",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h8-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "a12c484a3d70e1bc7cba7f0241fe86c6a73bec4a8d8bdfe03641d56598af736a",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h8-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.04423996164763621,
+        0.04690866986741226,
+        0.0500000557117776
+      ]
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u1000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 1000
+      },
+      "eligible": true,
+      "failures": [],
+      "mean_rollout_error": 0.032333743173883746,
+      "provenance": [
+        {
+          "model_seed": 0,
+          "outcome_sha256": "8444c7538975b7d0c83812f10450b0376705a6358fa8e15a2f8721695aca30f7",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u1000-s0/outcome.json"
+        },
+        {
+          "model_seed": 1,
+          "outcome_sha256": "4ec30058d04bb4728d67c313d870568f3cbf318ff2f36639bcd1f6c9bbfda616",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u1000-s1/outcome.json"
+        },
+        {
+          "model_seed": 2,
+          "outcome_sha256": "5c421db9ba667fad5ae25b614c06962d61ee5697336947a0e1cc3e6fceb8d03b",
+          "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u1000-s2/outcome.json"
+        }
+      ],
+      "seed_values": [
+        0.026642455483137567,
+        0.0387844241122294,
+        0.03157434992628428
+      ]
+    }
+  ],
+  "validation_ic_seeds": [
+    10000,
+    10001,
+    10002,
+    10003,
+    10004,
+    10005,
+    10006,
+    10007,
+    10008,
+    10009,
+    10010,
+    10011,
+    10012,
+    10013,
+    10014,
+    10015
+  ]
+}

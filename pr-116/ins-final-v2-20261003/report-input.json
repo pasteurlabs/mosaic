@@ -1,0 +1,4521 @@
+{
+  "validation": [
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h4-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h4-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h4-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h4-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h4-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h4-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h8-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h8-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h8-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h16-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h16-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h16-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h16-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr1e-05-h16-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr1e-05-h16-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h4-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h4-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h4-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h4-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h4-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h4-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h8-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h8-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h8-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h16-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h16-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr3e-05-h16-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h4-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h4-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h4-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h4-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h4-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h4-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h8-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h8-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h8-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h16-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h16-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-lr0.0001-h16-u1000",
+        "arm": "full",
+        "lr": 0.0001,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h4-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h4-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h4-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h4-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h4-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h4-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h16-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h16-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h16-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h16-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr1e-05-h16-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr1e-05-h16-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h4-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h4-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h4-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h4-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h4-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h4-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h16-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h16-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr3e-05-h16-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h4-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h4-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h4-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h4-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h4-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 4,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h4-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h8-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h8-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h8-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h16-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h16-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-lr0.0001-h16-u1000",
+        "arm": "stopped",
+        "lr": 0.0001,
+        "unroll": 16,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "arm": "supervised",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr1e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "arm": "supervised",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr1e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "arm": "supervised",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr1e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr1e-05-h8-u3000",
+        "arm": "supervised",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr1e-05-h8-u3000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr1e-05-h8-u3000",
+        "arm": "supervised",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr1e-05-h8-u3000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr1e-05-h8-u3000",
+        "arm": "supervised",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr1e-05-h8-u3000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr3e-05-h8-u1000",
+        "arm": "supervised",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr3e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr3e-05-h8-u1000",
+        "arm": "supervised",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr3e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr3e-05-h8-u1000",
+        "arm": "supervised",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr3e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr3e-05-h8-u3000",
+        "arm": "supervised",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr3e-05-h8-u3000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr3e-05-h8-u3000",
+        "arm": "supervised",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr3e-05-h8-u3000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr3e-05-h8-u3000",
+        "arm": "supervised",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr3e-05-h8-u3000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr0.0001-h8-u1000",
+        "arm": "supervised",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr0.0001-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr0.0001-h8-u1000",
+        "arm": "supervised",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr0.0001-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr0.0001-h8-u1000",
+        "arm": "supervised",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr0.0001-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr0.0001-h8-u3000",
+        "arm": "supervised",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr0.0001-h8-u3000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr0.0001-h8-u3000",
+        "arm": "supervised",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr0.0001-h8-u3000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "supervised-lr0.0001-h8-u3000",
+        "arm": "supervised",
+        "lr": 0.0001,
+        "unroll": 8,
+        "updates": 3000,
+        "pretrain": null
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-supervised-lr0.0001-h8-u3000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-warm-lr1e-05-h8-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-warm-lr1e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-warm-lr1e-05-h8-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-warm-lr1e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-warm-lr1e-05-h8-u1000",
+        "arm": "full",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-warm-lr1e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-warm-lr3e-05-h8-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-warm-lr3e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-warm-lr3e-05-h8-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-warm-lr3e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "full-warm-lr3e-05-h8-u1000",
+        "arm": "full",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-warm-lr3e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-warm-lr1e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-warm-lr1e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-warm-lr1e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-warm-lr1e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-warm-lr1e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 1e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-warm-lr1e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-warm-lr3e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-warm-lr3e-05-h8-u1000-s0"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-warm-lr3e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-warm-lr3e-05-h8-u1000-s1"
+    },
+    {
+      "candidate": {
+        "candidate_id": "stopped-warm-lr3e-05-h8-u1000",
+        "arm": "stopped",
+        "lr": 3e-05,
+        "unroll": 8,
+        "updates": 1000,
+        "pretrain": {
+          "lr": 1e-05,
+          "updates": 1000,
+          "unroll": 8
+        }
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-warm-lr3e-05-h8-u1000-s2"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u3000-s0"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u3000-s1"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr0.0001-h16-u3000-s2"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u3000-s0"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u3000-s1"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-full-lr3e-05-h16-u3000-s2"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u3000-s0"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u3000-s1"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr0.0001-h16-u3000-s2"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u3000-s0"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u3000-s1"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr3e-05-h16-u3000",
+        "lr": 3e-05,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/tune-stopped-lr3e-05-h16-u3000-s2"
+    }
+  ],
+  "training": [
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 8,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s8",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 9,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s9",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 10,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s10",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 11,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s11",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 12,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s12",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 13,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s13",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 14,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s14",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "full",
+        "candidate_id": "full-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 15,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-full-lr0.0001-h16-u3000-s15",
+      "arm": "full"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 8,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s8",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 9,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s9",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 10,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s10",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 11,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s11",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 12,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s12",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 13,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s13",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 14,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s14",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 15,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s15",
+      "arm": "matched_stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 8,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s8",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 9,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s9",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 10,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s10",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 11,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s11",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 12,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s12",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 13,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s13",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 14,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s14",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "stopped",
+        "candidate_id": "stopped-lr0.0001-h16-u3000",
+        "lr": 0.0001,
+        "pretrain": null,
+        "unroll": 16,
+        "updates": 3000
+      },
+      "model_seed": 15,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-stopped-lr0.0001-h16-u3000-s15",
+      "arm": "stopped"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 8,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s8",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 9,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s9",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 10,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s10",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 11,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s11",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 12,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s12",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 13,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s13",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 14,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s14",
+      "arm": "supervised"
+    },
+    {
+      "candidate": {
+        "arm": "supervised",
+        "candidate_id": "supervised-lr1e-05-h8-u1000",
+        "lr": 1e-05,
+        "pretrain": null,
+        "unroll": 8,
+        "updates": 1000
+      },
+      "model_seed": 15,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/final-supervised-lr1e-05-h8-u1000-s15",
+      "arm": "supervised"
+    }
+  ],
+  "test": [
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 8,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s8-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 9,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s9-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 10,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s10-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 11,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s11-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 12,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s12-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 13,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s13-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 14,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s14-b7"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b0"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b1"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b2"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b3"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b4"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b5"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b6"
+    },
+    {
+      "arm": "full",
+      "model_seed": 15,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-full-s15-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s8-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s9-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s10-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s11-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s12-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s14-b7"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b0"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b1"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b2"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b3"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b4"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b5"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b6"
+    },
+    {
+      "arm": "matched_stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s15-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 8,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s8-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 9,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s9-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 10,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s10-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 11,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s11-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 12,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s12-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 13,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s13-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 14,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s14-b7"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b0"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b1"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b2"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b3"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b4"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b5"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b6"
+    },
+    {
+      "arm": "stopped",
+      "model_seed": 15,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-stopped-s15-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 8,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s8-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 9,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s9-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 10,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s10-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 11,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s11-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 12,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s12-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 13,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s13-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 14,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s14-b7"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20000,
+        20001,
+        20002,
+        20003
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b0"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20004,
+        20005,
+        20006,
+        20007
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b1"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20008,
+        20009,
+        20010,
+        20011
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b2"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20012,
+        20013,
+        20014,
+        20015
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b3"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20016,
+        20017,
+        20018,
+        20019
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b4"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20020,
+        20021,
+        20022,
+        20023
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b5"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20024,
+        20025,
+        20026,
+        20027
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b6"
+    },
+    {
+      "arm": "supervised",
+      "model_seed": 15,
+      "ic_seeds": [
+        20028,
+        20029,
+        20030,
+        20031
+      ],
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-supervised-s15-b7"
+    }
+  ],
+  "selected": {
+    "full": {
+      "arm": "full",
+      "candidate_id": "full-lr0.0001-h16-u3000",
+      "lr": 0.0001,
+      "pretrain": null,
+      "unroll": 16,
+      "updates": 3000
+    },
+    "matched_stopped": {
+      "arm": "stopped",
+      "candidate_id": "stopped-lr0.0001-h16-u3000",
+      "lr": 0.0001,
+      "pretrain": null,
+      "unroll": 16,
+      "updates": 3000
+    },
+    "stopped": {
+      "arm": "stopped",
+      "candidate_id": "stopped-lr0.0001-h16-u3000",
+      "lr": 0.0001,
+      "pretrain": null,
+      "unroll": 16,
+      "updates": 3000
+    },
+    "supervised": {
+      "arm": "supervised",
+      "candidate_id": "supervised-lr1e-05-h8-u1000",
+      "lr": 1e-05,
+      "pretrain": null,
+      "unroll": 8,
+      "updates": 1000
+    }
+  },
+  "expected_model_seeds": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "expected_ic_seeds": [
+    20000,
+    20001,
+    20002,
+    20003,
+    20004,
+    20005,
+    20006,
+    20007,
+    20008,
+    20009,
+    20010,
+    20011,
+    20012,
+    20013,
+    20014,
+    20015,
+    20016,
+    20017,
+    20018,
+    20019,
+    20020,
+    20021,
+    20022,
+    20023,
+    20024,
+    20025,
+    20026,
+    20027,
+    20028,
+    20029,
+    20030,
+    20031
+  ],
+  "failures": [
+    "RuntimeError: terminal infrastructure failures require explicit review: {'2873094': 'FAILED'}"
+  ]
+}
