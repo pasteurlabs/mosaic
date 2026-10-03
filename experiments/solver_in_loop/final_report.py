@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 from pathlib import Path
 
 import matplotlib
@@ -21,10 +23,23 @@ LABELS = {
 }
 
 
+def json_safe(value: object) -> object:
+    """Retain nonfinite failed-candidate evidence explicitly in strict JSON."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    return value
+
+
 def paired_ratio(a: np.ndarray, b: np.ndarray) -> dict:
     """Resample paired model seeds and shared ICs, never individual time frames."""
     if a.shape != b.shape or a.ndim != 2 or not np.all(np.isfinite([a, b])):
         raise ValueError("paired ratio requires finite matching model-by-IC arrays")
+    if np.any(b <= 0) or np.any(a < 0):
+        raise ValueError("paired ratio requires positive baseline errors")
     rng = np.random.default_rng(11620261003)
     ratios = []
     for _ in range(10000):
@@ -56,6 +71,20 @@ def collect(inputs: dict) -> tuple[dict, dict, list[str]]:
             metrics = json.loads((path / "outcome.json").read_text())
             if not metrics.get("completed") or not metrics.get("admitted"):
                 raise ValueError("incomplete or failed admission")
+            if "base_payload" in inputs:
+                base = inputs["base_payload"]
+                ident = metrics["identity"]
+                if any(
+                    ident[key] != base[key]
+                    for key in ("solver", "source_sha256", "image", "image_sha256")
+                ):
+                    raise ValueError("solver/source/image identity mismatch")
+                if ident["physics"] != base["run"]["physics"]:
+                    raise ValueError("physical configuration mismatch")
+                if metrics["arm"] != inputs["selected"][arm]["arm"]:
+                    raise ValueError("evaluation arm identity mismatch")
+                if metrics["selection_sha256"] != inputs["selection_sha256"]:
+                    raise ValueError("frozen selection identity mismatch")
             dataset_hashes.add(metrics["evaluation_dataset_sha256"])
             checkpoint_key = arm, model
             previous_hash = checkpoint_hashes.setdefault(
@@ -113,6 +142,20 @@ def collect(inputs: dict) -> tuple[dict, dict, list[str]]:
             training_seen.add(key)
             if not trained.get("completed") or not trained.get("admitted"):
                 raise ValueError("training did not pass completion/admission")
+            if "base_payload" in inputs:
+                candidate = inputs["selected"][row["arm"]]
+                if (
+                    trained["model_seed"] != row["model_seed"]
+                    or trained["arm"] != candidate["arm"]
+                ):
+                    raise ValueError("training arm/model identity mismatch")
+                for field, setting in (
+                    ("lr", "lr"),
+                    ("unroll", "unroll"),
+                    ("max_updates", "updates"),
+                ):
+                    if trained["training"][field] != candidate[setting]:
+                        raise ValueError("training recipe differs from selection")
             if trained["model_sha256"] != checkpoint_hashes.get(key):
                 raise ValueError(
                     "evaluation differs from registered training checkpoint"
@@ -239,6 +282,14 @@ def main() -> None:
     parser.add_argument("--campaign", required=True, type=Path)
     args = parser.parse_args()
     inputs = json.loads((args.campaign / "report-input.json").read_text())
+    if (args.campaign / "plan.json").exists():
+        inputs["base_payload"] = json.loads((args.campaign / "plan.json").read_text())[
+            "base_payload"
+        ]
+    if (args.campaign / "selection.json").exists():
+        inputs["selection_sha256"] = hashlib.sha256(
+            (args.campaign / "selection.json").read_bytes()
+        ).hexdigest()
     out = args.campaign / "report"
     out.mkdir(exist_ok=True)
     matrices, examples, failures = collect(inputs)
@@ -296,6 +347,15 @@ def main() -> None:
             "",
             "| Method | Mean rollout error ↓ |",
             "|---|---:|",
+        ]
+        lines += [
+            "",
+            (
+                "The matched ablation supports a benefit from solver derivatives at the selected recipe."
+                if report["matched_solver_gradient_benefit"]
+                else "The matched ablation does not establish a benefit from solver derivatives; "
+                "any advantage over supervision alone does not establish that mechanism."
+            ),
         ]
         lines.extend(
             f"| {LABELS[arm]} | {value * 100:.3f}% |"
@@ -368,6 +428,19 @@ def main() -> None:
             "mean_training_seconds_including_pretrain_and_pairs"
         ].items():
             lines += ["", f"- {LABELS[arm]}: {seconds / 60:.1f} minutes"]
+        figure, axis = plt.subplots(figsize=(9, 4.5), layout="constrained")
+        cost_values = report["mean_training_seconds_including_pretrain_and_pairs"]
+        axis.barh(
+            [LABELS[arm] for arm in cost_values],
+            [value / 60 for value in cost_values.values()],
+        )
+        axis.set(
+            xlabel="Mean training minutes per model",
+            title="Selected recipes · includes pretraining and fixed pairs",
+        )
+        figure.savefig(out / "training-cost.png", dpi=170)
+        plt.close(figure)
+        lines += ["", "![Training costs](ARTIFACT_URL/report/training-cost.png)"]
         lines += [
             "",
             (
@@ -377,6 +450,36 @@ def main() -> None:
         ]
     lines += [
         "",
+        "| Selected recipe | Learning rate | Unroll | Updates | Supervised start |",
+        "|---|---:|---:|---:|---|",
+    ]
+    for arm, candidate in inputs["selected"].items():
+        warm = "1000 updates at 1e-5" if candidate.get("pretrain") else "None"
+        lines.append(
+            f"| {LABELS[arm]} | {candidate['lr']:g} | {candidate['unroll']} | "
+            f"{candidate['updates']} | {warm} |"
+        )
+    validation = []
+    for row in inputs.get("validation", []):
+        path = Path(row["path"]) / "outcome.json"
+        validation.append(
+            {**row, "outcome": json.loads(path.read_text()) if path.exists() else None}
+        )
+    report["validation_candidates"] = validation
+    report["summed_validation_fit_seconds"] = sum(
+        row["outcome"].get("training_wall_time_s", 0.0)
+        for row in validation
+        if row["outcome"] is not None
+    )
+    lines += [
+        "",
+        (
+            f"Recorded tuning fit time: {report['summed_validation_fit_seconds'] / 3600:.2f} GPU-hours; "
+            "shared preparation, diagnostics and evaluation are additional."
+        ),
+    ]
+    lines += [
+        "",
         (
             "[Frozen protocol, every candidate, failures, costs and numerical "
             "results](ARTIFACT_TREE). Earlier negative correction and neural-control results remain "
@@ -384,7 +487,9 @@ def main() -> None:
         ),
         "",
     ]
-    (out / "report.json").write_text(json.dumps(report, indent=2, allow_nan=False))
+    (out / "report.json").write_text(
+        json.dumps(json_safe(report), indent=2, allow_nan=False)
+    )
     (out / "PRsection.md").write_text("\n".join(lines))
 
 

@@ -64,6 +64,8 @@ def main() -> None:
         "report-input.json",
         "extensions.json",
         "selection.json",
+        "select_extension-scores.json",
+        "select_final-scores.json",
         "FINAL_PROTOCOL.md",
         "source.tar",
         "source.sha256",
