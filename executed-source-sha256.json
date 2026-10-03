@@ -1,0 +1,8 @@
+{
+  "mosaic/benchmarks/problems/navier_stokes_3d_grid/config.py": "149537efaf176565354a377c90bffcbef850c18cea7c88d927cd0dbff16b053d",
+  "mosaic/benchmarks/problems/shared/forward.py": "54f35e9254758e5a614aaf77ac1538966c170731562311ecd7c1a253eea9dc46",
+  "mosaic/tesseracts/navier-stokes-grid/xlb/tesseract_api.py": "ebb150b0363748d7a44e219e85283fd6054185a3fcbb50ab6930626dd3cb2453",
+  "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/tesseract_api.py": "274450595cb91ea9ef04d83532c262fec1c6d5b430b37c44809c8f0b7efe3489",
+  "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/surrogate_model.py": "13a09b1a1b956cffbe194e2c4d1506183656db9d5fa9b1af2805e3322eb79ad6",
+  "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/weights.npz": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f"
+}
