@@ -1,0 +1,74 @@
+[
+  {
+    "model": "XLB",
+    "forward_relative_l2": 0.0,
+    "vjp_relative_l2": 2.526591951631053e-08,
+    "vjp_cosine": 0.9999999999999997,
+    "self_recovery_relative_l2": 0.06762757627948869,
+    "xlb_recovery_relative_l2": 0.06762757627948869,
+    "fourier_xlb_recovery_relative_l2": 0.21658367648750212
+  },
+  {
+    "model": "baseline",
+    "forward_relative_l2": 0.042247744998650555,
+    "vjp_relative_l2": 0.6041736111527657,
+    "vjp_cosine": 0.7987673528194547,
+    "self_recovery_relative_l2": 0.22729557721477311,
+    "xlb_recovery_relative_l2": 0.35027722594196536,
+    "fourier_xlb_recovery_relative_l2": 0.2639691221505434
+  },
+  {
+    "model": "replay_control",
+    "forward_relative_l2": 0.04254950780746077,
+    "vjp_relative_l2": 0.6036606648931081,
+    "vjp_cosine": 0.7991381693621213,
+    "self_recovery_relative_l2": 0.23569378155363616,
+    "xlb_recovery_relative_l2": 0.4017831426200223,
+    "fourier_xlb_recovery_relative_l2": 0.262989606215587
+  },
+  {
+    "model": "replay_vjp01",
+    "forward_relative_l2": 0.04583086760642532,
+    "vjp_relative_l2": 0.5886431359446008,
+    "vjp_cosine": 0.8077614528874273,
+    "self_recovery_relative_l2": 0.277329504175583,
+    "xlb_recovery_relative_l2": 0.4080763694747585,
+    "fourier_xlb_recovery_relative_l2": 0.2680260717945588
+  },
+  {
+    "model": "replay_path001",
+    "forward_relative_l2": 0.044946901059974294,
+    "vjp_relative_l2": 0.6031448425802962,
+    "vjp_cosine": 0.7996473626747336,
+    "self_recovery_relative_l2": 0.2031804248499026,
+    "xlb_recovery_relative_l2": 0.3999476377086,
+    "fourier_xlb_recovery_relative_l2": 0.2646270676356611
+  },
+  {
+    "model": "replay_path01",
+    "forward_relative_l2": 0.04788249208526959,
+    "vjp_relative_l2": 0.6030564085424558,
+    "vjp_cosine": 0.7992958988237083,
+    "self_recovery_relative_l2": 0.20711515480249512,
+    "xlb_recovery_relative_l2": 0.4008690077715443,
+    "fourier_xlb_recovery_relative_l2": 0.2855573908281283
+  },
+  {
+    "model": "replay_vjp0001",
+    "forward_relative_l2": 0.042427119605395164,
+    "vjp_relative_l2": 0.6042094810471433,
+    "vjp_cosine": 0.7986961484887125,
+    "self_recovery_relative_l2": 0.22636824768264752,
+    "xlb_recovery_relative_l2": 0.3511570223360909,
+    "fourier_xlb_recovery_relative_l2": 0.2648032674521164
+  },
+  {
+    "model": "replay_path0001",
+    "forward_relative_l2": 0.04226181673242008,
+    "vjp_relative_l2": 0.6069687570976424,
+    "vjp_cosine": 0.797544502749432,
+    "self_recovery_relative_l2": 0.28214349545442746,
+    "xlb_recovery_relative_l2": 0.403838538738837,
+    "fourier_xlb_recovery_relative_l2": 0.2625266370711886
+  }
+]

@@ -1,0 +1,1602 @@
+{
+  "validation_indices": [
+    5,
+    9,
+    14
+  ],
+  "seed": 20261004,
+  "protocol": "native JAX + scipy L-BFGS-B; validation pilot, not registered benchmark",
+  "models": {
+    "XLB": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.0,
+          "cosine": 0.9999999999999999
+        },
+        "vjp": {
+          "relative_l2": 2.4941311831345442e-08,
+          "cosine": 0.9999999999999998
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 2.523408396648644e-08,
+            "cosine": 0.9999999999999999
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 2.5594268755552658e-08,
+            "cosine": 0.9999999999999999
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 2.536218120017088e-08,
+            "cosine": 1.0
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 2.4971727846091337e-08,
+            "cosine": 0.9999999999999998
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.039585857258007444,
+          "residual_mse": 5.7122688801314325e-09,
+          "iterations": 100,
+          "evaluations": 107,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 3.0279182049562223
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.039585857258007444,
+          "residual_mse": 5.7122688801314325e-09,
+          "iterations": 100,
+          "evaluations": 107,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 1.978611001977697
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.17313100610382073,
+          "residual_mse": 9.274354670196772e-05,
+          "iterations": 29,
+          "evaluations": 46,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 3.2814239540020935
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.0,
+          "cosine": 0.9999999999999998
+        },
+        "vjp": {
+          "relative_l2": 2.5399848613552587e-08,
+          "cosine": 0.9999999999999996
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 2.5174958798644822e-08,
+            "cosine": 0.9999999999999997
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 2.5357070047442215e-08,
+            "cosine": 0.9999999999999999
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 2.557589883076619e-08,
+            "cosine": 0.9999999999999998
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 2.529568820636349e-08,
+            "cosine": 0.9999999999999998
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.15264150274980018,
+          "residual_mse": 5.0882292157439224e-08,
+          "iterations": 100,
+          "evaluations": 106,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 3.033780150988605
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.15264150274980018,
+          "residual_mse": 5.0882292157439224e-08,
+          "iterations": 100,
+          "evaluations": 106,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 2.0218411440146156
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.4736049787430342,
+          "residual_mse": 0.000574229285120964,
+          "iterations": 27,
+          "evaluations": 47,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 2.37986591598019
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.0,
+          "cosine": 1.0
+        },
+        "vjp": {
+          "relative_l2": 2.5456598104033564e-08,
+          "cosine": 0.9999999999999997
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 2.5680737830867733e-08,
+            "cosine": 0.9999999999999997
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 2.5324308267568342e-08,
+            "cosine": 0.9999999999999997
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 2.543770667083979e-08,
+            "cosine": 0.9999999999999998
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 2.525894250465054e-08,
+            "cosine": 1.0
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.010655368830658443,
+          "residual_mse": 1.5151123688994517e-09,
+          "iterations": 100,
+          "evaluations": 107,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 3.030946003040299
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.010655368830658443,
+          "residual_mse": 1.5151123688994517e-09,
+          "iterations": 100,
+          "evaluations": 107,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 2.1011764440336265
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.003015044615651486,
+          "residual_mse": 4.649607632245534e-08,
+          "iterations": 46,
+          "evaluations": 112,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 3.3940281310351565
+        }
+      }
+    ],
+    "baseline": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.0360862982441834,
+          "cosine": 0.9993729007567311
+        },
+        "vjp": {
+          "relative_l2": 0.6026380979165564,
+          "cosine": 0.7980195791429716
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.386156331971633,
+            "cosine": 0.9733779577154417
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.2107205058787465,
+            "cosine": 0.6533693254631182
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 4.5033589402915855,
+            "cosine": 0.20896035725873
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 11.495642399941921,
+            "cosine": 0.10199791793394627
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.16543907494610566,
+          "residual_mse": 9.09747299715491e-09,
+          "iterations": 100,
+          "evaluations": 106,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 8.561711601971183
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.24518747659842238,
+          "residual_mse": 6.47883962301421e-06,
+          "iterations": 100,
+          "evaluations": 119,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.85694023600081
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.19988441591811001,
+          "residual_mse": 0.00010508416744414717,
+          "iterations": 30,
+          "evaluations": 86,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.723794478049967
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.04746202617347991,
+          "cosine": 0.9988734843221314
+        },
+        "vjp": {
+          "relative_l2": 0.534439784565664,
+          "cosine": 0.8453056367375013
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363314223706082,
+            "cosine": 0.9518624791462652
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.3141957311354984,
+            "cosine": 0.628249226669917
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.1958064648592854,
+            "cosine": 0.6240019572891365
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 4.029331259286678,
+            "cosine": 0.28290154620032326
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.24874012867177014,
+          "residual_mse": 2.4634001505319247e-08,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.532314344018232
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.49960029227657043,
+          "residual_mse": 3.3277497095696162e-06,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.500601526990067
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.5030660207955496,
+          "residual_mse": 0.0005776495090685785,
+          "iterations": 72,
+          "evaluations": 139,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.484888033010066
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.04319491057828836,
+          "cosine": 0.9990672081351252
+        },
+        "vjp": {
+          "relative_l2": 0.6754429509760768,
+          "cosine": 0.7529768425778909
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.20227999100689906,
+            "cosine": 0.9886115939062414
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.3594200563617393,
+            "cosine": 0.5927656320130007
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 8.566417139293764,
+            "cosine": 0.11190103507865676
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 10.723081200750336,
+            "cosine": 0.09477678392170572
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.2677075280264436,
+          "residual_mse": 6.404476948773663e-08,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.55460061802296
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.30604390895090333,
+          "residual_mse": 8.97710197023116e-06,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.570760215981863
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.08895692973797063,
+          "residual_mse": 2.1005605958634987e-05,
+          "iterations": 81,
+          "evaluations": 136,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.447412849985994
+        }
+      }
+    ],
+    "replay_control": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.03623621120285918,
+          "cosine": 0.9993703623364052
+        },
+        "vjp": {
+          "relative_l2": 0.6029770377153622,
+          "cosine": 0.7977629360082924
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.38615628470008484,
+            "cosine": 0.9733779627307518
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.23538402238292,
+            "cosine": 0.6457987985533953
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 4.623668978448585,
+            "cosine": 0.20364944492383608
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 11.023835035581923,
+            "cosine": 0.10609920117758359
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.1479333068639257,
+          "residual_mse": 4.736657288617607e-09,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 8.15695043298183
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.40276732326682,
+          "residual_mse": 3.969247245549923e-06,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.621797252970282
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.20314185978116608,
+          "residual_mse": 0.00010512387234484777,
+          "iterations": 23,
+          "evaluations": 114,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.889084174996242
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.04778112181340868,
+          "cosine": 0.9988603330895961
+        },
+        "vjp": {
+          "relative_l2": 0.5319849651319202,
+          "cosine": 0.8468108786503336
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363314349651792,
+            "cosine": 0.9518624955343217
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.337808105417998,
+            "cosine": 0.6213131072221892
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.201162303301132,
+            "cosine": 0.6218805054575899
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 2.599774723230095,
+            "cosine": 0.3832624254603989
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.25095931330531634,
+          "residual_mse": 2.4511368934554412e-08,
+          "iterations": 100,
+          "evaluations": 101,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.490527129964903
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.49768482684214904,
+          "residual_mse": 3.3422084015910514e-06,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.6039864079793915
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.49865313713070475,
+          "residual_mse": 0.0005775501485913992,
+          "iterations": 66,
+          "evaluations": 141,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.533632842998486
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.043631190406114476,
+          "cosine": 0.9990480766707631
+        },
+        "vjp": {
+          "relative_l2": 0.6760199918320422,
+          "cosine": 0.752840693427738
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.20227999158643212,
+            "cosine": 0.9886115915606619
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.3943257546682128,
+            "cosine": 0.5831116461515515
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 8.967568186174372,
+            "cosine": 0.10711932900420093
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 10.575712469145113,
+            "cosine": 0.09639255079649135
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.3081887244916664,
+          "residual_mse": 7.29596649762243e-08,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.583122434967663
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.30489727775109793,
+          "residual_mse": 8.996397809823975e-06,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.612270790967159
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.08717382173489002,
+          "residual_mse": 2.0997867977712303e-05,
+          "iterations": 85,
+          "evaluations": 137,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.473756897030398
+        }
+      }
+    ],
+    "replay_vjp01": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.039518695132126525,
+          "cosine": 0.9992671276466065
+        },
+        "vjp": {
+          "relative_l2": 0.6064151446709678,
+          "cosine": 0.7952621138174707
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.38615602011321004,
+            "cosine": 0.9733779775752207
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.1579952544940921,
+            "cosine": 0.6692073185040467
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 3.8573125353014124,
+            "cosine": 0.24121784834145393
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 5.049503979410991,
+            "cosine": 0.21055670851761452
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.1840172769935119,
+          "residual_mse": 2.6779551021149928e-08,
+          "iterations": 100,
+          "evaluations": 105,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.89350485696923
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.41005276540568697,
+          "residual_mse": 4.626203008228913e-06,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.588524637045339
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.1986984903731533,
+          "residual_mse": 0.00010600755922496319,
+          "iterations": 33,
+          "evaluations": 92,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.800127430993598
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.05121020834437527,
+          "cosine": 0.9987022926448829
+        },
+        "vjp": {
+          "relative_l2": 0.536283536182879,
+          "cosine": 0.8440491171233765
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363311205555482,
+            "cosine": 0.9518625253572093
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.2405537202711636,
+            "cosine": 0.6488871050590276
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.0714184061379197,
+            "cosine": 0.6644849380390434
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 3.7436942018060373,
+            "cosine": 0.30057960796422234
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.259923390967994,
+          "residual_mse": 2.306863677858928e-08,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.446404443006031
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.5065910784720399,
+          "residual_mse": 3.883244062308222e-06,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.493217025010381
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.5053185429130066,
+          "residual_mse": 0.0005756401224061847,
+          "iterations": 79,
+          "evaluations": 180,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 9.123456191038713
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.046763699342774155,
+          "cosine": 0.9989968200458615
+        },
+        "vjp": {
+          "relative_l2": 0.6232307269799555,
+          "cosine": 0.783973127721435
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.20227983804467975,
+            "cosine": 0.9886116011489808
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.2570303625019525,
+            "cosine": 0.6220138259918032
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 6.408392970573634,
+            "cosine": 0.14689433502765586
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 4.917162701593058,
+            "cosine": 0.19505156526061704
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.3880478445652431,
+          "residual_mse": 6.180820122381192e-08,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.549374240043107
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.30758526454654866,
+          "residual_mse": 1.028623228194192e-05,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.484996116021648
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.10006118209751634,
+          "residual_mse": 2.27815326070413e-05,
+          "iterations": 49,
+          "evaluations": 82,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 7.409568011004012
+        }
+      }
+    ],
+    "replay_path001": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.035360549488104714,
+          "cosine": 0.9993836889932581
+        },
+        "vjp": {
+          "relative_l2": 0.6073815655897449,
+          "cosine": 0.7944155630955029
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.3861564357928769,
+            "cosine": 0.9733779537859927
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 0.9518595488455014,
+            "cosine": 0.7404818904435231
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 3.488096326322613,
+            "cosine": 0.26971431568257814
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 8.104245667498116,
+            "cosine": 0.13768919781607522
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.14433728646931207,
+          "residual_mse": 6.912787675616983e-09,
+          "iterations": 100,
+          "evaluations": 101,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.7684273310005665
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.390823293335622,
+          "residual_mse": 3.86454439649242e-06,
+          "iterations": 100,
+          "evaluations": 101,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.4153240349842235
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.20139877238536216,
+          "residual_mse": 0.00010511679283808917,
+          "iterations": 36,
+          "evaluations": 64,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.247152480005752
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.056372396983996674,
+          "cosine": 0.9987249890454696
+        },
+        "vjp": {
+          "relative_l2": 0.538890131080276,
+          "cosine": 0.8424401381499697
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363314400595542,
+            "cosine": 0.9518624956879066
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.1167039689335847,
+            "cosine": 0.6904463929016179
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.154759920567926,
+            "cosine": 0.6418589811753306
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 1.0118192128341472,
+            "cosine": 0.7088038565091198
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.25251844727722306,
+          "residual_mse": 2.2604378813184667e-08,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.436935200996231
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.4969587107393457,
+          "residual_mse": 3.192589929312817e-06,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.478572251042351
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.5053350197504329,
+          "residual_mse": 0.0005793686723336577,
+          "iterations": 100,
+          "evaluations": 121,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 8.151367181970272
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.043107756707821486,
+          "cosine": 0.9990712053416241
+        },
+        "vjp": {
+          "relative_l2": 0.6631628310708677,
+          "cosine": 0.7620863867787281
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.20228003206456519,
+            "cosine": 0.9886115867221844
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.0210355457672902,
+            "cosine": 0.7004370419750654
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 5.64533394096624,
+            "cosine": 0.1690528335379332
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 7.205658028525427,
+            "cosine": 0.14146565656534937
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.2126855408031726,
+          "residual_mse": 2.285491085274316e-08,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.4871218540356494
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.3120609090508322,
+          "residual_mse": 7.971210834512021e-06,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.499913961975835
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.08714741077118805,
+          "residual_mse": 2.0536743249977008e-05,
+          "iterations": 76,
+          "evaluations": 139,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.566535641031805
+        }
+      }
+    ],
+    "replay_path01": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.040118953278056646,
+          "cosine": 0.9992227308382192
+        },
+        "vjp": {
+          "relative_l2": 0.6166880919513613,
+          "cosine": 0.7872415777098617
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.3861564232198405,
+            "cosine": 0.9733779517117539
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 0.8504015177861204,
+            "cosine": 0.7770551828437151
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 2.905574325684929,
+            "cosine": 0.3202526216584594
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 3.6149476506036,
+            "cosine": 0.2827699066802131
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.1404372725386269,
+          "residual_mse": 6.570209265532867e-09,
+          "iterations": 100,
+          "evaluations": 101,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.8782434170134366
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.3894949645424431,
+          "residual_mse": 4.8682304623071104e-06,
+          "iterations": 100,
+          "evaluations": 106,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.491926777991466
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.26853116890216805,
+          "residual_mse": 0.00010545026452746242,
+          "iterations": 100,
+          "evaluations": 121,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 9.246225265029352
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.05845719198932109,
+          "cosine": 0.9985998725172408
+        },
+        "vjp": {
+          "relative_l2": 0.5437812184990547,
+          "cosine": 0.8392606763759661
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363314667603006,
+            "cosine": 0.9518624798978165
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.0007269659559141,
+            "cosine": 0.7299617300412617
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.0564033125156427,
+            "cosine": 0.6790671764677152
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 1.1712861660379603,
+            "cosine": 0.6433771507430368
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.2389456514574923,
+          "residual_mse": 2.397898413164512e-08,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.470037199032959
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.49612854794136274,
+          "residual_mse": 3.244778554289951e-06,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.52580017701257
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.5072414723194,
+          "residual_mse": 0.0005801293882541358,
+          "iterations": 57,
+          "evaluations": 137,
+          "success": false,
+          "message": "ABNORMAL: ",
+          "seconds": 8.338408589013852
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.04507133098843103,
+          "cosine": 0.998984614276575
+        },
+        "vjp": {
+          "relative_l2": 0.6486999151769514,
+          "cosine": 0.771385442385297
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.2022800405112054,
+            "cosine": 0.988611583003239
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 0.879874226991203,
+            "cosine": 0.7514654322621552
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 4.4072317724918095,
+            "cosine": 0.21491816491348603
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 5.261042380189946,
+            "cosine": 0.19203056949414576
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.24196254041136628,
+          "residual_mse": 8.447140942280384e-08,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.488713778962847
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.3169835108308271,
+          "residual_mse": 7.370799721684307e-06,
+          "iterations": 100,
+          "evaluations": 105,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.623565932037309
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.08089953126281703,
+          "residual_mse": 2.0834288079640828e-05,
+          "iterations": 74,
+          "evaluations": 110,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 7.914649982994888
+        }
+      }
+    ],
+    "replay_vjp0001": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.036135945750062765,
+          "cosine": 0.9993773528358639
+        },
+        "vjp": {
+          "relative_l2": 0.6028731290096083,
+          "cosine": 0.7978481058309416
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.38615625150716637,
+            "cosine": 0.9733779687720497
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.1921788090320393,
+            "cosine": 0.6592367022414068
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 4.435396523910254,
+            "cosine": 0.21221825861579985
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 10.58300591903854,
+            "cosine": 0.10953120149925606
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.14076422185238616,
+          "residual_mse": 3.299791018207543e-08,
+          "iterations": 100,
+          "evaluations": 110,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.946423284010962
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.2001194428513815,
+          "residual_mse": 6.130297151685227e-06,
+          "iterations": 100,
+          "evaluations": 118,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.877091525995638
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.19921686674102515,
+          "residual_mse": 0.000105342420283705,
+          "iterations": 33,
+          "evaluations": 83,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.570923826016951
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.047472145824755785,
+          "cosine": 0.9988725878627813
+        },
+        "vjp": {
+          "relative_l2": 0.5330510465050546,
+          "cosine": 0.8461602360848831
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363314531184508,
+            "cosine": 0.9518624808439083
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.307271681499073,
+            "cosine": 0.630352407416265
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.2108993566695934,
+            "cosine": 0.6194582703331895
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 3.0793536153090635,
+            "cosine": 0.3419758023901583
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.2526087290751739,
+          "residual_mse": 2.3815060146148426e-08,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.486713042017072
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.5255615423890322,
+          "residual_mse": 3.3800170058384538e-06,
+          "iterations": 100,
+          "evaluations": 103,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.568533334997483
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.5065005667816708,
+          "residual_mse": 0.0005777721526101232,
+          "iterations": 77,
+          "evaluations": 131,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.357608508027624
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.043673267241366935,
+          "cosine": 0.9990459043725604
+        },
+        "vjp": {
+          "relative_l2": 0.6767042676267668,
+          "cosine": 0.7520801035503129
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.20227993545385461,
+            "cosine": 0.9886115892881023
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.329899155986242,
+            "cosine": 0.6012951388465384
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 8.20720603825415,
+            "cosine": 0.1167897702604552
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 10.414348738378836,
+            "cosine": 0.09766005389329126
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.28573179212038247,
+          "residual_mse": 6.755198000973905e-08,
+          "iterations": 100,
+          "evaluations": 105,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.6018552699824795
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.3277900817678592,
+          "residual_mse": 8.935071491578128e-06,
+          "iterations": 100,
+          "evaluations": 104,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.524898404022679
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.08869236883365338,
+          "residual_mse": 2.1004516383982264e-05,
+          "iterations": 78,
+          "evaluations": 105,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 7.8102340290206484
+        }
+      }
+    ],
+    "replay_path0001": [
+      {
+        "case": 0,
+        "forward": {
+          "relative_l2": 0.03526570920960481,
+          "cosine": 0.9993874075865492
+        },
+        "vjp": {
+          "relative_l2": 0.6027482951888529,
+          "cosine": 0.7979317786906939
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.38615628479300645,
+            "cosine": 0.9733779599132442
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.1297820683276285,
+            "cosine": 0.6794734309175177
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 4.298735152472902,
+            "cosine": 0.219550148771745
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 10.443841725349328,
+            "cosine": 0.11119551368345
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.15660390767794619,
+          "residual_mse": 6.664155449698228e-09,
+          "iterations": 100,
+          "evaluations": 106,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.909741578041576
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.42174959407017687,
+          "residual_mse": 3.954506610170938e-06,
+          "iterations": 100,
+          "evaluations": 102,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.501188122027088
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.20065937196665465,
+          "residual_mse": 0.00010537488560657948,
+          "iterations": 34,
+          "evaluations": 89,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.752574437006842
+        }
+      },
+      {
+        "case": 1,
+        "forward": {
+          "relative_l2": 0.04765891803568163,
+          "cosine": 0.9988636823712685
+        },
+        "vjp": {
+          "relative_l2": 0.5356668413070985,
+          "cosine": 0.8445258067563877
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.5363314871884639,
+            "cosine": 0.9518624802200787
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.265774609100097,
+            "cosine": 0.6429848408271894
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 1.2208296214444956,
+            "cosine": 0.6171073250544873
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 4.748040215500276,
+            "cosine": 0.25062534062459546
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.2552244622958728,
+          "residual_mse": 2.4788963770561168e-08,
+          "iterations": 100,
+          "evaluations": 101,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.6340166829759255
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.47883034705991995,
+          "residual_mse": 3.359173888384248e-06,
+          "iterations": 100,
+          "evaluations": 107,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.610385783016682
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.5019144234256157,
+          "residual_mse": 0.0005780569044873118,
+          "iterations": 62,
+          "evaluations": 84,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 7.46030208497541
+        }
+      },
+      {
+        "case": 2,
+        "forward": {
+          "relative_l2": 0.04386082295197378,
+          "cosine": 0.9990399332378489
+        },
+        "vjp": {
+          "relative_l2": 0.682491134796976,
+          "cosine": 0.7501759228012141
+        },
+        "path": [
+          {
+            "scale": 0.0,
+            "relative_l2": 0.2022799711899109,
+            "cosine": 0.9886115880842485
+          },
+          {
+            "scale": 0.05,
+            "relative_l2": 1.255014592335019,
+            "cosine": 0.6236133052655434
+          },
+          {
+            "scale": 0.1,
+            "relative_l2": 7.813745367342638,
+            "cosine": 0.12298905944530686
+          },
+          {
+            "scale": 0.5,
+            "relative_l2": 9.270068850782023,
+            "cosine": 0.110580754537809
+          },
+          {
+            "scale": 1.0,
+            "relative_l2": 0.0,
+            "cosine": 0.0
+          }
+        ],
+        "self_recovery": {
+          "ic_relative_l2": 0.43460211638946333,
+          "residual_mse": 9.420264035497894e-08,
+          "iterations": 100,
+          "evaluations": 106,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.613570728979539
+        },
+        "xlb_recovery": {
+          "ic_relative_l2": 0.3109356750864142,
+          "residual_mse": 8.414789590460714e-06,
+          "iterations": 100,
+          "evaluations": 105,
+          "success": false,
+          "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT",
+          "seconds": 7.576488268969115
+        },
+        "fourier_xlb_recovery": {
+          "ic_relative_l2": 0.08500611582129558,
+          "residual_mse": 2.0960487745469436e-05,
+          "iterations": 83,
+          "evaluations": 120,
+          "success": true,
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "seconds": 8.093228312034626
+        }
+      }
+    ]
+  },
+  "reused_controls": "XLB and baseline from completed job 2871803; identical cases, model and protocol",
+  "selection": {
+    "criterion": "mean validation XLB-target IC recovery error, full space",
+    "scores": {
+      "baseline": 0.35027722594196536,
+      "replay_control": 0.4017831426200223,
+      "replay_vjp01": 0.4080763694747585,
+      "replay_path001": 0.3999476377086,
+      "replay_path01": 0.4008690077715443,
+      "replay_vjp0001": 0.3511570223360909,
+      "replay_path0001": 0.403838538738837
+    },
+    "winner": "baseline",
+    "weights": "/data/personal/andrinr/runner/surrogate/replay-pilot-20261003/source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/weights.npz"
+  }
+}

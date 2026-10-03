@@ -1,0 +1,32 @@
+{
+  "code_commit": "d1d06bc",
+  "queue": "nice",
+  "jobs": {
+    "training": 2872650,
+    "weak_weights": 2872666,
+    "validation": 2872655,
+    "registered_benchmarks": 2872661
+  },
+  "files": {
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/generate_trajectories.py": "ea0045f502de1d54eb302829986f9e608f11c5093ba91aceed02800b7299f051",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/surrogate_model.py": "06d5fdbba3156726ba55a8d367a3f94adfda99d82b840d477cc27f4dd90d99fb",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/training_data.py": "37d033c33e95dd44d63242c0e9eda614617047057499fefbaf66bfe0cdc9205f",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/tesseract_api.py": "e43905a92328491007fdb8a0734f50cb1b45b093bc447fca7127caeebebc4b5a",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/train.py": "46026c203f709c1db4d5acfaea823e1dcd96b1ef563cbadd4861e7f168cc0f34",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/sobolev.py": "13792e99067fee18a570e3fe3ca775f422d58e4d2ddf973ce4e6eadaef10ae72",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/weights.npz": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb/tesseract_api.py": "ebb150b0363748d7a44e219e85283fd6054185a3fcbb50ab6930626dd3cb2453",
+    "submit-benchmark.py": "16c8665d806dc63ef9d8671a2cc8c0acd540ae695d9ea149aa5cfb3b28217821",
+    "submit-weak.py": "fb9b1af08af917a0eed6a37890277025dc4310649f150ad468f9dc2d78067fe5",
+    "submit-evaluate.py": "76f1c18f2bdc43c215c6b555fa23fa24613645d740210d8b3bc894b3b5bb7675",
+    "client.py": "70472498d1623a2b837af7624999c91468913dfc509a3a743f8c67026397aaf2",
+    "provenance.py": "6a84302dbd248020b94f7ff114013ac30d4c24f05b965a12c6351b37cd9a498d",
+    "evaluate.py": "f48bb2482b3fbe906e373fd07823e3d683a7325891535c173446516b297b8b2a",
+    "submit.py": "c7fcc362cbd6e524c957aaeafd63fd29667d8180aa6ebd52fcaaaeeaa1bf21c7",
+    "check_data.py": "51861f1bf366a59205a019c925b2fd90bd858ce36ff22935e0cae1d6b5a97630",
+    "run.sh": "29f5249cab979a4fc5e59f89374bb4fa56ac5c972fc909ad2ad68048d9b8adf2",
+    "evaluate.sh": "5b46b0bc8a57858e3df1ff75cd0312177305d5f141d1dbf95247a18a5eee6169",
+    "benchmark.sh": "03f280d6860b5be2734924bcc63e366a1f28c0195fea6ccb7afe85cd09ea47d3",
+    "weak.sh": "36119efdaa0d3ad71eb6a4848ab3a7afb9f116356b4d6e36095f48a05a71e4d2"
+  }
+}

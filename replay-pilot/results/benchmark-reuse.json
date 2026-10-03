@@ -1,0 +1,9 @@
+{
+  "reused_job": 2871758,
+  "reason": "original checkpoint retained; unchanged runtime model/API",
+  "weights_sha256": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+  "runtime_sha256": {
+    "surrogate_model.py": "06d5fdbba3156726ba55a8d367a3f94adfda99d82b840d477cc27f4dd90d99fb",
+    "tesseract_api.py": "e43905a92328491007fdb8a0734f50cb1b45b093bc447fca7127caeebebc4b5a"
+  }
+}
