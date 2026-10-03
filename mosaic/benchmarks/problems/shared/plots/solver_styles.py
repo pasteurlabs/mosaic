@@ -28,6 +28,7 @@ SOLVER_STYLES: dict[str, dict[str, Any]] = {
     "openfoam": {"color": "#DDAA33", "linestyle": ":", "marker": "D"},
     "pict": {"color": "#AA44AA", "linestyle": (0, (5, 1)), "marker": "v"},
     "warp_ns": {"color": "#EE7733", "linestyle": (0, (1, 1)), "marker": "X"},
+    "xlb_3d_surrogate": {"color": "#CC3311", "linestyle": "--", "marker": "*"},
     "xlb": {"color": "#66CCEE", "linestyle": (0, (3, 1, 1, 1)), "marker": "P"},
     "exponax": {"color": "#33AA99", "linestyle": "-", "marker": "o"},
     # ── Structural mechanics ─────────────────────────────────────────────

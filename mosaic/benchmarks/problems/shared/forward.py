@@ -175,7 +175,11 @@ def _agreement_aggregate(
             if "drag" in m:
                 drags.setdefault(name, {})[val] = m["drag"]
 
-    reference_label = "consensus"
+    reference_label = (
+        f"solver:{run['reference_solver']}"
+        if run.get("reference_solver") is not None
+        else "consensus"
+    )
     solver_names = [s.name for s in cfg.solvers]
     reference_solver = run.get("reference_solver")
 
@@ -205,11 +209,15 @@ def _agreement_aggregate(
         )
         has_ref_solver = reference_solver is not None and reference_solver in comparable
 
-        if len(comparable) == 0 or (
-            len(comparable) < 2
-            and not has_analytic
-            and not has_ref_solver
-            and not has_precomputed
+        if (
+            (reference_solver is not None and not has_ref_solver)
+            or len(comparable) == 0
+            or (
+                len(comparable) < 2
+                and not has_analytic
+                and not has_ref_solver
+                and not has_precomputed
+            )
         ):
             attempted = set(by_solver.keys())
             for n in solver_names:
@@ -222,12 +230,22 @@ def _agreement_aggregate(
                         "metrics": {
                             "error": apply_errors.get(n, {}).get(val),
                             "valid": False,
+                            **(
+                                {
+                                    "reference_error": f"Missing reference solver: {reference_solver}"
+                                }
+                                if reference_solver is not None and not has_ref_solver
+                                else {}
+                            ),
                         },
                     }
                 )
             continue
 
-        if prefer_precomputed and has_precomputed:
+        if has_ref_solver:
+            reference = np.asarray(comparable[reference_solver])
+            reference_label = f"solver:{reference_solver}"
+        elif prefer_precomputed and has_precomputed:
             reference = precomputed
             reference_label = "converged"
         elif has_analytic:
@@ -245,9 +263,6 @@ def _agreement_aggregate(
                 solver_name_for_inputs=cfg.solvers[0].name,
             )
             reference_label = "analytic"
-        elif has_ref_solver:
-            reference = np.asarray(comparable[reference_solver])
-            reference_label = f"solver:{reference_solver}"
         elif has_precomputed:
             reference = precomputed
             reference_label = "precomputed"

@@ -506,3 +506,52 @@ def plot_cost(
     if save:
         save_fig(fig, f"cost{suffix}", suite_dir)
     return fig
+
+
+def plot_fixed_cost(
+    cfg: Problem,
+    *,
+    exp_key: str,
+    save: bool = True,
+    suffix: str = "",
+) -> Any:
+    """Plot warm API-call samples for one fixed-physics cost experiment.
+
+    Unlike ``plot_cost``, this reads the registered experiment's own envelope
+    instead of the historical spatial/temporal sweep paths. Bars show means;
+    error bars show trial standard deviations, not confidence intervals.
+    """
+    out_dir = results_dir() / cfg.name / _SUITE / f"{exp_key}{suffix}"
+    result_path = out_dir / "result.json"
+    if not result_path.exists():
+        return None
+    data = load_json(result_path)
+    names, samples = [], []
+    for row in data.get("results", []):
+        metrics = row.get("metrics") or {}
+        trials = np.asarray(metrics.get("trials_s", []), dtype=float)
+        if (
+            metrics.get("status") == "failed"
+            or not trials.size
+            or not np.isfinite(trials).all()
+        ):
+            continue
+        names.append(row["solver"])
+        samples.append(trials * 1000)
+    if not names:
+        return None
+    styles = solver_styles(cfg)
+    fig, ax = plt.subplots(figsize=(TEXTWIDTH, 2.8), layout="constrained")
+    ax.bar(
+        names,
+        [float(np.mean(t)) for t in samples],
+        yerr=[float(np.std(t)) for t in samples],
+        color=[styles.get(name, {}).get("color", "0.5") for name in names],
+        capsize=4,
+    )
+    ax.set_ylabel("Warm API call time (ms)")
+    ax.set_title(exp_key.replace("_", " "))
+    ax.set_xlabel("Mean ± trial standard deviation; transport included")
+    if save:
+        save_fig(fig, "cost", out_dir)
+    return fig
