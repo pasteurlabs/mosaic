@@ -136,22 +136,22 @@ configuration. Selection SHA256:
 | Selected SPSA | .02114284 | .01829118 | .01414227 |
 | Powell | .02412493 | .02257210 | .01546678 |
 
-The linear initialization scored .02680957. At120seconds AD beat both alternatives
-on all16 tasks: mean objective was86.95% lower than SPSA and88.07% lower than
-Powell. Paired task-bootstrap95% intervals for mean AD-minus-baseline differences
-were[-.01462854,-.01007652] against SPSA and[-.01783079,-.00972242] against Powell.
+The linear initialization scored .02680957. At 120 seconds AD beat both alternatives
+on all 16 tasks: mean objective was 86.95% lower than SPSA and 88.07% lower than
+Powell. Paired task-bootstrap 95% intervals for mean AD-minus-baseline differences
+were [-.01462854,-.01007652] against SPSA and [-.01783079,-.00972242] against Powell.
 These intervals describe task variation, not repeated optimizer-seed variation.
 
 Independent raw-record audit reproduced development selection, source/image and
-selection hashes, identical per-task inputs, checkpoint minima and all16 paired
-wins. All24 tasks passed numerical admission: maximum primary directional-gradient
-discrepancy was0.0694%; maximum goal/candidate temporal discrepancy was0.2857%,
-below the unchanged5% and0.5% thresholds. Test calls finishing after120seconds
-were charged in the work ledger but excluded from the120-second candidates.
-Their recorded wall overshoots were0.024–4.045seconds.
+selection hashes, identical per-task inputs, checkpoint minima and all 16 paired
+wins. All 24 tasks passed numerical admission: maximum primary directional-gradient
+discrepancy was 0.0694%; maximum goal/candidate temporal discrepancy was 0.2857%,
+below the unchanged 5% and 0.5% thresholds. Test calls finishing after 120 seconds
+were charged in the work ledger but excluded from the 120-second candidates.
+Their recorded wall overshoots were 0.024–4.045 seconds.
 
-Mean total requested forward/VJP evaluations were28.25/27.25 for AD,
-70.75/0 for SPSA and74.625/0 for Powell, including overshooting calls.
+Mean total requested forward/VJP evaluations were 28.25/27.25 for AD,
+70.75/0 for SPSA and 74.625/0 for Powell, including overshooting calls.
 The result establishes a per-instance control-optimization advantage over these
 registered alternatives at the measured warm-service budget. It does not establish
 neural-training superiority, cold-start/end-to-end speedup, superiority over all
