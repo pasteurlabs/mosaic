@@ -198,9 +198,11 @@ and full-spectrum JVP error from 38.28% to 26.00%; validation and held-out
 errors improve together, so the observed inverse-model gap is not evidence of
 conventional train/test overfitting. A remaining architectural limitation is
 the amplitude gate on the learned correction: at the zero-velocity cold start,
-the correction is second-order and the full model's first derivative is fixed
-by the viscous skip. Consequently, more trajectory data cannot correct the
-measured 49.34% radial JVP error at zero, where recovery begins.
+the amplitude factor strongly suppresses the learned correction's first
+derivative, leaving the viscous skip dominant. The implemented square-root
+floor makes this suppression finite, rather than an exactly fixed derivative.
+More trajectory data alone did not correct the measured 49.34% radial JVP
+error at zero, where recovery begins.
 
 End-to-end VJPs were also checked against central finite differences on the
 exact recovery physics, using three IC seeds, ten shared unit-norm random
