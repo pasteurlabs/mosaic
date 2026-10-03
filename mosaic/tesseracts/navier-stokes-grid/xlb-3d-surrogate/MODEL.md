@@ -36,14 +36,14 @@ horizon. Other physics are rejected before inference. All 2D and unmatched
 The matched cells use the same random divergence-free ICs (seeds 0, 1, 2)
 and physical parameters for every participating solver:
 
-| Experiment | Quantity measured |
-| --- | --- |
-| `forward/recovery_teacher` | Final-field relative L2 error against XLB, not an exact PDE solution |
-| `gradient/recovery_fd_check` | Each solver's `sum(u_T²)` gradient against its own central finite differences, ten shared directions and eight relative step sizes |
-| `cost/recovery_forward` | Twenty warm forward API calls per seed |
-| `cost/recovery_vjp` | Twenty warm `sum(u_T²)` gradient calls per seed, including forward and VJP |
-| `optimization/recovery_constant_ic_bfgs` | Self-target IC recovery from zero, 100 unconstrained L-BFGS updates |
-| `optimization/recovery_constant_ic_bfgs_proj` | The same recovery with divergence-free gradient projection |
+| Experiment                                    | Quantity measured                                                                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `forward/recovery_teacher`                    | Final-field relative L2 error against XLB, not an exact PDE solution                                                               |
+| `gradient/recovery_fd_check`                  | Each solver's `sum(u_T²)` gradient against its own central finite differences, ten shared directions and eight relative step sizes |
+| `cost/recovery_forward`                       | Twenty warm forward API calls per seed                                                                                             |
+| `cost/recovery_vjp`                           | Twenty warm `sum(u_T²)` gradient calls per seed, including forward and VJP                                                         |
+| `optimization/recovery_constant_ic_bfgs`      | Self-target IC recovery from zero, 100 unconstrained L-BFGS updates                                                                |
+| `optimization/recovery_constant_ic_bfgs_proj` | The same recovery with divergence-free gradient projection                                                                         |
 
 The forward comparison requires an XLB result; it never falls back to a
 surrogate-only consensus or a Taylor–Green analytic reference. Derivative
@@ -116,14 +116,14 @@ seeds 0/1/2, 100 recovery updates, and 20 warm timing trials per seed. The
 checkpoint was unchanged. Means across the three seeds, or all 60 timing
 trials, are:
 
-| Metric | XLB | Surrogate |
-| --- | ---: | ---: |
-| Forward field error against XLB | reference | 4.39% |
-| Unconstrained L-BFGS IC recovery error | 5.38% | 16.74% |
-| Projected L-BFGS IC recovery error | 5.21% | 16.67% |
-| Forward API time, mean / median | 10.26 / 10.27 ms | 11.57 / 10.32 ms |
-| Forward + VJP API time, mean / median | 48.31 / 48.37 ms | 38.92 / 38.32 ms |
-| Best-epsilon median directional FD error, seed range | 0.00033–0.00142% | 0.532–0.904% |
+| Metric                                               |              XLB |        Surrogate |
+| ---------------------------------------------------- | ---------------: | ---------------: |
+| Forward field error against XLB                      |        reference |            4.39% |
+| Unconstrained L-BFGS IC recovery error               |            5.38% |           16.74% |
+| Projected L-BFGS IC recovery error                   |            5.21% |           16.67% |
+| Forward API time, mean / median                      | 10.26 / 10.27 ms | 11.57 / 10.32 ms |
+| Forward + VJP API time, mean / median                | 48.31 / 48.37 ms | 38.92 / 38.32 ms |
+| Best-epsilon median directional FD error, seed range | 0.00033–0.00142% |     0.532–0.904% |
 
 Both solvers are internally FD-consistent, but the full gradients of their
 respective `sum(u_T²)` objectives are not interchangeable: surrogate-to-XLB
