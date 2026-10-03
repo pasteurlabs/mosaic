@@ -124,3 +124,10 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
+
+    fixed_3d_task = Exclusion(
+        ExclusionCategory.CATEGORICAL,
+        "surrogate trained only for the fixed N=16 periodic 3D recovery task",
+    )
+    for suite in ("forward", "gradient", "cost", "optimization"):
+        problem.exclude(suite, {"xlb_3d_surrogate": fixed_3d_task})

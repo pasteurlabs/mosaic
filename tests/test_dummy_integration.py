@@ -517,3 +517,33 @@ def test_agreement_reference_matches_the_ic(
     )
     result = cfg.experiments[f"forward/dummy_ref_{ic_name}"].fn(cfg, tags)
     assert result["extras"]["reference_label"] == expected_label
+
+
+@pytest.mark.parametrize("teacher_present", [True, False])
+def test_explicit_teacher_reference_never_falls_back(
+    ns_grid_tags, tmp_path, monkeypatch, teacher_present
+):
+    """A requested teacher outranks analytic/consensus and must be available."""
+    from mosaic.benchmarks.problems.shared.forward import agreement
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    if not teacher_present:
+        tags.pop("XLB")
+    cfg.add_experiment(
+        "forward/teacher_reference",
+        agreement,
+        ic={"name": "tgv", "seed": 0},
+        physics={"N": [4], "nu": 0.05, "dt": 0.01, "steps": 1},
+        reference_solver="XLB",
+    )
+    result = cfg.experiments["forward/teacher_reference"].fn(cfg, tags)
+    assert result["extras"]["reference_label"] == "solver:XLB"
+    rows = result["results"]
+    assert rows
+    for row in rows:
+        assert row["metrics"]["valid"] is teacher_present
+        if teacher_present:
+            assert row["metrics"]["error"] == 0
+        else:
+            assert row["metrics"]["reference_error"] == "Missing reference solver: XLB"
