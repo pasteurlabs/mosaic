@@ -1,0 +1,117 @@
+{
+  "audit_time_utc": "2026-10-03T00:21:26.380094+00:00",
+  "scope": "Read-only independent audit of raw outcomes/protocols, frozen source archive, Slurm chronology and recorded query events. No NPZ array recalculation or rerun.",
+  "passed": true,
+  "tasks_checked": 24,
+  "available_snapshots_checked": 569,
+  "selection_sha256": "10cf3ecb285b1813f22f9109d7f20930d84f1829f5f8a27a08d407bbba9e7935",
+  "source_sha256": "7a090878358cc228f29166ae6bac829b1c6ea1160dfecd657baa689a1dd64635",
+  "image_sha256": "b5317e9438b4487646f62e090a36e5ef546d9fcc30d9881b7637fb4e71f65462",
+  "checks": [
+    "development-only selection recomputed over all eight tasks",
+    "all test protocols bind exact frozen selection and physics/source/image",
+    "identical per-task inputs and original/realized initialization hashes",
+    "every selected checkpoint matches best completed coarse query within deadline",
+    "all oracle starts before120s; overshoot candidates excluded",
+    "forward/VJP event accounting reproduces totals",
+    "all primary gradients and available fine temporal audits admitted"
+  ],
+  "max_primary_gradient_relative_error": 0.0006938997017614713,
+  "max_goal_or_candidate_temporal_relative_error": 0.002857024548575282,
+  "test_overshoot_seconds_range": [
+    0.02445625199470669,
+    4.044914465979673
+  ],
+  "slurm_chronology": {
+    "last_development_end_local": "2026-10-02T19:20:25",
+    "first_test_submit_local": "2026-10-02T19:21:24",
+    "timezone": "Europe/Zurich",
+    "gpu_class": "5090"
+  },
+  "method_results": {
+    "adam": {
+      "selected": {
+        "setting_id": "adam-lr0.05",
+        "method": "adam",
+        "optimizer_settings": {
+          "lr": 0.05
+        }
+      },
+      "development_mean": 0.00201383295643609,
+      "test_mean": 0.001845476119342493,
+      "adam_wins_vs_method": null,
+      "order_position_counts": [
+        6,
+        4,
+        6
+      ],
+      "forward_count_range": [
+        25,
+        32
+      ],
+      "vjp_count_range": [
+        24,
+        31
+      ]
+    },
+    "spsa": {
+      "selected": {
+        "setting_id": "spsa-lr0.01-eps0.05-d1",
+        "method": "spsa",
+        "optimizer_settings": {
+          "lr": 0.01,
+          "epsilon": 0.05,
+          "directions": 1
+        }
+      },
+      "development_mean": 0.01603105792310089,
+      "test_mean": 0.014142267900751904,
+      "adam_wins_vs_method": 16,
+      "order_position_counts": [
+        7,
+        3,
+        6
+      ],
+      "forward_count_range": [
+        58,
+        97
+      ],
+      "vjp_count_range": [
+        0,
+        0
+      ]
+    },
+    "powell": {
+      "selected": {
+        "setting_id": "powell",
+        "method": "powell",
+        "optimizer_settings": {}
+      },
+      "development_mean": 0.019476033630780876,
+      "test_mean": 0.015466784941963851,
+      "adam_wins_vs_method": 16,
+      "order_position_counts": [
+        3,
+        9,
+        4
+      ],
+      "forward_count_range": [
+        58,
+        109
+      ],
+      "vjp_count_range": [
+        0,
+        0
+      ]
+    }
+  },
+  "limitations": [
+    "Direct per-instance optimization, not neural/amortized training advantage",
+    "Shared warm GPU service; not cold deployment or end-to-end speedup",
+    "One fixed SPSA seed per task; optimizer-seed robustness untested",
+    "Limited registered optimizer grid and Powell settings, not all black-box methods",
+    "Randomized method order not perfectly position balanced",
+    "Directional derivative admission at zero controls, not every optimization trajectory",
+    "Saved hashes validated as metadata; NPZ arrays not independently rehashed in this audit"
+  ]
+}
