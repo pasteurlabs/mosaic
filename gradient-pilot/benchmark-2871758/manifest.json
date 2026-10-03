@@ -1,0 +1,30 @@
+{
+  "transport": "HTTP/base64 Tesseract services on one allocated GPU",
+  "job_id": "2871758",
+  "host": "rtx11",
+  "source_base": "6ce99c0",
+  "client_packages": {
+    "jax": "0.11.2",
+    "tesseract-core": "1.14.0",
+    "tesseract-jax": "0.4.1",
+    "optax": "0.2.8"
+  },
+  "xlb_precision": "default float64 differentiation/forward path",
+  "surrogate_precision": "float32",
+  "completed": [
+    "forward/recovery_teacher/seed_0",
+    "forward/recovery_teacher/seed_1",
+    "forward/recovery_teacher/seed_2",
+    "gradient/recovery_fd_check/seed_0",
+    "gradient/recovery_fd_check/seed_1",
+    "gradient/recovery_fd_check/seed_2",
+    "cost/recovery_forward/seed_0",
+    "cost/recovery_forward/seed_1",
+    "cost/recovery_forward/seed_2",
+    "cost/recovery_vjp/seed_0",
+    "cost/recovery_vjp/seed_1",
+    "cost/recovery_vjp/seed_2",
+    "optimization/recovery_constant_ic_bfgs",
+    "optimization/recovery_constant_ic_bfgs_proj"
+  ]
+}

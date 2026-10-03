@@ -1,0 +1,14 @@
+{
+  "dataset_sha256": "4836fba4e6a8524af7a552c5977721118e726afa21db9a9f4d0b612a879a0005",
+  "split_sha256": "f24a6be870fc233d52ba7ee1f3b8b49f1f6f6a47dc8482a1caafd4cc7326ac21",
+  "teacher_api_sha256": "ebb150b0363748d7a44e219e85283fd6054185a3fcbb50ab6930626dd3cb2453",
+  "labels_sha256": "ffba8f1cfbcdb12a7694e8b26e3f399bbdbaeb0fb65b42c42d81a677967c5394",
+  "seed": 20261003,
+  "secant_step": 0.01,
+  "teacher_precision": "float64",
+  "saved_precision": "float32",
+  "steps": 100,
+  "dt": 0.02,
+  "viscosity": 0.01,
+  "cotangents": "one independent isotropic Gaussian unit vector per IC"
+}

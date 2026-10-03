@@ -1,0 +1,37 @@
+{
+  "base_commit": "e2ac67761030766bb966ae20d07fe01e5c03412f",
+  "queue": "nice",
+  "jobs": {
+    "pilot": 2871629,
+    "recovery_path": 2871754,
+    "validation": 2871803,
+    "validation_failed_dtype": 2871648,
+    "registered_benchmarks": 2871758,
+    "conditioning": 2871881
+  },
+  "files": {
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/training_data.py": "37d033c33e95dd44d63242c0e9eda614617047057499fefbaf66bfe0cdc9205f",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/train.py": "94a3be354773473a1da66a3e07fc5ccbf7e75cfa355eedc0a3c2418ac1385146",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/sobolev.py": "e9e620e2a809674ae7c332bab2c3a3c5ca60aabdcdb044bda39f8a696046663f",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/generate_trajectories.py": "ea0045f502de1d54eb302829986f9e608f11c5093ba91aceed02800b7299f051",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/surrogate_model.py": "06d5fdbba3156726ba55a8d367a3f94adfda99d82b840d477cc27f4dd90d99fb",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/tesseract_api.py": "e43905a92328491007fdb8a0734f50cb1b45b093bc447fca7127caeebebc4b5a",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/weights.npz": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+    "source/mosaic/tesseracts/navier-stokes-grid/xlb/tesseract_api.py": "ebb150b0363748d7a44e219e85283fd6054185a3fcbb50ab6930626dd3cb2453",
+    "provenance.py": "84a5a09e11e6bd69bca43d5d6ebb0be5854f62cc9141dbc75f160b584923ec40",
+    "client.py": "70472498d1623a2b837af7624999c91468913dfc509a3a743f8c67026397aaf2",
+    "submit.py": "4ee165c0f63d495e7eafa6b9b9ecd940c1c2d230d7bef13c163248009c238f40",
+    "conditioning.py": "77860d9035663a5dc815d839ca7901bde50c9d56e41a45a04b5c682696b55796",
+    "submit-evaluate.py": "d6a3a95649065539f972d0b051306243859c01659fe905ec12ca108524887296",
+    "submit-conditioning.py": "e89a98c41e40e74852140b5369f0dcbe0cf9d07a476c27ef59885df7662b330e",
+    "submit-benchmark.py": "d5f4dafa6ef72585cd218709aba58d75d8f27394ea1f8d88a7d4911bf5f69c1f",
+    "evaluate.py": "f4aece7e09fe9ae6ded3947b240dace7c1f8fbf747597f60f4108d8892bc89d4",
+    "submit-path.py": "805fdd561d825c6259fd7562cabb3410765db441888a6e36e6711f466c54458d",
+    "path_labels.py": "8b94a00caf15ecb95caec2b00b8a11c3209a56b6396f8c2aae43857ffef282d6",
+    "conditioning.sh": "a8f4e238415f8c557869ded49655db08dc4da9cdf9c6d0d1c56c18a3ebf7e29c",
+    "run.sh": "b8e9da2def3633dfc1fef30343fd67b96e20b20202d00d3e287a567e7f3e84f6",
+    "path.sh": "504b0c125fd461e8c4a641272e3eaaa3f894ddc4970ff448d5916747f57c9277",
+    "evaluate.sh": "4debcd9f61cda634e27ad61e0e14ff87aa24dcb77962c407e3fef0009145ffef",
+    "benchmark.sh": "3db34fb05f746f90491ecbefce34652ccf5bab218e7e5fe666d597566687a5ef"
+  }
+}

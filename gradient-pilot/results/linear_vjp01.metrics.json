@@ -1,0 +1,54 @@
+{
+  "labels_sha256": "ffba8f1cfbcdb12a7694e8b26e3f399bbdbaeb0fb65b42c42d81a677967c5394",
+  "initial_weights_sha256": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+  "weights_sha256": "3e894e850e27aac20bdf86cf0d01104d77dbd918696d8d4f9b57d1e5fba22e65",
+  "elapsed_seconds": 39.123038486985024,
+  "linear_correction": true,
+  "method": "vjp",
+  "weight": 0.1,
+  "lr": 1e-05,
+  "seed": 20261003,
+  "updates": 500,
+  "batch_size": 1,
+  "field_floor": 4.693159367889166e-05,
+  "best_step": 500,
+  "selection": "validation field relative MSE + weight * vjp relative MSE",
+  "history": [
+    {
+      "step": 0,
+      "score": 0.13487113657174632,
+      "field": 0.008192271776351845,
+      "vjp": 1.266788622830063
+    },
+    {
+      "step": 100,
+      "score": 0.131202494550962,
+      "field": 0.007736702933470951,
+      "vjp": 1.2346579055301845
+    },
+    {
+      "step": 200,
+      "score": 0.1281857646536082,
+      "field": 0.007366375102719758,
+      "vjp": 1.2081938735209405
+    },
+    {
+      "step": 300,
+      "score": 0.12528757710242644,
+      "field": 0.007123497372958809,
+      "vjp": 1.1816407889127731
+    },
+    {
+      "step": 400,
+      "score": 0.12251240178011358,
+      "field": 0.0069318009591370355,
+      "vjp": 1.1558059812523425
+    },
+    {
+      "step": 500,
+      "score": 0.11954175907885656,
+      "field": 0.006916424819792155,
+      "vjp": 1.1262533240951598
+    }
+  ]
+}

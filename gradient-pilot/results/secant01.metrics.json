@@ -1,0 +1,54 @@
+{
+  "labels_sha256": "ffba8f1cfbcdb12a7694e8b26e3f399bbdbaeb0fb65b42c42d81a677967c5394",
+  "initial_weights_sha256": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+  "weights_sha256": "a116a2bb91e44c40e7d6748073a8ff5551b0a829299ddf29d2ec984ecf0abd7d",
+  "elapsed_seconds": 45.93492186401272,
+  "linear_correction": false,
+  "method": "secant",
+  "weight": 0.1,
+  "lr": 1e-05,
+  "seed": 20261003,
+  "updates": 500,
+  "batch_size": 1,
+  "field_floor": 4.693159367889166e-05,
+  "best_step": 500,
+  "selection": "validation field relative MSE + weight * secant relative MSE",
+  "history": [
+    {
+      "step": 0,
+      "score": 0.11192608562123496,
+      "field": 0.008192275963665452,
+      "secant": 1.037338079418987
+    },
+    {
+      "step": 100,
+      "score": 0.11334962172259111,
+      "field": 0.008393328553211177,
+      "secant": 1.0495629191864282
+    },
+    {
+      "step": 200,
+      "score": 0.11126803886145353,
+      "field": 0.00819430701812962,
+      "secant": 1.0307372937677428
+    },
+    {
+      "step": 300,
+      "score": 0.10990246222354472,
+      "field": 0.00810220180574106,
+      "secant": 1.0180025818990543
+    },
+    {
+      "step": 400,
+      "score": 0.10886412180843763,
+      "field": 0.008054440728301415,
+      "secant": 1.0080967834219337
+    },
+    {
+      "step": 500,
+      "score": 0.10885834634245839,
+      "field": 0.008124342530209105,
+      "secant": 1.007340009440668
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "by_solver": {
+    "XLB": {},
+    "XLB 3D surrogate": {}
+  },
+  "params": {
+    "name": "seed_0",
+    "ic": {
+      "name": "rand_div_free",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.01,
+      "dt": 0.02,
+      "steps": 100
+    },
+    "fd": {
+      "eps_values": [
+        5.0,
+        1.0,
+        0.3,
+        0.1,
+        0.03,
+        0.01,
+        0.003,
+        0.001
+      ],
+      "n_dirs": 10
+    }
+  }
+}

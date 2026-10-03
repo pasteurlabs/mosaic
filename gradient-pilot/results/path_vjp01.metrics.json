@@ -1,0 +1,54 @@
+{
+  "labels_sha256": "08206b1cdbf6379fc854e593e80cffebd228ee85c41efe510a677939cd0434fd",
+  "initial_weights_sha256": "1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f",
+  "weights_sha256": "0334953257bcba9e6e7371cea68c71cd31ffc0555562e72e7eb58c6ef8b25d5a",
+  "elapsed_seconds": 36.49940351600526,
+  "linear_correction": false,
+  "method": "vjp",
+  "weight": 0.1,
+  "lr": 1e-05,
+  "seed": 20261003,
+  "updates": 500,
+  "batch_size": 1,
+  "field_floor": 0.0001552255265414715,
+  "best_step": 200,
+  "selection": "validation field relative MSE + weight * vjp relative MSE",
+  "history": [
+    {
+      "step": 0,
+      "score": 0.2805012853609191,
+      "field": 0.020080725429579616,
+      "vjp": 2.604205565320121
+    },
+    {
+      "step": 100,
+      "score": 0.1611920717275805,
+      "field": 0.018321508619313438,
+      "vjp": 1.4287056128184001
+    },
+    {
+      "step": 200,
+      "score": 0.12836919207539824,
+      "field": 0.017250553394357365,
+      "vjp": 1.1111863570080862
+    },
+    {
+      "step": 300,
+      "score": 0.1407880855517255,
+      "field": 0.01695352342600624,
+      "vjp": 1.2383456114265654
+    },
+    {
+      "step": 400,
+      "score": 0.1525671055747403,
+      "field": 0.017077178073426087,
+      "vjp": 1.354899255765809
+    },
+    {
+      "step": 500,
+      "score": 0.14937002460161844,
+      "field": 0.017110705867202744,
+      "vjp": 1.322593179013994
+    }
+  ]
+}

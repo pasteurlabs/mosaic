@@ -1,0 +1,103 @@
+{
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "solvers": {
+    "XLB": {
+      "forward_relative_l2": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fd_best_median_relative_error": [
+        7.267359729365885e-06,
+        1.4174775236268352e-05,
+        3.2575403724105836e-06
+      ],
+      "fd_cosine_at_best_epsilon": [
+        0.9999999999698713,
+        0.9999999998761201,
+        0.9999999999897226
+      ],
+      "forward_mean_ms": 10.2733483693252,
+      "forward_median_ms": 10.268492012983188,
+      "forward_trial_count": 60,
+      "vjp_mean_ms": 48.24258723141005,
+      "vjp_median_ms": 47.83253249479458,
+      "vjp_trial_count": 60,
+      "bfgs_ic_relative_l2": [
+        0.049168724566698074,
+        0.051677145063877106,
+        0.06069616973400116
+      ],
+      "bfgs_mean_ic_relative_l2": 0.05384734645485878,
+      "bfgs_proj_ic_relative_l2": [
+        0.04739898070693016,
+        0.05029807239770889,
+        0.058649253100156784
+      ],
+      "bfgs_proj_mean_ic_relative_l2": 0.05211543540159861
+    },
+    "XLB 3D surrogate": {
+      "forward_relative_l2": [
+        0.041644640266895294,
+        0.042134784162044525,
+        0.04782663285732269
+      ],
+      "fd_best_median_relative_error": [
+        0.009035022213036783,
+        0.005315615535069284,
+        0.00691282283990151
+      ],
+      "fd_cosine_at_best_epsilon": [
+        0.9999848616460695,
+        0.9999764944833976,
+        0.999989959182237
+      ],
+      "forward_mean_ms": 11.676687117627202,
+      "forward_median_ms": 10.180696990573779,
+      "forward_trial_count": 60,
+      "vjp_mean_ms": 38.32384279909699,
+      "vjp_median_ms": 38.36727098678239,
+      "vjp_trial_count": 60,
+      "bfgs_ic_relative_l2": [
+        0.1729380488395691,
+        0.15571841597557068,
+        0.17355364561080933
+      ],
+      "bfgs_mean_ic_relative_l2": 0.16740337014198303,
+      "bfgs_proj_ic_relative_l2": [
+        0.17293310165405273,
+        0.15587826073169708,
+        0.17124086618423462
+      ],
+      "bfgs_proj_mean_ic_relative_l2": 0.1666840761899948
+    }
+  },
+  "energy_objective_gradient_fidelity": [
+    {
+      "seed": 0,
+      "relative_l2": 2.219493840932195,
+      "cosine": 0.40509976091581434
+    },
+    {
+      "seed": 1,
+      "relative_l2": 2.074273645537136,
+      "cosine": 0.43814398513632213
+    },
+    {
+      "seed": 2,
+      "relative_l2": 1.4959488596102604,
+      "cosine": 0.5682767286632511
+    }
+  ],
+  "limitations": [
+    "Three held-out seeds; this is not a complete held-out dataset evaluation.",
+    "Energy-objective gradients differentiate each solver's own sum(u_T**2), not a full Jacobian or a common-output-cotangent VJP.",
+    "Timing includes HTTP/base64 transport and a CPU JAX client; VJP timing includes the forward and reverse calls.",
+    "XLB uses its default float64 path; the surrogate uses float32. One RTX 5090 allocation, sequential fixed solver order; 60 trials per operation and solver, not independent jobs.",
+    "Existing runtime images were used with source/API/model/weights mounts. This is not a fresh Docker image build validation."
+  ]
+}

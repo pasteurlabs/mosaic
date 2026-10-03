@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "ns-3d-grid",
+    "suite": "forward",
+    "name": "recovery_teacher/seed_0"
+  },
+  "params": {
+    "name": "seed_0",
+    "ic": {
+      "name": "rand_div_free",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.01,
+      "dt": 0.02,
+      "steps": 100
+    },
+    "reference_solver": "XLB",
+    "sweep": {
+      "key": "steps",
+      "values": [
+        100
+      ]
+    }
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      "100"
+    ]
+  },
+  "results": [
+    {
+      "solver": "XLB",
+      "sweep_value": "100",
+      "metrics": {
+        "error": 0.0,
+        "valid": true,
+        "drag": 0.0
+      }
+    },
+    {
+      "solver": "XLB 3D surrogate",
+      "sweep_value": "100",
+      "metrics": {
+        "error": 0.041644640266895294,
+        "valid": true,
+        "drag": 0.0
+      }
+    }
+  ],
+  "extras": {
+    "spread": {
+      "100": 0.020822320133447647
+    },
+    "reference_label": "solver:XLB"
+  },
+  "coords": {
+    "variant": "seed_0"
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "XLB": "093a4adc1576e2c9",
+      "XLB 3D surrogate": "f652485d5bf6919e"
+    },
+    "harness_hash": "81630adf05770ba3",
+    "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+    "wall_time_s": {
+      "XLB": 1.0135574729647487,
+      "XLB 3D surrogate": 3.4014738490222953
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-03T16:49:45.875677+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-03T16:49:45Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

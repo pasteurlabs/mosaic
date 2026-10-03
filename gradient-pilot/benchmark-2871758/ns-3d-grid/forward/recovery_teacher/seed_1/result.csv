@@ -1,0 +1,3 @@
+solver,steps,error,valid
+XLB,100,0.0,True
+XLB 3D surrogate,100,0.042134784162044525,True
