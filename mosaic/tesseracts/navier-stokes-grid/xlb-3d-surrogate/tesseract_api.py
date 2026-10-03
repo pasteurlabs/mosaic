@@ -112,6 +112,10 @@ def _load_weights() -> dict[str, jax.Array]:
                 raise RuntimeError(
                     f"XLB 3D surrogate weights are incomplete: {sorted(missing)}"
                 )
+            if "w_linear" in data.files:
+                if data["w_linear"].shape != (3 * (_N // 2) ** 2 + 1, 3, 3):
+                    raise RuntimeError("invalid linear correction shape")
+                required.add("w_linear")
             _WEIGHTS = {key: jnp.asarray(data[key]) for key in required}
     return _WEIGHTS
 

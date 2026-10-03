@@ -270,3 +270,124 @@ error and divergence histories, full-field plots, animation, timing
 decomposition, 4k/16k restricted and paper-protocol Jacobian spectra, the
 inverse-gradient diagnostic, finite-difference U-curves, and external offline
 artifact provenance.
+
+## Experimental input-derivative supervision
+
+`sobolev.py` provides an offline fine-tuning pilot, separate from the shipped
+checkpoint. It matches terminal velocity and full 100-step VJPs using identical
+output cotangents for XLB and the surrogate. This is input-Jacobian supervision,
+whereas the existing trainer's spectral loss weights spatial frequencies.
+See [Sobolev Training for Neural Networks](https://arxiv.org/abs/1706.04859).
+
+The teacher supplies first derivatives only, cached as fixed labels. Optimizing
+the student's VJP loss requires mixed input/parameter second derivatives through
+the native JAX surrogate. It does not require second derivatives through the
+Tesseract API. Small-model tests check these mixed derivatives against finite
+differences; full-size GPU training and improvement on recovery are not yet
+validated.
+
+Generate labels in the XLB environment, with this directory on `PYTHONPATH`:
+
+```bash
+python sobolev.py generate --teacher-api /tesseract/tesseract_api.py \
+  --dataset /surrogate-output/recovery_3d_xlb_trajectories.npy \
+  --output /surrogate-output/sobolev-labels.npz
+```
+
+Then run matched pilots in the surrogate environment, using distinct output
+files for weights `0`, `0.01`, `0.1`, and `1`:
+
+```bash
+python sobolev.py train --labels /surrogate-output/sobolev-labels.npz \
+  --init-weights weights.npz --weight 0.1 --updates 500 \
+  --output /surrogate-output/sobolev-0.1.npz
+```
+
+All pilots use identical starting weights, normalization, batches, and update
+counts. Weight zero is the additional-training control with the same terminal
+field loss and data; it is not the original curriculum loss. It also evaluates
+VJPs, so pilot training timings do not measure the minimal field-only cost.
+Labels sample 128 training and 32 validation trajectories by default, with
+amplitude factors drawn from zero, 0.1, 0.5, and 1. Test trajectories are excluded.
+Teacher calculations use float64; saved labels use float32. Every sample has
+one fixed random unit output cotangent. This is a small derivative-supervision
+pilot, not a complete Jacobian dataset or coverage of arbitrary recovery states.
+
+Checkpoints are selected by validation field relative MSE plus the weighted VJP
+relative MSE; both components are logged. Scores with different weights are not
+directly comparable. Compare selected checkpoints on fresh cotangents, forward
+error, gradient cosine/error, both existing recovery benchmarks, and runtime.
+Keep final test results separate from hyperparameter selection. Follow-up arms
+should compare more cotangents, recovery-residual cotangents, broader input
+coverage, and an architectural change permitting a stronger learned derivative
+near zero. The existing amplitude gate strongly suppresses that derivative;
+Sobolev training alone is not guaranteed to remove this restriction.
+
+### Alternatives and experiment order
+
+The objective is teacher-faithful sensitivities and better held-out recovery.
+A smaller condition number alone is not success: viscosity physically damps
+high-frequency modes, and the implemented projection removes some input
+directions. Forcing all singular values toward one would change the solver.
+Report resolved rank, singular-value spectra with explicit precision thresholds,
+and derivative alignment along recovery paths, rather than raw condition numbers
+below the numerical noise floor.
+
+| Priority | Experiment                            | Hypothesis and limitation                                                                                                                                                                                                              |
+| -------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Central-secant supervision            | Match `F(x + h d) - F(x - h d)` to XLB; avoids mixed second derivatives in training. Sweep perturbation sizes because finite differences introduce truncation and cancellation errors.                                                 |
+| 1        | Near-zero linear correction           | Add a zero-preserving learnable linear branch beside the gated nonlinear correction. Test its zero-state Jacobian against XLB before training. Simply removing the gate is a separate control, not an established fix.                 |
+| 2        | Recovery-path data                    | Query XLB at actual optimization iterates from training targets, including perturbations away from amplitude-scaled ICs. Split by original target before generating paths; never train on final benchmark trajectories.                |
+| 2        | Task-directed derivative labels       | Supplement random cotangents with normalized XLB recovery residuals. Match the same cotangent for teacher and student, then independently compare their actual objective gradients. Residual-only training may overfit one objective.  |
+| 2        | Reduced-space recovery and damping    | Optimize divergence-free Fourier coefficients, progressively admit higher frequencies, and compare damped Gauss–Newton with L-BFGS. This changes the inverse algorithm/prior, not the learned solver; apply the same procedure to XLB. |
+| 3        | Teacher-informed spectral supervision | Match Jacobian actions in selected resolved directions, including weak directions. Avoid penalties demanding arbitrary invertibility or suppressing every large derivative. Probe unexplored directions separately.                    |
+| 3        | Shorter rollout or improved state     | Compare fewer learned macro-steps or an augmented recurrent state. XLB evolves hidden populations, whereas the surrogate advances velocity alone; test whether this limits derivative fidelity rather than assuming it does.           |
+
+Reduced derivative representations are motivated by
+[Derivative-Informed Neural Operators](https://arxiv.org/abs/2206.10745), which
+compress derivative information to make training practical. Their published
+results do not establish an improvement for this XLB checkpoint. The experiments
+above are hypotheses, not measured improvements.
+
+The central-secant arm is implemented in `sobolev.py`. Add `--secant-step 0.01`
+to label generation, then `--method secant` to training. It uses projected random
+input directions normalized to unit RMS. The perturbation RMS is the requested
+fraction of `max(input RMS, 0.01)`, so zero anchors still receive nonzero probes.
+Labels store the normalized central difference, computed with float64 XLB and
+saved as float32. VJP labels are also generated for the same ICs. Try relative
+steps `0.003`, `0.01`, and `0.03` on validation data; generate each label set to a
+separate file. Unit tests check central-difference convergence and optimizer
+updates, not empirical performance on XLB.
+
+For each candidate, record validation forward error; fresh-cotangent VJP and
+fresh-direction JVP errors/cosines; gradients of the actual recovery objective at
+zero and along optimization paths; resolved Jacobian spectra; both self-target
+and XLB-target recovery; runtime and peak training memory. Compare methods under
+both fixed update counts and a fixed compute budget. Select using validation
+cases, then run the existing held-out solver benchmarks once. A successful
+candidate must reduce recovery error without an unacceptable forward-accuracy
+or runtime regression. Keep architecture and inverse-optimizer changes as
+separate ablations before combining them.
+
+### October 3 pilot submission
+
+The first GPU pilot uses eight 500-update arms from the shipped checkpoint:
+field-only; VJP weights 0.01, 0.1, and 1; central-secant weight 0.1;
+VJP weight 0.1 with a zero-initialized linear correction; and field-only/VJP
+weight 0.1 on recovery-path data. The linear branch learns real 3×3 channel
+mixing per squared-wavenumber shell, preserving the zero state and permitting
+a learned first derivative there. It is enabled by `--linear-correction` and
+stored as the optional `w_linear` checkpoint parameter. Existing checkpoints
+retain their original behavior. No retrained checkpoint has replaced the
+packaged weights.
+
+The offline validation pilot uses three original validation trajectories,
+fresh output cotangents, gradient probes along amplitude-scaled paths, and
+100-iteration SciPy L-BFGS-B recovery with self and XLB targets. A separate
+Fourier-restricted recovery arm is applied to XLB and every surrogate. These
+SciPy runs differ from the registered benchmark optimizer and are labeled
+accordingly. Candidate selection uses full-space XLB-target validation recovery
+error; the selected checkpoint subsequently runs the standard registered
+experiments. All pilot jobs use the preemptible `nice` queue because the regular
+RTX pool is at its per-user GPU limit. Results remain pending until those jobs
+complete; submission is not evidence of improvement.

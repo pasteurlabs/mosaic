@@ -130,6 +130,16 @@ def one_step(
         * correction_scale.reshape(1, 1, 1, 1, 3)
         * (amplitude / input_scale)
     )
+    if "w_linear" in params:
+        k = jnp.fft.fftfreq(N, d=1.0 / N)
+        kz = jnp.fft.rfftfreq(N, d=1.0 / N)
+        kx, ky, kz_grid = jnp.meshgrid(k, k, kz, indexing="ij")
+        shell = (kx**2 + ky**2 + kz_grid**2).astype(jnp.int32)
+        velocity_hat = jnp.fft.rfftn(velocity, axes=(1, 2, 3))
+        linear_hat = jnp.einsum(
+            "bxyzi,xyzio->bxyzo", velocity_hat, params["w_linear"][shell]
+        )
+        correction += jnp.fft.irfftn(linear_hat, s=(N, N, N), axes=(1, 2, 3)).real
     return helmholtz_project(diffuse_macro(velocity) + correction)
 
 

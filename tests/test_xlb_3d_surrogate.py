@@ -267,3 +267,32 @@ def test_packaged_checkpoint_recovery_harness(optimizer, tmp_path, monkeypatch):
     assert entry["errors"][-1] < entry["errors"][0]
     assert entry["final_ic_error"] < entry["ic_error_init"]
     assert list(path.parent.glob("*.npz"))
+
+
+@pytest.mark.parametrize("valid_shape", [True, False])
+def test_optional_linear_branch_checkpoint_is_loaded(
+    tmp_path, monkeypatch, valid_shape
+):
+    monkeypatch.setattr(_API, "_WIDTH", 4)
+    monkeypatch.setattr(_API, "_MODES", 2)
+    monkeypatch.setattr(_API, "_LAYERS", 1)
+    monkeypatch.setattr(_API, "_WEIGHTS", None)
+    path = tmp_path / "weights.npz"
+    monkeypatch.setattr(_API, "_weights_path", lambda: path)
+    weights = _weights()
+    weights["w_linear"] = np.zeros((193 if valid_shape else 192, 3, 3), np.float32)
+    np.savez(
+        path,
+        **weights,
+        width=4,
+        modes=2,
+        layers=1,
+        stride=_API._STRIDE,
+        rollout_steps=_API._ROLLOUT_STEPS,
+        autoregressive=1,
+    )
+    if valid_shape:
+        assert _API._load_weights()["w_linear"].shape == (193, 3, 3)
+    else:
+        with pytest.raises(RuntimeError, match="invalid linear correction shape"):
+            _API._load_weights()
