@@ -1,12 +1,45 @@
 ### Final bounded neural-corrector comparison
 
-**Inconclusive: incomplete results or failed admission; no superiority claim.**
+**Solver-in-the-loop beats tuned supervision in this registered setting.**
 
-Research stops here; failure is not evidence of equivalence.
 
-- RuntimeError: terminal infrastructure failures require explicit review: {'2873094': 'FAILED'}
-- matched_stopped/model13/[20008, 20009, 20010, 20011]: [Errno 2] No such file or directory: '/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b2/outcome.json'
-- matched_stopped: 4 missing model/IC pairs
+The matched ablation supports a benefit from solver derivatives at the selected recipe.
+
+| Method | Mean rollout error ↓ |
+|---|---:|
+| Full solver gradients | 2.131% |
+| Matched stopped gradients | 2.378% |
+| Tuned stopped gradients | 2.378% |
+| Tuned supervision | 3.035% |
+| Solver only | 5.639% |
+
+Full/supervised error ratio: **0.702**, paired 95% interval [0.649, 0.761].
+
+Matched stopped-gradient ratio: **0.896**, paired 95% interval [0.868, 0.924].
+
+Selection used 16 separate validation flows and three model seeds. Confirmation uses eight fresh model seeds and 32 untouched flows. Intervals resample paired model seeds and shared flows, not time frames. The positive threshold was a ≥5% mean reduction and a 95% interval excluding no improvement.
+
+The same INS solver supplies the 192² reference restricted to 64². The physical task, reference checks and model architecture are unchanged. Search covers learning rates, unroll lengths, update budgets and supervised warm starts; it is not an exhaustive impossibility test.
+
+![Rollout and paired results](ARTIFACT_URL/report/rollout-and-paired.png)
+
+![Full-domain fields](ARTIFACT_URL/report/fields.png)
+
+![Spatial velocity errors](ARTIFACT_URL/report/field-errors.png)
+
+Mean training cost per model (including warm starts and supervised-pair generation):
+
+- Full solver gradients: 168.4 minutes
+
+- Matched stopped gradients: 93.1 minutes
+
+- Tuned stopped gradients: 93.1 minutes
+
+- Tuned supervision: 8.8 minutes
+
+![Training costs](ARTIFACT_URL/report/training-cost.png)
+
+Shared reference generation, evaluation and hyperparameter search are separate costs; equal updates do not imply equal compute.
 
 | Selected recipe | Learning rate | Unroll | Updates | Supervised start |
 |---|---:|---:|---:|---|

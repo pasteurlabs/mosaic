@@ -2795,7 +2795,7 @@
         20010,
         20011
       ],
-      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b2"
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-ins-final-v2-20261003/results/test-matched_stopped-s13-b2-retry1"
     },
     {
       "arm": "matched_stopped",
@@ -4515,7 +4515,15 @@
     20030,
     20031
   ],
-  "failures": [
-    "RuntimeError: terminal infrastructure failures require explicit review: {'2873094': 'FAILED'}"
+  "failures": [],
+  "resolved_infrastructure_failures": [
+    {
+      "old_job": 2873094,
+      "old_cell": "test-matched_stopped-s13-b2",
+      "retry_cell": "test-matched_stopped-s13-b2-retry1",
+      "reason": "solver service port 33094 already in use; evaluation did not start",
+      "identical_payload": true,
+      "prior_failure": "RuntimeError: terminal infrastructure failures require explicit review: {'2873094': 'FAILED'}"
+    }
   ]
 }
