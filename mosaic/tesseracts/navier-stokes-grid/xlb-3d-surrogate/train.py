@@ -114,6 +114,39 @@ def _estimate_scales(
     )
 
 
+def trajectory_loss(
+    predicted: jax.Array,
+    target: jax.Array,
+    output_scale: jax.Array,
+) -> tuple[jax.Array, tuple[jax.Array, jax.Array, jax.Array]]:
+    """Original time-weighted field, spectral, and terminal rollout objective."""
+    horizon = predicted.shape[1]
+    difference = (predicted - target) / output_scale
+    per_time_field = jnp.mean(
+        difference**2,
+        axis=(0, 2, 3, 4, 5),
+    )
+    time_weights = jnp.linspace(
+        1.0,
+        2.0,
+        horizon,
+        dtype=jnp.float32,
+    )
+    field_loss = jnp.sum(per_time_field * time_weights) / jnp.sum(time_weights)
+    flattened = difference.reshape(-1, fno.N, fno.N, fno.N, 3)
+    error_hat = jnp.fft.rfftn(flattened, axes=(1, 2, 3))
+    k = jnp.fft.fftfreq(fno.N, d=1.0 / fno.N)
+    kz = jnp.fft.rfftfreq(fno.N, d=1.0 / fno.N)
+    kx, ky, kz_grid = jnp.meshgrid(k, k, kz, indexing="ij")
+    spectral_weight = jnp.sqrt(1.0 + kx**2 + ky**2 + kz_grid**2)
+    spectral_loss = jnp.mean(
+        jnp.abs(error_hat) ** 2 * spectral_weight[None, ..., None]
+    ) / (fno.N**3)
+    terminal_loss = jnp.mean(difference[:, -1] ** 2)
+    loss = field_loss + 0.02 * spectral_loss + 0.25 * terminal_loss
+    return loss, (field_loss, spectral_loss, terminal_loss)
+
+
 def main() -> None:
     """Train, select by validation rollout error, and export one checkpoint."""
     parser = argparse.ArgumentParser()
@@ -249,31 +282,9 @@ def main() -> None:
             target: jax.Array,
         ) -> tuple[jax.Array, tuple[jax.Array, jax.Array, jax.Array]]:
             predicted = predict(current, initial, horizon)
-            difference = (predicted - target) / output_scale_jax
-            per_time_field = jnp.mean(
-                difference**2,
-                axis=(0, 2, 3, 4, 5),
-            )
-            time_weights = jnp.linspace(
-                1.0,
-                2.0,
-                horizon,
-                dtype=jnp.float32,
-            )
-            field_loss = jnp.sum(per_time_field * time_weights) / jnp.sum(time_weights)
-            flattened = difference.reshape(-1, fno.N, fno.N, fno.N, 3)
-            error_hat = jnp.fft.rfftn(flattened, axes=(1, 2, 3))
-            k = jnp.fft.fftfreq(fno.N, d=1.0 / fno.N)
-            kz = jnp.fft.rfftfreq(fno.N, d=1.0 / fno.N)
-            kx, ky, kz_grid = jnp.meshgrid(k, k, kz, indexing="ij")
-            spectral_weight = jnp.sqrt(1.0 + kx**2 + ky**2 + kz_grid**2)
-            spectral_loss = jnp.mean(
-                jnp.abs(error_hat) ** 2 * spectral_weight[None, ..., None]
-            ) / (fno.N**3)
-            terminal_loss = jnp.mean(difference[:, -1] ** 2)
-            loss = field_loss + 0.02 * spectral_loss + 0.25 * terminal_loss
+            loss, components = trajectory_loss(predicted, target, output_scale_jax)
             loss += 1e-8 * fno.tree_l2(current)
-            return loss, (field_loss, spectral_loss, terminal_loss)
+            return loss, components
 
         @jax.jit
         def update(

@@ -235,3 +235,83 @@ def test_linear_correction_preserves_zero_and_learns_zero_state_derivative():
     np.testing.assert_allclose(
         jax.grad(lambda gain: response(gain)[1])(0.1), 1.0, atol=1e-6
     )
+
+
+def test_original_trajectory_loss_retains_time_spectral_and_terminal_terms(monkeypatch):
+    monkeypatch.syspath_prepend(str(_PATH))
+    from train import trajectory_loss
+
+    predicted = jnp.ones((1, 2, 16, 16, 16, 3))
+    predicted = predicted.at[:, 1].set(2.0)
+    loss, components = trajectory_loss(
+        predicted, jnp.zeros_like(predicted), jnp.ones(3)
+    )
+    np.testing.assert_allclose(components, [3.0, 2.5 * 16 / 9, 4.0], rtol=1e-6)
+    np.testing.assert_allclose(loss, 3 + 0.02 * 2.5 * 16 / 9 + 0.25 * 4, rtol=1e-6)
+
+
+def test_replay_control_uses_trajectory_targets_not_terminal_label_targets(
+    tmp_path, monkeypatch
+):
+    monkeypatch.syspath_prepend(str(_PATH))
+    fno = _MODULE.fno
+    monkeypatch.setattr(fno, "N", 2)
+    monkeypatch.setattr(fno, "ROLLOUT_STEPS", 1)
+    monkeypatch.setattr(fno, "init_params", lambda **kw: {"gain": jnp.asarray(1.0)})
+    monkeypatch.setattr(
+        fno, "rollout", lambda params, x, **kw: (params["gain"] * x)[:, None]
+    )
+    weights = tmp_path / "initial.npz"
+    np.savez(
+        weights,
+        gain=np.float32(1),
+        width=1,
+        modes=1,
+        layers=1,
+        input_scale=np.float32(0.2),
+        correction_scale=np.ones(3),
+    )
+    initial = np.ones((3, 2, 2, 2, 3), np.float32)
+    replay = tmp_path / "replay.npy"
+    np.save(replay, np.stack([initial, 2 * initial], axis=1))
+    np.savez(replay.with_suffix(".split.npz"), split=[0, 0, 1])
+    normalization = tmp_path / "normalization.json"
+    normalization.write_text(json.dumps({"output_scale": [1, 1, 1]}))
+    gains = []
+    for label_target in [2, 9]:
+        labels = tmp_path / f"labels-{label_target}.npz"
+        np.savez(
+            labels,
+            initial=initial,
+            target=initial * label_target,
+            cotangent=initial,
+            teacher_vjp=initial * 2,
+            split=[0, 0, 1],
+        )
+        output = tmp_path / f"selected-{label_target}.npz"
+        _MODULE.train(
+            argparse.Namespace(
+                init_weights=weights,
+                labels=labels,
+                output=output,
+                weight=0.0,
+                lr=0.05,
+                updates=3,
+                batch_size=1,
+                validation_interval=1,
+                seed=7,
+                linear_correction=False,
+                method="vjp",
+                replay_dataset=replay,
+                replay_normalization=normalization,
+                replay_validation_samples=1,
+            )
+        )
+        metrics = json.loads(output.with_suffix(".metrics.json").read_text())
+        assert (
+            metrics["history"][-1]["replay_loss"] < metrics["history"][0]["replay_loss"]
+        )
+        assert metrics["replay_validation_indices"] == [2]
+        with np.load(output) as d:
+            gains.append(float(d["gain"]))
+    np.testing.assert_array_equal(gains[0], gains[1])

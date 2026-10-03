@@ -205,6 +205,31 @@ def train(args: argparse.Namespace) -> None:
                 np.zeros((3 * (fno.N // 2) ** 2 + 1, 3, 3), dtype=np.float32),
             )
         )
+    replay_path = getattr(args, "replay_dataset", None)
+    replay = None
+    if replay_path is not None:
+        if args.replay_normalization is None:
+            raise ValueError(
+                "replay requires the original training normalization metrics"
+            )
+        replay = np.load(replay_path, mmap_mode="r")
+        if replay.shape[1:] != (fno.ROLLOUT_STEPS + 1, fno.N, fno.N, fno.N, 3):
+            raise ValueError("invalid replay trajectory shape")
+        with np.load(replay_path.with_suffix(".split.npz")) as data:
+            replay_split = data["split"]
+        replay_train = np.flatnonzero(replay_split == 0)
+        replay_val = np.flatnonzero(replay_split == 1)[: args.replay_validation_samples]
+        if not len(replay_train) or not len(replay_val):
+            raise ValueError("replay requires training and validation trajectories")
+        normalization = json.loads(args.replay_normalization.read_text())
+        output_scale = np.asarray(normalization["output_scale"], dtype=np.float32)
+        if (
+            output_scale.shape != (3,)
+            or not np.all(np.isfinite(output_scale))
+            or np.any(output_scale <= 0)
+        ):
+            raise ValueError("invalid original output normalization")
+        replay_output_scale = jnp.asarray(output_scale).reshape(1, 1, 1, 1, 1, 3)
     method = args.method
     keys = (
         ("initial", "target", "cotangent", "teacher_vjp")
@@ -226,6 +251,29 @@ def train(args: argparse.Namespace) -> None:
     # Training-only floor prevents zero-state field errors dominating normalization.
     field_floor = max(float(np.mean(arrays["target"][train_idx] ** 2)) * 0.01, 1e-12)
 
+    def replay_objective(current: dict[str, jax.Array], trajectory: jax.Array):
+        from train import trajectory_loss
+
+        predicted = fno.rollout(
+            current,
+            trajectory[:, 0],
+            steps=fno.ROLLOUT_STEPS,
+            input_scale=jnp.asarray(checkpoint["input_scale"]),
+            correction_scale=jnp.asarray(checkpoint["correction_scale"]),
+            modes=modes,
+            layers=layers,
+        )
+        loss, _ = trajectory_loss(predicted, trajectory[:, 1:], replay_output_scale)
+        loss += 1e-8 * fno.tree_l2(current)
+        error = jnp.linalg.norm(
+            (predicted[:, -1] - trajectory[:, -1]).reshape(trajectory.shape[0], -1),
+            axis=1,
+        ) / jnp.maximum(
+            jnp.linalg.norm(trajectory[:, -1].reshape(trajectory.shape[0], -1), axis=1),
+            1e-8,
+        )
+        return loss, jnp.mean(error)
+
     def objective(current: dict[str, jax.Array], batch: tuple[jax.Array, ...]):
         def forward(initial: jax.Array) -> jax.Array:
             return fno.rollout(
@@ -246,13 +294,26 @@ def train(args: argparse.Namespace) -> None:
     state = init(params)
 
     @jax.jit
-    def step(index: int, state: Any, batch: tuple[jax.Array, ...]):
-        (_, _), gradients = jax.value_and_grad(objective, has_aux=True)(
-            get_params(state), batch
-        )
+    def step(
+        index: int, state: Any, batch: tuple[jax.Array, ...], trajectory: jax.Array
+    ):
+        if replay is None:
+            (_, _), gradients = jax.value_and_grad(objective, has_aux=True)(
+                get_params(state), batch
+            )
+        else:
+
+            def combined(current: dict[str, jax.Array]):
+                replay_loss, _ = replay_objective(current, trajectory)
+                # Preserve the original trajectory objective; add derivatives only.
+                _, (_, derivative) = objective(current, batch)
+                return replay_loss + args.weight * derivative
+
+            gradients = jax.grad(combined)(get_params(state))
         return update(index, gradients, state)
 
     evaluate = jax.jit(objective)
+    evaluate_replay = jax.jit(replay_objective)
 
     def validation(current: dict[str, jax.Array]):
         values = []
@@ -266,16 +327,38 @@ def train(args: argparse.Namespace) -> None:
     best_score = float("inf")
     history = []
     rng = np.random.default_rng(args.seed)
+    replay_rng = np.random.default_rng(args.seed + 17)
     for index in range(args.updates + 1):
         if index:
             selected = rng.choice(
                 train_idx, min(args.batch_size, len(train_idx)), replace=False
             )
             batch = tuple(jnp.asarray(arrays[key][selected]) for key in keys)
-            state = step(index - 1, state, batch)
+            trajectory = jnp.zeros(())
+            if replay is not None:
+                chosen = replay_rng.choice(
+                    replay_train, min(args.batch_size, len(replay_train)), replace=False
+                )
+                trajectory = jnp.asarray(np.asarray(replay[chosen], dtype=np.float32))
+            state = step(index - 1, state, batch, trajectory)
         if index % args.validation_interval and index != args.updates:
             continue
         score, field, derivative = validation(get_params(state))
+        replay_metrics = {}
+        if replay is not None:
+            replay_values = [
+                evaluate_replay(
+                    get_params(state),
+                    jnp.asarray(np.asarray(replay[[i]], dtype=np.float32)),
+                )
+                for i in replay_val
+            ]
+            replay_loss, replay_error = np.mean(np.asarray(replay_values), axis=0)
+            score = float(replay_loss) + args.weight * derivative
+            replay_metrics = {
+                "replay_loss": float(replay_loss),
+                "replay_final_relative_l2": float(replay_error),
+            }
         if not np.isfinite(score):
             raise RuntimeError("nonfinite validation loss")
         record = {
@@ -283,6 +366,7 @@ def train(args: argparse.Namespace) -> None:
             "score": float(score),
             "field": float(field),
             method: float(derivative),
+            **replay_metrics,
         }
         history.append(record)
         print(json.dumps(record), flush=True)
@@ -294,6 +378,21 @@ def train(args: argparse.Namespace) -> None:
     args.output.with_suffix(".metrics.json").write_text(
         json.dumps(
             {
+                "replay_dataset": str(replay_path) if replay_path is not None else None,
+                "replay_dataset_sha256_from_training_metadata": normalization.get(
+                    "dataset_sha256"
+                )
+                if replay is not None
+                else None,
+                "replay_normalization_sha256": _sha256(args.replay_normalization)
+                if replay is not None
+                else None,
+                "replay_split_sha256": _sha256(replay_path.with_suffix(".split.npz"))
+                if replay is not None
+                else None,
+                "replay_validation_indices": replay_val.tolist()
+                if replay is not None
+                else None,
                 "labels_sha256": _sha256(args.labels),
                 "initial_weights_sha256": _sha256(args.init_weights),
                 "weights_sha256": _sha256(args.output),
@@ -307,7 +406,15 @@ def train(args: argparse.Namespace) -> None:
                 "batch_size": args.batch_size,
                 "field_floor": field_floor,
                 "best_step": best_step,
-                "selection": f"validation field relative MSE + weight * {method} relative MSE",
+                "selection": (
+                    "validation "
+                    + (
+                        "original trajectory loss"
+                        if replay is not None
+                        else "field relative MSE"
+                    )
+                    + f" + weight * {method} relative MSE"
+                ),
                 "history": history,
             },
             indent=2,
@@ -331,6 +438,9 @@ def main() -> None:
     generate_parser.add_argument("--train-samples", type=int, default=128)
     generate_parser.add_argument("--validation-samples", type=int, default=32)
     train_parser = sub.add_parser("train")
+    train_parser.add_argument("--replay-dataset", type=Path)
+    train_parser.add_argument("--replay-normalization", type=Path)
+    train_parser.add_argument("--replay-validation-samples", type=int, default=32)
     train_parser.add_argument("--labels", type=Path, required=True)
     train_parser.add_argument("--init-weights", type=Path, required=True)
     train_parser.add_argument("--output", type=Path, required=True)
@@ -349,6 +459,8 @@ def main() -> None:
             parser.error("secant step must be positive")
         generate(args)
     else:
+        if args.replay_validation_samples < 1:
+            parser.error("replay validation samples must be positive")
         if args.validation_interval < 1:
             parser.error("validation interval must be positive")
         train(args)
