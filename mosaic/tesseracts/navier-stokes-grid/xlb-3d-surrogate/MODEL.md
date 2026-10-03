@@ -430,10 +430,57 @@ that full-size mixed input/parameter derivatives are executable. Local checks
 passed: 24 surrogate/training tests, then two optional-checkpoint loader tests,
 and pre-commit checks.
 
-A useful next experiment would preserve the original multi-time trajectory loss
-and replay data while adding derivative supervision; the terminal-only pilots
+This motivated the trajectory-replay follow-up below, preserving the original
+multi-time trajectory loss while adding derivative supervision; the terminal-only pilots
 sometimes improved label-validation losses while degrading common forward
 accuracy. This proposed explanation and remedy have not been established.
 
 [Complete pilot results, plots, scripts, job provenance, conditioning spectra,
 and registered benchmark envelopes](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results/gradient-pilot).
+
+### Trajectory-replay follow-up
+
+The replay mode in `sobolev.py train` samples a full trajectory from the original
+training split on every update. It uses the original time-weighted field,
+spectral, terminal, and parameter L2 losses, shared with `train.py` through
+`trajectory_loss`. The checkpoint's input/correction normalization is preserved;
+output normalization comes from the original training metrics. The derivative
+loss is added on an independent cached-label batch. The terminal field loss on
+those labels is reported but excluded from the replay objective, so weight zero
+is an uncontaminated trajectory-only control.
+
+```bash
+python sobolev.py train --labels /surrogate-output/path-labels.npz \
+  --init-weights weights.npz --output /surrogate-output/replay-path.npz \
+  --replay-dataset /surrogate-output/recovery_3d_xlb_trajectories_16k.npy \
+  --replay-normalization /surrogate-output/recovery_3d_autoregressive_weights_16k.metrics.json \
+  --weight 0.001 --updates 1000
+```
+
+The follow-up compares six 1,000-update arms: trajectory-only control; random
+VJP labels at weights 0.001 and 0.1; recovery-path labels at weights 0.001, 0.01,
+and 0.1. Every arm uses learning rate 1e-5, batch size one, seed 20261003, and the
+same independent replay RNG stream. Training uses the full original training
+split; checkpoint selection uses 32 fixed original validation trajectories and
+the cached derivative-label validation split. The optimizer remains the pilot's
+constant-rate Adam, not a restart of the original curriculum/schedule. The
+smaller weights account for the much smaller numerical scale of the trajectory
+loss compared with normalized derivative error.
+
+The six follow-up runs completed on `nice`. None improved mean XLB-target
+validation recovery over the original checkpoint. The closest candidate was
+random-VJP weight 0.001: 35.12% IC error versus 35.03% originally, with forward
+error 4.24% versus 4.22%. The trajectory-only control reached 40.18% IC error;
+the other derivative arms reached 39.99–40.81%. Some path-supervised arms
+improved self-target recovery while worsening recovery of XLB targets.
+
+Thus replay preserved forward accuracy more closely, but did not resolve the
+inverse-model gap in this six-arm, one-seed pilot. The original weights remain
+packaged. The common controls reuse the prior identical-model validation;
+new candidates were evaluated in job 2872655. Benchmark-disposition job 2872661
+verified identical weights/model/API hashes and reused the original's completed
+14 registered experiments from job 2871758. No new benchmark measurements are
+claimed for the unchanged checkpoint. Ten training/loss tests and pre-commit
+checks passed.
+
+[Replay results, plots, scripts, and provenance](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results/replay-pilot).
