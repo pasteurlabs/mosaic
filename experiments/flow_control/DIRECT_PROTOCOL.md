@@ -121,3 +121,39 @@ full fields with shared physical scales. Fix examples prospectively to developme
 seed3000 and final seeds5000,5001, irrespective of which method wins. Show initial,
 target, linear and all selected-method final fields and error fields. Include
 zero/linear baseline values and the failed/unavailable counts beside aggregates.
+
+## Confirmation outcome
+
+Campaign `pr116-direct-control-20261002` completed all eight development tasks
+and all sixteen untouched confirmation tasks. Development-only selection chose
+AD Adam lr=.05, SPSA Adam lr=.01/epsilon=.05/one direction, and the fixed Powell
+configuration. Selection SHA256:
+`10cf3ecb285b1813f22f9109d7f20930d84f1829f5f8a27a08d407bbba9e7935`.
+
+| Optimizer | Mean objective at 30 s | 60 s | 120 s |
+| --- | ---: | ---: | ---: |
+| Solver-gradient Adam | .01273279 | .00283761 | .00184548 |
+| Selected SPSA | .02114284 | .01829118 | .01414227 |
+| Powell | .02412493 | .02257210 | .01546678 |
+
+The linear initialization scored .02680957. At120seconds AD beat both alternatives
+on all16 tasks: mean objective was86.95% lower than SPSA and88.07% lower than
+Powell. Paired task-bootstrap95% intervals for mean AD-minus-baseline differences
+were[-.01462854,-.01007652] against SPSA and[-.01783079,-.00972242] against Powell.
+These intervals describe task variation, not repeated optimizer-seed variation.
+
+Independent raw-record audit reproduced development selection, source/image and
+selection hashes, identical per-task inputs, checkpoint minima and all16 paired
+wins. All24 tasks passed numerical admission: maximum primary directional-gradient
+discrepancy was0.0694%; maximum goal/candidate temporal discrepancy was0.2857%,
+below the unchanged5% and0.5% thresholds. Test calls finishing after120seconds
+were charged in the work ledger but excluded from the120-second candidates.
+Their recorded wall overshoots were0.024–4.045seconds.
+
+Mean total requested forward/VJP evaluations were28.25/27.25 for AD,
+70.75/0 for SPSA and74.625/0 for Powell, including overshooting calls.
+The result establishes a per-instance control-optimization advantage over these
+registered alternatives at the measured warm-service budget. It does not establish
+neural-training superiority, cold-start/end-to-end speedup, superiority over all
+gradient-free optimizers, or optimizer-seed robustness. The negative neural-policy
+results remain separate and unchanged.
