@@ -285,8 +285,8 @@ The teacher supplies first derivatives only, cached as fixed labels. Optimizing
 the student's VJP loss requires mixed input/parameter second derivatives through
 the native JAX surrogate. It does not require second derivatives through the
 Tesseract API. Small-model tests check these mixed derivatives against finite
-differences; full-size GPU training and improvement on recovery are not yet
-validated.
+differences; full-size GPU training has now completed successfully. The pilot below did
+not improve recovery.
 
 Generate labels in the XLB environment, with this directory on `PYTHONPATH`:
 
@@ -391,5 +391,49 @@ SciPy runs differ from the registered benchmark optimizer and are labeled
 accordingly. Candidate selection uses full-space XLB-target validation recovery
 error; the selected checkpoint subsequently runs the standard registered
 experiments. All pilot jobs use the preemptible `nice` queue because the regular
-RTX pool is at its per-user GPU limit. Results remain pending until those jobs
-complete; submission is not evidence of improvement.
+RTX pool is at its per-user GPU limit. All five successful jobs completed, including the registered benchmark
+recheck. The original checkpoint won validation selection and remains packaged.
+
+### Pilot outcome
+
+None of the eight 500-update arms improved full-space XLB-target IC recovery on
+the three common validation cases. This is a small pilot with one training seed,
+not an exhaustive test of the methods. Native SciPy recovery here uses different
+cases/settings from the registered benchmark; these percentages must not be
+compared directly to the earlier 16.67% self-target benchmark error.
+
+| Model        | Forward relative L2 | Common-cotangent VJP relative L2 | XLB-target IC relative L2 |
+| ------------ | ------------------: | -------------------------------: | ------------------------: |
+| XLB          |               0.00% |                            0.00% |                     6.76% |
+| baseline     |               4.22% |                           60.42% |                    35.03% |
+| field        |               6.35% |                           60.54% |                    41.47% |
+| vjp001       |               5.98% |                           60.22% |                    40.86% |
+| vjp01        |               5.49% |                           59.47% |                    39.31% |
+| vjp1         |               4.89% |                           59.68% |                    39.99% |
+| secant01     |               5.23% |                           59.33% |                    40.81% |
+| linear_vjp01 |               5.85% |                           59.58% |                    42.48% |
+| path_field   |              12.20% |                           60.55% |                    48.04% |
+| path_vjp01   |               4.86% |                           60.50% |                    36.38% |
+
+Fourier restriction reduced the original surrogate's validation IC error from
+35.03% to 26.40%, but increased XLB's from 6.76% to 21.66%. It is a prior/
+regularization tradeoff, not a general improvement. The separate conditioning
+audit uses only 32 shared orthonormal low-frequency directions at one validation
+IC. At zero, the surrogate has condition number 1.082 versus XLB's 1.453, yet
+60.9% relative Jacobian-action error. The linear branch lowers that mismatch to
+56.0% without improving recovery. A smaller condition number alone is inadequate.
+
+The original checkpoint was therefore retained. All 14 registered experiments
+completed for it and XLB, reproducing the previous numerical results, including
+16.67% versus 5.21% projected self-recovery error. The GPU pilot also confirmed
+that full-size mixed input/parameter derivatives are executable. Local checks
+passed: 24 surrogate/training tests, then two optional-checkpoint loader tests,
+and pre-commit checks.
+
+A useful next experiment would preserve the original multi-time trajectory loss
+and replay data while adding derivative supervision; the terminal-only pilots
+sometimes improved label-validation losses while degrading common forward
+accuracy. This proposed explanation and remedy have not been established.
+
+[Complete pilot results, plots, scripts, job provenance, conditioning spectra,
+and registered benchmark envelopes](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results/gradient-pilot).
