@@ -40,6 +40,9 @@ def launch(master: Path, solver: str, plan: dict[str, Any]) -> dict[str, Any]:
     )
     if not (child / "node.sh").exists():
         shutil.copy2(node, child / "node.sh")
+    for name in ("transfer_report.py", "analysis.sha256"):
+        if not (child / name).exists():
+            shutil.copy2(master / name, child / name)
     specification = plan["solvers"][solver]
     base = copy.deepcopy(plan["base_payload"])
     base.update(
@@ -159,6 +162,7 @@ def main() -> None:
         raise RuntimeError(
             "real solver continuation parity not verified for this source"
         )
+    state["status"] = "waiting_for_solver_preflight"
     state["validation_receipt_sha256"] = hashlib.sha256(
         receiptpath.read_bytes()
     ).hexdigest()

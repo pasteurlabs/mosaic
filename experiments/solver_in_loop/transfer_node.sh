@@ -40,7 +40,8 @@ if [[ "$mode" == select_extension || "$mode" == select_final ]]; then
 fi
 if [[ "$mode" == report ]]; then
   export JAX_PLATFORMS=cpu
-  python experiments/solver_in_loop/final_report.py --campaign "$campaign"
+  (cd "$campaign" && sha256sum --check analysis.sha256)
+  python "$campaign/transfer_report.py" --campaign "$campaign"
   exit
 fi
 config="$campaign/configs/$cell.json"

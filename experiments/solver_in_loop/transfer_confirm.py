@@ -103,6 +103,24 @@ class ConfirmationController(Controller):
         self.submit(cell, "train", payload)
         return cell
 
+    def publish_report(self) -> None:
+        """Render transfer evidence on a CPU allocation, including incomplete runs."""
+        self.save()
+        self.submit("transfer-report", "report")
+        self.wait(["transfer-report"])
+        report = json.loads((self.campaign / "report" / "report.json").read_text())
+        if not report.get("report_complete"):
+            raise RuntimeError("transfer report did not complete")
+        self.state["report_complete"] = True
+        self.state["conclusion"] = report["conclusion"]
+        if not self.state.get("status", "").startswith("blocked_"):
+            self.state["status"] = (
+                "confirmation_inconclusive"
+                if report.get("failures")
+                else "confirmation_report_complete"
+            )
+        self.save()
+
     def run(self) -> None:
         """Execute registered transfer only; any failed admission keeps it inconclusive."""
         self.submit("validation", "validate")
@@ -133,7 +151,16 @@ class ConfirmationController(Controller):
             self.state.update(
                 status="blocked_by_all_IC_admission", failed_reference_cells=failed
             )
-            self.save()
+            self.report["failures"] = [
+                {
+                    "cell": cell,
+                    "failure": self.outcome(cell).get(
+                        "failure", "reference admission failed"
+                    ),
+                }
+                for cell in failed
+            ]
+            self.publish_report()
             return
         payload = self.base()
         payload.update(
@@ -250,7 +277,7 @@ class ConfirmationController(Controller):
             completed=not failures,
             evaluation_cells=evaluations,
         )
-        self.save()
+        self.publish_report()
 
 
 def main() -> None:
