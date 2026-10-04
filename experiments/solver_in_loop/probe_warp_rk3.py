@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,7 @@ def main() -> None:
     args = parser.parse_args()
     spec = importlib.util.spec_from_file_location("warp_rk3_candidate", args.candidate)
     api = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = api
     spec.loader.exec_module(api)
     assert api.wp.is_cuda_available()
     device = "cuda:0"
