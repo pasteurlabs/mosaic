@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import json
 from pathlib import Path
@@ -50,6 +51,7 @@ def main() -> None:
         make_inputs=cfg.make_inputs,
         phys=physics,
         domain_extent=2 * np.pi,
+        output_key="result",
     )
     x = np.arange(16, dtype=np.float32) * (2 * np.pi / 16)
     train = np.zeros((2, 6, 16, 16, 1, 2), dtype=np.float32)
@@ -148,7 +150,15 @@ def main() -> None:
     )
     (args.out / "probe.json").write_text(
         json.dumps(
-            {"passed": passed, "identity": identity, "results": results}, indent=2
+            {
+                "passed": passed,
+                "identity": identity,
+                "results": results,
+                "probe_source_sha256": hashlib.sha256(
+                    Path(__file__).read_bytes()
+                ).hexdigest(),
+            },
+            indent=2,
         )
     )
     if not passed:
