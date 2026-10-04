@@ -483,8 +483,8 @@ def main() -> None:
         "",
         (
             "[Frozen protocol, every candidate, failures, costs and numerical "
-            "results](ARTIFACT_TREE). Earlier negative correction and neural-control results remain "
-            "retained in this PR; direct control optimization is a separate non-neural result."
+            "results](ARTIFACT_TREE). Earlier negative correction results remain available "
+            "in the experiment archives."
         ),
         "",
     ]

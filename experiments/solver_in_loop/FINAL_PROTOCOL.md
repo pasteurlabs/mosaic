@@ -6,8 +6,7 @@ This is the final correction-training comparison for PR #116. Earlier INS
 confirmation favored tuned supervision (2.8319% mean rollout error versus 3.4984%
 full gradients); retain that negative result. The question is whether fair tuning
 of recurrent training, including a supervised warm start, produces a convincing
-advantage on untouched initial conditions. This does not reinterpret the separate
-positive direct-control optimization experiment as a neural-training result.
+advantage on untouched initial conditions.
 
 Freeze the manifest, source, image, datasets and this protocol before inspecting
 validation outcomes. Run only the search and confirmation below. If the final

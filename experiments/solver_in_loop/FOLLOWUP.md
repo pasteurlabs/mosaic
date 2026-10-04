@@ -214,12 +214,23 @@ The profiling scripts are `check_pict_cost.py` and `check_ins_rpc_cost.py`
 (the latter also accepts a solver and physical parameters). All numerical work
 ran on Slurm. These probes do not provide new training-quality results.
 
-## Approach discontinued
+## Final correction comparison
 
-On 2026-10-02 the user requested abandoning correction learning in favor of
-neural fluid control. The old automatic controller was stopped; remaining INS
-compute-matched, PhiFlow correction and JAX reference jobs were cancelled.
-Completed results and partial logs remain preserved. The PICT continuation
-prototype is parked in git stash and frozen cluster archives, not integrated
-into this benchmark. The replacement hypothesis is described in
-`experiments/flow_control/PROTOCOL.md`.
+The initial correction campaign was stopped on 2026-10-02. Remaining INS
+compute-matched, PhiFlow correction and JAX reference jobs were cancelled;
+completed results and partial logs remain preserved. The PICT continuation
+prototype remains parked, not integrated into this benchmark.
+
+Correction learning resumed with the bounded search in [FINAL_PROTOCOL.md](FINAL_PROTOCOL.md).
+The final INS comparison on eight fresh model seeds and 32 untouched flows found
+2.131% mean rollout error for full gradients, 2.378% for matched stopped gradients,
+3.035% for tuned supervision and 5.639% for the native solver. Full/supervised
+error ratio was 0.7023 (paired 95% interval 0.6491–0.7607); full/matched-stopped
+was 0.8961 (0.8682–0.9242). Full training cost 19.06× supervision. The selected
+recurrent recipe used horizon 16, lr=1e-4 and 3000 updates from scratch;
+supervision used lr=1e-5 and 1000 updates. This establishes an accuracy advantage
+for this INS setting, not a compute-efficiency or cross-solver claim.
+
+The independent Slurm audit 2883689 reproduced candidate selection, all 1024
+arm/model/IC cells, source/dataset/checkpoint hashes and the confidence intervals.
+[Final results and plots](https://github.com/pasteurlabs/mosaic/tree/736a48ba84aff4b41861d19b73bd083f1c116453/pr-116/ins-final-v2-20261003).

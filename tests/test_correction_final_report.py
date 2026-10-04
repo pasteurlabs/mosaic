@@ -53,7 +53,7 @@ def test_complete_matrix_required_and_checkpoint_bound(tmp_path):
 
 
 def test_publication_preserves_unrelated_pr_content():
-    body = "Existing positive direct-control and negative neural-control evidence."
+    body = "Existing benchmark documentation and earlier correction evidence."
     first = merge_section(body, "Pending.")
     second = merge_section(first, "Final negative outcome.")
     assert body in second
