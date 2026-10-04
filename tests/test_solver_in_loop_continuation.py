@@ -160,9 +160,9 @@ def test_numerical_failure_is_terminal_not_a_clean_yield(
 
 def test_wrapper_clean_yield_then_deferred_evaluation(tmp_path, monkeypatch):
     import jax
-    from test_solver_in_loop_final import fixture_data, mock_evaluate
 
     from experiments.solver_in_loop import final_run
+    from tests.test_solver_in_loop_final import fixture_data, mock_evaluate
 
     payload, ctx, metadata = fixture_data(tmp_path)
     checkpoint = tmp_path / "resume.state"
