@@ -69,47 +69,20 @@ they are not isolated neural-network kernel timings. XLB retains its default
 float64 path and the surrogate uses float32. Record the runtime, precision,
 GPU, transport, and raw trials when comparing results.
 
-## Training provenance
+## Training and checkpoint
 
-`generate_trajectories.py`, `training_data.py`, and `train.py` live beside the
-Tesseract source for reproducibility but are not copied into its runtime
-image. The generator must run against the XLB teacher API; cluster submission
-and container orchestration remain external. The runtime image contains only
-the inference API, shared model definition, and weights. The packaged weights
-were trained from 16,384 native XLB KBC D3Q27 trajectories, split
-12,288/2,048/2,048 for
-training/validation/test. Each trajectory contains the IC plus 20 full-field
-snapshots, one every five XLB steps. The final generated snapshot matched the
-canonical 100-step float32 teacher call with maximum absolute difference zero.
-Benchmark IC seeds 0, 1, and 2 were excluded.
+All data-generation and training recipes live in this directory; see
+[TRAINING.md](TRAINING.md). The runtime image includes only the inference API,
+shared model, and weights. The checkpoint was trained on 16,384 continuous native
+XLB trajectories, split 12,288/2,048/2,048 for training/validation/test, with
+benchmark seeds 0/1/2 excluded. Each trajectory contains the IC and 20 snapshots.
+Training used unroll curriculum `1 → 2 → 4 → 8 → 12 → 20`, then full-horizon
+fine-tuning.
 
-Training used autoregressive unroll curriculum
-`1 → 2 → 4 → 8 → 12 → 20`, followed by a full-20-step fine-tune. The
-distribution contains random divergence-free fields around the benchmark's
-`|k|=2` energy shell, broader spectra for optimizer-path coverage, and
-amplitudes from zero to 1.25.
-
-The native trajectory dataset SHA-256 is
-`4836fba4e6a8524af7a552c5977721118e726afa21db9a9f4d0b612a879a0005`.
-The packaged checkpoint SHA-256 is
+Checkpoint SHA-256:
 `1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f`.
 
-The reproducible program boundary is:
-
-```bash
-python generate_trajectories.py \
-  --teacher-api /tesseract/tesseract_api.py \
-  --output /surrogate-output/recovery_3d_xlb_trajectories.npy
-python train.py \
-  --dataset /surrogate-output/recovery_3d_xlb_trajectories.npy \
-  --weights /surrogate-output/recovery_3d_autoregressive_weights.npz
-```
-
-The first command is run in the XLB solver image so
-`/tesseract/tesseract_api.py` is the teacher implementation. The second
-command uses the model definition that the inference API imports.
-
-## Matched validation on current main
+## Matched validation
 
 A fresh run of the registered cells (Slurm job `2869896`, RTX 5090) used
 seeds 0/1/2, 100 recovery updates, and 20 warm timing trials per seed. The
@@ -130,7 +103,7 @@ respective `sum(u_T²)` objectives are not interchangeable: surrogate-to-XLB
 relative L2 differences are 222%, 207%, and 150%, with cosines
 0.405, 0.438, and 0.568. These are objective-gradient comparisons, not
 full-Jacobian or common-cotangent VJP errors. They must not be conflated with
-the restricted JVP statistics from the historical study below.
+restricted JVP statistics in the historical study linked below.
 
 Timing used HTTP/base64 services and a CPU JAX client, with XLB's default
 float64 path and the float32 surrogate. One allocation and fixed solver
@@ -142,345 +115,26 @@ Docker build context was checked separately.
 [Raw benchmark envelopes, field snapshots, plots, summary script, and provenance](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results)
 are available separately from the solver source.
 
-## Historical offline validation (PR #118)
+![Matched solver benchmark: forward accuracy, API timings, recovery and finite differences](https://raw.githubusercontent.com/pasteurlabs/mosaic/37c9d6b/comparison.png)
 
-All experiments were run offline through the shared Slurm and Pyxis/Enroot
-cluster path. On the three excluded recovery seeds, mean final-field relative
-L2 error is 4.309% and mean field cosine is 0.999076. Across the 1,982
-held-out trajectories with IC amplitude at least 0.05, mean final-step
-relative L2 error is 7.219%. The 66 lower-amplitude cases are reported with
-absolute RMS error because relative error is ill-conditioned near zero.
+## Inverse-model limitations
 
-Directional derivatives were evaluated end to end through all 20 shared
-operator applications. On low-frequency projected directions (`|k|≤4`), mean
-JVP cosine is 0.9811 and relative L2 error is 18.24%. On projected white
-full-spectrum directions, the stricter values are 0.9654 and 26.00%.
-Subtracting the exact full-horizon viscous-diffusion derivative leaves
-nonlinear-residual JVP cosines of 0.9717 and 0.9881, respectively.
+The surrogate's internally consistent derivatives do not make it a drop-in
+inverse model for XLB observations. Its amplitude gate strongly suppresses the
+learned correction's derivative near the zero recovery start; the square-root
+floor makes that suppression finite. Similar scalar condition numbers also do
+not establish agreement with XLB's Jacobian.
 
-The full-output Jacobian was also evaluated on the complete 512-dimensional
-real divergence-free Fourier subspace through `|k|≤4`. Across the three
-recovery ICs, mean condition number is 7.142 for the surrogate versus 6.864
-for XLB; the corresponding Gauss–Newton condition numbers are 51.05 and
-47.17. Total restricted-Jacobian Frobenius cosine is 0.9961. After subtracting
-the shared viscous baseline it is 0.9941, while the XLB nonlinear residual has
-81.2% of the total Jacobian Frobenius norm. The restricted conditioning result
-must not be generalized to the full 12,288-dimensional input space, and the
-similar scalar condition numbers do not establish Jacobian equality.
+Eight terminal-only and six trajectory-replay fine-tuning pilots tested VJP
+supervision, central secants, recovery-path labels, and an optional linear
+correction. None improved mean XLB-target recovery on the three common
+validation cases. The closest replay candidate reached 35.12% IC error versus
+35.03% for the original checkpoint. These native SciPy validation runs use
+different cases and optimizer settings from the registered self-target benchmark.
+The original weights remain packaged; see [training results and plots](TRAINING.md#results).
 
-Against the 4,096-trajectory checkpoint under this same restricted audit,
-increasing the dataset changes the surrogate condition number from 7.740 to
-7.142 and the Gauss–Newton condition number from 59.98 to 51.05. The
-restricted-Jacobian Frobenius relative error improves from 13.50% to 8.84%
-and cosine from 0.9914 to 0.9961.
-
-An adapted dense audit uses an explicit orthonormal `8³` block-grid
-lift/restriction around the fixed `N=16` recovery map, producing the same
-1,536-dimensional matrix size as the paper's raw-state protocol. It covers
-every coordinate of that coarse block-grid map, but it is not the complete
-12,288-dimensional production Jacobian and is distinct from the paper's
-native `N=8` TGV physics. Under this audit, the Jacobian Frobenius cosine falls
-to 0.9442 and relative error rises to 32.94%. Raw condition numbers are
-`2.79e7` for XLB and `7.48e10` for the surrogate. These tails fall below the
-float32 rank tolerance; condition numbers over the resolved singular values
-are `5.32e3` and `5.45e3`, respectively. The draft PR provides both normalized
-spectra, rank diagnostics, the dense matrices, and a native `N=8` TGV XLB
-control.
-
-The adapted block-grid comparison is essentially unchanged by scaling the
-training set: the 4k/16k Frobenius errors are 32.98%/32.94%, while the
-float32-resolved condition numbers are `4.89e3`/`5.45e3`. Their raw condition
-numbers are `3.75e10`/`7.48e10`, so the unresolved spectral tail becomes worse
-even as the restricted Jacobian improves.
-
-The larger dataset improves excluded-seed forward error from 7.473% to 4.309%
-and full-spectrum JVP error from 38.28% to 26.00%; validation and held-out
-errors improve together, so the observed inverse-model gap is not evidence of
-conventional train/test overfitting. A remaining architectural limitation is
-the amplitude gate on the learned correction: at the zero-velocity cold start,
-the amplitude factor strongly suppresses the learned correction's first
-derivative, leaving the viscous skip dominant. The implemented square-root
-floor makes this suppression finite, rather than an exactly fixed derivative.
-More trajectory data alone did not correct the measured 49.34% radial JVP
-error at zero, where recovery begins.
-
-End-to-end VJPs were also checked against central finite differences on the
-exact recovery physics, using three IC seeds, ten shared unit-norm random
-directions per seed, and a 12-point relative-ε sweep. For the paper's
-energy-like objective `sum(u_T²)` at the true IC, the best aggregate median
-directional error is `6.63e-3` for the float32 surrogate versus `6.77e-6` for
-XLB; the corresponding mean direction cosines are 0.999984 and effectively
-1.0. For the actual self-recovery MSE at the zero cold start, the surrogate is
-more FD-consistent: its best median error is `2.56e-4` with mean cosine
-1.000000, versus `1.32e-1` and 0.991669 for XLB. The surrogate recovery
-failure is therefore not caused by an incorrect VJP implementation: finite
-differences verify the derivative of the learned forward map, while the
-inverse-path diagnostic shows that this internally accurate derivative points
-toward the wrong learned inverse basin.
-
-Both optimizer variants from the paper were run on the exact self-recovery
-benchmark. With unconstrained L-BFGS, the surrogate recovers the three ICs to
-17.31%, 15.70%, and 17.10% relative L2 error (16.70% mean), compared with
-4.96%, 5.17%, and 6.12% for XLB (5.42% mean). With divergence-free gradient
-projection, the surrogate reaches 17.32%, 15.59%, and 17.19% (16.70% mean),
-compared with 4.70%, 5.02%, and 5.94% for XLB (5.22% mean). Per-iteration
-objective, true IC error, and optimized-IC divergence histories are recorded
-for PhiFlow, XLB, Warp-NS, Exponax, and the surrogate.
-
-The 16,384-trajectory checkpoint is therefore a better forward model but a
-worse global inverse than the 4,096-trajectory checkpoint. Under complete
-matched runs, the smaller checkpoint reaches 8.10% mean IC error with L-BFGS
-and 8.12% with projected L-BFGS, versus 16.70% for both variants with the
-larger checkpoint. The seed-0 final objectives are nevertheless comparable:
-`1.28e-8`/`1.33e-8` for the 4k checkpoint and `1.15e-8`/`1.18e-8` for the 16k
-checkpoint (unconstrained/projected). The 16k seed-0 final divergence is also
-slightly lower, at `1.49e-2`/`1.43e-2` versus `1.77e-2`/`1.77e-2`.
-
-The initial self-target descent direction at exactly zero has nearly
-unchanged mean cosine with the direction to the true IC (0.845 versus 0.847).
-Immediately away from zero, however, the larger model's mean alignment falls
-to 0.419 at IC amplitude 0.05 and 0.150 at amplitude 0.10, versus 0.825 and
-0.807 for the smaller checkpoint. Forward-only rollout selection does not
-constrain this off-manifold inverse-gradient geometry; similar conditioning
-at the true IC therefore does not predict recovery from the zero cold start.
-
-Two matched RTX 5090 timing blocks counterbalance solver order and contribute
-40 warm trials per solver. Their combined medians are 7.35 ms for the
-20-macro-step surrogate forward and 14.77 ms for its end-to-end VJP; XLB takes
-4.79 ms and 15.20 ms on the same task. The surrogate is therefore 1.53× slower
-for forward, while VJP cost is effectively at parity (0.97× here; an earlier
-independent run measured 1.03×). Solver-scoped three-seed harness times remain
-similar: 32.81 s surrogate versus 32.09 s XLB for L-BFGS, and 31.51 s versus
-32.50 s with projection. Including result-script setup and serialization gives
-34.73 s versus 34.21 s and 33.38 s versus 35.78 s, respectively. RPC,
-optimizer, projection, callbacks, and line search dominate these single-run
-wall times.
-
-## Limitation: XLB-target inversion
-
-Self-recovery follows the benchmark contract: each solver produces and inverts
-its own final field. It does not establish that the surrogate can safely invert
-an XLB-generated observation. In a separate cross-model test, projected L-BFGS
-through this checkpoint against XLB final fields finishes at 32.1–41.0% IC
-error (37.4% mean), despite reducing the surrogate residual to 1.6–2.0%.
-The best saved IC errors are 17.5–18.9%, and XLB re-evaluation of the final
-recovered ICs leaves 14.9–19.8% final-field residual. The checkpoint must not
-be presented as a drop-in inverse model for XLB observations.
-
-The draft PR contains both L-BFGS recovery variants, per-iteration loss, IC
-error and divergence histories, full-field plots, animation, timing
-decomposition, 4k/16k restricted and paper-protocol Jacobian spectra, the
-inverse-gradient diagnostic, finite-difference U-curves, and external offline
-artifact provenance.
-
-## Experimental input-derivative supervision
-
-`sobolev.py` provides an offline fine-tuning pilot, separate from the shipped
-checkpoint. It matches terminal velocity and full 100-step VJPs using identical
-output cotangents for XLB and the surrogate. This is input-Jacobian supervision,
-whereas the existing trainer's spectral loss weights spatial frequencies.
-See [Sobolev Training for Neural Networks](https://arxiv.org/abs/1706.04859).
-
-The teacher supplies first derivatives only, cached as fixed labels. Optimizing
-the student's VJP loss requires mixed input/parameter second derivatives through
-the native JAX surrogate. It does not require second derivatives through the
-Tesseract API. Small-model tests check these mixed derivatives against finite
-differences; full-size GPU training has now completed successfully. The pilot below did
-not improve recovery.
-
-Generate labels in the XLB environment, with this directory on `PYTHONPATH`:
-
-```bash
-python sobolev.py generate --teacher-api /tesseract/tesseract_api.py \
-  --dataset /surrogate-output/recovery_3d_xlb_trajectories.npy \
-  --output /surrogate-output/sobolev-labels.npz
-```
-
-Then run matched pilots in the surrogate environment, using distinct output
-files for weights `0`, `0.01`, `0.1`, and `1`:
-
-```bash
-python sobolev.py train --labels /surrogate-output/sobolev-labels.npz \
-  --init-weights weights.npz --weight 0.1 --updates 500 \
-  --output /surrogate-output/sobolev-0.1.npz
-```
-
-All pilots use identical starting weights, normalization, batches, and update
-counts. Weight zero is the additional-training control with the same terminal
-field loss and data; it is not the original curriculum loss. It also evaluates
-VJPs, so pilot training timings do not measure the minimal field-only cost.
-Labels sample 128 training and 32 validation trajectories by default, with
-amplitude factors drawn from zero, 0.1, 0.5, and 1. Test trajectories are excluded.
-Teacher calculations use float64; saved labels use float32. Every sample has
-one fixed random unit output cotangent. This is a small derivative-supervision
-pilot, not a complete Jacobian dataset or coverage of arbitrary recovery states.
-
-Checkpoints are selected by validation field relative MSE plus the weighted VJP
-relative MSE; both components are logged. Scores with different weights are not
-directly comparable. Compare selected checkpoints on fresh cotangents, forward
-error, gradient cosine/error, both existing recovery benchmarks, and runtime.
-Keep final test results separate from hyperparameter selection. Follow-up arms
-should compare more cotangents, recovery-residual cotangents, broader input
-coverage, and an architectural change permitting a stronger learned derivative
-near zero. The existing amplitude gate strongly suppresses that derivative;
-Sobolev training alone is not guaranteed to remove this restriction.
-
-### Alternatives and experiment order
-
-The objective is teacher-faithful sensitivities and better held-out recovery.
-A smaller condition number alone is not success: viscosity physically damps
-high-frequency modes, and the implemented projection removes some input
-directions. Forcing all singular values toward one would change the solver.
-Report resolved rank, singular-value spectra with explicit precision thresholds,
-and derivative alignment along recovery paths, rather than raw condition numbers
-below the numerical noise floor.
-
-| Priority | Experiment                            | Hypothesis and limitation                                                                                                                                                                                                              |
-| -------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | Central-secant supervision            | Match `F(x + h d) - F(x - h d)` to XLB; avoids mixed second derivatives in training. Sweep perturbation sizes because finite differences introduce truncation and cancellation errors.                                                 |
-| 1        | Near-zero linear correction           | Add a zero-preserving learnable linear branch beside the gated nonlinear correction. Test its zero-state Jacobian against XLB before training. Simply removing the gate is a separate control, not an established fix.                 |
-| 2        | Recovery-path data                    | Query XLB at actual optimization iterates from training targets, including perturbations away from amplitude-scaled ICs. Split by original target before generating paths; never train on final benchmark trajectories.                |
-| 2        | Task-directed derivative labels       | Supplement random cotangents with normalized XLB recovery residuals. Match the same cotangent for teacher and student, then independently compare their actual objective gradients. Residual-only training may overfit one objective.  |
-| 2        | Reduced-space recovery and damping    | Optimize divergence-free Fourier coefficients, progressively admit higher frequencies, and compare damped Gauss–Newton with L-BFGS. This changes the inverse algorithm/prior, not the learned solver; apply the same procedure to XLB. |
-| 3        | Teacher-informed spectral supervision | Match Jacobian actions in selected resolved directions, including weak directions. Avoid penalties demanding arbitrary invertibility or suppressing every large derivative. Probe unexplored directions separately.                    |
-| 3        | Shorter rollout or improved state     | Compare fewer learned macro-steps or an augmented recurrent state. XLB evolves hidden populations, whereas the surrogate advances velocity alone; test whether this limits derivative fidelity rather than assuming it does.           |
-
-Reduced derivative representations are motivated by
-[Derivative-Informed Neural Operators](https://arxiv.org/abs/2206.10745), which
-compress derivative information to make training practical. Their published
-results do not establish an improvement for this XLB checkpoint. The experiments
-above are hypotheses, not measured improvements.
-
-The central-secant arm is implemented in `sobolev.py`. Add `--secant-step 0.01`
-to label generation, then `--method secant` to training. It uses projected random
-input directions normalized to unit RMS. The perturbation RMS is the requested
-fraction of `max(input RMS, 0.01)`, so zero anchors still receive nonzero probes.
-Labels store the normalized central difference, computed with float64 XLB and
-saved as float32. VJP labels are also generated for the same ICs. Try relative
-steps `0.003`, `0.01`, and `0.03` on validation data; generate each label set to a
-separate file. Unit tests check central-difference convergence and optimizer
-updates, not empirical performance on XLB.
-
-For each candidate, record validation forward error; fresh-cotangent VJP and
-fresh-direction JVP errors/cosines; gradients of the actual recovery objective at
-zero and along optimization paths; resolved Jacobian spectra; both self-target
-and XLB-target recovery; runtime and peak training memory. Compare methods under
-both fixed update counts and a fixed compute budget. Select using validation
-cases, then run the existing held-out solver benchmarks once. A successful
-candidate must reduce recovery error without an unacceptable forward-accuracy
-or runtime regression. Keep architecture and inverse-optimizer changes as
-separate ablations before combining them.
-
-### October 3 pilot submission
-
-The first GPU pilot uses eight 500-update arms from the shipped checkpoint:
-field-only; VJP weights 0.01, 0.1, and 1; central-secant weight 0.1;
-VJP weight 0.1 with a zero-initialized linear correction; and field-only/VJP
-weight 0.1 on recovery-path data. The linear branch learns real 3×3 channel
-mixing per squared-wavenumber shell, preserving the zero state and permitting
-a learned first derivative there. It is enabled by `--linear-correction` and
-stored as the optional `w_linear` checkpoint parameter. Existing checkpoints
-retain their original behavior. No retrained checkpoint has replaced the
-packaged weights.
-
-The offline validation pilot uses three original validation trajectories,
-fresh output cotangents, gradient probes along amplitude-scaled paths, and
-100-iteration SciPy L-BFGS-B recovery with self and XLB targets. A separate
-Fourier-restricted recovery arm is applied to XLB and every surrogate. These
-SciPy runs differ from the registered benchmark optimizer and are labeled
-accordingly. Candidate selection uses full-space XLB-target validation recovery
-error; the selected checkpoint subsequently runs the standard registered
-experiments. All pilot jobs use the preemptible `nice` queue because the regular
-RTX pool is at its per-user GPU limit. All five successful jobs completed, including the registered benchmark
-recheck. The original checkpoint won validation selection and remains packaged.
-
-### Pilot outcome
-
-None of the eight 500-update arms improved full-space XLB-target IC recovery on
-the three common validation cases. This is a small pilot with one training seed,
-not an exhaustive test of the methods. Native SciPy recovery here uses different
-cases/settings from the registered benchmark; these percentages must not be
-compared directly to the earlier 16.67% self-target benchmark error.
-
-| Model        | Forward relative L2 | Common-cotangent VJP relative L2 | XLB-target IC relative L2 |
-| ------------ | ------------------: | -------------------------------: | ------------------------: |
-| XLB          |               0.00% |                            0.00% |                     6.76% |
-| baseline     |               4.22% |                           60.42% |                    35.03% |
-| field        |               6.35% |                           60.54% |                    41.47% |
-| vjp001       |               5.98% |                           60.22% |                    40.86% |
-| vjp01        |               5.49% |                           59.47% |                    39.31% |
-| vjp1         |               4.89% |                           59.68% |                    39.99% |
-| secant01     |               5.23% |                           59.33% |                    40.81% |
-| linear_vjp01 |               5.85% |                           59.58% |                    42.48% |
-| path_field   |              12.20% |                           60.55% |                    48.04% |
-| path_vjp01   |               4.86% |                           60.50% |                    36.38% |
-
-Fourier restriction reduced the original surrogate's validation IC error from
-35.03% to 26.40%, but increased XLB's from 6.76% to 21.66%. It is a prior/
-regularization tradeoff, not a general improvement. The separate conditioning
-audit uses only 32 shared orthonormal low-frequency directions at one validation
-IC. At zero, the surrogate has condition number 1.082 versus XLB's 1.453, yet
-60.9% relative Jacobian-action error. The linear branch lowers that mismatch to
-56.0% without improving recovery. A smaller condition number alone is inadequate.
-
-The original checkpoint was therefore retained. All 14 registered experiments
-completed for it and XLB, reproducing the previous numerical results, including
-16.67% versus 5.21% projected self-recovery error. The GPU pilot also confirmed
-that full-size mixed input/parameter derivatives are executable. Local checks
-passed: 24 surrogate/training tests, then two optional-checkpoint loader tests,
-and pre-commit checks.
-
-This motivated the trajectory-replay follow-up below, preserving the original
-multi-time trajectory loss while adding derivative supervision; the terminal-only pilots
-sometimes improved label-validation losses while degrading common forward
-accuracy. This proposed explanation and remedy have not been established.
-
-[Complete pilot results, plots, scripts, job provenance, conditioning spectra,
-and registered benchmark envelopes](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results/gradient-pilot).
-
-### Trajectory-replay follow-up
-
-The replay mode in `sobolev.py train` samples a full trajectory from the original
-training split on every update. It uses the original time-weighted field,
-spectral, terminal, and parameter L2 losses, shared with `train.py` through
-`trajectory_loss`. The checkpoint's input/correction normalization is preserved;
-output normalization comes from the original training metrics. The derivative
-loss is added on an independent cached-label batch. The terminal field loss on
-those labels is reported but excluded from the replay objective, so weight zero
-is an uncontaminated trajectory-only control.
-
-```bash
-python sobolev.py train --labels /surrogate-output/path-labels.npz \
-  --init-weights weights.npz --output /surrogate-output/replay-path.npz \
-  --replay-dataset /surrogate-output/recovery_3d_xlb_trajectories_16k.npy \
-  --replay-normalization /surrogate-output/recovery_3d_autoregressive_weights_16k.metrics.json \
-  --weight 0.001 --updates 1000
-```
-
-The follow-up compares six 1,000-update arms: trajectory-only control; random
-VJP labels at weights 0.001 and 0.1; recovery-path labels at weights 0.001, 0.01,
-and 0.1. Every arm uses learning rate 1e-5, batch size one, seed 20261003, and the
-same independent replay RNG stream. Training uses the full original training
-split; checkpoint selection uses 32 fixed original validation trajectories and
-the cached derivative-label validation split. The optimizer remains the pilot's
-constant-rate Adam, not a restart of the original curriculum/schedule. The
-smaller weights account for the much smaller numerical scale of the trajectory
-loss compared with normalized derivative error.
-
-The six follow-up runs completed on `nice`. None improved mean XLB-target
-validation recovery over the original checkpoint. The closest candidate was
-random-VJP weight 0.001: 35.12% IC error versus 35.03% originally, with forward
-error 4.24% versus 4.22%. The trajectory-only control reached 40.18% IC error;
-the other derivative arms reached 39.99–40.81%. Some path-supervised arms
-improved self-target recovery while worsening recovery of XLB targets.
-
-Thus replay preserved forward accuracy more closely, but did not resolve the
-inverse-model gap in this six-arm, one-seed pilot. The original weights remain
-packaged. The common controls reuse the prior identical-model validation;
-new candidates were evaluated in job 2872655. Benchmark-disposition job 2872661
-verified identical weights/model/API hashes and reused the original's completed
-14 registered experiments from job 2871758. No new benchmark measurements are
-claimed for the unchanged checkpoint. Ten training/loss tests and pre-commit
-checks passed.
-
-[Replay results, plots, scripts, and provenance](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results/replay-pilot).
+The [historical study in PR #118](https://github.com/pasteurlabs/mosaic/pull/118)
+contains the 4k/16k data comparison, restricted Jacobian spectra, and additional
+inverse-path diagnostics. Larger training data improved forward accuracy there
+without improving recovery. Neither these results nor the small fine-tuning
+pilots establish that longer training cannot help.
