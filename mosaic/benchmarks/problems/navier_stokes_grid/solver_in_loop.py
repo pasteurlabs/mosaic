@@ -46,6 +46,12 @@ from .corrector import (
     spectral_restrict,
 )
 from .ics import _multimode, _tgv
+from .training_continuation import (
+    TrainingContinuation,
+    TrainingYield,
+    array_digest,
+    tree_bytes,
+)
 
 _DATASET_LOCK = threading.Lock()
 _NATIVE_STATE_SUPPORT_LOCK = threading.Lock()
@@ -720,7 +726,7 @@ def _make_solver_self_reference_datasets(
         int(v)
         for v in dataset.get(
             "prefix_audit_seeds",
-            [train_seeds[0], test_seeds[0]],
+            [*train_seeds[:1], *test_seeds[:1]],
         )
     )
     missing_audit_seeds = set(requested_audit_seeds) - set(all_seeds)
@@ -1170,6 +1176,7 @@ def _train_corrector(
     supervised_inputs: np.ndarray | None = None,
     initial_model: Any = None,
     fd_checks: list[dict[str, float]] | None = None,
+    continuation: TrainingContinuation | None = None,
 ) -> tuple[Any, list[float], list[float], list[float], float | None, bool]:
     """Train one solver-specific corrector with a fixed stochastic schedule."""
     max_updates = int(training.get("max_updates", 100))
@@ -1232,100 +1239,199 @@ def _train_corrector(
         if supervised_inputs is not None
         else ("full" if differentiate_solver else "stopped")
     )
-    for update in range(max_updates):
-        if (
-            wall_budget is not None
-            and time.perf_counter() - training_started >= wall_budget
-        ):
-            print(f"training time budget reached after {update} updates", flush=True)
-            break
-        if update >= boundaries[stage_idx]:
-            stage_idx += 1
-        unroll = stages[stage_idx]["unroll"]
-        if update == 0 or update == boundaries[stage_idx - 1]:
-            print(
-                f"train seed={model_seed} arm={arm} stage={stage_idx + 1} "
-                f"unroll={unroll} lr={stages[stage_idx]['lr']:g} "
-                f"update={update}/{max_updates}",
-                flush=True,
+    start_update = 0
+    prior_active_s = 0.0
+    checkpoint_checks: list[dict[str, float]] = []
+    binding = None
+    if continuation is not None:
+        binding = continuation.binding(
+            {
+                "training": training,
+                "stages": stages,
+                "frame_steps": frame_steps,
+                "velocity_scale": velocity_scale,
+                "loss_scale": loss_scale,
+                "model_seed": model_seed,
+                "arm": arm,
+                "domain_extent": ctx.domain_extent,
+                "train_sha256": array_digest(train),
+                "supervised_sha256": array_digest(supervised_inputs),
+                "initial_model_sha256": hashlib.sha256(tree_bytes(model)).hexdigest(),
+            }
+        )
+        restored = continuation.load((model, opt_state), binding)
+        if restored is not None:
+            (model, opt_state), saved = restored
+            losses, grad_norms, update_times = (
+                saved["losses"],
+                saved["grad_norms"],
+                saved["update_times"],
             )
-        update_started = time.perf_counter()
-        trajectory_idx = int(rng.randint(train.shape[0]))
-        max_start = train.shape[1] - unroll - 1
-        start = int(rng.randint(max_start + 1)) if max_start > 0 else 0
-        targets = jnp.asarray(train[trajectory_idx, start : start + unroll + 1])
+            start_update, stage_idx = saved["updates"], saved["stage_idx"]
+            if not (
+                start_update
+                == len(losses)
+                == len(grad_norms)
+                == len(update_times)
+                <= max_updates
+            ):
+                raise ValueError("inconsistent optimizer continuation update count")
+            random = saved["rng_state"]
+            rng.set_state(
+                (random[0], np.asarray(random[1], dtype=np.uint32), *random[2:])
+            )
+            fd_error, checkpoint_checks = saved["fd_error"], saved["fd_checks"]
+            if fd_checks is not None:
+                fd_checks.extend(checkpoint_checks)
+            prior_active_s = saved["active_time_s"]
 
-        if supervised_inputs is None:
-            loss_fn = partial(
-                _window_loss,
-                targets=targets,
-                t=t,
-                ctx=ctx,
-                frame_steps=frame_steps,
-                velocity_scale=velocity_scale,
-                differentiate_solver=differentiate_solver,
-                loss_mode=loss_mode,
-                solver_loss_weight=solver_loss_weight,
-                loss_scale=loss_scale,
-            )
-        else:
-            loss_fn = partial(
-                _supervised_loss,
-                inputs=jnp.asarray(
-                    supervised_inputs[trajectory_idx, start : start + unroll]
-                ),
-                targets=targets[1:],
-                velocity_scale=velocity_scale,
-                domain_extent=ctx.domain_extent,
-                loss_scale=loss_scale,
-            )
+    def save_training(status: str) -> None:
+        if continuation is None:
+            return
+        jax.block_until_ready((eqx.filter(model, eqx.is_array), opt_state))
+        random = rng.get_state()
+        continuation.save(
+            (model, opt_state),
+            binding,
+            {
+                "status": status,
+                "updates": len(losses),
+                "stage_idx": stage_idx,
+                "losses": losses,
+                "grad_norms": grad_norms,
+                "update_times": update_times,
+                "fd_error": fd_error,
+                "fd_checks": checkpoint_checks,
+                "rng_state": [random[0], random[1].tolist(), *random[2:]],
+                "active_time_s": prior_active_s
+                + time.perf_counter()
+                - training_started,
+            },
+        )
 
-        loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
-        loss_value = float(loss)
-        grad_norm = float(optax.tree.norm(grads))
-        if not np.isfinite(loss_value) or not np.isfinite(grad_norm):
-            completed = False
-            break
-        if (
-            update == 0
-            and differentiate_solver
-            and bool(training.get("check_grad", True))
-        ):
-            for epsilon in fd_epsilons:
-                diagnostic: dict[str, float] = {}
-                error = _directional_fd(
-                    loss_fn,
-                    model,
-                    grads,
-                    jax.random.PRNGKey(model_seed + 1),
-                    epsilon=epsilon,
-                    diagnostics=diagnostic,
+    try:
+        for update in range(start_update, max_updates):
+            if continuation is not None and (
+                (
+                    continuation.max_updates_per_allocation is not None
+                    and update - start_update >= continuation.max_updates_per_allocation
                 )
-                if epsilon == fd_epsilon:
-                    fd_error = error
-                if fd_checks is not None:
-                    fd_checks.append(diagnostic)
+                or (
+                    continuation.wall_limit_s is not None
+                    and time.perf_counter() - training_started
+                    >= continuation.wall_limit_s
+                )
+            ):
+                save_training("ready")
+                raise TrainingYield(len(losses), continuation.active_time_s)
+            if (
+                wall_budget is not None
+                and prior_active_s + time.perf_counter() - training_started
+                >= wall_budget
+            ):
                 print(
-                    f"gradient_check seed={model_seed} epsilon={epsilon:g} "
-                    f"relative_error={error:g} ad={diagnostic['autodiff']:g} "
-                    f"fd={diagnostic['finite_difference']:g}",
+                    f"training time budget reached after {update} updates", flush=True
+                )
+                break
+            if update >= boundaries[stage_idx]:
+                stage_idx += 1
+            unroll = stages[stage_idx]["unroll"]
+            if update == 0 or update == boundaries[stage_idx - 1]:
+                print(
+                    f"train seed={model_seed} arm={arm} stage={stage_idx + 1} "
+                    f"unroll={unroll} lr={stages[stage_idx]['lr']:g} "
+                    f"update={update}/{max_updates}",
                     flush=True,
                 )
-        updates, opt_state = optimiser.update(
-            grads,
-            opt_state,
-            eqx.filter(model, eqx.is_inexact_array),
-        )
-        model = eqx.apply_updates(model, updates)
-        losses.append(loss_value)
-        grad_norms.append(grad_norm)
-        update_times.append(time.perf_counter() - update_started)
-        if (update + 1) % 100 == 0 or update + 1 == max_updates:
-            print(
-                f"train seed={model_seed} arm={arm} update={update + 1}/{max_updates} "
-                f"loss={loss_value:.6g} grad_norm={grad_norm:.6g}",
-                flush=True,
+            update_started = time.perf_counter()
+            trajectory_idx = int(rng.randint(train.shape[0]))
+            max_start = train.shape[1] - unroll - 1
+            start = int(rng.randint(max_start + 1)) if max_start > 0 else 0
+            targets = jnp.asarray(train[trajectory_idx, start : start + unroll + 1])
+
+            if supervised_inputs is None:
+                loss_fn = partial(
+                    _window_loss,
+                    targets=targets,
+                    t=t,
+                    ctx=ctx,
+                    frame_steps=frame_steps,
+                    velocity_scale=velocity_scale,
+                    differentiate_solver=differentiate_solver,
+                    loss_mode=loss_mode,
+                    solver_loss_weight=solver_loss_weight,
+                    loss_scale=loss_scale,
+                )
+            else:
+                loss_fn = partial(
+                    _supervised_loss,
+                    inputs=jnp.asarray(
+                        supervised_inputs[trajectory_idx, start : start + unroll]
+                    ),
+                    targets=targets[1:],
+                    velocity_scale=velocity_scale,
+                    domain_extent=ctx.domain_extent,
+                    loss_scale=loss_scale,
+                )
+
+            loss, grads = eqx.filter_value_and_grad(loss_fn)(model)
+            loss_value = float(loss)
+            grad_norm = float(optax.tree.norm(grads))
+            if not np.isfinite(loss_value) or not np.isfinite(grad_norm):
+                completed = False
+                break
+            if (
+                update == 0
+                and differentiate_solver
+                and bool(training.get("check_grad", True))
+            ):
+                for epsilon in fd_epsilons:
+                    diagnostic: dict[str, float] = {}
+                    error = _directional_fd(
+                        loss_fn,
+                        model,
+                        grads,
+                        jax.random.PRNGKey(model_seed + 1),
+                        epsilon=epsilon,
+                        diagnostics=diagnostic,
+                    )
+                    if epsilon == fd_epsilon:
+                        fd_error = error
+                    checkpoint_checks.append(diagnostic)
+                    if fd_checks is not None:
+                        fd_checks.append(diagnostic)
+                    print(
+                        f"gradient_check seed={model_seed} epsilon={epsilon:g} "
+                        f"relative_error={error:g} ad={diagnostic['autodiff']:g} "
+                        f"fd={diagnostic['finite_difference']:g}",
+                        flush=True,
+                    )
+            updates, opt_state = optimiser.update(
+                grads,
+                opt_state,
+                eqx.filter(model, eqx.is_inexact_array),
             )
+            model = eqx.apply_updates(model, updates)
+            losses.append(loss_value)
+            grad_norms.append(grad_norm)
+            update_times.append(time.perf_counter() - update_started)
+            if (
+                continuation is not None
+                and (update + 1) % continuation.checkpoint_every == 0
+            ):
+                save_training("complete" if update + 1 == max_updates else "ready")
+            if (update + 1) % 100 == 0 or update + 1 == max_updates:
+                print(
+                    f"train seed={model_seed} arm={arm} update={update + 1}/{max_updates} "
+                    f"loss={loss_value:.6g} grad_norm={grad_norm:.6g}",
+                    flush=True,
+                )
+    except TrainingYield:
+        raise
+    except Exception:
+        save_training("failed")
+        raise
+    save_training("complete" if completed else "failed")
     return model, losses, grad_norms, update_times, fd_error, completed
 
 

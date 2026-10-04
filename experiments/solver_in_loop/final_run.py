@@ -29,6 +29,10 @@ from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
     init_corrector,
     relative_l2,
 )
+from mosaic.benchmarks.problems.navier_stokes_grid.training_continuation import (
+    TrainingContinuation,
+    TrainingYield,
+)
 
 core = importlib.import_module(
     "mosaic.benchmarks.problems.navier_stokes_grid.solver_in_loop"
@@ -92,7 +96,13 @@ def prepare(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
     train_seeds = list(map(int, dataset["train_seeds"]))
     eval_seeds = list(map(int, dataset["test_seeds"]))
     all_seeds = train_seeds + eval_seeds
-    if len(set(all_seeds)) != len(all_seeds) or not train_seeds or not eval_seeds:
+    single_ic = bool(payload.get("single_ic", False))
+    if single_ic:
+        if len(train_seeds) != 1 or eval_seeds:
+            raise ValueError(
+                "single-IC preparation requires one seed and no evaluation list"
+            )
+    elif len(set(all_seeds)) != len(all_seeds) or not train_seeds or not eval_seeds:
         raise ValueError("nonempty disjoint unique training/evaluation ICs required")
     # Audit every supplied IC with the original same-solver helper.
     dataset["prefix_audit_seeds"] = all_seeds
@@ -169,8 +179,16 @@ def prepare(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
         ),
     )
     pairs_started = time.perf_counter()
-    pairs = core._make_supervised_inputs(t, ctx, train, frame_steps=frame_steps)
-    pair_wall = time.perf_counter() - pairs_started
+    if payload.get("generate_supervised_pairs", True):
+        pairs = core._make_supervised_inputs(t, ctx, train, frame_steps=frame_steps)
+        pair_wall = time.perf_counter() - pairs_started
+    elif single_ic:
+        pairs = np.empty((0, *train.shape[1:]), dtype=train.dtype)
+        pair_wall = 0.0
+    else:
+        raise ValueError(
+            "only single-IC held-out preparation may skip supervised pairs"
+        )
     seen_count = min(
         int(run["evaluation"].get("seen_ic_trajectories", len(eval_seeds))),
         len(train_seeds),
@@ -196,6 +214,7 @@ def prepare(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
         native_rollouts=native_rollouts[len(train_seeds) :],
         native_errors=native_errors[len(train_seeds) :],
         train_native_errors=native_errors[: len(train_seeds)],
+        train_native_rollouts=native_rollouts[: len(train_seeds)],
         train_seeds=np.asarray(train_seeds),
         eval_seeds=np.asarray(eval_seeds),
     )
@@ -204,6 +223,7 @@ def prepare(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
         "dataset_sha256": file_hash(out / "dataset.npz"),
         "dataset_hash": dataset_hash,
         "dataset_role": payload.get("dataset_role", "validation"),
+        "single_ic": single_ic,
         "selection_sha256": payload.get("selection_sha256"),
         "train_seeds": train_seeds,
         "eval_seeds": eval_seeds,
@@ -453,23 +473,81 @@ def train(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
         training["loss_mode"] = "mean"
         training["solver_loss_weight"] = 0.0
     gradient_checks = []
+    continuation = None
+    prior_training_wall = 0.0
+    continuation_config = payload.get("continuation")
+    if continuation_config:
+        continuation = TrainingContinuation(
+            path=Path(continuation_config["path"]),
+            identity={
+                **identity(payload),
+                "dataset_sha256": metadata["dataset_sha256"],
+            },
+            checkpoint_every=int(continuation_config.get("checkpoint_every", 100)),
+            max_updates_per_allocation=continuation_config.get(
+                "max_updates_per_allocation"
+            ),
+            wall_limit_s=continuation_config.get("wall_limit_s"),
+        )
+        if continuation.path.exists():
+            previous_path = Path(continuation_config["previous_outcome_path"])
+            if (
+                file_hash(previous_path)
+                != continuation_config["previous_outcome_sha256"]
+            ):
+                raise ValueError("continuation accounting outcome hash mismatch")
+            previous = json.loads(previous_path.read_text())
+            if (
+                not previous.get("resume_required")
+                or previous["identity"] != identity(payload)
+                or previous["arm"] != arm
+                or previous["model_seed"] != model_seed
+                or previous["training"] != training
+                or previous["training_dataset_sha256"] != metadata["dataset_sha256"]
+                or previous["checkpoint_sha256"] != file_hash(continuation.path)
+            ):
+                raise ValueError("continuation accounting/protocol provenance mismatch")
+            prior_training_wall = float(previous["training_wall_time_s"])
     started = time.perf_counter()
-    model, losses, grads, update_times, fd_error, completed = core._train_corrector(
-        t,
-        ctx,
-        arrays["train"],
-        frame_steps=int(ctx.phys["steps"]),
-        training=training,
-        velocity_scale=metadata["velocity_scale"],
-        loss_scale=metadata["training_loss_scale"],
-        differentiate_solver=arm == "full",
-        model_seed=model_seed,
-        supervised_inputs=arrays["supervised_inputs"] if arm == "supervised" else None,
-        initial_model=initial_model,
-        fd_checks=gradient_checks,
-    )
+    try:
+        model, losses, grads, update_times, fd_error, completed = core._train_corrector(
+            t,
+            ctx,
+            arrays["train"],
+            frame_steps=int(ctx.phys["steps"]),
+            training=training,
+            velocity_scale=metadata["velocity_scale"],
+            loss_scale=metadata["training_loss_scale"],
+            differentiate_solver=arm == "full",
+            model_seed=model_seed,
+            supervised_inputs=arrays["supervised_inputs"]
+            if arm == "supervised"
+            else None,
+            initial_model=initial_model,
+            fd_checks=gradient_checks,
+            **({"continuation": continuation} if continuation is not None else {}),
+        )
+    except TrainingYield as yielded:
+        allocation_wall = time.perf_counter() - started
+        return {
+            "phase": "train",
+            "identity": identity(payload),
+            "arm": arm,
+            "model_seed": model_seed,
+            "training": training,
+            "training_dataset_sha256": metadata["dataset_sha256"],
+            "completed": False,
+            "admitted": False,
+            "resume_required": True,
+            "optimizer_updates": yielded.updates,
+            "checkpoint_sha256": file_hash(continuation.path),
+            "allocation_training_wall_time_s": allocation_wall,
+            "training_wall_time_s": prior_training_wall + allocation_wall,
+            "continuation_scope": "Completed-update boundary; unchanged model, Adam, RNG and FD state",
+        }
     jax.block_until_ready(eqx.filter(model, eqx.is_array))
-    training_wall = time.perf_counter() - started
+    allocation_training_wall = time.perf_counter() - started
+    training_wall = prior_training_wall + allocation_training_wall
     eqx.tree_serialise_leaves(out / "model.eqx", model)
     gradient_passed = bool(
         arm != "full"
@@ -488,6 +566,8 @@ def train(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
         "velocity_scale": metadata["velocity_scale"],
         "training_loss_scale": metadata["training_loss_scale"],
         "training_wall_time_s": training_wall,
+        "allocation_training_wall_time_s": allocation_training_wall,
+        "resume_required": False,
         "pretraining_wall_time_s": pretrain_cost,
         "supervised_dataset_wall_time_s": metadata["supervised_dataset_wall_time_s"],
         "common_dataset_preparation_wall_time_s": metadata[
@@ -516,6 +596,14 @@ def train(t: Any, ctx: Any, payload: dict, out: Path) -> dict:
     # Persist training evidence before potentially failing rollout evaluation.
     (out / "outcome.json").write_text(json.dumps(result, indent=2))
     np.savez_compressed(out / "fields.npz", **fields)
+    if not payload.get("evaluate_after_training", True):
+        result["evaluation_deferred"] = True
+        result["evaluation_seeds"] = []
+        result["prepared_evaluation_seeds"] = metadata["eval_seeds"]
+        result["admitted"] = bool(
+            result["completed"] and metadata["admitted"] and gradient_passed
+        )
+        return result
     metrics, evaluation_fields = evaluate_model(
         t, ctx, model, arrays, metadata, result, list(range(len(arrays["reference"])))
     )

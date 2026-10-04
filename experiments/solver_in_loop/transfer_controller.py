@@ -91,6 +91,19 @@ class TransferController(Controller):
                 self.wait([cell])
                 folder = self.campaign / "results" / cell
                 outcome = json.loads((folder / "outcome.json").read_text())
+                if not outcome.get("completed", False) or not outcome.get(
+                    "admitted", False
+                ):
+                    state.update(
+                        reference_admitted=False,
+                        status="blocked_by_reference_admission",
+                        reference_failure=outcome.get(
+                            "failure", "reference or closure gate failed"
+                        ),
+                    )
+                    state.pop("failure", None)
+                    self.save()
+                    continue
                 metadata = json.loads((folder / "dataset.json").read_text())
                 state["reference_admitted"] = bool(
                     outcome.get("admitted") and metadata.get("admitted")

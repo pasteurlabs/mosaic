@@ -124,6 +124,7 @@ class Controller:
             self.save()
             return int(recovered[0].slurm_id)
         gpu = phase in {"prepare", "train", "evaluate"}
+        resources = self.plan.get("resources", {})
         spec = JobSpec(
             name=f"m116-final-{cell}",
             cmd=[
@@ -135,10 +136,10 @@ class Controller:
             ],
             template="gpu" if gpu else "cpu",
             account="research",
-            partition="dev",
-            qos="rtx5090-pool" if gpu else "dev",
-            time_limit="04:00:00" if gpu else "02:00:00",
-            gpus="gpu:5090:1" if gpu else None,
+            partition=resources.get("partition", "dev") if gpu else "dev",
+            qos=resources.get("qos", "rtx5090-pool") if gpu else "dev",
+            time_limit=resources.get("time_limit", "04:00:00") if gpu else "02:00:00",
+            gpus=resources.get("gpus", "gpu:5090:1") if gpu else None,
             cpus=8,
             mem="64G",
             out_path=self.campaign / "allocations" / cell,
