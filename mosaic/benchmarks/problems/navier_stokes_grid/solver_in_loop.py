@@ -1254,6 +1254,8 @@ def _train_corrector(
                 "model_seed": model_seed,
                 "arm": arm,
                 "domain_extent": ctx.domain_extent,
+                "physics": getattr(ctx, "phys", None),
+                "differentiate_solver": differentiate_solver,
                 "train_sha256": array_digest(train),
                 "supervised_sha256": array_digest(supervised_inputs),
                 "initial_model_sha256": hashlib.sha256(tree_bytes(model)).hexdigest(),
