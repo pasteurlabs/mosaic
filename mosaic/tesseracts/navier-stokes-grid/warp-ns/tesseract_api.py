@@ -420,7 +420,7 @@ def _bluestein_setup(n: int, device: str) -> dict:
     """Precompute the Bluestein chirp and the (pre-FFT'd) kernel for length ``n``.
 
     Returns the chirp ``w`` (length ``n``, as a complex vec2f array broadcast
-    to a row) and ``B = fft(b)`` (length ``m = next_pow2(2n-1)``), both device
+    to a row) and ``B = fft(b) / m`` (length ``m = next_pow2(2n-1)``), both device
     arrays. ``b`` is the zero-padded, wrapped conjugate-chirp convolution
     kernel; its FFT is precomputed on the host once per ``n`` since it is
     constant across timesteps and carries no gradient.
@@ -432,7 +432,9 @@ def _bluestein_setup(n: int, device: str) -> dict:
     b = np.zeros(m, dtype=np.complex128)
     b[:n] = np.conj(w)
     b[m - n + 1 :] = np.conj(w[1:])[::-1]
-    B = np.fft.fft(b)
+    # tile_ifft is unnormalized: divide the convolution kernel by m so
+    # IFFT(FFT(a) * B) has the scale of the actual circular convolution.
+    B = np.fft.fft(b) / m
 
     def _to_row_vec2f(arr: np.ndarray) -> wp.array:
         # shape (len, 2) -> (1, len, 2) so Warp reads it as a (1, len) array of
@@ -506,9 +508,9 @@ def _bluestein_kernels(n: int, m: int):
 def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.array:
     """Length-``n`` DFT along the last axis of a ``(batch, n)`` complex array.
 
-    ``direction`` is ``"fwd"`` or ``"bwd"`` (inverse). The inverse reuses the
-    forward transform via ``ifft(x) = conj(fft(conj(x)))/n``; here that identity
-    is folded into the chirp so a single code path serves both. Uses only
+    ``direction`` is ``"fwd"`` or ``"bwd"`` (unnormalized inverse). The inverse
+    reuses the forward transform via ``conj(fft(conj(x)))``, matching tile_ifft.
+    The pressure-correction consumer normalizes the final field. Uses only
     power-of-two (length-``m``) tile FFTs, so it compiles on GPU for any ``n``.
 
     Every launch writes fresh ``requires_grad`` buffers so ``wp.Tape`` tracks
@@ -521,7 +523,7 @@ def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.
     bk = _bluestein_kernels(n, m)
     pow2 = _fft_kernels_2d(m)
 
-    # For the inverse, conjugate on the way in and out and rescale by 1/n.
+    # Match the unnormalized inverse used by the power-of-two FFT path.
     conj_in = direction == "bwd"
 
     src = x
@@ -573,7 +575,7 @@ def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.
         device=device,
     )
     if conj_in:
-        y = _conj_scale_rows(y, 1.0 / float(n), device)
+        y = _conj_rows(y, device)
     return y
 
 
