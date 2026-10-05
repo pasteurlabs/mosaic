@@ -66,3 +66,29 @@ test set. Keep all attempts and charge actual execution costs.
 All simulations, numerical tests, bootstrap analysis and plotting run on Slurm.
 The local machine and login controller perform only orchestration and metadata
 handling. Published INS results and their frozen numerical source stay unchanged.
+
+## Follow-up numerical diagnostics (2026-10-05)
+
+The completed JAX-CFD transfer uses the original frozen recipe and image. The
+remaining admission failures are retained; they are not negative training
+results because fitting has not yet been admitted.
+
+- PICT: test the recorded reference-only timestep ladder 6/12, then 12/24 if
+  needed. The original 3/6 comparison had maximum discrepancy 1.99%.
+- XLB: compare saved post-burn states at factors 12/24/48/96, then diagnose
+  96/192/384 if needed. A separate direct-kernel comparison retains populations
+  in float64 to isolate recurrent checkpoint quantization. These saved-state
+  diagnostics do not admit a full dataset or replace the required burn-in.
+- PhiFlow: investigate the failed finite-difference checks using complete
+  perturbation sweeps, matched directions and precision comparisons through
+  the full training duration. Preserve both original failed checks. The actual
+  corrector model-parameter gradient check remains mandatory and unchanged.
+- Warp: preserve Euler and SSPRK3-only failures. Test separately identified
+  variants with a Poisson symbol matching the centered divergence/gradient,
+  then skew-symmetric centered advection if required. Validate discrete
+  projection, null modes, energy identities and derivatives before burn-in.
+
+Any solver variant needs an immutable adapter/image identity and all reference
+and training gates before its results can enter the transfer comparison. No
+filtering, clipping, reduced update budget or relaxed threshold is authorized by
+these diagnostic ladders.
