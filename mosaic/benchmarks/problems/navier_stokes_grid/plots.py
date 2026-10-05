@@ -361,16 +361,36 @@ def plot_solver_in_loop_self_reference(
     )
 
 
+def plot_solver_in_loop_benchmark(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **kwargs: Any,
+) -> list:
+    """Render same-solver gains and all three correctors through the public path."""
+    figures = plot_solver_in_loop(
+        cfg, save=save, suffix=suffix, solver_specific_reference=True, **kwargs
+    )
+    figures.extend(
+        plot_solver_in_loop_supervised(
+            cfg, save=save, suffix=suffix, exp_key="solver_in_loop", **kwargs
+        )
+    )
+    return figures
+
+
 def plot_solver_in_loop_supervised(
     cfg: Problem,
     *,
     save: bool = True,
     suffix: str = "",
+    exp_key: str = "solver_in_loop_supervised",
     **_kwargs: Any,
 ) -> list:
     """Show all four evaluation arms against each solver's refined target."""
     out_dir = experiment_dir(
-        results_dir(), cfg.name, "optimization", f"solver_in_loop_supervised{suffix}"
+        results_dir(), cfg.name, "optimization", f"{exp_key}{suffix}"
     )
     path = out_dir / "corrector_fields.npz"
     if not path.exists():

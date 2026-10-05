@@ -72,7 +72,7 @@ from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import (
     plot_drag_opt,
-    plot_solver_in_loop,
+    plot_solver_in_loop_benchmark,
 )
 from .solver_in_loop import solver_in_loop
 
@@ -531,7 +531,7 @@ problem.add_experiment(
             },
         }
     ],
-    plot=plot_solver_in_loop,
+    plot=plot_solver_in_loop_benchmark,
     status_check=[corrector_execution(16)],
 )
 # Bonus plot (not paired with an experiment).

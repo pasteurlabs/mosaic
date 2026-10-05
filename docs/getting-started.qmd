@@ -84,6 +84,22 @@ mosaic run -p structural-mesh --suites cost
 mosaic run -p thermal-mesh --suites optimization
 ```
 
+The 2D neural-corrector benchmark is included in the ordinary optimization suite
+and its CI matrix. To run it on its own:
+
+```bash
+mosaic run -p ns-grid -e optimization/solver_in_loop --hardware gpu
+```
+
+This bounded case trains full-gradient, stopped-gradient and supervised CNN
+correctors against each solver's own refined reference (32² → 64²). It uses
+16 optimizer updates per method and checks reference admission, the neural
+training gradient, finite results and complete update counts. Its normal result
+files and plots feed the existing status/report pipeline. A short CI run does
+not establish which training method is more accurate; the larger 64² → 192²
+forced-flow comparison and its frozen statistical protocol are recorded under
+`experiments/solver_in_loop/TRANSFER_PROTOCOL.md`.
+
 ### Useful flags
 
 | Flag | Effect |
