@@ -12,9 +12,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from runner import JobRegistry, JobSpec, Runner
-from runner.transport import LocalTransport
-
 ACTIVE = {"PENDING", "RUNNING", "CONFIGURING", "COMPLETING", "SUSPENDED", "REQUEUED"}
 
 
@@ -61,6 +58,9 @@ class Controller:
     """Resume known job IDs; never silently resubmit a failed numerical cell."""
 
     def __init__(self, campaign: Path) -> None:
+        from runner import JobRegistry, Runner
+        from runner.transport import LocalTransport
+
         self.campaign = campaign
         self.plan = json.loads((campaign / "plan.json").read_text())
         self.state_path = campaign / "controller-state.json"
@@ -103,6 +103,8 @@ class Controller:
         self, cell: str, phase: str, payload: dict[str, Any] | None = None
     ) -> int:
         """Submit once, binding each cell to immutable JSON configuration."""
+        from runner import JobSpec
+
         config = self.campaign / "configs" / f"{cell}.json"
         if payload is not None:
             content = json.dumps(payload, indent=2)

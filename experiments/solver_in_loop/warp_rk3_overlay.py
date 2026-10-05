@@ -132,7 +132,9 @@ def _rk3_solve(
     return tape, x, y, initial_x, initial_y, nu, timestep
 
 
-def ns2d_ssprk3_forward(v0, viscosity, dt, steps, domain_extent, device="cpu") -> np.ndarray:
+def ns2d_ssprk3_forward(
+    v0, viscosity, dt, steps, domain_extent, device="cpu"
+) -> np.ndarray:
     """Run the opt-in stage composition without recording a reverse tape."""
     _, x, y, *_ = _rk3_solve(
         v0, viscosity, dt, steps, domain_extent, device, False, False

@@ -12,12 +12,12 @@ velocity, forcing and viscosity. These are direct-kernel diagnostics, not
 replacement reference datasets. The complete arrays and source copies are in
 `pr116-xlb-state-precision-20261005` on the cluster.
 
-| Native state | IC index | 24/48 | 48/96 | 96/192 | 192/384 |
-|---|---:|---:|---:|---:|---:|
-| Original float32 | 0 | 3.431% | 1.710% | 0.849% | 0.385% |
-| Original float32 | 1 | 3.713% | 1.848% | 0.915% | 0.407% |
-| Retained float64 | 0 | 3.431% | 1.710% | 0.849% | 0.386% |
-| Retained float64 | 1 | 3.713% | 1.848% | 0.915% | 0.405% |
+| Native state     | IC index |  24/48 |  48/96 | 96/192 | 192/384 |
+| ---------------- | -------: | -----: | -----: | -----: | ------: |
+| Original float32 |        0 | 3.431% | 1.710% | 0.849% |  0.385% |
+| Original float32 |        1 | 3.713% | 1.848% | 0.915% |  0.407% |
+| Retained float64 |        0 | 3.431% | 1.710% | 0.849% |  0.386% |
+| Retained float64 |        1 | 3.713% | 1.848% | 0.915% |  0.405% |
 
 Values are maximum full-192² relative velocity differences over 48 frames,
 not the restricted-64² metric used for formal admission. Keeping float64 native

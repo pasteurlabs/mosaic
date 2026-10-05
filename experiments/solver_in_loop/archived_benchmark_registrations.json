@@ -23,33 +23,9 @@
             "reference_factor": 2,
             "reference_substeps": 2,
             "train_seeds": [
-              0,
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10,
-              11,
-              12,
-              13,
-              14,
-              15
+              0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
             ],
-            "test_seeds": [
-              100,
-              101,
-              102,
-              103,
-              104,
-              105,
-              106,
-              107
-            ],
+            "test_seeds": [100, 101, 102, 103, 104, 105, 106, 107],
             "train_frames": 24,
             "k0": 2.0,
             "sigma_k": 0.5,
@@ -61,18 +37,14 @@
             "loss_mode": "solver_terminal",
             "solver_loss_weight": 0.1,
             "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-06,
+            "loss_scale_floor": 1e-6,
             "lr": 0.0001,
             "clip_norm": 5.0,
             "architecture": "periodic_residual_cnn",
             "hidden_channels": 32,
             "kernel_size": 5,
             "seed": 2026,
-            "model_seeds": [
-              0,
-              1,
-              2
-            ],
+            "model_seeds": [0, 1, 2],
             "check_grad": true,
             "fd_epsilon": 0.01
           },
@@ -108,61 +80,21 @@
             "reference_kind": "solver_self_refined",
             "reference_factor": 3,
             "reference_audit_factor": 3,
-            "reference_audit_seeds": [
-              0,
-              100
-            ],
-            "reference_audit_frames": [
-              1,
-              8,
-              24,
-              36
-            ],
+            "reference_audit_seeds": [0, 100],
+            "reference_audit_frames": [1, 8, 24, 36],
             "reference_convergence_tolerance": 0.005,
             "train_seeds": [
-              0,
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10,
-              11,
-              12,
-              13,
-              14,
-              15
+              0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
             ],
-            "test_seeds": [
-              100,
-              101,
-              102,
-              103,
-              104,
-              105,
-              106,
-              107
-            ],
+            "test_seeds": [100, 101, 102, 103, 104, 105, 106, 107],
             "train_frames": 24,
             "k0": 4.0,
             "sigma_k": 1.0,
             "amplitude": 0.5,
             "reference_temporal_factor": 3,
             "reference_audit_temporal_factor": 6,
-            "prefix_audit_seeds": [
-              0,
-              100
-            ],
-            "prefix_audit_frames": [
-              1,
-              8,
-              24,
-              36
-            ]
+            "prefix_audit_seeds": [0, 100],
+            "prefix_audit_frames": [1, 8, 24, 36]
           },
           "training": {
             "max_updates": 3000,
@@ -170,18 +102,14 @@
             "loss_mode": "mean",
             "solver_loss_weight": 0.0,
             "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-06,
+            "loss_scale_floor": 1e-6,
             "lr": 0.0001,
             "clip_norm": 5.0,
             "architecture": "periodic_residual_cnn",
             "hidden_channels": 32,
             "kernel_size": 5,
             "seed": 2026,
-            "model_seeds": [
-              0,
-              1,
-              2
-            ],
+            "model_seeds": [0, 1, 2],
             "check_grad": true,
             "fd_epsilon": 0.01,
             "include_supervised_baseline": true
@@ -221,45 +149,13 @@
             "reference_substeps": 4,
             "reference_audit_factor": 8,
             "reference_audit_substeps": 8,
-            "reference_audit_seeds": [
-              0,
-              100
-            ],
-            "reference_audit_frames": [
-              1,
-              8,
-              24,
-              36
-            ],
+            "reference_audit_seeds": [0, 100],
+            "reference_audit_frames": [1, 8, 24, 36],
             "reference_convergence_tolerance": 0.005,
             "train_seeds": [
-              0,
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10,
-              11,
-              12,
-              13,
-              14,
-              15
+              0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
             ],
-            "test_seeds": [
-              100,
-              101,
-              102,
-              103,
-              104,
-              105,
-              106,
-              107
-            ],
+            "test_seeds": [100, 101, 102, 103, 104, 105, 106, 107],
             "train_frames": 24,
             "k0": 2.0,
             "sigma_k": 0.5,
@@ -271,18 +167,14 @@
             "loss_mode": "solver_terminal",
             "solver_loss_weight": 0.1,
             "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-06,
+            "loss_scale_floor": 1e-6,
             "lr": 0.0001,
             "clip_norm": 5.0,
             "architecture": "periodic_residual_cnn",
             "hidden_channels": 32,
             "kernel_size": 5,
             "seed": 2026,
-            "model_seeds": [
-              0,
-              1,
-              2
-            ],
+            "model_seeds": [0, 1, 2],
             "check_grad": true,
             "fd_epsilon": 0.01
           },
@@ -312,45 +204,13 @@
             "reference_substeps": 4,
             "reference_audit_factor": 8,
             "reference_audit_substeps": 8,
-            "reference_audit_seeds": [
-              0,
-              100
-            ],
-            "reference_audit_frames": [
-              1,
-              8,
-              24,
-              36
-            ],
+            "reference_audit_seeds": [0, 100],
+            "reference_audit_frames": [1, 8, 24, 36],
             "reference_convergence_tolerance": 0.005,
             "train_seeds": [
-              0,
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10,
-              11,
-              12,
-              13,
-              14,
-              15
+              0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
             ],
-            "test_seeds": [
-              100,
-              101,
-              102,
-              103,
-              104,
-              105,
-              106,
-              107
-            ],
+            "test_seeds": [100, 101, 102, 103, 104, 105, 106, 107],
             "train_frames": 24,
             "k0": 2.0,
             "sigma_k": 0.5,
@@ -362,18 +222,14 @@
             "loss_mode": "solver_terminal",
             "solver_loss_weight": 0.1,
             "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-06,
+            "loss_scale_floor": 1e-6,
             "lr": 0.0001,
             "clip_norm": 5.0,
             "architecture": "periodic_residual_cnn",
             "hidden_channels": 32,
             "kernel_size": 5,
             "seed": 2026,
-            "model_seeds": [
-              0,
-              1,
-              2
-            ],
+            "model_seeds": [0, 1, 2],
             "check_grad": true,
             "fd_epsilon": 0.01
           },
@@ -410,16 +266,8 @@
             "reference_kind": "analytic_tgv",
             "reference_factor": 1,
             "reference_substeps": 1,
-            "train_seeds": [
-              0,
-              1,
-              2,
-              3
-            ],
-            "test_seeds": [
-              100,
-              101
-            ],
+            "train_seeds": [0, 1, 2, 3],
+            "test_seeds": [100, 101],
             "train_frames": 24,
             "long_closure_tolerance": 0.01
           },
@@ -429,18 +277,14 @@
             "loss_mode": "solver_terminal",
             "solver_loss_weight": 0.1,
             "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-06,
-            "lr": 1e-09,
+            "loss_scale_floor": 1e-6,
+            "lr": 1e-9,
             "clip_norm": 5.0,
             "architecture": "periodic_residual_cnn",
             "hidden_channels": 32,
             "kernel_size": 5,
             "seed": 2026,
-            "model_seeds": [
-              0,
-              1,
-              2
-            ],
+            "model_seeds": [0, 1, 2],
             "check_grad": true,
             "fd_epsilon": 0.0003
           },
@@ -477,49 +321,15 @@
             "reference_factor": 2,
             "reference_temporal_factor": 2,
             "train_seeds": [
-              0,
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10,
-              11,
-              12,
-              13,
-              14,
-              15
+              0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
             ],
-            "test_seeds": [
-              100,
-              101,
-              102,
-              103,
-              104,
-              105,
-              106,
-              107
-            ],
+            "test_seeds": [100, 101, 102, 103, 104, 105, 106, 107],
             "train_frames": 24,
             "k0": 2.0,
             "sigma_k": 0.5,
             "amplitude": 0.5,
-            "prefix_audit_seeds": [
-              0,
-              1,
-              100,
-              101
-            ],
-            "prefix_audit_frames": [
-              1,
-              8,
-              24,
-              36
-            ],
+            "prefix_audit_seeds": [0, 1, 100, 101],
+            "prefix_audit_frames": [1, 8, 24, 36],
             "closure_relative_tolerance": 0.01,
             "closure_to_signal_tolerance": 0.1,
             "minimum_refinement_signal": 0.0001
@@ -530,18 +340,14 @@
             "loss_mode": "mean",
             "solver_loss_weight": 0.0,
             "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-06,
+            "loss_scale_floor": 1e-6,
             "lr": 0.0001,
             "clip_norm": 5.0,
             "architecture": "periodic_residual_cnn",
             "hidden_channels": 32,
             "kernel_size": 5,
             "seed": 2026,
-            "model_seeds": [
-              0,
-              1,
-              2
-            ],
+            "model_seeds": [0, 1, 2],
             "check_grad": true,
             "fd_epsilon": 0.01
           },
