@@ -1,0 +1,3117 @@
+{
+  "identity": {
+    "solver": "jax-cfd",
+    "source_sha256": "d63ef29ba587871e2ac1fa4d58b11a01aa5799fd27540fb1cbe94a8cb93d15dc",
+    "image": "/data/personal/andrinr/runner/artifacts/mosaic/jax-cfd-2853701.sqsh",
+    "image_sha256": "196fdf947094be48590a2bfd228551bb6efed83484257cd18826e4ac4f67ecf7",
+    "physics": {
+      "N": 64,
+      "nu": 0.001,
+      "dt": 0.01,
+      "steps": 4,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6
+    },
+    "domain_extent": 6.283185307179586
+  },
+  "dataset_sha256": "a79435de950b6e3b0312e55a0134176503d7a20b2cb4d4606f3fffb859ee27a4",
+  "dataset_role": "validation",
+  "comparison_role": "frozen_transfer_confirmation_no_selection",
+  "train_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "eval_seeds": [
+    20000,
+    20001,
+    20002,
+    20003,
+    20004,
+    20005,
+    20006,
+    20007,
+    20008,
+    20009,
+    20010,
+    20011,
+    20012,
+    20013,
+    20014,
+    20015,
+    20016,
+    20017,
+    20018,
+    20019,
+    20020,
+    20021,
+    20022,
+    20023,
+    20024,
+    20025,
+    20026,
+    20027,
+    20028,
+    20029,
+    20030,
+    20031
+  ],
+  "velocity_scale": 1.7987265586853027,
+  "training_loss_scale": 0.0028843917238122554,
+  "dataset_preparation_wall_time_s": 179774.853665333,
+  "supervised_dataset_wall_time_s": 7.961395236197859,
+  "native_state_threading": true,
+  "reference_audits_by_shard": [
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.2799083254879926e-05,
+        0.00033500209118058586,
+        0.0009315232013761513,
+        0.002227243673164427
+      ],
+      "reference_convergence_max_relative_error": 0.002227243673164427,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4535.1275063441135,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 0,
+          "initial_velocity_rms": 0.05167967453598976,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "47ed94d0505c7846d4c7cfc8593196eabc6e848624301416df6ebbca763ae62a",
+          "final_velocity_rms": 1.7960749864578247
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        0
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.010785896929724119,
+        0.03341192411330994,
+        0.06914082440416235,
+        0.12030014049774243
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05840969648623471,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        6.462797865737304e-05,
+        0.0004598468213816543,
+        0.0017429726654323787,
+        0.004216183812158781
+      ],
+      "reference_convergence_max_relative_error": 0.004216183812158781,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4467.760959281819,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 1,
+          "initial_velocity_rms": 0.05067428573966026,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "0dce313e3d56458c151a1e62a4152683ed3d128a47ab992ee21c14e40882804a",
+          "final_velocity_rms": 1.7950340509414673
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        1
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012707557703820139,
+        0.04438639927300053,
+        0.10620773647847909,
+        0.16235022079391218
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.08141297856230298,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.996077415742031e-05,
+        0.000343725053801965,
+        0.0010131030380220042,
+        0.0022650436808994384
+      ],
+      "reference_convergence_max_relative_error": 0.0022650436808994384,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4531.026266664965,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 2,
+          "initial_velocity_rms": 0.051601845771074295,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "bef03574b2e6ccc3c2e22959ba4be8d39ae0472923ae29b0bf01c95386ccdc1f",
+          "final_velocity_rms": 1.764487862586975
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        2
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01153385777442608,
+        0.03565604263440439,
+        0.07917452066595214,
+        0.13531525110658074
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06541991804534084,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.2829066044511e-05,
+        0.0003510134924427103,
+        0.0010631606963420366,
+        0.002408524165712699
+      ],
+      "reference_convergence_max_relative_error": 0.002408524165712699,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4518.628261168022,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 3,
+          "initial_velocity_rms": 0.05240390822291374,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "c2342bd8101d7bb360a9f13d9a066ae8964bc736f2a1760fda742d5cbce6007a",
+          "final_velocity_rms": 1.780324101448059
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        3
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012111887913668502,
+        0.03653640060406975,
+        0.07135126212681209,
+        0.13313704314272937
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06328414844681993,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        6.308614584232561e-05,
+        0.0003792221690842643,
+        0.001265153892180801,
+        0.002317638536494019
+      ],
+      "reference_convergence_max_relative_error": 0.002317638536494019,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4562.939727288904,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 4,
+          "initial_velocity_rms": 0.050843026489019394,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "a02310ee81ced9d83e4901e3f3874c14f94075fe84603fa49c454f61f2550bf2",
+          "final_velocity_rms": 1.818389892578125
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        4
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012716523348101713,
+        0.03757020325797389,
+        0.08343902819608792,
+        0.13397835301883548
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06692602695524975,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.269647603790941e-05,
+        0.0003324811041718514,
+        0.0008932092852686496,
+        0.0018065729490409634
+      ],
+      "reference_convergence_max_relative_error": 0.0018065729490409634,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4572.049963077996,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 5,
+          "initial_velocity_rms": 0.05169474706053734,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "392af2d15004c2629c61e9476e10a2b5462121067bc3888c641a84a6849ed82c",
+          "final_velocity_rms": 1.7902467250823975
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        5
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01182595939885104,
+        0.03370280160675767,
+        0.0675310945184864,
+        0.10916038546391836
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.055555060247003366,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.607179669046824e-05,
+        0.00036911534162392787,
+        0.0010291849794206267,
+        0.0021231779412503936
+      ],
+      "reference_convergence_max_relative_error": 0.0021231779412503936,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4482.68961562193,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 6,
+          "initial_velocity_rms": 0.0521402508020401,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "05ed243fbaf04472c292aeaab9408d96fb0c4d26c4fecfbb5396242d9e89ae6a",
+          "final_velocity_rms": 1.7872669696807861
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        6
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011930746208099401,
+        0.036251534420724846,
+        0.07404430637342847,
+        0.1266137047336543
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.062210072933976755,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.3107950757274165e-05,
+        0.000281474409966652,
+        0.0007910696456178301,
+        0.0019027189139662736
+      ],
+      "reference_convergence_max_relative_error": 0.0019027189139662736,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4457.403622556943,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 7,
+          "initial_velocity_rms": 0.05044366791844368,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "37f586e040bf0784e562dfe2c999cf474d16226d562469878406f503b27f45be",
+          "final_velocity_rms": 1.8464481830596924
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        7
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01020927975731575,
+        0.03086106678501267,
+        0.062276545889801055,
+        0.10975707171542748
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.053275991036889236,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        6.519068360723816e-05,
+        0.0004254266314327822,
+        0.0013120239513156591,
+        0.002845190946511031
+      ],
+      "reference_convergence_max_relative_error": 0.002845190946511031,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4489.7036812519655,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20000,
+          "initial_velocity_rms": 0.05186624825000763,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "35a045476a4011c7ced29cb9c9faa530fb892fee732c412b3a27de6f53ddf289",
+          "final_velocity_rms": 1.7664344310760498
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20000
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.013007901620942397,
+        0.039729183479012026,
+        0.08505136653375474,
+        0.14259828585751955
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07009668437280718,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.4305072176214416e-05,
+        0.0003949417889826361,
+        0.001098819647223031,
+        0.002449308763269029
+      ],
+      "reference_convergence_max_relative_error": 0.002449308763269029,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4492.528020216851,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20001,
+          "initial_velocity_rms": 0.05084972083568573,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "b61e2b9aafc7d838671c1b36d820fbbbfabffd8c9ad206db370f38a97f806de4",
+          "final_velocity_rms": 1.7990837097167969
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20001
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.013055239962941634,
+        0.03918569979021838,
+        0.07814406447871765,
+        0.13536128517829038
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06643657235254201,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        6.375496495818122e-05,
+        0.00040631713348455523,
+        0.001088725893794075,
+        0.0025512540420862977
+      ],
+      "reference_convergence_max_relative_error": 0.0025512540420862977,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4506.270200442057,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20002,
+          "initial_velocity_rms": 0.05164971947669983,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "ef6e0c6a29bf074d87922eb16bff2a60743743f3d8889fb37147cce78b2b4bea",
+          "final_velocity_rms": 1.7460099458694458
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20002
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01681700560364159,
+        0.04493286923363865,
+        0.08710357273240373,
+        0.15309930501718572
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07548818814671743,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.9867499174555385e-05,
+        0.00032316214782554694,
+        0.0007858024393946299,
+        0.0015684326105566784
+      ],
+      "reference_convergence_max_relative_error": 0.0015684326105566784,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4485.8371257819235,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20003,
+          "initial_velocity_rms": 0.05033312365412712,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "dc3b9f86b276b895c4eca53c705ba80a94a473a1659348408ab498606ae3fc2c",
+          "final_velocity_rms": 1.7428176403045654
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20003
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011745143778262522,
+        0.033694738752716336,
+        0.06838325240245118,
+        0.12140503623875387
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05880704279304598,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        3.0481171947932064e-05,
+        0.00020685390192318038,
+        0.0005175797326798041,
+        0.0010782303438441486
+      ],
+      "reference_convergence_max_relative_error": 0.0010782303438441486,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4515.150051083881,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20004,
+          "initial_velocity_rms": 0.05203685909509659,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "ffd551e815db527279ee7f632af7fbde2e5ec41be09a11d8a6a41ade038145f1",
+          "final_velocity_rms": 1.8051661252975464
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20004
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.009315668297691433,
+        0.024707460116150128,
+        0.04465452407583761,
+        0.07638411220682305
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.03876544117412556,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.5405963672297156e-05,
+        0.0002985791879944068,
+        0.0008347699586827605,
+        0.0018120841803922023
+      ],
+      "reference_convergence_max_relative_error": 0.0018120841803922023,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4487.249937660061,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20005,
+          "initial_velocity_rms": 0.0517243854701519,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "990f13c6acdad9f35a7c34dd4197b75f71bb959918b6d8fab656026af14f37d0",
+          "final_velocity_rms": 1.8237698078155518
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20005
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.010514998235364672,
+        0.03035308054532927,
+        0.0627763726674806,
+        0.12059666150083656
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05606027823725278,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.326481884908957e-05,
+        0.0002906801100916443,
+        0.0008318017581152844,
+        0.0019229378340217846
+      ],
+      "reference_convergence_max_relative_error": 0.0019229378340217846,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4375.756521468982,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20006,
+          "initial_velocity_rms": 0.05174649506807327,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "e4bc486b5581f880c0ecb2a8b28992cf1529a330f949b3f767f35cbe715213c6",
+          "final_velocity_rms": 1.7643336057662964
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20006
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.010369644068336892,
+        0.030802815547766763,
+        0.06650414850198469,
+        0.12076140738112504
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05710950387480335,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.865270654559294e-05,
+        0.00030740347638525615,
+        0.0008478945584476383,
+        0.0016925051769281732
+      ],
+      "reference_convergence_max_relative_error": 0.0016925051769281732,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4478.628459148109,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20007,
+          "initial_velocity_rms": 0.051432542502880096,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "634a687374f7e92bed8b373b5fb6727fc8ae0d94c4c8e90e3a9e3f8d028419b7",
+          "final_velocity_rms": 1.7653133869171143
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20007
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011969688855779089,
+        0.03417364896751564,
+        0.06620091668228785,
+        0.10166684162871813
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05350277403357517,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.755781509697318e-05,
+        0.00031580579076607925,
+        0.0008239673774831022,
+        0.0012637609264583196
+      ],
+      "reference_convergence_max_relative_error": 0.0012637609264583196,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4490.287035519956,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20008,
+          "initial_velocity_rms": 0.05081429332494736,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "bf26259d095ab21b1c98b390f2b0cb88816ab8bb6c85d0466fc1a95a6afa3746",
+          "final_velocity_rms": 1.7443336248397827
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20008
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011262075585163232,
+        0.033343617200149264,
+        0.06209899516442729,
+        0.09232968220681094
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.04975859253913768,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.459142151822743e-05,
+        0.00028878306491374726,
+        0.0007925104808980555,
+        0.00157397057651661
+      ],
+      "reference_convergence_max_relative_error": 0.00157397057651661,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4546.760570897954,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20009,
+          "initial_velocity_rms": 0.05041429400444031,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "eb4459f0658ec23f57c2ac736c346dba7c3f6663dd494f4139effbe298b519a7",
+          "final_velocity_rms": 1.8015068769454956
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20009
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.010914048742639652,
+        0.029540840538360213,
+        0.06355916738070176,
+        0.10570887100906844
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.052430731917692514,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        0.00010162701666738283,
+        0.0006433129172242356,
+        0.0017734133315001376,
+        0.003896233389070138
+      ],
+      "reference_convergence_max_relative_error": 0.003896233389070138,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4336.830927459057,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20010,
+          "initial_velocity_rms": 0.04999453201889992,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "a81a4af1b96612e258ca13b987a1523364b45cb1644f6ac230a59ffc717ac348",
+          "final_velocity_rms": 1.858320951461792
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20010
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01523097069485067,
+        0.05356951589777145,
+        0.09946674974513142,
+        0.15022516590614943
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07962310056097574,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        6.220695758799658e-05,
+        0.0003934355172453674,
+        0.0011004095724631662,
+        0.0020397191245270846
+      ],
+      "reference_convergence_max_relative_error": 0.0020397191245270846,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4348.712506505195,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20011,
+          "initial_velocity_rms": 0.05144580453634262,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "ba8433d9114e4ce5b9c9d4c3848a4e581c875cb7246974c98fadd665e8fc303f",
+          "final_velocity_rms": 1.7950068712234497
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20011
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011605251354473895,
+        0.03700351032085493,
+        0.07658614076097084,
+        0.11931074951878698
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06112641298877166,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.8694843169963996e-05,
+        0.0003387310784279431,
+        0.0009689465657282901,
+        0.00250941812567218
+      ],
+      "reference_convergence_max_relative_error": 0.00250941812567218,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4474.587582777953,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20012,
+          "initial_velocity_rms": 0.051161546260118484,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "e98955fc03516bb40c6a2e69821b73d19c684334cc849bafbf6b50f84c1d5826",
+          "final_velocity_rms": 1.753801703453064
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20012
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01157362873784349,
+        0.034810024447091574,
+        0.07220925260335821,
+        0.13551151382683946
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06352610490378319,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.182958183401211e-05,
+        0.00028784951468416954,
+        0.0007881990632892077,
+        0.0017022372945417748
+      ],
+      "reference_convergence_max_relative_error": 0.0017022372945417748,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4491.310457950924,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20013,
+          "initial_velocity_rms": 0.05037973076105118,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "f47bd008ea59256e13ef07590d50d908780114cd08060137cd747247b4f912df",
+          "final_velocity_rms": 1.7914971113204956
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20013
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.0111550333699738,
+        0.031408385515559446,
+        0.06180666866259518,
+        0.09638900529582109
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05018977321098738,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.90009007435841e-05,
+        0.00040920468432505163,
+        0.0011230371283905535,
+        0.0023525913736338598
+      ],
+      "reference_convergence_max_relative_error": 0.0023525913736338598,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4381.736971373903,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20014,
+          "initial_velocity_rms": 0.05098220333456993,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "4573627c1e9be6b1195aac2e56184ed4dbb3bf09f1b8a083b09c199e849fb7a5",
+          "final_velocity_rms": 1.7853481769561768
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20014
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012832545746376017,
+        0.03943855480262955,
+        0.08147596953155857,
+        0.14420010646146567
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06948679413550746,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        7.183329505035469e-05,
+        0.0004704261417098705,
+        0.0014053915904814439,
+        0.003417515182637001
+      ],
+      "reference_convergence_max_relative_error": 0.003417515182637001,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4516.456822208129,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20015,
+          "initial_velocity_rms": 0.05128338932991028,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "314159ca9d7f408939a65499e788be4585ae6e028715c2d0bf1e4be6879ce5cf",
+          "final_velocity_rms": 1.823540210723877
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20015
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012856929080743054,
+        0.04464254617300417,
+        0.09572146261213071,
+        0.14692800918827476
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07503723676353817,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.422612139074141e-05,
+        0.00029490651486925265,
+        0.0007432237348347829,
+        0.0017272339185373366
+      ],
+      "reference_convergence_max_relative_error": 0.0017272339185373366,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4458.553584271111,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20016,
+          "initial_velocity_rms": 0.05078670755028725,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "b7598a94e070062fc6bd8d1651c9ae9701e2ed0998d0ed0bcb44818b6935f5fc",
+          "final_velocity_rms": 1.762779712677002
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20016
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011181917785150918,
+        0.030994073575733895,
+        0.060373354025606375,
+        0.10785131070058603
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.0526001640217693,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        6.0071573855999843e-05,
+        0.0003768665406847892,
+        0.0011050481807219684,
+        0.002525101286692053
+      ],
+      "reference_convergence_max_relative_error": 0.002525101286692053,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4546.500867719995,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20017,
+          "initial_velocity_rms": 0.051706258207559586,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "ed8dff9231bec6519114e4c12829efb9dd1cbb87b09fab72b9cde80eb419b45c",
+          "final_velocity_rms": 1.7791846990585327
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20017
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.013648160826646525,
+        0.038395331668536,
+        0.08194756630667395,
+        0.1474196492596668
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07035267701538081,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.11037117160834e-05,
+        0.0003746514306867262,
+        0.000989823409745672,
+        0.0021665459702249023
+      ],
+      "reference_convergence_max_relative_error": 0.0021665459702249023,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4547.679684004048,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20018,
+          "initial_velocity_rms": 0.05140196904540062,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "b27e2a39af57bfdab264c7132358b85e66b0f519cf390e022ac67cc138be4997",
+          "final_velocity_rms": 1.8425558805465698
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20018
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.0113660759434858,
+        0.03568622053196133,
+        0.0710030335302597,
+        0.1259434287756262
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06099968969533326,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.529721857291666e-05,
+        0.00035885094263153936,
+        0.0010248112648840522,
+        0.0020445338166585753
+      ],
+      "reference_convergence_max_relative_error": 0.0020445338166585753,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4553.175592114916,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20019,
+          "initial_velocity_rms": 0.050181154161691666,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "ae93e54c0c4e45162253b97b43bdfe5a4e1259cdd4ebe71364c72f808c235af4",
+          "final_velocity_rms": 1.7726120948791504
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20019
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.013030740660184132,
+        0.03641669185624827,
+        0.07788588731380464,
+        0.13122449374308146
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06463945339332963,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.586385051594348e-05,
+        0.00030319139402192074,
+        0.000856130066454094,
+        0.0018915487631194071
+      ],
+      "reference_convergence_max_relative_error": 0.0018915487631194071,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4599.576132707065,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20020,
+          "initial_velocity_rms": 0.05075112357735634,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "ea247ccf63beae39cf69d141fe05230c5505043f07955171a33b9c9e366b82e2",
+          "final_velocity_rms": 1.7457492351531982
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20020
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01129118925878819,
+        0.031859737526272205,
+        0.06587936944603404,
+        0.1130318755037889
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05551554293372084,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.123461792506645e-05,
+        0.0003590993870516676,
+        0.0010042384055402513,
+        0.002429260980796369
+      ],
+      "reference_convergence_max_relative_error": 0.002429260980796369,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4528.847174640046,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20021,
+          "initial_velocity_rms": 0.051176078617572784,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "6fe06724605200fa99f6354d999b7e9f5bd93c20efce85a6141c0aaf4aea3580",
+          "final_velocity_rms": 1.8353590965270996
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20021
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011937571971739355,
+        0.036841060336945036,
+        0.07845786242199858,
+        0.14368633188589353
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06773070665414413,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.985508347092405e-05,
+        0.00035827231991533476,
+        0.00099890391374516,
+        0.0018549159293367215
+      ],
+      "reference_convergence_max_relative_error": 0.0018549159293367215,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4535.562481081113,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20022,
+          "initial_velocity_rms": 0.05062379315495491,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "af916efed9394cdaacd86bd4794c58d365cb4e0dcfeaedcffb753f98ab9d3d9f",
+          "final_velocity_rms": 1.8199650049209595
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20022
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.01152183412211418,
+        0.0349745696227316,
+        0.07112087981223784,
+        0.09660278466161938
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.053555017054675746,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        7.012146370150528e-05,
+        0.00048309331088154515,
+        0.001555698403549237,
+        0.004407119545740255
+      ],
+      "reference_convergence_max_relative_error": 0.004407119545740255,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4323.012653006939,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20023,
+          "initial_velocity_rms": 0.05130257084965706,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "4b9b53ffc1920033fc5dd85f9bcf8249ab7f16de665260b19578a77bad204031",
+          "final_velocity_rms": 1.8171952962875366
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20023
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.013311239159533765,
+        0.04535220439366591,
+        0.09929301308868331,
+        0.1549672129435228
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07823091739635145,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.791210862393941e-05,
+        0.00036450094818541275,
+        0.000927999657143521,
+        0.0017011561054600362
+      ],
+      "reference_convergence_max_relative_error": 0.0017011561054600362,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4397.3315009679645,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20024,
+          "initial_velocity_rms": 0.051051776856184006,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "1a6f6067fa8972f8120298ee0ec3803f911d562c055ecc5ae587a8241dfcd5ee",
+          "final_velocity_rms": 1.7610536813735962
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20024
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012167285253829718,
+        0.03643363164177074,
+        0.06494893410879651,
+        0.09923581989653109
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.053196417725232016,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        3.583075479135444e-05,
+        0.00023210623743636152,
+        0.0006613086299184009,
+        0.001359267620566962
+      ],
+      "reference_convergence_max_relative_error": 0.001359267620566962,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4510.006612746976,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20025,
+          "initial_velocity_rms": 0.0508190281689167,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "37e388d78abcb415af335a9082f0a549eb5ebff1ec555e7cda456f2fe9fe8555",
+          "final_velocity_rms": 1.774482011795044
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20025
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.009711560795372581,
+        0.02725773517088448,
+        0.05388949770780461,
+        0.08996154808919234
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.0452050854408135,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.79945833595966e-05,
+        0.00039377384964134224,
+        0.0011602111512408675,
+        0.0026917249814394925
+      ],
+      "reference_convergence_max_relative_error": 0.0026917249814394925,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4485.588201001054,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20026,
+          "initial_velocity_rms": 0.052386488765478134,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "9ca16dc91698df5e246b5b76816009e875581d4da0d8e354e82d3599e42686dd",
+          "final_velocity_rms": 1.819758415222168
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20026
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012139368228089772,
+        0.0392868459391029,
+        0.08210045974036466,
+        0.12704940250322672
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06514401910269602,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.473767448465193e-05,
+        0.00035339700861212954,
+        0.000999739138493332,
+        0.0018417101391357362
+      ],
+      "reference_convergence_max_relative_error": 0.0018417101391357362,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4535.132896620082,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20027,
+          "initial_velocity_rms": 0.050935354083776474,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "10e82158603e3992ed2fccb86c7700d27faa5c61994175a4a2b80b964b66682d",
+          "final_velocity_rms": 1.8770538568496704
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20027
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012125346015710477,
+        0.035996159959555435,
+        0.07416955034413929,
+        0.1100615139579538
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05808814256933975,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        4.7588221874315916e-05,
+        0.0003141086979592852,
+        0.0008472797711526794,
+        0.0017543935737574284
+      ],
+      "reference_convergence_max_relative_error": 0.0017543935737574284,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4517.76560990396,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20028,
+          "initial_velocity_rms": 0.05042828619480133,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "53fa789b1146d0e1a281b156806f7e15faf7e6b86241d6a0c07e0c6fe646cf9c",
+          "final_velocity_rms": 1.7979931831359863
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20028
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.011269737459482265,
+        0.031458036194616075,
+        0.06361401251065082,
+        0.1030531603789454
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.05234873663592364,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.192011450645743e-05,
+        0.00036332190162431595,
+        0.0009786835631635743,
+        0.002115995406220333
+      ],
+      "reference_convergence_max_relative_error": 0.002115995406220333,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4512.270002840087,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20029,
+          "initial_velocity_rms": 0.0513482391834259,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "34c371250ee004dc2ebf51faecb814b6ef9533b7fcf6b4ba3471f029d57f9dff",
+          "final_velocity_rms": 1.7587785720825195
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20029
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012504973947994756,
+        0.03750570194640531,
+        0.07245026448322006,
+        0.12579776265670872
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.06206467575858221,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        8.44844891362301e-05,
+        0.0005593512108589598,
+        0.0015457327449755892,
+        0.0027994112377535112
+      ],
+      "reference_convergence_max_relative_error": 0.0027994112377535112,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4518.0922617001925,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20030,
+          "initial_velocity_rms": 0.05009112507104874,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "9b21fc13d6edfd3dd8be8eb7e971321844c833d8b3fbd3cbed401b0e22e75652",
+          "final_velocity_rms": 1.775420069694519
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20030
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.014986430116037583,
+        0.048920442420490394,
+        0.09601901128294892,
+        0.13439344654896115
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.07357983259210951,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    },
+    {
+      "reference_convergence_scope": "time",
+      "reference_audit_grid_size": 192,
+      "reference_audit_temporal_factor": 96,
+      "reference_convergence_errors": [
+        5.84455835109993e-05,
+        0.0004024122221303939,
+        0.0011940465168886064,
+        0.0032674200503898325
+      ],
+      "reference_convergence_max_relative_error": 0.0032674200503898325,
+      "reference_convergence_tolerance": 0.005,
+      "reference_convergence_passed": true,
+      "eligible_for_corrector_training": true,
+      "reference_generation_wall_time_s": 4491.024881465826,
+      "reference_generation_apply_count": 403716,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6,
+      "forcing_scheme": "strang_per_native_step",
+      "burn_in_time": 75.0,
+      "burn_in_diagnostics": [
+        {
+          "seed": 20031,
+          "initial_velocity_rms": 0.05122292786836624,
+          "burn_in_cache_hit": false,
+          "burn_in_state_sha256": "62b5bed0648e9992ae0de170f266c2e69b848374f4f6b864e865c98e738219f8",
+          "final_velocity_rms": 1.7731996774673462
+        }
+      ],
+      "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+      "reference_grid_size": 192,
+      "reference_dt": 0.00020833333333333335,
+      "reference_steps_per_interval": 192,
+      "prefix_audit_seeds": [
+        20031
+      ],
+      "prefix_audit_frames": [
+        1,
+        8,
+        24,
+        48
+      ],
+      "coarse_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fine_closure_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "refinement_signals": [
+        0.012398825619342193,
+        0.04103826618341987,
+        0.09040825984052704,
+        0.1853051243097859
+      ],
+      "max_coarse_closure_error": 0.0,
+      "max_fine_closure_error": 0.0,
+      "max_coarse_closure_to_signal_ratio": 0.0,
+      "max_fine_closure_to_signal_ratio": 0.0,
+      "mean_refinement_signal": 0.08228761898826875,
+      "closure_relative_tolerance": 0.01,
+      "closure_to_signal_tolerance": 0.1,
+      "minimum_refinement_signal": 0.0001,
+      "reference_states_finite": true
+    }
+  ],
+  "shards": [
+    {
+      "seed": 0,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic0",
+      "dataset_sha256": "1b97c82323694b4d8a6dd44464f64756c8c078fd14bd4d5db5d7978655782383",
+      "metadata_sha256": "d980a4b79a5a818c1d5843ff2304c8ddf38e63f0d8d735eceec9ae8b1e0f8593"
+    },
+    {
+      "seed": 1,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic1",
+      "dataset_sha256": "591df4ecb508058b97ce9c58e3be1716c19f9122dd10e99289f096fe6321bf9f",
+      "metadata_sha256": "635c769763f5ccb50a3d0f1dece542c9c05ea4a7264079fd894ee25b1464d435"
+    },
+    {
+      "seed": 2,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic2",
+      "dataset_sha256": "13289176736024a6ab94bd16688fcfb8a16b73bcf61562877d7ad70b89fd52c5",
+      "metadata_sha256": "c98238ef754893cab8ff7a174275435c099af7f8c7803f7f3adf3a743e6de219"
+    },
+    {
+      "seed": 3,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic3",
+      "dataset_sha256": "13420b11d94cb3d649555fdf536daa165e17d6bcd61901d5fe7ce467b3b69b0b",
+      "metadata_sha256": "a37dc19b7be525b51f2f01656bb7483854f1a4ba782ec06061a5fa10e4f842d2"
+    },
+    {
+      "seed": 4,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic4",
+      "dataset_sha256": "f0cb5faa81c50cfb48ed690ed0c9a76ab731e25a55939d60bd1611258a642217",
+      "metadata_sha256": "b0f7794a40349554691d692ce3bb622e2731fe1576c5e200b76d799b02833189"
+    },
+    {
+      "seed": 5,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic5",
+      "dataset_sha256": "ad183ba0e8cce67aa66d4195dc7dba22ec33383cfa399736c833360f774522c6",
+      "metadata_sha256": "addff38c26289ac5f772d10f4029a1b9ca4998d82180eabd65eedb94b9a4509b"
+    },
+    {
+      "seed": 6,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic6",
+      "dataset_sha256": "87bcc4a1172295a8fd58066ed8f8f1bc42f50f78eeb158d01abccb87da04bb29",
+      "metadata_sha256": "dbf32f545910575251b3f34eb1ff3cd3d4ec3f5ae8f97d14b6cf7f9ce5cdaccf"
+    },
+    {
+      "seed": 7,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic7-infra-retry1",
+      "dataset_sha256": "2710f8dc6a4191b8217931f44359934fc87c2083caf8d2fb2efe9e9fcf8ef950",
+      "metadata_sha256": "c8a10d80198d1e0196c561df4791ae01142b182658c932161919437aae27f955"
+    },
+    {
+      "seed": 20000,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20000-infra-retry1",
+      "dataset_sha256": "eb519b70a539da69f1a94168b618639186554a933589ff7afc51042634839a12",
+      "metadata_sha256": "2a070dec78a5b901cd6c643bbc91cf5fe6deaa531ffb762f9934ed954bcbb422"
+    },
+    {
+      "seed": 20001,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20001",
+      "dataset_sha256": "0eb31aba4a14ed6944956ef033eecaaf4b0cf6ec4ca47efed0fb8ffd1a6c1771",
+      "metadata_sha256": "6ed6c8a729147a1c2bbea4029adea213c20ae477c7eb69c2e5dade69343a4a2d"
+    },
+    {
+      "seed": 20002,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20002",
+      "dataset_sha256": "aefdd501cb4400a212a4ac3ec2364f0e8c5924f100e133c242f8beedb9668aa2",
+      "metadata_sha256": "d5e1a2bb6e937f89f851d0bb32d944f5b92eb85d5b74c84bc7c8a3774467f49a"
+    },
+    {
+      "seed": 20003,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20003",
+      "dataset_sha256": "4ec83d4b5bcddd95036435f25596f04e4f57d221ee5047e7fc9a662ea23ed1c8",
+      "metadata_sha256": "da7c758833b15158b409a9b7e5ff749bd80a533707e4f36c64e83b2603055e79"
+    },
+    {
+      "seed": 20004,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20004",
+      "dataset_sha256": "f4e840a796af556f6d13268b477c729153682f13c3e3c7ce874bd4ad7ffd497d",
+      "metadata_sha256": "19c31036d58848de3ab6fa5e97cdb00d8e9dae9c08030199769928a4e3e4da75"
+    },
+    {
+      "seed": 20005,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20005",
+      "dataset_sha256": "a0fb83503b9f69bf64bdefecb8b5aa3868e1aa3f05c18bcab6e5aa8d9a74091c",
+      "metadata_sha256": "a6b69a8fde1cfb4992667f8af70e0774db79b00b06604be48bb96580703a79c7"
+    },
+    {
+      "seed": 20006,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20006",
+      "dataset_sha256": "f7e10b99e063b0799079b7dd9af7fd4aa1698369c20b72c1160b90fca82236d3",
+      "metadata_sha256": "63765b9fda005f0504569b909b0f77982eec5faca9c07c50e6c28fa296231a20"
+    },
+    {
+      "seed": 20007,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20007",
+      "dataset_sha256": "02008276ba9dba8992338223671ead75b7a10fb325f8a1fb097f7dc1edc3c739",
+      "metadata_sha256": "f7f593e51366851288123fdab28442ca74acad9370627aadae0b072f5621097c"
+    },
+    {
+      "seed": 20008,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20008",
+      "dataset_sha256": "9355dbcac157b714d77aa000e5eb3c6015a0bb004c28f08a66861836b1d1498e",
+      "metadata_sha256": "0a1050d8e08df032a42133580d16a00d3cab5d9eafcb92c54ee4f84268a9edb7"
+    },
+    {
+      "seed": 20009,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20009",
+      "dataset_sha256": "9cbcd15c0ca2fab7f622768cbec0574e89d950fe1d7ae9fb935c7215a3d510de",
+      "metadata_sha256": "b7b7c2b8d05a6193424a33080fdf2674254fd2388ad40d8cb4c2f3a835c97e5f"
+    },
+    {
+      "seed": 20010,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20010",
+      "dataset_sha256": "12e993a2ff0095189374c5964b3dc8701306cd8264066149984d540b2dfac407",
+      "metadata_sha256": "9eed105e04cc0c986e224d624ad7405e97728d4b89f8b49202e2df43a6fa2640"
+    },
+    {
+      "seed": 20011,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20011",
+      "dataset_sha256": "d3e059119ef931b3e7f400e9d8093a228bd7ed0889c32031c06a1b34f8c08b44",
+      "metadata_sha256": "813ebb05ec8b35f0c0d8b3e9b45ba1fe2ca8fc655c77f9b3e66979fd04919911"
+    },
+    {
+      "seed": 20012,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20012",
+      "dataset_sha256": "506ce16c1d30a6618358fcfbba956200e36b62cfe4c143dedb353007118e887c",
+      "metadata_sha256": "96e919cbf72d2b8dfc882b72433dda4bfaeae958a05499786138521d0859696f"
+    },
+    {
+      "seed": 20013,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20013",
+      "dataset_sha256": "3a2dbb38f589c5a1e689ef695655da96ba513862a6b9c50b4dd55af284aa1c92",
+      "metadata_sha256": "931eaf4f4cb4d72e602341881751883160a95ad88e3d6056d4196a06a87357da"
+    },
+    {
+      "seed": 20014,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20014",
+      "dataset_sha256": "d8fd8cf5edc058d28955b9880710e569c5d383651f7c9fac948d1065b22738be",
+      "metadata_sha256": "ac0b205f1fdd4a5e926373ea58c363af2ce90aba5940ce636b503762f2154510"
+    },
+    {
+      "seed": 20015,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20015",
+      "dataset_sha256": "09b49a650e2fa4cc01b6f04119fdc402866855ea0ecb444cc194187dee8181f5",
+      "metadata_sha256": "0d7c77163163fe5aacb06a28518bf3dda487ecb9cad99ff9bb2725ef9611e3cc"
+    },
+    {
+      "seed": 20016,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20016",
+      "dataset_sha256": "0dc082e9693a51693e5ae3cc2caee3aac7a8bb14e6111a6a3bffcfc73294285f",
+      "metadata_sha256": "795e77fcfcadbf3c234127ec0eea839b21c6d2a35719a3c0dcc74dcdf1ef85ee"
+    },
+    {
+      "seed": 20017,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20017",
+      "dataset_sha256": "b83c9845d28de1979de4bc32d417d0a6ea3bed8defea8de024bb199b0dc4b72a",
+      "metadata_sha256": "ca9f45e987c7d8ccca7c84b0ba9ceba826b6ec13a712d8147d0fd494083ac56c"
+    },
+    {
+      "seed": 20018,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20018",
+      "dataset_sha256": "69bea4ce971fd205bbe041bb33baddbf184cdb7ac7ac38db1ead68cb73bca91e",
+      "metadata_sha256": "88172d2e4a98bc5809db953fc0c53ecf0d92a48d4a956a79197cc64724c5a121"
+    },
+    {
+      "seed": 20019,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20019",
+      "dataset_sha256": "f0968586f4bfe2cabe864c7190ddd9bf0cf63be1ecd2520c06e59755fa08d6ce",
+      "metadata_sha256": "d5fae0df29089cfabb9d77ccd227580a4fde7e8d0340e55d5073927c19b8296d"
+    },
+    {
+      "seed": 20020,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20020",
+      "dataset_sha256": "08e3c06a5f1922ce2bc29fa5e2ae766c891491500c0c33152ca970bdf88444f6",
+      "metadata_sha256": "bcb3ca65a337c74867956400cc69207c5f3dfda9883f7a3a363e769a304a3b7b"
+    },
+    {
+      "seed": 20021,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20021",
+      "dataset_sha256": "e2161826a00134cc9f5b03d70e941f36572b56739693d97c5150ce64f4715ee9",
+      "metadata_sha256": "f1c2772c1559fceee53999b3d41e8253fcb554a56a2096cef2d0b40ca6063e55"
+    },
+    {
+      "seed": 20022,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20022",
+      "dataset_sha256": "cd03164cca4eb671d6803249c665317effba120ea616af6ae5021ea9bfdb1a40",
+      "metadata_sha256": "5b264e7f69aa9408acc1d2d1e871880f790a363ff0efc698fd7c6cedb016c566"
+    },
+    {
+      "seed": 20023,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20023",
+      "dataset_sha256": "bfec3a9b0733efaf2360d513f3b378d85061cc509f0f18533a40359339c9d694",
+      "metadata_sha256": "108da2c9234d55310aa24c0dfd078c310e64a1c63a16635e69c056a7db80bbde"
+    },
+    {
+      "seed": 20024,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20024",
+      "dataset_sha256": "f5b22b33d97a092cbea8f11392b330a99bbc28b99afd00377b8c7c986a6a548f",
+      "metadata_sha256": "289ff9216ad86702d5c69378e9d54d2b5304a52746d0212e6c2c3551b35dd12b"
+    },
+    {
+      "seed": 20025,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20025",
+      "dataset_sha256": "7a8b1c5320bbf011ec4c77342fbdc2aa776942a11c27d57ca58a1647c9fb61ac",
+      "metadata_sha256": "9f0c859377d2c5ca637c92a33f9bfb040c24a0e19dba5516758b56dcc86100a3"
+    },
+    {
+      "seed": 20026,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20026",
+      "dataset_sha256": "745c83025bcbb7c70ff9755b17f76ec83201a7506f9dc0f5aafd58433c6c918e",
+      "metadata_sha256": "ae247d628d2e5178f8ee8f4120984934b335b960b7b8f0936ee8bf4c075752a2"
+    },
+    {
+      "seed": 20027,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20027",
+      "dataset_sha256": "fdf0f854d469f4f8739324a3da5a65f0cb5bc3a9103331fca77f2bc262db20bd",
+      "metadata_sha256": "cbf0c137ec5d9c7590f9c23cf803a2b0b0bba4d241fa34f7ef8c99f5b7ff5587"
+    },
+    {
+      "seed": 20028,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20028",
+      "dataset_sha256": "0bbb3703ab6eb8877dc87aa54240728eb4846b7741f43bb8813562890815e87a",
+      "metadata_sha256": "2e9fae9705ec399668c514019a2cc0eeedd1d8b6e2873a5f12397ec980038a29"
+    },
+    {
+      "seed": 20029,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20029",
+      "dataset_sha256": "0fcd584bd5092c3de9f1ecde0be1ff4b01a992b813ea83e183fa9e616f88ab2d",
+      "metadata_sha256": "18e6db10f65b06803d7d3a0c94ef0b38f33f83ede12fe06e0c0bf1f61abb0651"
+    },
+    {
+      "seed": 20030,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20030",
+      "dataset_sha256": "882586c4b9969cb318ee69834de22a357aad0eeda3c1299cec58af9016895524",
+      "metadata_sha256": "b7d17a920f7f0d5e238bd98b980a6980b3ff93a3c8724ad5db64834c0eadb1b7"
+    },
+    {
+      "seed": 20031,
+      "path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/results/reference-ic20031",
+      "dataset_sha256": "7c8c0106b7b2fb57d8939a85f8a8b25e76965ed39ab0e801398b6c90509934b9",
+      "metadata_sha256": "1406dee2f340b6519e9814587497b09ca12b3f24bb87d03d60aa9c61855b2d79"
+    }
+  ],
+  "admission_scope": "Every IC must pass original reference gates and stricter individual native-closure gates; no averaging away a failed IC.",
+  "completed": true,
+  "admitted": true,
+  "assembly_wall_time_s": 9.475908208987676
+}

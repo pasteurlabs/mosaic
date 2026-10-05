@@ -1,0 +1,24 @@
+{
+  "source_sha256": "d63ef29ba587871e2ac1fa4d58b11a01aa5799fd27540fb1cbe94a8cb93d15dc",
+  "policy": "One explicitly reviewed infrastructure retry per affected IC; exact payload, new allocation/service port; no replacement or deletion of original evidence",
+  "retries": [
+    {
+      "original_cell": "reference-ic7",
+      "retry_cell": "reference-ic7-infra-retry1",
+      "original_job_id": 2886213,
+      "reason": "Server startup failed: port46213 already in use; SlurmFAILED, no outcome",
+      "config_sha256": "5c4a6c58c542d0fe77afbd616dedd62a9acba498fe34137bccc9bf32a5b8f96a",
+      "log_path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/logs/m116-final-reference-ic7-2886213.out",
+      "log_sha256": "bf30c0fb04a474c143d274f06d14103a886f4f769c59c947f7a99e01629800f8"
+    },
+    {
+      "original_cell": "reference-ic20000",
+      "retry_cell": "reference-ic20000-infra-retry1",
+      "original_job_id": 2886214,
+      "reason": "RPC ReadTimeout1200 before burn completion; service termination only, no numerical rejection",
+      "config_sha256": "131e5727d89f7f81d4727db473765e614c0752960d6fe85792852d1a047972e0",
+      "log_path": "/data/personal/andrinr/runner/results/mosaic/pr116-corrector-transfer-confirmation-v2-20261004/jax-cfd/logs/m116-final-reference-ic20000-2886214.out",
+      "log_sha256": "09aa681200c16208a16142110bdb4d2ae3092d1fb4ccb48a1893dc35e7eb0e5a"
+    }
+  ]
+}

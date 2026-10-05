@@ -1,0 +1,1326 @@
+{
+  "jobs": {
+    "validation": {
+      "job_id": 2886195,
+      "phase": "validate"
+    },
+    "reference-ic0": {
+      "job_id": 2886206,
+      "phase": "prepare"
+    },
+    "reference-ic1": {
+      "job_id": 2886207,
+      "phase": "prepare"
+    },
+    "reference-ic2": {
+      "job_id": 2886208,
+      "phase": "prepare"
+    },
+    "reference-ic3": {
+      "job_id": 2886209,
+      "phase": "prepare"
+    },
+    "reference-ic4": {
+      "job_id": 2886210,
+      "phase": "prepare"
+    },
+    "reference-ic5": {
+      "job_id": 2886211,
+      "phase": "prepare"
+    },
+    "reference-ic6": {
+      "job_id": 2886212,
+      "phase": "prepare"
+    },
+    "reference-ic7": {
+      "job_id": 2886213,
+      "phase": "prepare"
+    },
+    "reference-ic20000": {
+      "job_id": 2886214,
+      "phase": "prepare"
+    },
+    "reference-ic20001": {
+      "job_id": 2886215,
+      "phase": "prepare"
+    },
+    "reference-ic20002": {
+      "job_id": 2886216,
+      "phase": "prepare"
+    },
+    "reference-ic20003": {
+      "job_id": 2886220,
+      "phase": "prepare"
+    },
+    "reference-ic20004": {
+      "job_id": 2886221,
+      "phase": "prepare"
+    },
+    "reference-ic20005": {
+      "job_id": 2886222,
+      "phase": "prepare"
+    },
+    "reference-ic20006": {
+      "job_id": 2886223,
+      "phase": "prepare"
+    },
+    "reference-ic20007": {
+      "job_id": 2886224,
+      "phase": "prepare"
+    },
+    "reference-ic20008": {
+      "job_id": 2886225,
+      "phase": "prepare"
+    },
+    "reference-ic20009": {
+      "job_id": 2886226,
+      "phase": "prepare"
+    },
+    "reference-ic20010": {
+      "job_id": 2886227,
+      "phase": "prepare"
+    },
+    "reference-ic20011": {
+      "job_id": 2886228,
+      "phase": "prepare"
+    },
+    "reference-ic20012": {
+      "job_id": 2886229,
+      "phase": "prepare"
+    },
+    "reference-ic20013": {
+      "job_id": 2886230,
+      "phase": "prepare"
+    },
+    "reference-ic20014": {
+      "job_id": 2886232,
+      "phase": "prepare"
+    },
+    "reference-ic20015": {
+      "job_id": 2886233,
+      "phase": "prepare"
+    },
+    "reference-ic20016": {
+      "job_id": 2886234,
+      "phase": "prepare"
+    },
+    "reference-ic20017": {
+      "job_id": 2886235,
+      "phase": "prepare"
+    },
+    "reference-ic20018": {
+      "job_id": 2886236,
+      "phase": "prepare"
+    },
+    "reference-ic20019": {
+      "job_id": 2886237,
+      "phase": "prepare"
+    },
+    "reference-ic20020": {
+      "job_id": 2886240,
+      "phase": "prepare"
+    },
+    "reference-ic20021": {
+      "job_id": 2886241,
+      "phase": "prepare"
+    },
+    "reference-ic20022": {
+      "job_id": 2886242,
+      "phase": "prepare"
+    },
+    "reference-ic20023": {
+      "job_id": 2886243,
+      "phase": "prepare"
+    },
+    "reference-ic20024": {
+      "job_id": 2886244,
+      "phase": "prepare"
+    },
+    "reference-ic20025": {
+      "job_id": 2886245,
+      "phase": "prepare"
+    },
+    "reference-ic20026": {
+      "job_id": 2886246,
+      "phase": "prepare"
+    },
+    "reference-ic20027": {
+      "job_id": 2886247,
+      "phase": "prepare"
+    },
+    "reference-ic20028": {
+      "job_id": 2886248,
+      "phase": "prepare"
+    },
+    "reference-ic20029": {
+      "job_id": 2886249,
+      "phase": "prepare"
+    },
+    "reference-ic20030": {
+      "job_id": 2886250,
+      "phase": "prepare"
+    },
+    "reference-ic20031": {
+      "job_id": 2886251,
+      "phase": "prepare"
+    },
+    "reference-ic7-infra-retry1": {
+      "job_id": 2887420,
+      "phase": "prepare"
+    },
+    "reference-ic20000-infra-retry1": {
+      "job_id": 2887421,
+      "phase": "prepare"
+    },
+    "assembled": {
+      "job_id": 2888026,
+      "phase": "assemble"
+    },
+    "train-full-s8-part0": {
+      "job_id": 2888039,
+      "phase": "train"
+    },
+    "train-full-s9-part0": {
+      "job_id": 2888040,
+      "phase": "train"
+    },
+    "train-full-s10-part0": {
+      "job_id": 2888041,
+      "phase": "train"
+    },
+    "train-full-s11-part0": {
+      "job_id": 2888042,
+      "phase": "train"
+    },
+    "train-full-s12-part0": {
+      "job_id": 2888043,
+      "phase": "train"
+    },
+    "train-full-s13-part0": {
+      "job_id": 2888044,
+      "phase": "train"
+    },
+    "train-full-s14-part0": {
+      "job_id": 2888045,
+      "phase": "train"
+    },
+    "train-full-s15-part0": {
+      "job_id": 2888046,
+      "phase": "train"
+    },
+    "train-stopped-s8-part0": {
+      "job_id": 2888047,
+      "phase": "train"
+    },
+    "train-stopped-s9-part0": {
+      "job_id": 2888048,
+      "phase": "train"
+    },
+    "train-stopped-s10-part0": {
+      "job_id": 2888049,
+      "phase": "train"
+    },
+    "train-stopped-s11-part0": {
+      "job_id": 2888050,
+      "phase": "train"
+    },
+    "train-stopped-s12-part0": {
+      "job_id": 2888051,
+      "phase": "train"
+    },
+    "train-stopped-s13-part0": {
+      "job_id": 2888052,
+      "phase": "train"
+    },
+    "train-stopped-s14-part0": {
+      "job_id": 2888053,
+      "phase": "train"
+    },
+    "train-stopped-s15-part0": {
+      "job_id": 2888054,
+      "phase": "train"
+    },
+    "train-supervised-s8-part0": {
+      "job_id": 2888055,
+      "phase": "train"
+    },
+    "train-supervised-s9-part0": {
+      "job_id": 2888056,
+      "phase": "train"
+    },
+    "train-supervised-s10-part0": {
+      "job_id": 2888057,
+      "phase": "train"
+    },
+    "train-supervised-s11-part0": {
+      "job_id": 2888058,
+      "phase": "train"
+    },
+    "train-supervised-s12-part0": {
+      "job_id": 2888059,
+      "phase": "train"
+    },
+    "train-supervised-s13-part0": {
+      "job_id": 2888060,
+      "phase": "train"
+    },
+    "train-supervised-s14-part0": {
+      "job_id": 2888061,
+      "phase": "train"
+    },
+    "train-supervised-s15-part0": {
+      "job_id": 2888062,
+      "phase": "train"
+    },
+    "evaluate-full-s10-b0": {
+      "job_id": 2890145,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b1": {
+      "job_id": 2890146,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b2": {
+      "job_id": 2890147,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b3": {
+      "job_id": 2890148,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b4": {
+      "job_id": 2890149,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b5": {
+      "job_id": 2890150,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b6": {
+      "job_id": 2890151,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s10-b7": {
+      "job_id": 2890152,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b0": {
+      "job_id": 2890153,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b1": {
+      "job_id": 2890154,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b2": {
+      "job_id": 2890155,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b3": {
+      "job_id": 2890156,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b4": {
+      "job_id": 2890157,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b5": {
+      "job_id": 2890158,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b6": {
+      "job_id": 2890159,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s9-b7": {
+      "job_id": 2890160,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b0": {
+      "job_id": 2890161,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b1": {
+      "job_id": 2890162,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b2": {
+      "job_id": 2890163,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b3": {
+      "job_id": 2890164,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b4": {
+      "job_id": 2890165,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b5": {
+      "job_id": 2890166,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b6": {
+      "job_id": 2890167,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s8-b7": {
+      "job_id": 2890168,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b0": {
+      "job_id": 2890169,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b1": {
+      "job_id": 2890170,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b2": {
+      "job_id": 2890171,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b3": {
+      "job_id": 2890172,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b4": {
+      "job_id": 2890173,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b5": {
+      "job_id": 2890174,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b6": {
+      "job_id": 2890175,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s11-b7": {
+      "job_id": 2890176,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b0": {
+      "job_id": 2890177,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b1": {
+      "job_id": 2890178,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b2": {
+      "job_id": 2890179,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b3": {
+      "job_id": 2890180,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b4": {
+      "job_id": 2890181,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b5": {
+      "job_id": 2890182,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b6": {
+      "job_id": 2890183,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s12-b7": {
+      "job_id": 2890184,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b0": {
+      "job_id": 2890185,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b1": {
+      "job_id": 2890186,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b2": {
+      "job_id": 2890187,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b3": {
+      "job_id": 2890188,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b4": {
+      "job_id": 2890189,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b5": {
+      "job_id": 2890190,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b6": {
+      "job_id": 2890191,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s13-b7": {
+      "job_id": 2890192,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b0": {
+      "job_id": 2890193,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b1": {
+      "job_id": 2890194,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b2": {
+      "job_id": 2890195,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b3": {
+      "job_id": 2890196,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b4": {
+      "job_id": 2890197,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b5": {
+      "job_id": 2890198,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b6": {
+      "job_id": 2890199,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s8-b7": {
+      "job_id": 2890200,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b0": {
+      "job_id": 2890201,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b1": {
+      "job_id": 2890202,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b2": {
+      "job_id": 2890203,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b3": {
+      "job_id": 2890204,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b4": {
+      "job_id": 2890205,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b5": {
+      "job_id": 2890206,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b6": {
+      "job_id": 2890207,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s9-b7": {
+      "job_id": 2890208,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b0": {
+      "job_id": 2890209,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b1": {
+      "job_id": 2890210,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b2": {
+      "job_id": 2890211,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b3": {
+      "job_id": 2890212,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b4": {
+      "job_id": 2890213,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b5": {
+      "job_id": 2890214,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b6": {
+      "job_id": 2890215,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s10-b7": {
+      "job_id": 2890216,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b0": {
+      "job_id": 2890217,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b1": {
+      "job_id": 2890218,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b2": {
+      "job_id": 2890219,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b3": {
+      "job_id": 2890220,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b4": {
+      "job_id": 2890221,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b5": {
+      "job_id": 2890222,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b6": {
+      "job_id": 2890223,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s12-b7": {
+      "job_id": 2890224,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b0": {
+      "job_id": 2890225,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b1": {
+      "job_id": 2890226,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b2": {
+      "job_id": 2890227,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b3": {
+      "job_id": 2890228,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b4": {
+      "job_id": 2890229,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b5": {
+      "job_id": 2890230,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b6": {
+      "job_id": 2890231,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s13-b7": {
+      "job_id": 2890232,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b0": {
+      "job_id": 2890233,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b1": {
+      "job_id": 2890234,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b2": {
+      "job_id": 2890235,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b3": {
+      "job_id": 2890236,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b4": {
+      "job_id": 2890237,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b5": {
+      "job_id": 2890238,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b6": {
+      "job_id": 2890239,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s11-b7": {
+      "job_id": 2890240,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b0": {
+      "job_id": 2890241,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b1": {
+      "job_id": 2890243,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b2": {
+      "job_id": 2890244,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b3": {
+      "job_id": 2890245,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b4": {
+      "job_id": 2890246,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b5": {
+      "job_id": 2890248,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b6": {
+      "job_id": 2890249,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s14-b7": {
+      "job_id": 2890250,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b0": {
+      "job_id": 2890251,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b1": {
+      "job_id": 2890252,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b2": {
+      "job_id": 2890253,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b3": {
+      "job_id": 2890254,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b4": {
+      "job_id": 2890255,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b5": {
+      "job_id": 2890256,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b6": {
+      "job_id": 2890257,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s14-b7": {
+      "job_id": 2890258,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b0": {
+      "job_id": 2890259,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b1": {
+      "job_id": 2890260,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b2": {
+      "job_id": 2890261,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b3": {
+      "job_id": 2890262,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b4": {
+      "job_id": 2890263,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b5": {
+      "job_id": 2890264,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b6": {
+      "job_id": 2890265,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s8-b7": {
+      "job_id": 2890266,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b0": {
+      "job_id": 2890267,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b1": {
+      "job_id": 2890268,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b2": {
+      "job_id": 2890269,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b3": {
+      "job_id": 2890270,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b4": {
+      "job_id": 2890271,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b5": {
+      "job_id": 2890272,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b6": {
+      "job_id": 2890273,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s9-b7": {
+      "job_id": 2890274,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b0": {
+      "job_id": 2890275,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b1": {
+      "job_id": 2890276,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b2": {
+      "job_id": 2890277,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b3": {
+      "job_id": 2890278,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b4": {
+      "job_id": 2890279,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b5": {
+      "job_id": 2890280,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b6": {
+      "job_id": 2890281,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s10-b7": {
+      "job_id": 2890282,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b0": {
+      "job_id": 2890283,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b1": {
+      "job_id": 2890284,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b2": {
+      "job_id": 2890285,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b3": {
+      "job_id": 2890286,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b4": {
+      "job_id": 2890287,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b5": {
+      "job_id": 2890288,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b6": {
+      "job_id": 2890289,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s11-b7": {
+      "job_id": 2890290,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b0": {
+      "job_id": 2890291,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b1": {
+      "job_id": 2890292,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b2": {
+      "job_id": 2890293,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b3": {
+      "job_id": 2890294,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b4": {
+      "job_id": 2890295,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b5": {
+      "job_id": 2890296,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b6": {
+      "job_id": 2890297,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s12-b7": {
+      "job_id": 2890298,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b0": {
+      "job_id": 2890299,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b1": {
+      "job_id": 2890300,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b2": {
+      "job_id": 2890301,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b3": {
+      "job_id": 2890302,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b4": {
+      "job_id": 2890303,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b5": {
+      "job_id": 2890304,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b6": {
+      "job_id": 2890305,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s13-b7": {
+      "job_id": 2890306,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b0": {
+      "job_id": 2890307,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b1": {
+      "job_id": 2890308,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b2": {
+      "job_id": 2890309,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b3": {
+      "job_id": 2890311,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b4": {
+      "job_id": 2890312,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b5": {
+      "job_id": 2890313,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b6": {
+      "job_id": 2890314,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s14-b7": {
+      "job_id": 2890315,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b0": {
+      "job_id": 2890316,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b1": {
+      "job_id": 2890317,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b2": {
+      "job_id": 2890318,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b3": {
+      "job_id": 2890319,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b4": {
+      "job_id": 2890320,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b5": {
+      "job_id": 2890321,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b6": {
+      "job_id": 2890322,
+      "phase": "evaluate"
+    },
+    "evaluate-supervised-s15-b7": {
+      "job_id": 2890323,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b0": {
+      "job_id": 2890324,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b1": {
+      "job_id": 2890325,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b2": {
+      "job_id": 2890326,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b3": {
+      "job_id": 2890327,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b4": {
+      "job_id": 2890328,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b5": {
+      "job_id": 2890329,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b6": {
+      "job_id": 2890330,
+      "phase": "evaluate"
+    },
+    "evaluate-full-s15-b7": {
+      "job_id": 2890331,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b0": {
+      "job_id": 2890332,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b1": {
+      "job_id": 2890333,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b2": {
+      "job_id": 2890334,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b3": {
+      "job_id": 2890335,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b4": {
+      "job_id": 2890336,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b5": {
+      "job_id": 2890337,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b6": {
+      "job_id": 2890338,
+      "phase": "evaluate"
+    },
+    "evaluate-stopped-s15-b7": {
+      "job_id": 2890339,
+      "phase": "evaluate"
+    },
+    "transfer-report": {
+      "job_id": 2890473,
+      "phase": "report"
+    }
+  },
+  "plan_sha256": "12f9c92373f963b9453f6342688f05c1a8be29bbca6b753014c660223cad6f34",
+  "last_wait": {
+    "cells": [
+      "transfer-report"
+    ],
+    "states": {
+      "2890473": "COMPLETED"
+    }
+  },
+  "reference_retry_manifest_sha256": "30abdd48fc477f4ff0f2488ea1d671f3ef9be3d9246c85325e95aad60b50e44e",
+  "active_reference_cells": [
+    "reference-ic0",
+    "reference-ic1",
+    "reference-ic2",
+    "reference-ic3",
+    "reference-ic4",
+    "reference-ic5",
+    "reference-ic6",
+    "reference-ic7-infra-retry1",
+    "reference-ic20000-infra-retry1",
+    "reference-ic20001",
+    "reference-ic20002",
+    "reference-ic20003",
+    "reference-ic20004",
+    "reference-ic20005",
+    "reference-ic20006",
+    "reference-ic20007",
+    "reference-ic20008",
+    "reference-ic20009",
+    "reference-ic20010",
+    "reference-ic20011",
+    "reference-ic20012",
+    "reference-ic20013",
+    "reference-ic20014",
+    "reference-ic20015",
+    "reference-ic20016",
+    "reference-ic20017",
+    "reference-ic20018",
+    "reference-ic20019",
+    "reference-ic20020",
+    "reference-ic20021",
+    "reference-ic20022",
+    "reference-ic20023",
+    "reference-ic20024",
+    "reference-ic20025",
+    "reference-ic20026",
+    "reference-ic20027",
+    "reference-ic20028",
+    "reference-ic20029",
+    "reference-ic20030",
+    "reference-ic20031"
+  ],
+  "completed_training": {
+    "full-s10": "train-full-s10-part0",
+    "full-s9": "train-full-s9-part0",
+    "full-s8": "train-full-s8-part0",
+    "full-s11": "train-full-s11-part0",
+    "full-s12": "train-full-s12-part0",
+    "full-s13": "train-full-s13-part0",
+    "stopped-s8": "train-stopped-s8-part0",
+    "stopped-s9": "train-stopped-s9-part0",
+    "stopped-s10": "train-stopped-s10-part0",
+    "stopped-s12": "train-stopped-s12-part0",
+    "stopped-s13": "train-stopped-s13-part0",
+    "stopped-s11": "train-stopped-s11-part0",
+    "stopped-s14": "train-stopped-s14-part0",
+    "full-s14": "train-full-s14-part0",
+    "supervised-s8": "train-supervised-s8-part0",
+    "supervised-s9": "train-supervised-s9-part0",
+    "supervised-s10": "train-supervised-s10-part0",
+    "supervised-s11": "train-supervised-s11-part0",
+    "supervised-s12": "train-supervised-s12-part0",
+    "supervised-s13": "train-supervised-s13-part0",
+    "supervised-s14": "train-supervised-s14-part0",
+    "supervised-s15": "train-supervised-s15-part0",
+    "full-s15": "train-full-s15-part0",
+    "stopped-s15": "train-stopped-s15-part0"
+  },
+  "training_failures": [],
+  "pending_training": [],
+  "status": "confirmation_report_complete",
+  "completed": true,
+  "evaluation_cells": [
+    "evaluate-full-s10-b0",
+    "evaluate-full-s10-b1",
+    "evaluate-full-s10-b2",
+    "evaluate-full-s10-b3",
+    "evaluate-full-s10-b4",
+    "evaluate-full-s10-b5",
+    "evaluate-full-s10-b6",
+    "evaluate-full-s10-b7",
+    "evaluate-full-s9-b0",
+    "evaluate-full-s9-b1",
+    "evaluate-full-s9-b2",
+    "evaluate-full-s9-b3",
+    "evaluate-full-s9-b4",
+    "evaluate-full-s9-b5",
+    "evaluate-full-s9-b6",
+    "evaluate-full-s9-b7",
+    "evaluate-full-s8-b0",
+    "evaluate-full-s8-b1",
+    "evaluate-full-s8-b2",
+    "evaluate-full-s8-b3",
+    "evaluate-full-s8-b4",
+    "evaluate-full-s8-b5",
+    "evaluate-full-s8-b6",
+    "evaluate-full-s8-b7",
+    "evaluate-full-s11-b0",
+    "evaluate-full-s11-b1",
+    "evaluate-full-s11-b2",
+    "evaluate-full-s11-b3",
+    "evaluate-full-s11-b4",
+    "evaluate-full-s11-b5",
+    "evaluate-full-s11-b6",
+    "evaluate-full-s11-b7",
+    "evaluate-full-s12-b0",
+    "evaluate-full-s12-b1",
+    "evaluate-full-s12-b2",
+    "evaluate-full-s12-b3",
+    "evaluate-full-s12-b4",
+    "evaluate-full-s12-b5",
+    "evaluate-full-s12-b6",
+    "evaluate-full-s12-b7",
+    "evaluate-full-s13-b0",
+    "evaluate-full-s13-b1",
+    "evaluate-full-s13-b2",
+    "evaluate-full-s13-b3",
+    "evaluate-full-s13-b4",
+    "evaluate-full-s13-b5",
+    "evaluate-full-s13-b6",
+    "evaluate-full-s13-b7",
+    "evaluate-stopped-s8-b0",
+    "evaluate-stopped-s8-b1",
+    "evaluate-stopped-s8-b2",
+    "evaluate-stopped-s8-b3",
+    "evaluate-stopped-s8-b4",
+    "evaluate-stopped-s8-b5",
+    "evaluate-stopped-s8-b6",
+    "evaluate-stopped-s8-b7",
+    "evaluate-stopped-s9-b0",
+    "evaluate-stopped-s9-b1",
+    "evaluate-stopped-s9-b2",
+    "evaluate-stopped-s9-b3",
+    "evaluate-stopped-s9-b4",
+    "evaluate-stopped-s9-b5",
+    "evaluate-stopped-s9-b6",
+    "evaluate-stopped-s9-b7",
+    "evaluate-stopped-s10-b0",
+    "evaluate-stopped-s10-b1",
+    "evaluate-stopped-s10-b2",
+    "evaluate-stopped-s10-b3",
+    "evaluate-stopped-s10-b4",
+    "evaluate-stopped-s10-b5",
+    "evaluate-stopped-s10-b6",
+    "evaluate-stopped-s10-b7",
+    "evaluate-stopped-s12-b0",
+    "evaluate-stopped-s12-b1",
+    "evaluate-stopped-s12-b2",
+    "evaluate-stopped-s12-b3",
+    "evaluate-stopped-s12-b4",
+    "evaluate-stopped-s12-b5",
+    "evaluate-stopped-s12-b6",
+    "evaluate-stopped-s12-b7",
+    "evaluate-stopped-s13-b0",
+    "evaluate-stopped-s13-b1",
+    "evaluate-stopped-s13-b2",
+    "evaluate-stopped-s13-b3",
+    "evaluate-stopped-s13-b4",
+    "evaluate-stopped-s13-b5",
+    "evaluate-stopped-s13-b6",
+    "evaluate-stopped-s13-b7",
+    "evaluate-stopped-s11-b0",
+    "evaluate-stopped-s11-b1",
+    "evaluate-stopped-s11-b2",
+    "evaluate-stopped-s11-b3",
+    "evaluate-stopped-s11-b4",
+    "evaluate-stopped-s11-b5",
+    "evaluate-stopped-s11-b6",
+    "evaluate-stopped-s11-b7",
+    "evaluate-stopped-s14-b0",
+    "evaluate-stopped-s14-b1",
+    "evaluate-stopped-s14-b2",
+    "evaluate-stopped-s14-b3",
+    "evaluate-stopped-s14-b4",
+    "evaluate-stopped-s14-b5",
+    "evaluate-stopped-s14-b6",
+    "evaluate-stopped-s14-b7",
+    "evaluate-full-s14-b0",
+    "evaluate-full-s14-b1",
+    "evaluate-full-s14-b2",
+    "evaluate-full-s14-b3",
+    "evaluate-full-s14-b4",
+    "evaluate-full-s14-b5",
+    "evaluate-full-s14-b6",
+    "evaluate-full-s14-b7",
+    "evaluate-supervised-s8-b0",
+    "evaluate-supervised-s8-b1",
+    "evaluate-supervised-s8-b2",
+    "evaluate-supervised-s8-b3",
+    "evaluate-supervised-s8-b4",
+    "evaluate-supervised-s8-b5",
+    "evaluate-supervised-s8-b6",
+    "evaluate-supervised-s8-b7",
+    "evaluate-supervised-s9-b0",
+    "evaluate-supervised-s9-b1",
+    "evaluate-supervised-s9-b2",
+    "evaluate-supervised-s9-b3",
+    "evaluate-supervised-s9-b4",
+    "evaluate-supervised-s9-b5",
+    "evaluate-supervised-s9-b6",
+    "evaluate-supervised-s9-b7",
+    "evaluate-supervised-s10-b0",
+    "evaluate-supervised-s10-b1",
+    "evaluate-supervised-s10-b2",
+    "evaluate-supervised-s10-b3",
+    "evaluate-supervised-s10-b4",
+    "evaluate-supervised-s10-b5",
+    "evaluate-supervised-s10-b6",
+    "evaluate-supervised-s10-b7",
+    "evaluate-supervised-s11-b0",
+    "evaluate-supervised-s11-b1",
+    "evaluate-supervised-s11-b2",
+    "evaluate-supervised-s11-b3",
+    "evaluate-supervised-s11-b4",
+    "evaluate-supervised-s11-b5",
+    "evaluate-supervised-s11-b6",
+    "evaluate-supervised-s11-b7",
+    "evaluate-supervised-s12-b0",
+    "evaluate-supervised-s12-b1",
+    "evaluate-supervised-s12-b2",
+    "evaluate-supervised-s12-b3",
+    "evaluate-supervised-s12-b4",
+    "evaluate-supervised-s12-b5",
+    "evaluate-supervised-s12-b6",
+    "evaluate-supervised-s12-b7",
+    "evaluate-supervised-s13-b0",
+    "evaluate-supervised-s13-b1",
+    "evaluate-supervised-s13-b2",
+    "evaluate-supervised-s13-b3",
+    "evaluate-supervised-s13-b4",
+    "evaluate-supervised-s13-b5",
+    "evaluate-supervised-s13-b6",
+    "evaluate-supervised-s13-b7",
+    "evaluate-supervised-s14-b0",
+    "evaluate-supervised-s14-b1",
+    "evaluate-supervised-s14-b2",
+    "evaluate-supervised-s14-b3",
+    "evaluate-supervised-s14-b4",
+    "evaluate-supervised-s14-b5",
+    "evaluate-supervised-s14-b6",
+    "evaluate-supervised-s14-b7",
+    "evaluate-supervised-s15-b0",
+    "evaluate-supervised-s15-b1",
+    "evaluate-supervised-s15-b2",
+    "evaluate-supervised-s15-b3",
+    "evaluate-supervised-s15-b4",
+    "evaluate-supervised-s15-b5",
+    "evaluate-supervised-s15-b6",
+    "evaluate-supervised-s15-b7",
+    "evaluate-full-s15-b0",
+    "evaluate-full-s15-b1",
+    "evaluate-full-s15-b2",
+    "evaluate-full-s15-b3",
+    "evaluate-full-s15-b4",
+    "evaluate-full-s15-b5",
+    "evaluate-full-s15-b6",
+    "evaluate-full-s15-b7",
+    "evaluate-stopped-s15-b0",
+    "evaluate-stopped-s15-b1",
+    "evaluate-stopped-s15-b2",
+    "evaluate-stopped-s15-b3",
+    "evaluate-stopped-s15-b4",
+    "evaluate-stopped-s15-b5",
+    "evaluate-stopped-s15-b6",
+    "evaluate-stopped-s15-b7"
+  ],
+  "report_complete": true,
+  "conclusion": "Both supervision and matched stopped-gradient comparisons favor full solver gradients."
+}

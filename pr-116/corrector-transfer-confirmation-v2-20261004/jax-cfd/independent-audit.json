@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "source_sha256": "d63ef29ba587871e2ac1fa4d58b11a01aa5799fd27540fb1cbe94a8cb93d15dc",
+  "image_sha256": "196fdf947094be48590a2bfd228551bb6efed83484257cd18826e4ac4f67ecf7",
+  "shared_dataset_sha256": "a79435de950b6e3b0312e55a0134176503d7a20b2cb4d4606f3fffb859ee27a4",
+  "training_checkpoints": 24,
+  "evaluation_batches": 192,
+  "model_ic_arm_pairs": 768,
+  "admitted_references": 40,
+  "mean_errors": {
+    "full": 0.02730655616543046,
+    "stopped": 0.033618183398042234,
+    "supervised": 0.039978898732227305
+  },
+  "comparisons": {
+    "stopped": {
+      "ratio": 0.8122555535532199,
+      "model_wins": 8,
+      "ic_wins": 32
+    },
+    "supervised": {
+      "ratio": 0.6830242210603573,
+      "model_wins": 8,
+      "ic_wins": 32
+    }
+  },
+  "report_sha256": "05b72733768402fbe15e303cd6c56c738e6a226a5158f28e390f23de522d4b18"
+}

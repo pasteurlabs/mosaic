@@ -1,0 +1,120 @@
+{
+  "identity": {
+    "solver": "jax-cfd",
+    "source_sha256": "d63ef29ba587871e2ac1fa4d58b11a01aa5799fd27540fb1cbe94a8cb93d15dc",
+    "image": "/data/personal/andrinr/runner/artifacts/mosaic/jax-cfd-2853701.sqsh",
+    "image_sha256": "196fdf947094be48590a2bfd228551bb6efed83484257cd18826e4ac4f67ecf7",
+    "physics": {
+      "N": 64,
+      "nu": 0.001,
+      "dt": 0.01,
+      "steps": 4,
+      "forcing_amplitude": 1.0,
+      "forcing_wavenumber": 6
+    },
+    "domain_extent": 6.283185307179586
+  },
+  "dataset_sha256": "3a2dbb38f589c5a1e689ef695655da96ba513862a6b9c50b4dd55af284aa1c92",
+  "dataset_hash": "d7f97689ca8f1e42",
+  "dataset_role": "validation",
+  "single_ic": true,
+  "selection_sha256": null,
+  "train_seeds": [
+    20013
+  ],
+  "eval_seeds": [],
+  "reference_audit": {
+    "reference_convergence_scope": "time",
+    "reference_audit_grid_size": 192,
+    "reference_audit_temporal_factor": 96,
+    "reference_convergence_errors": [
+      4.182958183401211e-05,
+      0.00028784951468416954,
+      0.0007881990632892077,
+      0.0017022372945417748
+    ],
+    "reference_convergence_max_relative_error": 0.0017022372945417748,
+    "reference_convergence_tolerance": 0.005,
+    "reference_convergence_passed": true,
+    "eligible_for_corrector_training": true,
+    "reference_generation_wall_time_s": 4491.310457950924,
+    "reference_generation_apply_count": 403716,
+    "forcing_amplitude": 1.0,
+    "forcing_wavenumber": 6,
+    "forcing_scheme": "strang_per_native_step",
+    "burn_in_time": 75.0,
+    "burn_in_diagnostics": [
+      {
+        "seed": 20013,
+        "initial_velocity_rms": 0.05037973076105118,
+        "burn_in_cache_hit": false,
+        "burn_in_state_sha256": "f47bd008ea59256e13ef07590d50d908780114cd08060137cd747247b4f912df",
+        "final_velocity_rms": 1.7914971113204956
+      }
+    ],
+    "reference_audit_initial_condition": "shared_post_burn_in_canonical_field",
+    "reference_grid_size": 192,
+    "reference_dt": 0.00020833333333333335,
+    "reference_steps_per_interval": 192,
+    "prefix_audit_seeds": [
+      20013
+    ],
+    "prefix_audit_frames": [
+      1,
+      8,
+      24,
+      48
+    ],
+    "coarse_closure_errors": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "fine_closure_errors": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "refinement_signals": [
+      0.0111550333699738,
+      0.031408385515559446,
+      0.06180666866259518,
+      0.09638900529582109
+    ],
+    "max_coarse_closure_error": 0.0,
+    "max_fine_closure_error": 0.0,
+    "max_coarse_closure_to_signal_ratio": 0.0,
+    "max_fine_closure_to_signal_ratio": 0.0,
+    "mean_refinement_signal": 0.05018977321098738,
+    "closure_relative_tolerance": 0.01,
+    "closure_to_signal_tolerance": 0.1,
+    "minimum_refinement_signal": 0.0001,
+    "reference_states_finite": true
+  },
+  "native_state_threading": true,
+  "velocity_scale": 1.7928370237350464,
+  "training_loss_scale": 0.0017773418282585462,
+  "semigroup_errors": [
+    0.0
+  ],
+  "long_closure_errors": [
+    0.0
+  ],
+  "native_final_errors": [
+    0.09638900529582109
+  ],
+  "native_first_interval_errors": [
+    0.0111550333699738
+  ],
+  "semigroup_median_tolerance": 0.005,
+  "semigroup_p95_tolerance": 0.01,
+  "long_closure_tolerance": 0.01,
+  "closure_passed": true,
+  "accuracy_gate_passed": true,
+  "supervised_dataset_wall_time_s": 0.0,
+  "dataset_preparation_wall_time_s": 4495.110998166027,
+  "completed": true,
+  "admitted": true
+}
