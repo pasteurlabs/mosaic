@@ -94,10 +94,7 @@ def test_public_corrector_is_one_bounded_same_solver_three_arm_benchmark():
     assert training["fd_epsilon"] == 1e-3
     assert training["hidden_channels"] == 8
     assert run["evaluation"]["rollout_frames"] == 12
-    assert (
-        "statistical superiority"
-        in inspect.signature(experiment.fn).parameters["_kw"].default["description"]
-    )
+    assert "statistical superiority" in run["description"]
 
 
 def test_multimode_forward_agreement_does_not_use_tgv_reference():
