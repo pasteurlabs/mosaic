@@ -537,7 +537,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
             final = abs(series[-1])
             if initial > 0 and math.isfinite(final):
                 ratio = final / initial
-        summary = OptimizationSummary(final_initial_ratio=ratio)
+        summary = OptimizationSummary(final_initial_ratio=ratio, metrics=entry)
         verdict = _run_checks(checks, summary)
         if verdict:
             cells[solver] = Cell(*verdict)

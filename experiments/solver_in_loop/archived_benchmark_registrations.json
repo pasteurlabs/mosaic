@@ -1,0 +1,558 @@
+{
+  "scope": "Historical superseded benchmark registrations; not loaded by the public benchmark or CI. Frozen research campaigns retain their own protocols.",
+  "registrations": [
+    {
+      "key": "optimization/solver_in_loop",
+      "kernel": "solver_in_loop",
+      "description": "Train an identical Equinox periodic residual corrector through each differentiable solver. A solver-terminal recurrent auxiliary, paired stop-gradient controls, native versus repeated-call rollouts, and seen versus held-out IC horizons separate integration, coupling, trainability, and the incremental benefit of the solver VJP.",
+      "plot_description": "Corrector training, held-out trajectories, physical diagnostics, recurrent-call closure, correction gain, solver-VJP lift, and wall-clock cost for each differentiable solver.",
+      "runs": [
+        {
+          "ic": {
+            "name": "multimode",
+            "seed": 0
+          },
+          "physics": {
+            "N": 32,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4
+          },
+          "dataset": {
+            "reference_kind": "pseudo_spectral_multimode",
+            "reference_factor": 2,
+            "reference_substeps": 2,
+            "train_seeds": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "test_seeds": [
+              100,
+              101,
+              102,
+              103,
+              104,
+              105,
+              106,
+              107
+            ],
+            "train_frames": 24,
+            "k0": 2.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.5
+          },
+          "training": {
+            "max_updates": 200,
+            "unroll": 8,
+            "loss_mode": "solver_terminal",
+            "solver_loss_weight": 0.1,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-06,
+            "lr": 0.0001,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [
+              0,
+              1,
+              2
+            ],
+            "check_grad": true,
+            "fd_epsilon": 0.01
+          },
+          "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.05,
+            "native_long_error_tolerance": 0.5
+          }
+        }
+      ],
+      "plot": "plot_solver_in_loop"
+    },
+    {
+      "key": "optimization/solver_in_loop_supervised",
+      "kernel": "solver_in_loop",
+      "description": "Test whether differentiating through a solver produces a useful corrector beyond fixed-pair supervised training and stopped-gradient recurrent training. Each solver learns against its own spatially and temporally refined reference. The fixed 192\u00b2 reference for a 64\u00b2 coarse grid is checked in time, not certified spatially converged. All arms share initial weights, training windows and optimizer updates; evaluation uses held-out free-running trajectories.",
+      "plot_description": "Held-out rollout errors for supervised, stopped-gradient, full-gradient and uncorrected solvers. Training and supervised preprocessing costs are reported separately; superiority is a hypothesis, not an admission rule.",
+      "runs": [
+        {
+          "ic": {
+            "name": "multimode",
+            "seed": 0
+          },
+          "physics": {
+            "N": 64,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4
+          },
+          "dataset": {
+            "reference_kind": "solver_self_refined",
+            "reference_factor": 3,
+            "reference_audit_factor": 3,
+            "reference_audit_seeds": [
+              0,
+              100
+            ],
+            "reference_audit_frames": [
+              1,
+              8,
+              24,
+              36
+            ],
+            "reference_convergence_tolerance": 0.005,
+            "train_seeds": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "test_seeds": [
+              100,
+              101,
+              102,
+              103,
+              104,
+              105,
+              106,
+              107
+            ],
+            "train_frames": 24,
+            "k0": 4.0,
+            "sigma_k": 1.0,
+            "amplitude": 0.5,
+            "reference_temporal_factor": 3,
+            "reference_audit_temporal_factor": 6,
+            "prefix_audit_seeds": [
+              0,
+              100
+            ],
+            "prefix_audit_frames": [
+              1,
+              8,
+              24,
+              36
+            ]
+          },
+          "training": {
+            "max_updates": 3000,
+            "unroll": 8,
+            "loss_mode": "mean",
+            "solver_loss_weight": 0.0,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-06,
+            "lr": 0.0001,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [
+              0,
+              1,
+              2
+            ],
+            "check_grad": true,
+            "fd_epsilon": 0.01,
+            "include_supervised_baseline": true
+          },
+          "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.05,
+            "native_long_error_tolerance": 0.5
+          }
+        }
+      ],
+      "plot": "plot_solver_in_loop_supervised"
+    },
+    {
+      "key": "optimization/solver_in_loop_reference_sensitivity",
+      "kernel": "solver_in_loop",
+      "description": "Repeat the common all-solver corrector comparison against independently discretized, space-time-converged pseudo-spectral and conservative finite-volume references. Paired VJP conclusions are reported separately from reference-dependent absolute error.",
+      "plot_description": "Reference disagreement, convergence audits, absolute error, correction gain, and paired solver-VJP lift under spectral and finite-volume targets.",
+      "runs": [
+        {
+          "name": "spectral",
+          "ic": {
+            "name": "multimode",
+            "seed": 0
+          },
+          "physics": {
+            "N": 32,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4
+          },
+          "dataset": {
+            "reference_kind": "pseudo_spectral_multimode",
+            "reference_factor": 4,
+            "reference_substeps": 4,
+            "reference_audit_factor": 8,
+            "reference_audit_substeps": 8,
+            "reference_audit_seeds": [
+              0,
+              100
+            ],
+            "reference_audit_frames": [
+              1,
+              8,
+              24,
+              36
+            ],
+            "reference_convergence_tolerance": 0.005,
+            "train_seeds": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "test_seeds": [
+              100,
+              101,
+              102,
+              103,
+              104,
+              105,
+              106,
+              107
+            ],
+            "train_frames": 24,
+            "k0": 2.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.5
+          },
+          "training": {
+            "max_updates": 200,
+            "unroll": 8,
+            "loss_mode": "solver_terminal",
+            "solver_loss_weight": 0.1,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-06,
+            "lr": 0.0001,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [
+              0,
+              1,
+              2
+            ],
+            "check_grad": true,
+            "fd_epsilon": 0.01
+          },
+          "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.05,
+            "native_long_error_tolerance": 0.5
+          }
+        },
+        {
+          "name": "finite_volume",
+          "ic": {
+            "name": "multimode",
+            "seed": 0
+          },
+          "physics": {
+            "N": 32,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4
+          },
+          "dataset": {
+            "reference_kind": "finite_volume_multimode",
+            "reference_factor": 4,
+            "reference_substeps": 4,
+            "reference_audit_factor": 8,
+            "reference_audit_substeps": 8,
+            "reference_audit_seeds": [
+              0,
+              100
+            ],
+            "reference_audit_frames": [
+              1,
+              8,
+              24,
+              36
+            ],
+            "reference_convergence_tolerance": 0.005,
+            "train_seeds": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "test_seeds": [
+              100,
+              101,
+              102,
+              103,
+              104,
+              105,
+              106,
+              107
+            ],
+            "train_frames": 24,
+            "k0": 2.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.5
+          },
+          "training": {
+            "max_updates": 200,
+            "unroll": 8,
+            "loss_mode": "solver_terminal",
+            "solver_loss_weight": 0.1,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-06,
+            "lr": 0.0001,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [
+              0,
+              1,
+              2
+            ],
+            "check_grad": true,
+            "fd_epsilon": 0.01
+          },
+          "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.05,
+            "native_long_error_tolerance": 0.5
+          }
+        }
+      ],
+      "plot": "plot_solver_in_loop_reference_sensitivity"
+    },
+    {
+      "key": "optimization/solver_in_loop_tgv",
+      "kernel": "solver_in_loop",
+      "description": "Run an all-solver solver-in-the-loop control using the analytic N=64 forward/baseline case, with an explicit Mach-safe XLB substep budget so every differentiable solver passes both one-interval and uninterrupted forward gates. Repeated calls then validate each opt-in recurrent-state adapter under a common closure gate; the nonlinear multimode experiment remains the learning stress task.",
+      "plot_description": "Native and repeated-call solver error, neural-correction gain, solver-VJP lift, and held-out trajectories against the analytic TGV solution.",
+      "runs": [
+        {
+          "ic": {
+            "name": "tgv",
+            "seed": 0
+          },
+          "physics": {
+            "N": 64,
+            "nu": 0.05,
+            "dt": 0.01,
+            "steps": 1,
+            "lbm_N_base": 16
+          },
+          "dataset": {
+            "reference_kind": "analytic_tgv",
+            "reference_factor": 1,
+            "reference_substeps": 1,
+            "train_seeds": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "test_seeds": [
+              100,
+              101
+            ],
+            "train_frames": 24,
+            "long_closure_tolerance": 0.01
+          },
+          "training": {
+            "max_updates": 50,
+            "unroll": 4,
+            "loss_mode": "solver_terminal",
+            "solver_loss_weight": 0.1,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-06,
+            "lr": 1e-09,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [
+              0,
+              1,
+              2
+            ],
+            "check_grad": true,
+            "fd_epsilon": 0.0003
+          },
+          "evaluation": {
+            "rollout_frames": 100,
+            "seen_ic_trajectories": 2,
+            "stable_error_threshold": 1.0,
+            "first_interval_error_tolerance": 0.01,
+            "native_long_error_tolerance": 0.01
+          }
+        }
+      ],
+      "plot": "plot_solver_in_loop_tgv"
+    },
+    {
+      "key": "optimization/solver_in_loop_self_reference",
+      "kernel": "solver_in_loop",
+      "description": "Rank solvers for solver-in-the-loop use. Each admitted solver's corrector is trained against that solver's own spatially and temporally refined trajectory, so every solver faces the same task -- remove your own discretization error using your own gradients -- and the ranked quantity is the fraction of its own coarse-to-fine gap the corrector closes. This mirrors the fairness of 3D initial-condition recovery, where each solver inverts its own forward map, and avoids the shared-target comparison's confound with raw forward accuracy. A direct semigroup audit gates training so the comparison measures credit assignment rather than state-reset artifacts.",
+      "plot_description": "Refinement-gap closure per solver (the ranked quantity), recurrence admission, paired solver-VJP lift, held-out trajectories, and training cost. Raw errors are not compared across solver-specific references; the normalized closure is.",
+      "runs": [
+        {
+          "ic": {
+            "name": "multimode",
+            "seed": 0
+          },
+          "physics": {
+            "N": 32,
+            "nu": 0.001,
+            "dt": 0.02,
+            "steps": 4
+          },
+          "dataset": {
+            "reference_kind": "solver_self_refined",
+            "reference_factor": 2,
+            "reference_temporal_factor": 2,
+            "train_seeds": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "test_seeds": [
+              100,
+              101,
+              102,
+              103,
+              104,
+              105,
+              106,
+              107
+            ],
+            "train_frames": 24,
+            "k0": 2.0,
+            "sigma_k": 0.5,
+            "amplitude": 0.5,
+            "prefix_audit_seeds": [
+              0,
+              1,
+              100,
+              101
+            ],
+            "prefix_audit_frames": [
+              1,
+              8,
+              24,
+              36
+            ],
+            "closure_relative_tolerance": 0.01,
+            "closure_to_signal_tolerance": 0.1,
+            "minimum_refinement_signal": 0.0001
+          },
+          "training": {
+            "max_updates": 3000,
+            "unroll": 8,
+            "loss_mode": "mean",
+            "solver_loss_weight": 0.0,
+            "loss_normalization": "solver_baseline",
+            "loss_scale_floor": 1e-06,
+            "lr": 0.0001,
+            "clip_norm": 5.0,
+            "architecture": "periodic_residual_cnn",
+            "hidden_channels": 32,
+            "kernel_size": 5,
+            "seed": 2026,
+            "model_seeds": [
+              0,
+              1,
+              2
+            ],
+            "check_grad": true,
+            "fd_epsilon": 0.01
+          },
+          "evaluation": {
+            "rollout_frames": 36,
+            "seen_ic_trajectories": 8,
+            "stable_error_threshold": 1.0
+          }
+        }
+      ],
+      "plot": "plot_solver_in_loop_self_reference"
+    }
+  ]
+}

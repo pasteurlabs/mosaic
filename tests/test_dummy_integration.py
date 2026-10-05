@@ -299,7 +299,9 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
         )
 
         analytic = exp_key.endswith("_tgv")
-        self_reference = exp_key.endswith("_self_reference")
+        self_reference = exp_key == "optimization/solver_in_loop" or exp_key.endswith(
+            "_self_reference"
+        )
         finite_volume_reference = exp_key.endswith("/finite_volume")
         cfg.add_experiment(
             exp_key,
@@ -342,7 +344,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
                     },
                     "training": {
                         "max_updates": 1,
-                        "include_supervised_baseline": exp_key.endswith("_supervised"),
+                        "include_supervised_baseline": True,
                         "unroll": 2,
                         "hidden_channels": 4,
                         "kernel_size": 3,

@@ -16,7 +16,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from mosaic.benchmarks.core.utils import _debug_run, active_solvers
+from mosaic.benchmarks.core.utils import _debug_run
 from mosaic.benchmarks.problems.navier_stokes_grid.corrector import (
     PeriodicResidualCNN,
     apply_corrector,
@@ -62,53 +62,42 @@ _IDENTITY_DUMMY = (
 ).resolve()
 
 
-def test_tgv_control_uses_forward_baseline_with_mach_safe_xlb_budget():
+def test_public_corrector_is_one_bounded_same_solver_three_arm_benchmark():
+    """Default optimization cannot silently launch historical research budgets."""
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config("ns-grid")
-    forward = cfg.experiments["forward/baseline"]
-    control = cfg.experiments["optimization/solver_in_loop_tgv"]
-    forward_run = inspect.signature(forward.fn).parameters["_kw"].default["runs"][0]
-    control_run = inspect.signature(control.fn).parameters["_kw"].default["runs"][0]
-    forward_physics = forward_run["physics"]
-    control_physics = control_run["physics"]
-    control_dataset = control_run["dataset"]
-    control_evaluation = control_run["evaluation"]
-
-    for key in ("nu", "dt", "steps"):
-        assert control_physics[key] == forward_physics[key]
-    assert forward_physics["lbm_N_base"] == 64
-    assert control_physics["lbm_N_base"] == 16
-    assert forward_run["sweep"]["key"] == "N"
-    assert control_physics["N"] in forward_run["sweep"]["values"]
-    initial = _tgv(control_physics["N"])
-    by_key = {solver.key: solver for solver in cfg.solvers}
-    xlb_inputs = cfg.make_inputs(
-        by_key["xlb"].name,
-        initial,
-        domain_extent=cfg.domain_extent,
-        **control_physics,
+    keys = [
+        key for key in cfg.experiments if key.startswith("optimization/solver_in_loop")
+    ]
+    assert keys == ["optimization/solver_in_loop"]
+    experiment = cfg.experiments[keys[0]]
+    runs = inspect.signature(experiment.fn).parameters["_kw"].default["runs"]
+    assert len(runs) == 1
+    run = runs[0]
+    assert run["physics"]["N"] == 32
+    dataset = run["dataset"]
+    assert dataset["reference_kind"] == "solver_self_refined"
+    assert dataset["reference_factor"] == dataset["reference_audit_factor"] == 2
+    assert dataset["reference_temporal_factor"] == 2
+    assert dataset["reference_audit_temporal_factor"] == 4
+    assert dataset["reference_convergence_tolerance"] == 0.005
+    assert set(dataset["train_seeds"]).isdisjoint(dataset["test_seeds"])
+    assert dataset["train_frames"] == 8
+    assert dataset["minimum_refinement_signal"] > 0
+    training = run["training"]
+    assert training["include_supervised_baseline"] is True
+    assert training["max_updates"] == 16
+    assert training["unroll"] == 4
+    assert training["model_seeds"] == [0]
+    assert training["check_grad"] is True
+    assert training["fd_epsilon"] == 1e-3
+    assert training["hidden_channels"] == 8
+    assert run["evaluation"]["rollout_frames"] == 12
+    assert (
+        "statistical superiority"
+        in inspect.signature(experiment.fn).parameters["_kw"].default["description"]
     )
-    pict_inputs = cfg.make_inputs(
-        by_key["pict"].name,
-        initial,
-        domain_extent=cfg.domain_extent,
-        **control_physics,
-    )
-    assert xlb_inputs["steps"] == 4
-    assert np.isclose(float(xlb_inputs["dt"][0]), 0.0025)
-    assert pict_inputs["steps"] == 1
-    assert np.isclose(float(pict_inputs["dt"][0]), 0.01)
-    differentiable = {"jax_cfd", "ins_jl", "phiflow", "pict", "warp_ns", "xlb"}
-    active_forward = {
-        cfg.solver(name).key for name in active_solvers(cfg, "forward", "baseline")
-    }
-    assert differentiable <= active_forward
-    for solver in differentiable:
-        assert "optimization/solver_in_loop_tgv" not in cfg.exclusions.get(solver, {})
-    assert control_evaluation["rollout_frames"] == 100
-    assert control_dataset["long_closure_tolerance"] == 0.01
-    assert control_evaluation["native_long_error_tolerance"] == 0.01
 
 
 def test_multimode_forward_agreement_does_not_use_tgv_reference():
@@ -119,83 +108,6 @@ def test_multimode_forward_agreement_does_not_use_tgv_reference():
     run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
 
     assert run["reference"] == "consensus"
-
-
-def test_shared_solver_loop_ranking_declares_forward_admission_bounds():
-    from mosaic.benchmarks.problems import get_config
-
-    cfg = get_config("ns-grid")
-    experiment = cfg.experiments["optimization/solver_in_loop"]
-    run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
-    assert run["dataset"]["k0"] == 2.0
-    assert run["dataset"]["sigma_k"] == 0.5
-    assert run["evaluation"]["first_interval_error_tolerance"] == 0.05
-    assert run["evaluation"]["native_long_error_tolerance"] == 0.5
-    self_reference = cfg.experiments["optimization/solver_in_loop_self_reference"]
-    self_reference_run = (
-        inspect.signature(self_reference.fn).parameters["_kw"].default["runs"][0]
-    )
-    assert self_reference_run["dataset"]["k0"] == run["dataset"]["k0"]
-    assert self_reference_run["dataset"]["sigma_k"] == run["dataset"]["sigma_k"]
-
-
-def test_reference_sensitivity_declares_independent_converged_targets():
-    from mosaic.benchmarks.problems import get_config
-
-    cfg = get_config("ns-grid")
-    prefix = "optimization/solver_in_loop_reference_sensitivity/"
-    variants = {
-        key.removeprefix(prefix): inspect.signature(experiment.fn)
-        .parameters["_kw"]
-        .default["runs"][0]
-        for key, experiment in cfg.experiments.items()
-        if key.startswith(prefix)
-    }
-
-    assert set(variants) == {"spectral", "finite_volume"}
-    assert variants["spectral"]["dataset"]["reference_kind"] == (
-        "pseudo_spectral_multimode"
-    )
-    assert variants["finite_volume"]["dataset"]["reference_kind"] == (
-        "finite_volume_multimode"
-    )
-    for run in variants.values():
-        dataset = run["dataset"]
-        assert dataset["reference_factor"] == 4
-        assert dataset["reference_substeps"] == 4
-        assert dataset["reference_audit_factor"] == 8
-        assert dataset["reference_audit_substeps"] == 8
-        assert dataset["reference_convergence_tolerance"] == 0.005
-
-
-def test_ranked_self_reference_protocol_is_converged_and_per_solver():
-    """The ranked comparison must be fair and trained past the ladder's knee.
-
-    Fairness comes from the per-solver refined target: every solver faces the
-    same task (remove its own discretization error through its own gradients),
-    exactly as 3D IC recovery has every solver invert its own forward map.
-    A 200-update budget ranked whoever trained fastest, so the protocol trains
-    to a converged budget under the objective that won the paired probe.
-    """
-    from mosaic.benchmarks.problems import get_config
-
-    cfg = get_config("ns-grid")
-    experiment = cfg.experiments["optimization/solver_in_loop_self_reference"]
-    run = inspect.signature(experiment.fn).parameters["_kw"].default["runs"][0]
-
-    # Per-solver target: what makes the ranking fair.
-    assert run["dataset"]["reference_kind"] == "solver_self_refined"
-    assert run["dataset"]["reference_factor"] == 2
-    assert run["dataset"]["reference_temporal_factor"] == 2
-    # Converged budget and the objective that beat solver_terminal at equal cost.
-    assert run["training"]["max_updates"] >= 3000
-    assert run["training"]["loss_mode"] == "mean"
-    assert run["training"]["solver_loss_weight"] == 0.0
-    # Multiple model seeds, so the ranked gap can be read against seed spread.
-    assert len(run["training"]["model_seeds"]) >= 3
-    # The refinement signal gate keeps the normalized closure meaningful for
-    # solvers whose own coarse-to-fine gap is small.
-    assert run["dataset"]["minimum_refinement_signal"] > 0
 
 
 def test_self_reference_does_not_gate_the_learnable_refinement_signal():

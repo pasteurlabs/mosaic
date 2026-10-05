@@ -65,6 +65,7 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
+from .corrector_status import corrector_execution
 from .exclusions import register as _register_exclusions
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
@@ -72,10 +73,6 @@ from .physics import DIAGNOSTICS, make_inputs
 from .plots import (
     plot_drag_opt,
     plot_solver_in_loop,
-    plot_solver_in_loop_reference_sensitivity,
-    plot_solver_in_loop_self_reference,
-    plot_solver_in_loop_supervised,
-    plot_solver_in_loop_tgv,
 )
 from .solver_in_loop import solver_in_loop
 
@@ -475,360 +472,67 @@ problem.add_experiment(
     "optimization/solver_in_loop",
     solver_in_loop,
     description=(
-        "Train an identical Equinox periodic residual corrector through each "
-        "differentiable solver. A solver-terminal recurrent auxiliary, paired "
-        "stop-gradient controls, native versus repeated-call rollouts, and seen versus "
-        "held-out IC horizons separate integration, coupling, trainability, and "
-        "the incremental benefit of the solver VJP."
+        "A bounded regression benchmark that trains the same periodic residual CNN "
+        "with full solver gradients, stopped solver gradients, and fixed-pair supervision. "
+        "Each solver supplies its own refined reference, with temporal and native-state "
+        "closure admission checks. The short training budget tests end-to-end integration; "
+        "it does not establish statistical superiority of one training method."
     ),
     plot_description=(
-        "Corrector training, held-out trajectories, physical diagnostics, "
-        "recurrent-call closure, correction gain, solver-VJP lift, and wall-clock "
-        "cost for each differentiable solver."
-    ),
-    # Keep dataset seed lists inside an explicit run payload: they are data,
-    # not benchmark sweep coordinates.
-    runs=[
-        {
-            "ic": {"name": "multimode", "seed": 0},
-            "physics": {
-                # ``steps`` is the number of native PDE steps between neural
-                # corrections. Recurrent training feeds back the corrected
-                # canonical ``v0`` while preserving any solver-native checkpoint.
-                "N": 32,
-                "nu": 0.001,
-                "dt": 0.02,
-                "steps": 4,
-            },
-            "dataset": {
-                "reference_kind": "pseudo_spectral_multimode",
-                "reference_factor": 2,
-                "reference_substeps": 2,
-                "train_seeds": list(range(16)),
-                "test_seeds": list(range(100, 108)),
-                "train_frames": 24,
-                # Begin from the well-resolved spectrum used by the forward
-                # agreement benchmark. The stronger amplitude and long horizon
-                # still allow nonlinear transfer to populate smaller scales.
-                "k0": 2.0,
-                "sigma_k": 0.5,
-                "amplitude": 0.5,
-            },
-            "training": {
-                "max_updates": 200,
-                "unroll": 8,
-                # A solver-only terminal auxiliary measures temporal credit
-                # without letting it destabilize the locally supervised rollout.
-                "loss_mode": "solver_terminal",
-                "solver_loss_weight": 0.1,
-                # Scale each solver's loss by its own uncorrected recurrent
-                # baseline so clipping/optimisation do not inherit raw accuracy.
-                "loss_normalization": "solver_baseline",
-                "loss_scale_floor": 1e-6,
-                "lr": 1e-4,
-                "clip_norm": 5.0,
-                "architecture": "periodic_residual_cnn",
-                "hidden_channels": 32,
-                "kernel_size": 5,
-                "seed": 2026,
-                "model_seeds": [0, 1, 2],
-                "check_grad": True,
-                "fd_epsilon": 1e-2,
-            },
-            "evaluation": {
-                "rollout_frames": 36,
-                "seen_ic_trajectories": 8,
-                "stable_error_threshold": 1.0,
-                # Predeclare forward-admission bounds for the nonlinear task.
-                # Long chaotic trajectories may decorrelate, but a candidate
-                # must start close to the common reference and remain finite
-                # enough for a meaningful relative-gain comparison.
-                "first_interval_error_tolerance": 0.05,
-                "native_long_error_tolerance": 0.5,
-            },
-        }
-    ],
-    plot=plot_solver_in_loop,
-)
-
-
-def _reference_sensitivity_run(name: str, reference_kind: str) -> dict:
-    """Return one common-target solver-loop reference variant."""
-    return {
-        "name": name,
-        "ic": {"name": "multimode", "seed": 0},
-        "physics": {
-            "N": 32,
-            "nu": 0.001,
-            "dt": 0.02,
-            "steps": 4,
-        },
-        "dataset": {
-            "reference_kind": reference_kind,
-            # Production targets use 128² and dt/4. A disjoint convergence
-            # audit compares selected frames against 256² and dt/8 before
-            # corrector training is admitted.
-            "reference_factor": 4,
-            "reference_substeps": 4,
-            "reference_audit_factor": 8,
-            "reference_audit_substeps": 8,
-            "reference_audit_seeds": [0, 100],
-            "reference_audit_frames": [1, 8, 24, 36],
-            "reference_convergence_tolerance": 0.005,
-            "train_seeds": list(range(16)),
-            "test_seeds": list(range(100, 108)),
-            "train_frames": 24,
-            "k0": 2.0,
-            "sigma_k": 0.5,
-            "amplitude": 0.5,
-        },
-        "training": {
-            "max_updates": 200,
-            "unroll": 8,
-            "loss_mode": "solver_terminal",
-            "solver_loss_weight": 0.1,
-            "loss_normalization": "solver_baseline",
-            "loss_scale_floor": 1e-6,
-            "lr": 1e-4,
-            "clip_norm": 5.0,
-            "architecture": "periodic_residual_cnn",
-            "hidden_channels": 32,
-            "kernel_size": 5,
-            "seed": 2026,
-            "model_seeds": [0, 1, 2],
-            "check_grad": True,
-            "fd_epsilon": 1e-2,
-        },
-        "evaluation": {
-            "rollout_frames": 36,
-            "seen_ic_trajectories": 8,
-            "stable_error_threshold": 1.0,
-            "first_interval_error_tolerance": 0.05,
-            "native_long_error_tolerance": 0.5,
-        },
-    }
-
-
-def _supervised_comparison_run() -> dict:
-    """Declare a matched three-arm experiment on interacting periodic vortices."""
-    run = _reference_sensitivity_run("supervised", "solver_self_refined")
-    run.pop("name")
-    run["physics"]["N"] = 64
-    dataset = run["dataset"]
-    dataset["reference_temporal_factor"] = dataset.pop("reference_substeps")
-    dataset["reference_audit_temporal_factor"] = dataset.pop("reference_audit_substeps")
-    dataset.update(
-        {
-            "k0": 4.0,
-            "sigma_k": 1.0,
-            "reference_factor": 3,
-            "reference_temporal_factor": 3,
-            "reference_audit_factor": 3,
-            "reference_audit_temporal_factor": 6,
-            "prefix_audit_seeds": [0, 100],
-            "prefix_audit_frames": [1, 8, 24, 36],
-        }
-    )
-    run["training"].update(
-        {
-            "max_updates": 3000,
-            "loss_mode": "mean",
-            "solver_loss_weight": 0.0,
-            "include_supervised_baseline": True,
-        }
-    )
-    return run
-
-
-problem.add_experiment(
-    "optimization/solver_in_loop_supervised",
-    solver_in_loop,
-    description=(
-        "Test whether differentiating through a solver produces a useful corrector "
-        "beyond fixed-pair supervised training and stopped-gradient recurrent training. "
-        "Each solver learns against its own spatially and temporally refined reference. "
-        "The fixed 192² reference for a 64² coarse grid is checked in time, not certified spatially converged. "
-        "All arms share initial weights, training windows and optimizer updates; "
-        "evaluation uses held-out free-running trajectories."
-    ),
-    plot_description=(
-        "Held-out rollout errors for supervised, stopped-gradient, full-gradient "
-        "and uncorrected solvers. Training and supervised preprocessing costs are "
-        "reported separately; superiority is a hypothesis, not an admission rule."
-    ),
-    runs=[_supervised_comparison_run()],
-    plot=plot_solver_in_loop_supervised,
-)
-
-
-problem.add_experiment(
-    "optimization/solver_in_loop_reference_sensitivity",
-    solver_in_loop,
-    description=(
-        "Repeat the common all-solver corrector comparison against independently "
-        "discretized, space-time-converged pseudo-spectral and conservative "
-        "finite-volume references. Paired VJP conclusions are reported separately "
-        "from reference-dependent absolute error."
-    ),
-    plot_description=(
-        "Reference disagreement, convergence audits, absolute error, correction "
-        "gain, and paired solver-VJP lift under spectral and finite-volume targets."
-    ),
-    runs=[
-        _reference_sensitivity_run("spectral", "pseudo_spectral_multimode"),
-        _reference_sensitivity_run("finite_volume", "finite_volume_multimode"),
-    ],
-    plot=plot_solver_in_loop_reference_sensitivity,
-)
-
-problem.add_experiment(
-    "optimization/solver_in_loop_tgv",
-    solver_in_loop,
-    description=(
-        "Run an all-solver solver-in-the-loop control using the analytic N=64 "
-        "forward/baseline case, with an explicit Mach-safe XLB substep budget so "
-        "every differentiable solver passes both one-interval and uninterrupted "
-        "forward gates. Repeated calls then validate each opt-in recurrent-state "
-        "adapter under a common closure gate; the nonlinear multimode experiment "
-        "remains the learning stress task."
-    ),
-    plot_description=(
-        "Native and repeated-call solver error, neural-correction gain, solver-VJP "
-        "lift, and held-out trajectories against the analytic TGV solution."
-    ),
-    runs=[
-        {
-            "ic": {"name": "tgv", "seed": 0},
-            "physics": {
-                "N": 64,
-                "nu": 0.05,
-                "dt": 0.01,
-                "steps": 1,
-                # Four XLB substeps are the smallest tested budget that keeps
-                # both one-interval and uninterrupted t=1 error below 1%.
-                "lbm_N_base": 16,
-            },
-            "dataset": {
-                "reference_kind": "analytic_tgv",
-                "reference_factor": 1,
-                "reference_substeps": 1,
-                "train_seeds": [0, 1, 2, 3],
-                "test_seeds": [100, 101],
-                "train_frames": 24,
-                "long_closure_tolerance": 0.01,
-            },
-            "training": {
-                "max_updates": 50,
-                "unroll": 4,
-                "loss_mode": "solver_terminal",
-                "solver_loss_weight": 0.1,
-                "loss_normalization": "solver_baseline",
-                "loss_scale_floor": 1e-6,
-                # Calibrated on training loss only. A nonlinear-task-size Adam
-                # step overwhelms this near-floor, per-native-step residual.
-                "lr": 1e-9,
-                "clip_norm": 5.0,
-                "architecture": "periodic_residual_cnn",
-                "hidden_channels": 32,
-                "kernel_size": 5,
-                "seed": 2026,
-                "model_seeds": [0, 1, 2],
-                "check_grad": True,
-                # The zero-initialized residual needs a smaller perturbation
-                # than the nonlinear stress task for its local VJP check.
-                "fd_epsilon": 3e-4,
-            },
-            "evaluation": {
-                "rollout_frames": 100,
-                "seen_ic_trajectories": 2,
-                "stable_error_threshold": 1.0,
-                "first_interval_error_tolerance": 0.01,
-                "native_long_error_tolerance": 0.01,
-            },
-        }
-    ],
-    plot=plot_solver_in_loop_tgv,
-)
-problem.add_experiment(
-    "optimization/solver_in_loop_self_reference",
-    solver_in_loop,
-    description=(
-        "Rank solvers for solver-in-the-loop use. Each admitted solver's corrector "
-        "is trained against that solver's own spatially and temporally refined "
-        "trajectory, so every solver faces the same task -- remove your own "
-        "discretization error using your own gradients -- and the ranked quantity "
-        "is the fraction of its own coarse-to-fine gap the corrector closes. This "
-        "mirrors the fairness of 3D initial-condition recovery, where each solver "
-        "inverts its own forward map, and avoids the shared-target comparison's "
-        "confound with raw forward accuracy. A direct semigroup audit gates "
-        "training so the comparison measures credit assignment rather than "
-        "state-reset artifacts."
-    ),
-    plot_description=(
-        "Refinement-gap closure per solver (the ranked quantity), recurrence "
-        "admission, paired solver-VJP lift, held-out trajectories, and training "
-        "cost. Raw errors are not compared across solver-specific references; the "
-        "normalized closure is."
+        "Held-out full-field trajectories and errors for all three learned correctors "
+        "and the uncorrected solver, plus gradient checks and training cost. "
+        "The longer statistical research protocol is separate from this CI budget."
     ),
     runs=[
         {
             "ic": {"name": "multimode", "seed": 0},
-            "physics": {
-                "N": 32,
-                "nu": 0.001,
-                "dt": 0.02,
-                "steps": 4,
-            },
+            "physics": {"N": 32, "nu": 0.001, "dt": 0.01, "steps": 2},
             "dataset": {
                 "reference_kind": "solver_self_refined",
                 "reference_factor": 2,
                 "reference_temporal_factor": 2,
-                "train_seeds": list(range(16)),
-                "test_seeds": list(range(100, 108)),
-                "train_frames": 24,
+                "reference_audit_factor": 2,
+                "reference_audit_temporal_factor": 4,
+                "reference_convergence_tolerance": 0.005,
+                "train_seeds": [0],
+                "test_seeds": [100],
+                "train_frames": 8,
                 "k0": 2.0,
                 "sigma_k": 0.5,
                 "amplitude": 0.5,
-                "prefix_audit_seeds": [0, 1, 100, 101],
-                "prefix_audit_frames": [1, 8, 24, 36],
+                "prefix_audit_seeds": [0, 100],
+                "prefix_audit_frames": [1, 8, 12],
                 "closure_relative_tolerance": 0.01,
                 "closure_to_signal_tolerance": 0.1,
                 "minimum_refinement_signal": 1e-4,
             },
             "training": {
-                # A ranking at a non-converged budget ranks whoever trains
-                # fastest. A 200 -> 1000 -> 4000 update ladder on the shared
-                # -target task showed correction gain still climbing well past
-                # 1000 updates for every solver, so the ranked protocol trains
-                # to 3000 -- the largest matched budget that fits the 4h GPU
-                # scheduling slot for the slowest solver.
-                "max_updates": 3000,
-                "unroll": 8,
-                # The plain mean over corrected states beat the solver-terminal
-                # objective at equal budget in a paired probe (JAX-CFD 1.059x
-                # versus 0.988x correction gain at 4000 updates).
+                "max_updates": 16,
+                "unroll": 4,
                 "loss_mode": "mean",
                 "solver_loss_weight": 0.0,
+                "include_supervised_baseline": True,
                 "loss_normalization": "solver_baseline",
                 "loss_scale_floor": 1e-6,
                 "lr": 1e-4,
                 "clip_norm": 5.0,
                 "architecture": "periodic_residual_cnn",
-                "hidden_channels": 32,
-                "kernel_size": 5,
+                "hidden_channels": 8,
+                "kernel_size": 3,
                 "seed": 2026,
-                "model_seeds": [0, 1, 2],
+                "model_seeds": [0],
                 "check_grad": True,
-                "fd_epsilon": 1e-2,
+                "fd_epsilon": 1e-3,
             },
             "evaluation": {
-                "rollout_frames": 36,
-                "seen_ic_trajectories": 8,
+                "rollout_frames": 12,
+                "seen_ic_trajectories": 1,
                 "stable_error_threshold": 1.0,
             },
         }
     ],
-    plot=plot_solver_in_loop_self_reference,
+    plot=plot_solver_in_loop,
+    status_check=[corrector_execution(16)],
 )
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

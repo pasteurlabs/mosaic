@@ -83,9 +83,13 @@ class OptimizationSummary:
     ``final_initial_ratio``: ``loss_final / loss_initial`` for the
     worst-case (highest-initial-loss) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
+
+    ``metrics`` preserves the solver entry, including run/sweep nesting, for
+    experiment-specific completion and numerical-admission checks.
     """
 
     final_initial_ratio: float | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────
