@@ -76,9 +76,6 @@ def main() -> None:
     if subprocess.check_output([*git, "status", "--porcelain"], text=True).strip():
         raise RuntimeError("artifact checkout has uncommitted changes")
     subprocess.run([*git, "pull", "--ff-only"], check=True)
-    folder = (
-        Path("pr-116") / campaign.parent.name.removeprefix("pr116-") / campaign.name
-    )
     destination = checkout / folder
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copytree(campaign / "report", destination / "report", dirs_exist_ok=True)

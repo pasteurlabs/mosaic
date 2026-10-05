@@ -10,6 +10,7 @@ import hashlib
 import json
 import struct
 import subprocess
+import time
 import zipfile
 from pathlib import Path
 
@@ -121,6 +122,50 @@ class RefinementController(Controller):
             or receipt["source_sha256"] != self.plan["source_sha256"]
         ):
             raise RuntimeError("exact-source validation receipt required")
+        gate = self.plan.get("variant_gate")
+        if gate:
+            self.state["status"] = "waiting_for_verified_variant_gate"
+            self.save()
+            job = str(gate["job_id"])
+            while True:
+                output = subprocess.check_output(
+                    [
+                        "sacct",
+                        "-X",
+                        "-n",
+                        "-P",
+                        "-j",
+                        job,
+                        "--format=JobIDRaw,State%30",
+                    ],
+                    text=True,
+                )
+                states = dict(
+                    line.split("|")[:2] for line in output.splitlines() if line
+                )
+                status = states.get(job, "PENDING").split()[0]
+                if status == "COMPLETED":
+                    break
+                if status not in {"PENDING", "RUNNING", "CONFIGURING", "COMPLETING"}:
+                    raise RuntimeError(f"variant gate did not complete: {status}")
+                time.sleep(30)
+            evidence = json.loads(Path(gate["outcome_path"]).read_text())
+            for key, value in gate["expected_outcome"].items():
+                if evidence.get(key) != value:
+                    raise RuntimeError(f"variant gate mismatch: {key}")
+            if not (
+                evidence["training_primary_fd_error"] < 0.05
+                and evidence["temporal_max_error"] <= 0.005
+            ):
+                raise RuntimeError("variant numerical admission failed")
+            verification = json.loads(Path(gate["image_verification_path"]).read_text())
+            for key, value in gate["expected_image_verification"].items():
+                if verification.get(key) != value:
+                    raise RuntimeError(f"variant image verification mismatch: {key}")
+            self.state["variant_gate_receipt_sha256"] = hashlib.sha256(
+                Path(gate["outcome_path"]).read_bytes()
+            ).hexdigest()
+            self.save()
         solver = self.plan["refinement_solver"]
         spec = self.plan["solvers"][solver]
         self.state.setdefault("refinement_attempts", {})
