@@ -160,20 +160,7 @@ def test_only_matching_benchmark_cells_admit_surrogate():
             and "XLB 3D surrogate" in active_solvers(cfg, *key.split("/", 1))
         }
         expected = (
-            {
-                "optimization/recovery_constant_ic_bfgs",
-                "optimization/recovery_constant_ic_bfgs_proj",
-            }
-            | {
-                f"{prefix}/seed_{seed}"
-                for prefix in (
-                    "forward/recovery_teacher",
-                    "gradient/recovery_fd_check",
-                    "cost/recovery_forward",
-                    "cost/recovery_vjp",
-                )
-                for seed in (0, 1, 2)
-            }
+            {"optimization/recovery_constant_ic_bfgs_proj"}
             if problem == "ns-3d-grid"
             else set()
         )
@@ -224,8 +211,7 @@ def test_packaged_checkpoint_through_tesseract_jax():
             assert float(loss(point - gradient)) < float(value)
 
 
-@pytest.mark.parametrize("optimizer", ["bfgs", "bfgs_proj"])
-def test_packaged_checkpoint_recovery_harness(optimizer, tmp_path, monkeypatch):
+def test_packaged_checkpoint_recovery_harness(tmp_path, monkeypatch):
     import copy
     import json
 
@@ -234,7 +220,8 @@ def test_packaged_checkpoint_recovery_harness(optimizer, tmp_path, monkeypatch):
 
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
     cfg = copy.deepcopy(get_config("ns-3d-grid"))
-    exp_name = f"recovery_constant_ic_{optimizer}"
+    optimizer = "bfgs_proj"
+    exp_name = "recovery_constant_ic_bfgs_proj"
     key = f"optimization/{exp_name}"
     # Keep the registered task physics and optimizer; shorten only the
     # optimization budget and seed count for this CPU integration test.

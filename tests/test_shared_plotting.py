@@ -67,35 +67,3 @@ def test_plot_mesh_no_save_path_does_not_write(tmp_path, monkeypatch):
 def _close_all_figures():
     yield
     plt.close("all")
-
-
-def test_fixed_cost_plot_reads_registered_path_and_raw_trials(tmp_path, monkeypatch):
-    import json
-
-    from mosaic.benchmarks.problems import get_config
-    from mosaic.benchmarks.problems.shared.plots.cost import plot_fixed_cost
-
-    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
-    cfg = get_config("ns-3d-grid")
-    out_dir = tmp_path / cfg.name / "cost/recovery_forward/seed_0"
-    out_dir.mkdir(parents=True)
-    (out_dir / "result.json").write_text(
-        json.dumps(
-            {
-                "results": [
-                    {"solver": "XLB", "metrics": {"trials_s": [0.01, 0.03]}},
-                    {
-                        "solver": "XLB 3D surrogate",
-                        "metrics": {
-                            "status": "failed",
-                            "trials_s": [0.01],
-                        },
-                    },
-                ]
-            }
-        )
-    )
-    fig = plot_fixed_cost(cfg, exp_key="recovery_forward/seed_0")
-    assert len(fig.axes[0].patches) == 1
-    assert fig.axes[0].patches[0].get_height() == pytest.approx(20.0)
-    assert (out_dir / "cost.png").stat().st_size > 0

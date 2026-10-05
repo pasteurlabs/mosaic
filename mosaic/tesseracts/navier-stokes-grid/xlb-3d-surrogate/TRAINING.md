@@ -128,7 +128,9 @@ error versus 4.22% and 35.03% originally. One training seed and three cases do n
 support a significance claim for that near tie. The original checkpoint remains
 packaged. Replay controls reused identical-model validation results; the final
 benchmark disposition verified weights/model/API hashes and reused the completed
-registered benchmark run rather than claiming a new measurement.
+archived benchmark run rather than claiming a new measurement. Its temporary
+forward/gradient/cost and unconstrained recovery registrations are not part of
+the final solver integration; only existing projected recovery is admitted.
 
 ![Eight terminal-only training arms: forward, VJP and recovery errors](https://raw.githubusercontent.com/pasteurlabs/mosaic/37c9d6b/gradient-pilot/pilot-comparison.png)
 

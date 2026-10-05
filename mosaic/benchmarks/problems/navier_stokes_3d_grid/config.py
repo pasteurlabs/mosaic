@@ -48,7 +48,7 @@ from mosaic.benchmarks.problems.shared.gradient import (
     horizon_sweep_limits,
     jacobian_svd,
 )
-from mosaic.benchmarks.problems.shared.plots.cost import plot_cost, plot_fixed_cost
+from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import (
     plot_agreement,
     plot_physical_laws,
@@ -393,28 +393,6 @@ problem.add_experiment(
 )
 
 problem.add_experiment(
-    "optimization/recovery_constant_ic_bfgs",
-    recovery,
-    optimizer="bfgs",
-    _exp_key="recovery_constant_ic_bfgs",
-    plot_description=(
-        "Final IC recovery error per solver from zero-initialised unconstrained"
-        " L-BFGS optimisation."
-    ),
-    ic={"name": "rand_div_free", "seed": 0},
-    physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
-    optim={
-        "ic_init_type": "zeros",
-        "max_iters": 100,
-        "patience": 20,
-        "failure_threshold": 2.0,
-        "snap_interval": 5,
-        "ic_seeds": [0, 1, 2],
-        "record_diagnostics": True,
-    },
-    plot=plot_recovery,
-)
-problem.add_experiment(
     "optimization/recovery_constant_ic_bfgs_proj",
     recovery,
     optimizer="bfgs_proj",
@@ -435,93 +413,6 @@ problem.add_experiment(
         "record_diagnostics": True,
     },
     plot=plot_recovery,
-)
-
-# Matched evaluations for the fixed-horizon learned solver. Each native solver
-# receives exactly the same IC and physical parameters; no resolution or time
-# rescaling is involved. Seeds 0/1/2 were excluded from surrogate training.
-_RECOVERY_PHYSICS = {"N": 16, "nu": 0.01, "dt": 0.02, "steps": 100}
-_RECOVERY_RUNS = [
-    {
-        "name": f"seed_{seed}",
-        "ic": {"name": "rand_div_free", "seed": seed},
-        "physics": dict(_RECOVERY_PHYSICS),
-    }
-    for seed in (0, 1, 2)
-]
-problem.add_experiment(
-    "forward/recovery_teacher",
-    agreement,
-    runs=[
-        {
-            **run,
-            "physics": {**_RECOVERY_PHYSICS, "steps": [100]},
-            "reference_solver": "XLB",
-        }
-        for run in _RECOVERY_RUNS
-    ],
-    plot=plot_agreement,
-    plot_description=(
-        "Full-field error against XLB at the fixed 3D recovery task, for three"
-        " held-out initial conditions. Measures teacher fidelity, not error"
-        " against an exact Navier–Stokes solution. Requires an XLB result."
-    ),
-)
-problem.add_experiment(
-    "gradient/recovery_fd_check",
-    fd_check,
-    runs=[
-        {
-            **run,
-            "physics": dict(_RECOVERY_PHYSICS),
-            "fd": {
-                "eps_values": [5.0, 1.0, 0.3, 0.1, 0.03, 0.01, 0.003, 0.001],
-                "n_dirs": 10,
-            },
-        }
-        for run in _RECOVERY_RUNS
-    ],
-    plot=plot_fd_check,
-    plot_description=(
-        "Finite-difference checks of each solver's own sum(u_T²) gradient on"
-        " the matched recovery physics, with identical directions and epsilon"
-        " sweeps. Internal derivative consistency is distinct from XLB fidelity."
-    ),
-    status_check=[min_cosine(0.99), max_rel_err(0.02)],
-)
-problem.add_experiment(
-    "cost/recovery_forward",
-    temporal_cost,
-    runs=[
-        {
-            **run,
-            "physics": {**_RECOVERY_PHYSICS, "steps": [100]},
-            "cost": {"n_trials": 20},
-        }
-        for run in _RECOVERY_RUNS
-    ],
-    plot=plot_fixed_cost,
-    plot_description=(
-        "Twenty warm forward API-call timings per held-out recovery IC."
-        " Includes the selected Tesseract transport; excludes warmup/compilation."
-    ),
-)
-problem.add_experiment(
-    "cost/recovery_vjp",
-    vjp_cost,
-    runs=[
-        {
-            **run,
-            "physics": {**_RECOVERY_PHYSICS, "steps": [100]},
-            "cost": {"n_trials": 20},
-        }
-        for run in _RECOVERY_RUNS
-    ],
-    plot=plot_fixed_cost,
-    plot_description=(
-        "Twenty warm sum(u_T²) gradient timings per held-out recovery IC."
-        " Includes forward evaluation, VJP, and the selected Tesseract transport."
-    ),
 )
 
 # Single-IC agreement run gets its own plot entry so re-plot flows targeting

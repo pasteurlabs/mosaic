@@ -33,41 +33,24 @@ are a zero `16×16×16×3` field with the supported viscosity, time step, and
 horizon. Other physics are rejected before inference. All 2D and unmatched
 3D benchmark cells are excluded.
 
-The matched cells use the same random divergence-free ICs (seeds 0, 1, 2)
-and physical parameters for every participating solver:
+The surrogate participates in the existing
+`optimization/recovery_constant_ic_bfgs_proj` experiment, using the same random
+divergence-free ICs (seeds 0/1/2), physics, and 100-update projected L-BFGS
+optimizer as the other eligible solvers. It uses the standard result envelopes,
+field snapshots, status reporting, and recovery plots. No experiments or shared
+benchmark kernels are added or changed for this solver.
 
-| Experiment                                    | Quantity measured                                                                                                                  |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `forward/recovery_teacher`                    | Final-field relative L2 error against XLB, not an exact PDE solution                                                               |
-| `gradient/recovery_fd_check`                  | Each solver's `sum(u_T²)` gradient against its own central finite differences, ten shared directions and eight relative step sizes |
-| `cost/recovery_forward`                       | Twenty warm forward API calls per seed                                                                                             |
-| `cost/recovery_vjp`                           | Twenty warm `sum(u_T²)` gradient calls per seed, including forward and VJP                                                         |
-| `optimization/recovery_constant_ic_bfgs`      | Self-target IC recovery from zero, 100 unconstrained L-BFGS updates                                                                |
-| `optimization/recovery_constant_ic_bfgs_proj` | The same recovery with divergence-free gradient projection                                                                         |
-
-The forward comparison requires an XLB result; it never falls back to a
-surrogate-only consensus or a Taylor–Green analytic reference. Derivative
-consistency verifies the learned map's implementation, not agreement with
-the teacher's Jacobian. Recovery uses each solver's own observation, as in
-the existing benchmark, so it does not establish XLB-target inversion.
-
-Run both solvers through the normal CLI (Docker with GPU support required):
+Run it alongside XLB through the normal CLI (Docker with GPU support required):
 
 ```bash
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e forward/recovery_teacher
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e gradient/recovery_fd_check --no-build
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e cost/recovery_forward --no-build
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e cost/recovery_vjp --no-build
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e optimization/recovery_constant_ic_bfgs --no-build
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e optimization/recovery_constant_ic_bfgs_proj --no-build
+mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e optimization/recovery_constant_ic_bfgs_proj
 ```
 
-Each matched forward/gradient/cost experiment has `seed_0`, `seed_1`, and
-`seed_2` sub-results, with the standard JSON envelope, field snapshots, and
-plots. Timings exclude the warmup call but include the chosen API transport;
-they are not isolated neural-network kernel timings. XLB retains its default
-float64 path and the surrogate uses float32. Record the runtime, precision,
-GPU, transport, and raw trials when comparing results.
+Recovery uses each solver's own observation; it does not establish XLB-target
+inversion. Existing forward, gradient, and cost experiments have unsupported
+physics and are excluded. The comparisons below are archived offline validation,
+not additional registered cases in this PR. Supporting more existing benchmark
+settings requires a model trained for those settings.
 
 ## Training and checkpoint
 
@@ -82,12 +65,16 @@ fine-tuning.
 Checkpoint SHA-256:
 `1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f`.
 
-## Matched validation
+## Offline validation
 
-A fresh run of the registered cells (Slurm job `2869896`, RTX 5090) used
+An offline comparison (Slurm job `2869896`, RTX 5090) used
 seeds 0/1/2, 100 recovery updates, and 20 warm timing trials per seed. The
 checkpoint was unchanged. Means across the three seeds, or all 60 timing
 trials, are:
+
+Only projected recovery corresponds to a currently registered experiment. The
+other measurements used temporary registrations preserved in the archived
+[source](https://github.com/pasteurlabs/mosaic/tree/f5b89e1) and execution scripts.
 
 | Metric                                               |              XLB |        Surrogate |
 | ---------------------------------------------------- | ---------------: | ---------------: |
@@ -115,7 +102,7 @@ Docker build context was checked separately.
 [Raw benchmark envelopes, field snapshots, plots, summary script, and provenance](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results)
 are available separately from the solver source.
 
-![Matched solver benchmark: forward accuracy, API timings, recovery and finite differences](https://raw.githubusercontent.com/pasteurlabs/mosaic/37c9d6b/comparison.png)
+![Archived offline comparison: forward accuracy, API timings, recovery and finite differences](https://raw.githubusercontent.com/pasteurlabs/mosaic/37c9d6b/comparison.png)
 
 ## Inverse-model limitations
 
