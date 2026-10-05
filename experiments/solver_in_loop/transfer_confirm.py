@@ -145,6 +145,25 @@ class ConfirmationController(Controller):
             cell = f"reference-ic{seed}"
             self.submit(cell, "prepare", payload)
             cells.append(cell)
+        retry_manifest = self.campaign / "reference-infrastructure-retries.json"
+        if retry_manifest.exists():
+            reviewed = json.loads(retry_manifest.read_text())
+            if reviewed["source_sha256"] != self.plan["source_sha256"]:
+                raise RuntimeError("reference retry source identity differs")
+            self.state["reference_retry_manifest_sha256"] = digest(retry_manifest)
+            for retry in reviewed["retries"]:
+                original, replacement = retry["original_cell"], retry["retry_cell"]
+                if original not in cells or replacement in cells:
+                    raise ValueError("invalid reviewed reference retry mapping")
+                config = self.campaign / "configs" / f"{original}.json"
+                if digest(config) != retry["config_sha256"]:
+                    raise RuntimeError("reference retry changes frozen payload")
+                if original not in self.ready({original: None}):
+                    raise RuntimeError("cannot retry an active reference allocation")
+                self.submit(replacement, "prepare", json.loads(config.read_text()))
+                cells[cells.index(original)] = replacement
+            self.state["active_reference_cells"] = cells
+            self.save()
         self.wait(cells)
         failed = [cell for cell in cells if not self.outcome(cell).get("admitted")]
         if failed:

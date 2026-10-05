@@ -64,7 +64,8 @@ def main() -> None:
     if jax.default_backend() != "gpu":
         raise RuntimeError("diagnostic requires allocated GPU")
     cfg = get_config("ns-grid")
-    spec = next(s for s in cfg.solvers if s.key == payload["solver"].replace("-", "_"))
+    solver_key = payload["solver"].replace("-", "_")
+    spec = next(s for s in cfg.solvers if s.key.replace("-", "_") == solver_key)
     physics = dict(payload["run"]["physics"])
     dataset = payload["run"]["dataset"]
     extent = float(payload.get("domain_extent", 2 * np.pi))
