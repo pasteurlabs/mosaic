@@ -38,6 +38,28 @@ from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
+def _project_periodic_faces(faces: jnp.ndarray) -> jnp.ndarray:
+    """Project periodic 2D/3D MAC faces with discrete divergence/gradient symbols.
+
+    Relative spacings retain rectangular-grid geometry. The common physical
+    domain extent cancels; discrete symbols include the Nyquist modes.
+    """
+    shape = faces.shape[1:]
+    symbols = []
+    for axis, size in enumerate(shape):
+        symbol = (jnp.exp(2j * jnp.pi * jnp.fft.fftfreq(size)) - 1) * size
+        broadcast = [1] * len(shape)
+        broadcast[axis] = size
+        symbols.append(symbol.reshape(broadcast))
+    axes = tuple(range(1, faces.ndim))
+    transformed = jnp.fft.fftn(faces, axes=axes)
+    denominator = sum(jnp.abs(symbol) ** 2 for symbol in symbols)
+    divergence = sum(symbol * transformed[i] for i, symbol in enumerate(symbols))
+    pressure = divergence / jnp.where(denominator > 0, denominator, 1)
+    projected = transformed - jnp.stack([jnp.conj(s) * pressure for s in symbols])
+    return jnp.fft.ifftn(projected, axes=axes).real.astype(faces.dtype)
+
+
 class InputSchema(
     make_differentiable(
         _CanonicalInputSchema,
@@ -151,8 +173,9 @@ def phiflow_fwd(
 ) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
-    Uses semi-Lagrangian advection, explicit diffusion, and pressure projection
-    for incompressibility on a periodic domain. Dimensionality is inferred from
+    Uses projected SSPRK3 for obstacle-free periodic flow. Other boundaries
+    retain their existing integration paths. Explicit advection and diffusion
+    require appropriate timesteps. Dimensionality is inferred from
     ``v0.shape[-1]`` (2 → 2D, 3 → 3D).
 
     Args:
@@ -364,11 +387,16 @@ def phiflow_fwd(
             0,
         )
 
+    # Inflow, walls and obstacles retain their existing stepping/projection paths.
+    use_periodic_ssprk3 = periodic and not obstacles and inflow_profile is None
+
     # The periodic pressure projection is linear. Defining it once lets both
     # recurrent correction assimilation and the time step share its VJP.
     _cg_solve = math.Solve("CG", 1e-10, 1e-10)
 
     def project_periodic_faces_impl(face_arr: jnp.ndarray) -> jnp.ndarray:
+        if use_periodic_ssprk3:
+            return _project_periodic_faces(face_arr)
         projected, _ = fluid.make_incompressible(
             faces_to_staggered(face_arr), (), solve=_cg_solve
         )
@@ -434,6 +462,23 @@ def phiflow_fwd(
             new_faces = jnp.stack([ux_f, uy_f], axis=0)
             # Accumulate both faces and pressure for RANS drag computation
             return new_faces, (new_faces, p_arr)
+
+    elif use_periodic_ssprk3:
+
+        def euler_stage(face_arr: jnp.ndarray) -> jnp.ndarray:
+            vel = faces_to_staggered(face_arr)
+            advection = staggered_to_faces(advect.differential(vel, vel))
+            # Both increments use the same stage input. Diffusing the already
+            # advected velocity would introduce a dt**2 splitting cross-term.
+            diffused = staggered_to_faces(diffuse.explicit(vel, viscosity, dt))
+            return project_periodic_faces(diffused + dt * advection)
+
+        def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
+            base = project_periodic_faces(face_arr)
+            stage1 = euler_stage(base)
+            stage2 = 0.75 * base + 0.25 * euler_stage(stage1)
+            final = (1.0 / 3.0) * base + (2.0 / 3.0) * euler_stage(stage2)
+            return final, None
 
     else:
         # Use explicit CG pressure solver to prevent numerical divergence in 3D
