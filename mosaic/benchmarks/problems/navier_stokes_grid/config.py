@@ -490,9 +490,9 @@ problem.add_experiment(
             "dataset": {
                 "reference_kind": "solver_self_refined",
                 "reference_factor": 2,
-                "reference_temporal_factor": 2,
+                "reference_temporal_factor": 4,
                 "reference_audit_factor": 2,
-                "reference_audit_temporal_factor": 4,
+                "reference_audit_temporal_factor": 8,
                 "reference_convergence_tolerance": 0.005,
                 "train_seeds": [0],
                 "test_seeds": [100],

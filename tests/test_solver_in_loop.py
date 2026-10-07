@@ -79,8 +79,8 @@ def test_public_corrector_is_one_bounded_same_solver_three_arm_benchmark():
     dataset = run["dataset"]
     assert dataset["reference_kind"] == "solver_self_refined"
     assert dataset["reference_factor"] == dataset["reference_audit_factor"] == 2
-    assert dataset["reference_temporal_factor"] == 2
-    assert dataset["reference_audit_temporal_factor"] == 4
+    assert dataset["reference_temporal_factor"] == 4
+    assert dataset["reference_audit_temporal_factor"] == 8
     assert dataset["reference_convergence_tolerance"] == 0.005
     assert set(dataset["train_seeds"]).isdisjoint(dataset["test_seeds"])
     assert dataset["train_frames"] == 8
