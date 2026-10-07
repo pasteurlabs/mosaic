@@ -27,7 +27,7 @@ def stats(value: np.ndarray, extent: float) -> dict:
     h = extent / u.shape[0]
     divergence = sum(
         (np.roll(u[..., i], -1, axis=i) - np.roll(u[..., i], 1, axis=i)) / (2 * h)
-        for i in range(2)
+        for i in range(u.shape[-1])
     )
     return {
         "finite": True,
@@ -43,6 +43,7 @@ def main() -> None:
     parser.add_argument("--api", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--n", type=int, default=64)
+    parser.add_argument("--ndim", type=int, choices=[2, 3], default=2)
     parser.add_argument("--factor", type=int, default=1)
     parser.add_argument("--burn-time", type=float, default=75)
     parser.add_argument("--initial", type=Path)
@@ -71,6 +72,17 @@ def main() -> None:
         initial[:, :, 0, 0] += amplitude * ky * np.cos(phase)
         initial[:, :, 0, 1] -= amplitude * kx * np.cos(phase)
     initial *= 0.5 / np.sqrt(np.mean(initial**2))
+    if args.ndim == 3:
+        x, y, z = np.meshgrid(*[np.arange(n) * extent / n] * 3, indexing="ij")
+        shear = np.zeros((n, n, n, 3), np.float32)
+        shear[..., 0] = np.sin(y)
+        initial = np.zeros_like(shear)
+        for wave in [(1, 0, 1), (0, 1, 1), (1, 1, 0), (2, -1, 1), (1, 2, -1)]:
+            k = np.asarray(wave)
+            coefficient = np.cross(k, rng.normal(size=3)) / np.dot(k, k)
+            phase = k[0] * x + k[1] * y + k[2] * z + rng.uniform(0, 2 * np.pi)
+            initial += (np.cos(phase)[..., None] * coefficient).astype(np.float32)
+        initial *= 0.5 / np.sqrt(np.mean(initial**2))
     if args.initial:
         initial = np.load(args.initial, allow_pickle=False).astype(np.float32)
         if initial.shape != shear.shape:
@@ -79,6 +91,7 @@ def main() -> None:
         "adapter_sha256": hashlib.sha256(args.api.read_bytes()).hexdigest(),
         "initial_sha256": hashlib.sha256(initial.tobytes()).hexdigest(),
         "device": str(wp.get_device(device)),
+        "ndim": args.ndim,
         "n": n,
         "dt": dt,
         "steps": steps,
@@ -92,7 +105,9 @@ def main() -> None:
     def forward(
         u: np.ndarray, viscosity: float = nu, timestep: float = dt, count: int = steps
     ) -> np.ndarray:
-        return api.ns2d_solve_forward(u, viscosity, timestep, count, extent, device)
+        return getattr(api, f"ns{args.ndim}d_solve_forward")(
+            u, viscosity, timestep, count, extent, device
+        )
 
     started = time.perf_counter()
     warm = forward(initial)
@@ -118,23 +133,23 @@ def main() -> None:
     cotangent = rng.normal(size=initial.shape).astype(np.float32)
     cotangent /= np.linalg.norm(cotangent)
     started = time.perf_counter()
-    tape, a, b, ia, ib, viscosity_leaf, dt_leaf = api.ns2d_solve_tape(
-        initial, nu, dt, steps, extent, device, track_scalar_grads=True
-    )
-    taped = np.stack([a.numpy(), b.numpy()], axis=-1)[:, :, None, :]
-    gradients = api.ns2d_vjp(
-        tape, a, b, ia, ib, cotangent, device, viscosity_leaf, dt_leaf
-    )
+    tape_call = getattr(api, f"ns{args.ndim}d_solve_tape")
+    vjp_call = getattr(api, f"ns{args.ndim}d_vjp")
+    current = tape_call(initial, nu, dt, steps, extent, device, track_scalar_grads=True)
+    taped = np.stack([v.numpy() for v in current[1 : 1 + args.ndim]], axis=-1)
+    if args.ndim == 2:
+        taped = taped[:, :, None, :]
+    gradients = vjp_call(*current[:-2], cotangent, device, *current[-2:])
     wp.synchronize()
     result["cold_forward_and_vjp_s"] = time.perf_counter() - started
     result["taped_forward_max_error"] = float(np.max(np.abs(taped - warm)))
     result["warm_forward_and_vjp_s"] = []
     for _ in range(3):
         started = time.perf_counter()
-        current = api.ns2d_solve_tape(
+        current = tape_call(
             initial, nu, dt, steps, extent, device, track_scalar_grads=True
         )
-        api.ns2d_vjp(*current[:5], cotangent, device, *current[5:])
+        vjp_call(*current[:-2], cotangent, device, *current[-2:])
         wp.synchronize()
         result["warm_forward_and_vjp_s"].append(time.perf_counter() - started)
     split = forward(forward(initial))
@@ -188,7 +203,10 @@ def main() -> None:
     three = api.ns3d_solve_forward(small, nu, 0.001, 2, extent, device)
     np.save(args.out / "three_dimensional.npy", three)
     force = np.zeros_like(initial)
-    force[:, :, 0, 0] = np.sin(6 * y)
+    if args.ndim == 2:
+        force[:, :, 0, 0] = np.sin(6 * y)
+    else:
+        force[..., 0] = np.sin(6 * y)
     value = initial.copy()
     trace = [{"time": 0.0, **stats(value, extent)}]
     started = time.perf_counter()

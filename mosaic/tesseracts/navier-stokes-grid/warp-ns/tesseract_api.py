@@ -5,8 +5,8 @@
 """GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
 
 Periodic projection solvers with FFT pressure solves and wp.Tape VJPs.
-The 2-D solver uses skew-symmetric advection and projected SSPRK3 with centered
-divergence/gradient operators. The 3-D solver retains its IPCS discretization.
+Both dimensions use skew-symmetric advection and projected SSPRK3 with centered
+divergence/gradient operators.
 """
 
 import contextlib
@@ -200,7 +200,7 @@ def tentative_vel_3d_kernel(
     inv_h2: float,
     nu: wp.array(dtype=wp.float32),
 ) -> None:
-    """3-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u).
+    """3-D tentative velocity with skew-symmetric centered advection.
 
     ``dt``/``nu`` are 1-element arrays (like the 2-D kernel) so the tape
     tracks gradients w.r.t. them when called from :func:`ns3d_solve_tape`;
@@ -237,6 +237,15 @@ def tentative_vel_3d_kernel(
         + vi * (ux[i, jp1, k] - ux[i, jm1, k]) * inv_2h
         + wi * (ux[i, j, kp1] - ux[i, j, km1]) * inv_2h
     )
+    conservative_ux = (
+        ux[ip1, j, k] * ux[ip1, j, k]
+        - ux[im1, j, k] * ux[im1, j, k]
+        + uy[i, jp1, k] * ux[i, jp1, k]
+        - uy[i, jm1, k] * ux[i, jm1, k]
+        + uz[i, j, kp1] * ux[i, j, kp1]
+        - uz[i, j, km1] * ux[i, j, km1]
+    ) * inv_2h
+    adv_ux = 0.5 * (adv_ux + conservative_ux)
     ux_star[i, j, k] = ui + dt_ * (-adv_ux + nu_ * lap_ux)
 
     # uy component
@@ -254,6 +263,15 @@ def tentative_vel_3d_kernel(
         + vi * (uy[i, jp1, k] - uy[i, jm1, k]) * inv_2h
         + wi * (uy[i, j, kp1] - uy[i, j, km1]) * inv_2h
     )
+    conservative_uy = (
+        ux[ip1, j, k] * uy[ip1, j, k]
+        - ux[im1, j, k] * uy[im1, j, k]
+        + uy[i, jp1, k] * uy[i, jp1, k]
+        - uy[i, jm1, k] * uy[i, jm1, k]
+        + uz[i, j, kp1] * uy[i, j, kp1]
+        - uz[i, j, km1] * uy[i, j, km1]
+    ) * inv_2h
+    adv_uy = 0.5 * (adv_uy + conservative_uy)
     uy_star[i, j, k] = vi + dt_ * (-adv_uy + nu_ * lap_uy)
 
     # uz component
@@ -271,6 +289,15 @@ def tentative_vel_3d_kernel(
         + vi * (uz[i, jp1, k] - uz[i, jm1, k]) * inv_2h
         + wi * (uz[i, j, kp1] - uz[i, j, km1]) * inv_2h
     )
+    conservative_uz = (
+        ux[ip1, j, k] * uz[ip1, j, k]
+        - ux[im1, j, k] * uz[im1, j, k]
+        + uy[i, jp1, k] * uz[i, jp1, k]
+        - uy[i, jm1, k] * uz[i, jm1, k]
+        + uz[i, j, kp1] * uz[i, j, kp1]
+        - uz[i, j, km1] * uz[i, j, km1]
+    ) * inv_2h
+    adv_uz = 0.5 * (adv_uz + conservative_uz)
     uz_star[i, j, k] = wi + dt_ * (-adv_uz + nu_ * lap_uz)
 
 
@@ -926,37 +953,18 @@ def _poisson_workspace_2d(n: int, device: str) -> dict:
 def _inv_lambda_3d(
     n: int, domain_extent: float, device: str, permute: tuple | None = None
 ) -> wp.array:
-    """Precompute 1/λ for the 3-D discrete-FD-eigenvalue spectral Poisson solve.
-
-    Uses the discrete finite-difference Laplacian eigenvalues:
-        λ_disc(kx, ky, kz) = -(4/h²)(sin²(πkx/N) + sin²(πky/N) + sin²(πkz/N))
-    where h = L/N and kx,ky,kz are integer wavenumbers. This matches the
-    stencil used by tentative_vel_3d_kernel and pressure_correct_3d_kernel
-    (both use inv_h2 = 1/h² and inv_2h = 1/(2h) central differences), making
-    the spectral solve the exact inverse of the discrete FD Laplacian.
-
-    Using continuous eigenvalues -(2π/L)²k² instead introduces a ~(πk/N)²/3
-    relative error per wavenumber (≈1.3% at k=1, N=16), which compounds across
-    the VJP chain and causes a flat-plateau gradient magnitude bias in the
-    fd_check — see discussion recommendation #7 (preserve discretization).
-
-    ``permute`` optionally applies an axis permutation to the returned array:
-    the eigenvalue formula is symmetric in kx/ky/kz, so a permuted copy of
-    this array can be indexed against an intermediate FFT buffer that is
-    itself axis-permuted (e.g. the pre-axis-swap layout inside the fused
-    middle FFT/multiply/IFFT kernel) without changing the underlying values.
-    """
-    h = domain_extent / n
-    kfreq = np.fft.fftfreq(n, d=1.0 / n)
-    kx, ky, kz = np.meshgrid(kfreq, kfreq, kfreq, indexing="ij")
-    lam = -(4.0 / h**2) * (
-        np.sin(np.pi * kx / n) ** 2
-        + np.sin(np.pi * ky / n) ** 2
-        + np.sin(np.pi * kz / n) ** 2
+    """Invert centered D·G in 3-D, preserving joint DC/Nyquist null modes."""
+    symbol = np.sin(2 * np.pi * np.fft.fftfreq(n)) * n / domain_extent
+    symbol[0] = 0.0
+    if n % 2 == 0:
+        symbol[n // 2] = 0.0
+    lam = -(
+        symbol[:, None, None] ** 2
+        + symbol[None, :, None] ** 2
+        + symbol[None, None, :] ** 2
     )
     inv_lambda = np.zeros_like(lam)
-    nonzero = lam != 0
-    inv_lambda[nonzero] = 1.0 / lam[nonzero]
+    np.divide(1.0, lam, out=inv_lambda, where=lam != 0)
     if permute is not None:
         inv_lambda = np.transpose(inv_lambda, permute)
     return wp.array3d(
@@ -1287,28 +1295,81 @@ def _rk3_blend_kernel(
     )
 
 
-def _ns2d_solve(
-    v0, viscosity, dt, steps, domain_extent, device, record, track_scalar_grads
-):
-    n = v0.shape[0]
-    inv_2h, inv_h2 = 0.5 * n / domain_extent, (n / domain_extent) ** 2
+@wp.kernel
+def _rk3_blend_3d_kernel(
+    original_x: wp.array3d(dtype=wp.float32),
+    original_y: wp.array3d(dtype=wp.float32),
+    original_z: wp.array3d(dtype=wp.float32),
+    advanced_x: wp.array3d(dtype=wp.float32),
+    advanced_y: wp.array3d(dtype=wp.float32),
+    advanced_z: wp.array3d(dtype=wp.float32),
+    result_x: wp.array3d(dtype=wp.float32),
+    result_y: wp.array3d(dtype=wp.float32),
+    result_z: wp.array3d(dtype=wp.float32),
+    original_weight: float,
+    advanced_weight: float,
+) -> None:
+    i, j, k = wp.tid()
+    result_x[i, j, k] = (
+        original_weight * original_x[i, j, k] + advanced_weight * advanced_x[i, j, k]
+    )
+    result_y[i, j, k] = (
+        original_weight * original_y[i, j, k] + advanced_weight * advanced_y[i, j, k]
+    )
+    result_z[i, j, k] = (
+        original_weight * original_z[i, j, k] + advanced_weight * advanced_z[i, j, k]
+    )
 
+
+def _ns_solve(
+    v0,
+    viscosity,
+    dt,
+    steps,
+    domain_extent,
+    device,
+    record,
+    track_scalar_grads,
+    adjoint_grad_clip=None,
+):
+    """Share projection, SSPRK3 stages and buffer policies between dimensions."""
+    n, ndim = v0.shape[0], v0.shape[-1]
+    shape = (n,) * ndim
+    inv_2h, inv_h2 = 0.5 * n / domain_extent, (n / domain_extent) ** 2
+    if ndim == 2:
+        tentative = tentative_vel_2d_kernel
+        divergence_kernel = divergence_2d_to_complex_kernel
+        correction = pressure_correct_2d_from_complex_kernel
+        poisson = _spectral_poisson_2d_core
+        blend_kernel = _rk3_blend_kernel
+        workspace = None if record else _poisson_workspace_2d(n, device)
+    else:
+        tentative = tentative_vel_3d_kernel
+        divergence_kernel = divergence_3d_to_complex_kernel
+        correction = pressure_correct_3d_from_complex_kernel
+        poisson = _spectral_poisson_3d_core
+        blend_kernel = _rk3_blend_3d_kernel
+        workspace = None if record else _poisson_workspace_3d(n, device)
     buffers = {}
 
     def zeros(name, dtype=wp.float32):
-        # Reuse scratch only off-tape; reverse mode needs every stage's values.
+        # Every taped stage owns its data; only untaped execution reuses buffers.
         if record or name not in buffers:
-            result = wp.zeros((n, n), dtype=dtype, device=device, requires_grad=record)
+            result = wp.zeros(shape, dtype=dtype, device=device, requires_grad=record)
             if record:
                 return result
             buffers[name] = result
         return buffers[name]
 
-    initial_x = wp.array(
-        v0[:, :, 0, 0], dtype=wp.float32, device=device, requires_grad=record
-    )
-    initial_y = wp.array(
-        v0[:, :, 0, 1], dtype=wp.float32, device=device, requires_grad=record
+    def vector(label):
+        return tuple(zeros(f"{label}_{axis}") for axis in range(ndim))
+
+    canonical = v0[:, :, 0, :] if ndim == 2 else v0
+    initial = tuple(
+        wp.array(
+            canonical[..., axis], dtype=wp.float32, device=device, requires_grad=record
+        )
+        for axis in range(ndim)
     )
     nu = wp.array(
         np.asarray([viscosity], dtype=np.float32),
@@ -1322,77 +1383,57 @@ def _ns2d_solve(
         device=device,
         requires_grad=record and track_scalar_grads,
     )
-    workspace = None if record else _poisson_workspace_2d(n, device)
 
-    def project(star_x, star_y, label):
+    def launch(kernel, inputs):
+        wp.launch(kernel, dim=shape, inputs=inputs, block_dim=256, device=device)
+
+    def project(velocity, label):
         divergence = zeros("divergence", wp.vec2f)
-        wp.launch(
-            divergence_2d_to_complex_kernel,
-            dim=(n, n),
-            inputs=[star_x, star_y, divergence, timestep, inv_2h],
-            block_dim=256,
-            device=device,
+        launch(divergence_kernel, [*velocity, divergence, timestep, inv_2h])
+        pressure = poisson(divergence, domain_extent, device, workspace=workspace)
+        output = vector(label)
+        launch(
+            correction, [*velocity, pressure, float(n**ndim), *output, timestep, inv_2h]
         )
-        pressure = _spectral_poisson_2d_core(
-            divergence, domain_extent, device, workspace=workspace
-        )
-        next_x, next_y = zeros(label + "_x"), zeros(label + "_y")
-        wp.launch(
-            pressure_correct_2d_from_complex_kernel,
-            dim=(n, n),
-            inputs=[
-                star_x,
-                star_y,
-                pressure,
-                float(n * n),
-                next_x,
-                next_y,
-                timestep,
-                inv_2h,
-            ],
-            block_dim=256,
-            device=device,
-        )
-        return next_x, next_y
+        return output
 
-    def advance(x, y, label):
-        star_x, star_y = zeros("star_x"), zeros("star_y")
-        wp.launch(
-            tentative_vel_2d_kernel,
-            dim=(n, n),
-            inputs=[x, y, star_x, star_y, timestep, inv_2h, inv_h2, nu],
-            block_dim=256,
-            device=device,
-        )
-        return project(star_x, star_y, label)
+    def advance(velocity, label):
+        star = vector("star")
+        launch(tentative, [*velocity, *star, timestep, inv_2h, inv_h2, nu])
+        return project(star, label)
 
-    def blend(original_x, original_y, advanced_x, advanced_y, a, b, label):
-        x, y = zeros(label + "_x"), zeros(label + "_y")
-        wp.launch(
-            _rk3_blend_kernel,
-            dim=(n, n),
-            inputs=[original_x, original_y, advanced_x, advanced_y, x, y, a, b],
-            block_dim=256,
-            device=device,
-        )
-        return x, y
+    def blend(original, advanced, a, b, label):
+        output = vector(label)
+        launch(blend_kernel, [*original, *advanced, *output, a, b])
+        return output
 
     tape = wp.Tape() if record else None
     with tape if record else contextlib.nullcontext():
-        x, y = initial_x, initial_y
+        velocity = initial
         if steps > 0:
-            # The canonical input need not satisfy this discretization's
-            # divergence constraint. Project before all SSPRK convex blends.
-            x, y = project(x, y, "initial")
+            # Canonical inputs need not satisfy the centered divergence constraint.
+            velocity = project(velocity, "initial")
         for _ in range(steps):
-            first_x, first_y = advance(x, y, "first")
-            second_x, second_y = advance(first_x, first_y, "second")
-            second_x, second_y = blend(
-                x, y, second_x, second_y, 0.75, 0.25, "second_blend"
-            )
-            third_x, third_y = advance(second_x, second_y, "third")
-            x, y = blend(x, y, third_x, third_y, 1 / 3, 2 / 3, "final")
-    return tape, x, y, initial_x, initial_y, nu, timestep
+            if (
+                record
+                and ndim == 3
+                and adjoint_grad_clip is not None
+                and adjoint_grad_clip > 0
+            ):
+                # Preserve the private, opt-in legacy guard. Public VJPs never
+                # enable it; finite-difference validation uses the exact tape.
+                def clip_adjoint(parents=velocity, clip=float(adjoint_grad_clip)):
+                    for parent in parents:
+                        if parent.grad is not None:
+                            launch(_clip_and_sanitize_3d_kernel, [parent.grad, clip])
+
+                tape.record_func(backward=clip_adjoint, arrays=list(velocity))
+            first = advance(velocity, "first")
+            second = advance(first, "second")
+            second = blend(velocity, second, 0.75, 0.25, "second_blend")
+            third = advance(second, "third")
+            velocity = blend(velocity, third, 1 / 3, 2 / 3, "final")
+    return tape, *velocity, *initial, nu, timestep
 
 
 def ns2d_solve_tape(
@@ -1405,7 +1446,7 @@ def ns2d_solve_tape(
     track_scalar_grads: bool = False,
 ) -> tuple:
     """Record input projection and SSPRK3 stages, with distinct tape buffers."""
-    return _ns2d_solve(
+    return _ns_solve(
         v0_np, viscosity, dt, steps, domain_extent, device, True, track_scalar_grads
     )
 
@@ -1419,7 +1460,7 @@ def ns2d_solve_forward(
     device: str = "cpu",
 ) -> np.ndarray:
     """Use identical projected SSPRK3 arithmetic with reusable forward buffers."""
-    _, x, y, *_ = _ns2d_solve(
+    _, x, y, *_ = _ns_solve(
         v0_np, viscosity, dt, steps, domain_extent, device, False, False
     )
     return np.stack([x.numpy(), y.numpy()], axis=-1)[:, :, None, :]
@@ -1490,221 +1531,18 @@ def ns3d_solve_tape(
     device: str = "cpu",
     adjoint_grad_clip: float | None = None,
     track_scalar_grads: bool = False,
-) -> tuple[
-    wp.Tape,
-    wp.array,
-    wp.array,
-    wp.array,
-    wp.array,
-    wp.array,
-    wp.array,
-    wp.array,
-    wp.array,
-]:
-    """Run 3-D incompressible NS via IPCS (Chorin-Temam) under a tape.
-
-    Used only by :func:`vector_jacobian_product` — see :func:`ns3d_solve_forward`
-    for the plain-forward path used by :func:`apply`. Uses Warp's native
-    reverse-mode AD for every kernel (verified to agree with a from-scratch
-    analytical adjoint and a central-FD ground truth to float32 roundoff).
-    Each step allocates fresh output buffers instead of ping-ponging between
-    two reused buffers, so the tape's per-step data dependencies are
-    unambiguous and no manual adjoint-zeroing is needed.
-
-    ``nu``/``dt`` are passed to kernels as 1-element arrays (like the 2-D
-    solver) so the tape can track gradients w.r.t. them — previously this
-    path always returned zero for viscosity/dt (schema advertised them as
-    differentiable but the 3-D kernels only accepted plain floats).
-
-    ``track_scalar_grads`` gates ``requires_grad`` on the ``nu``/``dt``
-    arrays: leave it False unless the caller actually requested a viscosity
-    or dt gradient. Measured ~50% higher 3-D VJP wall-clock when these are
-    unconditionally grad-tracked, even though they are 1-element arrays —
-    each additional requires_grad=True array adds bookkeeping to every tape
-    node that reads it, across every timestep. Must not be unconditional
-    when the caller only wants d(loss)/d(v0).
-
-    Unlike a plain forward solve, this does NOT materialize the final result
-    as a NumPy array — the caller (VJP) only needs the tape and Warp arrays,
-    so skipping that device->host copy avoids a wasted sync.
-
-    Returns:
-        (tape, ux_final_wp, uy_final_wp, uz_final_wp,
-         ux_ic_wp, uy_ic_wp, uz_ic_wp, nu_wp, dt_wp)
-        The final velocity Warp arrays have requires_grad=True so
-        tape.backward() fills their .grad attributes.  nu_wp / dt_wp are
-        (1,) scalar leaves; their grads are filled directly by tape.backward()
-        only when track_scalar_grads=True (otherwise .grad stays None).
-    """
-    n = v0_np.shape[0]
-    h = domain_extent / n
-    h2 = h * h
-    inv_2h = 0.5 / h
-    inv_h2 = 1.0 / h2
-
-    # Warp 1.12+ requires block_dim as int (256 = 16×16 or 8×8×4).
-    _bd_3d = 256
-
-    ux_wp = wp.array(
-        v0_np[:, :, :, 0], dtype=wp.float32, requires_grad=True, device=device
-    )
-    uy_wp = wp.array(
-        v0_np[:, :, :, 1], dtype=wp.float32, requires_grad=True, device=device
-    )
-    uz_wp = wp.array(
-        v0_np[:, :, :, 2], dtype=wp.float32, requires_grad=True, device=device
-    )
-    nu_wp = wp.array(
-        np.array([viscosity], dtype=np.float32),
-        dtype=wp.float32,
-        requires_grad=track_scalar_grads,
-        device=device,
-    )
-    dt_wp = wp.array(
-        np.array([dt], dtype=np.float32),
-        dtype=wp.float32,
-        requires_grad=track_scalar_grads,
-        device=device,
-    )
-
-    tape = wp.Tape()
-    with tape:
-        cur_ux, cur_uy, cur_uz = ux_wp, uy_wp, uz_wp
-
-        for _step_i in range(steps):
-            # ── Per-step adjoint gradient clipping (stability guard) ───────────
-            # Registered before this step's kernels run; because record_func is
-            # LIFO, this fires LAST in the step's backward — after
-            # tentative_vel's auto-adjoint has written into cur_u{x,y,z}.grad.
-            # Clipping the per-timestep adjoint prevents float32 overflow in the
-            # IPCS adjoint at turbulent high-Re regimes without altering the
-            # gradient direction when ||adj||_inf is already within bounds.
-            # Only active when adjoint_grad_clip is set (>0).
-            if adjoint_grad_clip is not None and adjoint_grad_clip > 0:
-                _vx_cur, _vy_cur, _vz_cur = cur_ux, cur_uy, cur_uz
-                _clip = float(adjoint_grad_clip)
-                _d_clip = device
-                _n_clip = n
-
-                def _clip_cur_adj(
-                    _vx=_vx_cur,
-                    _vy=_vy_cur,
-                    _vz=_vz_cur,
-                    _c=_clip,
-                    _d=_d_clip,
-                    _n=_n_clip,
-                ):
-                    """Clip cur_u{x,y,z}.grad element-wise into [-c, c] via a Warp kernel.
-
-                    Prevents float32 overflow in the IPCS adjoint at high-Re and
-                    replaces NaN/Inf with 0 as a hard safety fallback.  GPU-native
-                    (no numpy round-trip) so per-step cost is negligible.
-                    """
-                    for parent in (_vx, _vy, _vz):
-                        if parent.grad is None:
-                            continue
-                        _wlaunch(
-                            _clip_and_sanitize_3d_kernel,
-                            dim=(_n, _n, _n),
-                            inputs=[parent.grad, _c],
-                            block_dim=_bd_3d,
-                            device=_d,
-                        )
-
-                tape.record_func(
-                    backward=_clip_cur_adj,
-                    arrays=[cur_ux, cur_uy, cur_uz],
-                )
-
-            # Step 1: tentative velocity u* = u + dt·(-u·∇u + ν∇²u)
-            ux_star = wp.zeros(
-                (n, n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            uy_star = wp.zeros(
-                (n, n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            uz_star = wp.zeros(
-                (n, n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            wp.launch(
-                tentative_vel_3d_kernel,
-                dim=(n, n, n),
-                inputs=[
-                    cur_ux,
-                    cur_uy,
-                    cur_uz,
-                    ux_star,
-                    uy_star,
-                    uz_star,
-                    dt_wp,
-                    inv_2h,
-                    inv_h2,
-                    nu_wp,
-                ],
-                block_dim=_bd_3d,
-                device=device,
-            )
-
-            # Step 2: pressure Poisson ∇²p = ∇·u*/dt (periodic, spectral FFT).
-            # divergence_3d_to_complex_kernel fuses the divergence computation
-            # with the real->complex pack that would otherwise precede the
-            # first FFT stage (discussion recommendation #2).
-            div_star_c = wp.zeros(
-                (n, n, n), dtype=wp.vec2f, requires_grad=True, device=device
-            )
-            _wlaunch(
-                divergence_3d_to_complex_kernel,
-                dim=(n, n, n),
-                inputs=[ux_star, uy_star, uz_star, div_star_c, dt_wp, inv_2h],
-                block_dim=_bd_3d,
-                device=device,
-            )
-            p_c = _spectral_poisson_3d_core(div_star_c, domain_extent, device)
-
-            # Step 3: velocity correction u^(n+1) = u* - dt·∇p.
-            # pressure_correct_3d_from_complex_kernel fuses the "extract real +
-            # normalize" step with the pressure-correction kernel, reading p
-            # directly out of the complex IFFT output (recommendation #2).
-            next_ux = wp.zeros(
-                (n, n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            next_uy = wp.zeros(
-                (n, n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            next_uz = wp.zeros(
-                (n, n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            _wlaunch(
-                pressure_correct_3d_from_complex_kernel,
-                dim=(n, n, n),
-                inputs=[
-                    ux_star,
-                    uy_star,
-                    uz_star,
-                    p_c,
-                    float(n * n * n),
-                    next_ux,
-                    next_uy,
-                    next_uz,
-                    dt_wp,
-                    inv_2h,
-                ],
-                block_dim=_bd_3d,
-                device=device,
-            )
-
-            cur_ux, cur_uy, cur_uz = next_ux, next_uy, next_uz
-
-    return (
-        tape,
-        cur_ux,
-        cur_uy,
-        cur_uz,
-        ux_wp,
-        uy_wp,
-        uz_wp,
-        nu_wp,
-        dt_wp,
+) -> tuple:
+    """Record projected SSPRK3 in 3-D, using the same stages as 2-D."""
+    return _ns_solve(
+        v0_np,
+        viscosity,
+        dt,
+        steps,
+        domain_extent,
+        device,
+        True,
+        track_scalar_grads,
+        adjoint_grad_clip=adjoint_grad_clip,
     )
 
 
@@ -1716,98 +1554,11 @@ def ns3d_solve_forward(
     domain_extent: float,
     device: str = "cpu",
 ) -> np.ndarray:
-    """Forward-only 3-D incompressible NS via IPCS — no gradients.
-
-    Same physics as :func:`ns3d_solve_tape`, but structurally distinct (discussion
-    recommendation: separate buffer policies for forward vs. taped
-    execution): no ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
-    velocity buffers per component reused every step instead of fresh
-    per-step allocations, and one pre-allocated FFT workspace reused across
-    all steps.
-    """
-    n = v0_np.shape[0]
-    h = domain_extent / n
-    inv_2h = 0.5 / h
-    inv_h2 = 1.0 / (h * h)
-    _bd_3d = 256
-
-    vel_bufs_x = [
-        wp.array(v0_np[:, :, :, 0], dtype=wp.float32, device=device),
-        wp.zeros((n, n, n), dtype=wp.float32, device=device),
-    ]
-    vel_bufs_y = [
-        wp.array(v0_np[:, :, :, 1], dtype=wp.float32, device=device),
-        wp.zeros((n, n, n), dtype=wp.float32, device=device),
-    ]
-    vel_bufs_z = [
-        wp.array(v0_np[:, :, :, 2], dtype=wp.float32, device=device),
-        wp.zeros((n, n, n), dtype=wp.float32, device=device),
-    ]
-
-    ux_star = wp.zeros((n, n, n), dtype=wp.float32, device=device)
-    uy_star = wp.zeros((n, n, n), dtype=wp.float32, device=device)
-    uz_star = wp.zeros((n, n, n), dtype=wp.float32, device=device)
-    div_star_c = wp.zeros((n, n, n), dtype=wp.vec2f, device=device)
-    poisson_ws = _poisson_workspace_3d(n, device)
-    nu_wp = wp.array(
-        np.array([viscosity], dtype=np.float32), dtype=wp.float32, device=device
+    """Run projected SSPRK3 in 3-D with reusable untaped stage buffers."""
+    _, x, y, z, *_ = _ns_solve(
+        v0_np, viscosity, dt, steps, domain_extent, device, False, False
     )
-    dt_wp = wp.array(np.array([dt], dtype=np.float32), dtype=wp.float32, device=device)
-
-    src, dst = 0, 1
-    for _step_i in range(steps):
-        wp.launch(
-            tentative_vel_3d_kernel,
-            dim=(n, n, n),
-            inputs=[
-                vel_bufs_x[src],
-                vel_bufs_y[src],
-                vel_bufs_z[src],
-                ux_star,
-                uy_star,
-                uz_star,
-                dt_wp,
-                inv_2h,
-                inv_h2,
-                nu_wp,
-            ],
-            block_dim=_bd_3d,
-            device=device,
-        )
-        wp.launch(
-            divergence_3d_to_complex_kernel,
-            dim=(n, n, n),
-            inputs=[ux_star, uy_star, uz_star, div_star_c, dt_wp, inv_2h],
-            block_dim=_bd_3d,
-            device=device,
-        )
-        p_c = _spectral_poisson_3d_core(
-            div_star_c, domain_extent, device, workspace=poisson_ws
-        )
-        wp.launch(
-            pressure_correct_3d_from_complex_kernel,
-            dim=(n, n, n),
-            inputs=[
-                ux_star,
-                uy_star,
-                uz_star,
-                p_c,
-                float(n * n * n),
-                vel_bufs_x[dst],
-                vel_bufs_y[dst],
-                vel_bufs_z[dst],
-                dt_wp,
-                inv_2h,
-            ],
-            block_dim=_bd_3d,
-            device=device,
-        )
-        src, dst = dst, src
-
-    ux_out = vel_bufs_x[src].numpy()
-    uy_out = vel_bufs_y[src].numpy()
-    uz_out = vel_bufs_z[src].numpy()
-    return np.stack([ux_out, uy_out, uz_out], axis=-1)  # (N,N,N,3)
+    return np.stack([x.numpy(), y.numpy(), z.numpy()], axis=-1)
 
 
 def ns3d_vjp(
@@ -1823,7 +1574,7 @@ def ns3d_vjp(
     nu_wp: "wp.array | None" = None,
     dt_wp: "wp.array | None" = None,
 ) -> dict[str, np.ndarray]:
-    """Propagate cotangents through the 3-D IPCS tape.
+    """Propagate cotangents through the input projection and 3-D SSPRK3 tape.
 
     v0, viscosity, and dt are all ordinary tape leaves (nu_wp/dt_wp are the
     1-element arrays passed into tentative_vel_3d_kernel,

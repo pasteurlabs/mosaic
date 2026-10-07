@@ -62,20 +62,13 @@ def main() -> None:
         shape = (n,) * dimensions
         rhs = rng.normal(size=shape).astype(np.float32)
         waves = np.meshgrid(*[np.fft.fftfreq(n, d=1 / n)] * dimensions, indexing="ij")
-        if dimensions == 2:
-            # D·G for centered divergence/gradient, including joint Nyquist nulls.
-            symbols = []
-            for k in waves:
-                symbol = np.sin(2 * np.pi * k / n) * n / (2 * np.pi)
-                symbol[(k == 0) | (np.abs(k) == n / 2)] = 0
-                symbols.append(symbol)
-            eigenvalues = -sum(symbol**2 for symbol in symbols)
-        else:
-            eigenvalues = (
-                -4
-                / (2 * np.pi / n) ** 2
-                * sum(np.sin(np.pi * k / n) ** 2 for k in waves)
-            )
+        # Centered D·G in both dimensions, including all joint Nyquist nulls.
+        symbols = []
+        for k in waves:
+            symbol = np.sin(2 * np.pi * k / n) * n / (2 * np.pi)
+            symbol[(k == 0) | (np.abs(k) == n / 2)] = 0
+            symbols.append(symbol)
+        eigenvalues = -sum(symbol**2 for symbol in symbols)
         inverse = np.zeros(shape)
         np.divide(1, eigenvalues, out=inverse, where=eigenvalues != 0)
         solve = (
