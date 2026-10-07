@@ -1,0 +1,68 @@
+{
+  "device": "[CudaDevice(id=0)]",
+  "rows": [
+    {
+      "variant": "baseline",
+      "n": 64,
+      "ndim": 2,
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "first_four_steps_s": 0.8625392699614167,
+      "warmed_four_steps_s": 0.0002621565363369882
+    },
+    {
+      "variant": "baseline",
+      "n": 192,
+      "ndim": 2,
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "first_four_steps_s": 1.1110245420131832,
+      "warmed_four_steps_s": 0.00048457100056111815
+    },
+    {
+      "variant": "baseline",
+      "n": 32,
+      "ndim": 3,
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "first_four_steps_s": 1.6599625569069758,
+      "warmed_four_steps_s": 0.00043895199972515306
+    },
+    {
+      "variant": "baseline",
+      "n": 64,
+      "ndim": 3,
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "error": "ValueError('index -2147479552 is out of bounds for array with size 68719476736')"
+    },
+    {
+      "variant": "candidate",
+      "n": 64,
+      "ndim": 2,
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "first_four_steps_s": 0.8258394830627367,
+      "warmed_four_steps_s": 0.0005308659980073571
+    },
+    {
+      "variant": "candidate",
+      "n": 192,
+      "ndim": 2,
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "first_four_steps_s": 1.022620859905146,
+      "warmed_four_steps_s": 0.0009077293992352983
+    },
+    {
+      "variant": "candidate",
+      "n": 32,
+      "ndim": 3,
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "first_four_steps_s": 1.7039969849865884,
+      "warmed_four_steps_s": 0.0007636077313994368
+    },
+    {
+      "variant": "candidate",
+      "n": 64,
+      "ndim": 3,
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "first_four_steps_s": 5.255121550988406,
+      "warmed_four_steps_s": 0.0013586326657483974
+    }
+  ]
+}

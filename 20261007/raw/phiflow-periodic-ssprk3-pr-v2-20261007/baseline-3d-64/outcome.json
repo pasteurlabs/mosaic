@@ -1,0 +1,19 @@
+{
+  "report": {
+    "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+    "resolution": 64,
+    "ndim": 3,
+    "dt": 0.01,
+    "duration": 75,
+    "nu": 0.001,
+    "seed": 0,
+    "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+    "device": "[CudaDevice(id=0)]",
+    "jax_version": "0.10.0",
+    "completed": false,
+    "error": "ValueError('index -2147479552 is out of bounds for array with size 68719476736')",
+    "wall_time_s": 1.0361915630055591,
+    "last_finite_time": 0
+  },
+  "trajectory": []
+}

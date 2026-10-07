@@ -1,0 +1,1037 @@
+{
+  "report": {
+    "adapter_sha256": "cd0e7cc747d2be27327c3644de25a55e0b178476b792092472a132658e7d6d90",
+    "resolution": 64,
+    "ndim": 3,
+    "dt": 0.01,
+    "duration": 75,
+    "nu": 0.001,
+    "seed": 0,
+    "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+    "device": "[CudaDevice(id=0)]",
+    "jax_version": "0.10.0",
+    "completed": false,
+    "first_call_s": 4.313982103019953,
+    "error": "FloatingPointError('Nonfinite forward trajectory')",
+    "wall_time_s": 43.83251305704471,
+    "last_finite_time": 5.01
+  },
+  "trajectory": [
+    {
+      "time": 0.01,
+      "finite": true,
+      "energy": 0.0033339583314955235,
+      "max_speed": 0.1555807739496231,
+      "native_divergence_rms": 6.610648028981814e-08,
+      "elapsed_s": 4.325851139030419
+    },
+    {
+      "time": 0.05,
+      "finite": true,
+      "energy": 0.0059195151552557945,
+      "max_speed": 0.19462747871875763,
+      "native_divergence_rms": 1.0830223118318827e-07,
+      "elapsed_s": 11.622182461083867
+    },
+    {
+      "time": 0.09,
+      "finite": true,
+      "energy": 0.00929249171167612,
+      "max_speed": 0.2336178719997406,
+      "native_divergence_rms": 1.3193596259952756e-07,
+      "elapsed_s": 11.772341480012983
+    },
+    {
+      "time": 0.13,
+      "finite": true,
+      "energy": 0.013449529185891151,
+      "max_speed": 0.2725512981414795,
+      "native_divergence_rms": 1.4043462215340696e-07,
+      "elapsed_s": 12.012926861993037
+    },
+    {
+      "time": 0.17,
+      "finite": true,
+      "energy": 0.018387265503406525,
+      "max_speed": 0.31142672896385193,
+      "native_divergence_rms": 2.002526002797822e-07,
+      "elapsed_s": 12.169692193041556
+    },
+    {
+      "time": 0.21,
+      "finite": true,
+      "energy": 0.024102315306663513,
+      "max_speed": 0.35027042031288147,
+      "native_divergence_rms": 2.4077621674223337e-07,
+      "elapsed_s": 12.28637929004617
+    },
+    {
+      "time": 0.25,
+      "finite": true,
+      "energy": 0.03059137426316738,
+      "max_speed": 0.3891024589538574,
+      "native_divergence_rms": 2.4321164460161526e-07,
+      "elapsed_s": 12.404007010045461
+    },
+    {
+      "time": 0.29,
+      "finite": true,
+      "energy": 0.037851039320230484,
+      "max_speed": 0.42788130044937134,
+      "native_divergence_rms": 2.5778535928111523e-07,
+      "elapsed_s": 12.538900047075003
+    },
+    {
+      "time": 0.33,
+      "finite": true,
+      "energy": 0.04587794095277786,
+      "max_speed": 0.46660545468330383,
+      "native_divergence_rms": 2.7111173039884306e-07,
+      "elapsed_s": 12.687117049004883
+    },
+    {
+      "time": 0.37,
+      "finite": true,
+      "energy": 0.05466873198747635,
+      "max_speed": 0.5052732825279236,
+      "native_divergence_rms": 2.79459072771715e-07,
+      "elapsed_s": 12.797772419056855
+    },
+    {
+      "time": 0.41000000000000003,
+      "finite": true,
+      "energy": 0.06422008574008942,
+      "max_speed": 0.5439193844795227,
+      "native_divergence_rms": 3.487335789031931e-07,
+      "elapsed_s": 12.920018607052043
+    },
+    {
+      "time": 0.45,
+      "finite": true,
+      "energy": 0.07452860474586487,
+      "max_speed": 0.5825875401496887,
+      "native_divergence_rms": 3.9749059510540974e-07,
+      "elapsed_s": 13.056008436018601
+    },
+    {
+      "time": 0.49,
+      "finite": true,
+      "energy": 0.0855908989906311,
+      "max_speed": 0.6212014555931091,
+      "native_divergence_rms": 4.3006301098102995e-07,
+      "elapsed_s": 13.139492380083539
+    },
+    {
+      "time": 0.53,
+      "finite": true,
+      "energy": 0.09740370512008667,
+      "max_speed": 0.6597592234611511,
+      "native_divergence_rms": 4.555574264486495e-07,
+      "elapsed_s": 13.300407940987498
+    },
+    {
+      "time": 0.5700000000000001,
+      "finite": true,
+      "energy": 0.10996357351541519,
+      "max_speed": 0.6983548998832703,
+      "native_divergence_rms": 4.800522788173112e-07,
+      "elapsed_s": 13.396494195098057
+    },
+    {
+      "time": 0.61,
+      "finite": true,
+      "energy": 0.12326712906360626,
+      "max_speed": 0.7370638847351074,
+      "native_divergence_rms": 4.685978183260886e-07,
+      "elapsed_s": 13.527566328993998
+    },
+    {
+      "time": 0.65,
+      "finite": true,
+      "energy": 0.13731104135513306,
+      "max_speed": 0.7761248350143433,
+      "native_divergence_rms": 5.080067921880982e-07,
+      "elapsed_s": 13.730734269018285
+    },
+    {
+      "time": 0.6900000000000001,
+      "finite": true,
+      "energy": 0.15209192037582397,
+      "max_speed": 0.815181314945221,
+      "native_divergence_rms": 5.199302677283413e-07,
+      "elapsed_s": 13.823485427070409
+    },
+    {
+      "time": 0.73,
+      "finite": true,
+      "energy": 0.16760653257369995,
+      "max_speed": 0.854173481464386,
+      "native_divergence_rms": 5.432816010397801e-07,
+      "elapsed_s": 13.937595742056146
+    },
+    {
+      "time": 0.77,
+      "finite": true,
+      "energy": 0.18385151028633118,
+      "max_speed": 0.8930994272232056,
+      "native_divergence_rms": 5.421665605354065e-07,
+      "elapsed_s": 14.074932062067091
+    },
+    {
+      "time": 0.81,
+      "finite": true,
+      "energy": 0.20082339644432068,
+      "max_speed": 0.9319562911987305,
+      "native_divergence_rms": 5.33846787220682e-07,
+      "elapsed_s": 14.201729087042622
+    },
+    {
+      "time": 0.85,
+      "finite": true,
+      "energy": 0.2185189425945282,
+      "max_speed": 0.970798909664154,
+      "native_divergence_rms": 5.755852043876075e-07,
+      "elapsed_s": 14.306012782035396
+    },
+    {
+      "time": 0.89,
+      "finite": true,
+      "energy": 0.23693476617336273,
+      "max_speed": 1.0096020698547363,
+      "native_divergence_rms": 5.736632147090859e-07,
+      "elapsed_s": 14.395825471030548
+    },
+    {
+      "time": 0.93,
+      "finite": true,
+      "energy": 0.2560673952102661,
+      "max_speed": 1.0483314990997314,
+      "native_divergence_rms": 6.632979534515471e-07,
+      "elapsed_s": 14.57243261008989
+    },
+    {
+      "time": 0.97,
+      "finite": true,
+      "energy": 0.27591365575790405,
+      "max_speed": 1.0869845151901245,
+      "native_divergence_rms": 7.956036824907642e-07,
+      "elapsed_s": 14.682438775082119
+    },
+    {
+      "time": 1.01,
+      "finite": true,
+      "energy": 0.2964702844619751,
+      "max_speed": 1.1255593299865723,
+      "native_divergence_rms": 8.451048643109971e-07,
+      "elapsed_s": 14.80226734909229
+    },
+    {
+      "time": 1.05,
+      "finite": true,
+      "energy": 0.31773361563682556,
+      "max_speed": 1.1641148328781128,
+      "native_divergence_rms": 9.174852380056109e-07,
+      "elapsed_s": 14.953634539037012
+    },
+    {
+      "time": 1.09,
+      "finite": true,
+      "energy": 0.3397005498409271,
+      "max_speed": 1.2026137113571167,
+      "native_divergence_rms": 8.839378438096901e-07,
+      "elapsed_s": 15.047390258987434
+    },
+    {
+      "time": 1.1300000000000001,
+      "finite": true,
+      "energy": 0.36236733198165894,
+      "max_speed": 1.2410269975662231,
+      "native_divergence_rms": 9.26543918922107e-07,
+      "elapsed_s": 15.155722576077096
+    },
+    {
+      "time": 1.17,
+      "finite": true,
+      "energy": 0.38573116064071655,
+      "max_speed": 1.2793526649475098,
+      "native_divergence_rms": 9.101156592805637e-07,
+      "elapsed_s": 15.270456547033973
+    },
+    {
+      "time": 1.21,
+      "finite": true,
+      "energy": 0.4097886085510254,
+      "max_speed": 1.3175878524780273,
+      "native_divergence_rms": 9.406350045537692e-07,
+      "elapsed_s": 15.404116063029505
+    },
+    {
+      "time": 1.25,
+      "finite": true,
+      "energy": 0.43453657627105713,
+      "max_speed": 1.3557292222976685,
+      "native_divergence_rms": 9.82842152552621e-07,
+      "elapsed_s": 15.580806120997295
+    },
+    {
+      "time": 1.29,
+      "finite": true,
+      "energy": 0.4599715769290924,
+      "max_speed": 1.393855094909668,
+      "native_divergence_rms": 9.463552714805701e-07,
+      "elapsed_s": 15.785367331001908
+    },
+    {
+      "time": 1.33,
+      "finite": true,
+      "energy": 0.4860902428627014,
+      "max_speed": 1.4325313568115234,
+      "native_divergence_rms": 1.0097436415890115e-06,
+      "elapsed_s": 16.010942101012915
+    },
+    {
+      "time": 1.37,
+      "finite": true,
+      "energy": 0.5128892660140991,
+      "max_speed": 1.4712666273117065,
+      "native_divergence_rms": 1.0360081432736479e-06,
+      "elapsed_s": 16.22012703702785
+    },
+    {
+      "time": 1.41,
+      "finite": true,
+      "energy": 0.54036545753479,
+      "max_speed": 1.5099080801010132,
+      "native_divergence_rms": 1.0735807336459402e-06,
+      "elapsed_s": 16.410505218082108
+    },
+    {
+      "time": 1.45,
+      "finite": true,
+      "energy": 0.5685155987739563,
+      "max_speed": 1.5486098527908325,
+      "native_divergence_rms": 1.0485086932021659e-06,
+      "elapsed_s": 16.638485661009327
+    },
+    {
+      "time": 1.49,
+      "finite": true,
+      "energy": 0.5973364114761353,
+      "max_speed": 1.5872735977172852,
+      "native_divergence_rms": 1.0848862075363286e-06,
+      "elapsed_s": 16.80031207599677
+    },
+    {
+      "time": 1.53,
+      "finite": true,
+      "energy": 0.6268247365951538,
+      "max_speed": 1.6258281469345093,
+      "native_divergence_rms": 1.067309312929865e-06,
+      "elapsed_s": 16.989154737093486
+    },
+    {
+      "time": 1.57,
+      "finite": true,
+      "energy": 0.6569771766662598,
+      "max_speed": 1.664409875869751,
+      "native_divergence_rms": 1.0610297067614738e-06,
+      "elapsed_s": 17.137495247996412
+    },
+    {
+      "time": 1.61,
+      "finite": true,
+      "energy": 0.6877905130386353,
+      "max_speed": 1.7029507160186768,
+      "native_divergence_rms": 1.0487383406143636e-06,
+      "elapsed_s": 18.01450561801903
+    },
+    {
+      "time": 1.6500000000000001,
+      "finite": true,
+      "energy": 0.7192615270614624,
+      "max_speed": 1.7413662672042847,
+      "native_divergence_rms": 1.1106787951575825e-06,
+      "elapsed_s": 19.499409027048387
+    },
+    {
+      "time": 1.69,
+      "finite": true,
+      "energy": 0.7513871192932129,
+      "max_speed": 1.7797181606292725,
+      "native_divergence_rms": 1.1186397159690387e-06,
+      "elapsed_s": 19.723755565006286
+    },
+    {
+      "time": 1.73,
+      "finite": true,
+      "energy": 0.7841644287109375,
+      "max_speed": 1.8180792331695557,
+      "native_divergence_rms": 1.1084476909672958e-06,
+      "elapsed_s": 20.018616160028614
+    },
+    {
+      "time": 1.77,
+      "finite": true,
+      "energy": 0.8175904750823975,
+      "max_speed": 1.8562970161437988,
+      "native_divergence_rms": 1.154864662566979e-06,
+      "elapsed_s": 20.46954238100443
+    },
+    {
+      "time": 1.81,
+      "finite": true,
+      "energy": 0.8516621589660645,
+      "max_speed": 1.8943651914596558,
+      "native_divergence_rms": 1.1881588761752937e-06,
+      "elapsed_s": 20.71937093802262
+    },
+    {
+      "time": 1.85,
+      "finite": true,
+      "energy": 0.8863762617111206,
+      "max_speed": 1.9324145317077637,
+      "native_divergence_rms": 1.2440278851499897e-06,
+      "elapsed_s": 20.859453768003732
+    },
+    {
+      "time": 1.8900000000000001,
+      "finite": true,
+      "energy": 0.9217296838760376,
+      "max_speed": 1.9703710079193115,
+      "native_divergence_rms": 1.222769924424938e-06,
+      "elapsed_s": 21.174031511996873
+    },
+    {
+      "time": 1.93,
+      "finite": true,
+      "energy": 0.957719624042511,
+      "max_speed": 2.008162498474121,
+      "native_divergence_rms": 1.1934467920582392e-06,
+      "elapsed_s": 21.604052431997843
+    },
+    {
+      "time": 1.97,
+      "finite": true,
+      "energy": 0.9943435192108154,
+      "max_speed": 2.0457825660705566,
+      "native_divergence_rms": 1.245351768375258e-06,
+      "elapsed_s": 21.810042532044463
+    },
+    {
+      "time": 2.0100000000000002,
+      "finite": true,
+      "energy": 1.0315985679626465,
+      "max_speed": 2.0833261013031006,
+      "native_divergence_rms": 1.4548637636835338e-06,
+      "elapsed_s": 22.05660777108278
+    },
+    {
+      "time": 2.05,
+      "finite": true,
+      "energy": 1.069480538368225,
+      "max_speed": 2.120774507522583,
+      "native_divergence_rms": 1.6466149190819124e-06,
+      "elapsed_s": 22.239967542001978
+    },
+    {
+      "time": 2.09,
+      "finite": true,
+      "energy": 1.1079888343811035,
+      "max_speed": 2.158036708831787,
+      "native_divergence_rms": 1.6316865867338493e-06,
+      "elapsed_s": 22.419768599094823
+    },
+    {
+      "time": 2.13,
+      "finite": true,
+      "energy": 1.1471190452575684,
+      "max_speed": 2.195110559463501,
+      "native_divergence_rms": 1.7280519841733621e-06,
+      "elapsed_s": 22.59697173407767
+    },
+    {
+      "time": 2.17,
+      "finite": true,
+      "energy": 1.1868698596954346,
+      "max_speed": 2.231994867324829,
+      "native_divergence_rms": 1.7612205738259945e-06,
+      "elapsed_s": 22.714825563016348
+    },
+    {
+      "time": 2.21,
+      "finite": true,
+      "energy": 1.227238655090332,
+      "max_speed": 2.2687788009643555,
+      "native_divergence_rms": 1.9954252366005676e-06,
+      "elapsed_s": 22.884434982086532
+    },
+    {
+      "time": 2.25,
+      "finite": true,
+      "energy": 1.268221378326416,
+      "max_speed": 2.3054254055023193,
+      "native_divergence_rms": 1.7951244899450103e-06,
+      "elapsed_s": 23.023878765990958
+    },
+    {
+      "time": 2.29,
+      "finite": true,
+      "energy": 1.3098169565200806,
+      "max_speed": 2.3418731689453125,
+      "native_divergence_rms": 1.8726213966147043e-06,
+      "elapsed_s": 23.534678780008107
+    },
+    {
+      "time": 2.33,
+      "finite": true,
+      "energy": 1.3520233631134033,
+      "max_speed": 2.378122091293335,
+      "native_divergence_rms": 1.9935823729611e-06,
+      "elapsed_s": 24.17299858306069
+    },
+    {
+      "time": 2.37,
+      "finite": true,
+      "energy": 1.3948383331298828,
+      "max_speed": 2.414172649383545,
+      "native_divergence_rms": 1.855068035183649e-06,
+      "elapsed_s": 24.354739605099894
+    },
+    {
+      "time": 2.41,
+      "finite": true,
+      "energy": 1.438259243965149,
+      "max_speed": 2.450026750564575,
+      "native_divergence_rms": 1.8796970380208222e-06,
+      "elapsed_s": 24.56283260008786
+    },
+    {
+      "time": 2.45,
+      "finite": true,
+      "energy": 1.482285737991333,
+      "max_speed": 2.485689640045166,
+      "native_divergence_rms": 1.9626975245046197e-06,
+      "elapsed_s": 24.803789360099472
+    },
+    {
+      "time": 2.49,
+      "finite": true,
+      "energy": 1.526914119720459,
+      "max_speed": 2.521214723587036,
+      "native_divergence_rms": 2.0620445866370574e-06,
+      "elapsed_s": 24.93573882803321
+    },
+    {
+      "time": 2.5300000000000002,
+      "finite": true,
+      "energy": 1.5721426010131836,
+      "max_speed": 2.5565731525421143,
+      "native_divergence_rms": 2.114054495905293e-06,
+      "elapsed_s": 25.09783255099319
+    },
+    {
+      "time": 2.57,
+      "finite": true,
+      "energy": 1.617968201637268,
+      "max_speed": 2.591735601425171,
+      "native_divergence_rms": 2.0240336198185105e-06,
+      "elapsed_s": 25.247991668991745
+    },
+    {
+      "time": 2.61,
+      "finite": true,
+      "energy": 1.664391040802002,
+      "max_speed": 2.626707077026367,
+      "native_divergence_rms": 2.047620228040614e-06,
+      "elapsed_s": 25.407648288994096
+    },
+    {
+      "time": 2.65,
+      "finite": true,
+      "energy": 1.7114096879959106,
+      "max_speed": 2.661489725112915,
+      "native_divergence_rms": 2.119704504366382e-06,
+      "elapsed_s": 25.53226585907396
+    },
+    {
+      "time": 2.69,
+      "finite": true,
+      "energy": 1.7590210437774658,
+      "max_speed": 2.696089267730713,
+      "native_divergence_rms": 2.068613184746937e-06,
+      "elapsed_s": 25.66581799602136
+    },
+    {
+      "time": 2.73,
+      "finite": true,
+      "energy": 1.8072251081466675,
+      "max_speed": 2.730508804321289,
+      "native_divergence_rms": 2.1429252683446975e-06,
+      "elapsed_s": 25.796543533098884
+    },
+    {
+      "time": 2.77,
+      "finite": true,
+      "energy": 1.856019377708435,
+      "max_speed": 2.7647500038146973,
+      "native_divergence_rms": 2.2136830466479296e-06,
+      "elapsed_s": 25.9800427230075
+    },
+    {
+      "time": 2.81,
+      "finite": true,
+      "energy": 1.905402421951294,
+      "max_speed": 2.7988169193267822,
+      "native_divergence_rms": 2.0956347270839615e-06,
+      "elapsed_s": 26.1703015640378
+    },
+    {
+      "time": 2.85,
+      "finite": true,
+      "energy": 1.9553732872009277,
+      "max_speed": 2.832712411880493,
+      "native_divergence_rms": 2.0254099126759684e-06,
+      "elapsed_s": 26.336895395070314
+    },
+    {
+      "time": 2.89,
+      "finite": true,
+      "energy": 2.005929708480835,
+      "max_speed": 2.8686330318450928,
+      "native_divergence_rms": 2.236595491922344e-06,
+      "elapsed_s": 26.52272681798786
+    },
+    {
+      "time": 2.93,
+      "finite": true,
+      "energy": 2.0570714473724365,
+      "max_speed": 2.9065701961517334,
+      "native_divergence_rms": 2.2974609237280674e-06,
+      "elapsed_s": 26.694606731063686
+    },
+    {
+      "time": 2.97,
+      "finite": true,
+      "energy": 2.1087937355041504,
+      "max_speed": 2.9445431232452393,
+      "native_divergence_rms": 2.2169672320160316e-06,
+      "elapsed_s": 26.83460303209722
+    },
+    {
+      "time": 3.0100000000000002,
+      "finite": true,
+      "energy": 2.161097526550293,
+      "max_speed": 2.982569694519043,
+      "native_divergence_rms": 2.3921793399495073e-06,
+      "elapsed_s": 26.932898470084183
+    },
+    {
+      "time": 3.0500000000000003,
+      "finite": true,
+      "energy": 2.2139787673950195,
+      "max_speed": 3.0205183029174805,
+      "native_divergence_rms": 2.305277121195104e-06,
+      "elapsed_s": 27.05421054409817
+    },
+    {
+      "time": 3.09,
+      "finite": true,
+      "energy": 2.26743483543396,
+      "max_speed": 3.058318614959717,
+      "native_divergence_rms": 2.2910890038474463e-06,
+      "elapsed_s": 27.155935418093577
+    },
+    {
+      "time": 3.13,
+      "finite": true,
+      "energy": 2.3214621543884277,
+      "max_speed": 3.0958964824676514,
+      "native_divergence_rms": 2.3210809558804613e-06,
+      "elapsed_s": 27.273502459051087
+    },
+    {
+      "time": 3.17,
+      "finite": true,
+      "energy": 2.3760595321655273,
+      "max_speed": 3.133273124694824,
+      "native_divergence_rms": 2.300781716257916e-06,
+      "elapsed_s": 27.40010709501803
+    },
+    {
+      "time": 3.21,
+      "finite": true,
+      "energy": 2.431220531463623,
+      "max_speed": 3.1702053546905518,
+      "native_divergence_rms": 2.307569275217247e-06,
+      "elapsed_s": 27.555941772065125
+    },
+    {
+      "time": 3.25,
+      "finite": true,
+      "energy": 2.486940860748291,
+      "max_speed": 3.2065775394439697,
+      "native_divergence_rms": 2.253854063383187e-06,
+      "elapsed_s": 27.657852265052497
+    },
+    {
+      "time": 3.29,
+      "finite": true,
+      "energy": 2.543215751647949,
+      "max_speed": 3.242440700531006,
+      "native_divergence_rms": 2.3687443899689242e-06,
+      "elapsed_s": 27.79809043405112
+    },
+    {
+      "time": 3.33,
+      "finite": true,
+      "energy": 2.600039482116699,
+      "max_speed": 3.2775299549102783,
+      "native_divergence_rms": 2.394439434283413e-06,
+      "elapsed_s": 27.932008868083358
+    },
+    {
+      "time": 3.37,
+      "finite": true,
+      "energy": 2.657402992248535,
+      "max_speed": 3.311924934387207,
+      "native_divergence_rms": 2.360694452363532e-06,
+      "elapsed_s": 28.071833939058706
+    },
+    {
+      "time": 3.41,
+      "finite": true,
+      "energy": 2.715299367904663,
+      "max_speed": 3.345808506011963,
+      "native_divergence_rms": 2.397270009169006e-06,
+      "elapsed_s": 28.31251808104571
+    },
+    {
+      "time": 3.45,
+      "finite": true,
+      "energy": 2.77371883392334,
+      "max_speed": 3.3794240951538086,
+      "native_divergence_rms": 2.5006274881889112e-06,
+      "elapsed_s": 28.562277668039314
+    },
+    {
+      "time": 3.49,
+      "finite": true,
+      "energy": 2.8326492309570312,
+      "max_speed": 3.4130263328552246,
+      "native_divergence_rms": 2.4216901692852844e-06,
+      "elapsed_s": 29.510956885991618
+    },
+    {
+      "time": 3.5300000000000002,
+      "finite": true,
+      "energy": 2.8920817375183105,
+      "max_speed": 3.446852207183838,
+      "native_divergence_rms": 2.321594820386963e-06,
+      "elapsed_s": 31.55207665404305
+    },
+    {
+      "time": 3.5700000000000003,
+      "finite": true,
+      "energy": 2.9520010948181152,
+      "max_speed": 3.481077194213867,
+      "native_divergence_rms": 2.4603323254268616e-06,
+      "elapsed_s": 32.6492524020141
+    },
+    {
+      "time": 3.61,
+      "finite": true,
+      "energy": 3.012392520904541,
+      "max_speed": 3.5158116817474365,
+      "native_divergence_rms": 2.4246635348390555e-06,
+      "elapsed_s": 32.795973455067724
+    },
+    {
+      "time": 3.65,
+      "finite": true,
+      "energy": 3.0732407569885254,
+      "max_speed": 3.55125093460083,
+      "native_divergence_rms": 2.37367203226313e-06,
+      "elapsed_s": 32.989775521098636
+    },
+    {
+      "time": 3.69,
+      "finite": true,
+      "energy": 3.134526491165161,
+      "max_speed": 3.587890625,
+      "native_divergence_rms": 2.52455015470332e-06,
+      "elapsed_s": 33.1980025350349
+    },
+    {
+      "time": 3.73,
+      "finite": true,
+      "energy": 3.196230888366699,
+      "max_speed": 3.6249918937683105,
+      "native_divergence_rms": 2.4797316200420028e-06,
+      "elapsed_s": 33.327704719034955
+    },
+    {
+      "time": 3.77,
+      "finite": true,
+      "energy": 3.258333206176758,
+      "max_speed": 3.6714870929718018,
+      "native_divergence_rms": 2.5836875465756748e-06,
+      "elapsed_s": 33.42602286709007
+    },
+    {
+      "time": 3.81,
+      "finite": true,
+      "energy": 3.3208107948303223,
+      "max_speed": 3.725379705429077,
+      "native_divergence_rms": 2.618705821078038e-06,
+      "elapsed_s": 33.57016480807215
+    },
+    {
+      "time": 3.85,
+      "finite": true,
+      "energy": 3.383638381958008,
+      "max_speed": 3.7832860946655273,
+      "native_divergence_rms": 2.6262312076141825e-06,
+      "elapsed_s": 33.73433744604699
+    },
+    {
+      "time": 3.89,
+      "finite": true,
+      "energy": 3.446788787841797,
+      "max_speed": 3.8429107666015625,
+      "native_divergence_rms": 2.6170953333348734e-06,
+      "elapsed_s": 33.86772306403145
+    },
+    {
+      "time": 3.93,
+      "finite": true,
+      "energy": 3.5102341175079346,
+      "max_speed": 3.907024383544922,
+      "native_divergence_rms": 2.650040414664545e-06,
+      "elapsed_s": 34.02030554506928
+    },
+    {
+      "time": 3.97,
+      "finite": true,
+      "energy": 3.5739426612854004,
+      "max_speed": 3.97406268119812,
+      "native_divergence_rms": 2.6839024940272793e-06,
+      "elapsed_s": 34.19043521001004
+    },
+    {
+      "time": 4.01,
+      "finite": true,
+      "energy": 3.637877941131592,
+      "max_speed": 4.0445661544799805,
+      "native_divergence_rms": 2.6593720576784108e-06,
+      "elapsed_s": 34.364022260997444
+    },
+    {
+      "time": 4.05,
+      "finite": true,
+      "energy": 3.702002763748169,
+      "max_speed": 4.120339870452881,
+      "native_divergence_rms": 2.7818600756290834e-06,
+      "elapsed_s": 34.50625402503647
+    },
+    {
+      "time": 4.09,
+      "finite": true,
+      "energy": 3.766272783279419,
+      "max_speed": 4.198017597198486,
+      "native_divergence_rms": 2.664528665263788e-06,
+      "elapsed_s": 35.02674475009553
+    },
+    {
+      "time": 4.13,
+      "finite": true,
+      "energy": 3.8306374549865723,
+      "max_speed": 4.280336856842041,
+      "native_divergence_rms": 2.718794348766096e-06,
+      "elapsed_s": 36.140302390092984
+    },
+    {
+      "time": 4.17,
+      "finite": true,
+      "energy": 3.8950328826904297,
+      "max_speed": 4.368221282958984,
+      "native_divergence_rms": 2.7261633022135356e-06,
+      "elapsed_s": 36.97735783504322
+    },
+    {
+      "time": 4.21,
+      "finite": true,
+      "energy": 3.9593825340270996,
+      "max_speed": 4.458366870880127,
+      "native_divergence_rms": 3.001647428391152e-06,
+      "elapsed_s": 37.16026022902224
+    },
+    {
+      "time": 4.25,
+      "finite": true,
+      "energy": 4.02358341217041,
+      "max_speed": 4.550339221954346,
+      "native_divergence_rms": 3.064430302401888e-06,
+      "elapsed_s": 37.419393499032594
+    },
+    {
+      "time": 4.29,
+      "finite": true,
+      "energy": 4.087498664855957,
+      "max_speed": 4.652358055114746,
+      "native_divergence_rms": 3.0866356155456742e-06,
+      "elapsed_s": 37.614884444046766
+    },
+    {
+      "time": 4.33,
+      "finite": true,
+      "energy": 4.150949478149414,
+      "max_speed": 4.7574543952941895,
+      "native_divergence_rms": 3.113237198704155e-06,
+      "elapsed_s": 37.838516287039965
+    },
+    {
+      "time": 4.37,
+      "finite": true,
+      "energy": 4.213685035705566,
+      "max_speed": 4.864266395568848,
+      "native_divergence_rms": 3.2907967124629067e-06,
+      "elapsed_s": 38.73253105499316
+    },
+    {
+      "time": 4.41,
+      "finite": true,
+      "energy": 4.275373458862305,
+      "max_speed": 4.97251558303833,
+      "native_divergence_rms": 3.473542392384843e-06,
+      "elapsed_s": 40.0754742580466
+    },
+    {
+      "time": 4.45,
+      "finite": true,
+      "energy": 4.335577964782715,
+      "max_speed": 5.091742515563965,
+      "native_divergence_rms": 3.3956573588511674e-06,
+      "elapsed_s": 40.84324130706955
+    },
+    {
+      "time": 4.49,
+      "finite": true,
+      "energy": 4.393741607666016,
+      "max_speed": 5.208083152770996,
+      "native_divergence_rms": 3.5719003790291026e-06,
+      "elapsed_s": 41.04957372404169
+    },
+    {
+      "time": 4.53,
+      "finite": true,
+      "energy": 4.4492011070251465,
+      "max_speed": 5.314786911010742,
+      "native_divergence_rms": 3.455245632721926e-06,
+      "elapsed_s": 41.41120757302269
+    },
+    {
+      "time": 4.57,
+      "finite": true,
+      "energy": 4.501222610473633,
+      "max_speed": 5.411590099334717,
+      "native_divergence_rms": 3.7118456930329558e-06,
+      "elapsed_s": 42.084253868088126
+    },
+    {
+      "time": 4.61,
+      "finite": true,
+      "energy": 4.549079418182373,
+      "max_speed": 5.498037815093994,
+      "native_divergence_rms": 3.4983897876372794e-06,
+      "elapsed_s": 42.23055889306124
+    },
+    {
+      "time": 4.65,
+      "finite": true,
+      "energy": 4.59218168258667,
+      "max_speed": 5.536490440368652,
+      "native_divergence_rms": 3.5464345273794606e-06,
+      "elapsed_s": 42.34279403206892
+    },
+    {
+      "time": 4.69,
+      "finite": true,
+      "energy": 4.630231857299805,
+      "max_speed": 5.553536415100098,
+      "native_divergence_rms": 3.6960132092644926e-06,
+      "elapsed_s": 42.45268819807097
+    },
+    {
+      "time": 4.73,
+      "finite": true,
+      "energy": 4.663308143615723,
+      "max_speed": 5.651135444641113,
+      "native_divergence_rms": 3.7584613892249763e-06,
+      "elapsed_s": 42.61467124102637
+    },
+    {
+      "time": 4.7700000000000005,
+      "finite": true,
+      "energy": 4.691861629486084,
+      "max_speed": 5.860957622528076,
+      "native_divergence_rms": 3.868842213705648e-06,
+      "elapsed_s": 42.77035941008944
+    },
+    {
+      "time": 4.8100000000000005,
+      "finite": true,
+      "energy": 4.716609001159668,
+      "max_speed": 5.98478364944458,
+      "native_divergence_rms": 4.0599688873044215e-06,
+      "elapsed_s": 42.90435627300758
+    },
+    {
+      "time": 4.8500000000000005,
+      "finite": true,
+      "energy": 4.738687515258789,
+      "max_speed": 6.058452129364014,
+      "native_divergence_rms": 3.887791081069736e-06,
+      "elapsed_s": 43.07092276401818
+    },
+    {
+      "time": 4.89,
+      "finite": true,
+      "energy": 4.759763240814209,
+      "max_speed": 6.106893062591553,
+      "native_divergence_rms": 3.8111193134682253e-06,
+      "elapsed_s": 43.22830349102151
+    },
+    {
+      "time": 4.93,
+      "finite": true,
+      "energy": 4.783133029937744,
+      "max_speed": 6.379209995269775,
+      "native_divergence_rms": 3.944184754800517e-06,
+      "elapsed_s": 43.359375165076926
+    },
+    {
+      "time": 4.97,
+      "finite": true,
+      "energy": 4.8196563720703125,
+      "max_speed": 7.675057888031006,
+      "native_divergence_rms": 3.971055775764398e-06,
+      "elapsed_s": 43.44799504207913
+    },
+    {
+      "time": 5.01,
+      "finite": true,
+      "energy": 9.788215637207031,
+      "max_speed": 296.11297607421875,
+      "native_divergence_rms": 1.6862444681464694e-05,
+      "elapsed_s": 43.598521158099174
+    },
+    {
+      "time": 5.05,
+      "finite": false,
+      "energy": NaN,
+      "max_speed": NaN,
+      "native_divergence_rms": NaN,
+      "elapsed_s": 43.704316972056404
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "base_commit": "38e07fbe6cc0266526f0eb1d25ab5afc29bd5630",
+  "final_code_commit": "4ee7f59",
+  "periodic_adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+  "final_adapter_sha256": "5070426fb0cd7bfb7d29baa96cd41e65cc8eb1a26ff377f47ff89a10b3d37324",
+  "periodic_jobs": [
+    2911669,
+    2911670,
+    2911671,
+    2911672
+  ],
+  "focused_check_job": 2911673,
+  "repo_tests_job": 2911705,
+  "closed_wall_job": 2911711,
+  "runtime_job": 2911689,
+  "report_jobs": [
+    2911718,
+    2911726
+  ],
+  "note": "Final adapter adds only boundary-aware RK path; periodic kernels unchanged. Nine final-source tests passed. Earlier failed variants retained. No claim universal stability, momentum conservation, or converged T75 turbulence."
+}

@@ -1,0 +1,429 @@
+{
+  "cases": [
+    {
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "resolution": 64,
+      "ndim": 2,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": false,
+      "first_call_s": 0.9160253700101748,
+      "error": "FloatingPointError('Nonfinite forward trajectory')",
+      "wall_time_s": 20.918581873062067,
+      "last_finite_time": 4.05,
+      "label": "Baseline Euler/CG",
+      "outcome_sha256": "e643aa45de943232e2bd365bc5ec6c8ccfd43d1b79bb7377a111d8fc584c79c6"
+    },
+    {
+      "adapter_sha256": "cd0e7cc747d2be27327c3644de25a55e0b178476b792092472a132658e7d6d90",
+      "resolution": 64,
+      "ndim": 2,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": true,
+      "first_call_s": 1.0940341589739546,
+      "wall_time_s": 337.5590317379683,
+      "last_finite_time": 75.0,
+      "label": "SSPRK3 only",
+      "outcome_sha256": "aeb6617ff4e416de7dedb890daa0fcfcb3abec75637bfc8404270266c59c0780"
+    },
+    {
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "resolution": 64,
+      "ndim": 2,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": true,
+      "first_call_s": 0.8108665799954906,
+      "wall_time_s": 606.4449872629484,
+      "last_finite_time": 75.0,
+      "label": "SSPRK3 + skew",
+      "outcome_sha256": "1ea3f766fb62cf49c0891807ac46a118100454f7abab6688ae89dc73d3bacf69"
+    },
+    {
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "resolution": 192,
+      "ndim": 2,
+      "dt": 0.0033333333333333335,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": false,
+      "first_call_s": 1.176459381938912,
+      "error": "FloatingPointError('Nonfinite forward trajectory')",
+      "wall_time_s": 120.23355852998793,
+      "last_finite_time": 2.9633333333333334,
+      "label": "Baseline Euler/CG",
+      "outcome_sha256": "3ce1343dec62803928252dcf080afd42850daad02965b294ee43bba2bce9ca22"
+    },
+    {
+      "adapter_sha256": "cd0e7cc747d2be27327c3644de25a55e0b178476b792092472a132658e7d6d90",
+      "resolution": 192,
+      "ndim": 2,
+      "dt": 0.0033333333333333335,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": true,
+      "first_call_s": 1.109977985965088,
+      "wall_time_s": 355.95776176895015,
+      "last_finite_time": 75.0,
+      "label": "SSPRK3 only",
+      "outcome_sha256": "87e3a0d275a5f6bd1fb5aa2ff14a5c55b28a8568808148528c7c67f50e7726cf"
+    },
+    {
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "resolution": 192,
+      "ndim": 2,
+      "dt": 0.0033333333333333335,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": true,
+      "first_call_s": 0.8608610710361972,
+      "wall_time_s": 599.5709502570098,
+      "last_finite_time": 75.0,
+      "label": "SSPRK3 + skew",
+      "outcome_sha256": "300f60762398aeb280aa509c1c23085cec875a94cc2e8520ba09e66f8ee521dd"
+    },
+    {
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "resolution": 32,
+      "ndim": 3,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": false,
+      "first_call_s": 1.7557384299580008,
+      "error": "FloatingPointError('Nonfinite forward trajectory')",
+      "wall_time_s": 27.840200704988092,
+      "last_finite_time": 5.01,
+      "label": "Baseline Euler/CG",
+      "outcome_sha256": "eb92a9174681638a3d410870a3ae4d6f19746909206ff5e8887f8a2fd29f2ea7"
+    },
+    {
+      "adapter_sha256": "cd0e7cc747d2be27327c3644de25a55e0b178476b792092472a132658e7d6d90",
+      "resolution": 32,
+      "ndim": 3,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": false,
+      "first_call_s": 2.348508413997479,
+      "error": "FloatingPointError('Nonfinite forward trajectory')",
+      "wall_time_s": 35.26298644207418,
+      "last_finite_time": 4.89,
+      "label": "SSPRK3 only",
+      "outcome_sha256": "2caa05983be834fb820a75d3085d3f87d2fce67fe5c8fab04e067ae00fed98bd"
+    },
+    {
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "resolution": 32,
+      "ndim": 3,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": true,
+      "first_call_s": 1.7409481609938666,
+      "wall_time_s": 626.47726349195,
+      "last_finite_time": 75.0,
+      "label": "SSPRK3 + skew",
+      "outcome_sha256": "d9a8189b54d1f73b9444c2574ca375a797e905e95d92cf1f08b1773fd7249e04"
+    },
+    {
+      "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+      "resolution": 64,
+      "ndim": 3,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": false,
+      "error": "ValueError('index -2147479552 is out of bounds for array with size 68719476736')",
+      "wall_time_s": 1.0453098029829562,
+      "last_finite_time": 0,
+      "label": "Baseline Euler/CG",
+      "outcome_sha256": "c38178e1b175fb1b271e58b9c11a6b4f93aab7d52d1401adc8cff7ea1b9762b1"
+    },
+    {
+      "adapter_sha256": "cd0e7cc747d2be27327c3644de25a55e0b178476b792092472a132658e7d6d90",
+      "resolution": 64,
+      "ndim": 3,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": false,
+      "first_call_s": 4.313982103019953,
+      "error": "FloatingPointError('Nonfinite forward trajectory')",
+      "wall_time_s": 43.83251305704471,
+      "last_finite_time": 5.01,
+      "label": "SSPRK3 only",
+      "outcome_sha256": "32af912f07f79fd12b7d9ad769abe357ce0b678e120219bd58c7bffa59526ab9"
+    },
+    {
+      "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+      "resolution": 64,
+      "ndim": 3,
+      "dt": 0.01,
+      "duration": 75,
+      "nu": 0.001,
+      "seed": 0,
+      "composition": "native recurrent Strang forcing, amplitude 1, wavenumber 6",
+      "device": "[CudaDevice(id=0)]",
+      "jax_version": "0.10.0",
+      "completed": true,
+      "first_call_s": 5.497727288980968,
+      "wall_time_s": 738.2448799130507,
+      "last_finite_time": 75.0,
+      "label": "SSPRK3 + skew",
+      "outcome_sha256": "1efe245088559af4f731bcc706fa3725749d0fef36df4f79aaec1c986d3a1409"
+    }
+  ],
+  "scope": "Forced periodic 2D/3D; dt stability limits remain; 3D64 baseline sparse indexing error excluded from runtime/stability ratios.",
+  "mean_velocity_drift": [
+    {
+      "n": 64,
+      "ndim": 2,
+      "components": [
+        2.5574536266503856e-06,
+        1.1083138815592974e-06
+      ],
+      "norm": 2.7872797545569483e-06
+    },
+    {
+      "n": 192,
+      "ndim": 2,
+      "components": [
+        1.4997633570601465e-06,
+        2.1512248622457264e-06
+      ],
+      "norm": 2.6224145130981924e-06
+    },
+    {
+      "n": 32,
+      "ndim": 3,
+      "components": [
+        -0.00386419496499002,
+        -0.0033680014312267303,
+        0.008805254474282265
+      ],
+      "norm": 0.010188618674874306
+    },
+    {
+      "n": 64,
+      "ndim": 3,
+      "components": [
+        -0.0029007489793002605,
+        0.00108152546454221,
+        6.408076296793297e-05
+      ],
+      "norm": 0.0030964736361056566
+    }
+  ],
+  "checks": {
+    "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+    "device": "[CudaDevice(id=0)]",
+    "checks": [
+      {
+        "operator": {
+          "energy_power": 2.0512327392196994e-09,
+          "ndim": 2,
+          "divergence_relative": 4.324360361351864e-06,
+          "idempotence_relative": 1.8520002242894407e-07,
+          "self_adjoint_absolute": 1.862645149230957e-09
+        },
+        "analytic_shear": [
+          {
+            "dt": 0.02,
+            "relative_error": 0.0002342120133107528
+          },
+          {
+            "dt": 0.01,
+            "relative_error": 0.000234225342865102
+          },
+          {
+            "dt": 0.005,
+            "relative_error": 0.00023439580400008708
+          }
+        ],
+        "vjp": [
+          {
+            "epsilon": 0.001,
+            "ad": 0.2491537630558014,
+            "fd": 0.24915514886379242,
+            "relative_error": 5.5620283078533626e-06
+          },
+          {
+            "epsilon": 0.003,
+            "ad": 0.2491537630558014,
+            "fd": 0.249153733253479,
+            "relative_error": 1.1961417729428665e-07
+          },
+          {
+            "epsilon": 0.01,
+            "ad": 0.2491537630558014,
+            "fd": 0.24915370345115662,
+            "relative_error": 2.392283545885733e-07
+          }
+        ],
+        "first_vjp_s": 2.529542636941187
+      },
+      {
+        "operator": {
+          "energy_power": 6.629108373346071e-10,
+          "ndim": 3,
+          "divergence_relative": 3.7857253119000234e-06,
+          "idempotence_relative": 1.683645649563914e-07,
+          "self_adjoint_absolute": 1.979060471057892e-09
+        },
+        "analytic_shear": [
+          {
+            "dt": 0.02,
+            "relative_error": 0.000524576345924288
+          },
+          {
+            "dt": 0.01,
+            "relative_error": 0.0005243939231149852
+          },
+          {
+            "dt": 0.005,
+            "relative_error": 0.0005243909545242786
+          }
+        ],
+        "vjp": [
+          {
+            "epsilon": 0.001,
+            "ad": 0.16612215340137482,
+            "fd": 0.16612155735492706,
+            "relative_error": 3.588000971271863e-06
+          },
+          {
+            "epsilon": 0.003,
+            "ad": 0.16612215340137482,
+            "fd": 0.16612225770950317,
+            "relative_error": 6.278997757142002e-07
+          },
+          {
+            "epsilon": 0.01,
+            "ad": 0.16612215340137482,
+            "fd": 0.16612212359905243,
+            "relative_error": 1.7940004856359314e-07
+          }
+        ],
+        "first_vjp_s": 5.394101258949377
+      }
+    ],
+    "passed": true
+  },
+  "runtime": {
+    "device": "[CudaDevice(id=0)]",
+    "rows": [
+      {
+        "variant": "baseline",
+        "n": 64,
+        "ndim": 2,
+        "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+        "first_four_steps_s": 0.8625392699614167,
+        "warmed_four_steps_s": 0.0002621565363369882
+      },
+      {
+        "variant": "baseline",
+        "n": 192,
+        "ndim": 2,
+        "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+        "first_four_steps_s": 1.1110245420131832,
+        "warmed_four_steps_s": 0.00048457100056111815
+      },
+      {
+        "variant": "baseline",
+        "n": 32,
+        "ndim": 3,
+        "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+        "first_four_steps_s": 1.6599625569069758,
+        "warmed_four_steps_s": 0.00043895199972515306
+      },
+      {
+        "variant": "baseline",
+        "n": 64,
+        "ndim": 3,
+        "adapter_sha256": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+        "error": "ValueError('index -2147479552 is out of bounds for array with size 68719476736')"
+      },
+      {
+        "variant": "candidate",
+        "n": 64,
+        "ndim": 2,
+        "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+        "first_four_steps_s": 0.8258394830627367,
+        "warmed_four_steps_s": 0.0005308659980073571
+      },
+      {
+        "variant": "candidate",
+        "n": 192,
+        "ndim": 2,
+        "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+        "first_four_steps_s": 1.022620859905146,
+        "warmed_four_steps_s": 0.0009077293992352983
+      },
+      {
+        "variant": "candidate",
+        "n": 32,
+        "ndim": 3,
+        "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+        "first_four_steps_s": 1.7039969849865884,
+        "warmed_four_steps_s": 0.0007636077313994368
+      },
+      {
+        "variant": "candidate",
+        "n": 64,
+        "ndim": 3,
+        "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+        "first_four_steps_s": 5.255121550988406,
+        "warmed_four_steps_s": 0.0013586326657483974
+      }
+    ]
+  }
+}

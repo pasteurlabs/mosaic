@@ -1,0 +1,95 @@
+{
+  "adapter_sha256": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
+  "device": "[CudaDevice(id=0)]",
+  "checks": [
+    {
+      "operator": {
+        "energy_power": 2.0512327392196994e-09,
+        "ndim": 2,
+        "divergence_relative": 4.324360361351864e-06,
+        "idempotence_relative": 1.8520002242894407e-07,
+        "self_adjoint_absolute": 1.862645149230957e-09
+      },
+      "analytic_shear": [
+        {
+          "dt": 0.02,
+          "relative_error": 0.0002342120133107528
+        },
+        {
+          "dt": 0.01,
+          "relative_error": 0.000234225342865102
+        },
+        {
+          "dt": 0.005,
+          "relative_error": 0.00023439580400008708
+        }
+      ],
+      "vjp": [
+        {
+          "epsilon": 0.001,
+          "ad": 0.2491537630558014,
+          "fd": 0.24915514886379242,
+          "relative_error": 5.5620283078533626e-06
+        },
+        {
+          "epsilon": 0.003,
+          "ad": 0.2491537630558014,
+          "fd": 0.249153733253479,
+          "relative_error": 1.1961417729428665e-07
+        },
+        {
+          "epsilon": 0.01,
+          "ad": 0.2491537630558014,
+          "fd": 0.24915370345115662,
+          "relative_error": 2.392283545885733e-07
+        }
+      ],
+      "first_vjp_s": 2.529542636941187
+    },
+    {
+      "operator": {
+        "energy_power": 6.629108373346071e-10,
+        "ndim": 3,
+        "divergence_relative": 3.7857253119000234e-06,
+        "idempotence_relative": 1.683645649563914e-07,
+        "self_adjoint_absolute": 1.979060471057892e-09
+      },
+      "analytic_shear": [
+        {
+          "dt": 0.02,
+          "relative_error": 0.000524576345924288
+        },
+        {
+          "dt": 0.01,
+          "relative_error": 0.0005243939231149852
+        },
+        {
+          "dt": 0.005,
+          "relative_error": 0.0005243909545242786
+        }
+      ],
+      "vjp": [
+        {
+          "epsilon": 0.001,
+          "ad": 0.16612215340137482,
+          "fd": 0.16612155735492706,
+          "relative_error": 3.588000971271863e-06
+        },
+        {
+          "epsilon": 0.003,
+          "ad": 0.16612215340137482,
+          "fd": 0.16612225770950317,
+          "relative_error": 6.278997757142002e-07
+        },
+        {
+          "epsilon": 0.01,
+          "ad": 0.16612215340137482,
+          "fd": 0.16612212359905243,
+          "relative_error": 1.7940004856359314e-07
+        }
+      ],
+      "first_vjp_s": 5.394101258949377
+    }
+  ],
+  "passed": true
+}
