@@ -1,0 +1,102 @@
+{
+  "adapter_sha256": "efaca63b7e47f718782bf7eaa01d7d3cb38be54cf5f770f6fb0c6b003936580f",
+  "initial_sha256": "ca4fa52a354d97998e922627afcb3fe5f1ed1abf423afd75a95ab3cd9691c2e4",
+  "device": "cuda:0",
+  "ndim": 2,
+  "n": 64,
+  "dt": 0.01,
+  "steps": 4,
+  "burn_requested_time": 0.08,
+  "viscosity": 0.001,
+  "initial_source": "fixed synthetic streamfunction seed116; not original benchmark burn IC",
+  "cold_forward_s": 6.651207949966192,
+  "warm_forward_s": [
+    0.0028311158530414104,
+    0.002830151002854109,
+    0.0026922831311821938,
+    0.0026774529833346605,
+    0.0026472690515220165
+  ],
+  "initial_stats": {
+    "finite": true,
+    "energy": 0.2500000269668523,
+    "divergence_rms": 0.0006254112141141315,
+    "max_absolute": 1.216658592224121
+  },
+  "one_call_stats": {
+    "finite": true,
+    "energy": 0.2499721819913003,
+    "divergence_rms": 1.8063183290591659e-07,
+    "max_absolute": 1.2198820114135742
+  },
+  "zero_steps_exact": true,
+  "shear_relative_error": 2.178266424062254e-07,
+  "cold_forward_and_vjp_s": 0.011012580944225192,
+  "taped_forward_max_error": 0.0,
+  "warm_forward_and_vjp_s": [
+    0.010469082044437528,
+    0.010672020958736539,
+    0.01028386503458023
+  ],
+  "split_join_relative_error": 5.689408055786771e-08,
+  "divergent_input_stats": {
+    "finite": true,
+    "energy": 0.01047158826678557,
+    "divergence_rms": 1.0510382775638674,
+    "max_absolute": 0.38906294107437134
+  },
+  "divergent_output_stats": {
+    "finite": true,
+    "energy": 0.005052670627401983,
+    "divergence_rms": 2.9360900017041064e-08,
+    "max_absolute": 0.2534976303577423
+  },
+  "gradient_checks": [
+    {
+      "input": "v0",
+      "epsilon": 0.001,
+      "ad": 0.3104587014925922,
+      "fd": 0.3104583981930031,
+      "relative_error": 4.884703437288973e-07
+    },
+    {
+      "input": "viscosity",
+      "epsilon": 0.0001,
+      "ad": 0.0037808248307555914,
+      "fd": 0.0035418179609515857,
+      "relative_error": 0.03263942767694181
+    },
+    {
+      "input": "dt",
+      "epsilon": 0.0001,
+      "ad": 0.8414704203605652,
+      "fd": 0.8413460270282537,
+      "relative_error": 7.391972695805884e-05
+    }
+  ],
+  "burn_completed": true,
+  "burn_wall_s": 0.006024099886417389,
+  "trace": [
+    {
+      "time": 0.0,
+      "finite": true,
+      "energy": 0.2500000269668523,
+      "divergence_rms": 0.0006254112141141315,
+      "max_absolute": 1.216658592224121
+    },
+    {
+      "time": 0.04,
+      "finite": true,
+      "energy": 0.25037130715378136,
+      "divergence_rms": 2.0119227696306366e-07,
+      "max_absolute": 1.2318699359893799
+    },
+    {
+      "time": 0.08,
+      "finite": true,
+      "energy": 0.2515374000560405,
+      "divergence_rms": 2.0384037138653142e-07,
+      "max_absolute": 1.265743374824524
+    }
+  ]
+}

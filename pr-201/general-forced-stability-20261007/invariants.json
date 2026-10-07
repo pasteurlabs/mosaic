@@ -1,0 +1,142 @@
+{
+  "12": {
+    "projection_max_error": 5.11516969987566e-08,
+    "inviscid_energy_relative_production": 1.0126376543214208e-08,
+    "null_modes": [
+      {
+        "mode": [
+          0,
+          0,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          0,
+          0,
+          1
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          0,
+          1,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          0,
+          1,
+          1
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          0,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          0,
+          1
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          1,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          1,
+          1
+        ],
+        "max_error": 0.0
+      }
+    ]
+  },
+  "32": {
+    "projection_max_error": 4.9015266068153096e-08,
+    "inviscid_energy_relative_production": 1.3319881386133166e-10,
+    "null_modes": [
+      {
+        "mode": [
+          0,
+          0,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          0,
+          0,
+          1
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          0,
+          1,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          0,
+          1,
+          1
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          0,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          0,
+          1
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          1,
+          0
+        ],
+        "max_error": 0.0
+      },
+      {
+        "mode": [
+          1,
+          1,
+          1
+        ],
+        "max_error": 0.0
+      }
+    ]
+  }
+}

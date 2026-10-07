@@ -1,0 +1,28 @@
+{
+  "baseline_commit": "a4a07dd",
+  "candidate_commit": "73118ed",
+  "previous_2d_commit": "1e41b2d",
+  "jobs": {
+    "baseline-3d-32": 2911634,
+    "candidate-3d-32": 2911635,
+    "baseline-3d-64": 2911636,
+    "candidate-3d-64": 2911637,
+    "old2d-2d-64": 2911638,
+    "candidate-2d-64": 2911639,
+    "invariants": 2911650,
+    "report": 2911659
+  },
+  "source_hashes": {
+    "baseline.py": "41a3cfbc7ea0607476ec8596da6f4f41128a2230c1f708cb90c9981f38ea7b81",
+    "candidate.py": "efaca63b7e47f718782bf7eaa01d7d3cb38be54cf5f770f6fb0c6b003936580f",
+    "old2d.py": "7fd3a649251217fedfd50952f2070a744b1b65236764243aeb23d5138f68ee61",
+    "check_warp_stability.py": "190e8b214608a86da86eb6f92a26274b5749e08d1371b34d636f25e383bd3c3d",
+    "check_warp_fft.py": "764721350005605230584f91eb2e6b9a361c0c2e1892139c897dcc7996fe9f7e",
+    "check_warp_invariants.py": "f05c50a2f524260d0a9faef2a9ada824d1feecf42523982fdabd26822844f15d",
+    "node.sh": "0b35e8a96ee1a5a2f921905f65a670538801cd48cb46c930818ec0bc0df493d8",
+    "node-invariants.sh": "f21d8b1ddf3debddb1069196912fa9799f47679f83abefdf50dcdee460c37f48"
+  },
+  "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh",
+  "hardware": "B200; individual hardware reports retained",
+  "stress_scope": "New prescribed forced periodic tests; not a claim that preexisting benchmark cases failed"
+}
