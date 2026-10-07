@@ -1,7 +1,8 @@
 name: phiflow_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Projected SSPRK3 advection-diffusion with a discrete FFT pressure solve for
+  Projected SSPRK3 with energy-neutral skew advection, explicit diffusion, and
+  a discrete FFT pressure solve for
   obstacle-free periodic 2D/3D flow. Other paths retain Euler/CG or semi-Lagrangian
   inflow integration. Explicit timesteps remain subject to stability restrictions.
   Gradients via JAX autodiff combined with analytic adjoint rules through the same

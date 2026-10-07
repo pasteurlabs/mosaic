@@ -60,6 +60,35 @@ def _project_periodic_faces(faces: jnp.ndarray) -> jnp.ndarray:
     return jnp.fft.ifftn(projected, axes=axes).real.astype(faces.dtype)
 
 
+def _periodic_skew_advection(faces: jnp.ndarray, domain_extent: float) -> jnp.ndarray:
+    """Centered skew advection on each native MAC component grid.
+
+    Averaging transports cross-components onto the advected component's faces.
+    The skew split has zero periodic discrete kinetic-energy production, up to
+    roundoff. It is second-order consistent, not an exact momentum-conservation
+    claim for the interpolated MAC velocity.
+    """
+    terms = []
+    for component in range(faces.shape[0]):
+        value = faces[component]
+        rhs = jnp.zeros_like(value)
+        for axis, size in enumerate(value.shape):
+            transport = faces[axis]
+            if axis != component:
+                transport = 0.5 * (transport + jnp.roll(transport, 1, axis=component))
+                transport = 0.5 * (transport + jnp.roll(transport, -1, axis=axis))
+            derivative = (
+                jnp.roll(value, -1, axis=axis) - jnp.roll(value, 1, axis=axis)
+            ) * (size / (2 * domain_extent))
+            flux = transport * value
+            flux_derivative = (
+                jnp.roll(flux, -1, axis=axis) - jnp.roll(flux, 1, axis=axis)
+            ) * (size / (2 * domain_extent))
+            rhs = rhs - 0.5 * (transport * derivative + flux_derivative)
+        terms.append(rhs)
+    return jnp.stack(terms)
+
+
 class InputSchema(
     make_differentiable(
         _CanonicalInputSchema,
@@ -467,7 +496,7 @@ def phiflow_fwd(
 
         def euler_stage(face_arr: jnp.ndarray) -> jnp.ndarray:
             vel = faces_to_staggered(face_arr)
-            advection = staggered_to_faces(advect.differential(vel, vel))
+            advection = _periodic_skew_advection(face_arr, domain_extent)
             # Both increments use the same stage input. Diffusing the already
             # advected velocity would introduce a dt**2 splitting cross-term.
             diffused = staggered_to_faces(diffuse.explicit(vel, viscosity, dt))
