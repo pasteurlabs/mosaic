@@ -1,0 +1,24 @@
+[runner] node=dgx02 cluster=kander runtime=uv
+[runner] job-env=/etc/kander/job-env.sh scratch=/scratch/jobs/2911818 cache=/cache/users/10002
+[runner] isolated_command=1 (command manages Python and dependencies)
+[runner] uv_cache=/cache/users/10002/uv policy=auto
+[runner] venv=<uv default: $REPO_ROOT/.venv>
+=== 2026-10-07T11:57:55+02:00 host=dgx02 job=xlb-restricted-collision-audit id=2911818 ===
+=== cmd: bash /data/personal/andrinr/runner/results/mosaic/pr116-xlb-assimilation-audit-20261007/node-restricted.sh /data/personal/andrinr/runner/results/mosaic/pr116-xlb-assimilation-audit-20261007 ===
+cuBLAS < 13.2 (120902 found) has a known issue where many kernels free TMEM buffers multiple times. Executing a cuBLAS kernel concurrently with another kernel (e.g. on another stream) can lead to silent data corruption.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+Single-GPU support is available: 1 GPU detected.
+/python-env/lib/python3.12/site-packages/jax/_src/interpreters/mlir.py:1326: UserWarning: Some donated buffers were not usable: float64[9,1,1], float64[1,1,1], float64[9,9,1,1], float64[9,1,1,1].
+See an explanation at https://docs.jax.dev/en/latest/faq.html#buffer-donation.
+  warnings.warn("Some donated buffers were not usable:"
+/python-env/lib/python3.12/site-packages/jax/_src/interpreters/mlir.py:1326: UserWarning: Some donated buffers were not usable: float64[9,1,1], float64[1,1,1].
+See an explanation at https://docs.jax.dev/en/latest/faq.html#buffer-donation.
+  warnings.warn("Some donated buffers were not usable:"
+=== 2026-10-07T11:58:16+02:00 done ===

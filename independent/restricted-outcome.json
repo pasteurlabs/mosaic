@@ -1,0 +1,356 @@
+{
+  "rows": [
+    {
+      "frame": 1,
+      "collision": "kbc",
+      "kinetic_spectral_norm": 20.048736044293072,
+      "kinetic_eigenvalue_maxabs": 15.737587110089988,
+      "moment_conservation_jacobian_error": 3.6904426181649796e-09,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 0.9663170808273573,
+          "fd_norm": 0.45427614508307435
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 0.9647550264661697,
+          "fd_norm": 0.4550808571425706
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 0.02549464049892843,
+          "fd_norm": 13.587083328192923
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 2.6033643922912645e-06,
+          "fd_norm": 14.165601744009626
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.2437861149053803e-06,
+          "fd_norm": 14.16566858657946
+        }
+      ]
+    },
+    {
+      "frame": 1,
+      "collision": "bgk",
+      "kinetic_spectral_norm": 0.9991703211899061,
+      "kinetic_eigenvalue_maxabs": 0.9991703211899065,
+      "moment_conservation_jacobian_error": 6.661338147750939e-16,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 1.1175358052145167e-14,
+          "fd_norm": 0.9991703211898937
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 6.133251868836391e-13,
+          "fd_norm": 0.9991703211895674
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 1.9400224498801004e-10,
+          "fd_norm": 0.9991703210851663
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.5565056914338852e-08,
+          "fd_norm": 0.9991703336421459
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.0130853006741346e-06,
+          "fd_norm": 0.9991709317584632
+        }
+      ]
+    },
+    {
+      "frame": 2,
+      "collision": "kbc",
+      "kinetic_spectral_norm": 1.962280968241357,
+      "kinetic_eigenvalue_maxabs": 1.7489996307649236,
+      "moment_conservation_jacobian_error": 3.8425596038393905e-11,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 0.7511583729168689,
+          "fd_norm": 0.45421904353720133
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 0.7304274855760761,
+          "fd_norm": 0.4565471890814494
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 0.0013290873768189505,
+          "fd_norm": 1.598598266872943
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.2907152618034727e-07,
+          "fd_norm": 1.601781684522619
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.1625609800779876e-06,
+          "fd_norm": 1.6017828113985362
+        }
+      ]
+    },
+    {
+      "frame": 2,
+      "collision": "bgk",
+      "kinetic_spectral_norm": 0.9991703211899063,
+      "kinetic_eigenvalue_maxabs": 0.9991703211899066,
+      "moment_conservation_jacobian_error": 6.661338147750939e-16,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 1.1386565744753331e-14,
+          "fd_norm": 0.9991703211898948
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 1.3921400047942332e-12,
+          "fd_norm": 0.9991703211908483
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 7.010437900815818e-11,
+          "fd_norm": 0.999170321175803
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.4988310160298667e-08,
+          "fd_norm": 0.9991703340829902
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.0900910541440522e-06,
+          "fd_norm": 0.9991706594431587
+        }
+      ]
+    },
+    {
+      "frame": 3,
+      "collision": "kbc",
+      "kinetic_spectral_norm": 1.4269399607277438,
+      "kinetic_eigenvalue_maxabs": 1.3754681004382054,
+      "moment_conservation_jacobian_error": 2.3339330468274966e-11,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 0.7007575333760679,
+          "fd_norm": 0.4542845139467113
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 0.5598771287159369,
+          "fd_norm": 0.5050934247212809
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 0.00021203712003840924,
+          "fd_norm": 1.3180453045731086
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 2.1437770293619414e-08,
+          "fd_norm": 1.318558848927232
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.3724798498691622e-06,
+          "fd_norm": 1.3185597701028418
+        }
+      ]
+    },
+    {
+      "frame": 3,
+      "collision": "bgk",
+      "kinetic_spectral_norm": 0.9991703211899063,
+      "kinetic_eigenvalue_maxabs": 0.9991703211899066,
+      "moment_conservation_jacobian_error": 8.881784197001252e-16,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 9.397748730377436e-15,
+          "fd_norm": 0.9991703211899096
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 1.4636504171062235e-12,
+          "fd_norm": 0.9991703211904468
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 9.37165592383706e-11,
+          "fd_norm": 0.9991703212427323
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.7465441030923187e-08,
+          "fd_norm": 0.9991703379982882
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.0748161864192548e-06,
+          "fd_norm": 0.9991708513600625
+        }
+      ]
+    },
+    {
+      "frame": 4,
+      "collision": "kbc",
+      "kinetic_spectral_norm": 1.0943229465450248,
+      "kinetic_eigenvalue_maxabs": 1.081108326830469,
+      "moment_conservation_jacobian_error": 1.2159162565694714e-12,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 0.6353590036341243,
+          "fd_norm": 0.4540934107271359
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 0.3822565031791458,
+          "fd_norm": 0.5679343768345281
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 8.124085795320414e-05,
+          "fd_norm": 1.0598563215421715
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 2.5904284637882704e-08,
+          "fd_norm": 1.060008059746019
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.576065030341505e-06,
+          "fd_norm": 1.0600090725982818
+        }
+      ]
+    },
+    {
+      "frame": 4,
+      "collision": "bgk",
+      "kinetic_spectral_norm": 0.9991703211899063,
+      "kinetic_eigenvalue_maxabs": 0.9991703211899067,
+      "moment_conservation_jacobian_error": 8.881784197001252e-16,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 1.5200386525098365e-14,
+          "fd_norm": 0.9991703211898981
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 1.8913205595162408e-12,
+          "fd_norm": 0.9991703211910195
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 1.6817061936276926e-10,
+          "fd_norm": 0.999170321089701
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.9880366083035898e-08,
+          "fd_norm": 0.999170328463165
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.6943116392052564e-06,
+          "fd_norm": 0.9991713091035606
+        }
+      ]
+    },
+    {
+      "frame": 5,
+      "collision": "kbc",
+      "kinetic_spectral_norm": 1.1956237663619265,
+      "kinetic_eigenvalue_maxabs": 1.1109248356132446,
+      "moment_conservation_jacobian_error": 3.6284308890799366e-12,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 0.6331049809551383,
+          "fd_norm": 0.45416634435718045
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 0.2443308768248137,
+          "fd_norm": 0.6990540668889558
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 3.62350485447491e-05,
+          "fd_norm": 1.0528262490668217
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.998435417616068e-08,
+          "fd_norm": 1.05289202971084
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.6853295872574312e-06,
+          "fd_norm": 1.0528931188127895
+        }
+      ]
+    },
+    {
+      "frame": 5,
+      "collision": "bgk",
+      "kinetic_spectral_norm": 0.9991703211899061,
+      "kinetic_eigenvalue_maxabs": 0.9991703211899061,
+      "moment_conservation_jacobian_error": 5.551115123125783e-16,
+      "basis_moment_error": 4.440892098500626e-16,
+      "checks": [
+        {
+          "epsilon": 0.001,
+          "relative_error": 1.1612430561555208e-14,
+          "fd_norm": 0.9991703211898962
+        },
+        {
+          "epsilon": 1e-05,
+          "relative_error": 6.717543814026678e-13,
+          "fd_norm": 0.9991703211890803
+        },
+        {
+          "epsilon": 1e-07,
+          "relative_error": 1.7900120705110576e-10,
+          "fd_norm": 0.9991703210272171
+        },
+        {
+          "epsilon": 1e-09,
+          "relative_error": 1.7596061127260507e-08,
+          "fd_norm": 0.9991703390808847
+        },
+        {
+          "epsilon": 1e-11,
+          "relative_error": 1.3492904987450409e-06,
+          "fd_norm": 0.9991710753386279
+        }
+      ]
+    }
+  ],
+  "omega": 1.999170321189906,
+  "scope": "Local collision Jacobian at fixedcell17,23; not fullmap stability or formal modelFD admission"
+}

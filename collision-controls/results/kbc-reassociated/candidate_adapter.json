@@ -1,0 +1,11 @@
+{
+  "base_adapter_sha256": "4a7a9bf8bb0943ee4bb5c8fad0c9a1e02d3c8539d62eb82a97fac15a46673377",
+  "candidate_adapter_sha256": "b2ff091ab20e2b1bb4e56acdc80d7f2e4e9325d210b9d99bd1763ec7b6acd3ef",
+  "static_physical_velocity_bound": 8.0,
+  "collision_variant": "original",
+  "reassociated_equilibrium_increment": true,
+  "activation_environment": {
+    "XLB_SUB_K_DISABLE": "0"
+  },
+  "scope": "Diagnostic numerical variant; identical forward/derivative substep selection. No admission override. Original image unchanged."
+}

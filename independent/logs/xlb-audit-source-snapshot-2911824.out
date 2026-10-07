@@ -1,0 +1,8 @@
+[runner] node=dgx01 cluster=kander runtime=uv
+[runner] job-env=/etc/kander/job-env.sh scratch=/scratch/jobs/2911824 cache=/cache/users/10002
+[runner] isolated_command=1 (command manages Python and dependencies)
+[runner] uv_cache=/cache/users/10002/uv policy=auto
+[runner] venv=<uv default: $REPO_ROOT/.venv>
+=== 2026-10-07T12:00:15+02:00 host=dgx01 job=xlb-audit-source-snapshot id=2911824 ===
+=== cmd: bash /data/personal/andrinr/runner/results/mosaic/pr116-xlb-assimilation-audit-20261007/snapshot.sh /data/personal/andrinr/runner/results/mosaic/pr116-xlb-assimilation-audit-20261007 ===
+=== 2026-10-07T12:01:17+02:00 done ===
