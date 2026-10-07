@@ -1,8 +1,8 @@
 name: warp_ns_navier_stokes_grid
 version: "0.1.0"
 description: >
-  IPCS projection scheme implemented in NVIDIA Warp CUDA kernels with FFT pressure Poisson
-  on periodic domains. Gradients via wp.Tape kernel-level VJP.
+  Periodic NVIDIA Warp projection solvers with FFT pressure solves: projected SSPRK3
+  and skew-symmetric advection in 2D, IPCS in 3D. Gradients via wp.Tape kernel-level VJP.
 build_config:
   package_data:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
@@ -14,9 +14,9 @@ metadata:
     name: "Warp-NS"
     backend: warp
     family: fd
-    scheme: "IPCS (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP"
+    scheme: "Projected SSPRK3 (2D), IPCS (3D), periodic FFT Poisson, wp.Tape VJP"
     discretization: FD
-    numerics: "IPCS, SSP-RK3"
+    numerics: "Centered skew-symmetric advection and SSPRK3 (2D); IPCS (3D)"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true

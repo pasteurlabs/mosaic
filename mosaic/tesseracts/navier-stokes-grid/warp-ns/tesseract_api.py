@@ -4,11 +4,12 @@
 
 """GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
 
-Periodic-only IPCS (tentative velocity → pressure Poisson → velocity correction)
-with exact spectral FFT Poisson and wp.Tape VJP.  Forward and reverse passes
-work on triply-periodic boxes for both 2-D and 3-D.
+Periodic projection solvers with FFT pressure solves and wp.Tape VJPs.
+The 2-D solver uses skew-symmetric advection and projected SSPRK3 with centered
+divergence/gradient operators. The 3-D solver retains its IPCS discretization.
 """
 
+import contextlib
 import functools
 from typing import Any
 
@@ -65,7 +66,10 @@ def tentative_vel_2d_kernel(
     inv_h2: float,
     nu: wp.array(dtype=wp.float32),
 ) -> None:
-    """2-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u).
+    """2-D tentative velocity with skew-symmetric centered advection.
+
+    Averaging advective and conservative forms cancels inviscid kinetic-energy
+    production under periodic summation; no clipping or filtering is applied.
 
     ``dt`` and ``nu`` are 1-element arrays (rather than plain floats) so that
     Warp's source-to-source autodiff tracks gradients w.r.t. them: Warp only
@@ -92,6 +96,13 @@ def tentative_vel_2d_kernel(
         ui * (ux[ip1, j] - ux[im1, j]) * inv_2h
         + vi * (ux[i, jp1] - ux[i, jm1]) * inv_2h
     )
+    conservative_ux = (
+        ux[ip1, j] * ux[ip1, j]
+        - ux[im1, j] * ux[im1, j]
+        + uy[i, jp1] * ux[i, jp1]
+        - uy[i, jm1] * ux[i, jm1]
+    ) * inv_2h
+    adv_ux = 0.5 * (adv_ux + conservative_ux)
     ux_star[i, j] = ui + dt_ * (-adv_ux + nu_ * lap_ux)
 
     # uy component
@@ -100,6 +111,13 @@ def tentative_vel_2d_kernel(
         ui * (uy[ip1, j] - uy[im1, j]) * inv_2h
         + vi * (uy[i, jp1] - uy[i, jm1]) * inv_2h
     )
+    conservative_uy = (
+        ux[ip1, j] * uy[ip1, j]
+        - ux[im1, j] * uy[im1, j]
+        + uy[i, jp1] * uy[i, jp1]
+        - uy[i, jm1] * uy[i, jm1]
+    ) * inv_2h
+    adv_uy = 0.5 * (adv_uy + conservative_uy)
     uy_star[i, j] = vi + dt_ * (-adv_uy + nu_ * lap_uy)
 
 
@@ -773,22 +791,19 @@ def _fft_kernels_2d(n: int):
 
 @functools.cache
 def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
-    """Precompute 1/λ for the 2-D continuous-eigenvalue spectral Poisson solve.
+    """Invert D·G for the centered periodic divergence and pressure gradient.
 
-    Matches the eigenvalues used by the previous NumPy implementation exactly
-    (continuous -(2π/L)²k², not the discrete FD eigenvalues used in 3-D) —
-    preserving the existing discretization per discussion recommendation #7.
-    ``kx``/``ky`` enter symmetrically, so this array is safe to index either
-    as-is or transposed (the fused FFT pipeline below reads it in
-    transposed/row-major order relative to how it is built here).
+    Its symbol is -sum(sin(k*h)**2)/h**2, rather than the continuous Laplacian.
+    Joint DC/Nyquist null modes have zero inverse and are preserved by projection.
     """
-    kfreq = np.fft.fftfreq(n, d=1.0 / n)
-    kx, ky = np.meshgrid(kfreq, kfreq, indexing="ij")
-    lam = -((2.0 * np.pi / domain_extent) ** 2) * (kx**2 + ky**2)
-    inv_lambda = np.zeros_like(lam)
-    nonzero = lam != 0
-    inv_lambda[nonzero] = 1.0 / lam[nonzero]
-    return wp.array2d(inv_lambda.astype(np.float32), dtype=wp.float32, device=device)
+    symbol = np.sin(2 * np.pi * np.fft.fftfreq(n)) * n / domain_extent
+    symbol[0] = 0.0
+    if n % 2 == 0:
+        symbol[n // 2] = 0.0
+    lam = -(symbol[:, None] ** 2 + symbol[None, :] ** 2)
+    inverse = np.zeros_like(lam)
+    np.divide(1.0, lam, out=inverse, where=lam != 0)
+    return wp.array2d(inverse.astype(np.float32), dtype=wp.float32, device=device)
 
 
 def _spectral_poisson_2d_core(
@@ -1252,6 +1267,134 @@ def _poisson_workspace_3d(n: int, device: str) -> dict:
     }
 
 
+@wp.kernel
+def _rk3_blend_kernel(
+    original_x: wp.array2d(dtype=wp.float32),
+    original_y: wp.array2d(dtype=wp.float32),
+    advanced_x: wp.array2d(dtype=wp.float32),
+    advanced_y: wp.array2d(dtype=wp.float32),
+    result_x: wp.array2d(dtype=wp.float32),
+    result_y: wp.array2d(dtype=wp.float32),
+    original_weight: float,
+    advanced_weight: float,
+) -> None:
+    i, j = wp.tid()
+    result_x[i, j] = (
+        original_weight * original_x[i, j] + advanced_weight * advanced_x[i, j]
+    )
+    result_y[i, j] = (
+        original_weight * original_y[i, j] + advanced_weight * advanced_y[i, j]
+    )
+
+
+def _ns2d_solve(
+    v0, viscosity, dt, steps, domain_extent, device, record, track_scalar_grads
+):
+    n = v0.shape[0]
+    inv_2h, inv_h2 = 0.5 * n / domain_extent, (n / domain_extent) ** 2
+
+    buffers = {}
+
+    def zeros(name, dtype=wp.float32):
+        # Reuse scratch only off-tape; reverse mode needs every stage's values.
+        if record or name not in buffers:
+            result = wp.zeros((n, n), dtype=dtype, device=device, requires_grad=record)
+            if record:
+                return result
+            buffers[name] = result
+        return buffers[name]
+
+    initial_x = wp.array(
+        v0[:, :, 0, 0], dtype=wp.float32, device=device, requires_grad=record
+    )
+    initial_y = wp.array(
+        v0[:, :, 0, 1], dtype=wp.float32, device=device, requires_grad=record
+    )
+    nu = wp.array(
+        np.asarray([viscosity], dtype=np.float32),
+        dtype=wp.float32,
+        device=device,
+        requires_grad=record and track_scalar_grads,
+    )
+    timestep = wp.array(
+        np.asarray([dt], dtype=np.float32),
+        dtype=wp.float32,
+        device=device,
+        requires_grad=record and track_scalar_grads,
+    )
+    workspace = None if record else _poisson_workspace_2d(n, device)
+
+    def project(star_x, star_y, label):
+        divergence = zeros("divergence", wp.vec2f)
+        wp.launch(
+            divergence_2d_to_complex_kernel,
+            dim=(n, n),
+            inputs=[star_x, star_y, divergence, timestep, inv_2h],
+            block_dim=256,
+            device=device,
+        )
+        pressure = _spectral_poisson_2d_core(
+            divergence, domain_extent, device, workspace=workspace
+        )
+        next_x, next_y = zeros(label + "_x"), zeros(label + "_y")
+        wp.launch(
+            pressure_correct_2d_from_complex_kernel,
+            dim=(n, n),
+            inputs=[
+                star_x,
+                star_y,
+                pressure,
+                float(n * n),
+                next_x,
+                next_y,
+                timestep,
+                inv_2h,
+            ],
+            block_dim=256,
+            device=device,
+        )
+        return next_x, next_y
+
+    def advance(x, y, label):
+        star_x, star_y = zeros("star_x"), zeros("star_y")
+        wp.launch(
+            tentative_vel_2d_kernel,
+            dim=(n, n),
+            inputs=[x, y, star_x, star_y, timestep, inv_2h, inv_h2, nu],
+            block_dim=256,
+            device=device,
+        )
+        return project(star_x, star_y, label)
+
+    def blend(original_x, original_y, advanced_x, advanced_y, a, b, label):
+        x, y = zeros(label + "_x"), zeros(label + "_y")
+        wp.launch(
+            _rk3_blend_kernel,
+            dim=(n, n),
+            inputs=[original_x, original_y, advanced_x, advanced_y, x, y, a, b],
+            block_dim=256,
+            device=device,
+        )
+        return x, y
+
+    tape = wp.Tape() if record else None
+    with tape if record else contextlib.nullcontext():
+        x, y = initial_x, initial_y
+        if steps > 0:
+            # The canonical input need not satisfy this discretization's
+            # divergence constraint. Project before all SSPRK convex blends.
+            x, y = project(x, y, "initial")
+        for _ in range(steps):
+            first_x, first_y = advance(x, y, "first")
+            second_x, second_y = advance(first_x, first_y, "second")
+            second_x, second_y = blend(
+                x, y, second_x, second_y, 0.75, 0.25, "second_blend"
+            )
+            third_x, third_y = advance(second_x, second_y, "third")
+            x, y = blend(x, y, third_x, third_y, 1 / 3, 2 / 3, "final")
+    return tape, x, y, initial_x, initial_y, nu, timestep
+
+
 def ns2d_solve_tape(
     v0_np: np.ndarray,
     viscosity: float,
@@ -1260,150 +1403,10 @@ def ns2d_solve_tape(
     domain_extent: float,
     device: str = "cpu",
     track_scalar_grads: bool = False,
-) -> tuple[wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array]:
-    """Run periodic 2-D incompressible NS via IPCS (Chorin-Temam) under a tape.
-
-    [2D-only function]
-
-    Used only by :func:`vector_jacobian_product` — see :func:`ns2d_solve_forward`
-    for the plain-forward path used by :func:`apply`. Steps per time-step:
-        1. Tentative velocity: u* = u + dt·(-u·∇u + ν∇²u)
-        2. Pressure Poisson: ∇²p = (1/dt)·∇·u*  (spectral FFT, periodic)
-        3. Velocity correction: u^(n+1) = u* - dt·∇p
-
-    Uses Warp's native source-to-source reverse-mode AD for every kernel
-    (verified to agree with a from-scratch analytical adjoint and a central-FD
-    ground truth to float32 roundoff — see repo history for the check). ``nu``
-    and ``dt`` are passed to kernels as 1-element arrays rather than plain
-    floats so that the tape can track gradients w.r.t. them, with no manual
-    ``record_func`` bookkeeping required.
-
-    ``track_scalar_grads`` gates ``requires_grad`` on the ``nu``/``dt``
-    arrays: leave it False unless the caller actually requested a viscosity
-    or dt gradient. Every ``requires_grad=True`` array adds bookkeeping to
-    every tape node that reads it, and for a 3-D solve over many timesteps
-    that overhead is measurable (~50% higher VJP wall-clock in testing) even
-    though these are 1-element arrays — so this must not be unconditional
-    when the caller only wants d(loss)/d(v0).
-
-    Each step allocates fresh output buffers (rather than ping-ponging between
-    two reused buffers) so the tape's per-step data dependencies are
-    unambiguous — this also removes the need to manually zero stale adjoints
-    between steps.
-
-    Unlike a plain forward solve, this does NOT materialize the final result
-    as a NumPy array: the caller (VJP) only needs the tape and the Warp
-    arrays to seed cotangents on and read .grad from, so skipping the
-    device->host copy of the (unused) forward result avoids a wasted sync.
-
-    Returns:
-        (tape, ux_final_wp, uy_final_wp, ux_ic_wp, uy_ic_wp, nu_wp, dt_wp)
-        The final velocity Warp arrays have requires_grad=True so
-        tape.backward() fills their .grad attributes.  nu_wp / dt_wp are
-        (1,) scalar leaves; their grads are filled directly by tape.backward()
-        only when track_scalar_grads=True (otherwise .grad stays None).
-    """
-    n = v0_np.shape[0]
-    h = domain_extent / n
-    inv_2h = 0.5 / h
-    inv_h2 = 1.0 / (h * h)
-
-    # Warp 1.12+ requires block_dim as int (256 = 16×16 for 2D, 128 for 1D).
-    # On CPU, Warp ignores block_dim and uses 1; these ints are safe on both.
-    _bd_2d = 256
-
-    ux_np = v0_np[:, :, 0, 0]
-    uy_np = v0_np[:, :, 0, 1]
-
-    ux_wp = wp.array(ux_np, dtype=wp.float32, requires_grad=True, device=device)
-    uy_wp = wp.array(uy_np, dtype=wp.float32, requires_grad=True, device=device)
-
-    nu_wp = wp.array(
-        np.array([viscosity], dtype=np.float32),
-        dtype=wp.float32,
-        requires_grad=track_scalar_grads,
-        device=device,
-    )
-    dt_wp = wp.array(
-        np.array([dt], dtype=np.float32),
-        dtype=wp.float32,
-        requires_grad=track_scalar_grads,
-        device=device,
-    )
-
-    tape = wp.Tape()
-    with tape:
-        cur_ux, cur_uy = ux_wp, uy_wp
-
-        for _step_i in range(steps):
-            ux_star = wp.zeros(
-                (n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            uy_star = wp.zeros(
-                (n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            wp.launch(
-                tentative_vel_2d_kernel,
-                dim=(n, n),
-                inputs=[cur_ux, cur_uy, ux_star, uy_star, dt_wp, inv_2h, inv_h2, nu_wp],
-                block_dim=_bd_2d,
-                device=device,
-            )
-
-            # Step 2: pressure Poisson ∇²p = ∇·u*/dt (periodic, spectral FFT).
-            # divergence_2d_to_complex_kernel fuses the divergence computation
-            # with the real->complex pack that would otherwise precede the
-            # first FFT stage (discussion recommendation #2).
-            div_star_c = wp.zeros(
-                (n, n), dtype=wp.vec2f, requires_grad=True, device=device
-            )
-            wp.launch(
-                divergence_2d_to_complex_kernel,
-                dim=(n, n),
-                inputs=[ux_star, uy_star, div_star_c, dt_wp, inv_2h],
-                block_dim=_bd_2d,
-                device=device,
-            )
-
-            p_c = _spectral_poisson_2d_core(div_star_c, domain_extent, device)
-
-            # Step 3: velocity correction u^(n+1) = u* - dt·∇p.
-            # pressure_correct_2d_from_complex_kernel fuses the "extract real +
-            # normalize" step with the pressure-correction kernel, reading p
-            # directly out of the complex IFFT output (recommendation #2).
-            next_ux = wp.zeros(
-                (n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            next_uy = wp.zeros(
-                (n, n), dtype=wp.float32, requires_grad=True, device=device
-            )
-            wp.launch(
-                pressure_correct_2d_from_complex_kernel,
-                dim=(n, n),
-                inputs=[
-                    ux_star,
-                    uy_star,
-                    p_c,
-                    float(n * n),
-                    next_ux,
-                    next_uy,
-                    dt_wp,
-                    inv_2h,
-                ],
-                block_dim=_bd_2d,
-                device=device,
-            )
-
-            cur_ux, cur_uy = next_ux, next_uy
-
-    return (
-        tape,
-        cur_ux,
-        cur_uy,
-        ux_wp,
-        uy_wp,
-        nu_wp,
-        dt_wp,
+) -> tuple:
+    """Record input projection and SSPRK3 stages, with distinct tape buffers."""
+    return _ns2d_solve(
+        v0_np, viscosity, dt, steps, domain_extent, device, True, track_scalar_grads
     )
 
 
@@ -1415,94 +1418,11 @@ def ns2d_solve_forward(
     domain_extent: float,
     device: str = "cpu",
 ) -> np.ndarray:
-    """Forward-only periodic 2-D incompressible NS via IPCS — no gradients.
-
-    [2D-only function]
-
-    Same physics as :func:`ns2d_solve_tape`, but structurally distinct (discussion
-    recommendation: separate buffer policies for forward vs. taped
-    execution): no ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
-    velocity buffers reused every step instead of fresh per-step allocations
-    (mirrors Warp's own ``example_wave.py`` grid-swap pattern), and one
-    pre-allocated FFT workspace reused across all steps instead of allocating
-    fresh scratch buffers on every Poisson solve.
-    """
-    n = v0_np.shape[0]
-    h = domain_extent / n
-    inv_2h = 0.5 / h
-    inv_h2 = 1.0 / (h * h)
-    _bd_2d = 256
-
-    ux_np = v0_np[:, :, 0, 0]
-    uy_np = v0_np[:, :, 0, 1]
-
-    vel_bufs_x = [
-        wp.array(ux_np, dtype=wp.float32, device=device),
-        wp.zeros((n, n), dtype=wp.float32, device=device),
-    ]
-    vel_bufs_y = [
-        wp.array(uy_np, dtype=wp.float32, device=device),
-        wp.zeros((n, n), dtype=wp.float32, device=device),
-    ]
-    nu_wp = wp.array(
-        np.array([viscosity], dtype=np.float32), dtype=wp.float32, device=device
+    """Use identical projected SSPRK3 arithmetic with reusable forward buffers."""
+    _, x, y, *_ = _ns2d_solve(
+        v0_np, viscosity, dt, steps, domain_extent, device, False, False
     )
-    dt_wp = wp.array(np.array([dt], dtype=np.float32), dtype=wp.float32, device=device)
-
-    ux_star = wp.zeros((n, n), dtype=wp.float32, device=device)
-    uy_star = wp.zeros((n, n), dtype=wp.float32, device=device)
-    div_star_c = wp.zeros((n, n), dtype=wp.vec2f, device=device)
-    poisson_ws = _poisson_workspace_2d(n, device)
-
-    src, dst = 0, 1
-    for _step_i in range(steps):
-        wp.launch(
-            tentative_vel_2d_kernel,
-            dim=(n, n),
-            inputs=[
-                vel_bufs_x[src],
-                vel_bufs_y[src],
-                ux_star,
-                uy_star,
-                dt_wp,
-                inv_2h,
-                inv_h2,
-                nu_wp,
-            ],
-            block_dim=_bd_2d,
-            device=device,
-        )
-        wp.launch(
-            divergence_2d_to_complex_kernel,
-            dim=(n, n),
-            inputs=[ux_star, uy_star, div_star_c, dt_wp, inv_2h],
-            block_dim=_bd_2d,
-            device=device,
-        )
-        p_c = _spectral_poisson_2d_core(
-            div_star_c, domain_extent, device, workspace=poisson_ws
-        )
-        wp.launch(
-            pressure_correct_2d_from_complex_kernel,
-            dim=(n, n),
-            inputs=[
-                ux_star,
-                uy_star,
-                p_c,
-                float(n * n),
-                vel_bufs_x[dst],
-                vel_bufs_y[dst],
-                dt_wp,
-                inv_2h,
-            ],
-            block_dim=_bd_2d,
-            device=device,
-        )
-        src, dst = dst, src
-
-    ux_out = vel_bufs_x[src].numpy()
-    uy_out = vel_bufs_y[src].numpy()
-    return np.stack([ux_out, uy_out], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
+    return np.stack([x.numpy(), y.numpy()], axis=-1)[:, :, None, :]
 
 
 def ns2d_vjp(
@@ -1516,7 +1436,7 @@ def ns2d_vjp(
     nu_wp: "wp.array | None" = None,
     dt_wp: "wp.array | None" = None,
 ) -> dict[str, np.ndarray]:
-    """Propagate cotangents through the 2-D IPCS tape.
+    """Propagate cotangents through the input projection and 2-D SSPRK3 tape.
 
     [2D-only function]
 
