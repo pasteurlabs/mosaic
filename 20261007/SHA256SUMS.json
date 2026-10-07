@@ -19,6 +19,8 @@
   "report/candidate.py": "0e0f1f895de880c2d1f4964a8fea52cc52559b131724e6202aad6949822e285c",
   "report/validate.py": "860f17052c7744e17243ef3c5576fa667c2b609ed3bb869958c7d81d9fde734b",
   "report/baseline.py": "41d1ef1df3f31dcb90945477889f9154b507811f70b106db4d1622bc9c5924d6",
+  "validation/slurm.tsv": "b7592611a0330bfa77d85dc084efbf408646a989c14b4557d495cecd5a6c9a62",
+  "validation/nine-tests.log": "be59640edb589b79e8d465c70ee4059a82ab0b4b0bc3a77d3b1ca3ed96f4c69d",
   "raw/phiflow-periodic-ssprk3-pr-20261007/submit.py": "e08d1a73cdd9a1284ddb5b5e52af4defecda30a0e624c40e266398251739c400",
   "raw/phiflow-periodic-ssprk3-pr-20261007/check-node.sh": "1e90731103ca76a8136d79c159584c675d9420368ccfa6fb2dcbb10c7fd86124",
   "raw/phiflow-periodic-ssprk3-pr-20261007/node.sh": "8901404dc563e00620cc79bef8c445221cd78735d523e16bc78857f489cff462",

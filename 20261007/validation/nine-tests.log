@@ -1,0 +1,36 @@
+[runner] node=rtx01 cluster=kander runtime=uv
+[runner] job-env=/etc/kander/job-env.sh scratch=/scratch/jobs/2911705 cache=/cache/users/10002
+[runner] isolated_command=1 (command manages Python and dependencies)
+[runner] uv_cache=/cache/users/10002/uv policy=auto
+[runner] venv=<uv default: $REPO_ROOT/.venv>
+=== 2026-10-07T11:26:28+02:00 host=rtx01 job=phi-boundary-pytest id=2911705 ===
+=== cmd: bash /data/personal/andrinr/runner/results/mosaic/phiflow-boundary-ssprk3-pr-20261007/pytest-node.sh /data/personal/andrinr/runner/results/mosaic/phiflow-boundary-ssprk3-pr-20261007 ===
+[2026-10-07T11:26:35.384] error: Unable to create TMPDIR [/scratch/jobs/2911705/tmp]: No such file or directory
+[2026-10-07T11:26:35.384] error: Setting TMPDIR to /tmp
+.........                                                                [100%]
+=============================== warnings summary ===============================
+../hostsite/_pytest/config/__init__.py:1345
+../hostsite/_pytest/config/__init__.py:1345
+  /hostsite/_pytest/config/__init__.py:1345: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+../hostsite/_pytest/config/__init__.py:1345
+../hostsite/_pytest/config/__init__.py:1345
+  /hostsite/_pytest/config/__init__.py:1345: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; jaxtyping
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+test_periodic.py::test_other_paths_do_not_use_periodic_integrator[walls]
+test_periodic.py::test_other_paths_do_not_use_periodic_integrator[inflow]
+test_periodic.py::test_other_paths_do_not_use_periodic_integrator[obstacle]
+test_periodic.py::test_wall_forward_and_vjp[2]
+test_periodic.py::test_wall_forward_and_vjp[3]
+  /python-env/lib/python3.12/site-packages/phi/physics/fluid.py:156: RuntimeWarning: Rank deficiency >= 1 detected in linear solve. Matrix might be singular which can lead to convergence problems. Please specify using Solve(rank_deficiency=...).
+    pressure = math.solve_linear(masked_laplace, div, solve, velocity.boundary, hard_bcs, active, wide_stencil=wide_stencil, order=order, implicit=None, upwind=None, correct_skew=correct_skew)
+
+test_periodic.py::test_other_paths_do_not_use_periodic_integrator[inflow]
+  /python-env/lib/python3.12/site-packages/phiml/backend/_linalg.py:348: SparseEfficiencyWarning: spsolve requires A be CSC or CSR matrix format
+    x = spsolve(matrix, y[batch])  # returns nan when diverges
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+9 passed, 10 warnings in 42.21s
+=== 2026-10-07T11:27:25+02:00 done ===
