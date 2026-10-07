@@ -1,0 +1,15 @@
+{
+  "image": "/data/personal/andrinr/runner/artifacts/mosaic/xlb-2853707.sqsh",
+  "image_sha256": "d87cb13c202c9bb2097be0b7ad58e1c541c7ee52df661ee9d06aba8d765925e0",
+  "numerical_jobs": [
+    2911806,
+    2911818,
+    2911795,
+    2911796
+  ],
+  "snapshot_job": 2911824,
+  "primary_admission_epsilon_unchanged": 0.001,
+  "diagnostic_only": true,
+  "default_precision": "float64 internal; float32 RPC/checkpoint serialization",
+  "scoped_claim": "Local kinetic tangent amplification; no claim of incorrect AD or globally unstable fullmap"
+}
