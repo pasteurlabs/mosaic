@@ -87,6 +87,7 @@ _DTYPE = torch.float64  # torch-fem defaults to float64 for solver stability
 # tensors we construct explicitly with ``device=_DEVICE``.
 torch.set_default_dtype(_DTYPE)
 torch.set_default_device(_DEVICE)
+torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 # SIMP parameters (baked into the InputSchema defaults but kept here as fallbacks)
@@ -108,22 +109,13 @@ def _build_mesh(
 
 
 def _build_bc_tensors(
-    n_nodes: int,
-    n_cells: int,
-    points_np: np.ndarray,
-    cells_np: np.ndarray,
-    bc_dict: dict,
-    source_np: np.ndarray,
-    cell_volume: float,
+    model: SolidHeat, n_nodes: int, bc_dict: dict
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Build constraint / temperature / heat-flux tensors (all shape (n_nodes, 1)).
+    """Build constraint / temperature / Neumann heat-flux tensors (all shape (n_nodes, 1)).
 
     - Dirichlet nodes: constraints[i]=True, temperatures[i]=value.
-    - Neumann face flux: lumped to nodes as q_n · face_area / 4 per right-face
-      node.  Uses the canonical "right face" identification (x == x_max) that
-      matches the heated-block problem; the mask itself marks which nodes the
-      flux applies to.
-    - Volumetric source: lumped to nodes as source_e · vol_e / 8 per cell node.
+    - Neumann face flux: q_n integrated over the boundary faces whose nodes
+      are all marked by the mask (the right face, or a strip of it).
 
     All boundary-condition tensors are allocated on _DEVICE with the
     appropriate dtype (bool for the constraints mask, _DTYPE for the nodal
@@ -160,12 +152,7 @@ def _build_bc_tensors(
                 prescribed, dtype=_DTYPE, device=_DEVICE
             )
 
-    # --- Neumann flux on the right (x=x_max) face ---
-    # Consistent FEM lumping: for each face element with uniform q_n, the
-    # contribution to each of its 4 face nodes is  f_i = q_n · A_face / 4.
-    # Summed across every face element sharing a node, this gives the correct
-    # total  Σ_i f_i = q_n · Ly · Lz  (interior face nodes pick up 4 elements,
-    # edge nodes 2, corner nodes 1).
+    # --- Neumann flux (uniform q_n) on the marked boundary faces ---
     n_bc = bc_dict.get("neumann") or {}
     n_mask = np.asarray(n_bc.get("mask", []), dtype=np.int32)
     n_vals_raw = n_bc.get("values")
@@ -175,64 +162,15 @@ def _build_bc_tensors(
         else np.zeros((0, 1), dtype=np.float64)
     )
     if n_mask.size > 0 and n_vals.size > 0:
-        mask = np.zeros(n_nodes, dtype=np.int32)
-        mask[: min(n_nodes, n_mask.size)] = n_mask[:n_nodes]
-
-        # Infer dy, dz from mesh
-        ys = np.unique(np.round(points_np[:, 1], 7))
-        zs = np.unique(np.round(points_np[:, 2], 7))
-        dy = float(ys[1] - ys[0]) if len(ys) > 1 else 1.0
-        dz = float(zs[1] - zs[0]) if len(zs) > 1 else 1.0
-
-        x_max = float(points_np[:, 0].max())
-        tol = 1e-8 * max(x_max, 1.0) + 1e-10
-
-        # A cell element is a "right-face" element if it has exactly 4 nodes on
-        # the plane x == x_max AND any of those 4 nodes are marked by the mask.
-        # Walk all cells and contribute  q_n·A/4  per face node.
-        q_n = float(n_vals[0, 0])
-        A_face = dy * dz
-        per_node = q_n * A_face / 4.0
-
-        cells_active = cells_np[:n_cells]
-        right_node_mask = np.abs(points_np[:, 0] - x_max) < tol
-
-        # For each cell, find nodes that are both on the x_max plane and
-        # flagged by the Neumann mask.  If exactly 4 such nodes exist the
-        # cell contributes to that face.
-        add_indices: list[np.ndarray] = []
-        for cell_nodes in cells_active:
-            is_face_and_marked = right_node_mask[cell_nodes] & (mask[cell_nodes] > 0)
-            if int(is_face_and_marked.sum()) == 4:
-                add_indices.append(cell_nodes[is_face_and_marked])
-        if add_indices:
-            face_nodes_flat = np.concatenate(add_indices)  # (n_contrib,)
-            idx = torch.as_tensor(face_nodes_flat, dtype=torch.long, device=_DEVICE)
-            vals = torch.full((idx.shape[0],), per_node, dtype=_DTYPE, device=_DEVICE)
-            heat_flux[:, 0] = heat_flux[:, 0].scatter_add(0, idx, vals)
-
-    # --- Volumetric source (lumped): f_i += source_e · vol_e / 8 per cell node
-    if source_np is not None and np.any(source_np != 0.0):
-        cells_t = torch.as_tensor(cells_np[:n_cells], dtype=torch.long, device=_DEVICE)
-        source_t = torch.as_tensor(source_np[:n_cells], dtype=_DTYPE, device=_DEVICE)
-        node_contrib = source_t * (cell_volume / 8.0)  # (n_cells,)
-        # Scatter-add node_contrib to each of the 8 nodes of each cell
-        flat_idx = cells_t.reshape(-1)  # (n_cells*8,)
-        flat_vals = node_contrib.unsqueeze(1).expand(-1, 8).reshape(-1)
-        heat_flux[:, 0].scatter_add_(0, flat_idx, flat_vals)
+        mask = np.zeros(n_nodes, dtype=bool)
+        mask[: min(n_nodes, n_mask.size)] = n_mask[:n_nodes] > 0
+        if mask.any():
+            heat_flux = model.integrate_surface_load(
+                torch.as_tensor(mask, device=_DEVICE),
+                torch.tensor([float(n_vals[0, 0])], dtype=_DTYPE, device=_DEVICE),
+            )
 
     return constraints, temperatures, heat_flux
-
-
-def _cell_volume_from_points(points_np: np.ndarray) -> float:
-    """Infer structured-grid cell volume from unique coordinates."""
-    xs = np.unique(np.round(points_np[:, 0], 7))
-    ys = np.unique(np.round(points_np[:, 1], 7))
-    zs = np.unique(np.round(points_np[:, 2], 7))
-    dx = float(xs[1] - xs[0]) if len(xs) > 1 else 1.0
-    dy = float(ys[1] - ys[0]) if len(ys) > 1 else 1.0
-    dz = float(zs[1] - zs[0]) if len(zs) > 1 else 1.0
-    return dx * dy * dz
 
 
 def _forward_torchfem(
@@ -259,7 +197,6 @@ def _forward_torchfem(
         - The source contributes to ``model.heat_flux`` through ``source_t``; if
           ``source_t`` is a live autograd leaf its grad flows back too.
     """
-    n_cells = cells_np.shape[0]
     n_nodes = points_np.shape[0]
 
     nodes, elements = _build_mesh(points_np, cells_np)
@@ -273,40 +210,21 @@ def _forward_torchfem(
 
     # SIMP scaling: k = k_min + (k_max - k_min) * rho^p
     #             = k_max · (k_min_ratio + (1 - k_min_ratio) · rho^p)
-    # Clip rho into [0, 1] for numerical safety but keep gradient.
-    rho_clip = torch.clamp(rho_t, 0.0, 1.0)
-    simp_scale = _K_MIN_RATIO + (1.0 - _K_MIN_RATIO) * rho_clip**p_exp  # (n_cells,)
+    simp_scale = _K_MIN_RATIO + (1.0 - _K_MIN_RATIO) * rho_t**p_exp  # (n_cells,)
     # model.material.KAPPA shape (n_cells, 3, 3); multiply elementwise along elem dim
     model.material.KAPPA = simp_scale[:, None, None] * model.material.KAPPA
 
-    # Boundary conditions and heat flux (source added separately below)
-    cell_volume = _cell_volume_from_points(points_np)
+    # Boundary conditions and Neumann heat flux (source added separately below)
     constraints, temperatures, heat_flux_base = _build_bc_tensors(
-        n_nodes,
-        n_cells,
-        points_np,
-        cells_np,
-        bc_dict,
-        source_np=None,  # source handled separately below so it stays in the graph
-        cell_volume=cell_volume,
+        model, n_nodes, bc_dict
     )
 
-    # Add source contribution as a differentiable scatter_add from source_t into
-    # a per-node heat-flux tensor.  We always build the source nodal contribution
-    # so torch-fem's NewtonRaphsonAdjoint sees source_t as a live dependency of
+    # Add the volumetric source as a body load.  We always build it so
+    # torch-fem's NewtonRaphsonAdjoint sees source_t as a live dependency of
     # ``model.heat_flux`` (otherwise ``eval_residual`` has no path back to source
     # and ``torch.autograd.grad`` returns None for that parameter).
-    cells_t = torch.as_tensor(cells_np[:n_cells], dtype=torch.long, device=_DEVICE)
-    node_contrib = source_t * (cell_volume / 8.0)  # (n_cells,)
-    flat_idx = cells_t.reshape(-1)
-    flat_vals = node_contrib.unsqueeze(1).expand(-1, 8).reshape(-1)
-    # ``index_add`` is functional (differentiable); use ``view_as`` to re-stack
-    # into the (n_nodes, 1) layout that ``model.heat_flux`` expects, and combine
-    # with the base heat flux via a plain addition.
-    src_nodal = torch.zeros(n_nodes, dtype=_DTYPE, device=_DEVICE).index_add(
-        0, flat_idx, flat_vals
-    )  # (n_nodes,)
-    heat_flux_final = heat_flux_base + src_nodal.unsqueeze(1)  # (n_nodes, 1)
+    src_nodal = model.integrate_body_load(source_t[:, None])  # (n_nodes, 1)
+    heat_flux_final = heat_flux_base + src_nodal  # (n_nodes, 1)
 
     model.constraints = constraints
     model.temperatures = temperatures
@@ -340,7 +258,9 @@ def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:
     points_np = np.asarray(hm["points"][:n_nodes], dtype=np.float64)
     cells_np = np.asarray(hm["faces"][:n_cells], dtype=np.int64)
 
-    rho_np = np.asarray(inputs_dict["rho"][:n_cells], dtype=np.float64)
+    # Clip before rho becomes an autograd leaf; torch.clamp would zero the
+    # gradient at rho = 0 and rho = 1.
+    rho_np = np.clip(np.asarray(inputs_dict["rho"][:n_cells], dtype=np.float64), 0, 1)
     source_np = np.asarray(inputs_dict["source"][:n_cells], dtype=np.float64)
     target_np = np.asarray(inputs_dict.get("target_temperature", []), dtype=np.float64)
 

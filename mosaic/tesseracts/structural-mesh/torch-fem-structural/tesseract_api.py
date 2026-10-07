@@ -78,82 +78,16 @@ _DTYPE = torch.float64
 
 torch.set_default_dtype(_DTYPE)
 torch.set_default_device(_DEVICE)
+torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 # ---------------------------------------------------------------------------
 # Boundary conditions
 # ---------------------------------------------------------------------------
 
-# Hex faces as node-index quads, for the HEX8 connectivity emitted by
-# ``mosaic.benchmarks.problems.shared.mesh.hex_mesh_arrays``:
-#   0:(0,0,0) 1:(1,0,0) 2:(1,1,0) 3:(0,1,0)
-#   4:(0,0,1) 5:(1,0,1) 6:(1,1,1) 7:(0,1,1)
-_HEX_FACES = np.array(
-    [
-        [0, 1, 2, 3],  # z−
-        [4, 5, 6, 7],  # z+
-        [0, 1, 5, 4],  # y−
-        [1, 2, 6, 5],  # x+
-        [2, 3, 7, 6],  # y+
-        [0, 3, 7, 4],  # x−
-    ],
-    dtype=np.int64,
-)
-
-
-def _quad_areas(quad_pts: np.ndarray) -> np.ndarray:
-    """Area of each planar quad, split into two triangles. ``quad_pts``: (n, 4, 3)."""
-    p0, p1, p2, p3 = quad_pts[:, 0], quad_pts[:, 1], quad_pts[:, 2], quad_pts[:, 3]
-    a1 = 0.5 * np.linalg.norm(np.cross(p1 - p0, p2 - p0), axis=-1)
-    a2 = 0.5 * np.linalg.norm(np.cross(p2 - p0, p3 - p0), axis=-1)
-    return a1 + a2
-
-
-def _lump_traction(
-    points: np.ndarray,
-    cells: np.ndarray,
-    mask: np.ndarray,
-    values: np.ndarray,
-    n_nodes: int,
-) -> np.ndarray:
-    """Consistent nodal load vector for a uniform surface traction.
-
-    Every hex face whose four nodes carry the same nonzero Neumann group tag
-    contributes ``traction · A_face / 4`` to each of them. Accumulating over
-    faces yields the exact consistent load vector for HEX8, with the
-    trapezoidal edge and corner weights falling out of the sum.
-
-    Keying on faces rather than a coordinate plane lets the full-face load and
-    the single-element corner patch share one path; the resultant is
-    ``F_total`` in both cases.
-
-    Expects a traction [force/area], as supplied to the surface-integrating
-    solvers listed in ``_traction_solvers`` in the problem's ``physics.py``.
-    """
-    forces = np.zeros((n_nodes, 3), dtype=np.float64)
-    if values.size == 0 or not np.any(mask > 0):
-        return forces
-
-    face_nodes = cells[:, _HEX_FACES]  # (n_cells, 6, 4)
-    tags = mask[face_nodes]  # (n_cells, 6, 4)
-
-    first = tags[..., :1]
-    loaded = ((first > 0) & np.all(tags == first, axis=-1, keepdims=True))[..., 0]
-    if not np.any(loaded):
-        return forces
-
-    sel_nodes = face_nodes[loaded]  # (n_loaded, 4)
-    sel_group = tags[loaded][:, 0] - 1  # 0-based group index
-    areas = _quad_areas(points[sel_nodes])  # (n_loaded,)
-
-    contrib = values[sel_group] * (areas / 4.0)[:, None]  # (n_loaded, 3)
-    np.add.at(forces, sel_nodes.ravel(), np.repeat(contrib, 4, axis=0))
-    return forces
-
 
 def _build_bcs(
-    points: np.ndarray,
-    cells: np.ndarray,
+    model: Solid,
     bc: dict[str, Any],
     n_nodes: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -161,6 +95,12 @@ def _build_bcs(
 
     ``mask`` holds 1-based group ids; ``values`` is (n_groups, 3), or None for
     zero displacement. All three DOFs of a marked node are constrained.
+
+    Neumann ``values`` are tractions [force/area], as supplied to the
+    surface-integrating solvers listed in ``_traction_solvers`` in the
+    problem's ``physics.py``. Each group's traction is integrated over the
+    boundary faces whose nodes all carry that group's tag, which covers both
+    the full-face load and the single-element corner patch.
     """
     constraints = torch.zeros(n_nodes, 3, dtype=torch.bool, device=_DEVICE)
     displacements = torch.zeros(n_nodes, 3, dtype=_DTYPE, device=_DEVICE)
@@ -193,8 +133,13 @@ def _build_bcs(
         if n_vals_raw is not None
         else np.zeros((0, 3), dtype=np.float64)
     )
-    forces_np = _lump_traction(points, cells, n_mask, n_vals, n_nodes)
-    forces = torch.as_tensor(forces_np, dtype=_DTYPE, device=_DEVICE)
+    forces = torch.zeros(n_nodes, 3, dtype=_DTYPE, device=_DEVICE)
+    groups = np.unique(n_mask[n_mask > 0]) if n_vals.size else []
+    for group in groups:
+        forces += model.integrate_surface_load(
+            torch.as_tensor(n_mask == group, device=_DEVICE),
+            torch.as_tensor(n_vals[group - 1], dtype=_DTYPE, device=_DEVICE),
+        )
 
     return constraints, displacements, forces
 
@@ -220,7 +165,9 @@ def _compliance(
     # n_points / n_faces entries.
     points = np.asarray(hm["points"], dtype=np.float64)[:n_nodes]
     cells = np.asarray(hm["faces"], dtype=np.int64)[:n_cells]
-    rho_np = np.asarray(inputs["rho"], dtype=np.float64)[:n_cells]
+    # Clip before rho becomes an autograd leaf; torch.clamp would zero the
+    # gradient at rho = 0 and rho = 1.
+    rho_np = np.clip(np.asarray(inputs["rho"], dtype=np.float64)[:n_cells], 0, 1)
 
     E_max = float(inputs.get("E_max", 70_000.0))
     nu = float(inputs.get("nu", 0.3))
@@ -238,12 +185,11 @@ def _compliance(
     model = Solid(nodes, elements, material)
     model.material = material.vectorize(model.n_elem)
 
-    # Clamp is gradient-transparent inside [0, 1], where the harness keeps rho.
-    simp = xmin + (1.0 - xmin) * torch.clamp(rho, 0.0, 1.0) ** p_exp
+    simp = xmin + (1.0 - xmin) * rho**p_exp
     model.material.C = simp[:, None, None, None, None] * model.material.C
 
     constraints, displacements, forces = _build_bcs(
-        points, cells, inputs["boundary_conditions"], n_nodes
+        model, inputs["boundary_conditions"], n_nodes
     )
     model.constraints = constraints
     model.displacements = displacements
