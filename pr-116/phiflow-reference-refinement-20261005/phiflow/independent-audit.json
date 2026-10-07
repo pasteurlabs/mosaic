@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "source_sha256": "d63ef29ba587871e2ac1fa4d58b11a01aa5799fd27540fb1cbe94a8cb93d15dc",
+  "image_sha256": "01a2b244fef26be086a27d938e12ce564ac8b000e7d759396907beed6181d4ce",
+  "shared_dataset_sha256": "291662f3a4113151512698d7f4baa8609a2b694de91a5eaebf7b979afb53b11a",
+  "training_checkpoints": 24,
+  "evaluation_batches": 192,
+  "model_ic_arm_pairs": 768,
+  "admitted_references": 40,
+  "mean_errors": {
+    "full": 0.022445119745825262,
+    "stopped": 0.025047532612725555,
+    "supervised": 0.03269007402829396
+  },
+  "comparisons": {
+    "stopped": {
+      "ratio": 0.8961010289062117,
+      "model_wins": 8,
+      "ic_wins": 32,
+      "ci95": [
+        0.8541948530770324,
+        0.9430327525899219
+      ]
+    },
+    "supervised": {
+      "ratio": 0.6866035153789658,
+      "model_wins": 8,
+      "ic_wins": 32,
+      "ci95": [
+        0.6578629580040558,
+        0.7202281457743095
+      ]
+    }
+  },
+  "report_sha256": "7c108ac0d39b4c71ceaee7664b843080f98be1bf31e788845ebc60b2dae3f211",
+  "audit_script_sha256": "bf918a61093b6372b1ad239be0c41f536a5baa3418727b300916ffd804d45020"
+}
