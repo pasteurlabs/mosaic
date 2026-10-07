@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "source_sha256": "d63ef29ba587871e2ac1fa4d58b11a01aa5799fd27540fb1cbe94a8cb93d15dc",
+  "image_sha256": "dcf0456bb440c6b5db0446336999eba7c697dd523bd3df24baca3d23dd73171a",
+  "shared_dataset_sha256": "2caac730fe25050c1af50c860189674c8c41a5301323f3c61f14503f3788eb20",
+  "training_checkpoints": 24,
+  "evaluation_batches": 192,
+  "model_ic_arm_pairs": 768,
+  "admitted_references": 40,
+  "mean_errors": {
+    "full": 0.015990160272135897,
+    "stopped": 0.018928154380267043,
+    "supervised": 0.03262113751043154
+  },
+  "comparisons": {
+    "stopped": {
+      "ratio": 0.8447817970465171,
+      "model_wins": 8,
+      "ic_wins": 32,
+      "ci95": [
+        0.7795502345905736,
+        0.9073140231826766
+      ]
+    },
+    "supervised": {
+      "ratio": 0.49017788748239044,
+      "model_wins": 8,
+      "ic_wins": 32,
+      "ci95": [
+        0.46100019254215246,
+        0.5179577281697565
+      ]
+    }
+  },
+  "report_sha256": "805862aec921d90732e0f8f34566581088c100ed189fbe4cff976cfaecf56f82",
+  "audit_script_sha256": "bf918a61093b6372b1ad239be0c41f536a5baa3418727b300916ffd804d45020"
+}
