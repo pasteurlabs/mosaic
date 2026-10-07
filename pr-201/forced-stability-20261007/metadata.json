@@ -1,0 +1,22 @@
+{
+  "baseline_commit": "a4a07dd",
+  "candidate_commit": "1e41b2d",
+  "baseline_pr": 196,
+  "candidate_pr": 201,
+  "jobs": {
+    "baseline-64": 2911585,
+    "baseline-192": 2911586,
+    "candidate-64": 2911587,
+    "candidate-192": 2911588,
+    "report": 2911614,
+    "report_initial_cancelled_download": 2911593
+  },
+  "execution": "Both adapters loaded as explicit source modules in the same unchanged Warp image; standalone solver package remains untouched.",
+  "image": "/data/personal/andrinr/runner/artifacts/mosaic/warp-ns-2856606.sqsh",
+  "source_hashes": {
+    "baseline.py": "41a3cfbc7ea0607476ec8596da6f4f41128a2230c1f708cb90c9981f38ea7b81",
+    "candidate.py": "7fd3a649251217fedfd50952f2070a744b1b65236764243aeb23d5138f68ee61",
+    "check_warp_stability.py": "2bc4c2b4d1d6093d61fa4c2a56d1002725ff566daf99a29bf64f1c50151cf90e",
+    "node.sh": "40e4cb9ccaf055abedb394dc52436967bfd247219dbd97001b233458c7ce4194"
+  }
+}
