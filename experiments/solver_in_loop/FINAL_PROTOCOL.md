@@ -43,11 +43,11 @@ is conditional on this training dataset, not variation across training datasets.
 All schedules use the existing optimizer and loss definitions. No architecture
 search, learning-rate decay search or new teacher data is included.
 
-| Arm | Initial candidates, each on three tuning seeds |
-| --- | --- |
-| Full solver gradients | learning rate {1e-5, 3e-5, 1e-4} × horizon {4, 8, 16}, 1000 updates |
-| Stopped solver gradients | the same nine candidates |
-| Fixed-pair supervision | learning rate {1e-5, 3e-5, 1e-4} × updates {1000, 3000} |
+| Arm                      | Initial candidates, each on three tuning seeds                      |
+| ------------------------ | ------------------------------------------------------------------- |
+| Full solver gradients    | learning rate {1e-5, 3e-5, 1e-4} × horizon {4, 8, 16}, 1000 updates |
+| Stopped solver gradients | the same nine candidates                                            |
+| Fixed-pair supervision   | learning rate {1e-5, 3e-5, 1e-4} × updates {1000, 3000}             |
 
 For full and stopped training separately, rank the nine initial candidates by
 mean free-running validation relative L2 error over all 16 validation ICs and all
