@@ -14,6 +14,7 @@ def valid_metrics():
         "reference_kind": "solver_self_refined",
         "eligible_for_corrector_training": True,
         "reference_convergence_passed": True,
+        "valid_for_vjp_ranking": True,
         "completed": True,
         "supervised_completed": True,
         "model_seeds": [0],
@@ -40,6 +41,7 @@ def test_short_run_need_not_outperform_supervision():
     [
         ("eligible_for_corrector_training", False),
         ("reference_convergence_passed", False),
+        ("valid_for_vjp_ranking", False),
         ("completed", False),
         ("supervised_completed", False),
         ("supervised_total_optimizer_updates", 15),

@@ -29,6 +29,7 @@ def corrector_execution(updates: int) -> Callable[[OptimizationSummary], CheckOu
             for key in (
                 "eligible_for_corrector_training",
                 "reference_convergence_passed",
+                "valid_for_vjp_ranking",
                 "completed",
                 "supervised_completed",
             ):

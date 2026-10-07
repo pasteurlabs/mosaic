@@ -159,6 +159,15 @@ jobs:
             ${SOLVERS:+--solvers "$SOLVERS"}
         timeout-minutes: ${{ inputs.timeout }}
 
+      - name: Require complete corrector training and verified gradients
+        if: matrix.problem == 'ns-grid' && matrix.suite == 'optimization'
+        env:
+          CORRECTOR_SOLVERS: ${{ inputs.solvers }}
+        run: |
+          uv run python .github/scripts/check-corrector-result.py \
+            --hardware "${{ matrix.hardware }}" \
+            --solvers "$CORRECTOR_SOLVERS"
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
