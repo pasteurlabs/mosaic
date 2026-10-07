@@ -84,3 +84,74 @@ def test_periodic_shear_and_velocity_vjp(ndim: int) -> None:
     ad = jnp.sum(jax.grad(loss)(initial) * direction)
     fd = (loss(initial + 0.001 * direction) - loss(initial - 0.001 * direction)) / 0.002
     assert float(jnp.abs(ad - fd) / jnp.maximum(jnp.abs(ad), 1e-12)) < 0.05
+
+
+@pytest.mark.parametrize("case", ["walls", "inflow", "obstacle"])
+def test_other_paths_do_not_use_periodic_integrator(
+    case: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Execute legacy routes while making the new periodic operators unavailable."""
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Nonperiodic/obstacle route called periodic operator")
+
+    monkeypatch.setattr(api, "_project_periodic_faces", forbidden)
+    monkeypatch.setattr(api, "_periodic_skew_advection", forbidden)
+    bc = {a + "_" + side: {"type": "periodic"} for a in "xyz" for side in ("lo", "hi")}
+    if case == "walls":
+        bc = {key: {"type": "no_slip"} for key in bc}
+    initial = jnp.zeros((8, 8, 1, 2), dtype=jnp.float32)
+    obstacle = (
+        {"shape": "cylinder", "center": [0.5, 0.5], "radius": 0.15}
+        if case == "obstacle"
+        else None
+    )
+    inflow = jnp.zeros((8,), dtype=jnp.float32) if case == "inflow" else None
+    result, _, state = api.phiflow_fwd(
+        initial,
+        0.01,
+        0.001,
+        1,
+        1.0,
+        bc,
+        obstacle=obstacle,
+        inflow_profile=inflow,
+        return_state=True,
+    )
+    assert result.shape == initial.shape
+    assert bool(jnp.isfinite(result).all())
+    assert bool(jnp.isfinite(state).all())
+
+
+@pytest.mark.parametrize("ndim", [2, 3])
+def test_wall_forward_and_vjp(ndim: int) -> None:
+    """The native-wall RK path remains finite and differentiates its actual map."""
+    n = 8
+    shape = (n, n, 1) if ndim == 2 else (n, n, n)
+    x = (jnp.arange(n, dtype=jnp.float32) + 0.5) / n
+    xx, yy = jnp.meshgrid(x, x, indexing="ij")
+    ux = 0.03 * jnp.sin(jnp.pi * xx) ** 2 * jnp.sin(2 * jnp.pi * yy)
+    uy = -0.03 * jnp.sin(2 * jnp.pi * xx) * jnp.sin(jnp.pi * yy) ** 2
+    initial = (
+        jnp.zeros((*shape, ndim), dtype=jnp.float32)
+        .at[..., 0]
+        .set(ux[:, :, None])
+        .at[..., 1]
+        .set(uy[:, :, None])
+    )
+    bc = {a + "_" + s: {"type": "no_slip"} for a in "xyz" for s in ("lo", "hi")}
+
+    @jax.jit
+    def forward(v: jax.Array) -> jax.Array:
+        return api.phiflow_fwd(v, 0.01, 0.001, 8, 1.0, bc, return_state=True)[0]
+
+    reference = forward(initial)
+    assert bool(jnp.isfinite(reference).all())
+    direction = initial / 0.03
+
+    def loss(v: jax.Array) -> jax.Array:
+        return jnp.mean((forward(v) - reference) * direction)
+
+    ad = jnp.sum(jax.grad(loss)(initial) * direction)
+    fd = (loss(initial + 0.001 * direction) - loss(initial - 0.001 * direction)) / 0.002
+    assert float(jnp.abs(ad - fd) / jnp.maximum(jnp.abs(ad), 1e-12)) < 0.05

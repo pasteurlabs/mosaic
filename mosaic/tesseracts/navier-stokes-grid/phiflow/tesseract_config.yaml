@@ -2,9 +2,10 @@ name: phiflow_navier_stokes_grid
 version: "0.1.0"
 description: >
   Projected SSPRK3 with energy-neutral skew advection, explicit diffusion, and
-  a discrete FFT pressure solve for
-  obstacle-free periodic 2D/3D flow. Other paths retain Euler/CG or semi-Lagrangian
-  inflow integration. Explicit timesteps remain subject to stability restrictions.
+  a discrete FFT pressure solve for obstacle-free periodic 2D/3D flow. Walls and
+  obstacles use native boundary-aware SSPRK3/projection; prescribed inflow retains
+  its semi-Lagrangian integration. Explicit timesteps remain subject to stability
+  restrictions.
   Gradients via JAX autodiff combined with analytic adjoint rules through the same
   simulation code.
 build_config:
@@ -23,9 +24,9 @@ metadata:
     name: "PhiFlow"
     backend: jax
     family: projection
-    scheme: "SSPRK3 + FFT projection (periodic 2D/3D); Euler/CG or semi-Lagrangian otherwise"
+    scheme: "SSPRK3 + FFT projection (periodic 2D/3D); native SSPRK3 projection or semi-Lagrangian inflow otherwise"
     discretization: FD
-    numerics: "SSPRK3 (periodic 2D/3D), Euler, semi-Lagrangian"
+    numerics: "SSPRK3 (periodic and boundary-aware), semi-Lagrangian inflow"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true

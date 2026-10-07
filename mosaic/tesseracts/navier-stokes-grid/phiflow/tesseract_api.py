@@ -202,8 +202,8 @@ def phiflow_fwd(
 ) -> tuple[jnp.ndarray, jnp.ndarray | None, jnp.ndarray]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
 
-    Uses projected SSPRK3 for obstacle-free periodic flow. Other boundaries
-    retain their existing integration paths. Explicit advection and diffusion
+    Uses projected SSPRK3 with periodic FFT or boundary-aware native pressure
+    solves. The inflow-specific path retains its existing integration. Advection and diffusion
     require appropriate timesteps. Dimensionality is inferred from
     ``v0.shape[-1]`` (2 → 2D, 3 → 3D).
 
@@ -416,7 +416,7 @@ def phiflow_fwd(
             0,
         )
 
-    # Inflow, walls and obstacles retain their existing stepping/projection paths.
+    # FFT projection and wrap-around skew stencils require an unobstructed torus.
     use_periodic_ssprk3 = periodic and not obstacles and inflow_profile is None
 
     # The periodic pressure projection is linear. Defining it once lets both
@@ -510,23 +510,21 @@ def phiflow_fwd(
             return final, None
 
     else:
-        # Use explicit CG pressure solver to prevent numerical divergence in 3D
-        # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
-        # Tightened rel_tol/abs_tol to 1e-10 on the 3D
-        # periodic path to prevent adjoint-side residual bias in fd_check.
-        def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
+        # Boundary-aware stages keep PhiFlow's extrapolations, obstacle masks,
+        # and native pressure solve. Periodic FFT/wrap stencils must not enter
+        # this path. The separately handled inflow algorithm remains unchanged.
+        def boundary_euler_stage(face_arr: jnp.ndarray) -> jnp.ndarray:
             vel = faces_to_staggered(face_arr)
-            # Use explicit Euler differential advection to
-            # fix VJP gradient magnitude bias and prevent NaN from semi-Lagrangian
-            # interpolation. advect.differential(-u·∇v) is JAX-autodiffable and
-            # stable for periodic forward/agreement runs (TGV, multimode, 3D).
-            # Restored here: 7f9213f accidentally reverted this to semi_lagrangian.
-            vel = vel + dt * advect.differential(vel, vel)
-            vel = diffuse.explicit(vel, viscosity, dt)
-            if periodic and not obstacles:
-                return project_periodic_faces(staggered_to_faces(vel)), None
-            vel, _ = fluid.make_incompressible(vel, obstacles, solve=_cg_solve)
-            return staggered_to_faces(vel), None
+            advection = advect.differential(vel, vel)
+            stage = diffuse.explicit(vel, viscosity, dt) + dt * advection
+            projected, _ = fluid.make_incompressible(stage, obstacles, solve=_cg_solve)
+            return staggered_to_faces(projected)
+
+        def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
+            stage1 = boundary_euler_stage(face_arr)
+            stage2 = 0.75 * face_arr + 0.25 * boundary_euler_stage(stage1)
+            final = (1.0 / 3.0) * face_arr + (2.0 / 3.0) * boundary_euler_stage(stage2)
+            return final, None
 
     # Convert the initial canonical field once. On continuation, retain the
     # serialized staggered state and assimilate only the canonical correction.
