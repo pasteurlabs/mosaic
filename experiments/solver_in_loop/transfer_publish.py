@@ -6,6 +6,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import tarfile
 from pathlib import Path
 
 REPO = "pasteurlabs/mosaic"
@@ -35,6 +36,7 @@ def main() -> None:
     parser.add_argument("--gh", default="/home/andrinr/.local/bin/gh")
     parser.add_argument("--update-pr", action="store_true")
     parser.add_argument("--status-section", type=Path)
+    parser.add_argument("--bundle-records", action="store_true")
     args = parser.parse_args()
     campaign = args.campaign
     summary = json.loads((campaign / "report/report.json").read_text())
@@ -92,11 +94,22 @@ def main() -> None:
     ):
         if (campaign / name).exists():
             shutil.copy2(campaign / name, destination / name)
-    shutil.copytree(campaign / "configs", destination / "configs", dirs_exist_ok=True)
-    for path in sorted((campaign / "results").glob("*/outcome.json")):
-        target = destination / "outcomes" / path.parent.name
-        target.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, target / path.name)
+    outcomes = sorted((campaign / "results").glob("*/outcome.json"))
+    if args.bundle_records:
+        with tarfile.open(
+            destination / "configs-and-outcomes.tar.gz", "w:gz"
+        ) as archive:
+            archive.add(campaign / "configs", arcname="configs")
+            for path in outcomes:
+                archive.add(path, arcname=f"outcomes/{path.parent.name}/outcome.json")
+    else:
+        shutil.copytree(
+            campaign / "configs", destination / "configs", dirs_exist_ok=True
+        )
+        for path in outcomes:
+            target = destination / "outcomes" / path.parent.name
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target / path.name)
     subprocess.run([*git, "add", str(folder)], check=True)
     if subprocess.check_output(
         [*git, "diff", "--cached", "--name-only"], text=True

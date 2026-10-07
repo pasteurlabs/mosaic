@@ -67,6 +67,28 @@ def verified_cache_files(payload: dict) -> dict[str, str]:
 class RefinementController(Controller):
     """Retain each predeclared reference attempt, then dispatch admitted transfer."""
 
+    def submit_admission(self, cell: str, phase: str, payload: dict) -> str:
+        """Apply recorded allocation-only overrides to preflight, never confirmation fits."""
+        policy_path = self.campaign / "admission-resources.json"
+        if not policy_path.exists():
+            self.submit(cell, phase, payload)
+            return cell
+        policy = json.loads(policy_path.read_text())
+        if policy["source_sha256"] != payload["source_sha256"]:
+            raise RuntimeError("admission resource policy source differs")
+        cell = policy.get("replacements", {}).get(cell, cell)
+        previous = self.plan["resources"]
+        try:
+            self.plan["resources"] = policy["resources"]
+            self.submit(cell, phase, payload)
+        finally:
+            self.plan["resources"] = previous
+        self.state["admission_resources_policy_sha256"] = hashlib.sha256(
+            policy_path.read_bytes()
+        ).hexdigest()
+        self.save()
+        return cell
+
     def wait_reference(self, cell: str, payload: dict) -> str:
         """Permit one reviewed TIMEOUT retry only if a completed burn cache exists."""
         policy_path = self.campaign / "timeout-cache-retry-policy.json"
@@ -190,7 +212,7 @@ class RefinementController(Controller):
             )
             payload["run"]["training"].pop("curriculum", None)
             cell = f"reference-{solver}-t{factor}-audit{audit}"
-            self.submit(cell, "prepare", payload)
+            cell = self.submit_admission(cell, "prepare", payload)
             self.state["status"] = "reference_refinement_running"
             self.save()
             cell = self.wait_reference(cell, payload)
@@ -213,7 +235,7 @@ class RefinementController(Controller):
                 dataset_sha256=metadata["dataset_sha256"],
             )
             probe = f"gradient-runtime-{solver}-t{factor}"
-            self.submit(probe, "train", payload)
+            probe = self.submit_admission(probe, "train", payload)
             self.wait([probe])
             gradient = json.loads(
                 (self.campaign / "results" / probe / "outcome.json").read_text()
