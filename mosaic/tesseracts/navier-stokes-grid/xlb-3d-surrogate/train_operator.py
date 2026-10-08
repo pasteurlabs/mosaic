@@ -281,6 +281,7 @@ def main() -> None:
     first = jax.tree.map(jnp.zeros_like, params)
     second = jax.tree.map(jnp.zeros_like, params)
     start_step, best_score = 0, math.inf
+    history, baseline = [], None
     settings = {
         k: v for k, v in vars(args).items() if not isinstance(v, Path) and k != "resume"
     }
@@ -296,17 +297,39 @@ def main() -> None:
         if checkpoint["identity"] != identity:
             raise ValueError("resume configuration/data/source mismatch")
         start_step = checkpoint["step"]
+        if not 0 <= start_step <= args.updates:
+            raise ValueError("resume step is outside the training budget")
+        best_path = args.output / "best.npz"
+        if not best_path.exists():
+            raise ValueError("resume requires best.npz; restore the full output bundle")
+        with np.load(best_path, allow_pickle=False) as saved:
+            best_metadata = json.loads(str(saved["metadata"]))
+        if (
+            best_metadata["identity"] != identity
+            or best_metadata["step"] > start_step
+            or best_metadata["best_score"] != checkpoint["best_score"]
+        ):
+            raise ValueError("resume best checkpoint does not match the saved run")
         best_score = (
             checkpoint["best_score"]
             if checkpoint["best_score"] is not None
             else math.inf
         )
         rng.bit_generator.state = checkpoint["rng"]
+        history_path = args.output / "history.json"
+        if history_path.exists():
+            saved = json.loads(history_path.read_text())
+            if saved["identity"] != identity:
+                raise ValueError("resume history does not match the saved run")
+            history = [r for r in saved["history"] if r["step"] <= start_step]
         report_path = args.output / "report.json"
-        if start_step == args.updates and report_path.exists():
+        if report_path.exists():
             completed = json.loads(report_path.read_text())
+            if completed["identity"] != identity:
+                raise ValueError("resume report does not match the saved run")
+            baseline = completed["diffusion_validation"]
             if (
-                completed["identity"] == identity
+                start_step == args.updates
                 and completed["steps_completed"] == args.updates
                 and not completed["interrupted"]
             ):
@@ -323,8 +346,6 @@ def main() -> None:
     signal.signal(signal.SIGTERM, stop_handler)
     started = time.perf_counter()
     functions, update_functions = {}, {}
-    history = []
-    baseline = None
     if not args.resume:
         diffusion = dict(params) | {"out": jnp.zeros_like(params["out"])}
         baseline_score, baseline = evaluate(

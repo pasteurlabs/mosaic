@@ -306,10 +306,45 @@ def test_training_cli_smoke_and_completed_resume(tmp_path):
         "--batch-size",
         "1",
     ]
-    subprocess.run(command, check=True, capture_output=True, text=True)
+    # Interrupt after validation at step two, then resume in a fresh process.
+    # This exercises saved sampling state and history, not only a completed no-op.
+    interrupt = f"""
+import sys, signal
+sys.path.insert(0, {str(ROOT)!r})
+import train_operator as training
+original = training.make_update
+def make_update(*args):
+    update = original(*args)
+    def wrapped(*values):
+        result = update(*values)
+        if int(values[-1]) == 2:
+            signal.raise_signal(signal.SIGUSR1)
+        return result
+    return wrapped
+training.make_update = make_update
+training.main()
+"""
+    subprocess.run(
+        [sys.executable, "-c", interrupt, *command[2:]],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    interrupted = json.loads((output / "report.json").read_text())
+    assert interrupted["interrupted"] and interrupted["steps_completed"] == 2
+    resume = [*command, "--resume", str(output / "latest.npz")]
+    (output / "best.npz").rename(output / "saved-best.npz")
+    missing_best = subprocess.run(resume, check=False, capture_output=True, text=True)
+    assert missing_best.returncode != 0
+    assert "restore the full output bundle" in missing_best.stderr
+    (output / "saved-best.npz").rename(output / "best.npz")
+    subprocess.run(resume, check=True, capture_output=True, text=True)
     report = json.loads((output / "report.json").read_text())
     assert report["steps_completed"] == 4 and not report["interrupted"]
     assert report["test"][0]["finite"]
+    assert [r["step"] for r in report["history"]] == [0, 2, 4]
+    assert report["history"][:2] == interrupted["history"]
+    assert report["diffusion_validation"] == interrupted["diffusion_validation"]
     subprocess.run(
         [*command, "--resume", str(output / "latest.npz")],
         check=True,
@@ -382,4 +417,23 @@ def test_partial_dataset_fails_before_mapping(tmp_path):
         )
     )
     with pytest.raises(ValueError, match="incomplete dataset case"):
+        loader.WindowDataset(tmp_path / "data", tmp_path / "cache")
+
+
+def test_mixed_generation_runs_fail_before_mapping(tmp_path):
+    directory = tmp_path / "data/case/float64"
+    directory.mkdir(parents=True)
+    for index, signature in enumerate(("seed-a", "seed-b")):
+        (directory / f"shard-{index:05d}.json").write_text(
+            json.dumps(
+                {
+                    "case": {"id": "case", "N": 8, "samples": 4},
+                    "start": 2 * index,
+                    "stop": 2 * index + 2,
+                    "signature": signature,
+                    "sha256": "sha",
+                }
+            )
+        )
+    with pytest.raises(ValueError, match="inconsistent or incomplete dataset shards"):
         loader.WindowDataset(tmp_path / "data", tmp_path / "cache")

@@ -44,10 +44,11 @@ def _prepare_cache(dataset: Path, cache: Path) -> dict:
         for row in rows:
             if (
                 row["case"] != rows[0]["case"]
+                or row["signature"] != rows[0]["signature"]
                 or row["start"] != stop
                 or row["stop"] <= stop
             ):
-                raise ValueError("inconsistent or incomplete dataset shard ranges")
+                raise ValueError("inconsistent or incomplete dataset shards")
             stop = row["stop"]
         if "samples" in rows[0]["case"] and stop != rows[0]["case"]["samples"]:
             raise ValueError("incomplete dataset case")
@@ -111,7 +112,11 @@ def _prepare_cache(dataset: Path, cache: Path) -> dict:
             )
         mapped = np.memmap(source, mode="r", dtype=dtype, offset=offset, shape=shape)
         if (
-            mapped.shape[:2] != (len(valid), len(snapshots))
+            len(valid) != record["stop"] - record["start"]
+            or len(splits) != len(valid)
+            or len(parents) != len(valid)
+            or len(families) != len(valid)
+            or mapped.shape[:2] != (len(valid), len(snapshots))
             or mapped.dtype != np.float32
             or mapped.shape[2:] != (record["case"]["N"],) * 3 + (3,)
         ):

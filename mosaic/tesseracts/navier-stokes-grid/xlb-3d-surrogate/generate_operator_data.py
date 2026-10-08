@@ -5,7 +5,6 @@
 
 Use operator_dataset.py to prepare a JSON plan outside the teacher image. This
 entry point runs inside the XLB image, directly invoking its native operators.
-The legacy fixed-task generator and packaged checkpoint remain reproducible.
 """
 
 from __future__ import annotations

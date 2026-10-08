@@ -16,7 +16,7 @@ ROOT = (
     Path(__file__).parents[1] / "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate"
 )
 spec = importlib.util.spec_from_file_location(
-    "conditioned_operator_api", ROOT / "operator_api.py"
+    "conditioned_operator_api", ROOT / "tesseract_api.py"
 )
 api = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = api

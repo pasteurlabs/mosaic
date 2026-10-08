@@ -79,9 +79,6 @@ def test_coverage_uses_registered_physics_and_xlb_scaling():
     assert case["nominal_physics"]["steps"] == 50
     assert max(c["steps"] for c in manifest["cases"]) == 10240
     assert len({c["id"] for c in manifest["cases"]}) == len(manifest["cases"])
-    pilot = data.pilot_manifest(manifest)
-    assert len(pilot["cases"]) == 8
-    assert max(c["steps"] for c in pilot["cases"]) <= 100
 
 
 def test_resume_requires_matching_source_and_valid_content(tmp_path):

@@ -9,7 +9,6 @@ build_config:
   package_data:
     - ["./operator_weights.npz", "/tesseract/operator_weights.npz"]
     - ["./operator_model.py", "/tesseract/operator_model.py"]
-    - ["./operator_api.py", "/tesseract/operator_api.py"]
 env:
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
 

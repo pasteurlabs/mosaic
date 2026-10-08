@@ -19,7 +19,7 @@ from pathlib import Path
 import jax
 import jax.numpy as jnp
 import numpy as np
-import operator_api as api
+import tesseract_api as api
 from generate_operator_data import load_teacher, teacher_policy
 from operator_dataset import file_hash
 from operator_storage import atomic_json, require_local

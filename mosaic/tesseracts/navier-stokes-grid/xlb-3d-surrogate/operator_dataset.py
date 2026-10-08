@@ -190,48 +190,6 @@ def benchmark_manifest() -> dict:
     }
 
 
-def pilot_manifest(manifest: dict, samples: int = 24) -> dict:
-    """Select every grid plus stiff and recovery regimes for a bounded pilot."""
-    selected = []
-    for n in sorted({c["N"] for c in manifest["cases"]}):
-        candidates = [c for c in manifest["cases"] if c["N"] == n]
-        # Prefer timing experiments, then the longest horizon <=100.
-        candidate = max(
-            candidates,
-            key=lambda c: (
-                c["experiment"].startswith("cost/"),
-                c["steps"] <= 100,
-                min(c["steps"], 100),
-            ),
-        )
-        selected.append(candidate)
-    selected.extend(
-        c
-        for c in manifest["cases"]
-        if c["experiment"]
-        in {
-            "gradient/fd_check",
-            "optimization/recovery_constant_ic_bfgs_proj",
-        }
-    )
-    cases = []
-    for case in selected:
-        item = dict(case)
-        item["source_case_id"] = item.pop("id")
-        item["steps"] = min(item["steps"], 100)
-        item["samples"] = samples
-        item["snapshot_steps"] = snapshot_steps(item["steps"])
-        item["id"] = fingerprint(item)[:16]
-        cases.append(item)
-    return {
-        "version": VERSION,
-        "purpose": "throughput and teacher precision pilot",
-        "coverage_manifest_sha256": fingerprint(manifest),
-        "seed": 20261007,
-        "cases": cases,
-    }
-
-
 def training_manifest(
     manifest: dict, samples: int = 384, holdout_samples: int = 128
 ) -> dict:
@@ -274,15 +232,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--pilot", type=Path)
     parser.add_argument("--training", type=Path)
     args = parser.parse_args()
     coverage = benchmark_manifest()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(coverage, indent=2) + "\n")
-    if args.pilot:
-        args.pilot.parent.mkdir(parents=True, exist_ok=True)
-        args.pilot.write_text(json.dumps(pilot_manifest(coverage), indent=2) + "\n")
     if args.training:
         args.training.parent.mkdir(parents=True, exist_ok=True)
         args.training.write_text(

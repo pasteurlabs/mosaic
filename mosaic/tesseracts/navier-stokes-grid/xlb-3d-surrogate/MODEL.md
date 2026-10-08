@@ -99,6 +99,8 @@ The loader validates parameter shapes, finiteness, model version and source hash
 Training used the cached XLB image with JAX 0.10; local API/harness checks also run
 with JAX 0.11.2. These runs did not rebuild the declared runtime image.
 
-The prior fixed N=16 model remains in `weights.npz`, `surrogate_model.py` and
-`legacy_api.py` for reproducibility. Those artifacts are not packaged in the new
-runtime image. Its old training recipes remain in this directory.
+The retired fixed N=16 model, checkpoint, and experimental training recipes are
+preserved in [Git history](https://github.com/pasteurlabs/mosaic/tree/3a8c4cc/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate).
+The active tree contains only the general operator pipeline. `operator_model.py`
+is frozen byte-for-byte to preserve its checkpoint source hash, including its
+historical module header.
