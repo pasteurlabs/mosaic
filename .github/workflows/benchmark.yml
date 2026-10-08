@@ -442,6 +442,11 @@ jobs:
       - name: Regenerate plots from merged results
         run: uv run mosaic run --plots-only
 
+      # Interactive (Vega-Lite) version of each plot, written next to its PNG.
+      # Altair is a docs-only dependency, pinned here rather than in the lock.
+      - name: Export interactive charts
+        run: uv run --with altair==6.3.0 python docs/export_charts.py
+
       - name: Generate results pages
         run: uv run python docs/generate_results.py
 

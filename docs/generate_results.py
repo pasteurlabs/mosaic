@@ -612,6 +612,26 @@ def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
     return f"![]({_img_src(problem, suite, experiment, png)}){{.lightbox}}"
 
 
+def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | None:
+    """Interactive version of a plot, or None if none was exported.
+
+    docs/export_charts.py writes a Vega-Lite spec ``<plot>.vl.json`` next to
+    each PNG it has a chart for (see docs/vl/). The figure fetches it lazily
+    (docs/mosaic-ui.html) and keeps the PNG as the fallback when there is no
+    JS or the chart fails to load.
+    """
+    if not png.with_suffix(".vl.json").exists():
+        return None
+    src = _img_src(problem, suite, experiment, png)
+    spec = src[: -len(".png")] + ".vl.json"
+    return (
+        "```{=html}\n"
+        f'<figure class="m-chart" data-spec="{spec}">'
+        f'<img class="m-chart-fallback" src="{src}" alt="" loading="lazy">'
+        "</figure>\n```"
+    )
+
+
 def _sweep_line(params: dict) -> str:
     """Return a one-line sweep description, or empty string if no sweep.
 
@@ -917,7 +937,8 @@ def generate_qmd_for_problem(
 
             lines.append("")
             for png in pngs:
-                lines.append(_img_tag(problem, suite, experiment, png))
+                chart = _chart_block(problem, suite, experiment, png)
+                lines.append(chart or _img_tag(problem, suite, experiment, png))
             lines += ["", ":::", ""]
 
         # Best-solver leaderboard, shown below the suite's plots (issue 8).
@@ -1077,6 +1098,10 @@ def render_explorer(tree: dict) -> str:
                 if plot_desc:
                     lines += [plot_desc, ""]
                 for png in pngs:
+                    chart = _chart_block(problem, suite, experiment, png)
+                    if chart:
+                        lines += [chart, ""]
+                        continue
                     src = _img_src(problem, suite, experiment, png)
                     lines += [
                         f'[![]({src}){{.nolightbox loading="lazy"}}]({src}){{.exp-plot target="_blank"}}',

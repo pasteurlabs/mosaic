@@ -389,6 +389,34 @@ p > img {
   padding: 0.35rem;
 }
 
+// ── Interactive charts ───────────────────────────────────────────────────────
+// figure.m-chart holds the Vega-Lite chart once drawn, with the PNG as fallback.
+figure.m-chart {
+  margin: 0.75rem 0 1rem;
+
+  overflow-x: auto;
+
+  .m-chart-plot {
+    width: 100%;
+  }
+
+  .m-chart-fallback {
+    display: block;
+    max-width: 100%;
+    max-height: 32rem;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 0.5rem;
+    border: 1px solid var(--m-border);
+    padding: 0.35rem;
+  }
+
+  &.is-live .m-chart-fallback {
+    display: none;
+  }
+
+}
+
 // ── Sortable ranking tables ──────────────────────────────────────────────────
 // The solver-ranking tables (wrapped in `.sortable-table`) get click-to-sort
 // behaviour from docs/sortable-tables.html. Style the headers as affordances:

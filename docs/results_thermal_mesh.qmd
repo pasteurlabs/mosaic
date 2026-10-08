@@ -3,7 +3,7 @@ title: Heat transfer
 ---
 
 ::: {.page-meta}
-[H]{.domain-id .d-H} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [12 plots]{.meta-chip}
+[H]{.domain-id .d-H} [Auto-generated 2026-10-08 14:11 UTC]{.meta-chip} [12 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -108,7 +108,9 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/thermal-mesh/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -161,7 +163,9 @@ Sweeps `rho_0` ∈ {0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95}
 
 :::
 
-![](../mosaic-results/thermal-mesh/forward/agreement/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/forward/agreement/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/forward/agreement/curves.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -207,7 +211,9 @@ Sweeps `N` ∈ {2, 3, 4, 6, 8, 12, 16, 24}
 
 :::
 
-![](../mosaic-results/thermal-mesh/forward/baseline/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/forward/baseline/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/forward/baseline/curves.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -255,7 +261,9 @@ Sweeps `Q_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
 
 :::
 
-![](../mosaic-results/thermal-mesh/forward/physical_laws/physical_accuracy.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/forward/physical_laws/physical_accuracy.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/forward/physical_laws/physical_accuracy.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -299,7 +307,9 @@ Sweeps `N` ∈ {4, 6, 8, 12, 16, 24}
 
 :::
 
-![](../mosaic-results/thermal-mesh/forward/source_baseline/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/forward/source_baseline/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/forward/source_baseline/curves.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -345,7 +355,9 @@ Sweeps `amplitude` ∈ {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}
 
 :::
 
-![](../mosaic-results/thermal-mesh/forward/source_linearity/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/forward/source_linearity/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/forward/source_linearity/curves.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -434,7 +446,9 @@ Sweeps `steps` ∈ {1}
 
 :::
 
-![](../mosaic-results/thermal-mesh/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -496,7 +510,9 @@ FD gradient error vs step size $\varepsilon$ (U-curves), AD/FD direction cosine,
 
 :::
 
-![](../mosaic-results/thermal-mesh/gradient/fd_check/fd_check.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -551,7 +567,9 @@ Sweeps `rho_0` ∈ {0.1, 0.2, 0.4, 0.6, 0.8}
 
 :::
 
-![](../mosaic-results/thermal-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/gradient/param_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/gradient/param_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -596,7 +614,9 @@ FD gradient error vs $\varepsilon$, AD/FD direction cosine, and gradient field p
 
 :::
 
-![](../mosaic-results/thermal-mesh/gradient/source_fd_check/fd_check.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/gradient/source_fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/gradient/source_fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -651,7 +671,9 @@ Sweeps `sigma` ∈ {0.05, 0.1, 0.2, 0.3, 0.5}
 
 :::
 
-![](../mosaic-results/thermal-mesh/gradient/source_width_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/gradient/source_width_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/gradient/source_width_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -712,7 +734,9 @@ Optimisation traces (loss vs iteration) and recovered conductivity fields vs the
 
 :::
 
-![](../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_convergence.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_convergence.vl.json"><img class="m-chart-fallback" src="../mosaic-results/thermal-mesh/optimization/conductivity_recovery_bfgs/conductivity_recovery_convergence.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
