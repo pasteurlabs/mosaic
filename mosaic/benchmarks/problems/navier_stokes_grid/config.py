@@ -63,11 +63,14 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
+from .corrector_plots import plot_solver_in_loop
+from .corrector_status import corrector_execution
 from .exclusions import register as _register_exclusions
 from .ics import _flat_inflow, _multimode, _tgv, _tgv_analytic, _uniform_flow
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_drag_opt
+from .solver_in_loop import solver_in_loop
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -441,6 +444,71 @@ problem.add_experiment(
         "snap_interval": 20,
     },
     plot=plot_drag_opt,
+)
+problem.add_experiment(
+    "optimization/solver_in_loop",
+    solver_in_loop,
+    description=(
+        "A bounded regression benchmark that trains the same periodic residual CNN "
+        "with full solver gradients, stopped solver gradients, and fixed-pair supervision. "
+        "Each solver supplies its own refined reference, with temporal and native-state "
+        "closure admission checks. The short training budget tests end-to-end integration; "
+        "it does not establish statistical superiority of one training method."
+    ),
+    plot_description=(
+        "Held-out full-field trajectories and errors for all three learned correctors "
+        "and the uncorrected solver, plus gradient checks and training cost."
+    ),
+    runs=[
+        {
+            "ic": {"name": "multimode", "seed": 0},
+            "physics": {"N": 32, "nu": 0.001, "dt": 0.01, "steps": 2},
+            "dataset": {
+                "reference_kind": "solver_self_refined",
+                "reference_factor": 2,
+                "reference_temporal_factor": 4,
+                "reference_audit_factor": 2,
+                "reference_audit_temporal_factor": 8,
+                "reference_convergence_tolerance": 0.005,
+                "train_seeds": [0],
+                "test_seeds": [100],
+                "train_frames": 8,
+                "k0": 2.0,
+                "sigma_k": 0.5,
+                "amplitude": 0.5,
+                "prefix_audit_seeds": [0, 100],
+                "prefix_audit_frames": [1, 8, 12],
+                "closure_relative_tolerance": 0.01,
+                "closure_to_signal_tolerance": 0.1,
+                "minimum_refinement_signal": 1e-4,
+            },
+            "training": {
+                "max_updates": 16,
+                "unroll": 4,
+                "loss_mode": "mean",
+                "solver_loss_weight": 0.0,
+                "include_supervised_baseline": True,
+                "loss_normalization": "solver_baseline",
+                "loss_scale_floor": 1e-6,
+                "lr": 1e-4,
+                "clip_norm": 5.0,
+                "architecture": "periodic_residual_cnn",
+                "hidden_channels": 8,
+                "kernel_size": 3,
+                "seed": 2026,
+                "model_seeds": [0],
+                "check_grad": True,
+                "fd_epsilon": 1e-3,
+            },
+            "evaluation": {
+                "rollout_frames": 12,
+                "seen_ic_trajectories": 1,
+                "stable_error_threshold": 1.0,
+            },
+        }
+    ],
+    plot=plot_solver_in_loop,
+    status_check=[corrector_execution(16)],
 )
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

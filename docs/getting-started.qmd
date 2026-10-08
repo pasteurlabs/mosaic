@@ -84,6 +84,45 @@ mosaic run -p structural-mesh --suites cost
 mosaic run -p thermal-mesh --suites optimization
 ```
 
+The 2D neural-corrector benchmark is included in the ordinary optimization suite
+and its CI matrix. To run it on its own:
+
+```bash
+mosaic run -p ns-grid -e optimization/solver_in_loop --hardware gpu
+```
+
+This bounded case uses unforced periodic flow on a 32² grid and targets from the
+same solver at 64². Reference timesteps are refined by four, with an eightfold
+refinement used for the temporal-convergence audit. Each correction interval is
+two coarse solver steps. All three methods use the same small CNN and receive
+16 optimizer updates:
+
+- **Full gradients:** four recurrent correction intervals, differentiating through
+  the solver calls between corrections.
+- **Stopped gradients:** the same recurrent forward calculation, cutting the
+  derivatives through the solver.
+- **Supervised:** fixed one-interval input/target pairs generated from reference
+  states, with no learned feedback during training.
+
+Evaluation runs all three models freely for 12 intervals on a held-out initial
+condition and also reports the uncorrected solver. The benchmark checks reference
+admission, the neural training gradient, finite results and complete update
+counts. Its result files and plots feed the existing status/report pipeline.
+Acceptance does not require a particular ranking of the training methods, and
+this short CI budget does not establish statistical superiority.
+
+For a focused GitHub Actions run, dispatch **Benchmark** with `problems=ns-grid`,
+`suites=optimization`, and `experiments=solver_in_loop`. The experiment selector
+is a bare name; the suite is selected separately. Solver images must already be
+built for the dispatched commit using **Build Tesseracts** with
+`domain=navier-stokes-grid`. Normal PR benchmark runs still include this experiment
+whenever they select the 2D optimization suite.
+
+Use the normal command above for CI validation. `--quick` further reduces budgets
+and disables gradient checks, so it cannot satisfy this benchmark's acceptance
+criteria.
+
+
 ### Useful flags
 
 | Flag | Effect |

@@ -14,7 +14,10 @@ build_config:
     # is a net win over paying the sysimage build cost every push. Removed
     # PackageCompiler from the package list — it's no longer imported.
     - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="4.0.0"), Pkg.PackageSpec(name="FFTW", version="1.8"), Pkg.PackageSpec(name="Zygote", version="0.7.10")]); Pkg.precompile()'''
-    - "RUN chmod -R 777 /app"
+    # Resolve juliacall before fixing permissions. Otherwise the later image
+    # check creates lock.pid as its own UID, preventing the runtime UID from
+    # opening it when the container starts.
+    - 'RUN python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using IncompressibleNavierStokes, Zygote")'' && chmod -R 777 /app'
 env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"

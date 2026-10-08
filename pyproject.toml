@@ -19,6 +19,7 @@ dependencies = [
     "pandas",
     "matplotlib",
     "jax[cpu]",
+    "equinox==0.13.8",
     "optax",
     "tesseract-core[runtime]>=1.10.0",
     "tesseract-jax",

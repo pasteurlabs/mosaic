@@ -171,7 +171,8 @@ SUITE_DESCRIPTIONS = {
         "**Can you optimize through it?** End-to-end optimization benchmarks run a "
         "gradient-based optimizer using each solver's own gradients: recovery of "
         "initial conditions or physical parameters, topology optimization, and drag "
-        "minimization. This is the ultimate test, since a gradient can pass the "
+        "minimization and bounded neural-corrector training in 2D flow. "
+        "This is the ultimate test, since a gradient can pass the "
         "finite-difference check yet still fail to drive a full optimization loop."
     ),
     "cost": (
@@ -478,6 +479,10 @@ def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
     rows: list[tuple[str, float, bool]] = []
     metric_label = None
     for exp in sorted(p.name for p in opt_dir.iterdir() if p.is_dir()):
+        # Corrector targets come from each solver independently, so these errors
+        # cannot support a cross-solver accuracy ranking.
+        if exp == "solver_in_loop":
+            continue
         for r in _load_suite_results(problem, "optimization", exp):
             m = r.get("metrics") or {}
             key = next((k for k in _OPT_FINAL_KEYS if k in m), None)
