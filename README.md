@@ -153,6 +153,26 @@ States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combine with `-p` / `-
 
 </details>
 
+The 2D solver-in-the-loop benchmark runs through the ordinary optimization suite:
+
+```bash
+mosaic run -p ns-grid -e optimization/solver_in_loop --hardware gpu
+```
+
+Its short CI configuration uses unforced periodic flow on a 32² grid, with
+references from the same solver at 64². Each of three identical CNNs receives
+16 optimizer updates: full solver gradients, recurrent training with stopped
+solver gradients, and fixed-pair supervised training. Recurrent training spans
+four correction intervals; evaluation runs freely for 12 intervals on a held-out
+initial condition, alongside the uncorrected solver.
+
+Acceptance requires admitted references, a passing end-to-end gradient check,
+finite results and all configured updates. It does not require one training
+method to outperform another. Result plots include full fields, rollout errors,
+gradient diagnostics and training costs. Reference time refinement checks
+consistency, not spatial convergence; errors against different solvers' own
+references are not a cross-solver accuracy ranking.
+
 The full CLI reference and smoke-test workflow live in [Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html).
 
 ## Use Tesseracts in your own code

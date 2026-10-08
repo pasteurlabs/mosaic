@@ -86,6 +86,8 @@ class OptimizationSummary:
 
     final_initial_ratio: float | None = None
     peer_final_loss_by_sweep: dict[Any, float] = field(default_factory=dict)
+    # Raw solver entry for experiment-specific completion checks.
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────

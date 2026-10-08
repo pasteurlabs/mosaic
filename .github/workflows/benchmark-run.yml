@@ -15,6 +15,10 @@ on:
         description: "Comma-separated suites (or 'all') — used for IC suite filter"
         type: string
         default: "all"
+      experiments:
+        description: "Single experiment name within the requested suites (or 'all')"
+        type: string
+        default: "all"
       base_image_tag:
         description: >-
           GHCR tag (the base/main commit SHA) to pull the unchanged solvers at.
@@ -149,15 +153,36 @@ jobs:
             ${LOADED:+--skip-images "$LOADED"}
 
       - name: Run ${{ matrix.suite }} | ${{ matrix.problem }} | ${{ matrix.hardware }}
+        env:
+          EXPERIMENT: ${{ inputs.experiments }}
         run: |
+          # Qualify the validated experiment with this matrix cell's suite.
+          if [[ ! "$EXPERIMENT" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            echo "::error::Expected a single experiment name, not a suite/experiment path"
+            exit 1
+          fi
+          SELECTOR="$EXPERIMENT"
+          if [[ "$EXPERIMENT" != "all" ]]; then
+            SELECTOR="${{ matrix.suite }}/$EXPERIMENT"
+          fi
           SOLVERS="${{ inputs.solvers }}"
           uv run mosaic run \
             --suites ${{ matrix.suite }} \
+            --experiments "$SELECTOR" \
             --problems ${{ matrix.problem }} \
             --hardware ${{ matrix.hardware }} \
             --no-build \
             ${SOLVERS:+--solvers "$SOLVERS"}
         timeout-minutes: ${{ inputs.timeout }}
+
+      - name: Require complete corrector training and verified gradients
+        if: matrix.problem == 'ns-grid' && matrix.suite == 'optimization' && (inputs.experiments == 'all' || inputs.experiments == 'solver_in_loop')
+        env:
+          CORRECTOR_SOLVERS: ${{ inputs.solvers }}
+        run: |
+          uv run python .github/scripts/check-corrector-result.py \
+            --hardware "${{ matrix.hardware }}" \
+            --solvers "$CORRECTOR_SOLVERS"
 
       - uses: actions/upload-artifact@v7
         if: always()

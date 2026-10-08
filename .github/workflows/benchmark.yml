@@ -8,6 +8,9 @@ on:
       problems:
         description: "Comma-separated problems to run (or 'all')"
         default: "all"
+      experiments:
+        description: "Single experiment name within requested suites (or all)"
+        default: "all"
       suites:
         description: "Comma-separated suites to run (or 'all')"
         default: "all"
@@ -166,12 +169,15 @@ jobs:
 
       - id: matrix
         name: Generate (suite, problem, hardware) matrix
+        env:
+          EXPERIMENT: ${{ github.event.inputs.experiments || 'all' }}
         if: steps.decide.outputs.should_run == 'true'
         run: |
           SOLVERS="${{ steps.decide.outputs.solvers }}"
           MATRIX=$(uv run python .github/scripts/generate-benchmark-matrix.py \
             --problems "${{ steps.decide.outputs.problems }}" \
             --suites "${{ steps.decide.outputs.suites }}" \
+            --experiments "$EXPERIMENT" \
             ${SOLVERS:+--solvers "$SOLVERS"})
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "Matrix: $MATRIX"
@@ -207,6 +213,7 @@ jobs:
       matrix: ${{ needs.plan.outputs.matrix }}
       problems: ${{ needs.plan.outputs.problems }}
       suites: ${{ needs.plan.outputs.suites }}
+      experiments: ${{ github.event.inputs.experiments || 'all' }}
       solvers: ${{ needs.plan.outputs.solvers }}
       # Changed solvers come from the build's image artifacts (loaded in the run
       # job). Unchanged solvers are pulled from GHCR at the PR's base SHA — the

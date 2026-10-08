@@ -519,6 +519,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
         summary = OptimizationSummary(
             final_initial_ratio=ratio,
             peer_final_loss_by_sweep=per_sweep,
+            metrics=entry,
         )
         verdict = _run_checks(checks, summary)
         if verdict:
