@@ -3,11 +3,11 @@ title: Structural mechanics
 ---
 
 ::: {.page-meta}
-[S]{.domain-id .d-S} [Auto-generated 2026-10-08 11:37 UTC]{.meta-chip} [15 plots]{.meta-chip}
+[S]{.domain-id .d-S} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [15 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
-![](figures/domain_structural_mesh.png){.domain-figure}
+![](figures/domain_structural_mesh.svg){.domain-figure}
 
 [Place a fixed budget of material in a clamped beam to make it as stiff as possible, differentiating through a finite-element solve.]{.domain-tagline}
 

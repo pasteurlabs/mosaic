@@ -3,11 +3,11 @@ title: Heat transfer
 ---
 
 ::: {.page-meta}
-[H]{.domain-id .d-H} [Auto-generated 2026-10-08 11:37 UTC]{.meta-chip} [12 plots]{.meta-chip}
+[H]{.domain-id .d-H} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [12 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
-![](figures/domain_thermal_mesh.png){.domain-figure}
+![](figures/domain_thermal_mesh.svg){.domain-figure}
 
 [Invert for the conductivity field of a slab from its temperature, differentiating through a steady heat-conduction solve.]{.domain-tagline}
 

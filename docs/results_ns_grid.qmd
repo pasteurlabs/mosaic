@@ -3,11 +3,11 @@ title: Navier–Stokes (2D)
 ---
 
 ::: {.page-meta}
-[F2]{.domain-id .d-F2} [Auto-generated 2026-10-08 11:37 UTC]{.meta-chip} [13 plots]{.meta-chip}
+[F2]{.domain-id .d-F2} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [13 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
-![](figures/domain_ns_grid.png){.domain-figure}
+![](figures/domain_ns_grid.svg){.domain-figure}
 
 [Optimize the inflow of a 2D channel flow to minimize drag on a cylinder, differentiating through an incompressible fluid solver.]{.domain-tagline}
 

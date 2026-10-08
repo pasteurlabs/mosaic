@@ -59,7 +59,7 @@ comparable within a domain.
 ::: {.domain-grid .column-page}
 ::: {.domain-card}
 ::: {.domain-thumb}
-![](figures/domain_ns_grid.png){.nolightbox fig-alt="Navier–Stokes 2D task schematic"}
+![](figures/domain_ns_grid.svg){.nolightbox fig-alt="Navier–Stokes 2D task schematic"}
 :::
 ::: {.domain-card-body}
 [F2]{.domain-id .d-F2}
@@ -75,7 +75,7 @@ finite-difference, finite-volume, and LBM schemes.
 
 ::: {.domain-card}
 ::: {.domain-thumb}
-![](figures/domain_ns_3d_grid.png){.nolightbox fig-alt="Navier–Stokes 3D task schematic"}
+![](figures/domain_ns_3d_grid.svg){.nolightbox fig-alt="Navier–Stokes 3D task schematic"}
 :::
 ::: {.domain-card-body}
 [F3]{.domain-id .d-F3}
@@ -90,7 +90,7 @@ Warp-NS, Exponax, INS.jl, and OpenFOAM on a triply periodic Taylor–Green vorte
 
 ::: {.domain-card}
 ::: {.domain-thumb}
-![](figures/domain_structural_mesh.png){.nolightbox fig-alt="Structural mechanics task schematic"}
+![](figures/domain_structural_mesh.svg){.nolightbox fig-alt="Structural mechanics task schematic"}
 :::
 ::: {.domain-card-body}
 [S]{.domain-id .d-S}
@@ -106,7 +106,7 @@ minimization with SIMP penalization.
 
 ::: {.domain-card}
 ::: {.domain-thumb}
-![](figures/domain_thermal_mesh.png){.nolightbox fig-alt="Heat transfer task schematic"}
+![](figures/domain_thermal_mesh.svg){.nolightbox fig-alt="Heat transfer task schematic"}
 :::
 ::: {.domain-card-body}
 [H]{.domain-id .d-H}

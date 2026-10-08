@@ -3,11 +3,11 @@ title: Navier–Stokes (3D)
 ---
 
 ::: {.page-meta}
-[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 11:37 UTC]{.meta-chip} [9 plots]{.meta-chip}
+[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [9 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
-![](figures/domain_ns_3d_grid.png){.domain-figure}
+![](figures/domain_ns_3d_grid.svg){.domain-figure}
 
 [Recover the initial velocity field of a 3D turbulent flow from a later snapshot, differentiating through the Navier–Stokes rollout.]{.domain-tagline}
 

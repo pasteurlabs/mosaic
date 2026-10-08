@@ -54,13 +54,13 @@ PROBLEM_LABELS = {
 }
 
 # Schematic of each benchmark task (control variable, physical process,
-# optimization objective), shared with the paper. Path is relative to the
+# optimization objective), drawn by docs/figures/make_domain_figures.py. Path is relative to the
 # generated docs/results_*.qmd files. Optional \u2014 omitted if the file is absent.
 PROBLEM_ILLUSTRATIONS = {
-    "ns-grid": "figures/domain_ns_grid.png",
-    "ns-3d-grid": "figures/domain_ns_3d_grid.png",
-    "structural-mesh": "figures/domain_structural_mesh.png",
-    "thermal-mesh": "figures/domain_thermal_mesh.png",
+    "ns-grid": "figures/domain_ns_grid.svg",
+    "ns-3d-grid": "figures/domain_ns_3d_grid.svg",
+    "structural-mesh": "figures/domain_structural_mesh.svg",
+    "thermal-mesh": "figures/domain_thermal_mesh.svg",
 }
 
 # One-line "what is this task" caption shown under the schematic, aimed at a
