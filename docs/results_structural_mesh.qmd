@@ -2,11 +2,16 @@
 title: Structural mechanics
 ---
 
-> Auto-generated 2026-06-15 19:21 UTC &nbsp;·&nbsp; 13 plots
+::: {.page-meta}
+[S]{.domain-id .d-S} [Auto-generated 2026-10-08 10:55 UTC]{.meta-chip} [15 plots]{.meta-chip}
+:::
 
-![](figures/domain_structural_mesh.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
+::: {.domain-hero}
+![](figures/domain_structural_mesh.png){.domain-figure}
 
-*Place a fixed budget of material in a clamped beam to make it as stiff as possible, differentiating through a finite-element solve.*
+[Place a fixed budget of material in a clamped beam to make it as stiff as possible, differentiating through a finite-element solve.]{.domain-tagline}
+
+:::
 
 **Designing a stiff structure.** Given a fixed amount of material, where should it go to make a loaded beam as rigid as possible? This is *topology optimization*, solved by differentiating a finite-element stress analysis with respect to a per-element material density field $\rho$.
 
@@ -24,9 +29,21 @@ These are **example results**, produced automatically on GitHub Actions runners 
 
 :::
 
-## Initial Conditions
+## Scores at a glance {.unnumbered}
 
+```{=html}
+<div class="scoreboard scoreboard-domain"><div class="table-scroll"><table class="sb-table"><thead><tr><th class="sb-rank" scope="col">Rank</th><th scope="col" class="sb-solver">Solver</th><th scope="col">Forward</th><th scope="col">Gradient</th><th scope="col">Cost</th><th scope="col">Optimization</th><th scope="col">Reliability</th><th scope="col" class="sb-overall">Score</th></tr></thead><tbody><tr><td class="sb-rank"><span class="rank-pill r1">1</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#structural-mesh-firedrake-structural">Firedrake</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:91.3%"></span></div><span class="sb-val">91</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r1">1</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#structural-mesh-torch-fem-structural">torch-fem</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:91.2%"></span></div><span class="sb-val">91</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r3">3</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#structural-mesh-fenics-structural">FEniCS</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-4"><span class="sb-val">68</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:89.1%"></span></div><span class="sb-val">89</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">4</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#structural-mesh-jax-fem">JAX-FEM</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-3"><span class="sb-val">60</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:87.5%"></span></div><span class="sb-val">88</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">5</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#structural-mesh-topopt-jl">TopOpt.jl</a></th><td class="sb-cell lvl-2"><span class="sb-val">38</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:83.1%"></span></div><span class="sb-val">83</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">6</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#structural-mesh-dealii-structural">deal.II</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-0"><span class="sb-val">—</span></td><td class="sb-cell lvl-3"><span class="sb-val">41</span></td><td class="sb-cell lvl-0"><span class="sb-val">—</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:48.2%"></span></div><span class="sb-val">48</span></td></tr></tbody></table></div></div>
+```
+
+*Per-axis scores from 0 to 100, computed from the same results as the rankings below. See the [Results overview](results.qmd#scoreboard) for the scoring method and the cross-domain ranking.*
+
+## Initial Conditions {#suite-ics .suite-heading data-suite="ics"}
+
+::: {.suite-intro}
 Visualisation of each initial condition (the starting field a run is launched from) available for this problem. IC plots are generated without running any solver.
+:::
+
+::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -54,11 +71,17 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 ![](../mosaic-results/structural-mesh/ics/ics.png){.lightbox}
 
-## Forward
+:::
 
+## Forward {#suite-forward .suite-heading data-suite="forward"}
+
+::: {.suite-intro}
 **Is the prediction right?** Forward-pass benchmarks check each solver's output against a trusted reference (and an analytic solution where one exists): inter-solver agreement, field-level diagnostics, and long-run stability.
+:::
 
-### Agreement
+::: {.exp-card}
+
+### Agreement {#exp-forward-agreement}
 
 Structural compliance $C = \mathbf{F}^\top \mathbf{u}$ vs density $\rho_0$ at fixed mesh, sweeping uniform density to span the SIMP stiffness regime.
 
@@ -101,7 +124,11 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.5, 0.7, 0.9}
 
 ![](../mosaic-results/structural-mesh/forward/agreement/curves.png){.lightbox}
 
-### Baseline
+:::
+
+::: {.exp-card}
+
+### Baseline {#exp-forward-baseline}
 
 Structural compliance $C = \mathbf{F}^\top \mathbf{u}$ vs mesh resolution $N$ for each solver, uniform density $\rho_0=0.5$, full-face downward load.
 
@@ -143,7 +170,11 @@ Sweeps `N` ∈ {4, 6, 8, 12, 16}
 
 ![](../mosaic-results/structural-mesh/forward/baseline/curves.png){.lightbox}
 
-### Physical Laws
+:::
+
+::: {.exp-card}
+
+### Physical Laws {#exp-forward-physical-laws}
 
 Diagnostic functionals (compliance, total displacement) vs total load $F_\mathrm{total}$, validating linearity of the SIMP response.
 
@@ -189,29 +220,37 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
 
 ![](../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.png){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Mean rel. error |
 |---|---|
 | deal.II | 0 |
 | FEniCS | 0 |
 | Firedrake | 0 |
+| JAX-FEM | 0 |
+| torch-fem | 0 |
 | TopOpt.jl | 5.53e-03 |
 :::
 
 *Ranked by mean relative error against the reference solution (lower is more accurate).*
 
-## Cost
+## Cost {#suite-cost .suite-heading data-suite="cost"}
 
+::: {.suite-intro}
 **What does it cost?** Wall-clock scaling of the forward and VJP passes with problem size $N$ and the number of integration steps. Timings come from dedicated runners with no concurrent workloads; see the reliability note at the top of the page before reading absolute numbers.
+:::
+
+::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
 
 **Spatial Cost**
 
-Sweeps `nx` ∈ {4, 6, 8, 12, 16}
+Sweeps `nx` ∈ {4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128}
 
 ```json
 {
@@ -235,7 +274,13 @@ Sweeps `nx` ∈ {4, 6, 8, 12, 16}
       6,
       8,
       12,
-      16
+      16,
+      24,
+      32,
+      48,
+      64,
+      96,
+      128
     ]
   }
 }
@@ -273,25 +318,32 @@ Sweeps `steps` ∈ {1}
 
 ![](../mosaic-results/structural-mesh/cost/cost.png){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Forward time | VJP time |
 |---|---|---|
-| TopOpt.jl | 0.0127 s @ N=16 | 0.0342 s @ N=16 |
-| Firedrake | 0.103 s @ N=16 | 0.285 s @ N=16 |
-| FEniCS | 0.138 s @ N=16 | 0.472 s @ N=16 |
-| JAX-FEM | 0.154 s @ N=16 | 0.52 s @ N=16 |
-| deal.II | 1.54 s @ N=16 | — |
+| TopOpt.jl | 0.631 s @ N=128 | 1.06 s @ N=128 |
+| torch-fem | 0.819 s @ N=128 | 2.19 s @ N=128 |
+| Firedrake | 2.57 s @ N=128 | 6.85 s @ N=128 |
+| deal.II | 3.94 s @ N=128 | — |
+| FEniCS | 4.37 s @ N=128 | 13.4 s @ N=128 |
+| JAX-FEM | 13.8 s @ N=128 | 38.8 s @ N=128 |
 :::
 
 *Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
 
-## Gradient
+## Gradient {#suite-gradient .suite-heading data-suite="gradient"}
 
+::: {.suite-intro}
 **Is the gradient right?** Gradient benchmarks compare each solver's AD/adjoint gradient against a finite-difference ground truth. We report magnitude error (relative $L^2$) and direction agreement (cosine similarity) across parameter, resolution, and horizon sweeps. The horizon sweep in particular exposes how gradients degrade as the rollout lengthens.
+:::
 
-### Finite-Difference Check
+::: {.exp-card}
+
+### Finite-Difference Check {#exp-gradient-fd-check}
 
 U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ with subspace cosine, validating VJP correctness on a random density.
 
@@ -335,7 +387,11 @@ U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ 
 
 ![](../mosaic-results/structural-mesh/gradient/fd_check/fd_check.png){.lightbox}
 
-### Parameter Sweep
+:::
+
+::: {.exp-card}
+
+### Parameter Sweep {#exp-gradient-param-sweep}
 
 Gradient norm, best-$\varepsilon$ FD error, direction cosine, and U-curves vs uniform density $\rho_0$.
 
@@ -389,23 +445,31 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.6, 0.8}
 
 ![](../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Best-ε FD error | 1 − cosine |
 |---|---|---|
-| FEniCS | 2.10e-05 | 1.96e-10 |
-| Firedrake | 2.10e-05 | 1.96e-10 |
-| TopOpt.jl | 2.10e-05 | 1.96e-10 |
+| FEniCS | 2.11e-05 | 1.97e-10 |
+| Firedrake | 2.11e-05 | 1.97e-10 |
+| TopOpt.jl | 2.11e-05 | 1.97e-10 |
+| JAX-FEM | 2.11e-05 | 1.97e-10 |
+| torch-fem | 2.11e-05 | 1.97e-10 |
 :::
 
 *Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
 
-## Optimization
+## Optimization {#suite-optimization .suite-heading data-suite="optimization"}
 
+::: {.suite-intro}
 **Can you optimize through it?** End-to-end optimization benchmarks run a gradient-based optimizer using each solver's own gradients: recovery of initial conditions or physical parameters, topology optimization, and drag minimization. This is the ultimate test, since a gradient can pass the finite-difference check yet still fail to drive a full optimization loop.
+:::
 
-### Topology Optimisation
+::: {.exp-card}
+
+### Topology Optimisation {#exp-optimization-topopt}
 
 SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr=0.05): compliance $C = \mathbf{F}^\top \mathbf{u}$ and density field evolution under a 50% volume-fraction constraint.
 
@@ -448,17 +512,22 @@ SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr
 ![](../mosaic-results/structural-mesh/optimization/topopt/topopt.png){.lightbox}
 ![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif){.lightbox}
 ![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.gif){.lightbox}
 ![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif){.lightbox}
+![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.gif){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Final compliance | Converged |
 |---|---|---|
 | JAX-FEM | 1.00e-03 | no |
 | FEniCS | 1.00e-03 | no |
 | Firedrake | 1.00e-03 | no |
 | TopOpt.jl | 1.00e-03 | no |
+| torch-fem | 1.00e-03 | no |
 :::
 
 *Ranked by the final objective reached within the iteration budget (lower is better).*

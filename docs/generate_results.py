@@ -8,6 +8,7 @@
 Usage:
     python docs/generate_results.py           # writes docs/results_*.qmd
     python docs/generate_results.py --check   # exit 1 if any file is stale
+    python docs/generate_results.py --overview-only  # only the results.qmd includes
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ import json
 import math
 import sys
 from pathlib import Path
+
+import scoreboard
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = ROOT / "mosaic-results"
@@ -543,9 +546,9 @@ def _leaderboard_block(problem: str, suite: str) -> list[str]:
     # Rows are already in rank order, so a Rank column adds nothing; rely on row
     # order (and click-to-sort) instead.
     lines = [
-        "**Solver ranking**",
+        "[Solver ranking]{.eyebrow}",
         "",
-        "::: {.sortable-table}",
+        "::: {.sortable-table .leaderboard}",
         "| " + " | ".join(header) + " |",
         "|" + "|".join("---" for _ in header) + "|",
     ]
@@ -566,6 +569,24 @@ def _slug(problem: str) -> str:
     return problem.replace("-", "_")
 
 
+def _exp_anchor(suite: str, experiment: str) -> str:
+    """Stable heading id for an experiment, shared by the domain page and the
+    Results overview explorer (e.g. ``exp-forward-agreement-tgv``)."""
+    key = experiment.replace("/", "-").replace("_", "-") or "overview"
+    return f"exp-{suite}-{key}"
+
+
+def _exp_label(experiment: str) -> str:
+    """Display label for an experiment key, "Parent (Sub)" for sub-experiments."""
+    if "/" in experiment:
+        parent_exp, sub_exp = experiment.split("/", 1)
+        parent_label = EXPERIMENT_LABELS.get(
+            parent_exp, parent_exp.replace("_", " ").title()
+        )
+        return f"{parent_label} ({sub_exp.replace('_', ' ').title()})"
+    return EXPERIMENT_LABELS.get(experiment, experiment.replace("_", " ").title())
+
+
 def _output_path(problem: str) -> Path:
     return OUTPUT_DIR / f"results_{_slug(problem)}.qmd"
 
@@ -581,12 +602,14 @@ def _sort_pngs(paths: list[Path]) -> list[Path]:
     return sorted(paths, key=key)
 
 
-def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
+def _img_src(problem: str, suite: str, experiment: str, png: Path) -> str:
     if experiment:
-        return (
-            f"![]({_IMG_BASE}/{problem}/{suite}/{experiment}/{png.name}){{.lightbox}}"
-        )
-    return f"![]({_IMG_BASE}/{problem}/{suite}/{png.name}){{.lightbox}}"
+        return f"{_IMG_BASE}/{problem}/{suite}/{experiment}/{png.name}"
+    return f"{_IMG_BASE}/{problem}/{suite}/{png.name}"
+
+
+def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
+    return f"![]({_img_src(problem, suite, experiment, png)}){{.lightbox}}"
 
 
 def _sweep_line(params: dict) -> str:
@@ -765,19 +788,26 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
     return tree
 
 
-def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
+def generate_qmd_for_problem(
+    problem: str, suites: dict, timestamp: str, scores: dict | None = None
+) -> str:
     """Generate QMD content for a single problem domain."""
     label = PROBLEM_LABELS.get(problem, problem.replace("-", " ").title())
     desc = _problem_description(problem)
 
     n_plots = sum(len(pngs) for exps in suites.values() for pngs in exps.values())
 
+    pid = scoreboard.PROBLEM_IDS.get(problem)
     lines: list[str] = [
         "---",
         f"title: {label}",
         "---",
         "",
-        f"> Auto-generated {timestamp} &nbsp;·&nbsp; {n_plots} plots",
+        "::: {.page-meta}",
+        (f"[{pid}]{{.domain-id .d-{pid}}} " if pid else "")
+        + f"[Auto-generated {timestamp}]{{.meta-chip}} "
+        f"[{n_plots} plots]{{.meta-chip}}",
+        ":::",
         "",
     ]
 
@@ -785,16 +815,11 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
     # checkout without docs/figures/ still renders cleanly).
     illustration = PROBLEM_ILLUSTRATIONS.get(problem)
     if illustration and (OUTPUT_DIR / illustration).exists():
-        lines += [
-            (
-                f"![]({illustration}){{width=100% "
-                'style="max-width:560px; display:block; margin:0 auto 0.5rem;"}'
-            ),
-            "",
-        ]
+        lines += ["::: {.domain-hero}", f"![]({illustration}){{.domain-figure}}", ""]
         tagline = PROBLEM_TAGLINES.get(problem)
         if tagline:
-            lines += [f"*{tagline}*", ""]
+            lines += [f"[{tagline}]{{.domain-tagline}}", ""]
+        lines += [":::", ""]
 
     if desc:
         lines += [desc, ""]
@@ -820,13 +845,31 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
             "",
         ]
 
+    # Per-domain slice of the cross-domain scoreboard (Results overview).
+    domain_table = scoreboard.render_domain(scores, problem) if scores else ""
+    if domain_table:
+        lines += [
+            "## Scores at a glance {.unnumbered}",
+            "",
+            domain_table,
+            (
+                "*Per-axis scores from 0 to 100, computed from the same results as "
+                "the rankings below. See the [Results overview](results.qmd#scoreboard) "
+                "for the scoring method and the cross-domain ranking.*"
+            ),
+            "",
+        ]
+
     for suite, experiments in suites.items():
         suite_label = SUITE_LABELS.get(suite, suite.title())
         suite_desc = SUITE_DESCRIPTIONS.get(suite, "")
 
-        lines += [f"## {suite_label}", ""]
+        lines += [
+            f'## {suite_label} {{#suite-{suite} .suite-heading data-suite="{suite}"}}',
+            "",
+        ]
         if suite_desc:
-            lines += [suite_desc, ""]
+            lines += ["::: {.suite-intro}", suite_desc, ":::", ""]
 
         def _exp_sort_key(exp: str) -> tuple[int, str, str]:
             if exp == "":
@@ -842,6 +885,7 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
             pngs = experiments[experiment]
             is_sub = "/" in experiment
 
+            lines += ["::: {.exp-card}", ""]
             if experiment == "":
                 # Suite-level PNGs: no sub-heading
                 exp_desc = _plot_description(problem, suite, "")
@@ -858,24 +902,13 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
                 lines += _params_block(None, sub_params=sub_params)
             else:
                 # Build label: for sub-experiments use "Parent (Sub)" format
-                if is_sub:
-                    parent_exp, sub_exp = experiment.split("/", 1)
-                    parent_label = EXPERIMENT_LABELS.get(
-                        parent_exp, parent_exp.replace("_", " ").title()
-                    )
-                    sub_label = sub_exp.replace("_", " ").title()
-                    exp_label = f"{parent_label} ({sub_label})"
-                    exp_dir_name = parent_exp
-                else:
-                    exp_label = EXPERIMENT_LABELS.get(
-                        experiment, experiment.replace("_", " ").title()
-                    )
-                    exp_dir_name = experiment
+                exp_label = _exp_label(experiment)
+                exp_dir_name = experiment.split("/", 1)[0] if is_sub else experiment
                 short_desc = _experiment_description(problem, suite, exp_dir_name)
                 plot_desc = _plot_description(problem, suite, exp_dir_name)
                 params_path = RESULTS_DIR / problem / suite / experiment / "params.json"
 
-                lines += [f"### {exp_label}", ""]
+                lines += [f"### {exp_label} {{#{_exp_anchor(suite, experiment)}}}", ""]
                 if short_desc:
                     lines += [short_desc, ""]
                 if plot_desc:
@@ -885,12 +918,198 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
             lines.append("")
             for png in pngs:
                 lines.append(_img_tag(problem, suite, experiment, png))
-            lines.append("")
+            lines += ["", ":::", ""]
 
         # Best-solver leaderboard, shown below the suite's plots (issue 8).
         lines += _leaderboard_block(problem, suite)
 
     return "\n".join(lines)
+
+
+# ── Results overview includes (scoreboard + experiment explorer) ─────────────
+#
+# docs/results.qmd pulls these in with {{< include >}}. They are gitignored and
+# rewritten by `generate_results.py --overview-only`, which the Quarto
+# pre-render hook runs, so a checkout without benchmark results still renders
+# (with a short placeholder) instead of failing on a missing include.
+
+SCOREBOARD_INCLUDE = OUTPUT_DIR / "_scoreboard.qmd"
+EXPLORER_INCLUDE = OUTPUT_DIR / "_explorer.qmd"
+SCORES_JSON = OUTPUT_DIR / "_scores.json"
+
+_NO_RESULTS = (
+    "::: {.callout-note appearance='simple'}\n"
+    "No benchmark results are available in this build. Run the benchmarks "
+    "([Getting Started](getting-started.qmd)) or download the published "
+    "baseline into `mosaic-results/` to populate this section.\n"
+    ":::\n"
+)
+
+
+def _solver_meta() -> dict[str, dict[str, dict]]:
+    """``{problem: {solver_name: {display, anchor}}}`` from the problem configs.
+
+    ``display`` is the card name from each container's tesseract_config.yaml
+    (falling back to the SolverSpec name) and ``anchor`` is the solver's id on
+    the Solver Reference page (``<tesseract dir>-<solver dir>``).
+    """
+    import yaml
+
+    out: dict[str, dict[str, dict]] = {}
+    for problem in scoreboard.PROBLEM_ORDER:
+        try:
+            cfg = _get_config(problem)
+        except Exception:  # noqa: S112 — problem not importable in this env
+            continue
+        tdir = cfg.tesseract_dir
+        for spec in cfg.solvers:
+            display = spec.name
+            cfg_path = Path(tdir) / spec.dir / "tesseract_config.yaml"
+            try:
+                meta = yaml.safe_load(cfg_path.read_text()) or {}
+                display = ((meta.get("metadata") or {}).get("mosaic") or {}).get(
+                    "name"
+                ) or display
+            except Exception:  # noqa: S110 — keep the SolverSpec name
+                pass
+            out.setdefault(problem, {})[spec.name] = {
+                "display": display,
+                "anchor": f"{Path(tdir).name}-{spec.dir}",
+            }
+    return out
+
+
+def compute_scores() -> dict | None:
+    try:
+        return scoreboard.compute(RESULTS_DIR, _solver_meta())
+    except Exception as exc:  # never fail the docs build on scoring
+        print(f"Scoreboard skipped: {exc}")
+        return None
+
+
+def _md_attr(text: str) -> str:
+    return text.replace('"', "'").replace("\n", " ")
+
+
+def _plain(text: str) -> str:
+    """Strip the markdown/math sigils that would otherwise pollute search text."""
+    for ch in "*`$\\{}_^":
+        text = text.replace(ch, " ")
+    return " ".join(text.split())
+
+
+def render_explorer(tree: dict) -> str:
+    """Card grid of every experiment across domains, with a details dialog."""
+    if not tree:
+        return _NO_RESULTS
+    lines = [
+        "```{=html}",
+        '<div class="explorer-toolbar" data-target="exp-grid">'
+        '<label class="search-box"><span class="search-icon" aria-hidden="true"></span>'
+        '<input type="search" class="explorer-search" placeholder="Search experiments, '
+        'e.g. horizon, cost, recovery…" aria-label="Search experiments"></label>'
+        '<div class="chip-filters" data-filter="problem"><button type="button" '
+        'class="chip-btn active" data-value="">All domains</button>'
+        + "".join(
+            f'<button type="button" class="chip-btn" data-value="{p}">'
+            f"{scoreboard.PROBLEM_IDS.get(p, p)} · {PROBLEM_LABELS.get(p, p)}</button>"
+            for p in scoreboard.PROBLEM_ORDER
+            if p in tree
+        )
+        + '</div><div class="chip-filters" data-filter="suite"><button type="button" '
+        'class="chip-btn active" data-value="">All suites</button>'
+        + "".join(
+            f'<button type="button" class="chip-btn" data-value="{s}">{SUITE_LABELS[s]}</button>'
+            for s in _SUITE_ORDER
+            if any(s in suites for suites in tree.values())
+        )
+        + '</div><span class="explorer-count" aria-live="polite"></span></div>',
+        "```",
+        "",
+        "::: {#exp-grid .card-grid .exp-grid}",
+        "",
+    ]
+    problems = [p for p in scoreboard.PROBLEM_ORDER if p in tree] + sorted(
+        p for p in tree if p not in scoreboard.PROBLEM_ORDER
+    )
+    for problem in problems:
+        plabel = PROBLEM_LABELS.get(problem, problem)
+        pid = scoreboard.PROBLEM_IDS.get(problem, problem)
+        page = f"results_{_slug(problem)}.qmd"
+        for suite, experiments in tree[problem].items():
+            slabel = SUITE_LABELS.get(suite, suite.title())
+            for experiment, pngs in experiments.items():
+                exp_dir = experiment.split("/", 1)[0]
+                if experiment:
+                    title = _exp_label(experiment)
+                    short = _experiment_description(problem, suite, exp_dir)
+                    anchor = _exp_anchor(suite, experiment)
+                else:
+                    title = f"{slabel} overview"
+                    short = ""
+                    anchor = f"suite-{suite}"
+                plot_desc = _plot_description(problem, suite, exp_dir)
+                search = _plain(f"{title} {plabel} {pid} {slabel} {short}").lower()
+                thumb = _img_src(problem, suite, experiment, pngs[0])
+                lines += [
+                    (
+                        f'::: {{.exp-tile data-problem="{problem}" data-suite="{suite}" '
+                        f'data-search="{_md_attr(search)}" tabindex="0" role="button"}}'
+                    ),
+                    "",
+                    f'![]({thumb}){{.exp-thumb .nolightbox loading="lazy" alt=""}}',
+                    "",
+                    "::: {.exp-tile-body}",
+                    (
+                        f"[{pid}]{{.chip .chip-domain}} "
+                        f'[{slabel}]{{.chip .chip-suite data-suite="{suite}"}} '
+                        f"[{len(pngs)} plot{'s' if len(pngs) != 1 else ''}]"
+                        "{.chip .chip-quiet}"
+                    ),
+                    "",
+                    f"[{title}]{{.exp-tile-title}}",
+                    "",
+                ]
+                if short:
+                    lines += ["::: {.exp-tile-desc}", short, ":::", ""]
+                lines += ["::: {.exp-tile-detail}", ""]
+                lines += [f"[{plabel} · {slabel}]{{.eyebrow}}", ""]
+                if plot_desc:
+                    lines += [plot_desc, ""]
+                for png in pngs:
+                    src = _img_src(problem, suite, experiment, png)
+                    lines += [
+                        f'[![]({src}){{.nolightbox loading="lazy"}}]({src}){{.exp-plot target="_blank"}}',
+                        "",
+                    ]
+                lines += [
+                    f"[Open in the {plabel} results →]({page}#{anchor}){{.exp-open}}",
+                    "",
+                    ":::",
+                    ":::",
+                    ":::",
+                    "",
+                ]
+    lines += [":::", ""]
+    return "\n".join(lines)
+
+
+def write_overview(tree: dict, scores: dict | None) -> None:
+    """Write the gitignored overview includes and the per-solver score JSON."""
+    if scores:
+        labels = {p: PROBLEM_LABELS.get(p, p) for p in scoreboard.PROBLEM_ORDER}
+        pages = {p: f"results_{_slug(p)}.qmd" for p in scoreboard.PROBLEM_ORDER}
+        SCOREBOARD_INCLUDE.write_text(
+            scoreboard.render_overview(scores, labels, pages), encoding="utf-8"
+        )
+        SCORES_JSON.write_text(
+            json.dumps(scoreboard.per_solver_summary(scores), indent=1),
+            encoding="utf-8",
+        )
+    else:
+        SCOREBOARD_INCLUDE.write_text(_NO_RESULTS, encoding="utf-8")
+        SCORES_JSON.unlink(missing_ok=True)
+    EXPLORER_INCLUDE.write_text(render_explorer(tree), encoding="utf-8")
 
 
 def main() -> None:
@@ -900,6 +1119,12 @@ def main() -> None:
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     tree = _scan_results()
+    scores = compute_scores() if tree else None
+    if not check_mode:
+        write_overview(tree, scores)
+        if "--overview-only" in sys.argv:
+            print(f"Wrote results overview includes ({len(tree)} domains)")
+            return
     if not tree:
         # No plottable results. In --check mode this is a failure (someone
         # expected generated pages); in normal generation (e.g. a docs build
@@ -914,7 +1139,7 @@ def main() -> None:
 
     stale: list[str] = []
     for problem, suites in tree.items():
-        new_qmd = generate_qmd_for_problem(problem, suites, timestamp)
+        new_qmd = generate_qmd_for_problem(problem, suites, timestamp, scores)
         out_path = _output_path(problem)
 
         if check_mode:

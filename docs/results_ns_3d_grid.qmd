@@ -2,11 +2,16 @@
 title: Navier–Stokes (3D)
 ---
 
-> Auto-generated 2026-06-15 19:21 UTC &nbsp;·&nbsp; 9 plots
+::: {.page-meta}
+[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 10:55 UTC]{.meta-chip} [9 plots]{.meta-chip}
+:::
 
-![](figures/domain_ns_3d_grid.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
+::: {.domain-hero}
+![](figures/domain_ns_3d_grid.png){.domain-figure}
 
-*Recover the initial velocity field of a 3D turbulent flow from a later snapshot, differentiating through the Navier–Stokes rollout.*
+[Recover the initial velocity field of a 3D turbulent flow from a later snapshot, differentiating through the Navier–Stokes rollout.]{.domain-tagline}
+
+:::
 
 **Fluid flow in 3D.** The 3D counterpart of the 2D fluid problem, and the harder stress test for differentiable simulation: real turbulence lives in 3D, and the gradients are correspondingly more delicate.
 
@@ -24,9 +29,21 @@ Triply-periodic cubic domain $[0, 2\pi]^3$ (the flow wraps around on all three a
 
 :::
 
-## Initial Conditions
+## Scores at a glance {.unnumbered}
 
+```{=html}
+<div class="scoreboard scoreboard-domain"><div class="table-scroll"><table class="sb-table"><thead><tr><th class="sb-rank" scope="col">Rank</th><th scope="col" class="sb-solver">Solver</th><th scope="col">Forward</th><th scope="col">Gradient</th><th scope="col">Cost</th><th scope="col">Optimization</th><th scope="col">Reliability</th><th scope="col" class="sb-overall">Score</th></tr></thead><tbody><tr><td class="sb-rank"><span class="rank-pill r1">1</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-exponax">Exponax</a></th><td class="sb-cell lvl-5"><span class="sb-val">87</span></td><td class="sb-cell lvl-3"><span class="sb-val">56</span></td><td class="sb-cell lvl-5"><span class="sb-val">90</span></td><td class="sb-cell lvl-4"><span class="sb-val">65</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:79.4%"></span></div><span class="sb-val">79</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r2">2</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-warp-ns">Warp-NS</a></th><td class="sb-cell lvl-3"><span class="sb-val">41</span></td><td class="sb-cell lvl-5"><span class="sb-val">81</span></td><td class="sb-cell lvl-5"><span class="sb-val">95</span></td><td class="sb-cell lvl-4"><span class="sb-val">73</span></td><td class="sb-cell lvl-5"><span class="sb-val">94</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:76.9%"></span></div><span class="sb-val">77</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r3">3</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-pict">PICT</a></th><td class="sb-cell lvl-2"><span class="sb-val">35</span></td><td class="sb-cell lvl-4"><span class="sb-val">68</span></td><td class="sb-cell lvl-4"><span class="sb-val">75</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">94</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:74.4%"></span></div><span class="sb-val">74</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">4</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-ins-jl">INS.jl</a></th><td class="sb-cell lvl-2"><span class="sb-val">23</span></td><td class="sb-cell lvl-3"><span class="sb-val">44</span></td><td class="sb-cell lvl-4"><span class="sb-val">62</span></td><td class="sb-cell lvl-5"><span class="sb-val">91</span></td><td class="sb-cell lvl-5"><span class="sb-val">94</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:62.8%"></span></div><span class="sb-val">63</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">5</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-phiflow">PhiFlow</a></th><td class="sb-cell lvl-2"><span class="sb-val">23</span></td><td class="sb-cell lvl-4"><span class="sb-val">76</span></td><td class="sb-cell lvl-2"><span class="sb-val">32</span></td><td class="sb-cell lvl-5"><span class="sb-val">89</span></td><td class="sb-cell lvl-4"><span class="sb-val">66</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:57.4%"></span></div><span class="sb-val">57</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">6</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-xlb">XLB</a></th><td class="sb-cell lvl-2"><span class="sb-val">23</span></td><td class="sb-cell lvl-4"><span class="sb-val">74</span></td><td class="sb-cell lvl-2"><span class="sb-val">29</span></td><td class="sb-cell lvl-3"><span class="sb-val">46</span></td><td class="sb-cell lvl-5"><span class="sb-val">91</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:52.6%"></span></div><span class="sb-val">53</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">7</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#navier-stokes-grid-openfoam">OpenFOAM</a></th><td class="sb-cell lvl-2"><span class="sb-val">28</span></td><td class="sb-cell lvl-0"><span class="sb-val">—</span></td><td class="sb-cell lvl-3"><span class="sb-val">47</span></td><td class="sb-cell lvl-0"><span class="sb-val">—</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:35.0%"></span></div><span class="sb-val">35</span></td></tr></tbody></table></div></div>
+```
+
+*Per-axis scores from 0 to 100, computed from the same results as the rankings below. See the [Results overview](results.qmd#scoreboard) for the scoring method and the cross-domain ranking.*
+
+## Initial Conditions {#suite-ics .suite-heading data-suite="ics"}
+
+::: {.suite-intro}
 Visualisation of each initial condition (the starting field a run is launched from) available for this problem. IC plots are generated without running any solver.
+:::
+
+::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -59,13 +76,19 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 ![](../mosaic-results/ns-3d-grid/ics/ics.png){.lightbox}
 
-## Forward
+:::
 
+## Forward {#suite-forward .suite-heading data-suite="forward"}
+
+::: {.suite-intro}
 **Is the prediction right?** Forward-pass benchmarks check each solver's output against a trusted reference (and an analytic solution where one exists): inter-solver agreement, field-level diagnostics, and long-run stability.
+:::
 
-### Agreement
+::: {.exp-card}
 
-3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against the analytic TGV reference.
+### Agreement {#exp-forward-agreement}
+
+3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a converged spectral reference. (The 3D TGV initial condition is not advection-free, so the linearized analytic decay is only a short-horizon consistency check, not an accuracy reference.)
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -100,7 +123,11 @@ Sweeps `nu` ∈ {0.001, 0.01, 0.05}
 
 ![](../mosaic-results/ns-3d-grid/forward/agreement/agreement.png){.lightbox}
 
-### Baseline
+:::
+
+::: {.exp-card}
+
+### Baseline {#exp-forward-baseline}
 
 Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across 3D solvers.
 
@@ -136,23 +163,31 @@ Sweeps `N` ∈ {8, 16, 32}
 
 ![](../mosaic-results/ns-3d-grid/forward/baseline/agreement.png){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Mean rel. error |
 |---|---|
-| PICT | 1.13e-01 |
-| PhiFlow | 1.15e-01 |
-| Warp-NS | 1.18e-01 |
-| XLB | 1.19e-01 |
-| Exponax | 1.20e-01 |
+| Exponax | 6.27e-06 |
+| Warp-NS | 3.41e-03 |
+| PICT | 7.96e-03 |
+| OpenFOAM | 2.10e-02 |
+| PhiFlow | 3.97e-02 |
+| INS.jl | 4.14e-02 |
+| XLB | 4.35e-02 |
 :::
 
 *Ranked by mean relative error against the reference solution (lower is more accurate).*
 
-## Cost
+## Cost {#suite-cost .suite-heading data-suite="cost"}
 
+::: {.suite-intro}
 **What does it cost?** Wall-clock scaling of the forward and VJP passes with problem size $N$ and the number of integration steps. Timings come from dedicated runners with no concurrent workloads; see the reliability note at the top of the page before reading absolute numbers.
+:::
+
+::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -216,25 +251,31 @@ Sweeps `steps` ∈ {10, 50, 100}
 
 ![](../mosaic-results/ns-3d-grid/cost/cost.png){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Forward time | VJP time |
 |---|---|---|
-| PICT | 1.19 s @ N=64 | 4.48 s @ N=64 |
-| Exponax | 1.53 s @ N=64 | 5.88 s @ N=64 |
-| Warp-NS | 2.2 s @ N=64 | 6.65 s @ N=64 |
-| PhiFlow | 3.33 s @ N=32 | 10.1 s @ N=32 |
-| INS.jl | 10.3 s @ N=64 | 77.4 s @ N=64 |
-| OpenFOAM | 26.3 s @ N=64 | — |
-| XLB | 182 s @ N=64 | 145 s @ N=32 |
+| Warp-NS | 0.138 s @ N=64 | 0.594 s @ N=64 |
+| PICT | 1.13 s @ N=64 | 4.16 s @ N=64 |
+| Exponax | 1.55 s @ N=64 | 6.09 s @ N=64 |
+| PhiFlow | 3.4 s @ N=32 | 10.4 s @ N=32 |
+| INS.jl | 4.33 s @ N=64 | 68.9 s @ N=64 |
+| OpenFOAM | 28.2 s @ N=64 | — |
+| XLB | 181 s @ N=64 | 565 s @ N=48 |
 :::
 
 *Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
 
-## Gradient
+## Gradient {#suite-gradient .suite-heading data-suite="gradient"}
 
+::: {.suite-intro}
 **Is the gradient right?** Gradient benchmarks compare each solver's AD/adjoint gradient against a finite-difference ground truth. We report magnitude error (relative $L^2$) and direction agreement (cosine similarity) across parameter, resolution, and horizon sweeps. The horizon sweep in particular exposes how gradients degrade as the rollout lengthens.
+:::
+
+::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -388,7 +429,11 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 
 ![](../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.png){.lightbox}
 
-### Finite-Difference Check
+:::
+
+::: {.exp-card}
+
+### Finite-Difference Check {#exp-gradient-fd-check}
 
 Finite-difference gradient error U-curves and direction cosine vs perturbation ε for each solver on the 3D Taylor-Green vortex IC.
 
@@ -426,7 +471,11 @@ Finite-difference gradient error U-curves and direction cosine vs perturbation �
 ![](../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.png){.lightbox}
 ![](../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.png){.lightbox}
 
-### Horizon Sweep Limits
+:::
+
+::: {.exp-card}
+
+### Horizon Sweep Limits {#exp-gradient-horizon-sweep-limits}
 
 Per-solver rollout-limit table reporting step count at first failure, failure type, and wall time per successful step.
 
@@ -468,26 +517,32 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 
 ![](../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.png){.lightbox}
 
-**Solver ranking**
+:::
 
-::: {.sortable-table}
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
 | Solver | Best-ε FD error | 1 − cosine |
 |---|---|---|
-| INS.jl | 4.50e-06 | 1.55e-11 |
-| Warp-NS | 2.83e-05 | 2.13e-10 |
-| PhiFlow | 3.52e-05 | 4.15e-10 |
-| XLB | 3.67e-05 | 1.13e-09 |
-| PICT | 7.79e-05 | 7.82e-09 |
-| Exponax | 3.00e-04 | 6.26e-08 |
+| Warp-NS | 1.30e-05 | 1.53e-10 |
+| PhiFlow | 2.62e-05 | 2.81e-10 |
+| XLB | 3.71e-05 | 1.23e-09 |
+| PICT | 8.37e-05 | 7.91e-09 |
+| Exponax | 4.66e-04 | 9.68e-08 |
+| INS.jl | 2.36e-03 | 4.69e-06 |
 :::
 
 *Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
 
-## Optimization
+## Optimization {#suite-optimization .suite-heading data-suite="optimization"}
 
+::: {.suite-intro}
 **Can you optimize through it?** End-to-end optimization benchmarks run a gradient-based optimizer using each solver's own gradients: recovery of initial conditions or physical parameters, topology optimization, and drag minimization. This is the ultimate test, since a gradient can pass the finite-difference check yet still fail to drive a full optimization loop.
+:::
 
-### Recovery Constant Ic Bfgs Proj
+::: {.exp-card}
+
+### Initial-Condition Recovery (L-BFGS) {#exp-optimization-recovery-constant-ic-bfgs-proj}
 
 Final IC recovery error per solver from zero-initialised L-BFGS optimisation with divergence-free projection.
 
@@ -535,3 +590,20 @@ Sweeps `steps` ∈ {100}
 :::
 
 ![](../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.gif){.lightbox}
+
+:::
+
+[Solver ranking]{.eyebrow}
+
+::: {.sortable-table .leaderboard}
+| Solver | Final IC recovery error | Converged |
+|---|---|---|
+| PICT | 1.55e-03 | yes |
+| INS.jl | 2.75e-03 | yes |
+| PhiFlow | 3.17e-03 | yes |
+| Warp-NS | 8.78e-03 | yes |
+| Exponax | 1.49e-02 | yes |
+| XLB | 5.01e-02 | yes |
+:::
+
+*Ranked by the final objective reached within the iteration budget (lower is better).*

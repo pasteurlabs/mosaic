@@ -1,0 +1,295 @@
+<script type="text/javascript">
+// Interactive pieces of the docs site, all progressive enhancements over the
+// static Quarto output (without JS every card shows its details inline and the
+// scoreboard shows overall scores):
+//
+//   * Explorer toolbars: search + filter chips over solver cards (Solver
+//     Reference) and experiment tiles (Results overview).
+//   * Detail dialog: clicking a card opens its full details in a modal. The
+//     details node is moved (not cloned) so ids and handlers stay intact, and
+//     moved back on close.
+//   * Deep links: solvers.html#<anchor> highlights the card and opens it.
+//   * Scoreboard: the axis switcher swaps the values shown in every cell and
+//     re-ranks the rows.
+//   * Leaderboards: rows are tagged with their original rank so the "Best"
+//     marker survives click-to-sort.
+
+(function () {
+  "use strict";
+
+  document.documentElement.classList.add("js-ready");
+
+  // ── Sticky toolbars sit just under the (auto-hiding) navbar ──────────────
+  function trackHeader() {
+    const header = document.getElementById("quarto-header");
+    if (!header) return;
+    const update = () => {
+      const hidden = header.classList.contains("headroom--unpinned");
+      const h = hidden ? 8 : header.getBoundingClientRect().height + 8;
+      document.documentElement.style.setProperty("--m-header-h", h + "px");
+    };
+    update();
+    new MutationObserver(update).observe(header, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    window.addEventListener("resize", update);
+  }
+
+  // ── Dialog ────────────────────────────────────────────────────────────────
+  let dialog = null;
+  let restore = null;
+
+  function getDialog() {
+    if (dialog) return dialog;
+    dialog = document.createElement("dialog");
+    dialog.className = "m-dialog";
+    dialog.setAttribute("aria-labelledby", "m-dialog-title");
+    dialog.innerHTML =
+      '<div class="m-dialog-head"><span class="eyebrow m-dialog-eyebrow"></span>' +
+      '<h2 id="m-dialog-title"></h2><div class="m-dialog-sub"></div>' +
+      '<button type="button" class="m-dialog-close" aria-label="Close">×</button></div>' +
+      '<div class="m-dialog-body"></div>';
+    document.body.appendChild(dialog);
+    dialog.querySelector(".m-dialog-close").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) dialog.close(); // backdrop click
+    });
+    dialog.addEventListener("close", () => {
+      if (restore) restore();
+      restore = null;
+      if (location.hash && dialog.dataset.hash === location.hash) {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    });
+    return dialog;
+  }
+
+  function openDialog({ eyebrow, title, sub, detail, hash }) {
+    const d = getDialog();
+    if (d.open) d.close();
+    d.querySelector(".m-dialog-eyebrow").textContent = eyebrow || "";
+    d.querySelector("#m-dialog-title").textContent = title || "";
+    const subEl = d.querySelector(".m-dialog-sub");
+    subEl.replaceChildren(...(sub || []));
+    const body = d.querySelector(".m-dialog-body");
+    body.replaceChildren();
+    if (detail) {
+      const parent = detail.parentNode;
+      const next = detail.nextSibling;
+      body.appendChild(detail);
+      restore = () => parent.insertBefore(detail, next);
+    }
+    d.dataset.hash = hash || "";
+    d.showModal();
+    body.scrollTop = 0;
+  }
+
+  function cloneOf(el) {
+    return el ? el.cloneNode(true) : null;
+  }
+
+  function openSolver(card) {
+    const h = card.querySelector("h3");
+    const title = h ? h.textContent.trim() : "";
+    const sub = [
+      cloneOf(card.querySelector(".solver-numerics")),
+      cloneOf(card.querySelector(".solver-badges")),
+      cloneOf(card.querySelector(".solver-desc")),
+    ].filter(Boolean);
+    sub.forEach((n) => n.classList.add("in-dialog"));
+    openDialog({
+      eyebrow: card.dataset.category,
+      title,
+      sub,
+      detail: card.querySelector(".solver-details"),
+      hash: h && h.id ? "#" + h.id : "",
+    });
+  }
+
+  function openExperiment(tile) {
+    const t = tile.querySelector(".exp-tile-title");
+    const chips = tile.querySelector(".exp-tile-body > p");
+    const desc = tile.querySelector(".exp-tile-desc");
+    openDialog({
+      eyebrow: "",
+      title: t ? t.textContent.trim() : "",
+      sub: [cloneOf(chips), cloneOf(desc)].filter(Boolean).map((n) => {
+        n.classList.add("in-dialog");
+        return n;
+      }),
+      detail: tile.querySelector(".exp-tile-detail"),
+    });
+  }
+
+  function wireCards() {
+    document.querySelectorAll(".solver-card").forEach((card) => {
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("role", "button");
+      const h = card.querySelector("h3");
+      if (h) card.setAttribute("aria-label", h.textContent.trim() + " details");
+    });
+    const open = (el) =>
+      el.classList.contains("solver-card") ? openSolver(el) : openExperiment(el);
+    document.addEventListener("click", (e) => {
+      const el = e.target.closest(".solver-card, .exp-tile");
+      if (!el || e.target.closest("a, button, .m-dialog")) return;
+      open(el);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const el = e.target.closest && e.target.closest(".solver-card, .exp-tile");
+      if (!el || el !== e.target) return;
+      e.preventDefault();
+      open(el);
+    });
+  }
+
+  function openFromHash() {
+    if (!location.hash) return;
+    let target = null;
+    try {
+      target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    } catch (_) {
+      return;
+    }
+    const card = target && target.closest(".solver-card");
+    if (!card) return;
+    document.querySelectorAll(".solver-card.is-target").forEach((c) => c.classList.remove("is-target"));
+    card.classList.add("is-target");
+    card.scrollIntoView({ block: "center" });
+    openSolver(card);
+  }
+
+  // ── Explorer toolbars ─────────────────────────────────────────────────────
+  function wireExplorer(toolbar) {
+    const root = document.getElementById(toolbar.dataset.target);
+    if (!root) return;
+    const items = Array.from(root.querySelectorAll(".solver-card, .exp-tile"));
+    const input = toolbar.querySelector(".explorer-search");
+    const count = toolbar.querySelector(".explorer-count");
+    const noun = items.length && items[0].classList.contains("solver-card") ? "solvers" : "experiments";
+    const state = {};
+
+    let empty = root.querySelector(".explorer-empty");
+    if (!empty) {
+      empty = document.createElement("div");
+      empty.className = "explorer-empty is-filtered-out";
+      empty.textContent = "Nothing matches these filters.";
+      root.appendChild(empty);
+    }
+
+    function apply() {
+      const q = (input ? input.value : "").trim().toLowerCase();
+      const terms = q.split(/\s+/).filter(Boolean);
+      let shown = 0;
+      items.forEach((el) => {
+        const hay = (el.dataset.search || el.textContent).toLowerCase();
+        let ok = terms.every((t) => hay.includes(t));
+        for (const [key, val] of Object.entries(state)) {
+          if (val && el.dataset[key] !== val) ok = false;
+        }
+        el.classList.toggle("is-filtered-out", !ok);
+        if (ok) shown++;
+      });
+      // Hide category sections (Solver Reference) that end up empty.
+      root.querySelectorAll(".card-grid").forEach((grid) => {
+        const any = grid.querySelector(".solver-card:not(.is-filtered-out), .exp-tile:not(.is-filtered-out)");
+        const section = grid.closest("section") || grid;
+        if (section !== root && !section.contains(root)) {
+          section.classList.toggle("is-filtered-out", !any);
+        }
+      });
+      empty.classList.toggle("is-filtered-out", shown > 0);
+      if (count) {
+        count.textContent =
+          shown === items.length ? `${items.length} ${noun}` : `${shown} of ${items.length} ${noun}`;
+      }
+    }
+
+    toolbar.querySelectorAll(".chip-filters").forEach((group) => {
+      const key = group.dataset.filter;
+      group.addEventListener("click", (e) => {
+        const btn = e.target.closest(".chip-btn");
+        if (!btn) return;
+        if (btn.classList.contains("chip-toggle")) {
+          const on = btn.getAttribute("aria-pressed") !== "true";
+          btn.setAttribute("aria-pressed", String(on));
+          state[key] = on ? btn.dataset.value : "";
+        } else {
+          group.querySelectorAll(".chip-btn").forEach((b) => b.classList.toggle("active", b === btn));
+          state[key] = btn.dataset.value;
+        }
+        apply();
+      });
+    });
+    if (input) input.addEventListener("input", apply);
+    apply();
+  }
+
+  // ── Scoreboard axis switcher ──────────────────────────────────────────────
+  function level(v) {
+    if (!isFinite(v)) return 0;
+    return v > 0 ? Math.max(1, Math.min(5, 1 + Math.floor(v * 5 - 1e-9))) : 1;
+  }
+
+  function wireScoreboard(board) {
+    const seg = board.querySelector(".seg");
+    const tbody = board.querySelector("tbody");
+    if (!seg || !tbody) return;
+    seg.addEventListener("click", (e) => {
+      const btn = e.target.closest(".seg-btn");
+      if (!btn) return;
+      const axis = btn.dataset.axis;
+      seg.querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      board.dataset.axis = axis;
+      const rows = Array.from(tbody.rows);
+      rows.forEach((row) => {
+        row.querySelectorAll("td.sb-cell:not(.sb-na)").forEach((td) => {
+          const raw = td.dataset[axis];
+          const v = raw === "" || raw === undefined ? NaN : parseFloat(raw);
+          td.className = td.className.replace(/\blvl-\d\b/, "") + " lvl-" + level(v);
+          td.className = td.className.replace(/\s+/g, " ").trim();
+          td.querySelector(".sb-val").textContent = isFinite(v) ? Math.round(100 * v) : "—";
+        });
+        const ov = row.querySelector("td.sb-overall");
+        const v = parseFloat(ov.dataset[axis]);
+        row._score = isFinite(v) ? v : -1;
+        ov.querySelector(".sb-bar span").style.width = (isFinite(v) ? 100 * v : 0).toFixed(1) + "%";
+        ov.querySelector(".sb-val").textContent = isFinite(v) ? Math.round(100 * v) : "—";
+      });
+      rows.sort((a, b) => b._score - a._score);
+      // Competition ranking on the displayed score: ties share a rank.
+      let prev = null;
+      let rank = 0;
+      rows.forEach((row, i) => {
+        const shown = Math.round(100 * row._score);
+        if (shown !== prev) {
+          rank = i + 1;
+          prev = shown;
+        }
+        const pill = row.querySelector(".rank-pill");
+        pill.textContent = rank;
+        pill.className = "rank-pill r" + Math.min(rank, 4);
+        tbody.appendChild(row);
+      });
+    });
+  }
+
+  function markLeaderboards() {
+    document.querySelectorAll(".leaderboard table tbody").forEach((tbody) => {
+      Array.from(tbody.rows).forEach((row, i) => (row.dataset.rank = i + 1));
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    trackHeader();
+    markLeaderboards();
+    wireCards();
+    document.querySelectorAll(".explorer-toolbar").forEach(wireExplorer);
+    document.querySelectorAll(".scoreboard").forEach(wireScoreboard);
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+  });
+})();
+</script>

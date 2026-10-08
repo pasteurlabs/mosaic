@@ -1,0 +1,75 @@
+/*-- scss:defaults --*/
+
+// Warm "paper" theme. Colours are drawn from the stained-glass logo:
+// terracotta, saffron, indigo, green and plum on an off-white ground.
+// Custom components (cards, scoreboard, hero) read the CSS variables defined
+// under scss:rules below, so the dark theme only has to redefine those.
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+$body-bg: #fbf8f3;
+$body-color: #231f1b;
+$primary: #b9441f;
+$secondary: #6b6158;
+$success: #2f7a57;
+$info: #2f4b8f;
+$warning: #c98a17;
+$danger: #b3261e;
+$light: #f4eee4;
+$dark: #231f1b;
+
+$link-color: #b9441f;
+$link-hover-color: #8f3214;
+$border-color: #e7ded0;
+
+$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+$headings-font-family: "Fraunces", Georgia, "Times New Roman", serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+$headings-font-weight: 600;
+$font-size-root: 16px;
+$line-height-base: 1.65;
+
+$navbar-bg: #fbf8f3;
+$navbar-fg: #3a332c;
+$navbar-hl: #b9441f;
+$footer-bg: #f4eee4;
+$footer-fg: #6b6158;
+
+$code-color: #8f3214;
+$code-bg: #f4eee4;
+$table-border-color: #e7ded0;
+$border-radius: 0.5rem;
+
+/*-- scss:rules --*/
+
+:root {
+  --m-bg: #fbf8f3;
+  --m-surface: #ffffff;
+  --m-surface-2: #f4eee4;
+  --m-surface-3: #ece4d6;
+  --m-border: #e7ded0;
+  --m-border-strong: #d6c9b5;
+  --m-ink: #231f1b;
+  --m-ink-2: #3a332c;
+  --m-muted: #6b6158;
+  --m-accent: #b9441f;
+  --m-accent-ink: #8f3214;
+  --m-accent-soft: #f6e2d6;
+  --m-saffron: #e3a02f;
+  --m-indigo: #2f4b8f;
+  --m-green: #2f7a57;
+  --m-plum: #6e3f8f;
+  --m-red: #c8462b;
+  // Sequential score scale (one hue, light → dark) for the scoreboard.
+  --m-score-0: #f4eee4;
+  --m-score-1: #e3ece4;
+  --m-score-2: #c3dccb;
+  --m-score-3: #93c1a4;
+  --m-score-4: #5c9e7b;
+  --m-score-5: #2f7a57;
+  --m-score-ink-dark: #ffffff;
+  --m-shadow-sm: 0 1px 2px rgba(60, 40, 20, 0.06), 0 1px 1px rgba(60, 40, 20, 0.04);
+  --m-shadow: 0 1px 2px rgba(60, 40, 20, 0.05), 0 8px 24px -12px rgba(60, 40, 20, 0.18);
+  --m-shadow-lg: 0 24px 60px -20px rgba(40, 25, 10, 0.35);
+  --m-backdrop: rgba(35, 31, 27, 0.45);
+}
