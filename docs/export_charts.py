@@ -5,9 +5,9 @@
 
 """Write the interactive (Vega-Lite) version of each benchmark plot.
 
-Run after ``mosaic run --plots-only``. For every ``<plot>.png`` under
-``mosaic-results/`` with a builder in docs/vl, writes ``<plot>.vl.json`` next
-to it; docs/generate_results.py embeds a chart wherever that file exists and
+Run after ``mosaic run --plots-only``. For every ``<plot>.png`` (and
+``<animation>.gif``) under ``mosaic-results/`` with a builder in docs/vl,
+writes ``<plot>.vl.json`` next to it; docs/generate_results.py embeds a chart wherever that file exists and
 keeps the PNG as the fallback.
 
 Usage:
@@ -28,9 +28,6 @@ from vl.common import Ctx, paper, web_spec
 
 RESULTS = Path(__file__).resolve().parent.parent / "mosaic-results"
 
-# Field-heavy charts draw thousands of cells; canvas keeps them responsive.
-_CANVAS_ABOVE = 4000
-
 
 def _ctx(png: Path) -> Ctx:
     rel = png.relative_to(RESULTS).parts
@@ -45,7 +42,8 @@ def main() -> None:
         paper_dir.mkdir(parents=True, exist_ok=True)
     table = builders()
     written, failed, missing = 0, [], set()
-    for png in sorted(RESULTS.glob("**/*.png")):
+    plots = sorted([*RESULTS.glob("**/*.png"), *RESULTS.glob("**/*.gif")])
+    for png in plots:
         out = png.with_suffix(".vl.json")
         build = table.get(png.stem)
         if build is None:
@@ -61,10 +59,9 @@ def main() -> None:
         if chart is None:
             out.unlink(missing_ok=True)
             continue
+        # Always SVG: pages scale charts down to the column width, and SVG
+        # hover stays accurate when scaled (canvas hit-testing does not).
         spec = web_spec(chart)
-        n_rows = sum(len(v) for v in spec.get("datasets", {}).values())
-        if n_rows > _CANVAS_ABOVE:
-            spec["usermeta"]["renderer"] = "canvas"
         out.write_text(json.dumps(spec, separators=(",", ":")), encoding="utf-8")
         written += 1
         if paper_dir is not None:

@@ -37,6 +37,10 @@ EXPECTED = {
     "topopt",
     "topopt_3d",
     "topopt_fields",
+    # Animations (GIFs)
+    "drag_opt_evolution",
+    "recovery_evolution",
+    "topopt_evolution_FEniCS",
 }
 
 

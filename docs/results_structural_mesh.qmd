@@ -3,7 +3,7 @@ title: Structural mechanics
 ---
 
 ::: {.page-meta}
-[S]{.domain-id .d-S} [Auto-generated 2026-10-08 14:11 UTC]{.meta-chip} [15 plots]{.meta-chip}
+[S]{.domain-id .d-S} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [15 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -530,11 +530,21 @@ SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr
 ```{=html}
 <figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt.png" alt="" loading="lazy"></figure>
 ```
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.gif){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.gif" alt="" loading="lazy"></figure>
+```
 
 :::
 

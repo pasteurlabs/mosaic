@@ -3,7 +3,7 @@ title: Heat transfer
 ---
 
 ::: {.page-meta}
-[H]{.domain-id .d-H} [Auto-generated 2026-10-08 14:11 UTC]{.meta-chip} [12 plots]{.meta-chip}
+[H]{.domain-id .d-H} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [12 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}

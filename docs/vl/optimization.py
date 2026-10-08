@@ -148,7 +148,7 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
                 opacity=faded(pick),
                 **kw,
             )
-            .properties(width=230, height=260)
+            .properties(width=205, height=240)
         )
 
     reduction = lines(
@@ -654,16 +654,15 @@ def _density_slices(
 
 
 def topopt(ctx: Ctx) -> alt.TopLevelMixin | None:
-    """Compliance vs iteration (log y) over per-solver final-density slices.
+    """Compliance vs iteration (log y), as in ``_plot_topopt_figure``.
 
-    The compliance curves are those of ``_plot_topopt_figure`` (every solver
-    in ``by_solver``); the 3-D voxel row is replaced by
-    :func:`_density_slices` with a slice slider.
+    Every solver in ``by_solver``. The figure's 3-D voxel row is left out: the
+    final densities are the ``topopt_3d`` chart on the same page.
     """
     inputs = _topopt_inputs(ctx)
     if inputs is None:
         return None
-    data, npz, ph, names = inputs
+    data, _npz, _ph, names = inputs
     rows = []
     for solver, sdata in data.get("by_solver", {}).items():
         comp = sdata.get("compliances") or []
@@ -697,22 +696,11 @@ def topopt(ctx: Ctx) -> alt.TopLevelMixin | None:
             points=False,
         )
         .add_params(pick)
-        .properties(width=720, height=170, title=f"Compliance — {label}")
+        .properties(width=620, height=170, title=f"Compliance — {label}")
     )
-    have_fields = (
-        npz is not None
-        and "solver_names" in npz.files
-        and all(ph.get(k) for k in ("nx", "ny", "nz"))
-    )
-    sl = (
-        _density_slices(data, npz, ph, names, enc, dedupe=False, width=110)
-        if have_fields
-        else None
-    )
-    if sl is None:
-        return curves
-    slices, slider = sl
-    return alt.vconcat(curves, slices, spacing=24).add_params(slider)
+    # The PNG's density row duplicates topopt_3d, which the same page shows as
+    # an interactive slice view, so the web chart keeps only the curves.
+    return curves
 
 
 def topopt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
@@ -741,7 +729,7 @@ def topopt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
     frames = [field_cells(_rho_to_2d(rho, ph).T, panel=title) for title, rho in panels]
     df = pd.concat(frames, ignore_index=True)
     ni, nj = int(df["i"].max()) + 1, int(df["j"].max()) + 1
-    px = max(4, round(150 / max(ni, nj)))
+    px = max(4, round(105 / max(ni, nj)))
     cell = linked_cell()
     return (
         alt.Chart(df)
@@ -789,7 +777,7 @@ def topopt_3d(ctx: Ctx) -> alt.TopLevelMixin | None:
     if npz is None or not names:
         return None
     enc = solver_encodings(names)
-    sl = _density_slices(data, npz, ph, names, enc, dedupe=True)
+    sl = _density_slices(data, npz, ph, names, enc, dedupe=True, width=110)
     if sl is None:
         return None
     slices, slider = sl

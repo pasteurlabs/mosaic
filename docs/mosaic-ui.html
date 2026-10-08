@@ -288,6 +288,62 @@
     };
   }
 
+  // Animated charts (usermeta.animation = {param, frames, fps}, see
+  // docs/vl/animations.py) get a play/pause button that steps the frame
+  // signal. They play while on screen and stay still for readers who prefer
+  // reduced motion.
+  const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function animate(fig, view, anim) {
+    if (fig._anim) fig._anim.stop();
+    const bar = fig.querySelector(".m-anim") || document.createElement("div");
+    bar.className = "m-anim";
+    bar.innerHTML = '<button type="button" class="m-anim-btn"></button>';
+    fig.querySelector(".m-chart-plot").after(bar);
+    const btn = bar.querySelector("button");
+    let timer = null;
+    let playing = !REDUCED_MOTION;
+    let visible = true;
+    const tick = () => {
+      const next = (view.signal(anim.param) + 1) % anim.frames;
+      view.signal(anim.param, next).runAsync();
+    };
+    const sync = () => {
+      const run = playing && visible;
+      if (run && !timer) timer = setInterval(tick, 1000 / (anim.fps || 4));
+      if (!run && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      btn.textContent = playing ? "Pause" : "Play";
+      btn.setAttribute("aria-pressed", String(playing));
+    };
+    btn.addEventListener("click", () => {
+      playing = !playing;
+      sync();
+    });
+    // Dragging the frame slider pauses playback.
+    fig.addEventListener("input", (e) => {
+      if (e.target.closest(".vega-bindings")) {
+        playing = false;
+        sync();
+      }
+    });
+    const io = new IntersectionObserver((entries) => {
+      visible = entries[0].isIntersecting;
+      sync();
+    });
+    io.observe(fig);
+    fig._anim = {
+      stop() {
+        playing = false;
+        sync();
+        io.disconnect();
+      },
+    };
+    sync();
+  }
+
   function drawChart(fig) {
     let host = fig.querySelector(".m-chart-plot");
     if (!host) {
@@ -302,7 +358,10 @@
         renderer: meta.renderer || "svg",
         actions: { export: true, source: false, compiled: false, editor: false },
       })
-      .then(() => fig.classList.add("is-live"));
+      .then((res) => {
+        fig.classList.add("is-live");
+        if (meta.animation) animate(fig, res.view, meta.animation);
+      });
   }
 
   function wireCharts() {

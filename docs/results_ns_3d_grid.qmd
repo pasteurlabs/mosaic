@@ -3,7 +3,7 @@ title: Navier–Stokes (3D)
 ---
 
 ::: {.page-meta}
-[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 14:11 UTC]{.meta-chip} [9 plots]{.meta-chip}
+[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [9 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -605,7 +605,9 @@ Sweeps `steps` ∈ {100}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.gif){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.gif" alt="" loading="lazy"></figure>
+```
 
 :::
 

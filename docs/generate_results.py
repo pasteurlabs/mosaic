@@ -623,7 +623,7 @@ def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | 
     if not png.with_suffix(".vl.json").exists():
         return None
     src = _img_src(problem, suite, experiment, png)
-    spec = src[: -len(".png")] + ".vl.json"
+    spec = src.rsplit(".", 1)[0] + ".vl.json"  # .png or .gif
     return (
         "```{=html}\n"
         f'<figure class="m-chart" data-spec="{spec}">'

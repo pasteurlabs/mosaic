@@ -12,7 +12,7 @@ from __future__ import annotations
 import importlib
 
 # Plot-family modules; each defines BUILDERS.
-MODULES = ["gradient", "sweeps", "forward", "cost", "optimization", "ics"]
+MODULES = ["gradient", "sweeps", "forward", "cost", "optimization", "ics", "animations"]
 
 
 def builders() -> dict:

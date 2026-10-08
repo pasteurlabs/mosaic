@@ -3,7 +3,7 @@ title: Navier–Stokes (2D)
 ---
 
 ::: {.page-meta}
-[F2]{.domain-id .d-F2} [Auto-generated 2026-10-08 14:11 UTC]{.meta-chip} [13 plots]{.meta-chip}
+[F2]{.domain-id .d-F2} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [13 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -757,7 +757,9 @@ Drag convergence curves per solver, optimised vs initial inflow profiles, and fi
 ```{=html}
 <figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png" alt="" loading="lazy"></figure>
 ```
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif" alt="" loading="lazy"></figure>
+```
 ```{=html}
 <figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png" alt="" loading="lazy"></figure>
 ```

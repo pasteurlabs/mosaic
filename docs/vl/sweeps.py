@@ -343,7 +343,7 @@ def horizon_sweep(ctx: Ctx) -> alt.TopLevelMixin | None:
                 )
             )
         chart = alt.layer(*layers, data=ok_df).properties(
-            width=190, height=170, title=title
+            width=165, height=160, title=title
         )
         if i == 0:
             chart = chart.add_params(pick, zoom)
@@ -588,7 +588,7 @@ def horizon_sweep_limits(ctx: Ctx) -> alt.TopLevelMixin | None:
                 ).encode(x=alt.datum(x_dom[0]), text="label:N"),
             ]
         chart = alt.layer(*layers, data=sub).properties(
-            width=180, height=160, title=title
+            width=160, height=150, title=title
         )
         if i == 0:
             chart = chart.add_params(pick, zoom)

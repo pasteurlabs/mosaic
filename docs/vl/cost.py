@@ -40,7 +40,7 @@ _FAILURE_SHAPE = {
     "timeout": _SHAPE["s"],
 }
 
-_W, _H = 175, 135
+_W, _H = 140, 120
 
 
 def _load(ctx: Ctx) -> tuple[tuple[dict, dict, dict], str] | None:

@@ -62,7 +62,7 @@ def _panel(name: str, arr: np.ndarray, vmin: float, vmax: float, cell) -> alt.Ch
     df["value"] = [float(f"{v:.4g}") for v in df["value"]]  # lean embedded data
     ni, nj = int(df["i"].max()) + 1, int(df["j"].max()) + 1
     # One cell size per panel so non-square meshes keep their aspect ratio.
-    px = max(2, round(150 / max(ni, nj, 1)))
+    px = max(2, round(115 / max(ni, nj, 1)))
     return (
         alt.Chart(df, title=alt.Title(name, anchor="middle", fontSize=12))
         .mark_rect()
