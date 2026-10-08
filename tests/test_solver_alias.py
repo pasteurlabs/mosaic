@@ -61,3 +61,39 @@ class TestSolverOrderForProblem:
         # NS problems (and unknown names) fall back to the fluid ordering.
         assert "jax_cfd" in solver_order_for_problem("ns-grid")
         assert "jax_cfd" in solver_order_for_problem("ns-3d-grid")
+
+
+def test_baseline_plot_includes_surrogate_curve_and_legend(tmp_path):
+    import json
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.shared.plots import forward
+
+    data = {
+        "sweep_key": "N",
+        "reference_label": "analytic",
+        "by_param": {
+            str(n): {"XLB 3D surrogate": {"error": error}}
+            for n, error in ((8, 0.06), (16, 0.05), (32, 0.04))
+        },
+    }
+    (tmp_path / "result.json").write_text(json.dumps(data))
+    fig = forward._agreement_figure(
+        get_config("ns-3d-grid"),
+        exp_key="baseline",
+        suffix="",
+        save=False,
+        out_dir=tmp_path,
+    )
+    try:
+        assert len(fig.axes[0].lines) == 1
+        np.testing.assert_array_equal(fig.axes[0].lines[0].get_xdata(), [8, 16, 32])
+        np.testing.assert_allclose(fig.axes[0].lines[0].get_ydata(), [0.06, 0.05, 0.04])
+        assert [t.get_text() for t in fig.legends[0].get_texts()] == [
+            "XLB 3D surrogate"
+        ]
+    finally:
+        plt.close(fig)

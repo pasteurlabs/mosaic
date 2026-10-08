@@ -1,0 +1,27 @@
+name: xlb_3d_surrogate_navier_stokes_grid
+version: "0.2.0"
+description: >
+  Differentiable periodic 3D XLB surrogate with shared Fourier weights across
+  resolutions, conditioned on viscosity, timestep, grid spacing, and domain size.
+  Autoregressive macro-steps preserve mean velocity and bound kinetic energy.
+build_config:
+  base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
+  package_data:
+    - ["./operator_weights.npz", "/tesseract/operator_weights.npz"]
+    - ["./operator_model.py", "/tesseract/operator_model.py"]
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+
+metadata:
+  mosaic:
+    name: "XLB 3D surrogate"
+    backend: jax
+    family: surrogate
+    scheme: "conditioned autoregressive Fourier neural operator"
+    discretization: Learned
+    numerics: "shared 3D FNO, physical diffusion, mean conservation, projection, energy limit"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    doc_url: "https://github.com/pasteurlabs/mosaic"

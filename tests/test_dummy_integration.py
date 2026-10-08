@@ -25,6 +25,7 @@ integration tests in :mod:`test_integration`.
 from __future__ import annotations
 
 import contextlib
+import copy
 import json
 import warnings
 from pathlib import Path
@@ -82,7 +83,7 @@ def ns_grid_tags():
     """Return a tags dict pointing every ns-grid solver at the dummy."""
     from mosaic.benchmarks.problems import get_config
 
-    cfg = get_config("ns-grid")
+    cfg = copy.deepcopy(get_config("ns-grid"))
     tag = f"inprocess:{DUMMY_NS_GRID}"
     return cfg, dict.fromkeys(cfg.solver_names, tag)
 
@@ -92,7 +93,7 @@ def structural_mesh_tags():
     """Return a tags dict pointing every structural-mesh solver at the dummy."""
     from mosaic.benchmarks.problems import get_config
 
-    cfg = get_config("structural-mesh")
+    cfg = copy.deepcopy(get_config("structural-mesh"))
     tag = f"inprocess:{DUMMY_STRUCTURAL_MESH}"
     return cfg, dict.fromkeys(cfg.solver_names, tag)
 
@@ -102,7 +103,7 @@ def thermal_mesh_tags():
     """Return a tags dict pointing every thermal-mesh solver at the dummy."""
     from mosaic.benchmarks.problems import get_config
 
-    cfg = get_config("thermal-mesh")
+    cfg = copy.deepcopy(get_config("thermal-mesh"))
     tag = f"inprocess:{DUMMY_THERMAL_MESH}"
     return cfg, dict.fromkeys(cfg.solver_names, tag)
 
@@ -276,7 +277,7 @@ def _maybe_shrink(cfg, problem: str, exp_key: str) -> None:
     """Re-register ``exp_key`` at a smaller N if it's a known heavy case.
 
     Mutates ``cfg.experiments[exp_key]`` in place (the config object is a
-    fresh per-call ``get_config(problem)``, so this never leaks across tests).
+    private copy of the registered config, so this never leaks across tests).
     No-op for experiments not in :data:`_SHRINK_PHYSICS`.
     """
     physics = _SHRINK_PHYSICS.get((problem, exp_key))
@@ -387,7 +388,7 @@ def dummy_corpus(tmp_path_factory):
     try:
         with _suppress_dummy_warnings():
             for problem, exp_key in _all_experiments():
-                cfg = get_config(problem)
+                cfg = copy.deepcopy(get_config(problem))
                 _maybe_shrink(cfg, problem, exp_key)
                 tag = f"inprocess:{_DUMMY_FOR[problem]}"
                 tags = dict.fromkeys(cfg.solver_names, tag)

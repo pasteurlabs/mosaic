@@ -124,3 +124,10 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
+
+    periodic_3d_only = Exclusion(
+        ExclusionCategory.CATEGORICAL,
+        "surrogate supports periodic 3D fields; 2D and obstacle operators are not trained",
+    )
+    for suite in ("forward", "gradient", "cost", "optimization"):
+        problem.exclude(suite, {"xlb_3d_surrogate": periodic_3d_only})
