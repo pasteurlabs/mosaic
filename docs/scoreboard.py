@@ -26,8 +26,10 @@ has no absolute meaning and is scored against the fastest solver,
 scores 0. An axis on which a solver has no result — typically gradient
 and optimization for forward-only solvers — scores 0, since gradient quality
 is a first-class criterion of the benchmark. The problem score is the
-unweighted mean of the five axes, and the overall score is the mean of a
-solver's problem scores. Everything is computed from the same result.json
+unweighted mean of the five axes. Solvers are ranked within each physics
+domain (heat transfer, structural mechanics, Navier–Stokes 2D and 3D) on
+their score there. A domain can group several problems, in which case its
+score is the mean of the solver's problem scores within it. Everything is computed from the same result.json
 files and status snapshot as the per-domain pages.
 """
 
@@ -50,6 +52,18 @@ AXIS_LABELS = {
 
 # Short IDs match the "Benchmark domains" table on the Overview page.
 PROBLEM_ORDER = ["thermal-mesh", "structural-mesh", "ns-grid", "ns-3d-grid"]
+# Physics domains the scoreboard is organised by; each groups one or more
+# benchmark problems and is ranked on its own.
+DOMAINS = [
+    {"key": "heat", "label": "Heat transfer", "problems": ["thermal-mesh"]},
+    {
+        "key": "structural",
+        "label": "Structural mechanics",
+        "problems": ["structural-mesh"],
+    },
+    {"key": "ns-2d", "label": "Navier–Stokes (2D)", "problems": ["ns-grid"]},
+    {"key": "ns-3d", "label": "Navier–Stokes (3D)", "problems": ["ns-3d-grid"]},
+]
 PROBLEM_IDS = {
     "thermal-mesh": "H",
     "structural-mesh": "S",
@@ -312,20 +326,44 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 "anchor": m.get("anchor", ""),
             }
 
-    rows = []
-    for entry in solvers.values():
-        ps = entry["problems"]
-        entry["overall"] = sum(p["score"] for p in ps.values()) / len(ps)
-        entry["overall_axes"] = {
-            a: sum((p["axes"][a] or 0.0) for p in ps.values()) / len(ps) for a in AXES
-        }
-        rows.append(entry)
-    rows.sort(key=lambda e: -e["overall"])
-    _assign_ranks(rows, lambda e: e["overall"])
+    domains = []
+    for dom in DOMAINS:
+        probs = [p for p in dom["problems"] if p in problems]
+        if not probs:
+            continue
+        rows = []
+        for entry in solvers.values():
+            ps = {p: entry["problems"][p] for p in probs if p in entry["problems"]}
+            if not ps:
+                continue
+            rows.append(
+                {
+                    "name": entry["name"],
+                    "anchor": next(iter(ps.values()))["anchor"] or entry["anchor"],
+                    # Domain score: mean over the domain's problems the solver runs.
+                    "score": sum(p["score"] for p in ps.values()) / len(ps),
+                    # Missing results count as 0 but display as "—" when the
+                    # solver has no result for that axis anywhere in the domain.
+                    "axes": {
+                        a: (
+                            None
+                            if all(p["axes"][a] is None for p in ps.values())
+                            else sum((p["axes"][a] or 0.0) for p in ps.values())
+                            / len(ps)
+                        )
+                        for a in AXES
+                    },
+                    "problems": {p: d["score"] for p, d in ps.items()},
+                }
+            )
+        rows.sort(key=lambda e: -e["score"])
+        _assign_ranks(rows, lambda e: e["score"])
+        domains.append({**dom, "problems": probs, "rows": rows})
     return {
         "problems": [{"key": p, "id": PROBLEM_IDS.get(p, p)} for p in problems],
         "axes": AXES,
-        "solvers": rows,
+        "solvers": list(solvers.values()),
+        "domains": domains,
     }
 
 
@@ -351,70 +389,85 @@ def _level(v: float | None) -> int:
     return max(1, min(5, 1 + int(v * 5 - 1e-9))) if v > 0 else 1
 
 
-def _cell_title(problem_label: str, p: dict) -> str:
-    parts = [f"{problem_label}: {_pct(p['score'])}"]
-    for a in AXES:
-        parts.append(f"{AXIS_LABELS[a]} {_pct(p['axes'][a])}")
-    return " · ".join(parts)
+def _score_td(v: float | None, title: str = "") -> str:
+    t = f' title="{html.escape(title)}"' if title else ""
+    return f'<td class="sb-cell lvl-{_level(v)}"{t}><span class="sb-val">{_pct(v)}</span></td>'
 
 
 def render_overview(data: dict, labels: dict[str, str], pages: dict[str, str]) -> str:
-    """Raw-HTML scoreboard with an axis switcher (enhanced by mosaic-ui.html)."""
-    probs = data["problems"]
-    tabs = "".join(
-        f'<button type="button" class="seg-btn{" active" if a == "overall" else ""}" '
-        f'data-axis="{a}">{AXIS_LABELS[a]}</button>'
-        for a in ["overall", *AXES]
-    )
-    head = "".join(
-        f'<th class="sb-prob" scope="col"><a href="{pages.get(p["key"], "#")}">'
-        f'<span class="sb-id">{html.escape(p["id"])}</span>'
-        f'<span class="sb-plabel">{html.escape(labels.get(p["key"], p["key"]))}</span></a></th>'
-        for p in probs
-    )
-    body = []
-    for s in data["solvers"]:
-        cells = []
-        for p in probs:
-            pd = s["problems"].get(p["key"])
-            if pd is None:
-                cells.append(
-                    '<td class="sb-cell sb-na" data-na="1"><span>·</span></td>'
-                )
-                continue
-            vals = {"overall": pd["score"], **pd["axes"]}
-            attrs = " ".join(
-                f'data-{a}="{"" if v is None else f"{v:.4f}"}"' for a, v in vals.items()
-            )
-            title = html.escape(_cell_title(labels.get(p["key"], p["key"]), pd))
-            cells.append(
-                f'<td class="sb-cell lvl-{_level(pd["score"])}" {attrs} title="{title}">'
-                f'<span class="sb-val">{_pct(pd["score"])}</span></td>'
-            )
-        ov = {"overall": s["overall"], **s["overall_axes"]}
-        ov_attrs = " ".join(f'data-{a}="{v:.4f}"' for a, v in ov.items())
-        anchor = f"solvers.qmd#{s['anchor']}" if s["anchor"] else "solvers.qmd"
-        cover = len(s["problems"])
-        body.append(
-            f'<tr data-solver="{html.escape(s["name"])}">'
-            f'<td class="sb-rank"><span class="rank-pill r{min(s["rank"], 4)}">{s["rank"]}</span></td>'
-            f'<th scope="row" class="sb-solver"><a href="{anchor}">{html.escape(s["name"])}</a>'
-            f'<span class="sb-cover">{cover} domain{"s" if cover != 1 else ""}</span></th>'
-            + "".join(cells)
-            + _overall_td(s["overall"], " " + ov_attrs)
-            + "</tr>"
+    """Raw-HTML scoreboard: one ranked table per physics domain.
+
+    Columns are the domain's problems (when it has more than one), the five
+    axes averaged over those problems, and the domain score. Headers are
+    click-to-sort via docs/sortable-tables.html.
+    """
+    out = ['```{=html}\n<div class="scoreboard-domains">']
+    for dom in data["domains"]:
+        probs = dom["problems"]
+        multi = len(probs) > 1
+        ids = [PROBLEM_IDS.get(p, p) for p in probs]
+        links = " · ".join(
+            f'<a href="{pages.get(p, "#")}">{html.escape(labels.get(p, p))} results</a>'
+            for p in probs
         )
-    return (
-        '```{=html}\n<div class="scoreboard" data-axis="overall">'
-        f'<div class="scoreboard-toolbar"><div class="seg" role="tablist" aria-label="Score axis">{tabs}</div>'
-        '<div class="sb-legend"><span>0</span><i class="lvl-1"></i><i class="lvl-2"></i>'
-        '<i class="lvl-3"></i><i class="lvl-4"></i><i class="lvl-5"></i><span>100</span></div></div>'
-        '<div class="table-scroll"><table class="sb-table"><thead><tr>'
-        '<th class="sb-rank" scope="col">Rank</th><th scope="col" class="sb-solver">Solver</th>'
-        f'{head}<th scope="col" class="sb-overall">Overall</th></tr></thead><tbody>'
-        + "".join(body)
-        + "</tbody></table></div></div>\n```\n"
-    )
+        prob_head = (
+            "".join(
+                f'<th scope="col" class="sb-prob" title="{html.escape(labels.get(p, p))}">'
+                f"{html.escape(i)}</th>"
+                for p, i in zip(probs, ids, strict=True)
+            )
+            if multi
+            else ""
+        )
+        axis_head = "".join(f'<th scope="col">{AXIS_LABELS[a]}</th>' for a in AXES)
+        body = []
+        for r in dom["rows"]:
+            anchor = f"solvers.qmd#{r['anchor']}" if r["anchor"] else "solvers.qmd"
+            missing = [
+                i for p, i in zip(probs, ids, strict=True) if p not in r["problems"]
+            ]
+            note = (
+                f'<span class="sb-cover">not run on {", ".join(missing)}</span>'
+                if multi and missing
+                else ""
+            )
+            prob_cells = (
+                "".join(
+                    _score_td(r["problems"].get(p), labels.get(p, p)) for p in probs
+                )
+                if multi
+                else ""
+            )
+            body.append(
+                f'<tr><td class="sb-rank"><span class="rank-pill r{min(r["rank"], 4)}">'
+                f"{r['rank']}</span></td>"
+                f'<th scope="row" class="sb-solver"><a href="{anchor}">'
+                f"{html.escape(r['name'])}</a>{note}</th>"
+                + prob_cells
+                + "".join(_score_td(r["axes"][a]) for a in AXES)
+                + _overall_td(r["score"])
+                + "</tr>"
+            )
+        pid_tiles = "".join(
+            f'<span class="domain-id d-{html.escape(i)}">{html.escape(i)}</span>'
+            for i in ids
+        )
+        out.append(
+            f'<section class="scoreboard sb-domain" id="scores-{dom["key"]}">'
+            f'<header class="sb-domain-head"><div class="sb-domain-title">{pid_tiles}'
+            f"<h3>{html.escape(dom['label'])}</h3>"
+            f'<span class="sb-domain-meta">{len(dom["rows"])} solvers</span></div>'
+            f'<div class="sb-domain-links">{links}</div></header>'
+            '<div class="table-scroll sortable-table"><table class="sb-table"><thead><tr>'
+            '<th class="sb-rank" scope="col">Rank</th>'
+            '<th scope="col" class="sb-solver">Solver</th>'
+            f"{prob_head}{axis_head}"
+            '<th scope="col" class="sb-overall">Domain score</th></tr></thead><tbody>'
+            + "".join(body)
+            + "</tbody></table></div></section>"
+        )
+    out.append("</div>\n```\n")
+    return "".join(out)
 
 
 def render_domain(data: dict, problem: str) -> str:
@@ -449,15 +502,27 @@ def render_domain(data: dict, problem: str) -> str:
 
 
 def per_solver_summary(data: dict) -> dict[str, dict]:
-    """Map Solver Reference anchor → {problem: score, rank, overall} for the cards."""
+    """Map Solver Reference anchor → {problem id: {score, rank, of, domain}}.
+
+    One card can cover several problems (the Navier–Stokes containers run
+    both 2D and 3D), so ranks are reported per problem.
+    """
     out: dict[str, dict] = {}
+    dom_of = {p: d for d in data["domains"] for p in d["problems"]}
     for s in data["solvers"]:
         for prob, p in s["problems"].items():
-            a = p["anchor"]
-            if not a:
+            if not p["anchor"]:
                 continue
-            out.setdefault(
-                a, {"rank": s["rank"], "overall": s["overall"], "problems": {}}
+            dom = dom_of.get(prob)
+            row = (
+                next((r for r in dom["rows"] if r["name"] == s["name"]), None)
+                if dom
+                else None
             )
-            out[a]["problems"][PROBLEM_IDS.get(prob, prob)] = p["score"]
+            out.setdefault(p["anchor"], {})[PROBLEM_IDS.get(prob, prob)] = {
+                "score": p["score"],
+                "rank": row["rank"] if row else None,
+                "of": len(dom["rows"]) if dom else 0,
+                "domain": dom["label"] if dom else "",
+            }
     return out

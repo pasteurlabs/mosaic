@@ -1,7 +1,6 @@
 <script type="text/javascript">
 // Interactive pieces of the docs site, all progressive enhancements over the
-// static Quarto output (without JS every card shows its details inline and the
-// scoreboard shows overall scores):
+// static Quarto output (without JS every card shows its details inline):
 //
 //   * Explorer toolbars: search + filter chips over solver cards (Solver
 //     Reference) and experiment tiles (Results overview).
@@ -9,8 +8,6 @@
 //     details node is moved (not cloned) so ids and handlers stay intact, and
 //     moved back on close.
 //   * Deep links: solvers.html#<anchor> highlights the card and opens it.
-//   * Scoreboard: the axis switcher swaps the values shown in every cell and
-//     re-ranks the rows.
 //   * Leaderboards: rows are tagged with their original rank so the "Best"
 //     marker survives click-to-sort.
 
@@ -227,55 +224,6 @@
     apply();
   }
 
-  // ── Scoreboard axis switcher ──────────────────────────────────────────────
-  function level(v) {
-    if (!isFinite(v)) return 0;
-    return v > 0 ? Math.max(1, Math.min(5, 1 + Math.floor(v * 5 - 1e-9))) : 1;
-  }
-
-  function wireScoreboard(board) {
-    const seg = board.querySelector(".seg");
-    const tbody = board.querySelector("tbody");
-    if (!seg || !tbody) return;
-    seg.addEventListener("click", (e) => {
-      const btn = e.target.closest(".seg-btn");
-      if (!btn) return;
-      const axis = btn.dataset.axis;
-      seg.querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
-      board.dataset.axis = axis;
-      const rows = Array.from(tbody.rows);
-      rows.forEach((row) => {
-        row.querySelectorAll("td.sb-cell:not(.sb-na)").forEach((td) => {
-          const raw = td.dataset[axis];
-          const v = raw === "" || raw === undefined ? NaN : parseFloat(raw);
-          td.className = td.className.replace(/\blvl-\d\b/, "") + " lvl-" + level(v);
-          td.className = td.className.replace(/\s+/g, " ").trim();
-          td.querySelector(".sb-val").textContent = isFinite(v) ? Math.round(100 * v) : "—";
-        });
-        const ov = row.querySelector("td.sb-overall");
-        const v = parseFloat(ov.dataset[axis]);
-        row._score = isFinite(v) ? v : -1;
-        ov.querySelector(".sb-bar span").style.width = (isFinite(v) ? 100 * v : 0).toFixed(1) + "%";
-        ov.querySelector(".sb-val").textContent = isFinite(v) ? Math.round(100 * v) : "—";
-      });
-      rows.sort((a, b) => b._score - a._score);
-      // Competition ranking on the displayed score: ties share a rank.
-      let prev = null;
-      let rank = 0;
-      rows.forEach((row, i) => {
-        const shown = Math.round(100 * row._score);
-        if (shown !== prev) {
-          rank = i + 1;
-          prev = shown;
-        }
-        const pill = row.querySelector(".rank-pill");
-        pill.textContent = rank;
-        pill.className = "rank-pill r" + Math.min(rank, 4);
-        tbody.appendChild(row);
-      });
-    });
-  }
-
   function markLeaderboards() {
     document.querySelectorAll(".leaderboard table tbody").forEach((tbody) => {
       Array.from(tbody.rows).forEach((row, i) => (row.dataset.rank = i + 1));
@@ -287,7 +235,6 @@
     markLeaderboards();
     wireCards();
     document.querySelectorAll(".explorer-toolbar").forEach(wireExplorer);
-    document.querySelectorAll(".scoreboard").forEach(wireScoreboard);
     openFromHash();
     window.addEventListener("hashchange", openFromHash);
   });

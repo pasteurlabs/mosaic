@@ -17,9 +17,9 @@ yourself](getting-started.qmd) on your target hardware.
 
 ## Scoreboard {#scoreboard}
 
-Every solver scored on every domain it runs in, from 0 to 100, with an overall
-rank. Use the switcher to see a single axis; click a domain to open its results
-page, or a solver to open its card.
+Solvers ranked within each physics domain, scored from 0 to 100 on every axis.
+Click a column header to re-sort, a solver to open its card, or a results link
+to open the domain's page.
 
 ::: {.column-page}
 {{< include _scoreboard.qmd >}}
@@ -47,11 +47,11 @@ Each solver gets five axis scores per domain, each from 0 to 100:
 An axis on which a solver has no result scores 0. That is mostly gradient and
 optimization for forward-only solvers (deal.II, OpenFOAM) and optimization
 tasks a solver cannot set up, since gradient quality is a first-class criterion
-here. A domain score is the unweighted mean of the five axes, and the overall
-score is the mean over the domains the solver runs in. Scores compare solvers
-within a domain most fairly: the finite-element domains are easier to solve
-accurately than turbulent flow, so a high overall score partly reflects which
-domains a solver covers.
+here. A domain score is the unweighted mean of the five axes, and solvers
+are ranked on it within each domain; Navier–Stokes 2D and 3D are ranked
+separately. Domains are not ranked against each other: the finite-element problems
+are easier to solve accurately than turbulent flow, so scores are only
+comparable within a domain.
 :::
 
 ## Domains

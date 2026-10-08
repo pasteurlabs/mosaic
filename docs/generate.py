@@ -481,9 +481,10 @@ def render_solver(solver: dict, scores: dict | None = None) -> str:
     # "view details" affordance.
     foot: list[str] = []
     if score:
-        for pid, v in score["problems"].items():
+        for pid, v in score.items():
             foot.append(
-                f"[[{pid}]{{.sc-id}} {round(100 * v)}]{{.score-chip .lvl-{_score_level(v)}}}"
+                f"[[{pid}]{{.sc-id}} {round(100 * v['score'])}]"
+                f"{{.score-chip .lvl-{_score_level(v['score'])}}}"
             )
     foot.append("[Details]{.solver-open}")
     lines += ["::: {.solver-card-foot}", " ".join(foot), ":::", ""]
@@ -501,12 +502,13 @@ def render_solver(solver: dict, scores: dict | None = None) -> str:
         lines.append("")
 
     if score:
-        per = " · ".join(
-            f"{pid} {round(100 * v)}" for pid, v in score["problems"].items()
+        per = "; ".join(
+            f"{v['domain']} {round(100 * v['score'])}"
+            + (f" (rank {v['rank']} of {v['of']})" if v["rank"] else "")
+            for v in score.values()
         )
         lines.append(
-            f"**Benchmark score:** {per} (overall {round(100 * score['overall'])}, "
-            f"rank {score['rank']}) — see the [scoreboard](results.qmd#scoreboard)."
+            f"**Benchmark score:** {per} — see the [scoreboard](results.qmd#scoreboard)."
         )
         lines.append("")
 
@@ -605,7 +607,7 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
             "shows the solver's score (0–100) on each domain it runs in: "
             "**H** heat transfer, **S** structural mechanics, **F2**/**F3** "
             "Navier–Stokes 2D/3D. See the [scoreboard](results.qmd#scoreboard) "
-            "for how scores are computed.\n"
+            "for how scores are computed and the per-domain rankings.\n"
             ":::\n\n"
         )
     sections = "\n\n".join(

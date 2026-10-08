@@ -39,10 +39,10 @@ body {
     left: 0;
     right: 0;
     bottom: -1px;
-    height: 3px;
+    height: 2px;
     background: $tile-strip;
-    background-size: 96px 3px;
-    opacity: 0.9;
+    background-size: 160px 2px;
+    opacity: 0.55;
   }
 
   .navbar {
@@ -148,26 +148,6 @@ main h2,
   margin-bottom: 0.9rem;
   padding-bottom: 0.45rem;
   border-bottom: 1px solid var(--m-border);
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-
-  &::before {
-    // Three-tile glyph.
-    content: "";
-    flex: none;
-    width: 22px;
-    height: 8px;
-    border-radius: 2px;
-    background:
-      linear-gradient(var(--m-accent), var(--m-accent)) 0 0 / 6px 8px no-repeat,
-      linear-gradient(var(--m-saffron), var(--m-saffron)) 8px 0 / 6px 8px no-repeat,
-      linear-gradient(var(--m-indigo), var(--m-indigo)) 16px 0 / 6px 8px no-repeat;
-  }
-
-  .anchorjs-link {
-    order: 3;
-  }
 }
 
 main h3,
@@ -351,21 +331,11 @@ div.callout-important {
 // ── Footer ───────────────────────────────────────────────────────────────────
 .nav-footer {
   background: var(--m-surface-2);
-  border-top: 0;
   position: relative;
   font-size: 0.85rem;
   color: var(--m-muted);
 
-  &::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 3px;
-    background: $tile-strip;
-    background-size: 96px 3px;
-  }
+  border-top: 1px solid var(--m-border);
 }
 
 // ── Plot sizing guardrail ────────────────────────────────────────────────────
@@ -444,14 +414,14 @@ p > img {
     content: "Best";
     display: inline-block;
     margin-right: 0.5rem;
-    padding: 0.05rem 0.45rem;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    padding: 0 0.4rem;
+    border-radius: 0.3rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    background: var(--m-accent-soft);
     color: var(--m-accent-ink);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m-accent) 45%, transparent);
     vertical-align: 1px;
   }
 }
@@ -460,7 +430,7 @@ p > img {
 .hero {
   position: relative;
   margin: 0.5rem 0 2.5rem;
-  border-radius: 1.25rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   background: var(--m-surface);
   border: 1px solid var(--m-border);
@@ -483,7 +453,7 @@ p > img {
     display: block;
     width: 100% !important;
     max-width: none !important;
-    height: clamp(130px, 22vw, 220px) !important;
+    height: clamp(110px, 16vw, 170px) !important;
     max-height: none !important;
     object-fit: cover;
     object-position: center 40%;
@@ -532,8 +502,8 @@ p > img {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.55rem 1.05rem;
-  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  border-radius: 0.45rem;
   font-weight: 600;
   font-size: 0.92rem;
   text-decoration: none !important;
@@ -543,7 +513,6 @@ p > img {
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 
   &:hover {
-    transform: translateY(-1px);
     box-shadow: var(--m-shadow);
   }
 
@@ -569,7 +538,7 @@ p > img {
 .axis-card {
   background: var(--m-surface);
   border: 1px solid var(--m-border);
-  border-radius: 0.9rem;
+  border-radius: 0.6rem;
   padding: 1rem 1.1rem;
   box-shadow: var(--m-shadow-sm);
   border-top: 3px solid var(--tile, var(--m-accent));
@@ -598,13 +567,12 @@ p > img {
   flex-direction: column;
   background: var(--m-surface);
   border: 1px solid var(--m-border);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   box-shadow: var(--m-shadow-sm);
   overflow: hidden;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 
   &:hover {
-    transform: translateY(-2px);
     box-shadow: var(--m-shadow);
     border-color: var(--m-border-strong);
   }
@@ -775,7 +743,7 @@ p > img {
   gap: 1rem;
   margin: 1.75rem 0;
   padding: 1.25rem 1.4rem;
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   background:
     linear-gradient(135deg, var(--m-accent-soft), transparent 70%),
     var(--m-surface);
@@ -807,7 +775,7 @@ p > img {
   > div {
     background: var(--m-surface);
     border: 1px solid var(--m-border);
-    border-radius: 0.9rem;
+    border-radius: 0.6rem;
     padding: 1rem 1.1rem;
 
     p {
@@ -828,7 +796,7 @@ p > img {
   gap: 0.6rem 0.9rem;
   margin: 1.25rem 0 1.5rem;
   padding: 0.85rem;
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   background: color-mix(in srgb, var(--m-surface) 92%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -926,7 +894,7 @@ p > img {
   text-align: center;
   color: var(--m-muted);
   border: 1px dashed var(--m-border-strong);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
 }
 
 // ── Card grids ───────────────────────────────────────────────────────────────
@@ -948,7 +916,7 @@ p > img {
   flex-direction: column;
   background: var(--m-surface);
   border: 1px solid var(--m-border);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   padding: 1.05rem 1.15rem 0.9rem;
   box-shadow: var(--m-shadow-sm);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -957,7 +925,6 @@ p > img {
   &:hover,
   &:focus-within,
   &.is-target {
-    transform: translateY(-2px);
     box-shadow: var(--m-shadow);
     border-color: var(--m-border-strong);
   }
@@ -967,18 +934,7 @@ p > img {
     box-shadow: 0 0 0 3px var(--m-accent-soft), var(--m-shadow);
   }
 
-  &::before {
-    // Tile accent in the corner, coloured per domain.
-    content: "";
-    position: absolute;
-    top: 1.15rem;
-    right: 1.15rem;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    background: var(--tile, var(--m-accent));
-    box-shadow: -13px 0 0 color-mix(in srgb, var(--tile, var(--m-accent)) 45%, transparent);
-  }
+  border-top: 2px solid var(--tile, var(--m-border-strong));
 
   &[data-category^="Navier"] {
     --tile: var(--m-green);
@@ -1153,7 +1109,7 @@ dialog.m-dialog {
   max-height: calc(100vh - 3rem);
   padding: 0;
   border: 1px solid var(--m-border);
-  border-radius: 1.1rem;
+  border-radius: 0.75rem;
   background: var(--m-surface);
   color: var(--m-ink);
   box-shadow: var(--m-shadow-lg);
@@ -1175,17 +1131,6 @@ dialog.m-dialog {
     padding: 1.25rem 3.5rem 1rem 1.5rem;
     border-bottom: 1px solid var(--m-border);
     background: var(--m-surface-2);
-
-    &::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 3px;
-      background: $tile-strip;
-      background-size: 96px 3px;
-    }
 
     h2 {
       margin: 0.15rem 0 0.4rem !important;
@@ -1245,7 +1190,7 @@ dialog.m-dialog {
 @keyframes m-pop {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.985);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -1263,7 +1208,7 @@ dialog.m-dialog {
   flex-direction: column;
   background: var(--m-surface);
   border: 1px solid var(--m-border);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   overflow: hidden;
   cursor: pointer;
   box-shadow: var(--m-shadow-sm);
@@ -1271,7 +1216,6 @@ dialog.m-dialog {
 
   &:hover,
   &:focus-visible {
-    transform: translateY(-2px);
     box-shadow: var(--m-shadow);
     border-color: var(--m-border-strong);
     outline: none;
@@ -1294,9 +1238,6 @@ dialog.m-dialog {
     transition: transform 0.4s ease;
   }
 
-  &:hover img.exp-thumb {
-    transform: scale(1.04);
-  }
 
   .exp-tile-body {
     padding: 0.85rem 1rem 1rem;
@@ -1361,70 +1302,9 @@ dialog.m-dialog {
   margin: 1rem 0 1.25rem;
   background: var(--m-surface);
   border: 1px solid var(--m-border);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   box-shadow: var(--m-shadow);
   overflow: hidden;
-}
-
-.scoreboard-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--m-border);
-  background: var(--m-surface-2);
-}
-
-.seg {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--m-surface-3);
-}
-
-.seg-btn {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: var(--m-ink-2);
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 0.3rem 0.8rem;
-  border-radius: 999px;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--m-ink);
-  }
-
-  &.active {
-    background: var(--m-surface);
-    color: var(--m-accent-ink);
-    box-shadow: var(--m-shadow-sm);
-  }
-}
-
-.sb-legend {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.72rem;
-  color: var(--m-muted);
-
-  span {
-    margin: 0 0.25rem;
-  }
-
-  i {
-    display: inline-block;
-    width: 18px;
-    height: 10px;
-    border-radius: 2px;
-  }
 }
 
 .table-scroll {
@@ -1557,7 +1437,7 @@ table.sb-table {
         display: block;
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, var(--m-saffron), var(--m-accent));
+        background: var(--m-accent);
         transition: width 0.3s ease;
       }
     }
@@ -1573,8 +1453,7 @@ table.sb-table {
 // lines stay visible.
 @for $i from 0 through 5 {
   .sb-cell.lvl-#{$i} .sb-val,
-  .score-chip.lvl-#{$i},
-  .sb-legend i.lvl-#{$i} {
+  .score-chip.lvl-#{$i} {
     background: var(--m-score-#{$i});
   }
 }
@@ -1600,18 +1479,69 @@ table.sb-table {
   background: var(--m-surface-2);
   color: var(--m-ink-2);
 
+  // Only the leader is set apart, with an accent outline rather than a medal.
   &.r1 {
-    background: var(--m-saffron);
-    color: #2a1d05;
+    background: var(--m-surface);
+    color: var(--m-accent-ink);
+    box-shadow: inset 0 0 0 1.5px var(--m-accent);
   }
-  &.r2 {
-    background: color-mix(in srgb, var(--m-saffron) 45%, var(--m-surface-2));
-    color: var(--m-ink);
+}
+
+// Results overview: one scoreboard card per physics domain.
+.scoreboard-domains {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 1rem 0 1.25rem;
+
+  .scoreboard {
+    margin: 0;
   }
-  &.r3 {
-    background: color-mix(in srgb, var(--m-saffron) 22%, var(--m-surface-2));
-    color: var(--m-ink);
+}
+
+.sb-domain-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--m-border);
+  background: var(--m-surface-2);
+
+  .sb-domain-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
   }
+
+  .domain-id {
+    min-width: 1.8rem;
+    height: 1.8rem;
+    font-size: 0.85rem;
+  }
+
+  h3 {
+    margin: 0 0 0 0.25rem !important;
+    font-size: 1.2rem !important;
+  }
+
+  .sb-domain-meta {
+    font-size: 0.8rem;
+    color: var(--m-muted);
+  }
+
+  .sb-domain-links {
+    font-size: 0.85rem;
+  }
+}
+
+.scoreboard-domains table.sb-table thead th.sb-prob {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--m-ink);
 }
 
 .scoreboard-domain {
@@ -1672,7 +1602,7 @@ table.sb-table {
 .domain-hero {
   background: #fff;
   border: 1px solid var(--m-border);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   padding: 1.1rem 1.25rem 1rem;
   margin-bottom: 1.5rem;
   box-shadow: var(--m-shadow-sm);
@@ -1691,9 +1621,7 @@ table.sb-table {
 
   .domain-tagline {
     display: block;
-    font-family: "Fraunces", Georgia, serif;
-    font-size: 1.08rem;
-    font-style: italic;
+    font-size: 0.98rem;
     color: #3a332c;
     max-width: 40rem;
     margin: 0 auto;
@@ -1721,7 +1649,7 @@ h2.suite-heading {
 .exp-card {
   background: var(--m-surface);
   border: 1px solid var(--m-border);
-  border-radius: 1rem;
+  border-radius: 0.6rem;
   padding: 0.25rem 1.35rem 1rem;
   margin: 1rem 0 1.25rem;
   box-shadow: var(--m-shadow-sm);

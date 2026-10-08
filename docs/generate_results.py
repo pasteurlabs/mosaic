@@ -855,7 +855,7 @@ def generate_qmd_for_problem(
             (
                 "*Per-axis scores from 0 to 100, computed from the same results as "
                 "the rankings below. See the [Results overview](results.qmd#scoreboard) "
-                "for the scoring method and the cross-domain ranking.*"
+                "for the scoring method and the per-domain rankings.*"
             ),
             "",
         ]
