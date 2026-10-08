@@ -2,7 +2,7 @@
 
 The active pipeline generates continuous XLB trajectories, trains a conditioned
 Fourier operator, and exports a selected checkpoint for the Tesseract runtime.
-See [MODEL.md](MODEL.md) for the packaged model's results and limitations. The
+See [model card](../../mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/MODEL.md) for the packaged model's results and limitations. The
 retired fixed-resolution model and its training experiments are available in
 [Git history](https://github.com/pasteurlabs/mosaic/tree/3a8c4cc/mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate).
 
@@ -11,7 +11,7 @@ retired fixed-resolution model and its training experiments are available in
 Prepare the manifests from the repository root in the Mosaic Python environment:
 
 ```bash
-PYTHONPATH=. python mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate/operator_dataset.py \
+PYTHONPATH=. python tools/xlb_surrogate/operator_dataset.py \
   --output /local/coverage.json --training /local/manifest.json
 ```
 
@@ -57,7 +57,7 @@ generation. The loader rejects mixed generation signatures and incomplete cases.
 
 ## Train and export
 
-Run in the staged source directory with local data, caches, logs, and outputs:
+Run from `tools/xlb_surrogate/` (or a staged source bundle) with local data, caches, logs, and outputs:
 
 ```bash
 python train_operator.py --dataset /local/data --manifest /local/manifest.json \
@@ -124,7 +124,8 @@ run requires its archived source, not today's trainer.
 `run_operator_pilot.sh` automates staging, generation, two concurrent training
 variants, and archival on Kander Slurm. Set `OPERATOR_RUN_ROOT` to a shared folder
 containing `source.tar` and `OPERATOR_TEACHER_IMAGE` to an immutable squashfs. The
-bundle contains `manifest.json` and `source/` with the operator modules,
+bundle contains `manifest.json` and `source/` with the Python files from this
+directory, the runtime `operator_model.py` and `tesseract_api.py`,
 `teacher_api.py` (XLB), and `mosaic_shared/`. Keep image basenames unique: the node
 cache uses them as keys. The wrapper defaults to two B200s; adjust Slurm resource
 requests for other GPUs. `OPERATOR_UPDATES` and `OPERATOR_VALIDATION_SAMPLES`

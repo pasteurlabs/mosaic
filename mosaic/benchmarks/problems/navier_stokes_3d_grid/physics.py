@@ -13,7 +13,9 @@ import jax.numpy as jnp
 from mosaic.benchmarks.core.config import SolverSpec
 from mosaic.benchmarks.problems.shared.diagnostics import FLUID_DIAGNOSTICS
 
-_LBM_SOLVERS = {"xlb", "xlb_3d_surrogate"}
+# The FNO surrogate is not an LBM solver. Match its teacher's timestep/horizon
+# scaling so both see the physics and discretization used in training.
+_XLB_TIME_SCALING_SOLVERS = {"xlb", "xlb_3d_surrogate"}
 
 
 def make_inputs(
@@ -35,7 +37,7 @@ def make_inputs(
     N = ic.shape[0]
     _dt, _steps = dt, steps
 
-    if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
+    if spec.key in _XLB_TIME_SCALING_SOLVERS and lbm_N_base is not None:
         _dt = dt * (lbm_N_base / N)
         _steps = max(1, round(steps * (N / lbm_N_base)))
 

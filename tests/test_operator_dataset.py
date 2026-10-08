@@ -11,9 +11,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-ROOT = (
-    Path(__file__).parents[1] / "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate"
-)
+ROOT = Path(__file__).parents[1] / "tools/xlb_surrogate"
 
 
 def load(name):

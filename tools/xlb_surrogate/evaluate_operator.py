@@ -13,16 +13,26 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import sys
 import time
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import tesseract_api as api
 from generate_operator_data import load_teacher, teacher_policy
 from operator_dataset import file_hash
 from operator_storage import atomic_json, require_local
+
+# Use the exact runtime implementation; a staged flat source bundle also works.
+sys.path.insert(
+    0,
+    str(
+        Path(__file__).resolve().parents[2]
+        / "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate"
+    ),
+)
+import tesseract_api as api
 
 
 def energy_fd_sweep(inputs: api.InputSchema) -> dict:

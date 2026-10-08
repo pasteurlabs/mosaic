@@ -11,13 +11,17 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-ROOT = (
-    Path(__file__).parents[1] / "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate"
-)
+ROOT = Path(__file__).parents[1] / "tools/xlb_surrogate"
 
 
 def load(name):
-    spec = importlib.util.spec_from_file_location(name, ROOT / f"{name}.py")
+    directory = (
+        Path(__file__).parents[1]
+        / "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate"
+        if name == "operator_model"
+        else ROOT
+    )
+    spec = importlib.util.spec_from_file_location(name, directory / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)

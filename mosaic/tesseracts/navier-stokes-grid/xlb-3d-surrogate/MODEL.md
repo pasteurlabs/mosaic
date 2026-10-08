@@ -62,7 +62,7 @@ per resolution. All predictions in these tests are finite.
 Training spans viscosities 0.001–0.1, training timesteps 0.005–0.05, and domain
 length `2π`. Smaller timesteps 0.0025 and 0.003333 are covered by resolution
 holdouts. Other positive values are accepted but represent extrapolation.
-See [TRAINING.md](TRAINING.md) for generation, local storage, training and export.
+See [training guide](../../../../tools/xlb_surrogate/README.md) for generation, local storage, training and export.
 
 ## Benchmark integration and reproducibility
 
@@ -90,7 +90,7 @@ benchmark's ten directions and epsilon grid, achieved best median relative error
 `7.05e-4` and cosine `0.99999955`. The actual CPU FD benchmark harness achieved
 `3.07e-4` and cosine above `0.9999999`, passing its thresholds. Smaller perturbations
 show float32 noise; the complete sweep is retained in
-[operator_validation.json](operator_validation.json), alongside every direct case.
+[operator_validation.json](../../../../tools/xlb_surrogate/operator_validation.json), alongside every direct case.
 
 The 7.2 MiB inference artifact contains parameters and provenance, without Adam
 state. SHA-256:

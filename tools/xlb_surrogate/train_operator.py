@@ -9,6 +9,7 @@ import argparse
 import json
 import math
 import signal
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -17,10 +18,19 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
-import operator_model as model
 from operator_dataset import file_hash
 from operator_loader import WindowDataset
 from operator_storage import atomic_json, require_local
+
+# Use the exact runtime implementation; a staged flat source bundle also works.
+sys.path.insert(
+    0,
+    str(
+        Path(__file__).resolve().parents[2]
+        / "mosaic/tesseracts/navier-stokes-grid/xlb-3d-surrogate"
+    ),
+)
+import operator_model as model
 
 
 def trajectory_loss(prediction: jax.Array, target: jax.Array) -> jax.Array:
