@@ -22,13 +22,13 @@ OUT = Path(__file__).resolve().parent
 
 W, H = 720, 380
 
-INK = "#231f1b"
-INK2 = "#3a332c"
-MUTED = "#6b6158"
-BORDER = "#e2d8c8"
-PAPER = "#fbf8f3"
-SAND = "#f4eee4"
-ACCENT = "#b9441f"
+INK = "#1d1e20"
+INK2 = "#2f3134"
+MUTED = "#5f6368"
+BORDER = "#e1e2e4"
+PAPER = "#f7f7f6"
+SAND = "#f1f1ef"
+ACCENT = "#a8401f"
 SAFFRON = "#e3a02f"
 INDIGO = "#2f4b8f"
 GREEN = "#2f7a57"
@@ -36,6 +36,7 @@ PLUM = "#6e3f8f"
 
 SANS = "Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
 SERIF = "Georgia, 'Times New Roman', serif"
+MONO = "'JetBrains Mono', Menlo, Consolas, monospace"
 
 
 # ── Building blocks ──────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ def _svg(body: str, title: str, extra_defs: str = "") -> str:
         f'width="{W}" height="{H}" role="img" aria-label="{title}">'
         f"<title>{title}</title>"
         f"<style>text{{font-family:{SANS};fill:{INK}}}"
-        f".eyebrow{{font-size:11px;font-weight:600;letter-spacing:.12em;fill:{ACCENT}}}"
+        f".eyebrow{{font-family:{MONO};font-size:11px;font-weight:500;letter-spacing:.04em;fill:{ACCENT}}}"
         f".eyebrow.quiet{{fill:{MUTED}}}"
         f".label{{font-size:15px;fill:{INK2}}}"
         f".small{{font-size:12px;fill:{MUTED}}}"
@@ -205,7 +206,7 @@ def fig_ns_grid() -> str:
     yc = (yt + yb) / 2
     cx, cy, r = 236, yc, 19
     parts = [
-        f'<rect x="{x0}" y="{yt}" width="{x1 - x0}" height="{yb - yt}" fill="#edf1f7"/>',
+        f'<rect x="{x0}" y="{yt}" width="{x1 - x0}" height="{yb - yt}" fill="#eef0f4"/>',
         _hatch_h(yt, x0, x1, side=-1),
         _hatch_h(yb, x0, x1, side=1),
     ]
@@ -419,7 +420,7 @@ def fig_structural_mesh() -> str:
     blur = '<filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.2"/></filter>'
     parts = [
         f'<clipPath id="beam"><rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}"/></clipPath>',
-        f'<rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" fill="#eef1f7"/>',
+        f'<rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" fill="#eef0f4"/>',
         (
             f'<g clip-path="url(#beam)"><g filter="url(#soft)" fill="none" stroke="{INDIGO}" '
             f'stroke-linecap="round" stroke-linejoin="round">{"".join(struts)}</g></g>'
@@ -463,7 +464,7 @@ def fig_thermal_mesh() -> str:
         '<radialGradient id="temp" cx="0.45" cy="0.42" r="0.75">'
         f'<stop offset="0" stop-color="{ACCENT}"/><stop offset="0.3" stop-color="#d9773f"/>'
         f'<stop offset="0.55" stop-color="{SAFFRON}" stop-opacity="0.75"/>'
-        f'<stop offset="0.8" stop-color="#f3e3c4"/><stop offset="1" stop-color="#c9d3ea"/>'
+        f'<stop offset="0.8" stop-color="#efe6d6"/><stop offset="1" stop-color="#c9d3ea"/>'
         "</radialGradient>"
     )
     cond = "".join(
@@ -487,7 +488,7 @@ def fig_thermal_mesh() -> str:
     parts = [
         # Conductivity field (control) with Dirichlet edge and heat input.
         f'<clipPath id="kclip"><rect x="{lx}" y="{y0}" width="{s}" height="{s}"/></clipPath>',
-        f'<rect x="{lx}" y="{y0}" width="{s}" height="{s}" fill="#eef1f7"/>',
+        f'<rect x="{lx}" y="{y0}" width="{s}" height="{s}" fill="#eef0f4"/>',
         f'<g clip-path="url(#kclip)">{cond}</g>',
         f'<rect x="{lx}" y="{y0}" width="{s}" height="{s}" fill="none" stroke="{INK2}" stroke-width="1.5"/>',
         f'<rect x="{lx - 6}" y="{y0}" width="6" height="{s}" fill="{MUTED}"/>',
