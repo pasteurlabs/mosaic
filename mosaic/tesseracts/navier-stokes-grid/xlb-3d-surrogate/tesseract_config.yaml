@@ -1,15 +1,15 @@
 name: xlb_3d_surrogate_navier_stokes_grid
-version: "0.1.0"
+version: "0.2.0"
 description: >
-  Differentiable autoregressive full-field surrogate of XLB for the fixed N=16
-  3D initial-condition recovery task. One periodic Fourier neural operator
-  advances the complete velocity by five XLB steps and is reused for a
-  20-macro-step rollout.
+  Differentiable periodic 3D XLB surrogate with shared Fourier weights across
+  resolutions, conditioned on viscosity, timestep, grid spacing, and domain size.
+  Autoregressive macro-steps preserve mean velocity and bound kinetic energy.
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data:
-    - ["./weights.npz", "/tesseract/weights.npz"]
-    - ["./surrogate_model.py", "/tesseract/surrogate_model.py"]
+    - ["./operator_weights.npz", "/tesseract/operator_weights.npz"]
+    - ["./operator_model.py", "/tesseract/operator_model.py"]
+    - ["./operator_api.py", "/tesseract/operator_api.py"]
 env:
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
 
@@ -18,9 +18,9 @@ metadata:
     name: "XLB 3D surrogate"
     backend: jax
     family: surrogate
-    scheme: "autoregressive full-field Fourier neural operator"
+    scheme: "conditioned autoregressive Fourier neural operator"
     discretization: Learned
-    numerics: "shared 5-step 3D FNO, 20-step rollout, viscous skip, Helmholtz projection"
+    numerics: "shared 3D FNO, physical diffusion, mean conservation, projection, energy limit"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true

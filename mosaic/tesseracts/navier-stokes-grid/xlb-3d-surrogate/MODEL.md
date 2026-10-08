@@ -1,127 +1,104 @@
-# XLB 3D initial-condition recovery surrogate
+# Conditioned XLB 3D surrogate
 
-This Tesseract is a task-specific autoregressive full-field surrogate for the
-`N=16`, `ν=0.01`, `dt=0.02`, 100-step periodic 3D initial-condition recovery
-benchmark. It is not a general Navier–Stokes solver and is excluded from other
-resolutions, physical parameters, horizons, geometries, and benchmark cells.
-The canonical drag output is zero because this triply-periodic task has no
-obstacle; there is no learned drag head.
+This Tesseract advances periodic cubic 3D velocity fields with one shared Fourier
+neural operator across grid resolutions, viscosities, timesteps, and horizons.
+It now participates in every registered `ns-3d-grid` experiment. Benchmark
+admission means that the input and derivative contracts are supported; it does
+not imply uniformly accurate XLB predictions. Long-horizon accuracy remains poor.
+The 2D and obstacle suites are still excluded and need separate training/support.
 
-## Model contract
+## Runtime contract
 
-The differentiable state is the complete `16 × 16 × 16 × 3` velocity field.
-One periodic 3D Fourier neural operator advances that field by a macro-step of
-five XLB solver steps (`ΔT=0.1`). The same weights are reused autoregressively
-20 times to produce the full-horizon result. This is not an IC-to-final-state
-regressor.
+Inputs are finite `(N, N, N, 3)` velocity fields with `N >= 8`, positive viscosity,
+timestep and domain length, nonnegative step count, and fully periodic boundaries.
+There is no forcing, obstacle, inflow, or learned drag head. Drag is zero.
+The output has the input shape and float32 dtype. Zero steps return the input.
+The API provides VJPs for initial velocity, viscosity, and timestep.
 
-The neural operator has width 32, six retained Fourier modes per axis, and six
-residual spectral blocks. An exact one-macro-step viscous-diffusion operator
-supplies a physics skip while the neural operator learns the finite-amplitude
-nonlinear correction. Every macro-step applies the implemented spectral Helmholtz projection.
+The packaged model has width 24, four residual spectral blocks, and a shared bank
+of signed Fourier modes through mode four. Unsupported modes are cropped on small
+grids; even-grid Nyquist modes do not alias into the retained bank. Physical
+wave numbers drive the diffusion skip. Conditioning includes viscosity, timestep,
+elapsed interval, grid spacing, and domain extent. A macro-step normally spans
+five requested steps, with a shorter final update for any remainder.
 
-XLB's velocity alone omits the lattice populations and is therefore not a
-closed representation of the teacher's numerical state. The training targets
-are nevertheless decoded from one continuous native XLB population rollout;
-the teacher is never restarted from equilibrium at macro-step boundaries.
+Each update applies a Helmholtz projection, restores the input mean velocity,
+and limits fluctuating kinetic energy to its previous value (up to floating-point
+and regularization error). This encodes properties of unforced incompressible
+periodic flow. It can differ from weakly compressible XLB transients. Energy
+bounds ensure neither field accuracy nor accurate teacher gradients; in particular,
+the learned dynamics can retain too much energy at long horizons.
 
-## Benchmark integration
+XLB velocity omits the lattice populations, so it is not a closed representation
+of the teacher's numerical state. Training labels come from continuous native
+float64 XLB population trajectories, decoded and saved as float32. The teacher is
+not restarted at each snapshot. Both training and inference use `operator_model.py`.
 
-This solver is discovered as `xlb-3d-surrogate` (display name
-`XLB 3D surrogate`) by the regular `ns-3d-grid` registry. Default API inputs
-are a zero `16×16×16×3` field with the supported viscosity, time step, and
-horizon. Other physics are rejected before inference. All 2D and unmatched
-3D benchmark cells are excluded.
+## Training and selection
 
-The surrogate participates in the existing
-`optimization/recovery_constant_ic_bfgs_proj` experiment, using the same random
-divergence-free ICs (seeds 0/1/2), physics, and 100-update projected L-BFGS
-optimizer as the other eligible solvers. It uses the standard result envelopes,
-field snapshots, status reporting, and recovery plots. No experiments or shared
-benchmark kernels are added or changed for this solver.
+The expanded dataset has 5,376 trajectories across 16 physics/grid combinations.
+The 13 N=8/16/32 training cases each use the same 384 parent identities, split into
+304 training, 42 validation and 38 test parents. The three N=20/48/64 resolution
+holdouts each use 128 parents (102/17/9 by split). Parent splits are consistent
+across physics and grids; held-out resolutions never participate in updates or
+checkpoint selection. Families are randomized TGV, ABC, solenoidal waves, mean
+flows, near-zero fields and small longitudinal perturbations. Spectral breadth
+is still limited; this is not a universal fluid model.
 
-Run it alongside XLB through the normal CLI (Docker with GPU support required):
+Two variants trained for 10,000 updates each on RTX 5090s (job `2911959`). The
+projected variant at update 8,000 won by mean validation normalized RMS error,
+using up to 24 parents per case balanced across families. Its selection was fixed
+before inspecting benchmark comparisons. Training plus validation took 174.3s;
+this excludes setup, final tests, and archival. The unprojected comparison took
+173.2s. These timings describe this dataset/model and are not end-to-end job times.
 
-```bash
-mosaic run -p ns-3d-grid -s xlb,xlb-3d-surrogate -e optimization/recovery_constant_ic_bfgs_proj
-```
+The selected model's mean validation error is 0.2405 and its training-resolution
+test error is 0.2372. On held-out test parents, errors are 1.1538 at N=20 (320 steps),
+0.3221 at N=48 (300 steps), and 0.2127 at N=64 (200 steps). These are RMS-normalized
+errors with denominator floor 0.01, averaged over parents and then cases;
+they are not strict relative L2 percentages. Holdout tests contain nine parents
+per resolution. All predictions in these tests are finite.
 
-Recovery uses each solver's own observation; it does not establish XLB-target
-inversion. Existing forward, gradient, and cost experiments have unsupported
-physics and are excluded. The comparisons below are archived offline validation,
-not additional registered cases in this PR. Supporting more existing benchmark
-settings requires a model trained for those settings.
+Training spans viscosities 0.001–0.1, training timesteps 0.005–0.05, and domain
+length `2π`. Smaller timesteps 0.0025 and 0.003333 are covered by resolution
+holdouts. Other positive values are accepted but represent extrapolation.
+See [TRAINING.md](TRAINING.md) for generation, local storage, training and export.
 
-## Training and checkpoint
+## Benchmark integration and reproducibility
 
-All data-generation and training recipes live in this directory; see
-[TRAINING.md](TRAINING.md). The runtime image includes only the inference API,
-shared model, and weights. The checkpoint was trained on 16,384 continuous native
-XLB trajectories, split 12,288/2,048/2,048 for training/validation/test, with
-benchmark seeds 0/1/2 excluded. Each trajectory contains the IC and 20 snapshots.
-Training used unroll curriculum `1 → 2 → 4 → 8 → 12 → 20`, then full-horizon
-fine-tuning.
+Resolution sweeps apply the same `lbm_N_base` timestep/horizon scaling to the
+surrogate and XLB. Existing experiments and metrics are retained. The real
+Tesseract/JAX adapter passes gradient checks, and a three-iteration projected
+recovery smoke test reduces the objective and IC error. Recovery uses the
+surrogate's own observation; this does not establish XLB-target inversion.
 
-Checkpoint SHA-256:
-`1ea04a7333981d1bfb836461d6fd6d89ae12f31c64ea40701c2607f03fb4107f`.
+The full direct API evaluation covers all 46 registered 3D physics/IC cases and
+VJPs on 15 gradient/recovery cases, including 10,240 steps. It complements, rather
+than replaces, the full cost, Jacobian-SVD and optimization benchmark harnesses.
+The evaluator explicitly generates benchmark ICs in float32 before invoking the
+float64 XLB teacher, since JAX precision changes random-number draws.
 
-## Offline validation
+The final float32-runtime evaluation (job `2912042`) produced 46/46 finite fields
+and 15/15 finite VJPs. Median teacher-relative L2 error across the 46 cases was
+0.0543, but the recovery case was 0.6689. At 10,240 steps it reached 198.4 relative
+L2 / 0.2832 absolute RMS: the surrogate retained about 96% of initial energy while
+XLB decayed substantially. Stability is not long-horizon fidelity.
 
-An offline comparison (Slurm job `2869896`, RTX 5090) used
-seeds 0/1/2, 100 recovery updates, and 20 warm timing trials per seed. The
-checkpoint was unchanged. Means across the three seeds, or all 60 timing
-trials, are:
+VJP cosine agreement with XLB was 0.9763 on the short FD case and 0.5726 on the
+100-step recovery case. The native GPU energy-FD sweep, using the registered
+benchmark's ten directions and epsilon grid, achieved best median relative error
+`7.05e-4` and cosine `0.99999955`. The actual CPU FD benchmark harness achieved
+`3.07e-4` and cosine above `0.9999999`, passing its thresholds. Smaller perturbations
+show float32 noise; the complete sweep is retained in
+[operator_validation.json](operator_validation.json), alongside every direct case.
 
-Only projected recovery corresponds to a currently registered experiment. The
-other measurements used temporary registrations preserved in the archived
-[source](https://github.com/pasteurlabs/mosaic/tree/f5b89e1) and execution scripts.
+The 7.2 MiB inference artifact contains parameters and provenance, without Adam
+state. SHA-256:
+`279a30aab464c6975737c0bef12a8dc0fb51a7b95b409a436a0463c973ac98cb`.
+The loader validates parameter shapes, finiteness, model version and source hash.
+Training used the cached XLB image with JAX 0.10; local API/harness checks also run
+with JAX 0.11.2. These runs did not rebuild the declared runtime image.
 
-| Metric                                               |              XLB |        Surrogate |
-| ---------------------------------------------------- | ---------------: | ---------------: |
-| Forward field error against XLB                      |        reference |            4.39% |
-| Unconstrained L-BFGS IC recovery error               |            5.38% |           16.74% |
-| Projected L-BFGS IC recovery error                   |            5.21% |           16.67% |
-| Forward API time, mean / median                      | 10.26 / 10.27 ms | 11.57 / 10.32 ms |
-| Forward + VJP API time, mean / median                | 48.31 / 48.37 ms | 38.92 / 38.32 ms |
-| Best-epsilon median directional FD error, seed range | 0.00033–0.00142% |     0.532–0.904% |
-
-Both solvers are internally FD-consistent, but the full gradients of their
-respective `sum(u_T²)` objectives are not interchangeable: surrogate-to-XLB
-relative L2 differences are 222%, 207%, and 150%, with cosines
-0.405, 0.438, and 0.568. These are objective-gradient comparisons, not
-full-Jacobian or common-cotangent VJP errors. They must not be conflated with
-restricted JVP statistics in the historical study linked below.
-
-Timing used HTTP/base64 services and a CPU JAX client, with XLB's default
-float64 path and the float32 surrogate. One allocation and fixed solver
-order establish a measured comparison, not a hardware-independent speedup.
-The run used existing runtime images with the current source/API/shared
-model/weights mounted in; it did not rebuild those images. The generated
-Docker build context was checked separately.
-
-[Raw benchmark envelopes, field snapshots, plots, summary script, and provenance](https://github.com/pasteurlabs/mosaic/tree/surrogate-standalone-results)
-are available separately from the solver source.
-
-![Archived offline comparison: forward accuracy, API timings, recovery and finite differences](https://raw.githubusercontent.com/pasteurlabs/mosaic/37c9d6b/comparison.png)
-
-## Inverse-model limitations
-
-The surrogate's internally consistent derivatives do not make it a drop-in
-inverse model for XLB observations. Its amplitude gate strongly suppresses the
-learned correction's derivative near the zero recovery start; the square-root
-floor makes that suppression finite. Similar scalar condition numbers also do
-not establish agreement with XLB's Jacobian.
-
-Eight terminal-only and six trajectory-replay fine-tuning pilots tested VJP
-supervision, central secants, recovery-path labels, and an optional linear
-correction. None improved mean XLB-target recovery on the three common
-validation cases. The closest replay candidate reached 35.12% IC error versus
-35.03% for the original checkpoint. These native SciPy validation runs use
-different cases and optimizer settings from the registered self-target benchmark.
-The original weights remain packaged; see [training results and plots](TRAINING.md#results).
-
-The [historical study in PR #118](https://github.com/pasteurlabs/mosaic/pull/118)
-contains the 4k/16k data comparison, restricted Jacobian spectra, and additional
-inverse-path diagnostics. Larger training data improved forward accuracy there
-without improving recovery. Neither these results nor the small fine-tuning
-pilots establish that longer training cannot help.
+The prior fixed N=16 model remains in `weights.npz`, `surrogate_model.py` and
+`legacy_api.py` for reproducibility. Those artifacts are not packaged in the new
+runtime image. Its old training recipes remain in this directory.

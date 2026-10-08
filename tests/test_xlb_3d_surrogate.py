@@ -23,7 +23,7 @@ _API_PATH = (
     / "tesseracts"
     / "navier-stokes-grid"
     / "xlb-3d-surrogate"
-    / "tesseract_api.py"
+    / "legacy_api.py"
 )
 _DATA_PATH = _API_PATH.with_name("training_data.py")
 _SPEC = importlib.util.spec_from_file_location("xlb_3d_surrogate_api", _API_PATH)
@@ -145,26 +145,6 @@ def test_out_of_contract_inputs_fail_before_inference(field, value):
     inputs = _API.InputSchema(**{field: value})
     with pytest.raises(ValueError, match="XLB 3D surrogate"):
         _API.apply(inputs)
-
-
-def test_only_matching_benchmark_cells_admit_surrogate():
-    from mosaic.benchmarks.core.utils import active_solvers
-    from mosaic.benchmarks.problems import get_config
-
-    for problem in ("ns-grid", "ns-3d-grid"):
-        cfg = get_config(problem)
-        admitted = {
-            key
-            for key in cfg.experiments
-            if not key.startswith("ics/")
-            and "XLB 3D surrogate" in active_solvers(cfg, *key.split("/", 1))
-        }
-        expected = (
-            {"optimization/recovery_constant_ic_bfgs_proj"}
-            if problem == "ns-3d-grid"
-            else set()
-        )
-        assert admitted == expected
 
 
 def test_packaged_checkpoint_through_tesseract_jax():

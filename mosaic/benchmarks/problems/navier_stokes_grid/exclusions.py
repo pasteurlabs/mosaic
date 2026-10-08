@@ -125,9 +125,9 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
 
-    fixed_3d_task = Exclusion(
+    periodic_3d_only = Exclusion(
         ExclusionCategory.CATEGORICAL,
-        "surrogate trained only for the fixed N=16 periodic 3D recovery task",
+        "surrogate supports periodic 3D fields; 2D and obstacle operators are not trained",
     )
     for suite in ("forward", "gradient", "cost", "optimization"):
-        problem.exclude(suite, {"xlb_3d_surrogate": fixed_3d_task})
+        problem.exclude(suite, {"xlb_3d_surrogate": periodic_3d_only})

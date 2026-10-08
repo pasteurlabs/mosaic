@@ -13,7 +13,7 @@ import jax.numpy as jnp
 from mosaic.benchmarks.core.config import SolverSpec
 from mosaic.benchmarks.problems.shared.diagnostics import FLUID_DIAGNOSTICS
 
-_LBM_SOLVERS = {"xlb"}
+_LBM_SOLVERS = {"xlb", "xlb_3d_surrogate"}
 
 
 def make_inputs(
