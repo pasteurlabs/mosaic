@@ -80,18 +80,15 @@ body {
     font-weight: 500;
     font-size: 0.94rem;
     color: var(--m-ink-2) !important;
-    border-radius: 999px;
-    padding: 0.35rem 0.8rem !important;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    padding: 0.35rem 0.75rem !important;
+    transition: color 0.15s ease;
 
     &:hover {
-      background: var(--m-surface-2);
       color: var(--m-accent-ink) !important;
     }
 
     &.active {
       color: var(--m-accent) !important;
-      background: var(--m-accent-soft);
     }
   }
 
@@ -201,8 +198,8 @@ strong {
 // ── Code ─────────────────────────────────────────────────────────────────────
 code {
   font-size: 0.86em;
-  border-radius: 0.3rem;
-  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  padding: 0.1em 0.3em;
   background: var(--m-surface-2);
   color: var(--m-accent-ink);
 }
@@ -214,19 +211,25 @@ div.sourceCode code {
   color: inherit;
 }
 
-div.sourceCode,
-pre.sourceCode {
+div.sourceCode {
   background: var(--m-surface-2) !important;
   border: 1px solid var(--m-border);
-  border-radius: 0.65rem;
+  border-radius: 0.4rem;
+  margin: 0.75rem 0 1rem;
 }
 
+div.sourceCode pre.sourceCode,
 div.sourceCode pre {
-  padding: 0.85rem 1rem;
+  background: transparent !important;
+  border: 0;
+  margin: 0;
+  padding: 0.8rem 1rem !important;
+  font-size: 0.84rem;
+  line-height: 1.55;
 }
 
 .code-copy-button {
-  border-radius: 0.4rem;
+  border-radius: 0.3rem;
 }
 
 // ── Tables ───────────────────────────────────────────────────────────────────
@@ -268,35 +271,51 @@ div.sourceCode pre {
 }
 
 // ── Callouts ─────────────────────────────────────────────────────────────────
+// Plain bordered boxes: no coloured side bar; the type shows only in the icon.
 div.callout {
-  border-radius: 0.75rem !important;
   border: 1px solid var(--m-border) !important;
-  border-left-width: 4px !important;
+  border-left: 1px solid var(--m-border) !important;
+  border-radius: 0.5rem !important;
   background: var(--m-surface) !important;
-  box-shadow: var(--m-shadow-sm);
+  box-shadow: none;
   overflow: hidden;
+  margin: 1rem 0;
 
   .callout-header {
-    background: var(--m-surface-2) !important;
+    background: transparent !important;
     border: 0 !important;
+    padding: 0.5rem 0.9rem !important;
+    font-weight: 600;
   }
 
-  &.callout-titled .callout-body {
-    padding-top: 0.25rem;
+  .callout-title-container {
+    color: var(--m-ink) !important;
+    font-size: 0.9rem;
+  }
+
+  .callout-body-container,
+  .callout-body {
+    padding: 0 0.9rem 0.75rem !important;
+  }
+
+  // Collapsible callouts: rule between header and body only when open.
+  .callout-collapse.show,
+  .callout-collapse.collapsing {
+    border-top: 1px solid var(--m-border);
+    padding-top: 0.75rem;
+  }
+
+  &:not(.callout-titled) .callout-body {
+    padding-top: 0.75rem !important;
+  }
+
+  .callout-icon::before {
+    opacity: 0.75;
   }
 }
 
-div.callout-note {
-  border-left-color: var(--m-indigo) !important;
-}
-div.callout-tip {
-  border-left-color: var(--m-green) !important;
-}
-div.callout-warning {
-  border-left-color: var(--m-saffron) !important;
-}
-div.callout-important {
-  border-left-color: var(--m-accent) !important;
+div.callout.callout-style-simple {
+  padding: 0;
 }
 
 // ── TOC / sidebar ────────────────────────────────────────────────────────────
@@ -541,7 +560,6 @@ p > img {
   border-radius: 0.6rem;
   padding: 1rem 1.1rem;
   box-shadow: var(--m-shadow-sm);
-  border-top: 3px solid var(--tile, var(--m-accent));
 
   .axis-q {
     font-family: "Fraunces", Georgia, serif;
@@ -573,7 +591,6 @@ p > img {
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 
   &:hover {
-    box-shadow: var(--m-shadow);
     border-color: var(--m-border-strong);
   }
 
@@ -689,7 +706,7 @@ p > img {
   align-items: center;
   gap: 0.25rem;
   padding: 0.12rem 0.55rem;
-  border-radius: 999px;
+  border-radius: 0.3rem;
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.5;
@@ -812,7 +829,7 @@ p > img {
   input {
     width: 100%;
     padding: 0.55rem 0.9rem 0.55rem 2.3rem;
-    border-radius: 999px;
+    border-radius: 0.45rem;
     border: 1px solid var(--m-border-strong);
     background: var(--m-bg);
     color: var(--m-ink);
@@ -861,7 +878,7 @@ p > img {
   border: 1px solid var(--m-border);
   background: var(--m-bg);
   color: var(--m-ink-2);
-  border-radius: 999px;
+  border-radius: 0.35rem;
   padding: 0.25rem 0.7rem;
   font-size: 0.8rem;
   font-weight: 500;
@@ -925,7 +942,6 @@ p > img {
   &:hover,
   &:focus-within,
   &.is-target {
-    box-shadow: var(--m-shadow);
     border-color: var(--m-border-strong);
   }
 
@@ -934,7 +950,6 @@ p > img {
     box-shadow: 0 0 0 3px var(--m-accent-soft), var(--m-shadow);
   }
 
-  border-top: 2px solid var(--tile, var(--m-border-strong));
 
   &[data-category^="Navier"] {
     --tile: var(--m-green);
@@ -1045,7 +1060,7 @@ p > img {
   font-size: 0.72rem;
   letter-spacing: 0.01em;
   padding: 0.3em 0.65em;
-  border-radius: 999px;
+  border-radius: 0.3rem;
 }
 
 .badge-lang {
@@ -1070,7 +1085,7 @@ p > img {
   align-items: center;
   gap: 0.35rem;
   padding: 0.1rem 0.5rem 0.1rem 0.15rem;
-  border-radius: 999px;
+  border-radius: 0.3rem;
   font-size: 0.78rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -1083,7 +1098,7 @@ p > img {
     min-width: 1.55rem;
     height: 1.2rem;
     padding: 0 0.3rem;
-    border-radius: 999px;
+    border-radius: 0.2rem;
     font-size: 0.66rem;
     background: var(--m-surface);
     color: var(--m-ink-2);
@@ -1216,7 +1231,6 @@ dialog.m-dialog {
 
   &:hover,
   &:focus-visible {
-    box-shadow: var(--m-shadow);
     border-color: var(--m-border-strong);
     outline: none;
   }
@@ -1635,10 +1649,6 @@ h2.suite-heading {
 .suite-intro {
   font-size: 1rem;
   color: var(--m-ink-2);
-  padding: 0.9rem 1.1rem;
-  border-radius: 0.75rem;
-  background: var(--m-surface-2);
-  border-left: 3px solid var(--m-accent);
   margin-bottom: 1.25rem;
 
   p {
