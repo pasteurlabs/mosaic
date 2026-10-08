@@ -416,9 +416,15 @@ figure.m-chart {
   }
 
   .vega-bindings {
-    font-size: 0.82rem;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
     color: var(--m-muted);
     margin-top: 0.35rem;
+
+    input[type="range"] {
+      accent-color: var(--m-accent);
+      vertical-align: middle;
+    }
   }
 
   &:hover .m-chart-plot.vega-embed > details,
