@@ -156,23 +156,25 @@ States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combine with `-p` / `-
 
 </details>
 
-The 2D neural-correction experiment compares fixed-pair supervised training,
-recurrent training with stopped gradients, and training through the solver:
+The 2D solver-in-the-loop benchmark runs through the ordinary optimization suite:
 
 ```bash
-mosaic run -p ns-grid --suites optimization -e solver_in_loop_supervised
+mosaic run -p ns-grid -e optimization/solver_in_loop --hardware gpu
 ```
 
-All models are evaluated on held-out, free-running trajectories alongside the
-uncorrected solver. Each solver uses its own higher-resolution, smaller-timestep
-trajectory as the reference: 64² coarse and 192² fine for every solver. A
-smaller-timestep check at 192² tests time accuracy; it does not certify spatial
-convergence. Absolute errors
-against these different targets are not an accuracy ranking across solvers.
-Improving on supervised training measures the benefit of
-the training setup; improving on the recurrent stopped-gradient control isolates
-the additional benefit of differentiating through the solver. Training costs
-include the supervised baseline's fixed-data generation.
+Its short CI configuration uses unforced periodic flow on a 32² grid, with
+references from the same solver at 64². Each of three identical CNNs receives
+16 optimizer updates: full solver gradients, recurrent training with stopped
+solver gradients, and fixed-pair supervised training. Recurrent training spans
+four correction intervals; evaluation runs freely for 12 intervals on a held-out
+initial condition, alongside the uncorrected solver.
+
+Acceptance requires admitted references, a passing end-to-end gradient check,
+finite results and all configured updates. It does not require one training
+method to outperform another. Result plots include full fields, rollout errors,
+gradient diagnostics and training costs. Reference time refinement checks
+consistency, not spatial convergence; errors against different solvers' own
+references are not a cross-solver accuracy ranking.
 
 The full CLI reference and smoke-test workflow live in [Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html).
 
