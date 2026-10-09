@@ -32,7 +32,9 @@ def build(
         2,
         "--jobs",
         "-j",
+        "--build-workers",
         help="Max concurrent docker builds. Default 2 (safe during live campaigns). "
+        "Also accepted as --build-workers. "
         "On a fresh worker machine 4-8 is usually faster.",
         min=1,
     ),
