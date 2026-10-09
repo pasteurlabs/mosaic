@@ -189,7 +189,7 @@ def _canonical_schema_source(physics_dir: str) -> str | None:
         if not schema_path.exists():
             _CANONICAL_CACHE[module] = ""
         else:
-            _CANONICAL_CACHE[module] = schema_path.read_text()
+            _CANONICAL_CACHE[module] = schema_path.read_text(encoding="utf-8")
     return _CANONICAL_CACHE[module] or None
 
 
@@ -266,9 +266,9 @@ def load_solver(path: Path) -> dict | None:
     api_path = path / "tesseract_api.py"
     if not config_path.exists() or not api_path.exists():
         return None
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    source = api_path.read_text()
+    source = api_path.read_text(encoding="utf-8")
     physics, backend = path.parent.name, path.name
     spec = _get_spec(physics, backend)
 

@@ -73,7 +73,7 @@ def load_template(name_or_path: str) -> DomainTemplate:
             f"Available: {available}. "
             f"Or provide a path to a YAML file."
         )
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         doc = yaml.safe_load(f)
     if not isinstance(doc, dict):
         # ValueError, not TypeError: this is malformed config-file content, not a
@@ -227,7 +227,8 @@ def scaffold_domain(
     schema_init = schema_dir / "__init__.py"
     schema_init.write_text(
         '__all__ = ["InputSchema", "OutputSchema"]\n\n'
-        "from .schemas import InputSchema, OutputSchema\n"
+        "from .schemas import InputSchema, OutputSchema\n",
+        encoding="utf-8",
     )
     created["schema_init"] = schema_init
 
@@ -246,7 +247,8 @@ def scaffold_domain(
         f"    pass\n\n\n"
         f"class OutputSchema(BaseModel):\n"
         f'    """Outputs for {domain_name} solvers."""\n\n'
-        f"    pass\n"
+        f"    pass\n",
+        encoding="utf-8",
     )
     created["schemas"] = schema_path
 
@@ -261,7 +263,8 @@ def scaffold_domain(
 
     pkg_init = pkg_dir / "__init__.py"
     pkg_init.write_text(
-        f'"""Problem package for {domain_name}, generated from template: {tpl.name}. See :mod:`.config`."""\n'
+        f'"""Problem package for {domain_name}, generated from template: {tpl.name}. See :mod:`.config`."""\n',
+        encoding="utf-8",
     )
     created["problem_init"] = pkg_init
 
@@ -348,7 +351,8 @@ def scaffold_domain(
         f"# problem.add_sweep_plot(name, fn, group_by=..., filter=...).\n"
         f"#\n"
         f"{experiment_todos_block}\n\n\n"
-        f'__all__ = ["problem"]\n'
+        f'__all__ = ["problem"]\n',
+        encoding="utf-8",
     )
     created["problem_config"] = config_path
     created["problem_pkg"] = pkg_dir
