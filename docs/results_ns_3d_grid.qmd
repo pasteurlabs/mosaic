@@ -3,7 +3,7 @@ title: Navier–Stokes (3D)
 ---
 
 ::: {.page-meta}
-[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [9 plots]{.meta-chip}
+[F3]{.domain-id .d-F3} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [9 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -74,7 +74,9 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/ns-3d-grid/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -121,7 +123,9 @@ Sweeps `nu` ∈ {0.001, 0.01, 0.05}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/forward/agreement/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/forward/agreement/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/forward/agreement/agreement.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -161,7 +165,9 @@ Sweeps `N` ∈ {8, 16, 32}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/forward/baseline/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/forward/baseline/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/forward/baseline/agreement.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -249,7 +255,9 @@ Sweeps `steps` ∈ {10, 50, 100}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -427,7 +435,9 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -468,8 +478,12 @@ Finite-difference gradient error U-curves and direction cosine vs perturbation �
 
 :::
 
-![](../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.png){.lightbox}
-![](../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -515,7 +529,9 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -589,7 +605,9 @@ Sweeps `steps` ∈ {100}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.gif){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.gif" alt="" loading="lazy"></figure>
+```
 
 :::
 

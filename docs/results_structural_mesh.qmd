@@ -3,7 +3,7 @@ title: Structural mechanics
 ---
 
 ::: {.page-meta}
-[S]{.domain-id .d-S} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [15 plots]{.meta-chip}
+[S]{.domain-id .d-S} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [15 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -69,7 +69,9 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/structural-mesh/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -122,7 +124,9 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.5, 0.7, 0.9}
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/agreement/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/forward/agreement/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/forward/agreement/curves.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -168,7 +172,9 @@ Sweeps `N` ∈ {4, 6, 8, 12, 16}
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/baseline/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/forward/baseline/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/forward/baseline/curves.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -218,7 +224,9 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -316,7 +324,9 @@ Sweeps `steps` ∈ {1}
 
 :::
 
-![](../mosaic-results/structural-mesh/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -385,7 +395,9 @@ U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ 
 
 :::
 
-![](../mosaic-results/structural-mesh/gradient/fd_check/fd_check.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -443,7 +455,9 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.6, 0.8}
 
 :::
 
-![](../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -507,14 +521,30 @@ SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr
 
 :::
 
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.gif){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.gif" alt="" loading="lazy"></figure>
+```
 
 :::
 

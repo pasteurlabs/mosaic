@@ -358,6 +358,98 @@ p > img {
   padding: 0.35rem;
 }
 
+// ── Interactive charts ───────────────────────────────────────────────────────
+// figure.m-chart holds the Vega-Lite chart once drawn, with the PNG as fallback.
+figure.m-chart {
+  position: relative;
+  margin: 0.75rem 0 1rem;
+
+  // Charts scale down to the column (never scroll sideways); the SVG keeps
+  // its aspect ratio via its viewBox.
+  .m-chart-plot.vega-embed {
+    display: block;
+    width: 100%;
+    padding-right: 0;
+
+    // vega-embed wraps the view in .chart-wrapper.
+    .chart-wrapper {
+      display: block;
+      max-width: 100%;
+    }
+
+    .chart-wrapper > svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    // Export menu: top-right corner of the figure, shown on hover/focus only.
+    > details {
+      position: absolute;
+      top: 0;
+      right: 0;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+  }
+
+  // Play/pause for animated charts, next to the frame slider.
+  .m-anim {
+    margin-top: 0.4rem;
+  }
+
+  .m-anim-btn {
+    appearance: none;
+    border: 1px solid var(--m-border-strong);
+    background: var(--m-surface);
+    color: var(--m-ink-2);
+    border-radius: 0.35rem;
+    padding: 0.2rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--m-accent);
+      color: var(--m-accent-ink);
+    }
+  }
+
+  .vega-bindings {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: var(--m-muted);
+    margin-top: 0.35rem;
+
+    input[type="range"] {
+      accent-color: var(--m-accent);
+      vertical-align: middle;
+    }
+  }
+
+  &:hover .m-chart-plot.vega-embed > details,
+  &:focus-within .m-chart-plot.vega-embed > details,
+  .m-chart-plot.vega-embed > details[open] {
+    opacity: 1;
+  }
+
+  .m-chart-fallback {
+    display: block;
+    max-width: 100%;
+    max-height: 32rem;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 0.5rem;
+    border: 1px solid var(--m-border);
+    padding: 0.35rem;
+  }
+
+  &.is-live .m-chart-fallback {
+    display: none;
+  }
+
+}
+
 // ── Sortable ranking tables ──────────────────────────────────────────────────
 // The solver-ranking tables (wrapped in `.sortable-table`) get click-to-sort
 // behaviour from docs/sortable-tables.html. Style the headers as affordances:

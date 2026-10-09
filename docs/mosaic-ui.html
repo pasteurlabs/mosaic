@@ -8,6 +8,8 @@
 //     details node is moved (not cloned) so ids and handlers stay intact, and
 //     moved back on close.
 //   * Deep links: solvers.html#<anchor> highlights the card and opens it.
+//   * Charts: interactive Vega-Lite versions of the result plots, drawn
+//     lazily and themed from the site's CSS variables.
 //   * Leaderboards: rows are tagged with their original rank so the "Best"
 //     marker survives click-to-sort.
 
@@ -224,6 +226,176 @@
     apply();
   }
 
+  // ── Interactive charts (Vega-Lite) ────────────────────────────────────────
+  // figure.m-chart[data-spec] points at a Vega-Lite spec written next to the
+  // PNG by docs/export_charts.py (charts defined in docs/vl/). Vega and the
+  // spec are fetched the first time a chart scrolls into view; on any failure
+  // the fallback PNG inside the figure stays. Specs carry no styling: the site
+  // theme is passed as a Vega config, so charts follow light/dark mode, and
+  // the paper export applies a print config to the same specs.
+  const VEGA_SRC = [
+    "https://cdn.jsdelivr.net/npm/vega@6.3.1/build/vega.min.js",
+    "https://cdn.jsdelivr.net/npm/vega-lite@6.4.1/build/vega-lite.min.js",
+    "https://cdn.jsdelivr.net/npm/vega-embed@7.2.0/build/vega-embed.min.js",
+  ];
+  let vegaPromise = null;
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  function loadVega() {
+    if (!vegaPromise) {
+      // vega-lite and vega-embed expect vega on window, so load in order.
+      vegaPromise = VEGA_SRC.reduce((p, src) => p.then(() => loadScript(src)), Promise.resolve());
+      vegaPromise.catch(() => (vegaPromise = null));
+    }
+    return vegaPromise;
+  }
+
+  function cssVar(name) {
+    return getComputedStyle(document.body).getPropertyValue(name).trim();
+  }
+
+  function vegaConfig() {
+    const ink = cssVar("--m-ink") || "#231f1b";
+    const muted = cssVar("--m-muted") || "#6b6158";
+    const grid = cssVar("--m-border") || "#e7ded0";
+    return {
+      background: null,
+      font: "Inter, system-ui, sans-serif",
+      view: { stroke: null },
+      title: { color: ink, fontSize: 13, fontWeight: 600, anchor: "start", offset: 12 },
+      header: { labelColor: ink, labelFontSize: 12, labelFontWeight: 600, titleColor: ink },
+      axis: {
+        labelColor: muted,
+        titleColor: muted,
+        labelFontSize: 11,
+        titleFontSize: 12,
+        titleFontWeight: 500,
+        gridColor: grid,
+        domainColor: grid,
+        tickColor: grid,
+      },
+      legend: { labelColor: ink, titleColor: muted, labelFontSize: 12, titleFontSize: 11 },
+      text: { color: ink },
+    };
+  }
+
+  // Animated charts (usermeta.animation = {param, frames, fps}, see
+  // docs/vl/animations.py) get a play/pause button that steps the frame
+  // signal. They play while on screen and stay still for readers who prefer
+  // reduced motion.
+  const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function animate(fig, view, anim) {
+    if (fig._anim) fig._anim.stop();
+    const bar = fig.querySelector(".m-anim") || document.createElement("div");
+    bar.className = "m-anim";
+    bar.innerHTML = '<button type="button" class="m-anim-btn"></button>';
+    fig.querySelector(".m-chart-plot").after(bar);
+    const btn = bar.querySelector("button");
+    let timer = null;
+    let playing = !REDUCED_MOTION;
+    let visible = true;
+    const tick = () => {
+      const next = (view.signal(anim.param) + 1) % anim.frames;
+      view.signal(anim.param, next).runAsync();
+    };
+    const sync = () => {
+      const run = playing && visible;
+      if (run && !timer) timer = setInterval(tick, 1000 / (anim.fps || 4));
+      if (!run && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      btn.textContent = playing ? "Pause" : "Play";
+      btn.setAttribute("aria-pressed", String(playing));
+    };
+    btn.addEventListener("click", () => {
+      playing = !playing;
+      sync();
+    });
+    // Dragging the frame slider pauses playback.
+    fig.addEventListener("input", (e) => {
+      if (e.target.closest(".vega-bindings")) {
+        playing = false;
+        sync();
+      }
+    });
+    const io = new IntersectionObserver((entries) => {
+      visible = entries[0].isIntersecting;
+      sync();
+    });
+    io.observe(fig);
+    fig._anim = {
+      stop() {
+        playing = false;
+        sync();
+        io.disconnect();
+      },
+    };
+    sync();
+  }
+
+  function drawChart(fig) {
+    let host = fig.querySelector(".m-chart-plot");
+    if (!host) {
+      host = document.createElement("div");
+      host.className = "m-chart-plot";
+      fig.appendChild(host);
+    }
+    const meta = fig._spec.usermeta || {};
+    return window
+      .vegaEmbed(host, fig._spec, {
+        config: vegaConfig(),
+        renderer: meta.renderer || "svg",
+        actions: { export: true, source: false, compiled: false, editor: false },
+      })
+      .then((res) => {
+        fig.classList.add("is-live");
+        if (meta.animation) animate(fig, res.view, meta.animation);
+      });
+  }
+
+  function wireCharts() {
+    const figs = Array.from(document.querySelectorAll("figure.m-chart[data-spec]"));
+    if (!figs.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          const fig = e.target;
+          io.unobserve(fig);
+          Promise.all([
+            loadVega(),
+            fetch(fig.dataset.spec).then((r) => {
+              if (!r.ok) throw new Error(r.status);
+              return r.json();
+            }),
+          ])
+            .then(([, spec]) => {
+              fig._spec = spec;
+              return drawChart(fig);
+            })
+            .catch(() => {}); // keep the PNG
+        });
+      },
+      { rootMargin: "300px 0px" }
+    );
+    figs.forEach((f) => io.observe(f));
+    // Re-theme drawn charts when the light/dark toggle flips the body class.
+    new MutationObserver(() => {
+      figs.filter((f) => f.classList.contains("is-live")).forEach(drawChart);
+    }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
   function markLeaderboards() {
     document.querySelectorAll(".leaderboard table tbody").forEach((tbody) => {
       Array.from(tbody.rows).forEach((row, i) => (row.dataset.rank = i + 1));
@@ -234,6 +406,7 @@
     trackHeader();
     markLeaderboards();
     wireCards();
+    wireCharts();
     document.querySelectorAll(".explorer-toolbar").forEach(wireExplorer);
     openFromHash();
     window.addEventListener("hashchange", openFromHash);

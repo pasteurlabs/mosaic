@@ -3,7 +3,7 @@ title: Navier–Stokes (2D)
 ---
 
 ::: {.page-meta}
-[F2]{.domain-id .d-F2} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [13 plots]{.meta-chip}
+[F2]{.domain-id .d-F2} [Auto-generated 2026-10-08 14:25 UTC]{.meta-chip} [13 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -84,7 +84,9 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/ns-grid/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -132,7 +134,9 @@ Sweeps `N` ∈ {16, 32, 64, 128}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/baseline/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/baseline/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/baseline/agreement.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -182,7 +186,9 @@ Sweeps `nu` ∈ {0.05, 0.02, 0.01, 0.005}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/cylinder/fields_raw.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/cylinder/fields_raw.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/cylinder/fields_raw.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -225,7 +231,9 @@ Sweeps `nu` ∈ {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -313,7 +321,9 @@ Sweeps `steps` ∈ {10, 50, 100, 500, 1000}
 
 :::
 
-![](../mosaic-results/ns-grid/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -520,7 +530,9 @@ Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -561,8 +573,12 @@ U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ 
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/fd_check/fd_check.png){.lightbox}
-![](../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -613,7 +629,9 @@ Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -666,7 +684,9 @@ Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png" alt="" loading="lazy"></figure>
+```
 
 :::
 
@@ -734,9 +754,15 @@ Drag convergence curves per solver, optimised vs initial inflow profiles, and fi
 
 :::
 
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png){.lightbox}
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif){.lightbox}
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png" alt="" loading="lazy"></figure>
+```
 
 :::
 

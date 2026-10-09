@@ -15,6 +15,10 @@ project:
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
     - python docs/generate.py
+  # Interactive chart specs written next to each plot by docs/export_charts.py;
+  # fetched at runtime, so Quarto can't discover them from the pages.
+  resources:
+    - "mosaic-results/**/*.vl.json"
   render:
     - docs/index.qmd
     - docs/getting-started.qmd
