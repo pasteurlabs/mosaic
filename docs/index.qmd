@@ -3,12 +3,10 @@ title: ""
 ---
 
 ::: {.hero}
-![](logo.png){.hero-art .nolightbox fig-alt="Mosaic logo: a stained-glass tile pattern"}
-
 ::: {.hero-body}
 [Differentiable physics benchmark]{.eyebrow}
 
-[Mosaic]{.hero-title}
+![](logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
 
 [An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput.]{.hero-lede}
 
