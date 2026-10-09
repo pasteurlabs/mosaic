@@ -424,49 +424,23 @@ p > img {
   border: 1px solid var(--m-border);
   box-shadow: var(--m-shadow);
 
-  > p:first-child {
-    position: relative;
-    margin: 0;
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, transparent 55%, var(--m-surface) 100%);
-      pointer-events: none;
-    }
-  }
-
-  img.hero-art {
-    display: block;
-    width: 100% !important;
-    max-width: none !important;
-    height: clamp(56px, 8vw, 84px) !important;
-    max-height: none !important;
-    object-fit: cover;
-    object-position: center 40%;
-    margin: 0;
-  }
-
   .hero-body {
     position: relative;
-    padding: 0 clamp(1.25rem, 4vw, 2.5rem) clamp(1.5rem, 3vw, 2.25rem);
-    margin-top: 0.4rem;
+    padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 4vw, 2.5rem) clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  // Wordmark tiled with benchmark fields (docs/logo.webp, docs/figures/make_logo.py).
+  img.hero-wordmark {
+    display: block;
+    width: min(100%, 560px) !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0.9rem 0 1.2rem;
   }
 
   .hero-body > p {
     margin: 0;
-  }
-
-  .hero-title {
-    display: block;
-    font-family: "Inter", system-ui, sans-serif;
-    font-size: clamp(2.1rem, 5vw, 3rem);
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.03em;
-    margin: 0.35rem 0 0.8rem;
-    color: var(--m-ink);
   }
 
   .hero-lede {
