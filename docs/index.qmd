@@ -6,7 +6,7 @@ title: ""
 ::: {.hero-body}
 [Differentiable physics benchmark]{.eyebrow}
 
-![](logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
+![](logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, spelled in stained-glass panes"}
 
 [An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput.]{.hero-lede}
 
