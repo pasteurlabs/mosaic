@@ -1,0 +1,72 @@
+/*-- scss:defaults --*/
+
+// Dark counterpart of theme-light.scss: neutral charcoal ground, same accent
+// family lifted for contrast. Only colours differ; layout lives in styles.scss.
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+$body-bg: #16171a;
+$body-color: #e6e7e9;
+$primary: #e8774f;
+$secondary: #9a9da3;
+$success: #5fb58a;
+$info: #8aa4e0;
+$warning: #e6b14f;
+$danger: #ef7466;
+$light: #24262a;
+$dark: #e6e7e9;
+
+$link-color: #ef8a63;
+$link-hover-color: #f6aa8b;
+$border-color: #33363b;
+
+$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+$headings-font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+$headings-font-weight: 650;
+$font-size-root: 16px;
+$line-height-base: 1.65;
+
+$navbar-bg: #16171a;
+$navbar-fg: #d4d6d9;
+$navbar-hl: #ef8a63;
+$footer-bg: #1c1d21;
+$footer-fg: #9a9da3;
+
+$code-color: #f2a07f;
+$code-bg: #24262a;
+$table-border-color: #33363b;
+$border-radius: 0.5rem;
+
+/*-- scss:rules --*/
+
+:root {
+  --m-bg: #16171a;
+  --m-surface: #1c1d21;
+  --m-surface-2: #24262a;
+  --m-surface-3: #2c2f34;
+  --m-border: #33363b;
+  --m-border-strong: #464a51;
+  --m-ink: #e6e7e9;
+  --m-ink-2: #d4d6d9;
+  --m-muted: #9a9da3;
+  --m-accent: #ef8a63;
+  --m-accent-ink: #f6aa8b;
+  --m-accent-soft: #3a2a24;
+  --m-saffron: #e6b14f;
+  --m-indigo: #8aa4e0;
+  --m-green: #5fb58a;
+  --m-plum: #b58ad6;
+  --m-red: #ef7466;
+  --m-score-0: #24262a;
+  --m-score-1: #26332b;
+  --m-score-2: #2b4636;
+  --m-score-3: #2f5d44;
+  --m-score-4: #3a7a57;
+  --m-score-5: #4f9b70;
+  --m-score-ink-dark: #ffffff;
+  --m-shadow-sm: none;
+  --m-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px -8px rgba(0, 0, 0, 0.5);
+  --m-shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+  --m-backdrop: rgba(8, 9, 11, 0.65);
+}

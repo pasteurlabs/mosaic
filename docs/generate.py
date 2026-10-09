@@ -348,24 +348,40 @@ _DISCR_FULL = {
     "Spectral": "Spectral",
 }
 
-# Bootstrap badge classes used on every card. One colour per category so the
-# three pill types are visually distinct without overloading hues; every label
-# uses white text (which is the Bootstrap default on bg-primary / bg-dark /
-# bg-success).
-_LANG_BADGE_CLASS = "bg-dark"  # all language badges
-_AD_BADGE_CLASS = "bg-primary"  # all AD-strategy badges
-_GPU_BADGE_CLASS = "bg-success"  # only present on GPU-capable solvers
+# Badge classes used on every card. One colour per category so the three pill
+# types are visually distinct without overloading hues (styled in
+# docs/styles.scss).
+_LANG_BADGE_CLASS = "badge-lang"  # all language badges
+_AD_BADGE_CLASS = "badge-ad"  # all AD-strategy badges
+_GPU_BADGE_CLASS = "badge-gpu"  # only present on GPU-capable solvers
+
+# Per-solver scores written by `generate_results.py --overview-only` (keyed by
+# Solver Reference anchor). Optional: cards render without scores if absent.
+SCORES = Path(__file__).resolve().parent / "_scores.json"
+
+
+def _load_scores() -> dict:
+    try:
+        import json
+
+        return json.loads(SCORES.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 
 def _badge(text: str, classes: str) -> str:
-    """Render a Bootstrap pill badge as a Pandoc bracketed span.
+    """Render a pill badge as a Pandoc bracketed span.
 
-    Quarto/Pandoc turns ``[text]{.badge .bg-primary}`` into
-    ``<span class="badge bg-primary">text</span>``, which the flatly theme
-    styles as a coloured pill label.
+    Quarto/Pandoc turns ``[text]{.badge .badge-ad}`` into
+    ``<span class="badge badge-ad">text</span>``.
     """
     cls = " ".join("." + c for c in classes.split())
     return f"[{text}]{{.badge {cls}}}"
+
+
+def _attr(text: str) -> str:
+    """Make a string safe for a Pandoc attribute value."""
+    return str(text).replace('"', "'").replace("\n", " ")
 
 
 def render_field_table(fields: list[dict], label: str) -> str:
@@ -382,10 +398,52 @@ def render_field_table(fields: list[dict], label: str) -> str:
     return f"**{label}**\n\n{header}" + "\n".join(rows) + "\n"
 
 
-def render_solver(solver: dict) -> str:
+def _score_level(v: float) -> int:
+    return max(1, min(5, 1 + int(v * 5 - 1e-9))) if v > 0 else 1
+
+
+def render_solver(solver: dict, scores: dict | None = None) -> str:
+    """One searchable solver card.
+
+    The card shows the summary (numerics, badges, description, scores); the
+    full reference (links, image, exclusions, schema tables) sits in a
+    ``.solver-details`` block that docs/mosaic-ui.html opens in a dialog.
+    Without JS the details render inline under the summary.
+    """
     name = solver["display_name"] or solver["name"]
     anchor = f"{solver['physics']}-{solver['backend']}"
-    lines = [f"### {name} {{#{anchor}}}", ""]
+    score = (scores or {}).get(anchor)
+    ad = solver["ad_strategy"] or "forward-only"
+    search = " ".join(
+        str(x)
+        for x in (
+            name,
+            solver["category"],
+            solver["backend_lang"],
+            ad,
+            solver["discretization"],
+            _DISCR_FULL.get(solver["discretization"], ""),
+            solver["numerics"],
+            solver["scheme"],
+            solver["family"],
+            "gpu" if solver["uses_gpu"] else "cpu",
+        )
+        if x
+    ).lower()
+    search = " ".join(dict.fromkeys(search.split()))
+    lines = [
+        (
+            f'::: {{.solver-card data-category="{_attr(solver["category"])}" '
+            f'data-lang="{_attr(solver["backend_lang"] or "")}" data-ad="{_attr(ad)}" '
+            f'data-gpu="{"true" if solver["uses_gpu"] is True else "false"}" '
+            f'data-search="{_attr(search)}"}}'
+        ),
+        "",
+        f"[{solver['category']}]{{.solver-domain}}",
+        "",
+        f"### {name} {{#{anchor}}}",
+        "",
+    ]
 
     # Method row: plain-text "Numerics: <Finite Volume>, <PISO, BDF1>".
     numerics_parts: list[str] = []
@@ -396,8 +454,12 @@ def render_solver(solver: dict) -> str:
     if solver["numerics"]:
         numerics_parts.append(solver["numerics"])
     if numerics_parts:
-        lines.append("**Numerics:** " + ", ".join(numerics_parts))
-        lines.append("")
+        lines += [
+            "::: {.solver-numerics}",
+            "**Numerics:** " + ", ".join(numerics_parts),
+            ":::",
+            "",
+        ]
 
     # Implementation row: language, AD strategy, GPU badge (only when present).
     impl_badges: list[str] = []
@@ -409,9 +471,25 @@ def render_solver(solver: dict) -> str:
     if solver["uses_gpu"] is True:
         impl_badges.append(_badge("GPU", _GPU_BADGE_CLASS))
     if impl_badges:
-        lines.append(" ".join(impl_badges))
-        lines.append("")
+        lines += ["::: {.solver-badges}", " ".join(impl_badges), ":::", ""]
 
+    # Two-sentence description from the YAML's top-level ``description:``.
+    if solver["description"]:
+        lines += ["::: {.solver-desc}", solver["description"], ":::", ""]
+
+    # Footer: benchmark scores per domain (when results are available) and the
+    # "view details" affordance.
+    foot: list[str] = []
+    if score:
+        for pid, v in score.items():
+            foot.append(
+                f"[[{pid}]{{.sc-id}} {round(100 * v['score'])}]"
+                f"{{.score-chip .lvl-{_score_level(v['score'])}}}"
+            )
+    foot.append("[Details]{.solver-open}")
+    lines += ["::: {.solver-card-foot}", " ".join(foot), ":::", ""]
+
+    lines += ["::: {.solver-details}", ""]
     if solver["doc_url"]:
         lines.append(f"**Upstream docs:** [{solver['doc_url']}]({solver['doc_url']})")
         lines.append("")
@@ -423,9 +501,15 @@ def render_solver(solver: dict) -> str:
         lines.append(f"**Image:** `{solver['name']}`")
         lines.append("")
 
-    # Two-sentence description from the YAML's top-level ``description:``.
-    if solver["description"]:
-        lines.append(solver["description"])
+    if score:
+        per = "; ".join(
+            f"{v['domain']} {round(100 * v['score'])}"
+            + (f" (rank {v['rank']} of {v['of']})" if v["rank"] else "")
+            for v in score.values()
+        )
+        lines.append(
+            f"**Benchmark score:** {per} — see the [scoreboard](results.qmd#scoreboard)."
+        )
         lines.append("")
 
     # Exclusions
@@ -439,46 +523,105 @@ def render_solver(solver: dict) -> str:
         lines.append(":::")
         lines.append("")
 
-    # Collapsible schema tables
+    # Schema tables
     lines += [
-        '::: {.callout-note collapse="true"}',
-        "#### Inputs / Outputs",
+        "::: {.solver-io}",
         "",
         render_field_table(solver["inputs"], "Inputs"),
         render_field_table(solver["outputs"], "Outputs"),
         ":::",
+        "",
+        ":::",  # .solver-details
+        ":::",  # .solver-card
         "",
     ]
 
     return "\n".join(lines)
 
 
-def render_category(category: str, solvers: list[dict]) -> str:
-    body = "\n".join(render_solver(s) for s in solvers)
-    return f"## {category}\n\n{body}"
+def render_category(
+    category: str, solvers: list[dict], scores: dict | None = None
+) -> str:
+    body = "\n".join(render_solver(s, scores) for s in solvers)
+    return f"## {category}\n\n::: {{.card-grid .solver-grid}}\n\n{body}\n:::\n"
+
+
+def _chip_group(name: str, label: str, values: list[tuple[str, str]]) -> str:
+    chips = "".join(
+        f'<button type="button" class="chip-btn" data-value="{v}">{t}</button>'
+        for v, t in values
+    )
+    return (
+        f'<div class="chip-filters" data-filter="{name}" aria-label="{label}">'
+        f'<button type="button" class="chip-btn active" data-value="">{label}</button>'
+        f"{chips}</div>"
+    )
+
+
+def render_toolbar(categories: dict[str, list[dict]]) -> str:
+    """Search box and filter chips (wired up by docs/mosaic-ui.html)."""
+    solvers = [s for v in categories.values() for s in v]
+    langs = sorted({s["backend_lang"] for s in solvers if s["backend_lang"]})
+    ads = sorted({s["ad_strategy"] or "forward-only" for s in solvers})
+    return (
+        "```{=html}\n"
+        '<div class="explorer-toolbar solver-toolbar" data-target="solver-catalog">'
+        '<label class="search-box"><span class="search-icon" aria-hidden="true"></span>'
+        '<input type="search" class="explorer-search" placeholder="Search solvers, '
+        'schemes, backends…" aria-label="Search solvers"></label>'
+        + _chip_group("category", "All domains", [(c, c) for c in categories])
+        + _chip_group("lang", "Any backend", [(lang, lang) for lang in langs])
+        + _chip_group("ad", "Any AD", [(a, a) for a in ads])
+        + '<div class="chip-filters" data-filter="gpu"><button type="button" '
+        'class="chip-btn chip-toggle" data-value="true" aria-pressed="false">GPU only'
+        "</button></div>"
+        '<span class="explorer-count" aria-live="polite"></span></div>\n'
+        "```\n\n"
+    )
 
 
 def generate_qmd(categories: dict[str, list[dict]]) -> str:
-    frontmatter = "---\ntitle: Solver Reference\n---\n\n"
+    frontmatter = "---\ntitle: Solver Reference\ntoc: false\n---\n\n"
     header = (
         f"Each solver card shows its numerical scheme, AD strategy, and "
         f"Tesseract schema; per-(solver, problem) exclusions and explained "
         f"anomalies come from the problem configs and are listed alongside. "
-        f"Click **Inputs / Outputs** on any solver to expand its field tables. "
+        f"Click **Details** on any solver to see its field tables. "
         f"The \u2202 column marks fields that support automatic differentiation "
         f"(VJP/JVP).\n\n"
+        f"::: {{.legend-note}}\n"
         f"**Legend.** Each card shows a **Numerics:** line — the discretization "
         f"followed by the numerical method — and three "
         f"badge categories: "
         f"{_badge('language', _LANG_BADGE_CLASS)} (backend / runtime), "
         f"{_badge('AD: strategy', _AD_BADGE_CLASS)} "
         f"(autodiff / adjoint / hybrid / forward-only), and "
-        f"{_badge('GPU', _GPU_BADGE_CLASS)} on GPU-capable solvers.\n\n"
+        f"{_badge('GPU', _GPU_BADGE_CLASS)} on GPU-capable solvers.\n"
+        f":::\n\n"
     )
+    scores = _load_scores()
+    if scores:
+        header += (
+            "::: {.legend-note}\n"
+            "**Scores.** Where benchmark results are available, the card footer "
+            "shows the solver's score (0–100) on each domain it runs in: "
+            "**H** heat transfer, **S** structural mechanics, **F2**/**F3** "
+            "Navier–Stokes 2D/3D. See the [scoreboard](results.qmd#scoreboard) "
+            "for how scores are computed and the per-domain rankings.\n"
+            ":::\n\n"
+        )
     sections = "\n\n".join(
-        render_category(cat, solvers) for cat, solvers in categories.items()
+        render_category(cat, solvers, scores) for cat, solvers in categories.items()
     )
-    return frontmatter + header + sections + "\n"
+    return (
+        frontmatter
+        + header
+        + "::: {.column-page}\n\n"
+        + render_toolbar(categories)
+        + "::: {#solver-catalog}\n\n"
+        + sections
+        + "\n:::\n:::\n"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

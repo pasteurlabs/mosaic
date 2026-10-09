@@ -6,6 +6,11 @@ project:
   type: website
   output-dir: _site
   pre-render:
+    # The Results overview includes (scoreboard, experiment explorer) and the
+    # per-solver scores shown on the solver cards are gitignored; regenerate
+    # them from mosaic-results/ (placeholders when it is absent). Runs first so
+    # generate.py can pick up docs/_scores.json.
+    - python docs/generate_results.py --overview-only
     # docs/solvers.qmd is auto-generated from each tesseract_config.yaml's
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
@@ -65,12 +70,17 @@ execute:
 
 format:
   html:
-    theme: [flatly, docs/styles.scss]
+    # Warm light/dark themes (docs/theme-*.scss) share docs/styles.scss.
+    theme:
+      light: [docs/theme-light.scss, docs/styles.scss]
+      dark: [docs/theme-dark.scss, docs/styles.scss]
     toc: true
     toc-depth: 3
     code-copy: true
     code-overflow: wrap
-    highlight-style: github
+    highlight-style:
+      light: github
+      dark: nord
     # Render LaTeX math ($...$ inline, $$...$$ display) with MathJax.
     html-math-method: mathjax
     # Enable click-to-zoom for images tagged {.lightbox} (the result plots).
@@ -78,3 +88,5 @@ format:
     # Click-to-sort for the solver-ranking tables (.sortable-table).
     include-after-body:
       - docs/sortable-tables.html
+      # Search/filter, detail dialogs and the scoreboard axis switcher.
+      - docs/mosaic-ui.html

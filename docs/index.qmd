@@ -2,15 +2,43 @@
 title: ""
 ---
 
-![](logo.png){width=100% style="max-width:600px; display:block; margin:0 auto 1.5rem;"}
+::: {.hero}
+::: {.hero-body}
+[Differentiable physics benchmark]{.eyebrow}
 
-An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput.
+![](logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
+
+[An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput.]{.hero-lede}
+
+::: {.hero-actions}
+[Get started](getting-started.qmd){.btn-m .primary} [Results](results.qmd){.btn-m} [Solver Reference](solvers.qmd){.btn-m}
+:::
+:::
+:::
 
 ## What this measures, and why
 
 If you train a model or run an optimizer through a physics simulation, the simulation has to return two things: a correct prediction (the *forward* pass) **and** a correct gradient of that prediction with respect to your inputs (the *backward* pass, or vector–Jacobian product, VJP). Most solver benchmarks only check the forward pass. Mosaic checks both, because a solver that runs fast and predicts accurately is still useless for gradient-based learning if its VJP is wrong, noisy, or numerically ill-conditioned.
 
-Concretely, every solver is asked to compute an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$, and we score it on three axes: **does the forward solution match a trusted reference?**, **does the gradient match a finite-difference ground truth?**, and **how much wall-clock time and memory does each cost?**
+Concretely, every solver is asked to compute an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$, and we score it on three axes:
+
+::: {.axis-row}
+::: {.axis-card style="--tile: var(--m-indigo)"}
+[Forward]{.eyebrow}
+
+[Does the forward solution match a trusted reference?]{.axis-q}
+:::
+::: {.axis-card style="--tile: var(--m-accent)"}
+[Gradient]{.eyebrow}
+
+[Does the gradient match a finite-difference ground truth?]{.axis-q}
+:::
+::: {.axis-card style="--tile: var(--m-saffron)"}
+[Cost]{.eyebrow}
+
+[How much wall-clock time and memory does each cost?]{.axis-q}
+:::
+:::
 
 ## How solvers are compared
 
@@ -18,23 +46,84 @@ Built on [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which 
 
 ## Benchmark domains
 
-| ID | Domain | Optimization task | Control dim. | Backends |
-|:---|:-------|:------------------|:-------------|:---------|
-| **H** | Heat transfer | Conductivity inversion | 128 | [deal.II](solvers.qmd#thermal-mesh-dealii-heat), [FEniCS](solvers.qmd#thermal-mesh-fenics-heat), [Firedrake](solvers.qmd#thermal-mesh-firedrake-heat), [JAX-FEM](solvers.qmd#thermal-mesh-jax-fem), [torch-fem](solvers.qmd#thermal-mesh-torch-fem-thermal) |
-| **S** | Structural mechanics | Compliance minimization (SIMP) | 2048 | [deal.II](solvers.qmd#structural-mesh-dealii-structural), [FEniCS](solvers.qmd#structural-mesh-fenics-structural), [Firedrake](solvers.qmd#structural-mesh-firedrake-structural), [JAX-FEM](solvers.qmd#structural-mesh-jax-fem), [TopOpt.jl](solvers.qmd#structural-mesh-topopt-jl) |
-| **F2** | Incompressible fluids (2D) | Inflow optimization for drag min. | 32 | [JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd), [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow), [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl), [XLB](solvers.qmd#navier-stokes-grid-xlb), [PICT](solvers.qmd#navier-stokes-grid-pict), [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns), [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) |
-| **F3** | 3D Navier-Stokes | Initial condition recovery | 12288 | [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow), [XLB](solvers.qmd#navier-stokes-grid-xlb), [PICT](solvers.qmd#navier-stokes-grid-pict), [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns), [Exponax](solvers.qmd#navier-stokes-grid-exponax), [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl), [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) |
+::: {.domain-grid}
+::: {.domain-card}
+::: {.domain-card-body}
+[H]{.domain-id .d-H}
+
+[[Heat transfer](results_thermal_mesh.qmd)]{.domain-card-title}
+
+Conductivity inversion
+
+[Control dim. 128]{.domain-meta}
+
+::: {.backend-chips}
+[deal.II](solvers.qmd#thermal-mesh-dealii-heat) [FEniCS](solvers.qmd#thermal-mesh-fenics-heat) [Firedrake](solvers.qmd#thermal-mesh-firedrake-heat) [JAX-FEM](solvers.qmd#thermal-mesh-jax-fem) [torch-fem](solvers.qmd#thermal-mesh-torch-fem-thermal)
+:::
+:::
+:::
+
+::: {.domain-card}
+::: {.domain-card-body}
+[S]{.domain-id .d-S}
+
+[[Structural mechanics](results_structural_mesh.qmd)]{.domain-card-title}
+
+Compliance minimization (SIMP)
+
+[Control dim. 2048]{.domain-meta}
+
+::: {.backend-chips}
+[deal.II](solvers.qmd#structural-mesh-dealii-structural) [FEniCS](solvers.qmd#structural-mesh-fenics-structural) [Firedrake](solvers.qmd#structural-mesh-firedrake-structural) [JAX-FEM](solvers.qmd#structural-mesh-jax-fem) [TopOpt.jl](solvers.qmd#structural-mesh-topopt-jl)
+:::
+:::
+:::
+
+::: {.domain-card}
+::: {.domain-card-body}
+[F2]{.domain-id .d-F2}
+
+[[Incompressible fluids (2D)](results_ns_grid.qmd)]{.domain-card-title}
+
+Inflow optimization for drag min.
+
+[Control dim. 32]{.domain-meta}
+
+::: {.backend-chips}
+[JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd) [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [XLB](solvers.qmd#navier-stokes-grid-xlb) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam)
+:::
+:::
+:::
+
+::: {.domain-card}
+::: {.domain-card-body}
+[F3]{.domain-id .d-F3}
+
+[[3D Navier-Stokes](results_ns_3d_grid.qmd)]{.domain-card-title}
+
+Initial condition recovery
+
+[Control dim. 12288]{.domain-meta}
+
+::: {.backend-chips}
+[PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [XLB](solvers.qmd#navier-stokes-grid-xlb) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [Exponax](solvers.qmd#navier-stokes-grid-exponax) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam)
+:::
+:::
+:::
+:::
 
 The full catalog — per-solver numerical scheme, AD strategy, image name, schema fields, and known limitations — is on the [Solver Reference](solvers.qmd) page.
 
-::: {.callout-tip appearance="simple"}
-### 📊 See how the solvers compare
+::: {.cta-panel}
+::: {}
+### See how the solvers compare {.unlisted}
 
 Each domain has a results page with every plot, a best-solver ranking per category, and the task setup:
-[Navier–Stokes 2D](results_ns_grid.qmd) ·
-[Navier–Stokes 3D](results_ns_3d_grid.qmd) ·
-[Structural mechanics](results_structural_mesh.qmd) ·
-[Heat transfer](results_thermal_mesh.qmd)
+:::
+
+::: {.cta-links}
+[Navier–Stokes 2D](results_ns_grid.qmd){.btn-m} [Navier–Stokes 3D](results_ns_3d_grid.qmd){.btn-m} [Structural mechanics](results_structural_mesh.qmd){.btn-m} [Heat transfer](results_thermal_mesh.qmd){.btn-m}
+:::
 :::
 
 ## Evaluation protocol
@@ -69,6 +158,20 @@ The CLI exposes four suites, each running a set of experiments:
 
 Results are saved to `mosaic-results/<problem>/<suite>/` as JSON (metrics), NPZ (arrays), and PNG/PDF (plots). Per-domain breakdowns with embedded plots live under the **Results** menu.
 
----
+::: {.next-steps}
+::: {}
+[Run it]{.eyebrow}
 
-→ Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference. To call a Mosaic solver from your own code without the harness, see **[Use Mosaic solvers elsewhere](standalone.qmd)**. For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)**.
+Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference.
+:::
+::: {}
+[Reuse it]{.eyebrow}
+
+To call a Mosaic solver from your own code without the harness, see **[Use Mosaic solvers elsewhere](standalone.qmd)**.
+:::
+::: {}
+[Ask]{.eyebrow}
+
+For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)**.
+:::
+:::

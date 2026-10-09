@@ -1,0 +1,75 @@
+/*-- scss:defaults --*/
+
+// Light theme. Colours are drawn from the stained-glass logo:
+// terracotta, saffron, indigo, green and plum on an off-white ground.
+// Custom components (cards, scoreboard, hero) read the CSS variables defined
+// under scss:rules below, so the dark theme only has to redefine those.
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+$body-bg: #f7f7f6;
+$body-color: #1d1e20;
+$primary: #a8401f;
+$secondary: #5f6368;
+$success: #2f7a57;
+$info: #2f4b8f;
+$warning: #c98a17;
+$danger: #b3261e;
+$light: #efefed;
+$dark: #1d1e20;
+
+$link-color: #a8401f;
+$link-hover-color: #7e2f16;
+$border-color: #e1e2e4;
+
+$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+$headings-font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+$headings-font-weight: 650;
+$font-size-root: 16px;
+$line-height-base: 1.65;
+
+$navbar-bg: #f7f7f6;
+$navbar-fg: #2f3134;
+$navbar-hl: #a8401f;
+$footer-bg: #efefed;
+$footer-fg: #5f6368;
+
+$code-color: #7e2f16;
+$code-bg: #efefed;
+$table-border-color: #e1e2e4;
+$border-radius: 0.5rem;
+
+/*-- scss:rules --*/
+
+:root {
+  --m-bg: #f7f7f6;
+  --m-surface: #ffffff;
+  --m-surface-2: #f1f1ef;
+  --m-surface-3: #e7e7e4;
+  --m-border: #e1e2e4;
+  --m-border-strong: #c9cbcf;
+  --m-ink: #1d1e20;
+  --m-ink-2: #2f3134;
+  --m-muted: #5f6368;
+  --m-accent: #a8401f;
+  --m-accent-ink: #7e2f16;
+  --m-accent-soft: #f4e4dc;
+  --m-saffron: #e3a02f;
+  --m-indigo: #2f4b8f;
+  --m-green: #2f7a57;
+  --m-plum: #6e3f8f;
+  --m-red: #c8462b;
+  // Sequential score scale (one hue, light → dark) for the scoreboard.
+  --m-score-0: #efefed;
+  --m-score-1: #e3ece4;
+  --m-score-2: #c3dccb;
+  --m-score-3: #93c1a4;
+  --m-score-4: #5c9e7b;
+  --m-score-5: #2f7a57;
+  --m-score-ink-dark: #ffffff;
+  --m-shadow-sm: none;
+  --m-shadow: 0 1px 2px rgba(20, 22, 26, 0.04), 0 4px 14px -8px rgba(20, 22, 26, 0.12);
+  --m-shadow-lg: 0 24px 60px -20px rgba(15, 17, 20, 0.35);
+  --m-backdrop: rgba(20, 22, 26, 0.45);
+}
