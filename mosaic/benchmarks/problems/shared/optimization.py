@@ -178,13 +178,15 @@ def _run_lbfgs(
         vg = jax.value_and_grad(loss_fn)
 
     import os
-    import resource
 
     _mosaic_lbfgs_diag = os.environ.get("MOSAIC_LBFGS_DIAG", "0") == "1"
 
     def _probe(label: str, i: int) -> None:
         if not _mosaic_lbfgs_diag:
             return
+        # POSIX-only, so imported only when the diagnostic is asked for.
+        import resource
+
         rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         try:
             live = len(jax.live_arrays())
