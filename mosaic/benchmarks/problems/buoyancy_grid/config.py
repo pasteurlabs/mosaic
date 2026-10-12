@@ -15,13 +15,13 @@ from mosaic.benchmarks.core.status_checks import (
 from mosaic.benchmarks.core.utils import l2_error_rel
 from mosaic.benchmarks.problems.shared.cost import spatial_cost
 from mosaic.benchmarks.problems.shared.forward import agreement
-from mosaic.benchmarks.problems.shared.gradient import fd_check
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
 from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
+from .gradient import fd_check
 from .physics import diffusion_ic, diffusion_reference, make_inputs, plume, scalar_field
 from .plots import plot_solver_in_loop
 from .status import corrector_execution
@@ -109,7 +109,10 @@ problem.add_experiment(
     fd={"eps_values": [0.1, 0.01, 0.001], "n_dirs": 3},
     status_check=[min_cosine(0.99), max_rel_err(0.05)],
     plot=plot_fd_check,
-    plot_description="Directional finite differences of the coupled velocity–scalar transition.",
+    plot_description=(
+        "Directional finite differences of the coupled velocity–scalar transition "
+        "after four warmup steps, away from interpolation knots at zero velocity."
+    ),
 )
 problem.add_experiment(
     "cost/forward",

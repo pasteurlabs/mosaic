@@ -204,7 +204,9 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     train, validation, test = references
     velocity_scale = max(float(np.sqrt(np.mean(train[..., :2] ** 2))), 1e-3)
     scalar_scale = max(float(np.sqrt(np.mean(train[..., 2] ** 2))), 1e-3)
-    scales = jnp.asarray([velocity_scale, velocity_scale, scalar_scale])
+    scales = jnp.asarray(
+        [velocity_scale, velocity_scale, scalar_scale], dtype=jnp.float32
+    )
 
     # Admit every target split independently; test data never select a model.
     audits = {}
@@ -252,7 +254,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     # Also test hidden-layer and temporal derivatives away from zero readout.
     probe = jax.tree.map(lambda p: p, params0)
     probe[-1]["w"] = 0.01 * jax.random.normal(
-        jax.random.PRNGKey(17), probe[-1]["w"].shape
+        jax.random.PRNGKey(17), probe[-1]["w"].shape, dtype=jnp.float32
     )
     fd_nonzero = directional_fd(check_loss, probe, float(cfg.get("fd_epsilon", 0.003)))
     if fd_nonzero["relative_error"] > float(cfg.get("fd_tolerance", 0.05)):

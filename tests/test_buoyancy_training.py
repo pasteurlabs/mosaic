@@ -30,8 +30,12 @@ def test_restriction_preserves_faces_and_conserves_scalar():
 def test_corrector_starts_at_identity_and_preserves_scalar_and_walls():
     state = jnp.ones((6, 6, 3)).at[-1, :, 0].set(0).at[:, -1, 1].set(0)
     params = init_corrector(0, 2)
+    assert all(p.dtype == jnp.float32 for p in jax.tree.leaves(params))
     np.testing.assert_array_equal(apply_corrector(params, state, jnp.ones(3)), state)
-    params[-1]["b"] = jnp.ones(1)
+    np.testing.assert_array_equal(
+        apply_corrector(params, np.asarray(state), jnp.ones(3)), state
+    )
+    params[-1]["b"] = jnp.ones(1, dtype=jnp.float32)
     corrected = np.asarray(apply_corrector(params, state, jnp.ones(3)))
     np.testing.assert_array_equal(corrected[..., 2], state[..., 2])
     np.testing.assert_array_equal(corrected[-1, :, 0], 0)

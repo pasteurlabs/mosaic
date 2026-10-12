@@ -67,7 +67,7 @@ def plot_solver_in_loop(
         error_max = max(max(float(np.abs(e).max()) for e in errors.values()), 1e-8)
         fig, axes = plt.subplots(3, 5, figsize=(13, 8), constrained_layout=True)
         for column, key in enumerate(keys):
-            label = "Fine reference" if key == "reference" else _METHODS[key][0]
+            label = "Restricted reference" if key == "reference" else _METHODS[key][0]
             axes[0, column].set_title(label, fontsize=10)
             fields = (final[key][..., 2], speeds[key], errors[key])
             limits = ((scalar_min, scalar_max), (0, speed_max), (-error_max, error_max))
@@ -105,6 +105,7 @@ def plot_solver_in_loop(
                     np.sqrt(metrics[key][metric][1:]),
                     label=label,
                     color=color,
+                    linestyle={"supervised": "--", "stop_gradient": ":"}.get(key, "-"),
                 )
                 ax.set_xlabel("Physical time")
                 ax.set_ylabel("Normalized RMS error")
