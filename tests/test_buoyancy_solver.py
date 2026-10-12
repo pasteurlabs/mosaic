@@ -29,10 +29,10 @@ def _inputs():
 
     return {
         "state0": jnp.asarray(make_plume_ic(8)),
-        "viscosity": jnp.array([0.001]),
-        "diffusivity": jnp.array([0.0001]),
-        "buoyancy": jnp.array([1.0]),
-        "dt": jnp.array([0.02]),
+        "viscosity": jnp.array([0.001], dtype=jnp.float32),
+        "diffusivity": jnp.array([0.0001], dtype=jnp.float32),
+        "buoyancy": jnp.array([1.0], dtype=jnp.float32),
+        "dt": jnp.array([0.02], dtype=jnp.float32),
         "steps": 1,
         "domain_extent": 1.0,
     }
@@ -54,7 +54,9 @@ def test_zero_buoyancy_preserves_rest(solver):
     import jax.numpy as jnp
 
     args = _inputs()
-    result = solver.apply_jit({**args, "buoyancy": jnp.array([0.0])})["result"]
+    result = solver.apply_jit(
+        {**args, "buoyancy": jnp.array([0.0], dtype=jnp.float32)}
+    )["result"]
     np.testing.assert_allclose(result[..., :2], 0, atol=1e-7)
 
 

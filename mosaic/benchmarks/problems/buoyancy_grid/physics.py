@@ -8,9 +8,9 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
-from mosaic_shared.problems.buoyancy_grid import make_plume_ic
 
 from mosaic.benchmarks.core.config import SolverSpec
+from mosaic.mosaic_shared.problems.buoyancy_grid import make_plume_ic
 
 
 def plume(N: int = 24, L: float = 1.0, seed: int = 0, **_: Any) -> jax.Array:

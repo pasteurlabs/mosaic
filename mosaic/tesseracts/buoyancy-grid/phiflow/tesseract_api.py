@@ -143,7 +143,7 @@ def vector_jacobian_product(
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
     """Infer output metadata without running a simulation."""
-    state = abstract_inputs.model_dump()["state0"]
+    state = abstract_inputs.state0
     if isinstance(state, dict):
         shape, dtype = tuple(state["shape"]), state["dtype"]
     else:

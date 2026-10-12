@@ -7,7 +7,8 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
-from mosaic_shared.problems.buoyancy_grid import restrict_state  # noqa: F401
+
+from mosaic.mosaic_shared.problems.buoyancy_grid import restrict_state  # noqa: F401
 
 
 def init_corrector(
