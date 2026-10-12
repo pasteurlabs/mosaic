@@ -14,7 +14,7 @@ This packing preserves the solver state exactly across separate calls.
 
 import numpy as np
 from pydantic import BaseModel, Field, model_validator
-from tesseract_core.runtime import Array, Float32
+from tesseract_core.runtime import Array, Float32, ShapeDType
 
 
 def make_plume_ic(N: int = 32, seed: int = 0) -> np.ndarray:
@@ -92,7 +92,7 @@ class InputSchema(BaseModel):
     @model_validator(mode="after")
     def _check_grid(self) -> "InputSchema":
         # Abstract evaluation may supply shape descriptors instead of arrays.
-        if isinstance(self.state0, dict):
+        if isinstance(self.state0, (dict, ShapeDType)):
             return self
         state = np.asarray(self.state0)
         if state.shape[0] != state.shape[1] or state.shape[0] < 4:
@@ -101,7 +101,7 @@ class InputSchema(BaseModel):
             raise ValueError("state0 must be finite.")
         for name in ("viscosity", "diffusivity", "buoyancy", "dt"):
             value = getattr(self, name)
-            if isinstance(value, dict):
+            if isinstance(value, (dict, ShapeDType)):
                 continue
             scalar = float(np.asarray(value)[0])
             if (

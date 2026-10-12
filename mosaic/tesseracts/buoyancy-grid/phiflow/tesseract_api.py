@@ -23,6 +23,7 @@ from phi.jax.flow import (
     math,
 )
 from pydantic import model_validator
+from tesseract_core.runtime import ShapeDType
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
 
@@ -35,7 +36,7 @@ class InputSchema(
 
     @model_validator(mode="after")
     def _check_diffusion_cfl(self) -> "InputSchema":
-        if isinstance(self.state0, dict):
+        if isinstance(self.state0, (dict, ShapeDType)):
             return self
         n = np.asarray(self.state0).shape[0]
         dt = float(np.asarray(self.dt)[0])

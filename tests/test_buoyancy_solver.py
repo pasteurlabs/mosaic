@@ -145,3 +145,22 @@ def test_abstract_eval_matches_input_shape(solver):
     assert solver.abstract_eval(abstract) == {
         "result": {"shape": (16, 16, 3), "dtype": "float32"}
     }
+
+
+def test_runtime_schema_registration(solver):
+    from tesseract_core import Tesseract
+    from tesseract_jax import apply_tesseract
+
+    with Tesseract.from_tesseract_api(solver.__file__) as runtime:
+        assert "apply" in runtime.available_endpoints
+        assert "vector_jacobian_product" in runtime.available_endpoints
+        inputs = {
+            key: np.asarray(value) if hasattr(value, "shape") else value
+            for key, value in _inputs().items()
+        }
+        output = runtime.apply(inputs)
+        assert np.asarray(output["result"]).shape == (8, 8, 3)
+        callback_output = apply_tesseract(runtime, inputs)
+        np.testing.assert_allclose(
+            callback_output["result"], output["result"], rtol=1e-5, atol=1e-6
+        )
