@@ -49,7 +49,8 @@ class InputSchema(
         return self
 
 
-OutputSchema = make_differentiable(BaseOutput, ["result"])
+class OutputSchema(make_differentiable(BaseOutput, ["result"])):
+    """Differentiable final state with the runtime-required schema name."""
 
 
 @eqx.filter_jit
