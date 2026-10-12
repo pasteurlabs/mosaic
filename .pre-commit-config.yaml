@@ -32,7 +32,7 @@ repos:
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.16.10
+    rev: v0.17.0
     hooks:
       # Run the linter.
       - id: ruff
@@ -59,7 +59,7 @@ repos:
           bash -c ' \
             cp uv.lock uv.lock.bak; \
             cp production.uv.lock uv.lock; \
-            uv lock --refresh; \
+            python -m uv lock --config-file /dev/null; \
             rc=$?; \
             cp uv.lock production.uv.lock; \
             mv uv.lock.bak uv.lock; \
