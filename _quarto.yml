@@ -54,6 +54,8 @@ website:
             file: docs/results_structural_mesh.qmd
           - text: Heat Transfer
             file: docs/results_thermal_mesh.qmd
+          - text: Buoyancy Flow
+            file: docs/results_buoyancy_grid.qmd
     right:
       - icon: github
         href: https://github.com/pasteurlabs/mosaic

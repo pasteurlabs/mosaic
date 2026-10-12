@@ -42,6 +42,12 @@ Invert for the conductivity field of a slab from its temperature,
 differentiating through a steady heat-conduction solve. Covers deal.II, FEniCS,
 Firedrake, JAX-FEM, and torch-fem on 2D steady-state heat conduction.
 
+### [Buoyancy flow (2D)](results_buoyancy_grid.qmd)
+
+Train a neural velocity corrector for a warm plume in a closed box, using
+PhiFlow as the first backend. Compare supervised, solver-in-the-loop, and
+stopped-gradient training against the same solver at finer resolution.
+
 ## What each page reports
 
 Every domain page scores its solvers on four axes:

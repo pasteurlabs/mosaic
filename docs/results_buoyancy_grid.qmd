@@ -1,0 +1,40 @@
+---
+title: Buoyancy flow (2D)
+---
+
+A warm plume rises in a closed square. Its scalar field creates upward
+buoyancy, and the resulting incompressible flow transports that scalar.
+PhiFlow is the first backend, with no-slip velocity walls and zero normal
+scalar derivative.
+
+The benchmark trains a small convolutional neural network to correct velocity
+after each solver interval. A streamfunction makes these corrections
+divergence-free with zero normal wall velocity. The scalar remains solver-driven.
+
+```{mermaid}
+flowchart LR
+    S[Velocity and scalar] --> P[Coupled solver step]
+    P --> N[Neural velocity correction]
+    N --> S
+    N --> L[Compare with restricted fine reference]
+    L -. Training gradient through the rollout .-> N
+```
+
+All training methods use the same network initialization, optimizer budget,
+training data and validation cases. Fixed-pair supervision uses one-step
+targets; solver-in-the-loop training uses a recurrent trajectory loss; the
+stopped-gradient ablation uses the same recurrent loss with solver derivatives
+removed. Held-out rollouts report velocity and scalar errors separately.
+
+References come from the same solver at finer spatial and temporal resolution.
+The experiment checks reference time refinement, restart equivalence, and
+end-to-end finite differences before reporting training results. CI checks
+correct execution; it does not require a statistical advantage from a short run.
+
+This setup is inspired by [Um et al. (2020)](https://arxiv.org/abs/2007.00016).
+It is a bounded benchmark, not a reproduction of their full training campaign.
+Results and full-field plots appear here when benchmark artifacts are generated.
+
+```bash
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s phiflow
+```

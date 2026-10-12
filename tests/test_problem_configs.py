@@ -86,6 +86,7 @@ def test_unknown_problem_raises():
 _UNGATED_BY_DESIGN: frozenset[str] = frozenset(
     {
         "ns-grid/ics",
+        "buoyancy-grid/ics",
         "ns-3d-grid/ics",
         "thermal-mesh/ics",
         "structural-mesh/ics",

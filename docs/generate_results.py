@@ -44,6 +44,7 @@ _EXPERIMENT_ORDER = [
 ]
 
 PROBLEM_LABELS = {
+    "buoyancy-grid": "Buoyancy flow (2D)",
     "ns-grid": "Navier\u2013Stokes (2D)",
     "ns-3d-grid": "Navier\u2013Stokes (3D)",
     "structural-mesh": "Structural mechanics",
@@ -63,6 +64,10 @@ PROBLEM_ILLUSTRATIONS = {
 # One-line "what is this task" caption shown under the schematic, aimed at a
 # reader who knows ML but not the specific solver community.
 PROBLEM_TAGLINES = {
+    "buoyancy-grid": (
+        "Train a neural velocity corrector through a coupled buoyancy-flow solver, "
+        "then compare held-out rollouts against fixed-pair supervision."
+    ),
     "ns-grid": (
         "Optimize the inflow of a 2D channel flow to minimize drag on a "
         "cylinder, differentiating through an incompressible fluid solver."
