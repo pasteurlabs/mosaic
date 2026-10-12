@@ -17,10 +17,10 @@ from mosaic.benchmarks.problems.shared.gradient import fd_check as shared_fd_che
 def fd_check(t: Any, ctx: KernelContext) -> dict:
     """Develop the initially resting plume before centered finite differences.
 
-    Semi-Lagrangian interpolation is piecewise differentiable. At zero velocity,
-    backtraced sample points coincide with grid knots, where centered differences
-    can disagree with a valid one-sided AD derivative. The warmup is fixed and is
-    not part of the differentiated transition.
+    Transport schemes can have derivative kinks at zero velocity: backtraced
+    samples lie on interpolation knots, or an upwind flux changes direction.
+    Centered differences can then disagree with a one-sided AD derivative.
+    The warmup is fixed and is not part of the differentiated transition.
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **{**ctx.phys, "steps": 4})
     state = jnp.asarray(apply_tesseract(t, inputs)[ctx.output_key])

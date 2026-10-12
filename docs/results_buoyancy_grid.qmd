@@ -4,8 +4,23 @@ title: Buoyancy flow (2D)
 
 A warm plume rises in a closed square. Its scalar field creates upward
 buoyancy, and the resulting incompressible flow transports that scalar.
-PhiFlow is the first backend, with no-slip velocity walls and zero normal
-scalar derivative.
+All backends use no-slip velocity walls and zero normal scalar derivative.
+
+| Backend | Coupled flow implementation | Differentiable inputs |
+| --- | --- | --- |
+| PhiFlow | Semi-Lagrangian transport, explicit diffusion, and pressure projection. | State and physics parameters |
+| WaterLily | Native momentum and pressure routines, with conservative upwind scalar transport and two-stage coupling added by the adapter. | State and physics parameters |
+| Oceananigans | Native nonhydrostatic buoyancy model, third-order upwind advection, RK3, and spectral pressure projection. | None exposed |
+
+The Julia backends initially run on CPU. Each backend generates its own
+fine-resolution reference; the physical problem and training recipe are shared,
+but the numerical discretizations differ.
+
+WaterLily uses Enzyme reverse-mode differentiation. Oceananigans participates
+in forward and cost comparisons only. Its native closed-wall FFTW pressure path
+lacks Enzyme support. An equivalent pressure implementation passed standalone
+Julia gradient checks, but reverse-mode compilation crashed inside the
+Python–Julia runtime. That experimental path is not included in this adapter.
 
 The benchmark trains a small convolutional neural network to correct velocity
 after each solver interval. A streamfunction makes these corrections
@@ -37,4 +52,6 @@ Results and full-field plots appear here when benchmark artifacts are generated.
 
 ```bash
 mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s phiflow
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s waterlily
+mosaic run -p buoyancy-grid --suites forward,cost -s oceananigans
 ```

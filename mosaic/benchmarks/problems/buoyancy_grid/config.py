@@ -111,7 +111,7 @@ problem.add_experiment(
     plot=plot_fd_check,
     plot_description=(
         "Directional finite differences of the coupled velocity–scalar transition "
-        "after four warmup steps, away from interpolation knots at zero velocity."
+        "after four warmup steps, away from transport derivative kinks at zero velocity."
     ),
 )
 problem.add_experiment(
