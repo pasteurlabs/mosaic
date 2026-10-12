@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "cost",
+    "name": "forward"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.04,
+      "steps": 4
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        24,
+        32
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "24",
+      "32"
+    ]
+  },
+  "results": [
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "16",
+      "metrics": {
+        "mean": 0.0026043548714369535,
+        "std": 4.169315434410237e-05,
+        "trials_s": [
+          0.0026627379993442446,
+          0.002582307999546174,
+          0.0025680190010461956
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1305.14944
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "24",
+      "metrics": {
+        "mean": 0.0026809710543602705,
+        "std": 0.00023250181402545422,
+        "trials_s": [
+          0.002874037003493868,
+          0.002814936997310724,
+          0.002353939002205152
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1305.214976
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "32",
+      "metrics": {
+        "mean": 0.0015986061189323664,
+        "std": 1.226296262757387e-05,
+        "trials_s": [
+          0.0016145219997270033,
+          0.0015966130013111979,
+          0.0015846830065129325
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1305.214976
+      }
+    }
+  ],
+  "extras": {
+    "hardware": {
+      "cpu": "AMD EPYC 9654 96-Core Processor",
+      "ram_gb": 540.5
+    }
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "Oceananigans": "1ff8d06b56c335da"
+    },
+    "harness_hash": "957374b3a274eeb6",
+    "harness_fn": "mosaic.benchmarks.problems.shared.cost.spatial_cost",
+    "wall_time_s": {
+      "Oceananigans": 0.4456630819986458
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-12T22:09:04.617680+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-12T22:09:04Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

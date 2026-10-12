@@ -1,0 +1,667 @@
+{
+  "complete": true,
+  "final_contract": {
+    "job": 2943631,
+    "passed": 9,
+    "skipped": 1,
+    "skip_reason": "Oceananigans does not advertise derivatives",
+    "pytest_wall_seconds": 425.53,
+    "whole_job_wall_seconds": 488,
+    "cold_peak_rss_kib": 9644100,
+    "cold_peak_rss_note": "Includes package import/precompilation plus contract tests; not warmed solver memory."
+  },
+  "packaging": {
+    "tesseract_config_schema": "passed both solvers",
+    "package_data_files": "passed both solvers",
+    "container_execution": "Not run: docker executable unavailable on Slurm worker",
+    "final_openblas_environment_schema": "passed; declared1 matches numericaljobsetting"
+  },
+  "repository_commit": "0fd99de80c421216bf5a8fa4fa6cb0d2ffaa80c9",
+  "final_source_note": "Validation snapshot predates only the final OPENBLAS_NUM_THREADS=1 YAML declaration; every numerical job already exported that setting.",
+  "scope": "CPU Slurm validation; real native Julia solvers and in-process Tesseract. Container execution and CI are separate checks.",
+  "versions": {
+    "Julia": "1.11.7",
+    "WaterLily": "1.9.2",
+    "Oceananigans": "0.113.6",
+    "Enzyme": "0.13.216",
+    "ForwardDiff": "1.4.6",
+    "PythonCall": "0.9.36",
+    "juliacall": "0.9.36",
+    "FFTW": "1.10.0"
+  },
+  "threads": {
+    "Julia": 1,
+    "OpenBLAS": 1,
+    "allocated_cpus": 4
+  },
+  "source_sha256": {
+    "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_config.yaml": "bf8970fedf70ce0e08b4226f3b4fa33b3b87a86cfd0af110ec892e3222767f7f",
+    "mosaic/tesseracts/buoyancy-grid/waterlily/solver.jl": "9d1027200ba2d28ec5eabdae858541867906572945b2474eb5ec487a4e536e57",
+    "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_requirements.txt": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+    "mosaic/tesseracts/buoyancy-grid/waterlily/vjp.jl": "ae5dd3cd86309a0ce8fc48a33fb0ab3ba460ceceaaad500bfb3a9163fbba7858",
+    "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_api.py": "37d0db8f6354527b36933d672d4984f8c777d03bd44dad67f58a7b24a8d9923a",
+    "mosaic/tesseracts/buoyancy-grid/oceananigans/tesseract_config.yaml": "7551ae34c53be751d18f4cd58020ceb3d721601e4a0fd3486e3e86aeac77c983",
+    "mosaic/tesseracts/buoyancy-grid/oceananigans/solver.jl": "44eaf7fcd55cd66afe6230cca05e11ab26893ab96db641206a930696aafce14a",
+    "mosaic/tesseracts/buoyancy-grid/oceananigans/tesseract_requirements.txt": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+    "mosaic/tesseracts/buoyancy-grid/oceananigans/tesseract_api.py": "973114e105123b121921beca40307a1435d48f99b4abf8beaf1deb37d785dd98"
+  },
+  "waterlily": {
+    "jobs": {
+      "native_warm": 2943606,
+      "python_api": 2943608,
+      "framework": 2943612,
+      "final_contract": 2943631
+    },
+    "api": {
+      "finite": true,
+      "restart_max_abs": 2.9802322387695312e-08,
+      "ignored_faces": true,
+      "coupled_velocity_norm": 0.009082757867872715,
+      "vjp_available": true,
+      "diffusion_rms": 2.474085025043957e-05,
+      "vjp_first_seconds": 44.29101454582997,
+      "vjp_checks": {
+        "buoyancy": {
+          "ad": 0.02262303978204727,
+          "fd": 0.022606490179896355
+        },
+        "diffusivity": {
+          "ad": -0.135605126619339,
+          "fd": -0.1358238011598587
+        },
+        "dt": {
+          "ad": 2.5698928833007812,
+          "fd": 2.5696821212768555
+        },
+        "state0": {
+          "ad": -0.21163511276245117,
+          "fd": -0.21155424416065216
+        },
+        "viscosity": {
+          "ad": -0.13941462337970734,
+          "fd": -0.139127716422081
+        }
+      },
+      "runtime_apply": true
+    },
+    "native": {
+      "24": {
+        "checks": [
+          {
+            "reverse": -0.00108524679876848,
+            "forward": -0.0010852467987692016,
+            "eps": [
+              0.0001,
+              3e-05,
+              1e-05
+            ],
+            "fd": [
+              -0.0010179904810780904,
+              -0.001073333064094406,
+              -0.0010852366325031504
+            ],
+            "input": "state",
+            "relative_error": [
+              0.061973292864545546,
+              0.010977903540091866,
+              9.367698979721734e-06
+            ]
+          },
+          {
+            "reverse": -0.8413785732487413,
+            "forward": -0.8413785732487417,
+            "eps": [
+              1e-05,
+              3e-06,
+              1e-06
+            ],
+            "fd": [
+              -0.8413784983993254,
+              -0.8413785752512762,
+              -0.8413785733546453
+            ],
+            "input": "viscosity",
+            "relative_error": [
+              8.896044927615055e-08,
+              2.3800640693402613e-09,
+              1.258695617267041e-10
+            ]
+          },
+          {
+            "reverse": 11.652993702761755,
+            "forward": 11.652993702761755,
+            "eps": [
+              1e-05,
+              3e-06,
+              1e-06
+            ],
+            "fd": [
+              11.65299404703307,
+              11.652993733785959,
+              11.65299370621542
+            ],
+            "input": "diffusivity",
+            "relative_error": [
+              2.954359318009018e-08,
+              2.662337624071818e-09,
+              2.963758399655088e-10
+            ]
+          },
+          {
+            "reverse": 0.008673949029215183,
+            "forward": 0.008673949029215137,
+            "eps": [
+              0.0001,
+              3e-05,
+              1e-05
+            ],
+            "fd": [
+              0.008673949028203953,
+              0.00867394903171966,
+              0.008673949025705951
+            ],
+            "input": "buoyancy",
+            "relative_error": [
+              1.1658234229173928e-10,
+              2.887355596607531e-10,
+              4.0457133058218823e-10
+            ]
+          },
+          {
+            "reverse": 1.0353914629518273,
+            "forward": 1.0353914629518242,
+            "eps": [
+              1e-05,
+              3e-06,
+              1e-06
+            ],
+            "fd": [
+              1.0353914660518604,
+              1.0353914632332817,
+              1.0353914626087812
+            ],
+            "input": "dt",
+            "relative_error": [
+              2.9940686404512104e-09,
+              2.718338187284716e-10,
+              3.31320131850506e-10
+            ]
+          }
+        ],
+        "scalar_max": 0.2987893879625205,
+        "long_finite": true,
+        "vjp_seconds": 0.051096763,
+        "div_max": 3.510812673912511e-08,
+        "restart_max": 2.220446049250313e-16,
+        "mass_error": 1.0658141036401503e-14,
+        "scalar_min": 5.688379020358762e-14,
+        "compile_seconds": 0.111879262
+      },
+      "8": {
+        "checks": [
+          {
+            "reverse": -0.004036956336667563,
+            "forward": -0.004036956336667834,
+            "eps": [
+              0.0001,
+              3e-05,
+              1e-05
+            ],
+            "fd": [
+              -0.0039806760725180634,
+              -0.0040371340367939546,
+              -0.004036959071196389
+            ],
+            "input": "state",
+            "relative_error": [
+              0.013941261548535372,
+              4.401640489809419e-05,
+              6.773734331639525e-07
+            ]
+          },
+          {
+            "reverse": -0.08295371254753199,
+            "forward": -0.08295371254753192,
+            "eps": [
+              1e-05,
+              3e-06,
+              1e-06
+            ],
+            "fd": [
+              -0.08295371260180762,
+              -0.0829537125564735,
+              -0.08295371248245864
+            ],
+            "input": "viscosity",
+            "relative_error": [
+              6.542880837780998e-10,
+              1.0778919858033903e-10,
+              7.844537331515062e-10
+            ]
+          },
+          {
+            "reverse": 1.3828530363461826,
+            "forward": 1.382853036346183,
+            "eps": [
+              1e-05,
+              3e-06,
+              1e-06
+            ],
+            "fd": [
+              1.3828530370477152,
+              1.3828530364088747,
+              1.3828530362886005
+            ],
+            "input": "diffusivity",
+            "relative_error": [
+              5.073081455417492e-10,
+              4.5335311926810475e-11,
+              4.16401163015406e-11
+            ]
+          },
+          {
+            "reverse": 0.0043670915329549545,
+            "forward": 0.004367091532954938,
+            "eps": [
+              0.0001,
+              3e-05,
+              1e-05
+            ],
+            "fd": [
+              0.004367091533119538,
+              0.004367091531916796,
+              0.0043670915383930975
+            ],
+            "input": "buoyancy",
+            "relative_error": [
+              3.7687239495346405e-11,
+              2.377230398745339e-10,
+              1.2452550956779974e-09
+            ]
+          },
+          {
+            "reverse": -0.1282593194083842,
+            "forward": -0.12825931940838345,
+            "eps": [
+              1e-05,
+              3e-06,
+              1e-06
+            ],
+            "fd": [
+              -0.12825931891558007,
+              -0.12825931937354706,
+              -0.12825931952620273
+            ],
+            "input": "dt",
+            "relative_error": [
+              3.8422481353340425e-09,
+              2.7161482954137055e-10,
+              9.18596271545701e-10
+            ]
+          }
+        ],
+        "scalar_max": 0.2457548505250519,
+        "long_finite": true,
+        "vjp_seconds": 0.002280941,
+        "div_max": 2.3264456527893884e-08,
+        "restart_max": 0.0,
+        "mass_error": 1.3322676295501878e-15,
+        "scalar_min": 6.065782373817217e-07,
+        "compile_seconds": 4.093473385
+      }
+    },
+    "framework": {
+      "forward/diffusion": {
+        "rows": [
+          {
+            "solver": "WaterLily",
+            "sweep_value": "16",
+            "metrics": {
+              "error": 5.7075172662734985e-05,
+              "valid": true
+            }
+          },
+          {
+            "solver": "WaterLily",
+            "sweep_value": "24",
+            "metrics": {
+              "error": 2.5405946871615015e-05,
+              "valid": true
+            }
+          },
+          {
+            "solver": "WaterLily",
+            "sweep_value": "32",
+            "metrics": {
+              "error": 1.4313467545434833e-05,
+              "valid": true
+            }
+          }
+        ],
+        "solver_wall_seconds": {
+          "WaterLily": 5.977814947022125
+        }
+      },
+      "gradient/fd_check": {
+        "rows": [
+          {
+            "solver": "WaterLily",
+            "sweep_value": null,
+            "metrics": {
+              "ic_scale": 0.07101792097091675,
+              "vjp_arr": [
+                -0.08732392638921738,
+                -0.048863984644412994,
+                0.07162971794605255
+              ],
+              "eps_sweep": {
+                "0.1": {
+                  "rel_error": [
+                    0.019719260889905044,
+                    0.042278749447465416,
+                    0.01504250930123079
+                  ],
+                  "cosine": 0.9997820138780358,
+                  "fd_arr": [
+                    -0.08560196310281754,
+                    -0.04679807648062706,
+                    0.07272366434335709
+                  ]
+                },
+                "0.01": {
+                  "rel_error": [
+                    0.005033693761289592,
+                    0.008479566626865371,
+                    0.0038844482481653277
+                  ],
+                  "cosine": 0.9999988400403099,
+                  "fd_arr": [
+                    -0.08688436448574066,
+                    -0.04844963923096657,
+                    0.07135147601366043
+                  ]
+                },
+                "0.001": {
+                  "rel_error": [
+                    0.0035567162552347536,
+                    0.009307739540038116,
+                    0.017832784722411472
+                  ],
+                  "cosine": 0.9999518602199267,
+                  "fd_arr": [
+                    -0.08763562142848969,
+                    -0.048409171402454376,
+                    0.07035236060619354
+                  ]
+                }
+              },
+              "ram_peak_mib": 1536.147456
+            }
+          }
+        ],
+        "solver_wall_seconds": {
+          "WaterLily": 47.26690919697285
+        }
+      },
+      "cost/forward": {
+        "rows": [
+          {
+            "solver": "WaterLily",
+            "sweep_value": "16",
+            "metrics": {
+              "mean": 0.004849153570830822,
+              "std": 0.0002075811062240973,
+              "trials_s": [
+                0.004748993087559938,
+                0.0051382118836045265,
+                0.0046602541115134954
+              ],
+              "vram_peak_mib": null,
+              "ram_peak_mib": 1537.437696
+            }
+          },
+          {
+            "solver": "WaterLily",
+            "sweep_value": "24",
+            "metrics": {
+              "mean": 0.007989832200109959,
+              "std": 0.00010769206710392609,
+              "trials_s": [
+                0.00813657185062766,
+                0.007881151977926493,
+                0.007951772073283792
+              ],
+              "vram_peak_mib": null,
+              "ram_peak_mib": 1537.523712
+            }
+          },
+          {
+            "solver": "WaterLily",
+            "sweep_value": "32",
+            "metrics": {
+              "mean": 0.01762150600552559,
+              "std": 9.2469243099913e-05,
+              "trials_s": [
+                0.01759427902288735,
+                0.017524347873404622,
+                0.017745887860655785
+              ],
+              "vram_peak_mib": null,
+              "ram_peak_mib": 1537.527808
+            }
+          }
+        ],
+        "solver_wall_seconds": {
+          "WaterLily": 0.4548170620109886
+        }
+      },
+      "optimization/solver_in_loop": {
+        "rows": [
+          {
+            "solver": "WaterLily",
+            "sweep_value": null,
+            "metrics": {
+              "status": "ok",
+              "reference": {
+                "spatial_factor": 2,
+                "time_refinement_error": 0.00012433495509757845,
+                "audit_gap_ratio": 0.0027097755428694068,
+                "splits": {
+                  "train": {
+                    "time_refinement_error": 0.00011144439576379088,
+                    "coarse_gap": 0.04528513774913312,
+                    "audit_gap_ratio": 0.0024609485871758055
+                  },
+                  "validation": {
+                    "time_refinement_error": 0.00012433495509757845,
+                    "coarse_gap": 0.045883857585458536,
+                    "audit_gap_ratio": 0.0027097755428694068
+                  },
+                  "test": {
+                    "time_refinement_error": 0.00011844643580161036,
+                    "coarse_gap": 0.047578421469043904,
+                    "audit_gap_ratio": 0.002489499065845964
+                  }
+                }
+              },
+              "gradient_check": {
+                "autodiff": 0.005093383602797985,
+                "finite_difference": 0.005096771754324436,
+                "relative_error": 0.0006647642252326447,
+                "epsilon": 0.003
+              },
+              "gradient_check_nonzero": {
+                "autodiff": 0.02186630293726921,
+                "finite_difference": 0.021868370473384857,
+                "relative_error": 9.454458978380122e-05,
+                "epsilon": 0.003
+              },
+              "recurrence_error": 5.2716404752573e-07,
+              "updates": 16,
+              "unroll": 4,
+              "eval_frames": 12,
+              "learning_rates": [
+                0.003
+              ],
+              "heldout_predicted_frames_mean": {
+                "uncorrected": {
+                  "loss": 0.0022637061894859776,
+                  "velocity_mse": 0.002076776340042367,
+                  "scalar_mse": 0.00245063604633818,
+                  "training_seconds": null
+                },
+                "supervised": {
+                  "loss": 0.0017682729933691614,
+                  "velocity_mse": 0.0011445146504532506,
+                  "scalar_mse": 0.0023920313411167626,
+                  "training_seconds": 2.307548782089725
+                },
+                "solver_in_loop": {
+                  "loss": 0.0017411463559255935,
+                  "velocity_mse": 0.0010581990650280204,
+                  "scalar_mse": 0.0024240936603708483,
+                  "training_seconds": 4.2726408070884645
+                },
+                "stop_gradient": {
+                  "loss": 0.0016772202790965214,
+                  "velocity_mse": 0.0009673387808106781,
+                  "scalar_mse": 0.0023871017664494807,
+                  "training_seconds": 1.4359870350454003
+                }
+              }
+            }
+          }
+        ],
+        "solver_wall_seconds": {
+          "WaterLily": 24.203654828015715
+        }
+      }
+    }
+  },
+  "oceananigans": {
+    "jobs": {
+      "native_forward": 2943594,
+      "native_fft_ad_failure": 2943595,
+      "dense_ad_success": 2943605,
+      "production_equivalence": 2943621,
+      "python_forward_api": 2943599,
+      "failed_embedded_vjp_api": 2943619,
+      "final_contract_and_framework": 2943631
+    },
+    "api": {
+      "finite": true,
+      "restart_max_abs": 5.960464477539063e-08,
+      "ignored_faces": true,
+      "coupled_velocity_norm": 0.009082803502678871,
+      "vjp_available": false,
+      "diffusion_rms": 2.474085025043957e-05
+    },
+    "embedded_api_prior_failure": {
+      "jobs": [
+        2943619,
+        2943620,
+        2943622,
+        2943626,
+        2943628
+      ],
+      "exit_code": 139,
+      "phase": "First state VJP compilation inside PythonCall embedding; original, signals, large-stack Task and uncached basis variants all failed"
+    },
+    "framework": {
+      "forward/diffusion": {
+        "rows": [
+          {
+            "solver": "Oceananigans",
+            "sweep_value": "16",
+            "metrics": {
+              "error": 5.702629641746171e-05,
+              "valid": true
+            }
+          },
+          {
+            "solver": "Oceananigans",
+            "sweep_value": "24",
+            "metrics": {
+              "error": 2.5362869564560242e-05,
+              "valid": true
+            }
+          },
+          {
+            "solver": "Oceananigans",
+            "sweep_value": "32",
+            "metrics": {
+              "error": 1.4265545360103715e-05,
+              "valid": true
+            }
+          }
+        ],
+        "solver_wall_seconds": {
+          "Oceananigans": 27.341352322000603
+        }
+      },
+      "cost/forward": {
+        "rows": [
+          {
+            "solver": "Oceananigans",
+            "sweep_value": "16",
+            "metrics": {
+              "mean": 0.0026043548714369535,
+              "std": 4.169315434410237e-05,
+              "trials_s": [
+                0.0026627379993442446,
+                0.002582307999546174,
+                0.0025680190010461956
+              ],
+              "vram_peak_mib": null,
+              "ram_peak_mib": 1305.14944
+            }
+          },
+          {
+            "solver": "Oceananigans",
+            "sweep_value": "24",
+            "metrics": {
+              "mean": 0.0026809710543602705,
+              "std": 0.00023250181402545422,
+              "trials_s": [
+                0.002874037003493868,
+                0.002814936997310724,
+                0.002353939002205152
+              ],
+              "vram_peak_mib": null,
+              "ram_peak_mib": 1305.214976
+            }
+          },
+          {
+            "solver": "Oceananigans",
+            "sweep_value": "32",
+            "metrics": {
+              "mean": 0.0015986061189323664,
+              "std": 1.226296262757387e-05,
+              "trials_s": [
+                0.0016145219997270033,
+                0.0015966130013111979,
+                0.0015846830065129325
+              ],
+              "vram_peak_mib": null,
+              "ram_peak_mib": 1305.214976
+            }
+          }
+        ],
+        "solver_wall_seconds": {
+          "Oceananigans": 0.4456630819986458
+        }
+      }
+    },
+    "pressure_equivalence_24": {
+      "plume_300_steps_max_abs": 1.942890293094024e-16,
+      "nonzero_velocity_20_steps_max_abs": 2.220446049250313e-16
+    },
+    "gradient_scope": "Forward-only. No derivative endpoint or differentiable schema is advertised.",
+    "implementation_note": "Production uses native Oceananigans FFTW pressure projection. Experimental dense pressure/Enzyme code is outside the repository: native standalone state VJP passed finite differences, but Python embedding repeatedly segfaulted. No finite-difference backward or unvalidated derivative path is shipped."
+  },
+  "limitations": [
+    "The bounded 16-update smoke demonstrates runtime/gradient validity, not a solver-gradient accuracy advantage.",
+    "Costs are absolute warmed CPU timings; no cross-solver peer cost claim.",
+    "Compilation and package-cache warmup are not included in warmed transition timings."
+  ]
+}
