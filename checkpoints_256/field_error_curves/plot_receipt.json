@@ -1,0 +1,38 @@
+{
+  "job": "Slurm CPU rendering only; no new simulations",
+  "data": "field_error_curves.json",
+  "selected_updates": {
+    "PhiFlow": 256,
+    "WaterLily": 256,
+    "Oceananigans": 0,
+    "JAX-CFD": 128,
+    "INS.jl": 256
+  },
+  "metric_definitions": {
+    "scalar_metric": "Spatial mean absolute scalar error: mean(abs(theta_method-theta_reference))",
+    "velocity_metric": "Spatial mean vector velocity error: mean(norm(centered_velocity_method-centered_velocity_reference))",
+    "reference": "Same-solver restricted128\u00b2 field at each matching time",
+    "units": "Physical scalar and velocity units; no solver-dependent normalization"
+  },
+  "variants": {
+    "base_sol": "Uncorrected dashed + SOL solid for allfive; reference zero dotted"
+  },
+  "files": {
+    "field_error_curves.csv": {
+      "sha256": "652c352e4c07dbe133d414cbb81fb94b58c354b11f6ac13f7d6c1d5ab32f5de0",
+      "bytes": 90973
+    },
+    "field_error_base_sol.png": {
+      "sha256": "cbf6deb674b6232ae15a6459f1286672a2f22ba970b2faa6eff29bc81aa22b6a",
+      "bytes": 265094
+    },
+    "field_error_curves.json": {
+      "sha256": "debbe7116e1abebe272c6f823d5ab698a0d676e1495c0d9748cd41bc394295b1",
+      "bytes": 95771
+    },
+    "field_error_base_sol.svg": {
+      "sha256": "07e5c9731e977b5a6f5493443a49f236f68d693e41b081dd1691b62076e07920",
+      "bytes": 150625
+    }
+  }
+}
