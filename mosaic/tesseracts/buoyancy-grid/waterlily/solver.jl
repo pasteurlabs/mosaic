@@ -53,17 +53,41 @@ function momentum_rhs!(a, c, b)
     end
 end
 
+function solve_pressure!(p::WaterLily.MultiLevelPoisson, tolerance)
+    WaterLily.solver!(p; tol=tolerance, itmx=1000)
+end
+
+function pressure_converged(p, tolerance)
+    return WaterLily.L∞(p) < tolerance &&
+           WaterLily.L₁(p) < WaterLily.l1n_tol(p, tolerance)
+end
+
+function solve_pressure!(p::WaterLily.Poisson, tolerance)
+    # Noncoarsenable grids use the native red-black smoother directly. Native
+    # PCG can stop at its roundoff/alpha guards before meeting this tolerance.
+    WaterLily.residual!(p)
+    for _ = 1:10000
+        pressure_converged(p, tolerance) && return
+        WaterLily.GaussSeidelRB!(p)
+    end
+end
+
 function project!(a, p)
     walls!(a.u)
     # Reset the pressure guess each projection: no hidden warmstart is needed
-    # to restart from the public velocity/scalar state. Native PCG resets its
-    # residual/search direction when solving the new right-hand side.
+    # to restart from the public velocity/scalar state. The native solver
+    # resets its residual and coarse corrections for each new right-hand side.
     fill!(p.x, 0)
     fill!(p.z, 0)
     for I in WaterLily.inside(p.x)
         p.z[I] = WaterLily.div(I, a.u)
     end
-    WaterLily.solver!(p; tol=1e-7, itmx=1000)
+    tolerance = 1e-7
+    solve_pressure!(p, tolerance)
+    fine = p isa WaterLily.MultiLevelPoisson ? p.levels[1] : p
+    if !pressure_converged(fine, tolerance)
+        error("Native WaterLily pressure solve did not converge.")
+    end
     for d = 1:2, I in WaterLily.inside(p.x)
         a.u[I, d] -= p.L[I, d] * WaterLily.∂(d, I, p.x)
     end
@@ -71,6 +95,11 @@ function project!(a, p)
 end
 
 function simulate(state, nu, kappa, b, dt, steps, extent)
+    n = size(state, 1)
+    return simulate(state, nu, kappa, b, dt, steps, extent, Val(n >= 8 && n % 4 == 0))
+end
+
+function simulate(state, nu, kappa, b, dt, steps, extent, ::Val{multilevel}) where {multilevel}
     T = promote_type(eltype(state), typeof(nu), typeof(kappa), typeof(b), typeof(dt))
     n = size(state, 1)
     h = extent / n
@@ -81,7 +110,15 @@ function simulate(state, nu, kappa, b, dt, steps, extent)
     c = zeros(T, n+2, n+2)
     c[2:n+1, 2:n+1] .= state[:, :, 3]
     scalarwalls!(c)
-    p = WaterLily.Poisson(a.p, a.μ₀, a.σ)
+    # Native PCG can stall on smooth high-resolution forcing when its alpha
+    # guard fires. Multigrid resolves those modes on coarser grids. Upstream
+    # requires at least three levels; use native smoothing for other sizes,
+    # with the same convergence check instead of returning divergent flow.
+    p = if multilevel
+        WaterLily.MultiLevelPoisson(a.p, a.μ₀, a.σ)
+    else
+        WaterLily.Poisson(a.p, a.μ₀, a.σ)
+    end
     r = similar(c)
     c0 = similar(c)
 

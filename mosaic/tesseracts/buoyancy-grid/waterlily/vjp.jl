@@ -6,10 +6,13 @@ using Enzyme
 function coupled_vjp(state, nu, kappa, b, dt, steps, extent, cotangent)
     n = size(state, 1)
     x = vcat(vec(state), [nu, kappa, b, dt])
+    # Grid topology is constant: specialize the differentiated function on the
+    # pressure solver type rather than introducing a union of mutable solvers.
+    pressure_mode = Val(n >= 8 && n % 4 == 0)
     function objective(z)
         initial = reshape(view(z, 1:3n*n), n, n, 3)
         result = MosaicWaterLily.simulate(
-            initial, z[end-3], z[end-2], z[end-1], z[end], steps, extent
+            initial, z[end-3], z[end-2], z[end-1], z[end], steps, extent, pressure_mode
         )
         return sum(result .* cotangent)
     end

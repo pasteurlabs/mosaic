@@ -32,7 +32,7 @@ metadata:
     family: projection
     scheme: "FV + projection"
     discretization: FV
-    numerics: "Native momentum fluxes, upwind scalar, Heun, PCG projection"
+    numerics: "Native momentum fluxes, upwind scalar, Heun, native multigrid projection (red-black smoothing on noncoarsenable grids)"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: false
