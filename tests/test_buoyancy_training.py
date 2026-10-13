@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Small mathematical checks; numerical solver validation runs on Slurm/CI."""
 
-from itertools import pairwise
 from types import SimpleNamespace
 
 import jax
@@ -106,14 +105,73 @@ def test_training_uses_configured_ic_for_each_split(monkeypatch, ic):
     assert calls == [{"N": 64, "L": 2.0, "seed": seed} for seed in (7, 8, 9)]
 
 
-@pytest.mark.parametrize("updates,count", [(64, 93), (128, 85), (1, 1), (4, 1)])
-def test_training_windows_cover_full_trajectory_evenly(updates, count):
-    starts = [training.window_start(i, updates, count) for i in range(updates)]
-    assert starts[0] == 0
-    assert starts[-1] == count - 1
-    assert all(0 <= start < count for start in starts)
-    gaps = [b - a for a, b in pairwise(starts)]
-    if gaps:
-        assert max(gaps) - min(gaps) <= 1
-    if updates >= count:
-        assert set(starts) == set(range(count))
+@pytest.mark.parametrize("updates,count", [(256, 93), (128, 85), (1, 1), (4, 1)])
+def test_shuffled_windows_reproduce_seed_and_cover_each_epoch(updates, count):
+    starts = training.shuffled_windows(updates, count, 7)
+    assert starts == training.shuffled_windows(updates, count, 7)
+    assert len(starts) == updates
+    for begin in range(0, updates, count):
+        epoch = starts[begin : begin + count]
+        assert len(set(epoch)) == len(epoch)
+        assert all(0 <= start < count for start in epoch)
+        if len(epoch) == count:
+            assert set(epoch) == set(range(count))
+    if count > 1:
+        assert starts != training.shuffled_windows(updates, count, 8)
+
+
+@pytest.mark.parametrize("target,selected", [(0.1, 1), (0.0, 0)])
+def test_fit_completes_budget_and_retains_earlier_or_identity_checkpoint(
+    target, selected
+):
+    # A constant training gradient moves p away from zero each update; the
+    # independent validation target can favor an earlier point or the identity.
+    params, record = training.fit(
+        jnp.asarray(0.0),
+        lambda p, i: -p,
+        lambda p: (p - target) ** 2,
+        updates=3,
+        lr=0.1,
+        validation_interval=1,
+    )
+    assert record["completed_updates"] == 3
+    assert len(record["training_loss"]) == 3
+    assert record["selected_update"] == selected
+    np.testing.assert_allclose(params, target, atol=1e-5)
+    assert [point["update"] for point in record["validation_checkpoints"]] == [
+        0,
+        1,
+        2,
+        3,
+    ]
+
+
+def test_validation_ties_keep_identity_and_include_partial_final_interval():
+    params, record = training.fit(
+        jnp.asarray(0.0),
+        lambda p, i: -p,
+        lambda p: 1.0,
+        updates=3,
+        lr=0.1,
+        validation_interval=2,
+    )
+    assert float(params) == 0.0
+    assert record["selected_update"] == 0
+    assert [point["update"] for point in record["validation_checkpoints"]] == [0, 2, 3]
+    assert (
+        training.select_candidate(
+            [
+                {"validation_loss": 1.0, "selected_update": 2},
+                {"validation_loss": 1.0, "selected_update": 0},
+                {"validation_loss": 1.0, "selected_update": 0},
+            ]
+        )
+        == 1
+    )
+
+
+def test_nonfinite_validation_fails_instead_of_skipping_checkpoint():
+    with pytest.raises(FloatingPointError, match="validation"):
+        training.fit(
+            jnp.asarray(0.0), lambda p, i: -p, lambda p: float("nan"), 3, 0.1, 1
+        )

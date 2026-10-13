@@ -171,6 +171,8 @@ problem.add_experiment(
                 "validation_seed": 1,
                 "test_seed": 100,
                 "model_seed": 0,
+                "window_seed": 0,
+                "validation_interval": 64,
                 "reference_tolerance": 0.05,
                 "fd_epsilon": 0.003,
                 "fd_tolerance": 0.05,

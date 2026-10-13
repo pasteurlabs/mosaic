@@ -20,6 +20,11 @@ def valid_metrics():
     row = {
         "status": "ok",
         "updates": 2,
+        "unroll": 1,
+        "train_frames": 2,
+        "window_seed": 0,
+        "window_starts": [0, 1],
+        "validation_interval": 1,
         "eval_frames": 2,
         "seeds": {"train": 0, "validation": 1, "test": 100},
         "gradient_check": {"relative_error": 0.001},
@@ -52,14 +57,24 @@ def valid_metrics():
             row[arm].update(
                 {
                     "selected_candidate": 0,
+                    "selected_update": 1,
                     "total_training_seconds": 1.0,
+                    "total_validation_seconds": 0.5,
+                    "total_seconds": 1.5,
                     "candidates": [
                         {
                             "learning_rate": 0.003,
                             "validation_loss": 0.1,
+                            "selected_update": 1,
+                            "validation_checkpoints": [
+                                {"update": 0, "loss": 0.2},
+                                {"update": 1, "loss": 0.1},
+                                {"update": 2, "loss": 0.2},
+                            ],
                             "training_loss": [0.2, 0.1],
                             "completed_updates": 2,
                             "training_seconds": 1.0,
+                            "validation_seconds": 0.5,
                         }
                     ],
                 }
@@ -71,6 +86,17 @@ def test_complete_execution_passes_even_without_superiority():
     row = valid_metrics()
     row["solver_in_loop"]["loss"] = [0.0, 1.0, 2.0]
     assert corrector_execution(OptimizationSummary(metrics=row)) is None
+
+
+def test_identity_selection_still_requires_complete_training_budget():
+    row = valid_metrics()
+    result = row["solver_in_loop"]
+    candidate = result["candidates"][0]
+    candidate["validation_checkpoints"][0]["loss"] = 0.1
+    candidate["selected_update"] = result["selected_update"] = 0
+    assert corrector_execution(OptimizationSummary(metrics=row)) is None
+    candidate["completed_updates"] = 0
+    assert corrector_execution(OptimizationSummary(metrics=row)) is not None
 
 
 def test_reported_final_loss_uses_trained_rollout_not_baseline():
@@ -99,6 +125,10 @@ def test_missing_training_or_baseline_rollout_rejected(key):
         (("recurrence_error",), 0.001),
         (("seeds", "test"), 0),
         (("learning_rates",), [float("nan")]),
+        (("window_starts",), [0, 0]),
+        (("validation_interval",), 0),
+        (("solver_in_loop", "selected_update"), 2),
+        (("solver_in_loop", "total_seconds"), 1.0),
         (("solver_in_loop", "total_training_seconds"), float("nan")),
         (("solver_in_loop", "loss"), [0.0, 0.1]),
         (("divergence_rms", "solver_in_loop"), [0.0, float("inf"), 0.0]),
@@ -135,4 +165,17 @@ def test_heldout_reference_cannot_be_omitted_or_hidden_by_summary():
     assert corrector_execution(OptimizationSummary(metrics=row)) is not None
     row = valid_metrics()
     row["reference"]["splits"]["test"]["audit_gap_ratio"] = 0.5
+    assert corrector_execution(OptimizationSummary(metrics=row)) is not None
+
+
+@pytest.mark.parametrize("change", ["missing_final", "nonfinite", "late_tie"])
+def test_validation_checkpoint_selection_is_strict(change):
+    row = valid_metrics()
+    candidate = row["solver_in_loop"]["candidates"][0]
+    if change == "missing_final":
+        candidate["validation_checkpoints"].pop()
+    elif change == "nonfinite":
+        candidate["validation_checkpoints"][2]["loss"] = float("nan")
+    else:
+        candidate["validation_checkpoints"][0]["loss"] = 0.1
     assert corrector_execution(OptimizationSummary(metrics=row)) is not None

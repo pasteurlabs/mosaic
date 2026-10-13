@@ -46,6 +46,12 @@ def plot_solver_in_loop(
         if metrics.get("status") != "ok" or name not in names:
             continue
         index = names.index(name)
+        selected_update = metrics["solver_in_loop"]["selected_update"]
+        selected_label = (
+            "Selected: no correction"
+            if selected_update == 0
+            else f"Solver in the loop (update {selected_update})"
+        )
         keys = ["reference", *_METHODS]
         if any(f"{key}_{index}" not in snapshots for key in keys):
             continue
@@ -65,7 +71,11 @@ def plot_solver_in_loop(
         error_max = max(max(float(np.abs(e).max()) for e in errors.values()), 1e-8)
         fig, axes = plt.subplots(3, 3, figsize=(9, 8), constrained_layout=True)
         for column, key in enumerate(keys):
-            label = "Restricted reference" if key == "reference" else _METHODS[key][0]
+            label = (
+                "Restricted reference"
+                if key == "reference"
+                else (selected_label if key == "solver_in_loop" else _METHODS[key][0])
+            )
             axes[0, column].set_title(label, fontsize=10)
             fields = (final[key][..., 2], speeds[key], errors[key])
             limits = ((scalar_min, scalar_max), (0, speed_max), (-error_max, error_max))
@@ -97,6 +107,8 @@ def plot_solver_in_loop(
 
         fig, axes = plt.subplots(1, 2, figsize=(10, 3.8), constrained_layout=True)
         for key, (label, color) in _METHODS.items():
+            if key == "solver_in_loop":
+                label = selected_label
             for ax, metric in zip(axes, ("velocity_mse", "scalar_mse"), strict=True):
                 ax.plot(
                     times[1:],
@@ -119,17 +131,58 @@ def plot_solver_in_loop(
             save_fig(fig, f"rollout_error_{name}", out)
 
         fig, ax = plt.subplots(figsize=(7, 3.5), constrained_layout=True)
-        cost = metrics["solver_in_loop"]["total_training_seconds"]
+        trained = metrics["solver_in_loop"]
+        for candidate in trained["candidates"]:
+            checkpoints = candidate["validation_checkpoints"]
+            ax.plot(
+                [point["update"] for point in checkpoints],
+                [point["loss"] for point in checkpoints],
+                marker="o",
+                label=f"Learning rate {candidate['learning_rate']:g}",
+            )
+        selected = trained["candidates"][trained["selected_candidate"]]
+        ax.scatter(
+            [selected_update],
+            [selected["validation_loss"]],
+            marker="*",
+            s=150,
+            color="black",
+            zorder=3,
+            label="Selected checkpoint",
+        )
+        ax.set(
+            xlabel="Completed optimizer updates",
+            ylabel="Full-rollout validation loss",
+            title=f"{name}: selection includes the uncorrected model at update 0",
+        )
+        ax.grid(alpha=0.2)
+        ax.legend(fontsize=8)
+        figures.append(fig)
+        if save:
+            save_fig(fig, f"validation_checkpoints_{name}", out)
+
+        fig, ax = plt.subplots(figsize=(7, 3.5), constrained_layout=True)
+        trained = metrics["solver_in_loop"]
+        cost = trained["total_seconds"]
+        ax.barh(
+            ["Solver in the loop"],
+            [trained["total_training_seconds"]],
+            color=_METHODS["solver_in_loop"][1],
+            label="Training",
+        )
         bars = ax.barh(
             ["Solver in the loop"],
-            [cost],
-            color=_METHODS["solver_in_loop"][1],
+            [trained["total_validation_seconds"]],
+            left=[trained["total_training_seconds"]],
+            color="#aaa",
+            label="Validation checkpoints",
         )
-        ax.bar_label(bars, fmt="%.1f s", padding=4)
+        ax.bar_label(bars, labels=[f"{cost:.1f} s total"], padding=4)
         ax.set_xlim(0, max(cost, 1e-6) * 1.25)
-        ax.set_xlabel("Measured training time across all learning-rate candidates (s)")
+        ax.set_xlabel("Measured training and validation time across all candidates (s)")
+        ax.legend(fontsize=8)
         ax.set_title(
-            f"{name}: {metrics['updates']} updates per candidate; includes training compilation"
+            f"{name}: {metrics['updates']} completed updates per candidate; selected update {selected_update}"
         )
         figures.append(fig)
         if save:

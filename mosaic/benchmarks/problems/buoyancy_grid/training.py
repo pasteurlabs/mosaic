@@ -81,21 +81,68 @@ def directional_fd(loss: Any, params: Any, epsilon: float = 0.003) -> dict:
     }
 
 
-def window_start(iteration: int, updates: int, count: int) -> int:
-    """Spread the shared update budget across all valid training windows."""
-    return iteration * (count - 1) // max(updates - 1, 1)
+def shuffled_windows(updates: int, count: int, seed: int) -> list[int]:
+    """Visit every valid window once per seeded, independently shuffled epoch."""
+    if updates < 1 or count < 1:
+        raise ValueError("updates and window count must be positive")
+    rng = np.random.default_rng(seed)
+    starts = []
+    while len(starts) < updates:
+        starts.extend(rng.permutation(count).tolist())
+    return starts[:updates]
 
 
-def fit(params: Any, loss: Any, updates: int, lr: float) -> tuple:
-    """Run a fixed update budget and reject incomplete/nonfinite training."""
+def checkpoint_updates(updates: int, interval: int) -> list[int]:
+    """Always validate the identity and final model, including partial intervals."""
+    if updates < 1 or interval < 1:
+        raise ValueError("updates and validation interval must be positive")
+    return sorted({0, updates, *range(interval, updates + 1, interval)})
+
+
+def select_candidate(candidates: list[dict]) -> int:
+    """Choose by validation loss, then earliest update, then learning-rate order."""
+    return min(
+        range(len(candidates)),
+        key=lambda i: (
+            candidates[i]["validation_loss"],
+            candidates[i]["selected_update"],
+            i,
+        ),
+    )
+
+
+def fit(
+    params: Any,
+    loss: Any,
+    validate: Any,
+    updates: int,
+    lr: float,
+    validation_interval: int,
+) -> tuple:
+    """Complete the whole budget while retaining the best validation checkpoint."""
     optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.adam(lr))
     state = optimizer.init(params)
-    # The solver is a remote Tesseract callback. Keep the outer loop in Python
-    # so each failure names the iteration, without compiling a giant RPC graph.
     value_and_grad = jax.value_and_grad(loss)
-    history = []
-    started = time.perf_counter()
+    history, checkpoints = [], []
+    training_seconds, validation_seconds = 0.0, 0.0
+    selected_params, best_loss, selected_update = params, float("inf"), 0
+    scheduled = set(checkpoint_updates(updates, validation_interval))
+
+    def evaluate(current: Any, update: int) -> None:
+        nonlocal selected_params, best_loss, selected_update, validation_seconds
+        started = time.perf_counter()
+        score = float(validate(current))
+        validation_seconds += time.perf_counter() - started
+        if not np.isfinite(score) or score < 0:
+            raise FloatingPointError(f"invalid validation loss at update {update}")
+        checkpoints.append({"update": update, "loss": score})
+        # Strict comparison preserves the identity/earliest checkpoint on ties.
+        if score < best_loss:
+            selected_params, best_loss, selected_update = current, score, update
+
+    evaluate(params, 0)
     for iteration in range(updates):
+        started = time.perf_counter()
         value, gradient = value_and_grad(params, iteration)
         if not np.isfinite(float(value)) or not all(
             np.isfinite(np.asarray(g)).all() for g in jax.tree.leaves(gradient)
@@ -103,10 +150,24 @@ def fit(params: Any, loss: Any, updates: int, lr: float) -> tuple:
             raise FloatingPointError(f"nonfinite training at update {iteration}")
         delta, state = optimizer.update(gradient, state, params)
         params = optax.apply_updates(params, delta)
+        if not all(np.isfinite(np.asarray(p)).all() for p in jax.tree.leaves(params)):
+            raise FloatingPointError(
+                f"nonfinite model parameters at update {iteration + 1}"
+            )
         history.append(float(value))
-    if not all(np.isfinite(np.asarray(p)).all() for p in jax.tree.leaves(params)):
-        raise FloatingPointError("nonfinite final model parameters")
-    return params, history, time.perf_counter() - started
+        training_seconds += time.perf_counter() - started
+        if iteration + 1 in scheduled:
+            evaluate(params, iteration + 1)
+    return selected_params, {
+        "learning_rate": lr,
+        "training_loss": history,
+        "completed_updates": len(history),
+        "validation_loss": best_loss,
+        "selected_update": selected_update,
+        "validation_checkpoints": checkpoints,
+        "training_seconds": training_seconds,
+        "validation_seconds": validation_seconds,
+    }
 
 
 def rollout_errors(states: np.ndarray, targets: np.ndarray, scales: Any) -> dict:
@@ -152,6 +213,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     frames = int(cfg.get("eval_frames", 12))
     train_frames = int(cfg.get("train_frames", max(frames, horizon)))
     factor = int(cfg.get("reference_factor", 2))
+    validation_interval = int(cfg.get("validation_interval", 64))
+    window_seed = int(cfg.get("window_seed", 0))
     lrs = [float(lr) for lr in cfg.get("learning_rates", [0.003])]
     seeds = [
         int(cfg.get(key, default))
@@ -162,7 +225,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         )
     ]
     if (
-        min(n, steps, updates, horizon, frames) < 1
+        min(n, steps, updates, horizon, frames, validation_interval) < 1
         or train_frames < horizon
         or factor < 2
         or len(set(seeds)) != 3
@@ -278,9 +341,10 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         raise ValueError(f"solver restart equivalence failed: {recurrence_error}")
 
     count = len(train) - horizon
+    starts = shuffled_windows(updates, count, window_seed)
 
     def recurrent_loss(params: Any, iteration: int) -> jax.Array:
-        start = window_start(iteration, updates, count)
+        start = starts[iteration]
         return window_loss(params, train_jax[start : start + horizon + 1], step, scales)
 
     baseline = baselines["test"]
@@ -304,32 +368,38 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "unroll": horizon,
         "eval_frames": frames,
         "learning_rates": lrs,
+        "train_frames": train_frames,
+        "window_seed": window_seed,
+        "window_starts": starts,
+        "validation_interval": validation_interval,
         "uncorrected": rollout_errors(baseline, test, scales),
     }
+
+    def validate(params: Any) -> float:
+        rollout = trajectory(step, validation[0], frames, params, scales)
+        return float(np.mean(rollout_errors(rollout, validation, scales)["loss"][1:]))
+
     candidates = []
     models = []
     for lr in lrs:
-        params, history, elapsed = fit(params0, recurrent_loss, updates, lr)
-        rollout = trajectory(step, validation[0], frames, params, scales)
-        score = float(np.mean(rollout_errors(rollout, validation, scales)["loss"][1:]))
-        candidates.append(
-            {
-                "learning_rate": lr,
-                "validation_loss": score,
-                "training_loss": history,
-                "training_seconds": elapsed,
-                "completed_updates": len(history),
-            }
+        params, candidate = fit(
+            params0, recurrent_loss, validate, updates, lr, validation_interval
         )
+        candidates.append(candidate)
         models.append(params)
-    selected = int(np.argmin([c["validation_loss"] for c in candidates]))
+    selected = select_candidate(candidates)
     rollout = trajectory(step, test[0], frames, models[selected], scales)
     snapshots["solver_in_loop"] = rollout
     metrics["solver_in_loop"] = {
         **rollout_errors(rollout, test, scales),
         "selected_candidate": selected,
+        "selected_update": candidates[selected]["selected_update"],
         "candidates": candidates,
         "total_training_seconds": sum(c["training_seconds"] for c in candidates),
+        "total_validation_seconds": sum(c["validation_seconds"] for c in candidates),
+        "total_seconds": sum(
+            c["training_seconds"] + c["validation_seconds"] for c in candidates
+        ),
     }
     # Generic optimization reporting otherwise picks the first nested loss,
     # which is the uncorrected baseline rather than the trained rollout.

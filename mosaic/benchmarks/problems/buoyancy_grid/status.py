@@ -85,6 +85,35 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
             or frames < 1
         ):
             return "anomaly", "invalid buoyancy training/evaluation budget"
+        interval = row.get("validation_interval")
+        if not isinstance(interval, int) or interval < 1:
+            return "anomaly", "invalid validation checkpoint interval"
+        schedule = sorted({0, updates, *range(interval, updates + 1, interval)})
+        train_frames, horizon = row.get("train_frames"), row.get("unroll")
+        if (
+            not isinstance(train_frames, int)
+            or not isinstance(horizon, int)
+            or not 1 <= horizon <= train_frames
+        ):
+            return "anomaly", "invalid training trajectory/window length"
+        count = train_frames + 1 - horizon
+        starts = row.get("window_starts", [])
+        if (
+            not isinstance(row.get("window_seed"), int)
+            or len(starts) != updates
+            or any(
+                not isinstance(start, int) or not 0 <= start < count for start in starts
+            )
+        ):
+            return "anomaly", "invalid shuffled training windows"
+        if any(
+            len(set(starts[i : i + count])) != len(starts[i : i + count])
+            for i in range(0, updates, count)
+        ):
+            return (
+                "anomaly",
+                "training epoch repeats a window before covering its permutation",
+            )
         seeds = row.get("seeds", {})
         if (
             set(seeds) != {"train", "validation", "test"}
@@ -122,17 +151,39 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
             selected = result.get("selected_candidate")
             if not isinstance(selected, int) or not 0 <= selected < len(candidates):
                 return "anomaly", f"missing {arm} validation selection"
-            cost = result.get("total_training_seconds")
-            if not _finite(cost) or cost < 0:
-                return "anomaly", f"invalid {arm} training cost"
+            for key in (
+                "total_training_seconds",
+                "total_validation_seconds",
+                "total_seconds",
+            ):
+                if not _finite(result.get(key)) or result[key] < 0:
+                    return "anomaly", f"invalid {arm} measured cost"
             for lr, candidate in zip(learning_rates, candidates, strict=True):
                 if candidate.get("learning_rate") != lr:
                     return "anomaly", f"unmatched {arm} learning-rate candidate"
-                if (
-                    not _finite(candidate.get("training_seconds"))
-                    or candidate["training_seconds"] < 0
+                for key in ("training_seconds", "validation_seconds"):
+                    if not _finite(candidate.get(key)) or candidate[key] < 0:
+                        return "anomaly", f"invalid {arm} candidate measured cost"
+                checkpoints = candidate.get("validation_checkpoints", [])
+                if [point.get("update") for point in checkpoints] != schedule or any(
+                    not _finite(point.get("loss")) or point["loss"] < 0
+                    for point in checkpoints
                 ):
-                    return "anomaly", f"invalid {arm} candidate training cost"
+                    return (
+                        "anomaly",
+                        f"incomplete or nonfinite {arm} validation checkpoints",
+                    )
+                best = min(
+                    checkpoints, key=lambda point: (point["loss"], point["update"])
+                )
+                if (
+                    candidate.get("selected_update") != best["update"]
+                    or candidate.get("validation_loss") != best["loss"]
+                ):
+                    return (
+                        "anomaly",
+                        f"{arm} did not select its earliest best validation checkpoint",
+                    )
                 history = candidate.get("training_loss", [])
                 if (
                     candidate.get("completed_updates") != updates
@@ -143,8 +194,32 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
                     candidate.get("validation_loss")
                 ):
                     return "anomaly", f"nonfinite {arm} training/validation loss"
-            if candidates[selected]["validation_loss"] != min(
-                c["validation_loss"] for c in candidates
+            expected = min(
+                range(len(candidates)),
+                key=lambda i: (
+                    candidates[i]["validation_loss"],
+                    candidates[i]["selected_update"],
+                    i,
+                ),
+            )
+            if (
+                selected != expected
+                or result.get("selected_update")
+                != candidates[selected]["selected_update"]
             ):
-                return "anomaly", f"{arm} selection did not minimize validation loss"
+                return (
+                    "anomaly",
+                    f"{arm} selection did not minimize validation loss with earliest ties",
+                )
+            train_cost = sum(c["training_seconds"] for c in candidates)
+            validation_cost = sum(c["validation_seconds"] for c in candidates)
+            if any(
+                not math.isclose(result[key], value, rel_tol=1e-9, abs_tol=1e-9)
+                for key, value in (
+                    ("total_training_seconds", train_cost),
+                    ("total_validation_seconds", validation_cost),
+                    ("total_seconds", train_cost + validation_cost),
+                )
+            ):
+                return "anomaly", f"{arm} measured cost omits training or validation"
     return None
