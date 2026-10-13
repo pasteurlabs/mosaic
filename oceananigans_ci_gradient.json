@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "gradient",
+    "name": "fd_check"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.04,
+      "steps": 4
+    },
+    "fd": {
+      "eps_values": [
+        0.1,
+        0.01,
+        0.001
+      ],
+      "n_dirs": 3
+    }
+  },
+  "sweep": null,
+  "results": [
+    {
+      "solver": "Oceananigans",
+      "sweep_value": null,
+      "metrics": {
+        "ic_scale": 0.07155187427997589,
+        "vjp_arr": [
+          -0.1108444407582283,
+          -0.031196363270282745,
+          0.0864681676030159
+        ],
+        "eps_sweep": {
+          "0.1": {
+            "rel_error": [
+              0.004400908194657958,
+              0.0004338824602269438,
+              0.00017678053188024102
+            ],
+            "cosine": 0.9999978665207185,
+            "fd_arr": [
+              -0.1113344132900238,
+              -0.031209904700517654,
+              0.08648345619440079
+            ]
+          },
+          "0.01": {
+            "rel_error": [
+              0.0002718842093132101,
+              0.0017331547290305145,
+              0.0017252416172628415
+            ],
+            "cosine": 0.9999997441059354,
+            "fd_arr": [
+              -0.11087458580732346,
+              -0.03125052526593208,
+              0.0866176038980484
+            ]
+          },
+          "0.001": {
+            "rel_error": [
+              0.01108399294684,
+              0.014444371346259472,
+              0.002582846079287264
+            ],
+            "cosine": 0.9999908206418356,
+            "fd_arr": [
+              -0.11208681017160416,
+              -0.03165357932448387,
+              0.08669207990169525
+            ]
+          }
+        },
+        "ram_peak_mib": 2149.101568
+      }
+    }
+  ],
+  "provenance": {
+    "tesseract_hashes": {
+      "Oceananigans": "3006f94e0945ba18"
+    },
+    "harness_hash": "dd733b9f646abb7e",
+    "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.gradient.fd_check",
+    "wall_time_s": {
+      "Oceananigans": 215.8581356788054
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T06:51:53.442901+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T06:51:53Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

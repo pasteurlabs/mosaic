@@ -71,26 +71,26 @@
   },
   "provenance": {
     "tesseract_hashes": {
-      "Oceananigans": "1ff8d06b56c335da"
+      "Oceananigans": "3006f94e0945ba18"
     },
     "harness_hash": "81630adf05770ba3",
     "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
     "wall_time_s": {
-      "Oceananigans": 27.341352322000603
+      "Oceananigans": 26.780240372987464
     },
     "environment": {
       "python_version": "3.12.3",
-      "platform": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
       "mosaic_version": "0.0.0+unknown",
-      "timestamp": "2026-10-12T22:09:02.722414+00:00"
+      "timestamp": "2026-10-13T06:48:16.280716+00:00"
     },
     "run_meta": {
-      "timestamp": "2026-10-12T22:09:02Z",
+      "timestamp": "2026-10-13T06:48:16Z",
       "ci": false,
       "runner": "",
       "github_run_id": "",
       "github_sha": "",
-      "platform": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39"
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
     }
   }
 }
