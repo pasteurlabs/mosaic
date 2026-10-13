@@ -1,0 +1,560 @@
+{
+  "source_commit": "9d1116bb05e4e7f4ae8c06bf69bf70b881ec196d",
+  "complete": true,
+  "methods": {
+    "jax-cfd": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.0016806774568691907,
+        "solver_in_loop": 0.0026955452308320103
+      },
+      "final_loss_SOL": 0.008413512259721756,
+      "training_seconds": 110.2974984459579,
+      "wall_time_s": {
+        "JAX-CFD": 140.492882756982
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 0.003415039039139105,
+        "audit_gap_ratio": 0.09055170237321285,
+        "splits": {
+          "train": {
+            "time_refinement_error": 0.003415039039139105,
+            "coarse_gap": 0.03771369228447932,
+            "audit_gap_ratio": 0.09055170237321285
+          },
+          "validation": {
+            "time_refinement_error": 0.002896539461005629,
+            "coarse_gap": 0.033178146664438364,
+            "audit_gap_ratio": 0.08730262996004697
+          },
+          "test": {
+            "time_refinement_error": 0.0032999815304407512,
+            "coarse_gap": 0.0409960663584836,
+            "audit_gap_ratio": 0.0804950772980165
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006901312153786421,
+        "finite_difference": 0.0007011159905232489,
+        "relative_error": 0.015667557569766448,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008464829064905643,
+        "finite_difference": 0.00847150944173336,
+        "relative_error": 0.0007885698379567587,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.733468017548148e-07,
+      "provenance": {
+        "tesseract_hashes": {
+          "JAX-CFD": "a3c8ec8d615f5240"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "JAX-CFD": 140.492882756982
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:36:48.872332+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:36:48Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "result_sha256": "a5c1fa9fd770ad56cf983d71f1e0e8b9ccb144f8fbb183a4257dbbd255e772d6"
+    },
+    "oceananigans": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.0007356186003233489,
+        "solver_in_loop": 0.00052266024497861
+      },
+      "final_loss_SOL": 0.0010803663171827793,
+      "training_seconds": 213.27892670803703,
+      "wall_time_s": {
+        "Oceananigans": 513.0227717061061
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 1.1755367193766971e-07,
+        "audit_gap_ratio": 4.895268886256779e-06,
+        "splits": {
+          "train": {
+            "time_refinement_error": 1.1755367193766971e-07,
+            "coarse_gap": 0.02401373135349025,
+            "audit_gap_ratio": 4.895268886256779e-06
+          },
+          "validation": {
+            "time_refinement_error": 1.0331075705861468e-07,
+            "coarse_gap": 0.022631702121780457,
+            "audit_gap_ratio": 4.5648690718313114e-06
+          },
+          "test": {
+            "time_refinement_error": 9.445982886841158e-08,
+            "coarse_gap": 0.02712228973230964,
+            "audit_gap_ratio": 3.4827379915452186e-06
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006823714938946068,
+        "finite_difference": 0.0006930902600288391,
+        "relative_error": 0.015465180730986294,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008464647457003593,
+        "finite_difference": 0.008471480570733547,
+        "relative_error": 0.0008066020659434842,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.7283006665566063e-07,
+      "provenance": {
+        "tesseract_hashes": {
+          "Oceananigans": "3006f94e0945ba18"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "Oceananigans": 513.0227717061061
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:42:58.820225+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:42:58Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "result_sha256": "6b4f0a0c114a2ed8ad3352c6f813c4f9d668f05758927ea40907c6473ffbc9ea"
+    },
+    "ins-jl": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.00370337178246956,
+        "solver_in_loop": 0.004464962601396678
+      },
+      "final_loss_SOL": 0.009961722418665886,
+      "training_seconds": 377.71739708282985,
+      "wall_time_s": {
+        "INS.jl": 593.7969232171308
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 2.8537247160642394e-08,
+        "audit_gap_ratio": 5.027354589894785e-07,
+        "splits": {
+          "train": {
+            "time_refinement_error": 2.8537247160642394e-08,
+            "coarse_gap": 0.056763943442548453,
+            "audit_gap_ratio": 5.027354589894785e-07
+          },
+          "validation": {
+            "time_refinement_error": 2.6037999572032565e-08,
+            "coarse_gap": 0.05333285454206535,
+            "audit_gap_ratio": 4.882168748626712e-07
+          },
+          "test": {
+            "time_refinement_error": 2.7370312542962912e-08,
+            "coarse_gap": 0.06085533487270907,
+            "audit_gap_ratio": 4.4976028149731357e-07
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006681460654363036,
+        "finite_difference": 0.0006791211199015379,
+        "relative_error": 0.016160673175391,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008414859883487225,
+        "finite_difference": 0.00842174980789423,
+        "relative_error": 0.0008181107921951036,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.725329461052752e-07,
+      "provenance": {
+        "tesseract_hashes": {
+          "INS.jl": "a6584554f49cee5a"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "INS.jl": 593.7969232171308
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:44:18.475952+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:44:18Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "result_sha256": "9e9d6ef92b0c3082874959988da97d1a3a3155d4ecdbef2af89f1593707613a4"
+    },
+    "waterlily": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.00472124974548727,
+        "solver_in_loop": 0.007267935897770031
+      },
+      "final_loss_SOL": 0.013868738897144794,
+      "training_seconds": 227.9208704389166,
+      "wall_time_s": {
+        "WaterLily": 353.5728430249728
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 1.1824612986384837e-05,
+        "audit_gap_ratio": 0.00018280184316068487,
+        "splits": {
+          "train": {
+            "time_refinement_error": 1.1824612986384837e-05,
+            "coarse_gap": 0.06468541444623657,
+            "audit_gap_ratio": 0.00018280184316068487
+          },
+          "validation": {
+            "time_refinement_error": 1.0791779503035969e-05,
+            "coarse_gap": 0.063066243972789,
+            "audit_gap_ratio": 0.0001711181580385898
+          },
+          "test": {
+            "time_refinement_error": 9.526974912594308e-06,
+            "coarse_gap": 0.0687113509217165,
+            "audit_gap_ratio": 0.0001386521263924571
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006874399841763079,
+        "finite_difference": 0.000700616801623255,
+        "relative_error": 0.01880745282787653,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008470490574836731,
+        "finite_difference": 0.008477896451950073,
+        "relative_error": 0.0008735512583004946,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.90779314077372e-07,
+      "provenance": {
+        "tesseract_hashes": {
+          "WaterLily": "2aa88095045a039a"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "WaterLily": 353.5728430249728
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:40:19.610997+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:40:19Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "result_sha256": "8b3d64c0eafec9d0170c69e7427b3797157df52fdbfd011f57e1f0627f93ba33"
+    },
+    "phiflow": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.012132003517242574,
+        "solver_in_loop": 0.013406962623030837
+      },
+      "final_loss_SOL": 0.028248045593500137,
+      "training_seconds": 383.61408872390166,
+      "wall_time_s": {
+        "PhiFlow": 744.5164868580177
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 0.0018943319752820125,
+        "audit_gap_ratio": 0.017414855826890386,
+        "splits": {
+          "train": {
+            "time_refinement_error": 0.0018815263153178028,
+            "coarse_gap": 0.10804145231064884,
+            "audit_gap_ratio": 0.017414855826890386
+          },
+          "validation": {
+            "time_refinement_error": 0.0017245503759756768,
+            "coarse_gap": 0.09981946830114122,
+            "audit_gap_ratio": 0.017276693668342856
+          },
+          "test": {
+            "time_refinement_error": 0.0018943319752820125,
+            "coarse_gap": 0.1101453744704814,
+            "audit_gap_ratio": 0.01719847051579717
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0009254715987481177,
+        "finite_difference": 0.0009431172511540353,
+        "relative_error": 0.018709924332659306,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.009617605246603489,
+        "finite_difference": 0.009627632796764374,
+        "relative_error": 0.0010415384936840223,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.942127134199836e-07,
+      "provenance": {
+        "tesseract_hashes": {
+          "PhiFlow": "f8025ed82a5a1793"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "PhiFlow": 744.5164868580177
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:46:52.873945+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:46:52Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "result_sha256": "fd17b80e8bf2d9e4fc2992a7115d044d7d88493e4ededc9df6bfc94bd8b9506b"
+    }
+  },
+  "training": "SOL only; reference and uncorrected trajectories are evaluation baselines",
+  "loss_convention": "Mean normalized loss over predicted frames1..100, initialexcluded",
+  "runtime_convention": "Whole benchmark invocation including imports/compile/references/audits/training/heldout evaluation; excludes packageinstallation, queue andplotrendering. NativeJulia precompilecache reused. CPU exceptPhiFlowGPU; no hardwarecontrolled solver ranking.",
+  "validation": {
+    "final_tests": {
+      "job": 2947091,
+      "passed": 38,
+      "seconds": 10.4
+    },
+    "jobs": {
+      "jax-cfd": 2947081,
+      "oceananigans": 2947082,
+      "ins-jl": 2947083,
+      "waterlily": 2947084,
+      "phiflow": 2947085
+    }
+  },
+  "final_loss_verification": {
+    "source_AST": "metrics[final_loss] = metrics[solver_in_loop][loss][-1] verified exactly",
+    "regression_test": "Final38test run2947091 passes",
+    "per_solver_value": "final_loss_SOL copied directly from selected model held-out loss[-1], not baseline/core summary"
+  },
+  "source_note": "Numerical jobs source-v1; finalsource differs only explicitSOL final_loss summaryfield andits status regression. Training/physics identical; final38focusedtests pass. Raw result files preserved unmodified; read per-method loss ratherthanoldcore summaryfinal_loss.",
+  "limitations": [
+    "One train/validation/test IC andone modelseed: benchmarkmeasurement, not generalizationproof.",
+    "PhiFlow semiLagrangian scalar massdrift retained; no conservationclaim."
+  ],
+  "final_source_hashes": "final_source_hashes.json",
+  "artifacts": {
+    "animations": "animations-v1/artifacts",
+    "field_error_curves": "field-error-curves/artifacts",
+    "animation_job": 2947089,
+    "field_error_job": 2947093
+  }
+}

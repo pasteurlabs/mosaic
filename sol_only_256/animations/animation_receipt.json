@@ -1,0 +1,853 @@
+{
+  "sources": {
+    "PhiFlow": {
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-sol-only-20261013/phiflow/results/buoyancy-grid/optimization/solver_in_loop",
+      "files": {
+        "corrector_fields.npz": "6aa2d55aca29da09251dcf9296b39b836a0c8dcda53db1ecc74644416b284ccd",
+        "result.json": "fd17b80e8bf2d9e4fc2992a7115d044d7d88493e4ededc9df6bfc94bd8b9506b"
+      },
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "scales": [
+        0.07251250743865967,
+        0.07251250743865967,
+        0.1206052377820015
+      ],
+      "provenance": {
+        "tesseract_hashes": {
+          "PhiFlow": "f8025ed82a5a1793"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "PhiFlow": 744.5164868580177
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:46:52.873945+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:46:52Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "mean_loss_predicted_frames": {
+        "uncorrected": 0.012132003517242574,
+        "solver_in_loop": 0.013406962623030837
+      }
+    },
+    "WaterLily": {
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-sol-only-20261013/waterlily/results/buoyancy-grid/optimization/solver_in_loop",
+      "files": {
+        "corrector_fields.npz": "8c4b72327e41f0319b8fbf394f9edbf3da5bd4f52fc1a31d3a6341a24c15242d",
+        "result.json": "8b3d64c0eafec9d0170c69e7427b3797157df52fdbfd011f57e1f0627f93ba33"
+      },
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "scales": [
+        0.07697845250368118,
+        0.07697845250368118,
+        0.12144897133111954
+      ],
+      "provenance": {
+        "tesseract_hashes": {
+          "WaterLily": "2aa88095045a039a"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "WaterLily": 353.5728430249728
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:40:19.610997+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:40:19Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "mean_loss_predicted_frames": {
+        "uncorrected": 0.00472124974548727,
+        "solver_in_loop": 0.007267935897770031
+      }
+    },
+    "Oceananigans": {
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-sol-only-20261013/oceananigans/results/buoyancy-grid/optimization/solver_in_loop",
+      "files": {
+        "corrector_fields.npz": "3a93ec3eb080de64f7a1f145db819f96a31ec3bcdc750ae8e5537354b2dd0eb1",
+        "result.json": "6b4f0a0c114a2ed8ad3352c6f813c4f9d668f05758927ea40907c6473ffbc9ea"
+      },
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "scales": [
+        0.07763055711984634,
+        0.07763055711984634,
+        0.12605933845043182
+      ],
+      "provenance": {
+        "tesseract_hashes": {
+          "Oceananigans": "3006f94e0945ba18"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "Oceananigans": 513.0227717061061
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:42:58.820225+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:42:58Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "mean_loss_predicted_frames": {
+        "uncorrected": 0.0007356186003233489,
+        "solver_in_loop": 0.00052266024497861
+      }
+    },
+    "JAX-CFD": {
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-sol-only-20261013/jax-cfd/results/buoyancy-grid/optimization/solver_in_loop",
+      "files": {
+        "corrector_fields.npz": "6300c749620187e2e05cf70e8fa33c784794ee6cc671b7776a783c26bf2ba9ce",
+        "result.json": "a5c1fa9fd770ad56cf983d71f1e0e8b9ccb144f8fbb183a4257dbbd255e772d6"
+      },
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "scales": [
+        0.07747627794742584,
+        0.07747627794742584,
+        0.12592172622680664
+      ],
+      "provenance": {
+        "tesseract_hashes": {
+          "JAX-CFD": "a3c8ec8d615f5240"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "JAX-CFD": 140.492882756982
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:36:48.872332+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:36:48Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "mean_loss_predicted_frames": {
+        "uncorrected": 0.0016806774568691907,
+        "solver_in_loop": 0.0026955452308320103
+      }
+    },
+    "INS.jl": {
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-sol-only-20261013/ins-jl/results/buoyancy-grid/optimization/solver_in_loop",
+      "files": {
+        "corrector_fields.npz": "9599bacebec42daf22aa7648c0e8a89aabb229fbcfbc7a62857b90747808340f",
+        "result.json": "9e9d6ef92b0c3082874959988da97d1a3a3155d4ecdbef2af89f1593707613a4"
+      },
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 256,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "scales": [
+        0.07776771485805511,
+        0.07776771485805511,
+        0.1261385977268219
+      ],
+      "provenance": {
+        "tesseract_hashes": {
+          "INS.jl": "a6584554f49cee5a"
+        },
+        "harness_hash": "cff7e6320fc16907",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "INS.jl": 593.7969232171308
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T11:44:18.475952+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T11:44:18Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      },
+      "mean_loss_predicted_frames": {
+        "uncorrected": 0.00370337178246956,
+        "solver_in_loop": 0.004464962601396678
+      }
+    }
+  },
+  "rendering": {
+    "frames": 101,
+    "frame_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100
+    ],
+    "interpolated_frames": false,
+    "duration_ms": [
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      1500
+    ],
+    "shared_color_limits": "All solvers, methods and actual saved times; no clipping",
+    "speed": "Magnitude after averaging staggered face velocities to cell centers with zero normal walls."
+  },
+  "common_protocol": {
+    "updates": 256,
+    "unroll": 8,
+    "train_frames": 100,
+    "eval_frames": 100,
+    "reference_factor": 2,
+    "learning_rates": [
+      0.003
+    ],
+    "hidden_channels": 8,
+    "train_seed": 0,
+    "validation_seed": 1,
+    "test_seed": 100,
+    "model_seed": 0,
+    "physics": {
+      "N": 64,
+      "nu": 0.0005,
+      "diffusivity": 0.0005,
+      "buoyancy": 1.0,
+      "dt": 0.005,
+      "steps": 8
+    }
+  },
+  "scales_note": "Loss normalization scales are computed from each solver\u2019s training reference and may differ by backend. Physical inputs, network size, training budget, seeds and evaluation times are identical. Rendering uses physical scalar/speed, not normalized loss.",
+  "color_limits": {
+    "scalar": [
+      -0.0006778257666155696,
+      0.99381422996521
+    ],
+    "speed": [
+      0.0,
+      0.37693431973457336
+    ]
+  },
+  "times": [
+    0.0,
+    0.04,
+    0.08,
+    0.12,
+    0.16,
+    0.2,
+    0.24,
+    0.28,
+    0.32,
+    0.36,
+    0.4,
+    0.44,
+    0.48,
+    0.52,
+    0.56,
+    0.6,
+    0.64,
+    0.68,
+    0.72,
+    0.76,
+    0.8,
+    0.84,
+    0.88,
+    0.92,
+    0.96,
+    1.0,
+    1.04,
+    1.08,
+    1.12,
+    1.16,
+    1.2,
+    1.24,
+    1.28,
+    1.32,
+    1.36,
+    1.4000000000000001,
+    1.44,
+    1.48,
+    1.52,
+    1.56,
+    1.6,
+    1.6400000000000001,
+    1.68,
+    1.72,
+    1.76,
+    1.8,
+    1.84,
+    1.8800000000000001,
+    1.92,
+    1.96,
+    2.0,
+    2.04,
+    2.08,
+    2.12,
+    2.16,
+    2.2,
+    2.24,
+    2.2800000000000002,
+    2.32,
+    2.36,
+    2.4,
+    2.44,
+    2.48,
+    2.52,
+    2.56,
+    2.6,
+    2.64,
+    2.68,
+    2.72,
+    2.7600000000000002,
+    2.8000000000000003,
+    2.84,
+    2.88,
+    2.92,
+    2.96,
+    3.0,
+    3.04,
+    3.08,
+    3.12,
+    3.16,
+    3.2,
+    3.24,
+    3.2800000000000002,
+    3.3200000000000003,
+    3.36,
+    3.4,
+    3.44,
+    3.48,
+    3.52,
+    3.56,
+    3.6,
+    3.64,
+    3.68,
+    3.72,
+    3.7600000000000002,
+    3.8000000000000003,
+    3.84,
+    3.88,
+    3.92,
+    3.96,
+    4.0
+  ],
+  "error_overlay": {
+    "reference": "Same-solver restricted128\u00b2 reference at matching saved time",
+    "scalar_formula": "abs(theta_method - theta_reference)",
+    "velocity_formula": "sqrt((center(u_method)-center(u_reference))\u00b2 + (center(v_method)-center(v_reference))\u00b2); not abs(speed_method-speed_reference)",
+    "scalar_color": "cyan #00ffff",
+    "velocity_color": "magenta #ff00ff",
+    "opacity_formula": "alpha = 0.85 * error / field_global_max",
+    "scalar_global_max": 0.1251109540462494,
+    "velocity_global_max": 0.08250318467617035,
+    "normalization": "One maximum per error field across all five solvers, two methods and101times; linear; no clipping; no per-frame rescaling",
+    "reference_overlay": false,
+    "legend_background": "neutral gray #808080"
+  },
+  "base_palettes": {
+    "scalar": "gray: black(low) to white(high)",
+    "speed": "gray: black(low) to white(high)",
+    "normalization": "Unchanged fixed linear physical scales shared across all solvers, methods and times"
+  },
+  "artifacts": {
+    "waterlily_frame_00.png": {
+      "sha256": "75f09f197727400a12c3e74e559ea42c1081c3cf2e39f03b2dcf4ff272d573c5",
+      "bytes": 77981
+    },
+    "jax_cfd.gif": {
+      "sha256": "f7caec64e3f149fad9f197b2266e9ec36eff438e8ab4fef40cae685091408d3b",
+      "bytes": 9707964
+    },
+    "jax_cfd_frame_50.png": {
+      "sha256": "c7d6149a8f84a98c8fa43fe80b0351c5ea9b615a2b8ac0e973a7a02a04fea592",
+      "bytes": 106349
+    },
+    "overview_frame_00.png": {
+      "sha256": "a3d961cac6551158dd9da6bb6424ff3f9a6774f00c6e670549f6d78f8c8aae6f",
+      "bytes": 82242
+    },
+    "jax_cfd_contact.png": {
+      "sha256": "c84728b5adfe0c27519b3669e9d68201b540024273eae70d86169bafe3a899cd",
+      "bytes": 301965
+    },
+    "jax_cfd_frame_100.png": {
+      "sha256": "acca38c917d44145621c0b17993d45f4a351001a5940b97327072fa7209b832b",
+      "bytes": 117764
+    },
+    "jax_cfd_frame_00.png": {
+      "sha256": "a02e849fe433abacbbf5050c77f456895141287a9c42529ccf6efd0b65c41d2c",
+      "bytes": 78079
+    },
+    "oceananigans_contact.png": {
+      "sha256": "e3cda8702f6d57ca485bf0bb63a5bb8b4c571709bf444f291353a2ecf26af63f",
+      "bytes": 298129
+    },
+    "overview_frame_50.png": {
+      "sha256": "7a594dae3e9c477e2bf931380d4b3530612bdced6ca002d5c8b87afd68e205e8",
+      "bytes": 119578
+    },
+    "overview_contact.png": {
+      "sha256": "e99c22d959ba5532d6e00b857f07610960cdbedc8f0bb936de2343e300dbb1ff",
+      "bytes": 343005
+    },
+    "waterlily.gif": {
+      "sha256": "daf84e7e1aa6f5d79efbb38dbcba75dbfd58deebebf73f94b21076fe092e95d2",
+      "bytes": 9689767
+    },
+    "waterlily_frame_50.png": {
+      "sha256": "ae6aa366d2c45c5f4089f672ad820c0ad366c37f48cfeb0f6646a86d123ec626",
+      "bytes": 108578
+    },
+    "overview_frame_100.png": {
+      "sha256": "64695fc87914d00a839dbf8472a77f08eac9e708be6beede401fbace0a652a76",
+      "bytes": 140469
+    },
+    "insjl_frame_00.png": {
+      "sha256": "97737e2766e12e440dfdb1ceaf63d53207631c0c103bae61488d4bb89161f338",
+      "bytes": 77400
+    },
+    "phiflow.gif": {
+      "sha256": "ade0db20edf5c9ade8232ff93db377458e5d0a40caa6f90fb503cc841009d301",
+      "bytes": 9430344
+    },
+    "phiflow_frame_100.png": {
+      "sha256": "f447de4e8fbdbcb188561f28aeb0757bd66210bbed3e48368a82b3acfd504a9d",
+      "bytes": 118870
+    },
+    "waterlily_frame_100.png": {
+      "sha256": "14bee5c18619e1ebe600043c302846fd1e467c0fba343eb1879b4ce3ee1326fa",
+      "bytes": 119181
+    },
+    "phiflow_frame_00.png": {
+      "sha256": "7943bb70977cc03951dbc4dd0f40330ff517798223fff0f0799001e4b75b2aee",
+      "bytes": 77703
+    },
+    "oceananigans_frame_00.png": {
+      "sha256": "8291b93c010b13de06ccc84c9fb83928b2bb0ed52a1abe43e3320130f4b9118b",
+      "bytes": 78634
+    },
+    "oceananigans.gif": {
+      "sha256": "e793b637c42920c97a392107072cf9a17c1a154ee81482ed0d8677d41ea0d684",
+      "bytes": 9657783
+    },
+    "insjl_contact.png": {
+      "sha256": "7ad890e792ee9729db43bc037e3979efc628ca6e3bdc8a3d580a8ca555b8729a",
+      "bytes": 302394
+    },
+    "oceananigans_frame_50.png": {
+      "sha256": "090782c2e100da7cce7d4bb5bab14bb9a7d48a52409b7c6f70f7de1bd23a0eb1",
+      "bytes": 104318
+    },
+    "overview.gif": {
+      "sha256": "11cafe0216f5e3ba2a490d4eb9573ac4a89aef51c71b2ee52c21e9e5cca16f90",
+      "bytes": 13236121
+    },
+    "phiflow_frame_50.png": {
+      "sha256": "20fd4dfa42ed57d2e48a5bc08a28a57cb75befb8757887252cc63e5b62eb4abb",
+      "bytes": 108572
+    },
+    "insjl_frame_100.png": {
+      "sha256": "f7196e05296c5dde29a7d32a15661d1c5df81a31730ced50aa4d2f7f413a7965",
+      "bytes": 118132
+    },
+    "oceananigans_frame_100.png": {
+      "sha256": "8bb23e70255e1fd650a19c6eb2ce834d703e19db6672953074c9300d5187d164",
+      "bytes": 115405
+    },
+    "insjl.gif": {
+      "sha256": "ecefb2932f50215bf1ef523aab8abdba078ac344b69b08c381ff3f17a3c815c0",
+      "bytes": 9659266
+    },
+    "waterlily_contact.png": {
+      "sha256": "ad77a11cb70c922b12fb48d889d6f8c8096fe0adfa394a1ebad2a1e79574dc28",
+      "bytes": 305520
+    },
+    "phiflow_contact.png": {
+      "sha256": "e0f1c7c18062ffa6cb2d97e9b1434687c197bddf60325ed614772ebcb53dd145",
+      "bytes": 304957
+    },
+    "insjl_frame_50.png": {
+      "sha256": "e1dbfe71ab5aeaebf6199fff31893c64ded7f8e4c7b6742a104926819d361cb7",
+      "bytes": 106962
+    }
+  }
+}

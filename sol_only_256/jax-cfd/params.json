@@ -1,0 +1,32 @@
+{
+  "ic": {
+    "name": "interacting_plumes",
+    "seed": 0
+  },
+  "physics": {
+    "N": 64,
+    "nu": 0.0005,
+    "diffusivity": 0.0005,
+    "buoyancy": 1.0,
+    "dt": 0.005,
+    "steps": 8
+  },
+  "training": {
+    "updates": 256,
+    "unroll": 8,
+    "train_frames": 100,
+    "eval_frames": 100,
+    "reference_factor": 2,
+    "learning_rates": [
+      0.003
+    ],
+    "hidden_channels": 8,
+    "train_seed": 0,
+    "validation_seed": 1,
+    "test_seed": 100,
+    "model_seed": 0,
+    "reference_tolerance": 0.05,
+    "fd_epsilon": 0.003,
+    "fd_tolerance": 0.05
+  }
+}
