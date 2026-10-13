@@ -1,0 +1,44 @@
+{
+  "job": "Slurm CPU rendering only; no new simulations",
+  "data": "field_error_curves.json",
+  "metric_definitions": {
+    "scalar_metric": "Spatial mean absolute scalar error: mean(abs(theta_method-theta_reference))",
+    "velocity_metric": "Spatial mean vector velocity error: mean(norm(centered_velocity_method-centered_velocity_reference))",
+    "reference": "Same-solver restricted128\u00b2 field at each matching time",
+    "units": "Physical scalar and velocity units; no solver-dependent normalization"
+  },
+  "variants": {
+    "base_sup": "Uncorrected dashed + supervised solid for allfive; reference zero dotted",
+    "reference_sup": "Supervised solid for allfive; reference zero dotted"
+  },
+  "files": {
+    "field_error_curves.json": {
+      "sha256": "56c8473c2b2c27a9d4dbfecfebb47bf58bc8a575d6faaa312820b4399b967403",
+      "bytes": 95760
+    },
+    "field_error_base_sup.svg": {
+      "sha256": "af9a78c6089d419ed6a9638e277625b38f10456fb8abd0bc84b8078f30517ea8",
+      "bytes": 145905
+    },
+    "field_error_reference_sup.png": {
+      "sha256": "6fad89757280ac217e6a4acb3c07f2c5670a12e0157e3182c68cfef8872c4bed",
+      "bytes": 198519
+    },
+    "field_error_curves.csv": {
+      "sha256": "e78fa757590fb345f912bf51245c72259c5f8b9197e4b5c2eff3bc2bffe8a20a",
+      "bytes": 88815
+    },
+    "field_error_base_sup.png": {
+      "sha256": "f553eb4e7ece3476ae6e96ef733d33f7c2ac040f3349ebce65391051cf168b3e",
+      "bytes": 266250
+    },
+    "field_error_reference_sup.svg": {
+      "sha256": "6f5cd19f03b5ed58cdc38665b45f431cd1eb57b0fbea580dc231db4517acafaf",
+      "bytes": 117002
+    }
+  },
+  "jobs": {
+    "data": 2946957,
+    "plots": 2946975
+  }
+}
