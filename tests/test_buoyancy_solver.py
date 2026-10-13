@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Native solver checks, run in the PhiFlow environment on a cluster worker."""
+"""Native JAX solver checks, run in each backend's cluster environment."""
 
 import importlib.util
 from pathlib import Path
@@ -10,14 +10,20 @@ import numpy as np
 import pytest
 
 
-@pytest.fixture(scope="module")
-def solver():
-    pytest.importorskip("phi.jax.flow")
+@pytest.fixture(scope="module", params=["phiflow", "jax-cfd"])
+def solver(request):
+    pytest.importorskip(
+        {"phiflow": "phi.jax.flow", "jax-cfd": "jax_cfd.base"}[request.param]
+    )
     path = (
         Path(__file__).resolve().parents[1]
-        / "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_api.py"
+        / "mosaic/tesseracts/buoyancy-grid"
+        / request.param
+        / "tesseract_api.py"
     )
-    spec = importlib.util.spec_from_file_location("buoyancy_phiflow", path)
+    spec = importlib.util.spec_from_file_location(
+        f"buoyancy_{request.param.replace('-', '_')}", path
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -58,6 +64,20 @@ def test_zero_buoyancy_preserves_rest(solver):
         {**args, "buoyancy": jnp.array([0.0], dtype=jnp.float32)}
     )["result"]
     np.testing.assert_allclose(result[..., :2], 0, atol=1e-7)
+
+
+@pytest.mark.parametrize("buoyancy", [-1.0, 1.0])
+def test_uniform_scalar_preserves_hydrostatic_rest(solver, buoyancy):
+    import jax.numpy as jnp
+
+    args = _inputs()
+    args["state0"] = jnp.zeros_like(args["state0"]).at[..., 2].set(1.0)
+    args["buoyancy"] = jnp.array([buoyancy], dtype=jnp.float32)
+    args["steps"] = 2
+    result = solver.apply_jit(args)["result"]
+    # Pressure must balance uniform buoyancy without leaking normal wall flux.
+    np.testing.assert_allclose(result[..., :2], 0, atol=1e-6)
+    np.testing.assert_allclose(result[..., 2], 1, rtol=0, atol=1e-6)
 
 
 def test_recurrent_state_directional_gradient(solver):

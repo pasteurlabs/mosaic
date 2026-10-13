@@ -9,6 +9,8 @@ All backends use no-slip velocity walls and zero normal scalar derivative.
 | Backend | Coupled flow implementation | Differentiable inputs |
 | --- | --- | --- |
 | PhiFlow | Semi-Lagrangian transport, explicit diffusion, and pressure projection. | State and physics parameters |
+| JAX-CFD | Native Van Leer momentum and scalar transport, explicit diffusion, and closed-wall pressure projection. | State and physics parameters |
+| INS.jl | Native Boussinesq model, centered transport, RK4, and closed-wall transform pressure projection. | State |
 | WaterLily | Native momentum and pressure routines, with conservative upwind scalar transport and two-stage coupling added by the adapter. | State and physics parameters |
 | Oceananigans | Native nonhydrostatic buoyancy model, third-order upwind advection, RK3, and spectral pressure projection. | State |
 
@@ -16,7 +18,11 @@ The Julia backends initially run on CPU. Each backend generates its own
 fine-resolution reference; the physical problem and training recipe are shared,
 but the numerical discretizations differ.
 
-Both Julia adapters use Enzyme reverse-mode differentiation. Oceananigans uses
+JAX-CFD uses Float64 internally to avoid reverse-mode underflow in the native
+Van Leer limiter at the plume's small tails; its public state remains Float32.
+
+WaterLily and Oceananigans use Enzyme reverse-mode differentiation; INS.jl uses
+Zygote with the library's native operator adjoints. Oceananigans uses
 an equivalent separable Neumann pressure inverse because its native FFTW path
 lacks Enzyme support. Forward simulation and derivatives use the same pressure
 implementation. Its adapter pins Julia 1.12.6 to avoid the reverse-mode
@@ -52,6 +58,8 @@ Results and full-field plots appear here when benchmark artifacts are generated.
 
 ```bash
 mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s phiflow
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s jax-cfd
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s ins-jl
 mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s waterlily
 mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s oceananigans
 ```

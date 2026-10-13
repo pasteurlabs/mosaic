@@ -1,0 +1,25 @@
+name: jax_cfd_buoyancy_grid
+version: "0.1.0"
+description: >
+  Coupled two-dimensional buoyancy flow with native JAX-CFD Van Leer momentum
+  and scalar advection, explicit diffusion, and closed-wall pressure projection.
+build_config:
+  package_data: []
+env:
+  JAX_ENABLE_X64: "true"
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.5"
+  XLA_FLAGS: "--xla_gpu_autotune_level=0 --xla_gpu_enable_cublaslt=false"
+metadata:
+  mosaic:
+    name: "JAX-CFD"
+    backend: jax
+    family: projection
+    scheme: "FV + projection"
+    discretization: FV
+    numerics: "Van Leer, explicit diffusion, fast-diagonalization projection"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float64
+    doc_url: "https://github.com/google/jax-cfd"

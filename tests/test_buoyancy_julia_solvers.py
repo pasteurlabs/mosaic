@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 
-@pytest.fixture(scope="module", params=["waterlily", "oceananigans"])
+@pytest.fixture(scope="module", params=["waterlily", "oceananigans", "ins-jl"])
 def solver(request):
     selected = os.environ.get("MOSAIC_TEST_JULIA_SOLVERS", "").split(",")
     if request.param not in selected:
