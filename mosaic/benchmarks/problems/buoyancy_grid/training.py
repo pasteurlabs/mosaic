@@ -92,6 +92,32 @@ def shuffled_windows(updates: int, count: int, seed: int) -> list[int]:
     return starts[:updates]
 
 
+def balanced_windows(
+    updates: int, count: int, cases: int, seed: int
+) -> tuple[list[int], list[int]]:
+    """Balance cases each round and independently shuffle each case's windows."""
+    if cases < 1:
+        raise ValueError("at least one training case is required")
+    if cases == 1:
+        return [0] * updates, shuffled_windows(updates, count, seed)
+    order_rng = np.random.default_rng(seed)
+    streams = [
+        np.random.default_rng(child)
+        for child in np.random.SeedSequence(seed).spawn(cases)
+    ]
+    pending = [[] for _ in range(cases)]
+    case_ids, starts = [], []
+    while len(starts) < updates:
+        for case in order_rng.permutation(cases).tolist():
+            if len(starts) == updates:
+                break
+            if not pending[case]:
+                pending[case] = streams[case].permutation(count).tolist()
+            case_ids.append(case)
+            starts.append(pending[case].pop())
+    return case_ids, starts
+
+
 def checkpoint_updates(updates: int, interval: int) -> list[int]:
     """Always validate the identity and final model, including partial intervals."""
     if updates < 1 or interval < 1:
@@ -216,19 +242,33 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     validation_interval = int(cfg.get("validation_interval", 64))
     window_seed = int(cfg.get("window_seed", 0))
     lrs = [float(lr) for lr in cfg.get("learning_rates", [0.003])]
-    seeds = [
-        int(cfg.get(key, default))
-        for key, default in (
-            ("train_seed", 0),
-            ("validation_seed", 1),
-            ("test_seed", 100),
+    cases = [
+        dict(case)
+        for case in cfg.get("train_cases", [{"seed": int(cfg.get("train_seed", 0))}])
+    ]
+    if not cases or any(
+        "seed" not in case
+        or set(case) - {"seed", "position_jitter", "width_jitter", "amplitude_jitter"}
+        for case in cases
+    ):
+        raise ValueError(
+            "training cases require seed and supported optional IC jitter settings"
         )
+    for case in cases:
+        case["seed"] = int(case["seed"])
+        for key in set(case) - {"seed"}:
+            case[key] = float(case[key])
+            if not np.isfinite(case[key]) or case[key] < 0:
+                raise ValueError("training-case jitter must be finite and nonnegative")
+    seeds = [case["seed"] for case in cases] + [
+        int(cfg.get("validation_seed", 1)),
+        int(cfg.get("test_seed", 100)),
     ]
     if (
         min(n, steps, updates, horizon, frames, validation_interval) < 1
         or train_frames < horizon
         or factor < 2
-        or len(set(seeds)) != 3
+        or len(set(seeds)) != len(seeds)
         or not lrs
         or not all(np.isfinite(lr) and lr > 0 for lr in lrs)
     ):
@@ -256,16 +296,22 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     make_initial = ctx.cfg.make_ic[ic_name]
     references = []
     fine_initials = []
-    for seed, length in zip(seeds, (train_frames, frames, frames), strict=True):
-        initial = make_initial(
-            N=n * factor,
-            L=ctx.domain_extent,
-            seed=seed,
-        )
+    split_names = ["train" if i == 0 else f"train_{i}" for i in range(len(cases))] + [
+        "validation",
+        "test",
+    ]
+    descriptors = [*cases, {"seed": seeds[-2]}, {"seed": seeds[-1]}]
+    data_started = time.perf_counter()
+    for case, length in zip(
+        descriptors, [train_frames] * len(cases) + [frames, frames], strict=True
+    ):
+        initial = make_initial(N=n * factor, L=ctx.domain_extent, **case)
         fine_initials.append(initial)
         fine = trajectory(fine_step, initial, length)
         references.append(np.stack([restrict_state(s, factor) for s in fine]))
-    train, validation, test = references
+    training_references = np.stack(references[: len(cases)])
+    train, validation, test = references[0], references[-2], references[-1]
+    # Anchor normalization to the unchanged first training case to isolate added data.
     velocity_scale = max(float(np.sqrt(np.mean(train[..., :2] ** 2))), 1e-3)
     scalar_scale = max(float(np.sqrt(np.mean(train[..., 2] ** 2))), 1e-3)
     scales = jnp.asarray(
@@ -276,7 +322,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     audits = {}
     baselines = {}
     for split, initial, reference in zip(
-        ("train", "validation", "test"), fine_initials, references, strict=True
+        split_names, fine_initials, references, strict=True
     ):
         length = len(reference) - 1
         audit = trajectory(make_step(2 * factor), initial, length)
@@ -306,6 +352,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
                 f"{split} reference uncertainty too large relative to coarse gap: {audit_gap_ratio:.6g}"
             )
 
+    reference_generation_seconds = time.perf_counter() - data_started
     params0 = init_corrector(
         int(cfg.get("model_seed", 0)),
         int(cfg.get("hidden_channels", 8)),
@@ -341,11 +388,17 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         raise ValueError(f"solver restart equivalence failed: {recurrence_error}")
 
     count = len(train) - horizon
-    starts = shuffled_windows(updates, count, window_seed)
+    case_ids, starts = balanced_windows(updates, count, len(cases), window_seed)
+    training_jax = jnp.asarray(training_references)
 
     def recurrent_loss(params: Any, iteration: int) -> jax.Array:
         start = starts[iteration]
-        return window_loss(params, train_jax[start : start + horizon + 1], step, scales)
+        return window_loss(
+            params,
+            training_jax[case_ids[iteration], start : start + horizon + 1],
+            step,
+            scales,
+        )
 
     baseline = baselines["test"]
     snapshots = {"reference": test, "uncorrected": baseline}
@@ -363,7 +416,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "gradient_check_nonzero": fd_nonzero,
         "recurrence_error": recurrence_error,
         "scales": np.asarray(scales).tolist(),
-        "seeds": dict(zip(("train", "validation", "test"), seeds, strict=True)),
+        "seeds": {"train": seeds[0], "validation": seeds[-2], "test": seeds[-1]},
+        "training_cases": cases,
+        "training_case_counts": [case_ids.count(i) for i in range(len(cases))],
+        "normalization": "RMS of unchanged first training trajectory only",
+        "normalization_case": 0,
+        "reference_generation_seconds": reference_generation_seconds,
         "updates": updates,
         "unroll": horizon,
         "eval_frames": frames,
@@ -371,6 +429,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "train_frames": train_frames,
         "window_seed": window_seed,
         "window_starts": starts,
+        "window_cases": case_ids,
         "validation_interval": validation_interval,
         "uncorrected": rollout_errors(baseline, test, scales),
     }

@@ -124,7 +124,7 @@ def plot_solver_in_loop(
         axes[1].set_title("Buoyancy scalar")
         axes[1].legend(fontsize=8)
         fig.suptitle(
-            f"{name}: held-out rollout; normalization fixed from training data"
+            f"{name}: held-out rollout; normalization fixed from first training case"
         )
         figures.append(fig)
         if save:

@@ -22,10 +22,24 @@ def plume(N: int = 24, L: float = 1.0, seed: int = 0, **_: Any) -> jax.Array:
 
 
 def interacting_plumes(
-    N: int = 64, L: float = 1.0, seed: int = 0, **_: Any
+    N: int = 64,
+    L: float = 1.0,
+    seed: int = 0,
+    position_jitter: float = 0.015,
+    width_jitter: float = 0.05,
+    amplitude_jitter: float = 0.0,
+    **_: Any,
 ) -> jax.Array:
-    """Two unequal neighboring warm plumes with gentle seeded variation."""
-    return jnp.asarray(make_interacting_plumes_ic(N=N, seed=seed))
+    """Two unequal neighboring warm plumes with configurable seeded variation."""
+    return jnp.asarray(
+        make_interacting_plumes_ic(
+            N=N,
+            seed=seed,
+            position_jitter=position_jitter,
+            width_jitter=width_jitter,
+            amplitude_jitter=amplitude_jitter,
+        )
+    )
 
 
 def diffusion_ic(N: int = 24, **_: Any) -> jax.Array:

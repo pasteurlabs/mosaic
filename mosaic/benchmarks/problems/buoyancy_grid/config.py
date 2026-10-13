@@ -167,7 +167,18 @@ problem.add_experiment(
                 "reference_factor": 2,
                 "learning_rates": [0.003],
                 "hidden_channels": 8,
-                "train_seed": 0,
+                "train_cases": [
+                    {"seed": 0},
+                    *[
+                        {
+                            "seed": seed,
+                            "position_jitter": 0.04,
+                            "width_jitter": 0.15,
+                            "amplitude_jitter": 0.15,
+                        }
+                        for seed in (2, 3, 4)
+                    ],
+                ],
                 "validation_seed": 1,
                 "test_seed": 100,
                 "model_seed": 0,

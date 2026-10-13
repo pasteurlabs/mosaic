@@ -32,22 +32,46 @@ def make_plume_ic(N: int = 32, seed: int = 0) -> np.ndarray:
     return state
 
 
-def make_interacting_plumes_ic(N: int = 64, seed: int = 0) -> np.ndarray:
+def make_interacting_plumes_ic(
+    N: int = 64,
+    seed: int = 0,
+    position_jitter: float = 0.015,
+    width_jitter: float = 0.05,
+    amplitude_jitter: float = 0.0,
+) -> np.ndarray:
     """Two unequal warm plumes at rest, averaged over each physical grid cell.
 
     Normalized centers are near (0.36, 0.18) and (0.64, 0.25), with Gaussian
     standard deviations 0.06 and 0.075 and peak amplitudes 1.0 and 0.8.
-    Small seeded position/width changes give distinct members of the same
-    family. Analytic cell averages preserve the initial mass under refinement.
+    Position jitter is absolute in normalized coordinates; width/amplitude
+    jitters are relative fractions. Analytic cell averages preserve initial mass
+    under refinement, using the same seeded geometry at every resolution.
     """
+    for name, value in (
+        ("position_jitter", position_jitter),
+        ("width_jitter", width_jitter),
+        ("amplitude_jitter", amplitude_jitter),
+    ):
+        if not math.isfinite(value) or value < 0:
+            raise ValueError(f"{name} must be finite and nonnegative.")
+    if width_jitter >= 1 or amplitude_jitter >= 1:
+        raise ValueError("width_jitter and amplitude_jitter must be less than one.")
     rng = np.random.default_rng(seed)
     centers = np.array([[0.36, 0.18], [0.64, 0.25]]) + rng.uniform(
-        -0.015, 0.015, size=(2, 2)
+        -position_jitter, position_jitter, size=(2, 2)
     )
-    widths = np.array([0.06, 0.075]) * rng.uniform(0.95, 1.05, size=2)
+    if np.any((centers <= 0) | (centers >= 1)):
+        raise ValueError("Sampled plume centers must remain inside the unit box.")
+    widths = np.array([0.06, 0.075]) * rng.uniform(
+        1 - width_jitter, 1 + width_jitter, size=2
+    )
+    amplitudes = np.array([1.0, 0.8])
+    # Keep the original draw sequence and defaults bitwise unchanged.
+    if amplitude_jitter > 0:
+        amplitudes *= rng.uniform(1 - amplitude_jitter, 1 + amplitude_jitter, size=2)
     edges = np.arange(N + 1, dtype=np.float64) / N
     scalar = np.zeros((N, N), dtype=np.float64)
-    for center, width, amplitude in zip(centers, widths, (1.0, 0.8), strict=True):
+    for center, width, amplitude in zip(centers, widths, amplitudes, strict=True):
         averages = []
         for coordinate in center:
             scaled_edges = (edges - coordinate) / (math.sqrt(2) * width)

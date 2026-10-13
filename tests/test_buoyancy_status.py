@@ -179,3 +179,39 @@ def test_validation_checkpoint_selection_is_strict(change):
     else:
         candidate["validation_checkpoints"][0]["loss"] = 0.1
     assert corrector_execution(OptimizationSummary(metrics=row)) is not None
+
+
+def mixed_metrics():
+    row = valid_metrics()
+    row["training_cases"] = [{"seed": 0}, {"seed": 2, "position_jitter": 0.04}]
+    row["reference"]["splits"]["train_1"] = deepcopy(
+        row["reference"]["splits"]["train"]
+    )
+    row["window_cases"] = [0, 1]
+    row["training_case_counts"] = [1, 1]
+    row["normalization_case"] = 0
+    return row
+
+
+def test_each_training_case_is_admitted_and_disjoint():
+    row = mixed_metrics()
+    assert corrector_execution(OptimizationSummary(metrics=row)) is None
+    row["reference"]["splits"].pop("train_1")
+    assert corrector_execution(OptimizationSummary(metrics=row)) is not None
+    row = mixed_metrics()
+    row["training_cases"][1]["seed"] = 100
+    assert corrector_execution(OptimizationSummary(metrics=row)) is not None
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("window_cases", [0, 0]),
+        ("training_case_counts", [2, 0]),
+        ("normalization_case", 1),
+    ],
+)
+def test_training_mix_counts_and_normalization_are_checked(key, value):
+    row = mixed_metrics()
+    row[key] = value
+    assert corrector_execution(OptimizationSummary(metrics=row)) is not None

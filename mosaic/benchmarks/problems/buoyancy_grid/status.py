@@ -62,8 +62,36 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
                 return "anomaly", f"buoyancy {label} failed"
         updates = row.get("updates", 0)
         reference = row.get("reference", {})
+        cases = row.get("training_cases", [{"seed": row.get("seeds", {}).get("train")}])
+        if (
+            not isinstance(cases, list)
+            or not cases
+            or any(
+                not isinstance(case, dict) or not isinstance(case.get("seed"), int)
+                for case in cases
+            )
+        ):
+            return "anomaly", "invalid training-case descriptors"
+        for case in cases:
+            if set(case) - {
+                "seed",
+                "position_jitter",
+                "width_jitter",
+                "amplitude_jitter",
+            } or any(
+                not _finite(value) or value < 0
+                for key, value in case.items()
+                if key != "seed"
+            ):
+                return "anomaly", "invalid training-case IC jitter"
         audits = reference.get("splits", {})
-        if set(audits) != {"train", "validation", "test"}:
+        expected_splits = {
+            "train",
+            "validation",
+            "test",
+            *(f"train_{i}" for i in range(1, len(cases))),
+        }
+        if set(audits) != expected_splits:
             return "anomaly", "missing buoyancy target-split reference audit"
         for audit in audits.values():
             if any(
@@ -106,20 +134,51 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
             )
         ):
             return "anomaly", "invalid shuffled training windows"
-        if any(
-            len(set(starts[i : i + count])) != len(starts[i : i + count])
-            for i in range(0, updates, count)
+        case_ids = row.get("window_cases", [0] * updates)
+        if len(case_ids) != updates or any(
+            not isinstance(case, int) or not 0 <= case < len(cases) for case in case_ids
         ):
-            return (
-                "anomaly",
-                "training epoch repeats a window before covering its permutation",
-            )
+            return "anomaly", "invalid training-case schedule"
+        if any(
+            len(set(case_ids[i : i + len(cases)])) != len(case_ids[i : i + len(cases)])
+            for i in range(0, updates, len(cases))
+        ):
+            return "anomaly", "training-case schedule is not balanced per round"
+        for case in range(len(cases)):
+            case_starts = [
+                start
+                for selected_case, start in zip(case_ids, starts, strict=True)
+                if selected_case == case
+            ]
+            if any(
+                len(set(case_starts[i : i + count])) != len(case_starts[i : i + count])
+                for i in range(0, len(case_starts), count)
+            ):
+                return (
+                    "anomaly",
+                    "training case repeats a window before covering its permutation",
+                )
+        if row.get(
+            "training_case_counts", [case_ids.count(i) for i in range(len(cases))]
+        ) != [case_ids.count(i) for i in range(len(cases))]:
+            return "anomaly", "incorrect training-case update counts"
+        if row.get("normalization_case", 0) != 0:
+            return "anomaly", "normalization must use the unchanged first training case"
         seeds = row.get("seeds", {})
         if (
             set(seeds) != {"train", "validation", "test"}
             or len(set(seeds.values())) != 3
         ):
             return "anomaly", "buoyancy train/validation/test seeds must be distinct"
+        all_seeds = [case["seed"] for case in cases] + [
+            seeds["validation"],
+            seeds["test"],
+        ]
+        if seeds["train"] != cases[0]["seed"] or len(set(all_seeds)) != len(all_seeds):
+            return (
+                "anomaly",
+                "training cases must have distinct seeds disjoint from held-out seeds",
+            )
         learning_rates = row.get("learning_rates", [])
         if not learning_rates or not all(
             _finite(lr) and lr > 0 for lr in learning_rates

@@ -175,3 +175,65 @@ def test_nonfinite_validation_fails_instead_of_skipping_checkpoint():
         training.fit(
             jnp.asarray(0.0), lambda p, i: -p, lambda p: float("nan"), 3, 0.1, 1
         )
+
+
+def test_balanced_case_schedule_is_reproducible_and_each_case_covers_windows():
+    cases, starts = training.balanced_windows(84, 7, 4, 0)
+    assert (cases, starts) == training.balanced_windows(84, 7, 4, 0)
+    assert [cases.count(i) for i in range(4)] == [21] * 4
+    for begin in range(0, 84, 4):
+        assert set(cases[begin : begin + 4]) == set(range(4))
+    for case in range(4):
+        windows = [
+            start for chosen, start in zip(cases, starts, strict=True) if chosen == case
+        ]
+        for begin in range(0, len(windows), 7):
+            assert set(windows[begin : begin + 7]) == set(range(7))
+    assert training.balanced_windows(20, 7, 1, 0) == (
+        [0] * 20,
+        training.shuffled_windows(20, 7, 0),
+    )
+
+
+def test_default_mix_assigns_64_updates_per_case_without_crossing_trajectories():
+    cases, starts = training.balanced_windows(256, 100 + 1 - 8, 4, 0)
+    assert [cases.count(i) for i in range(4)] == [64] * 4
+    assert all(0 <= start and start + 8 <= 100 for start in starts)
+    single_cases, single_starts = training.balanced_windows(256, 93, 1, 0)
+    assert single_cases == [0] * 256
+    assert single_starts == training.shuffled_windows(256, 93, 0)
+
+
+def test_training_case_jitter_is_never_forwarded_to_heldout_initials(monkeypatch):
+    calls = []
+
+    class InitialsCaptured(Exception):
+        pass
+
+    def initial(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 4:
+            raise InitialsCaptured
+
+    cases = [
+        {"seed": 0},
+        {
+            "seed": 2,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15,
+        },
+    ]
+    ctx = SimpleNamespace(
+        run={"training": {"train_cases": cases}},
+        phys={"N": 24},
+        domain_extent=1.0,
+        cfg=SimpleNamespace(make_ic={"plume": initial}),
+    )
+    monkeypatch.setattr(training, "trajectory", lambda *args: [None])
+    monkeypatch.setattr(training, "restrict_state", lambda state, factor: state)
+    with pytest.raises(InitialsCaptured):
+        training.solver_in_loop(None, ctx)
+    assert calls == [
+        {"N": 48, "L": 1.0, **case} for case in [*cases, {"seed": 1}, {"seed": 100}]
+    ]

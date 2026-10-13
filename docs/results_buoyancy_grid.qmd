@@ -45,13 +45,19 @@ flowchart LR
 The default uses a 64² coarse grid and a 128² reference grid, with viscosity
 and scalar diffusivity both 0.0005. Each correction interval contains eight
 solver steps of 0.005; 100 intervals evolve the flow to time 4. Training uses
-256 optimizer updates and eight-interval windows shuffled in seeded epochs
-across the training trajectory. Separate initial-condition seeds provide
-training, validation, and held-out evaluation trajectories. The full validation
-rollout selects among checkpoints at updates 0, 64, 128, 192, and 256; update 0
-is the initial zero-correction model. Every run completes all 256 updates, even
-when validation selects an earlier checkpoint. Only the selected model is
-evaluated on the test trajectory.
+256 optimizer updates across four training trajectories. Seed 0 retains the
+original two-plume initial condition; seeds 2, 3, and 4 add broader position
+variation (±0.04 domain units), width variation (±15%), and amplitude variation
+(±15%). Each group of four updates visits every trajectory once in shuffled
+order, using independently shuffled eight-interval windows within each trajectory.
+Normalization remains fixed from training case 0 to isolate the effect of added
+data. Validation seed 1 and held-out test seed 100 retain their original initial
+conditions. Every training reference is checked independently for time refinement.
+
+The full validation rollout selects among checkpoints at updates 0, 64, 128,
+192, and 256; update 0 is the initial zero-correction model. Every run completes
+all 256 updates, even when validation selects an earlier checkpoint. Only the
+selected model is evaluated on the test trajectory.
 
 Solver-in-the-loop training minimizes a recurrent trajectory loss, with gradients
 through the solver. Held-out rollouts compare the trained corrector against the
