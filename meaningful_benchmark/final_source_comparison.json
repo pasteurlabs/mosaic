@@ -1,0 +1,46 @@
+{
+  "waterlily": {
+    "mosaic/tesseracts/buoyancy-grid/waterlily/solver.jl": {
+      "snapshot_sha256": "056afa02a9425396e0fa890dd025f0636c36ab443725c8f1ac103092122b6dda",
+      "working_sha256": "056afa02a9425396e0fa890dd025f0636c36ab443725c8f1ac103092122b6dda",
+      "matches": true
+    },
+    "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_api.py": {
+      "snapshot_sha256": "37d0db8f6354527b36933d672d4984f8c777d03bd44dad67f58a7b24a8d9923a",
+      "working_sha256": "37d0db8f6354527b36933d672d4984f8c777d03bd44dad67f58a7b24a8d9923a",
+      "matches": true
+    },
+    "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_config.yaml": {
+      "snapshot_sha256": "e357ab6e961df63cfcc1b88a2fa8b8fe3a3b4737f5859003dfd2938ef2451535",
+      "working_sha256": "e357ab6e961df63cfcc1b88a2fa8b8fe3a3b4737f5859003dfd2938ef2451535",
+      "matches": true
+    },
+    "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_requirements.txt": {
+      "snapshot_sha256": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+      "working_sha256": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+      "matches": true
+    },
+    "mosaic/tesseracts/buoyancy-grid/waterlily/vjp.jl": {
+      "snapshot_sha256": "f3a078d3923d125a0c48aa0ecddec7a2a0ce6ede7deeb17dcdcc1809a2d29a02",
+      "working_sha256": "f3a078d3923d125a0c48aa0ecddec7a2a0ce6ede7deeb17dcdcc1809a2d29a02",
+      "matches": true
+    }
+  },
+  "phiflow": {
+    "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_api.py": {
+      "snapshot_sha256": "2c1134949f8f8da9e8d2525ff38398f5af4cb1c407ceb395f93a5808cd50c6ad",
+      "working_sha256": "2c1134949f8f8da9e8d2525ff38398f5af4cb1c407ceb395f93a5808cd50c6ad",
+      "matches": true
+    },
+    "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_config.yaml": {
+      "snapshot_sha256": "e5345cdc855a51dd4aa84adb21f081c07653fd1bce49291b52b2656ce288afc2",
+      "working_sha256": "e5345cdc855a51dd4aa84adb21f081c07653fd1bce49291b52b2656ce288afc2",
+      "matches": true
+    },
+    "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_requirements.txt": {
+      "snapshot_sha256": "0b51df38eaf99f875d735caf5aedab76cbe48e6dbc125157ec3c8cf230a44e43",
+      "working_sha256": "0b51df38eaf99f875d735caf5aedab76cbe48e6dbc125157ec3c8cf230a44e43",
+      "matches": true
+    }
+  }
+}

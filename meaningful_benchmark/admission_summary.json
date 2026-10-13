@@ -1,0 +1,659 @@
+{
+  "complete": true,
+  "purpose": "Meaningful default CI corrector benchmark, not evidence of universal SOL advantage",
+  "loss_convention": "Mean normalized loss over predicted frames1..100; initial state excluded",
+  "methods": {
+    "jax-cfd": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 64,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "reference_gap_tolerance": 0.25,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.0016806774568691907,
+        "supervised": 0.0009593601646364646,
+        "solver_in_loop": 0.0019371015256487566,
+        "stop_gradient": 0.002232170481211142
+      },
+      "training_seconds": {
+        "supervised": 12.509871147107333,
+        "solver_in_loop": 26.398272287799045,
+        "stop_gradient": 13.743850467959419
+      },
+      "wall_time_s": {
+        "JAX-CFD": 89.3730867409613
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 0.003415039039139105,
+        "audit_gap_ratio": 0.09055170237321285,
+        "splits": {
+          "train": {
+            "time_refinement_error": 0.003415039039139105,
+            "coarse_gap": 0.03771369228447932,
+            "audit_gap_ratio": 0.09055170237321285
+          },
+          "validation": {
+            "time_refinement_error": 0.002896539461005629,
+            "coarse_gap": 0.033178146664438364,
+            "audit_gap_ratio": 0.08730262996004697
+          },
+          "test": {
+            "time_refinement_error": 0.0032999815304407512,
+            "coarse_gap": 0.0409960663584836,
+            "audit_gap_ratio": 0.0804950772980165
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006901312153786421,
+        "finite_difference": 0.0007011159905232489,
+        "relative_error": 0.015667557569766448,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008464829064905643,
+        "finite_difference": 0.00847150944173336,
+        "relative_error": 0.0007885698379567587,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.733468017548148e-07,
+      "result_sha256": "aa90cf8d04447bb836987dd72cb3718bcc3abac1796618e611463b5b216e6378",
+      "provenance": {
+        "tesseract_hashes": {
+          "JAX-CFD": "a3c8ec8d615f5240"
+        },
+        "harness_hash": "ca76ab8bf8d38134",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "JAX-CFD": 89.3730867409613
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T09:53:43.681356+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T09:53:43Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      }
+    },
+    "oceananigans": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 64,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "reference_gap_tolerance": 0.25,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.0007356186003233489,
+        "supervised": 0.0009099265714693416,
+        "solver_in_loop": 0.000541061728278791,
+        "stop_gradient": 0.001479283622068266
+      },
+      "training_seconds": {
+        "supervised": 12.028166360920295,
+        "solver_in_loop": 49.77573549794033,
+        "stop_gradient": 13.559891011100262
+      },
+      "wall_time_s": {
+        "Oceananigans": 370.698786187917
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 1.1755367193766971e-07,
+        "audit_gap_ratio": 4.895268886256779e-06,
+        "splits": {
+          "train": {
+            "time_refinement_error": 1.1755367193766971e-07,
+            "coarse_gap": 0.02401373135349025,
+            "audit_gap_ratio": 4.895268886256779e-06
+          },
+          "validation": {
+            "time_refinement_error": 1.0331075705861468e-07,
+            "coarse_gap": 0.022631702121780457,
+            "audit_gap_ratio": 4.5648690718313114e-06
+          },
+          "test": {
+            "time_refinement_error": 9.445982886841158e-08,
+            "coarse_gap": 0.02712228973230964,
+            "audit_gap_ratio": 3.4827379915452186e-06
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006823714938946068,
+        "finite_difference": 0.0006930902600288391,
+        "relative_error": 0.015465180730986294,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008464647457003593,
+        "finite_difference": 0.008471480570733547,
+        "relative_error": 0.0008066020659434842,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.7283006665566063e-07,
+      "result_sha256": "02370b01656c02bcf067f2c0a797735606ed8f98dde785d0c0f6c96bc3b61ff2",
+      "provenance": {
+        "tesseract_hashes": {
+          "Oceananigans": "3006f94e0945ba18"
+        },
+        "harness_hash": "ca76ab8bf8d38134",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "Oceananigans": 370.698786187917
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T09:58:29.267412+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T09:58:29Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      }
+    },
+    "ins-jl": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 64,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.00370337178246956,
+        "supervised": 0.004383077740939143,
+        "solver_in_loop": 0.005595033858269858,
+        "stop_gradient": 0.003238744442164858
+      },
+      "training_seconds": {
+        "supervised": 14.145345085766166,
+        "solver_in_loop": 92.93281283299439,
+        "stop_gradient": 21.157734544947743
+      },
+      "wall_time_s": {
+        "INS.jl": 353.5883479740005
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 2.8537247160642394e-08,
+        "audit_gap_ratio": 5.027354589894785e-07,
+        "splits": {
+          "train": {
+            "time_refinement_error": 2.8537247160642394e-08,
+            "coarse_gap": 0.056763943442548453,
+            "audit_gap_ratio": 5.027354589894785e-07
+          },
+          "validation": {
+            "time_refinement_error": 2.6037999572032565e-08,
+            "coarse_gap": 0.05333285454206535,
+            "audit_gap_ratio": 4.882168748626712e-07
+          },
+          "test": {
+            "time_refinement_error": 2.7370312542962912e-08,
+            "coarse_gap": 0.06085533487270907,
+            "audit_gap_ratio": 4.4976028149731357e-07
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006681460654363036,
+        "finite_difference": 0.0006791211199015379,
+        "relative_error": 0.016160673175391,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008414859883487225,
+        "finite_difference": 0.00842174980789423,
+        "relative_error": 0.0008181107921951036,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.725329461052752e-07,
+      "result_sha256": "444ace3a05316a55e9196c4829ffa22312d1b014378b3abdac902efb247b387f",
+      "provenance": {
+        "tesseract_hashes": {
+          "INS.jl": "a6584554f49cee5a"
+        },
+        "harness_hash": "ca76ab8bf8d38134",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "INS.jl": 353.5883479740005
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T09:59:11.122678+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T09:59:11Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      }
+    },
+    "waterlily": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 64,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.00472124974548727,
+        "supervised": 0.005205230797145077,
+        "solver_in_loop": 0.006704925292564781,
+        "stop_gradient": 0.0063955039252702765
+      },
+      "training_seconds": {
+        "supervised": 12.921140929916874,
+        "solver_in_loop": 56.17803267296404,
+        "stop_gradient": 15.18905463302508
+      },
+      "wall_time_s": {
+        "WaterLily": 217.61139721912332
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 1.1824612986384837e-05,
+        "audit_gap_ratio": 0.00018280184316068487,
+        "splits": {
+          "train": {
+            "time_refinement_error": 1.1824612986384837e-05,
+            "coarse_gap": 0.06468541444623657,
+            "audit_gap_ratio": 0.00018280184316068487
+          },
+          "validation": {
+            "time_refinement_error": 1.0791779503035969e-05,
+            "coarse_gap": 0.063066243972789,
+            "audit_gap_ratio": 0.0001711181580385898
+          },
+          "test": {
+            "time_refinement_error": 9.526974912594308e-06,
+            "coarse_gap": 0.0687113509217165,
+            "audit_gap_ratio": 0.0001386521263924571
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0006874399841763079,
+        "finite_difference": 0.000700616801623255,
+        "relative_error": 0.01880745282787653,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008470490574836731,
+        "finite_difference": 0.008477896451950073,
+        "relative_error": 0.0008735512583004946,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.90779314077372e-07,
+      "result_sha256": "53972ab3b861e1fb6b7da8e440dfe9dc8eff891620c9a625193c2a77ebdf7603",
+      "provenance": {
+        "tesseract_hashes": {
+          "WaterLily": "2aa88095045a039a"
+        },
+        "harness_hash": "ca76ab8bf8d38134",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "WaterLily": 217.61139721912332
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T10:15:52.304956+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T10:15:52Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      }
+    },
+    "phiflow": {
+      "params": {
+        "ic": {
+          "name": "interacting_plumes",
+          "seed": 0
+        },
+        "physics": {
+          "N": 64,
+          "nu": 0.0005,
+          "diffusivity": 0.0005,
+          "buoyancy": 1.0,
+          "dt": 0.005,
+          "steps": 8
+        },
+        "training": {
+          "updates": 64,
+          "unroll": 8,
+          "train_frames": 100,
+          "eval_frames": 100,
+          "reference_factor": 2,
+          "learning_rates": [
+            0.003
+          ],
+          "hidden_channels": 8,
+          "train_seed": 0,
+          "validation_seed": 1,
+          "test_seed": 100,
+          "model_seed": 0,
+          "reference_tolerance": 0.05,
+          "fd_epsilon": 0.003,
+          "fd_tolerance": 0.05
+        }
+      },
+      "status": "ok",
+      "mean_predicted_loss": {
+        "uncorrected": 0.012132003530630335,
+        "supervised": 0.016202996376146073,
+        "solver_in_loop": 0.011976989850095947,
+        "stop_gradient": 0.01570769090059571
+      },
+      "training_seconds": {
+        "supervised": 22.25175282289274,
+        "solver_in_loop": 94.86791527201422,
+        "stop_gradient": 45.85912429401651
+      },
+      "wall_time_s": {
+        "PhiFlow": 549.8655590550043
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 0.0018943264117127312,
+        "audit_gap_ratio": 0.017414835463232657,
+        "splits": {
+          "train": {
+            "time_refinement_error": 0.0018815241127592504,
+            "coarse_gap": 0.10804145217057304,
+            "audit_gap_ratio": 0.017414835463232657
+          },
+          "validation": {
+            "time_refinement_error": 0.0017245503379517291,
+            "coarse_gap": 0.09981946845603495,
+            "audit_gap_ratio": 0.01727669326060677
+          },
+          "test": {
+            "time_refinement_error": 0.0018943264117127312,
+            "coarse_gap": 0.11014537453125453,
+            "audit_gap_ratio": 0.017198419995160148
+          }
+        }
+      },
+      "gradient_check": {
+        "autodiff": 0.0009254715987481177,
+        "finite_difference": 0.0009431175421923399,
+        "relative_error": 0.018710227150693256,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.009617605246603489,
+        "finite_difference": 0.009627633728086948,
+        "relative_error": 0.0010416351272486738,
+        "epsilon": 0.003
+      },
+      "recurrence_error": 4.942127134199836e-07,
+      "result_sha256": "e2f717ca7a603f4d8f5ce9e9792d153c30ce6b4c69c4cfb1149a64e6d81b9343",
+      "provenance": {
+        "tesseract_hashes": {
+          "PhiFlow": "f8025ed82a5a1793"
+        },
+        "harness_hash": "ca76ab8bf8d38134",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "PhiFlow": 549.8655590550043
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.0+unknown",
+          "timestamp": "2026-10-13T10:31:26.901031+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-13T10:31:26Z",
+          "ci": false,
+          "runner": "",
+          "github_run_id": "",
+          "github_sha": "",
+          "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+        }
+      }
+    }
+  },
+  "limitations": [
+    "One model seed and one held-out initial condition per backend; no statistical generality claim.",
+    "PhiFlow semi-Lagrangian scalar loses about5% fine-grid and9% coarse-grid mass; recorded rather than hidden.",
+    "CPU runs for JAX-CFD, WaterLily, Oceananigans and INS.jl; GPU for PhiFlow. Do not compare walltimes as hardware-controlled ranking.",
+    "Actual Tesseract in-process API and benchmark framework validated; Docker/CI execution not asserted by these receipts."
+  ],
+  "jobs": {
+    "initial_driver_syntax_failures": [
+      2946652,
+      2946653,
+      2946654,
+      2946655,
+      2946656
+    ],
+    "schema_training_tests": 2946658,
+    "phiflow_cpu": 2946660,
+    "jax_forward": 2946661,
+    "water_pcg_failure": 2946662,
+    "ocean_forward": 2946663,
+    "ins_forward": 2946664,
+    "render_jax": 2946674,
+    "phiflow_gpu_platform_failure": 2946675,
+    "water_multigrid_probe": 2946678,
+    "jax_training": 2946682,
+    "ocean_training": 2946683,
+    "phiflow_gpu_pressure_failure": 2946686,
+    "ins_training": 2946688,
+    "water_final_preflight": 2946693,
+    "water_guard_union_failure": 2946693,
+    "water_specialized_preflight": 2946699,
+    "phiflow_bicg_probe": 2946705,
+    "phiflow_cg64_probe": 2946706,
+    "water_forward_multigrid": 2946708,
+    "water_native_gs_fallback_validation": 2946718,
+    "water_final_admission": 2946718,
+    "water_training": 2946721,
+    "phi_float64_vjp_context_failure": 2946732,
+    "phi_final_admission": 2946749,
+    "phi_training": 2946778,
+    "phi_final_raw_contracts": 2946776,
+    "phi_final_forward": 2946773,
+    "animations": 2946782
+  },
+  "final_source_comparison": {
+    "waterlily": {
+      "mosaic/tesseracts/buoyancy-grid/waterlily/solver.jl": {
+        "snapshot_sha256": "056afa02a9425396e0fa890dd025f0636c36ab443725c8f1ac103092122b6dda",
+        "working_sha256": "056afa02a9425396e0fa890dd025f0636c36ab443725c8f1ac103092122b6dda",
+        "matches": true
+      },
+      "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_api.py": {
+        "snapshot_sha256": "37d0db8f6354527b36933d672d4984f8c777d03bd44dad67f58a7b24a8d9923a",
+        "working_sha256": "37d0db8f6354527b36933d672d4984f8c777d03bd44dad67f58a7b24a8d9923a",
+        "matches": true
+      },
+      "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_config.yaml": {
+        "snapshot_sha256": "e357ab6e961df63cfcc1b88a2fa8b8fe3a3b4737f5859003dfd2938ef2451535",
+        "working_sha256": "e357ab6e961df63cfcc1b88a2fa8b8fe3a3b4737f5859003dfd2938ef2451535",
+        "matches": true
+      },
+      "mosaic/tesseracts/buoyancy-grid/waterlily/tesseract_requirements.txt": {
+        "snapshot_sha256": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+        "working_sha256": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+        "matches": true
+      },
+      "mosaic/tesseracts/buoyancy-grid/waterlily/vjp.jl": {
+        "snapshot_sha256": "f3a078d3923d125a0c48aa0ecddec7a2a0ce6ede7deeb17dcdcc1809a2d29a02",
+        "working_sha256": "f3a078d3923d125a0c48aa0ecddec7a2a0ce6ede7deeb17dcdcc1809a2d29a02",
+        "matches": true
+      }
+    },
+    "phiflow": {
+      "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_api.py": {
+        "snapshot_sha256": "2c1134949f8f8da9e8d2525ff38398f5af4cb1c407ceb395f93a5808cd50c6ad",
+        "working_sha256": "2c1134949f8f8da9e8d2525ff38398f5af4cb1c407ceb395f93a5808cd50c6ad",
+        "matches": true
+      },
+      "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_config.yaml": {
+        "snapshot_sha256": "e5345cdc855a51dd4aa84adb21f081c07653fd1bce49291b52b2656ce288afc2",
+        "working_sha256": "e5345cdc855a51dd4aa84adb21f081c07653fd1bce49291b52b2656ce288afc2",
+        "matches": true
+      },
+      "mosaic/tesseracts/buoyancy-grid/phiflow/tesseract_requirements.txt": {
+        "snapshot_sha256": "0b51df38eaf99f875d735caf5aedab76cbe48e6dbc125157ec3c8cf230a44e43",
+        "working_sha256": "0b51df38eaf99f875d735caf5aedab76cbe48e6dbc125157ec3c8cf230a44e43",
+        "matches": true
+      }
+    }
+  },
+  "solver_changes": {
+    "WaterLily": "Native MultiLevelPoisson for coarsenable grids; native GaussSeidelRB fallback, static pressure type for Enzyme, strict unchanged max/mean convergence guard. Original PCG alpha>100 exit prevented128-grid projection.",
+    "PhiFlow": "Native CG retained with internalFloat64 and native PhiML process precision64; publicFloat32 state. Original GPUFloat32 audit diverged. BiCG alternative failed and was rejected. All advertised VJPs and unchangedrawADcontracts pass."
+  },
+  "contracts": {
+    "shared_IC_training": "21passed job2946658",
+    "WaterLily": "actualAPI N4,N10,N8; native64 all4parameterFD;5pytestcontracts; all3splitforward audits job2946718",
+    "PhiFlow": "actualAPI all5VJPs and9unmodifiedpytestcontracts job2946776;3splitforwardaudit2946773 (precisioncontext source predates processglobal default only)"
+  },
+  "animations": {
+    "job_id": 2946782,
+    "directory": "/home/andrinr/solver-investigations/buoyancy-meaningful-ci-20261013/animations-v1/artifacts",
+    "frames": 101,
+    "final_time": 4.0,
+    "receipt": "animations-v1/artifacts/animation_receipt.json"
+  }
+}
