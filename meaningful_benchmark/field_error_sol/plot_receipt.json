@@ -1,0 +1,32 @@
+{
+  "job": "Slurm CPU rendering only; no new simulations",
+  "data": "field_error_curves.json",
+  "metric_definitions": {
+    "scalar_metric": "Spatial mean absolute scalar error: mean(abs(theta_method-theta_reference))",
+    "velocity_metric": "Spatial mean vector velocity error: mean(norm(centered_velocity_method-centered_velocity_reference))",
+    "reference": "Same-solver restricted128\u00b2 field at each matching time",
+    "units": "Physical scalar and velocity units; no solver-dependent normalization"
+  },
+  "variants": {
+    "base_sol": "Uncorrected dashed + solver-in-the-loop solid for all five; reference zero dotted"
+  },
+  "files": {
+    "field_error_base_sol.svg": {
+      "sha256": "50cf730c157ee8dba19c9ed0819882f38fb8236a1576bf9685ec9a114dc20710",
+      "bytes": 145790
+    },
+    "field_error_curves.json": {
+      "sha256": "4a69663e8248aea5f00062487db52dded965edc2a946f1e31614c4fd96cdb16b",
+      "bytes": 95774
+    },
+    "field_error_base_sol.png": {
+      "sha256": "c3ca971494fdd1e7a0c72efb6914dd25c04771ca647317ac5054ccb961a11df5",
+      "bytes": 273010
+    },
+    "field_error_curves.csv": {
+      "sha256": "194cf460375334bb0fbf214131f4a9ea08d39f3f6fc009e30a875c3c508c1094",
+      "bytes": 90829
+    }
+  },
+  "slurm_job": 2947015
+}
