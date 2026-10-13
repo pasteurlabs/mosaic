@@ -109,6 +109,16 @@ def test_state_vjp_when_supported(solver):
         )["state0"]
     )
     assert np.isfinite(gradient).all()
+    # Repeated reverse calls must retain compiler/runtime roots across Julia GC.
+    for _ in range(2):
+        solver.jl.GC.gc()
+        repeated = solver.vector_jacobian_product(
+            solver.InputSchema(**args),
+            {"state0"},
+            {"result"},
+            {"result": cotangent},
+        )["state0"]
+        np.testing.assert_allclose(repeated, gradient, rtol=1e-6, atol=1e-7)
     np.testing.assert_array_equal(gradient[-1, :, 0], 0)
     np.testing.assert_array_equal(gradient[:, -1, 1], 0)
     epsilon = 1e-3

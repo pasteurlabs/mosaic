@@ -2,6 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 using Oceananigans
+using Enzyme
+
+# Keep the validated Enzyme compiler settings. The optional LLVM Attributor
+# pass is also disabled upstream on Julia >= 1.12.
+Enzyme.Compiler.RunAttributor[] = false
+# Match Oceananigans 0.113.6 test/enzyme/enzyme.jl type-analysis settings.
+Enzyme.API.looseTypeAnalysis!(true)
+Enzyme.API.maxtypeoffset!(2032)
+include("dense_pressure.jl")
 using Oceananigans.TimeSteppers: time_step!
 
 function make_model(n; extent=1.0, viscosity=0.001, diffusivity=0.001, buoyancy=1.0)
@@ -23,6 +32,7 @@ function make_model(n; extent=1.0, viscosity=0.001, diffusivity=0.001, buoyancy=
     buoyancy_model = SeawaterBuoyancy(gravitational_acceleration=1.0,
         equation_of_state=eos, constant_salinity=0.0)
     return NonhydrostaticModel(grid;
+        pressure_solver=DenseNeumannSolver(grid),
         buoyancy=buoyancy_model, tracers=:T, advection=UpwindBiased(order=3),
         timestepper=:RungeKutta3,
         closure=ScalarDiffusivity(ν=viscosity, κ=diffusivity),
@@ -68,4 +78,14 @@ function solve(state, viscosity, diffusivity, buoyancy, dt, steps, extent)
     out = zero(state)
     advance!(out, model, state, dt, steps)
     return out
+end
+
+function state_vjp(state, viscosity, diffusivity, buoyancy, dt, steps, extent, cotangent)
+    model = make_model(size(state, 1); extent, viscosity, diffusivity, buoyancy)
+    dmodel = Enzyme.make_zero(model)
+    out, dstate = zero(state), zero(state)
+    Enzyme.autodiff(Enzyme.set_runtime_activity(Enzyme.Reverse), advance!, Enzyme.Const,
+        Enzyme.Duplicated(out, copy(cotangent)), Enzyme.Duplicated(model, dmodel),
+        Enzyme.Duplicated(state, dstate), Enzyme.Const(dt), Enzyme.Const(steps))
+    return dstate
 end

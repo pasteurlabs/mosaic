@@ -11,11 +11,12 @@ import juliacall
 import numpy as np
 from mosaic_shared.problems.buoyancy_grid import InputSchema as BaseInput
 from mosaic_shared.problems.buoyancy_grid import OutputSchema as BaseOutput
+from mosaic_shared.schema_types import make_differentiable
 from pydantic import model_validator
 from tesseract_core.runtime import ShapeDType
 
 
-class InputSchema(BaseInput):
+class InputSchema(make_differentiable(BaseInput, ["state0"])):
     """Closed-wall inputs with conservative explicit-step stability limits."""
 
     @model_validator(mode="after")
@@ -38,7 +39,7 @@ class InputSchema(BaseInput):
         return self
 
 
-class OutputSchema(BaseOutput):
+class OutputSchema(make_differentiable(BaseOutput, ["result"])):
     """Final native staggered state."""
 
 
@@ -75,3 +76,19 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
     else:
         shape, dtype = state.shape, str(state.dtype)
     return {"result": {"shape": shape, "dtype": dtype}}
+
+
+def vector_jacobian_product(
+    inputs: InputSchema,
+    vjp_inputs: set[str],
+    vjp_outputs: set[str],
+    cotangent_vector: dict[str, Any],
+) -> dict[str, Any]:
+    """Differentiate the complete native rollout with respect to its initial state."""
+    if vjp_inputs != {"state0"} or vjp_outputs != {"result"}:
+        raise ValueError("Oceananigans exposes only the result-to-state0 VJP.")
+    cotangent = juliacall.convert(
+        jl.Array, np.asarray(cotangent_vector["result"], dtype=np.float64)
+    )
+    gradient = jl.state_vjp(*_args(inputs), cotangent)
+    return {"state0": np.asarray(gradient, dtype=np.float32).copy()}
