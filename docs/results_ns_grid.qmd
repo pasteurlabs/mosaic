@@ -2,7 +2,7 @@
 title: Navier–Stokes (2D)
 ---
 
-> Auto-generated 2026-06-15 19:21 UTC &nbsp;·&nbsp; 12 plots
+> Auto-generated 2026-10-13 13:54 UTC &nbsp;·&nbsp; 13 plots
 
 ![](figures/domain_ns_grid.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
 
@@ -67,7 +67,9 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/ns-grid/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
 ## Forward
 
@@ -109,7 +111,9 @@ Sweeps `N` ∈ {16, 32, 64, 128}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/baseline/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/baseline/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/baseline/agreement.png" alt="" loading="lazy"></figure>
+```
 
 ### Cylinder
 
@@ -155,7 +159,9 @@ Sweeps `nu` ∈ {0.05, 0.02, 0.01, 0.005}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/cylinder/fields_raw.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/cylinder/fields_raw.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/cylinder/fields_raw.png" alt="" loading="lazy"></figure>
+```
 
 ### Tgv Nu Sweep
 
@@ -194,7 +200,9 @@ Sweeps `nu` ∈ {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
@@ -276,19 +284,21 @@ Sweeps `steps` ∈ {10, 50, 100, 500, 1000}
 
 :::
 
-![](../mosaic-results/ns-grid/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
 ::: {.sortable-table}
 | Solver | Forward time | VJP time |
 |---|---|---|
-| jax-cfd | 0.113 s @ N=256 | 18.1 s @ N=256 |
-| XLB | 0.169 s @ N=256 | 5.93 s @ N=256 |
-| Warp-NS | 0.609 s @ N=256 | 2.01 s @ N=256 |
-| PICT | 2.36 s @ N=256 | 7.53 s @ N=256 |
-| INS.jl | 2.87 s @ N=256 | 15.9 s @ N=256 |
-| OpenFOAM | 35.2 s @ N=256 | — |
+| Warp-NS | 0.0971 s @ N=256 | 0.511 s @ N=256 |
+| jax-cfd | 0.114 s @ N=256 | 18.2 s @ N=256 |
+| XLB | 0.117 s @ N=256 | 1.47 s @ N=256 |
+| INS.jl | 1.2 s @ N=256 | 10.2 s @ N=256 |
+| PICT | 2.57 s @ N=256 | 8.12 s @ N=256 |
+| OpenFOAM | 35.3 s @ N=256 | — |
 | PhiFlow | 41.7 s @ N=192 | 125 s @ N=192 |
 :::
 
@@ -297,6 +307,189 @@ Sweeps `steps` ∈ {10, 50, 100, 500, 1000}
 ## Gradient
 
 **Is the gradient right?** Gradient benchmarks compare each solver's AD/adjoint gradient against a finite-difference ground truth. We report magnitude error (relative $L^2$) and direction agreement (cosine similarity) across parameter, resolution, and horizon sweeps. The horizon sweep in particular exposes how gradients degrade as the rollout lengthens.
+
+
+::: {.callout-note collapse='true' title='Settings'}
+
+**Fd Check**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 20
+  },
+  "fd": {
+    "eps_values": [
+      5.0,
+      1.0,
+      0.1,
+      0.01,
+      0.001,
+      0.0001
+    ],
+    "n_dirs": 20
+  }
+}
+```
+
+**Horizon Sweep**
+
+Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 5
+  },
+  "fd": {
+    "eps_values": [
+      1.0,
+      0.1,
+      0.01,
+      0.001
+    ],
+    "n_dirs": 8
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      5,
+      10,
+      20,
+      40,
+      80,
+      160,
+      320
+    ]
+  }
+}
+```
+
+**Jacobian Svd**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 10
+  }
+}
+```
+
+**Jacobian Svd Nu01**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.01,
+    "dt": 0.05,
+    "steps": 10
+  }
+}
+```
+
+**Jacobian Svd Steps20**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 20
+  }
+}
+```
+
+**Jacobian Svd Steps40**
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 8,
+    "nu": 0.001,
+    "dt": 0.05,
+    "steps": 40
+  }
+}
+```
+
+**Param Sweep**
+
+Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
+
+```json
+{
+  "ic": {
+    "name": "multimode",
+    "seed": 42
+  },
+  "physics": {
+    "N": 16,
+    "dt": 0.05,
+    "steps": 200,
+    "nu": 0.05
+  },
+  "fd": {
+    "eps_values": [
+      5.0,
+      1.0,
+      0.1,
+      0.01,
+      0.001
+    ],
+    "n_dirs": 15
+  },
+  "sweep": {
+    "key": "nu",
+    "values": [
+      0.05,
+      0.01,
+      0.005,
+      0.001
+    ]
+  }
+}
+```
+
+:::
+
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.png" alt="" loading="lazy"></figure>
+```
 
 ### Finite-Difference Check
 
@@ -333,8 +526,12 @@ U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ 
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/fd_check/fd_check.png){.lightbox}
-![](../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png" alt="" loading="lazy"></figure>
+```
 
 ### Parameter Sweep
 
@@ -381,7 +578,9 @@ Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
 ### Horizon Sweep
 
@@ -430,17 +629,19 @@ Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
 ::: {.sortable-table}
 | Solver | Best-ε FD error | 1 − cosine |
 |---|---|---|
-| PhiFlow | 7.07e-06 | 1.08e-10 |
-| INS.jl | 7.57e-06 | 3.33e-11 |
-| Warp-NS | 4.39e-05 | 1.27e-09 |
-| XLB | 8.60e-05 | 8.87e-09 |
+| PhiFlow | 7.44e-06 | 1.10e-10 |
+| Warp-NS | 3.44e-05 | 1.04e-09 |
+| XLB | 8.62e-05 | 8.89e-09 |
+| INS.jl | 4.14e-04 | 9.18e-08 |
 | jax-cfd | 5.46e-04 | 1.84e-07 |
 | PICT | 8.84e-04 | 5.62e-07 |
 :::
@@ -451,7 +652,7 @@ Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
 
 **Can you optimize through it?** End-to-end optimization benchmarks run a gradient-based optimizer using each solver's own gradients: recovery of initial conditions or physical parameters, topology optimization, and drag minimization. This is the ultimate test, since a gradient can pass the finite-difference check yet still fail to drive a full optimization loop.
 
-### Drag Opt
+### Drag Optimisation
 
 Drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.
 
@@ -492,9 +693,15 @@ Drag convergence curves per solver, optimised vs initial inflow profiles, and fi
 
 :::
 
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png){.lightbox}
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif){.lightbox}
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 

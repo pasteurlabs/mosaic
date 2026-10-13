@@ -581,12 +581,34 @@ def _sort_pngs(paths: list[Path]) -> list[Path]:
     return sorted(paths, key=key)
 
 
-def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
+def _img_src(problem: str, suite: str, experiment: str, png: Path) -> str:
     if experiment:
-        return (
-            f"![]({_IMG_BASE}/{problem}/{suite}/{experiment}/{png.name}){{.lightbox}}"
-        )
-    return f"![]({_IMG_BASE}/{problem}/{suite}/{png.name}){{.lightbox}}"
+        return f"{_IMG_BASE}/{problem}/{suite}/{experiment}/{png.name}"
+    return f"{_IMG_BASE}/{problem}/{suite}/{png.name}"
+
+
+def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
+    return f"![]({_img_src(problem, suite, experiment, png)}){{.lightbox}}"
+
+
+def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | None:
+    """Interactive version of a plot, or None if none was exported.
+
+    docs/export_charts.py writes a Vega-Lite spec ``<plot>.vl.json`` next to
+    each PNG/GIF it has a chart for (see docs/vl/). The figure fetches it
+    lazily (docs/charts.html) and keeps the image as the fallback when there
+    is no JS or the chart fails to load.
+    """
+    if not png.with_suffix(".vl.json").exists():
+        return None
+    src = _img_src(problem, suite, experiment, png)
+    spec = src.rsplit(".", 1)[0] + ".vl.json"  # .png or .gif
+    return (
+        "```{=html}\n"
+        f'<figure class="m-chart" data-spec="{spec}">'
+        f'<img class="m-chart-fallback" src="{src}" alt="" loading="lazy">'
+        "</figure>\n```"
+    )
 
 
 def _sweep_line(params: dict) -> str:
@@ -884,7 +906,8 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
 
             lines.append("")
             for png in pngs:
-                lines.append(_img_tag(problem, suite, experiment, png))
+                chart = _chart_block(problem, suite, experiment, png)
+                lines.append(chart or _img_tag(problem, suite, experiment, png))
             lines.append("")
 
         # Best-solver leaderboard, shown below the suite's plots (issue 8).

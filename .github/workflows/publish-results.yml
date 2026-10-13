@@ -199,10 +199,12 @@ jobs:
         # first: the baseline artifact stores data only (plots stripped on
         # upload) and only the merged PR's solver re-ran, so without this the
         # rendered docs would omit every baseline solver's plots.
-        # --plots-only is no-Docker/no-GPU.
+        # --plots-only is no-Docker/no-GPU. docs/export_charts.py then writes
+        # the interactive (Vega-Lite) version of each plot next to its PNG.
         if: steps.find.outputs.should_publish == 'true'
         run: |
           uv run mosaic run --plots-only
+          uv run --with altair==6.3.0 python docs/export_charts.py
           uv run python docs/generate_results.py
           uv run quarto render --output-dir _site
 
@@ -232,6 +234,7 @@ jobs:
         run: |
           # Remove derived files that are regenerated at docs-build time
           find mosaic-results/ -name "*.png" -delete 2>/dev/null || true
+          find mosaic-results/ -name "*.vl.json" -delete 2>/dev/null || true
           find mosaic-results/ -name "*.gif" -delete 2>/dev/null || true
           find mosaic-results/ -name "result_partial.json" -delete 2>/dev/null || true
           find mosaic-results/ -name "*.lock" -delete 2>/dev/null || true
