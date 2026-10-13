@@ -1,0 +1,48 @@
+{
+  "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+  "source_snapshot": "/home/andrinr/solver-investigations/buoyancy-data-mix-20261013/source-v1",
+  "status": "Complete: all five diagnostics and comparative plots",
+  "submitted": true,
+  "heldout_seed": 100,
+  "no_training": true,
+  "environment_variables": [
+    "SOLVER_NAME",
+    "SAVED_RESULT_DIR",
+    "ANALYSIS_OUTPUT_DIR"
+  ],
+  "jobs": {
+    "phiflow": 2947891,
+    "jax-cfd": 2947892,
+    "waterlily": 2947893,
+    "oceananigans": 2947894,
+    "ins-jl": 2947895
+  },
+  "script_sha256": "132268b3750d6998a6400195bd78be59fe1ad668d5e6973c56766e7c6a8d463f",
+  "frames": [
+    0,
+    24,
+    48,
+    72
+  ],
+  "horizon": 8,
+  "probes_per_field_band": 8,
+  "finite_difference_epsilons": [
+    0.03,
+    0.1
+  ],
+  "complete": true,
+  "plot_job": 2947930,
+  "artifacts": {
+    "plots/artifacts/gradient_directional_checks.csv": "6f0a5dc27ce8e85c061bcda7cf786783ed3b93c97a7139ae0aea2805d21b6b64",
+    "plots/artifacts/gradient_scale_comparison.svg": "aba7e80f75c619b95518aa5739e75a93d2a7a74d9f2487659716ca67f35dfba0",
+    "plots/artifacts/plot_receipt.json": "1e7e59e1a4954698ba796bae94a712fc2bb91b5bb10345cbffa1ba5e0deea8ff",
+    "plots/artifacts/gradient_condition_vs_correction.png": "43a37e80de3b1781f6011bd7b780f6c83242567a8581757ed2d1da7a86687fc9",
+    "plots/artifacts/gradient_scale_comparison.png": "ebd7f98d13ffeac749a4e977099355182a806490b6371b4e67e015e8ac41d759",
+    "plots/artifacts/gradient_gain_vs_correction.svg": "0e03a2cb4d36c06607bbe6fd714b9b0a1327ec1efd6ec0da6b3704054818b4ff",
+    "plots/artifacts/gradient_spectral_comparison.json": "545648170f5189981d6ee629564f7ac7aa95c3c62dda2971cfd0525f45401b5d",
+    "plots/artifacts/gradient_gain_vs_correction.png": "ac4e4c4c9e01186ece63dce159b2f8684baafb1370824edfa552b18490c9bd88",
+    "plots/artifacts/gradient_spectral_summary.csv": "d34e0300eeeb87ac745eb4eef3aae80284d6ae3382d2a11f42fb33ffb8608a33",
+    "plots/artifacts/gradient_condition_vs_correction.svg": "8e95179f62db17ff0a5e09f2a2a1974fbe7283dc35b23ebb972547f0d879203b"
+  },
+  "plot_script_sha256": "b4ec351e0bfe09e2f708c91497bc89b13300018f7bdda4a49bb88e07db1ea981"
+}

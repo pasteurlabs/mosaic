@@ -1,0 +1,50 @@
+{
+  "method": "Plot only: joins saved gradient results with prior error spectra after matching original rollout hashes and cotangent-basis hashes across all five backends. No new training.",
+  "sampled_condition": "sigma_max/sigma_min of the 8\u00d7D projected-gradient matrix; ratio to H0 is ratio of condition numbers, not a preconditioned condition number.",
+  "reference_states": [
+    0,
+    24,
+    48,
+    72
+  ],
+  "horizon": 8,
+  "physical_duration": 0.32,
+  "artifacts": {
+    "gradient_directional_checks.csv": {
+      "sha256": "6f0a5dc27ce8e85c061bcda7cf786783ed3b93c97a7139ae0aea2805d21b6b64",
+      "bytes": 28753
+    },
+    "gradient_gain_vs_correction.svg": {
+      "sha256": "0e03a2cb4d36c06607bbe6fd714b9b0a1327ec1efd6ec0da6b3704054818b4ff",
+      "bytes": 126695
+    },
+    "gradient_spectral_comparison.json": {
+      "sha256": "545648170f5189981d6ee629564f7ac7aa95c3c62dda2971cfd0525f45401b5d",
+      "bytes": 308411
+    },
+    "gradient_gain_vs_correction.png": {
+      "sha256": "ac4e4c4c9e01186ece63dce159b2f8684baafb1370824edfa552b18490c9bd88",
+      "bytes": 140927
+    },
+    "gradient_scale_comparison.svg": {
+      "sha256": "aba7e80f75c619b95518aa5739e75a93d2a7a74d9f2487659716ca67f35dfba0",
+      "bytes": 331242
+    },
+    "gradient_condition_vs_correction.svg": {
+      "sha256": "8e95179f62db17ff0a5e09f2a2a1974fbe7283dc35b23ebb972547f0d879203b",
+      "bytes": 127722
+    },
+    "gradient_condition_vs_correction.png": {
+      "sha256": "43a37e80de3b1781f6011bd7b780f6c83242567a8581757ed2d1da7a86687fc9",
+      "bytes": 145110
+    },
+    "gradient_spectral_summary.csv": {
+      "sha256": "d34e0300eeeb87ac745eb4eef3aae80284d6ae3382d2a11f42fb33ffb8608a33",
+      "bytes": 5581
+    },
+    "gradient_scale_comparison.png": {
+      "sha256": "ebd7f98d13ffeac749a4e977099355182a806490b6371b4e67e015e8ac41d759",
+      "bytes": 519837
+    }
+  }
+}
