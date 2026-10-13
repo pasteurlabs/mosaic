@@ -1,0 +1,99 @@
+{
+  "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+  "job_id": "2947842",
+  "no_new_training": true,
+  "method": {
+    "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+    "frame_selection": "Predicted frames 1..100, t=0.04..4, equal time weights; initial frame excluded",
+    "transform": "scipy.fft.dctn(type=2,norm=ortho), separately along two spatial axes, no mean subtraction or window",
+    "definition": "E(kx,ky) = mean_t |DCT(error)|^2 / N^2; velocity sums both cell-centered component powers. Transform error fields, not differences of field power spectra.",
+    "shell_definition": "Sum modal powers for floor(sqrt(kx^2+ky^2))=j; plotted x is mean radial index of modes in that shell; shell 0 is DC",
+    "physical_scale": "q=sqrt(kx^2+ky^2); cosine wavenumber pi*q/L, nominal wavelength 2L/q for q>0; L=1",
+    "band_definitions": [
+      "DC",
+      "Large: 0<q<=4",
+      "Medium: 4<q<=16",
+      "Small: q>16"
+    ],
+    "ratio_definition": "Mean SOL error power / mean uncorrected error power; below1 improves. Shell ratios omitted only if baseline shell power <1e-8 times that solver/field total baseline MSE. Raw values retained in JSON/CSV.",
+    "limitations": [
+      "Cosine basis diagnostic for closed walls, not a periodic Fourier energy spectrum or a solver eigenmode decomposition.",
+      "Cell-centering attenuates highest staggered velocity modes. Vector MSE here is not the original normalized training loss.",
+      "64x64 resolved scales only; fine reference first restricted128to64. Different solvers use different fine references.",
+      "One held-out trajectory and one selected model per backend; no uncertainty estimates.",
+      "Band boundaries predefined descriptive labels, not inferred physical inertial/dissipation regimes."
+    ],
+    "checks": {
+      "analytic_single_mode_3_4": true,
+      "zero_error": true,
+      "parseval_all_frames": true
+    },
+    "versions": {
+      "numpy": "2.4.4",
+      "scipy": "1.17.0",
+      "matplotlib": "3.10.8"
+    }
+  },
+  "source_hashes": {
+    "PhiFlow": {
+      "corrector_fields.npz": "b58d03a5e9a9c9aabd8ec52bb3e189399c28ff81dde05682d43076c9abd380a3",
+      "result.json": "df01e1c830851a01cf429ae9766034287c727b7675d30d1b6ab3cc7e2af066d2"
+    },
+    "WaterLily": {
+      "corrector_fields.npz": "5867111357c4bc972753c155d7471ed0252c620d0e078bb06efb4b1a6ae2928d",
+      "result.json": "cddd093e1bb4c1ef5b935aaff78077640abf927f3d7a733691d02fddcad9bb94"
+    },
+    "Oceananigans": {
+      "corrector_fields.npz": "fad1bb3e4a1be87629da453b0f1bc75da58646e47eb5e760528461b68697ce28",
+      "result.json": "99796d950860c7e93491da4c7b8cce976017a71fa7b8455d6eda10460df35236"
+    },
+    "JAX-CFD": {
+      "corrector_fields.npz": "9db4ac9c77183fb9954a2e9ebcf199aa2abac613014b0b56770e0e92ad948980",
+      "result.json": "d25a7aea528eaa351b13e75dfb63f6d72e0e266f00dc857bb1a96516b1ebfbd1"
+    },
+    "INS.jl": {
+      "corrector_fields.npz": "1a7ba8e723806a5eb781c7d2e5ea7870468587c92c90bb708d0687cf44f51c4e",
+      "result.json": "06a92ad59359495f8f2bfc14090c633b79870a04796b044a2d7155b9950bd233"
+    }
+  },
+  "artifacts": {
+    "spectral_error_ratio.svg": {
+      "sha256": "36a93a212d530752b73c936a276ffe10d217a6562b04743709c252677ff30095",
+      "bytes": 140471
+    },
+    "spectral_bands.csv": {
+      "sha256": "88b5934bd933c45bac37cdc83ec841d0c259c6d11900cc8a7a8be2bf9cf20b5d",
+      "bytes": 4611
+    },
+    "spectral_error_power.svg": {
+      "sha256": "7f1fdf2832721bb97f88740bbd2e230614cbcc36cbef7378141b9a80d85b9f1b",
+      "bytes": 164875
+    },
+    "spectral_error_power.png": {
+      "sha256": "1ca0d39ff36d0b5a6cd8cdbbbf698c8c21235a579b4ce63060e14022d545aac1",
+      "bytes": 348906
+    },
+    "spectral_error_bands.png": {
+      "sha256": "05a0cba357ad1c35e54d2e0d07549185d0195f47641bb1b5b33827da0a5d7565",
+      "bytes": 279702
+    },
+    "spectral_errors.csv": {
+      "sha256": "c133918eeb1ad3fdde2a0038d843a1a4a7972f3489c4d02c291e4d09fbff9725",
+      "bytes": 98818
+    },
+    "spectral_errors.json": {
+      "sha256": "3e7415c7d997f80ecc61bc79fc4842bca3130da54ee0c82fe3b5d94fce5a5741",
+      "bytes": 119659
+    },
+    "spectral_error_bands.svg": {
+      "sha256": "a2cc925cf18a4eabcc5b4221b4e860ce6b61d1711cf5f3a8b99e7f21e95f6008",
+      "bytes": 145697
+    },
+    "spectral_error_ratio.png": {
+      "sha256": "e8bfb6f4764f9c8a2e2ee8440d2d65e31986325cf7e6fa1903dcd46c74903be5",
+      "bytes": 356013
+    }
+  },
+  "display_conventions": "Curves show nonzero modes only. DC remains in raw data and band totals, and is summarized separately. Power axis linear below 1e-11; logarithmic above. Ratio axis logarithmic. CSV ratio_above_threshold describes eligibility, including DC, not whether drawn.",
+  "analysis_script_sha256": "2ecbf84f679db3c1f68ed3fd9895bfa7b5c73761456098e7d2b729170c03ad57"
+}
