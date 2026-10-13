@@ -1,0 +1,756 @@
+{
+  "comparison": "Frozen singlecase shuffledcheckpoint256 versus predefined fourcase balancedmix256; samevalidation/test andnormalization seed0",
+  "metrics": "Physical meanabsolute scalarerror andmean cellcenteredvectorvelocityerror acrosspredictedframes1..100andallcells. Normalizedloss also comparableafterfixedscalescheck.",
+  "solvers": {
+    "phiflow": {
+      "variants": {
+        "single_case": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.005239536054432392,
+              "velocity_vector_error": 0.006461660843342543,
+              "normalized_loss": 0.012132003900212603
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.004050395451486111,
+              "velocity_vector_error": 0.0036272669676691294,
+              "normalized_loss": 0.005507601042269812
+            }
+          },
+          "selected_update": 256,
+          "identity_selected": false,
+          "training_seconds": 382.1736708576791,
+          "validation_seconds": 31.97663417714648,
+          "data_generation_seconds": null,
+          "wall_time_s": {
+            "PhiFlow": 762.0167072878685
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_seed": 0,
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "149fd7713c9f49e47abb3d35c3d6bbde6f2a55029f04f673abe0f7e3175eb60d"
+        },
+        "four_cases": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.005239536054432392,
+              "velocity_vector_error": 0.006461660843342543,
+              "normalized_loss": 0.012132003477624984
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.004219403024762869,
+              "velocity_vector_error": 0.003658625530079007,
+              "normalized_loss": 0.005964894970420289
+            }
+          },
+          "selected_update": 256,
+          "identity_selected": false,
+          "training_seconds": 380.6360437388066,
+          "validation_seconds": 31.817437029909343,
+          "data_generation_seconds": 651.2142671621405,
+          "wall_time_s": {
+            "PhiFlow": 1084.3971390281804
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_cases": [
+                {
+                  "seed": 0
+                },
+                {
+                  "seed": 2,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 3,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 4,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                }
+              ],
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "df01e1c830851a01cf429ae9766034287c727b7675d30d1b6ab3cc7e2af066d2"
+        }
+      },
+      "scales_match": true,
+      "matched_scales": [
+        0.07251250743865967,
+        0.07251250743865967,
+        0.1206052377820015
+      ],
+      "maximum_heldout_state_difference": {
+        "reference": 5.960464477539063e-08,
+        "uncorrected": 7.105427357601002e-15
+      }
+    },
+    "waterlily": {
+      "variants": {
+        "single_case": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.004064891953021288,
+              "velocity_vector_error": 0.0034719419199973345,
+              "normalized_loss": 0.00472124974548727
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.003939933609217405,
+              "velocity_vector_error": 0.0027541061863303185,
+              "normalized_loss": 0.0036798080361080563
+            }
+          },
+          "selected_update": 256,
+          "identity_selected": false,
+          "training_seconds": 235.69619164196774,
+          "validation_seconds": 6.245561965974048,
+          "data_generation_seconds": null,
+          "wall_time_s": {
+            "WaterLily": 376.85894836392254
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_seed": 0,
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "688bd5ce764f6390383a464b5ad1e2dfc78aff7685774357aea003083ed204c5"
+        },
+        "four_cases": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.004064891953021288,
+              "velocity_vector_error": 0.0034719419199973345,
+              "normalized_loss": 0.00472124974548727
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0039008003659546375,
+              "velocity_vector_error": 0.002651432529091835,
+              "normalized_loss": 0.003495719774470274
+            }
+          },
+          "selected_update": 128,
+          "identity_selected": false,
+          "training_seconds": 237.7917150927242,
+          "validation_seconds": 6.282072151079774,
+          "data_generation_seconds": 118.58659206493758,
+          "wall_time_s": {
+            "WaterLily": 433.70263975905254
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_cases": [
+                {
+                  "seed": 0
+                },
+                {
+                  "seed": 2,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 3,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 4,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                }
+              ],
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "cddd093e1bb4c1ef5b935aaff78077640abf927f3d7a733691d02fddcad9bb94"
+        }
+      },
+      "scales_match": true,
+      "matched_scales": [
+        0.07697845250368118,
+        0.07697845250368118,
+        0.12144897133111954
+      ],
+      "maximum_heldout_state_difference": {
+        "reference": 0.0,
+        "uncorrected": 0.0
+      }
+    },
+    "oceananigans": {
+      "variants": {
+        "single_case": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.0010130625450983644,
+              "velocity_vector_error": 0.0017091428162530065,
+              "normalized_loss": 0.0007356186003233489
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0010130625450983644,
+              "velocity_vector_error": 0.0017091428162530065,
+              "normalized_loss": 0.0007356186003233489
+            }
+          },
+          "selected_update": 0,
+          "identity_selected": true,
+          "training_seconds": 213.91908514127135,
+          "validation_seconds": 5.419955200282857,
+          "data_generation_seconds": null,
+          "wall_time_s": {
+            "Oceananigans": 552.5806145409588
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_seed": 0,
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "84bbd5926812b35351ad6d294ce184d5b033de7689c9bfcbfe482cd9beab681e"
+        },
+        "four_cases": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.0010130625450983644,
+              "velocity_vector_error": 0.0017091428162530065,
+              "normalized_loss": 0.0007356186003233489
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0007164520211517811,
+              "velocity_vector_error": 0.0014589582569897175,
+              "normalized_loss": 0.0003689833786886254
+            }
+          },
+          "selected_update": 128,
+          "identity_selected": false,
+          "training_seconds": 217.13187962188385,
+          "validation_seconds": 5.1251608626917005,
+          "data_generation_seconds": 111.36564086796716,
+          "wall_time_s": {
+            "Oceananigans": 604.7258712858893
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_cases": [
+                {
+                  "seed": 0
+                },
+                {
+                  "seed": 2,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 3,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 4,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                }
+              ],
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "99796d950860c7e93491da4c7b8cce976017a71fa7b8455d6eda10460df35236"
+        }
+      },
+      "scales_match": true,
+      "matched_scales": [
+        0.07763055711984634,
+        0.07763055711984634,
+        0.12605933845043182
+      ],
+      "maximum_heldout_state_difference": {
+        "reference": 0.0,
+        "uncorrected": 0.0
+      }
+    },
+    "jax-cfd": {
+      "variants": {
+        "single_case": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.0016062509967014194,
+              "velocity_vector_error": 0.0023385428357869387,
+              "normalized_loss": 0.0016806774568691907
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0012870806967839599,
+              "velocity_vector_error": 0.0017400941578671336,
+              "normalized_loss": 0.000776934308488677
+            }
+          },
+          "selected_update": 128,
+          "identity_selected": false,
+          "training_seconds": 113.88352110632695,
+          "validation_seconds": 4.07447231025435,
+          "data_generation_seconds": null,
+          "wall_time_s": {
+            "JAX-CFD": 148.6105377811473
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_seed": 0,
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "0848bf5f3854960239b7db1b39f33797b0276690538dfe72db0a2d581901fbb2"
+        },
+        "four_cases": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.0016062509967014194,
+              "velocity_vector_error": 0.0023385428357869387,
+              "normalized_loss": 0.0016806774568691907
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0013407239457592368,
+              "velocity_vector_error": 0.00187561078928411,
+              "normalized_loss": 0.0008612180556571048
+            }
+          },
+          "selected_update": 192,
+          "identity_selected": false,
+          "training_seconds": 112.97756170900539,
+          "validation_seconds": 3.916179673979059,
+          "data_generation_seconds": 33.02320670313202,
+          "wall_time_s": {
+            "JAX-CFD": 167.02353284601122
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_cases": [
+                {
+                  "seed": 0
+                },
+                {
+                  "seed": 2,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 3,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 4,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                }
+              ],
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "d25a7aea528eaa351b13e75dfb63f6d72e0e266f00dc857bb1a96516b1ebfbd1"
+        }
+      },
+      "scales_match": true,
+      "matched_scales": [
+        0.07747627794742584,
+        0.07747627794742584,
+        0.12592172622680664
+      ],
+      "maximum_heldout_state_difference": {
+        "reference": 0.0,
+        "uncorrected": 0.0
+      }
+    },
+    "ins-jl": {
+      "variants": {
+        "single_case": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.002362878993153572,
+              "velocity_vector_error": 0.00347215891815722,
+              "normalized_loss": 0.00370337178246956
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0015704475808888674,
+              "velocity_vector_error": 0.0018225917592644691,
+              "normalized_loss": 0.0010239266643819178
+            }
+          },
+          "selected_update": 256,
+          "identity_selected": false,
+          "training_seconds": 383.64760972815566,
+          "validation_seconds": 12.275755337672308,
+          "data_generation_seconds": null,
+          "wall_time_s": {
+            "INS.jl": 618.9090848329943
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_seed": 0,
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "0dc1889f1336767b40c6977308d79bda3d15d6997666cdc46c5968742d5cb6b0"
+        },
+        "four_cases": {
+          "physical_means": {
+            "uncorrected": {
+              "scalar_mae": 0.002362878993153572,
+              "velocity_vector_error": 0.00347215891815722,
+              "normalized_loss": 0.00370337178246956
+            },
+            "solver_in_loop": {
+              "scalar_mae": 0.0017800210043787956,
+              "velocity_vector_error": 0.0022769072093069553,
+              "normalized_loss": 0.0015980668346760752
+            }
+          },
+          "selected_update": 256,
+          "identity_selected": false,
+          "training_seconds": 375.7660797012504,
+          "validation_seconds": 12.281453112140298,
+          "data_generation_seconds": 310.69930220092647,
+          "wall_time_s": {
+            "INS.jl": 756.0541738721076
+          },
+          "params": {
+            "ic": {
+              "name": "interacting_plumes",
+              "seed": 0
+            },
+            "physics": {
+              "N": 64,
+              "nu": 0.0005,
+              "diffusivity": 0.0005,
+              "buoyancy": 1.0,
+              "dt": 0.005,
+              "steps": 8
+            },
+            "training": {
+              "updates": 256,
+              "unroll": 8,
+              "train_frames": 100,
+              "eval_frames": 100,
+              "reference_factor": 2,
+              "learning_rates": [
+                0.003
+              ],
+              "hidden_channels": 8,
+              "train_cases": [
+                {
+                  "seed": 0
+                },
+                {
+                  "seed": 2,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 3,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                },
+                {
+                  "seed": 4,
+                  "position_jitter": 0.04,
+                  "width_jitter": 0.15,
+                  "amplitude_jitter": 0.15
+                }
+              ],
+              "validation_seed": 1,
+              "test_seed": 100,
+              "model_seed": 0,
+              "window_seed": 0,
+              "validation_interval": 64,
+              "reference_tolerance": 0.05,
+              "fd_epsilon": 0.003,
+              "fd_tolerance": 0.05
+            }
+          },
+          "result_sha256": "06a92ad59359495f8f2bfc14090c633b79870a04796b044a2d7155b9950bd233"
+        }
+      },
+      "scales_match": true,
+      "matched_scales": [
+        0.07776771485805511,
+        0.07776771485805511,
+        0.1261385977268219
+      ],
+      "maximum_heldout_state_difference": {
+        "reference": 0.0,
+        "uncorrected": 0.0
+      }
+    }
+  }
+}
