@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "forward",
+    "name": "diffusion"
+  },
+  "params": {
+    "ic": {
+      "name": "diffusion",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.01,
+      "buoyancy": 0.0,
+      "dt": 0.02,
+      "steps": 20
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        24,
+        32
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "24",
+      "32"
+    ]
+  },
+  "results": [
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 2.2086434910306707e-05,
+        "valid": true
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "24",
+      "metrics": {
+        "error": 9.704340300231706e-06,
+        "valid": true
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 2.0843894162680954e-05,
+        "valid": true
+      }
+    }
+  ],
+  "extras": {
+    "spread": {
+      "16": 0.0,
+      "24": 0.0,
+      "32": 0.0
+    },
+    "reference_label": "analytic"
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "JAX-CFD": "60bf60ee47c5cdaf"
+    },
+    "harness_hash": "81630adf05770ba3",
+    "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+    "wall_time_s": {
+      "JAX-CFD": 3.9411597980652004
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T09:11:25.373259+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T09:11:25Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

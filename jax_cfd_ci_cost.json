@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "cost",
+    "name": "forward"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.04,
+      "steps": 4
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        24,
+        32
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "24",
+      "32"
+    ]
+  },
+  "results": [
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "16",
+      "metrics": {
+        "mean": 0.0020548646183063584,
+        "std": 4.611309474702834e-05,
+        "trials_s": [
+          0.0019999081268906593,
+          0.0021127478685230017,
+          0.002051937859505415
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 1581.9776
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "24",
+      "metrics": {
+        "mean": 0.0010945423661420741,
+        "std": 0.00013105501727758763,
+        "trials_s": [
+          0.0012778090313076973,
+          0.0010268490295857191,
+          0.0009789690375328064
+        ],
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 1585.106944
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "32",
+      "metrics": {
+        "mean": 0.0014028220127026239,
+        "std": 0.0004912465771128565,
+        "trials_s": [
+          0.0020928881131112576,
+          0.0011273690033704042,
+          0.0009882089216262102
+        ],
+        "vram_peak_mib": 2.0,
+        "ram_peak_mib": 1587.126272
+      }
+    }
+  ],
+  "extras": {
+    "hardware": {
+      "gpus": [
+        "NVIDIA GeForce RTX 5090, 32607 MiB"
+      ],
+      "cpu": "AMD EPYC 9654 96-Core Processor",
+      "ram_gb": 540.5
+    }
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "JAX-CFD": "60bf60ee47c5cdaf"
+    },
+    "harness_hash": "957374b3a274eeb6",
+    "harness_fn": "mosaic.benchmarks.problems.shared.cost.spatial_cost",
+    "wall_time_s": {
+      "JAX-CFD": 5.036648335168138
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T09:11:40.872947+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T09:11:40Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

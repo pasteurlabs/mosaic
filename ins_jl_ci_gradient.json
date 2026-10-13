@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "gradient",
+    "name": "fd_check"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.04,
+      "steps": 4
+    },
+    "fd": {
+      "eps_values": [
+        0.1,
+        0.01,
+        0.001
+      ],
+      "n_dirs": 3
+    }
+  },
+  "sweep": null,
+  "results": [
+    {
+      "solver": "INS.jl",
+      "sweep_value": null,
+      "metrics": {
+        "ic_scale": 0.07167447358369827,
+        "vjp_arr": [
+          -0.12748579680919647,
+          -0.029505880549550056,
+          0.09012798964977264
+        ],
+        "eps_sweep": {
+          "0.1": {
+            "rel_error": [
+              2.7234175453779222e-05,
+              0.000168172804374311,
+              7.654933455812269e-05
+            ],
+            "cosine": 0.9999999994810231,
+            "fd_arr": [
+              -0.1274823248386383,
+              -0.029500918462872505,
+              0.09012109041213989
+            ]
+          },
+          "0.01": {
+            "rel_error": [
+              0.0004723317725696216,
+              0.0005914742908365207,
+              0.0004136640066186241
+            ],
+            "cosine": 0.9999999814495788,
+            "fd_arr": [
+              -0.12742558121681213,
+              -0.029523342847824097,
+              0.09009070694446564
+            ]
+          },
+          "0.001": {
+            "rel_error": [
+              0.00802158010623089,
+              0.0256638391035733,
+              0.002711218710046166
+            ],
+            "cosine": 0.999972549791207,
+            "fd_arr": [
+              -0.12851670384407043,
+              -0.02874864637851715,
+              0.08988363295793533
+            ]
+          }
+        },
+        "ram_peak_mib": 1444.159488
+      }
+    }
+  ],
+  "provenance": {
+    "tesseract_hashes": {
+      "INS.jl": "a6584554f49cee5a"
+    },
+    "harness_hash": "dd733b9f646abb7e",
+    "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.gradient.fd_check",
+    "wall_time_s": {
+      "INS.jl": 46.992597602074966
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T09:07:20.842915+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T09:07:20Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "cost",
+    "name": "forward"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.04,
+      "steps": 4
+    },
+    "cost": {
+      "n_trials": 3
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        24,
+        32
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "24",
+      "32"
+    ]
+  },
+  "results": [
+    {
+      "solver": "INS.jl",
+      "sweep_value": "16",
+      "metrics": {
+        "mean": 0.0033470015041530132,
+        "std": 4.0935050492407754e-05,
+        "trials_s": [
+          0.0034048911184072495,
+          0.003318381030112505,
+          0.0033177321311086416
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1448.685568
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "24",
+      "metrics": {
+        "mean": 0.008111312054097652,
+        "std": 0.004226088058203459,
+        "trials_s": [
+          0.00573373818770051,
+          0.00455140508711338,
+          0.014048791956156492
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1449.017344
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "32",
+      "metrics": {
+        "mean": 0.004323362838476896,
+        "std": 0.0010160623351112008,
+        "trials_s": [
+          0.002942614024505019,
+          0.004669174086302519,
+          0.0053582999389618635
+        ],
+        "vram_peak_mib": null,
+        "ram_peak_mib": 1457.893376
+      }
+    }
+  ],
+  "extras": {
+    "hardware": {
+      "cpu": "AMD EPYC 9654 96-Core Processor",
+      "ram_gb": 540.5
+    }
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "INS.jl": "a6584554f49cee5a"
+    },
+    "harness_hash": "957374b3a274eeb6",
+    "harness_fn": "mosaic.benchmarks.problems.shared.cost.spatial_cost",
+    "wall_time_s": {
+      "INS.jl": 0.6872083961497992
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T09:07:23.284371+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T09:07:23Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

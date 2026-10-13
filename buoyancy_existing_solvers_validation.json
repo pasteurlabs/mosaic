@@ -1,0 +1,1224 @@
+{
+  "complete": true,
+  "source_sha256": {
+    "mosaic/tesseracts/buoyancy-grid/ins-jl/tesseract_config.yaml": "94baff9a5c54b7c5a515cab255c6ec9217d6bed50dd20c2e9868946c1ebd5bf5",
+    "mosaic/tesseracts/buoyancy-grid/ins-jl/solver.jl": "f28eba924bb026b195963bde7d1c610e68db17014395800dc33164ab2ca70143",
+    "mosaic/tesseracts/buoyancy-grid/ins-jl/tesseract_requirements.txt": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1",
+    "mosaic/tesseracts/buoyancy-grid/ins-jl/tesseract_api.py": "d5b63c23ef5adaefa40424e075777e85e4ea58eac03bdfe52d3fc4071d82b329",
+    "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_config.yaml": "913bb3426ef3dface8706d25517998764f24b23063b53bf0b97c8fa5bfaa5519",
+    "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_requirements.txt": "f11f9765a4aea18ce2a47c905ccd382c392cc17fd90805f2252e2a87a36c56ac",
+    "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01"
+  },
+  "versions": {
+    "INS": {
+      "Julia": "1.12.6",
+      "IncompressibleNavierStokes": "5.0.0",
+      "Zygote": "0.7.10",
+      "PythonCall": "0.9.36",
+      "juliacall": "0.9.36"
+    },
+    "JAX_CFD": {
+      "jax-cfd": "0.2.1",
+      "jax": "0.10.0",
+      "equinox": "0.13.8",
+      "internal_dtype": "float64",
+      "public_dtype": "float32",
+      "jax_enable_x64": true
+    }
+  },
+  "runs": {
+    "ins-framework-v1": {
+      "job": 2946407,
+      "status": {
+        "problem": "buoyancy-grid",
+        "solvers": [
+          "INS.jl"
+        ],
+        "score": 1.0,
+        "score_n": 4,
+        "rows": [
+          {
+            "suite": "forward",
+            "experiment": "diffusion",
+            "label": "forward/diffusion",
+            "cells": {
+              "INS.jl": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "fwd_error": 2.5362869564560242e-05
+                }
+              }
+            }
+          },
+          {
+            "suite": "cost",
+            "experiment": "forward",
+            "label": "cost/forward",
+            "cells": {
+              "INS.jl": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "cost_time_s": 0.004323362838476896
+                }
+              }
+            }
+          },
+          {
+            "suite": "gradient",
+            "experiment": "fd_check",
+            "label": "gradient/fd_check",
+            "cells": {
+              "INS.jl": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "rel_err": 7.654933455812269e-05,
+                  "cosine": 0.9999999994810231
+                }
+              }
+            }
+          },
+          {
+            "suite": "optimization",
+            "experiment": "solver_in_loop",
+            "label": "optimization/solver_in_loop",
+            "cells": {
+              "INS.jl": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "final_loss": 0.004144578240811825
+                }
+              }
+            }
+          }
+        ]
+      },
+      "suites": {
+        "forward/diffusion": {
+          "rows": [
+            {
+              "solver": "INS.jl",
+              "sweep_value": "16",
+              "metrics": {
+                "error": 5.702629641746171e-05,
+                "valid": true
+              }
+            },
+            {
+              "solver": "INS.jl",
+              "sweep_value": "24",
+              "metrics": {
+                "error": 2.5362869564560242e-05,
+                "valid": true
+              }
+            },
+            {
+              "solver": "INS.jl",
+              "sweep_value": "32",
+              "metrics": {
+                "error": 1.4265740901464596e-05,
+                "valid": true
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "INS.jl": 15.94004353811033
+          }
+        },
+        "gradient/fd_check": {
+          "rows": [
+            {
+              "solver": "INS.jl",
+              "sweep_value": null,
+              "metrics": {
+                "ic_scale": 0.07167447358369827,
+                "vjp_arr": [
+                  -0.12748579680919647,
+                  -0.029505880549550056,
+                  0.09012798964977264
+                ],
+                "eps_sweep": {
+                  "0.1": {
+                    "rel_error": [
+                      2.7234175453779222e-05,
+                      0.000168172804374311,
+                      7.654933455812269e-05
+                    ],
+                    "cosine": 0.9999999994810231,
+                    "fd_arr": [
+                      -0.1274823248386383,
+                      -0.029500918462872505,
+                      0.09012109041213989
+                    ]
+                  },
+                  "0.01": {
+                    "rel_error": [
+                      0.0004723317725696216,
+                      0.0005914742908365207,
+                      0.0004136640066186241
+                    ],
+                    "cosine": 0.9999999814495788,
+                    "fd_arr": [
+                      -0.12742558121681213,
+                      -0.029523342847824097,
+                      0.09009070694446564
+                    ]
+                  },
+                  "0.001": {
+                    "rel_error": [
+                      0.00802158010623089,
+                      0.0256638391035733,
+                      0.002711218710046166
+                    ],
+                    "cosine": 0.999972549791207,
+                    "fd_arr": [
+                      -0.12851670384407043,
+                      -0.02874864637851715,
+                      0.08988363295793533
+                    ]
+                  }
+                },
+                "ram_peak_mib": 1444.159488
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "INS.jl": 46.992597602074966
+          }
+        },
+        "cost/forward": {
+          "rows": [
+            {
+              "solver": "INS.jl",
+              "sweep_value": "16",
+              "metrics": {
+                "mean": 0.0033470015041530132,
+                "std": 4.0935050492407754e-05,
+                "trials_s": [
+                  0.0034048911184072495,
+                  0.003318381030112505,
+                  0.0033177321311086416
+                ],
+                "vram_peak_mib": null,
+                "ram_peak_mib": 1448.685568
+              }
+            },
+            {
+              "solver": "INS.jl",
+              "sweep_value": "24",
+              "metrics": {
+                "mean": 0.008111312054097652,
+                "std": 0.004226088058203459,
+                "trials_s": [
+                  0.00573373818770051,
+                  0.00455140508711338,
+                  0.014048791956156492
+                ],
+                "vram_peak_mib": null,
+                "ram_peak_mib": 1449.017344
+              }
+            },
+            {
+              "solver": "INS.jl",
+              "sweep_value": "32",
+              "metrics": {
+                "mean": 0.004323362838476896,
+                "std": 0.0010160623351112008,
+                "trials_s": [
+                  0.002942614024505019,
+                  0.004669174086302519,
+                  0.0053582999389618635
+                ],
+                "vram_peak_mib": null,
+                "ram_peak_mib": 1457.893376
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "INS.jl": 0.6872083961497992
+          }
+        },
+        "optimization/solver_in_loop": {
+          "rows": [
+            {
+              "solver": "INS.jl",
+              "sweep_value": null,
+              "metrics": {
+                "status": "ok",
+                "reference": {
+                  "spatial_factor": 2,
+                  "time_refinement_error": 2.0039366055126924e-07,
+                  "audit_gap_ratio": 5.70878105150474e-06,
+                  "splits": {
+                    "train": {
+                      "time_refinement_error": 1.7250595838856139e-07,
+                      "coarse_gap": 0.03674538103994678,
+                      "audit_gap_ratio": 4.694629733218062e-06
+                    },
+                    "validation": {
+                      "time_refinement_error": 2.0039366055126924e-07,
+                      "coarse_gap": 0.035102705593946154,
+                      "audit_gap_ratio": 5.70878105150474e-06
+                    },
+                    "test": {
+                      "time_refinement_error": 1.7004612390540798e-07,
+                      "coarse_gap": 0.03566793440656967,
+                      "audit_gap_ratio": 4.76747887800554e-06
+                    }
+                  }
+                },
+                "gradient_check": {
+                  "autodiff": 0.004906333517283201,
+                  "finite_difference": 0.004910789895802736,
+                  "relative_error": 0.0009074667444730107,
+                  "epsilon": 0.003
+                },
+                "gradient_check_nonzero": {
+                  "autodiff": 0.021819910034537315,
+                  "finite_difference": 0.021821629256010056,
+                  "relative_error": 7.878520217580316e-05,
+                  "epsilon": 0.003
+                },
+                "recurrence_error": 5.139613676874433e-07,
+                "updates": 16,
+                "unroll": 4,
+                "eval_frames": 12,
+                "learning_rates": [
+                  0.003
+                ],
+                "mean_predicted_frames": {
+                  "uncorrected": {
+                    "loss": 0.0012722015448313566,
+                    "velocity_mse": 0.0013279132848159254,
+                    "scalar_mse": 0.001216489836300146,
+                    "training_seconds": null
+                  },
+                  "supervised": {
+                    "loss": 0.0009728277165474234,
+                    "velocity_mse": 0.0009101821043865735,
+                    "scalar_mse": 0.001035473299604443,
+                    "training_seconds": 2.3435364437755197
+                  },
+                  "solver_in_loop": {
+                    "loss": 0.0009180101507884805,
+                    "velocity_mse": 0.0007536583985559749,
+                    "scalar_mse": 0.0010823618638369226,
+                    "training_seconds": 2.272211510920897
+                  },
+                  "stop_gradient": {
+                    "loss": 0.000889829618775669,
+                    "velocity_mse": 0.0007158350924025095,
+                    "scalar_mse": 0.0010638241326432762,
+                    "training_seconds": 1.307347564958036
+                  }
+                }
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "INS.jl": 13.43006023298949
+          }
+        }
+      },
+      "api_job": 2946185,
+      "api": {
+        "finite": true,
+        "restart_max_abs": 1.4901161193847656e-08,
+        "ignored_faces": true,
+        "coupled_velocity_norm": 0.009082877077162266,
+        "vjp_available": true,
+        "diffusion_rms": 2.474085025043957e-05,
+        "vjp_first_seconds": 40.381138511002064,
+        "vjp_checks": {
+          "state0": {
+            "ad": -0.21924081444740295,
+            "fd": -0.21926848590373993
+          }
+        },
+        "vjp_warm_seconds_after_gc": [
+          0.007131069898605347,
+          0.006644923007115722,
+          0.006544973002746701
+        ],
+        "runtime_apply": true
+      },
+      "physical": {
+        "plume": {
+          "finite": true,
+          "divergence_rms": 6.711359645805715e-08,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 2.1108595061748401e-22,
+          "scalar_max": 0.7455770969390869,
+          "velocity_max": 0.3113420903682709
+        },
+        "zero_diffusion": {
+          "finite": true,
+          "divergence_rms": 6.775312311191328e-09,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 1.1245769940303352e-37,
+          "scalar_max": 0.9728963375091553,
+          "velocity_max": 0.0450359582901001
+        },
+        "negative_buoyancy": {
+          "finite": true,
+          "divergence_rms": 6.074794889343593e-09,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 1.1623319732341457e-32,
+          "scalar_max": 0.9290814995765686,
+          "velocity_max": 0.04334710165858269
+        }
+      },
+      "snapshot_sha256": "d8c68a50342fb855362a240b1307e4c7d86249fb9e197282a271982ad29dacf4"
+    },
+    "jax-cpu-v3": {
+      "job": 2946445,
+      "status": {
+        "problem": "buoyancy-grid",
+        "solvers": [
+          "JAX-CFD"
+        ],
+        "score": 1.0,
+        "score_n": 4,
+        "rows": [
+          {
+            "suite": "forward",
+            "experiment": "diffusion",
+            "label": "forward/diffusion",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "fwd_error": 2.0841713194386102e-05
+                }
+              }
+            }
+          },
+          {
+            "suite": "cost",
+            "experiment": "forward",
+            "label": "cost/forward",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "cost_time_s": 0.0013546323558936515
+                }
+              }
+            }
+          },
+          {
+            "suite": "gradient",
+            "experiment": "fd_check",
+            "label": "gradient/fd_check",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "rel_err": 0.0011112926654940993,
+                  "cosine": 0.9999994990874345
+                }
+              }
+            }
+          },
+          {
+            "suite": "optimization",
+            "experiment": "solver_in_loop",
+            "label": "optimization/solver_in_loop",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "final_loss": 0.0041932109743356705
+                }
+              }
+            }
+          }
+        ]
+      },
+      "suites": {
+        "forward/diffusion": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "16",
+              "metrics": {
+                "error": 2.2083551812102087e-05,
+                "valid": true
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "24",
+              "metrics": {
+                "error": 9.709975529403891e-06,
+                "valid": true
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "32",
+              "metrics": {
+                "error": 2.0841713194386102e-05,
+                "valid": true
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 3.2700982140377164
+          }
+        },
+        "gradient/fd_check": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": null,
+              "metrics": {
+                "ic_scale": 0.07148312777280807,
+                "vjp_arr": [
+                  -0.057999998331069946,
+                  0.00012409176270011812,
+                  0.09266231954097748
+                ],
+                "eps_sweep": {
+                  "0.1": {
+                    "rel_error": [
+                      0.012738939532031113,
+                      0.5388287148898226,
+                      0.004437432158535297
+                    ],
+                    "cosine": 0.9999920260468985,
+                    "fd_arr": [
+                      -0.05874839052557945,
+                      0.0002690795517992228,
+                      0.09307533502578735
+                    ]
+                  },
+                  "0.01": {
+                    "rel_error": [
+                      0.0011112926654940993,
+                      0.6585377215723068,
+                      0.00036852436974897987
+                    ],
+                    "cosine": 0.9999994990874345,
+                    "fd_arr": [
+                      -0.05793554335832596,
+                      4.237265602569096e-05,
+                      0.09269648045301437
+                    ]
+                  },
+                  "0.001": {
+                    "rel_error": [
+                      0.0069191763885760775,
+                      1.8437463244007255,
+                      0.001452507049970305
+                    ],
+                    "cosine": 0.9999947608911655,
+                    "fd_arr": [
+                      -0.0584041066467762,
+                      -0.00010470196866663173,
+                      0.09279710799455643
+                    ]
+                  }
+                },
+                "ram_peak_mib": 955.551744
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 12.209037826163694
+          }
+        },
+        "cost/forward": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "16",
+              "metrics": {
+                "mean": 0.0022281042765825987,
+                "std": 8.299623926101195e-05,
+                "trials_s": [
+                  0.002345466986298561,
+                  0.002170857973396778,
+                  0.002167987870052457
+                ],
+                "vram_peak_mib": null,
+                "ram_peak_mib": 956.829696
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "24",
+              "metrics": {
+                "mean": 0.0013446526912351449,
+                "std": 0.0002761925238491255,
+                "trials_s": [
+                  0.0017269209492951632,
+                  0.0010840441100299358,
+                  0.0012229930143803358
+                ],
+                "vram_peak_mib": null,
+                "ram_peak_mib": 958.828544
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "32",
+              "metrics": {
+                "mean": 0.0013546323558936515,
+                "std": 0.00011452558638284996,
+                "trials_s": [
+                  0.0015092820394784212,
+                  0.0013189821038395166,
+                  0.001235632924363017
+                ],
+                "vram_peak_mib": null,
+                "ram_peak_mib": 960.69632
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 8.498105071950704
+          }
+        },
+        "optimization/solver_in_loop": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": null,
+              "metrics": {
+                "status": "ok",
+                "reference": {
+                  "spatial_factor": 2,
+                  "time_refinement_error": 0.006877654940402289,
+                  "audit_gap_ratio": 0.19208910160511083,
+                  "splits": {
+                    "train": {
+                      "time_refinement_error": 0.0061887525276764855,
+                      "coarse_gap": 0.03667734107508456,
+                      "audit_gap_ratio": 0.16873503766281994
+                    },
+                    "validation": {
+                      "time_refinement_error": 0.006840388388255077,
+                      "coarse_gap": 0.03561049706150053,
+                      "audit_gap_ratio": 0.19208910160511083
+                    },
+                    "test": {
+                      "time_refinement_error": 0.006877654940402289,
+                      "coarse_gap": 0.03739895818178711,
+                      "audit_gap_ratio": 0.1838996398501719
+                    }
+                  }
+                },
+                "gradient_check": {
+                  "autodiff": 0.0057919882237911224,
+                  "finite_difference": 0.005798639729619026,
+                  "relative_error": 0.0011470803736828732,
+                  "epsilon": 0.003
+                },
+                "gradient_check_nonzero": {
+                  "autodiff": 0.022639311850070953,
+                  "finite_difference": 0.022642722353339195,
+                  "relative_error": 0.00015062249207586668,
+                  "epsilon": 0.003
+                },
+                "recurrence_error": 5.146363832864154e-07,
+                "updates": 16,
+                "unroll": 4,
+                "eval_frames": 12,
+                "learning_rates": [
+                  0.003
+                ],
+                "mean_predicted_frames": {
+                  "uncorrected": {
+                    "loss": 0.0013986820730830611,
+                    "velocity_mse": 0.0019330185064442655,
+                    "scalar_mse": 0.0008643456118306858,
+                    "training_seconds": null
+                  },
+                  "supervised": {
+                    "loss": 0.0008506712692906149,
+                    "velocity_mse": 0.0009861729046557837,
+                    "scalar_mse": 0.0007151696381318592,
+                    "training_seconds": 3.5968848827760667
+                  },
+                  "solver_in_loop": {
+                    "loss": 0.0008261038639526911,
+                    "velocity_mse": 0.0009021356390803703,
+                    "scalar_mse": 0.0007500720993978879,
+                    "training_seconds": 1.5949671620037407
+                  },
+                  "stop_gradient": {
+                    "loss": 0.0008441282260870745,
+                    "velocity_mse": 0.0009708920859641997,
+                    "scalar_mse": 0.0007173643464663352,
+                    "training_seconds": 1.2458925021346658
+                  }
+                }
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 21.898093273863196
+          }
+        }
+      },
+      "api_job": 2946445,
+      "api": {
+        "finite": true,
+        "restart_max_abs": 7.450580596923828e-09,
+        "ignored_faces": true,
+        "coupled_velocity_norm": 0.009088723920285702,
+        "vjp_available": true,
+        "diffusion_rms": 2.2873103016916537e-05,
+        "vjp_first_seconds": 3.7696443260647357,
+        "vjp_checks": {
+          "buoyancy": {
+            "ad": 0.022309182211756706,
+            "fd": 0.022290091961622238
+          },
+          "diffusivity": {
+            "ad": -0.11671578884124756,
+            "fd": -0.11689124256372452
+          },
+          "dt": {
+            "ad": 2.5031394958496094,
+            "fd": 2.503328323364258
+          },
+          "state0": {
+            "ad": -0.2074161171913147,
+            "fd": -0.20748572051525116
+          },
+          "viscosity": {
+            "ad": -0.12361153960227966,
+            "fd": -0.12323789298534393
+          }
+        },
+        "vjp_warm_seconds_after_gc": [
+          0.0007612057961523533,
+          0.0006294359918683767,
+          0.0005967160686850548
+        ],
+        "runtime_apply": true
+      },
+      "physical": {
+        "plume": {
+          "finite": true,
+          "divergence_rms": 5.715572370945665e-08,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 9.903027851475665e-23,
+          "scalar_max": 0.6339539885520935,
+          "velocity_max": 0.2977505922317505
+        },
+        "zero_diffusion": {
+          "finite": true,
+          "divergence_rms": 6.630672899632373e-09,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 1.1459702253216122e-37,
+          "scalar_max": 0.9670886993408203,
+          "velocity_max": 0.04499272257089615
+        },
+        "negative_buoyancy": {
+          "finite": true,
+          "divergence_rms": 6.835572552432723e-09,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 1.594431904918712e-33,
+          "scalar_max": 0.9296053051948547,
+          "velocity_max": 0.04345611110329628
+        }
+      },
+      "snapshot_sha256": "0da3be0ca7384889bf16d7d738a83f7da51ecb77d9470f1220dbbb335aaad855"
+    },
+    "jax-gpu-v3": {
+      "job": 2946450,
+      "status": {
+        "problem": "buoyancy-grid",
+        "solvers": [
+          "JAX-CFD"
+        ],
+        "score": 1.0,
+        "score_n": 4,
+        "rows": [
+          {
+            "suite": "forward",
+            "experiment": "diffusion",
+            "label": "forward/diffusion",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "fwd_error": 2.0843894162680954e-05
+                }
+              }
+            }
+          },
+          {
+            "suite": "cost",
+            "experiment": "forward",
+            "label": "cost/forward",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "cost_time_s": 0.0014028220127026239
+                }
+              }
+            }
+          },
+          {
+            "suite": "gradient",
+            "experiment": "fd_check",
+            "label": "gradient/fd_check",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "rel_err": 0.0011090445029557606,
+                  "cosine": 0.9999994997417028
+                }
+              }
+            }
+          },
+          {
+            "suite": "optimization",
+            "experiment": "solver_in_loop",
+            "label": "optimization/solver_in_loop",
+            "cells": {
+              "JAX-CFD": {
+                "status": "ok",
+                "reason": "",
+                "category": "",
+                "stale": false,
+                "resource_frontier": "",
+                "metrics": {
+                  "final_loss": 0.0041932109743356705
+                }
+              }
+            }
+          }
+        ]
+      },
+      "suites": {
+        "forward/diffusion": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "16",
+              "metrics": {
+                "error": 2.2086434910306707e-05,
+                "valid": true
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "24",
+              "metrics": {
+                "error": 9.704340300231706e-06,
+                "valid": true
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "32",
+              "metrics": {
+                "error": 2.0843894162680954e-05,
+                "valid": true
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 3.9411597980652004
+          }
+        },
+        "gradient/fd_check": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": null,
+              "metrics": {
+                "ic_scale": 0.07148313522338867,
+                "vjp_arr": [
+                  -0.05800000578165054,
+                  0.00012409314513206482,
+                  0.09266239404678345
+                ],
+                "eps_sweep": {
+                  "0.1": {
+                    "rel_error": [
+                      0.012728858708362059,
+                      0.538832306294898,
+                      0.004435197179199865
+                    ],
+                    "cosine": 0.9999920395518208,
+                    "fd_arr": [
+                      -0.058747798204422,
+                      0.00026908464496955276,
+                      0.09307520091533661
+                    ]
+                  },
+                  "0.01": {
+                    "rel_error": [
+                      0.0011090445029557606,
+                      0.6588638899781604,
+                      0.00036764026231542635
+                    ],
+                    "cosine": 0.9999994997417028,
+                    "fd_arr": [
+                      -0.057935681194067,
+                      4.233265281072818e-05,
+                      0.09269647300243378
+                    ]
+                  },
+                  "0.001": {
+                    "rel_error": [
+                      0.006918732101998453,
+                      1.839460231323737,
+                      0.001451864505385339
+                    ],
+                    "cosine": 0.9999947707540712,
+                    "fd_arr": [
+                      -0.05840408802032471,
+                      -0.00010417126031825319,
+                      0.09279712289571762
+                    ]
+                  }
+                },
+                "vram_peak_mib": 0.0,
+                "ram_peak_mib": 1580.773376
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 6.99313074699603
+          }
+        },
+        "cost/forward": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "16",
+              "metrics": {
+                "mean": 0.0020548646183063584,
+                "std": 4.611309474702834e-05,
+                "trials_s": [
+                  0.0019999081268906593,
+                  0.0021127478685230017,
+                  0.002051937859505415
+                ],
+                "vram_peak_mib": 0.0,
+                "ram_peak_mib": 1581.9776
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "24",
+              "metrics": {
+                "mean": 0.0010945423661420741,
+                "std": 0.00013105501727758763,
+                "trials_s": [
+                  0.0012778090313076973,
+                  0.0010268490295857191,
+                  0.0009789690375328064
+                ],
+                "vram_peak_mib": 0.0,
+                "ram_peak_mib": 1585.106944
+              }
+            },
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": "32",
+              "metrics": {
+                "mean": 0.0014028220127026239,
+                "std": 0.0004912465771128565,
+                "trials_s": [
+                  0.0020928881131112576,
+                  0.0011273690033704042,
+                  0.0009882089216262102
+                ],
+                "vram_peak_mib": 2.0,
+                "ram_peak_mib": 1587.126272
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 5.036648335168138
+          }
+        },
+        "optimization/solver_in_loop": {
+          "rows": [
+            {
+              "solver": "JAX-CFD",
+              "sweep_value": null,
+              "metrics": {
+                "status": "ok",
+                "reference": {
+                  "spatial_factor": 2,
+                  "time_refinement_error": 0.006877654940402289,
+                  "audit_gap_ratio": 0.19208910160511083,
+                  "splits": {
+                    "train": {
+                      "time_refinement_error": 0.0061887525276764855,
+                      "coarse_gap": 0.03667734107508456,
+                      "audit_gap_ratio": 0.16873503766281994
+                    },
+                    "validation": {
+                      "time_refinement_error": 0.006840388388255077,
+                      "coarse_gap": 0.03561049706150053,
+                      "audit_gap_ratio": 0.19208910160511083
+                    },
+                    "test": {
+                      "time_refinement_error": 0.006877654940402289,
+                      "coarse_gap": 0.03739895818178711,
+                      "audit_gap_ratio": 0.1838996398501719
+                    }
+                  }
+                },
+                "gradient_check": {
+                  "autodiff": 0.0057919882237911224,
+                  "finite_difference": 0.005798656959086657,
+                  "relative_error": 0.0011500482512737781,
+                  "epsilon": 0.003
+                },
+                "gradient_check_nonzero": {
+                  "autodiff": 0.022639311850070953,
+                  "finite_difference": 0.022642722353339195,
+                  "relative_error": 0.00015062249207586668,
+                  "epsilon": 0.003
+                },
+                "recurrence_error": 5.146363832864154e-07,
+                "updates": 16,
+                "unroll": 4,
+                "eval_frames": 12,
+                "learning_rates": [
+                  0.003
+                ],
+                "mean_predicted_frames": {
+                  "uncorrected": {
+                    "loss": 0.0013986820730830611,
+                    "velocity_mse": 0.0019330185064442655,
+                    "scalar_mse": 0.0008643456118306858,
+                    "training_seconds": null
+                  },
+                  "supervised": {
+                    "loss": 0.0008506713008197645,
+                    "velocity_mse": 0.0009861728488734418,
+                    "scalar_mse": 0.0007151697457553988,
+                    "training_seconds": 3.4370677121914923
+                  },
+                  "solver_in_loop": {
+                    "loss": 0.0008261041487761153,
+                    "velocity_mse": 0.0009021358252236192,
+                    "scalar_mse": 0.000750072504426195,
+                    "training_seconds": 2.268843275960535
+                  },
+                  "stop_gradient": {
+                    "loss": 0.0008441282441253861,
+                    "velocity_mse": 0.0009708921484161692,
+                    "scalar_mse": 0.0007173643185751644,
+                    "training_seconds": 1.9900523140095174
+                  }
+                }
+              }
+            }
+          ],
+          "solver_wall_seconds": {
+            "JAX-CFD": 23.2859717218671
+          }
+        }
+      },
+      "api_job": 2946450,
+      "api": {
+        "finite": true,
+        "restart_max_abs": 7.450580596923828e-09,
+        "ignored_faces": true,
+        "coupled_velocity_norm": 0.009088723920285702,
+        "vjp_available": true,
+        "diffusion_rms": 2.2873103016916537e-05,
+        "vjp_first_seconds": 4.808432556921616,
+        "vjp_checks": {
+          "buoyancy": {
+            "ad": 0.022309182211756706,
+            "fd": 0.022290091961622238
+          },
+          "diffusivity": {
+            "ad": -0.11671578884124756,
+            "fd": -0.11689124256372452
+          },
+          "dt": {
+            "ad": 2.5031394958496094,
+            "fd": 2.503328323364258
+          },
+          "state0": {
+            "ad": -0.2074161171913147,
+            "fd": -0.20748572051525116
+          },
+          "viscosity": {
+            "ad": -0.12361153960227966,
+            "fd": -0.12323789298534393
+          }
+        },
+        "vjp_warm_seconds_after_gc": [
+          0.001086513977497816,
+          0.0010405739303678274,
+          0.0010586041025817394
+        ],
+        "runtime_apply": true
+      },
+      "physical": {
+        "plume": {
+          "finite": true,
+          "divergence_rms": 5.715572370945665e-08,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 9.903027851475665e-23,
+          "scalar_max": 0.6339539885520935,
+          "velocity_max": 0.2977505922317505
+        },
+        "zero_diffusion": {
+          "finite": true,
+          "divergence_rms": 6.630672899632373e-09,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 1.1459702253216122e-37,
+          "scalar_max": 0.9670886993408203,
+          "velocity_max": 0.04499272257089615
+        },
+        "negative_buoyancy": {
+          "finite": true,
+          "divergence_rms": 6.835572552432723e-09,
+          "relative_mass_drift": 0.0,
+          "scalar_min": 1.594431904918712e-33,
+          "scalar_max": 0.9296053051948547,
+          "velocity_max": 0.04345611110329628
+        }
+      },
+      "snapshot_sha256": "4c028ddd51cda9c23f7af4e13a717705788dce1dc89cb6aa71ee4d6655795099"
+    }
+  },
+  "contracts": {
+    "INS": {
+      "job": 2946185,
+      "passed": 5,
+      "deselected": 10,
+      "seconds": 62.38
+    },
+    "JAX_CPU": {
+      "job": 2946445,
+      "passed": 7,
+      "deselected": 7,
+      "seconds": 9.92
+    },
+    "JAX_GPU": {
+      "job": 2946450,
+      "passed": 9,
+      "deselected": 9,
+      "seconds": 12.97
+    },
+    "PhiFlow_hydrostatic_regression": {
+      "job": 2946463,
+      "passed": 2,
+      "deselected": 16,
+      "seconds": 6.74
+    }
+  },
+  "limitations": [
+    "Bounded16-update H4 corrector smoke; no solver-gradient superiority claim.",
+    "Heldout means exclude initial frame; status final_loss is not used for method comparisons.",
+    "INS exposes state-only VJP; JAX exposes state and four physical parameter VJPs.",
+    "No actual container execution on cluster; configuration checked separately."
+  ],
+  "superseded_failures": {
+    "jax_float32": {
+      "job": 2946184,
+      "reason": "Nonfinite native VanLeer scalar gradient from tiny plume differences; float64 removes denominator-underflow instability without masking gradients."
+    },
+    "jax_before_wall_enforcement": {
+      "job": 2946379,
+      "divergence_rms_100steps": 0.0001115845880121924,
+      "reason": "Provisional velocity walls must be imposed before native pressure RHS; corrected candidate passes external1e-4 threshold."
+    },
+    "ins_initial_framework_driver": {
+      "job": 2946185,
+      "reason": "External driver failed hyphen-normalized solver key selection after API/contracts passed; fixed without numerical changes."
+    }
+  },
+  "packaging": {
+    "final_config_schema": "passed both",
+    "package_data_paths": "passed both",
+    "post_snapshot_delta": "JAX-CFD requirements now jax[cuda12]==0.10.0 rather than cuda12-local; removed custom CUDA12.6 base image. Matches actual GPU installed dependency approach. Native numerical API unchanged.",
+    "container_execution": "not run"
+  },
+  "resources": {
+    "ins_framework": {
+      "job": 2946407,
+      "elapsed_seconds": 156,
+      "maxrss_kib": 2281692
+    },
+    "jax_cpu": {
+      "job": 2946445,
+      "elapsed_seconds": 131,
+      "maxrss_kib": 2255612
+    },
+    "jax_gpu": {
+      "job": 2946450,
+      "elapsed_seconds": 155,
+      "maxrss_kib": 13489968,
+      "gpu": "NVIDIA RTX5090",
+      "note": "Allocation includes installation/imports, physical probes, API, contracts and four suites; maxRSS is host RAM, not VRAM."
+    }
+  },
+  "snapshot_source_sha256": {
+    "ins-framework-v1": {
+      "mosaic/tesseracts/buoyancy-grid/ins-jl/solver.jl": "f28eba924bb026b195963bde7d1c610e68db17014395800dc33164ab2ca70143",
+      "mosaic/tesseracts/buoyancy-grid/ins-jl/tesseract_api.py": "d5b63c23ef5adaefa40424e075777e85e4ea58eac03bdfe52d3fc4071d82b329",
+      "mosaic/tesseracts/buoyancy-grid/ins-jl/tesseract_config.yaml": "94baff9a5c54b7c5a515cab255c6ec9217d6bed50dd20c2e9868946c1ebd5bf5",
+      "mosaic/tesseracts/buoyancy-grid/ins-jl/tesseract_requirements.txt": "938565de45b60c47ced8118704b1d7f9650c576bb5039333bc0c5da1a7ce04c1"
+    },
+    "jax-gpu-v3": {
+      "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+      "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_config.yaml": "d06f37becc05e5477169185dd73f579f67a5d9c3d09e4fd447a94a6989ebf263",
+      "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_requirements.txt": "1900b893fd5a144bb33ac66e59c6ce4796318b0f050fe6ff6af4199fb37fa667"
+    }
+  },
+  "commit": "6d603710441aaf219475c13fcc83aeb791b5bcda"
+}

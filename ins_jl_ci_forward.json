@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "forward",
+    "name": "diffusion"
+  },
+  "params": {
+    "ic": {
+      "name": "diffusion",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.01,
+      "buoyancy": 0.0,
+      "dt": 0.02,
+      "steps": 20
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        24,
+        32
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "24",
+      "32"
+    ]
+  },
+  "results": [
+    {
+      "solver": "INS.jl",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 5.702629641746171e-05,
+        "valid": true
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "24",
+      "metrics": {
+        "error": 2.5362869564560242e-05,
+        "valid": true
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 1.4265740901464596e-05,
+        "valid": true
+      }
+    }
+  ],
+  "extras": {
+    "spread": {
+      "16": 0.0,
+      "24": 0.0,
+      "32": 0.0
+    },
+    "reference_label": "analytic"
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "INS.jl": "a6584554f49cee5a"
+    },
+    "harness_hash": "81630adf05770ba3",
+    "harness_fn": "mosaic.benchmarks.problems.shared.forward.agreement",
+    "wall_time_s": {
+      "INS.jl": 15.94004353811033
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T09:06:26.042650+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T09:06:26Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

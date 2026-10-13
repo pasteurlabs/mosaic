@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "gradient",
+    "name": "fd_check"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.04,
+      "steps": 4
+    },
+    "fd": {
+      "eps_values": [
+        0.1,
+        0.01,
+        0.001
+      ],
+      "n_dirs": 3
+    }
+  },
+  "sweep": null,
+  "results": [
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": null,
+      "metrics": {
+        "ic_scale": 0.07148313522338867,
+        "vjp_arr": [
+          -0.05800000578165054,
+          0.00012409314513206482,
+          0.09266239404678345
+        ],
+        "eps_sweep": {
+          "0.1": {
+            "rel_error": [
+              0.012728858708362059,
+              0.538832306294898,
+              0.004435197179199865
+            ],
+            "cosine": 0.9999920395518208,
+            "fd_arr": [
+              -0.058747798204422,
+              0.00026908464496955276,
+              0.09307520091533661
+            ]
+          },
+          "0.01": {
+            "rel_error": [
+              0.0011090445029557606,
+              0.6588638899781604,
+              0.00036764026231542635
+            ],
+            "cosine": 0.9999994997417028,
+            "fd_arr": [
+              -0.057935681194067,
+              4.233265281072818e-05,
+              0.09269647300243378
+            ]
+          },
+          "0.001": {
+            "rel_error": [
+              0.006918732101998453,
+              1.839460231323737,
+              0.001451864505385339
+            ],
+            "cosine": 0.9999947707540712,
+            "fd_arr": [
+              -0.05840408802032471,
+              -0.00010417126031825319,
+              0.09279712289571762
+            ]
+          }
+        },
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 1580.773376
+      }
+    }
+  ],
+  "provenance": {
+    "tesseract_hashes": {
+      "JAX-CFD": "60bf60ee47c5cdaf"
+    },
+    "harness_hash": "dd733b9f646abb7e",
+    "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.gradient.fd_check",
+    "wall_time_s": {
+      "JAX-CFD": 6.99313074699603
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-13T09:11:34.177504+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-13T09:11:34Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39"
+    }
+  }
+}
