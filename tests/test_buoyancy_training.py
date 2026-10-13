@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Small mathematical checks; numerical solver validation runs on Slurm/CI."""
 
+from itertools import pairwise
+from types import SimpleNamespace
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from mosaic.benchmarks.problems.buoyancy_grid import training
 from mosaic.benchmarks.problems.buoyancy_grid.corrector import (
@@ -47,24 +51,14 @@ def test_corrector_starts_at_identity_and_preserves_scalar_and_walls():
     np.testing.assert_allclose(np.diff(ux, axis=0) + np.diff(uy, axis=1), 0, atol=1e-6)
 
 
-def test_stopping_solver_gradient_keeps_values_but_removes_temporal_derivative(
-    monkeypatch,
-):
+def test_training_gradient_includes_recurrent_solver_derivative(monkeypatch):
     monkeypatch.setattr(training, "apply_corrector", lambda p, state, scales: state + p)
     targets = jnp.zeros((3, 2, 2, 3))
 
-    def loss(p, stop):
-        return training.window_loss(
-            p,
-            targets,
-            lambda x: 2 * x,
-            jnp.ones(3),
-            stop_solver_gradient=stop,
-        )
+    def loss(p):
+        return training.window_loss(p, targets, lambda x: 2 * x, jnp.ones(3))
 
-    assert float(loss(1.0, False)) == float(loss(1.0, True))
-    np.testing.assert_allclose(jax.grad(lambda p: loss(p, False))(1.0), 10.0, rtol=1e-6)
-    np.testing.assert_allclose(jax.grad(lambda p: loss(p, True))(1.0), 4.0, rtol=1e-6)
+    np.testing.assert_allclose(jax.grad(loss)(1.0), 10.0, rtol=1e-6)
 
 
 def test_directional_fd_checks_recurrent_derivative(monkeypatch):
@@ -75,3 +69,51 @@ def test_directional_fd_checks_recurrent_derivative(monkeypatch):
         jnp.asarray(0.5),
     )
     assert check["relative_error"] < 1e-3
+
+
+@pytest.mark.parametrize("ic", [{}, {"name": "interacting_plumes"}])
+def test_training_uses_configured_ic_for_each_split(monkeypatch, ic):
+    calls = []
+
+    class InitialsCaptured(Exception):
+        pass
+
+    def initial(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 3:
+            raise InitialsCaptured
+
+    def wrong_initial(**kwargs):
+        raise AssertionError("selected the wrong initial-condition family")
+
+    family = ic.get("name", "plume")
+    registry = {"plume": wrong_initial, "interacting_plumes": wrong_initial}
+    registry[family] = initial
+    ctx = SimpleNamespace(
+        run={
+            "ic": ic,
+            "training": {"train_seed": 7, "validation_seed": 8, "test_seed": 9},
+        },
+        phys={"N": 32},
+        domain_extent=2.0,
+        cfg=SimpleNamespace(make_ic=registry),
+    )
+    # Stop after initial construction; neither a solver nor JAX execution is needed.
+    monkeypatch.setattr(training, "trajectory", lambda *args: [None])
+    monkeypatch.setattr(training, "restrict_state", lambda state, factor: state)
+    with pytest.raises(InitialsCaptured):
+        training.solver_in_loop(None, ctx)
+    assert calls == [{"N": 64, "L": 2.0, "seed": seed} for seed in (7, 8, 9)]
+
+
+@pytest.mark.parametrize("updates,count", [(64, 93), (128, 85), (1, 1), (4, 1)])
+def test_training_windows_cover_full_trajectory_evenly(updates, count):
+    starts = [training.window_start(i, updates, count) for i in range(updates)]
+    assert starts[0] == 0
+    assert starts[-1] == count - 1
+    assert all(0 <= start < count for start in starts)
+    gaps = [b - a for a, b in pairwise(starts)]
+    if gaps:
+        assert max(gaps) - min(gaps) <= 1
+    if updates >= count:
+        assert set(starts) == set(range(count))

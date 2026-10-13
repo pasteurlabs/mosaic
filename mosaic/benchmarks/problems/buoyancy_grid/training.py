@@ -1,10 +1,10 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Bounded same-solver buoyancy corrector experiment with matched training arms.
+"""Train a buoyancy corrector through recurrent solver steps.
 
-This is an execution/gradient benchmark, not a CI assertion that SOL beats
-supervision. Every learning-rate candidate sees the same initialization,
-update count and training trajectory. Only validation chooses a candidate.
+Every learning-rate candidate sees the same initialization, update count and
+training windows. Only validation chooses a candidate. Correctness gates check
+references and gradients; held-out rollouts compare against the uncorrected solver.
 """
 
 import time
@@ -25,8 +25,6 @@ from .corrector import (
     normalized_loss,
     restrict_state,
 )
-
-ARMS = ("supervised", "solver_in_loop", "stop_gradient")
 
 
 def trajectory(
@@ -51,16 +49,12 @@ def window_loss(
     targets: jax.Array,
     step: Any,
     scales: jax.Array,
-    *,
-    stop_solver_gradient: bool = False,
 ) -> jax.Array:
     """Average intermediate-state errors on a recurrent training window."""
     state = targets[0]
     loss = jnp.asarray(0.0)
     for target in targets[1:]:
         advanced = step(state)
-        if stop_solver_gradient:
-            advanced = jax.lax.stop_gradient(advanced)
         state = apply_corrector(params, advanced, scales)
         loss = loss + normalized_loss(state, target, scales)
     return loss / (len(targets) - 1)
@@ -85,6 +79,11 @@ def directional_fd(loss: Any, params: Any, epsilon: float = 0.003) -> dict:
         "relative_error": abs(ad - fd) / max(abs(ad), abs(fd), 1e-8),
         "epsilon": epsilon,
     }
+
+
+def window_start(iteration: int, updates: int, count: int) -> int:
+    """Spread the shared update budget across all valid training windows."""
+    return iteration * (count - 1) // max(updates - 1, 1)
 
 
 def fit(params: Any, loss: Any, updates: int, lr: float) -> tuple:
@@ -138,7 +137,7 @@ def divergence_rms(states: np.ndarray, domain_extent: float) -> list[float]:
     sweep_mode="none",
     selector_fn=active_differentiable_solvers,
     snapshot_filename="corrector_fields.npz",
-    snapshot_prefixes=("reference", "uncorrected", *ARMS),
+    snapshot_prefixes=("reference", "uncorrected", "solver_in_loop"),
 )
 def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     """Train/evaluate one solver with no cross-solver accuracy ranking."""
@@ -190,10 +189,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
 
     step = make_step()
     fine_step = make_step(factor)
+    ic_name = ctx.run.get("ic", {}).get("name", "plume")
+    make_initial = ctx.cfg.make_ic[ic_name]
     references = []
     fine_initials = []
     for seed, length in zip(seeds, (train_frames, frames, frames), strict=True):
-        initial = ctx.cfg.make_ic["plume"](
+        initial = make_initial(
             N=n * factor,
             L=ctx.domain_extent,
             seed=seed,
@@ -276,40 +277,12 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     ):
         raise ValueError(f"solver restart equivalence failed: {recurrence_error}")
 
-    # Fixed one-step pairs are constructed once from restricted reference states.
-    preprocessing_started = time.perf_counter()
-    fixed = jnp.asarray(np.stack([np.asarray(step(s)) for s in train_jax[:-1]]))
-    fixed.block_until_ready()
-    preprocessing_seconds = time.perf_counter() - preprocessing_started
     count = len(train) - horizon
 
-    def supervised_loss(params: Any, iteration: int) -> jax.Array:
-        start = iteration % count
-        return (
-            sum(
-                normalized_loss(
-                    apply_corrector(params, fixed[i], scales), train_jax[i + 1], scales
-                )
-                for i in range(start, start + horizon)
-            )
-            / horizon
-        )
+    def recurrent_loss(params: Any, iteration: int) -> jax.Array:
+        start = window_start(iteration, updates, count)
+        return window_loss(params, train_jax[start : start + horizon + 1], step, scales)
 
-    def recurrent_loss(params: Any, iteration: int, stop: bool = False) -> jax.Array:
-        start = iteration % count
-        return window_loss(
-            params,
-            train_jax[start : start + horizon + 1],
-            step,
-            scales,
-            stop_solver_gradient=stop,
-        )
-
-    losses = {
-        "supervised": supervised_loss,
-        "solver_in_loop": recurrent_loss,
-        "stop_gradient": lambda p, i: recurrent_loss(p, i, True),
-    }
     baseline = baselines["test"]
     snapshots = {"reference": test, "uncorrected": baseline}
     metrics = {
@@ -333,38 +306,34 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "learning_rates": lrs,
         "uncorrected": rollout_errors(baseline, test, scales),
     }
-    for arm in ARMS:
-        candidates = []
-        models = []
-        for lr in lrs:
-            params, history, elapsed = fit(params0, losses[arm], updates, lr)
-            rollout = trajectory(step, validation[0], frames, params, scales)
-            score = float(
-                np.mean(rollout_errors(rollout, validation, scales)["loss"][1:])
-            )
-            candidates.append(
-                {
-                    "learning_rate": lr,
-                    "validation_loss": score,
-                    "training_loss": history,
-                    "training_seconds": elapsed,
-                    "completed_updates": len(history),
-                }
-            )
-            models.append(params)
-        selected = int(np.argmin([c["validation_loss"] for c in candidates]))
-        rollout = trajectory(step, test[0], frames, models[selected], scales)
-        snapshots[arm] = rollout
-        metrics[arm] = {
-            **rollout_errors(rollout, test, scales),
-            "selected_candidate": selected,
-            "candidates": candidates,
-            "preprocessing_seconds": preprocessing_seconds
-            if arm == "supervised"
-            else 0.0,
-            "total_training_seconds": sum(c["training_seconds"] for c in candidates)
-            + (preprocessing_seconds if arm == "supervised" else 0.0),
-        }
+    candidates = []
+    models = []
+    for lr in lrs:
+        params, history, elapsed = fit(params0, recurrent_loss, updates, lr)
+        rollout = trajectory(step, validation[0], frames, params, scales)
+        score = float(np.mean(rollout_errors(rollout, validation, scales)["loss"][1:]))
+        candidates.append(
+            {
+                "learning_rate": lr,
+                "validation_loss": score,
+                "training_loss": history,
+                "training_seconds": elapsed,
+                "completed_updates": len(history),
+            }
+        )
+        models.append(params)
+    selected = int(np.argmin([c["validation_loss"] for c in candidates]))
+    rollout = trajectory(step, test[0], frames, models[selected], scales)
+    snapshots["solver_in_loop"] = rollout
+    metrics["solver_in_loop"] = {
+        **rollout_errors(rollout, test, scales),
+        "selected_candidate": selected,
+        "candidates": candidates,
+        "total_training_seconds": sum(c["training_seconds"] for c in candidates),
+    }
+    # Generic optimization reporting otherwise picks the first nested loss,
+    # which is the uncorrected baseline rather than the trained rollout.
+    metrics["final_loss"] = metrics["solver_in_loop"]["loss"][-1]
     metrics["divergence_rms"] = {
         arm: divergence_rms(rollout, ctx.domain_extent)
         for arm, rollout in snapshots.items()

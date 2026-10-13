@@ -10,12 +10,22 @@ import jax.numpy as jnp
 import numpy as np
 
 from mosaic.benchmarks.core.config import SolverSpec
-from mosaic.mosaic_shared.problems.buoyancy_grid import make_plume_ic
+from mosaic.mosaic_shared.problems.buoyancy_grid import (
+    make_interacting_plumes_ic,
+    make_plume_ic,
+)
 
 
 def plume(N: int = 24, L: float = 1.0, seed: int = 0, **_: Any) -> jax.Array:
     """A warm Gaussian blob at rest, with position and width set by seed."""
     return jnp.asarray(make_plume_ic(N=N, seed=seed))
+
+
+def interacting_plumes(
+    N: int = 64, L: float = 1.0, seed: int = 0, **_: Any
+) -> jax.Array:
+    """Two unequal neighboring warm plumes with gentle seeded variation."""
+    return jnp.asarray(make_interacting_plumes_ic(N=N, seed=seed))
 
 
 def diffusion_ic(N: int = 24, **_: Any) -> jax.Array:

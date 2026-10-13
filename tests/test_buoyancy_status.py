@@ -6,7 +6,12 @@ from copy import deepcopy
 
 import pytest
 
-from mosaic.benchmarks.core.status import OK, Cell, _refine_recovery
+from mosaic.benchmarks.core.status import (
+    OK,
+    Cell,
+    _collect_recovery_metrics,
+    _refine_recovery,
+)
 from mosaic.benchmarks.core.status_checks import OptimizationSummary
 from mosaic.benchmarks.problems.buoyancy_grid.status import corrector_execution
 
@@ -35,9 +40,7 @@ def valid_metrics():
     for arm in (
         "reference",
         "uncorrected",
-        "supervised",
         "solver_in_loop",
-        "stop_gradient",
     ):
         row["divergence_rms"][arm] = [0.0] * 3
         if arm == "reference":
@@ -49,7 +52,6 @@ def valid_metrics():
             row[arm].update(
                 {
                     "selected_candidate": 0,
-                    "preprocessing_seconds": 0.0,
                     "total_training_seconds": 1.0,
                     "candidates": [
                         {
@@ -71,6 +73,22 @@ def test_complete_execution_passes_even_without_superiority():
     assert corrector_execution(OptimizationSummary(metrics=row)) is None
 
 
+def test_reported_final_loss_uses_trained_rollout_not_baseline():
+    row = valid_metrics()
+    row["uncorrected"]["loss"][-1] = 0.9
+    row["final_loss"] = row["solver_in_loop"]["loss"][-1]
+    cells = {"phiflow": Cell(OK)}
+    _collect_recovery_metrics({"by_solver": {"phiflow": row}}, cells)
+    assert cells["phiflow"].metrics["final_loss"] == 0.2
+
+
+@pytest.mark.parametrize("key", ["solver_in_loop", "uncorrected"])
+def test_missing_training_or_baseline_rollout_rejected(key):
+    row = valid_metrics()
+    row.pop(key)
+    assert corrector_execution(OptimizationSummary(metrics=row)) is not None
+
+
 @pytest.mark.parametrize(
     "path,value",
     [
@@ -81,9 +99,9 @@ def test_complete_execution_passes_even_without_superiority():
         (("recurrence_error",), 0.001),
         (("seeds", "test"), 0),
         (("learning_rates",), [float("nan")]),
-        (("supervised", "total_training_seconds"), float("nan")),
+        (("solver_in_loop", "total_training_seconds"), float("nan")),
         (("solver_in_loop", "loss"), [0.0, 0.1]),
-        (("divergence_rms", "stop_gradient"), [0.0, float("inf"), 0.0]),
+        (("divergence_rms", "solver_in_loop"), [0.0, float("inf"), 0.0]),
     ],
 )
 def test_bad_metrics_rejected_through_summary_pipeline(path, value):
@@ -102,7 +120,7 @@ def test_bad_metrics_rejected_through_summary_pipeline(path, value):
 def test_missing_updates_or_mismatched_candidate_rejected():
     for key, value in (("completed_updates", 1), ("learning_rate", 0.1)):
         row = deepcopy(valid_metrics())
-        row["supervised"]["candidates"][0][key] = value
+        row["solver_in_loop"]["candidates"][0][key] = value
         assert corrector_execution(OptimizationSummary(metrics=row)) is not None
 
 

@@ -12,6 +12,8 @@ normal derivative. Positive scalar accelerates upward.
 This packing preserves the solver state exactly across separate calls.
 """
 
+import math
+
 import numpy as np
 from pydantic import BaseModel, Field, model_validator
 from tesseract_core.runtime import Array, Float32, ShapeDType
@@ -27,6 +29,35 @@ def make_plume_ic(N: int = 32, seed: int = 0) -> np.ndarray:
     width = rng.uniform(0.07, 0.11)
     state = np.zeros((N, N, 3), dtype=np.float32)
     state[..., 2] = np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * width**2))
+    return state
+
+
+def make_interacting_plumes_ic(N: int = 64, seed: int = 0) -> np.ndarray:
+    """Two unequal warm plumes at rest, averaged over each physical grid cell.
+
+    Normalized centers are near (0.36, 0.18) and (0.64, 0.25), with Gaussian
+    standard deviations 0.06 and 0.075 and peak amplitudes 1.0 and 0.8.
+    Small seeded position/width changes give distinct members of the same
+    family. Analytic cell averages preserve the initial mass under refinement.
+    """
+    rng = np.random.default_rng(seed)
+    centers = np.array([[0.36, 0.18], [0.64, 0.25]]) + rng.uniform(
+        -0.015, 0.015, size=(2, 2)
+    )
+    widths = np.array([0.06, 0.075]) * rng.uniform(0.95, 1.05, size=2)
+    edges = np.arange(N + 1, dtype=np.float64) / N
+    scalar = np.zeros((N, N), dtype=np.float64)
+    for center, width, amplitude in zip(centers, widths, (1.0, 0.8), strict=True):
+        averages = []
+        for coordinate in center:
+            scaled_edges = (edges - coordinate) / (math.sqrt(2) * width)
+            primitive = np.fromiter(
+                (math.erf(value) for value in scaled_edges), dtype=np.float64
+            )
+            averages.append(N * width * math.sqrt(math.pi / 2) * np.diff(primitive))
+        scalar += amplitude * averages[0][:, None] * averages[1][None, :]
+    state = np.zeros((N, N, 3), dtype=np.float32)
+    state[..., 2] = scalar
     return state
 
 

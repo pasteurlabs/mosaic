@@ -14,9 +14,7 @@ from mosaic.benchmarks.problems.shared.plots.style import save_fig
 
 _METHODS = {
     "uncorrected": ("Uncorrected", "#777777"),
-    "supervised": ("Supervised", "#d98b26"),
     "solver_in_loop": ("Solver in the loop", "#177c71"),
-    "stop_gradient": ("Stopped solver gradient", "#9467bd"),
 }
 
 
@@ -65,7 +63,7 @@ def plot_solver_in_loop(
             for key, state in final.items()
         }
         error_max = max(max(float(np.abs(e).max()) for e in errors.values()), 1e-8)
-        fig, axes = plt.subplots(3, 5, figsize=(13, 8), constrained_layout=True)
+        fig, axes = plt.subplots(3, 3, figsize=(9, 8), constrained_layout=True)
         for column, key in enumerate(keys):
             label = "Restricted reference" if key == "reference" else _METHODS[key][0]
             axes[0, column].set_title(label, fontsize=10)
@@ -88,7 +86,7 @@ def plot_solver_in_loop(
                     axes[row, column].set_ylabel(
                         ("Buoyancy scalar", "Speed", "Scalar error")[row]
                     )
-                if column == 4:
+                if column == len(keys) - 1:
                     fig.colorbar(im, ax=axes[row, :], shrink=0.8)
         fig.suptitle(
             f"{name}: held-out plume at t={times[-1]:.2f} — shared scales per row"
@@ -105,7 +103,6 @@ def plot_solver_in_loop(
                     np.sqrt(metrics[key][metric][1:]),
                     label=label,
                     color=color,
-                    linestyle={"supervised": "--", "stop_gradient": ":"}.get(key, "-"),
                 )
                 ax.set_xlabel("Physical time")
                 ax.set_ylabel("Normalized RMS error")
@@ -122,15 +119,14 @@ def plot_solver_in_loop(
             save_fig(fig, f"rollout_error_{name}", out)
 
         fig, ax = plt.subplots(figsize=(7, 3.5), constrained_layout=True)
-        arms = list(_METHODS)[1:]
-        costs = [metrics[key]["total_training_seconds"] for key in arms]
+        cost = metrics["solver_in_loop"]["total_training_seconds"]
         bars = ax.barh(
-            [_METHODS[key][0] for key in arms],
-            costs,
-            color=[_METHODS[key][1] for key in arms],
+            ["Solver in the loop"],
+            [cost],
+            color=_METHODS["solver_in_loop"][1],
         )
         ax.bar_label(bars, fmt="%.1f s", padding=4)
-        ax.set_xlim(0, max(max(costs), 1e-6) * 1.25)
+        ax.set_xlim(0, max(cost, 1e-6) * 1.25)
         ax.set_xlabel("Measured training time across all learning-rate candidates (s)")
         ax.set_title(
             f"{name}: {metrics['updates']} updates per candidate; includes training compilation"

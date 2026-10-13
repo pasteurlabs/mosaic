@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from mosaic_shared.problems.buoyancy_grid import (
     InputSchema,
+    make_interacting_plumes_ic,
     make_plume_ic,
     restrict_state,
 )
@@ -51,3 +52,34 @@ def test_invalid_physics_rejected(field, value):
 def test_non_square_grid_rejected():
     with pytest.raises(ValueError, match="square"):
         InputSchema(state0=np.zeros((8, 9, 3), np.float32))
+
+
+@pytest.mark.parametrize("seed", [0, 1, 100])
+def test_interacting_plumes_preserve_initial_state_under_refinement(seed):
+    coarse = make_interacting_plumes_ic(64, seed=seed)
+    fine = make_interacting_plumes_ic(128, seed=seed)
+    assert coarse.shape == (64, 64, 3)
+    assert coarse.dtype == np.float32
+    assert np.isfinite(coarse).all()
+    np.testing.assert_array_equal(coarse[..., :2], 0)
+    assert np.min(coarse[..., 2]) >= 0
+    assert 0.9 < np.max(coarse[:32, :, 2]) < 1.1
+    assert 0.7 < np.max(coarse[32:, :, 2]) < 0.9
+    assert 0.045 < np.mean(coarse[..., 2]) < 0.06
+    np.testing.assert_allclose(coarse, restrict_state(fine, 2), rtol=2e-7, atol=1e-7)
+    np.testing.assert_allclose(
+        np.mean(coarse[..., 2], dtype=np.float64),
+        np.mean(fine[..., 2], dtype=np.float64),
+        rtol=1e-7,
+    )
+
+
+def test_interacting_plumes_are_seeded_without_touching_global_rng():
+    before = np.random.get_state()  # noqa: NPY002 - explicitly inspect global RNG
+    first = make_interacting_plumes_ic(64, seed=7)
+    np.testing.assert_array_equal(first, make_interacting_plumes_ic(64, seed=7))
+    assert not np.array_equal(first, make_interacting_plumes_ic(64, seed=8))
+    after = np.random.get_state()  # noqa: NPY002 - check it was not modified
+    assert before[0] == after[0]
+    np.testing.assert_array_equal(before[1], after[1])
+    assert before[2:] == after[2:]

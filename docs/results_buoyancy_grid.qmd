@@ -2,8 +2,9 @@
 title: Buoyancy flow (2D)
 ---
 
-A warm plume rises in a closed square. Its scalar field creates upward
-buoyancy, and the resulting incompressible flow transports that scalar.
+Two unequal warm plumes rise and interact in a closed square. Their scalar
+field creates upward buoyancy, and the resulting incompressible flow transports
+that scalar.
 All backends use no-slip velocity walls and zero normal scalar derivative.
 
 | Backend | Coupled flow implementation | Differentiable inputs |
@@ -41,16 +42,24 @@ flowchart LR
     L -. Training gradient through the rollout .-> N
 ```
 
-All training methods use the same network initialization, optimizer budget,
-training data and validation cases. Fixed-pair supervision uses one-step
-targets; solver-in-the-loop training uses a recurrent trajectory loss; the
-stopped-gradient ablation uses the same recurrent loss with solver derivatives
-removed. Held-out rollouts report velocity and scalar errors separately.
+The default uses a 64² coarse grid and a 128² reference grid, with viscosity
+and scalar diffusivity both 0.0005. Each correction interval contains eight
+solver steps of 0.005; 100 intervals evolve the flow to time 4. Training uses
+256 optimizer updates and eight-interval windows spread across the whole
+training trajectory. Separate initial-condition seeds provide training,
+validation, and held-out evaluation trajectories.
+
+Solver-in-the-loop training minimizes a recurrent trajectory loss, with gradients
+through the solver. Held-out rollouts compare the trained corrector against the
+uncorrected coarse solver and report velocity and scalar errors separately.
+Only the corrector is trained; the uncorrected baseline and fine reference
+require forward simulation only.
 
 References come from the same solver at finer spatial and temporal resolution.
 The experiment checks reference time refinement, restart equivalence, and
-end-to-end finite differences before reporting training results. CI checks
-correct execution; it does not require a statistical advantage from a short run.
+end-to-end finite differences before reporting training results. The benchmark
+measures rollout accuracy and training cost within a budget suitable for CI;
+these measurements do not require solver-in-the-loop training to win.
 
 This setup is inspired by [Um et al. (2020)](https://arxiv.org/abs/2007.00016).
 It is a bounded benchmark, not a reproduction of their full training campaign.

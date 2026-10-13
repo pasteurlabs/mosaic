@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Execution checks; winning against supervision is deliberately not a CI gate."""
+"""Execution checks for solver-in-the-loop training and its reference trajectories."""
 
 import math
 from collections.abc import Iterator
@@ -28,7 +28,7 @@ def _finite(value: Any) -> bool:
 
 
 def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
-    """Require real, finite training in every arm and trustworthy references/VJPs."""
+    """Require complete, finite SOL training and trustworthy references/VJPs."""
     rows = list(_records(summary.metrics))
     if not rows:
         return "anomaly", "missing buoyancy corrector metrics"
@@ -99,16 +99,14 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
         for arm in (
             "reference",
             "uncorrected",
-            "supervised",
             "solver_in_loop",
-            "stop_gradient",
         ):
             divergence = row.get("divergence_rms", {}).get(arm, [])
             if len(divergence) != frames + 1 or not all(
                 _finite(v) and v >= 0 for v in divergence
             ):
                 return "anomaly", f"incomplete or nonfinite {arm} divergence"
-        for arm in ("uncorrected", "supervised", "solver_in_loop", "stop_gradient"):
+        for arm in ("uncorrected", "solver_in_loop"):
             result = row.get(arm, {})
             for key in ("loss", "velocity_mse", "scalar_mse"):
                 values = result.get(key, [])
@@ -124,9 +122,9 @@ def corrector_execution(summary: OptimizationSummary) -> CheckOutcome:
             selected = result.get("selected_candidate")
             if not isinstance(selected, int) or not 0 <= selected < len(candidates):
                 return "anomaly", f"missing {arm} validation selection"
-            for key in ("preprocessing_seconds", "total_training_seconds"):
-                if not _finite(result.get(key)) or result[key] < 0:
-                    return "anomaly", f"invalid {arm} training cost"
+            cost = result.get("total_training_seconds")
+            if not _finite(cost) or cost < 0:
+                return "anomaly", f"invalid {arm} training cost"
             for lr, candidate in zip(learning_rates, candidates, strict=True):
                 if candidate.get("learning_rate") != lr:
                     return "anomaly", f"unmatched {arm} learning-rate candidate"

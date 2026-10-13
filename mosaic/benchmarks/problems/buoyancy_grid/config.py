@@ -22,7 +22,14 @@ from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .gradient import fd_check
-from .physics import diffusion_ic, diffusion_reference, make_inputs, plume, scalar_field
+from .physics import (
+    diffusion_ic,
+    diffusion_reference,
+    interacting_plumes,
+    make_inputs,
+    plume,
+    scalar_field,
+)
 from .plots import plot_solver_in_loop
 from .status import corrector_execution
 from .training import solver_in_loop
@@ -34,15 +41,15 @@ problem = Problem(
     name="buoyancy-grid",
     category_label="Buoyancy Flow (Grid)",
     description=(
-        "A warm plume rises in a closed box. An advected scalar drives upward "
+        "Two unequal warm plumes interact in a closed box. An advected scalar drives upward "
         "buoyancy, and the resulting incompressible velocity transports that scalar. "
         "We solve $u_t+(u\\cdot\\nabla)u=-\\nabla p+\\nu\\Delta u+b\\theta e_y$, "
         "$\\nabla\\cdot u=0$, and "
         "$\\theta_t+u\\cdot\\nabla\\theta=\\kappa\\Delta\\theta$. "
-        "A neural velocity corrector is trained either on fixed one-step targets "
-        "or through recurrent solver steps. Held-out rollouts measure both velocity "
+        "A neural velocity corrector is trained through recurrent solver steps. "
+        "Held-out rollouts compare corrected and uncorrected velocity "
         "and scalar error against the same solver at finer resolution. Inspired by "
-        "[Um et al. (2020)](https://arxiv.org/abs/2007.00016); this bounded CI recipe "
+        "[Um et al. (2020)](https://arxiv.org/abs/2007.00016); this CI-runnable benchmark "
         "is not a reproduction of their full training campaign."
     ),
     bc_description=(
@@ -68,6 +75,13 @@ problem.add_ic(
     plume,
     description="Warm Gaussian plume at rest; seed sets its position and width.",
     plot_params={"N": 48},
+    plot=_ic_plot,
+)
+problem.add_ic(
+    "interacting_plumes",
+    interacting_plumes,
+    description="Two unequal warm plumes at rest, with gentle seeded position and width changes.",
+    plot_params={"N": 64},
     plot=_ic_plot,
 )
 problem.add_ic(
@@ -136,20 +150,20 @@ problem.add_experiment(
     solver_in_loop,
     runs=[
         {
-            "ic": {"name": "plume", "seed": 0},
+            "ic": {"name": "interacting_plumes", "seed": 0},
             "physics": {
-                "N": 24,
-                "nu": 0.001,
-                "diffusivity": 0.001,
+                "N": 64,
+                "nu": 0.0005,
+                "diffusivity": 0.0005,
                 "buoyancy": 1.0,
-                "dt": 0.04,
-                "steps": 2,
+                "dt": 0.005,
+                "steps": 8,
             },
             "training": {
-                "updates": 16,
-                "unroll": 4,
-                "train_frames": 12,
-                "eval_frames": 12,
+                "updates": 256,
+                "unroll": 8,
+                "train_frames": 100,
+                "eval_frames": 100,
                 "reference_factor": 2,
                 "learning_rates": [0.003],
                 "hidden_channels": 8,
@@ -166,8 +180,8 @@ problem.add_experiment(
     status_check=[corrector_execution],
     plot=plot_solver_in_loop,
     plot_description=(
-        "Same network and optimizer budget: fixed-pair supervision, solver-in-the-loop, "
-        "and recurrent training with solver gradients stopped. CI checks execution, "
-        "reference refinement and gradient correctness; superiority is measured, not required."
+        "Compare solver-in-the-loop correction with the uncorrected solver. Measure held-out rollout "
+        "accuracy and training cost, with reference refinement and gradient correctness "
+        "checks; superiority is measured, not required."
     ),
 )
