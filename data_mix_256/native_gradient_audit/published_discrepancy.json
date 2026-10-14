@@ -1,0 +1,76 @@
+{
+  "source_receipt": "/home/andrinr/solver-investigations/buoyancy-gradient-scales-20261013/jax-cfd/gradient_scales.json",
+  "source_receipt_sha256": "a76a084a5010cd8c895362565d635a31cbdd3fc09c70087402891234a7447d76",
+  "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+  "source_hashes": {
+    "corrector_fields.npz": "9db4ac9c77183fb9954a2e9ebcf199aa2abac613014b0b56770e0e92ad948980",
+    "result.json": "d25a7aea528eaa351b13e75dfb63f6d72e0e266f00dc857bb1a96516b1ebfbd1"
+  },
+  "basis_hashes": {
+    "scalar/large": "12a05af9683a37fabd4a888b43d984d813b3e038a8e2967796d19833e7055873",
+    "scalar/medium": "3a3fd5f7915caa70fed54a000e654344e20bf6d44454073476f1ce5237606134",
+    "scalar/small": "cdf885ed7e181ad2315f5a6311897a7490496c106e38cf6f42ff610d5cffeef7",
+    "velocity/large": "8e7aefdfa0b0c3c61d54d2490c0ee8b6e6ec0a3d275aba48402e23f28b445c47",
+    "velocity/medium": "65e124925f802e47e6cdedb3564713446dfe0227706242a6a11ea7bdeff21926",
+    "velocity/small": "618767fbf847d2a5b2617679c8afc37da0f8388e76b829530d9ce4e00ea384e2"
+  },
+  "worst_row": {
+    "frame": 72,
+    "time": 2.88,
+    "field": "scalar",
+    "band": "small",
+    "H8": {
+      "singular_values": [
+        0.1911209462943434,
+        0.18032254167254533,
+        0.17914198119989821,
+        0.170871991486979,
+        0.16453466497256108,
+        0.1618812629586726,
+        0.15866014659601949,
+        0.1505883055273674
+      ],
+      "rms_gain": 0.1700954148429805,
+      "condition": 1.269161942058042,
+      "rank_resolved": true,
+      "smallest_relative_singular_value": 0.7879215148686419,
+      "gain_relative_H0": 0.17009541490754201,
+      "condition_relative_H0": 1.2691619373075735
+    },
+    "H0": {
+      "singular_values": [
+        1.000000001151745,
+        1.0000000006866254,
+        1.000000000038906,
+        0.9999999998944274,
+        0.999999999484878,
+        0.9999999991711673,
+        0.9999999991270176,
+        0.9999999974087486
+      ],
+      "rms_gain": 0.9999999996204394,
+      "condition": 1.0000000037429964,
+      "rank_resolved": true,
+      "smallest_relative_singular_value": 0.9999999962570036
+    },
+    "finite_differences": [
+      {
+        "epsilon": 0.03,
+        "autodiff": 0.1712383121197976,
+        "finite_difference": 0.16402100371086648,
+        "absolute_error": 0.007217308408931117,
+        "relative_error": 0.04214774322163324
+      },
+      {
+        "epsilon": 0.1,
+        "autodiff": 0.1712383121197976,
+        "finite_difference": 0.16275776829323396,
+        "absolute_error": 0.00848054382656363,
+        "relative_error": 0.04952480389219603
+      }
+    ],
+    "seconds": 2.289247643901035
+  },
+  "trained_checkpoint_available": false,
+  "checkpoint_reason": "Original training kernel returns only metrics and rollout snapshots; no parameter checkpoint written."
+}

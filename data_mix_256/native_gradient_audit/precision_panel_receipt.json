@@ -1,0 +1,45 @@
+{
+  "source_sha256": "f98d7ee43808420390f53c87fcda1f80d4e4ebaab55eb8635dfe8a79052b7275",
+  "input_sha256": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-native-gradient-audit-20261014/full-v2/results/native_gradient_audit.json": "4af50cb742839b9c60e40deb9eee20efb09c4140be2d4530be133693bf342a17",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-native-gradient-audit-20261014/precision-extension-v1/results/precision_companion.json": "70cbf948e075585ee829acf0ec5dcb109bbd7049432f12d6461216892de38b2a"
+  },
+  "map_differences": [
+    "sole solver-source edit removes interval-final Float32 output cast",
+    "same nominal normalized native Float32 z values cast toFloat64",
+    "initial z*scale and mask multiplication, centering and output normalization computed inFloat64",
+    "physics coefficient arrays remain identical Float32 values promoted internally by native solver"
+  ],
+  "exact_zero_discrepancies_omitted_on_log_axis": 0,
+  "comparisons": {
+    "native_companion_physical_initial_comparison": {
+      "native_l2": 10.934061149439755,
+      "companion_l2": 10.934061135600318,
+      "difference_l2": 2.6853290108226085e-07,
+      "difference_relative_native_l2": 2.4559301197617692e-08,
+      "max_absolute_difference": 1.4836246009508613e-08
+    },
+    "native_companion_output_comparison": {
+      "native_l2": 120.99809356071985,
+      "companion_l2": 120.9980935913511,
+      "difference_l2": 5.636319937914051e-06,
+      "difference_relative_native_l2": 4.6581890441815976e-08,
+      "max_absolute_difference": 5.019719706567116e-07
+    },
+    "native_companion_raw_gradient_comparison": {
+      "native_l2": 0.17127537251819802,
+      "companion_l2": 0.1712753721278364,
+      "difference_l2": 3.1266570692167796e-08,
+      "difference_relative_native_l2": 1.825514680392578e-07,
+      "max_absolute_difference": 4.665649461395305e-09
+    },
+    "native_companion_projected_gradient_comparison": {
+      "native_l2": 0.1712383121197976,
+      "companion_l2": 0.17123831173037835,
+      "difference_l2": 3.1197164788011815e-08,
+      "difference_relative_native_l2": 1.8218565928275682e-07,
+      "max_absolute_difference": 4.665649461395305e-09
+    }
+  },
+  "interpretation": "Compare each map with its own AD. Better FD agreement for the companion alone does not prove native AD wrong or establish a branch-causal explanation."
+}

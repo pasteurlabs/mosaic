@@ -1,0 +1,20 @@
+{
+  "scope": "Audit the derivative of the unchanged native JAX-CFD numerical map before considering an independent reference derivative.",
+  "worst_historical_probe": {"frame": 72, "field": "scalar", "band": "small", "epsilon": 0.1, "autodiff": 0.1712383121197976, "finite_difference": 0.16275776829323396, "relative_error": 0.04952480389219603, "relative_error_at_epsilon_0_03": 0.04214774322163324},
+  "required_comparisons": [
+    "Same public float32 checkpoints and exact physics for native direct recurrence and adapter recurrence; compare forwards before gradients.",
+    "Native JVP/VJP dot identity is internal same-AD consistency, not an independent gold standard.",
+    "Fixed central and both one-sided finite-difference epsilon sweeps, retaining all results and rejected states.",
+    "Float64 scalar reductions of unchanged float32 outputs; report absolute error, objective magnitudes, and realized cast input perturbation.",
+    "Projected gradient direction and independent fixed random tangent direction, with identical normalization across epsilon.",
+    "Actual neural loss gradient comparison at saved initialization; only use trained checkpoints if original files exist."
+  ],
+  "interpretation": [
+    "Adapter/direct discrepancies with identical forward values indicate an integration-path issue worth isolating.",
+    "Finite differences converging toward AD before small-epsilon rounding dominates support a truncation/branch-crossing explanation.",
+    "One-sided asymmetry can reflect curvature, finite-step branch crossing, or nonsmoothness; it alone does not establish the cause.",
+    "A stable FD plateau away from AD in a resolved perturbation regime motivates independent derivative investigation; it does not by itself identify a bug.",
+    "Changed native precision or altered limiter produces a distinct numerical map and cannot silently become the reference for the original derivative.",
+    "A branch-observing diagnostic must retain native forward arithmetic and report exact source identity; tiny-tail branch counts alone do not establish gradient relevance."
+  ]
+}

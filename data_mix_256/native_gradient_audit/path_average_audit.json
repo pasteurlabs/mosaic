@@ -1,0 +1,1651 @@
+{
+  "complete": true,
+  "frame": 72,
+  "field": "scalar",
+  "band": "small",
+  "horizon": 8,
+  "epsilons": [
+    0.001,
+    0.03,
+    0.1
+  ],
+  "quadrature_orders": [
+    8,
+    16,
+    32
+  ],
+  "interpretation": "Additional finite-path consistency diagnostic, not an integral theorem proof: native Float32 casts make the literal map discontinuous while AD differentiates through casts.",
+  "formula": "average directional AD = 0.5 * sum(Gauss-Legendre weight * <probe,JVP(z+t*epsilon*d,d)>)",
+  "input_sha256": "295764ad26750275d7c66ec1cfceb752a2902bfd6ad5a838c9455c4754374432",
+  "probe_sha256": "1773fd8046f5ed45a1601504c675b5555205b63e55b5a5960686339c889e090d",
+  "direction_sha256": "a715899dac0c337a8e0b63ee278cda796a923eceb5a83ab02de521e6772b4178",
+  "center_ad": 0.17123831228465175,
+  "forward_native_wrapper_bitwise_equal": true,
+  "source_sha256": {
+    "/scratch/jobs/3025344/work/probe/mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+    "/scratch/jobs/3025344/work/probe/path_average_audit.py": "63711832f28709e240fe0fa6fcdb9a1e6c8a8adc9becf99469ad9b658894f2f4",
+    "/scratch/jobs/3025344/work/probe/native_gradient_audit.py": "944c7c11a7a8269d5409f0b24926b309baff2103acccb86c27efe804f7501c61"
+  },
+  "samples": [
+    {
+      "epsilon": 0.001,
+      "central_fd": 0.16646825883108235,
+      "center_ad": 0.17123831228465175,
+      "center_ad_fd_absolute_error": 0.004770053453569401,
+      "center_ad_fd_relative_error": 0.027856227907923296,
+      "orders": [
+        {
+          "order": 8,
+          "average_directional_ad": 0.1664324477335786,
+          "average_fd_absolute_error": 3.5811097503751776e-05,
+          "average_fd_relative_error": 0.00021512267717108637,
+          "average_center_absolute_difference": 0.004805864551073152,
+          "nodes": [
+            {
+              "node": -0.9602898564975362,
+              "weight": 0.10122853629037706,
+              "nominal_distance": -0.0009602898564975362,
+              "directional_ad": 0.16606090573683582,
+              "realized_direction_norm": 1.0000388129322202,
+              "realized_direction_cosine": 0.9999947078033107,
+              "changed_fraction": 0.965087890625
+            },
+            {
+              "node": -0.7966664774136267,
+              "weight": 0.22238103445337443,
+              "nominal_distance": -0.0007966664774136268,
+              "directional_ad": 0.16617338241436785,
+              "realized_direction_norm": 1.0000246678397657,
+              "realized_direction_cosine": 0.9999923265485435,
+              "changed_fraction": 0.9596354166666666
+            },
+            {
+              "node": -0.525532409916329,
+              "weight": 0.3137066458778869,
+              "nominal_distance": -0.000525532409916329,
+              "directional_ad": 0.16638987083432705,
+              "realized_direction_norm": 1.000010803837828,
+              "realized_direction_cosine": 0.9999828134535889,
+              "changed_fraction": 0.9466145833333334
+            },
+            {
+              "node": -0.18343464249564978,
+              "weight": 0.36268378337836166,
+              "nominal_distance": -0.0001834346424956498,
+              "directional_ad": 0.1668496910983819,
+              "realized_direction_norm": 1.0002675263666425,
+              "realized_direction_cosine": 0.9998620693391435,
+              "changed_fraction": 0.8819986979166666
+            },
+            {
+              "node": 0.18343464249564978,
+              "weight": 0.36268378337836166,
+              "nominal_distance": 0.0001834346424956498,
+              "directional_ad": 0.16680011702519668,
+              "realized_direction_norm": 1.000267522523393,
+              "realized_direction_cosine": 0.999862069337577,
+              "changed_fraction": 0.8819986979166666
+            },
+            {
+              "node": 0.525532409916329,
+              "weight": 0.3137066458778869,
+              "nominal_distance": 0.000525532409916329,
+              "directional_ad": 0.16632606526671978,
+              "realized_direction_norm": 1.0000108035028368,
+              "realized_direction_cosine": 0.9999828134535763,
+              "changed_fraction": 0.9466145833333334
+            },
+            {
+              "node": 0.7966664774136267,
+              "weight": 0.22238103445337443,
+              "nominal_distance": 0.0007966664774136268,
+              "directional_ad": 0.1660401960921291,
+              "realized_direction_norm": 1.0000246675021056,
+              "realized_direction_cosine": 0.9999923265485308,
+              "changed_fraction": 0.9596354166666666
+            },
+            {
+              "node": 0.9602898564975362,
+              "weight": 0.10122853629037706,
+              "nominal_distance": 0.0009602898564975362,
+              "directional_ad": 0.16588423910780728,
+              "realized_direction_norm": 1.0000388111739382,
+              "realized_direction_cosine": 0.9999947078032331,
+              "changed_fraction": 0.965087890625
+            }
+          ]
+        },
+        {
+          "order": 16,
+          "average_directional_ad": 0.1664604642240523,
+          "average_fd_absolute_error": 7.794607030042755e-06,
+          "average_fd_relative_error": 4.682338293663569e-05,
+          "average_center_absolute_difference": 0.004777848060599443,
+          "nodes": [
+            {
+              "node": -0.9894009349916499,
+              "weight": 0.027152459411754176,
+              "nominal_distance": -0.00098940093499165,
+              "directional_ad": 0.1660353035793186,
+              "realized_direction_norm": 1.0000398215796327,
+              "realized_direction_cosine": 0.9999951481676096,
+              "changed_fraction": 0.9661458333333334
+            },
+            {
+              "node": -0.9445750230732326,
+              "weight": 0.062253523938647456,
+              "nominal_distance": -0.0009445750230732326,
+              "directional_ad": 0.16607100677447834,
+              "realized_direction_norm": 1.0000276772715375,
+              "realized_direction_cosine": 0.9999944827694305,
+              "changed_fraction": 0.9645182291666666
+            },
+            {
+              "node": -0.8656312023878318,
+              "weight": 0.0951585116824926,
+              "nominal_distance": -0.0008656312023878318,
+              "directional_ad": 0.16613023406586813,
+              "realized_direction_norm": 0.9999625453653014,
+              "realized_direction_cosine": 0.9999937403649451,
+              "changed_fraction": 0.962158203125
+            },
+            {
+              "node": -0.755404408355003,
+              "weight": 0.12462897125553407,
+              "nominal_distance": -0.000755404408355003,
+              "directional_ad": 0.16621468009044704,
+              "realized_direction_norm": 1.0000298418500273,
+              "realized_direction_cosine": 0.9999917079200605,
+              "changed_fraction": 0.958251953125
+            },
+            {
+              "node": -0.6178762444026438,
+              "weight": 0.1495959888165767,
+              "nominal_distance": -0.0006178762444026438,
+              "directional_ad": 0.16631664500610183,
+              "realized_direction_norm": 1.0000193530266377,
+              "realized_direction_cosine": 0.9999878163501096,
+              "changed_fraction": 0.951416015625
+            },
+            {
+              "node": -0.45801677765722737,
+              "weight": 0.16915651939500265,
+              "nominal_distance": -0.0004580167776572274,
+              "directional_ad": 0.16645569849521696,
+              "realized_direction_norm": 1.0000654484079923,
+              "realized_direction_cosine": 0.9999782371127109,
+              "changed_fraction": 0.9391276041666666
+            },
+            {
+              "node": -0.2816035507792589,
+              "weight": 0.18260341504492364,
+              "nominal_distance": -0.0002816035507792589,
+              "directional_ad": 0.16669686767192665,
+              "realized_direction_norm": 1.0000460390453185,
+              "realized_direction_cosine": 0.9999381616175981,
+              "changed_fraction": 0.9130045572916666
+            },
+            {
+              "node": -0.09501250983763744,
+              "weight": 0.18945061045506864,
+              "nominal_distance": -9.501250983763744e-05,
+              "directional_ad": 0.16712224273248732,
+              "realized_direction_norm": 1.0005171865854054,
+              "realized_direction_cosine": 0.9994890027019026,
+              "changed_fraction": 0.8212076822916666
+            },
+            {
+              "node": 0.09501250983763744,
+              "weight": 0.18945061045506864,
+              "nominal_distance": 9.501250983763744e-05,
+              "directional_ad": 0.1670664069013254,
+              "realized_direction_norm": 1.0005171860788529,
+              "realized_direction_cosine": 0.9994890027013726,
+              "changed_fraction": 0.8212076822916666
+            },
+            {
+              "node": 0.2816035507792589,
+              "weight": 0.18260341504492364,
+              "nominal_distance": 0.0002816035507792589,
+              "directional_ad": 0.16664724498207945,
+              "realized_direction_norm": 1.0000460393422124,
+              "realized_direction_cosine": 0.9999381616176275,
+              "changed_fraction": 0.9130045572916666
+            },
+            {
+              "node": 0.45801677765722737,
+              "weight": 0.16915651939500265,
+              "nominal_distance": 0.0004580167776572274,
+              "directional_ad": 0.16638814114168105,
+              "realized_direction_norm": 1.0000654474523625,
+              "realized_direction_cosine": 0.9999782371126166,
+              "changed_fraction": 0.9391276041666666
+            },
+            {
+              "node": 0.6178762444026438,
+              "weight": 0.1495959888165767,
+              "nominal_distance": 0.0006178762444026438,
+              "directional_ad": 0.16620869633385982,
+              "realized_direction_norm": 1.00001934812374,
+              "realized_direction_cosine": 0.9999878163499544,
+              "changed_fraction": 0.951416015625
+            },
+            {
+              "node": 0.755404408355003,
+              "weight": 0.12462897125553407,
+              "nominal_distance": 0.000755404408355003,
+              "directional_ad": 0.16606742218334083,
+              "realized_direction_norm": 1.0000298371196181,
+              "realized_direction_cosine": 0.9999917079198782,
+              "changed_fraction": 0.958251953125
+            },
+            {
+              "node": 0.8656312023878318,
+              "weight": 0.0951585116824926,
+              "nominal_distance": 0.0008656312023878318,
+              "directional_ad": 0.16597074617112065,
+              "realized_direction_norm": 0.9999625445708951,
+              "realized_direction_cosine": 0.9999937403649696,
+              "changed_fraction": 0.962158203125
+            },
+            {
+              "node": 0.9445750230732326,
+              "weight": 0.062253523938647456,
+              "nominal_distance": 0.0009445750230732326,
+              "directional_ad": 0.1658887671932402,
+              "realized_direction_norm": 1.0000276713372704,
+              "realized_direction_cosine": 0.9999944827692312,
+              "changed_fraction": 0.9645182291666666
+            },
+            {
+              "node": 0.9894009349916499,
+              "weight": 0.027152459411754176,
+              "nominal_distance": 0.00098940093499165,
+              "directional_ad": 0.16586359736478676,
+              "realized_direction_norm": 1.0000398208618884,
+              "realized_direction_cosine": 0.9999951481675763,
+              "changed_fraction": 0.9661458333333334
+            }
+          ]
+        },
+        {
+          "order": 32,
+          "average_directional_ad": 0.1664696937842461,
+          "average_fd_absolute_error": 1.434953163736985e-06,
+          "average_fd_relative_error": 8.619906309173389e-06,
+          "average_center_absolute_difference": 0.004768618500405664,
+          "nodes": [
+            {
+              "node": -0.9972638618494816,
+              "weight": 0.007018610009470506,
+              "nominal_distance": -0.0009972638618494815,
+              "directional_ad": 0.1660297520496548,
+              "realized_direction_norm": 1.000007687781772,
+              "realized_direction_cosine": 0.9999952825905842,
+              "changed_fraction": 0.96630859375
+            },
+            {
+              "node": -0.9856115115452684,
+              "weight": 0.016274394730905743,
+              "nominal_distance": -0.0009856115115452683,
+              "directional_ad": 0.16603692382167373,
+              "realized_direction_norm": 0.9999733212432291,
+              "realized_direction_cosine": 0.9999950073573084,
+              "changed_fraction": 0.9659016927083334
+            },
+            {
+              "node": -0.9647622555875064,
+              "weight": 0.025392065309262024,
+              "nominal_distance": -0.0009647622555875064,
+              "directional_ad": 0.16606158004646945,
+              "realized_direction_norm": 1.0000279981779325,
+              "realized_direction_cosine": 0.9999948265381168,
+              "changed_fraction": 0.9654134114583334
+            },
+            {
+              "node": -0.9349060759377397,
+              "weight": 0.034273862913021765,
+              "nominal_distance": -0.0009349060759377397,
+              "directional_ad": 0.16607563196132102,
+              "realized_direction_norm": 1.00001590409967,
+              "realized_direction_cosine": 0.9999942991957256,
+              "changed_fraction": 0.9640299479166666
+            },
+            {
+              "node": -0.8963211557660521,
+              "weight": 0.042835898022226836,
+              "nominal_distance": -0.0008963211557660521,
+              "directional_ad": 0.16609786565719342,
+              "realized_direction_norm": 1.0000034740154198,
+              "realized_direction_cosine": 0.9999938843958572,
+              "changed_fraction": 0.962890625
+            },
+            {
+              "node": -0.84936761373257,
+              "weight": 0.05099805926237609,
+              "nominal_distance": -0.0008493676137325699,
+              "directional_ad": 0.16614084098964188,
+              "realized_direction_norm": 1.0000266193152265,
+              "realized_direction_cosine": 0.9999935179994048,
+              "changed_fraction": 0.9617513020833334
+            },
+            {
+              "node": -0.7944837959679424,
+              "weight": 0.058684093478535565,
+              "nominal_distance": -0.0007944837959679424,
+              "directional_ad": 0.16618974858431884,
+              "realized_direction_norm": 0.9999831029210107,
+              "realized_direction_cosine": 0.9999922383873389,
+              "changed_fraction": 0.9595540364583334
+            },
+            {
+              "node": -0.7321821187402897,
+              "weight": 0.06582222277636168,
+              "nominal_distance": -0.0007321821187402897,
+              "directional_ad": 0.166225210729005,
+              "realized_direction_norm": 0.9999934456852677,
+              "realized_direction_cosine": 0.9999911031322836,
+              "changed_fraction": 0.9573567708333334
+            },
+            {
+              "node": -0.6630442669302152,
+              "weight": 0.07234579410884834,
+              "nominal_distance": -0.0006630442669302152,
+              "directional_ad": 0.166277036298289,
+              "realized_direction_norm": 0.9999920810801415,
+              "realized_direction_cosine": 0.9999892215563968,
+              "changed_fraction": 0.9541829427083334
+            },
+            {
+              "node": -0.5877157572407623,
+              "weight": 0.07819389578707023,
+              "nominal_distance": -0.0005877157572407623,
+              "directional_ad": 0.166329039459425,
+              "realized_direction_norm": 1.0000783127932946,
+              "realized_direction_cosine": 0.9999865046188148,
+              "changed_fraction": 0.9501139322916666
+            },
+            {
+              "node": -0.5068999089322294,
+              "weight": 0.08331192422694671,
+              "nominal_distance": -0.0005068999089322294,
+              "directional_ad": 0.16639836578627937,
+              "realized_direction_norm": 1.0000484658252535,
+              "realized_direction_cosine": 0.9999818813123282,
+              "changed_fraction": 0.9442545572916666
+            },
+            {
+              "node": -0.42135127613063533,
+              "weight": 0.08765209300440378,
+              "nominal_distance": -0.0004213512761306353,
+              "directional_ad": 0.16650540977163905,
+              "realized_direction_norm": 1.0000371388317266,
+              "realized_direction_cosine": 0.9999731049581021,
+              "changed_fraction": 0.9357096354166666
+            },
+            {
+              "node": -0.33186860228212767,
+              "weight": 0.09117387869576378,
+              "nominal_distance": -0.0003318686022821277,
+              "directional_ad": 0.1666205525239451,
+              "realized_direction_norm": 1.0000083900050154,
+              "realized_direction_cosine": 0.9999572435426358,
+              "changed_fraction": 0.9235026041666666
+            },
+            {
+              "node": -0.23928736225213706,
+              "weight": 0.09384439908080451,
+              "nominal_distance": -0.00023928736225213706,
+              "directional_ad": 0.16676541086793212,
+              "realized_direction_norm": 1.0000824012351222,
+              "realized_direction_cosine": 0.9999174133347937,
+              "changed_fraction": 0.903076171875
+            },
+            {
+              "node": -0.1444719615827965,
+              "weight": 0.09563872007927471,
+              "nominal_distance": -0.00014447196158279648,
+              "directional_ad": 0.16693510347670598,
+              "realized_direction_norm": 1.0002333973617679,
+              "realized_direction_cosine": 0.9997825645416268,
+              "changed_fraction": 0.8636067708333334
+            },
+            {
+              "node": -0.048307665687738324,
+              "weight": 0.09654008851472766,
+              "nominal_distance": -4.830766568773833e-05,
+              "directional_ad": 0.16741312622425053,
+              "realized_direction_norm": 1.0012425144915178,
+              "realized_direction_cosine": 0.9983475898437575,
+              "changed_fraction": 0.7359212239583334
+            },
+            {
+              "node": 0.048307665687738324,
+              "weight": 0.09654008851472766,
+              "nominal_distance": 4.830766568773833e-05,
+              "directional_ad": 0.16728865618063765,
+              "realized_direction_norm": 1.0012425039612805,
+              "realized_direction_cosine": 0.9983475898129295,
+              "changed_fraction": 0.7359212239583334
+            },
+            {
+              "node": 0.1444719615827965,
+              "weight": 0.09563872007927471,
+              "nominal_distance": 0.00014447196158279648,
+              "directional_ad": 0.16689287125860575,
+              "realized_direction_norm": 1.0002333919628243,
+              "realized_direction_cosine": 0.9997825645391982,
+              "changed_fraction": 0.8636067708333334
+            },
+            {
+              "node": 0.23928736225213706,
+              "weight": 0.09384439908080451,
+              "nominal_distance": 0.00023928736225213706,
+              "directional_ad": 0.16671662269357237,
+              "realized_direction_norm": 1.0000824016550423,
+              "realized_direction_cosine": 0.9999174133348682,
+              "changed_fraction": 0.903076171875
+            },
+            {
+              "node": 0.33186860228212767,
+              "weight": 0.09117387869576378,
+              "nominal_distance": 0.0003318686022821277,
+              "directional_ad": 0.1665537908061991,
+              "realized_direction_norm": 1.0000083904752348,
+              "realized_direction_cosine": 0.9999572435426417,
+              "changed_fraction": 0.9235026041666666
+            },
+            {
+              "node": 0.42135127613063533,
+              "weight": 0.08765209300440378,
+              "nominal_distance": 0.0004213512761306353,
+              "directional_ad": 0.16642564485115305,
+              "realized_direction_norm": 1.0000371367306424,
+              "realized_direction_cosine": 0.9999731049579625,
+              "changed_fraction": 0.9357096354166666
+            },
+            {
+              "node": 0.5068999089322294,
+              "weight": 0.08331192422694671,
+              "nominal_distance": 0.0005068999089322294,
+              "directional_ad": 0.16635451780842933,
+              "realized_direction_norm": 1.0000484633332167,
+              "realized_direction_cosine": 0.9999818813121633,
+              "changed_fraction": 0.9442545572916666
+            },
+            {
+              "node": 0.5877157572407623,
+              "weight": 0.07819389578707023,
+              "nominal_distance": 0.0005877157572407623,
+              "directional_ad": 0.16624591872858568,
+              "realized_direction_norm": 1.0000783130920252,
+              "realized_direction_cosine": 0.9999865046188379,
+              "changed_fraction": 0.9501139322916666
+            },
+            {
+              "node": 0.6630442669302152,
+              "weight": 0.07234579410884834,
+              "nominal_distance": 0.0006630442669302152,
+              "directional_ad": 0.16615472014166313,
+              "realized_direction_norm": 0.999992079617256,
+              "realized_direction_cosine": 0.9999892215563918,
+              "changed_fraction": 0.9541829427083334
+            },
+            {
+              "node": 0.7321821187402897,
+              "weight": 0.06582222277636168,
+              "nominal_distance": 0.0007321821187402897,
+              "directional_ad": 0.16609458320923648,
+              "realized_direction_norm": 0.9999934455538461,
+              "realized_direction_cosine": 0.9999911031322828,
+              "changed_fraction": 0.9573567708333334
+            },
+            {
+              "node": 0.7944837959679424,
+              "weight": 0.058684093478535565,
+              "nominal_distance": 0.0007944837959679424,
+              "directional_ad": 0.1660409115061467,
+              "realized_direction_norm": 0.9999831009923584,
+              "realized_direction_cosine": 0.9999922383873533,
+              "changed_fraction": 0.9595540364583334
+            },
+            {
+              "node": 0.84936761373257,
+              "weight": 0.05099805926237609,
+              "nominal_distance": 0.0008493676137325699,
+              "directional_ad": 0.16597094767785994,
+              "realized_direction_norm": 1.0000266187318507,
+              "realized_direction_cosine": 0.9999935179993837,
+              "changed_fraction": 0.9617513020833334
+            },
+            {
+              "node": 0.8963211557660521,
+              "weight": 0.042835898022226836,
+              "nominal_distance": 0.0008963211557660521,
+              "directional_ad": 0.16593975345982767,
+              "realized_direction_norm": 1.0000034722567244,
+              "realized_direction_cosine": 0.9999938843958409,
+              "changed_fraction": 0.962890625
+            },
+            {
+              "node": 0.9349060759377397,
+              "weight": 0.034273862913021765,
+              "nominal_distance": 0.0009349060759377397,
+              "directional_ad": 0.1658946399890499,
+              "realized_direction_norm": 1.0000159068840078,
+              "realized_direction_cosine": 0.9999942991957866,
+              "changed_fraction": 0.9640299479166666
+            },
+            {
+              "node": 0.9647622555875064,
+              "weight": 0.025392065309262024,
+              "nominal_distance": 0.0009647622555875064,
+              "directional_ad": 0.16588276619014697,
+              "realized_direction_norm": 1.0000279951756321,
+              "realized_direction_cosine": 0.9999948265380186,
+              "changed_fraction": 0.9654134114583334
+            },
+            {
+              "node": 0.9856115115452684,
+              "weight": 0.016274394730905743,
+              "nominal_distance": 0.0009856115115452683,
+              "directional_ad": 0.16586632020855088,
+              "realized_direction_norm": 0.999973319560741,
+              "realized_direction_cosine": 0.9999950073573437,
+              "changed_fraction": 0.9659016927083334
+            },
+            {
+              "node": 0.9972638618494816,
+              "weight": 0.007018610009470506,
+              "nominal_distance": 0.0009972638618494815,
+              "directional_ad": 0.16585109047194846,
+              "realized_direction_norm": 1.0000076852979685,
+              "realized_direction_cosine": 0.9999952825905544,
+              "changed_fraction": 0.96630859375
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epsilon": 0.03,
+      "central_fd": 0.16402100371086648,
+      "center_ad": 0.17123831228465175,
+      "center_ad_fd_absolute_error": 0.007217308573785275,
+      "center_ad_fd_relative_error": 0.04214774414377459,
+      "orders": [
+        {
+          "order": 8,
+          "average_directional_ad": 0.16393832471320738,
+          "average_fd_absolute_error": 8.267899765909692e-05,
+          "average_fd_relative_error": 0.0005040756719477347,
+          "average_center_absolute_difference": 0.007299987571444372,
+          "nodes": [
+            {
+              "node": -0.9602898564975362,
+              "weight": 0.10122853629037706,
+              "nominal_distance": -0.028808695694926084,
+              "directional_ad": 0.16311224490439089,
+              "realized_direction_norm": 0.9999993615502202,
+              "realized_direction_cosine": 1.0000000545064396,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.7966664774136267,
+              "weight": 0.22238103445337443,
+              "nominal_distance": -0.023899994322408802,
+              "directional_ad": 0.16330749168001057,
+              "realized_direction_norm": 0.9999993924326281,
+              "realized_direction_cosine": 1.0000000520241292,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": -0.525532409916329,
+              "weight": 0.3137066458778869,
+              "nominal_distance": -0.01576597229748987,
+              "directional_ad": 0.1637799628193495,
+              "realized_direction_norm": 1.0000003883299031,
+              "realized_direction_cosine": 1.0000000410553094,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": -0.18343464249564978,
+              "weight": 0.36268378337836166,
+              "nominal_distance": -0.005503039274869493,
+              "directional_ad": 0.16485761386030462,
+              "realized_direction_norm": 1.0000021250609143,
+              "realized_direction_cosine": 0.9999999076246328,
+              "changed_fraction": 0.9854329427083334
+            },
+            {
+              "node": 0.18343464249564978,
+              "weight": 0.36268378337836166,
+              "nominal_distance": 0.005503039274869493,
+              "directional_ad": 0.16469835182914264,
+              "realized_direction_norm": 1.000002125820923,
+              "realized_direction_cosine": 0.9999999076246316,
+              "changed_fraction": 0.9854329427083334
+            },
+            {
+              "node": 0.525532409916329,
+              "weight": 0.3137066458778869,
+              "nominal_distance": 0.01576597229748987,
+              "directional_ad": 0.16366626159380854,
+              "realized_direction_norm": 1.0000003426581439,
+              "realized_direction_cosine": 1.0000000410536856,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": 0.7966664774136267,
+              "weight": 0.22238103445337443,
+              "nominal_distance": 0.023899994322408802,
+              "directional_ad": 0.16321528717430134,
+              "realized_direction_norm": 0.999999403191162,
+              "realized_direction_cosine": 1.00000005202412,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": 0.9602898564975362,
+              "weight": 0.10122853629037706,
+              "nominal_distance": 0.028808695694926084,
+              "directional_ad": 0.16305581071485462,
+              "realized_direction_norm": 0.9999993913321944,
+              "realized_direction_cosine": 1.000000054506136,
+              "changed_fraction": 0.989013671875
+            }
+          ]
+        },
+        {
+          "order": 16,
+          "average_directional_ad": 0.16399009712223767,
+          "average_fd_absolute_error": 3.090658862880957e-05,
+          "average_fd_relative_error": 0.0001884306761303034,
+          "average_center_absolute_difference": 0.0072482151624140845,
+          "nodes": [
+            {
+              "node": -0.9894009349916499,
+              "weight": 0.027152459411754176,
+              "nominal_distance": -0.029682028049749495,
+              "directional_ad": 0.16307337033971503,
+              "realized_direction_norm": 0.9999990923503747,
+              "realized_direction_cosine": 1.0000000551246786,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.9445750230732326,
+              "weight": 0.062253523938647456,
+              "nominal_distance": -0.028337250692196978,
+              "directional_ad": 0.16312220708787306,
+              "realized_direction_norm": 0.9999996566170694,
+              "realized_direction_cosine": 1.0000000545512628,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.8656312023878318,
+              "weight": 0.0951585116824926,
+              "nominal_distance": -0.025968936071634953,
+              "directional_ad": 0.16318242844216277,
+              "realized_direction_norm": 0.9999990805521259,
+              "realized_direction_cosine": 1.0000000533516455,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": -0.755404408355003,
+              "weight": 0.12462897125553407,
+              "nominal_distance": -0.02266213225065009,
+              "directional_ad": 0.16339606799321849,
+              "realized_direction_norm": 0.9999988572276701,
+              "realized_direction_cosine": 1.000000051168894,
+              "changed_fraction": 0.9886881510416666
+            },
+            {
+              "node": -0.6178762444026438,
+              "weight": 0.1495959888165767,
+              "nominal_distance": -0.018536287332079314,
+              "directional_ad": 0.16360246397099662,
+              "realized_direction_norm": 1.0000014337769374,
+              "realized_direction_cosine": 1.0000000465112657,
+              "changed_fraction": 0.98828125
+            },
+            {
+              "node": -0.45801677765722737,
+              "weight": 0.16915651939500265,
+              "nominal_distance": -0.013740503329716821,
+              "directional_ad": 0.16394575091813363,
+              "realized_direction_norm": 0.9999971777891523,
+              "realized_direction_cosine": 1.0000000355520953,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": -0.2816035507792589,
+              "weight": 0.18260341504492364,
+              "nominal_distance": -0.008448106523377767,
+              "directional_ad": 0.16445445750745913,
+              "realized_direction_norm": 1.0000033636212953,
+              "realized_direction_cosine": 0.9999999944888975,
+              "changed_fraction": 0.9871419270833334
+            },
+            {
+              "node": -0.09501250983763744,
+              "weight": 0.18945061045506864,
+              "nominal_distance": -0.002850375295129123,
+              "directional_ad": 0.1654230968092127,
+              "realized_direction_norm": 1.000002228172734,
+              "realized_direction_cosine": 0.9999994898245709,
+              "changed_fraction": 0.981201171875
+            },
+            {
+              "node": 0.09501250983763744,
+              "weight": 0.18945061045506864,
+              "nominal_distance": 0.002850375295129123,
+              "directional_ad": 0.1652728516101541,
+              "realized_direction_norm": 1.0000022315837136,
+              "realized_direction_cosine": 0.9999994898245795,
+              "changed_fraction": 0.981201171875
+            },
+            {
+              "node": 0.2816035507792589,
+              "weight": 0.18260341504492364,
+              "nominal_distance": 0.008448106523377767,
+              "directional_ad": 0.16435334802835838,
+              "realized_direction_norm": 1.0000033574197604,
+              "realized_direction_cosine": 0.9999999944888758,
+              "changed_fraction": 0.9871419270833334
+            },
+            {
+              "node": 0.45801677765722737,
+              "weight": 0.16915651939500265,
+              "nominal_distance": 0.013740503329716821,
+              "directional_ad": 0.1637702752101182,
+              "realized_direction_norm": 0.9999971792320768,
+              "realized_direction_cosine": 1.000000035552091,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": 0.6178762444026438,
+              "weight": 0.1495959888165767,
+              "nominal_distance": 0.018536287332079314,
+              "directional_ad": 0.16344165645867886,
+              "realized_direction_norm": 1.0000014405689088,
+              "realized_direction_cosine": 1.0000000465112293,
+              "changed_fraction": 0.98828125
+            },
+            {
+              "node": 0.755404408355003,
+              "weight": 0.12462897125553407,
+              "nominal_distance": 0.02266213225065009,
+              "directional_ad": 0.16328943907295118,
+              "realized_direction_norm": 0.9999988526602033,
+              "realized_direction_cosine": 1.0000000511686957,
+              "changed_fraction": 0.9886881510416666
+            },
+            {
+              "node": 0.8656312023878318,
+              "weight": 0.0951585116824926,
+              "nominal_distance": 0.025968936071634953,
+              "directional_ad": 0.16313211718859605,
+              "realized_direction_norm": 0.9999990356434344,
+              "realized_direction_cosine": 1.0000000533511204,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": 0.9445750230732326,
+              "weight": 0.062253523938647456,
+              "nominal_distance": 0.028337250692196978,
+              "directional_ad": 0.16308222995452668,
+              "realized_direction_norm": 0.9999996758348422,
+              "realized_direction_cosine": 1.0000000545509131,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": 0.9894009349916499,
+              "weight": 0.027152459411754176,
+              "nominal_distance": 0.029682028049749495,
+              "directional_ad": 0.16304680934952975,
+              "realized_direction_norm": 0.9999990880160853,
+              "realized_direction_cosine": 1.0000000551246724,
+              "changed_fraction": 0.989013671875
+            }
+          ]
+        },
+        {
+          "order": 32,
+          "average_directional_ad": 0.16399921574440351,
+          "average_fd_absolute_error": 2.178796646296055e-05,
+          "average_fd_relative_error": 0.0001328364414923836,
+          "average_center_absolute_difference": 0.0072390965402482355,
+          "nodes": [
+            {
+              "node": -0.9972638618494816,
+              "weight": 0.007018610009470506,
+              "nominal_distance": -0.029917915855484447,
+              "directional_ad": 0.16307442811964765,
+              "realized_direction_norm": 0.9999992458473392,
+              "realized_direction_cosine": 1.0000000551458468,
+              "changed_fraction": 0.9890950520833334
+            },
+            {
+              "node": -0.9856115115452684,
+              "weight": 0.016274394730905743,
+              "nominal_distance": -0.02956834534635805,
+              "directional_ad": 0.16307597309269603,
+              "realized_direction_norm": 0.9999997035545833,
+              "realized_direction_cosine": 1.0000000550036914,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.9647622555875064,
+              "weight": 0.025392065309262024,
+              "nominal_distance": -0.028942867667625192,
+              "directional_ad": 0.1631055622431566,
+              "realized_direction_norm": 0.9999986500528373,
+              "realized_direction_cosine": 1.0000000549710981,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.9349060759377397,
+              "weight": 0.034273862913021765,
+              "nominal_distance": -0.028047182278132188,
+              "directional_ad": 0.16313784819098254,
+              "realized_direction_norm": 1.0000002038119236,
+              "realized_direction_cosine": 1.0000000544969063,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.8963211557660521,
+              "weight": 0.042835898022226836,
+              "nominal_distance": -0.026889634672981562,
+              "directional_ad": 0.16318982655116476,
+              "realized_direction_norm": 1.0000003289358028,
+              "realized_direction_cosine": 1.0000000540806884,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.84936761373257,
+              "weight": 0.05099805926237609,
+              "nominal_distance": -0.025481028411977098,
+              "directional_ad": 0.16320409763584404,
+              "realized_direction_norm": 0.9999995539607028,
+              "realized_direction_cosine": 1.0000000529137807,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": -0.7944837959679424,
+              "weight": 0.058684093478535565,
+              "nominal_distance": -0.02383451387903827,
+              "directional_ad": 0.1633094871160094,
+              "realized_direction_norm": 1.0000002917734576,
+              "realized_direction_cosine": 1.0000000523962347,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": -0.7321821187402897,
+              "weight": 0.06582222277636168,
+              "nominal_distance": -0.02196546356220869,
+              "directional_ad": 0.16343230381555846,
+              "realized_direction_norm": 1.0000014268266417,
+              "realized_direction_cosine": 1.0000000510398288,
+              "changed_fraction": 0.9886881510416666
+            },
+            {
+              "node": -0.6630442669302152,
+              "weight": 0.07234579410884834,
+              "nominal_distance": -0.019891328007906457,
+              "directional_ad": 0.1635368430225165,
+              "realized_direction_norm": 0.999999064132811,
+              "realized_direction_cosine": 1.0000000482656413,
+              "changed_fraction": 0.9884440104166666
+            },
+            {
+              "node": -0.5877157572407623,
+              "weight": 0.07819389578707023,
+              "nominal_distance": -0.01763147271722287,
+              "directional_ad": 0.16362319711405537,
+              "realized_direction_norm": 0.9999984187034842,
+              "realized_direction_cosine": 1.0000000449627096,
+              "changed_fraction": 0.98828125
+            },
+            {
+              "node": -0.5068999089322294,
+              "weight": 0.08331192422694671,
+              "nominal_distance": -0.01520699726796688,
+              "directional_ad": 0.16383310487627548,
+              "realized_direction_norm": 0.9999987394368468,
+              "realized_direction_cosine": 1.0000000393287132,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": -0.42135127613063533,
+              "weight": 0.08765209300440378,
+              "nominal_distance": -0.01264053828391906,
+              "directional_ad": 0.16402998989215117,
+              "realized_direction_norm": 1.0000017508237866,
+              "realized_direction_cosine": 1.000000029621437,
+              "changed_fraction": 0.98779296875
+            },
+            {
+              "node": -0.33186860228212767,
+              "weight": 0.09117387869576378,
+              "nominal_distance": -0.00995605806846383,
+              "directional_ad": 0.16424169839829683,
+              "realized_direction_norm": 1.000001414584388,
+              "realized_direction_cosine": 1.0000000116190881,
+              "changed_fraction": 0.9873860677083334
+            },
+            {
+              "node": -0.23928736225213706,
+              "weight": 0.09384439908080451,
+              "nominal_distance": -0.007178620867564112,
+              "directional_ad": 0.1646333253683695,
+              "realized_direction_norm": 0.9999988237589373,
+              "realized_direction_cosine": 0.9999999680269634,
+              "changed_fraction": 0.986572265625
+            },
+            {
+              "node": -0.1444719615827965,
+              "weight": 0.09563872007927471,
+              "nominal_distance": -0.004334158847483894,
+              "directional_ad": 0.16502821995364592,
+              "realized_direction_norm": 1.0000064978812853,
+              "realized_direction_cosine": 0.999999797786345,
+              "changed_fraction": 0.984375
+            },
+            {
+              "node": -0.048307665687738324,
+              "weight": 0.09654008851472766,
+              "nominal_distance": -0.0014492299706321498,
+              "directional_ad": 0.16583848570933438,
+              "realized_direction_norm": 1.0000195231663425,
+              "realized_direction_cosine": 0.9999977898150547,
+              "changed_fraction": 0.9735514322916666
+            },
+            {
+              "node": 0.048307665687738324,
+              "weight": 0.09654008851472766,
+              "nominal_distance": 0.0014492299706321498,
+              "directional_ad": 0.16555775651732302,
+              "realized_direction_norm": 1.000019526393345,
+              "realized_direction_cosine": 0.9999977898151154,
+              "changed_fraction": 0.9735514322916666
+            },
+            {
+              "node": 0.1444719615827965,
+              "weight": 0.09563872007927471,
+              "nominal_distance": 0.004334158847483894,
+              "directional_ad": 0.16490313133230092,
+              "realized_direction_norm": 1.0000065094785404,
+              "realized_direction_cosine": 0.9999997977863946,
+              "changed_fraction": 0.984375
+            },
+            {
+              "node": 0.23928736225213706,
+              "weight": 0.09384439908080451,
+              "nominal_distance": 0.007178620867564112,
+              "directional_ad": 0.16451136113521483,
+              "realized_direction_norm": 0.999998811754539,
+              "realized_direction_cosine": 0.9999999680270047,
+              "changed_fraction": 0.986572265625
+            },
+            {
+              "node": 0.33186860228212767,
+              "weight": 0.09117387869576378,
+              "nominal_distance": 0.00995605806846383,
+              "directional_ad": 0.1642090055855661,
+              "realized_direction_norm": 1.0000014189115545,
+              "realized_direction_cosine": 1.0000000116190801,
+              "changed_fraction": 0.9873860677083334
+            },
+            {
+              "node": 0.42135127613063533,
+              "weight": 0.08765209300440378,
+              "nominal_distance": 0.01264053828391906,
+              "directional_ad": 0.16388241921572524,
+              "realized_direction_norm": 1.0000017461184239,
+              "realized_direction_cosine": 1.0000000296214278,
+              "changed_fraction": 0.98779296875
+            },
+            {
+              "node": 0.5068999089322294,
+              "weight": 0.08331192422694671,
+              "nominal_distance": 0.01520699726796688,
+              "directional_ad": 0.16371529256113684,
+              "realized_direction_norm": 0.9999987272746349,
+              "realized_direction_cosine": 1.0000000393282755,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": 0.5877157572407623,
+              "weight": 0.07819389578707023,
+              "nominal_distance": 0.01763147271722287,
+              "directional_ad": 0.16352305890580585,
+              "realized_direction_norm": 0.9999983701490923,
+              "realized_direction_cosine": 1.000000044962051,
+              "changed_fraction": 0.98828125
+            },
+            {
+              "node": 0.6630442669302152,
+              "weight": 0.07234579410884834,
+              "nominal_distance": 0.019891328007906457,
+              "directional_ad": 0.16343852739646203,
+              "realized_direction_norm": 0.9999990090396421,
+              "realized_direction_cosine": 1.0000000482652958,
+              "changed_fraction": 0.9884440104166666
+            },
+            {
+              "node": 0.7321821187402897,
+              "weight": 0.06582222277636168,
+              "nominal_distance": 0.02196546356220869,
+              "directional_ad": 0.16330463057103028,
+              "realized_direction_norm": 1.0000014148467207,
+              "realized_direction_cosine": 1.0000000510397233,
+              "changed_fraction": 0.9886881510416666
+            },
+            {
+              "node": 0.7944837959679424,
+              "weight": 0.058684093478535565,
+              "nominal_distance": 0.02383451387903827,
+              "directional_ad": 0.163223139213855,
+              "realized_direction_norm": 1.0000002483006458,
+              "realized_direction_cosine": 1.0000000523956118,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": 0.84936761373257,
+              "weight": 0.05099805926237609,
+              "nominal_distance": 0.025481028411977098,
+              "directional_ad": 0.16314080801879846,
+              "realized_direction_norm": 0.9999995671642699,
+              "realized_direction_cosine": 1.000000052913741,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": 0.8963211557660521,
+              "weight": 0.042835898022226836,
+              "nominal_distance": 0.026889634672981562,
+              "directional_ad": 0.1631149418213192,
+              "realized_direction_norm": 1.0000002963713597,
+              "realized_direction_cosine": 1.0000000540802747,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": 0.9349060759377397,
+              "weight": 0.034273862913021765,
+              "nominal_distance": 0.028047182278132188,
+              "directional_ad": 0.16309665741665025,
+              "realized_direction_norm": 1.000000202774948,
+              "realized_direction_cosine": 1.0000000544969059,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": 0.9647622555875064,
+              "weight": 0.025392065309262024,
+              "nominal_distance": 0.028942867667625192,
+              "directional_ad": 0.16307467245323481,
+              "realized_direction_norm": 0.9999986656270718,
+              "realized_direction_cosine": 1.000000054970612,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": 0.9856115115452684,
+              "weight": 0.016274394730905743,
+              "nominal_distance": 0.02956834534635805,
+              "directional_ad": 0.16305673420022948,
+              "realized_direction_norm": 0.9999997243717583,
+              "realized_direction_cosine": 1.0000000550031705,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": 0.9972638618494816,
+              "weight": 0.007018610009470506,
+              "nominal_distance": 0.029917915855484447,
+              "directional_ad": 0.16305873250384217,
+              "realized_direction_norm": 0.9999992506896157,
+              "realized_direction_cosine": 1.0000000551458135,
+              "changed_fraction": 0.9890950520833334
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epsilon": 0.1,
+      "central_fd": 0.16275776829323396,
+      "center_ad": 0.17123831228465175,
+      "center_ad_fd_absolute_error": 0.008480543991417788,
+      "center_ad_fd_relative_error": 0.04952480480723535,
+      "orders": [
+        {
+          "order": 8,
+          "average_directional_ad": 0.16263607379661218,
+          "average_fd_absolute_error": 0.000121694496621777,
+          "average_fd_relative_error": 0.0007477031535755949,
+          "average_center_absolute_difference": 0.008602238488039565,
+          "nodes": [
+            {
+              "node": -0.9602898564975362,
+              "weight": 0.10122853629037706,
+              "nominal_distance": -0.09602898564975362,
+              "directional_ad": 0.1616962403399309,
+              "realized_direction_norm": 1.000000006198716,
+              "realized_direction_cosine": 1.0000000600387695,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.7966664774136267,
+              "weight": 0.22238103445337443,
+              "nominal_distance": -0.07966664774136267,
+              "directional_ad": 0.16200228366692052,
+              "realized_direction_norm": 1.0000001755855936,
+              "realized_direction_cosine": 1.0000000597816612,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.525532409916329,
+              "weight": 0.3137066458778869,
+              "nominal_distance": -0.0525532409916329,
+              "directional_ad": 0.16241546514630673,
+              "realized_direction_norm": 0.9999994121442154,
+              "realized_direction_cosine": 1.0000000588516404,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": -0.18343464249564978,
+              "weight": 0.36268378337836166,
+              "nominal_distance": -0.01834346424956498,
+              "directional_ad": 0.16361058603176848,
+              "realized_direction_norm": 0.9999999306434679,
+              "realized_direction_cosine": 1.0000000464307865,
+              "changed_fraction": 0.98828125
+            },
+            {
+              "node": 0.18343464249564978,
+              "weight": 0.36268378337836166,
+              "nominal_distance": 0.01834346424956498,
+              "directional_ad": 0.16345863690379508,
+              "realized_direction_norm": 0.9999999771593737,
+              "realized_direction_cosine": 1.0000000464299785,
+              "changed_fraction": 0.98828125
+            },
+            {
+              "node": 0.525532409916329,
+              "weight": 0.3137066458778869,
+              "nominal_distance": 0.0525532409916329,
+              "directional_ad": 0.16243640053504282,
+              "realized_direction_norm": 0.99999942279786,
+              "realized_direction_cosine": 1.0000000588510494,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": 0.7966664774136267,
+              "weight": 0.22238103445337443,
+              "nominal_distance": 0.07966664774136267,
+              "directional_ad": 0.16182298499695383,
+              "realized_direction_norm": 1.0000002129347136,
+              "realized_direction_cosine": 1.000000059782007,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9602898564975362,
+              "weight": 0.10122853629037706,
+              "nominal_distance": 0.09602898564975362,
+              "directional_ad": 0.16161829303202208,
+              "realized_direction_norm": 0.9999999649154026,
+              "realized_direction_cosine": 1.0000000600391856,
+              "changed_fraction": 0.9895833333333334
+            }
+          ]
+        },
+        {
+          "order": 16,
+          "average_directional_ad": 0.16270545717423057,
+          "average_fd_absolute_error": 5.2311119003389805e-05,
+          "average_fd_relative_error": 0.00032140474492832206,
+          "average_center_absolute_difference": 0.008532855110421178,
+          "nodes": [
+            {
+              "node": -0.9894009349916499,
+              "weight": 0.027152459411754176,
+              "nominal_distance": -0.098940093499165,
+              "directional_ad": 0.16166171852563874,
+              "realized_direction_norm": 0.9999999097419351,
+              "realized_direction_cosine": 1.0000000600772698,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.9445750230732326,
+              "weight": 0.062253523938647456,
+              "nominal_distance": -0.09445750230732326,
+              "directional_ad": 0.16173249694542324,
+              "realized_direction_norm": 0.9999999821198956,
+              "realized_direction_cosine": 1.0000000600261074,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.8656312023878318,
+              "weight": 0.0951585116824926,
+              "nominal_distance": -0.08656312023878318,
+              "directional_ad": 0.1618439726443652,
+              "realized_direction_norm": 1.0000000003310918,
+              "realized_direction_cosine": 1.0000000599356837,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.755404408355003,
+              "weight": 0.12462897125553407,
+              "nominal_distance": -0.07554044083550031,
+              "directional_ad": 0.16203841852281636,
+              "realized_direction_norm": 1.0000004586583902,
+              "realized_direction_cosine": 1.000000059745933,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.6178762444026438,
+              "weight": 0.1495959888165767,
+              "nominal_distance": -0.06178762444026438,
+              "directional_ad": 0.16225080640549647,
+              "realized_direction_norm": 0.9999996844579158,
+              "realized_direction_cosine": 1.000000059360655,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": -0.45801677765722737,
+              "weight": 0.16915651939500265,
+              "nominal_distance": -0.04580167776572274,
+              "directional_ad": 0.16255968666842796,
+              "realized_direction_norm": 0.999999792332889,
+              "realized_direction_cosine": 1.0000000583071709,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": -0.2816035507792589,
+              "weight": 0.18260341504492364,
+              "nominal_distance": -0.028160355077925893,
+              "directional_ad": 0.16312958236487007,
+              "realized_direction_norm": 1.0000013736275986,
+              "realized_direction_cosine": 1.000000054547641,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": -0.09501250983763744,
+              "weight": 0.18945061045506864,
+              "nominal_distance": -0.009501250983763745,
+              "directional_ad": 0.16431718363361292,
+              "realized_direction_norm": 0.9999975896548398,
+              "realized_direction_cosine": 1.000000009095233,
+              "changed_fraction": 0.9873860677083334
+            },
+            {
+              "node": 0.09501250983763744,
+              "weight": 0.18945061045506864,
+              "nominal_distance": 0.009501250983763745,
+              "directional_ad": 0.1642808467937173,
+              "realized_direction_norm": 0.9999975934328142,
+              "realized_direction_cosine": 1.000000009095225,
+              "changed_fraction": 0.9873860677083334
+            },
+            {
+              "node": 0.2816035507792589,
+              "weight": 0.18260341504492364,
+              "nominal_distance": 0.028160355077925893,
+              "directional_ad": 0.16309081422683597,
+              "realized_direction_norm": 1.000001334628551,
+              "realized_direction_cosine": 1.0000000545473517,
+              "changed_fraction": 0.989013671875
+            },
+            {
+              "node": 0.45801677765722737,
+              "weight": 0.16915651939500265,
+              "nominal_distance": 0.04580167776572274,
+              "directional_ad": 0.16253158960537395,
+              "realized_direction_norm": 0.9999997813152628,
+              "realized_direction_cosine": 1.0000000583070117,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": 0.6178762444026438,
+              "weight": 0.1495959888165767,
+              "nominal_distance": 0.06178762444026438,
+              "directional_ad": 0.16214628942427656,
+              "realized_direction_norm": 0.999999675844342,
+              "realized_direction_cosine": 1.0000000593606753,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": 0.755404408355003,
+              "weight": 0.12462897125553407,
+              "nominal_distance": 0.07554044083550031,
+              "directional_ad": 0.16188597595459475,
+              "realized_direction_norm": 1.0000004211125868,
+              "realized_direction_cosine": 1.0000000597466514,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.8656312023878318,
+              "weight": 0.0951585116824926,
+              "nominal_distance": 0.08656312023878318,
+              "directional_ad": 0.16172664680703605,
+              "realized_direction_norm": 0.9999999944993402,
+              "realized_direction_cosine": 1.000000059935727,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9445750230732326,
+              "weight": 0.062253523938647456,
+              "nominal_distance": 0.09445750230732326,
+              "directional_ad": 0.1616516886735357,
+              "realized_direction_norm": 0.9999999899567882,
+              "realized_direction_cosine": 1.0000000600261016,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9894009349916499,
+              "weight": 0.027152459411754176,
+              "nominal_distance": 0.098940093499165,
+              "directional_ad": 0.16156416025427445,
+              "realized_direction_norm": 0.9999998739688237,
+              "realized_direction_cosine": 1.000000060077282,
+              "changed_fraction": 0.9895833333333334
+            }
+          ]
+        },
+        {
+          "order": 32,
+          "average_directional_ad": 0.1627366502749446,
+          "average_fd_absolute_error": 2.1118018289356666e-05,
+          "average_fd_relative_error": 0.0001297512156305142,
+          "average_center_absolute_difference": 0.008501662009707145,
+          "nodes": [
+            {
+              "node": -0.9972638618494816,
+              "weight": 0.007018610009470506,
+              "nominal_distance": -0.09972638618494817,
+              "directional_ad": 0.16163790907944187,
+              "realized_direction_norm": 0.9999999612862349,
+              "realized_direction_cosine": 1.0000000600946488,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.9856115115452684,
+              "weight": 0.016274394730905743,
+              "nominal_distance": -0.09856115115452685,
+              "directional_ad": 0.1616619721669597,
+              "realized_direction_norm": 0.9999999174329338,
+              "realized_direction_cosine": 1.0000000600783243,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.9647622555875064,
+              "weight": 0.025392065309262024,
+              "nominal_distance": -0.09647622555875064,
+              "directional_ad": 0.16168402603114526,
+              "realized_direction_norm": 1.0000001261270146,
+              "realized_direction_cosine": 1.000000060044885,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.9349060759377397,
+              "weight": 0.034273862913021765,
+              "nominal_distance": -0.09349060759377398,
+              "directional_ad": 0.1617551954866669,
+              "realized_direction_norm": 1.0000001273304482,
+              "realized_direction_cosine": 1.000000060013718,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.8963211557660521,
+              "weight": 0.042835898022226836,
+              "nominal_distance": -0.08963211557660522,
+              "directional_ad": 0.1618163214081293,
+              "realized_direction_norm": 1.0000000399324813,
+              "realized_direction_cosine": 1.0000000599743997,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.84936761373257,
+              "weight": 0.05099805926237609,
+              "nominal_distance": -0.08493676137325701,
+              "directional_ad": 0.16188975476805711,
+              "realized_direction_norm": 0.9999993717585474,
+              "realized_direction_cosine": 1.000000059896865,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.7944837959679424,
+              "weight": 0.058684093478535565,
+              "nominal_distance": -0.07944837959679424,
+              "directional_ad": 0.16200283303594037,
+              "realized_direction_norm": 0.9999998281052216,
+              "realized_direction_cosine": 1.0000000597985141,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.7321821187402897,
+              "weight": 0.06582222277636168,
+              "nominal_distance": -0.07321821187402898,
+              "directional_ad": 0.16208784612138355,
+              "realized_direction_norm": 0.9999997819470261,
+              "realized_direction_cosine": 1.0000000596833019,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": -0.6630442669302152,
+              "weight": 0.07234579410884834,
+              "nominal_distance": -0.06630442669302153,
+              "directional_ad": 0.16224919336916496,
+              "realized_direction_norm": 1.0000005290385308,
+              "realized_direction_cosine": 1.0000000594680125,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": -0.5877157572407623,
+              "weight": 0.07819389578707023,
+              "nominal_distance": -0.058771575724076236,
+              "directional_ad": 0.16233463595253356,
+              "realized_direction_norm": 1.0000000506526219,
+              "realized_direction_cosine": 1.0000000591640281,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": -0.5068999089322294,
+              "weight": 0.08331192422694671,
+              "nominal_distance": -0.05068999089322294,
+              "directional_ad": 0.16243462117747148,
+              "realized_direction_norm": 1.0000002959524346,
+              "realized_direction_cosine": 1.000000058654728,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": -0.42135127613063533,
+              "weight": 0.08765209300440378,
+              "nominal_distance": -0.04213512761306354,
+              "directional_ad": 0.16272438971405048,
+              "realized_direction_norm": 1.000000643439875,
+              "realized_direction_cosine": 1.000000057910533,
+              "changed_fraction": 0.9892578125
+            },
+            {
+              "node": -0.33186860228212767,
+              "weight": 0.09117387869576378,
+              "nominal_distance": -0.03318686022821277,
+              "directional_ad": 0.16295831876520545,
+              "realized_direction_norm": 0.9999996456183688,
+              "realized_direction_cosine": 1.0000000562811753,
+              "changed_fraction": 0.9890950520833334
+            },
+            {
+              "node": -0.23928736225213706,
+              "weight": 0.09384439908080451,
+              "nominal_distance": -0.023928736225213708,
+              "directional_ad": 0.16330712831820768,
+              "realized_direction_norm": 1.0000004261620732,
+              "realized_direction_cosine": 1.0000000521382495,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": -0.1444719615827965,
+              "weight": 0.09563872007927471,
+              "nominal_distance": -0.014447196158279649,
+              "directional_ad": 0.16388590743951692,
+              "realized_direction_norm": 0.9999995764143081,
+              "realized_direction_cosine": 1.0000000375978562,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": -0.048307665687738324,
+              "weight": 0.09654008851472766,
+              "nominal_distance": -0.004830766568773833,
+              "directional_ad": 0.16497198728286047,
+              "realized_direction_norm": 0.9999976684034559,
+              "realized_direction_cosine": 0.999999859934329,
+              "changed_fraction": 0.9849446614583334
+            },
+            {
+              "node": 0.048307665687738324,
+              "weight": 0.09654008851472766,
+              "nominal_distance": 0.004830766568773833,
+              "directional_ad": 0.16479073590585755,
+              "realized_direction_norm": 0.999997674628191,
+              "realized_direction_cosine": 0.9999998599343063,
+              "changed_fraction": 0.9849446614583334
+            },
+            {
+              "node": 0.1444719615827965,
+              "weight": 0.09563872007927471,
+              "nominal_distance": 0.014447196158279649,
+              "directional_ad": 0.1637069631624049,
+              "realized_direction_norm": 0.9999995700172821,
+              "realized_direction_cosine": 1.0000000375978548,
+              "changed_fraction": 0.9878743489583334
+            },
+            {
+              "node": 0.23928736225213706,
+              "weight": 0.09384439908080451,
+              "nominal_distance": 0.023928736225213708,
+              "directional_ad": 0.16321317842456629,
+              "realized_direction_norm": 1.0000004151248933,
+              "realized_direction_cosine": 1.0000000521381323,
+              "changed_fraction": 0.9889322916666666
+            },
+            {
+              "node": 0.33186860228212767,
+              "weight": 0.09117387869576378,
+              "nominal_distance": 0.03318686022821277,
+              "directional_ad": 0.16298241531322388,
+              "realized_direction_norm": 0.9999996464556377,
+              "realized_direction_cosine": 1.0000000562814082,
+              "changed_fraction": 0.9890950520833334
+            },
+            {
+              "node": 0.42135127613063533,
+              "weight": 0.08765209300440378,
+              "nominal_distance": 0.04213512761306354,
+              "directional_ad": 0.16261447636260795,
+              "realized_direction_norm": 1.0000006388591165,
+              "realized_direction_cosine": 1.000000057910506,
+              "changed_fraction": 0.9892578125
+            },
+            {
+              "node": 0.5068999089322294,
+              "weight": 0.08331192422694671,
+              "nominal_distance": 0.05068999089322294,
+              "directional_ad": 0.16243977921304384,
+              "realized_direction_norm": 1.0000002756781134,
+              "realized_direction_cosine": 1.0000000586546625,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": 0.5877157572407623,
+              "weight": 0.07819389578707023,
+              "nominal_distance": 0.058771575724076236,
+              "directional_ad": 0.16223321253735107,
+              "realized_direction_norm": 1.0000000492637,
+              "realized_direction_cosine": 1.0000000591640021,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": 0.6630442669302152,
+              "weight": 0.07234579410884834,
+              "nominal_distance": 0.06630442669302153,
+              "directional_ad": 0.1620973725441267,
+              "realized_direction_norm": 1.0000005280310618,
+              "realized_direction_cosine": 1.000000059467732,
+              "changed_fraction": 0.9894205729166666
+            },
+            {
+              "node": 0.7321821187402897,
+              "weight": 0.06582222277636168,
+              "nominal_distance": 0.07321821187402898,
+              "directional_ad": 0.1619459360138849,
+              "realized_direction_norm": 0.9999998149853202,
+              "realized_direction_cosine": 1.000000059684125,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.7944837959679424,
+              "weight": 0.058684093478535565,
+              "nominal_distance": 0.07944837959679424,
+              "directional_ad": 0.16182497824473357,
+              "realized_direction_norm": 0.9999998269012266,
+              "realized_direction_cosine": 1.0000000597982404,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.84936761373257,
+              "weight": 0.05099805926237609,
+              "nominal_distance": 0.08493676137325701,
+              "directional_ad": 0.1617616777914613,
+              "realized_direction_norm": 0.9999994115655745,
+              "realized_direction_cosine": 1.0000000598973253,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.8963211557660521,
+              "weight": 0.042835898022226836,
+              "nominal_distance": 0.08963211557660522,
+              "directional_ad": 0.16175069688828508,
+              "realized_direction_norm": 1.0000000331584182,
+              "realized_direction_cosine": 1.0000000599746355,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9349060759377397,
+              "weight": 0.034273862913021765,
+              "nominal_distance": 0.09349060759377398,
+              "directional_ad": 0.16167070488107046,
+              "realized_direction_norm": 1.0000001611913658,
+              "realized_direction_cosine": 1.0000000600144652,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9647622555875064,
+              "weight": 0.025392065309262024,
+              "nominal_distance": 0.09647622555875064,
+              "directional_ad": 0.16162447042107053,
+              "realized_direction_norm": 1.000000116949214,
+              "realized_direction_cosine": 1.0000000600448051,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9856115115452684,
+              "weight": 0.016274394730905743,
+              "nominal_distance": 0.09856115115452685,
+              "directional_ad": 0.16156205002978574,
+              "realized_direction_norm": 0.999999924024757,
+              "realized_direction_cosine": 1.000000060078407,
+              "changed_fraction": 0.9895833333333334
+            },
+            {
+              "node": 0.9972638618494816,
+              "weight": 0.007018610009470506,
+              "nominal_distance": 0.09972638618494817,
+              "directional_ad": 0.1615470347400006,
+              "realized_direction_norm": 0.9999999267080429,
+              "realized_direction_cosine": 1.0000000600947252,
+              "changed_fraction": 0.9895833333333334
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

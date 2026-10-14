@@ -1,0 +1,92 @@
+{
+  "input_sha256": "e4f5c8671e66eb03561f7d2f24073b37fb723fd15e58cc55d53e097e4fbd9bb4",
+  "analysis_sha256": "d1a9b62016a2234084b4b503e9ba8548603d982f8f4b294f47e2b7432497ee40",
+  "samples": [
+    {
+      "epsilon": 0.001,
+      "center_ad": 0.17123831228465175,
+      "central_fd": 0.16646825883108235,
+      "orders": [
+        {
+          "order": 8,
+          "average_directional_ad": 0.1664324477335786,
+          "average_fd_absolute_error": 3.5811097503751776e-05,
+          "average_fd_relative_error": 0.00021512267717108637,
+          "average_center_absolute_difference": 0.004805864551073152
+        },
+        {
+          "order": 16,
+          "average_directional_ad": 0.1664604642240523,
+          "average_fd_absolute_error": 7.794607030042755e-06,
+          "average_fd_relative_error": 4.682338293663569e-05,
+          "average_center_absolute_difference": 0.004777848060599443
+        },
+        {
+          "order": 32,
+          "average_directional_ad": 0.1664696937842461,
+          "average_fd_absolute_error": 1.434953163736985e-06,
+          "average_fd_relative_error": 8.619906309173389e-06,
+          "average_center_absolute_difference": 0.004768618500405664
+        }
+      ]
+    },
+    {
+      "epsilon": 0.03,
+      "center_ad": 0.17123831228465175,
+      "central_fd": 0.16402100371086648,
+      "orders": [
+        {
+          "order": 8,
+          "average_directional_ad": 0.16393832471320738,
+          "average_fd_absolute_error": 8.267899765909692e-05,
+          "average_fd_relative_error": 0.0005040756719477347,
+          "average_center_absolute_difference": 0.007299987571444372
+        },
+        {
+          "order": 16,
+          "average_directional_ad": 0.16399009712223767,
+          "average_fd_absolute_error": 3.090658862880957e-05,
+          "average_fd_relative_error": 0.0001884306761303034,
+          "average_center_absolute_difference": 0.0072482151624140845
+        },
+        {
+          "order": 32,
+          "average_directional_ad": 0.16399921574440351,
+          "average_fd_absolute_error": 2.178796646296055e-05,
+          "average_fd_relative_error": 0.0001328364414923836,
+          "average_center_absolute_difference": 0.0072390965402482355
+        }
+      ]
+    },
+    {
+      "epsilon": 0.1,
+      "center_ad": 0.17123831228465175,
+      "central_fd": 0.16275776829323396,
+      "orders": [
+        {
+          "order": 8,
+          "average_directional_ad": 0.16263607379661218,
+          "average_fd_absolute_error": 0.000121694496621777,
+          "average_fd_relative_error": 0.0007477031535755949,
+          "average_center_absolute_difference": 0.008602238488039565
+        },
+        {
+          "order": 16,
+          "average_directional_ad": 0.16270545717423057,
+          "average_fd_absolute_error": 5.2311119003389805e-05,
+          "average_fd_relative_error": 0.00032140474492832206,
+          "average_center_absolute_difference": 0.008532855110421178
+        },
+        {
+          "order": 32,
+          "average_directional_ad": 0.1627366502749446,
+          "average_fd_absolute_error": 2.1118018289356666e-05,
+          "average_fd_relative_error": 0.0001297512156305142,
+          "average_center_absolute_difference": 0.008501662009707145
+        }
+      ]
+    }
+  ],
+  "interpretation": "Additional finite-path consistency diagnostic, not an integral theorem proof: native Float32 casts make the literal map discontinuous while AD differentiates through casts.",
+  "all_orders_preserved": true
+}

@@ -1,0 +1,25 @@
+{
+  "exact_prior_metrics_match": true,
+  "comparisons": {
+    "loss": true,
+    "velocity_mse": true,
+    "scalar_mse": true,
+    "selected_update": true,
+    "selected_candidate": true,
+    "candidate_training_loss": true,
+    "candidate_validation_checkpoints": true,
+    "candidate_selected_update": true,
+    "candidate_completed_updates": true,
+    "status_pass": true,
+    "selected192": true
+  },
+  "checkpoints": [
+    0,
+    64,
+    128,
+    192,
+    256
+  ],
+  "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+  "windows_predeclared": "actual first scheduled (case,start), plus start24 for all four cases"
+}
