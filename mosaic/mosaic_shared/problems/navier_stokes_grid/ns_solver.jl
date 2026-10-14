@@ -147,13 +147,29 @@ end
 # Forward passes (RK4, non-mutating, Zygote-differentiable)
 # ---------------------------------------------------------------------------
 
+"""
+Collocated v0 → staggered, ghosted, divergence-free initial state.
+
+Shared by `ns_apply` and the VJP rollout so both start from the same state.
+`project` leaves the ghost layer stale, and the in-place RK stepper evaluates
+its first stage on the start state without refreshing the BCs, so the
+ghosts are refreshed here.
+"""
+function initial_state(v0::AbstractArray, setup, psolver, n::Int)
+    u = if ndims(v0) == 3
+        add_ghosts_2d(coloc_to_stag_2d(v0, n), n)
+    else
+        add_ghosts_3d(coloc_to_stag_3d(v0, n), n)
+    end
+    u = project(u, setup; psolver)
+    return apply_bc_u(u, zero(eltype(u)), setup)
+end
+
 """2-D forward: v0 (n,n,2) → v_out (n,n,2)."""
 function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
     p = (; viscosity = nu)
-    v0_stag = coloc_to_stag_2d(v0, n)
-    u = add_ghosts_2d(v0_stag, n)
-    u = project(u, setup; psolver)
+    u = initial_state(v0, setup, psolver, n)
 
     # rhs (create_right_hand_side) applies the periodic BCs to its input and
     # projects its output, so no ghost refresh is needed between stages; the
@@ -174,9 +190,7 @@ end
 function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
     p = (; viscosity = nu)
-    v0_stag = coloc_to_stag_3d(v0, n)
-    u = add_ghosts_3d(v0_stag, n)
-    u = project(u, setup; psolver)
+    u = initial_state(v0, setup, psolver, n)
 
     # See ns_forward_2d for why no per-stage ghost refresh is needed.
     for _ in 1:steps
@@ -214,13 +228,7 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
 
-    # Staggered, ghosted, divergence-free initial state
-    u = if ndim == 2
-        add_ghosts_2d(coloc_to_stag_2d(v0, n), n)
-    else
-        add_ghosts_3d(coloc_to_stag_3d(v0, n), n)
-    end
-    u = project(u, setup; psolver)
+    u = initial_state(v0, setup, psolver, n)
 
     state, _ = solve_unsteady(;
         setup,
