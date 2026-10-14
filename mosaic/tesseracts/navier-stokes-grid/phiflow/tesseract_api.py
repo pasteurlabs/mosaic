@@ -332,9 +332,10 @@ def phiflow_fwd(
     else:
         # Use explicit CG pressure solver to prevent numerical divergence in 3D
         # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
-        # Tightened rel_tol/abs_tol to 1e-10 on the 3D
-        # periodic path to prevent adjoint-side residual bias in fd_check.
-        _cg_solve = math.Solve("CG", 1e-10, 1e-10)
+        # 1e-5 is phiflow's default. Tolerances near the float32 residual floor
+        # (~1e-6) make CG stall at max_iterations, and a stalled iterate can be
+        # orders of magnitude less divergence-free than the tolerance asked for.
+        _cg_solve = math.Solve("CG", 1e-5, 1e-5)
 
         def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
             vel = faces_to_staggered(face_arr)
