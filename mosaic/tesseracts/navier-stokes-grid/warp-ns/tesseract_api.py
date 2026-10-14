@@ -4,23 +4,28 @@
 
 """GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
 
-Periodic-only IPCS (tentative velocity → pressure Poisson → velocity correction)
-with exact spectral FFT Poisson and wp.Tape VJP.  Forward and reverse passes
-work on triply-periodic boxes for both 2-D and 3-D.
+IPCS (tentative velocity → pressure Poisson → velocity correction) with
+wp.Tape VJP. Periodic boxes, 2-D and 3-D, use an exact spectral FFT Poisson
+solve. The 2-D channel with a cylinder (Schäfer–Turek DFG 2D-1) uses a
+staggered grid and a conjugate-gradient Poisson solve; see
+:func:`channel_solve`.
 """
 
+import contextlib
 import functools
 from typing import Any
 
 import numpy as np
 import warp as wp
+import warp.optim.linear
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.schema_types import make_differentiable
+from mosaic_shared.schema_types import ObstacleShape, make_differentiable
+from pydantic import model_validator
 
 wp.init()
 
@@ -1928,17 +1933,672 @@ def ns3d_vjp(
 
 
 # ============================================================
+# 2-D channel with a cylinder (Schäfer–Turek DFG 2D-1)
+#
+# Staggered (MAC) grid on the nx × ny cells: u on the x faces, shape
+# (nx + 1, ny), face i at x = i dx (face 0 is the inlet, face nx the outlet);
+# v on the y faces, shape (nx, ny + 1), face j at y = j dx (faces 0 and ny
+# are the walls); p at the cell centres. The cylinder is the staircase of
+# cells whose centre lies strictly inside it. A face is "open" when it
+# carries flow: between two fluid cells, or the inlet / outlet face of a
+# fluid cell. Faces touching a solid cell are held at zero velocity.
+#
+# The step is the periodic path's explicit-Euler projection with central
+# differences: u* = u + dt (ν ∇²u − u·∇u) on every face, then the pressure
+# Poisson equation over the fluid cells (Neumann on walls, inlet and cylinder,
+# p = 0 on the outlet face) by conjugate gradients, then u = u* − dt ∇p on
+# the open faces.
+# ============================================================
+
+
+@wp.kernel
+def channel_tentative_u_kernel(
+    u: wp.array2d(dtype=wp.float32),
+    v: wp.array2d(dtype=wp.float32),
+    inflow: wp.array(dtype=wp.float32),
+    u_star: wp.array2d(dtype=wp.float32),
+    dt: wp.array(dtype=wp.float32),
+    nu: wp.array(dtype=wp.float32),
+    inv_dx: float,
+) -> None:
+    """u* on the x faces; the inlet face takes the inflow profile."""
+    i, j = wp.tid()
+    nx = u.shape[0] - 1
+    ny = u.shape[1]
+    if i == 0:
+        u_star[i, j] = inflow[j]
+    else:
+        uc = u[i, j]
+        uw = u[i - 1, j]
+        # Zero gradient past the outlet; mirrored ghosts make u = 0 on the walls.
+        ue = uc
+        if i < nx:
+            ue = u[i + 1, j]
+        us = -uc
+        if j > 0:
+            us = u[i, j - 1]
+        un = -uc
+        if j < ny - 1:
+            un = u[i, j + 1]
+        # v at the face from the four surrounding y faces; past the outlet the
+        # last cell's values continue.
+        il = i - 1
+        ir = wp.min(i, nx - 1)
+        va = 0.25 * (v[il, j] + v[il, j + 1] + v[ir, j] + v[ir, j + 1])
+        adv = 0.5 * inv_dx * (uc * (ue - uw) + va * (un - us))
+        lap = inv_dx * inv_dx * (ue + uw + un + us - 4.0 * uc)
+        u_star[i, j] = uc + dt[0] * (nu[0] * lap - adv)
+
+
+@wp.kernel
+def channel_tentative_v_kernel(
+    u: wp.array2d(dtype=wp.float32),
+    v: wp.array2d(dtype=wp.float32),
+    v_star: wp.array2d(dtype=wp.float32),
+    dt: wp.array(dtype=wp.float32),
+    nu: wp.array(dtype=wp.float32),
+    inv_dx: float,
+) -> None:
+    """v* on the y faces; zero on the walls."""
+    i, j = wp.tid()
+    nx = v.shape[0]
+    ny = v.shape[1] - 1
+    if j == 0 or j == ny:
+        v_star[i, j] = 0.0
+    else:
+        vc = v[i, j]
+        vs = v[i, j - 1]
+        vn = v[i, j + 1]
+        # v = 0 on the inlet face (mirrored ghost), zero gradient past the outlet.
+        vw = -vc
+        if i > 0:
+            vw = v[i - 1, j]
+        ve = vc
+        if i < nx - 1:
+            ve = v[i + 1, j]
+        ua = 0.25 * (u[i, j - 1] + u[i + 1, j - 1] + u[i, j] + u[i + 1, j])
+        adv = 0.5 * inv_dx * (ua * (ve - vw) + vc * (vn - vs))
+        lap = inv_dx * inv_dx * (ve + vw + vn + vs - 4.0 * vc)
+        v_star[i, j] = vc + dt[0] * (nu[0] * lap - adv)
+
+
+@wp.kernel
+def channel_divergence_kernel(
+    u_star: wp.array2d(dtype=wp.float32),
+    v_star: wp.array2d(dtype=wp.float32),
+    open_u: wp.array2d(dtype=wp.int32),
+    open_v: wp.array2d(dtype=wp.int32),
+    rhs: wp.array2d(dtype=wp.float32),
+    dt: wp.array(dtype=wp.float32),
+    dx: float,
+) -> None:
+    """Right-hand side −dx ∇·u* / dt of the Poisson system scaled by dx².
+
+    Closed faces contribute no flux; solid cells get zero.
+    """
+    i, j = wp.tid()
+    flux = (
+        u_star[i + 1, j] * float(open_u[i + 1, j])
+        - u_star[i, j] * float(open_u[i, j])
+        + v_star[i, j + 1] * float(open_v[i, j + 1])
+        - v_star[i, j] * float(open_v[i, j])
+    )
+    rhs[i, j] = -flux * dx / dt[0]
+
+
+@wp.kernel
+def channel_laplacian_kernel(
+    x: wp.array(dtype=wp.float32),
+    y: wp.array(dtype=wp.float32),
+    z: wp.array(dtype=wp.float32),
+    alpha: float,
+    beta: float,
+    open_u: wp.array2d(dtype=wp.int32),
+    open_v: wp.array2d(dtype=wp.int32),
+    fluid: wp.array2d(dtype=wp.int32),
+) -> None:
+    """Compute z = alpha A x + beta y, with A = −dx² ∇² over the fluid cells.
+
+    A couples two fluid cells across every open face and adds the p = 0
+    outlet face as a ghost of opposite sign, so it is symmetric positive
+    definite. Solid cells carry the identity, which keeps them at zero.
+    Arrays are flattened row-major from (nx, ny).
+    """
+    i, j = wp.tid()
+    nx = fluid.shape[0]
+    ny = fluid.shape[1]
+    c = i * ny + j
+    pc = x[c]
+    ax = pc
+    if fluid[i, j] == 1:
+        ax = 0.0
+        if i > 0 and open_u[i, j] == 1:
+            ax += pc - x[c - ny]
+        if i == nx - 1:
+            ax += 2.0 * pc
+        elif open_u[i + 1, j] == 1:
+            ax += pc - x[c + ny]
+        if open_v[i, j] == 1:
+            ax += pc - x[c - 1]
+        if open_v[i, j + 1] == 1:
+            ax += pc - x[c + 1]
+    z[c] = alpha * ax + beta * y[c]
+
+
+@wp.kernel
+def channel_correct_u_kernel(
+    u_star: wp.array2d(dtype=wp.float32),
+    p: wp.array2d(dtype=wp.float32),
+    open_u: wp.array2d(dtype=wp.int32),
+    inflow: wp.array(dtype=wp.float32),
+    u_new: wp.array2d(dtype=wp.float32),
+    dt: wp.array(dtype=wp.float32),
+    inv_dx: float,
+) -> None:
+    """Correct u = u* − dt ∂p/∂x on the open x faces; the inlet keeps the profile."""
+    i, j = wp.tid()
+    nx = p.shape[0]
+    val = 0.0
+    if i == 0:
+        val = inflow[j]
+    elif open_u[i, j] == 1:
+        pw = p[i - 1, j]
+        pe = -pw  # p = 0 on the outlet face
+        if i < nx:
+            pe = p[i, j]
+        val = u_star[i, j] - dt[0] * inv_dx * (pe - pw)
+    u_new[i, j] = val
+
+
+@wp.kernel
+def channel_correct_v_kernel(
+    v_star: wp.array2d(dtype=wp.float32),
+    p: wp.array2d(dtype=wp.float32),
+    open_v: wp.array2d(dtype=wp.int32),
+    v_new: wp.array2d(dtype=wp.float32),
+    dt: wp.array(dtype=wp.float32),
+    inv_dx: float,
+) -> None:
+    """Correct v = v* − dt ∂p/∂y on the open y faces."""
+    i, j = wp.tid()
+    val = 0.0
+    if open_v[i, j] == 1:
+        val = v_star[i, j] - dt[0] * inv_dx * (p[i, j] - p[i, j - 1])
+    v_new[i, j] = val
+
+
+@wp.kernel
+def channel_force_kernel(
+    u_star: wp.array2d(dtype=wp.float32),
+    v_star: wp.array2d(dtype=wp.float32),
+    p: wp.array2d(dtype=wp.float32),
+    open_u: wp.array2d(dtype=wp.int32),
+    open_v: wp.array2d(dtype=wp.int32),
+    fluid: wp.array2d(dtype=wp.int32),
+    force: wp.array2d(dtype=wp.float32),
+    row: int,
+    dt: wp.array(dtype=wp.float32),
+    dx: float,
+) -> None:
+    """Add this step's force on the cylinder to ``force[row]``.
+
+    Launched over (nx + 1, ny + 1). Each interior face touching a solid cell
+    contributes the momentum the fluid would have carried through it, u* dx²,
+    which the projection removes (advection and viscous stress), plus the
+    pressure of the fluid cells on either side of it.
+    """
+    i, j = wp.tid()
+    nx = fluid.shape[0]
+    ny = fluid.shape[1]
+    if i > 0 and i < nx and j < ny and open_u[i, j] == 0:
+        fx = u_star[i, j] * dx * dx / dt[0]
+        if fluid[i - 1, j] == 1:
+            fx += p[i - 1, j] * dx
+        if fluid[i, j] == 1:
+            fx -= p[i, j] * dx
+        wp.atomic_add(force, row, 0, fx)
+    if j > 0 and j < ny and i < nx and open_v[i, j] == 0:
+        fy = v_star[i, j] * dx * dx / dt[0]
+        if fluid[i, j - 1] == 1:
+            fy += p[i, j - 1] * dx
+        if fluid[i, j] == 1:
+            fy -= p[i, j] * dx
+        wp.atomic_add(force, row, 1, fy)
+
+
+@wp.kernel
+def channel_init_u_kernel(
+    ux: wp.array2d(dtype=wp.float32),
+    open_u: wp.array2d(dtype=wp.int32),
+    inflow: wp.array(dtype=wp.float32),
+    u: wp.array2d(dtype=wp.float32),
+) -> None:
+    """x-face velocity from the cell-centred initial field."""
+    i, j = wp.tid()
+    nx = ux.shape[0]
+    val = 0.0
+    if i == 0:
+        val = inflow[j]
+    elif open_u[i, j] == 1:
+        val = ux[i - 1, j]
+        if i < nx:
+            val = 0.5 * (ux[i - 1, j] + ux[i, j])
+    u[i, j] = val
+
+
+@wp.kernel
+def channel_init_v_kernel(
+    uy: wp.array2d(dtype=wp.float32),
+    open_v: wp.array2d(dtype=wp.int32),
+    v: wp.array2d(dtype=wp.float32),
+) -> None:
+    """y-face velocity from the cell-centred initial field."""
+    i, j = wp.tid()
+    val = 0.0
+    if open_v[i, j] == 1:
+        val = 0.5 * (uy[i, j - 1] + uy[i, j])
+    v[i, j] = val
+
+
+@wp.kernel
+def channel_centres_kernel(
+    u: wp.array2d(dtype=wp.float32),
+    v: wp.array2d(dtype=wp.float32),
+    fluid: wp.array2d(dtype=wp.int32),
+    ux: wp.array2d(dtype=wp.float32),
+    uy: wp.array2d(dtype=wp.float32),
+) -> None:
+    """Face velocities averaged to the cell centres, zero in solid cells."""
+    i, j = wp.tid()
+    f = float(fluid[i, j])
+    ux[i, j] = 0.5 * (u[i, j] + u[i + 1, j]) * f
+    uy[i, j] = 0.5 * (v[i, j] + v[i, j + 1]) * f
+
+
+@wp.kernel
+def channel_basis_rows_kernel(
+    a: wp.array2d(dtype=wp.float32),
+    src: wp.array2d(dtype=wp.float32),
+    dst: wp.array2d(dtype=wp.float32),
+) -> None:
+    """Compute dst = a @ src, a change of basis along x."""
+    i, j = wp.tid()
+    s = float(0.0)  # noqa: UP018 (Warp needs a dynamic variable in the loop)
+    for k in range(a.shape[1]):
+        s += a[i, k] * src[k, j]
+    dst[i, j] = s
+
+
+@wp.kernel
+def channel_basis_cols_kernel(
+    src: wp.array2d(dtype=wp.float32),
+    b: wp.array2d(dtype=wp.float32),
+    scale: wp.array2d(dtype=wp.float32),
+    y: wp.array2d(dtype=wp.float32),
+    alpha: float,
+    beta: float,
+    dst: wp.array2d(dtype=wp.float32),
+) -> None:
+    """Compute dst = alpha scale ∘ (src @ b) + beta y, a change of basis along y."""
+    i, j = wp.tid()
+    s = float(0.0)  # noqa: UP018 (Warp needs a dynamic variable in the loop)
+    for k in range(b.shape[0]):
+        s += src[i, k] * b[k, j]
+    dst[i, j] = alpha * scale[i, j] * s + beta * y[i, j]
+
+
+@wp.kernel
+def _flag_unconverged_kernel(
+    r_norm_sq: wp.array(dtype=wp.float32),
+    atol_sq: wp.array(dtype=wp.float32),
+    flag: wp.array(dtype=wp.int32),
+) -> None:
+    if r_norm_sq[0] > atol_sq[0]:
+        flag[0] = 1
+
+
+# Relative residual at which the pressure CG stops, as in PhiFlow; a tighter
+# tolerance changes Cd by less than 1e-5 at 10 cells per diameter.
+_CHANNEL_CG_TOL = 1e-5
+_CHANNEL_CG_MAXITER = 5000
+
+
+def _check_cg_converged(flag: wp.array) -> None:
+    if flag.numpy()[0]:
+        raise RuntimeError(
+            f"pressure CG did not reach a relative residual of {_CHANNEL_CG_TOL} "
+            f"in {_CHANNEL_CG_MAXITER} iterations"
+        )
+
+
+def _channel_masks(
+    nx: int, ny: int, dx: float, obstacle: dict, device: str
+) -> tuple[wp.array, wp.array, wp.array]:
+    """``(fluid, open_u, open_v)`` int32 masks for the staircase cylinder."""
+    xc = (np.arange(nx) + 0.5) * dx
+    yc = (np.arange(ny) + 0.5) * dx
+    cx, cy = obstacle["center"][:2]
+    r2 = (xc[:, None] - cx) ** 2 + (yc[None, :] - cy) ** 2
+    fluid = r2 >= obstacle["radius"] ** 2
+    open_u = np.zeros((nx + 1, ny), bool)
+    open_u[0], open_u[nx] = fluid[0], fluid[nx - 1]
+    open_u[1:nx] = fluid[:-1] & fluid[1:]
+    open_v = np.zeros((nx, ny + 1), bool)
+    open_v[:, 1:ny] = fluid[:, :-1] & fluid[:, 1:]
+    return tuple(
+        wp.array(m.astype(np.int32), dtype=wp.int32, device=device)
+        for m in (fluid, open_u, open_v)
+    )
+
+
+def _channel_pressure_solver(
+    fluid: wp.array, open_u: wp.array, open_v: wp.array, device: str
+) -> tuple[Any, wp.array]:
+    """``solve(rhs, x)`` for A x = rhs in place, and the flag it sets on failure.
+
+    Conjugate gradients on :func:`channel_laplacian_kernel`, preconditioned by
+    the exact inverse of the same operator without the cylinder, which
+    separates into 1-D eigenbases along x (Neumann inlet, p = 0 outlet) and y
+    (Neumann walls). The cylinder then changes only a few hundred rows, so CG
+    needs about 20 iterations instead of about 150 at 10 cells per diameter.
+    The dense x basis costs nx² ny per application: this halves the run time
+    at 10 cells per diameter, breaks even at 20 and doubles it at 40.
+
+    On CUDA the iterations run in a conditional graph without a host sync
+    per residual check, captured once per solution buffer ``x`` and replayed;
+    non-convergence is flagged on the device and raised by
+    :func:`_check_cg_converged` once the run ends.
+    """
+    nx, ny = fluid.shape
+    n = nx * ny
+
+    def second_difference(m: int, last: float) -> np.ndarray:
+        t = 2.0 * np.eye(m) - np.eye(m, k=1) - np.eye(m, k=-1)
+        t[0, 0], t[-1, -1] = 1.0, last
+        return t
+
+    def to_wp(values: np.ndarray) -> wp.array:
+        values = np.ascontiguousarray(values, dtype=np.float32)
+        return wp.array(values, dtype=wp.float32, device=device)
+
+    lam_x, vec_x = np.linalg.eigh(second_difference(nx, 3.0))
+    lam_y, vec_y = np.linalg.eigh(second_difference(ny, 1.0))
+    vx, vxt, vy, vyt = (to_wp(m) for m in (vec_x, vec_x.T, vec_y, vec_y.T))
+    inv_lam, ones = to_wp(1.0 / np.add.outer(lam_x, lam_y)), to_wp(np.ones((nx, ny)))
+    tmp_a, tmp_b = to_wp(np.zeros((nx, ny))), to_wp(np.zeros((nx, ny)))
+
+    def matvec(x, y, z, alpha, beta):
+        wp.launch(
+            channel_laplacian_kernel,
+            dim=(nx, ny),
+            inputs=[x, y, z, float(alpha), float(beta), open_u, open_v, fluid],
+            device=device,
+        )
+
+    def precondition(x, y, z, alpha, beta):
+        def launch(kernel, inputs):
+            wp.launch(kernel, dim=(nx, ny), inputs=inputs, device=device)
+
+        x, y, z = (a.reshape((nx, ny)) for a in (x, y, z))
+        launch(channel_basis_rows_kernel, [vxt, x, tmp_a])
+        launch(channel_basis_cols_kernel, [tmp_a, vy, inv_lam, tmp_a, 1.0, 0.0, tmp_b])
+        launch(channel_basis_rows_kernel, [vx, tmp_b, tmp_a])
+        launch(
+            channel_basis_cols_kernel,
+            [tmp_a, vyt, ones, y, float(alpha), float(beta), z],
+        )
+
+    def operator(func):
+        return warp.optim.linear.LinearOperator(
+            (n, n), wp.float32, wp.get_device(device), func
+        )
+
+    on_device = wp.get_device(device).is_cuda and wp.is_conditional_graph_supported()
+    unconverged = wp.zeros(1, dtype=wp.int32, device=device)
+    rhs_buffer = wp.zeros(n, dtype=wp.float32, device=device)
+    # The solver records its dot-product launches on the default device.
+    with wp.ScopedDevice(device):
+        cg = warp.optim.linear.cg(
+            operator(matvec),
+            rhs_buffer,
+            wp.zeros(n, dtype=wp.float32, device=device),
+            tol=_CHANNEL_CG_TOL,
+            atol=0.0,
+            maxiter=_CHANNEL_CG_MAXITER,
+            M=operator(precondition),
+            check_every=0 if on_device else 10,
+            run=False,
+        )
+
+    def run(x: wp.array) -> None:
+        _, residual, atol = cg(b=rhs_buffer, x=x)
+        if on_device:
+            wp.launch(
+                _flag_unconverged_kernel,
+                dim=1,
+                inputs=[residual, atol, unconverged],
+                device=device,
+            )
+        elif residual > atol:
+            unconverged.fill_(1)
+
+    graphs = {}
+
+    def solve(rhs: wp.array, x: wp.array) -> None:
+        wp.copy(rhs_buffer, rhs)
+        if not on_device:
+            run(x)
+            return
+        if x.ptr not in graphs:
+            with wp.ScopedCapture(device=device) as capture:
+                run(x)
+            graphs[x.ptr] = capture.graph
+        wp.capture_launch(graphs[x.ptr])
+
+    return solve, unconverged
+
+
+def channel_solve(
+    v0_np: np.ndarray,
+    inflow_np: np.ndarray,
+    viscosity: float,
+    dt: float,
+    steps: int,
+    dx: float,
+    obstacle: dict,
+    device: str = "cpu",
+    tape: wp.Tape | None = None,
+    track_scalar_grads: bool = False,
+) -> dict[str, wp.array]:
+    """Run the 2-D DFG channel; record it on ``tape`` when one is given.
+
+    The pressure solve (:func:`_channel_pressure_solver`) is not a Warp
+    kernel, so the tape cannot record it. Its backward is recorded with
+    ``tape.record_func`` instead: the Poisson operator is symmetric, so the
+    adjoint of ``p = A⁻¹ b`` is another solve with A, ``b̄ = A⁻¹ p̄``. Both
+    directions start from their previous solution.
+
+    The force on the cylinder is summed each step by
+    :func:`channel_force_kernel` from the same u* and p the step uses, so it
+    is the discrete momentum exchange of the scheme.
+
+    Returns:
+        Warp arrays: ``ux``, ``uy`` and ``pressure`` (nx, ny) at the cell
+        centres, ``body_force`` (steps, 2), the leaves ``v0_x``, ``v0_y``,
+        ``inflow``, ``nu`` and ``dt``, and ``cg_unconverged``, which the
+        adjoint solves in ``tape.backward()`` set if they fail.
+    """
+    nx, ny = v0_np.shape[:2]
+    inv_dx = 1.0 / dx
+    grad = tape is not None
+    recording = tape if grad else contextlib.nullcontext()
+
+    def field(shape: tuple[int, int]) -> wp.array:
+        return wp.zeros(shape, dtype=wp.float32, requires_grad=grad, device=device)
+
+    def leaf(values: np.ndarray, requires_grad: bool = grad) -> wp.array:
+        return wp.array(
+            np.ascontiguousarray(values, dtype=np.float32),
+            dtype=wp.float32,
+            requires_grad=requires_grad,
+            device=device,
+        )
+
+    fluid, open_u, open_v = _channel_masks(nx, ny, dx, obstacle, device)
+    v0_x, v0_y = leaf(v0_np[:, :, 0, 0]), leaf(v0_np[:, :, 0, 1])
+    inflow = leaf(inflow_np)
+    nu_wp = leaf(np.array([viscosity]), grad and track_scalar_grads)
+    dt_wp = leaf(np.array([dt]), grad and track_scalar_grads)
+    force = field((steps, 2))
+
+    p_guess = wp.zeros(nx * ny, dtype=wp.float32, device=device)
+    adjoint_guess = wp.zeros(nx * ny, dtype=wp.float32, device=device)
+    solve, unconverged = _channel_pressure_solver(fluid, open_u, open_v, device)
+
+    with recording:
+        u, v = field((nx + 1, ny)), field((nx, ny + 1))
+        wp.launch(
+            channel_init_u_kernel,
+            dim=u.shape,
+            inputs=[v0_x, open_u, inflow, u],
+            device=device,
+        )
+        wp.launch(
+            channel_init_v_kernel, dim=v.shape, inputs=[v0_y, open_v, v], device=device
+        )
+
+    for k in range(steps):
+        u_star, v_star = field(u.shape), field(v.shape)
+        rhs, p = field((nx, ny)), field((nx, ny))
+        with recording:
+            wp.launch(
+                channel_tentative_u_kernel,
+                dim=u.shape,
+                inputs=[u, v, inflow, u_star, dt_wp, nu_wp, inv_dx],
+                device=device,
+            )
+            wp.launch(
+                channel_tentative_v_kernel,
+                dim=v.shape,
+                inputs=[u, v, v_star, dt_wp, nu_wp, inv_dx],
+                device=device,
+            )
+            wp.launch(
+                channel_divergence_kernel,
+                dim=(nx, ny),
+                inputs=[u_star, v_star, open_u, open_v, rhs, dt_wp, dx],
+                device=device,
+            )
+        solve(rhs.flatten(), p_guess)
+        wp.copy(p.flatten(), p_guess)
+        if grad:
+
+            def adjoint(rhs=rhs, p=p) -> None:
+                solve(p.grad.flatten(), adjoint_guess)
+                wp.copy(rhs.grad.flatten(), adjoint_guess)
+
+            tape.record_func(backward=adjoint, arrays=[rhs, p])
+        u_new, v_new = field(u.shape), field(v.shape)
+        with recording:
+            wp.launch(
+                channel_correct_u_kernel,
+                dim=u.shape,
+                inputs=[u_star, p, open_u, inflow, u_new, dt_wp, inv_dx],
+                device=device,
+            )
+            wp.launch(
+                channel_correct_v_kernel,
+                dim=v.shape,
+                inputs=[v_star, p, open_v, v_new, dt_wp, inv_dx],
+                device=device,
+            )
+            wp.launch(
+                channel_force_kernel,
+                dim=(nx + 1, ny + 1),
+                inputs=[
+                    u_star,
+                    v_star,
+                    p,
+                    open_u,
+                    open_v,
+                    fluid,
+                    force,
+                    k,
+                    dt_wp,
+                    dx,
+                ],
+                device=device,
+            )
+        u, v = u_new, v_new
+
+    _check_cg_converged(unconverged)
+    ux, uy = field((nx, ny)), field((nx, ny))
+    with recording:
+        wp.launch(
+            channel_centres_kernel,
+            dim=(nx, ny),
+            inputs=[u, v, fluid, ux, uy],
+            device=device,
+        )
+    return {
+        "ux": ux,
+        "uy": uy,
+        "pressure": p,
+        "body_force": force,
+        "v0_x": v0_x,
+        "v0_y": v0_y,
+        "inflow": inflow,
+        "nu": nu_wp,
+        "dt": dt_wp,
+        "cg_unconverged": unconverged,
+    }
+
+
+# ============================================================
 # Schema definitions
 # ============================================================
 
 
+_CHANNEL_BCS = {
+    "x_lo": "dirichlet",
+    "x_hi": "neumann",
+    "y_lo": "no_slip",
+    "y_hi": "no_slip",
+}
+
+
 class InputSchema(
-    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
+    make_differentiable(
+        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+    )
 ):
     """Warp NS solver input schema."""
 
+    @model_validator(mode="after")
+    def _check_supported_bcs(self) -> "InputSchema":
+        """Accept a fully periodic box, or the 2-D channel with a cylinder."""
+        bc = self.boundary_conditions
+        if bc.is_fully_periodic and self.obstacle is None:
+            return self
+        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
+        if (
+            faces != _CHANNEL_BCS
+            or self.v0.shape[-1] != 2
+            or self.inflow_profile is None
+            or self.obstacle is None
+            or self.obstacle.shape != ObstacleShape.CYLINDER
+        ):
+            raise ValueError(
+                "warp-ns supports a fully periodic box without an obstacle, or the "
+                f"2-D channel {_CHANNEL_BCS} with an inflow_profile and a "
+                f"cylinder; got {faces}, obstacle {self.obstacle}"
+            )
+        return self
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+
+class OutputSchema(
+    make_differentiable(_CanonicalOutputSchema, ["result", "body_force"])
+):
     """Warp NS solver output schema."""
 
 
@@ -1961,18 +2621,17 @@ def _is_3d(v0_np: np.ndarray) -> bool:
 # ============================================================
 
 
-def _check_periodic(inputs: InputSchema) -> None:
-    """warp-ns supports only fully-periodic flows."""
-    if inputs.obstacle is not None:
-        raise NotImplementedError(
-            "warp-ns is periodic-only. Use phiflow / xlb / pict for "
-            "cylinder/drag experiments."
-        )
-    if inputs.inflow_profile is not None:
-        raise NotImplementedError(
-            "warp-ns is periodic-only. Use phiflow / xlb / pict for "
-            "inflow/channel experiments."
-        )
+def _channel_args(inputs: InputSchema) -> dict[str, Any]:
+    return {
+        "v0_np": np.asarray(inputs.v0, dtype=np.float32),
+        "inflow_np": np.asarray(inputs.inflow_profile, dtype=np.float32),
+        "viscosity": float(inputs.viscosity[0]),
+        "dt": float(inputs.dt[0]),
+        "steps": inputs.steps,
+        "dx": inputs.dx,
+        "obstacle": inputs.obstacle.model_dump(),
+        "device": _warp_device(),
+    }
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
@@ -1981,8 +2640,17 @@ def apply(inputs: InputSchema) -> OutputSchema:
     Uses the forward-only solve path (no wp.Tape, no gradient-enabled
     arrays, ping-pong buffers) since apply() never needs gradients —
     discussion recommendation: give apply() a separate forward-only path.
+    The channel runs :func:`channel_solve` without a tape.
     """
-    _check_periodic(inputs)
+    if inputs.obstacle is not None:
+        out = channel_solve(**_channel_args(inputs))
+        velocity = np.stack([out["ux"].numpy(), out["uy"].numpy()], axis=-1)
+        return OutputSchema(
+            result=velocity[:, :, None, :],
+            pressure=out["pressure"].numpy()[:, :, None],
+            body_force=out["body_force"].numpy(),
+        )
+
     v0 = np.asarray(inputs.v0, dtype=np.float32)
     nu = float(inputs.viscosity[0])
     dt = float(inputs.dt[0])
@@ -1999,6 +2667,41 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(result=result)
 
 
+def channel_vjp(
+    inputs: InputSchema,
+    vjp_inputs: set[str],
+    cotangent_vector: dict[str, Any],
+) -> dict[str, Any]:
+    """VJP of the channel's ``result`` and ``body_force`` via wp.Tape."""
+    tape = wp.Tape()
+    out = channel_solve(
+        **_channel_args(inputs),
+        tape=tape,
+        track_scalar_grads=bool(vjp_inputs & {"viscosity", "dt"}),
+    )
+    device = out["ux"].device
+    seeds = {}
+    if cotangent_vector.get("result") is not None:
+        cot = np.asarray(cotangent_vector["result"], dtype=np.float32)
+        seeds[out["ux"]] = wp.array(cot[:, :, 0, 0], dtype=wp.float32, device=device)
+        seeds[out["uy"]] = wp.array(cot[:, :, 0, 1], dtype=wp.float32, device=device)
+    if cotangent_vector.get("body_force") is not None:
+        cot = np.asarray(cotangent_vector["body_force"], dtype=np.float32)
+        seeds[out["body_force"]] = wp.array(cot, dtype=wp.float32, device=device)
+    tape.backward(grads=seeds)
+    _check_cg_converged(out["cg_unconverged"])
+
+    grad_v0 = np.stack([out["v0_x"].grad.numpy(), out["v0_y"].grad.numpy()], -1)
+    grads = {
+        "v0": grad_v0[:, :, None, :],
+        "inflow_profile": out["inflow"].grad.numpy(),
+    }
+    for key, name in (("viscosity", "nu"), ("dt", "dt")):
+        if key in vjp_inputs:
+            grads[key] = out[name].grad.numpy()
+    return {key: grads[key] for key in vjp_inputs}
+
+
 def vector_jacobian_product(
     inputs: InputSchema,
     vjp_inputs: set[str],
@@ -2010,7 +2713,8 @@ def vector_jacobian_product(
     Runs the forward pass under tape recording, then calls tape.backward()
     with the output cotangent to obtain gradients w.r.t. differentiable inputs.
 
-    Differentiable inputs: v0, viscosity, dt (2D and 3D).
+    Differentiable inputs: v0, viscosity, dt (2D and 3D), and inflow_profile
+    in the channel (see :func:`channel_vjp`).
     Both 2D and 3D use IPCS with spectral FFT Poisson for numerically exact VJPs.
 
     Gradient tracking for the ``viscosity``/``dt`` scalars is only turned on
@@ -2019,7 +2723,9 @@ def vector_jacobian_product(
     across every timestep, and doing this unconditionally measured ~50%
     higher 3-D VJP wall-clock for the common v0-only case.
     """
-    _check_periodic(inputs)
+    if inputs.obstacle is not None:
+        return channel_vjp(inputs, vjp_inputs, cotangent_vector)
+
     v0 = np.asarray(inputs.v0, dtype=np.float32)
     nu = float(inputs.viscosity[0])
     dt = float(inputs.dt[0])
@@ -2111,4 +2817,8 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     else:
         shape = tuple(np.asarray(v0).shape)
 
-    return {"result": {"shape": shape, "dtype": "float32"}}
+    out = {"result": {"shape": shape, "dtype": "float32"}}
+    if d["obstacle"] is not None:
+        out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
+        out["body_force"] = {"shape": (d["steps"], 2), "dtype": "float32"}
+    return out

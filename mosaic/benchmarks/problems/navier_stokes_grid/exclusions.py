@@ -37,11 +37,6 @@ INS_JL_NO_OBSTACLE = Exclusion(
     "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
     "Brinkman forcing, which are not wired up here",
 )
-WARP_NS_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "this tesseract's projection solver uses a spectral FFT pressure solve "
-    "and is periodic-only; obstacle and inflow flows are not implemented in it",
-)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "standard icoFoam has no VJP to benchmark",
@@ -59,7 +54,6 @@ OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
-    "warp_ns": WARP_NS_NO_OBSTACLE,
 }
 
 
