@@ -1,26 +1,34 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Shared building blocks for the Vega-Lite result charts.
+"""Shared building blocks for the benchmark charts (Altair / Vega-Lite).
 
 Every chart module in this package defines plots once as Altair specs over
-tidy data read from ``mosaic-results/``. The specs carry no visual theme: the
-docs site applies its own (light/dark) config in the browser, and
-:func:`paper` applies a print config for static SVG/PDF export.
+tidy data read from an experiment's results directory. :func:`save_chart`
+writes each chart twice from the same spec: ``<stem>.png`` with the print
+config (:func:`paper`, rendered by vl-convert) and ``<stem>.vl.json``, the
+unthemed spec the docs site draws interactively with its own (light/dark)
+config.
 
 Conventions for builders (see ``BUILDERS`` in each module):
 
 * signature ``build(ctx: Ctx) -> alt.TopLevelMixin | None``;
 * return ``None`` when the data a plot needs is missing;
-* reproduce the data reduction of the matching matplotlib plot exactly, and
-  take solver labels, colours, dashes and markers from :func:`solver_encodings`.
+* take solver labels, colours, dashes and markers from :func:`solver_encodings`.
+
+The harness-facing ``plot_*`` functions (registered via ``plot=`` on
+:meth:`Problem.add_experiment`) call :func:`render` with the builders for
+their experiment.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import math
-from dataclasses import dataclass
+import warnings
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -41,20 +49,27 @@ class Ctx:
     """Where a plot lives: ``mosaic-results/<problem>/<suite>/<experiment>/<png>``.
 
     ``experiment`` is ``""`` for suite-level plots (e.g. ``cost/cost.png``) and
-    may contain a ``/`` for sub-experiments.
+    may contain a ``/`` for sub-experiments. ``cfg`` is the problem config
+    when the caller has it (the harness always does); otherwise it is looked
+    up by name.
     """
 
     problem: str
     suite: str
     experiment: str
     png: Path
+    cfg: Any = field(default=None, compare=False, repr=False)
 
     @property
     def dir(self) -> Path:
+        """The experiment (or suite) directory the plot is written to."""
         return self.png.parent
 
     @cached_property
     def config(self) -> Any:
+        """The :class:`Problem` config (passed in, or looked up by name)."""
+        if self.cfg is not None:
+            return self.cfg
         from mosaic.benchmarks.problems import get_config
 
         return get_config(self.problem)
@@ -74,13 +89,14 @@ class Ctx:
         return v1_to_legacy(res) if res is not None else None
 
     def npz(self, name: str) -> Any:
+        """Load ``<dir>/<name>`` as an ``np.load`` archive, or None if absent."""
         path = self.dir / name
         return np.load(path, allow_pickle=False) if path.exists() else None
 
 
-# ── Solver styles (the registry the matplotlib plots use) ────────────────────
+# ── Solver styles (shared registry in ..style) ────────────────────
 
-# matplotlib linestyle → Vega strokeDash; marker → Vega shape (SVG path in the
+# Style linestyle (``"-"``, ``"--"``, …) → Vega strokeDash; marker → Vega shape (SVG path in the
 # unit square for shapes Vega lacks).
 _DASH = {"-": [1, 0], "--": [6, 3], "-.": [6, 3, 1, 3], ":": [1, 3]}
 _SHAPE = {
@@ -120,7 +136,7 @@ def solver_style(solver: str) -> tuple[str, str, list[float], str]:
     return label, color, _dash(ls), _SHAPE.get(mk, "circle")
 
 
-def registry_order(solvers) -> list[str]:
+def registry_order(solvers: Any) -> list[str]:
     """Solvers in plot-registry order (NS_ORDER, then FEM_ORDER), others last."""
     from mosaic.benchmarks.problems.shared.plots.style import (
         FEM_ORDER,
@@ -145,6 +161,7 @@ class SolverEnc:
     shape: alt.Scale
 
     def label(self, key: str) -> str:
+        """Display label for a raw solver name."""
         return dict(zip(self.keys, self.labels, strict=True)).get(key, key)
 
     def relabel(self, df: pd.DataFrame, col: str = "solver") -> pd.DataFrame:
@@ -154,7 +171,8 @@ class SolverEnc:
         )
 
 
-def solver_encodings(solvers) -> SolverEnc:
+def solver_encodings(solvers: Any) -> SolverEnc:
+    """Registry-ordered labels and colour/dash/shape scales for ``solvers``."""
     keys = registry_order(solvers)
     styles = [solver_style(s) for s in keys]
     labels = [s[0] for s in styles]
@@ -187,10 +205,12 @@ def log_axis(
 
 
 def log_scale(**kw: Any) -> alt.Scale:
+    """A log scale (extra scale properties passed through)."""
     return alt.Scale(type="log", **kw)
 
 
 def solver_legend(enc: SolverEnc, columns: int = 6) -> alt.Legend:
+    """Horizontal solver legend below the chart."""
     return alt.Legend(
         orient="bottom", direction="horizontal", columns=columns, title=None
     )
@@ -202,6 +222,7 @@ def legend_pick() -> alt.Parameter:
 
 
 def faded(pick: alt.Parameter) -> Any:
+    """Opacity encoding that fades everything not picked in the legend."""
     return alt.condition(pick, alt.value(1.0), alt.value(0.12))
 
 
@@ -283,6 +304,7 @@ def linked_cell() -> alt.Parameter:
 
 
 def cell_outline(cell: alt.Parameter, color: str = "#ffffff") -> dict:
+    """Stroke encodings outlining the hovered cell (see :func:`linked_cell`)."""
     return {
         "stroke": alt.condition(cell, alt.value(color), alt.value(None)),
         "strokeWidth": alt.condition(cell, alt.value(2), alt.value(0)),
@@ -315,6 +337,7 @@ PAPER_CONFIG = {
 
 
 def paper(chart: alt.TopLevelMixin) -> alt.TopLevelMixin:
+    """``chart`` with the print config used for PNG/SVG/PDF export."""
     return chart.configure(**PAPER_CONFIG)
 
 
@@ -323,3 +346,82 @@ def web_spec(chart: alt.TopLevelMixin, *, renderer: str = "svg") -> dict:
     spec = chart.to_dict()
     spec.setdefault("usermeta", {})["renderer"] = renderer
     return spec
+
+
+# ── Writing charts ───────────────────────────────────────────────────────────
+
+# PNG resolution: vl-convert renders at this multiple of the spec's pixel size.
+PNG_SCALE = 2
+
+Builder = Callable[[Ctx], "alt.TopLevelMixin | None"]
+
+
+def _set_param(spec: Any, name: str, value: Any) -> None:
+    """Set the initial ``value`` of every parameter called ``name`` in a spec."""
+    if isinstance(spec, dict):
+        if spec.get("name") == name and ("bind" in spec or "value" in spec):
+            spec["value"] = value
+        for v in spec.values():
+            _set_param(v, name, value)
+    elif isinstance(spec, list):
+        for v in spec:
+            _set_param(v, name, value)
+
+
+def save_chart(chart: alt.TopLevelMixin, stem: str, out_dir: Path) -> None:
+    """Write ``<stem>.png`` (print config) and ``<stem>.vl.json`` (web spec).
+
+    Both come from the same spec. Animated charts (``usermeta.animation``)
+    are exported as their last frame in the PNG; the web spec keeps the
+    frame slider and is played on the docs site.
+    """
+    import vl_convert as vlc
+
+    from mosaic.benchmarks.core.console import print_saved
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    spec = web_spec(chart)
+    (out_dir / f"{stem}.vl.json").write_text(
+        json.dumps(spec, separators=(",", ":")), encoding="utf-8"
+    )
+    printable = copy.deepcopy(paper(chart).to_dict())
+    anim = (spec.get("usermeta") or {}).get("animation")
+    if anim:
+        _set_param(printable, anim["param"], anim["frames"] - 1)
+    png = out_dir / f"{stem}.png"
+    png.write_bytes(vlc.vegalite_to_png(printable, scale=PNG_SCALE))
+    print_saved(str(png))
+
+
+def render(
+    cfg: Any,
+    out_dir: Path,
+    builders: dict[str, Builder],
+    *,
+    suite: str,
+    experiment: str = "",
+    save: bool = True,
+) -> dict[str, alt.TopLevelMixin]:
+    """Build each chart for one experiment and save it under its stem.
+
+    ``builders`` maps output stems (``fd_check`` → ``fd_check.png``) to
+    builders; a builder returning ``None`` (data not present) is skipped.
+    Returns the charts that were built.
+    """
+    out_dir = Path(out_dir)
+    charts = {}
+    for stem, build in builders.items():
+        ctx = Ctx(cfg.name, suite, experiment, out_dir / f"{stem}.png", cfg=cfg)
+        with warnings.catch_warnings():
+            # Panels share one hover/pick param on purpose; Altair merges it.
+            warnings.filterwarnings(
+                "ignore", "Automatically deduplicated selection parameter"
+            )
+            chart = build(ctx)
+        if chart is None:
+            continue
+        if save:
+            save_chart(chart, stem, out_dir)
+        charts[stem] = chart
+    return charts

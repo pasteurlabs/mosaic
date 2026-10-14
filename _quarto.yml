@@ -10,7 +10,7 @@ project:
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
     - python docs/generate.py
-  # Interactive chart specs written next to each plot by docs/export_charts.py;
+  # Interactive chart specs, written next to each PNG by the plot harness;
   # fetched at runtime, so Quarto can't discover them from the pages.
   resources:
     - "mosaic-results/**/*.vl.json"
@@ -82,5 +82,5 @@ format:
     # Click-to-sort for the solver-ranking tables (.sortable-table).
     include-after-body:
       - docs/sortable-tables.html
-      # Interactive Vega-Lite charts on the results pages (docs/vl/).
+      # Interactive Vega-Lite charts on the results pages.
       - docs/charts.html

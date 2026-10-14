@@ -1,14 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Gradient-suite sweep charts: parameter, horizon and Jacobian-spectrum sweeps.
-
-Mirror ``plot_param_sweep`` / ``_plot_best_eps_overlay``,
-``_horizon_sweep_figure`` and ``plot_jacobian_svd_comparison`` in
-``mosaic/benchmarks/problems/shared/plots/gradient.py``, and
-``_plot_horizon_sweep_limits`` in
-``mosaic/benchmarks/problems/navier_stokes_3d_grid/extras.py``.
-"""
+"""Gradient-suite sweep charts: parameter, horizon and Jacobian-spectrum sweeps."""
 
 from __future__ import annotations
 
@@ -34,12 +27,11 @@ from .common import (
 
 _SUPERSCRIPT = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
 
-# matplotlib's "X" marker (failure markers), as a Vega SVG path.
+# An "X" marker for failure markers, as a Vega SVG path.
 # Thicker arms than common's "X" so the white edge doesn't swallow it.
 _X_PATH = "M-1,-.6L-.6,-1L0,-.4L.6,-1L1,-.6L.4,0L1,.6L.6,1L0,.4L-.6,1L-1,.6L-.4,0Z"
 
-# ``_SWEEP_MATH_LABELS`` in Unicode. ``rho_0`` is added: the matplotlib map
-# only knows ``rho0``, so the FEM density sweeps fall back to the raw key.
+# Sweep key → axis title. ``rho_0`` and ``rho0`` are both used (FEM vs grid).
 _SWEEP_LABELS = {
     "nu": "ν  (viscosity)",
     "rho0": "ρ₀  (density)",
@@ -72,11 +64,10 @@ def _best_eps(eps_sweep: dict, key: str, pick: Any) -> tuple[float, float]:
     return pick(vals, key=lambda t: t[0])
 
 
-def _log_axis_for(values, title: str | None, **kw: Any) -> alt.Axis:
+def _log_axis_for(values: Any, title: str | None, **kw: Any) -> alt.Axis:
     """:func:`log_axis` when the data spans ≥ 2 decade ticks, else ``m×10ⁿ`` ticks.
 
-    matplotlib labels minor ticks on narrow log ranges; decade-only ticks would
-    leave such an axis unlabelled.
+    Decade-only ticks would leave a narrow log range unlabelled.
     """
     v = np.asarray([x for x in values if x > 0 and math.isfinite(x)], dtype=float)
     if v.size == 0:
@@ -102,12 +93,12 @@ def _log_axis_for(values, title: str | None, **kw: Any) -> alt.Axis:
 
 
 def _pad_log(lo: float, hi: float, frac: float = 0.06) -> list[float]:
-    """Log-axis limits padded by ``frac`` of the log span (matplotlib margins)."""
+    """Log-axis limits padded by ``frac`` of the log span ."""
     span = max(math.log10(hi) - math.log10(lo), 0.3)
     return [lo / 10 ** (frac * span), hi * 10 ** (frac * span)]
 
 
-def _log_y(field: str, values, title: str | None) -> alt.Y:
+def _log_y(field: str, values: Any, title: str | None) -> alt.Y:
     """Log y over the data range plus 5 % margins (no rounding out to decades)."""
     v = [float(x) for x in values if x > 0 and math.isfinite(x)]
     dom = _pad_log(min(v), max(v), 0.05) if v else None
@@ -177,14 +168,14 @@ def best_eps_vs_param(ctx: Ctx) -> alt.TopLevelMixin | None:
 
 # ── horizon_sweep ────────────────────────────────────────────────────────────
 
-# Same exclusions / jitter as the matplotlib figure.
+# Solvers excluded from this figure, and failure-marker jitter.
 _HORIZON_EXCLUDED = {"fenics_ns", "su2", "openfoam"}
 _HORIZON_JITTER_LOG = 0.04
 _NAN_GRADIENT = "NaN gradient"
 
 
 def _jitter(fail_at_step: dict[int, list[str]]) -> dict[tuple[str, int], float]:
-    """Spread coincident failure markers by ±0.04 decades (matplotlib jitter)."""
+    """Spread coincident failure markers by ±0.04 decades ."""
     out: dict[tuple[str, int], float] = {}
     for step, here in fail_at_step.items():
         n = len(here)
@@ -466,12 +457,9 @@ def _hsl_rows(solver: str, d: dict, jx: float | None) -> list[tuple]:
 def horizon_sweep_limits(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Peak (V)RAM, wall time and gradient norm of the VJP vs rollout steps T.
 
-    Same data as ``_plot_horizon_sweep_limits``: ok steps as lines, an undotted
-    segment to the first failed step, and a failure-type marker there. The
-    matplotlib figure compresses its axes with piecewise "function" scales
-    (log x squeezed above T = 10^2.5; log y with stretched/squeezed bands);
-    here every axis is a plain log scale, which keeps the decade spacing
-    honest and is zoomable.
+    Ok steps as lines, an undotted segment to the first failed step, and a
+    failure-type marker there. Every axis is a plain log scale, which keeps the
+    decade spacing honest and is zoomable.
     """
     from mosaic.benchmarks.core.io import legacy_by_solver
     from mosaic.benchmarks.problems.shared.plots.style import resolve_solver_alias
@@ -735,7 +723,7 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
             tooltip=tip,
         )
         layers = [base.mark_line(strokeWidth=1.8).encode(strokeDash=vdash)]
-        if int(sub["mode"].max()) <= 32:  # matplotlib: markers for ≤ 32 modes
+        if int(sub["mode"].max()) <= 32:  # markers only for ≤ 32 modes
             layers.append(base.mark_point(filled=True, size=20))
         color = enc.color.range[enc.labels.index(label)]
         chart = alt.layer(*layers).properties(

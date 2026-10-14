@@ -1,16 +1,12 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Forward-suite charts: agreement, scalar-output curves, physical laws, raw fields.
-
-Mirror ``_agreement_figure``, ``_agreement_plot_scalar``, ``_pa_plot_fem_single``
-and ``_agreement_raw_fields`` in
-``mosaic/benchmarks/problems/shared/plots/forward.py``.
-"""
+"""Forward-suite charts: agreement, scalar-output curves, physical laws, raw fields."""
 
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import altair as alt
 import numpy as np
@@ -30,7 +26,7 @@ from .common import (
     solver_lines,
 )
 
-# Sweep key → axis title (plain-Unicode versions of the matplotlib labels).
+# Sweep key → axis title (plain Unicode, no LaTeX).
 _GREEK = {"nu": "ν", "mu": "μ", "rho": "ρ", "sigma": "σ", "alpha": "α"}
 _SCALAR_X = {"N": "Mesh resolution N", "n_elements": "Elements per side N"}
 _SCALAR_Y = {
@@ -55,7 +51,7 @@ _REF_GREY = "#aaaaaa"
 _GRID_FIELD = 32
 
 
-def _npz_solvers(npz) -> list[str]:
+def _npz_solvers(npz: Any) -> list[str]:
     """``solver_names`` deduplicated by alias, as ``_dedup_solver_names``."""
     from mosaic.benchmarks.problems.shared.plots.style import resolve_solver_alias
 
@@ -361,9 +357,91 @@ def fields_raw(ctx: Ctx) -> alt.TopLevelMixin | None:
     )
 
 
+# ── 1-D observable agreement ("curves" for 1-D outputs) ──────────────────────
+
+
+def _smooth(arr: np.ndarray, sigma: float = 2.0) -> np.ndarray:
+    """Gaussian smooth a 1-D array (for noisy per-snapshot observables)."""
+    r = int(3 * sigma)
+    k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2)
+    k /= k.sum()
+    return np.convolve(arr, k, mode="same")
+
+
+def profiles(
+    ctx: Ctx, *, xlabel: str = "x", ylabel: str = "value"
+) -> alt.TopLevelMixin | None:
+    """1-D observables (e.g. RDF, spectra) per sweep value, with residuals.
+
+    One column per sweep value: each solver's (smoothed) curve on top and its
+    difference to the consensus curve below.
+    """
+    npz = ctx.npz("fields.npz")
+    if npz is None or "sweep_values" not in npz or "consensus_0" not in npz:
+        return None
+    if npz["consensus_0"].ndim != 1:
+        return None
+    data = ctx.legacy() or {}
+    sweep_key = data.get("sweep_key", "param")
+    sweep_vals = [float(v) for v in npz["sweep_values"]]
+    x = npz["x_axis"] if "x_axis" in npz.files else np.arange(len(npz["consensus_0"]))
+    rows = []
+    for i, val in enumerate(sweep_vals):
+        cons = _smooth(npz[f"consensus_{i}"]) if f"consensus_{i}" in npz.files else None
+        for name in _npz_solvers(npz):
+            if f"{name}_{i}" not in npz.files:
+                continue
+            curve = _smooth(npz[f"{name}_{i}"])
+            for xv, yv, rv in zip(
+                x,
+                curve,
+                curve - cons if cons is not None else curve * np.nan,
+                strict=False,
+            ):
+                rows.append(
+                    (name, f"{sweep_key}={val:.3g}", float(xv), float(yv), float(rv))
+                )
+    if not rows:
+        return None
+    df = pd.DataFrame(rows, columns=["solver", "panel", "x", "value", "residual"])
+    enc = solver_encodings(df["solver"])
+    df = enc.relabel(df).melt(
+        id_vars=["solver", "panel", "x"],
+        value_vars=["value", "residual"],
+        var_name="row",
+    )
+    df["row"] = df["row"].map({"value": ylabel, "residual": f"Δ {ylabel}"})
+    pick = legend_pick()
+    lines = solver_lines(
+        None,
+        enc,
+        x=alt.X("x:Q", title=xlabel),
+        y=alt.Y("value:Q", title=None),
+        tooltip=[
+            alt.Tooltip("solver:N"),
+            alt.Tooltip("x:Q", format=".3g"),
+            alt.Tooltip("value:Q", format=".4g"),
+        ],
+        pick=pick,
+        points=False,
+    )
+    return (
+        alt.layer(lines, data=df.dropna())
+        .add_params(pick)
+        .properties(width=200, height=150)
+        .facet(
+            column=alt.Column("panel:N", title=None, sort=None),
+            row=alt.Row("row:N", title=None, sort=[ylabel, f"Δ {ylabel}"]),
+        )
+        .resolve_scale(y="independent")
+        .properties(title=f"Agreement — {ylabel}")
+    )
+
+
 BUILDERS = {
     "agreement": agreement,
     "curves": curves,
+    "profiles": profiles,
     "physical_accuracy": physical_accuracy,
     "fields_raw": fields_raw,
 }

@@ -48,33 +48,19 @@ DUMMY_THERMAL_MESH = (
 
 
 @pytest.fixture(autouse=True)
-def _no_savefig(monkeypatch):
-    """Skip the final to-disk ``Figure.savefig`` render for every test here.
+def _no_png(monkeypatch):
+    """Skip the PNG rasterisation of every chart for every test here.
 
     The plot tests only verify that the plot pipeline *runs* against the dummy
     corpus — the rendered files themselves are never inspected and are thrown
-    away with the temp results dir. Rasterising + writing them is ~84% of the
-    plot-test wall time (the figure is still fully constructed; only the final
-    ``savefig`` render is skipped), so stubbing it out is a large, safe speedup.
-
-    Only the *disk* case is stubbed: we no-op when the destination is a path
-    (str / ``os.PathLike``), but fall through to the real ``savefig`` when it's
-    a file-like buffer. Matplotlib's ``Animation.save`` renders each frame via
-    ``fig.savefig(BytesIO(), ...)``, so the GIF-producing optimization plots
-    still work. Scoped to this file via ``monkeypatch``; real runs unaffected.
+    away with the temp results dir. The chart is still fully built, validated
+    against the Vega-Lite schema and written as ``.vl.json``; only the
+    vl-convert render to PNG is skipped. Scoped to this file via
+    ``monkeypatch``; real runs unaffected.
     """
-    import os
+    import vl_convert
 
-    from matplotlib.figure import Figure
-
-    real_savefig = Figure.savefig
-
-    def _maybe_savefig(self, fname, *args, **kwargs):
-        if isinstance(fname, str | os.PathLike):
-            return None
-        return real_savefig(self, fname, *args, **kwargs)
-
-    monkeypatch.setattr(Figure, "savefig", _maybe_savefig)
+    monkeypatch.setattr(vl_convert, "vegalite_to_png", lambda *_a, **_kw: b"")
 
 
 @pytest.fixture
@@ -445,7 +431,7 @@ def _problem_plot_pairs():
 
 
 _DEGENERATE_DATA_HINTS = (
-    "no positive values",  # matplotlib log-scale on all-zero data
+    "no positive values",  # log-scale on all-zero data
     "can not be log-scaled",
     "zero-size array",  # np.min / np.max on empty arrays
     "empty array",
@@ -475,9 +461,6 @@ def test_plot_runs_on_dummy_results(problem, plot_key, dummy_corpus):
     dummy returns constants, but the plot pipeline itself must execute
     without raising.
     """
-    import matplotlib
-
-    matplotlib.use("Agg")
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config(problem)

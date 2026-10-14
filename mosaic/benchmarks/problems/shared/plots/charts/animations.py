@@ -1,11 +1,9 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Animated charts replacing the optimisation GIFs.
+"""Animated charts: the evolution of optimised fields over iterations.
 
-Mirror ``_render_topopt_evolution_gifs`` in ``structural_mesh/plots.py``,
-``_render_drag_opt_evolution_gifs`` in ``navier_stokes_grid/plots.py`` and
-``_render_recovery_evolution_gifs`` in ``navier_stokes_3d_grid/plots.py``.
+The PNG holds the last frame; the web spec steps through all of them.
 
 Animation contract with the docs page: every animated row carries an integer
 ``frame`` column (0..N-1), one unit chart owns the ``frame`` parameter (a range
@@ -14,6 +12,8 @@ tells the page how many frames to step through and at which rate.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import altair as alt
 import numpy as np
@@ -28,7 +28,7 @@ from .common import (
     solver_encodings,
 )
 
-FPS = 4  # PillowWriter(fps=4) of the GIFs
+FPS = 4  # playback rate on the docs page
 MAX_FRAMES = 40
 
 
@@ -39,7 +39,7 @@ def _keep(n: int, k: int = MAX_FRAMES) -> list[int]:
     return sorted(set(np.rint(np.linspace(0, n - 1, k)).astype(int).tolist()))
 
 
-def _sig4(a) -> np.ndarray:
+def _sig4(a: Any) -> np.ndarray:
     """Round to 4 significant digits."""
     a = np.asarray(a, dtype=float)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -62,7 +62,7 @@ def _animated(chart: alt.TopLevelMixin, n: int) -> alt.TopLevelMixin:
     )
 
 
-def _frame_label(labels: list[str], width: int, **text_kw) -> alt.Chart:
+def _frame_label(labels: list[str], width: int, **text_kw: Any) -> alt.Chart:
     """One line of text per frame, showing the current one."""
     df = pd.DataFrame({"frame": range(len(labels)), "label": labels})
     return (
@@ -80,14 +80,12 @@ def _frame_label(labels: list[str], width: int, **text_kw) -> alt.Chart:
 def topopt_evolution(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Density ρ of one solver over the optimiser snapshots.
 
-    Same view as the GIF: ``_rho_to_2d`` of each ``rho_history_<j>`` row (the
+    ``_rho_to_2d`` of each ``rho_history_<j>`` row (the
     mid-y (nz, nx) cross-section, x right, z up), greys on [0, 1], titled
     ``<solver> — iter k / N`` where k counts snapshots. A second line gives the
     optimiser iteration (snapshot × ``snap_interval``) and the compliance there.
     """
-    from mosaic.benchmarks.problems.shared.plots.optimization import _rho_to_2d
-
-    from .optimization import _topopt_inputs
+    from .optimization import _rho_to_2d, _topopt_inputs
 
     inputs = _topopt_inputs(ctx)
     if inputs is None:
@@ -220,7 +218,7 @@ def drag_opt_evolution(ctx: Ctx) -> alt.TopLevelMixin | None:
     n = max(h.shape[0] for _, h in panels)
     enc = solver_encodings([p[0] for p in panels])
     color = alt.Scale(domain=[*enc.labels, _INITIAL], range=[*enc.color.range, "black"])
-    # The GIF draws the animated profiles solid and the initial one dashed.
+    # Animated profiles solid, the initial one dashed.
     dash = alt.Scale(
         domain=[*enc.labels, _INITIAL], range=[*([[1, 0]] * len(enc.labels)), [6, 3]]
     )
@@ -339,7 +337,7 @@ def drag_opt_evolution(ctx: Ctx) -> alt.TopLevelMixin | None:
 def recovery_evolution(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Vorticity view of each solver's recovered IC over optimiser snapshots.
 
-    Same mapping as the GIF (``vorticity_2d``: ω_z of the z = 0 plane), one
+    Mapped with ``vorticity_2d`` (ω_z of the z = 0 plane), one
     panel per solver with an ``ic_history_<j>`` (deduplicated by alias),
     RdBu_r on a symmetric range fixed per panel over all its snapshots.
     Solvers with fewer snapshots hold their last one (the filter clamps).

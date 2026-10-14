@@ -594,15 +594,15 @@ def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
 def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | None:
     """Interactive version of a plot, or None if none was exported.
 
-    docs/export_charts.py writes a Vega-Lite spec ``<plot>.vl.json`` next to
-    each PNG/GIF it has a chart for (see docs/vl/). The figure fetches it
-    lazily (docs/charts.html) and keeps the image as the fallback when there
-    is no JS or the chart fails to load.
+    The plot harness writes the Vega-Lite spec ``<plot>.vl.json`` next to each
+    ``<plot>.png`` from the same chart definition. The figure fetches it
+    lazily (docs/charts.html) and keeps the PNG as the fallback when there is
+    no JS or the chart fails to load.
     """
     if not png.with_suffix(".vl.json").exists():
         return None
     src = _img_src(problem, suite, experiment, png)
-    spec = src.rsplit(".", 1)[0] + ".vl.json"  # .png or .gif
+    spec = src.removesuffix(".png") + ".vl.json"
     return (
         "```{=html}\n"
         f'<figure class="m-chart" data-spec="{spec}">'
@@ -740,9 +740,9 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                 continue
             suite = suite_dir.name
 
-            # Suite-level PNGs/GIFs (e.g. cost.png sitting directly in the suite dir)
+            # Suite-level PNGs (e.g. cost.png sitting directly in the suite dir)
             suite_pngs = _sort_pngs(
-                [f for f in suite_dir.iterdir() if f.suffix in (".png", ".gif")]
+                [f for f in suite_dir.iterdir() if f.suffix == ".png"]
             )
             if suite_pngs:
                 tree.setdefault(problem, {}).setdefault(suite, {})[""] = suite_pngs
@@ -761,9 +761,7 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                     continue
                 if "_debug" in exp_dir.name:
                     continue
-                pngs = _sort_pngs(
-                    [f for f in exp_dir.iterdir() if f.suffix in (".png", ".gif")]
-                )
+                pngs = _sort_pngs([f for f in exp_dir.iterdir() if f.suffix == ".png"])
                 if pngs:
                     tree.setdefault(problem, {}).setdefault(suite, {})[exp_dir.name] = (
                         pngs
@@ -776,7 +774,7 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                     if "_debug" in sub_dir.name:
                         continue
                     sub_pngs = _sort_pngs(
-                        [f for f in sub_dir.iterdir() if f.suffix in (".png", ".gif")]
+                        [f for f in sub_dir.iterdir() if f.suffix == ".png"]
                     )
                     if not sub_pngs:
                         continue

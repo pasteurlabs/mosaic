@@ -1,10 +1,12 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Vega-Lite (Altair) versions of the benchmark result plots for the docs.
+"""Altair (Vega-Lite) definitions of the benchmark result plots.
 
-Each module defines ``BUILDERS``: PNG stem → ``build(ctx) -> chart | None``.
-:func:`builders` merges them; docs/export_charts.py writes one spec per PNG.
+Each module defines ``BUILDERS``: plot stem → ``build(ctx) -> chart | None``.
+The harness plot functions call :func:`.common.render`, which writes each chart
+as ``<stem>.png`` (vl-convert) and ``<stem>.vl.json`` (the interactive version
+on the results pages). :func:`builders` merges all ``BUILDERS`` for tests.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ MODULES = ["gradient", "sweeps", "forward", "cost", "optimization", "ics", "anim
 
 
 def builders() -> dict:
+    """Merged ``BUILDERS`` of all chart modules (PNG stem → builder)."""
     out: dict = {}
     for name in MODULES:
         try:
@@ -26,6 +29,6 @@ def builders() -> dict:
             raise
         clash = set(out) & set(mod.BUILDERS)
         if clash:
-            raise RuntimeError(f"duplicate builders {clash} in vl.{name}")
+            raise RuntimeError(f"duplicate builders {clash} in charts.{name}")
         out.update(mod.BUILDERS)
     return out

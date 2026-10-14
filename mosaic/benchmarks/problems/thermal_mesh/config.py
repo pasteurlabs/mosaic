@@ -13,7 +13,6 @@ The problem definition is split across these modules:
 - :mod:`.optimization` — conductivity-recovery runner.
 - :mod:`.plots`        — per-experiment plot fns wired in below.
 - :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
-- :mod:`.extras`       — cross-experiment aggregator plots.
 
 This module performs solver discovery, the canonical :class:`Problem`
 assembly, and the per-suite ``problem.add_experiment(...)`` calls with

@@ -1,21 +1,12 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for docs/vl: the Vega-Lite chart builders behind the results pages."""
+"""Tests for the Altair chart builders behind the result plots."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-import pytest
-
-pytest.importorskip("altair")
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "docs"))
-
-from vl import builders
-from vl.common import field_cells, log_axis
+from mosaic.benchmarks.problems.shared.plots.charts import builders
+from mosaic.benchmarks.problems.shared.plots.charts.common import field_cells, log_axis
 
 # Every PNG stem the results pages show (docs/generate_results.py).
 EXPECTED = {
@@ -37,7 +28,7 @@ EXPECTED = {
     "topopt",
     "topopt_3d",
     "topopt_fields",
-    # Animations (GIFs)
+    # Animations (last frame as PNG, slider on the web)
     "drag_opt_evolution",
     "recovery_evolution",
     "topopt_evolution_FEniCS",

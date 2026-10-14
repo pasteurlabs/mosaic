@@ -1,11 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Gradient-suite charts: finite-difference check and gradient fields.
-
-Mirror ``_fd_check_figure`` and the field part of ``plot_fd_check`` in
-``mosaic/benchmarks/problems/shared/plots/gradient.py``.
-"""
+"""Gradient-suite charts: finite-difference check and gradient fields."""
 
 from __future__ import annotations
 
@@ -29,7 +25,7 @@ from .common import (
     solver_lines,
 )
 
-# Same exclusions as the matplotlib figure.
+# Solvers excluded from this figure.
 _FD_CHECK_BLACKLIST = {"fenics_ns", "su2"}
 
 METRIC_ERR = "relative FD error"

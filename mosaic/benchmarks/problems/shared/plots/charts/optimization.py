@@ -3,20 +3,15 @@
 
 """Optimization-suite charts: drag optimisation, topology optimisation, recovery.
 
-Mirror ``_drag_opt_figure`` / ``_plot_drag_opt_fields`` in
-``navier_stokes_grid/plots.py``, ``_plot_topopt_figure`` / ``plot_topopt`` /
-``_plot_topopt_3d`` in ``structural_mesh/plots.py`` and
-``plot_conductivity_recovery`` in ``thermal_mesh/plots.py``.
-
-The matplotlib topopt figures draw 3-D voxel renders. Here they become 2-D
-slices of the same thresholded density volume (the plane spanned by the two
-largest mesh dimensions) with a slider over the slice index along the thinnest
-one, plus the fixed face and load arrow of ``_add_bcs`` drawn in that plane.
+The topopt figures show the thresholded 3-D density as 2-D slices (the plane
+spanned by the two largest mesh dimensions) with a slider over the slice index along the thinnest
+one, plus the fixed face and load arrow drawn in that plane.
 """
 
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import altair as alt
 import numpy as np
@@ -24,6 +19,7 @@ import pandas as pd
 
 from .common import (
     Ctx,
+    SolverEnc,
     cell_outline,
     cell_px,
     faded,
@@ -38,6 +34,38 @@ from .common import (
     solver_lines,
 )
 
+
+def _rho_to_2d(
+    rho: np.ndarray,
+    params: dict | None = None,
+) -> np.ndarray:
+    """Per-cell density → 2D slice for visualisation.
+
+    If ``params`` provides ``nx, ny, nz`` whose product equals ``n_cells``:
+      - For ``nz == 1`` (quasi-2D slab), returns the full (ny, nx) top-down view.
+      - For true 3-D (``nz > 1``), returns the mid-``y`` ``(nz, nx)`` cross-section.
+    Otherwise falls back to the legacy heuristic assuming
+    ``nx = 2·ny, nz = 1, n_cells = 2·ny²`` → returns ``(ny, nx)``.
+    """
+    n_cells = len(rho)
+    if params is not None:
+        nx = int(params.get("nx", 0))
+        ny = int(params.get("ny", 0))
+        nz = int(params.get("nz", 0))
+        if nx * ny * nz == n_cells and nx > 0 and ny > 0 and nz > 0:
+            # Storage convention matches structural-mesh _plot_topopt_3d:
+            # flat layout is (nz, ny, nx).
+            rho_xyz = rho.reshape(nz, ny, nx)
+            if nz == 1:
+                # Quasi-2D slab: return (ny, nx) top-down view.
+                return rho_xyz[0]
+            # True 3-D: mid-y cross-section → (nz, nx).
+            return rho_xyz[:, ny // 2, :]
+    ny_ = max(1, round((n_cells / 2) ** 0.5))
+    nx_ = max(1, n_cells // ny_)
+    return rho.reshape(ny_, nx_)
+
+
 # ── Drag optimisation (ns-grid) ──────────────────────────────────────────────
 
 # Solvers in the paper panels, in display order (aliases).
@@ -45,8 +73,8 @@ _DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "pict"]
 _INITIAL = "Initial"
 
 
-def _alias_map(names) -> dict[str, str]:
-    """alias → raw (display) name, first occurrence wins."""
+def _alias_map(names: Any) -> dict[str, str]:
+    """Alias → raw (display) name, first occurrence wins."""
     from mosaic.benchmarks.problems.shared.plots.style import resolve_solver_alias
 
     out: dict[str, str] = {}
@@ -57,7 +85,7 @@ def _alias_map(names) -> dict[str, str]:
     return out
 
 
-def _with_initial(enc) -> dict:
+def _with_initial(enc: SolverEnc) -> dict:
     """Solver scales with a grey dashed "Initial" entry first (as in the PNG)."""
     return {
         "color": alt.Scale(
@@ -136,7 +164,7 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
     legend = solver_legend(enc)
     pick = legend_pick()
 
-    def lines(df, **kw) -> alt.Chart:
+    def lines(df: pd.DataFrame, **kw: Any) -> alt.Chart:
         return (
             alt.Chart(df)
             .mark_line(strokeWidth=2)
@@ -183,7 +211,9 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
     return alt.hconcat(curves, history, spacing=40).resolve_scale(color="independent")
 
 
-def _profile_history(prof, pkeys, aliases, by_solver, enc) -> alt.VConcatChart | None:
+def _profile_history(
+    prof: Any, pkeys: list[str], aliases: dict, by_solver: dict, enc: SolverEnc
+) -> alt.VConcatChart | None:
     """One ``imshow(hist.T, origin='lower', aspect='auto')`` panel per solver."""
     from mosaic.benchmarks.problems.shared.plots.style import solver_props
 
@@ -389,8 +419,11 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
 
 
 def _thin(n: int, dense: int = 100, target: int = 500) -> list[int]:
-    """Iterations kept for long curves: all of the first ``dense``, then every
-    k-th (≤ ~``target`` points), always including the last one."""
+    """Iterations kept for long curves.
+
+    All of the first ``dense``, then every
+    k-th (≤ ~``target`` points), always including the last one.
+    """
     step = max(1, (n - dense) // target)
     idx = list(range(min(n, dense))) + list(range(dense, n, step))
     if n and idx[-1] != n - 1:
@@ -398,7 +431,7 @@ def _thin(n: int, dense: int = 100, target: int = 500) -> list[int]:
     return idx
 
 
-_THRESH = 0.35  # voxel threshold of the matplotlib renders
+_THRESH = 0.35  # voxel threshold for "solid"
 _CLR_FIXED = "#888888"
 _CLR_LOAD = "#FF1744"
 
@@ -440,7 +473,14 @@ def _volume_dims(ph: dict, n_cells: int) -> tuple[int, int, int]:
 
 
 def _density_slices(
-    data: dict, npz, ph: dict, names: list[str], enc, *, dedupe: bool, width: int = 150
+    data: dict,
+    npz: Any,
+    ph: dict,
+    names: list[str],
+    enc: SolverEnc,
+    *,
+    dedupe: bool,
+    width: int = 150,
 ) -> tuple[alt.HConcatChart, alt.Parameter] | None:
     """Per-solver slice views of the thresholded final density volume.
 
@@ -670,7 +710,10 @@ def topopt(ctx: Ctx) -> alt.TopLevelMixin | None:
     if not rows:
         return None
     df = pd.DataFrame(rows, columns=["solver", "iteration", "compliance"])
-    # Lowest decade below the data, as matplotlib's semilogy shows it.
+    df = df[df["compliance"] > 0]  # log axis
+    if df.empty:
+        return None
+    # Axis starts at the lowest decade below the data.
     c_lo = 10.0 ** np.floor(np.log10(df["compliance"].min()))
     enc = solver_encodings(set(df["solver"]) | set(names))
     df = enc.relabel(df)
@@ -709,8 +752,6 @@ def topopt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
     ``_rho_to_2d`` gives the mid-y (nz, nx) cross-section of the volume, drawn
     with ``imshow(origin='lower')`` (x right, z up); one shared colour bar.
     """
-    from mosaic.benchmarks.problems.shared.plots.optimization import _rho_to_2d
-
     inputs = _topopt_inputs(ctx)
     if inputs is None:
         return None
@@ -837,6 +878,107 @@ def conductivity_recovery_convergence(ctx: Ctx) -> alt.TopLevelMixin | None:
     )
 
 
+# ── IC recovery convergence (3-D Navier–Stokes) ──────────────────────────────
+
+
+def _sorted_sweep_vals(by_sweep: dict) -> list:
+    """Sweep values from the first solver's keys, numerically sorted."""
+    first = next(iter(by_sweep.values()), {})
+    return sorted(
+        first.keys(),
+        key=lambda v: float(v) if str(v).replace(".", "").lstrip("-").isdigit() else 0,
+    )
+
+
+def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
+    """Optimizer loss vs iteration, one panel per sweep value, log y.
+
+    Mirrors ``_plot_convergence_curves``: flat curves (< 1 % drop, i.e. no
+    usable gradient) are marked "no grad" and drawn dotted, and each curve
+    ends with its final IC recovery error (✗ if it did not converge).
+    """
+    data = ctx.legacy()
+    if data is None:
+        return None
+    by_sweep = data.get("by_sweep") or data.get("by_horizon") or {}
+    sweep_key = data.get("sweep_key", "steps")
+    vals = _sorted_sweep_vals(by_sweep)
+    rows, ends = [], []
+    for name, s_results in by_sweep.items():
+        for v in vals:
+            r = s_results.get(v) or s_results.get(str(v))
+            if not (r and r.get("errors")):
+                continue
+            errors = [float(e) for e in r["errors"]]
+            flat = (
+                len(errors) > 1
+                and (errors[0] - errors[-1]) / (abs(errors[0]) + 1e-30) < 0.01
+            )
+            panel = f"{sweep_key}={v}"
+            rows += [(name, panel, i, e, flat) for i, e in enumerate(errors) if e > 0]
+            ic_err = r.get("final_ic_error")
+            if ic_err is not None and errors[-1] > 0:
+                mark = "" if r.get("converged", False) else " ✗"
+                ends.append(
+                    (name, panel, len(errors) - 1, errors[-1], f"IC={ic_err:.2f}{mark}")
+                )
+    if not rows:
+        return None
+    df = pd.DataFrame(rows, columns=["solver", "panel", "iteration", "loss", "flat"])
+    enc = solver_encodings(df["solver"])
+    df = enc.relabel(df)
+    df["gradient"] = np.where(df["flat"], "no grad (flat loss)", "ok")
+    pick = legend_pick()
+    base = alt.Chart().encode(
+        x=alt.X("iteration:Q", title="Iteration"),
+        y=alt.Y("loss:Q", scale=log_scale(), axis=log_axis("Optim loss (MSE)")),
+        color=alt.Color(
+            "solver:N", scale=enc.color, sort=enc.labels, legend=solver_legend(enc)
+        ),
+        opacity=faded(pick),
+    )
+    curves = base.mark_line(strokeWidth=2).encode(
+        strokeDash=alt.condition("datum.flat", alt.value([2, 3]), alt.value([1, 0])),
+        tooltip=[
+            alt.Tooltip("solver:N"),
+            alt.Tooltip("iteration:Q"),
+            alt.Tooltip("loss:Q", format=".3e"),
+            alt.Tooltip("gradient:N"),
+        ],
+    )
+    layers = [curves]
+    if ends:
+        e = enc.relabel(
+            pd.DataFrame(
+                ends, columns=["solver", "panel", "iteration", "loss", "label"]
+            )
+        )
+        layers.append(
+            alt.Chart(e)
+            .mark_text(align="left", dx=4, fontSize=10)
+            .encode(
+                x="iteration:Q",
+                y="loss:Q",
+                text="label:N",
+                color=alt.Color("solver:N", scale=enc.color, legend=None),
+                opacity=faded(pick),
+            )
+        )
+    return (
+        alt.layer(*layers, data=df)
+        .add_params(pick)
+        .properties(width=260, height=200)
+        .facet(column=alt.Column("panel:N", title=None, sort=None))
+        .properties(
+            title=alt.Title(
+                f"{ctx.problem} — convergence curves (all {sweep_key} values)",
+                subtitle="Label at curve end = final IC recovery error (✗: above threshold); "
+                "dotted = no gradient / flat loss",
+            )
+        )
+    )
+
+
 BUILDERS = {
     "drag_opt": drag_opt,
     "drag_opt_fields": drag_opt_fields,
@@ -844,4 +986,5 @@ BUILDERS = {
     "topopt_fields": topopt_fields,
     "topopt_3d": topopt_3d,
     "conductivity_recovery_convergence": conductivity_recovery_convergence,
+    "convergence_curves": convergence_curves,
 }
