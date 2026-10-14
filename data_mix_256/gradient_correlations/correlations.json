@@ -1,0 +1,107 @@
+{
+  "source_hashes": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-gradient-scales-20261013/plots/artifacts/gradient_spectral_comparison.json": "545648170f5189981d6ee629564f7ac7aa95c3c62dda2971cfd0525f45401b5d",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-data-mix-20261013/admission_summary.json": "f0ddd3a8f2663bccf7724b1fb67f2b8bdefcdc5fec58e603487c6f3f2d5085d1"
+  },
+  "overall_rows": [
+    {
+      "solver": "PhiFlow",
+      "overall_benefit_percent": 50.833388884026235,
+      "worst_fd_relative_discrepancy": 6.048954320152324e-05
+    },
+    {
+      "solver": "WaterLily",
+      "overall_benefit_percent": 25.9577450269052,
+      "worst_fd_relative_discrepancy": 0.0019614809176932
+    },
+    {
+      "solver": "Oceananigans",
+      "overall_benefit_percent": 49.84039575312059,
+      "worst_fd_relative_discrepancy": 9.55590877095884e-06
+    },
+    {
+      "solver": "JAX-CFD",
+      "overall_benefit_percent": 48.75768386508831,
+      "worst_fd_relative_discrepancy": 0.04952480389219603
+    },
+    {
+      "solver": "INS.jl",
+      "overall_benefit_percent": 56.848328265588854,
+      "worst_fd_relative_discrepancy": 4.977625737028637e-06
+    }
+  ],
+  "overall_fd": {
+    "n": 5,
+    "spearman_rho": -0.8,
+    "exact_two_sided_permutation_p_unadjusted": 0.13333333333333333
+  },
+  "within_band": {
+    "condition_relative_H0/scalar/large": {
+      "n": 5,
+      "spearman_rho": -0.1,
+      "exact_two_sided_permutation_p_unadjusted": 0.95
+    },
+    "condition_relative_H0/scalar/medium": {
+      "n": 5,
+      "spearman_rho": -0.6,
+      "exact_two_sided_permutation_p_unadjusted": 0.35
+    },
+    "condition_relative_H0/scalar/small": {
+      "n": 5,
+      "spearman_rho": -0.5,
+      "exact_two_sided_permutation_p_unadjusted": 0.45
+    },
+    "condition_relative_H0/velocity/large": {
+      "n": 5,
+      "spearman_rho": -0.6,
+      "exact_two_sided_permutation_p_unadjusted": 0.35
+    },
+    "condition_relative_H0/velocity/medium": {
+      "n": 5,
+      "spearman_rho": -0.7,
+      "exact_two_sided_permutation_p_unadjusted": 0.23333333333333334
+    },
+    "condition_relative_H0/velocity/small": {
+      "n": 5,
+      "spearman_rho": 0.4,
+      "exact_two_sided_permutation_p_unadjusted": 0.5166666666666667
+    },
+    "fd_max_relative_error/scalar/large": {
+      "n": 5,
+      "spearman_rho": -0.3,
+      "exact_two_sided_permutation_p_unadjusted": 0.6833333333333333
+    },
+    "fd_max_relative_error/scalar/medium": {
+      "n": 5,
+      "spearman_rho": -0.6,
+      "exact_two_sided_permutation_p_unadjusted": 0.35
+    },
+    "fd_max_relative_error/scalar/small": {
+      "n": 5,
+      "spearman_rho": -0.5,
+      "exact_two_sided_permutation_p_unadjusted": 0.45
+    },
+    "fd_max_relative_error/velocity/large": {
+      "n": 5,
+      "spearman_rho": 0.7,
+      "exact_two_sided_permutation_p_unadjusted": 0.23333333333333334
+    },
+    "fd_max_relative_error/velocity/medium": {
+      "n": 5,
+      "spearman_rho": 0.2,
+      "exact_two_sided_permutation_p_unadjusted": 0.7833333333333333
+    },
+    "fd_max_relative_error/velocity/small": {
+      "n": 5,
+      "spearman_rho": -0.3,
+      "exact_two_sided_permutation_p_unadjusted": 0.6833333333333333
+    }
+  },
+  "limitations": [
+    "Exploratory five-backend comparison; backends are not randomized experimental units.",
+    "All correlations are shown; permutation p-values are unadjusted for multiple comparisons and not confirmatory.",
+    "Repeated fields/bands share the same five solvers; do not treat 30 points as independent replicates.",
+    "FD discrepancy depends on finite step size, nonsmoothness and floating-point effects as well as implementation accuracy.",
+    "Sampled conditioning is not the full Jacobian or neural parameter conditioning."
+  ]
+}

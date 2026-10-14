@@ -1,0 +1,14 @@
+comparison,n,spearman_rho,exact_two_sided_permutation_p_unadjusted
+overall_fd,5,-0.8,0.13333333333333333
+condition_relative_H0/scalar/large,5,-0.1,0.95
+condition_relative_H0/scalar/medium,5,-0.6,0.35
+condition_relative_H0/scalar/small,5,-0.5,0.45
+condition_relative_H0/velocity/large,5,-0.6,0.35
+condition_relative_H0/velocity/medium,5,-0.7,0.23333333333333334
+condition_relative_H0/velocity/small,5,0.4,0.5166666666666667
+fd_max_relative_error/scalar/large,5,-0.3,0.6833333333333333
+fd_max_relative_error/scalar/medium,5,-0.6,0.35
+fd_max_relative_error/scalar/small,5,-0.5,0.45
+fd_max_relative_error/velocity/large,5,0.7,0.23333333333333334
+fd_max_relative_error/velocity/medium,5,0.2,0.7833333333333333
+fd_max_relative_error/velocity/small,5,-0.3,0.6833333333333333

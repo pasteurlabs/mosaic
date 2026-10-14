@@ -1,0 +1,15 @@
+{
+  "job": "3008489",
+  "script_sha256": "ec3f8d4fa11f5f747c79cb3186102a597958503da94af62ca5a469c9c846239e",
+  "no_new_training": true,
+  "artifacts": {
+    "correlations.json": "2e3cac3b2920aa6af13772c058dcd601df4f85b2a79b32a18311fcf44147bdb4",
+    "fd_within_scales.svg": "e2abab963e24317832772a5722b2e79847399128aa5c29df82d3a8e4d0ef7ea1",
+    "fd_within_scales.png": "dce185bce7aee7b5c6afe996a367648abbd816a44a16a4ebf2b2e0946684e2e9",
+    "correlations.csv": "1fbeba13ee0cee53fd69c132dc900567e2819e14bb44d6622e32f4a99be1bf64",
+    "conditioning_within_scales.png": "901a2a4b8fab5fe1244bd548509c01e5c4d01b4308416b81c041f02091c32512",
+    "fd_vs_overall_benefit.png": "0b7beb86270c55fc49af40bdd20c4a9e39f8b3f4c3eed747f0769205087ab504",
+    "fd_vs_overall_benefit.svg": "5a2d34080525fac869890dd992f5e463b7251c101c536c3fae6bfd52189a0ad2",
+    "conditioning_within_scales.svg": "30aa8e462d9da37784517021a99328a313b13a4d71d35f03044a2cea235f384f"
+  }
+}
