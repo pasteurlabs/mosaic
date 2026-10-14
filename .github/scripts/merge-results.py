@@ -18,6 +18,8 @@ This script replaces that naive merge:
    ``structural-mesh/forward/baseline/result.json``).
 3. Deep-merge ``result.json`` files using the flat-list merge
    (schema_version=1: deduplicate by (solver, sweep_value), last wins).
+   Each job's hardware record is kept per solver
+   (``extras.hardware_by_solver``), since the jobs ran on different machines.
 4. Merge ``fields.npz`` files at the solver level (union per-solver arrays
    *and* the ``solver_names`` metadata array).
 5. Write merged results to the final output directory.
@@ -36,6 +38,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+
+from mosaic.benchmarks.core.hardware import merge_hardware
 
 # ---------------------------------------------------------------------------
 # JSON helpers
@@ -89,6 +93,7 @@ def _merge_result_pair(existing: dict, new: dict) -> dict:
     b_extras = new.get("extras", {})
     if a_extras or b_extras:
         merged["extras"] = {**a_extras, **b_extras}
+        merge_hardware(merged["extras"], existing, new)
     return merged
 
 

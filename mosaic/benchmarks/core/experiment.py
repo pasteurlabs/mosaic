@@ -55,7 +55,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.hardware import ResourceSampler
+from mosaic.benchmarks.core.hardware import ResourceSampler, merge_hardware
 from mosaic.benchmarks.core.harness import classify_failure
 from mosaic.benchmarks.core.io import (
     experiment_dir,
@@ -227,6 +227,7 @@ def merge_results(a: dict, b: dict) -> dict:
     b_extras = b.get("extras", {})
     if a_extras or b_extras:
         merged["extras"] = {**a_extras, **b_extras}
+        merge_hardware(merged["extras"], a, b)
     return merged
 
 
