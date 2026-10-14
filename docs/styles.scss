@@ -1,7 +1,7 @@
 /*-- scss:rules --*/
 
 // ── Plot sizing guardrail ────────────────────────────────────────────────────
-// Result pages embed matplotlib PNGs at their natural pixel size, which Quarto
+// Result pages embed plot PNGs at their natural pixel size, which Quarto
 // scales up to the full content width. A few plots are a single tall panel
 // (one-solver FD U-curves, stacked per-solver field grids, the cost overview),
 // and full-width scaling blows those up to several screen-heights. Cap the

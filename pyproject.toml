@@ -38,8 +38,6 @@ dev = [
     "pre-commit",
     "pyyaml",
     "mosaic-shared",
-    # mosaic_shared.utils.plotting (plot_mesh debug helper) and its test.
-    "matplotlib",
 ]
 
 [project.urls]

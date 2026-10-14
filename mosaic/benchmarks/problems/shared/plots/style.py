@@ -5,7 +5,7 @@
 
 Solver labels, colours, line styles and markers (:data:`SOLVER_STYLES`), the
 canonical solver orderings used for legends, alias resolution, and the 2-D
-field projections (vorticity, gradient magnitude, density slices) that the
+field projections (vorticity, gradient magnitude) that the
 chart builders in :mod:`~mosaic.benchmarks.problems.shared.plots.charts`
 plot. Nothing here depends on a plotting library.
 """
@@ -13,7 +13,6 @@ plot. Nothing here depends on a plotting library.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 
@@ -149,86 +148,12 @@ def solver_props(name: str) -> tuple:
     return (name, "#888888", "-", "o")
 
 
-def unit_label(name: str, units: dict[str, str] | None) -> str:
-    """Return 'name  [unit]' when a unit is registered, else 'name'.
-
-    Tolerates ``units=None`` so problems that don't define a units dict can
-    pass it through directly without each call site having to guard.
-    """
-    unit = (units or {}).get(name, "")
-    return f"{name}  [{unit}]" if unit else name
-
-
-# Floor for ``1 − cosine`` so a perfect cosine still plots on a log axis.
-COSINE_DEFECT_FLOOR = 1e-12
-
-
-def cosine_defect(values: Any, *, floor: float = COSINE_DEFECT_FLOOR) -> list[float]:
-    """``1 − cosine`` (floored) for a log "direction accuracy" axis.
-
-    Near-perfect cosine similarity reads on a log axis instead of being squashed
-    against 1.0. Pair with ``ax.loglog`` / ``ax.set_yscale('log')`` and
-    ``ax.set_ylabel(COSINE_DEFECT_YLABEL)``.
-    """
-    return [max(1.0 - float(c), floor) for c in values]
-
-
 def vorticity_2d(v: np.ndarray) -> np.ndarray:
     """Vorticity of a 2-D velocity field, shape (N, N, 1, 2) → (N, N)."""
     vx, vy = v[:, :, 0, 0], v[:, :, 0, 1]
     dvydx = (np.roll(vy, -1, 0) - np.roll(vy, 1, 0)) * 0.5
     dvxdy = (np.roll(vx, -1, 1) - np.roll(vx, 1, 1)) * 0.5
     return dvydx - dvxdy
-
-
-def density_slice_2d(rho: np.ndarray) -> np.ndarray:
-    """Middle-z overdensity slice of a 3-D density field, shape (N, N, N) → (N, N).
-
-    Returns δ = ρ/ρ̄ − 1 so the field is zero-mean and can be displayed with a
-    symmetric diverging colormap (overdense positive, underdense negative).
-    """
-    sl = np.array(rho[:, :, rho.shape[2] // 2])
-    mean = sl.mean()
-    if mean != 0:
-        sl = sl / mean - 1.0
-    return sl
-
-
-def log_density_slice_2d(rho: np.ndarray) -> np.ndarray:
-    """Middle-z log-density slice of a 3-D density field, shape (N, N, N) → (N, N).
-
-    Returns log10(ρ/ρ̄), clipped at −2 (voids at 1% of mean density).
-    Use with field_symmetric=False and field_cmap="inferno" to reveal the full
-    dynamic range from underdense voids to overdense halos.
-    """
-    sl = np.array(rho[:, :, rho.shape[2] // 2], dtype=np.float64)
-    mean = sl.mean()
-    if mean > 0:
-        sl = sl / mean
-    return np.clip(np.log10(np.maximum(sl, 1e-6)), -2.0, None).astype(np.float32)
-
-
-def density_contrast_slice_2d(delta: np.ndarray) -> np.ndarray:
-    """Middle-z slice of a 3-D density contrast field δ₀, shape (N, N, N) → (N, N).
-
-    The field is already mean-zero (no normalisation applied).
-    Use with field_symmetric=True and cmap='RdBu_r'.
-    Suitable for IC fields (linear density contrast) where mean ≈ 0.
-    """
-    return np.array(delta[:, :, delta.shape[2] // 2], dtype=np.float32)
-
-
-def density_projection_2d(rho: np.ndarray) -> np.ndarray:
-    """Log-projected density of a 3-D field, shape (N, N, N) → (N, N).
-
-    Sums ρ along the z-axis and returns log10(Σρ / mean(Σρ)), clipped at -1.
-    Use with field_symmetric=False and field_cmap="inferno" to show halo structure.
-    """
-    proj = np.asarray(rho, dtype=np.float64).sum(axis=2)
-    mean = proj.mean()
-    if mean > 0:
-        proj = proj / mean
-    return np.clip(np.log10(proj + 1e-6), -1.0, None).astype(np.float32)
 
 
 def grad_magnitude_2d(g: np.ndarray) -> np.ndarray:

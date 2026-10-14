@@ -261,7 +261,7 @@ def _get_config(problem: str):
     """Lazily import and return the problem config.
 
     ``mosaic.benchmarks.problems`` transitively imports the full compute stack
-    (jax, jaxlib, matplotlib, scipy, ...), which is hundreds of MB resident.
+    (jax, jaxlib, scipy, ...), which is hundreds of MB resident.
     Importing it at module load OOM-kills resource-constrained docs builders
     (e.g. Read the Docs) even when there are no results to describe. Defer the
     import to the few call sites that actually need problem metadata.
