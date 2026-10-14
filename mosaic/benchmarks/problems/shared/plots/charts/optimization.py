@@ -897,10 +897,12 @@ def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
     usable gradient) are marked "no grad" and drawn dotted, and each curve
     ends with its final IC recovery error (✗ if it did not converge).
     """
+    from mosaic.benchmarks.core.io import legacy_by_solver
+
     data = ctx.legacy()
     if data is None:
         return None
-    by_sweep = data.get("by_sweep") or data.get("by_horizon") or {}
+    by_sweep = legacy_by_solver(data)
     sweep_key = data.get("sweep_key", "steps")
     vals = _sorted_sweep_vals(by_sweep)
     rows, ends = [], []
