@@ -205,7 +205,10 @@ problem.add_experiment(
         "cfl_N_base": 32,
     },
     plot=plot_agreement,
-    status_check=[median_k(3.0), min_order(1.5)],
+    # Space and time are refined together, so a scheme that is first order in
+    # time (implicit Euler: OpenFOAM, PICT) converges at order 1. The check
+    # catches error floors and non-convergence, not first-order schemes.
+    status_check=[median_k(3.0), min_order(0.8)],
 )
 problem.add_experiment(
     "forward/agreement",
