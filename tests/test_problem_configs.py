@@ -138,9 +138,7 @@ def test_every_experiment_resolves_a_status_check(problem_config):
 
 
 #: Experiments whose resolved checks are looser than their suite default. The
-#: reason for each belongs in a comment at the override; listing it here makes
-#: loosening a deliberate step rather than a side effect of an override that
-#: replaces the default and leaves a check out.
+#: reason for each belongs in a comment at the override.
 _LOOSENED_BY_DESIGN: frozenset[str] = frozenset(
     {
         "ns-grid/forward/agreement/multimode",
@@ -192,13 +190,7 @@ def _loosens(default: list, override: list) -> bool:
 
 
 def test_loosened_status_checks_are_deliberate(problem_config):
-    """An experiment may resolve checks looser than its suite default only by design.
-
-    Overrides replace the suite default rather than adding to it, so an
-    override that leaves out a default check drops it without a trace. Failing
-    here makes loosening opt-in: state the reason in a comment at the override
-    and list the experiment in ``_LOOSENED_BY_DESIGN``.
-    """
+    """Overrides replace the suite default, so loosening it must be opt-in."""
     from mosaic.benchmarks.core.status import _lookup_check
     from mosaic.benchmarks.core.status_checks import normalize
 
