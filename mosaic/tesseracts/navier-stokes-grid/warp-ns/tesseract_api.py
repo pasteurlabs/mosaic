@@ -1996,7 +1996,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         result = ns2d_solve_forward(
             v0, nu, dt, inputs.steps, inputs.domain_extent, device=device
         )
-    return OutputSchema(result=result, drag=None)
+    return OutputSchema(result=result)
 
 
 def vector_jacobian_product(
@@ -2111,7 +2111,4 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     else:
         shape = tuple(np.asarray(v0).shape)
 
-    return {
-        "result": {"shape": shape, "dtype": "float32"},
-        "drag": None,
-    }
+    return {"result": {"shape": shape, "dtype": "float32"}}
