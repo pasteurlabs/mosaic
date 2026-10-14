@@ -19,7 +19,7 @@ metadata:
     family: projection
     scheme: "MAC FD + projection"
     discretization: FD
-    numerics: "Projection, semi-implicit"
+    numerics: "Projection, RK4"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true
