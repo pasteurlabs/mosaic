@@ -11,39 +11,19 @@ Docker is missing; it is never built here.
 
 from __future__ import annotations
 
-import subprocess
-
 import numpy as np
 import pytest
 
 from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
 
+from .helpers import channel_inputs, image_available, unsupported_bcs
+
 _IMAGE = "phiflow_navier_stokes_grid:latest"
 
 
-def _image_available() -> bool:
-    try:
-        return (
-            subprocess.run(
-                ["docker", "image", "inspect", _IMAGE],
-                capture_output=True,
-                timeout=30,
-                check=False,
-            ).returncode
-            == 0
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _image_available(), reason=f"{_IMAGE} not built")
-
-
-def _channel_inputs(resolution: int, t_end: float = cylinder.T_END) -> dict:
-    inputs = cylinder.channel_inputs(
-        cylinder.inflow_profile(resolution), resolution, t_end
-    )
-    return {k: np.asarray(v) if hasattr(v, "shape") else v for k, v in inputs.items()}
+pytestmark = pytest.mark.skipif(
+    not image_available(_IMAGE), reason=f"{_IMAGE} not built"
+)
 
 
 @pytest.fixture(scope="module")
@@ -56,7 +36,7 @@ def phiflow():
 
 def test_cylinder_res10(phiflow):
     """A res-10 run: positive drag within 10% of the reference, steady."""
-    out = phiflow.apply(_channel_inputs(10))
+    out = phiflow.apply(channel_inputs(10))
     force = np.asarray(out["body_force"])
     assert force.shape == (cylinder.time_step(10)[1], 2)
     assert np.all(np.isfinite(force))
@@ -75,7 +55,7 @@ def test_drag_gradient_matches_fd(phiflow):
     Over drag_opt's horizon the agreement is 2e-4. Over a shorter, still
     transient horizon (t_end = 1) it is 6e-3, from the CG tolerance.
     """
-    inputs = _channel_inputs(10, t_end=4.0)
+    inputs = channel_inputs(10, t_end=4.0)
     steps = inputs["steps"]
     window = cylinder.window_size(steps)
 
@@ -98,25 +78,7 @@ def test_drag_gradient_matches_fd(phiflow):
     assert np.dot(grad, direction) == pytest.approx(fd, rel=2e-3)
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {
-            "boundary_conditions": {
-                **cylinder.BOUNDARY_CONDITIONS,
-                "x_hi": {"type": "no_slip"},
-            }
-        },
-        {
-            "boundary_conditions": {
-                **cylinder.BOUNDARY_CONDITIONS,
-                "y_lo": {"type": "neumann"},
-            }
-        },
-        {"boundary_conditions": {}, "inflow_profile": None},
-    ],
-    ids=["outlet_no_slip", "wall_neumann", "periodic_with_obstacle"],
-)
+@unsupported_bcs
 def test_rejects_unsupported_bcs(phiflow, change):
     with pytest.raises(Exception, match="phiflow supports"):
-        phiflow.apply({**_channel_inputs(10, t_end=0.1), **change})
+        phiflow.apply({**channel_inputs(10, t_end=0.1), **change})

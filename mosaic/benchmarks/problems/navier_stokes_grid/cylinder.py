@@ -206,7 +206,7 @@ def pressure_difference(p: np.ndarray, resolution: int) -> float:
     return front - back
 
 
-def control_volume_cd(
+def control_volume_coefficients(
     velocity: np.ndarray, p: np.ndarray, resolution: int
 ) -> tuple[float, float]:
     """Cd and Cl from a momentum balance over a box around the cylinder.
@@ -250,7 +250,7 @@ def dfg_metrics(
     p = np.asarray(pressure)[:, :, 0]
     out = force_summary(body_force)
     out["dp"] = pressure_difference(p, resolution)
-    out["cd_cv"], out["cl_cv"] = control_volume_cd(velocity, p, resolution)
+    out["cd_cv"], out["cl_cv"] = control_volume_coefficients(velocity, p, resolution)
     out["error"] = abs(out["cd"] - CD_REF) / CD_REF
     out["dp_error"] = abs(out["dp"] - DP_REF) / DP_REF
     return out

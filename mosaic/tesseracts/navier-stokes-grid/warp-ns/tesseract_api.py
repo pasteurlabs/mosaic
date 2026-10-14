@@ -55,7 +55,7 @@ def sanitize_float(v: float, clip: float) -> float:
 
 
 # ============================================================
-# 2-D IPCS kernels (primitive-variable projection)
+# 2-D Chorin projection kernels (primitive variables)
 # ============================================================
 
 
@@ -120,8 +120,7 @@ def divergence_2d_to_complex_kernel(
 
     Writes directly into a complex (vec2f) buffer with zero imaginary part.
     Fuses the divergence kernel with the "pack real->complex" step that would
-    otherwise precede the spectral Poisson FFT (discussion recommendation #2:
-    fuse real-to-complex conversion with the first FFT stage).
+    otherwise precede the spectral Poisson FFT.
     """
     i, j = wp.tid()
     n = ux.shape[0]
@@ -145,12 +144,11 @@ def pressure_correct_2d_from_complex_kernel(
     dt: wp.array(dtype=wp.float32),
     inv_2h: float,
 ) -> None:
-    """u^(n+1) = u* - dt·∇p for 2-D IPCS, reading p directly from the complex IFFT output.
+    """u^(n+1) = u* - dt·∇p in 2-D, reading p directly from the complex IFFT output.
 
     Reads the real part (normalized) instead of a separate materialized
     pressure array. Fuses the "extract real + normalize" step with the
-    pressure-correction kernel (discussion recommendation #2: fuse
-    normalization with the IFFT-adjacent stage).
+    pressure-correction kernel.
     """
     i, j = wp.tid()
     n = p_c.shape[0]
@@ -170,7 +168,7 @@ def pressure_correct_2d_from_complex_kernel(
 
 
 # ============================================================
-# 3-D NS kernels (IPCS / Chorin-Temam)
+# 3-D NS kernels (Chorin projection)
 # ============================================================
 
 
@@ -274,9 +272,8 @@ def divergence_3d_to_complex_kernel(
 
     Writes directly into a complex (vec2f) buffer with zero imaginary part.
     Fuses the divergence kernel with the "pack real->complex" step that would
-    otherwise precede the spectral Poisson FFT (discussion recommendation #2).
-    ``dt`` is a 1-element array (like the 2-D kernel) so the tape tracks
-    gradients w.r.t. it.
+    otherwise precede the spectral Poisson FFT. ``dt`` is a 1-element array
+    (like the 2-D kernel) so the tape tracks gradients w.r.t. it.
     """
     i, j, k = wp.tid()
     n = ux.shape[0]
@@ -312,7 +309,7 @@ def pressure_correct_3d_from_complex_kernel(
 
     Reads the real part (normalized) instead of a separate materialized
     pressure array. Fuses the "extract real + normalize" step with the
-    pressure-correction kernel (discussion recommendation #2). ``dt`` is a
+    pressure-correction kernel. ``dt`` is a
     1-element array (like the 2-D kernel) so the tape tracks gradients w.r.t. it.
     """
     i, j, k = wp.tid()
@@ -347,7 +344,7 @@ def _clip_and_sanitize_3d_kernel(
 
     Also replaces NaN/Inf with 0.0 (hard safety).  Used inside the tape backward
     to bound velocity-adjoint magnitude per timestep and prevent float32
-    overflow in the IPCS adjoint at turbulent high-Re regimes.
+    overflow in the projection adjoint at turbulent high-Re regimes.
     Delegates to sanitize_float @wp.func which is inlined by the Warp compiler.
     """
     i, j, k = wp.tid()
@@ -362,12 +359,11 @@ def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
 ####################################################################
 # GPU-resident spectral Poisson solve via wp.tile_fft
 #
-# Replaces the previous NumPy np.fft.fftn/ifftn implementation, which forced
-# a CUDA sync plus a device->host->device round trip on every timestep (the
-# dominant cost of the 3-D solver — see discussion #1636 recommendation #1).
-# wp.tile_fft/wp.tile_ifft support native Warp reverse-mode AD (verified: a
-# tile_fft->tile_ifft round trip differentiates correctly against a
-# hand-derived expectation, cosine similarity 1.0 to float32 roundoff), so no
+# Keeping the FFT on the device avoids a CUDA sync and a device->host->device
+# round trip on every timestep, which would dominate the cost of the 3-D
+# solver. wp.tile_fft/wp.tile_ifft support native Warp reverse-mode AD
+# (verified: a tile_fft->tile_ifft round trip differentiates correctly against
+# a hand-derived expectation, cosine similarity 1.0 to float32 roundoff), so no
 # record_func/self-adjoint bookkeeping is needed — tape.backward() propagates
 # through the FFT kernels like any other kernel.
 #
@@ -722,8 +718,7 @@ def _fft_kernels_2d(n: int):
 
         These three operations act on the same (already-transposed) row
         layout with no intervening transpose, so the row stays resident in
-        registers/shared memory across all three (discussion recommendation
-        #2: fuse spectral multiplication with the middle FFT/IFFT stage).
+        registers/shared memory across all three.
         """
         i, _, _ = wp.tid()
         row = wp.tile_load(x, shape=(1, n), offset=(i, 0))
@@ -761,9 +756,8 @@ def _fft_kernels_2d(n: int):
 def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
     """Precompute 1/λ for the 2-D continuous-eigenvalue spectral Poisson solve.
 
-    Matches the eigenvalues used by the previous NumPy implementation exactly
-    (continuous -(2π/L)²k², not the discrete FD eigenvalues used in 3-D) —
-    preserving the existing discretization per discussion recommendation #7.
+    Uses the continuous eigenvalues -(2π/L)²k², unlike the discrete FD
+    eigenvalues of the 3-D solve.
     ``kx``/``ky`` enter symmetrically, so this array is safe to index either
     as-is or transposed (the fused FFT pipeline below reads it in
     transposed/row-major order relative to how it is built here).
@@ -782,20 +776,18 @@ def _spectral_poisson_2d_core(
 ) -> wp.array:
     """Core 2-D spectral Poisson solve on an already-packed complex RHS.
 
-    Returns the complex (unnormalized) pressure field. Split out from the
-    original ``_spectral_poisson_2d_tape`` wrapper so call sites that
+    Returns the complex (unnormalized) pressure field. Call sites that
     produce/consume complex buffers directly (e.g. a divergence kernel fused
     with the real->complex pack, or a pressure-correction kernel fused with
-    the extract+normalize step) can skip the redundant pack/unpack kernels —
-    discussion recommendation #2.
+    the extract+normalize step) can skip the redundant pack/unpack kernels.
 
     The middle stage (last forward FFT pass, spectral multiply, first inverse
     FFT pass) runs as a single fused tiled kernel instead of three separate
-    launches with two intermediate global-memory round trips (recommendation
-    #2, follow-up). Pass ``workspace`` (from :func:`_poisson_workspace_2d`) to
-    reuse pre-allocated scratch buffers across steps instead of allocating
-    fresh ones on every call — required for the forward-only (non-taped) path
-    and a minor win for the taped path too.
+    launches with two intermediate global-memory round trips. Pass
+    ``workspace`` (from :func:`_poisson_workspace_2d`) to reuse pre-allocated
+    scratch buffers across steps instead of allocating fresh ones on every
+    call. The forward-only (non-taped) path requires it, and it is a minor win
+    for the taped path too.
     """
     n = rhs_c.shape[0]
     if not _is_pow2(n):
@@ -881,8 +873,7 @@ def _poisson_workspace_2d(n: int, device: str) -> dict:
 
     Reused across every timestep instead of allocating fresh buffers per
     step, since the forward-only path has no tape to track per-step
-    dependencies for (discussion recommendation: separate buffer policies for
-    forward vs. taped execution).
+    dependencies for.
     """
     return {
         "tmp1": wp.zeros((n, n), dtype=wp.vec2f, device=device),
@@ -909,7 +900,7 @@ def _inv_lambda_3d(
     Using continuous eigenvalues -(2π/L)²k² instead introduces a ~(πk/N)²/3
     relative error per wavenumber (≈1.3% at k=1, N=16), which compounds across
     the VJP chain and causes a flat-plateau gradient magnitude bias in the
-    fd_check — see discussion recommendation #7 (preserve discretization).
+    fd_check.
 
     ``permute`` optionally applies an axis permutation to the returned array:
     the eigenvalue formula is symmetric in kx/ky/kz, so a permuted copy of
@@ -975,9 +966,9 @@ def _fft_kernels_3d(n: int):
         """Fused: last forward-transform row-pass + spectral multiply.
 
         Keeps the row resident across both operations instead of a separate
-        multiply kernel reading/writing it back to global memory (discussion
-        recommendation #2). The swap into the next pass's layout still
-        happens as a separate kernel — see :func:`_fft3_pass`.
+        multiply kernel reading/writing it back to global memory. The swap into
+        the next pass's layout still happens as a separate kernel (see
+        :func:`_fft3_pass`).
         """
         i, _, _ = wp.tid()
         row = wp.tile_load(x, shape=(1, n), offset=(i, 0))
@@ -1019,8 +1010,8 @@ def _fft3_pass(
     3-D transform, ending back at the original axis order.
 
     When ``inv_lambda_row`` is given (only for the last forward pass), the
-    spectral multiply is fused into this pass's row-transform kernel
-    (discussion recommendation #2) instead of a separate elementwise launch.
+    spectral multiply is fused into this pass's row-transform kernel instead
+    of a separate elementwise launch.
 
     ``workspace``, when given, is a ``(flat_dst, swapped)`` pair of
     pre-allocated (non-differentiable) buffers to write into instead of
@@ -1181,15 +1172,14 @@ def _spectral_poisson_3d_core(
 ) -> wp.array:
     """Core 3-D spectral Poisson solve on an already-packed complex RHS.
 
-    Returns the complex (unnormalized) pressure field. Split out from the
-    original ``_spectral_poisson_3d_tape`` wrapper so call sites that
+    Returns the complex (unnormalized) pressure field, so call sites that
     produce/consume complex buffers directly can skip the redundant
-    pack/unpack kernels — discussion recommendation #2.
+    pack/unpack kernels.
 
     The spectral multiply is fused into the last forward-FFT pass instead of
-    running as a separate elementwise kernel (recommendation #2, follow-up):
-    right before that pass's axis-swap, the array is permuted (1,2,0) relative
-    to the original (kx,ky,kz) axis order, so we index a matching
+    running as a separate elementwise kernel. Right before that pass's
+    axis-swap, the array is permuted (1,2,0) relative to the original
+    (kx,ky,kz) axis order, so we index a matching
     (1,2,0)-permuted copy of 1/λ (cheap to precompute once, cached) rather
     than the natural-order array used elsewhere.
 
@@ -1247,7 +1237,7 @@ def ns2d_solve_tape(
     device: str = "cpu",
     track_scalar_grads: bool = False,
 ) -> tuple[wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array]:
-    """Run periodic 2-D incompressible NS via IPCS (Chorin-Temam) under a tape.
+    """Run periodic 2-D incompressible NS by Chorin projection under a tape.
 
     [2D-only function]
 
@@ -1339,7 +1329,7 @@ def ns2d_solve_tape(
             # Step 2: pressure Poisson ∇²p = ∇·u*/dt (periodic, spectral FFT).
             # divergence_2d_to_complex_kernel fuses the divergence computation
             # with the real->complex pack that would otherwise precede the
-            # first FFT stage (discussion recommendation #2).
+            # first FFT stage.
             div_star_c = wp.zeros(
                 (n, n), dtype=wp.vec2f, requires_grad=True, device=device
             )
@@ -1356,7 +1346,7 @@ def ns2d_solve_tape(
             # Step 3: velocity correction u^(n+1) = u* - dt·∇p.
             # pressure_correct_2d_from_complex_kernel fuses the "extract real +
             # normalize" step with the pressure-correction kernel, reading p
-            # directly out of the complex IFFT output (recommendation #2).
+            # directly out of the complex IFFT output.
             next_ux = wp.zeros(
                 (n, n), dtype=wp.float32, requires_grad=True, device=device
             )
@@ -1401,13 +1391,12 @@ def ns2d_solve_forward(
     domain_extent: float,
     device: str = "cpu",
 ) -> np.ndarray:
-    """Forward-only periodic 2-D incompressible NS via IPCS — no gradients.
+    """Forward-only periodic 2-D incompressible NS by Chorin projection, no gradients.
 
     [2D-only function]
 
-    Same physics as :func:`ns2d_solve_tape`, but structurally distinct (discussion
-    recommendation: separate buffer policies for forward vs. taped
-    execution): no ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
+    Same physics as :func:`ns2d_solve_tape`, but structurally distinct: no
+    ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
     velocity buffers reused every step instead of fresh per-step allocations
     (mirrors Warp's own ``example_wave.py`` grid-swap pattern), and one
     pre-allocated FFT workspace reused across all steps instead of allocating
@@ -1502,7 +1491,7 @@ def ns2d_vjp(
     nu_wp: "wp.array | None" = None,
     dt_wp: "wp.array | None" = None,
 ) -> dict[str, np.ndarray]:
-    """Propagate cotangents through the 2-D IPCS tape.
+    """Propagate cotangents through the 2-D projection tape.
 
     [2D-only function]
 
@@ -1543,7 +1532,7 @@ def ns2d_vjp(
 
 
 # ============================================================
-# 3-D NS forward solve (IPCS)
+# 3-D NS forward solve (Chorin projection)
 # ============================================================
 
 
@@ -1567,7 +1556,7 @@ def ns3d_solve_tape(
     wp.array,
     wp.array,
 ]:
-    """Run 3-D incompressible NS via IPCS (Chorin-Temam) under a tape.
+    """Run 3-D incompressible NS by Chorin projection under a tape.
 
     Used only by :func:`vector_jacobian_product` — see :func:`ns3d_solve_forward`
     for the plain-forward path used by :func:`apply`. Uses Warp's native
@@ -1578,9 +1567,7 @@ def ns3d_solve_tape(
     unambiguous and no manual adjoint-zeroing is needed.
 
     ``nu``/``dt`` are passed to kernels as 1-element arrays (like the 2-D
-    solver) so the tape can track gradients w.r.t. them — previously this
-    path always returned zero for viscosity/dt (schema advertised them as
-    differentiable but the 3-D kernels only accepted plain floats).
+    solver) so the tape can track gradients w.r.t. them.
 
     ``track_scalar_grads`` gates ``requires_grad`` on the ``nu``/``dt``
     arrays: leave it False unless the caller actually requested a viscosity
@@ -1643,7 +1630,7 @@ def ns3d_solve_tape(
             # LIFO, this fires LAST in the step's backward — after
             # tentative_vel's auto-adjoint has written into cur_u{x,y,z}.grad.
             # Clipping the per-timestep adjoint prevents float32 overflow in the
-            # IPCS adjoint at turbulent high-Re regimes without altering the
+            # projection adjoint at turbulent high-Re regimes without altering the
             # gradient direction when ||adj||_inf is already within bounds.
             # Only active when adjoint_grad_clip is set (>0).
             if adjoint_grad_clip is not None and adjoint_grad_clip > 0:
@@ -1662,7 +1649,7 @@ def ns3d_solve_tape(
                 ):
                     """Clip cur_u{x,y,z}.grad element-wise into [-c, c] via a Warp kernel.
 
-                    Prevents float32 overflow in the IPCS adjoint at high-Re and
+                    Prevents float32 overflow in the projection adjoint at high-Re and
                     replaces NaN/Inf with 0 as a hard safety fallback.  GPU-native
                     (no numpy round-trip) so per-step cost is negligible.
                     """
@@ -1714,7 +1701,7 @@ def ns3d_solve_tape(
             # Step 2: pressure Poisson ∇²p = ∇·u*/dt (periodic, spectral FFT).
             # divergence_3d_to_complex_kernel fuses the divergence computation
             # with the real->complex pack that would otherwise precede the
-            # first FFT stage (discussion recommendation #2).
+            # first FFT stage.
             div_star_c = wp.zeros(
                 (n, n, n), dtype=wp.vec2f, requires_grad=True, device=device
             )
@@ -1730,7 +1717,7 @@ def ns3d_solve_tape(
             # Step 3: velocity correction u^(n+1) = u* - dt·∇p.
             # pressure_correct_3d_from_complex_kernel fuses the "extract real +
             # normalize" step with the pressure-correction kernel, reading p
-            # directly out of the complex IFFT output (recommendation #2).
+            # directly out of the complex IFFT output.
             next_ux = wp.zeros(
                 (n, n, n), dtype=wp.float32, requires_grad=True, device=device
             )
@@ -1782,11 +1769,10 @@ def ns3d_solve_forward(
     domain_extent: float,
     device: str = "cpu",
 ) -> np.ndarray:
-    """Forward-only 3-D incompressible NS via IPCS — no gradients.
+    """Forward-only 3-D incompressible NS by Chorin projection, no gradients.
 
-    Same physics as :func:`ns3d_solve_tape`, but structurally distinct (discussion
-    recommendation: separate buffer policies for forward vs. taped
-    execution): no ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
+    Same physics as :func:`ns3d_solve_tape`, but structurally distinct: no
+    ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
     velocity buffers per component reused every step instead of fresh
     per-step allocations, and one pre-allocated FFT workspace reused across
     all steps.
@@ -1889,13 +1875,12 @@ def ns3d_vjp(
     nu_wp: "wp.array | None" = None,
     dt_wp: "wp.array | None" = None,
 ) -> dict[str, np.ndarray]:
-    """Propagate cotangents through the 3-D IPCS tape.
+    """Propagate cotangents through the 3-D projection tape.
 
     v0, viscosity, and dt are all ordinary tape leaves (nu_wp/dt_wp are the
     1-element arrays passed into tentative_vel_3d_kernel,
     divergence_3d_to_complex_kernel, and pressure_correct_3d_from_complex_kernel
-    in ns3d_solve_tape), so tape.backward() fills their .grad directly —
-    previously this function always returned zero for viscosity/dt.
+    in ns3d_solve_tape), so tape.backward() fills their .grad directly.
     """
     ux_final.grad = wp.array(
         cotangent_np[:, :, :, 0].astype(np.float32), dtype=wp.float32, device=device
@@ -2714,7 +2699,7 @@ def vector_jacobian_product(
 
     Differentiable inputs: v0, viscosity, dt (2D and 3D), and inflow_profile
     in the channel (see :func:`channel_vjp`).
-    Both 2D and 3D use IPCS with spectral FFT Poisson for numerically exact VJPs.
+    Periodic 2D and 3D use a spectral FFT Poisson solve for numerically exact VJPs.
 
     Gradient tracking for the ``viscosity``/``dt`` scalars is only turned on
     when the caller actually requests them via ``vjp_inputs``: each

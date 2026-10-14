@@ -301,12 +301,10 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     The pure forward pass is unaffected — ``jax.checkpoint`` only recomputes
     when a backward pass actually differentiates through it.
     """
-    import math as _math_ck
-
     if steps <= 1:
         return jax.lax.scan(body, f0, None, length=steps)
 
-    inner = max(1, round(_math_ck.sqrt(steps)))
+    inner = max(1, round(math.sqrt(steps)))
     outer, rem = divmod(steps, inner)
 
     ckpt_body = jax.checkpoint(body)
@@ -317,7 +315,7 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
 
     f_cur, ys_blocks = jax.lax.scan(block, f0, None, length=outer)
     # ys_blocks: (outer, inner, *per_step_out) -> flatten to (outer*inner, ...)
-    drag_hist = jax.tree_util.tree_map(
+    ys = jax.tree_util.tree_map(
         lambda a: a.reshape((outer * inner, *a.shape[2:])), ys_blocks
     )
 
@@ -325,11 +323,11 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     # multiple of ``inner``); run them checkpointed too and concatenate.
     if rem:
         f_cur, ys_rem = jax.lax.scan(ckpt_body, f_cur, None, length=rem)
-        drag_hist = jax.tree_util.tree_map(
-            lambda a, b: jnp.concatenate([a, b], axis=0), drag_hist, ys_rem
+        ys = jax.tree_util.tree_map(
+            lambda a, b: jnp.concatenate([a, b], axis=0), ys, ys_rem
         )
 
-    return f_cur, drag_hist
+    return f_cur, ys
 
 
 # Lattice Mach number that runs sub-step down to. Periodic runs keep it up to

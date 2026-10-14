@@ -17,6 +17,8 @@ import pytest
 
 from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
 
+from .helpers import channel_inputs, unsupported_bcs
+
 pytest.importorskip("warp")
 
 _API = (
@@ -34,16 +36,9 @@ def api():
     return module
 
 
-def _channel_inputs(resolution: int, t_end: float = cylinder.T_END) -> dict:
-    inputs = cylinder.channel_inputs(
-        cylinder.inflow_profile(resolution), resolution, t_end
-    )
-    return {k: np.asarray(v) if hasattr(v, "shape") else v for k, v in inputs.items()}
-
-
 def test_cylinder_res10(api):
     """A res-10 run: positive drag within 5% of the reference, steady."""
-    out = api.apply(api.InputSchema(**_channel_inputs(10)))
+    out = api.apply(api.InputSchema(**channel_inputs(10)))
     force = np.asarray(out.body_force)
     assert force.shape == (cylinder.time_step(10)[1], 2)
     assert np.all(np.isfinite(force))
@@ -61,7 +56,7 @@ def test_drag_gradient_matches_fd(api):
 
     Over drag_opt's horizon the agreement is about 1e-4.
     """
-    inputs = _channel_inputs(10, t_end=4.0)
+    inputs = channel_inputs(10, t_end=4.0)
     steps = inputs["steps"]
     window = cylinder.window_size(steps)
 
@@ -89,25 +84,7 @@ def test_drag_gradient_matches_fd(api):
     assert np.dot(grad, direction) == pytest.approx(fd, rel=1e-3)
 
 
-@pytest.mark.parametrize(
-    "change",
-    [
-        {
-            "boundary_conditions": {
-                **cylinder.BOUNDARY_CONDITIONS,
-                "x_hi": {"type": "no_slip"},
-            }
-        },
-        {
-            "boundary_conditions": {
-                **cylinder.BOUNDARY_CONDITIONS,
-                "y_lo": {"type": "neumann"},
-            }
-        },
-        {"boundary_conditions": {}, "inflow_profile": None},
-    ],
-    ids=["outlet_no_slip", "wall_neumann", "periodic_with_obstacle"],
-)
+@unsupported_bcs
 def test_rejects_unsupported_bcs(api, change):
     with pytest.raises(ValueError, match="warp-ns supports"):
-        api.InputSchema(**{**_channel_inputs(10, t_end=0.1), **change})
+        api.InputSchema(**{**channel_inputs(10, t_end=0.1), **change})
