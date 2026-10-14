@@ -216,7 +216,7 @@ def cfd_fwd(
     inflow_profile: jnp.ndarray | None = None,
     **_kwargs: Any,
 ) -> tuple[jax.Array, jax.Array | None]:
-    """Compute the final velocity field using the semi-implicit Navier-Stokes equations.
+    """Compute the final velocity field of the incompressible Navier-Stokes equations.
 
     Supports both 2D and 3D; dimensionality is inferred from v0.shape[-1].
 
@@ -271,9 +271,19 @@ def cfd_fwd(
         return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
 
     # --- NS step function ------------------------------------------------
+    # The library's default (van Leer + forward Euler) uses a Lax-Wendroff
+    # flux whose time correction assumes pure advection. In incompressible
+    # flow the pressure gradient balances advection, so that correction
+    # becomes an O(dt) error. Central advection avoids it, but is unstable
+    # under forward Euler and under RK2 at CFL ≈ 0.8, hence RK4.
     step_fn = cfd.funcutils.repeated(
         cfd.equations.semi_implicit_navier_stokes(
-            density=density, viscosity=viscosity, dt=dt, grid=grid
+            density=density,
+            viscosity=viscosity,
+            dt=dt,
+            grid=grid,
+            convect=cfd.advection.convect_linear,
+            time_stepper=cfd.time_stepping.classic_rk4,
         ),
         steps=inner_steps,
     )
