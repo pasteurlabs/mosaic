@@ -1,0 +1,29 @@
+{
+  "status": "focused tests passed",
+  "scope": "Nontraining buoyancy physical laws, forward checks, spatial/temporal/VJP cost, gradient horizons and SVD",
+  "source_commit": "b7cca430666d1459d4b874efb939d976dd5a12c9",
+  "resources": {
+    "cpus": 4,
+    "memory": "24G",
+    "time_limit": "01:00:00",
+    "node": "rtx10"
+  },
+  "environment": "Production lock with dev extra, Python 3.12; CPU JAX; native solver container validation remains canonical GitHub CI",
+  "test_targets": "Existing focused regression targets plus new test files to be added after source review",
+  "submitted": true,
+  "slurm_id": 3073795,
+  "test_result": {
+    "passed": 169,
+    "failed": 0,
+    "seconds": 11.52
+  },
+  "complete": true,
+  "hashes": {
+    "node.sh": "8a01cd4ddcddb975e031ceb82bd389c7a486259ee113678847ea9fa81fcd27f2",
+    "test-targets.txt": "b2169688577f76531905033336af95932235999090a706437ad038afc3a7f46c",
+    "python-environment.txt": "5eec30b62f5d2498358cca4377ac5fc02c8b84bf640fbfab4df6f45c86aa449f",
+    "junit.xml": "e1e2f1f78c11ce815eb32114cbe3099873840c778ffbd9f27a8fabed3857d860",
+    "tests.txt": "46614a547184a3a8376465c5986b093a0b7f1eaa07da7c9ddb3e8da290ea593b",
+    "source.tar": "2c95c1c406dfdf0947150f9a5c885fe77d024e4dab00e2a4fa59873071e88a40"
+  }
+}

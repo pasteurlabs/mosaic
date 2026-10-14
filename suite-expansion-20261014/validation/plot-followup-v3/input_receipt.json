@@ -1,0 +1,14 @@
+{
+  "source_commit": "1146803288f7b6155821933ef031d429bd6eaa18",
+  "source_sha256": "baae770ed56688bc3fc9b319c2ee07fb5d1a884fe6b6177397832da57287d44e",
+  "input_sha256": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/result.json": "9f9bf697c0fcfaba60b77b9ff0f9609b21ff9a8e8285c5cdb88ab505e8c8e74a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/fields.npz": "f45affa6149db856832f05eed320fb13d826a2cd90f044e878770f4570277a40",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/result.json": "a9e7d3d2c8f0d09869678441af21e302f785a42de6e6faa6425e2fa14eba7c5c",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/fields.npz": "1225fd2a1864b4ec419e046f7c0e1ba9c749ba016634750f108cf1bdd346094a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/result.json": "a24baa2738f70c8a98962084efd639b3ab250e20b87dfb4308f65c63a97fa106",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/fields.npz": "e4ecc184445cdbd816978b333b5b2caf6792d08a7e493b2112eb8d10b72ebc79",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/result.json": "deca9cd4360bcd40acf1e0f5b1a1b208f7ad293a6a511fabcb963b1f6e46e631",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/fields.npz": "e367b1b80a6981a822dc6fdd4501f1f32b0f7512828ba58892483e187a34adf2"
+  }
+}

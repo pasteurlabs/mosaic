@@ -1,0 +1,46 @@
+{
+  "source_commit": "1146803288f7b6155821933ef031d429bd6eaa18",
+  "source_sha256": "baae770ed56688bc3fc9b319c2ee07fb5d1a884fe6b6177397832da57287d44e",
+  "input_sha256": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/result.json": "9f9bf697c0fcfaba60b77b9ff0f9609b21ff9a8e8285c5cdb88ab505e8c8e74a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/fields.npz": "f45affa6149db856832f05eed320fb13d826a2cd90f044e878770f4570277a40",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/result.json": "a9e7d3d2c8f0d09869678441af21e302f785a42de6e6faa6425e2fa14eba7c5c",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/fields.npz": "1225fd2a1864b4ec419e046f7c0e1ba9c749ba016634750f108cf1bdd346094a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/result.json": "a24baa2738f70c8a98962084efd639b3ab250e20b87dfb4308f65c63a97fa106",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/fields.npz": "e4ecc184445cdbd816978b333b5b2caf6792d08a7e493b2112eb8d10b72ebc79",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/result.json": "deca9cd4360bcd40acf1e0f5b1a1b208f7ad293a6a511fabcb963b1f6e46e631",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-suite-expansion-20261014/ci-results-38577109543/results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/fields.npz": "e367b1b80a6981a822dc6fdd4501f1f32b0f7512828ba58892483e187a34adf2"
+  },
+  "slurm_job_id": "3082788",
+  "artifacts": {
+    "results/buoyancy-grid/forward/refinement/diagnostics.png": "5355fd0f4c220cf77f6aac3acb7ddb70faaed2f82b4d4bb67918407a516f30d8",
+    "results/buoyancy-grid/forward/refinement/diagnostics.vl.json": "3dff0e8885f9572b4824628067b131531bddd3a189b4db7ca0fee9848fbd9224",
+    "results/buoyancy-grid/forward/refinement/result.json": "c9dedccde1cc0acc56af8da74880901cbc4e2136a92d39fb4f1a2c10025088fb",
+    "results/buoyancy-grid/forward/physical_laws/diagnostics.png": "fa19b54ad94c7502a24148ebf69be06cfb17a5eaa44ab80c279df98db3eead5a",
+    "results/buoyancy-grid/forward/physical_laws/diagnostics.vl.json": "1991fa9af22cbccf75532f3f421a6a165cba1dfcddbac4eba70b0b72dcd349ce",
+    "results/buoyancy-grid/forward/physical_laws/result.json": "88be92bf78639afff657af03ce5914b2578d860352125802d2f64f0966b7952f"
+  },
+  "experiments": {
+    "refinement": {
+      "solvers": [
+        "INS.jl",
+        "JAX-CFD",
+        "Oceananigans",
+        "PhiFlow",
+        "WaterLily"
+      ],
+      "rows": 15
+    },
+    "physical_laws": {
+      "solvers": [
+        "INS.jl",
+        "JAX-CFD",
+        "Oceananigans",
+        "PhiFlow",
+        "WaterLily"
+      ],
+      "rows": 15
+    }
+  },
+  "complete": true
+}

@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "forward",
+    "name": "refinement"
+  },
+  "params": {
+    "ic": {
+      "name": "interacting_plumes",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.0005,
+      "diffusivity": 0.0005,
+      "buoyancy": 1.0,
+      "dt": 0.005,
+      "steps": 40
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        32,
+        64
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "32",
+      "64"
+    ]
+  },
+  "results": [
+    {
+      "solver": "INS.jl",
+      "sweep_value": "16",
+      "metrics": {
+        "valid": true,
+        "error": 0.03462855184295024,
+        "velocity_rel_error": 0.047917554258536756,
+        "scalar_rel_error": 0.010108471662915747,
+        "reference_N": 32,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 415.617024
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "32",
+      "metrics": {
+        "valid": true,
+        "error": 0.014558595383233572,
+        "velocity_rel_error": 0.02032467281681487,
+        "scalar_rel_error": 0.003288323882291171,
+        "reference_N": 64,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 415.78496
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "64",
+      "metrics": {
+        "valid": true,
+        "error": 0.01310927052259062,
+        "velocity_rel_error": 0.018519440849784415,
+        "scalar_rel_error": 0.0008580547070339042,
+        "reference_N": 128,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.305152
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "16",
+      "metrics": {
+        "valid": true,
+        "error": 0.03548879669932157,
+        "velocity_rel_error": 0.04969880920794382,
+        "scalar_rel_error": 0.006995551846992041,
+        "reference_N": 32,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.305152
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "32",
+      "metrics": {
+        "valid": true,
+        "error": 0.014597779003900815,
+        "velocity_rel_error": 0.020576971844198978,
+        "scalar_rel_error": 0.0016668933428679727,
+        "reference_N": 64,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.305152
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "64",
+      "metrics": {
+        "valid": true,
+        "error": 0.013160569867293873,
+        "velocity_rel_error": 0.018608932565433063,
+        "scalar_rel_error": 0.0003298897376576148,
+        "reference_N": 128,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.84992
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "16",
+      "metrics": {
+        "valid": true,
+        "error": 0.03656306874612882,
+        "velocity_rel_error": 0.05068518208968707,
+        "scalar_rel_error": 0.010233685006074241,
+        "reference_N": 32,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.84992
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "32",
+      "metrics": {
+        "valid": true,
+        "error": 0.01581063070418517,
+        "velocity_rel_error": 0.02158339696029299,
+        "scalar_rel_error": 0.0058402964122261005,
+        "reference_N": 64,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.84992
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "64",
+      "metrics": {
+        "valid": true,
+        "error": 0.013432191454009892,
+        "velocity_rel_error": 0.018722783368584284,
+        "scalar_rel_error": 0.0032101273257328,
+        "reference_N": 128,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "ram_peak_mib": 416.84992
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "16",
+      "metrics": {
+        "valid": true,
+        "error": 0.03700654580315324,
+        "velocity_rel_error": 0.05115988366418702,
+        "scalar_rel_error": 0.011028833484489967,
+        "reference_N": 32,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "vram_peak_mib": 128.875,
+        "ram_peak_mib": 428.978176
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "32",
+      "metrics": {
+        "valid": true,
+        "error": 0.0150373799116512,
+        "velocity_rel_error": 0.021032725951577985,
+        "scalar_rel_error": 0.0031416601121827476,
+        "reference_N": 64,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 429.13792
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "64",
+      "metrics": {
+        "valid": true,
+        "error": 0.013398175113041146,
+        "velocity_rel_error": 0.01891128279649251,
+        "scalar_rel_error": 0.0011771048001417408,
+        "reference_N": 128,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 429.621248
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "16",
+      "metrics": {
+        "valid": true,
+        "error": 0.03686826408759513,
+        "velocity_rel_error": 0.051138525959548965,
+        "scalar_rel_error": 0.01016803601241901,
+        "reference_N": 32,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "vram_peak_mib": 6.0,
+        "ram_peak_mib": 429.621248
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "32",
+      "metrics": {
+        "valid": true,
+        "error": 0.014029096239391822,
+        "velocity_rel_error": 0.01898375789592844,
+        "scalar_rel_error": 0.005766109497487032,
+        "reference_N": 64,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 429.621248
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "64",
+      "metrics": {
+        "valid": true,
+        "error": 0.01296329539238755,
+        "velocity_rel_error": 0.018058701251581412,
+        "scalar_rel_error": 0.00315869656135636,
+        "reference_N": 128,
+        "reference_dt": 0.0024999999441206455,
+        "reference_steps": 80,
+        "physical_time": 0.19999999552965164,
+        "vram_peak_mib": 10.0,
+        "ram_peak_mib": 430.149632
+      }
+    }
+  ],
+  "provenance": {
+    "tesseract_hashes": {
+      "WaterLily": "2aa88095045a039a",
+      "Oceananigans": "3006f94e0945ba18",
+      "INS.jl": "a6584554f49cee5a",
+      "JAX-CFD": "a3c8ec8d615f5240",
+      "PhiFlow": "f8025ed82a5a1793"
+    },
+    "harness_hash": "e5fb0695694aea3f",
+    "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.forward.refinement",
+    "wall_time_s": {
+      "INS.jl": 21.525200573000006,
+      "Oceananigans": 42.226393642999994,
+      "WaterLily": 11.126161817000025,
+      "JAX-CFD": 10.108061798999984,
+      "PhiFlow": 17.963017085999923
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.1.dev1+unknown.g66f632ee0",
+      "timestamp": "2026-10-14T14:30:15.704216+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-14T14:30:15Z",
+      "ci": true,
+      "runner": "mosaic-bench-gpu-1000770051",
+      "github_run_id": "38577109543",
+      "github_sha": "66f632ee0f679fd95e77c2fd142de1abe666b049",
+      "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "source_commit": "4887715c119622e48ad360c567a10cffb393919c",
+  "status": "passed",
+  "prior_receipt": "../protocol.json",
+  "resources": {
+    "cpus": 4,
+    "memory": "24G"
+  },
+  "environment": "production.uv.lock --frozen --extra dev; Python3.12",
+  "complete": true,
+  "slurm_id": 3074651,
+  "test_result": {
+    "passed": 41,
+    "failed": 0,
+    "seconds": 7.52
+  },
+  "hashes": {
+    "source.tar": "23b42464de67a9712d4d76797eacbd6ebacf9adbc97d5d3c0b8234553bc4c5e3",
+    "node.sh": "8a01cd4ddcddb975e031ceb82bd389c7a486259ee113678847ea9fa81fcd27f2",
+    "test-targets.txt": "3d976b1c0fd45c5185c98c93a07f39def694440ee0a43d369bf2820efc984dc5",
+    "python-environment.txt": "48509f6af5a937b90c45b38a58f409e424cb9b111ccbbafffb54b1cb64cf0610",
+    "junit.xml": "c4765b978200e45504824fef44d3880ea1051698b5e4c85ef68824e0ea249d5e",
+    "tests.txt": "755fb630b495f3c5fceeecce3f8df4cedebbb68949d3b53f5be1457f9e3f27fc"
+  }
+}

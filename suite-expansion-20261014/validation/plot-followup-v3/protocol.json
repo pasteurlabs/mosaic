@@ -1,0 +1,31 @@
+{
+  "source_commit": "1146803288f7b6155821933ef031d429bd6eaa18",
+  "purpose": "Plot-only validation; existing canonical CI CPU/GPU results, no solver reruns",
+  "input_ci_run": 38577109543,
+  "lock": "production.uv.lock --frozen --extra dev",
+  "tests": {
+    "passed": 9,
+    "seconds": 7.13
+  },
+  "hashes": {
+    "source.tar": "baae770ed56688bc3fc9b319c2ee07fb5d1a884fe6b6177397832da57287d44e",
+    "receipt.py": "c1c5a2c04525430de576fb268c8d23fed35e1a9960a30b243b5fe471ac38926d",
+    "source.sha256": "583e4a955d471cad44d6f9de206383a4813fe928cecca01eef5196b4d2107f53",
+    "prepare.py": "94f8ab40c57246d3c45c56195866f8701ec1aec326cd5f2b91af8b50d9e010ce",
+    "submit.py": "33da7e2e8f76801144a1b2d775f231cf2e61d9f36a2a72c92ce174d7a43e1372",
+    "node.sh": "b2410236008e35b1de648389fcb2b586e7d70ac1aadb3ec91b4816a47054d8ec",
+    "validation_receipt.json": "09463da13bd454fe9b23901e60c07ae2c4090acae36fc7e0615a83423ae40eac",
+    "junit.xml": "a7549e9c77f7b9ab78757d00e779bbe30b462e92eff8f52b25be0b227c874adc",
+    "tests.txt": "408eb4d223b2700bdbe5710b60becad7584b3e2331b9ff430616ed41801022d8",
+    "python-environment.txt": "d4f4a00557ab79f2f6e092f43d70d72560dfb779e386db10277868529f594b29"
+  },
+  "prior_attempt": {
+    "job": 3082296,
+    "tests": "9 passed",
+    "failure": "External harness comma-separated experiments unsupported; CLI skipped plot, receipt correctly refused completion."
+  },
+  "status": "passed",
+  "slurm_id": 3082788,
+  "complete": true,
+  "visual_review": "Both combined five-solver PNGs inspected; small divergence/scalar values have readable scientific-notation ticks."
+}
