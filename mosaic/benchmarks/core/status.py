@@ -571,7 +571,7 @@ def _classify_from_v1(
 
     ``limits`` marks a ``sweep_mode="limits"`` experiment, which runs until
     the first failure to find how far each solver gets. Any failure after a
-    valid point is then that frontier rather than a crash.
+    valid point is then the solver's frontier.
     """
     cells: dict[str, Cell] = {}
     results = data.get("results", [])
