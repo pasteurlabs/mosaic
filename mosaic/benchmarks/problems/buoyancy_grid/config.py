@@ -13,15 +13,20 @@ from mosaic.benchmarks.core.status_checks import (
     min_cosine,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
-from mosaic.benchmarks.problems.shared.cost import spatial_cost
+from mosaic.benchmarks.problems.shared.cost import spatial_cost, temporal_cost, vjp_cost
 from mosaic.benchmarks.problems.shared.forward import agreement
+from mosaic.benchmarks.problems.shared.gradient import jacobian_svd
 from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
 from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
-from mosaic.benchmarks.problems.shared.plots.gradient import plot_fd_check
+from mosaic.benchmarks.problems.shared.plots.gradient import (
+    plot_fd_check,
+    plot_horizon_sweep,
+)
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .gradient import fd_check
+from .forward import physical_laws, refinement
+from .gradient import fd_check, param_sweep
 from .physics import (
     diffusion_ic,
     diffusion_reference,
@@ -30,7 +35,7 @@ from .physics import (
     plume,
     scalar_field,
 )
-from .plots import plot_solver_in_loop
+from .plots import plot_forward_metrics, plot_solver_in_loop
 from .status import corrector_execution
 from .training import solver_in_loop
 
@@ -129,21 +134,153 @@ problem.add_experiment(
     ),
 )
 problem.add_experiment(
-    "cost/forward",
+    "cost/spatial_cost",
     spatial_cost,
-    ic={"name": "plume", "seed": 0},
+    ic={"name": "interacting_plumes", "seed": 0},
     physics={
-        "N": [16, 24, 32],
-        "nu": 0.001,
-        "diffusivity": 0.001,
+        "N": [16, 32, 64],
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
         "buoyancy": 1.0,
-        "dt": 0.04,
-        "steps": 4,
+        "dt": 0.005,
+        "steps": 8,
     },
     cost={"n_trials": 3},
     status_check=[max_peer_k(20)],
     plot=plot_cost,
     plot_description="Coupled forward-step cost after compilation warmup.",
+)
+# Coupled-flow checks use each backend's own refined trajectory rather than
+# a CPU/GPU-job-local consensus. They measure discretization consistency,
+# not accuracy against an independently converged solution.
+problem.add_experiment(
+    "forward/refinement",
+    refinement,
+    status_check=[max_error(0.5)],
+    ic={"name": "interacting_plumes", "seed": 0},
+    physics={
+        "N": [16, 32, 64],
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
+        "buoyancy": 1.0,
+        "dt": 0.005,
+        "steps": 40,
+    },
+    plot=plot_forward_metrics,
+    plot_description=(
+        "Coupled scalar and velocity differences against the same solver at twice "
+        "the grid resolution and half the timestep, at fixed time 0.2. "
+        "Face/volume restriction preserves staggered velocities and scalar mass. "
+        "This is a refinement diagnostic, not an independent ground truth."
+    ),
+)
+problem.add_experiment(
+    "forward/physical_laws",
+    physical_laws,
+    status_check=[max_error(0.01)],
+    ic={"name": "interacting_plumes", "seed": 0},
+    physics={
+        "N": 32,
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
+        "buoyancy": 1.0,
+        "dt": 0.005,
+        "steps": [8, 32, 128],
+    },
+    plot=plot_forward_metrics,
+    plot_description=(
+        "Closed-wall MAC divergence, relative scalar mass drift, scalar extrema, "
+        "wall-normal storage padding and kinetic energy across coupled rollout horizons. "
+        "A scalar mass drift above 1% is flagged. Buoyancy can increase kinetic energy; "
+        "no energy-decay condition is imposed."
+    ),
+)
+problem.add_experiment(
+    "cost/temporal_cost",
+    temporal_cost,
+    ic={"name": "interacting_plumes", "seed": 0},
+    physics={
+        "N": 32,
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
+        "buoyancy": 1.0,
+        "dt": 0.005,
+        "steps": [4, 16, 64],
+    },
+    cost={"n_trials": 3},
+    status_check=[max_peer_k(20)],
+    plot=plot_cost,
+    plot_description="Forward cost versus step count, with compilation warmup and resource measurements.",
+)
+problem.add_experiment(
+    "cost/vjp_cost",
+    vjp_cost,
+    ic={"name": "interacting_plumes", "seed": 0},
+    runs=[
+        {
+            "name": "by_N",
+            "physics": {
+                "N": [16, 32, 64],
+                "nu": 0.0005,
+                "diffusivity": 0.0005,
+                "buoyancy": 1.0,
+                "dt": 0.005,
+                "steps": 8,
+            },
+        },
+        {
+            "name": "by_steps",
+            "physics": {
+                "N": 32,
+                "nu": 0.0005,
+                "diffusivity": 0.0005,
+                "buoyancy": 1.0,
+                "dt": 0.005,
+                "steps": [4, 16, 64],
+            },
+        },
+    ],
+    cost={"n_trials": 3},
+    status_check=[max_peer_k(20)],
+    plot=plot_cost,
+    plot_description="State VJP cost versus resolution and step count, after compilation warmup.",
+)
+problem.add_experiment(
+    "gradient/horizon_sweep",
+    param_sweep,
+    ic={"name": "plume", "seed": 0},
+    physics={
+        "N": 16,
+        "nu": 0.001,
+        "diffusivity": 0.001,
+        "buoyancy": 1.0,
+        "dt": 0.01,
+        "steps": [1, 4, 16],
+    },
+    fd={"eps_values": [0.1, 0.01, 0.001], "n_dirs": 3},
+    plot=plot_horizon_sweep,
+    plot_description=(
+        "State-gradient norm, directional finite-difference error and cosine versus "
+        "differentiated horizon, after four fixed undifferentiated warmup steps."
+    ),
+)
+problem.add_experiment(
+    "gradient/jacobian_svd",
+    jacobian_svd,
+    ic={"name": "plume", "seed": 0},
+    physics={
+        "N": 8,
+        "nu": 0.001,
+        "diffusivity": 0.001,
+        "buoyancy": 1.0,
+        "dt": 0.01,
+        "steps": 4,
+    },
+    plot_description=(
+        "Small-grid state-Jacobian spectra and gradient subspace comparisons at the "
+        "same resting initial condition. Transport at rest has derivative kinks; "
+        "this describes the AD-selected derivative, not a smoothness certificate."
+    ),
 )
 problem.add_experiment(
     "optimization/solver_in_loop",

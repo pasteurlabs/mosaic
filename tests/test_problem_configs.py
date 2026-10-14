@@ -95,6 +95,9 @@ _UNGATED_BY_DESIGN: frozenset[str] = frozenset(
         "ns-grid/gradient/jacobian_svd_steps20",
         "ns-grid/gradient/jacobian_svd_steps40",
         "ns-grid/gradient/horizon_sweep",
+        # Buoyancy spectra/horizon trends are diagnostics, like the NS equivalents.
+        "buoyancy-grid/gradient/horizon_sweep",
+        "buoyancy-grid/gradient/jacobian_svd",
         "ns-grid/gradient/param_sweep",
         "ns-3d-grid/gradient/jacobian_svd",
         "ns-3d-grid/gradient/jacobian_svd_nu01",

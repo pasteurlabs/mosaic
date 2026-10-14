@@ -103,3 +103,32 @@ def test_buoyancy_missing_results_skip_cleanly(tmp_path, monkeypatch):
     monkeypatch.setattr(plots, "results_dir", lambda: tmp_path)
     monkeypatch.setattr(plots, "load_experiment_result", lambda _: None)
     assert plots.plot_solver_in_loop(SimpleNamespace(name="buoyancy-grid")) == []
+
+
+def test_forward_diagnostics_render_signed_values(tmp_path, monkeypatch):
+    monkeypatch.setattr(plots, "results_dir", lambda: tmp_path)
+    result = {
+        "sweep": {"key": "steps", "values": ["8", "32"]},
+        "results": [
+            {
+                "solver": "PhiFlow",
+                "sweep_value": str(steps),
+                "metrics": {
+                    "valid": True,
+                    "scalar_mass_rel_drift": drift,
+                    "divergence_rms": 0.0,
+                    "scalar_min": -0.01,
+                },
+            }
+            for steps, drift in [(8, -0.01), (32, -0.02)]
+        ],
+    }
+    monkeypatch.setattr(plots, "load_experiment_result", lambda _: result)
+    charts = plots.plot_forward_metrics(SimpleNamespace(name="buoyancy-grid"))
+    assert len(charts) == 1
+    folder = tmp_path / "buoyancy-grid/forward/physical_laws"
+    assert (folder / "diagnostics.png").read_bytes().startswith(b"\x89PNG")
+    spec = json.loads((folder / "diagnostics.vl.json").read_text())
+    assert spec["spec"]["encoding"]["x"]["title"] == "steps"
+    assert spec["resolve"]["scale"]["y"] == "independent"
+    assert "log" not in json.dumps(spec["spec"]["encoding"]["y"])

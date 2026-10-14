@@ -29,6 +29,32 @@ lacks Enzyme support. Forward simulation and derivatives use the same pressure
 implementation. Its adapter pins Julia 1.12.6 to avoid the reverse-mode
 compilation crash observed with Julia 1.11.7 in the Python–Julia runtime.
 
+The domain runs the same four benchmark suites as the other Mosaic domains:
+
+| Suite | Measurements |
+| --- | --- |
+| Forward | Analytic scalar diffusion; coupled-flow spatial/time refinement; closed-wall divergence, scalar mass drift and extrema, and kinetic energy across rollout horizons. |
+| Cost | Forward and state-VJP wall time versus grid resolution and step count, with warmup, repeated trials and resource measurements. |
+| Gradient | Directional finite differences, horizon sweeps, and small-grid state-Jacobian spectra. |
+| Optimization | Recurrent neural corrector training and held-out evaluation. |
+
+The coupled refinement comparison uses the same solver at twice the resolution
+and half the timestep, with identical physical time and seeded plume geometry.
+It reports velocity and scalar differences separately; it measures refinement
+consistency rather than accuracy against an independent exact solution.
+The physical diagnostics use the closed-wall staggered layout and exclude the
+scalar from kinetic energy. Buoyancy can increase kinetic energy, and
+semi-Lagrangian scalar transport can lose mass; these effects are reported
+rather than hidden by an unforced-flow energy-decay assumption. Scalar mass drift above 1% is flagged; coupled refinement differences above
+50% are flagged as gross disagreement. Other physical diagnostics are reported
+without asserting exact conservation.
+
+Gradient finite differences and horizon sweeps start after four undifferentiated
+warmup steps to move away from transport kinks at zero velocity. Jacobian spectra
+instead use the same resting state for every solver, so they describe each
+backend's AD-selected derivative there, including any nonsmooth transport choices.
+These bounded sweeps complement the larger corrector experiment.
+
 The benchmark trains a small convolutional neural network to correct velocity
 after each solver interval. A streamfunction makes these corrections
 divergence-free with zero normal wall velocity. The scalar remains solver-driven.

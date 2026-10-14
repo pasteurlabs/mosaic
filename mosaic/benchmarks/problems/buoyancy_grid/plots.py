@@ -11,7 +11,10 @@ import pandas as pd
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.io import load_experiment_result, results_dir, try_load_npz
-from mosaic.benchmarks.problems.shared.plots.charts.common import save_chart
+from mosaic.benchmarks.problems.shared.plots.charts.common import (
+    save_chart,
+    solver_encodings,
+)
 
 _METHODS = {
     "uncorrected": ("Uncorrected", "#777777"),
@@ -280,3 +283,72 @@ def plot_solver_in_loop(
                 save_chart(chart, stem, out)
             charts.append(chart)
     return charts
+
+
+def plot_forward_metrics(
+    cfg: Problem,
+    *,
+    suffix: str = "",
+    exp_key: str = "physical_laws",
+    save: bool = True,
+    **_: Any,
+) -> list:
+    """Plot coupled-flow diagnostics without treating the scalar as velocity."""
+    out = results_dir() / cfg.name / "forward" / f"{exp_key}{suffix}"
+    result = load_experiment_result(out)
+    if result is None:
+        return []
+    labels = {
+        "velocity_rel_error": "Velocity relative L2 difference",
+        "scalar_rel_error": "Scalar relative L2 difference",
+        "divergence_rms": "MAC divergence RMS",
+        "scalar_mass_rel_drift": "Absolute relative scalar mass drift",
+        "scalar_min": "Scalar minimum",
+        "scalar_max": "Scalar maximum",
+        "kinetic_energy": "Kinetic energy per unit area",
+        "wall_normal_padding_max": "Wall-normal storage padding magnitude",
+    }
+    rows = []
+    for entry in result.get("results", []):
+        metrics = entry.get("metrics") or {}
+        for name, value in metrics.items():
+            if name not in labels or isinstance(value, bool):
+                continue
+            if isinstance(value, (int, float)) and np.isfinite(value):
+                rows.append(
+                    {
+                        "solver": entry["solver"],
+                        "sweep": float(entry["sweep_value"]),
+                        "diagnostic": labels[name],
+                        "value": value,
+                    }
+                )
+    if not rows:
+        return []
+    frame = pd.DataFrame(rows)
+    enc = solver_encodings(frame["solver"])
+    chart = (
+        alt.Chart(enc.relabel(frame))
+        .mark_line(point=True)
+        .encode(
+            x=alt.X(
+                "sweep:Q", title=(result.get("sweep") or {}).get("key", "Sweep value")
+            ),
+            y=alt.Y("value:Q", title=None, scale=alt.Scale(zero=False)),
+            color=alt.Color("solver:N", scale=enc.color),
+            strokeDash=alt.StrokeDash("solver:N", scale=enc.dash),
+            tooltip=[
+                "solver:N",
+                "diagnostic:N",
+                "sweep:Q",
+                alt.Tooltip("value:Q", format=".5g"),
+            ],
+        )
+        .properties(width=280, height=180)
+        .facet(facet=alt.Facet("diagnostic:N", title=None), columns=3)
+        .resolve_scale(y="independent")
+        .properties(title=f"{cfg.name}: {exp_key.replace('_', ' ')}")
+    )
+    if save:
+        save_chart(chart, "diagnostics", out)
+    return [chart]
