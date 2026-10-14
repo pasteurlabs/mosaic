@@ -1,0 +1,105 @@
+{
+  "source_commit": "74069820dfd6d3f01ee98991630e7fa4da23067e",
+  "source_archive_sha256": "c8c2b8fdaf80026be055a54564dc36ca9d2d3a093e768c745432813efdfb649f",
+  "job": 3052902,
+  "complete": true,
+  "tests": {
+    "passed": 128,
+    "seconds": 10.62,
+    "junit": "merged-tests/junit.xml"
+  },
+  "rendered_solvers": [
+    "phiflow",
+    "jax-cfd",
+    "waterlily",
+    "oceananigans",
+    "ins-jl"
+  ],
+  "png_count": 20,
+  "vegalite_count": 20,
+  "png_dimensions": {
+    "phiflow/rollout_error_PhiFlow.png": [
+      1658,
+      594
+    ],
+    "phiflow/training_cost_PhiFlow.png": [
+      1504,
+      250
+    ],
+    "phiflow/validation_checkpoints_PhiFlow.png": [
+      1524,
+      558
+    ],
+    "phiflow/fields_PhiFlow.png": [
+      1462,
+      1510
+    ],
+    "jax-cfd/training_cost_JAX-CFD.png": [
+      1504,
+      250
+    ],
+    "jax-cfd/validation_checkpoints_JAX-CFD.png": [
+      1534,
+      558
+    ],
+    "jax-cfd/fields_JAX-CFD.png": [
+      1462,
+      1510
+    ],
+    "jax-cfd/rollout_error_JAX-CFD.png": [
+      1658,
+      594
+    ],
+    "waterlily/fields_WaterLily.png": [
+      1462,
+      1510
+    ],
+    "waterlily/training_cost_WaterLily.png": [
+      1504,
+      250
+    ],
+    "waterlily/validation_checkpoints_WaterLily.png": [
+      1534,
+      558
+    ],
+    "waterlily/rollout_error_WaterLily.png": [
+      1658,
+      592
+    ],
+    "oceananigans/rollout_error_Oceananigans.png": [
+      1658,
+      594
+    ],
+    "oceananigans/validation_checkpoints_Oceananigans.png": [
+      1534,
+      558
+    ],
+    "oceananigans/fields_Oceananigans.png": [
+      1462,
+      1510
+    ],
+    "oceananigans/training_cost_Oceananigans.png": [
+      1504,
+      250
+    ],
+    "ins-jl/training_cost_INS.jl.png": [
+      1504,
+      250
+    ],
+    "ins-jl/fields_INS.jl.png": [
+      1462,
+      1510
+    ],
+    "ins-jl/validation_checkpoints_INS.jl.png": [
+      1534,
+      558
+    ],
+    "ins-jl/rollout_error_INS.jl.png": [
+      1658,
+      594
+    ]
+  },
+  "environment_note": "Supplemental Slurm tests use selected pinned JAX dependencies and pip-resolved project dependencies, captured in python-environment.txt; not the frozen production uv.lock environment. Canonical container/build/benchmark validation runs separately in GitHub CI.",
+  "environment": "merged-tests/python-environment.txt",
+  "training_rerun": false
+}

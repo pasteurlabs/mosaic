@@ -1,0 +1,67 @@
+{
+  "complete": true,
+  "source_commit": "855420fd199c240738391c2ce9b55e4cd351dfb4",
+  "source_archive_sha256": "6ab6f5b95a0e3c3c1322bd3db09b55955bea7bb7311b36f6d6ed9c3612afe0fc",
+  "job": 3053610,
+  "tests": {
+    "passed": 4,
+    "seconds": 7.53
+  },
+  "png_count": 20,
+  "vegalite_count": 20,
+  "render_hashes": {
+    "phiflow": {
+      "training_cost_PhiFlow.vl.json": "35b9e984a44e918b4b1dec75a038ee3c42cebd2616f3bf9127d094c4794e5439",
+      "validation_checkpoints_PhiFlow.png": "30315da989865825ac2f721983362f7c68bbf8426c31ce2a85831687d8788892",
+      "fields_PhiFlow.vl.json": "e4834131d91aea4ea961c737230568bbbfc2ff50cb200ab4e750d43dc29fcce0",
+      "rollout_error_PhiFlow.png": "512bd2d39b67b0957be08a155597df271c1659c72391b9f9fa7d4194eda708ed",
+      "rollout_error_PhiFlow.vl.json": "83cf6ee3948fd99b5fcbd71048ecc4709932af0df200e13c2ca558058d64b5b1",
+      "fields_PhiFlow.png": "5af42efc0969541a69cba3480f9f1df8c5f9126003b0de938f47682d65af1ef9",
+      "training_cost_PhiFlow.png": "e321a106ccb54109093cd75067f263d97878e46e4884c0d1a530fb0bb20fae64",
+      "validation_checkpoints_PhiFlow.vl.json": "23c29d0518c5586fc8a81dab968807df1b1df6feb44a0323e2aad02f36db43cd"
+    },
+    "jax-cfd": {
+      "fields_JAX-CFD.png": "3d2cbd102429488c7726624336cffffe39f71721f6c7aa9b43ccb9dcb26d3a95",
+      "rollout_error_JAX-CFD.png": "ed138e69ddef882ffc28ab2c08a9a915ea7e6df09517958dd87eaf25a01d0d94",
+      "rollout_error_JAX-CFD.vl.json": "6f015a6e07fbbb464a1f6f54c089a17bc5025b9f5dd8b38f41001e09477ac422",
+      "validation_checkpoints_JAX-CFD.png": "a755608e60cbd35402d8855e378736f6e089fa381f44180a8c12c587ad16170c",
+      "validation_checkpoints_JAX-CFD.vl.json": "ca7e6e7a32f48c0ac520b8b7805dfcebdbc90139810682c1ddd7bcd06d6c6416",
+      "training_cost_JAX-CFD.png": "7061f3d02229468f91cf5fbcf32df0c1ad371e0d7e03257e19a6253a78b63f55",
+      "fields_JAX-CFD.vl.json": "500a4f6e85566aba0a644a3d5678e0ef0685cdccffe7330b62fadca09fd598df",
+      "training_cost_JAX-CFD.vl.json": "4577b3e4053b188befbc583fc3c4161b2bde0d80beeb6491f8ae39a3c0ddb946"
+    },
+    "waterlily": {
+      "validation_checkpoints_WaterLily.png": "4381f0ace10a63206bf9d2c3938fd9ba49a631b0d456533398b9cfb78a223858",
+      "fields_WaterLily.png": "6d2a693f987d75ba35693352e84d162d5650a6ee2695aa1523681cfb6330aed3",
+      "training_cost_WaterLily.vl.json": "f64a14df4454c71d10790507fc5482d7e5f18c400980bdd36d38b028a067f250",
+      "validation_checkpoints_WaterLily.vl.json": "13a5394889c4b05500f69ca4fe2acf6c80abe9d630e69949141ee0b02af97caf",
+      "training_cost_WaterLily.png": "472b979c34a01e99f43bda285981b3824b36158722f3a9633b3fe8a4859ceaa9",
+      "fields_WaterLily.vl.json": "de86f24af2d77f9dd22ed165d5251a9e22483e8d8f7513554fb53b48beb00a62",
+      "rollout_error_WaterLily.png": "53a4bba3e162377c41d2ecbe4de70af47c49da0f0379dea7a42add7768a24a3a",
+      "rollout_error_WaterLily.vl.json": "c8196fa5a4ada021f864e4196d71e1ba281aabbce001f4149503894d760fb031"
+    },
+    "oceananigans": {
+      "fields_Oceananigans.png": "80cbacb270e019fb9b1ae643f5c0e7e54302e40daf6a9901bbef429825218c58",
+      "fields_Oceananigans.vl.json": "31f26b8a5f354707835c8f23254c6826b18fbd91e3d40866ef497cf51ae76691",
+      "training_cost_Oceananigans.png": "7d0d3e3b1a62ee126f4647ab83da1dd79e3f55d6d5572769855e17456273a267",
+      "validation_checkpoints_Oceananigans.png": "50aea672e2fd6c3f2fc7afa74d199875c115ff79fc6b1859eadb12bff0018cf5",
+      "training_cost_Oceananigans.vl.json": "e4bb626fe0cdb4982ceb3bf360cda0889ebbc5c4a0ff04ef1c7cdc0d27c80860",
+      "rollout_error_Oceananigans.vl.json": "15e6aa9fa51127214d4663b8a2326a6f1b7a8b184dac5631d5c184dacb4ba494",
+      "validation_checkpoints_Oceananigans.vl.json": "f28642609e12a530a368204cea5f79ca184c13dba51b949695f5ddfd95857530",
+      "rollout_error_Oceananigans.png": "066dc7dbf731085b47213beb13de2f564f2300c2216f056baacabe098af5b218"
+    },
+    "ins-jl": {
+      "training_cost_INS.jl.png": "291307b28ace45a6ecd4038943ef374c718e3837ecc9842f031f8273fdc3a032",
+      "validation_checkpoints_INS.jl.png": "6961e9092726ff27c6cb98ef53b4b440705a2ede535ef8e44ad0d3fb4c2ef3e1",
+      "validation_checkpoints_INS.jl.vl.json": "f48a39785300d583311223d11da94f155ff397cb62081911d5b87c878b158817",
+      "rollout_error_INS.jl.vl.json": "1beacba20c48c990280f93d36dff059ef6e84bf5dffbb74cf0778653b3fd6747",
+      "training_cost_INS.jl.vl.json": "d7e57bdd22d6c0ec24cb33618464aec17027a1452f77b0c47fa539b61fed0034",
+      "fields_INS.jl.png": "0c8e980f555ed4ff15c87a0a97441cb253affbd367c8ebe4958a430f1b4c4865",
+      "rollout_error_INS.jl.png": "1d71dbdeb6714baca4150ebf8442208f75ef2f621303cc23a262e505c48dab84",
+      "fields_INS.jl.vl.json": "35ed91ba3d6df4e098fde2c08c8d923a9087cef34170e959b4751366b6f9bf72"
+    }
+  },
+  "prior_broader_tests": "validation_receipt.json;128 tests on7406982",
+  "environment_note": "Supplemental pip-resolved CPU Slurm test environment, not production uv.lock. Freeze recorded in merged-plots-v2/python-environment.txt.",
+  "training_rerun": false
+}

@@ -1,0 +1,11 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /scratch/jobs/3053610/work/probe
+configfile: pyproject.toml
+plugins: jaxtyping-0.3.11, anyio-4.15.1
+collected 4 items
+
+tests/test_buoyancy_plots.py ....                                        [100%]
+
+- generated xml file: /data/personal/andrinr/runner/results/mosaic/buoyancy-integration-20261014/merged-plots-v2/junit.xml -
+============================== 4 passed in 7.53s ===============================
