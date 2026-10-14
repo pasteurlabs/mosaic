@@ -333,13 +333,12 @@ def _generate_consensus(cfg: object, exp_key: str, rp: dict) -> None:
     _save(cfg, exp_key, refs, sweep_values)
 
 
-def _converged_targets(rp: dict, spec: ConvergedSpec) -> list[tuple]:
-    """Plan the high-resolution runs for a converged reference.
+def _converged_runs(rp: dict, spec: ConvergedSpec) -> list[tuple]:
+    """Return ``(sweep_index, sweep_value, n_target, physics)`` per sweep point.
 
-    Returns ``(sweep_index, sweep_value, n_target, physics)`` per sweep point:
-    ``physics`` is the run at ``spec.high_n`` and ``n_target`` the benchmark
-    grid its output is truncated to. For a sweep over ``N`` itself, each
-    point's benchmark grid is the sweep value.
+    ``physics`` is the run at ``spec.high_n``, and ``n_target`` is the
+    benchmark grid its output is truncated to. In a sweep over ``N``, that
+    grid is the sweep value.
     """
     sweep_key, sweep_values = rp["sweep_key"], rp["sweep_values"]
     targets = []
@@ -366,7 +365,7 @@ def _generate_converged(
         console.print(f"    [red]✗[/] reference solver {spec.solver!r} not found")
         return
 
-    targets = _converged_targets(rp, spec)
+    targets = _converged_runs(rp, spec)
     n_bench = sorted({n for _i, _val, n, _phys in targets})
     console.print(
         f"    Converged reference via {spec.solver} at N={spec.high_n} "

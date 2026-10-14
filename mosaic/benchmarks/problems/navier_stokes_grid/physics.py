@@ -35,9 +35,8 @@ def make_inputs(
 ) -> dict:
     """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
 
-    ``cfl_N_base`` rescales ``dt`` and ``steps`` for every solver so the CFL
-    number and end time stay fixed across N (see :func:`fixed_cfl_dt_steps`);
-    LBM scaling then applies on top.
+    ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver, before
+    any LBM scaling.
 
     When ic is 1-D (shape (N,)) it is treated as an inflow profile for drag
     optimisation (v0 = uniform background at U_mean, ic → inflow_profile field).

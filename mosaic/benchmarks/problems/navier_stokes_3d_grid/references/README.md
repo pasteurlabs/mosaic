@@ -45,14 +45,12 @@ builds the reference solver's tesseract image (Docker required).
 
 ## `forward_baseline.npz`
 
-The accuracy reference for the `forward/baseline` resolution sweep. Each
-`reference_{i}` is the converged velocity field at `t = 1.28` for the `i`-th
-grid in the sweep (`N ∈ [8, 16, 32]`): one Exponax run at `N=64`, with the
-timestep refined at the same fixed CFL number as the benchmark
-(`dt = 0.02`, 64 steps), spectrally truncated to that grid.
+The accuracy reference for the `forward/baseline` resolution sweep
+(`N ∈ [8, 16, 32]`). Each `reference_{i}` is the velocity field at `t = 1.28`
+on the `i`-th grid, spectrally truncated from one Exponax run at `N=64`
+(`dt = 0.02`, 64 steps, the benchmark's CFL number).
 
-Cross-validation (measured when the reference was generated): the same
-procedure from an `N=128` run differs by `1.2e-5` (relative L2) at every
-target grid, well below the errors the experiment measures.
+Generating the reference from an `N=128` run instead changes it by `1.2e-5`
+(relative L2) on every grid, far below the errors the experiment measures.
 
 Regenerate with `mosaic reference -p ns-3d-grid -e forward/baseline`.

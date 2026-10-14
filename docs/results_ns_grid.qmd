@@ -77,7 +77,7 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 ### Baseline
 
-Relative error vs grid resolution $N$ against the analytic TGV solution at $t=1.28$, refining space and time together at a fixed CFL number. The legend gives each solver's observed order of accuracy $p$.
+Relative error vs grid resolution $N$ at steps=1; validates single-step forward accuracy across solvers.
 
 
 ::: {.callout-note collapse='true' title='Settings'}

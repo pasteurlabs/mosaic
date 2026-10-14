@@ -80,47 +80,39 @@ def is_valid(arr: object) -> bool:
 def fixed_cfl_dt_steps(
     dt: float, steps: int, N: int, *, cfl_N_base: int | None
 ) -> tuple[float, int]:
-    """Rescale ``dt`` and ``steps`` so the CFL number and end time stay fixed in N.
+    """Scale ``dt`` and ``steps``, given at ``N = cfl_N_base``, to grid ``N``.
 
-    ``dt`` and ``steps`` are the values at ``N = cfl_N_base``. On an N-grid the
-    timestep shrinks as ``1/N`` and the step count grows to match, so refining
-    the grid refines space and time together and an error sweep over N
-    measures the solver's combined order of accuracy. ``None`` leaves both
-    unchanged.
+    ``dt`` shrinks as ``1/N`` and ``steps`` grows to match, so the CFL number
+    and the end time stay fixed and refining the grid also refines time.
+    ``None`` leaves both unchanged.
     """
     if cfl_N_base is None:
         return dt, steps
     scaled_steps = steps * N / cfl_N_base
-    if scaled_steps != int(scaled_steps) or scaled_steps < 1:
+    if scaled_steps != int(scaled_steps):
         raise ValueError(
             f"steps={steps} at cfl_N_base={cfl_N_base} does not give a whole "
-            f"number of steps at N={N}; the end time would differ across N"
+            f"number of steps at N={N}, so the end time would differ across N"
         )
     return dt * cfl_N_base / N, int(scaled_steps)
 
 
-def convergence_order(errs_by_n: dict, floor: float = 0.0) -> float | None:
-    """Observed order of accuracy from the two finest usable grids.
+def convergence_order(errs_by_n: dict) -> float | None:
+    """Observed order of accuracy from the two finest grids.
 
-    ``log(e_coarse / e_fine) / log(N_fine / N_coarse)`` over the two largest
-    N. The finest pair is where the solver should be in its asymptotic regime,
-    and where an error floor (a fixed tolerance, a mismatched end time) shows
-    up as a drop in order that a fit over all grids would average away.
-
-    Points with a non-finite error or one at or below ``floor`` are skipped:
-    near round-off the error stops tracking the discretization. Returns
-    ``None`` when fewer than two points remain.
+    Computed as ``log(e_coarse / e_fine) / log(N_fine / N_coarse)``. Using only
+    the finest pair keeps an error floor visible, where a fit over all grids
+    would average it away. Grids without a finite, positive error are skipped.
+    Returns ``None`` if fewer than two remain.
     """
     pts = sorted(
         (float(n), float(e))
         for n, e in errs_by_n.items()
-        if isinstance(e, int | float) and math.isfinite(e) and e > floor
+        if isinstance(e, int | float) and math.isfinite(e) and e > 0
     )
     if len(pts) < 2:
         return None
     (n_coarse, e_coarse), (n_fine, e_fine) = pts[-2], pts[-1]
-    if n_fine == n_coarse:
-        return None
     return math.log(e_coarse / e_fine) / math.log(n_fine / n_coarse)
 
 

@@ -324,13 +324,13 @@ def _agreement_aggregate(
 
     extras: dict = {"spread": spread, "reference_label": reference_label}
     if sweep_key == "N":
-        # Resolution sweep: report each solver's observed order of accuracy.
+        # Report each solver's observed order of accuracy on a resolution sweep.
         errs_by_solver: dict[str, dict] = {}
         for e in flat_results:
-            if e["metrics"].get("valid"):
-                errs_by_solver.setdefault(e["solver"], {})[e["sweep_value"]] = e[
-                    "metrics"
-                ].get("error")
+            m = e["metrics"]
+            if m.get("valid"):
+                errs = errs_by_solver.setdefault(e["solver"], {})
+                errs[e["sweep_value"]] = m["error"]
         extras["convergence_order"] = {
             n: convergence_order(errs) for n, errs in errs_by_solver.items()
         }

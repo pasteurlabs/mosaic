@@ -142,19 +142,15 @@ def max_error(threshold: float) -> Callable[[ForwardSummary], CheckOutcome]:
     return _check
 
 
-def min_order(
-    order: float, floor: float = 0.0
-) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if the error falls slower than ``N**-order`` across a resolution sweep.
+def min_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if the observed order of accuracy in ``N`` is below ``order``.
 
-    For forward experiments that sweep the grid resolution ``N``. The order is
-    observed between the two finest grids; points at or below ``floor`` are
-    skipped (see :func:`convergence_order`). Passes when fewer than two points
-    are usable.
+    For forward experiments that sweep ``N``; see :func:`convergence_order`.
+    Passes when the order can't be measured.
     """
 
     def _check(s: ForwardSummary) -> CheckOutcome:
-        measured = convergence_order(s.errs_by_pval, floor=floor)
+        measured = convergence_order(s.errs_by_pval)
         if measured is None or measured >= order:
             return None
         return (

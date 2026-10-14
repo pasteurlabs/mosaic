@@ -1,14 +1,14 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Resolution-convergence support: fixed-CFL refinement, order fit, status check."""
+"""Tests for fixed-CFL refinement, the observed order of accuracy and min_order."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from mosaic.benchmarks.cli.reference import _converged_targets
+from mosaic.benchmarks.cli.reference import _converged_runs
 from mosaic.benchmarks.core.reference import ConvergedSpec
 from mosaic.benchmarks.core.status_checks import ForwardSummary, min_order
 from mosaic.benchmarks.core.utils import convergence_order, fixed_cfl_dt_steps
@@ -58,16 +58,12 @@ class TestConvergenceOrder:
         assert convergence_order(errs) == pytest.approx(2.0)
 
     def test_uses_the_two_finest_grids(self) -> None:
-        # Second order on coarse grids, then a floor: the finest pair shows it.
+        # Second order on coarse grids, then a floor that only the finest pair shows.
         errs = {16: 4e-2, 32: 1e-2, 64: 2.5e-3, 128: 2.4e-3}
         assert convergence_order(errs) == pytest.approx(0.059, abs=1e-3)
 
-    def test_points_below_floor_are_ignored(self) -> None:
-        errs = {16: 1e-2, 32: 2.5e-3, 64: 1e-8, 128: 1e-8}
-        assert convergence_order(errs, floor=1e-6) == pytest.approx(2.0)
-
     def test_needs_two_usable_points(self) -> None:
-        assert convergence_order({16: 1e-2, 32: 1e-9}, floor=1e-6) is None
+        assert convergence_order({16: 1e-2}) is None
         assert convergence_order({16: float("nan"), 32: 1e-3}) is None
 
 
@@ -92,20 +88,20 @@ class TestMinOrder:
         assert min_order(1.5)(s) is None
 
 
-def test_converged_targets_for_resolution_sweep() -> None:
+def test_converged_runs_for_resolution_sweep() -> None:
     rp = {
         "sweep_key": "N",
         "sweep_values": [8, 16, 32],
         "phys": {"N": [8, 16, 32], "nu": 0.05},
     }
-    targets = _converged_targets(rp, ConvergedSpec(solver="Exponax", high_n=64))
+    targets = _converged_runs(rp, ConvergedSpec(solver="Exponax", high_n=64))
     assert [(i, n) for i, _val, n, _phys in targets] == [(0, 8), (1, 16), (2, 32)]
     assert all(phys["N"] == 64 for *_, phys in targets)
 
 
-def test_converged_targets_for_parameter_sweep() -> None:
+def test_converged_runs_for_parameter_sweep() -> None:
     rp = {"sweep_key": "nu", "sweep_values": [0.01, 0.05], "phys": {"N": 16}}
-    targets = _converged_targets(rp, ConvergedSpec(solver="Exponax", high_n=64))
+    targets = _converged_runs(rp, ConvergedSpec(solver="Exponax", high_n=64))
     assert [(val, n) for _i, val, n, _phys in targets] == [(0.01, 16), (0.05, 16)]
     assert [phys["nu"] for *_, phys in targets] == [0.01, 0.05]
     assert all(phys["N"] == 64 for *_, phys in targets)

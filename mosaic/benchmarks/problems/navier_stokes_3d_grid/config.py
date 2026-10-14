@@ -198,8 +198,8 @@ problem.add_experiment(
     physics={
         "N": [8, 16, 32],
         "nu": 0.05,
-        # dt and steps at N=32; coarser grids take fewer, larger steps to the
-        # same end time (CFL ≈ 0.2 throughout).
+        # dt and steps apply at N=32. Coarser grids take fewer, larger steps
+        # to the same end time (CFL ≈ 0.2).
         "dt": 0.04,
         "steps": 32,
         "cfl_N_base": 32,
