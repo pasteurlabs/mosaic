@@ -21,6 +21,7 @@ from mosaic.benchmarks.problems.shared.plots.forward import plot_agreement
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
     plot_horizon_sweep,
+    plot_jacobian_svd_comparison,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
@@ -334,4 +335,9 @@ problem.add_experiment(
         "accuracy and training cost, with reference refinement and gradient correctness "
         "checks; superiority is measured, not required."
     ),
+)
+
+problem.add_extra_plot(
+    "_extra/gradient/jacobian_svd_comparison",
+    plot_jacobian_svd_comparison,
 )

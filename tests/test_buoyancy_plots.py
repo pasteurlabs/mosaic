@@ -132,3 +132,23 @@ def test_forward_diagnostics_render_signed_values(tmp_path, monkeypatch):
     assert spec["spec"]["encoding"]["x"]["title"] == "steps"
     assert spec["resolve"]["scale"]["y"] == "independent"
     assert "log" not in json.dumps(spec["spec"]["encoding"]["y"])
+
+
+def test_spectrum_label_uses_actual_buoyancy_horizon(tmp_path):
+    from mosaic.benchmarks.problems.shared.plots.charts.sweeps import (
+        jacobian_svd_comparison,
+    )
+
+    directory = tmp_path / "jacobian_svd"
+    directory.mkdir()
+    (directory / "result.json").write_text("{}")
+    data = {
+        "params": {"physics": {"nu": 0.001, "dt": 0.01, "steps": 4}},
+        "per_solver_spectra": {"PhiFlow": [1.0, 0.5, 0.1]},
+    }
+    chart = jacobian_svd_comparison(
+        SimpleNamespace(dir=tmp_path, legacy=lambda _: data)
+    )
+    spec = chart.to_dict()
+    assert "T=0.04s" in json.dumps(spec)
+    assert "T=0.5s" not in json.dumps(spec)
