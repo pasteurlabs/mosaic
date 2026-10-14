@@ -1,0 +1,157 @@
+{
+  "results-cost-buoyancy-grid-cpu": {
+    "id": 11895115009,
+    "size_in_bytes": 2467,
+    "created_at": "2026-10-14T12:34:38Z",
+    "files": {
+      "buoyancy-grid/cost/forward/result.json": "5aa111b623b0f31e39914e1e3295051551f69df2b819c82282d54222a9e003c8",
+      "buoyancy-grid/cost/forward/result_partial.json": "be8292702f3865d185b769e8ee352274e81b3e2eefd2ec580f6a212abd416daf",
+      "buoyancy-grid/cost/forward/params.json": "2c5a8a31006598463f3c3883ea91bbb036d9b85152999742834a1291b1bc3b4b"
+    }
+  },
+  "results-ics": {
+    "id": 11892524278,
+    "size_in_bytes": 587,
+    "created_at": "2026-10-14T12:26:27Z",
+    "files": {
+      "buoyancy-grid/ics/interacting_plumes/params.json": "2e6571f615ba8d06862274f5ed510817c6533197917db25093b88fb338f70f52",
+      "buoyancy-grid/ics/plume/params.json": "270b2db2882ab5c38ea9a2d6272fdffb9dba63531f522b20a0c1b76bdfefa047",
+      "buoyancy-grid/ics/diffusion/params.json": "270b2db2882ab5c38ea9a2d6272fdffb9dba63531f522b20a0c1b76bdfefa047"
+    }
+  },
+  "results-gradient-buoyancy-grid-cpu": {
+    "id": 11895320611,
+    "size_in_bytes": 76942,
+    "created_at": "2026-10-14T12:38:56Z",
+    "files": {
+      "buoyancy-grid/gradient/fd_check/params.json": "c89fbf81a55912b9f96568821c86099947471e1653c8544d751ec38fd8d64ea5",
+      "buoyancy-grid/gradient/fd_check/fd_check.png": "ef8d7d774c5ee005b033e66a8b4d448395c0504ae113ce4fc5602ddcf0adbd41",
+      "buoyancy-grid/gradient/fd_check/gradient_fields.npz": "1766808d4a173eb979e504c8f0e712768a10be9bb313dda9f000c153b0e1f6fe",
+      "buoyancy-grid/gradient/fd_check/fd_check.vl.json": "8aa1cddbc604151b82716236a5a55941697eeb8b9e10d49bf5517eff56bb81d3",
+      "buoyancy-grid/gradient/fd_check/result.json": "d7e11e7f64e0ea165181c8eef2d11acdb7c08b0758c3fdfcf6186d20005ac353",
+      "buoyancy-grid/gradient/fd_check/result_partial.json": "380d96412792bc6aa59a7f49b9a0b2da450157d7a14c8a2609c4433acc29e44e"
+    }
+  },
+  "results-forward-buoyancy-grid-cpu": {
+    "id": 11895380758,
+    "size_in_bytes": 48568,
+    "created_at": "2026-10-14T12:39:39Z",
+    "files": {
+      "buoyancy-grid/forward/diffusion/result.json": "57928510167be65d4e3c16be73568af6751569caedaaf00f4648581fe39ed49f",
+      "buoyancy-grid/forward/diffusion/fields.npz": "d3533aabe854384c0e25037bc396a75c520574625feec1d356bd62d58d5057d6",
+      "buoyancy-grid/forward/diffusion/result_partial.json": "8b0d4adbb311e85de2e1e2005d8634fb816a38ced98a8c5211e95f82bf0852f0",
+      "buoyancy-grid/forward/diffusion/agreement.png": "0cd35e29fd7ea9eb7862ab1c10d6c640c68674b39825fed2697111f84435fe1d",
+      "buoyancy-grid/forward/diffusion/agreement.vl.json": "0b5f998b84d975fc88f520cac026d3a91153f264baed7fead287a5bf147ea9aa",
+      "buoyancy-grid/forward/diffusion/result.csv": "964568b726b5927476de7fcfa1db31e10f1e2823f0277b4261110db74fff3ff5",
+      "buoyancy-grid/forward/diffusion/params.json": "fde6a1180380c3e7fba8b4efadc87e6f0b5d9fa4d60506e1f269f39f30c405e2"
+    }
+  },
+  "results-gradient-buoyancy-grid-gpu": {
+    "id": 11894526859,
+    "size_in_bytes": 62501,
+    "created_at": "2026-10-14T12:40:57Z",
+    "files": {
+      "buoyancy-grid/gradient/fd_check/fd_check.vl.json": "75f83ac1ad9a4115802061af2b2c3deb954bac3abd7ed3b273f0eab7bd504a8b",
+      "buoyancy-grid/gradient/fd_check/fd_check.png": "fda60a4f5d57acc15e3c12c50046a8102a4e058360a0b5f7e72f7196f5dbdafe",
+      "buoyancy-grid/gradient/fd_check/params.json": "c89fbf81a55912b9f96568821c86099947471e1653c8544d751ec38fd8d64ea5",
+      "buoyancy-grid/gradient/fd_check/gradient_fields.npz": "03c1867beef112001fda7299f36c316f886b048f2a1e53a4d35dc9bf325b3133",
+      "buoyancy-grid/gradient/fd_check/result.json": "ab61a982aae0004cefee7760135f4b7e8c844b3b3601a9a33059966bfffa9a3f",
+      "buoyancy-grid/gradient/fd_check/result_partial.json": "a7f2293540074ffb6428a8b11cff079ca8b7d87c243c651ca5c6c3da961f2852"
+    }
+  },
+  "results-forward-buoyancy-grid-gpu": {
+    "id": 11894136992,
+    "size_in_bytes": 47990,
+    "created_at": "2026-10-14T12:40:22Z",
+    "files": {
+      "buoyancy-grid/forward/diffusion/fields.npz": "15ea3368350b31f067af1bf74d03ae415c4187fc650a7e2ac2a1f00d295a5534",
+      "buoyancy-grid/forward/diffusion/params.json": "fde6a1180380c3e7fba8b4efadc87e6f0b5d9fa4d60506e1f269f39f30c405e2",
+      "buoyancy-grid/forward/diffusion/result_partial.json": "44472d6bd852a11a3a8372b8ab02246387feb9020cba24e317a7e4ab920c0f3d",
+      "buoyancy-grid/forward/diffusion/agreement.png": "a37df43d5fcfd13be3e7ee52ecb7dcf66ce7c108501fedd6afeb98b123983668",
+      "buoyancy-grid/forward/diffusion/agreement.vl.json": "15e18898b42361fa3c47d7202f4d57e81db2a21cd372e5e3c90b52330b35f434",
+      "buoyancy-grid/forward/diffusion/result.json": "785a66b0bbc3c75467543fed7259a2024674c126d7667f89ac469b413bac9779",
+      "buoyancy-grid/forward/diffusion/result.csv": "01cc59d168a59a740e53d80f4d3019fe4ea1ed57ed78b3d45dfc87afaa1fb644"
+    }
+  },
+  "results-cost-buoyancy-grid-gpu": {
+    "id": 11894681584,
+    "size_in_bytes": 2259,
+    "created_at": "2026-10-14T12:41:17Z",
+    "files": {
+      "buoyancy-grid/cost/forward/result.json": "c095cf8a1fd6812ee215b209718327b055df6af4aed7bd2348c8d20ba36bb3fa",
+      "buoyancy-grid/cost/forward/result_partial.json": "071b7e01bf7bfa9c01cdca718e1679fa9ee0dd0d0364468b2130e056ea1172ed",
+      "buoyancy-grid/cost/forward/params.json": "2c5a8a31006598463f3c3883ea91bbb036d9b85152999742834a1291b1bc3b4b"
+    }
+  },
+  "results-optimization-buoyancy-grid-cpu": {
+    "id": 11896427320,
+    "size_in_bytes": 46370414,
+    "created_at": "2026-10-14T12:56:43Z",
+    "files": {
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_INS.jl.vl.json": "661dfcf79e8725b59ab0cc2226c324b39cbd05723b1ad7d7ae5dd4808c0b90f6",
+      "buoyancy-grid/optimization/solver_in_loop/params.json": "cf44763d7b67d63714e6107a6e3f6424fd3bc8bf6d869534172debc6d99f71d1",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_Oceananigans.png": "847da17e1e10e5cddd2f7779ae07bff06cb5bdc35589cad16f218b44a2c95284",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_WaterLily.vl.json": "5113dc763bc3c58d6c2c6b153731c82023bc2a785ef3eee76f6c83a010454b7e",
+      "buoyancy-grid/optimization/solver_in_loop/fields_WaterLily.png": "6d2a693f987d75ba35693352e84d162d5650a6ee2695aa1523681cfb6330aed3",
+      "buoyancy-grid/optimization/solver_in_loop/result_partial.json": "9e85fd86535707a9835af5d97433d58703709b8005e184c31e092808926e815a",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_INS.jl.vl.json": "96524359969d1258cd8e44e806500ff06ffadc9ed4ceee66ee8f0e00f1c07af4",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_INS.jl.png": "fef356dd0d1c45dc6ca63eaa2be1072c0307e47faf7d3728070602bd36d0283a",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_Oceananigans.vl.json": "192d49309f7ec6b8143e9217b879584fdb0d361e63b9bab97a59fbdf54653794",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_WaterLily.png": "3dd7efe3498314a3f0689bb96791a04acce818b68dd95b6160457cf45da41962",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_Oceananigans.vl.json": "f01c12f588a5d1a218bd074172a59daab3a6b04b084dfcc79c6189d25a1b0e06",
+      "buoyancy-grid/optimization/solver_in_loop/fields_Oceananigans.vl.json": "44dbb4a3d6f8e44cb99031386d45c875e2037629ecffd10b99269442128e9313",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_Oceananigans.vl.json": "212324bf7d60a35b72cbbaeb6f40412dea8fb02b428580fdf1b74e6b4d8d0174",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_INS.jl.png": "fd871d1d22b0c6ac00708aaa27059af35066ad266c32a394e78ec54fbef0e828",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_WaterLily.vl.json": "21bf1afc5f5fbfeb879e736aa2160e249c779889624220d01cd694d897085941",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_INS.jl.vl.json": "3c10fab4fd0c0356459151968d4bca8338449cc1220b79bef5753112b344d096",
+      "buoyancy-grid/optimization/solver_in_loop/fields_INS.jl.png": "7c3ea004795d743c23ee370a35410d454fec280431883b9dadfcb689a9d105a4",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_Oceananigans.png": "9b0cf450feec63e177e585a1bf46e56f50f8fccbff2fa52eada13f9e041813fe",
+      "buoyancy-grid/optimization/solver_in_loop/corrector_fields.npz": "ddad1c9c3ce85a740c0a81058c4f7c5a063d9110393399591d30d652b2621d7a",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_WaterLily.png": "5bfcbb681653518f9e2f355ff91ac71e8b4ed6e9563708cc455505a9631e5a49",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_Oceananigans.png": "c4e752039b84bf1137489c17671bb59f616a4988edb4419328b37fa69210e06f",
+      "buoyancy-grid/optimization/solver_in_loop/fields_INS.jl.vl.json": "6d2129800690ad6c3d885ce73b6fbd5ed1a9a73b114f3e5683f14c471248838d",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_WaterLily.vl.json": "a037a5ae003c4d5ed95fec0b62dd851e92c3ed3093450b421ff1adacbd294111",
+      "buoyancy-grid/optimization/solver_in_loop/fields_Oceananigans.png": "80cbacb270e019fb9b1ae643f5c0e7e54302e40daf6a9901bbef429825218c58",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_WaterLily.png": "735024bb346e949a9d9b88d5f8a66bb729591c1520cecc5b3df0c197348252d3",
+      "buoyancy-grid/optimization/solver_in_loop/fields_WaterLily.vl.json": "5318760f55907dc01f6fdf53c2d5ba0f1a8a29500719b3ce9238106fce1623bc",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_INS.jl.png": "985cbe611055fde1bafd5180b366b625d81431ba2aad82d9c5140fa20bf8f9d3",
+      "buoyancy-grid/optimization/solver_in_loop/result.json": "ef3eb9d7b8ff79e2952f04ad83e76afaf49c38322c68457a6308e149cff0c64e"
+    }
+  },
+  "results-optimization-buoyancy-grid-gpu": {
+    "id": 11896524413,
+    "size_in_bytes": 30870228,
+    "created_at": "2026-10-14T13:06:33Z",
+    "files": {
+      "buoyancy-grid/optimization/solver_in_loop/fields_JAX-CFD.png": "9957813cddd12d114500cc62d6a88524ceecfb7f284a24bb3d546a52b12dd9f8",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_PhiFlow.png": "d87afd95e35d925a49de83b8bc4d67b763ae667198192b0d50576c547b19788f",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_PhiFlow.vl.json": "1800389026f7e2c99f187eaa3ed59e5d1cb0bd1084e50cf07bb3824334512538",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_JAX-CFD.vl.json": "f6d17367fcfcc841e7936cc7ecd381765048a229463a9ac1e060a2174382cb29",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_JAX-CFD.png": "594ee799f4fef2d5005cadfe9a05b1c6588680d5e0772f9e24d24c5ad69c4307",
+      "buoyancy-grid/optimization/solver_in_loop/corrector_fields.npz": "2582b4722a4807bf7feec23edcb6d50ccadb8dde35e09df535fea8ee6d00b897",
+      "buoyancy-grid/optimization/solver_in_loop/fields_JAX-CFD.vl.json": "bc67eaaff0ba81c6fba66182fcfcb40434c4979d09d2efc5118f2f69eef4fdd5",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_PhiFlow.png": "e953f56d1af708f3cb116e3cb30254a869154d8d3b671149d952828de2968087",
+      "buoyancy-grid/optimization/solver_in_loop/result.json": "6fb2d516450f05c31246a615125bb42ab9f1feaabb6538abefd56ac10f27d0e1",
+      "buoyancy-grid/optimization/solver_in_loop/fields_PhiFlow.png": "d1e5002407b7e5e610e562b06512bc9313105cfd065a85968d495341090e76d5",
+      "buoyancy-grid/optimization/solver_in_loop/result_partial.json": "12365d2ff9d1fee860f280babca58a689789cbb85da64a53458d6c4070b418bd",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_PhiFlow.vl.json": "7b354215103d5b985ef4cd54e6969176848b665a77591bb70bdc49b1b06536f9",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_JAX-CFD.png": "7bd0dbe4b87cb1190dcbcc201829c93708c378fcc67568cf0fe1adc5cfd26730",
+      "buoyancy-grid/optimization/solver_in_loop/params.json": "cf44763d7b67d63714e6107a6e3f6424fd3bc8bf6d869534172debc6d99f71d1",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_PhiFlow.vl.json": "6acb78e3a7aba88d6b653792da5113ef541c58cc2a5cb94486f64cfa5b68b973",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_JAX-CFD.png": "df813def34f301df5d783776df6218c16c185131c130bea386959901eb5b4e65",
+      "buoyancy-grid/optimization/solver_in_loop/rollout_error_JAX-CFD.vl.json": "a1152d1bb22832b5908a9a2b73bccda9bb6628bc6c5ba1bb46392a05b109fc14",
+      "buoyancy-grid/optimization/solver_in_loop/validation_checkpoints_JAX-CFD.vl.json": "cc3e1533a8eeccee2983805dcf0551f871bba618c11056018fd1929de1a9de17",
+      "buoyancy-grid/optimization/solver_in_loop/fields_PhiFlow.vl.json": "98c9030ff212d396da1684046649e4368a425e411c9930a66ae92f3851cf9be9",
+      "buoyancy-grid/optimization/solver_in_loop/training_cost_PhiFlow.png": "a364d4533efac9fdb5f9c0bc53ef996ef3b578c475c6702e8b890247caa9f6b7"
+    }
+  },
+  "docs-publish-meta-211": {
+    "id": 11896509657,
+    "size_in_bytes": 2662,
+    "created_at": "2026-10-14T13:08:19Z",
+    "files": {
+      "publish-meta.txt": "2fc188769fcb924ee4d82575dc31fc64bb9690b598318356aed15e315fafb34e",
+      "_site-status-report.md": "fd35e4afc5905ceb1c1a7853e1583e28a085e3d5a01c2bef9c95ec235192149c"
+    }
+  }
+}

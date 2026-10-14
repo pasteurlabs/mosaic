@@ -1,0 +1,656 @@
+{
+  "run_id": 38561389132,
+  "head_sha": "855420fd199c240738391c2ce9b55e4cd351dfb4",
+  "tested_merge_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+  "artifacts": [
+    {
+      "path": "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/diffusion/result.json",
+      "sha256": "785a66b0bbc3c75467543fed7259a2024674c126d7667f89ac469b413bac9779",
+      "rows": 6
+    },
+    {
+      "path": "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/fd_check/result.json",
+      "sha256": "ab61a982aae0004cefee7760135f4b7e8c844b3b3601a9a33059966bfffa9a3f",
+      "rows": 2
+    },
+    {
+      "path": "results-optimization-buoyancy-grid-cpu/buoyancy-grid/optimization/solver_in_loop/result.json",
+      "sha256": "ef3eb9d7b8ff79e2952f04ad83e76afaf49c38322c68457a6308e149cff0c64e",
+      "rows": 3
+    },
+    {
+      "path": "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/diffusion/result.json",
+      "sha256": "57928510167be65d4e3c16be73568af6751569caedaaf00f4648581fe39ed49f",
+      "rows": 9
+    },
+    {
+      "path": "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/fd_check/result.json",
+      "sha256": "d7e11e7f64e0ea165181c8eef2d11acdb7c08b0758c3fdfcf6186d20005ac353",
+      "rows": 3
+    },
+    {
+      "path": "results-optimization-buoyancy-grid-gpu/buoyancy-grid/optimization/solver_in_loop/result.json",
+      "sha256": "6fb2d516450f05c31246a615125bb42ab9f1feaabb6538abefd56ac10f27d0e1",
+      "rows": 2
+    },
+    {
+      "path": "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/forward/result.json",
+      "sha256": "c095cf8a1fd6812ee215b209718327b055df6af4aed7bd2348c8d20ba36bb3fa",
+      "rows": 6
+    },
+    {
+      "path": "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/forward/result.json",
+      "sha256": "5aa111b623b0f31e39914e1e3295051551f69df2b819c82282d54222a9e003c8",
+      "rows": 9
+    }
+  ],
+  "optimization": {
+    "INS.jl": {
+      "status": "ok",
+      "error": null,
+      "provenance": {
+        "tesseract_hashes": {
+          "Oceananigans": "3006f94e0945ba18",
+          "WaterLily": "2aa88095045a039a",
+          "INS.jl": "a6584554f49cee5a"
+        },
+        "harness_hash": "724096cb3c5d28ef",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "INS.jl": 609.2891846120001,
+          "Oceananigans": 440.984029719,
+          "WaterLily": 316.58251243400014
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.1.dev1+unknown.g9d9f5c263",
+          "timestamp": "2026-10-14T12:56:30.878465+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-14T12:56:30Z",
+          "ci": true,
+          "runner": "mosaic-bench-cpu-1000769617",
+          "github_run_id": "38561389132",
+          "github_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+          "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+        }
+      },
+      "selected_update": 256,
+      "completed_updates": [
+        256
+      ],
+      "validation_checkpoints": [
+        [
+          {
+            "update": 0,
+            "loss": 0.0028443933736051006
+          },
+          {
+            "update": 64,
+            "loss": 0.0035560540078320457
+          },
+          {
+            "update": 128,
+            "loss": 0.002162934665408045
+          },
+          {
+            "update": 192,
+            "loss": 0.0022202831489066457
+          },
+          {
+            "update": 256,
+            "loss": 0.0014124356789599801
+          }
+        ]
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.00370337178246956,
+        "solver_in_loop": 0.00159807135222799
+      },
+      "gradient_check": {
+        "autodiff": 0.0006681460654363036,
+        "finite_difference": 0.000679121061693877,
+        "relative_error": 0.016160588850240215,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008414859883487225,
+        "finite_difference": 0.008421751670539379,
+        "relative_error": 0.0008183317820048177,
+        "epsilon": 0.003
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 4.2408272083042394e-08,
+        "audit_gap_ratio": 9.829336543292979e-07,
+        "splits": {
+          "train": {
+            "time_refinement_error": 2.8537247160642394e-08,
+            "coarse_gap": 0.056763943442548453,
+            "audit_gap_ratio": 5.027354589894785e-07
+          },
+          "train_1": {
+            "time_refinement_error": 2.6596004176529256e-08,
+            "coarse_gap": 0.04650022371558929,
+            "audit_gap_ratio": 5.719543273425778e-07
+          },
+          "train_2": {
+            "time_refinement_error": 2.1371363474968127e-08,
+            "coarse_gap": 0.04312342466796258,
+            "audit_gap_ratio": 4.955859521714986e-07
+          },
+          "train_3": {
+            "time_refinement_error": 4.2408272083042394e-08,
+            "coarse_gap": 0.04314459261442174,
+            "audit_gap_ratio": 9.829336543292979e-07
+          },
+          "validation": {
+            "time_refinement_error": 2.6037999572032565e-08,
+            "coarse_gap": 0.05333285454206535,
+            "audit_gap_ratio": 4.882168748626712e-07
+          },
+          "test": {
+            "time_refinement_error": 2.7370312542962912e-08,
+            "coarse_gap": 0.06085533487270907,
+            "audit_gap_ratio": 4.4976028149731357e-07
+          }
+        }
+      },
+      "recurrence_error": 4.725329461052752e-07,
+      "training_seconds": 297.85285078000027,
+      "validation_seconds": 10.615609269999936,
+      "training_case_counts": [
+        64,
+        64,
+        64,
+        64
+      ]
+    },
+    "Oceananigans": {
+      "status": "ok",
+      "error": null,
+      "provenance": {
+        "tesseract_hashes": {
+          "Oceananigans": "3006f94e0945ba18",
+          "WaterLily": "2aa88095045a039a",
+          "INS.jl": "a6584554f49cee5a"
+        },
+        "harness_hash": "724096cb3c5d28ef",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "INS.jl": 609.2891846120001,
+          "Oceananigans": 440.984029719,
+          "WaterLily": 316.58251243400014
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.1.dev1+unknown.g9d9f5c263",
+          "timestamp": "2026-10-14T12:56:30.878465+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-14T12:56:30Z",
+          "ci": true,
+          "runner": "mosaic-bench-cpu-1000769617",
+          "github_run_id": "38561389132",
+          "github_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+          "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+        }
+      },
+      "selected_update": 128,
+      "completed_updates": [
+        256
+      ],
+      "validation_checkpoints": [
+        [
+          {
+            "update": 0,
+            "loss": 0.0005121939409290021
+          },
+          {
+            "update": 64,
+            "loss": 0.0009857724721808125
+          },
+          {
+            "update": 128,
+            "loss": 0.0002920353742212711
+          },
+          {
+            "update": 192,
+            "loss": 0.0002975389891397384
+          },
+          {
+            "update": 256,
+            "loss": 0.0005341950709880905
+          }
+        ]
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.0007356186003233489,
+        "solver_in_loop": 0.00036898512407105953
+      },
+      "gradient_check": {
+        "autodiff": 0.0006823713192716241,
+        "finite_difference": 0.0006930900854058564,
+        "relative_error": 0.015465184627414832,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008464645594358444,
+        "finite_difference": 0.008471479639410973,
+        "relative_error": 0.0008067120908530634,
+        "epsilon": 0.003
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 1.1945215714598599e-07,
+        "audit_gap_ratio": 5.550614690965168e-06,
+        "splits": {
+          "train": {
+            "time_refinement_error": 1.1755367193766971e-07,
+            "coarse_gap": 0.02401373135349025,
+            "audit_gap_ratio": 4.895268886256779e-06
+          },
+          "train_1": {
+            "time_refinement_error": 7.217279203023722e-08,
+            "coarse_gap": 0.020796617121608043,
+            "audit_gap_ratio": 3.470410192590815e-06
+          },
+          "train_2": {
+            "time_refinement_error": 7.260186185106337e-08,
+            "coarse_gap": 0.019166654457332122,
+            "audit_gap_ratio": 3.7879256399538126e-06
+          },
+          "train_3": {
+            "time_refinement_error": 1.1945215714598599e-07,
+            "coarse_gap": 0.021520527688657677,
+            "audit_gap_ratio": 5.550614690965168e-06
+          },
+          "validation": {
+            "time_refinement_error": 1.0331075705861468e-07,
+            "coarse_gap": 0.022631702121780457,
+            "audit_gap_ratio": 4.5648690718313114e-06
+          },
+          "test": {
+            "time_refinement_error": 9.445982886841158e-08,
+            "coarse_gap": 0.02712228973230964,
+            "audit_gap_ratio": 3.4827379915452186e-06
+          }
+        }
+      },
+      "recurrence_error": 4.7283006665566063e-07,
+      "training_seconds": 189.9982537899989,
+      "validation_seconds": 4.822377545000336,
+      "training_case_counts": [
+        64,
+        64,
+        64,
+        64
+      ]
+    },
+    "WaterLily": {
+      "status": "ok",
+      "error": null,
+      "provenance": {
+        "tesseract_hashes": {
+          "Oceananigans": "3006f94e0945ba18",
+          "WaterLily": "2aa88095045a039a",
+          "INS.jl": "a6584554f49cee5a"
+        },
+        "harness_hash": "724096cb3c5d28ef",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "INS.jl": 609.2891846120001,
+          "Oceananigans": 440.984029719,
+          "WaterLily": 316.58251243400014
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.1.dev1+unknown.g9d9f5c263",
+          "timestamp": "2026-10-14T12:56:30.878465+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-14T12:56:30Z",
+          "ci": true,
+          "runner": "mosaic-bench-cpu-1000769617",
+          "github_run_id": "38561389132",
+          "github_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+          "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+        }
+      },
+      "selected_update": 128,
+      "completed_updates": [
+        256
+      ],
+      "validation_checkpoints": [
+        [
+          {
+            "update": 0,
+            "loss": 0.003977351128835345
+          },
+          {
+            "update": 64,
+            "loss": 0.003490917550342516
+          },
+          {
+            "update": 128,
+            "loss": 0.003125316343034967
+          },
+          {
+            "update": 192,
+            "loss": 0.0035037123703592953
+          },
+          {
+            "update": 256,
+            "loss": 0.003232897529783685
+          }
+        ]
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.00472124974548727,
+        "solver_in_loop": 0.003495721775958884
+      },
+      "gradient_check": {
+        "autodiff": 0.0006874399841763079,
+        "finite_difference": 0.0007006162195466459,
+        "relative_error": 0.01880663764659064,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008470490574836731,
+        "finite_difference": 0.00847789365798235,
+        "relative_error": 0.0008732219870024055,
+        "epsilon": 0.003
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 1.1824612986384837e-05,
+        "audit_gap_ratio": 0.00018280184316068487,
+        "splits": {
+          "train": {
+            "time_refinement_error": 1.1824612986384837e-05,
+            "coarse_gap": 0.06468541444623657,
+            "audit_gap_ratio": 0.00018280184316068487
+          },
+          "train_1": {
+            "time_refinement_error": 5.635795873146476e-06,
+            "coarse_gap": 0.0588616882408043,
+            "audit_gap_ratio": 9.574641913243002e-05
+          },
+          "train_2": {
+            "time_refinement_error": 6.058097806724402e-06,
+            "coarse_gap": 0.05636308333612299,
+            "audit_gap_ratio": 0.00010748343504553765
+          },
+          "train_3": {
+            "time_refinement_error": 7.538713066344893e-06,
+            "coarse_gap": 0.06557090058534419,
+            "audit_gap_ratio": 0.00011497040606500191
+          },
+          "validation": {
+            "time_refinement_error": 1.0791779503035969e-05,
+            "coarse_gap": 0.063066243972789,
+            "audit_gap_ratio": 0.0001711181580385898
+          },
+          "test": {
+            "time_refinement_error": 9.526974912594308e-06,
+            "coarse_gap": 0.0687113509217165,
+            "audit_gap_ratio": 0.0001386521263924571
+          }
+        }
+      },
+      "recurrence_error": 4.90779314077372e-07,
+      "training_seconds": 187.05813285800173,
+      "validation_seconds": 5.315823394000063,
+      "training_case_counts": [
+        64,
+        64,
+        64,
+        64
+      ]
+    },
+    "JAX-CFD": {
+      "status": "ok",
+      "error": null,
+      "provenance": {
+        "tesseract_hashes": {
+          "JAX-CFD": "a3c8ec8d615f5240",
+          "PhiFlow": "f8025ed82a5a1793"
+        },
+        "harness_hash": "724096cb3c5d28ef",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "JAX-CFD": 227.442305272,
+          "PhiFlow": 1512.2680442769997
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.1.dev1+unknown.g9d9f5c263",
+          "timestamp": "2026-10-14T13:06:21.570823+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-14T13:06:21Z",
+          "ci": true,
+          "runner": "mosaic-bench-gpu-1000769614",
+          "github_run_id": "38561389132",
+          "github_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+          "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+        }
+      },
+      "selected_update": 192,
+      "completed_updates": [
+        256
+      ],
+      "validation_checkpoints": [
+        [
+          {
+            "update": 0,
+            "loss": 0.0011007894160869824
+          },
+          {
+            "update": 64,
+            "loss": 0.00117753889886977
+          },
+          {
+            "update": 128,
+            "loss": 0.0006796745700965801
+          },
+          {
+            "update": 192,
+            "loss": 0.0006556158744170659
+          },
+          {
+            "update": 256,
+            "loss": 0.0006998723572440469
+          }
+        ]
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.0016806774568691907,
+        "solver_in_loop": 0.0008612086696622612
+      },
+      "gradient_check": {
+        "autodiff": 0.0006901312153786421,
+        "finite_difference": 0.0007011161069385707,
+        "relative_error": 0.015667721011137906,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.008464829064905643,
+        "finite_difference": 0.00847151130437851,
+        "relative_error": 0.0007887895362203361,
+        "epsilon": 0.003
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 0.003415039039139105,
+        "audit_gap_ratio": 0.09055170237321285,
+        "splits": {
+          "train": {
+            "time_refinement_error": 0.003415039039139105,
+            "coarse_gap": 0.03771369228447932,
+            "audit_gap_ratio": 0.09055170237321285
+          },
+          "train_1": {
+            "time_refinement_error": 0.0022986273498842177,
+            "coarse_gap": 0.026469543413438185,
+            "audit_gap_ratio": 0.08684046090183933
+          },
+          "train_2": {
+            "time_refinement_error": 0.0020299109241774804,
+            "coarse_gap": 0.022777920807854606,
+            "audit_gap_ratio": 0.08911748097207792
+          },
+          "train_3": {
+            "time_refinement_error": 0.002676041875668916,
+            "coarse_gap": 0.03127811869347029,
+            "audit_gap_ratio": 0.08555635656653397
+          },
+          "validation": {
+            "time_refinement_error": 0.002896539461005629,
+            "coarse_gap": 0.033178146664438364,
+            "audit_gap_ratio": 0.08730262996004697
+          },
+          "test": {
+            "time_refinement_error": 0.0032999815304407512,
+            "coarse_gap": 0.0409960663584836,
+            "audit_gap_ratio": 0.0804950772980165
+          }
+        }
+      },
+      "recurrence_error": 4.733468017548148e-07,
+      "training_seconds": 152.5991730170009,
+      "validation_seconds": 9.884000700000001,
+      "training_case_counts": [
+        64,
+        64,
+        64,
+        64
+      ]
+    },
+    "PhiFlow": {
+      "status": "ok",
+      "error": null,
+      "provenance": {
+        "tesseract_hashes": {
+          "JAX-CFD": "a3c8ec8d615f5240",
+          "PhiFlow": "f8025ed82a5a1793"
+        },
+        "harness_hash": "724096cb3c5d28ef",
+        "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.training.solver_in_loop",
+        "wall_time_s": {
+          "JAX-CFD": 227.442305272,
+          "PhiFlow": 1512.2680442769997
+        },
+        "environment": {
+          "python_version": "3.12.3",
+          "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39",
+          "mosaic_version": "0.0.1.dev1+unknown.g9d9f5c263",
+          "timestamp": "2026-10-14T13:06:21.570823+00:00"
+        },
+        "run_meta": {
+          "timestamp": "2026-10-14T13:06:21Z",
+          "ci": true,
+          "runner": "mosaic-bench-gpu-1000769614",
+          "github_run_id": "38561389132",
+          "github_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+          "platform": "Linux-6.17.0-1011-azure-x86_64-with-glibc2.39"
+        }
+      },
+      "selected_update": 256,
+      "completed_updates": [
+        256
+      ],
+      "validation_checkpoints": [
+        [
+          {
+            "update": 0,
+            "loss": 0.009963926245519695
+          },
+          {
+            "update": 64,
+            "loss": 0.005123680736821825
+          },
+          {
+            "update": 128,
+            "loss": 0.0064176554503299595
+          },
+          {
+            "update": 192,
+            "loss": 0.005614331763829341
+          },
+          {
+            "update": 256,
+            "loss": 0.004846733665635839
+          }
+        ]
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.012132003330978058,
+        "solver_in_loop": 0.005964859149575261
+      },
+      "gradient_check": {
+        "autodiff": 0.0009254717151634395,
+        "finite_difference": 0.0009431171929463744,
+        "relative_error": 0.01870974033227939,
+        "epsilon": 0.003
+      },
+      "gradient_check_nonzero": {
+        "autodiff": 0.009617606177926064,
+        "finite_difference": 0.009627633728086948,
+        "relative_error": 0.0010415383929315073,
+        "epsilon": 0.003
+      },
+      "reference": {
+        "spatial_factor": 2,
+        "time_refinement_error": 0.0018943332606921907,
+        "audit_gap_ratio": 0.017414851935340533,
+        "splits": {
+          "train": {
+            "time_refinement_error": 0.0018815258939074186,
+            "coarse_gap": 0.10804145225542665,
+            "audit_gap_ratio": 0.017414851935340533
+          },
+          "train_1": {
+            "time_refinement_error": 0.0014172383747933382,
+            "coarse_gap": 0.08699176357030279,
+            "audit_gap_ratio": 0.01629163861758005
+          },
+          "train_2": {
+            "time_refinement_error": 0.0012861555835836798,
+            "coarse_gap": 0.08289502956475779,
+            "audit_gap_ratio": 0.015515472885849351
+          },
+          "train_3": {
+            "time_refinement_error": 0.001636732530234336,
+            "coarse_gap": 0.0978014585741376,
+            "audit_gap_ratio": 0.016735256857070533
+          },
+          "validation": {
+            "time_refinement_error": 0.001724550842341929,
+            "coarse_gap": 0.09981946826906911,
+            "audit_gap_ratio": 0.017276698345991017
+          },
+          "test": {
+            "time_refinement_error": 0.0018943332606921907,
+            "coarse_gap": 0.11014537362494195,
+            "audit_gap_ratio": 0.017198482317946642
+          }
+        }
+      },
+      "recurrence_error": 4.942127134199836e-07,
+      "training_seconds": 482.1767950929975,
+      "validation_seconds": 43.05338628100026,
+      "training_case_counts": [
+        64,
+        64,
+        64,
+        64
+      ]
+    }
+  },
+  "all_optimization_rows_present": true
+}

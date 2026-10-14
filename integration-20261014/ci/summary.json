@@ -1,0 +1,204 @@
+{
+  "run_id": 38561389132,
+  "run_url": "https://github.com/pasteurlabs/mosaic/actions/runs/38561389132",
+  "head_sha": "855420fd199c240738391c2ce9b55e4cd351dfb4",
+  "tested_merge_sha": "9d9f5c26370283e94e6f217d8874c83629f08273",
+  "all_five_optimization_admitted": true,
+  "formal_report_pending": false,
+  "solvers": {
+    "INS.jl": {
+      "selected_update": 256,
+      "completed_updates": 256,
+      "updates_per_training_case": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.00370337178246956,
+        "solver_in_loop": 0.00159807135222799
+      },
+      "prior_mean_predicted_loss": {
+        "uncorrected": 0.00370337178246956,
+        "solver_in_loop": 0.0015980668346760752
+      },
+      "selected_update_matches_prior": true,
+      "training_seconds": 297.85285078000027,
+      "validation_seconds": 10.615609269999936,
+      "benchmark_wall_seconds": 609.2891846120001,
+      "initial_fd_relative_error": 0.016160588850240215,
+      "nonzero_fd_relative_error": 0.0008183317820048177,
+      "recurrence_error": 4.725329461052752e-07,
+      "reference_audit_gap_ratio": 9.829336543292979e-07,
+      "reference_splits": [
+        "train",
+        "train_1",
+        "train_2",
+        "train_3",
+        "validation",
+        "test"
+      ]
+    },
+    "Oceananigans": {
+      "selected_update": 128,
+      "completed_updates": 256,
+      "updates_per_training_case": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.0007356186003233489,
+        "solver_in_loop": 0.00036898512407105953
+      },
+      "prior_mean_predicted_loss": {
+        "uncorrected": 0.0007356186003233489,
+        "solver_in_loop": 0.0003689833786886254
+      },
+      "selected_update_matches_prior": true,
+      "training_seconds": 189.9982537899989,
+      "validation_seconds": 4.822377545000336,
+      "benchmark_wall_seconds": 440.984029719,
+      "initial_fd_relative_error": 0.015465184627414832,
+      "nonzero_fd_relative_error": 0.0008067120908530634,
+      "recurrence_error": 4.7283006665566063e-07,
+      "reference_audit_gap_ratio": 5.550614690965168e-06,
+      "reference_splits": [
+        "train",
+        "train_1",
+        "train_2",
+        "train_3",
+        "validation",
+        "test"
+      ]
+    },
+    "WaterLily": {
+      "selected_update": 128,
+      "completed_updates": 256,
+      "updates_per_training_case": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.00472124974548727,
+        "solver_in_loop": 0.003495721775958884
+      },
+      "prior_mean_predicted_loss": {
+        "uncorrected": 0.00472124974548727,
+        "solver_in_loop": 0.003495719774470274
+      },
+      "selected_update_matches_prior": true,
+      "training_seconds": 187.05813285800173,
+      "validation_seconds": 5.315823394000063,
+      "benchmark_wall_seconds": 316.58251243400014,
+      "initial_fd_relative_error": 0.01880663764659064,
+      "nonzero_fd_relative_error": 0.0008732219870024055,
+      "recurrence_error": 4.90779314077372e-07,
+      "reference_audit_gap_ratio": 0.00018280184316068487,
+      "reference_splits": [
+        "train",
+        "train_1",
+        "train_2",
+        "train_3",
+        "validation",
+        "test"
+      ]
+    },
+    "JAX-CFD": {
+      "selected_update": 192,
+      "completed_updates": 256,
+      "updates_per_training_case": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.0016806774568691907,
+        "solver_in_loop": 0.0008612086696622612
+      },
+      "prior_mean_predicted_loss": {
+        "uncorrected": 0.0016806774568691907,
+        "solver_in_loop": 0.0008612180556571048
+      },
+      "selected_update_matches_prior": true,
+      "training_seconds": 152.5991730170009,
+      "validation_seconds": 9.884000700000001,
+      "benchmark_wall_seconds": 227.442305272,
+      "initial_fd_relative_error": 0.015667721011137906,
+      "nonzero_fd_relative_error": 0.0007887895362203361,
+      "recurrence_error": 4.733468017548148e-07,
+      "reference_audit_gap_ratio": 0.09055170237321285,
+      "reference_splits": [
+        "train",
+        "train_1",
+        "train_2",
+        "train_3",
+        "validation",
+        "test"
+      ]
+    },
+    "PhiFlow": {
+      "selected_update": 256,
+      "completed_updates": 256,
+      "updates_per_training_case": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "mean_predicted_loss": {
+        "uncorrected": 0.012132003330978058,
+        "solver_in_loop": 0.005964859149575261
+      },
+      "prior_mean_predicted_loss": {
+        "uncorrected": 0.012132003477624984,
+        "solver_in_loop": 0.005964894970420289
+      },
+      "selected_update_matches_prior": true,
+      "training_seconds": 482.1767950929975,
+      "validation_seconds": 43.05338628100026,
+      "benchmark_wall_seconds": 1512.2680442769997,
+      "initial_fd_relative_error": 0.01870974033227939,
+      "nonzero_fd_relative_error": 0.0010415383929315073,
+      "recurrence_error": 4.942127134199836e-07,
+      "reference_audit_gap_ratio": 0.017414851935340533,
+      "reference_splits": [
+        "train",
+        "train_1",
+        "train_2",
+        "train_3",
+        "validation",
+        "test"
+      ]
+    }
+  },
+  "caveats": [
+    "JAX-CFD gradient FD suite includes a near-zero directional component with large relative discrepancy; actual shared admission uses best-epsilon median relative error plus cosine. No criterion changed.",
+    "Held-out means average predicted frames1..100, excluding initial state. One fixed validation/test trajectory and model seed; no generalization claim.",
+    "Container CI hardware/runtime differs from prior in-process Slurm evidence; timings are not interchangeable."
+  ],
+  "complete": true,
+  "formal_domain_status": {
+    "ok": 20,
+    "anomaly": 0,
+    "fail": 0,
+    "missing": 0,
+    "stale": 0,
+    "score": 1.0
+  },
+  "coverage": "All20 buoyancy-grid cells measured this run. Other domains in full report are baseline overlays, not newly revalidated.",
+  "workflow": {
+    "conclusion": "success",
+    "created_at": "2026-10-14T12:06:46Z",
+    "head_sha": "855420fd199c240738391c2ce9b55e4cd351dfb4",
+    "html_url": "https://github.com/pasteurlabs/mosaic/actions/runs/38561389132",
+    "id": 38561389132,
+    "status": "completed",
+    "updated_at": "2026-10-14T13:08:29Z"
+  }
+}
