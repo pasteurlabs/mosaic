@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/scratch/jobs/3047394/work/probe/evaluate.py", line 210, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/scratch/jobs/3047394/work/probe/evaluate.py", line 205, in main
+    if args.mode!='controls':report['native_cases']=native_cases(args.mode,args.output)
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/jobs/3047394/work/probe/evaluate.py", line 127, in native_cases
+    base,cold_forward=timed(lambda:forward(x))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/jobs/3047394/work/probe/evaluate.py", line 126, in timed
+    started=time.perf_counter();value=fn();return value,time.perf_counter()-started
+                                      ^^^^
+  File "/scratch/jobs/3047394/work/probe/evaluate.py", line 127, in <lambda>
+    base,cold_forward=timed(lambda:forward(x))
+                                   ^^^^^^^^^^
+  File "/scratch/jobs/3047394/work/probe/evaluate.py", line 122, in forward
+    return np.asarray(apply_tesseract(t,{**base_inputs,'v0':value})['result'])
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/jobs/3047394/work/python-env/lib/python3.12/site-packages/tesseract_jax/primitive.py", line 951, in apply_tesseract
+    raise TypeError(
+TypeError: The first argument must be a Tesseract object. Got <class '__main__.native_cases.<locals>.Counted'> instead.

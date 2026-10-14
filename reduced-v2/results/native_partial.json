@@ -1,0 +1,454 @@
+[
+  {
+    "steps": 1,
+    "physics": {
+      "N": 32,
+      "dt": 0.01,
+      "nu": 0.01,
+      "L": 6.283185307179586,
+      "ic": "multimode",
+      "ic_seed": 0
+    },
+    "precision": "float32",
+    "jax_enable_x64": false,
+    "ic_scale": 0.07785952836275101,
+    "api_source_sha256": "11fbb7bec5c4c1918dc555b202368e3a2631c2e405104f1e3f0c7085af01cefc",
+    "shared_gradient_source_sha256": "d421890ee64fb96565e7143d13405d94d8977917ba5435fa028459409663b1d3",
+    "ic_sha256": "afb7848071210fa89a1b7db5039cd87db59d31f93e9dbf44cdf3f72b5a73e813",
+    "objective": "Exact shared _vjp_grad via Tesseract: jnp.sum(result**2). FD jnp.sum(plus**2-minus**2)/(2*abs_eps). AD dot jnp.dot. abs_eps=epsilon*IC_RMS.",
+    "base_objective": 11.985371589660645,
+    "costs": {
+      "cold_forward_seconds": 0.44224054599908413,
+      "cold_objective_gradient_seconds": 2.3932240450012614,
+      "warm_forward_seconds": [
+        0.0019362719976925291,
+        0.0015974940033629537,
+        0.0015796429943293333
+      ],
+      "warm_objective_gradient_seconds": [
+        0.00876334300119197,
+        0.008467974999803118,
+        0.008287046002806164
+      ],
+      "counting": "Actual in-process Tesseract apply/VJP calls counted by scoped class-method wrappers for this exact instance; real Tesseract identity and signatures retained. Shared _vjp_grad includes primal apply plus VJP internal work. No container/network overhead. IC/setup excluded."
+    },
+    "directions": [
+      {
+        "name": "gradient",
+        "sha256": "16d578763bd9c09fab312ef9070aeb74b3506bb4f780265e15da8796f92c571e",
+        "local_ad": 6.8083391189575195,
+        "epsilons": [
+          {
+            "epsilon": 0.03,
+            "absolute_epsilon": 0.00233578585088253,
+            "orders": [
+              {
+                "order": 8,
+                "average_ad": 6.808338757850417,
+                "path_ad_fd": {
+                  "absolute": 7.513664475489179e-06,
+                  "relative": 1.1035961121609271e-06,
+                  "illustrative_agreement": true
+                },
+                "seconds": 0.0707262180003454,
+                "api_calls": {
+                  "forward_api": 8,
+                  "vjp_api": 8
+                },
+                "nodes": [
+                  {
+                    "node": -0.9602898564975362,
+                    "weight": 0.10122853629037706,
+                    "directional_ad": 6.8039960861206055,
+                    "realized_direction_norm": 1.0000007888858113
+                  },
+                  {
+                    "node": -0.7966664774136267,
+                    "weight": 0.22238103445337443,
+                    "directional_ad": 6.804731369018555,
+                    "realized_direction_norm": 0.9999967081580065
+                  },
+                  {
+                    "node": -0.525532409916329,
+                    "weight": 0.3137066458778869,
+                    "directional_ad": 6.8059587478637695,
+                    "realized_direction_norm": 0.9999969028192408
+                  },
+                  {
+                    "node": -0.18343464249564978,
+                    "weight": 0.36268378337836166,
+                    "directional_ad": 6.8075127601623535,
+                    "realized_direction_norm": 1.0000069646884187
+                  },
+                  {
+                    "node": 0.18343464249564978,
+                    "weight": 0.36268378337836166,
+                    "directional_ad": 6.809167861938477,
+                    "realized_direction_norm": 1.0000069646884187
+                  },
+                  {
+                    "node": 0.525532409916329,
+                    "weight": 0.3137066458778869,
+                    "directional_ad": 6.810714244842529,
+                    "realized_direction_norm": 0.9999971149976847
+                  },
+                  {
+                    "node": 0.7966664774136267,
+                    "weight": 0.22238103445337443,
+                    "directional_ad": 6.811944961547852,
+                    "realized_direction_norm": 0.9999965211663087
+                  },
+                  {
+                    "node": 0.9602898564975362,
+                    "weight": 0.10122853629037706,
+                    "directional_ad": 6.812686920166016,
+                    "realized_direction_norm": 1.000000904996368
+                  }
+                ]
+              },
+              {
+                "order": 16,
+                "average_ad": 6.808336031079991,
+                "path_ad_fd": {
+                  "absolute": 1.0240434901831463e-05,
+                  "relative": 1.504100187247514e-06,
+                  "illustrative_agreement": true
+                },
+                "seconds": 0.13626424700487405,
+                "api_calls": {
+                  "forward_api": 16,
+                  "vjp_api": 16
+                },
+                "nodes": [
+                  {
+                    "node": -0.9894009349916499,
+                    "weight": 0.027152459411754176,
+                    "directional_ad": 6.803856372833252,
+                    "realized_direction_norm": 1.0000010288151613
+                  },
+                  {
+                    "node": -0.9445750230732326,
+                    "weight": 0.062253523938647456,
+                    "directional_ad": 6.804061412811279,
+                    "realized_direction_norm": 1.000001737568072
+                  },
+                  {
+                    "node": -0.8656312023878318,
+                    "weight": 0.0951585116824926,
+                    "directional_ad": 6.804415702819824,
+                    "realized_direction_norm": 1.0000004368102116
+                  },
+                  {
+                    "node": -0.755404408355003,
+                    "weight": 0.12462897125553407,
+                    "directional_ad": 6.804917812347412,
+                    "realized_direction_norm": 0.9999990551144067
+                  },
+                  {
+                    "node": -0.6178762444026438,
+                    "weight": 0.1495959888165767,
+                    "directional_ad": 6.805546283721924,
+                    "realized_direction_norm": 1.0000007229735515
+                  },
+                  {
+                    "node": -0.45801677765722737,
+                    "weight": 0.16915651939500265,
+                    "directional_ad": 6.806265354156494,
+                    "realized_direction_norm": 0.9999942182685466
+                  },
+                  {
+                    "node": -0.2816035507792589,
+                    "weight": 0.18260341504492364,
+                    "directional_ad": 6.80707311630249,
+                    "realized_direction_norm": 0.9999998709599879
+                  },
+                  {
+                    "node": -0.09501250983763744,
+                    "weight": 0.18945061045506864,
+                    "directional_ad": 6.807906150817871,
+                    "realized_direction_norm": 0.9999910112667502
+                  },
+                  {
+                    "node": 0.09501250983763744,
+                    "weight": 0.18945061045506864,
+                    "directional_ad": 6.808767318725586,
+                    "realized_direction_norm": 0.9999910112667502
+                  },
+                  {
+                    "node": 0.2816035507792589,
+                    "weight": 0.18260341504492364,
+                    "directional_ad": 6.809605121612549,
+                    "realized_direction_norm": 0.9999999708281017
+                  },
+                  {
+                    "node": 0.45801677765722737,
+                    "weight": 0.16915651939500265,
+                    "directional_ad": 6.810394287109375,
+                    "realized_direction_norm": 0.9999945231177413
+                  },
+                  {
+                    "node": 0.6178762444026438,
+                    "weight": 0.1495959888165767,
+                    "directional_ad": 6.811129093170166,
+                    "realized_direction_norm": 1.0000009034387052
+                  },
+                  {
+                    "node": 0.755404408355003,
+                    "weight": 0.12462897125553407,
+                    "directional_ad": 6.811755657196045,
+                    "realized_direction_norm": 0.9999991718940959
+                  },
+                  {
+                    "node": 0.8656312023878318,
+                    "weight": 0.0951585116824926,
+                    "directional_ad": 6.812259674072266,
+                    "realized_direction_norm": 1.0000005960472356
+                  },
+                  {
+                    "node": 0.9445750230732326,
+                    "weight": 0.062253523938647456,
+                    "directional_ad": 6.812608242034912,
+                    "realized_direction_norm": 1.0000019652564596
+                  },
+                  {
+                    "node": 0.9894009349916499,
+                    "weight": 0.027152459411754176,
+                    "directional_ad": 6.812810897827148,
+                    "realized_direction_norm": 1.0000007853095652
+                  }
+                ]
+              },
+              {
+                "order": 32,
+                "average_ad": 6.808335456267418,
+                "path_ad_fd": {
+                  "absolute": 1.0815247474482703e-05,
+                  "relative": 1.5885278220545405e-06,
+                  "illustrative_agreement": true
+                },
+                "seconds": 0.272649745005765,
+                "api_calls": {
+                  "forward_api": 32,
+                  "vjp_api": 32
+                },
+                "nodes": [
+                  {
+                    "node": -0.9972638618494816,
+                    "weight": 0.007018610009470506,
+                    "directional_ad": 6.803824424743652,
+                    "realized_direction_norm": 0.9999986170230873
+                  },
+                  {
+                    "node": -0.9856115115452684,
+                    "weight": 0.016274394730905743,
+                    "directional_ad": 6.80387544631958,
+                    "realized_direction_norm": 1.000000251977465
+                  },
+                  {
+                    "node": -0.9647622555875064,
+                    "weight": 0.025392065309262024,
+                    "directional_ad": 6.803971767425537,
+                    "realized_direction_norm": 0.9999976200893634
+                  },
+                  {
+                    "node": -0.9349060759377397,
+                    "weight": 0.034273862913021765,
+                    "directional_ad": 6.80410623550415,
+                    "realized_direction_norm": 0.9999980558098943
+                  },
+                  {
+                    "node": -0.8963211557660521,
+                    "weight": 0.042835898022226836,
+                    "directional_ad": 6.804285526275635,
+                    "realized_direction_norm": 0.9999973256859768
+                  },
+                  {
+                    "node": -0.84936761373257,
+                    "weight": 0.05099805926237609,
+                    "directional_ad": 6.80449104309082,
+                    "realized_direction_norm": 1.0000045419923942
+                  },
+                  {
+                    "node": -0.7944837959679424,
+                    "weight": 0.058684093478535565,
+                    "directional_ad": 6.804739952087402,
+                    "realized_direction_norm": 1.0000004895374859
+                  },
+                  {
+                    "node": -0.7321821187402897,
+                    "weight": 0.06582222277636168,
+                    "directional_ad": 6.805023670196533,
+                    "realized_direction_norm": 0.999999389234583
+                  },
+                  {
+                    "node": -0.6630442669302152,
+                    "weight": 0.07234579410884834,
+                    "directional_ad": 6.805333137512207,
+                    "realized_direction_norm": 0.9999990798988364
+                  },
+                  {
+                    "node": -0.5877157572407623,
+                    "weight": 0.07819389578707023,
+                    "directional_ad": 6.805678844451904,
+                    "realized_direction_norm": 0.9999986994598239
+                  },
+                  {
+                    "node": -0.5068999089322294,
+                    "weight": 0.08331192422694671,
+                    "directional_ad": 6.80603551864624,
+                    "realized_direction_norm": 1.000000297923094
+                  },
+                  {
+                    "node": -0.42135127613063533,
+                    "weight": 0.08765209300440378,
+                    "directional_ad": 6.806437969207764,
+                    "realized_direction_norm": 1.0000017109229604
+                  },
+                  {
+                    "node": -0.33186860228212767,
+                    "weight": 0.09117387869576378,
+                    "directional_ad": 6.8068366050720215,
+                    "realized_direction_norm": 0.9999971222599138
+                  },
+                  {
+                    "node": -0.23928736225213706,
+                    "weight": 0.09384439908080451,
+                    "directional_ad": 6.807257652282715,
+                    "realized_direction_norm": 1.0000075556521297
+                  },
+                  {
+                    "node": -0.1444719615827965,
+                    "weight": 0.09563872007927471,
+                    "directional_ad": 6.807685375213623,
+                    "realized_direction_norm": 1.0000181495110234
+                  },
+                  {
+                    "node": -0.048307665687738324,
+                    "weight": 0.09654008851472766,
+                    "directional_ad": 6.808114051818848,
+                    "realized_direction_norm": 0.9999929577397599
+                  },
+                  {
+                    "node": 0.048307665687738324,
+                    "weight": 0.09654008851472766,
+                    "directional_ad": 6.808548450469971,
+                    "realized_direction_norm": 0.9999929577397599
+                  },
+                  {
+                    "node": 0.1444719615827965,
+                    "weight": 0.09563872007927471,
+                    "directional_ad": 6.808987617492676,
+                    "realized_direction_norm": 1.0000183441904238
+                  },
+                  {
+                    "node": 0.23928736225213706,
+                    "weight": 0.09384439908080451,
+                    "directional_ad": 6.809412956237793,
+                    "realized_direction_norm": 1.0000076731741179
+                  },
+                  {
+                    "node": 0.33186860228212767,
+                    "weight": 0.09117387869576378,
+                    "directional_ad": 6.809835910797119,
+                    "realized_direction_norm": 0.9999967015909625
+                  },
+                  {
+                    "node": 0.42135127613063533,
+                    "weight": 0.08765209300440378,
+                    "directional_ad": 6.81023645401001,
+                    "realized_direction_norm": 1.0000019755484437
+                  },
+                  {
+                    "node": 0.5068999089322294,
+                    "weight": 0.08331192422694671,
+                    "directional_ad": 6.81062650680542,
+                    "realized_direction_norm": 1.0000000779778118
+                  },
+                  {
+                    "node": 0.5877157572407623,
+                    "weight": 0.07819389578707023,
+                    "directional_ad": 6.810990333557129,
+                    "realized_direction_norm": 0.9999985575939742
+                  },
+                  {
+                    "node": 0.6630442669302152,
+                    "weight": 0.07234579410884834,
+                    "directional_ad": 6.81133508682251,
+                    "realized_direction_norm": 0.9999990830613631
+                  },
+                  {
+                    "node": 0.7321821187402897,
+                    "weight": 0.06582222277636168,
+                    "directional_ad": 6.81165075302124,
+                    "realized_direction_norm": 0.9999992360797546
+                  },
+                  {
+                    "node": 0.7944837959679424,
+                    "weight": 0.058684093478535565,
+                    "directional_ad": 6.811933517456055,
+                    "realized_direction_norm": 1.0000004515065901
+                  },
+                  {
+                    "node": 0.84936761373257,
+                    "weight": 0.05099805926237609,
+                    "directional_ad": 6.812183856964111,
+                    "realized_direction_norm": 1.0000045473153991
+                  },
+                  {
+                    "node": 0.8963211557660521,
+                    "weight": 0.042835898022226836,
+                    "directional_ad": 6.812398910522461,
+                    "realized_direction_norm": 0.9999972943151038
+                  },
+                  {
+                    "node": 0.9349060759377397,
+                    "weight": 0.034273862913021765,
+                    "directional_ad": 6.812565326690674,
+                    "realized_direction_norm": 0.9999980852091164
+                  },
+                  {
+                    "node": 0.9647622555875064,
+                    "weight": 0.025392065309262024,
+                    "directional_ad": 6.812703609466553,
+                    "realized_direction_norm": 0.9999975226050196
+                  },
+                  {
+                    "node": 0.9856115115452684,
+                    "weight": 0.016274394730905743,
+                    "directional_ad": 6.81279182434082,
+                    "realized_direction_norm": 1.0000001455709109
+                  },
+                  {
+                    "node": 0.9972638618494816,
+                    "weight": 0.007018610009470506,
+                    "directional_ad": 6.812849044799805,
+                    "realized_direction_norm": 0.9999983754419138
+                  }
+                ]
+              }
+            ],
+            "central_fd": 6.808346271514893,
+            "local_ad_fd": {
+              "absolute": 7.152557373046875e-06,
+              "relative": 1.0505572260582735e-06,
+              "illustrative_agreement": true
+            },
+            "fd_seconds": 0.127756023000984,
+            "central_fd_float64_reduction_diagnostic": 6.808350684419209,
+            "precision_variant_note": "Float64 reduction changes only diagnostic arithmetic, not shared FD; primary central_fd uses exact shared Float32 expression",
+            "realized_plus_direction_norm": 1.0000017999797648,
+            "realized_minus_direction_norm": 1.000001932976816,
+            "api_calls": {
+              "forward_api": 58,
+              "vjp_api": 56
+            }
+          }
+        ]
+      }
+    ],
+    "total_api_calls": {
+      "forward_api": 66,
+      "vjp_api": 60
+    }
+  }
+]

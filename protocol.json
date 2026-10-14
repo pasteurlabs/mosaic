@@ -1,0 +1,82 @@
+{
+  "source_commit": "1b47f6213822dd4c4d20ca27682b306b39fe274d",
+  "archive_method": "git archive exact committed main; excludes all uncommitted documentation",
+  "source_archive_sha256": "b2d6ed82c09e29b2acd081a9aa077618cc3e6413173fe5bbeec27c4e5d20bdea",
+  "status": "Complete: controls and native evaluation passed; plots rendered on Slurm",
+  "submitted": true,
+  "resources": {
+    "cpus": 4,
+    "memory": "24G",
+    "time_limit": "01:00:00"
+  },
+  "runtime": {
+    "jax": "0.10.0",
+    "jax-cfd": "0.2.1",
+    "equinox": "0.13.8",
+    "scipy": "1.17.0"
+  },
+  "prior_buoyancy_evidence": {
+    "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+    "artifact_commit": "e803154",
+    "separate_from_main_evaluation": true
+  },
+  "complete": true,
+  "jobs": {
+    "controls_v1": 3047393,
+    "failed_reduced_v1": 3047394,
+    "controls_v2": 3048168,
+    "reduced_v2": 3048169,
+    "full_v2": 3048589,
+    "plots": 3048592,
+    "final_plots": 3049041
+  },
+  "validation": {
+    "analytic_controls": 8,
+    "native_cells": 20,
+    "quadratures": 60,
+    "successful_cells": 20,
+    "unavailable_cells": 0,
+    "actual_api_counts_verified": true
+  },
+  "driver_sha256": "362d1a00fc437e713c4244c2f20e267603d02232b36d92ddeb6baf5ba5d74dc5",
+  "costs": [
+    {
+      "steps": 1,
+      "cold_forward_seconds": 0.4287103719980223,
+      "cold_gradient_seconds": 1.0357499289966654,
+      "warm_local_gradient_median_seconds": 0.008323466005094815,
+      "quadrature_median_seconds": {
+        "8": 0.06743642149740481,
+        "16": 0.1358863144996576,
+        "32": 0.27069184849824524
+      }
+    },
+    {
+      "steps": 20,
+      "cold_forward_seconds": 0.30708979399787495,
+      "cold_gradient_seconds": 1.8678032370007713,
+      "warm_local_gradient_median_seconds": 0.018910601997049525,
+      "quadrature_median_seconds": {
+        "8": 0.1866782199977024,
+        "16": 0.38841831849640585,
+        "32": 0.803785064497788
+      }
+    }
+  ],
+  "environment_lock": "full-v2/python-environment.txt",
+  "launch_recipe": "full-v2/node.sh",
+  "submission_receipt": "full-v2/submission.txt",
+  "failed_v1_reason": "Counter proxy rejected by tesseract_jax type check; v2 preserves actual Tesseract identity and instruments methods only.",
+  "artifact_hashes": {
+    "full-v2/results/evaluation.json": "e5c079f6244e7148c111699aead50099267e104a6d9fe1231a039f4107d96229",
+    "full-v2/python-environment.txt": "f4cc6f78bde11f1f885480f9108e37c32caadd04f67953d335a25b62040ba26c",
+    "plots/artifacts/analysis.json": "552cb45cfe5347e71f3dff61ecb49a105f6e025e595f43b2b0e547cb51c6cee8",
+    "plots/artifacts/analytic_controls.svg": "636d45dfdc5e92bb3f7e5ae9c8c598128a115a0d97ae8614c92bfacef0eb4280",
+    "plots/artifacts/native_comparison.svg": "56490eabe6e319a63018813099cb02e762d8816cf03e68ba31eb8e72a0bba1e7",
+    "plots/artifacts/native_costs.png": "e01bec754b8a09f1b5e80701cdf69588a5545ccab84bf40855003dea930c92e0",
+    "plots/artifacts/native_comparison.png": "b5409dc7f45031b81e3272aecf766ee6774d31ab067a0b777768209ee4c075d1",
+    "plots/artifacts/analytic_controls.png": "490b9d588f3aab6ccf6a7e986ace4245d587cea639ff68f0939be8d9d4472813",
+    "plots/artifacts/native_costs.svg": "6a7ac33beb00623a292a45099052770aab2d1417089922e961aa8982f3c06303"
+  },
+  "plot_script_sha256": "24610df7ca4854f46d3d36fb79f31a848c681b1d7151eb9a22011d5cbf80c9c9"
+}
