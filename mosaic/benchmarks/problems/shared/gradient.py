@@ -37,7 +37,7 @@ from mosaic.benchmarks.core.experiment import (
     random_direction,
 )
 from mosaic.benchmarks.core.io import save_field_snapshots_npz, try_load_npz
-from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.runner import nonfinite_counts, run_with_gpu_pool
 
 # ── Science primitives ───────────────────────────────────────────────────────
 
@@ -60,10 +60,7 @@ def _nonfinite_grad_error(g: jax.Array) -> str | None:
     """Failure reason for a gradient with NaN/Inf entries; ``None`` if finite."""
     if bool(jnp.all(jnp.isfinite(g))):
         return None
-    return (
-        f"VJP returned non-finite gradient ({int(jnp.sum(jnp.isnan(g)))} NaN, "
-        f"{int(jnp.sum(jnp.isinf(g)))} Inf of {jnp.size(g)} values)"
-    )
+    return f"VJP returned non-finite gradient ({nonfinite_counts(g)})"
 
 
 def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
