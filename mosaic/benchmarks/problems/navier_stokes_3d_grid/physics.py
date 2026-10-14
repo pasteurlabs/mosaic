@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 
 from mosaic.benchmarks.core.config import SolverSpec
+from mosaic.benchmarks.core.utils import fixed_cfl_dt_steps
 from mosaic.benchmarks.problems.shared.diagnostics import FLUID_DIAGNOSTICS
 
 _LBM_SOLVERS = {"xlb"}
@@ -25,19 +26,24 @@ def make_inputs(
     steps: int,
     domain_extent: float = 2 * jnp.pi,
     lbm_N_base: int | None = None,
+    cfl_N_base: int | None = None,
     **_: Any,
 ) -> dict:
     """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
+
+    ``cfl_N_base`` rescales ``dt`` and ``steps`` for every solver so the CFL
+    number and end time stay fixed across N (see :func:`fixed_cfl_dt_steps`);
+    LBM scaling then applies on top.
 
     For standard 3-D periodic runs ic has shape (N, N, N, 3) and is passed
     directly as v0.
     """
     N = ic.shape[0]
-    _dt, _steps = dt, steps
+    _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)
 
     if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
-        _dt = dt * (lbm_N_base / N)
-        _steps = max(1, round(steps * (N / lbm_N_base)))
+        _dt = _dt * (lbm_N_base / N)
+        _steps = max(1, round(_steps * (N / lbm_N_base)))
 
     base = {
         "v0": ic,

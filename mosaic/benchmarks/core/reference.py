@@ -177,6 +177,7 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     # not the linearized analytic decay (issue #123). Its strategy lives in
     # CONVERGED_REFERENCES below.
     "ns-3d-grid": [
+        "forward/baseline",
         "forward/agreement",
     ],
     "structural-mesh": [
@@ -224,6 +225,9 @@ CONVERGED_REFERENCES: dict[tuple[str, str], ConvergedSpec] = {
     # to machine precision; at N=64 the field is band-limited well below the
     # N=16 Nyquist cutoff, so truncation to the benchmark grid is exact.
     ("ns-3d-grid", "forward/agreement"): ConvergedSpec(solver="Exponax", high_n=64),
+    # 3D resolution sweep (N = 8, 16, 32): one N=64 run per point, truncated
+    # to that point's grid.
+    ("ns-3d-grid", "forward/baseline"): ConvergedSpec(solver="Exponax", high_n=64),
 }
 
 

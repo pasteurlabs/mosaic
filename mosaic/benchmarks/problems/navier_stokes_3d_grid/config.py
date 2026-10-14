@@ -33,6 +33,7 @@ from mosaic.benchmarks.core.status_checks import (
     max_rel_err,
     median_k,
     min_cosine,
+    min_order,
     rel_err_peer_outlier,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
@@ -189,12 +190,22 @@ problem.add_experiment(
     "forward/baseline",
     agreement,
     plot_description=(
-        "Relative error vs grid resolution N at steps=1; validates single-step forward"
-        " accuracy across 3D solvers."
+        "Relative error vs grid resolution N against a converged spectral reference"
+        " at t=1.28, refining space and time together at a fixed CFL number. The"
+        " legend gives each solver's observed order of accuracy p."
     ),
     ic={"name": "tgv3d", "seed": 0},
-    physics={"N": [8, 16, 32], "nu": 0.05, "dt": 0.01, "steps": 1},
+    physics={
+        "N": [8, 16, 32],
+        "nu": 0.05,
+        # dt and steps at N=32; coarser grids take fewer, larger steps to the
+        # same end time (CFL ≈ 0.2 throughout).
+        "dt": 0.04,
+        "steps": 32,
+        "cfl_N_base": 32,
+    },
     plot=plot_agreement,
+    status_check=[median_k(3.0), min_order(1.5)],
 )
 problem.add_experiment(
     "forward/agreement",

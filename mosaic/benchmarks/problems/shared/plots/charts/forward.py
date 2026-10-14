@@ -105,7 +105,16 @@ def agreement(ctx: Ctx) -> alt.TopLevelMixin | None:
     if not rows:
         return None
     df = pd.DataFrame(rows, columns=["solver", "x", "value"])
-    enc = solver_encodings(df["solver"])
+    orders = data.get("convergence_order") or {}
+    enc = solver_encodings(
+        df["solver"],
+        # + 0.0 turns a rounded -0.0 into 0.0
+        suffix={
+            k: f" · p={round(p, 1) + 0.0:.1f}"
+            for k, p in orders.items()
+            if p is not None
+        },
+    )
     df = enc.relabel(df)
 
     x_title = _GREEK.get(sweep_key, sweep_key)

@@ -42,7 +42,11 @@ from mosaic.benchmarks.core.runner import (
     safe_apply,
     safe_apply_with_extras,
 )
-from mosaic.benchmarks.core.utils import active_solvers, trimmed_mean
+from mosaic.benchmarks.core.utils import (
+    active_solvers,
+    convergence_order,
+    trimmed_mean,
+)
 
 _SUITE = "forward"
 
@@ -318,6 +322,19 @@ def _agreement_aggregate(
         ]
         spread[val] = float(jnp.std(jnp.array(errors))) if errors else 0.0
 
+    extras: dict = {"spread": spread, "reference_label": reference_label}
+    if sweep_key == "N":
+        # Resolution sweep: report each solver's observed order of accuracy.
+        errs_by_solver: dict[str, dict] = {}
+        for e in flat_results:
+            if e["metrics"].get("valid"):
+                errs_by_solver.setdefault(e["solver"], {})[e["sweep_value"]] = e[
+                    "metrics"
+                ].get("error")
+        extras["convergence_order"] = {
+            n: convergence_order(errs) for n, errs in errs_by_solver.items()
+        }
+
     return _build_result_envelope(
         cfg=cfg,
         suite=_SUITE,
@@ -326,10 +343,7 @@ def _agreement_aggregate(
         sweep_key=sweep_key,
         sweep_values=sweep_values,
         results=flat_results,
-        extras={
-            "spread": spread,
-            "reference_label": reference_label,
-        },
+        extras=extras,
     )
 
 
