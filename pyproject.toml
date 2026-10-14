@@ -9,7 +9,7 @@ readme = "README.md"
 authors = [
     {name = "The Mosaic team @ Pasteur Labs + OSS contributors", email = "info@simulation.science"},
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 dynamic = ["version"]
 dependencies = [
@@ -17,7 +17,8 @@ dependencies = [
     "typer>=0.12",
     "numpy",
     "pandas",
-    "matplotlib",
+    "altair>=6.3",
+    "vl-convert-python>=1.9",
     "jax[cpu]",
     "optax",
     "tesseract-core[runtime]>=1.10.0",

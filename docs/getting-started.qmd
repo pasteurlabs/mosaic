@@ -18,7 +18,7 @@ On **macOS** (including Apple Silicon) and **Windows** you cannot follow this gu
 
 ## Prerequisites
 
-- **Python >= 3.10**
+- **Python >= 3.11**
 - **Linux host with Docker Engine** --- must be running. All solvers execute inside Docker containers. See [Platform support](#platform-support) above.
 - **NVIDIA GPU + Container Toolkit** --- the recommended solvers are GPU-only.
 - **Several dozen GB of disk space** for building all solver containers; individual images range from ~1 GB to ~10 GB.

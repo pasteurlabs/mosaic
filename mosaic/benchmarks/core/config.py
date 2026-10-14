@@ -1168,7 +1168,7 @@ def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
         if not config_path.exists():
             continue
         try:
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 doc = yaml.safe_load(f)
         except Exception as exc:
             warnings.warn(

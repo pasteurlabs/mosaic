@@ -59,7 +59,7 @@ repos:
           bash -c ' \
             cp uv.lock uv.lock.bak; \
             cp production.uv.lock uv.lock; \
-            uv lock --refresh; \
+            python -m uv lock --config-file /dev/null; \
             rc=$?; \
             cp uv.lock production.uv.lock; \
             mv uv.lock.bak uv.lock; \

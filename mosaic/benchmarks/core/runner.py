@@ -375,7 +375,7 @@ def build_all(
             return spec.image_tag
         config_path = cfg.tesseract_dir / spec.dir / "tesseract_config.yaml"
         if config_path.exists():
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 tconfig = yaml.safe_load(f)
             image_name = tconfig.get("name", spec.dir)
             return f"{image_name}:{tag}"
@@ -464,7 +464,7 @@ def image_tags_no_build(cfg: Problem) -> dict[str, str]:
         else:
             config_path = cfg.tesseract_dir / spec.dir / "tesseract_config.yaml"
             if config_path.exists():
-                with open(config_path) as f:
+                with open(config_path, encoding="utf-8") as f:
                     tconfig = yaml.safe_load(f)
                 image_name = tconfig.get("name", spec.dir)
                 tags[name] = f"{image_name}:latest"
