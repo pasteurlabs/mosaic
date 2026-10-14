@@ -219,6 +219,9 @@ baseline and surfaces, in order of what a reviewer cares about:
 - **Resource-frontier shifts** — the sweep size at which a solver first hits an
   OOM / timeout ceiling. A ceiling that bites at a *smaller* size than baseline
   is a scaling regression; one that pushes further out is an improvement.
+  Limit sweeps such as `horizon_sweep_limits` exist to find where a solver
+  stops working, so there any failure after a successful point is the
+  frontier; only a failure at the first point fails the cell.
 
 A **coverage banner** at the top states what actually ran. Under the
 `benchmark:solver` label only the changed solvers on affected problems re-run,
