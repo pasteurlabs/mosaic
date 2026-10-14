@@ -39,7 +39,7 @@ from pathlib import Path
 
 import numpy as np
 
-from mosaic.benchmarks.core.hardware import merge_hardware
+from mosaic.benchmarks.core.experiment import merge_results as _merge_result_pair
 
 # ---------------------------------------------------------------------------
 # JSON helpers
@@ -71,37 +71,6 @@ def _save_json(data: dict, path: Path) -> None:
 # ---------------------------------------------------------------------------
 # result.json merge — schema_version=1 flat-list merge
 # ---------------------------------------------------------------------------
-
-
-def _merge_result_pair(existing: dict, new: dict) -> dict:
-    """Merge two schema_version=1 result files. *new* wins on conflict.
-
-    Deduplicates by (solver, sweep_value); later entries override earlier ones,
-    except that an ``unscored`` entry never replaces a valid one.
-    """
-    seen: dict[tuple, dict] = {}
-    for entry in existing.get("results", []) + new.get("results", []):
-        key = (entry["solver"], entry.get("sweep_value"))
-        # An unscored entry (the solver ran, but that run had nothing to
-        # score it against) never replaces a valid score.
-        prev = (seen.get(key) or {}).get("metrics") or {}
-        if (entry.get("metrics") or {}).get("unscored") and prev.get("valid"):
-            continue
-        seen[key] = entry
-    merged = {**existing, **new, "results": list(seen.values())}
-    # Merge provenance sub-dicts
-    for key in ("tesseract_hashes", "wall_time_s"):
-        a_val = existing.get("provenance", {}).get(key, {})
-        b_val = new.get("provenance", {}).get(key, {})
-        if a_val or b_val:
-            merged.setdefault("provenance", {})[key] = {**a_val, **b_val}
-    # Merge extras
-    a_extras = existing.get("extras", {})
-    b_extras = new.get("extras", {})
-    if a_extras or b_extras:
-        merged["extras"] = {**a_extras, **b_extras}
-        merge_hardware(merged["extras"], existing, new)
-    return merged
 
 
 def _merge_results(results: list[dict]) -> dict:
