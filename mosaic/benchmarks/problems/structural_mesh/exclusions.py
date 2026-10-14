@@ -32,9 +32,9 @@ if TYPE_CHECKING:
 
 DEALII_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "deal.II structural tesseract is forward-only (C++/dealii-adjoint not "
-    "wired); no VJP endpoint, so cost/vjp and gradient experiments are "
-    "categorically out of scope.",
+    "deal.II structural tesseract is forward-only: this tesseract exposes "
+    "no AD path (no VJP endpoint, no differentiable inputs), so cost/vjp "
+    "and gradient experiments are categorically out of scope.",
 )
 DEALII_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,

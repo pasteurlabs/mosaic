@@ -32,12 +32,16 @@ STAGGERED_MAC_BIAS = Exclusion(
     "error at all N; 35-40x above collocated peers",
 )
 JAX_CFD_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "periodic FFT pressure solve + IBM volume penalization is incompatible "
-    "with cylinder obstacle channel BCs",
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract represents the cylinder by hard-mask volume "
+    "penalization (velocity zeroed after each projection step), which is "
+    "projection-inconsistent, and rejects the Neumann outflow BC; jax-cfd "
+    "itself provides non-periodic pressure solvers "
+    "(solve_cg, solve_fast_diag_channel_flow) for channel flows, but a "
+    "consistent obstacle route is not implemented here",
 )
 INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
+    ExclusionCategory.NOT_IMPLEMENTED,
     "this tesseract represents the cylinder by hard-mask Brinkman "
     "penalization (velocity zeroed after each projection), which is "
     "projection-inconsistent and diverges; INS.jl itself supports the "
@@ -47,7 +51,8 @@ INS_JL_NO_OBSTACLE = Exclusion(
 )
 WARP_NS_NO_OBSTACLE = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "warp-ns is periodic-only; obstacle/inflow flows are not supported",
+    "this tesseract's IPCS solver uses a spectral FFT pressure solve and is "
+    "periodic-only; obstacle and inflow flows are not implemented in it",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -60,7 +65,7 @@ OPENFOAM_NON_DIFFERENTIABLE_GRAD = Exclusion(
 )
 OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable forward-only solver",
+    "standard icoFoam is a non-differentiable, forward-only solver",
 )
 XLB_MA_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
@@ -123,4 +128,3 @@ def register(problem: Problem) -> None:
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
-    problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
