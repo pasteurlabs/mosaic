@@ -104,6 +104,11 @@ def _analytic_reference(
 
 # ── agreement ────────────────────────────────────────────────────────────────
 
+_NO_REFERENCE = (
+    "no reference: fewer than 2 solvers produced output and there is no "
+    "analytic, precomputed or reference-solver field"
+)
+
 
 def _agreement_aggregate(
     by_solver: Any,
@@ -211,19 +216,27 @@ def _agreement_aggregate(
             and not has_ref_solver
             and not has_precomputed
         ):
+            # Nothing to score against (e.g. a single-solver run with no
+            # cached peers). A solver that produced output is left unscored,
+            # not failed, and flagged so a merge keeps any score it already
+            # has; a solver that produced no output still fails.
             attempted = set(by_solver.keys())
             for n in solver_names:
                 if n not in attempted and n not in comparable:
                     continue
-                flat_results.append(
-                    {
-                        "solver": n,
-                        "sweep_value": str(val),
-                        "metrics": {
-                            "error": apply_errors.get(n, {}).get(val),
-                            "valid": False,
-                        },
+                if n in comparable:
+                    metrics = {
+                        "status": "skipped",
+                        "unscored": True,
+                        "reason": _NO_REFERENCE,
                     }
+                else:
+                    metrics = {
+                        "error": apply_errors.get(n, {}).get(val),
+                        "valid": False,
+                    }
+                flat_results.append(
+                    {"solver": n, "sweep_value": str(val), "metrics": metrics}
                 )
             continue
 

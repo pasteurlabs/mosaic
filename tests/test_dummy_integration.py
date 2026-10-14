@@ -257,6 +257,39 @@ def test_forward_nonfinite_output_fails_with_reason(
     assert all(cells[s].status == OK for s in cfg.solver_names if s != bad)
 
 
+def test_agreement_single_solver_is_unscored(ns_grid_tags, tmp_path, monkeypatch):
+    """Alone, a solver has no consensus to be scored against: it is left
+    unscored (not run), not failed. With its peers' snapshots cached on disk
+    from an earlier run, it is scored against them.
+    """
+    from mosaic.benchmarks.core.status import NOT_RUN, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_single",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_single"].fn
+
+    alone = run(cfg, {solo: tags[solo]})
+    assert [e["metrics"] for e in alone["results"]] == [
+        {"status": "skipped", "unscored": True, "reason": forward._NO_REFERENCE}
+    ] * 2
+    assert _classify_result(alone, [solo], [])[solo].status == NOT_RUN
+
+    run(cfg, tags)
+    with_cache = run(cfg, {solo: tags[solo]})
+    solo_entries = [e for e in with_cache["results"] if e["solver"] == solo]
+    assert [e["metrics"]["valid"] for e in solo_entries] == [True, True]
+
+
 @pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep"])
 def test_gradient_nonfinite_vjp_fails_with_reason(
     kernel_name, ns_grid_tags, tmp_path, monkeypatch
