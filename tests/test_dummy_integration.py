@@ -230,6 +230,10 @@ def test_forward_nonfinite_output_fails_with_reason(
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", apply_nan_for_bad)
 
+    # Register on copies so the throwaway experiment doesn't leak into the
+    # shared config other tests iterate over.
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
     cfg.add_experiment(
         "forward/dummy_nonfinite",
         getattr(forward, kernel_name),
@@ -251,6 +255,72 @@ def test_forward_nonfinite_output_fails_with_reason(
     assert cells[bad].status == FAILED
     assert "not finite" in cells[bad].reason
     assert all(cells[s].status == OK for s in cfg.solver_names if s != bad)
+
+
+@pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep"])
+def test_gradient_nonfinite_vjp_fails_with_reason(
+    kernel_name, ns_grid_tags, tmp_path, monkeypatch
+):
+    """A NaN VJP fails the cell with its reason; a sweep runs on past it."""
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, _classify_result
+    from mosaic.benchmarks.problems.shared import gradient
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_vjp = gradient._vjp_grad
+    bad_calls = []
+
+    # Only the poisoned solver's first VJP is NaN, so a sweep's second point
+    # shows whether the sweep carried on.
+    def vjp_nan_once_for_bad(*args):
+        g = real_vjp(*args)
+        if runner.current_worker_context().image_tag == tags[bad]:
+            bad_calls.append(None)
+            if len(bad_calls) == 1:
+                g = jnp.full_like(g, jnp.nan)
+        return g
+
+    monkeypatch.setattr(gradient, "_vjp_grad", vjp_nan_once_for_bad)
+
+    # Register on copies so the throwaway experiment doesn't leak into the
+    # shared config other tests iterate over.
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "gradient/dummy_nonfinite",
+        getattr(gradient, kernel_name),
+        ic={"name": "multimode", "seed": 0},
+        physics={
+            "N": 4,
+            "nu": [0.01, 0.05] if kernel_name == "param_sweep" else 0.01,
+            "dt": 0.01,
+            "steps": 1,
+        },
+        fd={"eps_values": [1e-1], "n_dirs": 2},
+    )
+    cfg.experiments["gradient/dummy_nonfinite"].fn(cfg, tags)
+
+    json_path = tmp_path / "ns-grid" / "gradient" / "dummy_nonfinite" / "result.json"
+    data = json.loads(json_path.read_text())
+    if kernel_name == "param_sweep":
+        bad_entries = sorted(
+            (e for e in data["results"] if e["solver"] == bad),
+            key=lambda e: float(e["sweep_value"]),
+        )
+        assert [e["metrics"].get("status") for e in bad_entries] == ["failed", None]
+        assert bad_entries[0]["metrics"]["failure_type"] == "nan"
+        assert bad_entries[1]["metrics"]["grad_norm"] is not None
+
+    cells = _classify_result(data, cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+    assert "VJP returned non-finite gradient" in cells[bad].reason
+    # OpenFOAM has no VJP and is never selected, hence not_run.
+    assert all(cells[s].status != FAILED for s in cfg.solver_names if s != bad)
 
 
 # ── Every-experiment parametrized smoke test ─────────────────────────────────

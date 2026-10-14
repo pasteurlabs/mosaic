@@ -674,16 +674,16 @@ def _fail_reason_from_metrics(metrics: dict) -> str:
     """Build a short human-readable reason from a ``status: "failed"`` record.
 
     Cost/timing failures carry ``failure_type`` + ``exc_type`` + ``exc_msg``
-    (see :meth:`TimedResult.as_record`); prefer those over the generic
-    ``error``/``message``/``reason`` fields the other suites use.
+    (see :meth:`TimedResult.as_record`); other suites carry ``failure_type`` +
+    ``error``. Both render as ``"<failure_type>: [<exc_type>: ]<message>"``.
     """
     exc_type = metrics.get("exc_type")
     exc_msg = metrics.get("exc_msg") or metrics.get("error")
     failure_type = metrics.get("failure_type")
-    if exc_type and exc_msg:
+    if exc_msg:
         head = str(exc_msg).strip().splitlines()[0][:160]
-        prefix = f"{failure_type}: " if failure_type else ""
-        return f"{prefix}{exc_type}: {head}"
+        prefix = "".join(f"{p}: " for p in (failure_type, exc_type) if p)
+        return f"{prefix}{head}"
     if failure_type:
         return str(failure_type)
     return _reason_from_entry(metrics) or "failed"

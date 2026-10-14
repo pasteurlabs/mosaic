@@ -426,6 +426,14 @@ class TestClassifyFromV1(unittest.TestCase):
         self.assertEqual(cell.status, FAILED)
         self.assertIn("tile_fft", cell.reason)
 
+    def test_failure_without_exc_type_keeps_message(self) -> None:
+        # Kernel-built failure records carry ``failure_type`` + ``error``
+        # instead of the timing harness's ``exc_type`` + ``exc_msg``.
+        fail = {"status": "failed", "failure_type": "nan", "error": "VJP is NaN"}
+        cell = self._classify([self.OK_M, fail])
+        self.assertEqual(cell.status, FAILED)
+        self.assertEqual(cell.reason, "nan: VJP is NaN")
+
     @staticmethod
     def _OOM() -> dict:
         return dict(_OOM_METRICS)

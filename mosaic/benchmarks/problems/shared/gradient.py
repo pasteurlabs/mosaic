@@ -56,6 +56,16 @@ def _vjp_grad(t: Any, inputs: dict, output_key: str, ic_key: str) -> jax.Array:
     return jax.grad(f)(inputs[ic_key])
 
 
+def _nonfinite_grad_error(g: jax.Array) -> str | None:
+    """Failure reason for a gradient with NaN/Inf entries; ``None`` if finite."""
+    if bool(jnp.all(jnp.isfinite(g))):
+        return None
+    return (
+        f"VJP returned non-finite gradient ({int(jnp.sum(jnp.isnan(g)))} NaN, "
+        f"{int(jnp.sum(jnp.isinf(g)))} Inf of {jnp.size(g)} values)"
+    )
+
+
 def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
     """Subspace cosine between fd and vjp directional-derivative vectors.
 
@@ -142,6 +152,9 @@ def fd_check(t: Any, ctx: KernelContext) -> dict:
     base_ic, ic_scale, g, vjp_arr, fd_per_eps = _fd_vjp_arrays(
         t, ctx, eps_values, n_dirs
     )
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        raise ValueError(nonfinite)
     eps_sweep: dict = {}
     for eps, fd_arr in fd_per_eps.items():
         denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
@@ -186,12 +199,18 @@ def param_sweep(t: Any, ctx: KernelContext) -> dict:
             "rel_error_std": float(np.std(np.abs(fd_arr - vjp_arr) / denom)),
             "cosine_mean": _fd_cosine(fd_arr, vjp_arr),
         }
+    metrics: dict = {
+        "grad_norm": float(jnp.linalg.norm(g)),
+        "ic_scale": ic_scale,
+        "eps_sweep": eps_sweep,
+    }
+    # A non-finite gradient fails this sweep point only; the rest of the sweep
+    # still runs. The NaN metrics stay so plots can mark where it broke.
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        metrics.update(status="failed", failure_type="nan", error=nonfinite)
     return {
-        "metrics": {
-            "grad_norm": float(jnp.linalg.norm(g)),
-            "ic_scale": ic_scale,
-            "eps_sweep": eps_sweep,
-        },
+        "metrics": metrics,
         "snapshot": np.asarray(g),
     }
 
