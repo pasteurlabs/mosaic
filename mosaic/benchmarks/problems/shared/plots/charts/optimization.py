@@ -893,9 +893,9 @@ def _sorted_sweep_vals(by_sweep: dict) -> list:
 def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Optimizer loss vs iteration, one panel per sweep value, log y.
 
-    Mirrors ``_plot_convergence_curves``: flat curves (< 1 % drop, i.e. no
-    usable gradient) are marked "no grad" and drawn dotted, and each curve
-    ends with its final IC recovery error (✗ if it did not converge).
+    Flat curves (< 1 % drop, i.e. no usable gradient) are marked "no grad" and
+    drawn dotted, and each curve ends with its final IC recovery error (× if
+    it did not converge).
     """
     from mosaic.benchmarks.core.io import legacy_by_solver
 
@@ -920,9 +920,9 @@ def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
             rows += [(name, panel, i, e, flat) for i, e in enumerate(errors) if e > 0]
             ic_err = r.get("final_ic_error")
             if ic_err is not None and errors[-1] > 0:
-                mark = "" if r.get("converged", False) else " ✗"
+                mark = "" if r.get("converged", False) else " ×"
                 ends.append(
-                    (name, panel, len(errors) - 1, errors[-1], f"IC={ic_err:.2f}{mark}")
+                    (name, panel, len(errors) - 1, errors[-1], f"IC={ic_err:.2g}{mark}")
                 )
     if not rows:
         return None
@@ -974,7 +974,7 @@ def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
         .properties(
             title=alt.Title(
                 f"{ctx.problem} — convergence curves (all {sweep_key} values)",
-                subtitle="Label at curve end = final IC recovery error (✗: above threshold); "
+                subtitle="Label at curve end = final IC recovery error (×: above threshold); "
                 "dotted = no gradient / flat loss",
             )
         )
