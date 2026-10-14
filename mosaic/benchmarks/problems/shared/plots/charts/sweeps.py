@@ -20,6 +20,7 @@ from .common import (
     legend_pick,
     log_axis,
     log_scale,
+    registry_order,
     solver_encodings,
     solver_legend,
     solver_lines,
@@ -634,9 +635,11 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Per-solver singular-value spectra σᵢ/σ₁, one line per jacobian_svd variant.
 
     Reads ``per_solver_spectra`` (already normalised by σ₁) from each
-    variant's ``result.json``, like ``plot_jacobian_svd_comparison``; panels
-    are the union of the variants' ``solver_names``. Long spectra are thinned
-    for display (steep tails kept exactly).
+    variant's ``result.json``; panels are the union of the solvers with a
+    spectrum, in registry order. They come from the per-solver result rows, not
+    ``extras.solver_names``: CI merges a partial re-run's rows into the
+    baseline but replaces ``extras`` wholesale, so that list can be short.
+    Long spectra are thinned for display (steep tails kept exactly).
     """
     from mosaic.benchmarks.problems.shared.plots.style import resolve_solver_alias
 
@@ -649,12 +652,11 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
         return None
 
     solvers, seen = [], set()
-    for _, data in variants:
-        for s in data.get("solver_names", []):
-            a = resolve_solver_alias(s) or s
-            if a not in seen:
-                seen.add(a)
-                solvers.append(s)
+    for s in registry_order(k for _, d in variants for k in d["per_solver_spectra"]):
+        a = resolve_solver_alias(s) or s
+        if a not in seen:
+            seen.add(a)
+            solvers.append(s)
     if not solvers:
         return None
     enc = solver_encodings(solvers)
