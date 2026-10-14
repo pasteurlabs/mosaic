@@ -12,6 +12,8 @@ Covers:
 
 from __future__ import annotations
 
+import socket
+import threading
 import time
 
 import pytest
@@ -30,6 +32,36 @@ from mosaic.benchmarks.core.harness import (
     [
         # ContainerDied is matched by exception NAME, not message
         ("ContainerDied", "anything", "container_died"),
+        # Tesseract server died mid-request: the requests.ConnectionError
+        # messages seen when the process, the Docker port proxy, or nothing
+        # at all answers the client.
+        (
+            "ConnectionError",
+            (
+                "('Connection aborted.', ConnectionResetError(104, "
+                "'Connection reset by peer'))"
+            ),
+            "container_died",
+        ),
+        (
+            "ConnectionError",
+            (
+                "('Connection aborted.', RemoteDisconnected('Remote end closed "
+                "connection without response'))"
+            ),
+            "container_died",
+        ),
+        (
+            "ConnectionError",
+            (
+                "HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries "
+                "exceeded with url: /vector_jacobian_product (Caused by "
+                "NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=8000): "
+                "Failed to establish a new connection: [Errno 111] Connection "
+                'refused"))'
+            ),
+            "container_died",
+        ),
         # OOM: matched by substrings in the message
         ("RuntimeError", "RESOURCE_EXHAUSTED: out of memory on device", "OOM"),
         ("RuntimeError", "CUDA_ERROR_OUT_OF_MEMORY", "OOM"),
@@ -74,6 +106,31 @@ def test_classify_failure_oom_beats_timeout_when_both_keywords_present():
 def test_classify_failure_container_died_short_circuits():
     """ContainerDied is matched by name and ignores message content."""
     assert classify_failure("ContainerDied", "out of memory") == "container_died"
+
+
+def test_classify_failure_server_dying_mid_request():
+    """A Tesseract server that vanishes mid-request is labelled container_died.
+
+    Exercises the real client path (tesseract-core over requests) against a
+    socket that stops listening and drops the open connection, which is what
+    the client sees when the container is killed.
+    """
+    from tesseract_core import Tesseract
+
+    srv = socket.create_server(("127.0.0.1", 0))
+    port = srv.getsockname()[1]
+
+    def die() -> None:
+        conn, _ = srv.accept()
+        conn.recv(1)
+        srv.close()
+        conn.close()
+
+    threading.Thread(target=die, daemon=True).start()
+    with pytest.raises(Exception) as exc_info:
+        Tesseract.from_url(f"http://127.0.0.1:{port}").apply({"x": 1.0})
+    exc = exc_info.value
+    assert classify_failure(type(exc).__name__, str(exc)) == "container_died"
 
 
 # ── TimedResult.as_record ─────────────────────────────────────────────────────
