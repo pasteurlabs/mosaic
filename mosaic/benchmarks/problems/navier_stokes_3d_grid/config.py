@@ -12,7 +12,6 @@ The problem definition is split across these modules:
 - :mod:`.optimization` — IC-recovery runner.
 - :mod:`.plots`        — per-experiment plot fns wired in below.
 - :mod:`.exclusions`   — per-(solver, experiment) opt-outs.
-- :mod:`.extras`       — cross-experiment aggregator plots.
 
 This module performs solver discovery, the canonical :class:`Problem`
 assembly, and the per-suite ``problem.add_experiment(...)`` calls with
@@ -55,13 +54,13 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
 )
 from mosaic.benchmarks.problems.shared.plots.gradient import (
     plot_fd_check,
+    plot_horizon_sweep_limits,
     plot_jacobian_svd_comparison,
 )
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from .exclusions import register as _register_exclusions
-from .extras import _plot_horizon_sweep_limits
 from .ics import _abc_flow, _rand_div_free_3d, _tgv3d, _tgv3d_analytic
 from .optimization import recovery
 from .physics import DIAGNOSTICS, make_inputs
@@ -345,7 +344,7 @@ problem.add_experiment(
         "dt": 0.05,
         "steps": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
     },
-    plot=_plot_horizon_sweep_limits,
+    plot=plot_horizon_sweep_limits,
 )
 problem.add_experiment(
     "gradient/jacobian_svd",

@@ -2,7 +2,7 @@
 title: Structural mechanics
 ---
 
-> Auto-generated 2026-06-15 19:21 UTC &nbsp;·&nbsp; 13 plots
+> Auto-generated 2026-10-13 13:54 UTC &nbsp;·&nbsp; 15 plots
 
 ![](figures/domain_structural_mesh.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
 
@@ -52,7 +52,9 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/structural-mesh/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
 ## Forward
 
@@ -99,7 +101,9 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.5, 0.7, 0.9}
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/agreement/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/forward/agreement/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/forward/agreement/curves.png" alt="" loading="lazy"></figure>
+```
 
 ### Baseline
 
@@ -141,7 +145,9 @@ Sweeps `N` ∈ {4, 6, 8, 12, 16}
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/baseline/curves.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/forward/baseline/curves.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/forward/baseline/curves.png" alt="" loading="lazy"></figure>
+```
 
 ### Physical Laws
 
@@ -187,7 +193,9 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
 
 :::
 
-![](../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/forward/physical_laws/physical_accuracy.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
@@ -197,6 +205,8 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
 | deal.II | 0 |
 | FEniCS | 0 |
 | Firedrake | 0 |
+| JAX-FEM | 0 |
+| torch-fem | 0 |
 | TopOpt.jl | 5.53e-03 |
 :::
 
@@ -211,7 +221,7 @@ Sweeps `F_total` ∈ {0.25, 0.5, 1.0, 2.0, 4.0}
 
 **Spatial Cost**
 
-Sweeps `nx` ∈ {4, 6, 8, 12, 16}
+Sweeps `nx` ∈ {4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128}
 
 ```json
 {
@@ -235,7 +245,13 @@ Sweeps `nx` ∈ {4, 6, 8, 12, 16}
       6,
       8,
       12,
-      16
+      16,
+      24,
+      32,
+      48,
+      64,
+      96,
+      128
     ]
   }
 }
@@ -271,18 +287,21 @@ Sweeps `steps` ∈ {1}
 
 :::
 
-![](../mosaic-results/structural-mesh/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
 ::: {.sortable-table}
 | Solver | Forward time | VJP time |
 |---|---|---|
-| TopOpt.jl | 0.0127 s @ N=16 | 0.0342 s @ N=16 |
-| Firedrake | 0.103 s @ N=16 | 0.285 s @ N=16 |
-| FEniCS | 0.138 s @ N=16 | 0.472 s @ N=16 |
-| JAX-FEM | 0.154 s @ N=16 | 0.52 s @ N=16 |
-| deal.II | 1.54 s @ N=16 | — |
+| TopOpt.jl | 0.631 s @ N=128 | 1.06 s @ N=128 |
+| torch-fem | 0.819 s @ N=128 | 2.19 s @ N=128 |
+| Firedrake | 2.57 s @ N=128 | 6.85 s @ N=128 |
+| deal.II | 3.94 s @ N=128 | — |
+| FEniCS | 4.37 s @ N=128 | 13.4 s @ N=128 |
+| JAX-FEM | 13.8 s @ N=128 | 38.8 s @ N=128 |
 :::
 
 *Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
@@ -333,7 +352,9 @@ U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ 
 
 :::
 
-![](../mosaic-results/structural-mesh/gradient/fd_check/fd_check.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
 
 ### Parameter Sweep
 
@@ -387,16 +408,20 @@ Sweeps `rho_0` ∈ {0.2, 0.4, 0.6, 0.8}
 
 :::
 
-![](../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/gradient/param_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
 ::: {.sortable-table}
 | Solver | Best-ε FD error | 1 − cosine |
 |---|---|---|
-| FEniCS | 2.10e-05 | 1.96e-10 |
-| Firedrake | 2.10e-05 | 1.96e-10 |
-| TopOpt.jl | 2.10e-05 | 1.96e-10 |
+| FEniCS | 2.11e-05 | 1.97e-10 |
+| Firedrake | 2.11e-05 | 1.97e-10 |
+| TopOpt.jl | 2.11e-05 | 1.97e-10 |
+| JAX-FEM | 2.11e-05 | 1.97e-10 |
+| torch-fem | 2.11e-05 | 1.97e-10 |
 :::
 
 *Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
@@ -443,12 +468,30 @@ SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr
 
 :::
 
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt.png){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif){.lightbox}
-![](../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_fields.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_3d.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_FEniCS.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_Firedrake.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_JAX-FEM.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_TopOpt.jl.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.vl.json"><img class="m-chart-fallback" src="../mosaic-results/structural-mesh/optimization/topopt/topopt_evolution_torch-fem.gif" alt="" loading="lazy"></figure>
+```
 
 **Solver ranking**
 
@@ -459,6 +502,7 @@ SIMP topology optimisation on a $16\times8\times8$ cantilever beam with Adam (lr
 | FEniCS | 1.00e-03 | no |
 | Firedrake | 1.00e-03 | no |
 | TopOpt.jl | 1.00e-03 | no |
+| torch-fem | 1.00e-03 | no |
 :::
 
 *Ranked by the final objective reached within the iteration budget (lower is better).*

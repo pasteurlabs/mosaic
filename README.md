@@ -87,7 +87,7 @@ Start here:
 
 ## Run the benchmarks
 
-**Requires** Python ≥ 3.10, Docker, and — for GPU solvers — the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
+**Requires** Python ≥ 3.11, Docker, and — for GPU solvers — the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
 
 > [!WARNING]
 > We strongly recommend **Linux with Docker Engine**. Docker Desktop on macOS/Windows runs containers in a VM, adding significant overhead and ARM compatibility issues on Apple Silicon. On macOS/Windows, prefer a Linux VM or WSL 2 with Docker Engine installed natively.

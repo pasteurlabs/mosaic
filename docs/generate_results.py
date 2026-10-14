@@ -261,7 +261,7 @@ def _get_config(problem: str):
     """Lazily import and return the problem config.
 
     ``mosaic.benchmarks.problems`` transitively imports the full compute stack
-    (jax, jaxlib, matplotlib, scipy, ...), which is hundreds of MB resident.
+    (jax, jaxlib, scipy, ...), which is hundreds of MB resident.
     Importing it at module load OOM-kills resource-constrained docs builders
     (e.g. Read the Docs) even when there are no results to describe. Defer the
     import to the few call sites that actually need problem metadata.
@@ -581,12 +581,34 @@ def _sort_pngs(paths: list[Path]) -> list[Path]:
     return sorted(paths, key=key)
 
 
-def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
+def _img_src(problem: str, suite: str, experiment: str, png: Path) -> str:
     if experiment:
-        return (
-            f"![]({_IMG_BASE}/{problem}/{suite}/{experiment}/{png.name}){{.lightbox}}"
-        )
-    return f"![]({_IMG_BASE}/{problem}/{suite}/{png.name}){{.lightbox}}"
+        return f"{_IMG_BASE}/{problem}/{suite}/{experiment}/{png.name}"
+    return f"{_IMG_BASE}/{problem}/{suite}/{png.name}"
+
+
+def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
+    return f"![]({_img_src(problem, suite, experiment, png)}){{.lightbox}}"
+
+
+def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | None:
+    """Interactive version of a plot, or None if none was exported.
+
+    The plot harness writes the Vega-Lite spec ``<plot>.vl.json`` next to each
+    ``<plot>.png`` from the same chart definition. The figure fetches it
+    lazily (docs/charts.html) and keeps the PNG as the fallback when there is
+    no JS or the chart fails to load.
+    """
+    if not png.with_suffix(".vl.json").exists():
+        return None
+    src = _img_src(problem, suite, experiment, png)
+    spec = src.removesuffix(".png") + ".vl.json"
+    return (
+        "```{=html}\n"
+        f'<figure class="m-chart" data-spec="{spec}">'
+        f'<img class="m-chart-fallback" src="{src}" alt="" loading="lazy">'
+        "</figure>\n```"
+    )
 
 
 def _sweep_line(params: dict) -> str:
@@ -718,9 +740,9 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                 continue
             suite = suite_dir.name
 
-            # Suite-level PNGs/GIFs (e.g. cost.png sitting directly in the suite dir)
+            # Suite-level PNGs (e.g. cost.png sitting directly in the suite dir)
             suite_pngs = _sort_pngs(
-                [f for f in suite_dir.iterdir() if f.suffix in (".png", ".gif")]
+                [f for f in suite_dir.iterdir() if f.suffix == ".png"]
             )
             if suite_pngs:
                 tree.setdefault(problem, {}).setdefault(suite, {})[""] = suite_pngs
@@ -739,9 +761,7 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                     continue
                 if "_debug" in exp_dir.name:
                     continue
-                pngs = _sort_pngs(
-                    [f for f in exp_dir.iterdir() if f.suffix in (".png", ".gif")]
-                )
+                pngs = _sort_pngs([f for f in exp_dir.iterdir() if f.suffix == ".png"])
                 if pngs:
                     tree.setdefault(problem, {}).setdefault(suite, {})[exp_dir.name] = (
                         pngs
@@ -754,7 +774,7 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                     if "_debug" in sub_dir.name:
                         continue
                     sub_pngs = _sort_pngs(
-                        [f for f in sub_dir.iterdir() if f.suffix in (".png", ".gif")]
+                        [f for f in sub_dir.iterdir() if f.suffix == ".png"]
                     )
                     if not sub_pngs:
                         continue
@@ -884,7 +904,8 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
 
             lines.append("")
             for png in pngs:
-                lines.append(_img_tag(problem, suite, experiment, png))
+                chart = _chart_block(problem, suite, experiment, png)
+                lines.append(chart or _img_tag(problem, suite, experiment, png))
             lines.append("")
 
         # Best-solver leaderboard, shown below the suite's plots (issue 8).
