@@ -33,24 +33,20 @@ STAGGERED_MAC_BIAS = Exclusion(
 )
 JAX_CFD_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract represents the cylinder by hard-mask volume "
-    "penalization (velocity zeroed after each projection step), which is "
-    "projection-inconsistent, and it rejects the Neumann outflow BC. "
-    "jax-cfd itself has non-periodic pressure solvers for channel flows",
+    "this tesseract implements only periodic flows; jax-cfd itself has "
+    "non-periodic pressure solvers for channel flows, which are not wired "
+    "up here",
 )
 INS_JL_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract represents the cylinder by hard-mask Brinkman "
-    "penalization (velocity zeroed after each projection), which is "
-    "projection-inconsistent and diverges; INS.jl itself supports the "
-    "obstacle via a finite Brinkman forcing term with its native channel "
-    "BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers "
-    "handle non-periodic BCs), but that route is not implemented here",
+    "this tesseract implements only periodic flows; INS.jl itself supports "
+    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
+    "Brinkman forcing, which are not wired up here",
 )
 WARP_NS_NO_OBSTACLE = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "this tesseract's IPCS solver uses a spectral FFT pressure solve and is "
-    "periodic-only; obstacle and inflow flows are not implemented in it",
+    "this tesseract's projection solver uses a spectral FFT pressure solve "
+    "and is periodic-only; obstacle and inflow flows are not implemented in it",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
