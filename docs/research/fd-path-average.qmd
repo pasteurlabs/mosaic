@@ -1,0 +1,128 @@
+---
+title: "Evaluating path-average gradient diagnostics"
+subtitle: "Research protocol and evidence; no production check changes"
+---
+
+This research note evaluates whether a path-average derivative diagnostic helps explain finite-difference discrepancies. It does **not** propose replacing Mosaic's local gradient check. A derivative averaged over a finite interval can agree with a finite difference even when the derivative at the evaluation point is wrong.
+
+The evaluation uses an isolated checkout of `main` at `1b47f6213822dd4c4d20ca27682b306b39fe274d`. Numerical jobs, drivers, and raw artifacts live in the external `fd-path-average-evaluation-20261014` campaign. This document is the only proposed repository change; no solver, shared API, benchmark, or CI behavior changes. It is a review-only research note, not added to the website render list.
+
+Reproduction and provenance: [campaign README](https://github.com/pasteurlabs/mosaic/blob/efb09882cc3b71464e4ca52acff78a9cb4ad90d9/README.md), [frozen protocol](https://raw.githubusercontent.com/pasteurlabs/mosaic/efb09882cc3b71464e4ca52acff78a9cb4ad90d9/protocol.json), and [full raw evaluation](https://raw.githubusercontent.com/pasteurlabs/mosaic/efb09882cc3b71464e4ca52acff78a9cb4ad90d9/full-v2/results/evaluation.json). All result links point to the same immutable artifact commit.
+
+## What Mosaic already checks
+
+The shared `fd_check` kernel evaluates a VJP at the input and central finite differences over an epsilon sweep. It retains individual directional errors, finite-difference values, and cosine agreement for each epsilon. Its plots already show error versus epsilon and gradient fields. The related parameter-sweep plot summarizes the best epsilon at each parameter value. This evaluation therefore asks whether an **additional explanatory diagnostic** is useful, not whether Mosaic should introduce epsilon sweeps.
+
+See the existing [shared gradient kernel](https://github.com/pasteurlabs/mosaic/blob/1b47f62/mosaic/benchmarks/problems/shared/gradient.py), the [current Altair gradient chart](https://github.com/pasteurlabs/mosaic/blob/1b47f62/mosaic/benchmarks/problems/shared/plots/charts/gradient.py), and [parameter-sweep reductions](https://github.com/pasteurlabs/mosaic/blob/1b47f62/mosaic/benchmarks/problems/shared/plots/charts/sweeps.py). The displayed FD error averages finite directional errors and respects the chart's solver exclusions; raw per-direction sweep values remain available for analysis.
+
+## Two different questions
+
+For a scalar objective $f$, input $x$, and unit direction $d$, define
+
+$$
+D_\epsilon = \frac{f(x+\epsilon d)-f(x-\epsilon d)}{2\epsilon},
+\qquad
+G_0 = \nabla f(x)^T d.
+$$
+
+The existing local check compares $D_\epsilon$ with $G_0$. With a resolved perturbation and sufficiently small epsilon, this tests a local derivative. Curvature, branch crossings, and finite precision can prevent a useful finite-difference regime at a particular epsilon.
+
+The proposed supplementary diagnostic estimates
+
+$$
+\bar G_{\epsilon,m} = \frac12\sum_{i=1}^{m}w_i\,\nabla f(x+\epsilon t_i d)^T d,
+$$
+
+where $t_i,w_i$ are Gauss–Legendre nodes and weights on $[-1,1]$. It compares an interval-average derivative with the same central finite difference. For an absolutely continuous scalar path, the exact derivative integral equals the endpoint difference. A finite quadrature rule may not resolve narrow features or kinks. Increasing its order need not reduce the discrepancy monotonically. Quantized or discontinuous forward maps need additional care: differentiating through a cast does not make the literal map continuous.
+
+Neither agreement between JVP and VJP nor agreement between a derivative and an integral computed using the same derivative implementation supplies an independent gold standard.
+
+## Frozen evaluation
+
+The external evaluation includes analytic controls with known derivatives and a native JAX-CFD `ns-grid` case from the stated `main` checkout. All eight controls, declared epsilon values, and quadrature orders are retained. Failed or unavailable evaluations remain explicit. No epsilon or order is selected after inspecting outcomes to turn a failure into a pass.
+
+| Control | Question |
+|:--|:--|
+| Correct linear map | Sanity check: both comparisons recover the exact constant derivative. |
+| Smooth curvature | Can an accurate local derivative disagree with a large-step FD while an interval average agrees? |
+| Nearby continuous kink | A well-defined center derivative, but the finite interval may cross a kink. |
+| Kink at the center | The classical local derivative is undefined; agreement cannot validate a unique derivative. |
+| Biased wrong derivative | Does the diagnostic detect a broad derivative error? |
+| Localized wrong derivative | Can quadrature miss a local defect that matters to the original check? |
+| Cancellation | Can positive and negative derivative errors cancel in the interval average? |
+| Discontinuous forward map | What does agreement mean when the integral identity does not apply? |
+
+The analytic epsilon ladder is `0.001, 0.03, 0.1, 0.3, 1`, with quadrature orders `8, 16, 32`. The illustrative agreement rule is absolute tolerance `1e-6` plus relative tolerance `1e-3`; it is not a proposed CI threshold. The native case uses a `32 × 32` multimode initial condition (seed `0`), viscosity `0.01`, timestep `0.01`, and `1` or `20` native steps. The objective is the existing shared `_vjp_grad` objective, `jnp.sum(result**2)`, evaluated through the normal Tesseract interface. Directions are the normalized center gradient and a fixed random input direction (seed `3401`). Epsilon is multiplied by the initial condition RMS, matching the shared check. The primary FD uses the exact shared float32 expression `jnp.sum(plus**2 - minus**2) / (2 * absolute_epsilon)` and the AD comparison uses the shared dot product. A float64 FD reduction is retained only as a separately labeled arithmetic diagnostic.
+
+All plotted relative discrepancies use
+
+$$
+E(a,b)=\frac{|a-b|}{\max(|a|,|b|,10^{-30})}.
+$$
+
+This is the evaluation's display normalization. The native objective, FD arithmetic, and directional dot product match the shared implementation; the displayed discrepancy is a separate reporting choice. For example, supplying `1.5` when the true derivative is `1` is a **50% error relative to truth**, but its symmetric AD–FD discrepancy is **33.33%** when FD equals `1`.
+
+A false pass means accepting a deliberately incorrect derivative where the control defines the required local derivative. A false alarm means rejecting a correct, well-defined local derivative under the declared comparison rule. A kink at the evaluation point is reported as **local derivative undefined**, not counted as a false alarm. The off-center cancelling-error control has a correct center derivative; its failure to reveal wrong derivatives elsewhere is a limitation of pathwise verification, not a false local pass. Native solver outcomes have no analytic derivative oracle and are reported as consistency evidence rather than true/false correctness classifications.
+
+The comparison reports local FD versus center AD, FD versus each path-average order, and analytic ground truth where available. Costs include derivative evaluations, forward evaluations, compilation/warmup policy, and elapsed time. Path-average checks require additional derivative evaluations at every quadrature node; existing center derivatives and FD endpoints may be shared, but this reuse must be stated.
+
+## Analytic results
+
+The table shows one fixed slice, **epsilon `0.1`, order `32`**, across all eight controls. Errors are the symmetric discrepancy defined above, expressed as percentages. The complete epsilon/order results are retained externally; this slice is not a best-epsilon selection.
+
+![All analytic controls, epsilons, and quadrature orders.](https://raw.githubusercontent.com/pasteurlabs/mosaic/efb09882cc3b71464e4ca52acff78a9cb4ad90d9/plots/artifacts/analytic_controls.png)
+
+| Control | True center derivative | Supplied center derivative | Center–FD error | Average–FD error | Interpretation |
+|:--|--:|--:|--:|--:|:--|
+| Correct linear | 1 | 1 | 0% | <`1e-12`% | Both agree, as expected. |
+| Smooth curvature | 1.12 | 1.12 | 0.885% | <`1e-12`% | Averaging explains the finite-step discrepancy; the center derivative was already correct. |
+| Nearby continuous kink | 0 | 0 | 100% | 0.968% | Neither comparison meets the illustrative tolerance at this epsilon; quadrature has not resolved the kink accurately enough. |
+| Kink at the center | Undefined | 1 | 0% | <`1e-12`% | Both agree despite there being no unique classical center derivative. |
+| Biased wrong derivative | 1.98007 | 2.17807 | 9.166% | 9.091% | Both detect the broad backward bias. |
+| Localized wrong center | 1 | 1.5 | 33.333% | <`1e-12`% | The local check detects the defect; path averaging misses it. |
+| Cancelling off-center errors | 1 | 1 | 0% | 0% | The center is correct, but the average hides wrong derivatives elsewhere on the path. |
+| Discontinuous forward | 1 | 1 | 83.333% | 83.333% | The interval crosses a jump; neither discrepancy establishes a wrong local derivative. |
+
+These are concrete counterexamples, not estimates of population false-pass or false-alarm rates. The localized-defect control directly rules out using path-average agreement to certify the center derivative. The kink control also limits its use as an automatic explanation: at order `32`, average–FD errors for epsilon `0.03`, `0.1`, `0.3`, and `1` are approximately **9.61%, 0.968%, 3.2%, and 2.0%**. Finite quadrature does not automatically resolve a nonsmooth path.
+
+## Native results
+
+The full run completed all **20 direction/horizon/epsilon combinations** and **60 path-average evaluations**. Native evidence covers one solver, one initial condition, two directions, and two horizons; it is not a repository-wide estimate. The figure includes both directions at both horizons and every declared epsilon/order; no best-case curve is selected.
+
+![All four native cases: local and path-average FD discrepancies.](https://raw.githubusercontent.com/pasteurlabs/mosaic/efb09882cc3b71464e4ca52acff78a9cb4ad90d9/plots/artifacts/native_comparison.png)
+
+The table summarizes order `32`. Each cell is **center–FD → average–FD discrepancy (%)**; the full figure also retains orders `8` and `16`.
+
+| Native steps / direction | ε = 0.001 | ε = 0.03 | ε = 0.1 | ε = 0.3 | ε = 1 |
+|:--|--:|--:|--:|--:|--:|
+| 1 / gradient | 0.01158 → 0.01153 | 0.000105 → 0.000159 | 0.0000560 → 0.000116 | 0.0000490 → 0.0000248 | 0.0000280 → 0.0000542 |
+| 1 / random | 3.8412 → 3.8416 | 0.01361 → 0.01146 | 0.02216 → 0.02395 | 0.01200 → 0.000497 | 0.06222 → 0.000549 |
+| 20 / gradient | 0.004397 → 0.004396 | 0.001372 → 0.001250 | 0.000953 → 0.000817 | 0.000202 → 0.0000328 | 0.000173 → 0.0000241 |
+| 20 / random | 5.3988 → 5.4008 | 0.11532 → 0.11734 | 0.01600 → 0.03898 | 0.03016 → 0.007323 | 0.13173 → 0.002485 |
+
+Path averaging helps some large-step random-direction comparisons, but does not solve the small-epsilon discrepancies. At epsilon `0.001`, random-direction errors remain approximately **3.84%** and **5.40%**. It can also worsen agreement: at `20` steps and epsilon `0.1`, the discrepancy increases from **0.0160%** to **0.0390%**. These are consistency measurements for the native numerical map, not independent proof that its derivative is right or wrong. The separately recorded float64 reduction changes diagnostic arithmetic and is not substituted for the primary shared float32 check.
+
+## Measured cost
+
+| Native steps | FD endpoint pair, median | Order 8 average, median | Order 16 average, median | Order 32 average, median |
+|--:|--:|--:|--:|--:|
+| 1 | 0.00377 s | 0.0674 s | 0.1359 s | 0.2707 s |
+| 20 | 0.00667 s | 0.1867 s | 0.3884 s | 0.8038 s |
+
+These are in-process measurements following three center-forward and objective-gradient warmup repetitions. First-use perturbation and FD arithmetic can still include JAX compilation; the medians retain every measured direction/epsilon cell. They are not uniformly steady-state timings. Gauss nodes were evaluated sequentially on CPU; potential batching gains and costs on other backends are unmeasured. The warm center objective-gradient medians were **8.32 ms** (one step) and **18.91 ms** (twenty steps), providing the direct gradient-call baseline. An objective-gradient call includes the primal forward and VJP. The three orders independently add **56 objective-gradient calls per direction/epsilon combination**, or `56` forward API calls plus `56` VJP API calls. This excludes the reusable center gradient and the two FD endpoint forwards. Across all ten combinations per horizon, the recorded totals are **588 forward API calls and 564 VJP API calls**, including initial and warmup measurements. No claim is made about network/container overhead or internal solver replay counts.
+
+Initial forward/objective-gradient calls took `0.429 / 1.036 s` for one native step and `0.307 / 1.868 s` for twenty steps. The native evaluation timer, including its imports and case setup, recorded **33.41 s**; analytical-control work is outside that timer. Per-call timings above exclude input/setup work. Environment installation is outside both timers. The raw receipts preserve every timing and API count.
+
+![Measured cost samples and medians after center-call warmup; first-use arithmetic compilation remains visible.](https://raw.githubusercontent.com/pasteurlabs/mosaic/efb09882cc3b71464e4ca52acff78a9cb4ad90d9/plots/artifacts/native_costs.png)
+
+## Recommendation
+
+**Retain the existing local epsilon-sweep check. Do not add a default path-average gate.** If implemented later, path averaging should be an opt-in explanatory diagnostic for a specific unresolved discrepancy, with all quadrature orders, costs, and assumptions visible. It must not turn a failed local check into an automatic pass.
+
+The controls establish a concrete false-certification risk: a `50%` wrong center derivative can produce essentially perfect average–FD agreement. The native case shows selective explanatory benefit, substantial additional calls, and no universal improvement over the existing epsilon sweep. Kinks and jumps also require explicit interpretation. This evidence supports investigation on demand, not a replacement correctness criterion or a new default CI requirement.
+
+## Separate motivating evidence
+
+Earlier buoyancy work used source `a2339b9587b2eccb845c324325cb5288aae6aa04`, not the `main` checkout evaluated here. In one prespecified scalar/small-scale probe, path-average AD approached finite differences much more closely than center AD did. That motivated this evaluation. It did not establish a native AD defect, identify a limiter-specific cause, or validate an alternative gradient. Those results remain a separate experiment; they are not included in the tables or native timing measurements above.
+
+The separate buoyancy evidence is preserved in this [immutable path-average figure](https://github.com/pasteurlabs/mosaic/blob/e8031541e1dd16491821f95ab885de93c0acea25/data_mix_256/native_gradient_audit/path_average.png). The [raw path-average results](https://raw.githubusercontent.com/pasteurlabs/mosaic/e8031541e1dd16491821f95ab885de93c0acea25/data_mix_256/native_gradient_audit/path_average_audit.json) retain the epsilon/order values. Their source is the buoyancy commit stated above, not this evaluation’s `main` commit.
