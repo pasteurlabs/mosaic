@@ -420,10 +420,11 @@ def _bluestein_setup(n: int, device: str) -> dict:
     """Precompute the Bluestein chirp and the (pre-FFT'd) kernel for length ``n``.
 
     Returns the chirp ``w`` (length ``n``, as a complex vec2f array broadcast
-    to a row) and ``B = fft(b)`` (length ``m = next_pow2(2n-1)``), both device
-    arrays. ``b`` is the zero-padded, wrapped conjugate-chirp convolution
-    kernel; its FFT is precomputed on the host once per ``n`` since it is
-    constant across timesteps and carries no gradient.
+    to a row) and ``B = fft(b) / m`` (length ``m = next_pow2(2n-1)``), both
+    device arrays. ``b`` is the zero-padded, wrapped conjugate-chirp
+    convolution kernel; its FFT is precomputed on the host once per ``n`` since
+    it is constant across timesteps and carries no gradient. The ``1/m``
+    cancels the unnormalized ``wp.tile_ifft`` that closes the convolution.
     """
     m = _next_pow2(2 * n - 1)
     j = np.arange(n)
@@ -432,7 +433,7 @@ def _bluestein_setup(n: int, device: str) -> dict:
     b = np.zeros(m, dtype=np.complex128)
     b[:n] = np.conj(w)
     b[m - n + 1 :] = np.conj(w[1:])[::-1]
-    B = np.fft.fft(b)
+    B = np.fft.fft(b) / m
 
     def _to_row_vec2f(arr: np.ndarray) -> wp.array:
         # shape (len, 2) -> (1, len, 2) so Warp reads it as a (1, len) array of
@@ -506,10 +507,11 @@ def _bluestein_kernels(n: int, m: int):
 def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.array:
     """Length-``n`` DFT along the last axis of a ``(batch, n)`` complex array.
 
-    ``direction`` is ``"fwd"`` or ``"bwd"`` (inverse). The inverse reuses the
-    forward transform via ``ifft(x) = conj(fft(conj(x)))/n``; here that identity
-    is folded into the chirp so a single code path serves both. Uses only
-    power-of-two (length-``m``) tile FFTs, so it compiles on GPU for any ``n``.
+    ``direction`` is ``"fwd"`` or ``"bwd"`` (inverse). Both are unnormalized,
+    like ``wp.tile_fft``/``wp.tile_ifft`` on the power-of-two path, so callers
+    apply the same ``1/n`` per axis either way. The inverse reuses the forward
+    transform via ``n * ifft(x) = conj(fft(conj(x)))``. Uses only power-of-two
+    (length-``m``) tile FFTs, so it compiles on GPU for any ``n``.
 
     Every launch writes fresh ``requires_grad`` buffers so ``wp.Tape`` tracks
     the whole chain natively (no ``record_func`` needed) — the chirp/kernel
@@ -521,7 +523,7 @@ def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.
     bk = _bluestein_kernels(n, m)
     pow2 = _fft_kernels_2d(m)
 
-    # For the inverse, conjugate on the way in and out and rescale by 1/n.
+    # For the inverse, conjugate on the way in and out.
     conj_in = direction == "bwd"
 
     src = x
@@ -573,27 +575,20 @@ def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.
         device=device,
     )
     if conj_in:
-        y = _conj_scale_rows(y, 1.0 / float(n), device)
+        y = _conj_rows(y, device)
     return y
 
 
 @functools.cache
 def _conj_kernels(_tag: str = "bluestein_conj"):
-    """Conjugate / conjugate-and-scale kernels shared across all Bluestein sizes."""
+    """Conjugate kernel shared across all Bluestein sizes."""
 
     @wp.kernel(module="bluestein_conj")
     def conj_k(x: wp.array2d(dtype=wp.vec2f), y: wp.array2d(dtype=wp.vec2f)) -> None:
         i, j = wp.tid()
         y[i, j] = wp.vec2f(x[i, j][0], -x[i, j][1])
 
-    @wp.kernel(module="bluestein_conj")
-    def conj_scale_k(
-        x: wp.array2d(dtype=wp.vec2f), s: float, y: wp.array2d(dtype=wp.vec2f)
-    ) -> None:
-        i, j = wp.tid()
-        y[i, j] = wp.vec2f(x[i, j][0] * s, -x[i, j][1] * s)
-
-    return {"conj": conj_k, "conj_scale": conj_scale_k}
+    return {"conj": conj_k}
 
 
 def _conj_rows(x: wp.array, device: str) -> wp.array:
@@ -688,18 +683,6 @@ def _spectral_poisson_2d_bluestein(
     out = _bluestein_fft_rows(out, n, "bwd", device)
     out = _transpose_rows(out, device)
     return out
-
-
-def _conj_scale_rows(x: wp.array, s: float, device: str) -> wp.array:
-    y = wp.zeros(x.shape, dtype=wp.vec2f, requires_grad=True, device=device)
-    wp.launch(
-        _conj_kernels()["conj_scale"],
-        dim=x.shape,
-        inputs=[x, s],
-        outputs=[y],
-        device=device,
-    )
-    return y
 
 
 @functools.cache
