@@ -7,7 +7,14 @@ import types
 from enum import Enum
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, SkipValidation, create_model
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SkipValidation,
+    create_model,
+    model_validator,
+)
 from tesseract_core.runtime import Array, Differentiable, Float32, Int32
 
 # ---------------------------------------------------------------------------
@@ -18,10 +25,10 @@ from tesseract_core.runtime import Array, Differentiable, Float32, Int32
 class BCType(str, Enum):
     """Boundary condition type for a single domain face."""
 
-    PERIODIC = "periodic"
-    NO_SLIP = "no_slip"  # homogeneous Dirichlet — zero velocity at wall
-    NEUMANN = "neumann"  # zero normal derivative — outflow / symmetry
-    DIRICHLET = "dirichlet"  # prescribed velocity — inflow
+    PERIODIC = "periodic"  # wraps to the opposite face; must be set on both faces
+    NO_SLIP = "no_slip"  # wall at rest: zero velocity
+    NEUMANN = "neumann"  # outflow: zero normal velocity gradient and p = 0
+    DIRICHLET = "dirichlet"  # prescribed velocity: inflow, or a moving wall
 
 
 class FaceBC(BaseModel):
@@ -32,7 +39,8 @@ class FaceBC(BaseModel):
         default=None,
         description=(
             "Velocity vector for DIRICHLET type (ndim components). "
-            "None is equivalent to NO_SLIP (zero velocity)."
+            "None is equivalent to NO_SLIP (zero velocity), unless the face is "
+            "x_lo and the inputs carry an inflow profile."
         ),
     )
 
@@ -40,14 +48,19 @@ class FaceBC(BaseModel):
 class GridBC(BaseModel):
     """Per-face boundary conditions for a Cartesian grid.
 
-    Default: all PERIODIC — matches the current behaviour of every grid solver
-    so existing call sites require no changes.
+    Default: all PERIODIC.
 
     Face ordering::
 
         x_lo / x_hi  — left / right  (x-axis)
         y_lo / y_hi  — front / back  (y-axis)
         z_lo / z_hi  — bottom / top  (z-axis)
+
+    Every solver must either implement the conditions it receives or raise
+    (``ValueError`` from a schema validator, or ``NotImplementedError`` in
+    ``apply``). Silently substituting a different condition is not allowed:
+    the harness compares solvers on the assumption that they all solve the
+    problem the inputs describe.
 
     Example — 2-D channel flow (periodic in x, no-slip walls in y)::
 
@@ -65,6 +78,17 @@ class GridBC(BaseModel):
     y_hi: FaceBC = Field(default_factory=FaceBC)
     z_lo: FaceBC = Field(default_factory=FaceBC)
     z_hi: FaceBC = Field(default_factory=FaceBC)
+
+    @model_validator(mode="after")
+    def _check_periodic_pairs(self) -> "GridBC":
+        for lo, hi in (("x_lo", "x_hi"), ("y_lo", "y_hi"), ("z_lo", "z_hi")):
+            lo_t, hi_t = getattr(self, lo).type, getattr(self, hi).type
+            if (lo_t == BCType.PERIODIC) != (hi_t == BCType.PERIODIC):
+                raise ValueError(
+                    f"periodic must be set on both faces of an axis, got "
+                    f"{lo}={lo_t.value!r}, {hi}={hi_t.value!r}"
+                )
+        return self
 
     @property
     def is_fully_periodic(self) -> bool:
@@ -90,25 +114,29 @@ class ObstacleShape(str, Enum):
 class GridObstacle(BaseModel):
     """Geometric obstacle embedded in the flow domain (no-slip wall).
 
-    Coordinates are expressed as fractions of domain_extent so the spec is
-    resolution-independent.  Solvers that work on a rasterized lattice (XLB,
-    Lettuce) convert center/radius to grid indices internally.
+    Coordinates are physical, measured from the domain's lower-left corner in
+    the same length units as ``domain_extent``. Each solver represents the
+    surface its own way (body-fitted mesh, staircase cells, immersed boundary,
+    bounce-back links).
     """
 
     shape: ObstacleShape = ObstacleShape.CYLINDER
-    center: list[float] = Field(
-        default=[0.5, 0.5],
-        description="Obstacle center as fraction of domain_extent per axis.",
-    )
+    center: list[float] = Field(description="Obstacle center, one entry per axis.")
     radius: float | None = Field(
-        default=None,
-        description="Cylinder radius as fraction of domain_extent (CYLINDER only).",
+        default=None, description="Cylinder radius (CYLINDER only)."
     )
     half_widths: list[float] | None = Field(
-        default=None,
-        description="Box half-widths per axis as fractions of domain_extent (BOX only).",
+        default=None, description="Box half-widths per axis (BOX only)."
     )
     bc: Literal["no_slip"] = "no_slip"
+
+    @model_validator(mode="after")
+    def _check_size(self) -> "GridObstacle":
+        if self.shape == ObstacleShape.CYLINDER and self.radius is None:
+            raise ValueError("a cylinder obstacle needs a radius")
+        if self.shape == ObstacleShape.BOX and self.half_widths is None:
+            raise ValueError("a box obstacle needs half_widths")
+        return self
 
 
 # ---------------------------------------------------------------------------

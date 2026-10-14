@@ -13,15 +13,16 @@ import numpy as np
 import pandas as pd
 
 from .common import (
+    MAX_FIELD,
     Ctx,
     cell_outline,
-    cell_px,
     field_cells,
     field_xy,
     legend_pick,
     linked_cell,
     log_axis,
     log_scale,
+    panel_px,
     solver_encodings,
     solver_lines,
 )
@@ -47,7 +48,8 @@ _PA_FEM = {
 
 _REF_GREY = "#aaaaaa"
 
-# Longest side of a raw-field panel (16 panels per chart; see ``fields_raw``).
+# Side of a square raw-field panel; non-square fields keep the same number of
+# cells (16 panels per chart; see ``fields_raw``).
 _GRID_FIELD = 32
 
 
@@ -289,8 +291,9 @@ def fields_raw(ctx: Ctx) -> alt.TopLevelMixin | None:
     shows the absolute vorticity, outlining the same cell in every panel.
 
     Sixteen 64² panels would embed ~65k cells, so fields are subsampled to
-    :data:`_GRID_FIELD` per side and the cells ship as inline CSV keyed by
-    panel; solver, sweep value and max|ω| are joined back by lookup.
+    about :data:`_GRID_FIELD`² cells each, keeping their aspect ratio, and the
+    cells ship as inline CSV keyed by panel; solver, sweep value and max|ω|
+    are joined back by lookup.
     """
     from mosaic.benchmarks.problems.shared.plots.style import vorticity_2d
 
@@ -308,7 +311,11 @@ def fields_raw(ctx: Ctx) -> alt.TopLevelMixin | None:
             if key not in npz or npz[key].ndim < 2:
                 continue
             w = vorticity_2d(npz[key])
-            step = max(1, math.ceil(max(w.shape) / _GRID_FIELD))
+            step = max(
+                1,
+                math.ceil(math.sqrt(w.size) / _GRID_FIELD),
+                math.ceil(max(w.shape) / MAX_FIELD),
+            )
             vmax = float(np.abs(w).max()) or 1.0
             cells = field_cells(w[::step, ::step] / vmax, p=len(panels))
             panels.append((len(panels), name, col, vmax))
@@ -328,8 +335,9 @@ def fields_raw(ctx: Ctx) -> alt.TopLevelMixin | None:
         ),
     )
 
-    n = int(cells["i"].max()) + 1
-    size = cell_px(n, total=160)
+    width, height = panel_px(
+        int(cells["i"].max()) + 1, int(cells["j"].max()) + 1, total=160
+    )
     cell = linked_cell()
     return (
         alt.Chart(source)
@@ -356,7 +364,7 @@ def fields_raw(ctx: Ctx) -> alt.TopLevelMixin | None:
             ],
         )
         .add_params(cell)
-        .properties(width=size, height=size)
+        .properties(width=width, height=height)
         .facet(
             row=alt.Row("solver:N", sort=enc.labels, title=None),
             column=alt.Column("sweep:N", sort=cols, title=None),

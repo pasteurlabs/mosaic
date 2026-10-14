@@ -40,18 +40,6 @@ def _tgv(N: int, L: float = 2 * jnp.pi, seed: int = 0, **_: Any) -> jax.Array:
     return jnp.stack([vx, vy], axis=-1)[:, :, None, :].astype(jnp.float32)
 
 
-def _uniform_flow(N: int, U: float = 1.0, **_: Any) -> jax.Array:
-    """Uniform rightward flow u=(U, 0) — canonical IC for cylinder-wake experiments."""
-    vx = jnp.full((N, N), U, dtype=jnp.float32)
-    vy = jnp.zeros((N, N), dtype=jnp.float32)
-    return jnp.stack([vx, vy], axis=-1)[:, :, None, :]
-
-
-def _flat_inflow(N: int = 64, U: float = 0.5, **_: Any) -> jax.Array:
-    """Flat inlet profile u_x(y) = U, shape (N,). Starting point for drag_opt."""
-    return jnp.full((N,), U, dtype=jnp.float32)
-
-
 def _tgv_analytic(
     ic: jax.Array, nu: float, t: float, L: float = 2 * jnp.pi
 ) -> jax.Array:

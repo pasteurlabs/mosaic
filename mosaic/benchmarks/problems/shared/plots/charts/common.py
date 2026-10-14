@@ -321,6 +321,16 @@ def cell_px(n: int, total: int = 150) -> int:
     return max(4, round(total / max(n, 1))) * n
 
 
+def panel_px(nx: int, ny: int, total: int = 150) -> tuple[int, int]:
+    """Panel (width, height) in px for an nx×ny field.
+
+    Square cells, sized as :func:`cell_px` would size a square field with the
+    same number of cells.
+    """
+    px = max(4, round(total / max(math.sqrt(nx * ny), 1)))
+    return px * nx, px * ny
+
+
 # ── Themes and export ────────────────────────────────────────────────────────
 
 PAPER_CONFIG = {

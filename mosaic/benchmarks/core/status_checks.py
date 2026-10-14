@@ -48,11 +48,15 @@ class ForwardSummary:
     those carrying a positive peer median. A point only this solver reached
     has nothing to compare against, so counting it would raise the bar for a
     majority that no amount of bad results could clear.
+
+    ``metrics_by_pval`` holds the full metrics dict of each valid point, for
+    checks on quantities other than ``error``.
     """
 
     errs_by_pval: dict[Any, float] = field(default_factory=dict)
     peer_medians_by_pval: dict[Any, float] = field(default_factory=dict)
     n_valid_points: int = 0
+    metrics_by_pval: dict[Any, dict] = field(default_factory=dict)
 
 
 @dataclass
@@ -85,9 +89,15 @@ class OptimizationSummary:
     ``final_initial_ratio``: ``loss_final / loss_initial`` for the
     worst-case (highest-initial-loss) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
+
+    ``final_value``: ``|loss_final|`` of that trajectory, and
+    ``peer_final_median`` the median of ``final_value`` across solvers;
+    ``None`` when fewer than 3 solvers reported one.
     """
 
     final_initial_ratio: float | None = None
+    final_value: float | None = None
+    peer_final_median: float | None = None
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────
@@ -240,6 +250,32 @@ def max_final_ratio(threshold: float) -> Callable[[OptimizationSummary], CheckOu
         return (
             "anomaly",
             f"final/initial = {s.final_initial_ratio:.2f} (> {threshold})",
+        )
+
+    return _check
+
+
+def max_final_peer_dev(
+    threshold: float,
+) -> Callable[[OptimizationSummary], CheckOutcome]:
+    """Optimization suite: anomaly if the final value is more than ``threshold`` from the peer median.
+
+    Relative deviation, either side: a solver that ends far below its peers
+    is as suspect as one that ends far above them. Needs at least 3 solvers.
+    """
+
+    def _check(s: OptimizationSummary) -> CheckOutcome:
+        if s.final_value is None or not s.peer_final_median:
+            return None
+        dev = abs(s.final_value - s.peer_final_median) / abs(s.peer_final_median)
+        if dev <= threshold:
+            return None
+        return (
+            "anomaly",
+            (
+                f"final value {s.final_value:.4g} is {100 * dev:.0f}% from the "
+                f"peer median {s.peer_final_median:.4g} (> {threshold})"
+            ),
         )
 
     return _check

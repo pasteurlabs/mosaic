@@ -152,7 +152,6 @@ def test_every_experiment_resolves_a_status_check(problem_config):
 _LOOSENED_BY_DESIGN: frozenset[str] = frozenset(
     {
         "ns-grid/forward/agreement/multimode",
-        # No reason on record; a candidate for tightening to the default.
         "ns-grid/forward/cylinder",
     }
 )

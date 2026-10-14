@@ -1,0 +1,127 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+"""The DFG 2D-1 cylinder benchmark: geometry, inputs, metrics and status checks."""
+
+from __future__ import annotations
+
+import jax.numpy as jnp
+import numpy as np
+import pytest
+from mosaic_shared.problems.navier_stokes_grid import InputSchema
+
+from mosaic.benchmarks.core.status import ANOMALY, OK, Cell, _refine_for_suite
+from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
+
+# ── Geometry and inputs ──────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(("res", "shape"), [(10, (220, 41)), (20, (440, 82))])
+def test_grid_matches_the_channel(res, shape):
+    nx, ny, dx = cylinder.grid(res)
+    assert (nx, ny) == shape
+    assert dx == pytest.approx(cylinder.DIAMETER / res)
+
+
+def test_grid_rejects_a_resolution_that_does_not_tile():
+    with pytest.raises(ValueError, match="multiple of 10"):
+        cylinder.grid(15)
+
+
+def test_inflow_profile_has_the_benchmark_flow_rate():
+    prof = np.asarray(cylinder.inflow_profile(40))
+    assert prof.mean() == pytest.approx(cylinder.U_MEAN, rel=1e-3)
+    assert prof.max() == pytest.approx(cylinder.U_MAX, rel=1e-3)
+
+
+def test_time_step_reaches_the_end_time():
+    for res in (10, 20, 40):
+        dt, steps = cylinder.time_step(res)
+        _, _, dx = cylinder.grid(res)
+        assert dt * steps == pytest.approx(cylinder.T_END)
+        assert dt * cylinder.U_MAX / dx <= cylinder.CFL + 1e-9
+        assert cylinder.VISCOSITY * dt / dx**2 <= cylinder.DIFFUSION_NUMBER + 1e-9
+
+
+def test_channel_inputs_satisfy_the_solver_schema():
+    """What the harness sends is what every solver's schema accepts."""
+    inputs = cylinder.channel_inputs(cylinder.inflow_profile(10), 10)
+    schema = InputSchema(**inputs)
+    assert schema.extent == (cylinder.LENGTH, cylinder.HEIGHT)
+    assert schema.dx == pytest.approx(0.01)
+    v0 = np.asarray(inputs["v0"])
+    assert np.all(v0[cylinder.solid_mask(10)] == 0)
+
+
+# ── Metrics ──────────────────────────────────────────────────────────────────
+
+
+def _reference_force(steps: int = 100) -> np.ndarray:
+    scale = cylinder.U_MEAN**2 * cylinder.DIAMETER / 2
+    return np.tile([cylinder.CD_REF * scale, cylinder.CL_REF * scale], (steps, 1))
+
+
+def test_force_summary_turns_force_into_coefficients():
+    out = cylinder.force_summary(_reference_force())
+    assert out["cd"] == pytest.approx(cylinder.CD_REF)
+    assert out["cl"] == pytest.approx(cylinder.CL_REF)
+    assert out["cd_drift"] == pytest.approx(0.0)
+    assert float(cylinder.drag_coefficient(jnp.asarray(_reference_force()))) == (
+        pytest.approx(cylinder.CD_REF, rel=1e-6)
+    )
+
+
+def test_force_summary_measures_drift_into_the_last_window():
+    force = _reference_force()
+    force[-20:, 0] *= 1.01  # the final 20% sit 1% above the window before
+    assert cylinder.force_summary(force)["cd_drift"] == pytest.approx(0.01 / 1.01)
+
+
+def test_pressure_difference_is_exact_for_a_linear_field():
+    """Linear extrapolation to the cylinder surface is exact for p = −G x."""
+    res = 20
+    x, _ = cylinder.cell_centres(res)
+    p = -3.0 * np.broadcast_to(x[:, None], cylinder.solid_mask(res).shape)
+    dp = cylinder.pressure_difference(p, res)
+    assert dp == pytest.approx(3.0 * (cylinder.BACK[0] - cylinder.FRONT[0]))
+
+
+# ── Status checks ────────────────────────────────────────────────────────────
+
+
+def _cells(by_solver: dict, checks: list) -> dict[str, Cell]:
+    cells = {name: Cell(OK) for name in by_solver}
+    _refine_for_suite("forward", "cylinder", {"by_solver": by_solver}, cells, checks)
+    return cells
+
+
+def test_max_cd_err_judges_the_canonical_resolution_only():
+    by_solver = {
+        "good": {
+            "10": {"valid": True, "error": 0.2, "cd": 4.5},
+            "20": {"valid": True, "error": 0.02, "cd": 5.47},
+        },
+        "bad": {
+            "10": {"valid": True, "error": 0.01, "cd": 5.5},
+            "20": {"valid": True, "error": 0.08, "cd": 5.13},
+        },
+        "missing": {
+            "10": {"valid": True, "error": 0.01, "cd": 5.5},
+            "20": {"valid": False, "apply_error": "boom"},
+        },
+    }
+    cells = _cells(by_solver, [cylinder.max_cd_err(0.05, resolution=20)])
+    assert cells["good"].status == OK
+    assert cells["bad"].status == ANOMALY
+    assert "5.13" in cells["bad"].reason
+    assert cells["missing"].status == ANOMALY
+
+
+def test_max_cd_drift_flags_an_unsteady_run():
+    by_solver = {
+        "steady": {"20": {"valid": True, "error": 0.01, "cd_drift": 1e-5}},
+        "drifting": {"20": {"valid": True, "error": 0.01, "cd_drift": 0.02}},
+    }
+    cells = _cells(by_solver, [cylinder.max_cd_drift(1e-3)])
+    assert cells["steady"].status == OK
+    assert cells["drifting"].status == ANOMALY

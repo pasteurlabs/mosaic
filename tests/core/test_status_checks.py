@@ -48,6 +48,7 @@ from mosaic.benchmarks.core.status_checks import (
     ForwardSummary,
     OptimizationSummary,
     max_error,
+    max_final_peer_dev,
     max_final_ratio,
     max_peer_k,
     max_rel_err,
@@ -116,6 +117,12 @@ CHECK_CASES = [
         max_final_ratio(0.5),
         OptimizationSummary(final_initial_ratio=1.2),
         OptimizationSummary(final_initial_ratio=0.1),
+    ),
+    (
+        "max_final_peer_dev",
+        max_final_peer_dev(0.3),
+        OptimizationSummary(final_value=1.0, peer_final_median=2.0),
+        OptimizationSummary(final_value=1.9, peer_final_median=2.0),
     ),
 ]
 
@@ -210,6 +217,30 @@ class TestFdCheckPipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOptimizationPeerPipeline:
+    """``_refine_recovery`` hands each solver the median final value of all of them."""
+
+    @staticmethod
+    def _cells(finals: dict[str, float]) -> dict[str, Cell]:
+        cells = {name: Cell(OK) for name in finals}
+        data = {"by_solver": {n: {"drags": [5.0, f]} for n, f in finals.items()}}
+        _refine_for_suite(
+            "optimization", "drag_opt", data, cells, [max_final_peer_dev(0.3)]
+        )
+        return cells
+
+    def test_outlier_on_either_side_is_flagged(self) -> None:
+        cells = self._cells({"a": 2.0, "b": 2.1, "c": 1.0, "d": 3.5})
+        assert cells["a"].status == OK
+        assert cells["b"].status == OK
+        assert cells["c"].status == ANOMALY
+        assert cells["d"].status == ANOMALY
+
+    def test_needs_three_solvers(self) -> None:
+        cells = self._cells({"a": 2.0, "b": 4.0})
+        assert all(c.status == OK for c in cells.values())
 
 
 class TestMedianKMinority:

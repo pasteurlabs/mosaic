@@ -21,7 +21,6 @@ from .common import (
     Ctx,
     SolverEnc,
     cell_outline,
-    cell_px,
     faded,
     field_cells,
     field_xy,
@@ -29,6 +28,7 @@ from .common import (
     linked_cell,
     log_axis,
     log_scale,
+    panel_px,
     solver_encodings,
     solver_legend,
     solver_lines,
@@ -189,7 +189,7 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
             alt.Tooltip("solver:N"),
             alt.Tooltip("iteration:Q"),
             alt.Tooltip("reduction:Q", title="drag reduction (%)", format=".2f"),
-            alt.Tooltip("drag:Q", format=".4g"),
+            alt.Tooltip("drag:Q", title="Cd", format=".4g"),
         ],
     ).properties(title="Drag reduction")
     profile = lines(
@@ -344,7 +344,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
         key = name if name == "Initial flow" else enc.label(name)
         lines = [key]
         if drag is not None:
-            lines.append(f"drag={drag:.4g}")
+            lines.append(f"Cd={drag:.4g}")
         if conv is False:
             lines.append("[NOT CONVERGED]")
         order.append(key)
@@ -357,8 +357,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
     # Multi-line row labels (name, final drag, convergence) looked up in the
     # header instead of repeated on every cell.
     label_expr = f"{json.dumps(header, ensure_ascii=False)}[datum.value]"
-    n = int(df["i"].max()) + 1
-    size = cell_px(n)
+    width, height = panel_px(int(df["i"].max()) + 1, int(df["j"].max()) + 1)
     cell = linked_cell()
 
     def column(comp: str) -> alt.FacetChart:
@@ -374,7 +373,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
                         scheme="redblue", reverse=True, domain=[-vm, vm], clamp=True
                     ),
                     legend=alt.Legend(
-                        title=comp, orient="bottom", gradientLength=size - 20
+                        title=comp, orient="bottom", gradientLength=width - 20
                     ),
                 ),
                 **cell_outline(cell, "#222222"),
@@ -386,7 +385,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
                 ],
             )
             .add_params(cell)
-            .properties(width=size, height=size)
+            .properties(width=width, height=height)
             .facet(
                 row=alt.Row(
                     "row:N",

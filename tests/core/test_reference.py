@@ -181,9 +181,10 @@ class TestExtractReferencesFromFields:
 
 
 class TestPrecomputedExperiments:
-    def test_ns_grid_experiments(self):
-        exps = PRECOMPUTED_EXPERIMENTS["ns-grid"]
-        assert "forward/cylinder" in exps
+    def test_ns_grid_scores_against_literature(self):
+        # forward/cylinder is scored against the DFG 2D-1 literature values,
+        # not a stored field.
+        assert "ns-grid" not in PRECOMPUTED_EXPERIMENTS
 
     def test_structural_mesh_experiments(self):
         exps = PRECOMPUTED_EXPERIMENTS["structural-mesh"]

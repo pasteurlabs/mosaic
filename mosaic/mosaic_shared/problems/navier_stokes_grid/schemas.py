@@ -16,14 +16,20 @@ wraps the fields it actually supports gradients on via
     InputSchema = make_differentiable(
         _Base, ["v0", "viscosity", "dt", "inflow_profile"]
     )
-    OutputSchema = make_differentiable(_BaseOut, ["result", "drag"])
+    OutputSchema = make_differentiable(_BaseOut, ["result", "body_force"])
 
 Solvers with extra inputs (e.g. ``inner_steps``) should subclass the result of
 ``make_differentiable`` and add their additional fields.
 """
 
 import numpy as np
-from mosaic_shared.schema_types import GridBC, GridObstacle, GridVectorField
+from mosaic_shared.schema_types import (
+    BCType,
+    GridBC,
+    GridObstacle,
+    GridScalarField,
+    GridVectorField,
+)
 from pydantic import BaseModel, Field, model_validator
 from tesseract_core.runtime import Array, Float32
 
@@ -60,12 +66,23 @@ def make_vortex_ic(N: int = 64, L: float = 2 * np.pi, seed: int = 42) -> np.ndar
 
 
 class InputSchema(BaseModel):
-    """Canonical inputs for navier-stokes-grid tesseracts."""
+    """Canonical inputs for navier-stokes-grid tesseracts.
+
+    Units are the solver's: lengths in the units of ``domain_extent``, time in
+    those of ``dt``, density 1 (``viscosity`` is kinematic, pressure is p/ρ).
+
+    Boundary conditions: every solver must implement the conditions it is
+    given or raise. See :class:`~mosaic_shared.schema_types.GridBC` for the
+    contract and :class:`~mosaic_shared.schema_types.BCType` for what each
+    face type means.
+    """
 
     v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
         description=(
-            "Initial velocity field, shape (N, N, 1, 2). "
+            "Initial velocity at the cell centres, shape (nx, ny, 1, 2) in 2-D "
+            "or (nx, ny, nz, 3) in 3-D. Cell (i, j) is centred at "
+            "((i + 1/2) dx, (j + 1/2) dx). "
             "Default: 64×64 divergence-free random vortex field (seed=42)."
         ),
     )
@@ -81,9 +98,13 @@ class InputSchema(BaseModel):
         default=300,
         description="Number of timesteps. Total simulated time = steps × dt.",
     )
-    domain_extent: float = Field(
+    domain_extent: float | list[float] = Field(
         default=2 * np.pi,
-        description="Side length of the square periodic domain.",
+        description=(
+            "Physical size of the domain. A scalar L is a square (cube) of "
+            "side L; a list gives the length per axis, [Lx, Ly] or "
+            "[Lx, Ly, Lz]. The grid spacing must be the same along every axis."
+        ),
     )
     boundary_conditions: GridBC = Field(
         default_factory=GridBC,
@@ -91,39 +112,102 @@ class InputSchema(BaseModel):
     )
     obstacle: GridObstacle | None = Field(
         default=None,
-        description="Optional solid obstacle embedded in the domain (no-slip walls).",
+        description=(
+            "Optional solid obstacle embedded in the domain (no-slip walls), "
+            "in physical coordinates."
+        ),
     )
     inflow_profile: Array[(None,), Float32] | None = Field(
         default=None,
         description=(
-            "1-D inlet velocity profile u_x(y), shape (N,). When provided, overrides "
-            "the x_lo Dirichlet BC with a spatially-varying inlet. u_y is set to zero. "
-            "Used for inflow-profile optimisation (e.g. cylinder drag minimisation)."
+            "Inlet velocity u_x(y) at the x_lo face, sampled at the cell-centre "
+            "heights y_j = (j + 1/2) dx, shape (ny,); u_y = 0 on the inlet. "
+            "Requires x_lo to be 'dirichlet' with no value."
         ),
     )
 
+    @property
+    def extent(self) -> tuple[float, ...]:
+        """Domain length along each spatial axis."""
+        ndim = self.v0.shape[-1]
+        if isinstance(self.domain_extent, list):
+            return tuple(float(length) for length in self.domain_extent)
+        return (float(self.domain_extent),) * ndim
+
+    @property
+    def dx(self) -> float:
+        """Grid spacing, the same along every axis."""
+        return self.extent[0] / self.v0.shape[0]
+
+    @model_validator(mode="after")
+    def _check_grid(self) -> "InputSchema":
+        shape = tuple(self.v0.shape)
+        ndim = shape[-1]
+        if isinstance(self.domain_extent, list) and len(self.domain_extent) != ndim:
+            raise ValueError(
+                f"domain_extent has {len(self.domain_extent)} entries for a "
+                f"{ndim}-D velocity field"
+            )
+        spacing = [length / n for length, n in zip(self.extent, shape, strict=False)]
+        if max(spacing) - min(spacing) > 1e-6 * max(spacing):
+            raise ValueError(
+                f"grid spacing differs between axes ({spacing}) for v0 of shape "
+                f"{shape} on a domain of {list(self.extent)}; the grid must be "
+                "isotropic"
+            )
+        return self
+
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
-        if not self.boundary_conditions.is_fully_periodic and self.obstacle is None:
+        bc = self.boundary_conditions
+        if not bc.is_fully_periodic and self.obstacle is None:
             raise ValueError(
                 "Non-periodic BCs require an obstacle. "
                 "Use periodic BCs (the default) or add an obstacle."
             )
+        if self.inflow_profile is not None:
+            if bc.x_lo.type != BCType.DIRICHLET or bc.x_lo.value is not None:
+                raise ValueError(
+                    "inflow_profile requires x_lo to be 'dirichlet' with no value"
+                )
+            ny = self.v0.shape[1]
+            if tuple(self.inflow_profile.shape) != (ny,):
+                raise ValueError(
+                    f"inflow_profile has shape {tuple(self.inflow_profile.shape)}, "
+                    f"expected ({ny},) to match v0"
+                )
         return self
 
 
 class OutputSchema(BaseModel):
-    """Canonical outputs for navier-stokes-grid tesseracts."""
+    """Canonical outputs for navier-stokes-grid tesseracts.
+
+    ``pressure`` and ``body_force`` are required whenever the inputs carry an
+    obstacle and may be omitted otherwise.
+    """
 
     result: GridVectorField = Field(
-        description="Final velocity field, same shape as v0."
+        description="Final velocity at the cell centres, same shape as v0."
+    )
+    pressure: GridScalarField | None = Field(
+        default=None,
+        description=(
+            "Final kinematic pressure p/ρ at the cell centres, shape "
+            "(nx, ny, nz). Values inside the obstacle are ignored."
+        ),
+    )
+    body_force: Array[(None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Force of the fluid on the obstacle per unit depth and density, "
+            "shape (steps, ndim): row k is (F_x, F_y) at t = (k + 1) dt. "
+            "Positive along +x and +y, so a flow in +x gives F_x > 0."
+        ),
     )
     drag: Array[(1,), Float32] | None = Field(
         default=None,
         description=(
-            "x-direction drag force on the embedded obstacle, shape (1,). "
-            "Computed as the surface integral of pressure and viscous stress: "
-            "F_x = ∮_S (p n_x − μ (∂u/∂n)_x) dS. "
-            "None when no obstacle is present."
+            "Not read by the harness, which takes the drag from body_force. "
+            "Accepted so that solvers reporting a scalar drag stay valid."
         ),
     )

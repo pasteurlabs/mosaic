@@ -361,6 +361,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
         return
 
     errs_per_solver: dict[str, dict[Any, float]] = {}
+    metrics_per_solver: dict[str, dict[Any, dict]] = {}
     for solver, cell in cells.items():
         if cell.status != OK:
             continue
@@ -371,14 +372,17 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
         swept = bool(entry) and all(isinstance(v, dict) for v in entry.values())
         points = entry.items() if swept else [("", entry)]
         errs: dict[Any, float] = {}
+        metrics: dict[Any, dict] = {}
         for pval, sub in points:
             if not isinstance(sub, dict) or sub.get("valid") is False:
                 continue
             err = sub.get("error")
             if isinstance(err, int | float) and math.isfinite(err):
                 errs[pval] = float(err)
+                metrics[pval] = sub
         if errs:
             errs_per_solver[solver] = errs
+            metrics_per_solver[solver] = metrics
 
     if not errs_per_solver:
         return
@@ -402,6 +406,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
             errs_by_pval=dict(errs),
             peer_medians_by_pval=dict(peer_medians),
             n_valid_points=sum(1 for pval in errs if pval in judgeable),
+            metrics_by_pval=metrics_per_solver[solver],
         )
         verdict = _run_checks(checks, summary)
         if verdict:
@@ -531,6 +536,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
     if not isinstance(top, dict):
         return
 
+    summaries: dict[str, OptimizationSummary] = {}
     for solver in list(cells):
         if cells[solver].status != OK:
             continue
@@ -540,12 +546,22 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
         # final_initial_ratio from the worst-case trajectory.
         series = _worst_case_trajectory(entry)
         ratio: float | None = None
+        final: float | None = None
         if series:
             initial = abs(series[0])
             final = abs(series[-1])
-            if initial > 0 and math.isfinite(final):
+            if not math.isfinite(final):
+                final = None
+            elif initial > 0:
                 ratio = final / initial
-        summary = OptimizationSummary(final_initial_ratio=ratio)
+        summaries[solver] = OptimizationSummary(
+            final_initial_ratio=ratio, final_value=final
+        )
+
+    finals = [s.final_value for s in summaries.values() if s.final_value is not None]
+    peer_median = _median(finals) if len(finals) >= 3 else None
+    for solver, summary in summaries.items():
+        summary.peer_final_median = peer_median
         verdict = _run_checks(checks, summary)
         if verdict:
             cells[solver] = Cell(*verdict)
