@@ -204,10 +204,9 @@ problem.add_experiment(
         " viscosity \u03bd, compared against a converged spectral reference. (The 3D TGV"
         " initial condition is not advection-free, so the linearized analytic decay is"
         " only a short-horizon consistency check, not an accuracy reference.) The"
-        " reference is an Exponax run at N=64, spectrally truncated to N=16, so"
-        " Exponax's low error here, and its top place in the forward ranking, mostly"
-        " reflect agreement with its own higher-resolution solution rather than a"
-        " head-to-head comparison."
+        " reference is an Exponax run at N=64, spectrally truncated to N=16."
+        " Exponax's low error here, and its top place in the forward ranking,"
+        " therefore largely measure agreement with its own higher-resolution solution."
     ),
     ic={"name": "tgv3d", "seed": 0},
     physics={
