@@ -74,6 +74,10 @@ these measurements do not require solver-in-the-loop training to win.
 This setup is inspired by [Um et al. (2020)](https://arxiv.org/abs/2007.00016).
 It is a bounded benchmark, not a reproduction of their full training campaign.
 Results and full-field plots appear here when benchmark artifacts are generated.
+The plots use the shared Altair/Vega-Lite pipeline: PNG previews and interactive
+charts show identical data, with shared field scales across reference, baseline,
+and selected correction. Hover reveals field values, rollout errors, checkpoint
+losses, and training/validation costs.
 
 ```bash
 mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s phiflow

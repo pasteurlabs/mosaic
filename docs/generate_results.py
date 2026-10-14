@@ -66,7 +66,7 @@ PROBLEM_ILLUSTRATIONS = {
 PROBLEM_TAGLINES = {
     "buoyancy-grid": (
         "Train a neural velocity corrector through a coupled buoyancy-flow solver, "
-        "then compare held-out rollouts against fixed-pair supervision."
+        "then compare held-out rollouts against the uncorrected coarse baseline."
     ),
     "ns-grid": (
         "Optimize the inflow of a 2D channel flow to minimize drag on a "
