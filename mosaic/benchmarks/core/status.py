@@ -30,7 +30,7 @@ import contextlib
 import functools
 import importlib
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -212,6 +212,10 @@ class Cell:
     # status ladder alone hides most of what optimisation PRs actually move.
     # Empty when the suite has no comparable scalar or the solver didn't run.
     metrics: dict[str, float] = field(default_factory=dict)
+    # Documented method-intrinsic cause for an ANOMALY cell (from an
+    # ``ANOMALY_EXPLAINED`` exclusion). Shown next to ``reason``; never
+    # changes the status or the score.
+    explanation: str = ""
 
 
 @dataclass
@@ -222,6 +226,9 @@ class ExperimentRow:
     experiment: str  # may be "<name>" or "<name>/<ic_name>" for IC-sub-dirs
     result_path: Path | None  # None when result.json is missing
     cells: dict[str, Cell] = field(default_factory=dict)
+    # Explanations registered for a solver whose cell passed every check:
+    # solver name -> explanation. Reported so stale explanations get removed.
+    unused_explanations: dict[str, str] = field(default_factory=dict)
 
     @property
     def label(self) -> str:
@@ -1086,13 +1093,15 @@ def _apply_exclusions(
 
 
 def _apply_explained_anomalies(
-    cfg: Problem, suite: str, exp_label: str, cells: dict[str, Cell]
+    cfg: Problem, suite: str, exp_label: str, row: ExperimentRow
 ) -> None:
-    """Mark explained-anomaly solvers.
+    """Attach documented explanations to cells that tripped a quality check.
 
-    These override OK cells only — the solver runs and produces finite
-    results, but underperforms peers for documented method-intrinsic reasons.
-    FAILED and EXCLUDED cells are never downgraded by this pass.
+    The measured result alone decides a cell's status and score; an
+    explanation only adds text. An ANOMALY cell keeps its measured reason and
+    gains the explanation. An OK cell stays OK, and its explanation is
+    recorded in ``row.unused_explanations`` so stale entries surface in the
+    report. FAILED, EXCLUDED and NOT_RUN cells are left alone.
 
     Reads ``cfg.exclusions[name]`` filtered to entries with
     ``Exclusion.category == "anomaly_explained"``.
@@ -1105,15 +1114,15 @@ def _apply_explained_anomalies(
         _key, value = match
         if getattr(value, "category", None) != "anomaly_explained":
             continue
-        cell = cells.get(name)
-        if cell is None or cell.status in (FAILED, EXCLUDED):
+        cell = row.cells.get(name)
+        if cell is None:
             continue
-        if cell.status == OK:
-            cells[name] = _build_explained_anomaly_cell(value)
-        elif cell.status == ANOMALY and cell.category != "explained":
-            cells[name] = Cell(
-                ANOMALY, cell.reason, category="explained", stale=cell.stale
+        if cell.status == ANOMALY:
+            row.cells[name] = replace(
+                cell, category="explained", explanation=value.reason
             )
+        elif cell.status == OK:
+            row.unused_explanations[name] = value.reason
 
 
 def _suite_filter(cfg: Problem, suite: str) -> set[str]:
@@ -1153,7 +1162,7 @@ def _build_row(
     if result_path is None:
         row.cells = {s: Cell(NOT_RUN) for s in solvers}
         _apply_exclusions(cfg, suite, exp_label, row.cells)
-        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row)
         return row
     try:
         data = load_json(result_path)
@@ -1163,7 +1172,7 @@ def _build_row(
         # a solver that's categorically excluded shouldn't be reported as
         # ``fail`` just because the JSON for solvers that DID run is broken.
         _apply_exclusions(cfg, suite, exp_label, row.cells)
-        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row)
         return row
     checks = _lookup_check(cfg, suite, exp_label)
     row.cells = _classify_result(data, solvers, checks)
@@ -1175,7 +1184,7 @@ def _build_row(
         cfg, data, row.cells, solvers, tesseract_hash_cache, harness_hash_cache
     )
     _apply_exclusions(cfg, suite, exp_label, row.cells)
-    _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+    _apply_explained_anomalies(cfg, suite, exp_label, row)
     return row
 
 
@@ -1248,22 +1257,6 @@ def _build_excluded_cell(value: Exclusion) -> Cell:
     return Cell(EXCLUDED, value.reason, category=value.category.value)
 
 
-def _build_explained_anomaly_cell(value: Exclusion) -> Cell:
-    """Construct an ANOMALY cell from an explained-anomaly :class:`Exclusion`.
-
-    The solver runs and produces finite output but underperforms peers for
-    documented method-intrinsic reasons (e.g. LBM compressibility floor,
-    staggered MAC grid interpolation error). These appear in the status table
-    as anomalies — not excluded — so they stay in the score denominator and
-    solver weaknesses remain visible.
-
-    ``category="explained"`` marks the cell as a pre-documented anomaly,
-    distinguishing it from threshold-triggered anomalies without re-inspecting
-    ``result.json``.
-    """
-    return Cell(ANOMALY, value.reason, category="explained")
-
-
 # ── JSON / markdown / diff rendering ─────────────────────────────────────────
 #
 # These helpers are consumed by the `mosaic status --format {md,json}` CLI
@@ -1297,9 +1290,11 @@ def status_to_dict(st: ProblemStatus) -> dict:
                         "stale": c.stale,
                         "resource_frontier": c.resource_frontier,
                         "metrics": c.metrics,
+                        "explanation": c.explanation,
                     }
                     for s, c in r.cells.items()
                 },
+                "unused_explanations": dict(r.unused_explanations),
             }
             for r in st.rows
         ],
@@ -1413,15 +1408,21 @@ def md_cell_glyph(cell: Cell) -> str:
         glyph = _MD_EXCL_GLYPHS.get(cell.category, _MD_GLYPHS[EXCLUDED])
     else:
         glyph = _MD_GLYPHS.get(cell.status, "?")
+    if cell.explanation:
+        glyph += _EXPLAINED_MARK
     if getattr(cell, "stale", False) and cell.status != EXCLUDED:
         return glyph + "\\*"
     return glyph
 
 
+# Suffix marking an anomaly that carries a documented explanation.
+_EXPLAINED_MARK = "ⁱ"
+
 _MD_LEGEND = (
     "**Legend** · "
     "✅ ok · "
     "🟠 anom · "
+    f"🟠{_EXPLAINED_MARK} anom with a documented cause (scored as anom) · "
     "❌ fail · "
     "· missing · "
     "🚫 excluded (permanent — out of score denominator) · "
@@ -1637,21 +1638,40 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
     lines.append("")
 
     # ── failures & anomalies ────────────────────────────────────────────────
-    fa: list[tuple[str, str, str, str, str]] = []
+    fa: list[tuple[str, str, str, Cell]] = []
+    unused: list[tuple[str, str, str, str]] = []
     for st in statuses:
         for row in st.rows:
             for solver, cell in row.cells.items():
                 if cell.status in (FAILED, ANOMALY):
-                    fa.append((st.problem, row.label, solver, cell.status, cell.reason))
+                    fa.append((st.problem, row.label, solver, cell))
+            for solver, explanation in row.unused_explanations.items():
+                unused.append((st.problem, row.label, solver, explanation))
     if fa:
         lines.append("### Failures & anomalies")
         lines.append("")
-        for problem, label, solver, status, reason in fa:
-            glyph = _MD_GLYPHS[status]
-            reason_str = _md_format_reason(reason, collapse=(status == FAILED))
+        for problem, label, solver, cell in fa:
+            glyph = md_cell_glyph(replace(cell, stale=False))
+            reason_str = _md_format_reason(
+                cell.reason, collapse=(cell.status == FAILED)
+            )
+            if cell.explanation:
+                reason_str += f" (documented cause: {cell.explanation})"
             lines.append(
                 f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}"
             )
+        lines.append("")
+    if unused:
+        lines.append("### Unused explanations")
+        lines.append("")
+        lines.append(
+            "These cells passed every check, so their documented explanation "
+            "no longer applies and should be removed from the problem's "
+            "exclusions."
+        )
+        lines.append("")
+        for problem, label, solver, explanation in unused:
+            lines.append(f"- `{problem}` · `{label}` · **{solver}** — {explanation}")
         lines.append("")
 
     # ── per-problem tables (collapsed) ─────────────────────────────────────
