@@ -89,7 +89,7 @@ def test_buoyancy_charts_write_web_specs_and_pngs(
         else "Solver in the loop (update 64)"
     ) in text
     rollout = json.loads((folder / "rollout_error_WaterLily.vl.json").read_text())
-    assert rollout["spec"]["encoding"]["y"]["scale"]["type"] == "symlog"
+    assert rollout["spec"]["encoding"]["y"]["scale"]["zero"] is True
 
 
 def test_buoyancy_shared_styles_cover_every_backend():

@@ -123,7 +123,7 @@ def _rollout(metrics: dict, times: np.ndarray, selected_label: str, name: str) -
             y=alt.Y(
                 "error:Q",
                 title="Normalized RMS error",
-                scale=alt.Scale(type="symlog", constant=1e-8),
+                scale=alt.Scale(zero=True),
             ),
             color=alt.Color(
                 "method:N",
@@ -139,7 +139,7 @@ def _rollout(metrics: dict, times: np.ndarray, selected_label: str, name: str) -
         )
         .properties(width=300, height=220)
         .facet(column=alt.Column("field:N", title=None))
-        .properties(title=f"{name}: held-out rollout (symlog; linear below 1e-8)")
+        .properties(title=f"{name}: held-out rollout")
     )
 
 
