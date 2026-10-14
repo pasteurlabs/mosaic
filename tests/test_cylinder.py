@@ -156,3 +156,20 @@ def test_projection_keeps_flow_rate_and_bounds():
         for i in range(41)
     ]
     np.testing.assert_allclose(grad, np.asarray(fd) / (2 * eps), atol=1e-3)
+
+
+def test_adam_stops_on_a_plateau_but_not_on_a_slow_descent():
+    """Improvements below the relative threshold do not reset the patience."""
+    from mosaic.benchmarks.problems.shared.optimization import _run_optim
+
+    def plateau(x):  # flat to 1e-6: Adam keeps "improving" it by ulps
+        return 3.0 + 1e-6 * jnp.sum((x - 1.0) ** 2)
+
+    def descent(x):  # 0.05% per iteration at lr 1e-2, 0.5% per 10
+        return 3.0 + 0.04 * jnp.sum(x)
+
+    x0 = jnp.zeros(4)
+    _, flat, _ = _run_optim(plateau, x0, 1e-2, 100, 10, min_rel_improvement=1e-3)
+    _, down, _ = _run_optim(descent, x0, 1e-2, 100, 10, min_rel_improvement=1e-3)
+    assert len(flat) == 11
+    assert len(down) == 100

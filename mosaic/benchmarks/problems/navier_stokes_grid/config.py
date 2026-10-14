@@ -273,13 +273,17 @@ problem.add_experiment(
     cylinder.cylinder,
     plot_description=(
         "Steady flow past a cylinder in a channel (Schäfer–Turek DFG 2D-1, Re = 20)"
-        " at 10, 20 and 40 cells per diameter. Each solver's drag coefficient is"
+        " at 10 and 20 cells per diameter. Each solver's drag coefficient at 20 is"
         " scored against the reference Cd = 5.5795; the pressure difference across"
         " the cylinder (reference 0.1175) and the lift coefficient are reported."
         " The vorticity fields are for visual comparison."
     ),
     ic={"name": "dfg_inflow", "seed": 0},
-    physics={"resolution": [10, 20, 40]},
+    # 40 cells per diameter is left out of the routine run: it is not scored and
+    # costs PhiFlow ~1000 s on an A100, past the per-call timeout on a T4.
+    # Checked locally, it gives Cd = 5.5791 (OpenFOAM), 5.647 (XLB) and
+    # 5.471 (PhiFlow).
+    physics={"resolution": [10, 20]},
     plot=plot_forward_fields,
     # Scored against the literature, not against peers: a body-fitted solver and
     # a staircase one legitimately differ by a few percent on the same grid, so
@@ -287,8 +291,8 @@ problem.add_experiment(
     # first-order staircase finite-volume solver is 4.3%, 2.2% and 1.0% below
     # the reference at 10, 20 and 40 cells per diameter, and body-fitted
     # methods are expected within about 1% at 20; 5% at 20 cells per diameter
-    # accepts both and flags anything worse. The other two resolutions show
-    # convergence and are not judged. A Cd still drifting by more than 0.1%
+    # accepts both and flags anything worse. The run at 10 shows convergence
+    # and is not judged. A Cd still drifting by more than 0.1%
     # between the last two averaging windows was not scored at steady state.
     status_check=[
         cylinder.max_cd_err(0.05, resolution=20),
@@ -426,7 +430,17 @@ problem.add_experiment(
     # short: 10 cells per diameter, and t_end = 4, by which Cd is within 0.1%
     # of its steady value at this resolution.
     physics={"resolution": 10, "t_end": 4.0},
-    optim={"lr": 1e-2, "max_iters": 100, "patience": 20, "snap_interval": 10},
+    # Stop once Cd has not dropped by 0.1% in 10 iterations. Adam keeps
+    # nudging a plateaued Cd by a few 1e-4, which a bare "any improvement" rule
+    # counts, so every run used to take all 100 iterations; XLB's descent
+    # gains 1% or more per 10 iterations until it flattens out near 45.
+    optim={
+        "lr": 1e-2,
+        "max_iters": 100,
+        "patience": 10,
+        "min_rel_improvement": 1e-3,
+        "snap_interval": 10,
+    },
     plot=plot_drag_opt,
     # Provisional thresholds, to be confirmed on the full solver set: XLB
     # plateaus at Cd / Cd₀ = 0.53 after ~45 iterations, so 0.7 asks for at

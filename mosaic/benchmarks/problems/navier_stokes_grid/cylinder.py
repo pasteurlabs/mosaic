@@ -262,7 +262,7 @@ def dfg_metrics(
 def max_cd_err(threshold: float, *, resolution: int) -> Any:
     """Anomaly if the relative Cd error at ``resolution`` exceeds ``threshold``.
 
-    Only the canonical resolution is judged: the coarser and finer runs show
+    Only the canonical resolution is judged: other resolutions show
     convergence, and their errors are expected to differ.
     """
     key = str(resolution)

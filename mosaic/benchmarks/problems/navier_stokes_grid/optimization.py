@@ -196,7 +196,8 @@ def _drag_opt_adam_loop(
     cd0: float,
     lr: float = 1e-2,
     max_iters: int = 100,
-    patience: int = 20,
+    patience: int = 10,
+    min_rel_improvement: float = 1e-3,
     snap_interval: int = 0,
     by_solver: dict,
     write_partial: Any,
@@ -238,6 +239,7 @@ def _drag_opt_adam_loop(
         lr=lr,
         max_iters=max_iters,
         patience=patience,
+        min_rel_improvement=min_rel_improvement,
         has_aux=True,
         aux_history=aux_history,
         clip_fn=_project,
@@ -404,7 +406,9 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     # Forward only the optimiser knobs the config sets; the loop carries its
     # own defaults.
     loop_kwargs = {
-        k: optim_cfg[k] for k in ("lr", "max_iters", "patience") if k in optim_cfg
+        k: optim_cfg[k]
+        for k in ("lr", "max_iters", "patience", "min_rel_improvement")
+        if k in optim_cfg
     }
 
     # ── Partial-result checkpointing ───────────────────────────────────────
