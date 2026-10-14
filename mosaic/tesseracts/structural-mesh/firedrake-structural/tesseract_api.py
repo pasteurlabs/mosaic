@@ -13,6 +13,7 @@ that it can monkey-patch solve/assemble and record operations on the adjoint
 tape.
 """
 
+import hashlib
 import os
 import tempfile
 from typing import Any
@@ -294,21 +295,54 @@ def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:
 # ---------------------------------------------------------------------------
 
 
-def _solve_elasticity(
-    rho_values: np.ndarray,
+# `_SETUP_CACHE` holds one replayable `ReducedFunctional` for the most recent
+# (mesh, BC, material) combination, i.e. everything the problem depends on
+# except rho. Building it pays for the mesh round-trip through gmsh, the
+# function spaces, the UFL forms and one annotated solve. Every later call at a
+# new rho replays the tape via `Jhat(rho)` instead, which reuses all of that
+# plus pyadjoint's cached forward and adjoint `LinearVariationalSolver`s (and
+# with them the MUMPS symbolic factorization), so only the numeric
+# factorization and the solve are repeated.
+#
+# `vector_jacobian_product` replays `Jhat(rho)` at the rho it is given before
+# taking `Jhat.derivative()`, rather than reusing the forward solution of a
+# preceding `apply` call. Every other differentiable solver in the suite
+# re-evaluates the forward pass inside its VJP endpoint, so reusing state
+# across the two endpoints would make this solver's VJP cost incomparable.
+
+# Sparse direct LU via MUMPS (Firedrake's default, made explicit) for the
+# forward solve. pyadjoint copies these parameters to the adjoint solve.
+_SOLVER_PARAMETERS = {
+    "ksp_type": "preonly",
+    "pc_type": "lu",
+    "pc_factor_mat_solver_type": "mumps",
+}
+
+_SETUP_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
+    """Hash everything the recorded tape depends on, i.e. all inputs except rho."""
+    h = hashlib.sha256()
+    for arr in arrays:
+        h.update(np.ascontiguousarray(arr).tobytes())
+    h.update(np.array(params, dtype=np.float64).tobytes())
+    return h.hexdigest()
+
+
+def _build_reduced_functional(
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
     dirichlet_values_vals: np.ndarray,
     neumann_mask_vals: np.ndarray,
     neumann_values_vals: np.ndarray,
-    E_max: float = 70000.0,
-    nu: float = 0.3,
-    xmin: float = 1e-3,
-    penal: float = 3.0,
-    compute_gradient: bool = False,
-):
-    """Solve 3-D linear elasticity with SIMP topology optimisation.
+    E_max: float,
+    nu: float,
+    xmin: float,
+    penal: float,
+) -> dict[str, Any]:
+    """Record 3-D linear elasticity with SIMP on a fresh tape.
 
     Solves:
         -∇·σ(u) = 0    in Ω
@@ -321,10 +355,10 @@ def _solve_elasticity(
     Compliance objective:
         C = ∫_Γ_N f · u dΓ  (= F^T U for linear elasticity)
 
-    The gradient ∂C/∂ρ is computed via firedrake-adjoint's ReducedFunctional.
+    The tape is recorded at an arbitrary uniform density; callers evaluate it
+    at the real rho with ``Jhat(rho)``.
 
     Args:
-        rho_values: Active per-cell density, shape (n_cells,), values in [0, 1].
         pts: Mesh node coordinates, shape (n_nodes, 3).
         cells: Hex cell connectivity, shape (n_cells, 8).
         dirichlet_mask_vals: Per-node Dirichlet group index, shape (n_nodes,).
@@ -335,19 +369,12 @@ def _solve_elasticity(
         nu: Poisson's ratio.
         xmin: Void stiffness ratio (E_min = xmin * E_max).
         penal: SIMP penalisation exponent.
-        compute_gradient: If True, compute ∂C/∂ρ via firedrake-adjoint.
 
     Returns:
-        Tuple (J_val, dJ_drho) where:
-            J_val: Scalar compliance value.
-            dJ_drho: Gradient ∂C/∂ρ per input cell, shape (n_input_cells,), or None.
+        Dict with the compliance ``ReducedFunctional`` ("Jhat"), the DG0
+        density space ("rho_space") and the Firedrake → input cell permutation
+        ("fd_to_input_cells").
     """
-    # Fresh tape for every solve — prevents stale gradient accumulation.
-    # continue_annotation() must be called AFTER set_working_tape() to enable
-    # annotation in this version of Firedrake (annotation is off by default).
-    set_working_tape(Tape())
-    continue_annotation()
-
     # ---- Mesh with boundary tags -----------------------------------------
     mesh, neumann_offset = _build_firedrake_mesh(
         pts, cells, dirichlet_mask_vals, neumann_mask_vals
@@ -359,10 +386,13 @@ def _solve_elasticity(
     V = VectorFunctionSpace(mesh, "CG", 1)
     DG0 = FunctionSpace(mesh, "DG", 0)
 
+    tape = Tape()
+    set_working_tape(tape)
+    continue_annotation()
+
     # ---- Density field ---------------------------------------------------
     rho_fn = Function(DG0, name="rho")
-    rho_reordered = np.clip(rho_values[fd_to_input_cells], 0.0, 1.0)
-    rho_fn.dat.data[:] = rho_reordered
+    rho_fn.dat.data[:] = 0.5
 
     # ---- SIMP stiffness --------------------------------------------------
     E_min_val = Constant(xmin * E_max)
@@ -408,7 +438,8 @@ def _solve_elasticity(
 
     # ---- Solve -----------------------------------------------------------
     u_sol = Function(V)
-    solve(a == L, u_sol, bcs)
+    problem = LinearVariationalProblem(a, L, u_sol, bcs=bcs)
+    LinearVariationalSolver(problem, solver_parameters=_SOLVER_PARAMETERS).solve()
 
     # ---- Objective: structural compliance --------------------------------
     # C = ∫_Γ_N f · u dΓ  (recorded on the pyadjoint tape via assemble)
@@ -418,21 +449,52 @@ def _solve_elasticity(
         tag = neumann_offset + (k + 1)
         J_form = J_form + inner(traction, u_sol) * ds(tag)
     J = assemble(J_form)
+    pause_annotation()
 
-    # ---- Gradient via adjoint --------------------------------------------
-    dJ_drho = None
-    if compute_gradient:
-        Jhat = ReducedFunctional(J, Control(rho_fn))
-        dJ_fn = Jhat.derivative()
-        dJ_fd = dJ_fn.dat.data_ro.copy()  # (n_fd_cells,)
+    return {
+        "Jhat": ReducedFunctional(J, Control(rho_fn), tape=tape),
+        "rho_space": DG0,
+        "fd_to_input_cells": fd_to_input_cells,
+    }
 
-        # Map Firedrake DG0 DOF order → input cell order.
-        dJ_input = np.zeros(len(rho_values))
-        for fd_idx, inp_idx in enumerate(fd_to_input_cells):
-            dJ_input[inp_idx] = dJ_fd[fd_idx]
-        dJ_drho = dJ_input
 
-    return float(J), dJ_drho
+def _replay_elasticity(
+    rho_values: np.ndarray,
+    pts: np.ndarray,
+    cells: np.ndarray,
+    dirichlet_mask_vals: np.ndarray,
+    dirichlet_values_vals: np.ndarray,
+    neumann_mask_vals: np.ndarray,
+    neumann_values_vals: np.ndarray,
+    E_max: float = 70000.0,
+    nu: float = 0.3,
+    xmin: float = 1e-3,
+    penal: float = 3.0,
+) -> tuple[float, dict[str, Any]]:
+    """Evaluate compliance at rho on the cached tape, recording it on first use.
+
+    Returns:
+        Tuple (J_val, entry) where entry is the cache entry built by
+        `_build_reduced_functional`, now evaluated at rho.
+    """
+    args = (
+        pts,
+        cells,
+        dirichlet_mask_vals,
+        dirichlet_values_vals,
+        neumann_mask_vals,
+        neumann_values_vals,
+    )
+    params = (E_max, nu, xmin, penal)
+    key = _setup_cache_key(*args, params=params)
+    if key not in _SETUP_CACHE:
+        _SETUP_CACHE.clear()
+        _SETUP_CACHE[key] = _build_reduced_functional(*args, *params)
+    entry = _SETUP_CACHE[key]
+
+    rho_fn = Function(entry["rho_space"])
+    rho_fn.dat.data[:] = np.clip(rho_values[entry["fd_to_input_cells"]], 0.0, 1.0)
+    return float(entry["Jhat"](rho_fn)), entry
 
 
 # ---------------------------------------------------------------------------
@@ -458,7 +520,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     dm, dv = _extract_dirichlet(bc)
     nm, nv = _extract_neumann(bc)
 
-    J_val, _ = _solve_elasticity(
+    J_val, _ = _replay_elasticity(
         rho_values,
         pts,
         cells,
@@ -470,7 +532,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
         nu=inputs.nu,
         xmin=inputs.xmin,
         penal=inputs.penal,
-        compute_gradient=False,
     )
 
     return OutputSchema(compliance=np.float32(J_val))
@@ -513,7 +574,7 @@ def vector_jacobian_product(
     dm, dv = _extract_dirichlet(bc)
     nm, nv = _extract_neumann(bc)
 
-    _, dJ_drho = _solve_elasticity(
+    _, entry = _replay_elasticity(
         rho_values,
         pts,
         cells,
@@ -525,9 +586,11 @@ def vector_jacobian_product(
         nu=inputs.nu,
         xmin=inputs.xmin,
         penal=inputs.penal,
-        compute_gradient=True,
     )
 
+    # Map Firedrake DG0 DOF order → input cell order.
+    dJ_drho = np.zeros(len(rho_values))
+    dJ_drho[entry["fd_to_input_cells"]] = entry["Jhat"].derivative().dat.data_ro
     grad_rho[: hm.n_faces] = (cot_c * dJ_drho).astype(np.float32)
     return {"rho": grad_rho}
 
