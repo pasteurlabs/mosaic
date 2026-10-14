@@ -183,7 +183,6 @@ def _agreement_aggregate(
 
     reference_label = "consensus"
     solver_names = [s.name for s in cfg.solvers]
-    reference_solver = run.get("reference_solver")
 
     # Collect per-(solver, sweep_value) results
     flat_results: list[dict] = []
@@ -207,13 +206,9 @@ def _agreement_aggregate(
         has_analytic = analytic_fn is not None and not (
             prefer_precomputed and has_precomputed
         )
-        has_ref_solver = reference_solver is not None and reference_solver in comparable
 
         if len(comparable) == 0 or (
-            len(comparable) < 2
-            and not has_analytic
-            and not has_ref_solver
-            and not has_precomputed
+            len(comparable) < 2 and not has_analytic and not has_precomputed
         ):
             # Nothing to score against (e.g. a single-solver run with no
             # cached peers). A solver that produced output is left unscored,
@@ -257,9 +252,6 @@ def _agreement_aggregate(
                 solver_name_for_inputs=cfg.solvers[0].name,
             )
             reference_label = "analytic"
-        elif has_ref_solver:
-            reference = np.asarray(comparable[reference_solver])
-            reference_label = f"solver:{reference_solver}"
         elif has_precomputed:
             reference = precomputed
             reference_label = "precomputed"
