@@ -1137,11 +1137,14 @@ def _run_pict(
         domain,
         substeps=1,
         time_step=float(dt_val),
-        # PISO is conventionally run with 2 pressure correctors (Issa 1986);
-        # 4 was a conservative default and roughly doubles per-step wall.
-        # Re=20 cylinder & decaying-TGV regression checks remained within
-        # the existing status_checks bounds, so we run with 2 by default.
-        corrector_steps=2,
+        # PICT's predictor carries no pressure gradient, so the correctors
+        # rebuild the full pressure every step. Their splitting error grows
+        # with the diffusion number nu*dt/dx^2 and does not shrink when space
+        # and time are refined together: with the conventional 2 correctors
+        # the 2D TGV error stalls at ~2.5e-3 from N=32 on. 8 correctors keep
+        # it below the discretization error up to N=128, at roughly 3x the
+        # per-step wall time and reverse-mode memory of 2.
+        corrector_steps=8,
         non_orthogonal=False,
         differentiable=differentiable,
         log_dir=None,
