@@ -111,8 +111,8 @@ PROBLEM_DESCRIPTIONS = {
         "Initial condition recovery with 12k degrees of freedom."
     ),
     "structural-mesh": (
-        "deal.II, FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever "
-        "compliance minimization with SIMP penalization."
+        "deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, and torch-fem on 2D "
+        "cantilever compliance minimization with SIMP penalization."
     ),
     "thermal-mesh": (
         "deal.II, FEniCS, Firedrake, JAX-FEM, and torch-fem on 2D steady-state "
