@@ -27,22 +27,14 @@ from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
 jax.config.update("jax_enable_x64", True)
 
-# Precision of the differentiation path (apply() forward + VJP/JVP).
+# Precision of the whole solver: the apply() forward and the VJP/JVP paths.
+# They share it so that they compute the same function, which the fd_check
+# requires; timings therefore compare like with like.
 #
 # The default is float64: near omega≈2 the LBM develops float32 cancellation
-# errors that corrupt gradients, so the accuracy-motivated default runs the
-# whole differentiated computation in float64 (see issue #125).  That default
-# is also the dominant cost in the measured VJP/forward wall-clock ratio
-# (~270x 2D, ~1100x 3D at N=32), since the timed forward runs float32 while
-# the gradient path runs float64 on 19–27 distribution fields plus a doubled
-# stored trajectory.
-#
-# Set XLB_VJP_FP32=1 to run the differentiation path in float32 instead,
-# which cuts that overhead by roughly an order of magnitude.  Use only when
-# the benchmark's gradient/fd_check stays acceptable at the configuration of
-# interest — at low viscosity (omega≈2) float32 gradients may degrade.  The
-# apply() forward and the VJP path share this flag so they compute the same
-# function, which the fd_check requires.
+# errors that corrupt gradients, and float32 gradients fail gradient/fd_check
+# there (see issue #125).  Set XLB_VJP_FP32=1 to run everything in float32
+# instead; use it only where the fd_check stays acceptable.
 _USE_F64_DIFF = os.environ.get("XLB_VJP_FP32", "0") == "0"
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
