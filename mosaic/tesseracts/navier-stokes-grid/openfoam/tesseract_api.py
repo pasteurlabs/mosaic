@@ -282,12 +282,15 @@ def _write_fv_solution(system_dir: Path, *, use_pimple: bool = False) -> None:
     }
     UFinal { $U; }"""
     else:
+        # The momentum predictor starts from the previous step's U, and a loose
+        # tolerance leaves part of each step's update unsolved. On fine grids,
+        # where steps are small and many, that becomes an error floor.
         u_solver = """\
     U
     {
         solver          smoothSolver;
         smoother        symGaussSeidel;
-        tolerance       1e-05;
+        tolerance       1e-08;
         relTol          0;
     }"""
     content = f"""\
