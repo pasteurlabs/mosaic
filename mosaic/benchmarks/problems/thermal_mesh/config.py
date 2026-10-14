@@ -142,7 +142,7 @@ problem.add_ic(
     fn=_uniform,
     description=(
         "Uniform SIMP thermal conductivity density $\\rho_0$ over all hex mesh elements; "
-        "standard homogeneous starting point for heat-conduction topology optimisation."
+        "the starting point of the conductivity-recovery optimization."
     ),
     plot_params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
     plot=plot_ic,
