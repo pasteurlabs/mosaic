@@ -54,7 +54,7 @@ The FD step size is swept over $\varepsilon \in \{10^{-6}, \dots, 10^{-1}\}$ and
 
 **Forward accuracy.** Resolution sweep against a reference: an analytical solution where one exists (e.g. the 2D Taylor–Green vortex), the Schäfer–Turek literature values for the 2D cylinder, a converged high-resolution spectral run for the 3D Taylor–Green vortex, and otherwise the trimmed-mean consensus of all solvers. Physical-law adherence (e.g. a divergence-free velocity field, $\nabla \cdot \mathbf{u} = 0$) is checked where applicable.
 
-**Optimization convergence.** The ultimate test: can you actually optimize *through* the solver? We run with L-BFGS on each benchmark task for a fixed iteration budget (500 iterations for H, F2, F3; 2500 for S). A solver **succeeds** if it reaches a final objective within 1% of the best solution any solver achieved within the budget. This catches solvers whose gradients pass the FD check pointwise but still fail to drive a full optimization loop.
+**Optimization convergence.** The ultimate test: can you actually optimize *through* the solver? Each task runs a gradient-based optimizer up to a fixed iteration cap: L-BFGS for H (1000) and F3 (100, projected onto divergence-free fields), Adam for S (2500) and F2 (100, stopping early at a plateau). A solver **succeeds** if it brings the objective to at most half its initial value; for F2, to at most 70% of its initial drag and within 30% of the other solvers' final drag. This catches solvers whose gradients pass the FD check pointwise but still fail to drive a full optimization loop.
 
 ## Benchmark suites
 
