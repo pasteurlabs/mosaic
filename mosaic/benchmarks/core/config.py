@@ -292,9 +292,10 @@ class Problem:
 
         ``plot`` accepts a single callable or a ``{view: callable, ...}`` dict
         (each view runs independently; an exception in one is logged and
-        skipped). ``status_check`` adds per-experiment status callables on
-        top of suite-level defaults. ``plot_description`` is stored on the
-        experiment's params for ``mosaic status`` to display.
+        skipped). ``status_check`` replaces the suite-level default checks
+        for this experiment, so it must list every check that should still
+        apply. ``plot_description`` is stored on the experiment's params for
+        ``mosaic status`` to display.
 
         ``coords`` (optional) is this experiment's position in a sweep's
         parameter space (e.g. ``{"N": 32, "regime": "diffusive"}``).
