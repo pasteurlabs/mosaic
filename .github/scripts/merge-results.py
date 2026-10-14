@@ -72,11 +72,18 @@ def _save_json(data: dict, path: Path) -> None:
 def _merge_result_pair(existing: dict, new: dict) -> dict:
     """Merge two schema_version=1 result files. *new* wins on conflict.
 
-    Deduplicates by (solver, sweep_value); later entries override earlier ones.
+    Deduplicates by (solver, sweep_value); later entries override earlier ones,
+    except that an ``unscored`` entry never replaces a valid one.
     """
     seen: dict[tuple, dict] = {}
     for entry in existing.get("results", []) + new.get("results", []):
-        seen[(entry["solver"], entry.get("sweep_value"))] = entry
+        key = (entry["solver"], entry.get("sweep_value"))
+        # An unscored entry (the solver ran, but that run had nothing to
+        # score it against) never replaces a valid score.
+        prev = (seen.get(key) or {}).get("metrics") or {}
+        if (entry.get("metrics") or {}).get("unscored") and prev.get("valid"):
+            continue
+        seen[key] = entry
     merged = {**existing, **new, "results": list(seen.values())}
     # Merge provenance sub-dicts
     for key in ("tesseract_hashes", "wall_time_s"):
