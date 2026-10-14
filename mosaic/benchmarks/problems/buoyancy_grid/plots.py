@@ -334,7 +334,12 @@ def plot_forward_metrics(
             x=alt.X(
                 "sweep:Q", title=(result.get("sweep") or {}).get("key", "Sweep value")
             ),
-            y=alt.Y("value:Q", title=None, scale=alt.Scale(zero=False)),
+            y=alt.Y(
+                "value:Q",
+                title=None,
+                scale=alt.Scale(zero=False),
+                axis=alt.Axis(format=".3~g"),
+            ),
             color=alt.Color("solver:N", scale=enc.color),
             strokeDash=alt.StrokeDash("solver:N", scale=enc.dash),
             tooltip=[

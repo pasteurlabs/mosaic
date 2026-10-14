@@ -131,6 +131,7 @@ def test_forward_diagnostics_render_signed_values(tmp_path, monkeypatch):
     spec = json.loads((folder / "diagnostics.vl.json").read_text())
     assert spec["spec"]["encoding"]["x"]["title"] == "steps"
     assert spec["resolve"]["scale"]["y"] == "independent"
+    assert spec["spec"]["encoding"]["y"]["axis"]["format"] == ".3~g"
     assert "log" not in json.dumps(spec["spec"]["encoding"]["y"])
 
 
