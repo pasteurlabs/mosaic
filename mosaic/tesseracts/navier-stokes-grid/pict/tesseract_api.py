@@ -1,6 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -1012,6 +1013,18 @@ def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:
 # ---------------------------------------------------------------------------
 
 
+class _LogRecordCollector(logging.Handler):
+    """Logging handler that keeps the exceptions attached to log records."""
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.exceptions: list[BaseException] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.exc_info and record.exc_info[1] is not None:
+            self.exceptions.append(record.exc_info[1])
+
+
 def _run_pict(
     v0_tensor: torch.Tensor,
     viscosity_val: torch.Tensor,
@@ -1149,9 +1162,28 @@ def _run_pict(
         log_images=False,
         prep_fn=prep_fn,
     )
-    sim.run(steps, log_domain=False)
+    # Simulation.run() catches a failed linear solve, logs it and stops early
+    # while still returning True, which would hand back a partially integrated
+    # field. Collect the logged error so it can be raised here instead.
+    solve_errors = _LogRecordCollector()
+    pict_log = logging.getLogger("PISOsim")
+    pict_log.addHandler(solve_errors)
+    try:
+        sim.run(steps, log_domain=False)
+    finally:
+        pict_log.removeHandler(solve_errors)
 
     result = assembler(domain)
+    if solve_errors.exceptions:
+        raise RuntimeError(
+            f"PICT linear solve failed in step {sim.total_step + 1} of {steps}: "
+            f"{solve_errors.exceptions[-1]}"
+        )
+    # A NaN blow-up also stops the run early; the non-finite result reports it.
+    if sim.total_step != steps and bool(torch.isfinite(result).all()):
+        raise RuntimeError(
+            f"PICT simulation stopped after {sim.total_step} of {steps} steps"
+        )
     if drag_assembler is not None:
         if drag_history:
             # Tail-window mean: average drag over the last steps // 2 steps,
