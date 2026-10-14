@@ -203,6 +203,56 @@ def test_thermal_mesh_forward_runs_with_dummy(thermal_mesh_tags, tmp_path, monke
     assert "results" in on_disk
 
 
+@pytest.mark.parametrize("kernel_name", ["agreement", "physical_laws"])
+def test_forward_nonfinite_output_fails_with_reason(
+    kernel_name, ns_grid_tags, tmp_path, monkeypatch
+):
+    """A solver returning NaN fails its cell, and the reason reaches status."""
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    # A distinct tag for the same dummy lets the patched apply tell the
+    # poisoned solver apart from its peers.
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_apply = runner._apply_tesseract_with_deadline
+
+    def apply_nan_for_bad(t, inputs):
+        out = real_apply(t, inputs)
+        if runner.current_worker_context().image_tag == tags[bad]:
+            out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+        return out
+
+    monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", apply_nan_for_bad)
+
+    cfg.add_experiment(
+        "forward/dummy_nonfinite",
+        getattr(forward, kernel_name),
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+        diagnostics={"mean": lambda out, **_: float(jnp.mean(out))},
+    )
+    cfg.experiments["forward/dummy_nonfinite"].fn(cfg, tags)
+
+    json_path = tmp_path / "ns-grid" / "forward" / "dummy_nonfinite" / "result.json"
+    data = json.loads(json_path.read_text())
+    bad_entries = [e for e in data["results"] if e["solver"] == bad]
+    assert len(bad_entries) == 2
+    for e in bad_entries:
+        assert e["metrics"]["valid"] is False
+        assert "'result' is not finite" in e["metrics"]["error"]
+
+    cells = _classify_result(data, cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+    assert "not finite" in cells[bad].reason
+    assert all(cells[s].status == OK for s in cfg.solver_names if s != bad)
+
+
 # ── Every-experiment parametrized smoke test ─────────────────────────────────
 
 _DUMMY_FOR = {

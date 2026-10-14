@@ -931,6 +931,7 @@ def safe_apply_with_extras(
     """
     if state_keys is None:
         state_keys = []
+    _tl.last_apply_error = None
     try:
         out = _apply_tesseract_with_deadline(t, inputs)
         if output_key not in out:
@@ -944,6 +945,14 @@ def safe_apply_with_extras(
             return None, {}, {}
         arr = out[output_key]
         if not jnp.all(jnp.isfinite(arr)):
+            n_nan = int(jnp.sum(jnp.isnan(arr)))
+            n_inf = int(jnp.sum(jnp.isinf(arr)))
+            error_msg = (
+                f"solver output {output_key!r} is not finite "
+                f"({n_nan} NaN, {n_inf} Inf of {jnp.size(arr)} values)"
+            )
+            print_warn(f"apply failed: {error_msg}")
+            _tl.last_apply_error = error_msg
             return None, {}, {}
         extras = {}
         for k in extra_scalar_keys:
