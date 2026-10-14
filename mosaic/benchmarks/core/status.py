@@ -199,7 +199,8 @@ class Cell:
     # underlying status.
     stale: bool = False
     # Resource frontier for swept experiments: the first sweep value at which
-    # the solver hit a *resource ceiling* (OOM / timeout). ``None`` when the
+    # the solver hit a *resource ceiling* (OOM / timeout, or any failure after
+    # a valid point in a ``sweep_mode="limits"`` experiment). ``None`` when the
     # solver ran to completion at every value. A ceiling is NOT a failure — a
     # solver that OOMs only at the largest sizes is still OK — but the frontier
     # is carried into the snapshot so ``diff_snapshots`` can tell when the
@@ -563,8 +564,15 @@ def _find_trajectory(entry: Any) -> list[float] | None:
     return None
 
 
-def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
-    """Classify from schema_version=1 flat results list."""
+def _classify_from_v1(
+    data: dict, solvers: list[str], checks: list, *, limits: bool = False
+) -> dict[str, Cell]:
+    """Classify from schema_version=1 flat results list.
+
+    ``limits`` marks a ``sweep_mode="limits"`` experiment, which runs until
+    the first failure to find how far each solver gets. Any failure after a
+    valid point is then that frontier rather than a crash.
+    """
     cells: dict[str, Cell] = {}
     results = data.get("results", [])
     if not results:
@@ -592,7 +600,8 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
         #                    fields, so ``_has_any_finite`` alone would mis-read
         #                    it as OK — we must consult ``status`` explicitly.
         #   resource ceiling — ``status: "failed"`` with failure_type OOM /
-        #                    timeout. This is a platform-dependent scaling
+        #                    timeout, or any failure after a valid point in a
+        #                    limits sweep. This is a platform-dependent scaling
         #                    limit, expected at large sizes and not encodable as
         #                    an exclusion. It does NOT fail the cell; we only
         #                    record the frontier (first value that hit it) so
@@ -620,7 +629,9 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
             if not isinstance(metrics, dict):
                 continue
             if metrics.get("status") == "failed":
-                if metrics.get("failure_type") in _RESOURCE_CEILING:
+                if metrics.get("failure_type") in _RESOURCE_CEILING or (
+                    limits and has_valid
+                ):
                     # Resource ceiling — not a failure. Record the first value
                     # at which it bit, in on-disk sweep order.
                     if frontier is None:
@@ -678,9 +689,11 @@ def _fail_reason_from_metrics(metrics: dict) -> str:
     return _reason_from_entry(metrics) or "failed"
 
 
-def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
+def _classify_result(
+    data: dict, solvers: list[str], checks: list, *, limits: bool = False
+) -> dict[str, Cell]:
     """Classify each solver from a schema_version=1 result."""
-    cells = _classify_from_v1(data, solvers, checks)
+    cells = _classify_from_v1(data, solvers, checks, limits=limits)
 
     # Solvers whose Tesseract container failed to start (or whose work raised)
     # before any result was recorded are absent from the data layout above and
@@ -1166,7 +1179,8 @@ def _build_row(
         _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
         return row
     checks = _lookup_check(cfg, suite, exp_label)
-    row.cells = _classify_result(data, solvers, checks)
+    limits = cfg.get_sweep_mode(suite, exp_label) == "limits"
+    row.cells = _classify_result(data, solvers, checks, limits=limits)
     # Capture numeric scalars *before* anomaly refinement downgrades any OK
     # cell — the scalar is worth diffing whether or not it trips a threshold.
     _collect_metrics_for_suite(suite, exp_label, data, row.cells)
@@ -2062,10 +2076,11 @@ def render_diff_markdown(diff: dict, label: str = "base") -> str:
         _render_metric_shifts(lines, metric_shifts)
 
     if frontier_shifts:
-        lines.append("### Resource-frontier shifts (OOM / timeout)")
+        lines.append("### Resource-frontier shifts")
         lines.append("")
         lines.append(
-            "_The size at which a solver first hits a resource ceiling. "
+            "_The size at which a solver first hits a resource ceiling (OOM / "
+            "timeout, or any failure in a limits sweep). "
             "A smaller frontier means it now fails to scale as far as before._"
         )
         lines.append("")
