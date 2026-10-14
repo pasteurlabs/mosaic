@@ -296,19 +296,14 @@ def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:
 
 
 # `_SETUP_CACHE` holds one replayable `ReducedFunctional` for the most recent
-# (mesh, BC, material) combination, i.e. everything the problem depends on
-# except rho. Building it pays for the mesh round-trip through gmsh, the
-# function spaces, the UFL forms and one annotated solve. Every later call at a
-# new rho replays the tape via `Jhat(rho)` instead, which reuses all of that
-# plus pyadjoint's cached forward and adjoint `LinearVariationalSolver`s (and
-# with them the MUMPS symbolic factorization), so only the numeric
-# factorization and the solve are repeated.
+# (mesh, BC, material), i.e. every input except rho. Recording it pays for the
+# gmsh mesh round-trip, function spaces, forms and one annotated solve. Later
+# calls replay it at a new rho, which also reuses pyadjoint's forward and
+# adjoint solvers and the MUMPS symbolic factorization.
 #
-# `vector_jacobian_product` replays `Jhat(rho)` at the rho it is given before
-# taking `Jhat.derivative()`, rather than reusing the forward solution of a
-# preceding `apply` call. Every other differentiable solver in the suite
-# re-evaluates the forward pass inside its VJP endpoint, so reusing state
-# across the two endpoints would make this solver's VJP cost incomparable.
+# The VJP replays the tape at its own rho instead of reusing the forward
+# solution of a preceding `apply`. Every other solver's VJP endpoint also
+# re-runs the forward pass, so this keeps VJP costs comparable.
 
 # Sparse direct LU via MUMPS (Firedrake's default, made explicit) for the
 # forward solve. pyadjoint copies these parameters to the adjoint solve.

@@ -200,25 +200,19 @@ def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:
 
 
 # `_SETUP_CACHE` holds the replayable reduced functionals for the most recent
-# (mesh, BC, material) combination, i.e. everything the problem depends on
-# except rho and source. Building them pays for the mesh round-trip through
-# gmsh, the function spaces, the UFL forms and one annotated solve. Every later
-# call at a new (rho, source) replays the tape via `Chat([rho, source])`
-# instead, which reuses all of that plus pyadjoint's cached forward and
-# adjoint `LinearVariationalSolver`s (and with them the MUMPS symbolic
-# factorization), so only the numeric factorization and the solve are
-# repeated.
+# (mesh, BC, material), i.e. every input except rho and source. Recording them
+# pays for the gmsh mesh round-trip, function spaces, forms and one annotated
+# solve. Later calls replay them at a new (rho, source), which also reuses
+# pyadjoint's forward and adjoint solvers and the MUMPS symbolic factorization.
 #
-# Both reduced functionals share the tape and carry both controls, so one
-# adjoint sweep yields d/drho and d/dsource together. `Chat` maps the controls
-# to the thermal compliance; `That` maps them to the temperature field, whose
-# derivative seeded with dI/dT gives the identification-error gradient.
+# `Chat` maps (rho, source) to the thermal compliance and `That` to the
+# temperature field; seeding `That`'s derivative with dI/dT gives the
+# identification-error gradient. They share one tape, so one adjoint sweep
+# yields d/drho and d/dsource together.
 #
-# `vector_jacobian_product` replays the tape at the (rho, source) it is given
-# before taking derivatives, rather than reusing the forward solution of a
-# preceding `apply` call. Every other differentiable solver in the suite
-# re-evaluates the forward pass inside its VJP endpoint, so reusing state
-# across the two endpoints would make this solver's VJP cost incomparable.
+# The VJP replays the tape at its own inputs instead of reusing the forward
+# solution of a preceding `apply`. Every other solver's VJP endpoint also
+# re-runs the forward pass, so this keeps VJP costs comparable.
 
 # Sparse direct LU via MUMPS (Firedrake's default, made explicit) for the
 # forward solve. pyadjoint copies these parameters to the adjoint solve.
