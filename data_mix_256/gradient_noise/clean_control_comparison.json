@@ -1,0 +1,14 @@
+{
+  "uncorrected": {
+    "bitwise_equal": true,
+    "max_abs_difference": 0.0
+  },
+  "solver_in_loop": {
+    "bitwise_equal": true,
+    "max_abs_difference": 0.0
+  },
+  "selected_update": [
+    192,
+    192
+  ]
+}

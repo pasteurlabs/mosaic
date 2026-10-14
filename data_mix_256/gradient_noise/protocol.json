@@ -1,0 +1,67 @@
+{
+  "status": "Complete: four focused checks,12 full training runs and paired analysis passed",
+  "submitted": true,
+  "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+  "conditions": [
+    "clean",
+    "large",
+    "medium",
+    "small"
+  ],
+  "model_seeds": [
+    0,
+    1,
+    2
+  ],
+  "relative_noise_amplitude": 0.1,
+  "training_updates": 256,
+  "horizon": 8,
+  "training_cases": 4,
+  "reference_cache": false,
+  "runtime": "CPU JAX 0.10.0, equinox0.13.8, jax-cfd0.2.1; four CPUs,24GB per isolated job",
+  "control_seed0_prior_mean_test_loss": 0.0008612180556571048,
+  "control_seed0_prior_selected_update": 192,
+  "jobs": {
+    "medium-seed1": 3010039,
+    "small-seed1": 3010040,
+    "large-seed2": 3010043,
+    "clean-seed0": 3010003,
+    "medium-seed2": 3010044,
+    "small-seed2": 3010045,
+    "large-seed1": 3010038,
+    "clean-seed1": 3010037,
+    "small-seed0": 3010036,
+    "medium-seed0": 3010035,
+    "large-seed0": 3010034,
+    "clean-seed2": 3010041
+  },
+  "focused_checks": {
+    "large": 3009494,
+    "clean": 3009526,
+    "medium": 3009528,
+    "small": 3009558
+  },
+  "complete": true,
+  "plot_job": 3011315,
+  "script_hashes": {
+    "tesseract_api_noisy.py": "0a2e4abd68339f6d39c8dba263b2b17a52efe152186d5d9e66e7592e1632aac1",
+    "gradient_noise_driver.py": "c8b5f502061c49bf4b0f5a6fe25198e61b5daf2700f2e20a2ce2ea83af2fbb05",
+    "gradient_noise.py": "4a4fd0e66e6987a1c9e53ec9ecf4fe94f09d9123e2934930566d2d8a248f20e7"
+  },
+  "analysis_sha256": "efa1ac936408b52b94dc2428a79cea33c13d9dcfa2833cb0983ed5aeea13aec2",
+  "clean_control_comparison": {
+    "uncorrected": {
+      "bitwise_equal": true,
+      "max_abs_difference": 0.0
+    },
+    "solver_in_loop": {
+      "bitwise_equal": true,
+      "max_abs_difference": 0.0
+    },
+    "selected_update": [
+      192,
+      192
+    ]
+  },
+  "validation": "All12 references, scales, schedules and source identities match; paired initial model hashes match. Seven state VJPs per update,256 updates, validation-only checkpoint selection. Clean seed0 exactly reproduces original loss arrays and selected update."
+}
