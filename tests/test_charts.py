@@ -96,3 +96,38 @@ def test_convergence_curves_reads_stored_sweep(tmp_path, sweep_key):
     assert chart is not None
     rows = [r for ds in chart.to_dict()["datasets"].values() for r in ds]
     assert {r["solver"] for r in rows if "loss" in r} == {"PhiFlow", "XLB"}
+
+
+def _cost_result(hw_key: str, hw: dict, *solvers: str) -> dict:
+    entries = [
+        {"solver": s, "sweep_value": "32", "metrics": {"mean": 1.0}} for s in solvers
+    ]
+    return {"schema_version": 1, "results": entries, "extras": {hw_key: hw}}
+
+
+def test_cost_subtitle_names_each_solvers_device():
+    from types import SimpleNamespace
+
+    from mosaic.benchmarks.problems.shared.plots.charts.cost import _hardware_str
+
+    cfg = SimpleNamespace(
+        solvers=[
+            SimpleNamespace(name="JAX-FEM", uses_gpu=True),
+            SimpleNamespace(name="FEniCS", uses_gpu=False),
+        ]
+    )
+    gpu_node = {
+        "gpus": ["Tesla T4, 16384 MiB"],
+        "cpu": "AMD EPYC 7V12 64-Core Processor",
+    }
+    cpu_node = {"cpu": "INTEL(R) XEON(R) PLATINUM 8573C"}
+
+    # One machine ran everything: the CPU-only solver used the GPU node's CPU.
+    single = _cost_result("hardware", gpu_node, "JAX-FEM", "FEniCS")
+    assert _hardware_str([single], cfg) == "GPU Tesla T4 · CPU AMD EPYC 7V12"
+
+    # CI: the CPU-only solver ran on a separate CPU node.
+    split = _cost_result(
+        "hardware_by_solver", {"JAX-FEM": gpu_node, "FEniCS": cpu_node}
+    )
+    assert _hardware_str([split], cfg) == "GPU Tesla T4 · CPU INTEL XEON PLATINUM 8573C"
