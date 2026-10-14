@@ -323,6 +323,63 @@ def test_gradient_nonfinite_vjp_fails_with_reason(
     assert all(cells[s].status != FAILED for s in cfg.solver_names if s != bad)
 
 
+@pytest.mark.parametrize("failure", ["target", "optim"])
+def test_recovery_failure_fails_with_reason(failure, tmp_path, monkeypatch):
+    """A NaN target or a failure in every seed's optimization fails the cell
+    with that reason.
+    """
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.navier_stokes_3d_grid import optimization
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg = get_config("ns-3d-grid")
+    bad, good = "PICT", "XLB"
+    tags = {
+        bad: f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}",
+        good: f"inprocess:{DUMMY_NS_GRID}",
+    }
+
+    def is_bad() -> bool:
+        return runner.current_worker_context().image_tag == tags[bad]
+
+    if failure == "target":
+        real_apply = optimization.apply_tesseract
+
+        def apply_nan_for_bad(t, inputs):
+            out = real_apply(t, inputs)
+            if is_bad():
+                out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+            return out
+
+        monkeypatch.setattr(optimization, "apply_tesseract", apply_nan_for_bad)
+        expected = (
+            "target forward failed for every ic_seed: ic_seed=0: target is not finite"
+        )
+    else:
+        real_lbfgs = optimization._run_lbfgs
+
+        def lbfgs_fails_for_bad(*args, **kwargs):
+            if is_bad():
+                raise FloatingPointError("optimization loss is not finite (nan)")
+            return real_lbfgs(*args, **kwargs)
+
+        monkeypatch.setattr(optimization, "_run_lbfgs", lbfgs_fails_for_bad)
+        expected = (
+            "optimization failed for every ic_seed: ic_seed=0: FloatingPointError"
+        )
+
+    data = cfg.experiments["optimization/recovery_constant_ic_bfgs_proj"].fn(cfg, tags)
+
+    cells = _classify_result(data, [bad, good], [])
+    assert cells[bad].status == FAILED
+    assert expected in cells[bad].reason
+    assert cells[good].status == OK
+
+
 # ── Every-experiment parametrized smoke test ─────────────────────────────────
 
 _DUMMY_FOR = {
