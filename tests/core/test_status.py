@@ -497,7 +497,7 @@ class TestLimitsSweep(unittest.TestCase):
     def test_failure_at_first_point_is_failed(self) -> None:
         cell = self._classify([_horizon_fail("nan"), *[_horizon_skip("40", "nan")] * 3])
         self.assertEqual(cell.status, FAILED)
-        self.assertEqual(cell.reason, "nan")
+        self.assertEqual(cell.reason, "nan: boom")
 
     def test_all_ok_has_no_frontier(self) -> None:
         cell = self._classify([_horizon_ok()] * 4)
