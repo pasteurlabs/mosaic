@@ -35,10 +35,8 @@ JAX_CFD_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
     "this tesseract represents the cylinder by hard-mask volume "
     "penalization (velocity zeroed after each projection step), which is "
-    "projection-inconsistent, and rejects the Neumann outflow BC; jax-cfd "
-    "itself provides non-periodic pressure solvers "
-    "(solve_cg, solve_fast_diag_channel_flow) for channel flows, but a "
-    "consistent obstacle route is not implemented here",
+    "projection-inconsistent, and it rejects the Neumann outflow BC. "
+    "jax-cfd itself has non-periodic pressure solvers for channel flows",
 )
 INS_JL_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
