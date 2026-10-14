@@ -1,0 +1,102 @@
+{
+  "all12_exact": true,
+  "source_campaign": "/home/andrinr/solver-investigations/buoyancy-gradient-noise-20261014",
+  "comparisons": [
+    {
+      "cell": "clean-sigma0-seed0",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "large-sigma0.1-seed0",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "medium-sigma0.1-seed0",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "small-sigma0.1-seed0",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "clean-sigma0-seed1",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "large-sigma0.1-seed1",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "medium-sigma0.1-seed1",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "small-sigma0.1-seed1",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "clean-sigma0-seed2",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "large-sigma0.1-seed2",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "medium-sigma0.1-seed2",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    },
+    {
+      "cell": "small-sigma0.1-seed2",
+      "loss_arrays_exact": {
+        "uncorrected": true,
+        "solver_in_loop": true
+      },
+      "selected_update_equal": true
+    }
+  ]
+}

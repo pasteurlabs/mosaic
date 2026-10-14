@@ -1,0 +1,4282 @@
+{
+  "paired_summaries": [
+    {
+      "band": "large",
+      "strength": 0.03,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -4.503963864713441,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -19.967162649886426,
+        "1": -5.342589953048204,
+        "2": 0.4146725477106816,
+        "3": -0.03120246696020068,
+        "4": 2.4064631986169482
+      }
+    },
+    {
+      "band": "large",
+      "strength": 0.03,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -7.682857039914469,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -30.419878033511093,
+        "1": 2.558038346242153,
+        "2": -0.5203095580898931,
+        "3": -11.900781302538832,
+        "4": 1.8686453483253151
+      }
+    },
+    {
+      "band": "large",
+      "strength": 0.1,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -0.5783127178376004,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -17.35786671772499,
+        "1": 4.9090585265812114,
+        "2": -4.303857303789305,
+        "3": 7.897256864676794,
+        "4": 5.963845041068283
+      }
+    },
+    {
+      "band": "large",
+      "strength": 0.1,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 0.6709441656771183,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -20.56925982184682,
+        "1": 2.6756019689822663,
+        "2": -0.2545716027261169,
+        "3": -10.557620889913544,
+        "4": 32.060571173889805
+      }
+    },
+    {
+      "band": "large",
+      "strength": 0.3,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 4.973508573427817,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 3.701978660749372,
+        "1": -19.479366794716046,
+        "2": -1.8182413166934697,
+        "3": 38.567521959539604,
+        "4": 3.895650358259628
+      }
+    },
+    {
+      "band": "large",
+      "strength": 0.3,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 7.339668045811678,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -4.433028998334465,
+        "1": 24.263122186377938,
+        "2": 4.776340618547614,
+        "3": -7.214276948140885,
+        "4": 19.30618337060819
+      }
+    },
+    {
+      "band": "large",
+      "strength": 1.0,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -4.2337802541240475,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 7.937043512614994,
+        "1": -7.28382184588634,
+        "2": -22.694037202296858,
+        "3": 4.426665181516354,
+        "4": -3.5547509165683833
+      }
+    },
+    {
+      "band": "large",
+      "strength": 1.0,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 26.011337152729357,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 13.628329006171702,
+        "1": 33.09607137214594,
+        "2": 4.9864140887218245,
+        "3": -18.781907198085936,
+        "4": 97.12777849469325
+      }
+    },
+    {
+      "band": "large",
+      "strength": 3.0,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 0,
+      "mean_change_percent": null,
+      "all_five_worsen": null,
+      "seed_changes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null,
+        "4": null
+      }
+    },
+    {
+      "band": "large",
+      "strength": 3.0,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 0,
+      "mean_change_percent": null,
+      "all_five_worsen": null,
+      "seed_changes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null,
+        "4": null
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 0.03,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 3.3650294556246023,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 18.094359105263138,
+        "1": 1.0495605610315373,
+        "2": -2.752829045741889,
+        "3": -0.739662968760213,
+        "4": 1.1737196263304384
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 0.03,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 0.1341946806251526,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 3.383831565656581,
+        "1": -0.8964286771189989,
+        "2": -1.9789265878020323,
+        "3": -0.7170715922680482,
+        "4": 0.8795686946582615
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 0.1,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -6.69889613224794,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -10.642841079298492,
+        "1": 7.118349870789298,
+        "2": -26.469848628704828,
+        "3": 0.30354619454462384,
+        "4": -3.803687018570301
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 0.1,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -6.640402781891657,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -21.53304782945671,
+        "1": -1.048909154521993,
+        "2": -18.952564949408448,
+        "3": 0.5177829709019033,
+        "4": 7.814725053026961
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 0.3,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 3.6591290156915974,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -5.376385389070015,
+        "1": -14.623051904795037,
+        "2": 24.366362417100397,
+        "3": 0.026549737361714065,
+        "4": 13.902170217860931
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 0.3,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -1.9444357947751016,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -18.60313880933481,
+        "1": -17.406668558457618,
+        "2": 12.482968435614538,
+        "3": -9.032518180239757,
+        "4": 22.837178138542136
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 1.0,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -2.0167078110858516,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -2.358059879318475,
+        "1": -14.887913307702016,
+        "2": -29.813190126280965,
+        "3": 22.197327994730042,
+        "4": 14.778296263142154
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 1.0,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 12.061801121025667,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -17.334278731589503,
+        "1": 11.223227104158727,
+        "2": -22.181687464478085,
+        "3": 19.74888999122639,
+        "4": 68.8528547058108
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 3.0,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 2,
+      "mean_change_percent": null,
+      "all_five_worsen": null,
+      "seed_changes": {
+        "0": 95.1512100599009,
+        "1": null,
+        "2": null,
+        "3": null,
+        "4": 18.317497737977394
+      }
+    },
+    {
+      "band": "medium",
+      "strength": 3.0,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 2,
+      "mean_change_percent": null,
+      "all_five_worsen": null,
+      "seed_changes": {
+        "0": 261912.86667671075,
+        "1": null,
+        "2": null,
+        "3": null,
+        "4": 114687.18748008372
+      }
+    },
+    {
+      "band": "small",
+      "strength": 0.03,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 0.03720003555801821,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 0.2954489116583803,
+        "1": 0.24869044092488135,
+        "2": -0.1913098208278008,
+        "3": 0.01622710064419497,
+        "4": -0.18305645460956477
+      }
+    },
+    {
+      "band": "small",
+      "strength": 0.03,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -0.4320231987502665,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -1.7394931965091898,
+        "1": -0.0678299594735865,
+        "2": -0.10628733712660932,
+        "3": -0.10200039298099428,
+        "4": -0.1445051076609527
+      }
+    },
+    {
+      "band": "small",
+      "strength": 0.1,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -2.56543886220413,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 1.4193480728635688,
+        "1": -13.5700081303748,
+        "2": -0.10689627055191497,
+        "3": 0.060124241535586265,
+        "4": -0.6297622244930912
+      }
+    },
+    {
+      "band": "small",
+      "strength": 0.1,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -0.17901921423185696,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -4.806595307077521,
+        "1": 4.95499564741495,
+        "2": -0.1644045885634826,
+        "3": -0.37766470524213114,
+        "4": -0.5014271176911
+      }
+    },
+    {
+      "band": "small",
+      "strength": 0.3,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -2.3014300320747116,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -1.5846039993717698,
+        "1": -13.392559595719089,
+        "2": 1.8304549168120632,
+        "3": 3.3114692426515324,
+        "4": -1.671910724746295
+      }
+    },
+    {
+      "band": "small",
+      "strength": 0.3,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -4.609923276300607,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -14.943827089357276,
+        "1": 5.530219324892749,
+        "2": 1.606272173577472,
+        "3": -13.800414515471015,
+        "4": -1.4418662751449651
+      }
+    },
+    {
+      "band": "small",
+      "strength": 1.0,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": -1.6643859968676389,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": -1.1690629414563003,
+        "1": 12.675114424239474,
+        "2": -31.413416979243546,
+        "3": -3.885813034175556,
+        "4": 15.471248546297733
+      }
+    },
+    {
+      "band": "small",
+      "strength": 1.0,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 1.7483972312265528,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 4.10692525286096,
+        "1": 5.443998931297633,
+        "2": -11.456027799549783,
+        "3": -14.521753962290518,
+        "4": 25.168843733814473
+      }
+    },
+    {
+      "band": "small",
+      "strength": 3.0,
+      "metric": "selected_test_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 5.641770269820232,
+      "all_five_worsen": false,
+      "seed_changes": {
+        "0": 36.91431900858107,
+        "1": -21.431560118438753,
+        "2": 2.9090657584528445,
+        "3": -8.50047103747139,
+        "4": 18.317497737977394
+      }
+    },
+    {
+      "band": "small",
+      "strength": 3.0,
+      "metric": "final_validation_loss_change_percent",
+      "available_pairs": 5,
+      "mean_change_percent": 64.96894342732173,
+      "all_five_worsen": true,
+      "seed_changes": {
+        "0": 43.22691995877073,
+        "1": 77.85559616900765,
+        "2": 65.2162886449429,
+        "3": 43.59671576077739,
+        "4": 94.94919660311001
+      }
+    }
+  ],
+  "rows": [
+    {
+      "arm": "clean",
+      "strength": 0.0,
+      "model_seed": 0,
+      "path": "clean-sigma0-seed0",
+      "classification": "completed",
+      "receipt_sha256": "6aff2cc858dd57ce79d9e969678233cd1c63381c46341a6db6b8e4aed84aa830",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0,
+      "gradient_cosine": 1.0,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001177520078782237
+        },
+        {
+          "update": 128,
+          "loss": 0.0006796700069097028
+        },
+        {
+          "update": 192,
+          "loss": 0.0006556209940738711
+        },
+        {
+          "update": 256,
+          "loss": 0.0006998716327267119
+        }
+      ],
+      "selected_test_loss": 0.0008612180556571048,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006998716327267119,
+      "selected_validation_loss": 0.0006556209940738711,
+      "final_validation_over_selected": 1.067494236842353,
+      "selected_test_loss_change_percent": 0.0,
+      "final_validation_loss_change_percent": 0.0,
+      "selected_test_over_uncorrected": 0.5124231613491169
+    },
+    {
+      "arm": "large",
+      "strength": 0.03,
+      "model_seed": 0,
+      "path": "large-sigma0.03-seed0",
+      "classification": "completed",
+      "receipt_sha256": "791dac6ea2f0afb2e098d3809de6100a23a8a08b2a15ed3d78c7d583c8412a66",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.024588291181828675,
+      "gradient_cosine": 0.9997204167807592,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010176457401357198
+        },
+        {
+          "update": 128,
+          "loss": 0.0011695877909218666
+        },
+        {
+          "update": 192,
+          "loss": 0.0005209399084131405
+        },
+        {
+          "update": 256,
+          "loss": 0.0004869715356601034
+        }
+      ],
+      "selected_test_loss": 0.0006892572457138612,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0004869715356601034,
+      "selected_validation_loss": 0.0004869715356601034,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -19.967162649886426,
+      "final_validation_loss_change_percent": -30.419878033511093,
+      "selected_test_over_uncorrected": 0.4101067952668488
+    },
+    {
+      "arm": "medium",
+      "strength": 0.03,
+      "model_seed": 0,
+      "path": "medium-sigma0.03-seed0",
+      "classification": "completed",
+      "receipt_sha256": "0602c3bb595ab2f08c9b4817601aa7e98b96591e0fa5efaa8456bf6c1883290a",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.014359382843340669,
+      "gradient_cosine": 0.9999412522354989,
+      "selected_update": 128,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011845028434816385
+        },
+        {
+          "update": 128,
+          "loss": 0.0006757725101167011
+        },
+        {
+          "update": 192,
+          "loss": 0.0006906775238989126
+        },
+        {
+          "update": 256,
+          "loss": 0.0007235541099539944
+        }
+      ],
+      "selected_test_loss": 0.0010170499433270663,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007235541099539944,
+      "selected_validation_loss": 0.0006757725101167011,
+      "final_validation_over_selected": 1.0707066344398084,
+      "selected_test_loss_change_percent": 18.094359105263138,
+      "final_validation_loss_change_percent": 3.383831565656581,
+      "selected_test_over_uncorrected": 0.6051428483021681
+    },
+    {
+      "arm": "small",
+      "strength": 0.03,
+      "model_seed": 0,
+      "path": "small-sigma0.03-seed0",
+      "classification": "completed",
+      "receipt_sha256": "42ef8bf21b4ccdd3af32c996ec60b1ff7ef17b004fe34d2f450699255ec26de7",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0013112465964462035,
+      "gradient_cosine": 0.9999992628639636,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011947857390536144
+        },
+        {
+          "update": 128,
+          "loss": 0.0006770137660240038
+        },
+        {
+          "update": 192,
+          "loss": 0.0006575597264716749
+        },
+        {
+          "update": 256,
+          "loss": 0.0006876974132911329
+        }
+      ],
+      "selected_test_loss": 0.0008637625150295492,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006876974132911329,
+      "selected_validation_loss": 0.0006575597264716749,
+      "final_validation_over_selected": 1.0458326226594965,
+      "selected_test_loss_change_percent": 0.2954489116583803,
+      "final_validation_loss_change_percent": -1.7394931965091898,
+      "selected_test_over_uncorrected": 0.5139371100024084
+    },
+    {
+      "arm": "large",
+      "strength": 0.1,
+      "model_seed": 0,
+      "path": "large-sigma0.1-seed0",
+      "classification": "completed",
+      "receipt_sha256": "17679f716b39b7657924c9d1c7e30c01f37488b9bb5122043e8022a0a58cf53e",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.08248483045546116,
+      "gradient_cosine": 0.996955135293602,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0008930845189298254
+        },
+        {
+          "update": 128,
+          "loss": 0.0005861336442954723
+        },
+        {
+          "update": 192,
+          "loss": 0.0008290721185862537
+        },
+        {
+          "update": 256,
+          "loss": 0.000555913218171753
+        }
+      ],
+      "selected_test_loss": 0.0007117289734071619,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000555913218171753,
+      "selected_validation_loss": 0.000555913218171753,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -17.35786671772499,
+      "final_validation_loss_change_percent": -20.56925982184682,
+      "selected_test_over_uncorrected": 0.42347743197138427
+    },
+    {
+      "arm": "medium",
+      "strength": 0.1,
+      "model_seed": 0,
+      "path": "medium-sigma0.1-seed0",
+      "classification": "completed",
+      "receipt_sha256": "c45d5b19f03ccc8afa79cbed93c4f70c9abedc2c2480a319d400f4408cfb7769",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.04804940511803742,
+      "gradient_cosine": 0.9993709448705985,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0012204228850035293
+        },
+        {
+          "update": 128,
+          "loss": 0.0007492146204828032
+        },
+        {
+          "update": 192,
+          "loss": 0.000549491468316532
+        },
+        {
+          "update": 256,
+          "loss": 0.0005491679393068694
+        }
+      ],
+      "selected_test_loss": 0.0007695599866472946,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0005491679393068694,
+      "selected_validation_loss": 0.0005491679393068694,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -10.642841079298492,
+      "final_validation_loss_change_percent": -21.53304782945671,
+      "selected_test_over_uncorrected": 0.4578867786332131
+    },
+    {
+      "arm": "small",
+      "strength": 0.1,
+      "model_seed": 0,
+      "path": "small-sigma0.1-seed0",
+      "classification": "completed",
+      "receipt_sha256": "315291fb84f21b36b5bf01b3c4d7c77aee604fc620498c6944a229ca1b2e78ca",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.004379719697677847,
+      "gradient_cosine": 0.999991756405766,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0012240825156057155
+        },
+        {
+          "update": 128,
+          "loss": 0.0006712398357035454
+        },
+        {
+          "update": 192,
+          "loss": 0.0006657474159720778
+        },
+        {
+          "update": 256,
+          "loss": 0.0006662316356725029
+        }
+      ],
+      "selected_test_loss": 0.0008734417375332271,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006662316356725029,
+      "selected_validation_loss": 0.0006657474159720778,
+      "final_validation_over_selected": 1.0007273324519301,
+      "selected_test_loss_change_percent": 1.4193480728635688,
+      "final_validation_loss_change_percent": -4.806595307077521,
+      "selected_test_over_uncorrected": 0.5196962296146322
+    },
+    {
+      "arm": "large",
+      "strength": 0.3,
+      "model_seed": 0,
+      "path": "large-sigma0.3-seed0",
+      "classification": "completed",
+      "receipt_sha256": "d1d1130a147f662c31203266cb6c71f31917e65fc40e04666e0fea0e0b68f402",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.2597357808733725,
+      "gradient_cosine": 0.9732577290315416,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0013504083968843617
+        },
+        {
+          "update": 128,
+          "loss": 0.0010156160930262104
+        },
+        {
+          "update": 192,
+          "loss": 0.0012438043645776986
+        },
+        {
+          "update": 256,
+          "loss": 0.0006688461202968199
+        }
+      ],
+      "selected_test_loss": 0.0008931001643000514,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006688461202968199,
+      "selected_validation_loss": 0.0006688461202968199,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 3.701978660749372,
+      "final_validation_loss_change_percent": -4.433028998334465,
+      "selected_test_over_uncorrected": 0.5313929574349985
+    },
+    {
+      "arm": "medium",
+      "strength": 0.3,
+      "model_seed": 0,
+      "path": "medium-sigma0.3-seed0",
+      "classification": "completed",
+      "receipt_sha256": "98357fc9c07c453adbf9271542a0b5f2044584420e43a16c6afb9e60496b4d0b",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.15002879213449616,
+      "gradient_cosine": 0.9947059789952174,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009023896558628763
+        },
+        {
+          "update": 128,
+          "loss": 0.0006768528780924754
+        },
+        {
+          "update": 192,
+          "loss": 0.0007085502873228222
+        },
+        {
+          "update": 256,
+          "loss": 0.0005696735414034038
+        }
+      ],
+      "selected_test_loss": 0.0008149156539447233,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0005696735414034038,
+      "selected_validation_loss": 0.0005696735414034038,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -5.376385389070015,
+      "final_validation_loss_change_percent": -18.60313880933481,
+      "selected_test_over_uncorrected": 0.4848733173721323
+    },
+    {
+      "arm": "small",
+      "strength": 0.3,
+      "model_seed": 0,
+      "path": "small-sigma0.3-seed0",
+      "classification": "completed",
+      "receipt_sha256": "f983d3a43c5243890729db133d6abafe17f3561259bdf78c59ee2cb028c2d159",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0133742598452989,
+      "gradient_cosine": 0.9999224403764466,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0012886023341290099
+        },
+        {
+          "update": 128,
+          "loss": 0.0006644510096461431
+        },
+        {
+          "update": 192,
+          "loss": 0.0006478328971495273
+        },
+        {
+          "update": 256,
+          "loss": 0.0005952840260845704
+        }
+      ],
+      "selected_test_loss": 0.0008475711599038504,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0005952840260845704,
+      "selected_validation_loss": 0.0005952840260845704,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -1.5846039993717698,
+      "final_validation_loss_change_percent": -14.943827089357276,
+      "selected_test_over_uncorrected": 0.5043032834406715
+    },
+    {
+      "arm": "large",
+      "strength": 1.0,
+      "model_seed": 0,
+      "path": "large-sigma1-seed0",
+      "classification": "completed",
+      "receipt_sha256": "68b5974730d72289b842edfc32d86a6dd4c2dfc31b1fb661d215eb8716828c45",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.4720972317949979,
+      "gradient_cosine": 0.6916254787439147,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011365120268830254
+        },
+        {
+          "update": 128,
+          "loss": 0.0016434877263053237
+        },
+        {
+          "update": 192,
+          "loss": 0.002821610357964346
+        },
+        {
+          "update": 256,
+          "loss": 0.0007952524414555739
+        }
+      ],
+      "selected_test_loss": 0.0009295733074731061,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007952524414555739,
+      "selected_validation_loss": 0.0007952524414555739,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 7.937043512614994,
+      "final_validation_loss_change_percent": 13.628329006171702,
+      "selected_test_over_uncorrected": 0.5530944106341137
+    },
+    {
+      "arm": "medium",
+      "strength": 1.0,
+      "model_seed": 0,
+      "path": "medium-sigma1-seed0",
+      "classification": "completed",
+      "receipt_sha256": "95c549c208c9aadd2f831470de9977f2cb4749013e980df0b080295abc17c61b",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.8580965991231121,
+      "gradient_cosine": 0.9301949776856185,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.002280898285683861
+        },
+        {
+          "update": 128,
+          "loss": 0.0020696958538790966
+        },
+        {
+          "update": 192,
+          "loss": 0.0006834820928874308
+        },
+        {
+          "update": 256,
+          "loss": 0.0005785539331465372
+        }
+      ],
+      "selected_test_loss": 0.0008409100182132079,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0005785539331465372,
+      "selected_validation_loss": 0.0005785539331465372,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -2.358059879318475,
+      "final_validation_loss_change_percent": -17.334278731589503,
+      "selected_test_over_uncorrected": 0.500339916369008
+    },
+    {
+      "arm": "small",
+      "strength": 1.0,
+      "model_seed": 0,
+      "path": "small-sigma1-seed0",
+      "classification": "completed",
+      "receipt_sha256": "0720640f76ce8e0375c20d6e54648cda6b846548735bec629eec9442ebb86243",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.055497384097939854,
+      "gradient_cosine": 0.9985884354449039,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0014200121946829824
+        },
+        {
+          "update": 128,
+          "loss": 0.0007399007559901349
+        },
+        {
+          "update": 192,
+          "loss": 0.0008374547898833385
+        },
+        {
+          "update": 256,
+          "loss": 0.0007286148375487755
+        }
+      ],
+      "selected_test_loss": 0.0008511498745232871,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007286148375487755,
+      "selected_validation_loss": 0.0007286148375487755,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -1.1690629414563003,
+      "final_validation_loss_change_percent": 4.10692525286096,
+      "selected_test_over_uncorrected": 0.5064326120663456
+    },
+    {
+      "arm": "large",
+      "strength": 3.0,
+      "model_seed": 0,
+      "path": "large-sigma3-seed0",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "b22d152db24bf49abcc0811b7034d4293952b5a19185b736ef8bab8eb728e75c",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 128,
+      "completed_updates_lower_bound": 128,
+      "gradient_relative_l2": 83.7391154845572,
+      "gradient_cosine": 0.22718223175717606,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.540093683976811
+        }
+      ]
+    },
+    {
+      "arm": "medium",
+      "strength": 3.0,
+      "model_seed": 0,
+      "path": "medium-sigma3-seed0",
+      "classification": "completed",
+      "receipt_sha256": "1a685e4936ad88f6d22bb7e0e7f87e4714dcc8fe8cda002ea697f38ff0b9ca4a",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 77.63582217000014,
+      "gradient_cosine": 0.41765057665331606,
+      "selected_update": 0,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.7889563483378151
+        },
+        {
+          "update": 128,
+          "loss": 2.416151385421399
+        },
+        {
+          "update": 192,
+          "loss": 2.0222008581645787
+        },
+        {
+          "update": 256,
+          "loss": 1.8337537279643583
+        }
+      ],
+      "selected_test_loss": 0.0016806774568691907,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 1.8337537279643583,
+      "selected_validation_loss": 0.0011007894160869824,
+      "final_validation_over_selected": 1665.8533423067163,
+      "selected_test_loss_change_percent": 95.1512100599009,
+      "final_validation_loss_change_percent": 261912.86667671075,
+      "selected_test_over_uncorrected": 1.0
+    },
+    {
+      "arm": "small",
+      "strength": 3.0,
+      "model_seed": 0,
+      "path": "small-sigma3-seed0",
+      "classification": "completed",
+      "receipt_sha256": "dbbbea060b78d0e4708ce3ad0ab0e05b6c24024b3c520912e23df5b879b214aa",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.2200080642908189,
+      "gradient_cosine": 0.5150833829289476,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0016438793619198578
+        },
+        {
+          "update": 128,
+          "loss": 0.0014073695603917713
+        },
+        {
+          "update": 192,
+          "loss": 0.0010563039538786256
+        },
+        {
+          "update": 256,
+          "loss": 0.0010024045832196294
+        }
+      ],
+      "selected_test_loss": 0.0011791308360818676,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0010024045832196294,
+      "selected_validation_loss": 0.0010024045832196294,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 36.91431900858107,
+      "final_validation_loss_change_percent": 43.22691995877073,
+      "selected_test_over_uncorrected": 0.701580681803386
+    },
+    {
+      "arm": "clean",
+      "strength": 0.0,
+      "model_seed": 1,
+      "path": "clean-sigma0-seed1",
+      "classification": "completed",
+      "receipt_sha256": "967ff6d2e6a9e53555c56bf26abe444351452111cc2444c2cd7ff9039a58d567",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0,
+      "gradient_cosine": 1.0,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010054712410126143
+        },
+        {
+          "update": 128,
+          "loss": 0.0008736308483817367
+        },
+        {
+          "update": 192,
+          "loss": 0.0006344292519187888
+        },
+        {
+          "update": 256,
+          "loss": 0.0006933927338324253
+        }
+      ],
+      "selected_test_loss": 0.001049342114209253,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006933927338324253,
+      "selected_validation_loss": 0.0006344292519187888,
+      "final_validation_over_selected": 1.0929394124487566,
+      "selected_test_loss_change_percent": 0.0,
+      "final_validation_loss_change_percent": 0.0,
+      "selected_test_over_uncorrected": 0.6243566306672516
+    },
+    {
+      "arm": "large",
+      "strength": 0.03,
+      "model_seed": 1,
+      "path": "large-sigma0.03-seed1",
+      "classification": "completed",
+      "receipt_sha256": "23d526fbe60c63c46d7e37301ec927b290a2eea508f5be40e451ffd097eebcd0",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.02157920808846709,
+      "gradient_cosine": 0.9997787362613494,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009785633687216233
+        },
+        {
+          "update": 128,
+          "loss": 0.000845496634927585
+        },
+        {
+          "update": 192,
+          "loss": 0.0006217163144368954
+        },
+        {
+          "update": 256,
+          "loss": 0.0007111299858539156
+        }
+      ],
+      "selected_test_loss": 0.0009932800678424058,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007111299858539156,
+      "selected_validation_loss": 0.0006217163144368954,
+      "final_validation_over_selected": 1.1438174764611162,
+      "selected_test_loss_change_percent": -5.342589953048204,
+      "final_validation_loss_change_percent": 2.558038346242153,
+      "selected_test_over_uncorrected": 0.5909998160460327
+    },
+    {
+      "arm": "medium",
+      "strength": 0.03,
+      "model_seed": 1,
+      "path": "medium-sigma0.03-seed1",
+      "classification": "completed",
+      "receipt_sha256": "8fb27dfe78d4f4b2d666b29d96b9f52f8083ee437cb3bfd952b0c477bf2956a1",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.01413266620136521,
+      "gradient_cosine": 0.9999527002253589,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.000999916576212385
+        },
+        {
+          "update": 128,
+          "loss": 0.0008596649064965333
+        },
+        {
+          "update": 192,
+          "loss": 0.0006332801452192171
+        },
+        {
+          "update": 256,
+          "loss": 0.000687176962521292
+        }
+      ],
+      "selected_test_loss": 0.0010603555951902877,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000687176962521292,
+      "selected_validation_loss": 0.0006332801452192171,
+      "final_validation_over_selected": 1.0851073852685178,
+      "selected_test_loss_change_percent": 1.0495605610315373,
+      "final_validation_loss_change_percent": -0.8964286771189989,
+      "selected_test_over_uncorrected": 0.6309096316229204
+    },
+    {
+      "arm": "small",
+      "strength": 0.03,
+      "model_seed": 1,
+      "path": "small-sigma0.03-seed1",
+      "classification": "completed",
+      "receipt_sha256": "7df1338dbaea7a79330297e200f8074dce9add343ecf213f9a261d577b48dc6c",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0024402135537172367,
+      "gradient_cosine": 0.9999977450362012,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010050372722358247
+        },
+        {
+          "update": 128,
+          "loss": 0.0008734571185129881
+        },
+        {
+          "update": 192,
+          "loss": 0.0006351919397825867
+        },
+        {
+          "update": 256,
+          "loss": 0.000692922405822074
+        }
+      ],
+      "selected_test_loss": 0.0010519517277398905,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000692922405822074,
+      "selected_validation_loss": 0.0006351919397825867,
+      "final_validation_over_selected": 1.0908866476788845,
+      "selected_test_loss_change_percent": 0.24869044092488135,
+      "final_validation_loss_change_percent": -0.0678299594735865,
+      "selected_test_over_uncorrected": 0.6259093459250017
+    },
+    {
+      "arm": "large",
+      "strength": 0.1,
+      "model_seed": 1,
+      "path": "large-sigma0.1-seed1",
+      "classification": "completed",
+      "receipt_sha256": "4720215b95e409e6418eaba400d3f34961b70877ea3ad1ddc6e49360d9974928",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.07194150196506868,
+      "gradient_cosine": 0.9974872365881314,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0008223512265011834
+        },
+        {
+          "update": 128,
+          "loss": 0.00076779143724238
+        },
+        {
+          "update": 192,
+          "loss": 0.0006182124231370522
+        },
+        {
+          "update": 256,
+          "loss": 0.0007119451634716256
+        }
+      ],
+      "selected_test_loss": 0.0011008549327398498,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007119451634716256,
+      "selected_validation_loss": 0.0006182124231370522,
+      "final_validation_over_selected": 1.1516189853625662,
+      "selected_test_loss_change_percent": 4.9090585265812114,
+      "final_validation_loss_change_percent": 2.6756019689822663,
+      "selected_test_over_uncorrected": 0.6550066630812975
+    },
+    {
+      "arm": "medium",
+      "strength": 0.1,
+      "model_seed": 1,
+      "path": "medium-sigma0.1-seed1",
+      "classification": "completed",
+      "receipt_sha256": "d6742656e267f145d60b03f798fc3bb865ff8f48d372b922a394eaa89c738d0f",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.047129561130106176,
+      "gradient_cosine": 0.9994474466879105,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009662281131076611
+        },
+        {
+          "update": 128,
+          "loss": 0.0007563843505132439
+        },
+        {
+          "update": 192,
+          "loss": 0.0006405824611660193
+        },
+        {
+          "update": 256,
+          "loss": 0.0006861196739704667
+        }
+      ],
+      "selected_test_loss": 0.001124037957240205,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006861196739704667,
+      "selected_validation_loss": 0.0006405824611660193,
+      "final_validation_over_selected": 1.0710871988620454,
+      "selected_test_loss_change_percent": 7.118349870789298,
+      "final_validation_loss_change_percent": -1.048909154521993,
+      "selected_test_over_uncorrected": 0.6688005200796182
+    },
+    {
+      "arm": "small",
+      "strength": 0.1,
+      "model_seed": 1,
+      "path": "small-sigma0.1-seed1",
+      "classification": "completed",
+      "receipt_sha256": "e601d888ce20ef6322e874775397eacf5bb206c06e48ccba940f63203f9f0812",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.00814476326082757,
+      "gradient_cosine": 0.9999747330496687,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010329982445457374
+        },
+        {
+          "update": 128,
+          "loss": 0.0008037815227093148
+        },
+        {
+          "update": 192,
+          "loss": 0.0006268126669687746
+        },
+        {
+          "update": 256,
+          "loss": 0.0007277503136133135
+        }
+      ],
+      "selected_test_loss": 0.0009069463039956105,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007277503136133135,
+      "selected_validation_loss": 0.0006268126669687746,
+      "final_validation_over_selected": 1.161033195344738,
+      "selected_test_loss_change_percent": -13.5700081303748,
+      "final_validation_loss_change_percent": 4.95499564741495,
+      "selected_test_over_uncorrected": 0.5396313851231714
+    },
+    {
+      "arm": "large",
+      "strength": 0.3,
+      "model_seed": 1,
+      "path": "large-sigma0.3-seed1",
+      "classification": "completed",
+      "receipt_sha256": "1e697355e81cb054078ba19be649db80a5075267015561a9dbf57a6e06406299",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.21907728999320475,
+      "gradient_cosine": 0.9757253925205303,
+      "selected_update": 128,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009370353333505221
+        },
+        {
+          "update": 128,
+          "loss": 0.0005501548585529292
+        },
+        {
+          "update": 192,
+          "loss": 0.0007026865434904294
+        },
+        {
+          "update": 256,
+          "loss": 0.000861631460073653
+        }
+      ],
+      "selected_test_loss": 0.0008449369148510044,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000861631460073653,
+      "selected_validation_loss": 0.0005501548585529292,
+      "final_validation_over_selected": 1.5661616846209443,
+      "selected_test_loss_change_percent": -19.479366794716046,
+      "final_validation_loss_change_percent": 24.263122186377938,
+      "selected_test_over_uncorrected": 0.5027359124724471
+    },
+    {
+      "arm": "medium",
+      "strength": 0.3,
+      "model_seed": 1,
+      "path": "medium-sigma0.3-seed1",
+      "classification": "completed",
+      "receipt_sha256": "c21d817466fc5c731ff226ef2256394ab3805e1eef7d787157f3baea3035a7fb",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.1444790068615465,
+      "gradient_cosine": 0.9940862734552536,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.000986855234704933
+        },
+        {
+          "update": 128,
+          "loss": 0.0007572071837441996
+        },
+        {
+          "update": 192,
+          "loss": 0.0005427766625865616
+        },
+        {
+          "update": 256,
+          "loss": 0.0005726961588457868
+        }
+      ],
+      "selected_test_loss": 0.0008958962721895603,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0005726961588457868,
+      "selected_validation_loss": 0.0005427766625865616,
+      "final_validation_over_selected": 1.0551230336924327,
+      "selected_test_loss_change_percent": -14.623051904795037,
+      "final_validation_loss_change_percent": -17.406668558457618,
+      "selected_test_over_uncorrected": 0.5330566364937499
+    },
+    {
+      "arm": "small",
+      "strength": 0.3,
+      "model_seed": 1,
+      "path": "small-sigma0.3-seed1",
+      "classification": "completed",
+      "receipt_sha256": "270776af38e2b1c5db34e606feff73419a4ad0de00dfd2bcc9f4b1869fd277f0",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.024757501801254016,
+      "gradient_cosine": 0.9997625827538013,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010312588171201042
+        },
+        {
+          "update": 128,
+          "loss": 0.0008023556545185784
+        },
+        {
+          "update": 192,
+          "loss": 0.0006249264632472773
+        },
+        {
+          "update": 256,
+          "loss": 0.0007317388727962282
+        }
+      ],
+      "selected_test_loss": 0.0009088083462008001,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007317388727962282,
+      "selected_validation_loss": 0.0006249264632472773,
+      "final_validation_over_selected": 1.1709199655171048,
+      "selected_test_loss_change_percent": -13.392559595719089,
+      "final_validation_loss_change_percent": 5.530219324892749,
+      "selected_test_over_uncorrected": 0.5407392968153162
+    },
+    {
+      "arm": "large",
+      "strength": 1.0,
+      "model_seed": 1,
+      "path": "large-sigma1-seed1",
+      "classification": "completed",
+      "receipt_sha256": "35e31a7927c15d4919ff5eade6e1738c998d0fc25289d5e039335e20603427ab",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.9047779430160822,
+      "gradient_cosine": 0.6445514717685374,
+      "selected_update": 128,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009589034701812693
+        },
+        {
+          "update": 128,
+          "loss": 0.0007229406074727506
+        },
+        {
+          "update": 192,
+          "loss": 0.001572528895343339
+        },
+        {
+          "update": 256,
+          "loss": 0.0009228784879108787
+        }
+      ],
+      "selected_test_loss": 0.0009729099040563938,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0009228784879108787,
+      "selected_validation_loss": 0.0007229406074727506,
+      "final_validation_over_selected": 1.2765619725485737,
+      "selected_test_loss_change_percent": -7.28382184588634,
+      "final_validation_loss_change_percent": 33.09607137214594,
+      "selected_test_over_uncorrected": 0.5788796060064704
+    },
+    {
+      "arm": "medium",
+      "strength": 1.0,
+      "model_seed": 1,
+      "path": "medium-sigma1-seed1",
+      "classification": "completed",
+      "receipt_sha256": "2f6c6c735f37de6678419ca1ae3a8c449c6349e34759a1ddd41b8a4996fd03e9",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.689199306856804,
+      "gradient_cosine": 0.729040922207089,
+      "selected_update": 128,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010196480143362407
+        },
+        {
+          "update": 128,
+          "loss": 0.0006966074391085897
+        },
+        {
+          "update": 192,
+          "loss": 0.0008323951516490525
+        },
+        {
+          "update": 256,
+          "loss": 0.0007712137750741732
+        }
+      ],
+      "selected_test_loss": 0.0008931169699445718,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007712137750741732,
+      "selected_validation_loss": 0.0006966074391085897,
+      "final_validation_over_selected": 1.1070995395355714,
+      "selected_test_loss_change_percent": -14.887913307702016,
+      "final_validation_loss_change_percent": 11.223227104158727,
+      "selected_test_over_uncorrected": 0.5314029567626218
+    },
+    {
+      "arm": "small",
+      "strength": 1.0,
+      "model_seed": 1,
+      "path": "small-sigma1-seed1",
+      "classification": "completed",
+      "receipt_sha256": "18ab61af06ca6944b96cc2bac817b1e546512e62fc673827e37a562ccb4dd7e1",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.09765474730835144,
+      "gradient_cosine": 0.9960250333408979,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009401515252069714
+        },
+        {
+          "update": 128,
+          "loss": 0.0009114723198560171
+        },
+        {
+          "update": 192,
+          "loss": 0.000819909671863428
+        },
+        {
+          "update": 256,
+          "loss": 0.000731141026851958
+        }
+      ],
+      "selected_test_loss": 0.0011823474278870095,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000731141026851958,
+      "selected_validation_loss": 0.000731141026851958,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 12.675114424239474,
+      "final_validation_loss_change_percent": 5.443998931297633,
+      "selected_test_over_uncorrected": 0.703494548019652
+    },
+    {
+      "arm": "large",
+      "strength": 3.0,
+      "model_seed": 1,
+      "path": "large-sigma3-seed1",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "c850d0781896feaed939eb257396a96b70e49b7d7784b141d3bf0609f7757aa7",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 192,
+      "completed_updates_lower_bound": 192,
+      "gradient_relative_l2": 63.73950885802772,
+      "gradient_cosine": 0.08153400288236061,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.23087374801601981
+        },
+        {
+          "update": 128,
+          "loss": 2.54140540022403
+        }
+      ]
+    },
+    {
+      "arm": "medium",
+      "strength": 3.0,
+      "model_seed": 1,
+      "path": "medium-sigma3-seed1",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "4f3cc133349f2056d278b3239c541d31da6a62cd6c8cdaa7cd529255c246ff6e",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 64,
+      "completed_updates_lower_bound": 64,
+      "gradient_relative_l2": 86.3066986410664,
+      "gradient_cosine": 0.1357323109034162,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        }
+      ]
+    },
+    {
+      "arm": "small",
+      "strength": 3.0,
+      "model_seed": 1,
+      "path": "small-sigma3-seed1",
+      "classification": "completed",
+      "receipt_sha256": "641ac897e69a7b5a046e4655ccd04adad479f40436bba0d12643f41f3730d848",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.8176579066426308,
+      "gradient_cosine": 0.2747348690226053,
+      "selected_update": 128,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0013407134871138736
+        },
+        {
+          "update": 128,
+          "loss": 0.0006919045226864284
+        },
+        {
+          "update": 192,
+          "loss": 0.000702400532121743
+        },
+        {
+          "update": 256,
+          "loss": 0.0012332377805502404
+        }
+      ],
+      "selected_test_loss": 0.0008244517281544006,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0012332377805502404,
+      "selected_validation_loss": 0.0006919045226864284,
+      "final_validation_over_selected": 1.782381441534737,
+      "selected_test_loss_change_percent": -21.431560118438753,
+      "final_validation_loss_change_percent": 77.85559616900765,
+      "selected_test_over_uncorrected": 0.49054726401234094
+    },
+    {
+      "arm": "clean",
+      "strength": 0.0,
+      "model_seed": 2,
+      "path": "clean-sigma0-seed2",
+      "classification": "completed",
+      "receipt_sha256": "f0a66b97520ba250cdff794e5e34fa5ae25ba71e839411a3bcfab7303dd49a72",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0,
+      "gradient_cosine": 1.0,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009948718166009486
+        },
+        {
+          "update": 128,
+          "loss": 0.0008957053330526321
+        },
+        {
+          "update": 192,
+          "loss": 0.0009360287191897498
+        },
+        {
+          "update": 256,
+          "loss": 0.0007976684794746092
+        }
+      ],
+      "selected_test_loss": 0.0014950051534502505,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007976684794746092,
+      "selected_validation_loss": 0.0007976684794746092,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 0.0,
+      "final_validation_loss_change_percent": 0.0,
+      "selected_test_over_uncorrected": 0.8895253204830775
+    },
+    {
+      "arm": "large",
+      "strength": 0.03,
+      "model_seed": 2,
+      "path": "large-sigma0.03-seed2",
+      "classification": "completed",
+      "receipt_sha256": "44db65dd27276e1dc23402a3f3bea55d891f3c7cc1bdc4265cff9000a608cb77",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.03463139792679772,
+      "gradient_cosine": 0.9996576913111775,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010121850456640401
+        },
+        {
+          "update": 128,
+          "loss": 0.0009040045959417142
+        },
+        {
+          "update": 192,
+          "loss": 0.0009250861154177414
+        },
+        {
+          "update": 256,
+          "loss": 0.0007935181341340324
+        }
+      ],
+      "selected_test_loss": 0.0015012045294084686,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007935181341340324,
+      "selected_validation_loss": 0.0007935181341340324,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 0.4146725477106816,
+      "final_validation_loss_change_percent": -0.5203095580898931,
+      "selected_test_over_uncorrected": 0.8932139377920563
+    },
+    {
+      "arm": "medium",
+      "strength": 0.03,
+      "model_seed": 2,
+      "path": "medium-sigma0.03-seed2",
+      "classification": "completed",
+      "receipt_sha256": "3c3359cf3ac98e1985ce0eb0c9d0d90d99809dde95f48cda3238fb2abec05eec",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.011453935298599682,
+      "gradient_cosine": 0.9999378901719091,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009896480292741928
+        },
+        {
+          "update": 128,
+          "loss": 0.0008834770394352631
+        },
+        {
+          "update": 192,
+          "loss": 0.0009381115496257308
+        },
+        {
+          "update": 256,
+          "loss": 0.0007818832058517699
+        }
+      ],
+      "selected_test_loss": 0.001453850217350734,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007818832058517699,
+      "selected_validation_loss": 0.0007818832058517699,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -2.752829045741889,
+      "final_validation_loss_change_percent": -1.9789265878020323,
+      "selected_test_over_uncorrected": 0.8650382090915908
+    },
+    {
+      "arm": "small",
+      "strength": 0.03,
+      "model_seed": 2,
+      "path": "small-sigma0.03-seed2",
+      "classification": "completed",
+      "receipt_sha256": "cb982dceb844b224123053ec672c656409f8a95db0b9cf9575769850d15faff1",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0017067367863354845,
+      "gradient_cosine": 0.9999986798190375,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009938761616093217
+        },
+        {
+          "update": 128,
+          "loss": 0.0008966773126932281
+        },
+        {
+          "update": 192,
+          "loss": 0.0009335603914218637
+        },
+        {
+          "update": 256,
+          "loss": 0.0007968206588886773
+        }
+      ],
+      "selected_test_loss": 0.0014921450617698185,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007968206588886773,
+      "selected_validation_loss": 0.0007968206588886773,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -0.1913098208278008,
+      "final_validation_loss_change_percent": -0.10628733712660932,
+      "selected_test_over_uncorrected": 0.8878235711862434
+    },
+    {
+      "arm": "large",
+      "strength": 0.1,
+      "model_seed": 2,
+      "path": "large-sigma0.1-seed2",
+      "classification": "completed",
+      "receipt_sha256": "958673a9e3238a1b3117a7bc07193ddb448d6ec120493970f3af9448ae604872",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.11606810968560427,
+      "gradient_cosine": 0.9965314816165992,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011015201687490617
+        },
+        {
+          "update": 128,
+          "loss": 0.0010602570380761733
+        },
+        {
+          "update": 192,
+          "loss": 0.0009311318608568087
+        },
+        {
+          "update": 256,
+          "loss": 0.0007956378420419697
+        }
+      ],
+      "selected_test_loss": 0.0014306622649614554,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007956378420419697,
+      "selected_validation_loss": 0.0007956378420419697,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -4.303857303789305,
+      "final_validation_loss_change_percent": -0.2545716027261169,
+      "selected_test_over_uncorrected": 0.8512414200084114
+    },
+    {
+      "arm": "medium",
+      "strength": 0.1,
+      "model_seed": 2,
+      "path": "medium-sigma0.1-seed2",
+      "classification": "completed",
+      "receipt_sha256": "22c8b7f1145597620913e24b2cbfae6193022719700968ab916095e9038e32f3",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.038508316411941794,
+      "gradient_cosine": 0.9992889523498287,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009751226370597266
+        },
+        {
+          "update": 128,
+          "loss": 0.0008503324827650261
+        },
+        {
+          "update": 192,
+          "loss": 0.0008174945775810017
+        },
+        {
+          "update": 256,
+          "loss": 0.0006464898428212251
+        }
+      ],
+      "selected_test_loss": 0.001099279552340633,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006464898428212251,
+      "selected_validation_loss": 0.0006464898428212251,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -26.469848628704828,
+      "final_validation_loss_change_percent": -18.952564949408448,
+      "selected_test_over_uncorrected": 0.6540693146372054
+    },
+    {
+      "arm": "small",
+      "strength": 0.1,
+      "model_seed": 2,
+      "path": "small-sigma0.1-seed2",
+      "classification": "completed",
+      "receipt_sha256": "be274e7ed207a44ed701db7c784ad548d01cdcea0e7d9b692f66715686b549cf",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.005699541720383935,
+      "gradient_cosine": 0.9999853136497544,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009904263128584034
+        },
+        {
+          "update": 128,
+          "loss": 0.0008976031667150152
+        },
+        {
+          "update": 192,
+          "loss": 0.0009116480703251995
+        },
+        {
+          "update": 256,
+          "loss": 0.0007963570758928284
+        }
+      ],
+      "selected_test_loss": 0.0014934070486966532,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007963570758928284,
+      "selected_validation_loss": 0.0007963570758928284,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -0.10689627055191497,
+      "final_validation_loss_change_percent": -0.1644045885634826,
+      "selected_test_over_uncorrected": 0.8885744510898661
+    },
+    {
+      "arm": "large",
+      "strength": 0.3,
+      "model_seed": 2,
+      "path": "large-sigma0.3-seed2",
+      "classification": "completed",
+      "receipt_sha256": "2f8420a8d829329dbec957e25783997144e8c4ac05eb23fdf9b66d8afdf991e8",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.3653077037285836,
+      "gradient_cosine": 0.9746389594407326,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001507741463906811
+        },
+        {
+          "update": 128,
+          "loss": 0.0012744663818028102
+        },
+        {
+          "update": 192,
+          "loss": 0.0013482844527828064
+        },
+        {
+          "update": 256,
+          "loss": 0.000835767843061106
+        }
+      ],
+      "selected_test_loss": 0.0014678223520635215,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000835767843061106,
+      "selected_validation_loss": 0.000835767843061106,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -1.8182413166934697,
+      "final_validation_loss_change_percent": 4.776340618547614,
+      "selected_test_over_uncorrected": 0.8733516035836042
+    },
+    {
+      "arm": "medium",
+      "strength": 0.3,
+      "model_seed": 2,
+      "path": "medium-sigma0.3-seed2",
+      "classification": "completed",
+      "receipt_sha256": "291c041a2c7b24283eb7c754d18b91442d35b7a34f2af0ff7ebd2b5c307bdbfc",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.12169684636761091,
+      "gradient_cosine": 0.99265879496538,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010660668750897173
+        },
+        {
+          "update": 128,
+          "loss": 0.0011405083153833574
+        },
+        {
+          "update": 192,
+          "loss": 0.0010617311215521852
+        },
+        {
+          "update": 256,
+          "loss": 0.000897241183988271
+        }
+      ],
+      "selected_test_loss": 0.0018592835272942664,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.000897241183988271,
+      "selected_validation_loss": 0.000897241183988271,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 24.366362417100397,
+      "final_validation_loss_change_percent": 12.482968435614538,
+      "selected_test_over_uncorrected": 1.1062702838638578
+    },
+    {
+      "arm": "small",
+      "strength": 0.3,
+      "model_seed": 2,
+      "path": "small-sigma0.3-seed2",
+      "classification": "completed",
+      "receipt_sha256": "d2d8af54bf2204c30f68b2557847c04d52034f31fba1652d22f7a856d3fe575d",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.017340800373987542,
+      "gradient_cosine": 0.9998650622868422,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009992687137230405
+        },
+        {
+          "update": 128,
+          "loss": 0.0009017902592314186
+        },
+        {
+          "update": 192,
+          "loss": 0.0009003343899509275
+        },
+        {
+          "update": 256,
+          "loss": 0.0008104812062978084
+        }
+      ],
+      "selected_test_loss": 0.0015223705487881745,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0008104812062978084,
+      "selected_validation_loss": 0.0008104812062978084,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 1.8304549168120632,
+      "final_validation_loss_change_percent": 1.606272173577472,
+      "selected_test_over_uncorrected": 0.9058076804481483
+    },
+    {
+      "arm": "large",
+      "strength": 1.0,
+      "model_seed": 2,
+      "path": "large-sigma1-seed2",
+      "classification": "completed",
+      "receipt_sha256": "3dccd0be1dc018ed677cc0bb0729a0b804d71a5d464890766f2560217561f4c6",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 2.070003751432034,
+      "gradient_cosine": 0.8106732011583972,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0017242656793689548
+        },
+        {
+          "update": 128,
+          "loss": 0.0016837953790265203
+        },
+        {
+          "update": 192,
+          "loss": 0.0026731145903471543
+        },
+        {
+          "update": 256,
+          "loss": 0.0008374435329164243
+        }
+      ],
+      "selected_test_loss": 0.0011557281277499954,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0008374435329164243,
+      "selected_validation_loss": 0.0008374435329164243,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -22.694037202296858,
+      "final_validation_loss_change_percent": 4.9864140887218245,
+      "selected_test_over_uncorrected": 0.6876561133287975
+    },
+    {
+      "arm": "medium",
+      "strength": 1.0,
+      "model_seed": 2,
+      "path": "medium-sigma1-seed2",
+      "classification": "completed",
+      "receipt_sha256": "79c728f17119160e63a268c39aca3df59ef41bef0d2cd43d2b0d7a8810dfdfaf",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.6899901300769149,
+      "gradient_cosine": 0.8032085030479377,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0013253020760468815
+        },
+        {
+          "update": 128,
+          "loss": 0.0008861210834269429
+        },
+        {
+          "update": 192,
+          "loss": 0.0011347492862252295
+        },
+        {
+          "update": 256,
+          "loss": 0.0006207321503548969
+        }
+      ],
+      "selected_test_loss": 0.001049296424654429,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006207321503548969,
+      "selected_validation_loss": 0.0006207321503548969,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -29.813190126280965,
+      "final_validation_loss_change_percent": -22.181687464478085,
+      "selected_test_over_uncorrected": 0.6243294454660476
+    },
+    {
+      "arm": "small",
+      "strength": 1.0,
+      "model_seed": 2,
+      "path": "small-sigma1-seed2",
+      "classification": "completed",
+      "receipt_sha256": "f2abf7aee4a46d4a1e54404d5ee85f8c83377b545032779d253729a18a2743a8",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.06818268886661055,
+      "gradient_cosine": 0.9979900944645808,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0008976711609526689
+        },
+        {
+          "update": 128,
+          "loss": 0.0009416325400613346
+        },
+        {
+          "update": 192,
+          "loss": 0.000919226442465515
+        },
+        {
+          "update": 256,
+          "loss": 0.0007062873567177519
+        }
+      ],
+      "selected_test_loss": 0.0010253729507357435,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007062873567177519,
+      "selected_validation_loss": 0.0007062873567177519,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -31.413416979243546,
+      "final_validation_loss_change_percent": -11.456027799549783,
+      "selected_test_over_uncorrected": 0.6100950224237759
+    },
+    {
+      "arm": "large",
+      "strength": 3.0,
+      "model_seed": 2,
+      "path": "large-sigma3-seed2",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "f3597d439566f47f2e87bfa7cc7ef3d781846411c069cffc811fe8a1e3cb02c6",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 206,
+      "completed_updates_lower_bound": 205,
+      "gradient_relative_l2": 112.34413778402057,
+      "gradient_cosine": 0.5320014065355949,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 1.8395088094306993
+        },
+        {
+          "update": 128,
+          "loss": 1.190390265721362
+        },
+        {
+          "update": 192,
+          "loss": 1.86679520286154
+        }
+      ]
+    },
+    {
+      "arm": "medium",
+      "strength": 3.0,
+      "model_seed": 2,
+      "path": "medium-sigma3-seed2",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "3c5d7c6ac4e40643287d6405ffa5a4767a7896a51cd14030c5d59e31faa3433c",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 64,
+      "completed_updates_lower_bound": 64,
+      "gradient_relative_l2": 52.768157588177644,
+      "gradient_cosine": 0.2983346401180164,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        }
+      ]
+    },
+    {
+      "arm": "small",
+      "strength": 3.0,
+      "model_seed": 2,
+      "path": "small-sigma3-seed2",
+      "classification": "completed",
+      "receipt_sha256": "4a7c0d9e903084c0911f39f4b75e8ded4de3e552c980b4c678126449e606c906",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.1604931370690226,
+      "gradient_cosine": 0.778115173337985,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0015165902872343652
+        },
+        {
+          "update": 128,
+          "loss": 0.0009828167612327833
+        },
+        {
+          "update": 192,
+          "loss": 0.0009427377542542103
+        },
+        {
+          "update": 256,
+          "loss": 0.0013178782574784975
+        }
+      ],
+      "selected_test_loss": 0.0015384958364563772,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0013178782574784975,
+      "selected_validation_loss": 0.0009427377542542103,
+      "final_validation_over_selected": 1.3979266784759847,
+      "selected_test_loss_change_percent": 2.9090657584528445,
+      "final_validation_loss_change_percent": 65.2162886449429,
+      "selected_test_over_uncorrected": 0.9154021969940187
+    },
+    {
+      "arm": "clean",
+      "strength": 0.0,
+      "model_seed": 3,
+      "path": "clean-sigma0-seed3",
+      "classification": "completed",
+      "receipt_sha256": "831db4ca145e67feadb418ced23e84f97fc839148f0a1d427673b74e87d06aa0",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0,
+      "gradient_cosine": 0.9999999999999998,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009753717681080332
+        },
+        {
+          "update": 128,
+          "loss": 0.0009348591762261549
+        },
+        {
+          "update": 192,
+          "loss": 0.0007837975426803468
+        },
+        {
+          "update": 256,
+          "loss": 0.001172391366828407
+        }
+      ],
+      "selected_test_loss": 0.001375379874870646,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.001172391366828407,
+      "selected_validation_loss": 0.0007837975426803468,
+      "final_validation_over_selected": 1.4957834172574573,
+      "selected_test_loss_change_percent": 0.0,
+      "final_validation_loss_change_percent": 0.0,
+      "selected_test_over_uncorrected": 0.8183484994394695
+    },
+    {
+      "arm": "large",
+      "strength": 0.03,
+      "model_seed": 3,
+      "path": "large-sigma0.03-seed3",
+      "classification": "completed",
+      "receipt_sha256": "ce7a19f2c83c51e95e6a5c641e9bc7c2300a50217c6f5e7b44a6568b283eb99b",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.027180991986656737,
+      "gradient_cosine": 0.9997503073679406,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.000961061208532712
+        },
+        {
+          "update": 128,
+          "loss": 0.0009481260698418481
+        },
+        {
+          "update": 192,
+          "loss": 0.0007404342785088147
+        },
+        {
+          "update": 256,
+          "loss": 0.0010328676342523124
+        }
+      ],
+      "selected_test_loss": 0.0013749507224196122,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0010328676342523124,
+      "selected_validation_loss": 0.0007404342785088147,
+      "final_validation_over_selected": 1.394948429903109,
+      "selected_test_loss_change_percent": -0.03120246696020068,
+      "final_validation_loss_change_percent": -11.900781302538832,
+      "selected_test_over_uncorrected": 0.8180931545193126
+    },
+    {
+      "arm": "medium",
+      "strength": 0.03,
+      "model_seed": 3,
+      "path": "medium-sigma0.03-seed3",
+      "classification": "completed",
+      "receipt_sha256": "5cb3b39f537437d125cf037949e98576a54b3dcdfe3765d953d0a9f93eacb5a2",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0264488549991152,
+      "gradient_cosine": 0.9998605096567491,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009760733281051159
+        },
+        {
+          "update": 128,
+          "loss": 0.0009417053616029847
+        },
+        {
+          "update": 192,
+          "loss": 0.0007799850201426039
+        },
+        {
+          "update": 256,
+          "loss": 0.0011639844813866773
+        }
+      ],
+      "selected_test_loss": 0.0013652066992564471,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0011639844813866773,
+      "selected_validation_loss": 0.0007799850201426039,
+      "final_validation_over_selected": 1.4923164565056226,
+      "selected_test_loss_change_percent": -0.739662968760213,
+      "final_validation_loss_change_percent": -0.7170715922680482,
+      "selected_test_over_uncorrected": 0.8122954786337108
+    },
+    {
+      "arm": "small",
+      "strength": 0.03,
+      "model_seed": 3,
+      "path": "small-sigma0.03-seed3",
+      "classification": "completed",
+      "receipt_sha256": "cc66d1edfe5be52d7099881f7f4a5a01e2f3bc1cddc2b763dfb929881a650ad5",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0037937724857243864,
+      "gradient_cosine": 0.999996873818338,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009751663455877946
+        },
+        {
+          "update": 128,
+          "loss": 0.0009351745785046007
+        },
+        {
+          "update": 192,
+          "loss": 0.0007839854987729922
+        },
+        {
+          "update": 256,
+          "loss": 0.0011711955230269667
+        }
+      ],
+      "selected_test_loss": 0.0013756030591471813,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0011711955230269667,
+      "selected_validation_loss": 0.0007839854987729922,
+      "final_validation_over_selected": 1.493899472451969,
+      "selected_test_loss_change_percent": 0.01622710064419497,
+      "final_validation_loss_change_percent": -0.10200039298099428,
+      "selected_test_over_uncorrected": 0.8184812936740938
+    },
+    {
+      "arm": "large",
+      "strength": 0.1,
+      "model_seed": 3,
+      "path": "large-sigma0.1-seed3",
+      "classification": "completed",
+      "receipt_sha256": "67d6d72f8ad98be350e9b7f7c3af37df2d6f5dd77ee2dd6c1510e0f6a7db2582",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.09106521378653062,
+      "gradient_cosine": 0.9973830528238256,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001040943838800459
+        },
+        {
+          "update": 128,
+          "loss": 0.0010294032092765092
+        },
+        {
+          "update": 192,
+          "loss": 0.0007784630895764622
+        },
+        {
+          "update": 256,
+          "loss": 0.001048614730972588
+        }
+      ],
+      "selected_test_loss": 0.001483997156454251,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.001048614730972588,
+      "selected_validation_loss": 0.0007784630895764622,
+      "final_validation_over_selected": 1.3470320494490073,
+      "selected_test_loss_change_percent": 7.897256864676794,
+      "final_validation_loss_change_percent": -10.557620889913544,
+      "selected_test_over_uncorrected": 0.8829755824884324
+    },
+    {
+      "arm": "medium",
+      "strength": 0.1,
+      "model_seed": 3,
+      "path": "medium-sigma0.1-seed3",
+      "classification": "completed",
+      "receipt_sha256": "685fc722fb582a360cd9075e58df53371b0d5ef7f541bc32a290b794b67fe599",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0886657477164936,
+      "gradient_cosine": 0.9985705590639896,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011322722569382649
+        },
+        {
+          "update": 128,
+          "loss": 0.0009626342025997304
+        },
+        {
+          "update": 192,
+          "loss": 0.0008090185558308605
+        },
+        {
+          "update": 256,
+          "loss": 0.0011784618096781685
+        }
+      ],
+      "selected_test_loss": 0.0013795547881413483,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0011784618096781685,
+      "selected_validation_loss": 0.0008090185558308605,
+      "final_validation_over_selected": 1.456656094207741,
+      "selected_test_loss_change_percent": 0.30354619454462384,
+      "final_validation_loss_change_percent": 0.5177829709019033,
+      "selected_test_over_uncorrected": 0.8208325651676309
+    },
+    {
+      "arm": "small",
+      "strength": 0.1,
+      "model_seed": 3,
+      "path": "small-sigma0.1-seed3",
+      "classification": "completed",
+      "receipt_sha256": "5a9c6988acfb15b3894bec9dfcf9a8b6b997cfd65902b37d12c2a3108c867077",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.012666973269477771,
+      "gradient_cosine": 0.9999656249244656,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009770980148960718
+        },
+        {
+          "update": 128,
+          "loss": 0.0009370441769507209
+        },
+        {
+          "update": 192,
+          "loss": 0.0007842026665981195
+        },
+        {
+          "update": 256,
+          "loss": 0.0011679636584285902
+        }
+      ],
+      "selected_test_loss": 0.001376206811588645,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0011679636584285902,
+      "selected_validation_loss": 0.0007842026665981195,
+      "final_validation_over_selected": 1.4893645586481241,
+      "selected_test_loss_change_percent": 0.060124241535586265,
+      "final_validation_loss_change_percent": -0.37766470524213114,
+      "selected_test_over_uncorrected": 0.8188405252678754
+    },
+    {
+      "arm": "large",
+      "strength": 0.3,
+      "model_seed": 3,
+      "path": "large-sigma0.3-seed3",
+      "classification": "completed",
+      "receipt_sha256": "cf1bfe8390d7267029059ee22dc820a385544d14bf223e00b221b84df90c30a0",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.281519216719205,
+      "gradient_cosine": 0.9792253400413308,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001185813687327979
+        },
+        {
+          "update": 128,
+          "loss": 0.0010089066976910032
+        },
+        {
+          "update": 192,
+          "loss": 0.0010079944087296156
+        },
+        {
+          "update": 256,
+          "loss": 0.0010878118067093113
+        }
+      ],
+      "selected_test_loss": 0.0019058298101384708,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0010878118067093113,
+      "selected_validation_loss": 0.0010079944087296156,
+      "final_validation_over_selected": 1.0791843657945388,
+      "selected_test_loss_change_percent": 38.567521959539604,
+      "final_validation_loss_change_percent": -7.214276948140885,
+      "selected_test_over_uncorrected": 1.1339652366663497
+    },
+    {
+      "arm": "medium",
+      "strength": 0.3,
+      "model_seed": 3,
+      "path": "medium-sigma0.3-seed3",
+      "classification": "completed",
+      "receipt_sha256": "1d463b0aa3ba5ec914be622eec50e63291f9a797336cbcf64241d9e2a181f2d1",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.27530792243227536,
+      "gradient_cosine": 0.9893898335234831,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011099978668472233
+        },
+        {
+          "update": 128,
+          "loss": 0.001006730450588904
+        },
+        {
+          "update": 192,
+          "loss": 0.0008688025293908907
+        },
+        {
+          "update": 256,
+          "loss": 0.0010664949034760696
+        }
+      ],
+      "selected_test_loss": 0.00137574503461515,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0010664949034760696,
+      "selected_validation_loss": 0.0008688025293908907,
+      "final_validation_over_selected": 1.2275458086244053,
+      "selected_test_loss_change_percent": 0.026549737361714065,
+      "final_validation_loss_change_percent": -9.032518180239757,
+      "selected_test_over_uncorrected": 0.8185657688167742
+    },
+    {
+      "arm": "small",
+      "strength": 0.3,
+      "model_seed": 3,
+      "path": "small-sigma0.3-seed3",
+      "classification": "completed",
+      "receipt_sha256": "4e141524351016803cc62ea999c29c3609c61ebbf5d41310b25d150a7f51240c",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.038581160684242936,
+      "gradient_cosine": 0.9996943591763726,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.000962857752478854
+        },
+        {
+          "update": 128,
+          "loss": 0.0008836807313864625
+        },
+        {
+          "update": 192,
+          "loss": 0.0007578723688021682
+        },
+        {
+          "update": 256,
+          "loss": 0.0010105964984624904
+        }
+      ],
+      "selected_test_loss": 0.0014209251563966064,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0010105964984624904,
+      "selected_validation_loss": 0.0007578723688021682,
+      "final_validation_over_selected": 1.3334652905472164,
+      "selected_test_loss_change_percent": 3.3114692426515324,
+      "final_validation_loss_change_percent": -13.800414515471015,
+      "selected_test_over_uncorrected": 0.8454478582961078
+    },
+    {
+      "arm": "large",
+      "strength": 1.0,
+      "model_seed": 3,
+      "path": "large-sigma1-seed3",
+      "classification": "completed",
+      "receipt_sha256": "8d1f105518e31abde86e2de55e7bf8176899635de6de45159b94ee81723001a4",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.3687636234318379,
+      "gradient_cosine": 0.7265852288077239,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.003105597457632001
+        },
+        {
+          "update": 128,
+          "loss": 0.001010150064420401
+        },
+        {
+          "update": 192,
+          "loss": 0.001174111909803841
+        },
+        {
+          "update": 256,
+          "loss": 0.0009521939083123243
+        }
+      ],
+      "selected_test_loss": 0.001436263336905128,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0009521939083123243,
+      "selected_validation_loss": 0.0009521939083123243,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 4.426665181516354,
+      "final_validation_loss_change_percent": -18.781907198085936,
+      "selected_test_over_uncorrected": 0.8545740475276181
+    },
+    {
+      "arm": "medium",
+      "strength": 1.0,
+      "model_seed": 3,
+      "path": "medium-sigma1-seed3",
+      "classification": "completed",
+      "receipt_sha256": "4a6e137257358475765199bded10ea8be2b7426f5c19491f622639ce6be1539b",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.3063900880751964,
+      "gradient_cosine": 0.9172957210196185,
+      "selected_update": 0,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001337708732251528
+        },
+        {
+          "update": 128,
+          "loss": 0.0012370795383732514
+        },
+        {
+          "update": 192,
+          "loss": 0.00226652326847983
+        },
+        {
+          "update": 256,
+          "loss": 0.0014039256481299845
+        }
+      ],
+      "selected_test_loss": 0.0016806774568691907,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0014039256481299845,
+      "selected_validation_loss": 0.0011007894160869824,
+      "final_validation_over_selected": 1.2753807654878913,
+      "selected_test_loss_change_percent": 22.197327994730042,
+      "final_validation_loss_change_percent": 19.74888999122639,
+      "selected_test_over_uncorrected": 1.0
+    },
+    {
+      "arm": "small",
+      "strength": 1.0,
+      "model_seed": 3,
+      "path": "small-sigma1-seed3",
+      "classification": "completed",
+      "receipt_sha256": "d10e16630fafa02257f9886087884b3aaf5c19feb913257e197c3e44b74f41d4",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.15574154980911253,
+      "gradient_cosine": 0.9959785735953356,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011532451079258265
+        },
+        {
+          "update": 128,
+          "loss": 0.0008677703365365375
+        },
+        {
+          "update": 192,
+          "loss": 0.0007481192836600314
+        },
+        {
+          "update": 256,
+          "loss": 0.0010021395770624508
+        }
+      ],
+      "selected_test_loss": 0.001321935184423495,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0010021395770624508,
+      "selected_validation_loss": 0.0007481192836600314,
+      "final_validation_over_selected": 1.3395451754159755,
+      "selected_test_loss_change_percent": -3.885813034175556,
+      "final_validation_loss_change_percent": -14.521753962290518,
+      "selected_test_over_uncorrected": 0.7865490067832706
+    },
+    {
+      "arm": "large",
+      "strength": 3.0,
+      "model_seed": 3,
+      "path": "large-sigma3-seed3",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "66ed7883a0de844bb87ea5e5914ab7598fe206525244664025e4be6a071c9d6b",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 128,
+      "completed_updates_lower_bound": 128,
+      "gradient_relative_l2": 88.61042469051395,
+      "gradient_cosine": -0.45133637868094,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 1.5932635435881093
+        }
+      ]
+    },
+    {
+      "arm": "medium",
+      "strength": 3.0,
+      "model_seed": 3,
+      "path": "medium-sigma3-seed3",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "8b13ed3cfca8e0ee35fedf92c76fb415d9c3bd56c790bb4056f5018863ef15fb",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 128,
+      "completed_updates_lower_bound": 128,
+      "gradient_relative_l2": 64.11165140517735,
+      "gradient_cosine": 0.7074466596824746,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.4452192358567481
+        }
+      ]
+    },
+    {
+      "arm": "small",
+      "strength": 3.0,
+      "model_seed": 3,
+      "path": "small-sigma3-seed3",
+      "classification": "completed",
+      "receipt_sha256": "a3ca784e58e0b11bf1f7c5e7fcdec988f6c32c4478f1ad65e03610db1fa61151",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 3.2407154705082153,
+      "gradient_cosine": 0.8138668721871887,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0015951726408747647
+        },
+        {
+          "update": 128,
+          "loss": 0.001315026630812781
+        },
+        {
+          "update": 192,
+          "loss": 0.0009750004836199366
+        },
+        {
+          "update": 256,
+          "loss": 0.0016835154986284805
+        }
+      ],
+      "selected_test_loss": 0.0012584661069520563,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0016835154986284805,
+      "selected_validation_loss": 0.0009750004836199366,
+      "final_validation_over_selected": 1.7266817062264443,
+      "selected_test_loss_change_percent": -8.50047103747139,
+      "final_validation_loss_change_percent": 43.59671576077739,
+      "selected_test_over_uncorrected": 0.7487850222590356
+    },
+    {
+      "arm": "clean",
+      "strength": 0.0,
+      "model_seed": 4,
+      "path": "clean-sigma0-seed4",
+      "classification": "completed",
+      "receipt_sha256": "9527807b1cf36654714e0e341fa61d8662cad25f00a2352522e31c447834c25a",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0,
+      "gradient_cosine": 0.9999999999999998,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010825032879526475
+        },
+        {
+          "update": 128,
+          "loss": 0.0008232734040161915
+        },
+        {
+          "update": 192,
+          "loss": 0.0007439489052052295
+        },
+        {
+          "update": 256,
+          "loss": 0.0006876985999581819
+        }
+      ],
+      "selected_test_loss": 0.0014204809001211061,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006876985999581819,
+      "selected_validation_loss": 0.0006876985999581819,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 0.0,
+      "final_validation_loss_change_percent": 0.0,
+      "selected_test_over_uncorrected": 0.845183526628134
+    },
+    {
+      "arm": "large",
+      "strength": 0.03,
+      "model_seed": 4,
+      "path": "large-sigma0.03-seed4",
+      "classification": "completed",
+      "receipt_sha256": "e62142109ac42ba80b1a72ec3ba572b92a4bc39f55003e61a361c9377a0f40f9",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.015417312039461561,
+      "gradient_cosine": 0.9999016210753535,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010903733055140207
+        },
+        {
+          "update": 128,
+          "loss": 0.0008286172926419511
+        },
+        {
+          "update": 192,
+          "loss": 0.0007446401938884151
+        },
+        {
+          "update": 256,
+          "loss": 0.0007005492478567987
+        }
+      ],
+      "selected_test_loss": 0.0014546642502259032,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007005492478567987,
+      "selected_validation_loss": 0.0007005492478567987,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 2.4064631986169482,
+      "final_validation_loss_change_percent": 1.8686453483253151,
+      "selected_test_over_uncorrected": 0.8655225571572128
+    },
+    {
+      "arm": "medium",
+      "strength": 0.03,
+      "model_seed": 4,
+      "path": "medium-sigma0.03-seed4",
+      "classification": "completed",
+      "receipt_sha256": "6bdfb8043d0bdf66898d8d856bca202fb3dcd28751db369851092282e3023d0a",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.01268520352099703,
+      "gradient_cosine": 0.999928473261786,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0011002969563318032
+        },
+        {
+          "update": 128,
+          "loss": 0.0008249865424593139
+        },
+        {
+          "update": 192,
+          "loss": 0.0007359672418714069
+        },
+        {
+          "update": 256,
+          "loss": 0.0006937473815570172
+        }
+      ],
+      "selected_test_loss": 0.0014371533632341028,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006937473815570172,
+      "selected_validation_loss": 0.0006937473815570172,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 1.1737196263304384,
+      "final_validation_loss_change_percent": 0.8795686946582615,
+      "selected_test_over_uncorrected": 0.8551036115586801
+    },
+    {
+      "arm": "small",
+      "strength": 0.03,
+      "model_seed": 4,
+      "path": "small-sigma0.03-seed4",
+      "classification": "completed",
+      "receipt_sha256": "7f3b463d1ad8169eb4edffec509919f159ef33f17ac3f2d5f6de2325c887810b",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.001996771233930568,
+      "gradient_cosine": 0.9999982225956993,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010802630275503588
+        },
+        {
+          "update": 128,
+          "loss": 0.0008229667669860419
+        },
+        {
+          "update": 192,
+          "loss": 0.0007438179437210124
+        },
+        {
+          "update": 256,
+          "loss": 0.0006867048403559295
+        }
+      ],
+      "selected_test_loss": 0.0014178806181469384,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006867048403559295,
+      "selected_validation_loss": 0.0006867048403559295,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -0.18305645460956477,
+      "final_validation_loss_change_percent": -0.1445051076609527,
+      "selected_test_over_uncorrected": 0.8436363636293445
+    },
+    {
+      "arm": "large",
+      "strength": 0.1,
+      "model_seed": 4,
+      "path": "large-sigma0.1-seed4",
+      "classification": "completed",
+      "receipt_sha256": "c3bb5fabb338bfc742e53687cd76360b079a367fac93cdce47eb1328c9ceffcb",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.0515479772689582,
+      "gradient_cosine": 0.9988665159407732,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010221113577415508
+        },
+        {
+          "update": 128,
+          "loss": 0.0007699959091223008
+        },
+        {
+          "update": 192,
+          "loss": 0.0007454897743686217
+        },
+        {
+          "update": 256,
+          "loss": 0.0009081786990596186
+        }
+      ],
+      "selected_test_loss": 0.0015051961798423009,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0009081786990596186,
+      "selected_validation_loss": 0.0007454897743686217,
+      "final_validation_over_selected": 1.2182309272166518,
+      "selected_test_loss_change_percent": 5.963845041068283,
+      "final_validation_loss_change_percent": 32.060571173889805,
+      "selected_test_over_uncorrected": 0.895588962468872
+    },
+    {
+      "arm": "medium",
+      "strength": 0.1,
+      "model_seed": 4,
+      "path": "medium-sigma0.1-seed4",
+      "classification": "completed",
+      "receipt_sha256": "29c7b088775c5d273056bbf2a9719f19409229d62793a586238aaf8df5547fa8",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.04247597540968383,
+      "gradient_cosine": 0.9992126928131744,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001108360254992391
+        },
+        {
+          "update": 128,
+          "loss": 0.0008154769941123873
+        },
+        {
+          "update": 192,
+          "loss": 0.0007325842767131974
+        },
+        {
+          "update": 256,
+          "loss": 0.0007414403547384296
+        }
+      ],
+      "selected_test_loss": 0.001366450252521929,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0007414403547384296,
+      "selected_validation_loss": 0.0007325842767131974,
+      "final_validation_over_selected": 1.0120888180469363,
+      "selected_test_loss_change_percent": -3.803687018570301,
+      "final_validation_loss_change_percent": 7.814725053026961,
+      "selected_test_over_uncorrected": 0.813035390542685
+    },
+    {
+      "arm": "small",
+      "strength": 0.1,
+      "model_seed": 4,
+      "path": "small-sigma0.1-seed4",
+      "classification": "completed",
+      "receipt_sha256": "635da173edb835a3d888bb32638e7f7a9cbcc79e88b2eb4652546583380e63b8",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.006661670429165879,
+      "gradient_cosine": 0.9999801559229746,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001074214798509985
+        },
+        {
+          "update": 128,
+          "loss": 0.0008221220911619298
+        },
+        {
+          "update": 192,
+          "loss": 0.000743279835080699
+        },
+        {
+          "update": 256,
+          "loss": 0.0006842502926900096
+        }
+      ],
+      "selected_test_loss": 0.001411535248006004,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006842502926900096,
+      "selected_validation_loss": 0.0006842502926900096,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -0.6297622244930912,
+      "final_validation_loss_change_percent": -0.5014271176911,
+      "selected_test_over_uncorrected": 0.8398608800497915
+    },
+    {
+      "arm": "large",
+      "strength": 0.3,
+      "model_seed": 4,
+      "path": "large-sigma0.3-seed4",
+      "classification": "completed",
+      "receipt_sha256": "5f5529ba53d08be4f858a012951cecf3ad32146ee4516e1c9a2fb6dab931818b",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.1586329094397763,
+      "gradient_cosine": 0.9883674380696963,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.001072060481313386
+        },
+        {
+          "update": 128,
+          "loss": 0.0008428268472702882
+        },
+        {
+          "update": 192,
+          "loss": 0.001017062791208332
+        },
+        {
+          "update": 256,
+          "loss": 0.0008204669527032138
+        }
+      ],
+      "selected_test_loss": 0.0014758178693956836,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0008204669527032138,
+      "selected_validation_loss": 0.0008204669527032138,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 3.895650358259628,
+      "final_validation_loss_change_percent": 19.30618337060819,
+      "selected_test_over_uncorrected": 0.8781089217111743
+    },
+    {
+      "arm": "medium",
+      "strength": 0.3,
+      "model_seed": 4,
+      "path": "medium-sigma0.3-seed4",
+      "classification": "completed",
+      "receipt_sha256": "26634620d44021a5ece70ce5bec34556b0b77fff25eed38a153eb78729bc384c",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.13333581207717046,
+      "gradient_cosine": 0.9926891822700682,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0014597999230644377
+        },
+        {
+          "update": 128,
+          "loss": 0.000895923612940237
+        },
+        {
+          "update": 192,
+          "loss": 0.0008154034062948768
+        },
+        {
+          "update": 256,
+          "loss": 0.0008447495542868921
+        }
+      ],
+      "selected_test_loss": 0.0016179585727681455,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0008447495542868921,
+      "selected_validation_loss": 0.0008154034062948768,
+      "final_validation_over_selected": 1.035989729458406,
+      "selected_test_loss_change_percent": 13.902170217860931,
+      "final_validation_loss_change_percent": 22.837178138542136,
+      "selected_test_over_uncorrected": 0.9626823791532971
+    },
+    {
+      "arm": "small",
+      "strength": 0.3,
+      "model_seed": 4,
+      "path": "small-sigma0.3-seed4",
+      "classification": "completed",
+      "receipt_sha256": "01de1c16ef66e6f3f3fa306b7ad56d92d2ecce124be0668a35e056db8a160486",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.02016306263779867,
+      "gradient_cosine": 0.9998165912547797,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0010592630902792877
+        },
+        {
+          "update": 128,
+          "loss": 0.0008200549232426368
+        },
+        {
+          "update": 192,
+          "loss": 0.0007428104159622251
+        },
+        {
+          "update": 256,
+          "loss": 0.0006777829057707408
+        }
+      ],
+      "selected_test_loss": 0.0013967317276090086,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0006777829057707408,
+      "selected_validation_loss": 0.0006777829057707408,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": -1.671910724746295,
+      "final_validation_loss_change_percent": -1.4418662751449651,
+      "selected_test_over_uncorrected": 0.8310528126026493
+    },
+    {
+      "arm": "large",
+      "strength": 1.0,
+      "model_seed": 4,
+      "path": "large-sigma1-seed4",
+      "classification": "completed",
+      "receipt_sha256": "1171e059dd38a7d64e78650c4acd77816cfbca2e6383ea83190ee6a73af2617e",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.7650279509880313,
+      "gradient_cosine": 0.7041462205746001,
+      "selected_update": 192,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0020001147270174613
+        },
+        {
+          "update": 128,
+          "loss": 0.0009877562438214227
+        },
+        {
+          "update": 192,
+          "loss": 0.0009201604582503364
+        },
+        {
+          "update": 256,
+          "loss": 0.0013556449728366715
+        }
+      ],
+      "selected_test_loss": 0.0013699863423043723,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0013556449728366715,
+      "selected_validation_loss": 0.0009201604582503364,
+      "final_validation_over_selected": 1.473270189651921,
+      "selected_test_loss_change_percent": -3.5547509165683833,
+      "final_validation_loss_change_percent": 97.12777849469325,
+      "selected_test_over_uncorrected": 0.8151393574686354
+    },
+    {
+      "arm": "medium",
+      "strength": 1.0,
+      "model_seed": 4,
+      "path": "medium-sigma1-seed4",
+      "classification": "completed",
+      "receipt_sha256": "be0aa889832f650f781719f50001e990f21e2ec5afc190fea4030c40043b8c10",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.7703555172264501,
+      "gradient_cosine": 0.8552443940553526,
+      "selected_update": 64,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0009984986162797328
+        },
+        {
+          "update": 128,
+          "loss": 0.001917184838161461
+        },
+        {
+          "update": 192,
+          "loss": 0.001011662229425525
+        },
+        {
+          "update": 256,
+          "loss": 0.001161198717801284
+        }
+      ],
+      "selected_test_loss": 0.0016304037759023516,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.001161198717801284,
+      "selected_validation_loss": 0.0009984986162797328,
+      "final_validation_over_selected": 1.1629447441076575,
+      "selected_test_loss_change_percent": 14.778296263142154,
+      "final_validation_loss_change_percent": 68.8528547058108,
+      "selected_test_over_uncorrected": 0.9700872521605126
+    },
+    {
+      "arm": "small",
+      "strength": 1.0,
+      "model_seed": 4,
+      "path": "small-sigma1-seed4",
+      "classification": "completed",
+      "receipt_sha256": "5bef5fee2846ef5791fee44f3579df6932099d653e60a3c81eae7812f5cf7df6",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 0.07502587060668346,
+      "gradient_cosine": 0.9973688412191957,
+      "selected_update": 256,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0014650814526499544
+        },
+        {
+          "update": 128,
+          "loss": 0.0008972671199614268
+        },
+        {
+          "update": 192,
+          "loss": 0.001071332874922888
+        },
+        {
+          "update": 256,
+          "loss": 0.0008607843859412867
+        }
+      ],
+      "selected_test_loss": 0.0016402470307315298,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0008607843859412867,
+      "selected_validation_loss": 0.0008607843859412867,
+      "final_validation_over_selected": 1.0,
+      "selected_test_loss_change_percent": 15.471248546297733,
+      "final_validation_loss_change_percent": 25.168843733814473,
+      "selected_test_over_uncorrected": 0.9759439707051372
+    },
+    {
+      "arm": "large",
+      "strength": 3.0,
+      "model_seed": 4,
+      "path": "large-sigma3-seed4",
+      "classification": "solver_admissibility_failure",
+      "receipt_sha256": "069c62b228bc7d124e1f1717ec3563e78216c6a530828b4994cee7cbaefc153b",
+      "raw_failure_kind": "check_or_execution_failure",
+      "classification_evidence": "Native ValidationError explicitly rejects Initial advective CFL > 0.5 during fit; corroborated in wrapped failure. This does not establish nonfinite divergence.",
+      "failure": {
+        "type": "AssertionError",
+        "message": "('solver_in_loop', 'JAX-CFD', {'status': 'failed', 'reason': \"ValidationError: 1 validation error for ApplyInputSchema\\ninputs\\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error\", 'category': '', 'stale': True, 'resource_frontier': '', 'metrics': {}})",
+        "phase": "training"
+      },
+      "phase": "training",
+      "training_failure": {
+        "type": "ValidationError",
+        "message": "1 validation error for ApplyInputSchema\ninputs\n  Value error, Initial advective CFL must be <= 0.5; reduce dt. [type=value_error, input_value={'buoyancy': Array([1.], ...0.0005], dtype=float32)}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      },
+      "attempted_update": 171,
+      "completed_updates_lower_bound": 170,
+      "gradient_relative_l2": 64.11618758756974,
+      "gradient_cosine": -0.018910539245166176,
+      "partial_validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 1.407896977206692
+        },
+        {
+          "update": 128,
+          "loss": 1.7799278572341428
+        }
+      ]
+    },
+    {
+      "arm": "medium",
+      "strength": 3.0,
+      "model_seed": 4,
+      "path": "medium-sigma3-seed4",
+      "classification": "completed",
+      "receipt_sha256": "131c67ae532c14e29952006d1e1ae8e9098dcf59afc26e9f8557bb7d389cb904",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 41.22797274386256,
+      "gradient_cosine": 0.34393556538676323,
+      "selected_update": 0,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.3248021599845379
+        },
+        {
+          "update": 128,
+          "loss": 2.278496976485476
+        },
+        {
+          "update": 192,
+          "loss": 0.13806510757294746
+        },
+        {
+          "update": 256,
+          "loss": 0.7893898812319093
+        }
+      ],
+      "selected_test_loss": 0.0016806774568691907,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.7893898812319093,
+      "selected_validation_loss": 0.0011007894160869824,
+      "final_validation_over_selected": 717.1125282417624,
+      "selected_test_loss_change_percent": 18.317497737977394,
+      "final_validation_loss_change_percent": 114687.18748008372,
+      "selected_test_over_uncorrected": 1.0
+    },
+    {
+      "arm": "small",
+      "strength": 3.0,
+      "model_seed": 4,
+      "path": "small-sigma3-seed4",
+      "classification": "completed",
+      "receipt_sha256": "a0ea2ba88a657aa7218ebae8945eecf9f2ac64ac061266764f84819c4daf6daf",
+      "raw_failure_kind": null,
+      "classification_evidence": null,
+      "failure": null,
+      "phase": "complete",
+      "training_failure": null,
+      "attempted_update": 256,
+      "completed_updates_lower_bound": 256,
+      "gradient_relative_l2": 1.5619867909203047,
+      "gradient_cosine": 0.4777178656407389,
+      "selected_update": 0,
+      "validation_checkpoints": [
+        {
+          "update": 0,
+          "loss": 0.0011007894160869824
+        },
+        {
+          "update": 64,
+          "loss": 0.0013770348333564187
+        },
+        {
+          "update": 128,
+          "loss": 0.0011469637581103598
+        },
+        {
+          "update": 192,
+          "loss": 0.0011756018485945673
+        },
+        {
+          "update": 256,
+          "loss": 0.0013406628956693111
+        }
+      ],
+      "selected_test_loss": 0.0016806774568691907,
+      "uncorrected_test_loss": 0.0016806774568691907,
+      "final_validation_loss": 0.0013406628956693111,
+      "selected_validation_loss": 0.0011007894160869824,
+      "final_validation_over_selected": 1.2179104159949286,
+      "selected_test_loss_change_percent": 18.317497737977394,
+      "final_validation_loss_change_percent": 94.94919660311001,
+      "selected_test_over_uncorrected": 1.0
+    }
+  ],
+  "verified_invariants": {
+    "source": {
+      "gradient_noise_driver.py": "e61e4b42ad573eee8caf43a967072c9a525aa0301cb7cc477b2b893e671e15f3",
+      "tesseract_api_noisy.py": "0a2e4abd68339f6d39c8dba263b2b17a52efe152186d5d9e66e7592e1632aac1",
+      "gradient_noise.py": "d3593bff898d55dbbab9acf1969fde19c181ebe44f8e96f35509ed2f0b7ea73b",
+      "training.py": "26ac51784346f1d510264fc79ea9fe0c7bf85248e482e3d189bfc870c1ad2b3b",
+      "tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01"
+    },
+    "data": {
+      "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab",
+      "training_jax": "48cd566caa23570bb7e5e7d2f0864a9310af496f21e4ff73f0eb69de471035dd",
+      "validation": "2a91f75b3b552d44e55c95094ad6f6e67b2787383bfa8e6c1054e8dc0f714f5e"
+    },
+    "kwargs": {
+      "make_ic": {
+        "plume": "IcSpec(fn=<function plume at <process-address>>, description='Warm Gaussian plume at rest; seed sets its position and width.', plot_params={'N': 48})",
+        "interacting_plumes": "IcSpec(fn=<function interacting_plumes at <process-address>>, description='Two unequal warm plumes at rest, with gentle seeded position and width changes.', plot_params={'N': 64})",
+        "diffusion": "IcSpec(fn=<function diffusion_ic at <process-address>>, description='Cosine scalar mode with homogeneous Neumann walls.', plot_params={'N': 48})"
+      },
+      "output_key": "result",
+      "ic_key": "state0",
+      "domain_extent": 1.0,
+      "runs": [
+        {
+          "ic": {
+            "name": "interacting_plumes",
+            "seed": 0
+          },
+          "physics": {
+            "N": 64,
+            "nu": 0.0005,
+            "diffusivity": 0.0005,
+            "buoyancy": 1.0,
+            "dt": 0.005,
+            "steps": 8
+          },
+          "training": {
+            "updates": 256,
+            "unroll": 8,
+            "train_frames": 100,
+            "eval_frames": 100,
+            "reference_factor": 2,
+            "learning_rates": [
+              0.003
+            ],
+            "hidden_channels": 8,
+            "train_cases": [
+              {
+                "seed": 0
+              },
+              {
+                "seed": 2,
+                "position_jitter": 0.04,
+                "width_jitter": 0.15,
+                "amplitude_jitter": 0.15
+              },
+              {
+                "seed": 3,
+                "position_jitter": 0.04,
+                "width_jitter": 0.15,
+                "amplitude_jitter": 0.15
+              },
+              {
+                "seed": 4,
+                "position_jitter": 0.04,
+                "width_jitter": 0.15,
+                "amplitude_jitter": 0.15
+              }
+            ],
+            "validation_seed": 1,
+            "test_seed": 100,
+            "window_seed": 0,
+            "validation_interval": 64,
+            "reference_tolerance": 0.05,
+            "fd_epsilon": 0.003,
+            "fd_tolerance": 0.05
+          }
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Five paired replicates, descriptive only; no significance claims.",
+    "Selected heldout test and final-checkpoint validation are distinct outcomes.",
+    "Divergence and unavailable results remain explicit; no survivor-only summary means."
+  ],
+  "classification_counts": {
+    "completed": 72,
+    "solver_admissibility_failure": 8
+  }
+}

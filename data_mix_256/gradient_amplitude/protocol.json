@@ -1,0 +1,70 @@
+{
+  "source_commit": "a2339b9587b2eccb845c324325cb5288aae6aa04",
+  "status": "Complete:80 fresh runs and final analysis;72 passed,8 native CFL admissibility failures retained",
+  "submitted": true,
+  "cells": 80,
+  "strengths": [
+    0,
+    0.03,
+    0.1,
+    0.3,
+    1,
+    3
+  ],
+  "model_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "bands": [
+    "large",
+    "medium",
+    "small"
+  ],
+  "clean_runs": 5,
+  "noise_seed": "17000 + model_seed, paired across all strengths and bands",
+  "maximum_concurrent_jobs": 12,
+  "concurrency_policy": "12 afterany dependency lanes; failed scientific runs retained, no tuning or automatic reruns",
+  "source_changes": false,
+  "all_runs_fresh": true,
+  "launch_gate": {
+    "approved": true,
+    "preflights_passed": true,
+    "reproduction_bitwise_loss_equal": true,
+    "selected_update": 256,
+    "preflight_jobs": [
+      3012639,
+      3012640
+    ],
+    "reproduction_job": 3012641
+  },
+  "jobs_file": "jobs.json",
+  "complete": true,
+  "classification_counts": {
+    "passed": 72,
+    "solver_admissibility_failure": 8
+  },
+  "analysis_job": 3013625,
+  "analysis_manifest": "analysis_manifest.json",
+  "archive_manifest": "archive_manifest.json",
+  "control_reproduction": "control_reproduction.json",
+  "script_hashes": {
+    "tesseract_api_noisy.py": "0a2e4abd68339f6d39c8dba263b2b17a52efe152186d5d9e66e7592e1632aac1",
+    "gradient_noise_driver.py": "e61e4b42ad573eee8caf43a967072c9a525aa0301cb7cc477b2b893e671e15f3",
+    "gradient_noise.py": "d3593bff898d55dbbab9acf1969fde19c181ebe44f8e96f35509ed2f0b7ea73b"
+  },
+  "artifact_hashes": {
+    "final_validation.svg": "397ee031fd9474fa23761f780dc89774a6db5f32673396735b95d81aaacfba39",
+    "gradient_effect.svg": "f112d620fae0ab6d8be721e8c6efa947852aed2009eff48a3947356229f774df",
+    "gradient_effect.png": "cf3306d83a0b7ef424ce964ac622a8e026115b60bd3c8d34421fd9c1054c4ce2",
+    "final_validation.png": "20dc89b42dabb5006a0390fabb178400996b0ce3a4c62926b6a659b7afcb91a8",
+    "analysis_receipt.json": "8a1e06ee861bf0025759720259b228b8244c9d89c9e372d823727385b19b29bd",
+    "checkpoint_selection.svg": "f39899dcb4e9472d32a3c16217ed57f9e90b67dad531d42a724bb0344a6f9c94",
+    "selected_test.png": "927c8e6133ca569171bfe45991e2349d62e0697c6cc7751728f685e268d08856",
+    "amplitude_results.json": "63a1043fb287c0c294db0cade9130ef34c7a81cc039f093da3fd17945258e85e",
+    "selected_test.svg": "a7cb9c4fc32e2dbb0910a646148ae2fc59e847f1bb06244a0e46ec3e35d3b05e",
+    "checkpoint_selection.png": "b8a8487eb367d824774783d424a7f3bebfb30fd0975efa3dd50be4290ee3871d"
+  }
+}
