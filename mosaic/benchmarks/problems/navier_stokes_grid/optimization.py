@@ -370,7 +370,7 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
 
     Starts from the benchmark's parabolic inlet profile and checks that the
     solver's drag coefficient for it, Cd₀, is within :data:`CD0_TOLERANCE`
-    of the reference; otherwise it stops there and records the failure. Then
+    of the reference. Otherwise it stops there and records the failure. Then
     runs Adam on the loss ``Cd / Cd₀``, captures the initial and final flow
     fields, and hands the per-solver entry + snapshots back to the framework.
 
@@ -403,8 +403,8 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
             }
         }
 
-    # Forward only the optimiser knobs the config sets; the loop carries its
-    # own defaults.
+    # Forward only the optimiser knobs the config sets, so the loop's own
+    # defaults fill in the rest.
     loop_kwargs = {
         k: optim_cfg[k]
         for k in ("lr", "max_iters", "patience", "min_rel_improvement")
@@ -458,7 +458,7 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
         t, profile, phys, name=ctx.name, make_inputs=ctx.make_inputs
     )
     if np.isfinite(cd_final):
-        # ``drags[k]`` is Cd after k updates; the final profile adds one more.
+        # ``drags[k]`` is Cd after k updates. The final profile adds one more.
         entry = _drag_build_solver_entry(
             [*entry["drags"], cd_final],
             entry["grad_norms"],

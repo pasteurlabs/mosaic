@@ -72,7 +72,7 @@ def test_cylinder_res10(phiflow):
 def test_drag_gradient_matches_fd(phiflow):
     """d(mean F_x)/d(inflow_profile) from the VJP against a central difference.
 
-    Over drag_opt's horizon; the agreement is 2e-4. Over a shorter, still
+    Over drag_opt's horizon the agreement is 2e-4. Over a shorter, still
     transient horizon (t_end = 1) it is 6e-3, from the CG tolerance.
     """
     inputs = _channel_inputs(10, t_end=4.0)

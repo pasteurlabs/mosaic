@@ -80,7 +80,7 @@ def test_force_summary_measures_drift_into_the_last_window():
 def test_pressure_difference_is_exact_for_a_linear_field():
     """Linear extrapolation to the cylinder surface is exact for p = −G x."""
     res = 20
-    x, _ = cylinder.cell_centres(res)
+    x, _ = cylinder.cell_centers(res)
     p = -3.0 * np.broadcast_to(x[:, None], cylinder.solid_mask(res).shape)
     dp = cylinder.pressure_difference(p, res)
     assert dp == pytest.approx(3.0 * (cylinder.BACK[0] - cylinder.FRONT[0]))

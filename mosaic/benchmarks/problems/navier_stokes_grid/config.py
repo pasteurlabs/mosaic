@@ -285,15 +285,13 @@ problem.add_experiment(
     # 5.471 (PhiFlow).
     physics={"resolution": [10, 20]},
     plot=plot_forward_fields,
-    # Scored against the literature, not against peers: a body-fitted solver and
-    # a staircase one legitimately differ by a few percent on the same grid, so
-    # a peer-relative check would flag the method rather than a fault. A
-    # first-order staircase finite-volume solver is 4.3%, 2.2% and 1.0% below
-    # the reference at 10, 20 and 40 cells per diameter, and body-fitted
-    # methods are expected within about 1% at 20; 5% at 20 cells per diameter
-    # accepts both and flags anything worse. The run at 10 shows convergence
-    # and is not judged. A Cd still drifting by more than 0.1%
-    # between the last two averaging windows was not scored at steady state.
+    # Scored against the literature rather than against peers, since a
+    # body-fitted and a staircase solver legitimately differ by a few percent on
+    # the same grid. A first-order staircase finite-volume solver is 4.3%, 2.2%
+    # and 1.0% below the reference at 10, 20 and 40 cells per diameter, and
+    # body-fitted methods are expected within about 1% at 20, so 5% at 20
+    # accepts both. A Cd still drifting by more than 0.1% between the last two
+    # averaging windows is not at steady state.
     status_check=[
         cylinder.max_cd_err(0.05, resolution=20),
         cylinder.max_cd_drift(1e-3),
@@ -431,9 +429,9 @@ problem.add_experiment(
     # of its steady value at this resolution.
     physics={"resolution": 10, "t_end": 4.0},
     # Stop once Cd has not dropped by 0.1% in 10 iterations. Adam keeps
-    # nudging a plateaued Cd by a few 1e-4, which a bare "any improvement" rule
-    # counts, so every run used to take all 100 iterations; XLB's descent
-    # gains 1% or more per 10 iterations until it flattens out near 45.
+    # nudging a plateaued Cd by a few 1e-4, which would otherwise count as
+    # progress until max_iters. XLB's descent gains 1% or more per 10
+    # iterations until it flattens out near iteration 45.
     optim={
         "lr": 1e-2,
         "max_iters": 100,
@@ -444,7 +442,7 @@ problem.add_experiment(
     plot=plot_drag_opt,
     # Provisional thresholds, to be confirmed on the full solver set: XLB
     # plateaus at Cd / Cd₀ = 0.53 after ~45 iterations, so 0.7 asks for at
-    # least a 30% reduction; the spread between solvers' optima is not yet
+    # least a 30% reduction. The spread between solvers' optima is not yet
     # known.
     status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
 )

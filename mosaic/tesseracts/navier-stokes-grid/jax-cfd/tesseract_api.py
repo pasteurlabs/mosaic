@@ -58,8 +58,8 @@ def cfd_fwd(
 ) -> jax.Array:
     """Compute the final velocity field of the incompressible Navier-Stokes equations.
 
-    Supports both 2D and 3D on a fully periodic domain; dimensionality is
-    inferred from v0.shape[-1]. The result has the same shape as v0.
+    Supports 2D and 3D on a fully periodic domain, inferred from
+    v0.shape[-1]. The result has the same shape as v0.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:

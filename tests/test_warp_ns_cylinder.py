@@ -59,7 +59,7 @@ def test_cylinder_res10(api):
 def test_drag_gradient_matches_fd(api):
     """d(mean F_x)/d(inflow_profile) from the VJP against a central difference.
 
-    Over drag_opt's horizon; the agreement is about 1e-4.
+    Over drag_opt's horizon the agreement is about 1e-4.
     """
     inputs = _channel_inputs(10, t_end=4.0)
     steps = inputs["steps"]

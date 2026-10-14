@@ -36,12 +36,12 @@ def control_volume_force(
     """Force (F_x, F_y) on the body enclosed by ``box``, per unit depth and density.
 
     Args:
-        u: x-velocity at the cell centres, shape (nx, ny).
-        v: y-velocity at the cell centres, shape (nx, ny).
-        p: kinematic pressure p/ρ at the cell centres, shape (nx, ny).
+        u: x-velocity at the cell centers, shape (nx, ny).
+        v: y-velocity at the cell centers, shape (nx, ny).
+        p: kinematic pressure p/ρ at the cell centers, shape (nx, ny).
         viscosity: kinematic viscosity ν.
         dx: cell size (the grid is isotropic).
-        box: ``(i0, i1, j0, j1)``, the cell-centre indices of the contour's
+        box: ``(i0, i1, j0, j1)``, the cell-center indices of the contour's
             left, right, bottom and top sides. Every cell on the contour must
             be fluid, and the contour needs one cell of margin on each side
             for the central differences: ``1 <= i0 < i1 <= nx - 2`` and

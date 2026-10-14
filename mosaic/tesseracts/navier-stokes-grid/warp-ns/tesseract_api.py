@@ -4,11 +4,11 @@
 
 """GPU-accelerated differentiable 2-D/3-D Navier-Stokes via NVIDIA Warp.
 
-IPCS (tentative velocity → pressure Poisson → velocity correction) with
-wp.Tape VJP. Periodic boxes, 2-D and 3-D, use an exact spectral FFT Poisson
-solve. The 2-D channel with a cylinder (Schäfer–Turek DFG 2D-1) uses a
-staggered grid and a conjugate-gradient Poisson solve; see
-:func:`channel_solve`.
+Explicit-Euler Chorin projection (tentative velocity → pressure Poisson →
+velocity correction) with wp.Tape VJP. Periodic boxes, 2-D and 3-D, use an
+exact spectral FFT Poisson solve. The 2-D channel with a cylinder
+(Schäfer–Turek DFG 2D-1) uses a staggered grid and a conjugate-gradient
+Poisson solve (see :func:`channel_solve`).
 """
 
 import contextlib
@@ -1938,8 +1938,8 @@ def ns3d_vjp(
 # Staggered (MAC) grid on the nx × ny cells: u on the x faces, shape
 # (nx + 1, ny), face i at x = i dx (face 0 is the inlet, face nx the outlet);
 # v on the y faces, shape (nx, ny + 1), face j at y = j dx (faces 0 and ny
-# are the walls); p at the cell centres. The cylinder is the staircase of
-# cells whose centre lies strictly inside it. A face is "open" when it
+# are the walls); p at the cell centers. The cylinder is the staircase of
+# cells whose center lies strictly inside it. A face is "open" when it
 # carries flow: between two fluid cells, or the inlet / outlet face of a
 # fluid cell. Faces touching a solid cell are held at zero velocity.
 #
@@ -1980,7 +1980,7 @@ def channel_tentative_u_kernel(
         un = -uc
         if j < ny - 1:
             un = u[i, j + 1]
-        # v at the face from the four surrounding y faces; past the outlet the
+        # v at the face from the four surrounding y faces. Past the outlet the
         # last cell's values continue.
         il = i - 1
         ir = wp.min(i, nx - 1)
@@ -2034,7 +2034,7 @@ def channel_divergence_kernel(
 ) -> None:
     """Right-hand side −dx ∇·u* / dt of the Poisson system scaled by dx².
 
-    Closed faces contribute no flux; solid cells get zero.
+    Closed faces contribute no flux, and solid cells get zero.
     """
     i, j = wp.tid()
     flux = (
@@ -2173,7 +2173,7 @@ def channel_init_u_kernel(
     inflow: wp.array(dtype=wp.float32),
     u: wp.array2d(dtype=wp.float32),
 ) -> None:
-    """x-face velocity from the cell-centred initial field."""
+    """x-face velocity from the cell-centered initial field."""
     i, j = wp.tid()
     nx = ux.shape[0]
     val = 0.0
@@ -2192,7 +2192,7 @@ def channel_init_v_kernel(
     open_v: wp.array2d(dtype=wp.int32),
     v: wp.array2d(dtype=wp.float32),
 ) -> None:
-    """y-face velocity from the cell-centred initial field."""
+    """y-face velocity from the cell-centered initial field."""
     i, j = wp.tid()
     val = 0.0
     if open_v[i, j] == 1:
@@ -2201,14 +2201,14 @@ def channel_init_v_kernel(
 
 
 @wp.kernel
-def channel_centres_kernel(
+def channel_centers_kernel(
     u: wp.array2d(dtype=wp.float32),
     v: wp.array2d(dtype=wp.float32),
     fluid: wp.array2d(dtype=wp.int32),
     ux: wp.array2d(dtype=wp.float32),
     uy: wp.array2d(dtype=wp.float32),
 ) -> None:
-    """Face velocities averaged to the cell centres, zero in solid cells."""
+    """Face velocities averaged to the cell centers, zero in solid cells."""
     i, j = wp.tid()
     f = float(fluid[i, j])
     ux[i, j] = 0.5 * (u[i, j] + u[i + 1, j]) * f
@@ -2257,7 +2257,7 @@ def _flag_unconverged_kernel(
         flag[0] = 1
 
 
-# Relative residual at which the pressure CG stops, as in PhiFlow; a tighter
+# Relative residual at which the pressure CG stops, as in PhiFlow. A tighter
 # tolerance changes Cd by less than 1e-5 at 10 cells per diameter.
 _CHANNEL_CG_TOL = 1e-5
 _CHANNEL_CG_MAXITER = 5000
@@ -2301,12 +2301,12 @@ def _channel_pressure_solver(
     separates into 1-D eigenbases along x (Neumann inlet, p = 0 outlet) and y
     (Neumann walls). The cylinder then changes only a few hundred rows, so CG
     needs about 20 iterations instead of about 150 at 10 cells per diameter.
-    The dense x basis costs nx² ny per application: this halves the run time
+    The dense x basis costs nx² ny per application. That halves the run time
     at 10 cells per diameter, breaks even at 20 and doubles it at 40.
 
     On CUDA the iterations run in a conditional graph without a host sync
-    per residual check, captured once per solution buffer ``x`` and replayed;
-    non-convergence is flagged on the device and raised by
+    per residual check, captured once per solution buffer ``x`` and replayed.
+    Non-convergence is flagged on the device and raised by
     :func:`_check_cg_converged` once the run ends.
     """
     nx, ny = fluid.shape
@@ -2424,7 +2424,7 @@ def channel_solve(
 
     Returns:
         Warp arrays: ``ux``, ``uy`` and ``pressure`` (nx, ny) at the cell
-        centres, ``body_force`` (steps, 2), the leaves ``v0_x``, ``v0_y``,
+        centers, ``body_force`` (steps, 2), the leaves ``v0_x``, ``v0_y``,
         ``inflow``, ``nu`` and ``dt``, and ``cg_unconverged``, which the
         adjoint solves in ``tape.backward()`` set if they fail.
     """
@@ -2535,7 +2535,7 @@ def channel_solve(
     ux, uy = field((nx, ny)), field((nx, ny))
     with recording:
         wp.launch(
-            channel_centres_kernel,
+            channel_centers_kernel,
             dim=(nx, ny),
             inputs=[u, v, fluid, ux, uy],
             device=device,
@@ -2638,9 +2638,8 @@ def apply(inputs: InputSchema) -> OutputSchema:
     """Run the Warp NS forward solver (2-D or 3-D) and return the result.
 
     Uses the forward-only solve path (no wp.Tape, no gradient-enabled
-    arrays, ping-pong buffers) since apply() never needs gradients —
-    discussion recommendation: give apply() a separate forward-only path.
-    The channel runs :func:`channel_solve` without a tape.
+    arrays, ping-pong buffers), since apply() never needs gradients. The
+    channel runs :func:`channel_solve` without a tape.
     """
     if inputs.obstacle is not None:
         out = channel_solve(**_channel_args(inputs))

@@ -338,7 +338,7 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
 # instead of putting a floor under grid refinement.
 _MA_TARGET = 0.1
 _MA_TARGET_N = 64
-# Above this relaxation rate BGK goes unstable as tau→0.5; KBC takes over.
+# Above this relaxation rate BGK goes unstable as tau→0.5, and KBC takes over.
 _OMEGA_KBC = 1.8
 
 
@@ -432,12 +432,12 @@ def _channel_links(
 ) -> tuple[np.ndarray, ...]:
     """Solid nodes and boundary links of the 2-D channel with a cylinder.
 
-    Nodes sit at the cell centres, so every boundary lies halfway between a
+    Nodes sit at the cell centers, so every boundary lies halfway between a
     node and its missing upstream neighbour. For lattice direction i, each
     returned (q, nx, ny) mask marks the fluid nodes x whose neighbour x - c_i
     lies beyond a wall (y outside the channel), behind the inlet (x < 0), past
     the outlet (x ≥ nx) or inside the cylinder. A cell is solid when its
-    centre lies strictly inside the cylinder.
+    center lies strictly inside the cylinder.
 
     Returns:
         (solid, wall, inlet, outlet, body): solid is (nx, ny), the rest
@@ -580,7 +580,7 @@ def xlb_fwd(
         dx:            Grid spacing.
         obstacle:      Cylinder (``center``, ``radius``, physical units) in the
                        channel; None for a periodic box.
-        inflow_profile: Channel inlet u_x at the cell-centre heights, shape (ny,).
+        inflow_profile: Channel inlet u_x at the cell-center heights, shape (ny,).
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,

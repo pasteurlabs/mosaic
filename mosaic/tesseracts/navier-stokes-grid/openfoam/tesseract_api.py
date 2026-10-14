@@ -15,7 +15,7 @@ with ``foamRun -solver incompressibleFluid`` (PIMPLE):
   - Inlet profile from ``inflow_profile``, zero-gradient outlet with p = 0,
     no-slip walls and cylinder
   - Force on the cylinder from the ``forces`` function object at every step
-  - Velocity and pressure sampled at the canonical cell centres
+  - Velocity and pressure sampled at the canonical cell centers
 
 Forward only: no VJP/JVP.
 """
@@ -75,7 +75,7 @@ class InputSchema(_CanonicalInputSchema):
 
 
 class OutputSchema(_CanonicalOutputSchema):
-    """Output schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
+    """Output schema for the OpenFOAM Navier-Stokes tesseract."""
 
 
 # ---------------------------------------------------------------------------
@@ -478,9 +478,9 @@ _RADIAL_GRADING = 0.5
 # to the cylinder.
 _WAKE_GRADING = 10.0
 # Largest Courant number of an internal step, estimated from the peak inflow
-# speed and the smallest cell; outer steps longer than that are sub-stepped.
+# speed and the smallest cell. Outer steps longer than that are sub-stepped.
 _MAX_COURANT = 1.0
-# Fewest cells per MPI process; smaller meshes run serially.
+# Fewest cells per MPI process. Smaller meshes run serially.
 _CELLS_PER_PROCESS = 10_000
 
 _FOAM_HEADER = """\
@@ -505,7 +505,7 @@ def _write_channel_block_mesh_dict(
 
     The lines x = cx ± 2r and y = cy ± 2r cut the channel into 3 × 3 blocks.
     The outer blocks are Cartesian with spacing ``dx``, except that the cells
-    downstream of the cylinder grow towards the outlet. The centre square
+    downstream of the cylinder grow towards the outlet. The center square
     holds four O-grid blocks between its sides and the cylinder, with
     4 × 4r/dx cells around the cylinder and 2r/dx cells radially, shrinking
     towards the wall. One cell thick in z.
@@ -750,8 +750,8 @@ def _parse_vectors(text: str) -> np.ndarray:
     )
 
 
-def _read_cell_centres(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Mesh cell centres ``(n_cells, 3)`` and inlet face centres ``(n_faces, 3)``."""
+def _read_cell_centers(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Mesh cell centers ``(n_cells, 3)`` and inlet face centers ``(n_faces, 3)``."""
     _run_of("foamPostProcess -func writeCellCentres -time 0", workdir)
     text = (workdir / "0" / "C").read_text()
     cells = re.search(
@@ -770,7 +770,7 @@ def _read_cell_centres(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _bilinear(field: np.ndarray, dx: float, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    """Bilinear interpolation of a cell-centred ``(nx, ny, c)`` field at (x, y)."""
+    """Bilinear interpolation of a cell-centered ``(nx, ny, c)`` field at (x, y)."""
     nx, ny = field.shape[:2]
     fx = np.clip(x / dx - 0.5, 0, nx - 1)
     fy = np.clip(y / dx - 0.5, 0, ny - 1)
@@ -832,7 +832,7 @@ def _sample(
     """U ``(n, 2)`` and p ``(n,)`` at ``points`` at the final time.
 
     Uses the ``probes`` function object with cell-point interpolation, which
-    is exact at cell centres and honours the boundary values on the walls.
+    is exact at cell centers and honours the boundary values on the walls.
     """
     locations = "\n".join(f"({x:.12g} {y:.12g} {z:.12g})" for x, y, z in points)
     (workdir / "system" / "sample").write_text(
@@ -903,7 +903,7 @@ def _parallel(cmd: str, n_procs: int) -> str:
     return f"mpirun -np {n_procs} {cmd} -parallel" if n_procs > 1 else cmd
 
 
-def _run_openfoam_cylinder(inputs: InputSchema) -> dict:
+def _run_channel(inputs: InputSchema) -> dict:
     """Solve the DFG channel with a body-fitted mesh; outputs on the canonical grid."""
     v0 = np.asarray(inputs.v0, dtype=np.float64)[:, :, 0, :]
     nx, ny = v0.shape[:2]
@@ -932,7 +932,7 @@ def _run_openfoam_cylinder(inputs: InputSchema) -> dict:
         _write_channel_numerics(workdir / "system", workdir / "constant", nu)
         _run_of("blockMesh", workdir)
 
-        cells, inlet = _read_cell_centres(workdir)
+        cells, inlet = _read_cell_centers(workdir)
         u_cells = _bilinear(v0, dx, cells[:, 0], cells[:, 1])
         u_inlet = np.zeros((len(inlet), 2))
         u_inlet[:, 0] = np.interp(inlet[:, 1], y_canonical, profile)
@@ -1021,7 +1021,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     With an obstacle, also return the final pressure and the force history.
     """
     if inputs.obstacle is not None:
-        return _run_openfoam_cylinder(inputs)
+        return _run_channel(inputs)
 
     nu = float(inputs.viscosity[0])
     dt = float(inputs.dt[0])

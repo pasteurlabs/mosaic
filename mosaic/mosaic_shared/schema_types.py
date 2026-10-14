@@ -25,7 +25,7 @@ from tesseract_core.runtime import Array, Differentiable, Float32, Int32
 class BCType(str, Enum):
     """Boundary condition type for a single domain face."""
 
-    PERIODIC = "periodic"  # wraps to the opposite face; must be set on both faces
+    PERIODIC = "periodic"  # wraps to the opposite face, set on both faces of an axis
     NO_SLIP = "no_slip"  # wall at rest: zero velocity
     NEUMANN = "neumann"  # outflow: zero normal velocity gradient and p = 0
     DIRICHLET = "dirichlet"  # prescribed velocity: inflow, or a moving wall

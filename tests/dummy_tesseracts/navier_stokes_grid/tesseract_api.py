@@ -11,8 +11,8 @@ Imports the canonical :class:`InputSchema` / :class:`OutputSchema` from
 zero ``result`` array of the same shape as the incoming ``v0``; with an
 obstacle it adds a zero ``pressure`` and a constant ``body_force`` history.
 ``vector_jacobian_product`` returns zeros. Output is therefore *independent
-of the input*, so any gradient through the chain comes out zero — that's the
-right answer for a "constant field" dummy.
+of the input*, so any gradient through the chain comes out zero, which is
+the right answer for a "constant field" dummy.
 
 Like every ns-grid solver, it raises on boundary conditions it does not
 implement. It accepts the two configurations the benchmark uses: fully
@@ -107,8 +107,9 @@ _FORCE_VALUE = np.asarray([5.5795 * 0.2**2 * 0.1 / 2, 0.0], dtype=np.float32)
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Forward pass: zero velocity field shaped like v0; with an obstacle, also
-    zero pressure and a constant force history.
+    """Zero velocity shaped like v0.
+
+    With an obstacle, also zero pressure and a constant force history.
     """
     v0 = np.asarray(inputs.v0)
     result = np.full(v0.shape, _RESULT_VALUE, dtype=np.float32)
@@ -143,8 +144,8 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs):
-    """Shape inference: ``result`` matches ``v0``; with an obstacle, ``pressure``
-    is (nx, ny, nz) and ``body_force`` (steps, 2).
+    """``result`` matches ``v0``. With an obstacle, ``pressure`` is (nx, ny, nz)
+    and ``body_force`` (steps, 2).
     """
     raw = abstract_inputs.model_dump()
     v0 = raw["v0"]

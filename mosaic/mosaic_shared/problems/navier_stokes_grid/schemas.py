@@ -80,8 +80,8 @@ class InputSchema(BaseModel):
     v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
         description=(
-            "Initial velocity at the cell centres, shape (nx, ny, 1, 2) in 2-D "
-            "or (nx, ny, nz, 3) in 3-D. Cell (i, j) is centred at "
+            "Initial velocity at the cell centers, shape (nx, ny, 1, 2) in 2-D "
+            "or (nx, ny, nz, 3) in 3-D. Cell (i, j) is centered at "
             "((i + 1/2) dx, (j + 1/2) dx). "
             "Default: 64×64 divergence-free random vortex field (seed=42)."
         ),
@@ -120,7 +120,7 @@ class InputSchema(BaseModel):
     inflow_profile: Array[(None,), Float32] | None = Field(
         default=None,
         description=(
-            "Inlet velocity u_x(y) at the x_lo face, sampled at the cell-centre "
+            "Inlet velocity u_x(y) at the x_lo face, sampled at the cell-center "
             "heights y_j = (j + 1/2) dx, shape (ny,); u_y = 0 on the inlet. "
             "Requires x_lo to be 'dirichlet' with no value."
         ),
@@ -187,12 +187,12 @@ class OutputSchema(BaseModel):
     """
 
     result: GridVectorField = Field(
-        description="Final velocity at the cell centres, same shape as v0."
+        description="Final velocity at the cell centers, same shape as v0."
     )
     pressure: GridScalarField | None = Field(
         default=None,
         description=(
-            "Final kinematic pressure p/ρ at the cell centres, shape "
+            "Final kinematic pressure p/ρ at the cell centers, shape "
             "(nx, ny, nz). Values inside the obstacle are ignored."
         ),
     )

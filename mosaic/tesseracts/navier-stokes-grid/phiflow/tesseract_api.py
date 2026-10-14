@@ -132,7 +132,7 @@ def periodic_fwd(
         domain_extent: Side length of the periodic square/cubic domain.
 
     Returns:
-        Final velocity at the cell centres, same shape as v0.
+        Final velocity at the cell centers, same shape as v0.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
@@ -245,7 +245,7 @@ def channel_fwd(
 
     The same explicit-Euler central-difference step as the periodic box, with
     phiflow's wind-tunnel boundaries and the cylinder as a staircase of the
-    cells whose centre lies strictly inside it. Every face touching a solid cell
+    cells whose center lies strictly inside it. Every face touching a solid cell
     is held at zero velocity, and the pressure is solved in the fluid cells only.
 
     The force on the cylinder is the momentum the solid faces remove from the
@@ -253,7 +253,7 @@ def channel_fwd(
     faces between fluid and solid cells.
 
     Returns:
-        ``result`` (nx, ny, 1, 2) at the cell centres, ``pressure`` (nx, ny, 1),
+        ``result`` (nx, ny, 1, 2) at the cell centers, ``pressure`` (nx, ny, 1),
         kinematic with p = 0 at the outlet, and ``body_force`` (steps, 2).
     """
     nx, ny = v0.shape[:2]
@@ -288,7 +288,7 @@ def channel_fwd(
         )
     active = accessible.with_extrapolation(extrapolation.NONE)
     # x faces sit at x = (i + 1) dx (the last is the outlet), y faces at
-    # y = (j + 1) dx; the inlet and wall faces are boundary values.
+    # y = (j + 1) dx. The inlet and wall faces are boundary values.
     open_x = jnp.asarray(open_faces.vector["x"].values.numpy("x,y"))
     open_y = jnp.asarray(open_faces.vector["y"].values.numpy("x,y"))
     fluid_cells = jnp.asarray(~solid)
@@ -375,8 +375,8 @@ def channel_fwd(
     p_init = jnp.zeros((nx, ny), v0.dtype)
     (ux, uy, p), force = jax.lax.scan(step, (ux, uy, p_init), None, length=steps)
 
-    centred = CenteredGrid(to_grid(ux, uy), ext, **grid_kwargs)
-    velocity = jnp.stack([centred.vector[d].values.native("x,y") for d in "xy"], -1)
+    centered = CenteredGrid(to_grid(ux, uy), ext, **grid_kwargs)
+    velocity = jnp.stack([centered.vector[d].values.native("x,y") for d in "xy"], -1)
     velocity = jnp.where(fluid_cells[:, :, None], velocity, 0.0)
     return {
         "result": velocity[:, :, None, :],

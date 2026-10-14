@@ -5,7 +5,7 @@
 
 Steady channel flow at Re = Ū D / ν = 20 (Schäfer & Turek 1996, test 2D-1):
 
-- channel [0, 2.2] × [0, 0.41], cylinder of diameter D = 0.1 centred at
+- channel [0, 2.2] × [0, 0.41], cylinder of diameter D = 0.1 centered at
   (0.2, 0.2), no-slip on the channel walls and the cylinder;
 - inlet at x = 0 with the parabolic profile u_x(y) = 4 U_m y (H − y) / H²,
   U_m = 0.3, so the mean inflow speed is Ū = 2 U_m / 3 = 0.2;
@@ -62,13 +62,13 @@ DP_REF = 0.1175
 
 # Simulated time. Started from the inflow profile copied across the channel,
 # a staircase finite-volume solver settles to within 1e-4 of its final Cd by
-# t ≈ 6 at 10, 20 and 40 cells per diameter; 8 leaves margin for slower solvers.
+# t ≈ 6 at 10, 20 and 40 cells per diameter. 8 leaves margin for slower solvers.
 T_END = 8.0
 # Time step: a convective CFL of 0.3 at the peak inflow speed, capped where
 # forward-Euler diffusion is stable (ν dt / dx² ≤ 0.2 < 1/4).
 CFL = 0.3
 DIFFUSION_NUMBER = 0.2
-# Fraction of the force history averaged for Cd and Cl; the window before it
+# Fraction of the force history averaged for Cd and Cl. The window before it
 # measures the drift.
 WINDOW = 0.2
 
@@ -96,22 +96,22 @@ def grid(resolution: int) -> tuple[int, int, float]:
     return nx, ny, dx
 
 
-def cell_centres(resolution: int) -> tuple[np.ndarray, np.ndarray]:
-    """1-D cell-centre coordinates ``(x, y)``."""
+def cell_centers(resolution: int) -> tuple[np.ndarray, np.ndarray]:
+    """1-D cell-center coordinates ``(x, y)``."""
     nx, ny, dx = grid(resolution)
     return (np.arange(nx) + 0.5) * dx, (np.arange(ny) + 0.5) * dx
 
 
 def solid_mask(resolution: int) -> np.ndarray:
-    """``(nx, ny)`` bool, True for cells whose centre lies inside the cylinder."""
-    x, y = cell_centres(resolution)
+    """``(nx, ny)`` bool, True for cells whose center lies inside the cylinder."""
+    x, y = cell_centers(resolution)
     r2 = (x[:, None] - CENTER[0]) ** 2 + (y[None, :] - CENTER[1]) ** 2
     return r2 < (DIAMETER / 2) ** 2
 
 
 def inflow_profile(resolution: int = 20, **_: Any) -> jax.Array:
-    """DFG 2D-1 parabolic inlet profile u_x(y) at the cell-centre heights, shape (ny,)."""
-    _, y = cell_centres(resolution)
+    """DFG 2D-1 parabolic inlet profile u_x(y) at the cell-center heights, shape (ny,)."""
+    _, y = cell_centers(resolution)
     return jnp.asarray(4.0 * U_MAX * y * (HEIGHT - y) / HEIGHT**2, dtype=jnp.float32)
 
 
@@ -180,7 +180,7 @@ def _surface_pressure(
 
     Each of the two rows straddling the point is extrapolated linearly in x
     from its two fluid cells nearest the point on ``side`` (−1 upstream, +1
-    downstream); the rows are then interpolated in y.
+    downstream). The two rows are then interpolated in y.
     """
     jf = point[1] / dx - 0.5
     j0 = math.floor(jf)
@@ -197,7 +197,7 @@ def _surface_pressure(
 
 
 def pressure_difference(p: np.ndarray, resolution: int) -> float:
-    """Δp = p(front) − p(back) from a ``(nx, ny)`` cell-centred pressure field."""
+    """Δp = p(front) − p(back) from a ``(nx, ny)`` cell-centered pressure field."""
     _, _, dx = grid(resolution)
     fluid = ~solid_mask(resolution)
     p = np.asarray(p, dtype=np.float64)
@@ -212,7 +212,7 @@ def control_volume_cd(
     """Cd and Cl from a momentum balance over a box around the cylinder.
 
     The box spans one diameter upstream, two downstream and one to either
-    side of the cylinder centre, well inside the fluid at every resolution.
+    side of the cylinder center, well inside the fluid at every resolution.
     """
     _, _, dx = grid(resolution)
 
