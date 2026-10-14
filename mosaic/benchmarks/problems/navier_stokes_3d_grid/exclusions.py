@@ -28,7 +28,7 @@ OPENFOAM_NON_DIFFERENTIABLE_GRAD = Exclusion(
 )
 OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable forward-only solver",
+    "standard icoFoam is a non-differentiable, forward-only solver",
 )
 
 
