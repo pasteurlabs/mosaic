@@ -548,8 +548,10 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
         ratio: float | None = None
         final: float | None = None
         if series:
+            # Signed final value: an objective that can cross zero (a drag)
+            # must not read an overshoot below zero as a large remaining loss.
             initial = abs(series[0])
-            final = abs(series[-1])
+            final = series[-1]
             if not math.isfinite(final):
                 final = None
             elif initial > 0:

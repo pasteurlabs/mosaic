@@ -428,9 +428,11 @@ problem.add_experiment(
     physics={"resolution": 10, "t_end": 4.0},
     optim={"lr": 1e-2, "max_iters": 100, "patience": 20, "snap_interval": 10},
     plot=plot_drag_opt,
-    # Provisional thresholds, to be set from the first full run: the reachable
-    # drag reduction and the spread between solvers' optima are not yet known.
-    status_check=[max_final_ratio(0.5), max_final_peer_dev(0.3)],
+    # Provisional thresholds, to be confirmed on the full solver set: XLB
+    # plateaus at Cd / Cd₀ = 0.53 after ~45 iterations, so 0.7 asks for at
+    # least a 30% reduction; the spread between solvers' optima is not yet
+    # known.
+    status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
 )
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(

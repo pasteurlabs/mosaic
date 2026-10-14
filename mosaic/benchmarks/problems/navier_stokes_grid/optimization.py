@@ -11,7 +11,8 @@ tesseract outputs), so it lives next to the problem rather than in
 ``shared/optimization.py``.
 
 The flow rate is held at the benchmark's: the solver sees the optimised
-profile rescaled to mean speed Ū. Drag is reported as the coefficient
+profile projected onto non-negative profiles of mean speed Ū and peak at most
+the benchmark's U_m (:func:`_project`). Drag is reported as the coefficient
 Cd = 2 F_x / (Ū² D), and the loss is Cd / Cd₀ with Cd₀ that of the
 benchmark's parabolic profile.
 
@@ -51,16 +52,43 @@ _SUITE = "optimization"
 CD0_TOLERANCE = 0.15
 
 
-def _renormalize(profile: Any) -> Any:
-    """Rescale ``profile`` to the benchmark's mean inflow speed Ū."""
-    return profile * (cylinder.U_MEAN / jnp.mean(profile))
+# Upper bound on the inlet speed: the peak of the benchmark's own parabola.
+# With the flow rate fixed at Ū = 2 U_m / 3, no admissible profile leaves more
+# than a third of the inlet at rest. Looser bounds admit narrow jets that
+# bypass the cylinder and drive a recirculation onto it: slowly settling flows
+# and negative drag, an optimum no longer comparable across solvers.
+U_BOUND = cylinder.U_MAX
+
+
+def _project(v: Any) -> Any:
+    """Euclidean projection of ``v`` onto {0 ≤ u ≤ U_BOUND, mean(u) = Ū}.
+
+    The projection is ``clip(v + c, 0, U_BOUND)`` with the shift ``c`` found by
+    bisection. Its gradient is the exact Jacobian of the projection: entries
+    at a bound get none, and the free entries lose their mean, since ``c``
+    moves to restore the flow rate.
+    """
+    vs = jax.lax.stop_gradient(v)
+
+    def bisect(_: int, bounds: tuple) -> tuple:
+        lo, hi = bounds
+        c = 0.5 * (lo + hi)
+        above = jnp.mean(jnp.clip(vs + c, 0.0, U_BOUND)) > cylinder.U_MEAN
+        return jnp.where(above, lo, c), jnp.where(above, c, hi)
+
+    lo, hi = jax.lax.fori_loop(0, 60, bisect, (-jnp.max(vs), U_BOUND - jnp.min(vs)))
+    c = 0.5 * (lo + hi)
+    free = (vs + c > 0.0) & (vs + c < U_BOUND)
+    n_free = jnp.maximum(jnp.sum(free), 1)
+    shift = c - jnp.sum(jnp.where(free, v - vs, 0.0)) / n_free
+    return jnp.clip(v + shift, 0.0, U_BOUND)
 
 
 def _drag_forward(
     t: Any, profile: Any, phys: dict, *, name: str, make_inputs: Any
 ) -> tuple[Any, Any]:
-    """Run the solver with inlet ``profile`` (rescaled to Ū); return ``(Cd, velocity)``."""
-    inp = make_inputs(name, _renormalize(profile), **phys)
+    """Run the solver with inlet ``profile`` (projected); return ``(Cd, velocity)``."""
+    inp = make_inputs(name, _project(profile), **phys)
     out = apply_tesseract(t, inp)
     force = out.get("body_force")
     if force is None:
@@ -212,7 +240,7 @@ def _drag_opt_adam_loop(
         patience=patience,
         has_aux=True,
         aux_history=aux_history,
-        clip_fn=_clip,
+        clip_fn=_project,
         snap_interval=snap_interval,
         history=profile_history if snap_interval > 0 else None,
         log_fn=_log_iter,
@@ -226,11 +254,6 @@ def _drag_opt_adam_loop(
         drags, grad_norms, n_iters, converged=n_iters < max_iters
     )
     return profile, profile_history, entry
-
-
-def _clip(p: Any) -> Any:
-    """Keep the profile non-negative and below three times the mean speed."""
-    return jnp.clip(p, 0.0, 3.0 * cylinder.U_MEAN)
 
 
 # ── kernel + aggregate ───────────────────────────────────────────────────────
@@ -442,11 +465,9 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     by_solver_shim[ctx.name] = entry
     write_partial()
 
-    snaps: dict[str, np.ndarray] = {"profile_final": np.asarray(_renormalize(profile))}
+    snaps: dict[str, np.ndarray] = {"profile_final": np.asarray(_project(profile))}
     if profile_history:
-        snaps["profile_history"] = np.asarray(
-            [_renormalize(p) for p in profile_history]
-        )
+        snaps["profile_history"] = np.asarray([_project(p) for p in profile_history])
     if vel0 is not None:
         snaps["flow_initial"] = vel0
     if vel_final is not None:
@@ -455,5 +476,5 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     return {
         "metrics": entry,
         "snapshots": snaps,
-        "shared": {"profile_initial": np.asarray(_renormalize(profile_init))},
+        "shared": {"profile_initial": np.asarray(_project(profile_init))},
     }

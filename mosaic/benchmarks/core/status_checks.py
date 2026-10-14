@@ -86,11 +86,11 @@ class FdCheckSummary:
 class OptimizationSummary:
     """Per-solver summary handed to optimization-suite checks.
 
-    ``final_initial_ratio``: ``loss_final / loss_initial`` for the
-    worst-case (highest-initial-loss) trajectory. A solver that didn't
+    ``final_initial_ratio``: ``loss_final / |loss_initial|`` for the
+    worst-case (highest-|initial-loss|) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
 
-    ``final_value``: ``|loss_final|`` of that trajectory, and
+    ``final_value``: ``loss_final`` of that trajectory, and
     ``peer_final_median`` the median of ``final_value`` across solvers;
     ``None`` when fewer than 3 solvers reported one.
     """

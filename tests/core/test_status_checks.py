@@ -238,6 +238,12 @@ class TestOptimizationPeerPipeline:
         assert cells["c"].status == ANOMALY
         assert cells["d"].status == ANOMALY
 
+    def test_negative_final_value_is_compared_signed(self) -> None:
+        """A drag driven below zero is far from peers, not a 20% ratio."""
+        cells = self._cells({"a": 2.0, "b": 2.1, "c": 1.9, "d": -1.0})
+        assert cells["d"].status == ANOMALY
+        assert "-1" in cells["d"].reason
+
     def test_needs_three_solvers(self) -> None:
         cells = self._cells({"a": 2.0, "b": 4.0})
         assert all(c.status == OK for c in cells.values())

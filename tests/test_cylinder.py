@@ -125,3 +125,34 @@ def test_max_cd_drift_flags_an_unsteady_run():
     cells = _cells(by_solver, [cylinder.max_cd_drift(1e-3)])
     assert cells["steady"].status == OK
     assert cells["drifting"].status == ANOMALY
+
+
+# ── drag_opt profile projection ──────────────────────────────────────────────
+
+
+def test_projection_keeps_flow_rate_and_bounds():
+    import jax
+
+    from mosaic.benchmarks.problems.navier_stokes_grid.optimization import (
+        U_BOUND,
+        _project,
+    )
+
+    v = jnp.asarray(np.random.default_rng(0).normal(0.2, 0.3, 41), jnp.float32)
+    u = np.asarray(_project(v))
+    assert u.mean() == pytest.approx(cylinder.U_MEAN, rel=1e-5)
+    assert u.min() >= 0.0 and u.max() <= U_BOUND + 1e-6
+    # Already admissible profiles are left alone.
+    prof = cylinder.inflow_profile(10)
+    np.testing.assert_allclose(_project(prof), prof, atol=1e-4)
+
+    # The gradient is the projection's Jacobian: compare with central differences.
+    w = jnp.asarray(np.random.default_rng(1).normal(size=41), jnp.float32)
+    grad = np.asarray(jax.grad(lambda x: jnp.sum(w * _project(x)))(v))
+    eps = 1e-3
+    fd = [
+        float(jnp.sum(w * _project(v.at[i].add(eps))))
+        - float(jnp.sum(w * _project(v.at[i].add(-eps))))
+        for i in range(41)
+    ]
+    np.testing.assert_allclose(grad, np.asarray(fd) / (2 * eps), atol=1e-3)
