@@ -104,6 +104,11 @@ def _analytic_reference(
 
 # ── agreement ────────────────────────────────────────────────────────────────
 
+_NO_REFERENCE = (
+    "no reference: fewer than 2 solvers produced output and there is no "
+    "analytic, precomputed or reference-solver field"
+)
+
 
 def _agreement_aggregate(
     by_solver: Any,
@@ -211,19 +216,27 @@ def _agreement_aggregate(
             and not has_ref_solver
             and not has_precomputed
         ):
+            # Nothing to score against (e.g. a single-solver run with no
+            # cached peers). A solver that produced output is left unscored,
+            # not failed, and flagged so a merge keeps any score it already
+            # has; a solver that produced no output still fails.
             attempted = set(by_solver.keys())
             for n in solver_names:
                 if n not in attempted and n not in comparable:
                     continue
-                flat_results.append(
-                    {
-                        "solver": n,
-                        "sweep_value": str(val),
-                        "metrics": {
-                            "error": apply_errors.get(n, {}).get(val),
-                            "valid": False,
-                        },
+                if n in comparable:
+                    metrics = {
+                        "status": "skipped",
+                        "unscored": True,
+                        "reason": _NO_REFERENCE,
                     }
+                else:
+                    metrics = {
+                        "error": apply_errors.get(n, {}).get(val),
+                        "valid": False,
+                    }
+                flat_results.append(
+                    {"solver": n, "sweep_value": str(val), "metrics": metrics}
                 )
             continue
 
@@ -459,9 +472,10 @@ def _physical_laws_aggregate(
                     }
                 )
 
-        # Mark attempted solvers that didn't produce output. Only include
-        # solvers present in by_solver (actually attempted on this hardware)
-        # so the merge step doesn't overwrite valid entries from the other job.
+        # Mark attempted solvers that didn't produce output as failed, with
+        # the apply error as the reason. Only include solvers present in
+        # by_solver (actually attempted on this hardware) so the merge step
+        # doesn't overwrite valid entries from the other job.
         produced = {e["solver"] for e in flat_results if e["sweep_value"] == str(val)}
         for s in cfg.solvers:
             if s.name not in produced and s.name in by_solver:
@@ -469,7 +483,10 @@ def _physical_laws_aggregate(
                     {
                         "solver": s.name,
                         "sweep_value": str(val),
-                        "metrics": None,
+                        "metrics": {
+                            "error": by_solver[s.name].get(val, {}).get("apply_error"),
+                            "valid": False,
+                        },
                     }
                 )
 
@@ -507,7 +524,7 @@ def physical_laws(t: Any, ctx: KernelContext) -> dict:
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     out = safe_apply(t, inputs, ctx.output_key)
     if out is None:
-        return {"metrics": {"valid": False}}
+        return {"metrics": {"apply_error": get_last_apply_error(), "valid": False}}
     norm = ctx.cfg.solver(ctx.name).normalize_output
     if norm is not None:
         out = norm(out)

@@ -426,9 +426,130 @@ class TestClassifyFromV1(unittest.TestCase):
         self.assertEqual(cell.status, FAILED)
         self.assertIn("tile_fft", cell.reason)
 
+    def test_failure_without_exc_type_keeps_message(self) -> None:
+        # Kernel-built failure records carry ``failure_type`` + ``error``
+        # instead of the timing harness's ``exc_type`` + ``exc_msg``.
+        fail = {"status": "failed", "failure_type": "nan", "error": "VJP is NaN"}
+        cell = self._classify([self.OK_M, fail])
+        self.assertEqual(cell.status, FAILED)
+        self.assertEqual(cell.reason, "nan: VJP is NaN")
+
     @staticmethod
     def _OOM() -> dict:
         return dict(_OOM_METRICS)
+
+
+def _horizon_ok() -> dict:
+    return {"grad_norm": 80.0, "status": "ok", "wall_time_s": 1.0}
+
+
+def _horizon_fail(failure_type: str) -> dict:
+    return {
+        "status": "failed",
+        "failure_type": failure_type,
+        "error": "boom",
+        "wall_time_s": 1.0,
+        "ram_peak_mib": 600.0,
+    }
+
+
+def _horizon_skip(steps: str, failure_type: str) -> dict:
+    return {
+        "status": "skipped",
+        "reason": f"first failure at steps={steps} ({failure_type})",
+    }
+
+
+class TestLimitsSweep(unittest.TestCase):
+    """A ``sweep_mode="limits"`` experiment runs until the first failure, so a
+    failure after a good point is the frontier; only a failure at the first
+    point fails the cell."""
+
+    SWEEP = ("40", "80", "160", "320")
+
+    @classmethod
+    def _classify(cls, points: list[dict], *, limits: bool = True) -> Cell:
+        from mosaic.benchmarks.core.status import _classify_from_v1
+
+        data = {
+            "schema_version": 1,
+            "results": [
+                {"solver": "s", "sweep_value": cls.SWEEP[i], "metrics": m}
+                for i, m in enumerate(points)
+            ],
+        }
+        return _classify_from_v1(data, ["s"], [], limits=limits)["s"]
+
+    def test_failure_after_good_point_is_frontier(self) -> None:
+        for failure_type in ("nan", "container_died", "error", "OOM"):
+            with self.subTest(failure_type=failure_type):
+                cell = self._classify(
+                    [
+                        _horizon_ok(),
+                        _horizon_ok(),
+                        _horizon_fail(failure_type),
+                        _horizon_skip("160", failure_type),
+                    ]
+                )
+                self.assertEqual(cell.status, OK)
+                self.assertEqual(cell.resource_frontier, "160")
+
+    def test_failure_at_first_point_is_failed(self) -> None:
+        cell = self._classify([_horizon_fail("nan"), *[_horizon_skip("40", "nan")] * 3])
+        self.assertEqual(cell.status, FAILED)
+        self.assertEqual(cell.reason, "nan: boom")
+
+    def test_all_ok_has_no_frontier(self) -> None:
+        cell = self._classify([_horizon_ok()] * 4)
+        self.assertEqual(cell.status, OK)
+        self.assertEqual(cell.resource_frontier, "")
+
+    def test_default_sweep_still_fails_on_late_crash(self) -> None:
+        cell = self._classify(
+            [_horizon_ok(), _horizon_ok(), _horizon_fail("nan")], limits=False
+        )
+        self.assertEqual(cell.status, FAILED)
+
+    def test_horizon_sweep_limits_row_uses_limits_mode(self) -> None:
+        """The registry tells status which experiments are limits sweeps."""
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from mosaic.benchmarks.core.status import _build_row
+        from mosaic.benchmarks.problems import get_config
+
+        cfg = get_config("ns-3d-grid")
+        self.assertEqual(
+            cfg.get_sweep_mode("gradient", "horizon_sweep_limits"), "limits"
+        )
+        points = {
+            "PICT": [_horizon_ok(), _horizon_ok(), _horizon_fail("container_died")],
+            "Warp-NS": [_horizon_fail("nan"), *[_horizon_skip("40", "nan")] * 2],
+        }
+        data = {
+            "schema_version": 1,
+            "results": [
+                {"solver": s, "sweep_value": self.SWEEP[i], "metrics": m}
+                for s, ms in points.items()
+                for i, m in enumerate(ms)
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "result.json"
+            path.write_text(json.dumps(data))
+            row = _build_row(
+                cfg,
+                "gradient",
+                "horizon_sweep_limits",
+                path,
+                list(points),
+                {},
+                {},
+            )
+        self.assertEqual(row.cells["PICT"].status, OK)
+        self.assertEqual(row.cells["PICT"].resource_frontier, "160")
+        self.assertEqual(row.cells["Warp-NS"].status, FAILED)
 
 
 class TestFrontierDiff(unittest.TestCase):

@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for the solver-level NPZ merge in .github/scripts/merge-results.py.
+"""Unit tests for the solver-level merges in .github/scripts/merge-results.py.
 
 In CI the CPU and GPU jobs for the same (suite, problem) each write a
 ``fields.npz`` containing only the solvers that job ran — including the
@@ -17,6 +17,9 @@ import importlib.util
 from pathlib import Path
 
 import numpy as np
+import pytest
+
+from mosaic.benchmarks.core.experiment import merge_results
 
 _SCRIPTS = Path(__file__).resolve().parents[2] / ".github" / "scripts"
 _spec = importlib.util.spec_from_file_location(
@@ -140,3 +143,40 @@ class TestMergeNpzSolverUnion:
 
         with np.load(out) as data:
             assert [str(n) for n in data["solver_names"]] == ["solver_x"]
+
+
+# ── result.json merge: unscored entries ──────────────────────────────────────
+
+
+def _result(metrics: dict) -> dict:
+    return {
+        "schema_version": 1,
+        "results": [{"solver": "s", "sweep_value": "0.1", "metrics": metrics}],
+    }
+
+
+_VALID = {"error": 0.01, "valid": True}
+_FAILED = {"error": "boom", "valid": False}
+_UNSCORED = {"status": "skipped", "unscored": True, "reason": "no reference"}
+
+
+@pytest.mark.parametrize(
+    "merge",
+    [_mod._merge_result_pair, merge_results],
+    ids=["merge-results.py", "core"],
+)
+@pytest.mark.parametrize(
+    "existing, new, expected",
+    [
+        # A single-solver PR run can't score the solver; the baseline score stands.
+        (_VALID, _UNSCORED, _VALID),
+        # A failure is not a score to protect.
+        (_FAILED, _UNSCORED, _UNSCORED),
+        # Anything scored still wins as usual.
+        (_UNSCORED, _VALID, _VALID),
+        (_VALID, _FAILED, _FAILED),
+    ],
+)
+def test_unscored_entry_never_replaces_a_valid_one(merge, existing, new, expected):
+    merged = merge(_result(existing), _result(new))
+    assert [e["metrics"] for e in merged["results"]] == [expected]

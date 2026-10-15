@@ -135,3 +135,76 @@ def test_every_experiment_resolves_a_status_check(problem_config):
         f"numbers: {', '.join(ungated)}. Configure a check for the suite, or "
         f"list each in _UNGATED_BY_DESIGN with a reason."
     )
+
+
+#: Experiments whose resolved checks are looser than their suite default. The
+#: reason for each belongs in a comment at the override.
+_LOOSENED_BY_DESIGN: frozenset[str] = frozenset(
+    {
+        "ns-grid/forward/agreement/multimode",
+        # No reason on record; a candidate for tightening to the default.
+        "ns-grid/forward/cylinder",
+    }
+)
+
+#: Whether raising each built-in factory's thresholds lets more results pass.
+_LOOSER_WHEN_HIGHER: dict[str, bool] = {
+    "median_k": True,
+    "max_error": True,
+    "max_peer_k": True,
+    "min_cosine": False,
+    "max_rel_err": True,
+    "rel_err_peer_outlier": True,
+    "max_final_ratio": True,
+}
+
+
+def _thresholds(check) -> tuple[str, dict] | None:
+    """Factory name and captured thresholds of a built-in check, or None."""
+    factory, _, local = check.__qualname__.partition(".<locals>.")
+    if not local:
+        return None
+    cells = check.__closure__ or ()
+    return factory, {
+        name: cell.cell_contents
+        for name, cell in zip(check.__code__.co_freevars, cells, strict=True)
+    }
+
+
+def _loosens(default: list, override: list) -> bool:
+    """Whether *override* drops a check of *default* or moves one toward passing."""
+    built_in = dict(t for t in map(_thresholds, override) if t)
+    for check in default:
+        spec = _thresholds(check)
+        if spec is None:
+            if check not in override:
+                return True
+            continue
+        factory, params = spec
+        if factory not in built_in:
+            return True
+        sign = 1 if _LOOSER_WHEN_HIGHER[factory] else -1
+        if any(sign * (built_in[factory][k] - v) > 0 for k, v in params.items()):
+            return True
+    return False
+
+
+def test_loosened_status_checks_are_deliberate(problem_config):
+    """Overrides replace the suite default, so loosening it must be opt-in."""
+    from mosaic.benchmarks.core.status import _lookup_check
+    from mosaic.benchmarks.core.status_checks import normalize
+
+    loosened = []
+    for key in sorted(problem_config.experiments):
+        suite, _, experiment = key.partition("/")
+        if f"{problem_config.name}/{key}" in _LOOSENED_BY_DESIGN:
+            continue
+        default = normalize(problem_config.status_checks.get(suite))
+        if _loosens(default, _lookup_check(problem_config, suite, experiment)):
+            loosened.append(key)
+
+    assert not loosened, (
+        f"{problem_config.name} loosens its suite-default status checks on "
+        f"{', '.join(loosened)}. Give the reason in a comment at the override "
+        f"and list each in _LOOSENED_BY_DESIGN, or keep the default checks."
+    )

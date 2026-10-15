@@ -254,6 +254,10 @@ class Problem:
             return params["plot_descriptions"].get(experiment, "")
         return params.get("plot_description", "")
 
+    def get_sweep_mode(self, suite: str, experiment: str) -> str:
+        """Return the kernel's ``sweep_mode`` for (suite, experiment)."""
+        return self._exp_params(suite, experiment).get("sweep_mode", "none")
+
     def get_experiment_description(self, suite: str, experiment: str) -> str:
         """Return the short experiment description."""
         params = self._exp_params(suite, experiment)
@@ -292,9 +296,10 @@ class Problem:
 
         ``plot`` accepts a single callable or a ``{view: callable, ...}`` dict
         (each view runs independently; an exception in one is logged and
-        skipped). ``status_check`` adds per-experiment status callables on
-        top of suite-level defaults. ``plot_description`` is stored on the
-        experiment's params for ``mosaic status`` to display.
+        skipped). ``status_check`` replaces the suite-level default checks
+        for this experiment, so it must list every check that should still
+        apply. ``plot_description`` is stored on the experiment's params for
+        ``mosaic status`` to display.
 
         ``coords`` (optional) is this experiment's position in a sweep's
         parameter space (e.g. ``{"N": 32, "regime": "diffusive"}``).
@@ -691,8 +696,12 @@ class Problem:
 
         # Params is the **introspection manifest** — short and metadata-only.
         # The full config lives in the lambda's closure; we only surface what
-        # status/docs actually read (plot blurb + per-experiment thresholds).
-        params: dict = {"plot_description": plot_description}
+        # status/docs actually read (plot blurb, sweep mode, per-experiment
+        # thresholds).
+        params: dict = {
+            "plot_description": plot_description,
+            "sweep_mode": kcfg.get("sweep_mode", "none"),
+        }
         if status_check:
             params["status_check"] = list(status_check)
         self.experiments[key] = Experiment(

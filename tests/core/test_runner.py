@@ -7,7 +7,7 @@ Covers behaviour reachable without a real Tesseract container:
 - the ``MOSAIC_TESSERACT_TIMEOUT`` env-var contract,
 - ``safe_apply`` / ``safe_apply_with_extras`` error handling (missing output
   key, non-finite arrays, exception propagation, TimeoutError messaging,
-  per-thread error storage), and
+  per-thread error storage cleared on success), and
 - the pure helper ``image_tags_no_build``.
 """
 
@@ -20,6 +20,7 @@ import jax.numpy as jnp
 import pytest
 
 from mosaic.benchmarks.core import runner
+from mosaic.benchmarks.core.harness import classify_failure
 
 # ── Module-level constants ────────────────────────────────────────────────────
 
@@ -167,10 +168,12 @@ def test_safe_apply_with_extras_missing_output_key(monkeypatch):
 
 
 def test_safe_apply_with_extras_non_finite_array(monkeypatch):
-    """A NaN/inf in the primary array means failure — returns (None, {}, {})."""
+    """A NaN/inf in the primary array means failure — returns (None, {}, {})
+    and records the non-finite counts as the error, classified as ``nan``.
+    """
 
     def fake_apply(t, inputs):
-        return {"result": jnp.array([1.0, float("nan"), 3.0])}
+        return {"result": jnp.array([1.0, float("nan"), float("inf"), float("nan")])}
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
 
@@ -178,6 +181,29 @@ def test_safe_apply_with_extras_non_finite_array(monkeypatch):
     assert arr is None
     assert extras == {}
     assert state == {}
+    err = runner.get_last_apply_error()
+    assert err == "solver output 'result' is not finite (2 NaN, 1 Inf of 4 values)"
+    assert classify_failure("", err) == "nan"
+
+
+def test_safe_apply_with_extras_success_clears_previous_error(monkeypatch):
+    """A successful call clears the slot, so a later failure is never blamed
+    on an earlier call's error.
+    """
+    outputs = iter([RuntimeError("earlier crash"), {"result": jnp.ones(2)}])
+
+    def fake_apply(t, inputs):
+        out = next(outputs)
+        if isinstance(out, Exception):
+            raise out
+        return out
+
+    monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
+
+    runner.safe_apply(None, {}, "result")
+    assert "earlier crash" in runner.get_last_apply_error()
+    assert runner.safe_apply(None, {}, "result") is not None
+    assert runner.get_last_apply_error() is None
 
 
 def test_safe_apply_with_extras_exception_wraps_error(monkeypatch):

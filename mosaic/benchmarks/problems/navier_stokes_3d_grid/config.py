@@ -136,7 +136,6 @@ problem = Problem(
         # want calibrating per problem before they are added here.
         "forward": [median_k(3.0)],
         "cost": [max_peer_k(20.0)],
-        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         # Suite-level default, applies to every `optimization/*` experiment.
         "optimization": [max_final_ratio(0.5)],
     },
