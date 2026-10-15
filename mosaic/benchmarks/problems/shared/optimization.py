@@ -26,6 +26,7 @@ error-vs-target trajectories without writing their own loop.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import jax
@@ -45,6 +46,14 @@ def _append_aux(aux_history: dict | None, aux: Any) -> None:
         return
     for label, val in aux.items():
         aux_history.setdefault(label, []).append(float(val))
+
+
+def _check_finite_loss(loss_val: float, i: int) -> None:
+    """Raise once the loss goes NaN/Inf: the optimiser cannot recover from it."""
+    if not math.isfinite(loss_val):
+        raise FloatingPointError(
+            f"optimization loss is not finite ({loss_val}) at iteration {i}"
+        )
 
 
 def _run_optim(
@@ -84,6 +93,8 @@ def _run_optim(
       * ``grad_norms``: per-iter ``‖∇L‖₂``
       * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
+
+    Raises ``FloatingPointError`` as soon as the loss is NaN/Inf.
     """
     optimizer = optax.adam(lr)
     opt_state = optimizer.init(init_x)
@@ -109,6 +120,7 @@ def _run_optim(
         if clip_fn is not None:
             x = clip_fn(x)
         loss_val = float(loss)
+        _check_finite_loss(loss_val, i)
         losses.append(loss_val)
         if loss_val < best:
             best, no_improve = loss_val, 0
@@ -165,7 +177,8 @@ def _run_lbfgs(
     work without modification.
 
     Returns ``(final_x, losses, diag)`` where ``diag`` is
-    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`.
+    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`, and so does
+    the ``FloatingPointError`` on a NaN/Inf loss.
     """
     if has_aux:
 
@@ -236,6 +249,7 @@ def _run_lbfgs(
             _append_aux(aux_history, aux)
         grad_norms.append(float(grad_norm))
         loss_val = float(value)
+        _check_finite_loss(loss_val, i)
         losses.append(loss_val)
         _probe("after-step", i)
         if snap_interval > 0 and (i + 1) % snap_interval == 0:

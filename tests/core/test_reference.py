@@ -52,7 +52,7 @@ class TestIsPrecomputedExperiment:
         assert is_precomputed_experiment("ns-3d-grid", "forward/agreement")
 
     def test_not_designated(self):
-        assert not is_precomputed_experiment("ns-3d-grid", "forward/baseline")
+        assert not is_precomputed_experiment("ns-3d-grid", "forward/physical_laws")
 
     def test_unknown_domain(self):
         assert not is_precomputed_experiment("nope", "forward/agreement")

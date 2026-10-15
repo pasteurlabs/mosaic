@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 
 from mosaic.benchmarks.core.config import SolverSpec
+from mosaic.benchmarks.core.utils import fixed_cfl_dt_steps
 from mosaic.benchmarks.problems.shared.diagnostics import FLUID_DIAGNOSTICS
 
 from .ics import _uniform_flow
@@ -27,21 +28,25 @@ def make_inputs(
     steps: int,
     domain_extent: float = 2 * jnp.pi,
     lbm_N_base: int | None = None,
+    cfl_N_base: int | None = None,
     obstacle: dict | None = None,
     U_mean: float = 0.5,
     **_: Any,
 ) -> dict:
     """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
 
+    ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver, before
+    any LBM scaling.
+
     When ic is 1-D (shape (N,)) it is treated as an inflow profile for drag
     optimisation (v0 = uniform background at U_mean, ic → inflow_profile field).
     """
     if ic.ndim == 1:
         N = ic.shape[0]
-        _dt, _steps = dt, steps
+        _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)
         if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
-            _dt = dt * min(1.0, lbm_N_base / N)
-            _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
+            _dt = _dt * min(1.0, lbm_N_base / N)
+            _steps = max(1, round(_steps * max(1.0, N / lbm_N_base)))
         base = {
             "v0": _uniform_flow(N, U=U_mean),
             "inflow_profile": ic,
@@ -61,10 +66,10 @@ def make_inputs(
         return {**base, **spec.input_overrides}
 
     N = ic.shape[0]
-    _dt, _steps = dt, steps
+    _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)
     if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
-        _dt = dt * min(1.0, lbm_N_base / N)
-        _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
+        _dt = _dt * min(1.0, lbm_N_base / N)
+        _steps = max(1, round(_steps * max(1.0, N / lbm_N_base)))
 
     base = {
         "v0": ic,

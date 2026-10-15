@@ -333,6 +333,22 @@ def _generate_consensus(cfg: object, exp_key: str, rp: dict) -> None:
     _save(cfg, exp_key, refs, sweep_values)
 
 
+def _converged_runs(rp: dict, spec: ConvergedSpec) -> list[tuple]:
+    """Return ``(sweep_index, sweep_value, n_target, physics)`` per sweep point.
+
+    ``physics`` is the run at ``spec.high_n``, and ``n_target`` is the
+    benchmark grid its output is truncated to. In a sweep over ``N``, that
+    grid is the sweep value.
+    """
+    sweep_key, sweep_values = rp["sweep_key"], rp["sweep_values"]
+    targets = []
+    for i, val in enumerate(sweep_values):
+        n_target = int(val) if sweep_key == "N" else int(rp["phys"]["N"])
+        phys = {**rp["phys"], sweep_key: val, "N": spec.high_n}
+        targets.append((i, val, n_target, phys))
+    return targets
+
+
 def _generate_converged(
     cfg: object, exp_key: str, rp: dict, spec: ConvergedSpec
 ) -> None:
@@ -349,10 +365,11 @@ def _generate_converged(
         console.print(f"    [red]✗[/] reference solver {spec.solver!r} not found")
         return
 
-    n_bench = int(rp["phys"]["N"])
+    targets = _converged_runs(rp, spec)
+    n_bench = sorted({n for _i, _val, n, _phys in targets})
     console.print(
         f"    Converged reference via {spec.solver} at N={spec.high_n} "
-        f"→ N={n_bench} (spectral truncation)"
+        f"→ N={', '.join(map(str, n_bench))} (spectral truncation)"
     )
     console.print(f"    Building {spec.solver}...")
     # Only the reference solver is needed — build it alone rather than the
@@ -360,15 +377,10 @@ def _generate_converged(
     tags = build_all(replace(cfg, solvers=[solver]))
 
     refs: dict[int, np.ndarray] = {}
-    for i, val in enumerate(sweep_values):
+    for i, val, n_target, phys in targets:
         # Integrate at the high resolution, then truncate back to the grid the
         # benchmark (and the stored reference) lives on.
-        curr_phys = {
-            **rp["phys"],
-            "N": spec.high_n,
-            sweep_key: val,
-            "domain_extent": cfg.domain_extent,
-        }
+        curr_phys = {**phys, "domain_extent": cfg.domain_extent}
         ic = cfg.make_ic[rp["ic_name"]](
             L=cfg.domain_extent, seed=rp["seed"], **curr_phys
         )
@@ -385,7 +397,7 @@ def _generate_converged(
             continue
         norm = solver.normalize_output
         hi = np.asarray(norm(result) if norm is not None else result)
-        refs[i] = spectral_downsample(hi, n_bench).astype(np.float32)
+        refs[i] = spectral_downsample(hi, n_target).astype(np.float32)
         console.print(f"    [green]✓[/] {spec.solver} @ {sweep_key}={val}")
 
     _save(cfg, exp_key, refs, sweep_values)

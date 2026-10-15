@@ -42,7 +42,11 @@ from mosaic.benchmarks.core.runner import (
     safe_apply,
     safe_apply_with_extras,
 )
-from mosaic.benchmarks.core.utils import active_solvers, trimmed_mean
+from mosaic.benchmarks.core.utils import (
+    active_solvers,
+    convergence_order,
+    trimmed_mean,
+)
 
 _SUITE = "forward"
 
@@ -103,6 +107,11 @@ def _analytic_reference(
 
 
 # ── agreement ────────────────────────────────────────────────────────────────
+
+_NO_REFERENCE = (
+    "no reference: fewer than 2 solvers produced output and there is no "
+    "analytic, precomputed or reference-solver field"
+)
 
 
 def _agreement_aggregate(
@@ -211,19 +220,27 @@ def _agreement_aggregate(
             and not has_ref_solver
             and not has_precomputed
         ):
+            # Nothing to score against (e.g. a single-solver run with no
+            # cached peers). A solver that produced output is left unscored,
+            # not failed, and flagged so a merge keeps any score it already
+            # has; a solver that produced no output still fails.
             attempted = set(by_solver.keys())
             for n in solver_names:
                 if n not in attempted and n not in comparable:
                     continue
-                flat_results.append(
-                    {
-                        "solver": n,
-                        "sweep_value": str(val),
-                        "metrics": {
-                            "error": apply_errors.get(n, {}).get(val),
-                            "valid": False,
-                        },
+                if n in comparable:
+                    metrics = {
+                        "status": "skipped",
+                        "unscored": True,
+                        "reason": _NO_REFERENCE,
                     }
+                else:
+                    metrics = {
+                        "error": apply_errors.get(n, {}).get(val),
+                        "valid": False,
+                    }
+                flat_results.append(
+                    {"solver": n, "sweep_value": str(val), "metrics": metrics}
                 )
             continue
 
@@ -318,6 +335,19 @@ def _agreement_aggregate(
         ]
         spread[val] = float(jnp.std(jnp.array(errors))) if errors else 0.0
 
+    extras: dict = {"spread": spread, "reference_label": reference_label}
+    if sweep_key == "N":
+        # Report each solver's observed order of accuracy on a resolution sweep.
+        errs_by_solver: dict[str, dict] = {}
+        for e in flat_results:
+            m = e["metrics"]
+            if m.get("valid"):
+                errs = errs_by_solver.setdefault(e["solver"], {})
+                errs[e["sweep_value"]] = m["error"]
+        extras["convergence_order"] = {
+            n: convergence_order(errs) for n, errs in errs_by_solver.items()
+        }
+
     return _build_result_envelope(
         cfg=cfg,
         suite=_SUITE,
@@ -326,10 +356,7 @@ def _agreement_aggregate(
         sweep_key=sweep_key,
         sweep_values=sweep_values,
         results=flat_results,
-        extras={
-            "spread": spread,
-            "reference_label": reference_label,
-        },
+        extras=extras,
     )
 
 
@@ -459,9 +486,10 @@ def _physical_laws_aggregate(
                     }
                 )
 
-        # Mark attempted solvers that didn't produce output. Only include
-        # solvers present in by_solver (actually attempted on this hardware)
-        # so the merge step doesn't overwrite valid entries from the other job.
+        # Mark attempted solvers that didn't produce output as failed, with
+        # the apply error as the reason. Only include solvers present in
+        # by_solver (actually attempted on this hardware) so the merge step
+        # doesn't overwrite valid entries from the other job.
         produced = {e["solver"] for e in flat_results if e["sweep_value"] == str(val)}
         for s in cfg.solvers:
             if s.name not in produced and s.name in by_solver:
@@ -469,7 +497,10 @@ def _physical_laws_aggregate(
                     {
                         "solver": s.name,
                         "sweep_value": str(val),
-                        "metrics": None,
+                        "metrics": {
+                            "error": by_solver[s.name].get(val, {}).get("apply_error"),
+                            "valid": False,
+                        },
                     }
                 )
 
@@ -507,7 +538,7 @@ def physical_laws(t: Any, ctx: KernelContext) -> dict:
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     out = safe_apply(t, inputs, ctx.output_key)
     if out is None:
-        return {"metrics": {"valid": False}}
+        return {"metrics": {"apply_error": get_last_apply_error(), "valid": False}}
     norm = ctx.cfg.solver(ctx.name).normalize_output
     if norm is not None:
         out = norm(out)

@@ -53,6 +53,7 @@ from mosaic.benchmarks.core.status_checks import (
     max_rel_err,
     median_k,
     min_cosine,
+    min_order,
     rel_err_peer_outlier,
 )
 
@@ -79,6 +80,12 @@ CHECK_CASES = [
         max_error(0.5),
         ForwardSummary(errs_by_pval={"16": 0.9}, n_valid_points=1),
         ForwardSummary(errs_by_pval={"16": 0.1}, n_valid_points=1),
+    ),
+    (
+        "min_order",
+        min_order(1.5),
+        ForwardSummary(errs_by_pval={"16": 4e-2, "32": 2e-2}, n_valid_points=2),
+        ForwardSummary(errs_by_pval={"16": 4e-2, "32": 1e-2}, n_valid_points=2),
     ),
     (
         "max_peer_k",

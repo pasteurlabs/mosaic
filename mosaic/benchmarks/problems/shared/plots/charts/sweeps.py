@@ -352,12 +352,14 @@ _HSL_FAILURE_SHAPE = {
     "nan": _X_PATH,
     "error": "diamond",
     "timeout": "square",
+    "container_died": "triangle-up",
 }
 _HSL_FAILURE_LABEL = {
     "OOM": "OOM (VRAM)",
     "nan": "NaN gradient",
     "error": "error",
     "timeout": "timeout",
+    "container_died": "container died",
 }
 _HSL_VRAM_LIMIT_MIB = 16_384
 _HSL_PANELS = [

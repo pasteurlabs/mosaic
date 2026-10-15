@@ -32,12 +32,12 @@ Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesserac
 
 ## Domains & solvers
 
-| ID     | Domain                     | Optimization task              | Solvers                                                |
-| :----- | :------------------------- | :----------------------------- | :----------------------------------------------------- |
-| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
-| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
-| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
-| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+| ID     | Domain                     | Optimization task              | Solvers                                                   |
+| :----- | :------------------------- | :----------------------------- | :-------------------------------------------------------- |
+| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem            |
+| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, torch-fem |
+| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM    |
+| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM    |
 
 ## 📊 Results
 
@@ -227,18 +227,18 @@ Mosaic is designed to grow with the community. Three ways in, roughly by scope:
 ```
 mosaic/
   benchmarks/             # evaluation harness (Python package: mosaic.benchmarks)
-    cli.py                # command-line interface
+    cli/                  # command-line interface, one module per subcommand
     core/                 # runner, config, hardware detection, solver auto-discovery
     problems/             # per-domain packages (ns-grid, ns-3d-grid, structural-mesh, thermal-mesh)
-      shared/             # cross-domain suite kernels (forward, gradient, cost, optimization) + plots
-    plots/                # plotting infrastructure
+      shared/             # cross-domain suite kernels (forward, gradient, cost, optimization)
+        plots/            # plotting infrastructure
+  mosaic_shared/          # shared Tesseract interface schemas (also pip-installable)
   templates/              # task templates for scaffolding new domains
   tesseracts/             # solver backends (each is a Tesseract container)
-    mosaic_shared/        # shared Tesseract interface schemas (also pip-installable)
     navier-stokes-grid/   # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
-    structural-mesh/      # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl
+    structural-mesh/      # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, torch-fem
     thermal-mesh/         # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
-  tests/                  # unit tests (run with pytest)
+tests/                    # unit tests (run with pytest)
 docs/                     # Quarto documentation site
 ```
 

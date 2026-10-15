@@ -30,7 +30,7 @@ import contextlib
 import functools
 import importlib
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -199,7 +199,8 @@ class Cell:
     # underlying status.
     stale: bool = False
     # Resource frontier for swept experiments: the first sweep value at which
-    # the solver hit a *resource ceiling* (OOM / timeout). ``None`` when the
+    # the solver hit a *resource ceiling* (OOM / timeout, or any failure after
+    # a valid point in a ``sweep_mode="limits"`` experiment). ``None`` when the
     # solver ran to completion at every value. A ceiling is NOT a failure — a
     # solver that OOMs only at the largest sizes is still OK — but the frontier
     # is carried into the snapshot so ``diff_snapshots`` can tell when the
@@ -212,6 +213,10 @@ class Cell:
     # status ladder alone hides most of what optimisation PRs actually move.
     # Empty when the suite has no comparable scalar or the solver didn't run.
     metrics: dict[str, float] = field(default_factory=dict)
+    # Documented method-intrinsic cause for an ANOMALY cell (from an
+    # ``ANOMALY_EXPLAINED`` exclusion). Shown next to ``reason``; never
+    # changes the status or the score.
+    explanation: str = ""
 
 
 @dataclass
@@ -222,6 +227,9 @@ class ExperimentRow:
     experiment: str  # may be "<name>" or "<name>/<ic_name>" for IC-sub-dirs
     result_path: Path | None  # None when result.json is missing
     cells: dict[str, Cell] = field(default_factory=dict)
+    # Explanations registered for a solver whose cell passed every check:
+    # solver name -> explanation. Reported so stale explanations get removed.
+    unused_explanations: dict[str, str] = field(default_factory=dict)
 
     @property
     def label(self) -> str:
@@ -563,8 +571,15 @@ def _find_trajectory(entry: Any) -> list[float] | None:
     return None
 
 
-def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
-    """Classify from schema_version=1 flat results list."""
+def _classify_from_v1(
+    data: dict, solvers: list[str], checks: list, *, limits: bool = False
+) -> dict[str, Cell]:
+    """Classify from schema_version=1 flat results list.
+
+    ``limits`` marks a ``sweep_mode="limits"`` experiment, which runs until
+    the first failure to find how far each solver gets. Any failure after a
+    valid point is then the solver's frontier.
+    """
     cells: dict[str, Cell] = {}
     results = data.get("results", [])
     if not results:
@@ -592,7 +607,8 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
         #                    fields, so ``_has_any_finite`` alone would mis-read
         #                    it as OK — we must consult ``status`` explicitly.
         #   resource ceiling — ``status: "failed"`` with failure_type OOM /
-        #                    timeout. This is a platform-dependent scaling
+        #                    timeout, or any failure after a valid point in a
+        #                    limits sweep. This is a platform-dependent scaling
         #                    limit, expected at large sizes and not encodable as
         #                    an exclusion. It does NOT fail the cell; we only
         #                    record the frontier (first value that hit it) so
@@ -620,7 +636,9 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
             if not isinstance(metrics, dict):
                 continue
             if metrics.get("status") == "failed":
-                if metrics.get("failure_type") in _RESOURCE_CEILING:
+                if metrics.get("failure_type") in _RESOURCE_CEILING or (
+                    limits and has_valid
+                ):
                     # Resource ceiling — not a failure. Record the first value
                     # at which it bit, in on-disk sweep order.
                     if frontier is None:
@@ -663,24 +681,26 @@ def _fail_reason_from_metrics(metrics: dict) -> str:
     """Build a short human-readable reason from a ``status: "failed"`` record.
 
     Cost/timing failures carry ``failure_type`` + ``exc_type`` + ``exc_msg``
-    (see :meth:`TimedResult.as_record`); prefer those over the generic
-    ``error``/``message``/``reason`` fields the other suites use.
+    (see :meth:`TimedResult.as_record`); other suites carry ``failure_type`` +
+    ``error``. Both render as ``"<failure_type>: [<exc_type>: ]<message>"``.
     """
     exc_type = metrics.get("exc_type")
     exc_msg = metrics.get("exc_msg") or metrics.get("error")
     failure_type = metrics.get("failure_type")
-    if exc_type and exc_msg:
+    if exc_msg:
         head = str(exc_msg).strip().splitlines()[0][:160]
-        prefix = f"{failure_type}: " if failure_type else ""
-        return f"{prefix}{exc_type}: {head}"
+        prefix = "".join(f"{p}: " for p in (failure_type, exc_type) if p)
+        return f"{prefix}{head}"
     if failure_type:
         return str(failure_type)
     return _reason_from_entry(metrics) or "failed"
 
 
-def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
+def _classify_result(
+    data: dict, solvers: list[str], checks: list, *, limits: bool = False
+) -> dict[str, Cell]:
     """Classify each solver from a schema_version=1 result."""
-    cells = _classify_from_v1(data, solvers, checks)
+    cells = _classify_from_v1(data, solvers, checks, limits=limits)
 
     # Solvers whose Tesseract container failed to start (or whose work raised)
     # before any result was recorded are absent from the data layout above and
@@ -1086,13 +1106,15 @@ def _apply_exclusions(
 
 
 def _apply_explained_anomalies(
-    cfg: Problem, suite: str, exp_label: str, cells: dict[str, Cell]
+    cfg: Problem, suite: str, exp_label: str, row: ExperimentRow
 ) -> None:
-    """Mark explained-anomaly solvers.
+    """Attach documented explanations to cells that tripped a quality check.
 
-    These override OK cells only — the solver runs and produces finite
-    results, but underperforms peers for documented method-intrinsic reasons.
-    FAILED and EXCLUDED cells are never downgraded by this pass.
+    The measured result alone decides a cell's status and score; an
+    explanation only adds text. An ANOMALY cell keeps its measured reason and
+    gains the explanation. An OK cell stays OK, and its explanation is
+    recorded in ``row.unused_explanations`` so stale entries surface in the
+    report. FAILED, EXCLUDED and NOT_RUN cells are left alone.
 
     Reads ``cfg.exclusions[name]`` filtered to entries with
     ``Exclusion.category == "anomaly_explained"``.
@@ -1105,15 +1127,15 @@ def _apply_explained_anomalies(
         _key, value = match
         if getattr(value, "category", None) != "anomaly_explained":
             continue
-        cell = cells.get(name)
-        if cell is None or cell.status in (FAILED, EXCLUDED):
+        cell = row.cells.get(name)
+        if cell is None:
             continue
-        if cell.status == OK:
-            cells[name] = _build_explained_anomaly_cell(value)
-        elif cell.status == ANOMALY and cell.category != "explained":
-            cells[name] = Cell(
-                ANOMALY, cell.reason, category="explained", stale=cell.stale
+        if cell.status == ANOMALY:
+            row.cells[name] = replace(
+                cell, category="explained", explanation=value.reason
             )
+        elif cell.status == OK:
+            row.unused_explanations[name] = value.reason
 
 
 def _suite_filter(cfg: Problem, suite: str) -> set[str]:
@@ -1153,7 +1175,7 @@ def _build_row(
     if result_path is None:
         row.cells = {s: Cell(NOT_RUN) for s in solvers}
         _apply_exclusions(cfg, suite, exp_label, row.cells)
-        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row)
         return row
     try:
         data = load_json(result_path)
@@ -1163,10 +1185,11 @@ def _build_row(
         # a solver that's categorically excluded shouldn't be reported as
         # ``fail`` just because the JSON for solvers that DID run is broken.
         _apply_exclusions(cfg, suite, exp_label, row.cells)
-        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row)
         return row
     checks = _lookup_check(cfg, suite, exp_label)
-    row.cells = _classify_result(data, solvers, checks)
+    limits = cfg.get_sweep_mode(suite, exp_label) == "limits"
+    row.cells = _classify_result(data, solvers, checks, limits=limits)
     # Capture numeric scalars *before* anomaly refinement downgrades any OK
     # cell — the scalar is worth diffing whether or not it trips a threshold.
     _collect_metrics_for_suite(suite, exp_label, data, row.cells)
@@ -1175,7 +1198,7 @@ def _build_row(
         cfg, data, row.cells, solvers, tesseract_hash_cache, harness_hash_cache
     )
     _apply_exclusions(cfg, suite, exp_label, row.cells)
-    _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+    _apply_explained_anomalies(cfg, suite, exp_label, row)
     return row
 
 
@@ -1248,22 +1271,6 @@ def _build_excluded_cell(value: Exclusion) -> Cell:
     return Cell(EXCLUDED, value.reason, category=value.category.value)
 
 
-def _build_explained_anomaly_cell(value: Exclusion) -> Cell:
-    """Construct an ANOMALY cell from an explained-anomaly :class:`Exclusion`.
-
-    The solver runs and produces finite output but underperforms peers for
-    documented method-intrinsic reasons (e.g. LBM compressibility floor,
-    staggered MAC grid interpolation error). These appear in the status table
-    as anomalies — not excluded — so they stay in the score denominator and
-    solver weaknesses remain visible.
-
-    ``category="explained"`` marks the cell as a pre-documented anomaly,
-    distinguishing it from threshold-triggered anomalies without re-inspecting
-    ``result.json``.
-    """
-    return Cell(ANOMALY, value.reason, category="explained")
-
-
 # ── JSON / markdown / diff rendering ─────────────────────────────────────────
 #
 # These helpers are consumed by the `mosaic status --format {md,json}` CLI
@@ -1297,9 +1304,11 @@ def status_to_dict(st: ProblemStatus) -> dict:
                         "stale": c.stale,
                         "resource_frontier": c.resource_frontier,
                         "metrics": c.metrics,
+                        "explanation": c.explanation,
                     }
                     for s, c in r.cells.items()
                 },
+                "unused_explanations": dict(r.unused_explanations),
             }
             for r in st.rows
         ],
@@ -1413,15 +1422,21 @@ def md_cell_glyph(cell: Cell) -> str:
         glyph = _MD_EXCL_GLYPHS.get(cell.category, _MD_GLYPHS[EXCLUDED])
     else:
         glyph = _MD_GLYPHS.get(cell.status, "?")
+    if cell.explanation:
+        glyph += _EXPLAINED_MARK
     if getattr(cell, "stale", False) and cell.status != EXCLUDED:
         return glyph + "\\*"
     return glyph
 
 
+# Suffix marking an anomaly that carries a documented explanation.
+_EXPLAINED_MARK = "ⁱ"
+
 _MD_LEGEND = (
     "**Legend** · "
     "✅ ok · "
     "🟠 anom · "
+    f"🟠{_EXPLAINED_MARK} anom with a documented cause (scored as anom) · "
     "❌ fail · "
     "· missing · "
     "🚫 excluded (permanent — out of score denominator) · "
@@ -1637,21 +1652,40 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
     lines.append("")
 
     # ── failures & anomalies ────────────────────────────────────────────────
-    fa: list[tuple[str, str, str, str, str]] = []
+    fa: list[tuple[str, str, str, Cell]] = []
+    unused: list[tuple[str, str, str, str]] = []
     for st in statuses:
         for row in st.rows:
             for solver, cell in row.cells.items():
                 if cell.status in (FAILED, ANOMALY):
-                    fa.append((st.problem, row.label, solver, cell.status, cell.reason))
+                    fa.append((st.problem, row.label, solver, cell))
+            for solver, explanation in row.unused_explanations.items():
+                unused.append((st.problem, row.label, solver, explanation))
     if fa:
         lines.append("### Failures & anomalies")
         lines.append("")
-        for problem, label, solver, status, reason in fa:
-            glyph = _MD_GLYPHS[status]
-            reason_str = _md_format_reason(reason, collapse=(status == FAILED))
+        for problem, label, solver, cell in fa:
+            glyph = md_cell_glyph(replace(cell, stale=False))
+            reason_str = _md_format_reason(
+                cell.reason, collapse=(cell.status == FAILED)
+            )
+            if cell.explanation:
+                reason_str += f" (documented cause: {cell.explanation})"
             lines.append(
                 f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}"
             )
+        lines.append("")
+    if unused:
+        lines.append("### Unused explanations")
+        lines.append("")
+        lines.append(
+            "These cells passed every check, so their documented explanation "
+            "no longer applies and should be removed from the problem's "
+            "exclusions."
+        )
+        lines.append("")
+        for problem, label, solver, explanation in unused:
+            lines.append(f"- `{problem}` · `{label}` · **{solver}** — {explanation}")
         lines.append("")
 
     # ── per-problem tables (collapsed) ─────────────────────────────────────
@@ -2062,10 +2096,11 @@ def render_diff_markdown(diff: dict, label: str = "base") -> str:
         _render_metric_shifts(lines, metric_shifts)
 
     if frontier_shifts:
-        lines.append("### Resource-frontier shifts (OOM / timeout)")
+        lines.append("### Resource-frontier shifts")
         lines.append("")
         lines.append(
-            "_The size at which a solver first hits a resource ceiling. "
+            "_The size at which a solver first hits a resource ceiling (OOM / "
+            "timeout, or any failure in a limits sweep). "
             "A smaller frontier means it now fails to scale as far as before._"
         )
         lines.append("")

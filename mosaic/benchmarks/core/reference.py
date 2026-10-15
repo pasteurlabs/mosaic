@@ -173,10 +173,11 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     "ns-grid": [
         "forward/cylinder",
     ],
-    # The 3D TGV forward/agreement reference is a *converged* spectral run,
-    # not the linearized analytic decay (issue #123). Its strategy lives in
+    # The 3D TGV forward references are *converged* spectral runs, not the
+    # linearized analytic decay (issue #123). Their strategy lives in
     # CONVERGED_REFERENCES below.
     "ns-3d-grid": [
+        "forward/baseline",
         "forward/agreement",
     ],
     "structural-mesh": [
@@ -224,6 +225,8 @@ CONVERGED_REFERENCES: dict[tuple[str, str], ConvergedSpec] = {
     # to machine precision; at N=64 the field is band-limited well below the
     # N=16 Nyquist cutoff, so truncation to the benchmark grid is exact.
     ("ns-3d-grid", "forward/agreement"): ConvergedSpec(solver="Exponax", high_n=64),
+    # 3D resolution sweep: one high-resolution run per grid, truncated to it.
+    ("ns-3d-grid", "forward/baseline"): ConvergedSpec(solver="Exponax", high_n=64),
 }
 
 

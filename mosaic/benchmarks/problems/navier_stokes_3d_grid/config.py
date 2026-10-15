@@ -33,6 +33,7 @@ from mosaic.benchmarks.core.status_checks import (
     max_rel_err,
     median_k,
     min_cosine,
+    min_order,
     rel_err_peer_outlier,
 )
 from mosaic.benchmarks.core.utils import l2_error_rel
@@ -136,7 +137,6 @@ problem = Problem(
         # want calibrating per problem before they are added here.
         "forward": [median_k(3.0)],
         "cost": [max_peer_k(20.0)],
-        "gradient/fd_check": [min_cosine(0.99), rel_err_peer_outlier(50.0)],
         # Suite-level default, applies to every `optimization/*` experiment.
         "optimization": [max_final_ratio(0.5)],
     },
@@ -189,12 +189,25 @@ problem.add_experiment(
     "forward/baseline",
     agreement,
     plot_description=(
-        "Relative error vs grid resolution N at steps=1; validates single-step forward"
-        " accuracy across 3D solvers."
+        "Relative error vs grid resolution N against a converged spectral reference"
+        " at t=1.28, refining space and time together at a fixed CFL number. The"
+        " legend gives each solver's observed order of accuracy p."
     ),
     ic={"name": "tgv3d", "seed": 0},
-    physics={"N": [8, 16, 32], "nu": 0.05, "dt": 0.01, "steps": 1},
+    physics={
+        "N": [8, 16, 32],
+        "nu": 0.05,
+        # dt and steps apply at N=32. Coarser grids take fewer, larger steps
+        # to the same end time (CFL ≈ 0.2).
+        "dt": 0.04,
+        "steps": 32,
+        "cfl_N_base": 32,
+    },
     plot=plot_agreement,
+    # Space and time are refined together, so a scheme that is first order in
+    # time (implicit Euler: OpenFOAM, PICT) converges at order 1. The check
+    # catches error floors and non-convergence, not first-order schemes.
+    status_check=[median_k(3.0), min_order(0.8)],
 )
 problem.add_experiment(
     "forward/agreement",
@@ -203,7 +216,10 @@ problem.add_experiment(
         "3D velocity magnitude fields and kinetic energy spectra per solver, swept over"
         " viscosity \u03bd, compared against a converged spectral reference. (The 3D TGV"
         " initial condition is not advection-free, so the linearized analytic decay is"
-        " only a short-horizon consistency check, not an accuracy reference.)"
+        " only a short-horizon consistency check, not an accuracy reference.) The"
+        " reference is an Exponax run at N=64, spectrally truncated to N=16."
+        " Exponax's low error here, and its top place in the forward ranking,"
+        " therefore largely measure agreement with its own higher-resolution solution."
     ),
     ic={"name": "tgv3d", "seed": 0},
     physics={

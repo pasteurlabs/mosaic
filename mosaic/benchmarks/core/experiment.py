@@ -55,7 +55,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.hardware import ResourceSampler
+from mosaic.benchmarks.core.hardware import ResourceSampler, merge_hardware
 from mosaic.benchmarks.core.harness import classify_failure
 from mosaic.benchmarks.core.io import (
     experiment_dir,
@@ -211,10 +211,19 @@ def _build_result_envelope(
 
 
 def merge_results(a: dict, b: dict) -> dict:
-    """Merge two schema_version=1 result files. *b* wins on conflict."""
+    """Merge two schema_version=1 result files. *b* wins on conflict.
+
+    The exception is an ``unscored`` entry, which never replaces a valid one.
+    """
     seen: dict[tuple, dict] = {}
     for entry in a.get("results", []) + b.get("results", []):
-        seen[(entry["solver"], entry.get("sweep_value"))] = entry
+        key = (entry["solver"], entry.get("sweep_value"))
+        # An unscored entry (the solver ran, but that run had nothing to
+        # score it against) never replaces a valid score.
+        prev = (seen.get(key) or {}).get("metrics") or {}
+        if (entry.get("metrics") or {}).get("unscored") and prev.get("valid"):
+            continue
+        seen[key] = entry
     merged = {**a, **b, "results": list(seen.values())}
     # Merge provenance sub-dicts
     for key in ("tesseract_hashes", "wall_time_s"):
@@ -227,6 +236,7 @@ def merge_results(a: dict, b: dict) -> dict:
     b_extras = b.get("extras", {})
     if a_extras or b_extras:
         merged["extras"] = {**a_extras, **b_extras}
+        merge_hardware(merged["extras"], a, b)
     return merged
 
 

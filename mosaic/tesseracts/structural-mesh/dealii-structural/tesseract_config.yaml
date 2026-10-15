@@ -22,7 +22,7 @@ metadata:
     family: fem
     scheme: "FEM Q1 linear elasticity (SIMP, forward-only)"
     discretization: FE
-    numerics: "Direct (spsolve)"
+    numerics: "Direct (UMFPACK)"
     ad_strategy: null
     differentiable: false
     uses_gpu: false

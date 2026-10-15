@@ -14,7 +14,7 @@ We solve the 3D incompressible Navier–Stokes equations $\partial_t \mathbf{u} 
 
 ::: {.callout-tip title='How these results were produced' collapse='true'}
 
-These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
+These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, INS.jl, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate CPU node, whose processor model can differ between runs. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
 
 :::
 
@@ -67,7 +67,7 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 ### Agreement
 
-3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a converged spectral reference. (The 3D TGV initial condition is not advection-free, so the linearized analytic decay is only a short-horizon consistency check, not an accuracy reference.)
+3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a converged spectral reference. (The 3D TGV initial condition is not advection-free, so the linearized analytic decay is only a short-horizon consistency check, not an accuracy reference.) The reference is an Exponax run at N=64, spectrally truncated to N=16. Exponax's low error here, and its top place in the forward ranking, therefore largely measure agreement with its own higher-resolution solution.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
