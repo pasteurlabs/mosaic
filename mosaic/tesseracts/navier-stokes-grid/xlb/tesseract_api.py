@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
+import math
 import os
 
 # Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
@@ -18,6 +19,7 @@ from typing import Any  # noqa: E402
 import equinox as eqx  # noqa: E402
 import jax  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
+import numpy as np  # noqa: E402
 import xlb  # noqa: E402
 import xlb.velocity_set  # noqa: E402
 from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
@@ -27,22 +29,14 @@ from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
 jax.config.update("jax_enable_x64", True)
 
-# Precision of the differentiation path (apply() forward + VJP/JVP).
+# Precision of the whole solver: the apply() forward and the VJP/JVP paths.
+# They share it so that they compute the same function, which the fd_check
+# requires; timings therefore compare like with like.
 #
 # The default is float64: near omega≈2 the LBM develops float32 cancellation
-# errors that corrupt gradients, so the accuracy-motivated default runs the
-# whole differentiated computation in float64 (see issue #125).  That default
-# is also the dominant cost in the measured VJP/forward wall-clock ratio
-# (~270x 2D, ~1100x 3D at N=32), since the timed forward runs float32 while
-# the gradient path runs float64 on 19–27 distribution fields plus a doubled
-# stored trajectory.
-#
-# Set XLB_VJP_FP32=1 to run the differentiation path in float32 instead,
-# which cuts that overhead by roughly an order of magnitude.  Use only when
-# the benchmark's gradient/fd_check stays acceptable at the configuration of
-# interest — at low viscosity (omega≈2) float32 gradients may degrade.  The
-# apply() forward and the VJP path share this flag so they compute the same
-# function, which the fd_check requires.
+# errors that corrupt gradients, and float32 gradients fail gradient/fd_check
+# there (see issue #125).  Set XLB_VJP_FP32=1 to run everything in float32
+# instead; use it only where the fd_check stays acceptable.
 _USE_F64_DIFF = os.environ.get("XLB_VJP_FP32", "0") == "0"
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
@@ -66,6 +60,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"
 
 
 from xlb.compute_backend import ComputeBackend  # noqa: E402
+from xlb.operator import Operator  # noqa: E402
 
 # XLB operator imports
 from xlb.operator.collision import BGK, KBC  # noqa: E402
@@ -79,11 +74,68 @@ from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
+class _SmoothKBC(KBC):
+    """KBC with a stabiliser that is smooth where the flow is resolved.
+
+    KBC splits f - feq into a shear part Δs, relaxed at rate ω, and the rest
+    Δh, relaxed at rate βγ with β = ω/2 and
+
+        γ = 1/β - (2 - 1/β) ⟨Δs|Δh⟩ / ⟨Δh|Δh⟩     (⟨x|y⟩ = Σ x y / feq).
+
+    In resolved flow Δh is tiny next to Δs. The ratio is then close to 0/0
+    and its derivative is unbounded, so reverse-mode gradients blow up
+    (issue #194). Adding δ = ε⟨Δs|Δs⟩ to both terms,
+
+        (⟨Δs|Δh⟩ - δ) / (⟨Δh|Δh⟩ + δ),
+
+    keeps the ratio smooth and sends γ to its BGK value 2 where Δh is
+    negligible next to Δs, while γ is unchanged where Δh matters, which is
+    where KBC stabilises under-resolved flow.
+
+    At rest f - feq is rounding residue, and the ratio of its scalar products
+    is an arbitrary number that differs between devices. A floor η well above
+    that residue and far below any physical state is added the same way,
+
+        (⟨Δs|Δh⟩ - δ - η) / (⟨Δh|Δh⟩ + δ + η),
+
+    so a flow at rest relaxes like BGK on every device. This matters for
+    gradients taken at a zero initial guess.
+    """
+
+    eps_shear = 1e-3
+
+    @Operator.register_backend(ComputeBackend.JAX)
+    def jax_implementation(
+        self,
+        f: jnp.ndarray,
+        feq: jnp.ndarray,
+        rho: jnp.ndarray,
+        u: jnp.ndarray,
+        omega: Any,
+    ) -> jnp.ndarray:
+        """Collide like ``KBC.jax_implementation`` with the smoothed γ."""
+        fneq = f - feq
+        if self.velocity_set.d == 2:
+            delta_s = self.decompose_shear_d2q9_jax(fneq) * rho / 4.0
+        else:
+            delta_s = self.decompose_shear_d3q27_jax(fneq) * rho
+        beta = 0.5 * omega
+        inv_beta = 1.0 / beta
+        delta_h = fneq - delta_s
+        sp1, sp2 = self.compute_entropic_scalar_products(delta_s, delta_h, feq)
+        delta = self.eps_shear * jnp.sum(delta_s * delta_s / feq, axis=0)
+        eta = (32.0 * jnp.finfo(fneq.dtype).eps) ** 2
+        ratio = (sp1 - delta - eta) / (sp2 + delta + eta)
+        gamma = inv_beta - (2.0 - inv_beta) * ratio
+        return f - beta * (2.0 * delta_s + gamma[None, ...] * delta_h)
+
+
 def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
     """Build the XLB operator bundle for a given (ndim, precision, collision kind).
 
-    `kind` selects the collision operator: "bgk" (default, fast) or "kbc"
-    (entropic-stabilised; only available for D2Q9 and D3Q27).  KBC is used in
+    `kind` selects the collision operator: "bgk" (default, fast), "kbc"
+    (entropic-stabilised; only available for D2Q9 and D3Q27) or "kbc_smooth"
+    (KBC with a smooth stabiliser, see _SmoothKBC).  KBC is used in
     the 2-D cylinder-wake (obstacle) path to keep the LBM dynamics stable at
     the sub-grid shear layer next to the solid mask, where plain BGK develops
     NaNs as the effective Re/omega climbs.  KBC has the same call signature as
@@ -102,6 +154,8 @@ def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
     xlb.init(velocity_set=vset, default_backend=cb, default_precision_policy=pp)
     if kind == "kbc":
         collide = KBC(velocity_set=vset, precision_policy=pp, compute_backend=cb)
+    elif kind == "kbc_smooth":
+        collide = _SmoothKBC(velocity_set=vset, precision_policy=pp, compute_backend=cb)
     else:
         collide = BGK(velocity_set=vset, precision_policy=pp, compute_backend=cb)
     return {
@@ -196,6 +250,35 @@ _OPS: dict[tuple[int, bool, str], dict] = {
         ComputeBackend.JAX,
         jnp.float64,
         "kbc",
+    ),
+    # KBC with a smooth stabiliser (periodic runs; see _SmoothKBC)
+    (2, False, "kbc_smooth"): _make_ops(
+        _vsets[(2, False)],
+        PrecisionPolicy.FP32FP32,
+        ComputeBackend.JAX,
+        jnp.float32,
+        "kbc_smooth",
+    ),
+    (2, True, "kbc_smooth"): _make_ops(
+        _vsets[(2, True)],
+        PrecisionPolicy.FP64FP64,
+        ComputeBackend.JAX,
+        jnp.float64,
+        "kbc_smooth",
+    ),
+    (3, False, "kbc_smooth"): _make_ops(
+        _vsets[(3, False)],
+        PrecisionPolicy.FP32FP32,
+        ComputeBackend.JAX,
+        jnp.float32,
+        "kbc_smooth",
+    ),
+    (3, True, "kbc_smooth"): _make_ops(
+        _vsets[(3, True)],
+        PrecisionPolicy.FP64FP64,
+        ComputeBackend.JAX,
+        jnp.float64,
+        "kbc_smooth",
     ),
 }
 
@@ -395,6 +478,100 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     return f_cur, drag_hist
 
 
+# Lattice Mach number that periodic runs sub-step down to: _MA_TARGET up to
+# N = _MA_TARGET_N, then ∝ 1/N (diffusive scaling). LBM's O(Ma²)
+# compressibility error then falls with the O(dx²) discretisation error
+# instead of putting a floor under grid refinement.
+_MA_TARGET = 0.1
+_MA_TARGET_N = 64
+
+
+def _is_periodic(inputs: dict) -> bool:
+    """True for a fully periodic run (no obstacle, no inflow profile)."""
+    return inputs.get("obstacle") is None and inputs.get("inflow_profile") is None
+
+
+def _periodic_sub_k(inputs: dict) -> int:
+    """LBM sub-steps per dt that bring a periodic run to its target Mach number.
+
+    The lattice Mach number is Ma = max|v0| · (dt/dx) / cs with cs = 1/√3.
+    k sub-steps of dt/k divide it by k and preserve the physical end time.
+    Computed from the concrete primal inputs, since k fixes the traced graph.
+    Non-periodic runs keep k = 1.
+    """
+    if not _is_periodic(inputs):
+        return 1
+    v0 = np.asarray(inputs["v0"], dtype=np.float64)
+    n = v0.shape[0]
+    u_max = float(np.sqrt((v0**2).sum(axis=-1)).max())
+    dx = float(inputs["domain_extent"]) / n
+    ma = u_max * float(inputs["dt"]) / dx * math.sqrt(3.0)
+    ma_target = _MA_TARGET * min(1.0, _MA_TARGET_N / n)
+    return max(1, math.ceil(ma / ma_target))
+
+
+def _select_collision(omega: float, inputs: dict) -> str:
+    """Collision kind for a run with relaxation rate ``omega``.
+
+    KBC whenever an obstacle is present or omega > 1.8, where low-viscosity
+    BGK goes unstable as tau→0.5; BGK otherwise. Periodic runs use the KBC
+    with a smooth stabiliser (see _SmoothKBC).
+    """
+    if inputs.get("obstacle") is None and omega <= 1.8:
+        return "bgk"
+    return "kbc_smooth" if _is_periodic(inputs) else "kbc"
+
+
+def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
+    """Populations consistent with a divergence-free periodic velocity field.
+
+    Starting from feq(ρ=1, u) leaves out the pressure field and the viscous
+    stress, which then appear as acoustic and start-up transients. Instead
+    (Mei et al. 2006, J. Comput. Phys. 220):
+
+    - ρ = 1 + p/cs² from the periodic pressure Poisson equation
+      ∇²p = -∂_a∂_b(u_a u_b), solved spectrally;
+    - plus the first-order Chapman–Enskog part f¹ = -w ρ τ/cs² Q:S with
+      Q_ab = c_a c_b - cs² δ_ab and S the strain rate. The scan streams before
+      it collides, so the populations are post-collision ones: (1 - ω) f¹.
+
+    Args:
+        u:     Lattice velocity, shape (d, *spatial).
+        omega: BGK relaxation rate 1/τ.
+        ops:   Operator bundle from ``_make_ops``.
+
+    Returns:
+        Populations, shape (q, *spatial).
+    """
+    d = u.shape[0]
+    spatial = u.shape[1:]
+    axes = tuple(range(1, d + 1))
+    k = jnp.meshgrid(
+        *(2.0 * jnp.pi * jnp.fft.fftfreq(n).astype(u.dtype) for n in spatial),
+        indexing="ij",
+    )
+    k2 = sum(ka**2 for ka in k)
+    k2 = jnp.where(k2 == 0, 1.0, k2)
+
+    u_hat = jnp.fft.fftn(u, axes=axes)
+    grad = jnp.stack(
+        [jnp.real(jnp.fft.ifftn(1j * k[a] * u_hat, axes=axes)) for a in range(d)]
+    )  # grad[a, b] = ∂_a u_b
+    strain = 0.5 * (grad + jnp.swapaxes(grad, 0, 1))
+
+    uu_hat = jnp.fft.fftn(u[:, None] * u[None, :], axes=tuple(a + 1 for a in axes))
+    p_hat = -sum(k[a] * k[b] * uu_hat[a, b] for a in range(d) for b in range(d)) / k2
+    p_hat = p_hat.at[(0,) * d].set(0.0)
+    rho = 1.0 + 3.0 * jnp.real(jnp.fft.ifftn(p_hat))[None]
+
+    C, W = ops["C"], ops["W"]
+    q_ab = C.T[:, :, None] * C.T[:, None, :] - jnp.eye(d, dtype=C.dtype) / 3.0
+    q_s = jnp.einsum("qab,ab...->q...", q_ab, strain)
+    w = W.reshape((-1,) + (1,) * d)
+    f_neq = -3.0 * (1.0 / omega - 1.0) * w * rho * q_s
+    return ops["eq"](rho, u) + f_neq
+
+
 def xlb_fwd(
     v0: jnp.ndarray,
     viscosity: float,
@@ -405,7 +582,7 @@ def xlb_fwd(
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
     _use_f64: bool = False,
-    _sub_k: int | None = None,
+    _sub_k: int = 1,
     _collision_kind_override: str | None = None,
 ) -> tuple[jnp.ndarray, jnp.ndarray | None]:
     """Run a 2D or 3D incompressible LBM simulation from an initial velocity field.
@@ -415,14 +592,12 @@ def xlb_fwd(
         scale = dt / dx          (u_lb = u_phys * scale)
         nu_lb = viscosity * dt / dx**2
 
-    LBM Mach-number compressibility error is O(Ma²) where Ma = u_lb / cs,
-    cs = 1/√3.  When Ma is large (e.g. dt=0.05 at N=64 gives Ma≈0.88),
-    the error floor can be 10–100× above peer NS solvers.  To suppress this,
-    we automatically compute the number of internal sub-steps k = ceil(Ma/0.1)
-    needed to keep Ma ≤ 0.1, then run with dt_eff = dt/k and steps_eff = steps*k.
-    This preserves the total physical time T = dt*steps exactly while reducing
-    the lattice Ma by factor k, cutting the O(Ma²) floor by k².  The external
-    interface (dt, steps, outputs) is unchanged.
+    Each dt runs as ``_sub_k`` LBM steps of dt/_sub_k, which preserves the
+    physical end time T = dt*steps while dividing the lattice Mach number,
+    and so the O(Ma²) compressibility error, by _sub_k (see
+    ``_periodic_sub_k``). Periodic runs start from populations consistent
+    with v0 (see ``_periodic_populations``); runs with an obstacle or an
+    inflow profile start from the equilibrium at ρ=1.
 
     Args:
         v0:            Initial velocity in physical units, shape (nx, ny, 1, 2) or (nx, ny, nz, 3).
@@ -437,55 +612,17 @@ def xlb_fwd(
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
                        especially near omega≈2 where small perturbations amplify rapidly.
-        _sub_k:        Pre-computed sub-step count. If None, computed automatically from Ma.
-        _collision_kind_override: Pre-computed collision kind ("bgk" or "kbc"). If None,
-                       selected automatically from omega and obstacle presence.
+        _sub_k:        LBM sub-steps per dt (see ``_periodic_sub_k``).
+        _collision_kind_override: Pre-computed collision kind ("bgk", "kbc" or
+                       "kbc_smooth"). If None, selected by ``_select_collision``.
 
     Returns:
         (result, drag): result same shape as v0; drag shape (1,) or None.
     """
-    import math as _math
-
     ndim = v0.shape[-1]  # 2 or 3
 
-    # Physical → lattice unit conversion (needed early for Ma-based sub-step selection)
+    # Physical → lattice unit conversion
     dx = domain_extent / v0.shape[0]
-    scale = dt / dx  # u_lb = u_phys * scale  (at full dt)
-
-    # ── Automatic sub-stepping to suppress O(Ma²) compressibility error ──────
-    # LBM compressibility error is O(Ma²) where Ma = u_lb / cs = u_phys * scale / cs.
-    # cs = 1/√3 for the D2Q9 / D3Q27 lattice.  We target Ma ≤ 0.1 which brings
-    # the O(Ma²) error floor to ~0.01, within 5× of incompressible NS peers.
-    # Sub-stepping k internal LBM steps per external dt reduces the effective
-    # lattice timestep to dt_eff = dt/k, hence scale_eff = scale/k and Ma_eff =
-    # Ma/k.  Total physical time T = dt * steps is preserved exactly.
-    #
-    # We use u_max = 1.0 as a conservative upper bound (safe for all benchmark ICs:
-    # TGV max = 1.0, multimode normalised to 0.3, inflow profiles ≤ 0.5).
-    # This ensures _sub_k is determined solely by the static (non-traced) inputs
-    # dt and domain_extent, making it a compile-time constant for JAX JIT.
-    _cs = 1.0 / _math.sqrt(3.0)
-    _MA_TARGET = 0.1
-    _u_max_conservative = 1.0  # upper bound on physical velocity for all benchmark ICs
-    # Sub-stepping disabled (XLB_SUB_K_DISABLE=1) — the auto-substepping path
-    # introduced after the 2026-04-29 commit `98ed0dc` smooths the drag signal
-    # over k× more LBM steps, shrinking ∂drag/∂inflow_profile relative to the
-    # flow-rate penalty gradient and causing drag_opt to plateau at ~5%
-    # reduction (vs the 56% the pre-substep version achieved).  Set to 0 to
-    # re-enable the Ma-aware sub-stepping for forward agreement runs at large
-    # dt where Ma > 0.1.
-    _SUB_K_DISABLED = os.environ.get("XLB_SUB_K_DISABLE", "1") != "0"
-    if _sub_k is None:
-        if _SUB_K_DISABLED:
-            _sub_k = 1
-        else:
-            # Compute _sub_k from the concrete (non-traced) scale value.  This works
-            # when dt is a Python float (apply/apply_jit path) but would raise
-            # ConcretizationTypeError when dt is a JAX abstract value (VJP/JVP path).
-            # Callers that differentiate w.r.t. dt must pre-compute _sub_k from the
-            # concrete primal dt and pass it explicitly — see _diff_statics.
-            _Ma_full = _u_max_conservative * float(scale) / _cs
-            _sub_k = max(1, _math.ceil(_Ma_full / _MA_TARGET))
 
     # Apply sub-stepping: use effective dt and total step count
     dt_eff = dt / _sub_k
@@ -494,11 +631,10 @@ def xlb_fwd(
     nu_lb = viscosity * dt_eff / dx**2
     omega = 1.0 / (3.0 * nu_lb + 0.5)
 
-    # Use entropic-stabilised KBC collision whenever an obstacle is present OR
-    # when omega > 1.8 (low-viscosity BGK goes unstable as tau→0.5).
-    # KBC has the same call signature and same equilibrium targets as BGK so
-    # the rest of the loop is unchanged.  KBC is supported for D2Q9 (2-D) and
-    # D3Q27 (3-D); the guard below falls back to BGK if the bundle is missing.
+    # Collision operator: see _select_collision. KBC has the same call
+    # signature and same equilibrium targets as BGK so the rest of the loop is
+    # unchanged.  KBC is supported for D2Q9 (2-D) and D3Q27 (3-D); the guard
+    # below falls back to BGK if the bundle is missing.
     #
     # When called inside jax.jit (VJP/JVP path), viscosity and dt are traced
     # arrays so omega is a traced value — `omega > 1.8` cannot be evaluated as
@@ -507,10 +643,11 @@ def xlb_fwd(
     if _collision_kind_override is not None:
         _collision_kind = _collision_kind_override
     else:
-        _needs_kbc = (obstacle is not None) or (omega > 1.8)
-        _collision_kind = "kbc" if _needs_kbc else "bgk"
+        _collision_kind = _select_collision(
+            omega, {"obstacle": obstacle, "inflow_profile": inflow_profile}
+        )
     # Safety net: fall back to bgk if the kbc bundle is not registered.
-    if _collision_kind == "kbc" and (ndim, _use_f64, "kbc") not in _OPS:
+    if (ndim, _use_f64, _collision_kind) not in _OPS:
         _collision_kind = "bgk"
     ops = _OPS[(ndim, _use_f64, _collision_kind)]
     fdtype, C, _W = ops["fdtype"], ops["C"], ops["W"]
@@ -529,10 +666,10 @@ def xlb_fwd(
         u0 = jnp.moveaxis(v0, -1, 0).astype(fdtype) * scale_eff
 
     spatial = u0.shape[1:]
-    rho0 = jnp.ones((1, *spatial), dtype=fdtype)
-
-    # Initialise populations from equilibrium at rho=1 using XLB operator
-    f0 = xlb_eq(rho0, u0)
+    if _is_periodic({"obstacle": obstacle, "inflow_profile": inflow_profile}):
+        f0 = _periodic_populations(u0, omega, ops)
+    else:
+        f0 = xlb_eq(jnp.ones((1, *spatial), dtype=fdtype), u0)
 
     # ── Standard periodic / inflow / obstacle mode ───────────────────────────
     obs_mask = _make_obstacle_mask_xlb(obstacle, u0.shape[1:])
@@ -695,6 +832,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # casts float64 output back to float32 before returning so the schema
     # contract holds either way.
     d["_use_f64"] = _USE_F64_DIFF
+    d["_sub_k"] = _periodic_sub_k(d)
     return apply_jit(d)
 
 
@@ -752,32 +890,16 @@ def _diff_statics(inputs: dict) -> tuple[int, str]:
     Both select the traced graph, so they are fixed per call and never
     evaluated on a JAX tracer inside the differentiated forward pass.
     """
-    import math as _math_run
-
+    _sub_k_concrete = _periodic_sub_k(inputs)
     _dt_concrete = float(inputs.get("dt", 0.05))
-    _nx = inputs["v0"].shape[0]
-    _domain_extent_concrete = float(inputs.get("domain_extent", 1.0))
-    _dx_concrete = _domain_extent_concrete / _nx
-    if os.environ.get("XLB_SUB_K_DISABLE", "1") != "0":
-        # Sub-stepping disabled — see comment in xlb_fwd; pin _sub_k=1 so the
-        # gradient signal isn't smoothed by k× extra LBM steps.
-        _sub_k_concrete = 1
-    else:
-        _scale_concrete = _dt_concrete / _dx_concrete
-        _cs_run = 1.0 / _math_run.sqrt(3.0)
-        _Ma_full_run = 1.0 * _scale_concrete / _cs_run
-        _sub_k_concrete = max(1, _math_run.ceil(_Ma_full_run / 0.1))
-
+    _dx_concrete = float(inputs.get("domain_extent", 1.0)) / inputs["v0"].shape[0]
     _visc_concrete = float(inputs.get("viscosity", 0.001))
     _dt_eff_concrete = _dt_concrete / _sub_k_concrete
     _nu_lb_concrete = _visc_concrete * _dt_eff_concrete / _dx_concrete**2
     _omega_concrete = 1.0 / (3.0 * _nu_lb_concrete + 0.5)
-    _needs_kbc_concrete = (inputs.get("obstacle") is not None) or (
-        _omega_concrete > 1.8
-    )
     _ndim = inputs["v0"].shape[-1]
-    _ck = "kbc" if _needs_kbc_concrete else "bgk"
-    if _ck == "kbc" and (_ndim, _USE_F64_DIFF, "kbc") not in _OPS:
+    _ck = _select_collision(_omega_concrete, inputs)
+    if (_ndim, _USE_F64_DIFF, _ck) not in _OPS:
         _ck = "bgk"
     return _sub_k_concrete, _ck
 

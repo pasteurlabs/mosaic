@@ -6,6 +6,7 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
@@ -26,8 +27,32 @@ from phi.jax.flow import (
     geom,
     math,
 )
+from phiml.backend._numpy_backend import NumPyBackend
 from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+
+_numpy_ravel_multi_index = NumPyBackend.ravel_multi_index
+
+
+def _ravel_multi_index_int64(
+    self: NumPyBackend,
+    multi_index: np.ndarray,
+    shape: tuple[int, ...],
+    mode: str | int = "undefined",
+) -> np.ndarray:
+    """Flatten indices in int64 when the flat index space exceeds int32.
+
+    phiml casts the flat index back to the dtype of ``multi_index``. Sparse
+    pressure matrices are (cells x cells), so with int32 indices the flat index
+    wraps at 2D N>=216 and 3D N>=36 and matrix compression fails with "index
+    -2147... is out of bounds". Upstream fix: tum-pbs/PhiML#16.
+    """
+    if np.prod(shape, dtype=np.int64) > np.iinfo(multi_index.dtype).max:
+        multi_index = multi_index.astype(np.int64)
+    return _numpy_ravel_multi_index(self, multi_index, shape, mode)
+
+
+NumPyBackend.ravel_multi_index = _ravel_multi_index_int64
 
 
 class InputSchema(
@@ -307,9 +332,12 @@ def phiflow_fwd(
     else:
         # Use explicit CG pressure solver to prevent numerical divergence in 3D
         # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
-        # Tightened rel_tol/abs_tol to 1e-10 on the 3D
-        # periodic path to prevent adjoint-side residual bias in fd_check.
-        _cg_solve = math.Solve("CG", 1e-10, 1e-10)
+        # 1e-7 is the loosest tolerance whose results match a fully converged
+        # solve: phiflow's default 1e-5 leaves enough noise in the loss that the
+        # ns-3d recovery stalls at ~3x the IC error. Much tighter (1e-10) is
+        # below float32's residual floor, so CG runs to max_iterations at 2-3x
+        # the cost without improving any result.
+        _cg_solve = math.Solve("CG", 1e-7, 1e-7)
 
         def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
             vel = faces_to_staggered(face_arr)

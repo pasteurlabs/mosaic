@@ -138,6 +138,37 @@ def _run_optim(
     return x, losses, diag
 
 
+def _outside_domain_if_nonfinite(loss_fn: Any) -> Any:
+    """Wrap ``loss_fn`` so a point whose value or gradient is not usable reads as +inf.
+
+    optax's zoom linesearch treats an infinite value as outside the domain and
+    backtracks. A trial step with a finite value but an infinite gradient, or
+    one large enough that its dot products overflow (e.g. a float32 adjoint
+    that blew up while the forward did not), was instead accepted. It then
+    put inf into L-BFGS's history and every later step was NaN. The gradient
+    counts as usable when its squared norm is finite. Where value and
+    gradient are usable the wrapper returns them unchanged.
+    """
+
+    def value_and_grad(x: Any) -> tuple:
+        value, grad = jax.value_and_grad(loss_fn)(x)
+        grad_sq = sum(jnp.vdot(g, g) for g in jax.tree.leaves(grad))
+        finite = jnp.isfinite(value) & jnp.isfinite(grad_sq)
+        value = jnp.where(finite, value, jnp.inf)
+        grad = jax.tree.map(lambda g: jnp.where(finite, g, jnp.zeros_like(g)), grad)
+        return value, grad
+
+    @jax.custom_vjp
+    def wrapped(x: Any) -> Any:
+        return value_and_grad(x)[0]
+
+    def bwd(grad: Any, cotangent: Any) -> tuple:
+        return (jax.tree.map(lambda g: cotangent * g, grad),)
+
+    wrapped.defvjp(value_and_grad, bwd)
+    return wrapped
+
+
 def _run_lbfgs(
     loss_fn: Any,
     init_x: Any,
@@ -189,6 +220,7 @@ def _run_lbfgs(
     else:
         _scalar_loss = loss_fn
         vg = jax.value_and_grad(loss_fn)
+    _linesearch_loss = _outside_domain_if_nonfinite(_scalar_loss)
 
     import os
 
@@ -229,7 +261,7 @@ def _run_lbfgs(
             grad = grad_proj_fn(grad)
         grad_norm = jnp.linalg.norm(grad.ravel())
         updates, opt_state = solver.update(
-            grad, opt_state, x, value=value, grad=grad, value_fn=_scalar_loss
+            grad, opt_state, x, value=value, grad=grad, value_fn=_linesearch_loss
         )
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:
