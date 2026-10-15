@@ -171,11 +171,16 @@ class SolverEnc:
         )
 
 
-def solver_encodings(solvers: Any) -> SolverEnc:
-    """Registry-ordered labels and colour/dash/shape scales for ``solvers``."""
+def solver_encodings(solvers: Any, suffix: dict[str, str] | None = None) -> SolverEnc:
+    """Registry-ordered labels and colour/dash/shape scales for ``solvers``.
+
+    ``suffix`` maps a raw solver name to text appended to its display label.
+    """
     keys = registry_order(solvers)
     styles = [solver_style(s) for s in keys]
-    labels = [s[0] for s in styles]
+    labels = [
+        s[0] + (suffix or {}).get(k, "") for k, s in zip(keys, styles, strict=True)
+    ]
     return SolverEnc(
         keys=keys,
         labels=labels,

@@ -24,6 +24,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .utils import convergence_order
+
 # A check returns (status, reason) on anomaly, or None on pass / not-applicable.
 CheckOutcome = tuple[str, str] | None
 
@@ -135,6 +137,25 @@ def max_error(threshold: float) -> Callable[[ForwardSummary], CheckOutcome]:
         return (
             "anomaly",
             f"error {worst[1]:.3g} at sweep={worst[0]} > max_error={threshold}",
+        )
+
+    return _check
+
+
+def min_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if the observed order of accuracy in ``N`` is below ``order``.
+
+    For forward experiments that sweep ``N``; see :func:`convergence_order`.
+    Passes when the order can't be measured.
+    """
+
+    def _check(s: ForwardSummary) -> CheckOutcome:
+        measured = convergence_order(s.errs_by_pval)
+        if measured is None or measured >= order:
+            return None
+        return (
+            "anomaly",
+            f"error converges at order {measured:.2f} in N, below min_order={order}",
         )
 
     return _check
