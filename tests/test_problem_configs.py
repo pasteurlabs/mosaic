@@ -74,6 +74,16 @@ def test_exclusion_keys_are_strings(problem_config):
             )
 
 
+def test_exclusion_keys_match_experiments(problem_config):
+    """Every exclusion key names a registered experiment or a prefix of one."""
+    experiments = problem_config.experiments
+    for solver_name, per_exp in problem_config.exclusions.items():
+        for exc_key in per_exp:
+            assert any(
+                key == exc_key or key.startswith(f"{exc_key}/") for key in experiments
+            ), f"{solver_name}: exclusion key {exc_key!r} matches no experiment"
+
+
 def test_unknown_problem_raises():
     with pytest.raises(ValueError, match="Unknown problem"):
         get_config("nonexistent-problem")

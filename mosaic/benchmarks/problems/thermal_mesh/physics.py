@@ -46,8 +46,7 @@ def _heated_block_bcs(
     When hot_spot=True: flux concentrated on the central 1/3 strip in y.
     For nz=1 (quasi-2D) the z-filter is dropped and the full slab thickness
     is used; for nz>1 the patch is also filtered to the central 1/3 in z.
-    This breaks y-symmetry and drives topology optimisation toward non-trivial
-    branching structures.
+    This breaks the y-symmetry of the temperature field.
     """
     tol = 1e-6 * max(Lx, Ly, Lz)
 

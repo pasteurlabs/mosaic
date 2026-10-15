@@ -18,7 +18,7 @@ metadata:
     family: spectral
     scheme: "spectral ETDRK"
     discretization: Spectral
-    numerics: ETDRK
+    numerics: ETDRK2
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true

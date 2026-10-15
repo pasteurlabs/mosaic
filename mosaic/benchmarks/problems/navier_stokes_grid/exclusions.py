@@ -26,22 +26,21 @@ if TYPE_CHECKING:
 # ── Reusable constants ───────────────────────────────────────────────────────
 
 JAX_CFD_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "periodic FFT pressure solve + IBM volume penalization is incompatible "
-    "with cylinder obstacle channel BCs",
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract implements only periodic flows; jax-cfd itself has "
+    "non-periodic pressure solvers for channel flows, which are not wired "
+    "up here",
 )
 INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "this tesseract represents the cylinder by hard-mask Brinkman "
-    "penalization (velocity zeroed after each projection), which is "
-    "projection-inconsistent and diverges; INS.jl itself supports the "
-    "obstacle via a finite Brinkman forcing term with its native channel "
-    "BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers "
-    "handle non-periodic BCs), but that route is not implemented here",
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract implements only periodic flows; INS.jl itself supports "
+    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
+    "Brinkman forcing, which are not wired up here",
 )
 WARP_NS_NO_OBSTACLE = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "warp-ns is periodic-only; obstacle/inflow flows are not supported",
+    "this tesseract's projection solver uses a spectral FFT pressure solve "
+    "and is periodic-only; obstacle and inflow flows are not implemented in it",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -54,7 +53,7 @@ OPENFOAM_NON_DIFFERENTIABLE_GRAD = Exclusion(
 )
 OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable forward-only solver",
+    "standard icoFoam is a non-differentiable, forward-only solver",
 )
 
 _OBSTACLE_GATE = {
@@ -78,4 +77,3 @@ def register(problem: Problem) -> None:
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
-    problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)

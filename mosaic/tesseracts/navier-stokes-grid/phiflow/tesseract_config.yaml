@@ -1,7 +1,9 @@
 name: phiflow_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Semi-Lagrangian advection with CG pressure projection, unconditionally stable at large dt.
+  Explicit Euler steps with pressure projection: semi-Lagrangian advection for inflow
+  (cylinder) flows, second-order central-difference advection (advective form) for
+  periodic flows.
   Gradients via JAX autodiff combined with analytic adjoint rules through the same
   simulation code.
 build_config:
@@ -20,9 +22,9 @@ metadata:
     name: "PhiFlow"
     backend: jax
     family: projection
-    scheme: "semi-Lagrangian + projection"
+    scheme: "semi-Lagrangian (inflow) / central FD + projection"
     discretization: FD
-    numerics: "Semi-Lagrangian, Euler"
+    numerics: "Semi-Lagrangian/central FD, Euler"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true

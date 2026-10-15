@@ -19,7 +19,7 @@ metadata:
     family: fem
     scheme: "FEM CG1 linear elasticity (SIMP, dolfin-adjoint)"
     discretization: FE
-    numerics: "GMRES+AMG"
+    numerics: "Direct (MUMPS)"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false

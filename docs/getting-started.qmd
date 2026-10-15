@@ -252,6 +252,12 @@ records them via an ``on_error`` callback so the status pipeline can
 classify the cell as FAILED.) Retry the cell with
 ``mosaic run --only failed`` once the container is fixed.
 
+### "No known GPU vendor" errors
+
+If GPU solvers fail with `failed to discover GPU vendor from CDI: no known GPU vendor found` (or `could not select device driver "" with capabilities: [[gpu]]` on older Docker versions), Docker has no NVIDIA runtime that can give the container a GPU. Either install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and configure Docker to use it, or run only the CPU-only solvers with `mosaic run --gpus none`.
+
+On Windows, the closest setup to a Linux host is Docker Engine and the NVIDIA Container Toolkit installed inside a WSL 2 distribution, though our CI does not cover it.
+
 ### Container build failures
 
 If [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) fails:

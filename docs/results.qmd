@@ -33,7 +33,7 @@ Warp-NS, Exponax, INS.jl, and OpenFOAM on a triply periodic Taylor–Green vorte
 
 Place a fixed budget of material in a clamped beam to make it as stiff as
 possible, differentiating through a finite-element solve. Covers deal.II,
-FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever compliance
+FEniCS, Firedrake, JAX-FEM, TopOpt.jl, and torch-fem on 2D cantilever compliance
 minimization with SIMP penalization.
 
 ### [Heat transfer](results_thermal_mesh.qmd)

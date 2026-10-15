@@ -84,13 +84,14 @@ PROBLEM_TAGLINES = {
 # Shared "how the results were produced" callout, surfaced near the top of
 # every results page (hardware + reliability \u2014 issue 6). The benchmark runs on
 # GitHub Actions runners: GPU solvers on a Tesla T4 node, CPU-only solvers
-# (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Wall times therefore
+# (``uses_gpu: false``) on a separate CPU node. Wall times therefore
 # reflect commodity cloud hardware, not a tuned workstation.
 RESULTS_PROVENANCE = (
     "These are **example results**, produced automatically on GitHub Actions "
     "runners and refreshed on every release. Each solver runs on its intended "
     "device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers "
-    "(OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and "
+    "(OpenFOAM, INS.jl, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate "
+    "CPU node, whose processor model can differ between runs. Accuracy and "
     "gradient metrics are hardware-independent and reproducible. Wall-clock "
     "numbers reflect commodity cloud hardware and can vary by 10\u201315% between "
     "runs, so read them for relative scaling between solvers rather than as "
@@ -110,8 +111,8 @@ PROBLEM_DESCRIPTIONS = {
         "Initial condition recovery with 12k degrees of freedom."
     ),
     "structural-mesh": (
-        "deal.II, FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever "
-        "compliance minimization with SIMP penalization."
+        "deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, and torch-fem on 2D "
+        "cantilever compliance minimization with SIMP penalization."
     ),
     "thermal-mesh": (
         "deal.II, FEniCS, Firedrake, JAX-FEM, and torch-fem on 2D steady-state "

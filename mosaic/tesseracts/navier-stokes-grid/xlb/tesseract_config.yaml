@@ -1,7 +1,7 @@
 name: xlb_navier_stokes_grid
 version: "0.1.0"
 description: >
-  JAX-accelerated lattice Boltzmann solver (D2Q9 / D3Q19) with BGK or KBC collision, running
+  JAX-accelerated lattice Boltzmann solver (D2Q9 / D3Q27) with BGK or KBC collision, running
   the streaming/collision loop on GPU. Gradients via source-transformation AD; recovers
   incompressible Navier–Stokes only to O(Ma²) via Chapman–Enskog expansion.
 build_config:
@@ -23,7 +23,7 @@ metadata:
     name: "XLB"
     backend: jax
     family: lbm
-    scheme: "LBM BGK/KBC D2Q9"
+    scheme: "LBM BGK/KBC D2Q9/D3Q27"
     discretization: LBM
     numerics: Streaming
     ad_strategy: autodiff
