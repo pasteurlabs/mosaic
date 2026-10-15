@@ -356,10 +356,15 @@ def test_gradient_nonfinite_vjp_fails_with_reason(
     assert all(cells[s].status != FAILED for s in cfg.solver_names if s != bad)
 
 
-@pytest.mark.parametrize("failure", ["target", "optim"])
-def test_recovery_failure_fails_with_reason(failure, tmp_path, monkeypatch):
-    """A NaN target or a failure in every seed's optimization fails the cell
-    with that reason.
+@pytest.mark.parametrize(
+    ("failure", "only_seed_1"),
+    [("target", False), ("optim", False), ("target", True), ("optim", True)],
+)
+def test_recovery_failure_fails_with_reason(
+    failure, only_seed_1, tmp_path, monkeypatch
+):
+    """A NaN target or a failed optimization fails the cell with that reason,
+    whether every seed fails or only one of them.
     """
     import jax.numpy as jnp
 
@@ -376,33 +381,43 @@ def test_recovery_failure_fails_with_reason(failure, tmp_path, monkeypatch):
         good: f"inprocess:{DUMMY_NS_GRID}",
     }
 
-    def is_bad() -> bool:
-        return runner.current_worker_context().image_tag == tags[bad]
+    calls = {"apply": 0, "optim": 0}
+
+    def is_bad(kind: str) -> bool:
+        if runner.current_worker_context().image_tag != tags[bad]:
+            return False
+        calls[kind] += 1
+        # Seeds run in order, so the second call is ic_seed=1.
+        return calls[kind] == 2 if only_seed_1 else True
 
     if failure == "target":
         real_apply = optimization.apply_tesseract
 
         def apply_nan_for_bad(t, inputs):
             out = real_apply(t, inputs)
-            if is_bad():
+            if is_bad("apply"):
                 out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
             return out
 
         monkeypatch.setattr(optimization, "apply_tesseract", apply_nan_for_bad)
         expected = (
-            "target forward failed for every ic_seed: ic_seed=0: target is not finite"
+            "target forward failed for 1 of 3 ic_seeds: ic_seed=1: target is not finite"
+            if only_seed_1
+            else "target forward failed for every ic_seed: ic_seed=0: target is not finite"
         )
     else:
         real_lbfgs = optimization._run_lbfgs
 
         def lbfgs_fails_for_bad(*args, **kwargs):
-            if is_bad():
+            if is_bad("optim"):
                 raise FloatingPointError("optimization loss is not finite (nan)")
             return real_lbfgs(*args, **kwargs)
 
         monkeypatch.setattr(optimization, "_run_lbfgs", lbfgs_fails_for_bad)
         expected = (
-            "optimization failed for every ic_seed: ic_seed=0: FloatingPointError"
+            "optimization failed for 1 of 3 ic_seeds: ic_seed=1: FloatingPointError"
+            if only_seed_1
+            else "optimization failed for every ic_seed: ic_seed=0: FloatingPointError"
         )
 
     data = cfg.experiments["optimization/recovery_constant_ic_bfgs_proj"].fn(cfg, tags)

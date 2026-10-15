@@ -254,9 +254,9 @@ def _compute_targets_for_val(
 ) -> dict:
     """Forward-solve each seed's true IC to produce target outputs.
 
-    Skips seeds whose forward pass fails or produces invalid output.
-    Returns ``{seed: target_array}``; raises with every seed's reason if no
-    seed produced a target.
+    Returns ``{seed: target_array}``. Raises with each failed seed's reason if
+    any seed's forward pass fails or produces invalid output, so a result never
+    silently averages over fewer seeds than configured.
     """
     targets: dict[int, jax.Array] = {}
     failures: list[str] = []
@@ -281,11 +281,19 @@ def _compute_targets_for_val(
             targets[s] = tgt
         else:
             failures.append(f"ic_seed={s}: target is not finite")
-    if not targets:
+    if failures:
         raise RuntimeError(
-            f"target forward failed for every ic_seed: {'; '.join(failures)}"
+            f"target forward failed for {_which_seeds(failures, targets)}: "
+            f"{'; '.join(failures)}"
         )
     return targets
+
+
+def _which_seeds(failures: list, successes: Any) -> str:
+    """Describe the failed seeds as "every ic_seed" or "k of n ic_seeds"."""
+    if not successes:
+        return "every ic_seed"
+    return f"{len(failures)} of {len(failures) + len(successes)} ic_seeds"
 
 
 def _aggregate_trial_results(
@@ -982,10 +990,11 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
             primary_ic_err_hist = trial["_ic_err_hist"]
         trial_results.append(trial)
 
-    if not trial_results:
+    if trial_failures:
         partial_writer.write(name, None)
         raise RuntimeError(
-            f"optimization failed for every ic_seed: {'; '.join(trial_failures)}"
+            f"optimization failed for {_which_seeds(trial_failures, trial_results)}: "
+            f"{'; '.join(trial_failures)}"
         )
 
     entry = _aggregate_trial_results(
