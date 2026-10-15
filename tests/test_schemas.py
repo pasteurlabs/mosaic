@@ -94,6 +94,18 @@ def test_ns_grid_scalar_extent_is_a_square():
 
 
 @needs_runtime
+def test_ns_grid_periodic_box_rejects_extent_list():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="scalar domain_extent"):
+        InputSchema(
+            v0=np.zeros((16, 16, 1, 2), dtype=np.float32), domain_extent=[1.0, 1.0]
+        )
+
+
+@needs_runtime
 def test_ns_grid_rectangular_channel_validates():
     from mosaic_shared.problems.navier_stokes_grid import InputSchema
 

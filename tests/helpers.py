@@ -56,7 +56,12 @@ unsupported_bcs = pytest.mark.parametrize(
                 "y_lo": {"type": "neumann"},
             }
         },
-        {"boundary_conditions": {}, "inflow_profile": None},
+        {
+            "v0": np.zeros((41, 41, 1, 2), dtype=np.float32),
+            "domain_extent": 0.41,
+            "boundary_conditions": {},
+            "inflow_profile": None,
+        },
     ],
     ids=["outlet_no_slip", "wall_neumann", "periodic_with_obstacle"],
 )

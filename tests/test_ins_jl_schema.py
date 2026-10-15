@@ -55,9 +55,10 @@ def test_periodic_inputs_validate(input_schema):
         {},
         # Periodic BCs, but an obstacle: there is no periodic obstacle mode either.
         {
+            "v0": np.zeros((41, 41, 1, 2), dtype=np.float32),
             "boundary_conditions": {},
             "inflow_profile": None,
-            "domain_extent": [2.2, 0.41],
+            "domain_extent": 0.41,
         },
     ],
 )

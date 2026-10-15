@@ -103,7 +103,8 @@ class InputSchema(BaseModel):
         description=(
             "Physical size of the domain. A scalar L is a square (cube) of "
             "side L; a list gives the length per axis, [Lx, Ly] or "
-            "[Lx, Ly, Lz]. The grid spacing must be the same along every axis."
+            "[Lx, Ly, Lz]. Periodic boxes take a scalar. The grid spacing must "
+            "be the same along every axis."
         ),
     )
     boundary_conditions: GridBC = Field(
@@ -160,6 +161,8 @@ class InputSchema(BaseModel):
     @model_validator(mode="after")
     def _check_bcs(self) -> "InputSchema":
         bc = self.boundary_conditions
+        if bc.is_fully_periodic and isinstance(self.domain_extent, list):
+            raise ValueError("A periodic box takes a scalar domain_extent.")
         if not bc.is_fully_periodic and self.obstacle is None:
             raise ValueError(
                 "Non-periodic BCs require an obstacle. "
