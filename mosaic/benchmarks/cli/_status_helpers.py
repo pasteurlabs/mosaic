@@ -196,7 +196,7 @@ def _status_render_cell(cell: Any) -> str:
     if cell.status == OK:
         label = "ok"
     elif cell.status == ANOMALY:
-        label = "anom"
+        label = "anomⁱ" if cell.explanation else "anom"
     elif cell.status == FAILED:
         label = "fail"
     elif cell.status == NOT_RUN:
@@ -258,7 +258,11 @@ def _status_collect_failures(problem: str, st: Any) -> list[tuple]:
                         row.label,
                         solver,
                         cell.status,
-                        cell.reason,
+                        (
+                            f"{cell.reason} (documented cause: {cell.explanation})"
+                            if cell.explanation
+                            else cell.reason
+                        ),
                         getattr(cell, "stale", False),
                     )
                 )

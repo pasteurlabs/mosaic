@@ -28,7 +28,10 @@ class ExclusionCategory(str, Enum):
 
     ``CATEGORICAL`` is permanent (excluded from the campaign-score denominator);
     all others count as "work to do". ``ANOMALY_EXPLAINED`` is a display-only
-    annotation — the solver still runs.
+    annotation — the solver still runs. It documents a method-intrinsic cause
+    for a cell that trips a quality check and never changes the cell's status
+    or score; an explanation on a cell that passes is reported as unused.
+    Describe the mechanism without quoting measured numbers.
     """
 
     CATEGORICAL = "categorical"

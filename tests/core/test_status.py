@@ -18,8 +18,9 @@ Replaces the binary ``% ok`` metric with a per-cell weighted sum. See
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 
-from mosaic.benchmarks.core.config import ExclusionCategory
+from mosaic.benchmarks.core.config import Exclusion, ExclusionCategory
 from mosaic.benchmarks.core.status import (
     ANOMALY,
     EXCLUDED,
@@ -30,10 +31,13 @@ from mosaic.benchmarks.core.status import (
     Cell,
     ExperimentRow,
     ProblemStatus,
+    _apply_explained_anomalies,
     cell_color,
     cell_weight,
     cell_weight_key,
     compute_score,
+    render_markdown,
+    status_to_dict,
     tally,
     weight_color,
     weight_emoji,
@@ -1041,6 +1045,82 @@ class TestDiffScopeHelper(unittest.TestCase):
                 {"label": "", "is_release_pr": False, "solvers": [], "problems": []}
             )
         )
+
+
+class TestExplainedAnomalies(unittest.TestCase):
+    """An explanation annotates a tripped cell; it never changes status or score."""
+
+    EXPLANATION = "staggered grid interpolation round-trip"
+
+    def _row(self, cell: Cell) -> ExperimentRow:
+        cfg = SimpleNamespace(
+            solvers=[SimpleNamespace(name="Solver", key="solver")],
+            exclusions={
+                "solver": {
+                    "forward/baseline": Exclusion(
+                        ExclusionCategory.ANOMALY_EXPLAINED, self.EXPLANATION
+                    )
+                }
+            },
+        )
+        row = ExperimentRow(
+            suite="forward",
+            experiment="baseline",
+            result_path=None,
+            cells={"Solver": cell},
+        )
+        _apply_explained_anomalies(cfg, "forward", "baseline", row)
+        return row
+
+    def test_passing_cell_stays_ok_and_explanation_is_reported_unused(self) -> None:
+        row = self._row(Cell(OK, metrics={"median_error": 1e-3}))
+        cell = row.cells["Solver"]
+        self.assertEqual(cell.status, OK)
+        self.assertEqual(cell.explanation, "")
+        self.assertEqual(row.unused_explanations, {"Solver": self.EXPLANATION})
+
+    def test_tripped_cell_keeps_measured_reason_and_gains_explanation(self) -> None:
+        row = self._row(
+            Cell(ANOMALY, "error 0.1 is 40x peer median", metrics={"e": 0.1})
+        )
+        cell = row.cells["Solver"]
+        self.assertEqual(cell.status, ANOMALY)
+        self.assertEqual(cell.reason, "error 0.1 is 40x peer median")
+        self.assertEqual(cell.explanation, self.EXPLANATION)
+        self.assertEqual(cell.metrics, {"e": 0.1})
+        self.assertEqual(row.unused_explanations, {})
+
+    def test_explanation_does_not_move_score(self) -> None:
+        plain = _status_from_cells({"Solver": Cell(ANOMALY, "tripped")})
+        row = self._row(Cell(ANOMALY, "tripped"))
+        explained = ProblemStatus(problem="test", solvers=["Solver"], rows=[row])
+        self.assertEqual(tally(plain)["score"], tally(explained)["score"])
+
+    def test_failed_and_missing_cells_are_left_alone(self) -> None:
+        for cell in (Cell(FAILED, "crash"), Cell(NOT_RUN)):
+            row = self._row(cell)
+            self.assertIs(row.cells["Solver"], cell)
+            self.assertEqual(row.unused_explanations, {})
+
+    def test_markdown_shows_reason_explanation_and_unused(self) -> None:
+        tripped = self._row(Cell(ANOMALY, "error 0.1 is 40x peer median"))
+        passing = self._row(Cell(OK))
+        passing.suite = "gradient"
+        md = render_markdown(
+            [ProblemStatus(problem="p", solvers=["Solver"], rows=[tripped, passing])]
+        )
+        self.assertIn("error 0.1 is 40x peer median", md)
+        self.assertIn(self.EXPLANATION, md)
+        self.assertIn("### Unused explanations", md)
+        self.assertIn("`gradient/baseline` · **Solver**", md)
+
+    def test_json_carries_explanation_and_unused(self) -> None:
+        row = self._row(Cell(OK))
+        d = status_to_dict(ProblemStatus(problem="p", solvers=["Solver"], rows=[row]))
+        self.assertEqual(
+            d["rows"][0]["unused_explanations"], {"Solver": self.EXPLANATION}
+        )
+        self.assertEqual(d["rows"][0]["cells"]["Solver"]["explanation"], "")
 
 
 if __name__ == "__main__":
