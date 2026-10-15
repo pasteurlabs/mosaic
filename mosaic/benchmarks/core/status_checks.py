@@ -90,8 +90,9 @@ class OptimizationSummary:
     worst-case (highest-|initial-loss|) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
 
-    ``final_value``: ``loss_final`` of that trajectory, and
-    ``peer_final_median`` the median of ``final_value`` across solvers;
+    ``final_value``: ``loss_final`` of that trajectory.
+
+    ``peer_final_median``: the median of ``final_value`` across solvers, or
     ``None`` when fewer than 3 solvers reported one.
     """
 
@@ -260,8 +261,9 @@ def max_final_peer_dev(
 ) -> Callable[[OptimizationSummary], CheckOutcome]:
     """Optimization suite: anomaly if the final value is more than ``threshold`` from the peer median.
 
-    Relative deviation, either side: a solver that ends far below its peers
-    is as suspect as one that ends far above them. Needs at least 3 solvers.
+    The deviation is relative and counts on either side, since a solver that
+    ends far below its peers is as suspect as one that ends far above them.
+    Needs at least 3 solvers.
     """
 
     def _check(s: OptimizationSummary) -> CheckOutcome:

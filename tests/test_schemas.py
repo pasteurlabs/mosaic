@@ -84,7 +84,7 @@ def _channel_inputs(**overrides):
 
 @needs_runtime
 def test_ns_grid_scalar_extent_is_a_square():
-    """Periodic callers keep sending a scalar extent, unchanged."""
+    """A scalar extent is a square."""
     import numpy as np
     from mosaic_shared.problems.navier_stokes_grid import InputSchema
 

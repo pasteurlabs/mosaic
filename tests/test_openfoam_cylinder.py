@@ -6,7 +6,7 @@
 The boundary-condition checks load the tesseract module straight from source.
 The solver run needs the ``openfoam_navier_stokes_grid:latest`` image built
 from this checkout (``mosaic build -p ns-grid -s OpenFOAM``) and is skipped
-where that image or Docker is missing; it is never built here.
+where that image or Docker is missing. It is never built here.
 """
 
 from __future__ import annotations

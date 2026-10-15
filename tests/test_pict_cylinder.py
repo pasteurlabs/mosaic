@@ -6,7 +6,7 @@
 PICT's module needs PISOtorch and a GPU, so every test here runs against the
 ``pict_navier_stokes_grid:latest`` image built from this checkout
 (``mosaic build -p ns-grid -s PICT``) and is skipped where that image, Docker
-or a GPU is missing; it is never built here.
+or a GPU is missing. It is never built here.
 """
 
 from __future__ import annotations

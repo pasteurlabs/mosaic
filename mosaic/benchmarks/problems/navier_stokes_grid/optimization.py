@@ -1,16 +1,16 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Drag-optimisation kernel and helpers for the navier-stokes grid problem.
+"""Drag-optimization kernel and helpers for the navier-stokes grid problem.
 
 This module hosts the ``drag_opt`` kernel and its private helpers, which
-optimise the inlet velocity profile of the DFG 2D-1 channel
-(:mod:`.cylinder`) to minimise the drag on its cylinder. The code is
+optimize the inlet velocity profile of the DFG 2D-1 channel
+(:mod:`.cylinder`) to minimize the drag on its cylinder. The code is
 ns-grid-specific (drag is a fluid-flow quantity tied to this problem's
 tesseract outputs), so it lives next to the problem rather than in
 ``shared/optimization.py``.
 
-The flow rate is held at the benchmark's: the solver sees the optimised
+The flow rate is held at the benchmark's. The solver sees the optimized
 profile projected onto non-negative profiles of mean speed Ū and peak at most
 the benchmark's U_m (:func:`_project`). Drag is reported as the coefficient
 Cd = 2 F_x / (Ū² D), and the loss is Cd / Cd₀ with Cd₀ that of the
@@ -47,7 +47,7 @@ _SUITE = "optimization"
 
 
 # Largest initial Cd error, relative to the reference, for which the drag
-# optimisation still starts from the benchmark flow. Further off, the solver
+# optimization still starts from the benchmark flow. Further off, the solver
 # is solving a different problem and its optimum would mean nothing.
 CD0_TOLERANCE = 0.15
 
@@ -55,8 +55,8 @@ CD0_TOLERANCE = 0.15
 # Upper bound on the inlet speed: the peak of the benchmark's own parabola.
 # With the flow rate fixed at Ū = 2 U_m / 3, no admissible profile leaves more
 # than a third of the inlet at rest. Looser bounds admit narrow jets that
-# bypass the cylinder and drive a recirculation onto it: slowly settling flows
-# and negative drag, an optimum no longer comparable across solvers.
+# bypass the cylinder and drive a recirculation onto it, which settles slowly,
+# can push Cd below zero, and makes the optimum incomparable across solvers.
 U_BOUND = cylinder.U_MAX
 
 
@@ -64,7 +64,7 @@ def _project(v: Any) -> Any:
     """Euclidean projection of ``v`` onto {0 ≤ u ≤ U_BOUND, mean(u) = Ū}.
 
     The projection is ``clip(v + c, 0, U_BOUND)`` with the shift ``c`` found by
-    bisection. Its gradient is the exact Jacobian of the projection: entries
+    bisection. Its gradient is the exact Jacobian of the projection. Entries
     at a bound get none, and the free entries lose their mean, since ``c``
     moves to restore the flow rate.
     """
@@ -87,7 +87,7 @@ def _project(v: Any) -> Any:
 def _drag_forward(
     t: Any, profile: Any, phys: dict, *, name: str, make_inputs: Any
 ) -> tuple[Any, Any]:
-    """Run the solver with inlet ``profile`` (projected); return ``(Cd, velocity)``."""
+    """Run the solver on the projected inlet ``profile`` and return ``(Cd, velocity)``."""
     inp = make_inputs(name, _project(profile), **phys)
     out = apply_tesseract(t, inp)
     force = out.get("body_force")
@@ -102,7 +102,7 @@ def _drag_forward(
 def _drag_capture_flow(
     t: Any, profile: Any, phys: dict, *, name: str, make_inputs: Any
 ) -> tuple[float, np.ndarray | None]:
-    """Forward the (initial or final) profile; return ``(Cd, velocity)`` or ``(nan, None)``."""
+    """Float-valued :func:`_drag_forward` that returns ``(nan, None)`` on failure."""
     try:
         cd, vel = _drag_forward(t, profile, phys, name=name, make_inputs=make_inputs)
         return float(cd), (np.array(vel) if vel is not None else None)
@@ -366,7 +366,7 @@ def _drag_opt_aggregate(
     ),
 )
 def drag_opt(t: Any, ctx: KernelContext) -> dict:
-    """One solver's full inflow-profile drag optimisation.
+    """One solver's full inflow-profile drag optimization.
 
     Starts from the benchmark's parabolic inlet profile and checks that the
     solver's drag coefficient for it, Cd₀, is within :data:`CD0_TOLERANCE`
@@ -398,12 +398,12 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
                 "valid": False,
                 "error": (
                     f"initial Cd {cd0:.4g} is not within {CD0_TOLERANCE:.0%} of "
-                    f"the reference {cylinder.CD_REF}; not optimising"
+                    f"the reference {cylinder.CD_REF}; not optimizing"
                 ),
             }
         }
 
-    # Forward only the optimiser knobs the config sets, so the loop's own
+    # Forward only the optimizer knobs the config sets, so the loop's own
     # defaults fill in the rest.
     loop_kwargs = {
         k: optim_cfg[k]

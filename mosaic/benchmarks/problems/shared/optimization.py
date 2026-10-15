@@ -81,9 +81,9 @@ def _run_optim(
 
     Stops after ``patience`` iterations without an improvement, where an
     improvement is a loss below the best so far by more than
-    ``min_rel_improvement`` times its magnitude. Small improvements still
-    add up: the best is only moved on an improvement, so a slow, steady
-    descent keeps resetting the count.
+    ``min_rel_improvement`` times its magnitude. The best only moves on such
+    an improvement, so small gains accumulate against it and a slow, steady
+    descent still resets the count.
 
     When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)`` and each
     aux label's per-iter trace lands in ``aux_history[label]`` (caller

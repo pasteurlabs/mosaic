@@ -132,7 +132,7 @@ def cfd_fwd(
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
-    """JIT-compiled apply: run the jax-cfd forward pass."""
+    """JIT-compiled jax-cfd forward pass."""
     return {"result": cfd_fwd(**inputs)}
 
 

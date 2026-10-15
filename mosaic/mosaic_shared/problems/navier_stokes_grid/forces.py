@@ -49,7 +49,8 @@ def control_volume_force(
 
     Returns:
         ``(F_x, F_y)``: the force on the body, positive along +x and +y.
-        Valid for a steady flow; the momentum-storage term is not included.
+        Valid for a steady flow only, since the momentum-storage term is not
+        included.
     """
     i0, i1, j0, j1 = box
     nx, ny = u.shape

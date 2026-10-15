@@ -548,8 +548,8 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
         ratio: float | None = None
         final: float | None = None
         if series:
-            # Signed final value: an objective that can cross zero (a drag)
-            # must not read an overshoot below zero as a large remaining loss.
+            # Keep the final value signed, so that an objective driven below
+            # zero (a drag) does not read as a large remaining loss.
             initial = abs(series[0])
             final = series[-1]
             if not math.isfinite(final):

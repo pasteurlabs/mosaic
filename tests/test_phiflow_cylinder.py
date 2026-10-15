@@ -6,7 +6,7 @@
 The tesseract module imports phiflow, so every test here runs against the
 ``phiflow_navier_stokes_grid:latest`` image built from this checkout
 (``mosaic build -p ns-grid -s PhiFlow``) and is skipped where that image or
-Docker is missing; it is never built here.
+Docker is missing. It is never built here.
 """
 
 from __future__ import annotations

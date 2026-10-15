@@ -112,10 +112,9 @@ def test_dummy_raises_on_unsupported_boundary_conditions():
     import numpy as np
     from tesseract_core import Tesseract
 
-    from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
+    from .helpers import channel_inputs
 
-    inputs = cylinder.channel_inputs(np.asarray(cylinder.inflow_profile(10)), 10)
-    inputs = {k: np.asarray(v) if hasattr(v, "shape") else v for k, v in inputs.items()}
+    inputs = channel_inputs(10)
     with Tesseract.from_tesseract_api(str(DUMMY_NS_GRID)) as t:
         out = t.apply(inputs)
         assert np.asarray(out["body_force"]).shape == (inputs["steps"], 2)

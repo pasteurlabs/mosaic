@@ -1,8 +1,8 @@
 name: phiflow_navier_stokes_grid
 version: "0.1.0"
 description: >
-  2nd-order central-difference advection (explicit Euler) with CG pressure projection;
-  the cylinder channel uses phiflow's wind-tunnel boundaries and a staircase cylinder.
+  2nd-order central-difference advection (explicit Euler) with CG pressure projection.
+  The cylinder channel uses phiflow's wind-tunnel boundaries and a staircase cylinder.
   Gradients via JAX autodiff with adjoint CG solves.
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"

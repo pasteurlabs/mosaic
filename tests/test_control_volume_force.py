@@ -52,7 +52,7 @@ def test_cv_force_recovers_point_force_with_sign(box):
     """The body feels minus the force it exerts on the fluid.
 
     A body that slows the flow in +x pushes the fluid towards −x, so the
-    force on it is +x: the drag sign the benchmark reports.
+    force on it points along +x, the drag sign the benchmark reports.
     """
     f = (-1e-3, 4e-4)
     u, v, p, dx = _stokeslet(64, f)

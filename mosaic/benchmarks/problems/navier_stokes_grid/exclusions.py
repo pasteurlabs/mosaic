@@ -39,16 +39,16 @@ INS_JL_NO_OBSTACLE = Exclusion(
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam has no VJP to benchmark",
+    "OpenFOAM has no VJP to benchmark",
 )
 OPENFOAM_NON_DIFFERENTIABLE_GRAD = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable (C++, no AD path); "
+    "OpenFOAM is non-differentiable (C++, no AD path); "
     "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
 )
 OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is a non-differentiable, forward-only solver",
+    "OpenFOAM is a non-differentiable, forward-only solver",
 )
 
 _OBSTACLE_GATE = {

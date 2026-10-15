@@ -41,7 +41,7 @@ from pydantic import model_validator
 _OF_BASHRC = "/opt/openfoam12/etc/bashrc"
 
 
-# The one non-periodic configuration supported: the DFG 2D-1 channel.
+# OpenFOAM runs one non-periodic configuration, the DFG 2D-1 channel.
 _CHANNEL_BCS = {
     "x_lo": "dirichlet",
     "x_hi": "neumann",
@@ -514,14 +514,19 @@ def _write_channel_block_mesh_dict(
     """
     lx, ly = extent
     cx, cy = center
-    a = 2 * radius
-    if not (cx - a > 0 and cx + a < lx and cy - a > 0 and cy + a < ly):
+    half_side = 2 * radius
+    if not (
+        cx - half_side > 0
+        and cx + half_side < lx
+        and cy - half_side > 0
+        and cy + half_side < ly
+    ):
         raise NotImplementedError(
-            "openfoam needs a margin of one diameter between the cylinder and "
-            "the channel walls"
+            "openfoam needs the square of side 2D around the cylinder to lie "
+            "inside the channel"
         )
-    xs = (0.0, cx - a, cx + a, lx)
-    ys = (0.0, cy - a, cy + a, ly)
+    xs = (0.0, cx - half_side, cx + half_side, lx)
+    ys = (0.0, cy - half_side, cy + half_side, ly)
     nx = [max(1, round((xs[i + 1] - xs[i]) / dx)) for i in range(3)]
     ny = [max(1, round((ys[j + 1] - ys[j]) / dx)) for j in range(3)]
     # Geometric growth from dx to _WAKE_GRADING dx over the wake block.
@@ -557,8 +562,8 @@ def _write_channel_block_mesh_dict(
         for i in range(3)
         if (i, j) != (1, 1)
     ]
-    # O-grid blocks, counter-clockwise: local x along the square side, local
-    # y inwards from the square to the cylinder.
+    # O-grid blocks run counter-clockwise, with local x along the square side
+    # and local y inwards from the square to the cylinder.
     square = [corner(1, 1), corner(2, 1), corner(2, 2), corner(1, 2)]
     circle = [16, 17, 18, 19]
     for k in range(4):
@@ -633,10 +638,10 @@ defaultPatch
     )
     (system_dir / "blockMeshDict").write_text(content)
 
-    # Smallest cell: the radial size at the wall where the O-grid blocks are
-    # thinnest (mid-side), geometrically graded over n_rad cells.
+    # The smallest cell lies on the wall at mid-side, where the O-grid blocks
+    # are thinnest. Radially it is the last of n_rad geometrically graded cells.
     q = _RADIAL_GRADING ** (1 / (n_rad - 1))
-    first = (a - radius) * (1 - q) / (1 - q**n_rad)
+    first = (half_side - radius) * (1 - q) / (1 - q**n_rad)
     return min(first * q ** (n_rad - 1), 2 * math.pi * radius / (4 * n_side))
 
 
@@ -686,7 +691,7 @@ functions
 def _write_channel_numerics(system_dir: Path, constant_dir: Path, nu: float) -> None:
     """fvSchemes, fvSolution and the laminar transport model for channel mode.
 
-    Second-order in space; implicit Euler in time, which damps the start-up
+    Second-order in space and implicit Euler in time, which damps the start-up
     transient on the way to the steady state.
     """
     (system_dir / "fvSchemes").write_text(
@@ -793,7 +798,7 @@ def _vector_list(v: np.ndarray) -> str:
 def _write_channel_fields(
     case_dir: Path, u_cells: np.ndarray, u_inlet: np.ndarray
 ) -> None:
-    """0/U and 0/p: inlet profile, zero-gradient outlet with p = 0, no-slip walls."""
+    """Write 0/U and 0/p with the inlet profile, zero-gradient outlet at p = 0 and no-slip walls."""
     (case_dir / "0" / "U").write_text(
         _FOAM_HEADER.format(cls="volVectorField", obj="U")
         + f"""\
@@ -832,7 +837,7 @@ def _sample(
     """U ``(n, 2)`` and p ``(n,)`` at ``points`` at the final time.
 
     Uses the ``probes`` function object with cell-point interpolation, which
-    is exact at cell centers and honours the boundary values on the walls.
+    is exact at cell centers and honors the boundary values on the walls.
     """
     locations = "\n".join(f"({x:.12g} {y:.12g} {z:.12g})" for x, y, z in points)
     (workdir / "system" / "sample").write_text(
@@ -904,7 +909,7 @@ def _parallel(cmd: str, n_procs: int) -> str:
 
 
 def _run_channel(inputs: InputSchema) -> dict:
-    """Solve the DFG channel with a body-fitted mesh; outputs on the canonical grid."""
+    """Solve the DFG channel on a body-fitted mesh and return canonical-grid outputs."""
     v0 = np.asarray(inputs.v0, dtype=np.float64)[:, :, 0, :]
     nx, ny = v0.shape[:2]
     dx = inputs.dx

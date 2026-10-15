@@ -166,9 +166,8 @@ def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
     """Build the XLB operator bundle for a given (ndim, precision, collision kind).
 
     `kind` selects the collision operator: "bgk" (default, fast) or
-    "kbc_smooth" (entropic-stabilised KBC with a smooth stabiliser, see
-    _SmoothKBC; only available for D2Q9 and D3Q27).  KBC has the same call
-    signature as BGK so it is a drop-in replacement downstream.
+    "kbc_smooth" (_SmoothKBC, only available for D2Q9 and D3Q27).  KBC has the
+    same call signature as BGK so it is a drop-in replacement downstream.
 
     Re-initialise XLB global state with the correct velocity set before
     constructing operators.  XLB stores internal bookkeeping (e.g. the number
@@ -220,7 +219,7 @@ xlb.init(
     default_precision_policy=PrecisionPolicy.FP32FP32,
 )
 _OPS: dict[tuple[int, bool, str], dict] = {
-    # Plain BGK bundle (used for periodic / inflow-only cases)
+    # Plain BGK bundle (the channel, and periodic runs up to _OMEGA_KBC)
     (2, False, "bgk"): _make_ops(
         _vsets[(2, False)],
         PrecisionPolicy.FP32FP32,
@@ -364,7 +363,7 @@ def _select_collision(omega: float, obstacle: dict | None) -> str:
 
     Periodic runs switch to KBC with a smooth stabiliser (see _SmoothKBC)
     above _OMEGA_KBC, where under-resolved low-viscosity flow drives BGK
-    unstable. The channel always uses BGK: its laminar flow stays stable with
+    unstable. The channel always uses BGK. Its laminar flow stays stable with
     BGK up to the omega ≈ 1.93 that drag_opt's sharpest inlet profiles reach,
     while KBC's stabiliser switches erratically in the near-equilibrium
     regions upstream of the cylinder and makes the drag a non-smooth function
@@ -431,8 +430,8 @@ def _channel_links(
     """Solid nodes and boundary links of the 2-D channel with a cylinder.
 
     Nodes sit at the cell centers, so every boundary lies halfway between a
-    node and its missing upstream neighbour. For lattice direction i, each
-    returned (q, nx, ny) mask marks the fluid nodes x whose neighbour x - c_i
+    node and its missing upstream neighbor. For lattice direction i, each
+    returned (q, nx, ny) mask marks the fluid nodes x whose neighbor x - c_i
     lies beyond a wall (y outside the channel), behind the inlet (x < 0), past
     the outlet (x ≥ nx) or inside the cylinder. A cell is solid when its
     center lies strictly inside the cylinder.
@@ -469,7 +468,7 @@ def _channel_run(
     dx: float,
     obstacle: dict,
     ops: dict,
-) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Run the DFG channel in lattice units.
 
     Boundaries, all halfway between nodes:
@@ -478,14 +477,13 @@ def _channel_run(
     - inlet x = 0: velocity bounce-back, adding 2 w ρ c·u_in / cs² with
       u_in = (inflow_profile(y), 0) and ρ = 1;
     - outlet x = L: anti-bounce-back with the face velocity extrapolated
-      from the last two columns, and p = 0 on the face once the flow is
-      steady. A plain p = 0 reflects every pressure wave, and LBM is weakly
-      compressible: the start from v0 sends waves that would ring between
-      inlet and outlet, almost undamped at ν = 1e-3. The face density is
-      therefore 1 + (u_x - ū_x)/cs, with u_x in the last column: the
-      outgoing characteristic relative to the fully developed profile ū_x
-      with the inlet's flux. Outgoing waves leave, and the correction
-      vanishes in steady developed flow.
+      from the last two columns. LBM is weakly compressible, and a plain
+      p = 0 face would reflect the start-up pressure waves, which then ring
+      between inlet and outlet almost undamped at ν = 1e-3. The face density
+      1 + (u_x - ū_x)/cs follows the outgoing characteristic of the last
+      column's u_x relative to ū_x, the fully developed profile with the
+      inlet's flux, so outgoing waves leave and p = 0 on the face once the
+      flow is steady.
 
     The force on the cylinder is the momentum exchanged on its bounce-back
     links, 2 c_i f*_i per link and step, taken at the last sub-step of each
@@ -577,7 +575,7 @@ def xlb_fwd(
         steps:         Number of timesteps.
         dx:            Grid spacing.
         obstacle:      Cylinder (``center``, ``radius``, physical units) in the
-                       channel; None for a periodic box.
+                       channel, or None for a periodic box.
         inflow_profile: Channel inlet u_x at the cell-center heights, shape (ny,).
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
@@ -588,7 +586,7 @@ def xlb_fwd(
                        "kbc_smooth"). If None, selected by ``_select_collision``.
 
     Returns:
-        ``result`` (same shape as v0); in the channel also ``pressure``
+        ``result`` (same shape as v0), and in the channel also ``pressure``
         (nx, ny, 1), kinematic with p = 0 at the outlet, and ``body_force``
         (steps, 2), the force of the fluid on the cylinder per unit depth.
     """
@@ -602,9 +600,10 @@ def xlb_fwd(
     omega = 1.0 / (3.0 * nu_lb + 0.5)
 
     # When called inside jax.jit (VJP/JVP path), viscosity and dt are traced
-    # arrays so omega is a traced value — `omega > 1.8` cannot be evaluated as
-    # a Python bool.  The caller pre-computes _collision_kind_override from
-    # concrete primal values (same pattern as _sub_k) and passes it here.
+    # arrays so omega is a traced value — `omega > _OMEGA_KBC` cannot be
+    # evaluated as a Python bool.  The caller pre-computes
+    # _collision_kind_override from concrete primal values (same pattern as
+    # _sub_k) and passes it here.
     if _collision_kind_override is not None:
         _collision_kind = _collision_kind_override
     else:
@@ -720,7 +719,7 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: Any) -> dict:
-    """``result`` has v0's shape; with an obstacle, also pressure and body_force."""
+    """Shapes of ``result`` (as v0) and, with an obstacle, pressure and body_force."""
     v0_info = abstract_inputs.v0
     shape = tuple(v0_info["shape"] if isinstance(v0_info, dict) else v0_info.shape)
     out = {"result": {"shape": shape, "dtype": "float32"}}

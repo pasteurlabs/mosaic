@@ -3,8 +3,8 @@
 
 """Warp-NS on the DFG 2D-1 channel.
 
-Needs ``warp`` (not a harness dependency, so the module is skipped where it is
-missing); runs on CPU when no GPU is available.
+Needs ``warp``, which is not a harness dependency, so the module is skipped
+where it is missing. Runs on CPU when no GPU is available.
 """
 
 from __future__ import annotations

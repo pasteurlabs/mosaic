@@ -37,11 +37,7 @@ from mosaic.benchmarks.core.reference import (
     is_precomputed_experiment,
     load_reference,
 )
-from mosaic.benchmarks.core.runner import (
-    get_last_apply_error,
-    safe_apply,
-    safe_apply_with_extras,
-)
+from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply
 from mosaic.benchmarks.core.utils import (
     active_solvers,
     convergence_order,
@@ -359,10 +355,10 @@ def agreement(t: Any, ctx: KernelContext) -> dict:
     """Run one solver at one sweep value. Aggregate forms the reference and computes errors.
 
     The kernel returns the normalised output array as a snapshot plus a
-    metrics dict (``valid``, ``apply_error``). The
-    aggregate then either picks the cfg-level analytic reference or builds
-    a trimmed-mean consensus across solvers, computes per-solver
-    ``error`` vs that reference, and writes ``fields.npz`` (flat layout).
+    metrics dict (``valid``, ``apply_error``). The aggregate then either picks
+    the cfg-level analytic reference or builds a trimmed-mean consensus across
+    solvers, computes per-solver ``error`` vs that reference, and writes
+    ``fields.npz`` (flat layout).
 
     Returns (by_param[val][solver] schema)::
 
@@ -370,7 +366,7 @@ def agreement(t: Any, ctx: KernelContext) -> dict:
         | {"error": str | None, "valid": False}
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
-    result, _, _ = safe_apply_with_extras(t, inputs, ctx.output_key, [])
+    result = safe_apply(t, inputs, ctx.output_key)
 
     if result is None:
         return {"metrics": {"apply_error": get_last_apply_error(), "valid": False}}

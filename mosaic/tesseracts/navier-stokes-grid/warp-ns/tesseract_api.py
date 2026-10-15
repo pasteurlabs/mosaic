@@ -309,8 +309,8 @@ def pressure_correct_3d_from_complex_kernel(
 
     Reads the real part (normalized) instead of a separate materialized
     pressure array. Fuses the "extract real + normalize" step with the
-    pressure-correction kernel. ``dt`` is a
-    1-element array (like the 2-D kernel) so the tape tracks gradients w.r.t. it.
+    pressure-correction kernel. ``dt`` is a 1-element array (like the 2-D
+    kernel) so the tape tracks gradients w.r.t. it.
     """
     i, j, k = wp.tid()
     n = p_c.shape[0]
@@ -1396,8 +1396,8 @@ def ns2d_solve_forward(
     [2D-only function]
 
     Same physics as :func:`ns2d_solve_tape`, but structurally distinct: no
-    ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
-    velocity buffers reused every step instead of fresh per-step allocations
+    ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong velocity buffers
+    reused every step instead of fresh per-step allocations
     (mirrors Warp's own ``example_wave.py`` grid-swap pattern), and one
     pre-allocated FFT workspace reused across all steps instead of allocating
     fresh scratch buffers on every Poisson solve.
@@ -1772,10 +1772,9 @@ def ns3d_solve_forward(
     """Forward-only 3-D incompressible NS by Chorin projection, no gradients.
 
     Same physics as :func:`ns3d_solve_tape`, but structurally distinct: no
-    ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong
-    velocity buffers per component reused every step instead of fresh
-    per-step allocations, and one pre-allocated FFT workspace reused across
-    all steps.
+    ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong velocity buffers
+    per component reused every step instead of fresh per-step allocations,
+    and one pre-allocated FFT workspace reused across all steps.
     """
     n = v0_np.shape[0]
     h = domain_extent / n
@@ -1946,7 +1945,7 @@ def channel_tentative_u_kernel(
     nu: wp.array(dtype=wp.float32),
     inv_dx: float,
 ) -> None:
-    """u* on the x faces; the inlet face takes the inflow profile."""
+    """u* on the x faces, with the inflow profile on the inlet face."""
     i, j = wp.tid()
     nx = u.shape[0] - 1
     ny = u.shape[1]
@@ -1955,7 +1954,7 @@ def channel_tentative_u_kernel(
     else:
         uc = u[i, j]
         uw = u[i - 1, j]
-        # Zero gradient past the outlet; mirrored ghosts make u = 0 on the walls.
+        # Zero gradient past the outlet. Mirrored ghosts make u = 0 on the walls.
         ue = uc
         if i < nx:
             ue = u[i + 1, j]
@@ -1984,7 +1983,7 @@ def channel_tentative_v_kernel(
     nu: wp.array(dtype=wp.float32),
     inv_dx: float,
 ) -> None:
-    """v* on the y faces; zero on the walls."""
+    """v* on the y faces, zero on the walls."""
     i, j = wp.tid()
     nx = v.shape[0]
     ny = v.shape[1] - 1
@@ -2080,7 +2079,7 @@ def channel_correct_u_kernel(
     dt: wp.array(dtype=wp.float32),
     inv_dx: float,
 ) -> None:
-    """Correct u = u* − dt ∂p/∂x on the open x faces; the inlet keeps the profile."""
+    """Correct u = u* − dt ∂p/∂x on the open x faces, keeping the inlet profile."""
     i, j = wp.tid()
     nx = p.shape[0]
     val = 0.0
@@ -2284,10 +2283,10 @@ def _channel_pressure_solver(
     Conjugate gradients on :func:`channel_laplacian_kernel`, preconditioned by
     the exact inverse of the same operator without the cylinder, which
     separates into 1-D eigenbases along x (Neumann inlet, p = 0 outlet) and y
-    (Neumann walls). The cylinder then changes only a few hundred rows, so CG
-    needs about 20 iterations instead of about 150 at 10 cells per diameter.
-    The dense x basis costs nx² ny per application. That halves the run time
-    at 10 cells per diameter, breaks even at 20 and doubles it at 40.
+    (Neumann walls). The cylinder changes only a few hundred rows, so CG needs
+    about 20 iterations instead of 150 at 10 cells per diameter. The dense x
+    basis costs nx² ny per application, so the run time halves at 10 cells
+    per diameter, breaks even at 20 and doubles at 40.
 
     On CUDA the iterations run in a conditional graph without a host sync
     per residual check, captured once per solution buffer ``x`` and replayed.
@@ -2338,7 +2337,7 @@ def _channel_pressure_solver(
             (n, n), wp.float32, wp.get_device(device), func
         )
 
-    on_device = wp.get_device(device).is_cuda and wp.is_conditional_graph_supported()
+    use_graph = wp.get_device(device).is_cuda and wp.is_conditional_graph_supported()
     unconverged = wp.zeros(1, dtype=wp.int32, device=device)
     rhs_buffer = wp.zeros(n, dtype=wp.float32, device=device)
     # The solver records its dot-product launches on the default device.
@@ -2351,13 +2350,13 @@ def _channel_pressure_solver(
             atol=0.0,
             maxiter=_CHANNEL_CG_MAXITER,
             M=operator(precondition),
-            check_every=0 if on_device else 10,
+            check_every=0 if use_graph else 10,
             run=False,
         )
 
     def run(x: wp.array) -> None:
         _, residual, atol = cg(b=rhs_buffer, x=x)
-        if on_device:
+        if use_graph:
             wp.launch(
                 _flag_unconverged_kernel,
                 dim=1,
@@ -2371,7 +2370,7 @@ def _channel_pressure_solver(
 
     def solve(rhs: wp.array, x: wp.array) -> None:
         wp.copy(rhs_buffer, rhs)
-        if not on_device:
+        if not use_graph:
             run(x)
             return
         if x.ptr not in graphs:
@@ -2395,17 +2394,17 @@ def channel_solve(
     tape: wp.Tape | None = None,
     track_scalar_grads: bool = False,
 ) -> dict[str, wp.array]:
-    """Run the 2-D DFG channel; record it on ``tape`` when one is given.
+    """Run the 2-D DFG channel, recorded on ``tape`` when one is given.
 
     The pressure solve (:func:`_channel_pressure_solver`) is not a Warp
-    kernel, so the tape cannot record it. Its backward is recorded with
-    ``tape.record_func`` instead: the Poisson operator is symmetric, so the
-    adjoint of ``p = A⁻¹ b`` is another solve with A, ``b̄ = A⁻¹ p̄``. Both
-    directions start from their previous solution.
+    kernel, so its backward is recorded with ``tape.record_func``. The
+    Poisson operator is symmetric, so the adjoint of ``p = A⁻¹ b`` is another
+    solve with A, ``b̄ = A⁻¹ p̄``. Each direction starts from its previous
+    solution.
 
-    The force on the cylinder is summed each step by
-    :func:`channel_force_kernel` from the same u* and p the step uses, so it
-    is the discrete momentum exchange of the scheme.
+    :func:`channel_force_kernel` sums the force on the cylinder each step
+    from the same u* and p the step uses, which makes it the scheme's
+    discrete momentum exchange.
 
     Returns:
         Warp arrays: ``ux``, ``uy`` and ``pressure`` (nx, ny) at the cell

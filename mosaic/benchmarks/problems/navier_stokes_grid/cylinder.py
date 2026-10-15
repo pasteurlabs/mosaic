@@ -14,13 +14,13 @@ Steady channel flow at Re = Ū D / ν = 20 (Schäfer & Turek 1996, test 2D-1):
 
 Every run uses a uniform grid with ``resolution`` cells per diameter, which
 fixes the grid at (22 × resolution) × (4.1 × resolution) cells. Solvers return
-the force on the cylinder at every step; the drag and lift coefficients
-Cd = 2 F_x / (Ū² D) and Cl = 2 F_y / (Ū² D) are its mean over the final
+the force on the cylinder at every step. The drag and lift coefficients
+Cd = 2 F_x / (Ū² D) and Cl = 2 F_y / (Ū² D) come from its mean over the final
 :data:`WINDOW` of the run. Δp is the pressure difference between the front
 and back of the cylinder, (0.15, 0.2) and (0.25, 0.2).
 
-This module is the single home of the geometry: :func:`channel_inputs` builds
-the solver inputs for both ``forward/cylinder`` and ``optimization/drag_opt``.
+:func:`channel_inputs` builds the solver inputs for both ``forward/cylinder``
+and ``optimization/drag_opt``.
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ def channel_inputs(profile: Any, resolution: int, t_end: float = T_END) -> dict:
     """Solver inputs for the DFG channel with inlet profile ``profile`` (shape (ny,)).
 
     The initial velocity is the inlet profile copied along x, zero inside the
-    cylinder. It carries no gradient: the steady state does not depend on it.
+    cylinder. It carries no gradient, since the steady state does not depend on it.
     """
     dt, steps = time_step(resolution, t_end)
     fluid = jnp.asarray(~solid_mask(resolution))
@@ -154,7 +154,7 @@ def window_size(n: int) -> int:
 
 
 def drag_coefficient(body_force: Any) -> Any:
-    """Cd from a ``(steps, 2)`` force history; differentiable under JAX."""
+    """Cd from a ``(steps, 2)`` force history, differentiable under JAX."""
     w = window_size(body_force.shape[0])
     return 2.0 * body_force[-w:, 0].mean() / (U_MEAN**2 * DIAMETER)
 
@@ -243,9 +243,8 @@ def dfg_metrics(
 ) -> dict[str, float]:
     """Per-run metrics scored against the DFG 2D-1 reference values.
 
-    ``error`` is the relative Cd error, the primary score. ``cd_cv`` is the
-    control-volume drag from the returned fields, a check on the solver's own
-    force that does not depend on how it represents the cylinder.
+    ``error`` is the relative Cd error, the primary score. ``cd_cv`` and
+    ``cl_cv`` cross-check the solver's own force (:func:`control_volume_coefficients`).
     """
     p = np.asarray(pressure)[:, :, 0]
     out = force_summary(body_force)
@@ -262,8 +261,8 @@ def dfg_metrics(
 def max_cd_err(threshold: float, *, resolution: int) -> Any:
     """Anomaly if the relative Cd error at ``resolution`` exceeds ``threshold``.
 
-    Only the canonical resolution is judged: other resolutions show
-    convergence, and their errors are expected to differ.
+    Only the canonical resolution is judged. The others show convergence, and
+    their errors are expected to differ.
     """
     key = str(resolution)
 
@@ -328,13 +327,12 @@ def _cylinder_aggregate(
 ) -> dict:
     """Write ``fields.npz`` and the result envelope.
 
-    Each solver is scored against the literature on its own, so unlike
-    ``agreement`` there is no cross-solver reference to form. Per solver and
-    sweep index ``i``, ``fields.npz`` holds the velocity (``{solver}_{i}``),
-    pressure (``{solver}_pressure_{i}``) and force history
-    (``{solver}_force_{i}``).
+    Each solver is scored against the literature on its own, so there is no
+    cross-solver reference to form. Per solver and sweep index ``i``,
+    ``fields.npz`` holds the velocity (``{solver}_{i}``), pressure
+    (``{solver}_pressure_{i}``) and force history (``{solver}_force_{i}``).
     """
-    # The framework keys extra snapshots "prefix:index"; store them as
+    # The framework keys extra snapshots "prefix:index". Store them as
     # "prefix_index" next to the velocity's bare "index".
     per_solver = {
         name: {k.replace(":", "_"): v for k, v in snaps.items()}

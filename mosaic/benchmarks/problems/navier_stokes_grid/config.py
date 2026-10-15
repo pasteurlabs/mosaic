@@ -174,7 +174,7 @@ problem.add_ic(
     description=(
         "Parabolic inlet profile $u_x(y) = 4 U_m y (H - y) / H^2$ of the DFG 2D-1 "
         "channel ($U_m = 0.3$, $H = 0.41$), shape (ny,). The inflow of the cylinder "
-        "experiments, and the starting point of the drag optimisation."
+        "experiments, and the starting point of the drag optimization."
     ),
     plot_params={"resolution": 20},
     plot=plot_ic,
@@ -274,13 +274,14 @@ problem.add_experiment(
     plot_description=(
         "Steady flow past a cylinder in a channel (Schäfer–Turek DFG 2D-1, Re = 20)"
         " at 10 and 20 cells per diameter. Each solver's drag coefficient at 20 is"
-        " scored against the reference Cd = 5.5795; the pressure difference across"
-        " the cylinder (reference 0.1175) and the lift coefficient are reported."
+        " scored against the reference Cd = 5.5795. The pressure difference across"
+        " the cylinder (reference 0.1175) and the lift coefficient are also reported."
         " The vorticity fields are for visual comparison."
     ),
     ic={"name": "dfg_inflow", "seed": 0},
-    # 40 cells per diameter is left out of the routine run: it is not scored and
-    # costs PhiFlow ~1000 s on an A100, past the per-call timeout on a T4.
+    # 40 cells per diameter is left out of the routine run because it is not
+    # scored and costs PhiFlow ~1000 s on an A100, past the per-call timeout on a
+    # T4.
     # Checked locally, it gives Cd = 5.5791 (OpenFOAM), 5.647 (XLB) and
     # 5.471 (PhiFlow).
     physics={"resolution": [10, 20]},
@@ -419,14 +420,14 @@ problem.add_experiment(
     "optimization/drag_opt",
     drag_opt,
     plot_description=(
-        "Drag minimisation over the inlet profile of the DFG 2D-1 channel at a"
-        " fixed flow rate: drag coefficient per iteration, optimised vs initial"
+        "Drag minimization over the inlet profile of the DFG 2D-1 channel at a"
+        " fixed flow rate: drag coefficient per iteration, optimized vs initial"
         " inflow profiles, and the flow fields before and after."
     ),
     ic={"name": "dfg_inflow", "seed": 0},
-    # Every iteration backpropagates through the whole run, so both are kept
-    # short: 10 cells per diameter, and t_end = 4, by which Cd is within 0.1%
-    # of its steady value at this resolution.
+    # Every iteration backpropagates through the whole run, so the run is kept
+    # small, at 10 cells per diameter and t_end = 4. By then Cd is within 0.1% of
+    # its steady value at this resolution.
     physics={"resolution": 10, "t_end": 4.0},
     # Stop once Cd has not dropped by 0.1% in 10 iterations. Adam keeps
     # nudging a plateaued Cd by a few 1e-4, which would otherwise count as
@@ -440,7 +441,7 @@ problem.add_experiment(
         "snap_interval": 10,
     },
     plot=plot_drag_opt,
-    # Provisional thresholds, to be confirmed on the full solver set: XLB
+    # Provisional thresholds, to be confirmed on the full solver set. XLB
     # plateaus at Cd / Cd₀ = 0.53 after ~45 iterations, so 0.7 asks for at
     # least a 30% reduction. The spread between solvers' optima is not yet
     # known.

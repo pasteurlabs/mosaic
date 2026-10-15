@@ -58,15 +58,16 @@ class GridBC(BaseModel):
 
     Every solver must either implement the conditions it receives or raise
     (``ValueError`` from a schema validator, or ``NotImplementedError`` in
-    ``apply``). Silently substituting a different condition is not allowed:
-    the harness compares solvers on the assumption that they all solve the
-    problem the inputs describe.
+    ``apply``), never substitute a different one. The harness compares solvers
+    on the assumption that they all solve the problem the inputs describe.
 
-    Example — 2-D channel flow (periodic in x, no-slip walls in y)::
+    Example, the DFG 2D-1 channel (inflow at x_lo, outflow at x_hi, no-slip walls)::
 
         from mosaic_shared.schema_types import BCType, FaceBC, GridBC
 
         bc = GridBC(
+            x_lo=FaceBC(type=BCType.DIRICHLET),
+            x_hi=FaceBC(type=BCType.NEUMANN),
             y_lo=FaceBC(type=BCType.NO_SLIP),
             y_hi=FaceBC(type=BCType.NO_SLIP),
         )

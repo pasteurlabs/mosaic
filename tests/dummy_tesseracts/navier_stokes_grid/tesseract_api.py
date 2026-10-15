@@ -7,8 +7,8 @@
 Imports the canonical :class:`InputSchema` / :class:`OutputSchema` from
 :mod:`mosaic_shared.problems.navier_stokes_grid` and wraps them with
 ``make_differentiable`` for the same fields the real solvers expose
-(``v0`` on input; ``result``, ``body_force`` on output). ``apply`` returns a
-zero ``result`` array of the same shape as the incoming ``v0``; with an
+(``v0`` on input, ``result`` and ``body_force`` on output). ``apply`` returns a
+zero ``result`` array of the same shape as the incoming ``v0``. With an
 obstacle it adds a zero ``pressure`` and a constant ``body_force`` history.
 ``vector_jacobian_product`` returns zeros. Output is therefore *independent
 of the input*, so any gradient through the chain comes out zero, which is

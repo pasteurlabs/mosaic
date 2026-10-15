@@ -15,17 +15,17 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.schema_types import BCType, ObstacleShape, make_differentiable
+from mosaic_shared.schema_types import ObstacleShape, make_differentiable
 from pydantic import model_validator
 from scipy.spatial import Delaunay
 
-# The one non-periodic configuration PICT solves: the DFG channel around a
+# PICT solves one non-periodic configuration, the DFG channel around a
 # cylinder (profile inlet at x_lo, outflow at x_hi, no-slip walls in y).
 _CHANNEL_BCS = {
-    "x_lo": BCType.DIRICHLET,
-    "x_hi": BCType.NEUMANN,
-    "y_lo": BCType.NO_SLIP,
-    "y_hi": BCType.NO_SLIP,
+    "x_lo": "dirichlet",
+    "x_hi": "neumann",
+    "y_lo": "no_slip",
+    "y_hi": "no_slip",
 }
 
 
@@ -45,7 +45,7 @@ class InputSchema(
                     f"cells along every axis; got v0 of shape {shape}"
                 )
             return self
-        faces = {face: getattr(bc, face).type for face in _CHANNEL_BCS}
+        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
         if (
             faces != _CHANNEL_BCS
             or shape[-1] != 2
@@ -53,12 +53,10 @@ class InputSchema(
             or self.obstacle is None
             or self.obstacle.shape != ObstacleShape.CYLINDER
         ):
-            expected = {k: v.value for k, v in _CHANNEL_BCS.items()}
-            got = {k: v.value for k, v in faces.items()}
             raise ValueError(
                 "pict supports fully periodic BCs without an obstacle, or a 2-D "
-                f"channel {expected} around a cylinder with an inflow_profile; "
-                f"got {got}, {shape[-1]}-D, obstacle={self.obstacle}"
+                f"channel {_CHANNEL_BCS} around a cylinder with an inflow_profile; "
+                f"got {faces}, {shape[-1]}-D, obstacle={self.obstacle}"
             )
         return self
 
@@ -176,7 +174,7 @@ def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:
 #
 # Every block is right-handed. PICT's linear solvers stop at an absolute
 # residual, so the blocks are built in units of the canonical cell size dx,
-# like the periodic box: dt and ν are divided by dx, and velocity and
+# like the periodic box. dt and ν are divided by dx, and velocity and
 # pressure are unchanged. Everything outside the blocks stays physical.
 
 
@@ -335,7 +333,7 @@ class _Channel:
             block = self.domain.CreateBlock(
                 vertexCoordinates=coords.contiguous(), name=name
             )
-            # Close every face first: the connections below replace the
+            # Close every face first. The connections below replace the
             # interior ones, and the rest stay no-slip walls unless set up as
             # inlet or outlet.
             block.CloseAllBoundaries()
@@ -367,7 +365,7 @@ class _Channel:
     # -- cylinder wall ------------------------------------------------------
 
     def _build_wall(self) -> None:
-        """Arc faces: length, normal into the fluid, and distances of the first two cells."""
+        """Length, fluid-side normal and first two cells' wall distances of each arc face."""
         cx, cy = self.center
         parts: dict[str, list[np.ndarray]] = {k: [] for k in ("len", "n", "d1", "d2")}
         for name, (axis, first, second) in _WALL_CELLS.items():
@@ -397,10 +395,10 @@ class _Channel:
     def _wall_cells(self, field: str) -> tuple[torch.Tensor, torch.Tensor]:
         """Values (C, faces) of ``field`` in the first and second cell off the wall."""
         first, second = [], []
-        for name, (axis, i1, i2) in _WALL_CELLS.items():
+        for name, (axis, i_first, i_second) in _WALL_CELLS.items():
             f = getattr(self.blocks[name], field)[0]
-            first.append(f[:, i1, :] if axis == 0 else f[:, :, i1])
-            second.append(f[:, i2, :] if axis == 0 else f[:, :, i2])
+            first.append(f[:, i_first, :] if axis == 0 else f[:, :, i_first])
+            second.append(f[:, i_second, :] if axis == 0 else f[:, :, i_second])
         return torch.cat(first, dim=-1), torch.cat(second, dim=-1)
 
     def wall_pressure(self) -> torch.Tensor:
@@ -486,7 +484,8 @@ class _Channel:
         )
         self.solid = torch.tensor(solid, device=_DEVICE)
 
-        # O-grid cells from the canonical field: bilinear on the cell centers.
+        # O-grid cells take the canonical field bilinearly interpolated at
+        # their centers.
         self.from_canonical = {}
         for name, cells in self.cells.items():
             if cells is not None:
@@ -698,7 +697,7 @@ def _run_channel(
     channel.set_velocity(v0)
     domain.UpdateDomainData()
 
-    # PICT has no pressure outlet: the outlet velocity is advected out with
+    # PICT has no pressure outlet. The outlet velocity is advected out with
     # the mean inflow speed (a convective outflow, zero normal gradient at
     # steady state), pressure is Neumann there, and the returned pressure is
     # shifted to zero on the outlet face.
@@ -725,7 +724,7 @@ def _run_channel(
         differentiable,
         prep_fn={"PRE": _pre_step, "POST": _post_step},
         # PICT's skew correction makes the pressure matrix non-symmetric while
-        # it stays singular (pressure is Neumann on every boundary): on this
+        # it stays singular (pressure is Neumann on every boundary), and on this
         # mesh CG and BiCGStab both break down in the first step. The O-grid
         # is close to orthogonal at the cylinder, and the skewed cells sit at
         # the box corners, a diameter away.
@@ -743,11 +742,9 @@ def _run_channel(
 def _periodic_scaling(inputs: InputSchema) -> tuple[float, float, float]:
     """``(phys_scale, dt_pict, nu_pict)`` for PICT's unit-cell periodic box.
 
-    PICT's periodic block has unit cell spacing (dx=1), but the physical
-    domain has dx = L/N. Let x_pict = x_phys · N/L; then ∇_phys = ∇_pict · N/L
-    and ∇²_phys = ∇²_pict · (N/L)². Substituting into the physical NS equation
-    and dividing by N/L gives the same equation in PICT units with
-    dt_pict = dt_phys · N/L and nu_pict = nu_phys · N/L.
+    With x_pict = x_phys · N/L and velocity unchanged, the physical NS equation
+    divided by N/L keeps its form with dt_pict = dt_phys · N/L and
+    nu_pict = nu_phys · N/L.
     """
     phys_scale = np.asarray(inputs.v0).shape[0] / inputs.extent[0]
     return (
@@ -763,7 +760,7 @@ def _profile_tensor(inputs: InputSchema, requires_grad: bool) -> torch.Tensor:
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Forward pass: run PICT simulation and return final velocity field."""
+    """Run PICT and return the final velocity, plus pressure and body force on the channel."""
     dtype = torch.float32
     if inputs.obstacle is not None:
         v0 = torch.tensor(np.asarray(inputs.v0), dtype=dtype, device=_DEVICE)
@@ -799,10 +796,9 @@ def vector_jacobian_product(
 ) -> dict[str, Any]:
     """VJP via torch.autograd through the differentiable PICT PISO time loop.
 
-    Supports gradients w.r.t. ``v0``, ``inflow_profile`` and ``viscosity``
-    through the PISO time loop via PISOtorch_diff autograd, of ``result`` and,
-    on the channel, ``body_force``. Gradients w.r.t. ``dt`` are returned as
-    zeros (consumed as a Python scalar at construction time, no autograd path).
+    Differentiates ``result`` and, on the channel, ``body_force`` w.r.t. ``v0``,
+    ``inflow_profile`` and ``viscosity``. ``dt`` enters as a Python scalar, so
+    its gradient is returned as zeros.
     """
     dtype = torch.float32
     v0_np = np.asarray(inputs.v0)

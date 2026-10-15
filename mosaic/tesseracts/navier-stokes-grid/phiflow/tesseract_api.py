@@ -99,15 +99,14 @@ class OutputSchema(
 
 
 # The periodic pressure solve stops at a relative and absolute residual of
-# 1e-7, the loosest tolerance whose results match a fully converged solve:
+# 1e-7, the loosest tolerance whose results match a fully converged solve.
 # phiflow's default 1e-5 leaves enough noise in the loss that the ns-3d
 # recovery stalls at ~3x the IC error. Much tighter (1e-10) is below float32's
 # residual floor, so CG runs to max_iterations at 2-3x the cost without
 # improving any result.
 _CG_TOL = 1e-7
-# The channel's solve, for the change from the previous step's pressure, stops
-# at phiflow's default 1e-5. 1e-7 gives the same Cd to four digits at 10 and 20
-# cells per diameter.
+# The channel's pressure solve stops at phiflow's default 1e-5, which gives the
+# same Cd as 1e-7 to four digits at 10 and 20 cells per diameter.
 _CHANNEL_CG_TOL = 1e-5
 
 
@@ -174,7 +173,8 @@ def periodic_fwd(
     def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
         vel = faces_to_staggered(face_arr)
         # Explicit Euler with 2nd-order central differences on the advective
-        # form (advect.differential); JAX-autodiffable without interpolation.
+        # form (advect.differential), which JAX differentiates without
+        # interpolation.
         vel = vel + dt * advect.differential(vel, vel)
         vel = diffuse.explicit(vel, viscosity, dt)
         vel, _ = fluid.make_incompressible(vel, (), solve=_cg_solve)
@@ -303,7 +303,7 @@ def channel_fwd(
         )
 
     def close(vel: StaggeredGrid) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
-        """Zero the faces touching the cylinder; also return the momentum removed."""
+        """Zero the faces touching the cylinder and return the momentum removed."""
         ux = vel.vector["x"].values.native("x,y")
         uy = vel.vector["y"].values.native("x,y")
         removed = jnp.stack([(ux * (1 - open_x)).sum(), (uy * (1 - open_y)).sum()])
@@ -440,7 +440,7 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: Any) -> dict:
-    """``result`` has v0's shape; with an obstacle, also pressure and body_force."""
+    """Shapes of ``result`` (as v0) and, with an obstacle, pressure and body_force."""
     v0_info = abstract_inputs.v0
     shape = tuple(v0_info["shape"] if isinstance(v0_info, dict) else v0_info.shape)
     out = {"result": {"shape": shape, "dtype": "float32"}}

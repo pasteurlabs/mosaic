@@ -48,8 +48,8 @@ _PA_FEM = {
 
 _REF_GREY = "#aaaaaa"
 
-# Side of a square raw-field panel; non-square fields keep the same number of
-# cells (16 panels per chart; see ``fields_raw``).
+# Side of a square raw-field panel, in cells. Non-square fields get about as
+# many cells in total (16 panels per chart, see ``fields_raw``).
 _GRID_FIELD = 32
 
 

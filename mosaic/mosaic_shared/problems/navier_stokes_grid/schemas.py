@@ -102,7 +102,7 @@ class InputSchema(BaseModel):
         default=2 * np.pi,
         description=(
             "Physical size of the domain. A scalar L is a square (cube) of "
-            "side L; a list gives the length per axis, [Lx, Ly] or "
+            "side L, and a list gives the length per axis, [Lx, Ly] or "
             "[Lx, Ly, Lz]. Periodic boxes take a scalar. The grid spacing must "
             "be the same along every axis."
         ),
@@ -122,7 +122,7 @@ class InputSchema(BaseModel):
         default=None,
         description=(
             "Inlet velocity u_x(y) at the x_lo face, sampled at the cell-center "
-            "heights y_j = (j + 1/2) dx, shape (ny,); u_y = 0 on the inlet. "
+            "heights y_j = (j + 1/2) dx, shape (ny,). u_y is zero on the inlet. "
             "Requires x_lo to be 'dirichlet' with no value."
         ),
     )
