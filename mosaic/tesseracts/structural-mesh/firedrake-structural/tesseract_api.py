@@ -304,6 +304,11 @@ def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:
 # The VJP replays the tape at its own rho instead of reusing the forward
 # solution of a preceding `apply`. Every other solver's VJP endpoint also
 # re-runs the forward pass, so this keeps VJP costs comparable.
+#
+# The first two replay-then-derivative sweeps on a tape compile different TSFC
+# kernels; the second one's (~1.5 s) would otherwise land on the second VJP
+# call. Kernels are cached across tapes, so the first tape a process records
+# runs both sweeps up front.
 
 # Sparse direct LU via MUMPS (Firedrake's default, made explicit) for the
 # forward solve. pyadjoint copies these parameters to the adjoint solve.
@@ -314,6 +319,7 @@ _SOLVER_PARAMETERS = {
 }
 
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
+_ADJOINT_KERNELS_COMPILED = False
 
 
 def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
@@ -472,6 +478,7 @@ def _replay_elasticity(
         Tuple (J_val, entry) where entry is the cache entry built by
         `_build_reduced_functional`, now evaluated at rho.
     """
+    global _ADJOINT_KERNELS_COMPILED
     args = (
         pts,
         cells,
@@ -485,6 +492,12 @@ def _replay_elasticity(
     if key not in _SETUP_CACHE:
         _SETUP_CACHE.clear()
         _SETUP_CACHE[key] = _build_reduced_functional(*args, *params)
+        if not _ADJOINT_KERNELS_COMPILED:
+            Jhat = _SETUP_CACHE[key]["Jhat"]
+            for _ in range(2):
+                Jhat(Jhat.controls[0].control)
+                Jhat.derivative()
+            _ADJOINT_KERNELS_COMPILED = True
     entry = _SETUP_CACHE[key]
 
     rho_fn = Function(entry["rho_space"])

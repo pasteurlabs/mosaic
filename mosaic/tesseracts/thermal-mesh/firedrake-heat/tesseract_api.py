@@ -213,6 +213,11 @@ def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:
 # The VJP replays the tape at its own inputs instead of reusing the forward
 # solution of a preceding `apply`. Every other solver's VJP endpoint also
 # re-runs the forward pass, so this keeps VJP costs comparable.
+#
+# The first two replay-then-derivative sweeps on a tape compile different TSFC
+# kernels; the second one's (~1 s) would otherwise land on the second VJP
+# call. Kernels are cached across tapes, so the first tape a process records
+# runs both sweeps up front.
 
 # Sparse direct LU via MUMPS (Firedrake's default, made explicit) for the
 # forward solve. pyadjoint copies these parameters to the adjoint solve.
@@ -223,6 +228,7 @@ _SOLVER_PARAMETERS = {
 }
 
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
+_ADJOINT_KERNELS_COMPILED = False
 
 
 def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
@@ -371,6 +377,7 @@ def _replay_heat(
             entry:   Cache entry built by `_build_reduced_functionals`, now
                      evaluated at (rho, source).
     """
+    global _ADJOINT_KERNELS_COMPILED
     args = (
         pts,
         cells,
@@ -384,6 +391,12 @@ def _replay_heat(
     if key not in _SETUP_CACHE:
         _SETUP_CACHE.clear()
         _SETUP_CACHE[key] = _build_reduced_functionals(*args, *params)
+        if not _ADJOINT_KERNELS_COMPILED:
+            Chat = _SETUP_CACHE[key]["Chat"]
+            for _ in range(2):
+                Chat([c.control for c in Chat.controls])
+                Chat.derivative()
+            _ADJOINT_KERNELS_COMPILED = True
     entry = _SETUP_CACHE[key]
     fd_to_input_cells = entry["fd_to_input_cells"]
 
