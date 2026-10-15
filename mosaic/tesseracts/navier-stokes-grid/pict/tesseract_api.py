@@ -1,12 +1,14 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import logging
 import math
 from typing import Any
 
 import numpy as np
 import PISOtorch
+import PISOtorch_diff
 import PISOtorch_simulation
 import torch
 from mosaic_shared.problems.navier_stokes_grid import (
@@ -582,16 +584,141 @@ class _LogRecordCollector(logging.Handler):
             self.exceptions.append(record.exc_info[1])
 
 
+def _warm_cg(
+    matrix: PISOtorch.CSRmatrix,
+    rhs: torch.Tensor,
+    guess: torch.Tensor,
+    tol: float,
+    max_iter: int,
+    adjoint_guess: list[torch.Tensor | None],
+) -> torch.Tensor:
+    """Differentiable CG solve of ``matrix @ x = rhs`` that starts from ``guess``.
+
+    Mirrors the CG branch of PISOtorch_diff.linear_solve_GPU, which always
+    starts from zero. The gradient is the same, since the solution does not
+    depend on the starting point. The adjoint solve starts from the mean-free
+    part of ``adjoint_guess[0]`` and leaves its result there for the next one.
+    """
+    A = matrix.clone()
+    A.detach()
+    conv = PISOtorch.ConvergenceCriterion.NORM2_NORMALIZED
+    tol_t = PISOtorch_diff._get_solver_tolerance_torch(tol, rhs.dtype)
+    max_iter_t = torch.IntTensor([max_iter])
+
+    def solve(b: torch.Tensor, x: torch.Tensor, transpose: bool) -> None:
+        PISOtorch_diff._linear_solve_wrapper(
+            A,
+            b,
+            x,
+            max_iter_t,
+            tol_t,
+            conv,
+            False,  # use_BiCG
+            False,  # matrix_rank_deficient
+            0,  # residual_reset_step
+            transpose,
+            False,  # print_residual
+            False,  # return_best_result
+            is_FWD=not transpose,
+        )
+
+    class _Solve(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx: Any, A_val: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+            x = guess.clone()
+            solve(b, x, transpose=False)
+            ctx.save_for_backward(A_val, x)
+            return x
+
+        @staticmethod
+        @torch.autograd.function.once_differentiable
+        def backward(ctx: Any, grad_x: torch.Tensor) -> tuple:
+            _, x = ctx.saved_tensors
+            last = adjoint_guess[0]
+            grad_b = torch.zeros_like(grad_x) if last is None else last - last.mean()
+            solve(grad_x, grad_b, transpose=True)
+            adjoint_guess[0] = grad_b.detach()
+            grad_A_val = None
+            if ctx.needs_input_grad[0]:
+                grad_A = A.WithZeroValue()
+                PISOtorch.SparseOuterProduct(grad_b, x, grad_A)
+                grad_A_val = -grad_A.value
+            return grad_A_val, grad_b
+
+    return _Solve.apply(matrix.value, rhs)
+
+
+class _WarmStartSimulation(PISOtorch_simulation.Simulation):
+    """PICT's PISO loop with each pressure solve warm-started.
+
+    PICT starts every pressure CG solve from zero. Here the k-th corrector of
+    a step starts from the k-th corrector's pressure one step earlier. The
+    correctors of one step solve for different pressures, but each changes
+    little from step to step. ``solve_tol`` replaces the pressure tolerance in
+    the solves, and PICT's own tolerance only gates the start of the run.
+    """
+
+    def __init__(self, *args: Any, solve_tol: float, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._solve_tol = solve_tol
+        self._n_solves = 0
+        self._last = [None] * self.corrector_steps
+        self._last_adjoint = [[None] for _ in range(self.corrector_steps)]
+
+    def linear_solve(
+        self,
+        csrMat: PISOtorch.CSRmatrix,
+        rhs: torch.Tensor,
+        x: torch.Tensor | None = None,
+        use_BiCG: bool = False,
+        *args: Any,
+        **kwargs: Any,
+    ) -> tuple[torch.Tensor, bool]:
+        # The pressure solves are the only CG solves without a starting point.
+        if use_BiCG or x is not None:
+            return super().linear_solve(csrMat, rhs, x, use_BiCG, *args, **kwargs)
+        k = self._n_solves % self.corrector_steps
+        self._n_solves += 1
+        last = self._last[k]
+        guess = torch.zeros_like(rhs) if last is None else last - last.mean()
+        if self.differentiable:
+            result = _warm_cg(
+                csrMat,
+                rhs,
+                guess,
+                self._solve_tol,
+                self.linear_solve_max_iterations,
+                self._last_adjoint[k],
+            )
+            ok = True
+        else:
+            kwargs["tol"] = self._solve_tol
+            result, ok = super().linear_solve(
+                csrMat, rhs, guess, use_BiCG, *args, **kwargs
+            )
+        self._last[k] = result.detach()
+        return result, ok
+
+
 def _simulate(
     domain: PISOtorch.Domain,
     dt_val: float,
     steps: int,
     differentiable: bool,
     prep_fn: dict | None = None,
+    warm_start_tol: float | None = None,
     **sim_kwargs: Any,
 ) -> None:
-    """Run ``steps`` PISO steps on a prepared domain and raise if PICT stops early."""
-    sim = PISOtorch_simulation.Simulation(
+    """Run ``steps`` PISO steps on a prepared domain and raise if PICT stops early.
+
+    With ``warm_start_tol``, pressure solves start from the previous step's
+    pressure and stop at that tolerance.
+    """
+    if warm_start_tol is None:
+        sim_cls = PISOtorch_simulation.Simulation
+    else:
+        sim_cls = functools.partial(_WarmStartSimulation, solve_tol=warm_start_tol)
+    sim = sim_cls(
         domain,
         substeps=1,
         time_step=float(dt_val),
@@ -685,12 +812,14 @@ def _run_channel(
     channel.set_inflow(profile)
     channel.init_outflow(profile)
     domain = channel.domain
-    # PICT's pressure residual is absolute. At its default 1e-5, Cd at 10
-    # cells per diameter moves by 1% with the initial guess, while 1e-6 and 3e-7
-    # agree to 1e-4. PICT also refuses to start when the boundary flux
-    # imbalance exceeds the pressure tolerance, and in float32 the balanced
-    # inlet and outlet still differ by ~4e-8 of the flux (1.4e-6 at 40 cells
-    # per diameter), so the tolerance stays above twice that.
+    # PICT's pressure residual is absolute. The pressure solves start from the
+    # previous step's pressure and stop at 1e-8, where Cd matches a solve from
+    # zero at 1e-8 to 2e-5 at 10 and 20 cells per diameter. At 1e-6 the
+    # warm-started pressure lags behind the flow and Cd at 20 still drifts by 1e-3
+    # over the final 40% of the run. PICT refuses to start when the boundary
+    # flux imbalance exceeds its own pressure tolerance, and in float32 the
+    # balanced inlet and outlet still differ by ~4e-8 of the flux (1.4e-6 at
+    # 40 cells per diameter), so that one stays above twice the imbalance.
     imbalance = abs(float(domain.GetBoundaryFluxBalance()))
     pressure_tol = max(1e-6, 2 * imbalance)
     domain.PrepareSolve()
@@ -730,6 +859,7 @@ def _run_channel(
         # the box corners, a diameter away.
         non_orthogonal=False,
         pressure_tol=pressure_tol,
+        warm_start_tol=1e-8,
     )
     return channel.velocity(), channel.pressure(), torch.stack(forces), domain
 
