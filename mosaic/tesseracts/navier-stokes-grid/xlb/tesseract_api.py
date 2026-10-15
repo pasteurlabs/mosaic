@@ -91,6 +91,15 @@ class _SmoothKBC(KBC):
     keeps the ratio smooth and sends γ to its BGK value 2 where Δh is
     negligible next to Δs, while γ is unchanged where Δh matters, which is
     where KBC stabilises under-resolved flow.
+
+    At rest f - feq is rounding residue, and the ratio of its scalar products
+    is an arbitrary number that differs between devices. A floor η well above
+    that residue and far below any physical state is added the same way,
+
+        (⟨Δs|Δh⟩ - δ - η) / (⟨Δh|Δh⟩ + δ + η),
+
+    so a flow at rest relaxes like BGK on every device. This matters for
+    gradients taken at a zero initial guess.
     """
 
     eps_shear = 1e-3
@@ -115,7 +124,8 @@ class _SmoothKBC(KBC):
         delta_h = fneq - delta_s
         sp1, sp2 = self.compute_entropic_scalar_products(delta_s, delta_h, feq)
         delta = self.eps_shear * jnp.sum(delta_s * delta_s / feq, axis=0)
-        ratio = (sp1 - delta) / (self.epsilon + sp2 + delta)
+        eta = (32.0 * jnp.finfo(fneq.dtype).eps) ** 2
+        ratio = (sp1 - delta - eta) / (sp2 + delta + eta)
         gamma = inv_beta - (2.0 - inv_beta) * ratio
         return f - beta * (2.0 * delta_s + gamma[None, ...] * delta_h)
 
