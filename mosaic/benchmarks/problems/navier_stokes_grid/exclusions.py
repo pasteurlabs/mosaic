@@ -50,6 +50,12 @@ OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM is a non-differentiable, forward-only solver",
 )
+PICT_DRAG_OPT_TOO_SLOW = Exclusion(
+    ExclusionCategory.INFEASIBLE,
+    "each drag_opt iteration runs a full forward and VJP through PICT's "
+    "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
+    "experiment takes hours on the benchmark GPU",
+)
 
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
@@ -71,3 +77,4 @@ def register(problem: Problem) -> None:
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
+    problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})
