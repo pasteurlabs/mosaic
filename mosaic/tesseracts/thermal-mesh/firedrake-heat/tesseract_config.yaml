@@ -20,7 +20,7 @@ metadata:
     family: fem
     scheme: "FEM P1 heat conduction (SIMP, firedrake-adjoint)"
     discretization: FE
-    numerics: "GMRES+AMG"
+    numerics: "Direct (MUMPS)"
     ad_strategy: adjoint
     differentiable: true
     uses_gpu: false
