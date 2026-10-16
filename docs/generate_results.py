@@ -13,6 +13,7 @@ Usage:
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import sys
@@ -437,7 +438,8 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
     Forward time comes from the ``spatial_cost`` sweep and VJP time from
     ``vjp_cost/by_N``; each is taken at the largest N that solver completed
     (shown in the "at N" column). Forward-only solvers have no VJP entry, which
-    shows as "—". Ranked by forward time (faster wins).
+    shows as "—". Sorted by forward time; the device column keeps GPU and
+    CPU timings apart, since they ran on different machines.
     """
     fwd = _cost_at_max_n(_load_suite_results(problem, "cost", "spatial_cost"))
     vjp = _cost_at_max_n(_load_suite_results(problem, "cost", "vjp_cost/by_N"))
@@ -453,9 +455,13 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
         n_str = f" @ N={int(n)}" if math.isfinite(n) else ""
         return f"{t:.3g} s{n_str}"
 
-    rows = sorted(fwd.items(), key=lambda t: t[1][1])
-    header = ["Solver", "Forward time", "VJP time"]
-    return header, [(s, _time(fv), _time(vjp.get(s))) for s, fv in rows]
+    gpu = {n: m.get("gpu", True) for n, m in _solver_meta().get(problem, {}).items()}
+    rows = sorted(fwd.items(), key=lambda t: (not gpu.get(t[0], True), t[1][1]))
+    header = ["Solver", "Device", "Forward time", "VJP time"]
+    return header, [
+        (s, "GPU" if gpu.get(s, True) else "CPU", _time(fv), _time(vjp.get(s)))
+        for s, fv in rows
+    ]
 
 
 # final-objective metric name by domain optimization experiment, in priority
@@ -509,16 +515,18 @@ _SUITE_RANKERS = {
 }
 
 _SUITE_RANK_CAPTIONS = {
-    "forward": "Ranked by mean relative error against the reference solution "
-    "(lower is more accurate).",
-    "gradient": "Ranked by the best-ε finite-difference error of the gradient "
+    "forward": "Sorted by mean relative error against the reference solution "
+    "(lower is closer to the reference; whether a difference matters depends on "
+    "the task, see the checks at the top of the page).",
+    "gradient": "Sorted by the best-ε finite-difference error of the gradient "
     "(lower is more trustworthy); direction cosine near 1 confirms the gradient "
     "points the right way.",
     "cost": "Forward and VJP (backward) wall-clock time, each shown at the "
-    "largest problem size N the solver completed for that pass; ranked by "
-    "forward time (faster is better). Forward-only solvers have no VJP entry. "
+    "largest problem size N the solver completed for that pass; GPU solvers "
+    "first, each group sorted by forward time. Forward-only solvers have no VJP "
+    "entry. "
     "See the reliability note above before comparing across devices.",
-    "optimization": "Ranked by the final objective reached within the iteration "
+    "optimization": "Sorted by the final objective reached within the iteration "
     "budget (lower is better).",
 }
 
@@ -527,7 +535,7 @@ def _leaderboard_block(problem: str, suite: str) -> list[str]:
     """Return QMD lines for the per-suite best-solver table, or [] if none.
 
     Rendered as a plain, always-visible table (no collapse, no emoji) under a
-    bold "Solver ranking" lead-in, suited to a scientific report.
+    "Results by solver" lead-in, suited to a scientific report.
     """
     ranker = _SUITE_RANKERS.get(suite)
     if ranker is None:
@@ -541,12 +549,12 @@ def _leaderboard_block(problem: str, suite: str) -> list[str]:
     header, rows = ranked
     # Wrap the table in a .sortable-table div so docs/sortable-tables.html
     # (injected via include-after-body) can attach click-to-sort handlers
-    # (numeric-aware). Static and correctly rank-ordered without JS, so it
+    # (numeric-aware). Static and correctly sorted without JS, so it
     # degrades gracefully.
-    # Rows are already in rank order, so a Rank column adds nothing; rely on row
+    # Rows are already sorted, so a Rank column adds nothing; rely on row
     # order (and click-to-sort) instead.
     lines = [
-        "[Solver ranking]{.eyebrow}",
+        "[Results by solver]{.eyebrow}",
         "",
         "::: {.sortable-table .leaderboard}",
         "| " + " | ".join(header) + " |",
@@ -845,17 +853,20 @@ def generate_qmd_for_problem(
             "",
         ]
 
-    # Per-domain slice of the cross-domain scoreboard (Results overview).
-    domain_table = scoreboard.render_domain(scores, problem) if scores else ""
-    if domain_table:
+    # This problem's setups from the Results overview check tables.
+    checks = scoreboard.render_problem(scores, problem) if scores else ""
+    if checks:
         lines += [
-            "## Scores at a glance {.unnumbered}",
+            "## Checks at a glance {.unnumbered}",
             "",
-            domain_table,
+            "::: {.column-page}",
+            checks,
+            ":::",
+            "",
             (
-                "*Per-axis scores from 0 to 100, computed from the same results as "
-                "the rankings below. See the [Results overview](results.qmd#scoreboard) "
-                "for the scoring method and the per-domain rankings.*"
+                "*Pass / borderline / fail per suite, from the same results as the "
+                "sections below. See [How to read the checks](results.qmd#reading) "
+                "for what each state means and how cost is compared.*"
             ),
             "",
         ]
@@ -936,6 +947,7 @@ def generate_qmd_for_problem(
 SCOREBOARD_INCLUDE = OUTPUT_DIR / "_scoreboard.qmd"
 EXPLORER_INCLUDE = OUTPUT_DIR / "_explorer.qmd"
 SCORES_JSON = OUTPUT_DIR / "_scores.json"
+GATES_INCLUDE = OUTPUT_DIR / "_gates.qmd"
 
 _NO_RESULTS = (
     "::: {.callout-note appearance='simple'}\n"
@@ -946,8 +958,9 @@ _NO_RESULTS = (
 )
 
 
+@functools.cache
 def _solver_meta() -> dict[str, dict[str, dict]]:
-    """``{problem: {solver_name: {display, anchor}}}`` from the problem configs.
+    """``{problem: {solver_name: {display, anchor, gpu}}}`` from the problem configs.
 
     ``display`` is the card name from each container's tesseract_config.yaml
     (falling back to the SolverSpec name) and ``anchor`` is the solver's id on
@@ -975,6 +988,7 @@ def _solver_meta() -> dict[str, dict[str, dict]]:
             out.setdefault(problem, {})[spec.name] = {
                 "display": display,
                 "anchor": f"{Path(tdir).name}-{spec.dir}",
+                "gpu": bool(getattr(spec, "uses_gpu", True)),
             }
     return out
 
@@ -1095,12 +1109,11 @@ def render_explorer(tree: dict) -> str:
 
 
 def write_overview(tree: dict, scores: dict | None) -> None:
-    """Write the gitignored overview includes and the per-solver score JSON."""
+    """Write the gitignored overview includes and the per-solver check JSON."""
     if scores:
-        labels = {p: PROBLEM_LABELS.get(p, p) for p in scoreboard.PROBLEM_ORDER}
         pages = {p: f"results_{_slug(p)}.qmd" for p in scoreboard.PROBLEM_ORDER}
         SCOREBOARD_INCLUDE.write_text(
-            scoreboard.render_overview(scores, labels, pages), encoding="utf-8"
+            scoreboard.render_overview(scores, pages), encoding="utf-8"
         )
         SCORES_JSON.write_text(
             json.dumps(scoreboard.per_solver_summary(scores), indent=1),
@@ -1110,6 +1123,7 @@ def write_overview(tree: dict, scores: dict | None) -> None:
         SCOREBOARD_INCLUDE.write_text(_NO_RESULTS, encoding="utf-8")
         SCORES_JSON.unlink(missing_ok=True)
     EXPLORER_INCLUDE.write_text(render_explorer(tree), encoding="utf-8")
+    GATES_INCLUDE.write_text(scoreboard.render_gates(), encoding="utf-8")
 
 
 def main() -> None:

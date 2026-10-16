@@ -118,7 +118,7 @@ The full catalog — per-solver numerical scheme, AD strategy, image name, schem
 ::: {}
 ### See how the solvers compare {.unlisted}
 
-Each domain has a results page with every plot, a best-solver ranking per category, and the task setup:
+Each domain has a results page with the task setup, pass/fail checks for every solver, and every plot:
 :::
 
 ::: {.cta-links}

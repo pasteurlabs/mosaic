@@ -8,8 +8,6 @@
 //     details node is moved (not cloned) so ids and handlers stay intact, and
 //     moved back on close.
 //   * Deep links: solvers.html#<anchor> highlights the card and opens it.
-//   * Leaderboards: rows are tagged with their original rank so the "Best"
-//     marker survives click-to-sort.
 
 (function () {
   "use strict";
@@ -224,15 +222,8 @@
     apply();
   }
 
-  function markLeaderboards() {
-    document.querySelectorAll(".leaderboard table tbody").forEach((tbody) => {
-      Array.from(tbody.rows).forEach((row, i) => (row.dataset.rank = i + 1));
-    });
-  }
-
   document.addEventListener("DOMContentLoaded", () => {
     trackHeader();
-    markLeaderboards();
     wireCards();
     document.querySelectorAll(".explorer-toolbar").forEach(wireExplorer);
     openFromHash();

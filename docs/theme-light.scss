@@ -2,7 +2,7 @@
 
 // Light theme. Colours are drawn from the stained-glass logo:
 // terracotta, saffron, indigo, green and plum on an off-white ground.
-// Custom components (cards, scoreboard, hero) read the CSS variables defined
+// Custom components (cards, check tables, hero) read the CSS variables defined
 // under scss:rules below, so the dark theme only has to redefine those.
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
@@ -60,14 +60,6 @@ $border-radius: 0.5rem;
   --m-green: #2f7a57;
   --m-plum: #6e3f8f;
   --m-red: #c8462b;
-  // Sequential score scale (one hue, light → dark) for the scoreboard.
-  --m-score-0: #efefed;
-  --m-score-1: #e3ece4;
-  --m-score-2: #c3dccb;
-  --m-score-3: #93c1a4;
-  --m-score-4: #5c9e7b;
-  --m-score-5: #2f7a57;
-  --m-score-ink-dark: #ffffff;
   --m-shadow-sm: none;
   --m-shadow: 0 1px 2px rgba(20, 22, 26, 0.04), 0 4px 14px -8px rgba(20, 22, 26, 0.12);
   --m-shadow-lg: 0 24px 60px -20px rgba(15, 17, 20, 0.35);

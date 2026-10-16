@@ -61,5 +61,6 @@ mosaic/_version.py
 docs/_scoreboard.qmd
 docs/_explorer.qmd
 docs/_scores.json
+docs/_gates.qmd
 
 **/*.quarto_ipynb

@@ -197,12 +197,11 @@ div.sourceCode pre {
 // forms widen hyphens).
 table,
 .score-chip,
-.meta-chip,
-.rank-pill {
+.meta-chip {
   font-variant-numeric: tabular-nums;
 }
 
-#quarto-document-content table:not(.sb-table),
+#quarto-document-content table:not(.ck-table),
 .m-dialog-body table {
   font-size: 0.92rem;
   border-collapse: separate;
@@ -358,8 +357,8 @@ p > img {
   padding: 0.35rem;
 }
 
-// ── Sortable ranking tables ──────────────────────────────────────────────────
-// The solver-ranking tables (wrapped in `.sortable-table`) get click-to-sort
+// ── Sortable results tables ──────────────────────────────────────────────────
+// The per-suite results tables (wrapped in `.sortable-table`) get click-to-sort
 // behaviour from docs/sortable-tables.html. Style the headers as affordances:
 // pointer cursor, hover highlight, and a ▲/▼ indicator on the active column.
 .sortable-table table th.sortable-th {
@@ -389,28 +388,12 @@ p > img {
   }
 }
 
-// Leaderboards: the original rank-1 row (marked by mosaic-ui.html before any
-// re-sort) keeps a small "best" marker wherever it moves.
+// Per-suite results tables on the domain pages.
 .leaderboard table {
   width: 100%;
 
   tbody tr td:first-child {
     font-weight: 600;
-  }
-
-  tbody tr[data-rank="1"] td:first-child::before {
-    content: "Best";
-    display: inline-block;
-    margin-right: 0.5rem;
-    padding: 0 0.4rem;
-    border-radius: 0.3rem;
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--m-accent-ink);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m-accent) 45%, transparent);
-    vertical-align: 1px;
   }
 }
 
@@ -1034,7 +1017,7 @@ p > img {
   font-size: 0.78rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  background: var(--m-score-0);
+  background: var(--m-surface-2);
   color: var(--m-ink);
 
   .sc-id {
@@ -1256,9 +1239,17 @@ dialog.m-dialog {
   }
 }
 
-// ── Scoreboard ───────────────────────────────────────────────────────────────
-.scoreboard {
+// ── Check tables (Results) ───────────────────────────────────────────────────
+// One card per setup: pass/borderline/fail per suite, relative cost and
+// reliability counts, grouped by device class. No ranks and no overall score.
+.checkboards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   margin: 1rem 0 1.25rem;
+}
+
+.checkboard {
   background: var(--m-surface);
   border: 1px solid var(--m-border);
   border-radius: 0.4rem;
@@ -1270,24 +1261,69 @@ dialog.m-dialog {
   overflow-x: auto;
 }
 
-table.sb-table {
+.ck-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--m-border);
+  background: var(--m-surface-2);
+
+  .ck-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .domain-id {
+    min-width: 1.8rem;
+    height: 1.8rem;
+    font-size: 0.85rem;
+  }
+
+  h3 {
+    margin: 0 !important;
+    font-size: 1.1rem !important;
+    line-height: 1.25;
+  }
+
+  .ck-domain {
+    font-size: 0.78rem;
+    color: var(--m-muted);
+  }
+
+  .ck-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .ck-task {
+    color: var(--m-muted);
+  }
+}
+
+table.ck-table {
   width: 100%;
   margin: 0;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 
   th,
   td {
-    padding: 0.55rem 0.7rem;
+    padding: 0.45rem 0.7rem;
     border-bottom: 1px solid var(--m-border);
-    text-align: center;
+    text-align: left;
     vertical-align: middle;
     white-space: nowrap;
   }
 
   thead th {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -1295,49 +1331,29 @@ table.sb-table {
     background: var(--m-surface);
   }
 
-  tbody tr:last-child th,
-  tbody tr:last-child td {
-    border-bottom: 0;
-  }
+  tr.ck-group th {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--m-ink-2);
+    background: var(--m-surface-2);
 
-  tbody tr {
-    transition: background 0.15s ease;
-
-    &:hover {
-      background: color-mix(in srgb, var(--m-surface-2) 60%, transparent);
-    }
-  }
-
-  .sb-prob a {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.1rem;
-    text-decoration: none;
-    color: inherit;
-
-    .sb-id {
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-      font-size: 1rem;
+    span {
+      margin-left: 0.4rem;
+      font-weight: 500;
       letter-spacing: 0;
       text-transform: none;
-      color: var(--m-ink);
-    }
-
-    .sb-plabel {
-      font-size: 0.66rem;
-      letter-spacing: 0.02em;
-      text-transform: none;
-      font-weight: 500;
-    }
-
-    &:hover .sb-id {
-      color: var(--m-accent);
+      color: var(--m-muted);
     }
   }
 
-  .sb-solver {
-    text-align: left;
+  tbody tr:not(.ck-group):hover {
+    background: color-mix(in srgb, var(--m-surface-2) 60%, transparent);
+  }
+
+  .ck-solver {
     font-weight: 600;
 
     a {
@@ -1348,195 +1364,153 @@ table.sb-table {
         color: var(--m-accent);
       }
     }
-
-    .sb-cover {
-      display: block;
-      font-size: 0.7rem;
-      font-weight: 500;
-      color: var(--m-muted);
-    }
   }
 
-  .sb-rank {
-    width: 3.5rem;
-  }
-
-  .sb-cell {
-    padding: 0.3rem;
-
-    .sb-val {
-      display: inline-grid;
-      place-items: center;
-      min-width: 3rem;
-      height: 2rem;
-      border-radius: 0.45rem;
-      font-weight: 600;
-    }
-
-    &.sb-na span {
-      color: var(--m-border-strong);
-    }
-  }
-
-  .sb-overall {
-    min-width: 9rem;
-    text-align: left;
-
-    .sb-bar {
-      display: inline-block;
-      width: 5rem;
-      height: 6px;
-      border-radius: 999px;
-      background: var(--m-surface-3);
-      vertical-align: middle;
-      margin-right: 0.55rem;
-      overflow: hidden;
-
-      span {
-        display: block;
-        height: 100%;
-        border-radius: inherit;
-        background: var(--m-accent);
-        transition: width 0.3s ease;
-      }
-    }
-
-    .sb-val {
-      font-weight: 700;
-      font-size: 1rem;
-    }
-  }
-}
-
-// Score heat levels; the colour sits on the inner value pill so the grid
-// lines stay visible.
-@for $i from 0 through 5 {
-  .sb-cell.lvl-#{$i} .sb-val,
-  .score-chip.lvl-#{$i} {
-    background: var(--m-score-#{$i});
-  }
-}
-.sb-cell.lvl-4 .sb-val,
-.sb-cell.lvl-5 .sb-val,
-.score-chip.lvl-4,
-.score-chip.lvl-5 {
-  color: var(--m-score-ink-dark);
-}
-.sb-cell.lvl-0 .sb-val {
-  color: var(--m-muted);
-  font-weight: 500;
-}
-
-.rank-pill {
-  display: inline-grid;
-  place-items: center;
-  width: 1.85rem;
-  height: 1.85rem;
-  border-radius: 0.45rem;
-  font-weight: 700;
-  font-size: 0.85rem;
-  background: var(--m-surface-2);
-  color: var(--m-ink-2);
-
-  // Only the leader is set apart, with an accent outline rather than a medal.
-  &.r1 {
-    background: var(--m-surface);
-    color: var(--m-accent-ink);
-    box-shadow: inset 0 0 0 1.5px var(--m-accent);
-  }
-}
-
-// Results overview: one scoreboard card per physics domain.
-.scoreboard-domains {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  margin: 1rem 0 1.25rem;
-
-  .scoreboard {
-    margin: 0;
-  }
-}
-
-.sb-domain-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid var(--m-border);
-  background: var(--m-surface-2);
-
-  .sb-domain-title {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-  }
-
-  .domain-id {
-    min-width: 1.8rem;
-    height: 1.8rem;
-    font-size: 0.85rem;
-  }
-
-  h3 {
-    margin: 0 0 0 0.25rem !important;
-    font-size: 1.2rem !important;
-  }
-
-  .sb-domain-meta {
-    font-size: 0.8rem;
+  .ck-part {
+    margin-left: 0.35rem;
+    font-size: 0.72rem;
     color: var(--m-muted);
   }
 
-  .sb-domain-links {
-    font-size: 0.85rem;
+  .ck-cost {
+    font-weight: 600;
+  }
+
+  .ck-cost-na {
+    color: var(--m-border-strong);
+  }
+
+  td.ck-rel {
+    font-size: 0.8rem;
+    white-space: normal;
+    min-width: 9rem;
+
+    .rl-ok {
+      font-weight: 600;
+      color: var(--m-ink-2);
+    }
+
+    .rl {
+      margin-left: 0.5rem;
+      white-space: nowrap;
+    }
   }
 }
 
-.scoreboard-domains table.sb-table thead th.sb-prob {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 0.95rem;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--m-ink);
+// Check state pill, used in the tables and in the legend on the Results page.
+.ck {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.12rem 0.55rem 0.12rem 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  .ck-glyph {
+    font-weight: 700;
+  }
 }
 
-.scoreboard-domain {
-  box-shadow: var(--m-shadow-sm);
+@mixin ck-tone($c) {
+  background: color-mix(in srgb, #{$c} 13%, var(--m-surface));
+  color: color-mix(in srgb, #{$c} 85%, var(--m-ink));
+  border-color: color-mix(in srgb, #{$c} 30%, transparent);
+}
 
-  table.sb-table {
-    font-size: 0.86rem;
+.ck-pass,
+.ck-note {
+  @include ck-tone(var(--m-green));
+}
+.ck-note .ck-glyph::after {
+  content: "*";
+}
+.ck-borderline {
+  @include ck-tone(var(--m-saffron));
+}
+.ck-fail {
+  @include ck-tone(var(--m-red));
+}
+.ck-na {
+  background: var(--m-surface-2);
+  color: var(--m-muted);
+}
+.ck-notrun {
+  background: transparent;
+  color: var(--m-muted);
+  border: 1px dashed var(--m-border-strong);
+}
 
-    th,
-    td {
-      padding: 0.4rem 0.35rem;
+.rl-flag {
+  color: color-mix(in srgb, var(--m-saffron) 80%, var(--m-ink));
+}
+.rl-fail {
+  color: var(--m-red);
+}
+.rl-notrun {
+  color: var(--m-muted);
+}
+
+.ck-foot {
+  padding: 0.6rem 1rem 0.75rem;
+  border-top: 1px solid var(--m-border);
+  font-size: 0.85rem;
+
+  .ck-summary {
+    margin: 0 0 0.35rem;
+    color: var(--m-ink-2);
+  }
+
+  .ck-flags {
+    margin-top: 0.25rem;
+
+    summary {
+      cursor: pointer;
+      color: var(--m-accent-ink);
+      font-weight: 500;
     }
 
-    thead th {
-      font-size: 0.66rem;
-      letter-spacing: 0.02em;
+    ul {
+      margin: 0.4rem 0 0.25rem;
+      padding-left: 1.1rem;
+      color: var(--m-ink-2);
     }
 
-    .sb-cell .sb-val {
-      min-width: 2.5rem;
-      height: 1.8rem;
+    li {
+      margin: 0.15rem 0;
     }
 
-    .sb-overall {
-      min-width: 0;
-      text-align: center;
-
-      .sb-bar {
-        display: none;
-      }
+    code {
+      font-size: 0.78rem;
     }
 
-    .sb-rank {
-      width: 2.5rem;
+    .fl-anomaly,
+    .fl-note {
+      color: color-mix(in srgb, var(--m-saffron) 80%, var(--m-ink));
+    }
+
+    .fl-failed {
+      color: var(--m-red);
     }
   }
+}
+
+// Solver-card footer chip: setup id + "n/m pass", toned by the worst check.
+.score-chip.ck-chip-pass,
+.score-chip.ck-chip-note {
+  @include ck-tone(var(--m-green));
+}
+.score-chip.ck-chip-borderline {
+  @include ck-tone(var(--m-saffron));
+}
+.score-chip.ck-chip-fail {
+  @include ck-tone(var(--m-red));
+}
+.score-chip.ck-chip-notrun {
+  background: var(--m-surface-2);
+  color: var(--m-muted);
 }
 
 // ── Domain results pages ─────────────────────────────────────────────────────
@@ -1637,25 +1611,13 @@ h2.suite-heading {
     grid-template-columns: 1fr;
   }
 
-  // Keep rank + solver visible while the score columns scroll sideways.
-  table.sb-table {
-    .sb-rank,
-    .sb-solver {
-      position: sticky;
-      z-index: 1;
-      background: var(--m-surface);
-    }
-
-    .sb-rank {
-      left: 0;
-      width: 2.75rem;
-      min-width: 2.75rem;
-    }
-
-    .sb-solver {
-      left: 2.75rem;
-      box-shadow: 1px 0 0 var(--m-border);
-    }
+  // Keep the solver name visible while the check columns scroll sideways.
+  table.ck-table .ck-solver {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--m-surface);
+    box-shadow: 1px 0 0 var(--m-border);
   }
 }
 
@@ -1663,5 +1625,12 @@ h2.suite-heading {
   * {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+// State legend on the Results page.
+.ck-legend table {
+  td:first-child {
+    white-space: nowrap;
   }
 }

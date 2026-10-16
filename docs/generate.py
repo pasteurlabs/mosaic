@@ -355,9 +355,17 @@ _LANG_BADGE_CLASS = "badge-lang"  # all language badges
 _AD_BADGE_CLASS = "badge-ad"  # all AD-strategy badges
 _GPU_BADGE_CLASS = "badge-gpu"  # only present on GPU-capable solvers
 
-# Per-solver scores written by `generate_results.py --overview-only` (keyed by
-# Solver Reference anchor). Optional: cards render without scores if absent.
+# Per-solver checks written by `generate_results.py --overview-only` (keyed by
+# Solver Reference anchor). Optional: cards render without them if absent.
 SCORES = Path(__file__).resolve().parent / "_scores.json"
+_CHECK_WORDS = {
+    "pass": "pass",
+    "note": "pass (with note)",
+    "borderline": "borderline",
+    "fail": "fail",
+    "na": "not supported",
+    "notrun": "not run",
+}
 
 
 def _load_scores() -> dict:
@@ -398,14 +406,10 @@ def render_field_table(fields: list[dict], label: str) -> str:
     return f"**{label}**\n\n{header}" + "\n".join(rows) + "\n"
 
 
-def _score_level(v: float) -> int:
-    return max(1, min(5, 1 + int(v * 5 - 1e-9))) if v > 0 else 1
-
-
 def render_solver(solver: dict, scores: dict | None = None) -> str:
     """One searchable solver card.
 
-    The card shows the summary (numerics, badges, description, scores); the
+    The card shows the summary (numerics, badges, description, checks); the
     full reference (links, image, exclusions, schema tables) sits in a
     ``.solver-details`` block that docs/mosaic-ui.html opens in a dialog.
     Without JS the details render inline under the summary.
@@ -477,15 +481,16 @@ def render_solver(solver: dict, scores: dict | None = None) -> str:
     if solver["description"]:
         lines += ["::: {.solver-desc}", solver["description"], ":::", ""]
 
-    # Footer: benchmark scores per domain (when results are available) and the
+    # Footer: benchmark checks per setup (when results are available) and the
     # "view details" affordance.
     foot: list[str] = []
-    if score:
-        for pid, v in score.items():
-            foot.append(
-                f"[[{pid}]{{.sc-id}} {round(100 * v['score'])}]"
-                f"{{.score-chip .lvl-{_score_level(v['score'])}}}"
-            )
+    for v in score or []:
+        if not v["n_supported"]:
+            continue
+        foot.append(
+            f"[[{v['id']}]{{.sc-id}} {v['short']} · {v['n_pass']}/{v['n_supported']} pass]"
+            f"{{.score-chip .ck-chip-{v['worst']}}}"
+        )
     foot.append("[Details]{.solver-open}")
     lines += ["::: {.solver-card-foot}", " ".join(foot), ":::", ""]
 
@@ -503,12 +508,14 @@ def render_solver(solver: dict, scores: dict | None = None) -> str:
 
     if score:
         per = "; ".join(
-            f"{v['domain']} {round(100 * v['score'])}"
-            + (f" (rank {v['rank']} of {v['of']})" if v["rank"] else "")
-            for v in score.values()
+            f"{v['id']} {v['setup']}: "
+            + ", ".join(
+                f"{suite} {_CHECK_WORDS[state]}" for suite, state in v["states"].items()
+            )
+            for v in score
         )
         lines.append(
-            f"**Benchmark score:** {per} — see the [scoreboard](results.qmd#scoreboard)."
+            f"**Benchmark checks:** {per} — see [Results](results.qmd#checks)."
         )
         lines.append("")
 
@@ -603,11 +610,12 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
     if scores:
         header += (
             "::: {.legend-note}\n"
-            "**Scores.** Where benchmark results are available, the card footer "
-            "shows the solver's score (0–100) on each domain it runs in: "
-            "**H** heat transfer, **S** structural mechanics, **F2**/**F3** "
-            "Navier–Stokes 2D/3D. See the [scoreboard](results.qmd#scoreboard) "
-            "for how scores are computed and the per-domain rankings.\n"
+            "**Checks.** Where benchmark results are available, the card footer "
+            "shows how many of the forward, gradient and optimization checks the "
+            "solver passes on each setup it runs: **H** heat transfer, **S** "
+            "structural mechanics, **F2**/**F3** Navier–Stokes 2D/3D. Checks the "
+            "method cannot support are left out. See [Results](results.qmd#checks) "
+            "for what each check means.\n"
             ":::\n\n"
         )
     sections = "\n\n".join(

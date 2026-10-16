@@ -3,8 +3,10 @@ title: Results
 toc: false
 ---
 
-Benchmark results for every domain, with embedded plots, a best-solver ranking
-per category, and the task setup. Pick a domain below.
+What each solver in Mosaic can do on each benchmark setup: whether its
+forward solution, gradient and optimization results are good enough for the
+task, what it costs relative to its peers, and how much of the campaign ran
+cleanly. Mosaic does not rank solvers or combine these into a single score.
 
 ::: {.callout-tip appearance="simple"}
 These are **example results**, produced automatically on GitHub Actions runners
@@ -15,46 +17,86 @@ numbers that reflect *your* setup, [run the benchmarks
 yourself](getting-started.qmd) on your target hardware.
 :::
 
-## Scoreboard {#scoreboard}
+::: {.callout-warning appearance="simple" title="Results reflect the current implementations, not the libraries"}
+Each solver is wrapped in a Tesseract by the Mosaic team or its contributors,
+and some wrappers have had far more tuning than others: solver settings,
+preconditioners, time steps and resolutions. A flag or a slow time here says
+how *this implementation* behaves on *this setup*, not how good the underlying
+software is. Solvers also differ a lot in how much work a setup takes: some
+provide the geometry, boundary conditions and adjoints out of the box, others
+need them written by hand. Before committing to one, try the alternatives
+that pass on your kind of problem.
 
-Solvers ranked within each physics domain, scored from 0 to 100 on every axis.
-Click a column header to re-sort, a solver to open its card, or a results link
-to open the domain's page.
+If you maintain or use one of these solvers and can improve its
+configuration, [contributions are welcome](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md).
+:::
+
+## How to read the checks {#reading}
+
+Results are grouped by **setup**: one concrete problem statement, such as
+periodic Taylor–Green flow or channel flow past a cylinder. Setups of the same
+physics are not averaged, because a solver that handles one need not handle
+the other.
+
+For each setup, each solver gets:
+
+- **Forward, gradient and optimization checks.** Every experiment carries pass
+  criteria set in its problem configuration (`status_check`): for example an
+  error bound against the reference, a finite-difference agreement bound for
+  the gradient, or the fraction of the objective an optimizer must remove. A
+  check combines the setup's *gate* experiments for that suite (see the table
+  of states below). Hover a check for the reasons; the list under each table
+  spells them out.
+- **Cost**, forward and VJP: wall-clock time as a multiple of the fastest
+  solver *on the same kind of device*, at the largest problem size every
+  solver in that group completed. GPU and CPU solvers ran on different
+  machines, so they are compared within their group only. The per-suite
+  tables on each results page give the absolute times.
+- **Reliability**: how many of the setup's experiments ran cleanly, out of
+  those the solver supports, with flagged, failed and not-run experiments
+  counted separately. This includes diagnostic experiments that are not gates
+  (Jacobian spectra, horizon sweeps, cost sweeps). A cost run flagged only for
+  being slow counts as clean here; its speed shows in the cost columns.
+
+::: {.ck-legend}
+| State | Meaning |
+|---|---|
+| [✓ Pass]{.ck .ck-pass} | Every gate experiment met its criteria. |
+| [✓ Pass, with note]{.ck .ck-note} | A gate was flagged, but the cause is documented and is typically a property of the comparison rather than the solver. |
+| [! Borderline]{.ck .ck-borderline} | A gate was flagged: it ran, but missed its criteria. |
+| [✗ Fail]{.ck .ck-fail} | A gate errored or produced no valid result. |
+| [— Not supported]{.ck .ck-na} | The method cannot express the experiment, e.g. a forward-only solver has no gradient. |
+| [· Not run]{.ck .ck-notrun} | Not run in this campaign yet. |
+:::
+
+Within each device group, solvers that pass more checks are listed first, then
+faster ones. That ordering is a reading aid, not a ranking: a solver that
+passes everything is not "better" than one that is flagged on a check your
+application does not need.
+
+::: {.callout-note collapse="true" title="Gate experiments per setup"}
+{{< include _gates.qmd >}}
+
+The thresholds behind each check are provisional and will be refined with the
+solver maintainers; they live next to each experiment in
+`mosaic/benchmarks/problems/<domain>/config.py`.
+:::
+
+## Checks by setup {#checks}
 
 ::: {.column-page}
 {{< include _scoreboard.qmd >}}
 :::
 
-::: {.callout-note collapse="true" title="How the scores are computed"}
-Each solver gets five axis scores per domain, each from 0 to 100:
-
-- **Forward** — mean relative error against the reference solution, as digits
-  of accuracy out of six: $-\log_{10}(\text{error})/6$, so an error of
-  $10^{-6}$ or below scores 100 and an error of 100% scores 0.
-- **Gradient** — the best-$\varepsilon$ finite-difference error of the
-  gradient, on the same digits-of-accuracy scale.
-- **Cost** — forward and VJP wall-clock time compared against the fastest
-  solver at each problem size $N$ separately, $1 - \log_{10}(t/t_\text{best})/3$
-  (three decades slower scores 0). A size the solver did not complete scores 0.
-- **Optimization** — the improvement the optimizer achieved through the
-  solver's gradients (final / initial objective), as a fraction of the best
-  solver's improvement in decades. Where no initial objective is recorded, final
-  objectives are compared directly.
-- **Reliability** — the campaign-health weights used by `mosaic status`
-  (ok 1, anomaly 0.53, not run 0.33, failed 0; permanent exclusions left out),
-  averaged over every experiment the solver takes part in.
-
-An axis on which a solver has no result scores 0. That is mostly gradient and
-optimization for forward-only solvers (deal.II, OpenFOAM) and optimization
-tasks a solver cannot set up, since gradient quality is a first-class criterion
-here. A domain score is the unweighted mean of the five axes, and solvers
-are ranked on it within each domain; Navier–Stokes 2D and 3D are ranked
-separately. Domains are not ranked against each other: the finite-element problems
-are easier to solve accurately than turbulent flow, so scores are only
-comparable within a domain.
-:::
-
 ## Domains
+
+Each domain page collects the setups of one physics problem and reports, per
+suite: **forward** (output against a trusted reference, and an analytic
+solution where one exists), **gradient** (AD or adjoint gradient against a
+finite-difference ground truth, in magnitude and direction), **cost** (forward
+and VJP wall-clock scaling with problem size) and **optimization** (end-to-end
+convergence using each solver's own gradients). See the
+[Overview](index.qmd#evaluation-protocol) for the full evaluation protocol.
 
 ::: {.domain-grid .column-page}
 ::: {.domain-card}
@@ -128,19 +170,3 @@ its plots.
 ::: {.column-page}
 {{< include _explorer.qmd >}}
 :::
-
-## What each page reports
-
-Every domain page scores its solvers on four axes:
-
-- **Forward** — is the prediction right? Output vs. a trusted reference (and an
-  analytic solution where one exists).
-- **Gradient** — is the gradient right? AD/adjoint gradient vs. a
-  finite-difference ground truth (magnitude and direction).
-- **Cost** — what does it cost? Forward and VJP wall-clock scaling with problem
-  size.
-- **Optimization** — can you optimize through it? End-to-end convergence using
-  each solver's own gradients.
-
-See the [Overview](index.qmd#evaluation-protocol) for the full evaluation
-protocol.

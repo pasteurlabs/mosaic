@@ -1,12 +1,12 @@
 <script type="text/javascript">
-// Click-to-sort for the solver-ranking tables on the results pages.
+// Click-to-sort for the per-suite results tables on the results pages.
 //
-// Each ranking table is rendered inside a `::: {.sortable-table}` div (see
+// Each results table is rendered inside a `::: {.sortable-table}` div (see
 // docs/generate_results.py). This attaches click handlers to every header
 // cell: click to sort by that column, click again to reverse. Sorting is
 // numeric-aware — cells like "1.74e-08", "0.113 s", or "—" are compared by
 // their leading numeric value, everything else alphabetically. No dependency;
-// if JS is disabled the table stays static and rank-ordered.
+// if JS is disabled the table stays static in its generated order.
 
 (function () {
   "use strict";

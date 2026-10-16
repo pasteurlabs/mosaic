@@ -3,7 +3,7 @@ title: Heat transfer
 ---
 
 ::: {.page-meta}
-[H]{.domain-id .d-H} [Auto-generated 2026-10-08 12:01 UTC]{.meta-chip} [12 plots]{.meta-chip}
+[H]{.domain-id .d-H} [Auto-generated 2026-10-16 14:33 UTC]{.meta-chip} [12 plots]{.meta-chip}
 :::
 
 ::: {.domain-hero}
@@ -29,13 +29,16 @@ Quasi-2D heated slab on domain $[0,2]\times[0,1]$ (a single HEX8 layer, $n_z=1$)
 
 :::
 
-## Scores at a glance {.unnumbered}
+## Checks at a glance {.unnumbered}
 
+::: {.column-page}
 ```{=html}
-<div class="scoreboard scoreboard-domain"><div class="table-scroll"><table class="sb-table"><thead><tr><th class="sb-rank" scope="col">Rank</th><th scope="col" class="sb-solver">Solver</th><th scope="col">Forward</th><th scope="col">Gradient</th><th scope="col">Cost</th><th scope="col">Optimization</th><th scope="col">Reliability</th><th scope="col" class="sb-overall">Score</th></tr></thead><tbody><tr><td class="sb-rank"><span class="rank-pill r1">1</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#thermal-mesh-torch-fem-thermal">torch-fem</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">79</span></td><td class="sb-cell lvl-5"><span class="sb-val">97</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:95.1%"></span></div><span class="sb-val">95</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r2">2</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#thermal-mesh-fenics-heat">FEniCS</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">79</span></td><td class="sb-cell lvl-5"><span class="sb-val">91</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:93.9%"></span></div><span class="sb-val">94</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r3">3</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#thermal-mesh-jax-fem">JAX-FEM</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">79</span></td><td class="sb-cell lvl-4"><span class="sb-val">78</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:91.4%"></span></div><span class="sb-val">91</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r3">3</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#thermal-mesh-firedrake-heat">Firedrake</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-4"><span class="sb-val">79</span></td><td class="sb-cell lvl-4"><span class="sb-val">74</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:90.6%"></span></div><span class="sb-val">91</span></td></tr><tr><td class="sb-rank"><span class="rank-pill r4">5</span></td><th scope="row" class="sb-solver"><a href="solvers.qmd#thermal-mesh-dealii-heat">deal.II</a></th><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-cell lvl-0"><span class="sb-val">—</span></td><td class="sb-cell lvl-4"><span class="sb-val">77</span></td><td class="sb-cell lvl-0"><span class="sb-val">—</span></td><td class="sb-cell lvl-5"><span class="sb-val">100</span></td><td class="sb-overall"><div class="sb-bar"><span style="width:55.5%"></span></div><span class="sb-val">55</span></td></tr></tbody></table></div></div>
+<div class="checkboards"><section class="checkboard" id="setup-heat"><div class="table-scroll"><table class="ck-table"><thead><tr><th scope="col" class="ck-solver">Solver</th><th scope="col">Forward</th><th scope="col">Gradient</th><th scope="col">Optimization</th><th scope="col">Forward cost</th><th scope="col">VJP cost</th><th scope="col" class="ck-rel">Reliability</th></tr></thead><tbody><tr class="ck-group"><th colspan="7" scope="colgroup">GPU solvers<span> · cost relative to the fastest GPU solver at N=1024</span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#thermal-mesh-torch-fem-thermal">torch-fem</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 4 of 4 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="5.97 s at N=1024">1× (fastest)</td><td class="ck-cost" title="14.4 s at N=1024">1× (fastest)</td><td class="ck-rel"><span class="rl-ok">14/14 ok</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#thermal-mesh-jax-fem">JAX-FEM</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 4 of 4 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="76.2 s at N=1024">13×</td><td class="ck-cost" title="227 s at N=1024">16×</td><td class="ck-rel"><span class="rl-ok">14/14 ok</span></td></tr></tbody><tbody><tr class="ck-group"><th colspan="7" scope="colgroup">CPU solvers<span> · cost relative to the fastest CPU solver at N=1024</span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#thermal-mesh-fenics-heat">FEniCS</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 4 of 4 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="15.7 s at N=1024">1× (fastest)</td><td class="ck-cost" title="48.3 s at N=1024">1× (fastest)</td><td class="ck-rel"><span class="rl-ok">14/14 ok</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#thermal-mesh-firedrake-heat">Firedrake</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 4 of 4 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="88.6 s at N=1024">5.7×</td><td class="ck-cost" title="187 s at N=1024">3.9×</td><td class="ck-rel"><span class="rl-ok">14/14 ok</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#thermal-mesh-dealii-heat">deal.II</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · fd_check: deal.II thermal tesseract is forward-only (no AD path in the C++ solver); cost/vjp and gradient experiments are categorically out of scope. · param_sweep: deal.II thermal tesseract is forward-only (no AD path in the C++ solver); cost/vjp and gradient experiments are categorically out of scope. · source_fd_check: deal.II thermal tesseract is forward-only (no AD path in the C++ solver); cost/vjp and gradient experiments are categorically out of scope. · source_width_sweep: deal.II thermal tesseract is forward-only (no AD path in the C++ solver); cost/vjp and gradient experiments are categorically out of scope."><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · conductivity_recovery_bfgs: deal.II thermal tesseract has no AD path; conductivity-recovery (gradient-based ρ updates against a target temperature field) requires a differentiable thermal-compliance output."><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cost" title="52.2 s at N=1024">3.3×</td><td class="ck-cost ck-cost-na">—</td><td class="ck-rel"><span class="rl-ok">7/7 ok</span></td></tr></tbody></table></div><div class="ck-foot"><p class="ck-summary">Passes every check: FEniCS, torch-fem, Firedrake, JAX-FEM.</p><details class="ck-flags"><summary>Not supported (1 solver)</summary><ul><li><strong>deal.II</strong> · 7 experiments — deal.II thermal tesseract is forward-only (no AD path in the C++ solver); cost/vjp and gradient experiments are categorically out of scope.; deal.II thermal tesseract has no AD path; conductivity-recovery (gradient-based ρ updates against a target temperature field) requires a differentiable thermal-compliance output.</li></ul></details></div></section></div>
 ```
 
-*Per-axis scores from 0 to 100, computed from the same results as the rankings below. See the [Results overview](results.qmd#scoreboard) for the scoring method and the per-domain rankings.*
+:::
+
+*Pass / borderline / fail per suite, from the same results as the sections below. See [How to read the checks](results.qmd#reading) for what each state means and how cost is compared.*
 
 ## Initial Conditions {#suite-ics .suite-heading data-suite="ics"}
 
@@ -349,7 +352,7 @@ Sweeps `amplitude` ∈ {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}
 
 :::
 
-[Solver ranking]{.eyebrow}
+[Results by solver]{.eyebrow}
 
 ::: {.sortable-table .leaderboard}
 | Solver | Mean rel. error |
@@ -361,7 +364,7 @@ Sweeps `amplitude` ∈ {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}
 | torch-fem | 1.74e-08 |
 :::
 
-*Ranked by mean relative error against the reference solution (lower is more accurate).*
+*Sorted by mean relative error against the reference solution (lower is closer to the reference; whether a difference matters depends on the task, see the checks at the top of the page).*
 
 ## Cost {#suite-cost .suite-heading data-suite="cost"}
 
@@ -438,19 +441,19 @@ Sweeps `steps` ∈ {1}
 
 :::
 
-[Solver ranking]{.eyebrow}
+[Results by solver]{.eyebrow}
 
 ::: {.sortable-table .leaderboard}
-| Solver | Forward time | VJP time |
-|---|---|---|
-| torch-fem | 5.97 s @ N=1024 | 14.4 s @ N=1024 |
-| FEniCS | 15.7 s @ N=1024 | 48.3 s @ N=1024 |
-| deal.II | 52.2 s @ N=1024 | — |
-| JAX-FEM | 76.2 s @ N=1024 | 227 s @ N=1024 |
-| Firedrake | 88.6 s @ N=1024 | 187 s @ N=1024 |
+| Solver | Device | Forward time | VJP time |
+|---|---|---|---|
+| torch-fem | GPU | 5.97 s @ N=1024 | 14.4 s @ N=1024 |
+| JAX-FEM | GPU | 76.2 s @ N=1024 | 227 s @ N=1024 |
+| FEniCS | CPU | 15.7 s @ N=1024 | 48.3 s @ N=1024 |
+| deal.II | CPU | 52.2 s @ N=1024 | — |
+| Firedrake | CPU | 88.6 s @ N=1024 | 187 s @ N=1024 |
 :::
 
-*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
+*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; GPU solvers first, each group sorted by forward time. Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
 
 ## Gradient {#suite-gradient .suite-heading data-suite="gradient"}
 
@@ -655,7 +658,7 @@ Sweeps `sigma` ∈ {0.05, 0.1, 0.2, 0.3, 0.5}
 
 :::
 
-[Solver ranking]{.eyebrow}
+[Results by solver]{.eyebrow}
 
 ::: {.sortable-table .leaderboard}
 | Solver | Best-ε FD error | 1 − cosine |
@@ -666,7 +669,7 @@ Sweeps `sigma` ∈ {0.05, 0.1, 0.2, 0.3, 0.5}
 | torch-fem | 1.83e-05 | 2.21e-10 |
 :::
 
-*Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
+*Sorted by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
 
 ## Optimization {#suite-optimization .suite-heading data-suite="optimization"}
 
@@ -716,7 +719,7 @@ Optimisation traces (loss vs iteration) and recovered conductivity fields vs the
 
 :::
 
-[Solver ranking]{.eyebrow}
+[Results by solver]{.eyebrow}
 
 ::: {.sortable-table .leaderboard}
 | Solver | Final error | Converged |
@@ -727,4 +730,4 @@ Optimisation traces (loss vs iteration) and recovered conductivity fields vs the
 | FEniCS | 5.73e+03 | no |
 :::
 
-*Ranked by the final objective reached within the iteration budget (lower is better).*
+*Sorted by the final objective reached within the iteration budget (lower is better).*
