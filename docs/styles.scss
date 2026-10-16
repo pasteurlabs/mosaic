@@ -1331,7 +1331,7 @@ table.ck-table {
     background: var(--m-surface);
   }
 
-  tr.ck-group th {
+  tr.ck-group > * {
     padding: 0.35rem 0.7rem;
     font-size: 0.72rem;
     font-weight: 600;

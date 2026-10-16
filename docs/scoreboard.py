@@ -577,7 +577,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     return (
         f'<section class="checkboard" id="setup-{_esc(setup["key"])}">'
         + header
-        + '<div class="table-scroll"><table class="ck-table"><thead><tr>'
+        + '<div class="table-scroll"><table class="ck-table" data-quarto-disable-processing="true"><thead><tr>'
         + head
         + "</tr></thead>"
         + "".join(bodies)
