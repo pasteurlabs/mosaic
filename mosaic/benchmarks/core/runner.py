@@ -13,6 +13,7 @@ import logging
 import os
 import queue
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -385,8 +386,10 @@ def build_all(
         name = spec.name  # type: ignore[attr-defined]
         tesseract_path = cfg.tesseract_dir / spec.dir
         t0 = time.monotonic()
+        # A bare `tesseract` on PATH can be Tesseract OCR.
+        cli = [sys.executable, "-m", "tesseract_core.sdk.cli"]
         r = subprocess.run(
-            ["tesseract", "build", "--tag", tag, str(tesseract_path)],
+            [*cli, "build", "--tag", tag, str(tesseract_path)],
             capture_output=True,
             text=True,
             check=False,
