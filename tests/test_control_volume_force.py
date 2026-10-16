@@ -8,7 +8,8 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from mosaic_shared.problems.navier_stokes_grid.forces import control_volume_force
+
+from mosaic.benchmarks.problems.navier_stokes_grid.forces import control_volume_force
 
 
 def _poiseuille(nx: int = 120, ny: int = 41, h: float = 0.41, um: float = 0.3):

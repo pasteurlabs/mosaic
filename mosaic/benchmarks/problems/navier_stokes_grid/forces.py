@@ -14,7 +14,7 @@ the result does not depend on how a solver represents the body surface. That
 makes it a solver-independent cross-check of each solver's own body force.
 
 The implementation uses only slicing, arithmetic and ``.sum()``, so it works
-unchanged on NumPy, JAX and PyTorch arrays.
+on NumPy and JAX arrays alike.
 """
 
 from __future__ import annotations

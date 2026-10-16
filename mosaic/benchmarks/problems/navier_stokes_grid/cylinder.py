@@ -31,7 +31,6 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import numpy as np
-from mosaic_shared.problems.navier_stokes_grid import control_volume_force
 
 from mosaic.benchmarks.core.experiment import (
     KernelContext,
@@ -43,6 +42,7 @@ from mosaic.benchmarks.core.io import save_field_snapshots_npz
 from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply_with_extras
 from mosaic.benchmarks.core.status_checks import CheckOutcome, ForwardSummary
 from mosaic.benchmarks.core.utils import active_solvers
+from mosaic.benchmarks.problems.navier_stokes_grid.forces import control_volume_force
 
 LENGTH = 2.2
 HEIGHT = 0.41
