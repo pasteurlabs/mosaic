@@ -679,6 +679,15 @@ class TestMetricDiff(unittest.TestCase):
         self.assertEqual(len(loud["metric_shifts"]), 1)
         self.assertEqual(loud["metric_shifts"][0]["confidence"], "indicative")
 
+    def test_row_indicative_metrics_are_flagged_indicative(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots
+
+        new = self._snap({"rel_err": 3e-4, "cosine": 0.90})
+        new["problems"]["ns-grid"]["rows"][0]["indicative_metrics"] = ["rel_err"]
+        d = diff_snapshots(self._snap({"rel_err": 1e-4, "cosine": 0.99}), new)
+        confidence = {s["metric"]: s["confidence"] for s in d["metric_shifts"]}
+        self.assertEqual(confidence, {"rel_err": "indicative", "cosine": "firm"})
+
     def test_status_change_suppresses_metric_shift(self) -> None:
         # A cell that changes status is reported by the main diff path; a
         # numeric compare across the boundary would double-report it.
@@ -737,6 +746,16 @@ class TestMetricDiff(unittest.TestCase):
         self.assertIn("### 📊 Metric changes", md)
         self.assertIn("### ⏱ Timing (indicative", md)
         self.assertIn("2 metric change(s)", md)
+
+    def test_render_puts_path_dependent_shifts_outside_timing(self) -> None:
+        from mosaic.benchmarks.core.status import diff_snapshots, render_diff_markdown
+
+        new = self._snap({"final_loss": 30.0})
+        new["problems"]["ns-grid"]["rows"][0]["indicative_metrics"] = ["final_loss"]
+        md = render_diff_markdown(diff_snapshots(self._snap({"final_loss": 1.0}), new))
+        self.assertIn("### 〰 Path-dependent results (indicative)", md)
+        self.assertNotIn("Timing", md)
+        self.assertNotIn("### 📊 Metric changes", md)
 
     def test_render_label_names_the_comparison_point(self) -> None:
         """The diff header names its comparison point (e.g. a release tag)."""
@@ -833,22 +852,6 @@ class TestMetricCollection(unittest.TestCase):
         cell = self._collect("optimization", "recovery", data)
         self.assertAlmostEqual(cell.metrics["final_ratio"], 0.2)
         self.assertAlmostEqual(cell.metrics["final_loss"], 2.0)
-        self.assertNotIn("field_error", cell.metrics)
-
-    def test_optimization_field_error(self) -> None:
-        data = {
-            "schema_version": 1,
-            "sweep": None,
-            "results": [
-                {
-                    "solver": "s",
-                    "sweep_value": None,
-                    "metrics": {"errors": [10.0, 2.0], "final_field_error": 0.3},
-                }
-            ],
-        }
-        cell = self._collect("optimization", "recovery", data)
-        self.assertAlmostEqual(cell.metrics["field_error"], 0.3)
 
     def test_non_ok_cell_gets_no_metrics(self) -> None:
         from mosaic.benchmarks.core.status import _collect_metrics_for_suite

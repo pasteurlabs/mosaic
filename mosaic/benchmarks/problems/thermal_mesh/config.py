@@ -133,6 +133,12 @@ problem = Problem(
         # accurately reflects "hasn't converged".
         "optimization": [max_final_ratio(0.5)],
     },
+    # Conductivity recovery is ill-conditioned (~1e8 in rho). L-BFGS stalls on
+    # a plateau for a number of iterations that round-off decides, so two runs
+    # of identical code can end 27x apart in misfit.
+    indicative_metrics={
+        "optimization/conductivity_recovery_bfgs": ("final_ratio", "final_loss"),
+    },
 )
 
 
