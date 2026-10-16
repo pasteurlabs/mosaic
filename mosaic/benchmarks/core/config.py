@@ -431,7 +431,6 @@ class Problem:
                 "optim",
                 "jacobian",
                 "reference",
-                "reference_solver",
                 "cost",
                 "ic_key",
                 "output_key",

@@ -103,8 +103,46 @@ def test_dummy_apply_loads_via_tesseract_api():
         assert "vector_jacobian_product" in t.available_endpoints
         v0 = np.zeros((4, 4, 1, 2), dtype=np.float32)
         out = t.apply({"v0": v0})
-        assert set(out) == {"result", "drag"}
+        assert out["result"] is not None
         assert np.asarray(out["result"]).shape == v0.shape
+
+
+def test_dummy_raises_on_unsupported_boundary_conditions():
+    """The BC contract: a solver raises on conditions it does not implement."""
+    import numpy as np
+    from tesseract_core import Tesseract
+
+    from .helpers import channel_inputs
+
+    inputs = channel_inputs(10)
+    with Tesseract.from_tesseract_api(str(DUMMY_NS_GRID)) as t:
+        out = t.apply(inputs)
+        assert np.asarray(out["body_force"]).shape == (inputs["steps"], 2)
+        bcs = {**inputs["boundary_conditions"], "x_hi": {"type": "no_slip"}}
+        with pytest.raises(Exception, match="supports fully periodic"):
+            t.apply({**inputs, "boundary_conditions": bcs})
+
+
+def test_cylinder_scores_the_dummy_against_the_literature(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """The dummy returns the reference force, so its Cd matches the reference."""
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
+
+    cfg.add_experiment(
+        "forward/dummy_cylinder",
+        cylinder.cylinder,
+        ic={"name": "dfg_inflow", "seed": 0},
+        physics={"resolution": [10]},
+    )
+    result = cfg.experiments["forward/dummy_cylinder"].fn(cfg, tags)
+    metrics = [r["metrics"] for r in result["results"] if r["metrics"].get("valid")]
+    assert metrics
+    for m in metrics:
+        assert m["cd"] == pytest.approx(cylinder.CD_REF, rel=1e-5)
+        assert m["error"] < 1e-5
 
 
 def test_forward_baseline_runs_with_dummy(ns_grid_tags, tmp_path, monkeypatch):

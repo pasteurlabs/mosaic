@@ -122,9 +122,10 @@ PROBLEM_DESCRIPTIONS = {
 
 PROBLEM_BC_DESCRIPTIONS = {
     "ns-grid": (
-        "Channel domain [0,8]\u00d7[0,2] with cylinder obstacle at (2,1), radius 0.25. "
-        "Inflow on left, advective outflow on right, no-slip walls top/bottom. "
-        "Periodic TGV experiments use [0,2\u03c0]\u00b2."
+        "Periodic experiments use [0,2\u03c0]\u00b2. The cylinder experiments use the "
+        "Sch\u00e4fer\u2013Turek DFG 2D-1 channel [0,2.2]\u00d7[0,0.41]: cylinder of "
+        "diameter 0.1 at (0.2,0.2), parabolic inflow, zero-gradient outflow at p=0, "
+        "no-slip walls, Re=20."
     ),
     "ns-3d-grid": (
         "Triply periodic box [0,2\u03c0]\u00b3. Incompressibility enforced via "

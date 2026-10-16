@@ -37,29 +37,29 @@ INS_JL_NO_OBSTACLE = Exclusion(
     "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
     "Brinkman forcing, which are not wired up here",
 )
-WARP_NS_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "this tesseract's projection solver uses a spectral FFT pressure solve "
-    "and is periodic-only; obstacle and inflow flows are not implemented in it",
-)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam has no VJP to benchmark",
+    "OpenFOAM has no VJP to benchmark",
 )
 OPENFOAM_NON_DIFFERENTIABLE_GRAD = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable (C++, no AD path); "
+    "OpenFOAM is non-differentiable (C++, no AD path); "
     "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
 )
 OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is a non-differentiable, forward-only solver",
+    "OpenFOAM is a non-differentiable, forward-only solver",
+)
+PICT_DRAG_OPT_TOO_SLOW = Exclusion(
+    ExclusionCategory.INFEASIBLE,
+    "each drag_opt iteration runs a full forward and VJP through PICT's "
+    "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
+    "experiment takes hours on the benchmark GPU",
 )
 
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
-    "warp_ns": WARP_NS_NO_OBSTACLE,
 }
 
 
@@ -77,3 +77,4 @@ def register(problem: Problem) -> None:
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
+    problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})

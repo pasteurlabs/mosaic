@@ -179,7 +179,7 @@ _INITIAL = "initial"
 
 
 def drag_opt_evolution(ctx: Ctx) -> alt.TopLevelMixin | None:
-    """u_x(y) of each solver's inflow profile over the BFGS snapshots.
+    """u_x(y) of each solver's inflow profile over the optimizer snapshots.
 
     One panel per solver with a ``profile_history_<name>`` (``by_solver``
     order, deduplicated by alias), the initial profile dashed black, x range
