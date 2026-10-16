@@ -24,7 +24,11 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.schema_types import ObstacleShape, make_differentiable
+from mosaic_shared.problems.navier_stokes_grid.channel import (
+    check_periodic_or_channel,
+    solid_cells,
+)
+from mosaic_shared.schema_types import make_differentiable
 from pydantic import model_validator
 
 wp.init()
@@ -2259,11 +2263,7 @@ def _channel_masks(
     nx: int, ny: int, dx: float, obstacle: dict, device: str
 ) -> tuple[wp.array, wp.array, wp.array]:
     """``(fluid, open_u, open_v)`` int32 masks for the staircase cylinder."""
-    xc = (np.arange(nx) + 0.5) * dx
-    yc = (np.arange(ny) + 0.5) * dx
-    cx, cy = obstacle["center"][:2]
-    r2 = (xc[:, None] - cx) ** 2 + (yc[None, :] - cy) ** 2
-    fluid = r2 >= obstacle["radius"] ** 2
+    fluid = ~solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
     open_u = np.zeros((nx + 1, ny), bool)
     open_u[0], open_u[nx] = fluid[0], fluid[nx - 1]
     open_u[1:nx] = fluid[:-1] & fluid[1:]
@@ -2543,14 +2543,6 @@ def channel_solve(
 # ============================================================
 
 
-_CHANNEL_BCS = {
-    "x_lo": "dirichlet",
-    "x_hi": "neumann",
-    "y_lo": "no_slip",
-    "y_hi": "no_slip",
-}
-
-
 class InputSchema(
     make_differentiable(
         _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
@@ -2560,23 +2552,7 @@ class InputSchema(
 
     @model_validator(mode="after")
     def _check_supported_bcs(self) -> "InputSchema":
-        """Accept a fully periodic box, or the 2-D channel with a cylinder."""
-        bc = self.boundary_conditions
-        if bc.is_fully_periodic and self.obstacle is None:
-            return self
-        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
-        if (
-            faces != _CHANNEL_BCS
-            or self.v0.shape[-1] != 2
-            or self.inflow_profile is None
-            or self.obstacle is None
-            or self.obstacle.shape != ObstacleShape.CYLINDER
-        ):
-            raise ValueError(
-                "warp-ns supports a fully periodic box without an obstacle, or the "
-                f"2-D channel {_CHANNEL_BCS} with an inflow_profile and a "
-                f"cylinder; got {faces}, obstacle {self.obstacle}"
-            )
+        check_periodic_or_channel(self, "warp-ns")
         return self
 
 

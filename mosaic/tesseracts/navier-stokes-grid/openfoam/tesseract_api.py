@@ -34,20 +34,14 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.schema_types import ObstacleShape
+from mosaic_shared.problems.navier_stokes_grid.channel import (
+    check_periodic_or_channel,
+    solid_cells,
+)
 from pydantic import model_validator
 
 # OpenFOAM Foundation v12 environment (installed from openfoam.org)
 _OF_BASHRC = "/opt/openfoam12/etc/bashrc"
-
-
-# OpenFOAM runs one non-periodic configuration, the DFG 2D-1 channel.
-_CHANNEL_BCS = {
-    "x_lo": "dirichlet",
-    "x_hi": "neumann",
-    "y_lo": "no_slip",
-    "y_hi": "no_slip",
-}
 
 
 class InputSchema(_CanonicalInputSchema):
@@ -55,22 +49,7 @@ class InputSchema(_CanonicalInputSchema):
 
     @model_validator(mode="after")
     def _check_supported_bcs(self) -> "InputSchema":
-        bc = self.boundary_conditions
-        if bc.is_fully_periodic and self.obstacle is None:
-            return self
-        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
-        if (
-            faces != _CHANNEL_BCS
-            or self.inflow_profile is None
-            or self.v0.shape[-1] != 2
-            or self.obstacle is None
-            or self.obstacle.shape != ObstacleShape.CYLINDER
-        ):
-            raise ValueError(
-                "openfoam supports fully periodic BCs without an obstacle, or a "
-                f"2-D cylinder in the channel {_CHANNEL_BCS} with an "
-                f"inflow_profile; got {faces}"
-            )
+        check_periodic_or_channel(self, "openfoam")
         return self
 
 
@@ -952,7 +931,7 @@ def _run_channel(inputs: InputSchema) -> dict:
 
         xc = (np.arange(nx) + 0.5) * dx
         X, Y = np.meshgrid(xc, y_canonical, indexing="ij")
-        fluid = (X - center[0]) ** 2 + (Y - center[1]) ** 2 >= radius**2
+        fluid = ~solid_cells(nx, ny, dx, center, radius)
         points = np.stack([X[fluid], Y[fluid], np.full(fluid.sum(), dx / 2)], axis=1)
         u, p = _sample(workdir, points, n_procs)
 

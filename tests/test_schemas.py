@@ -143,3 +143,72 @@ def test_ns_grid_inflow_profile_must_match_the_grid():
 
     with pytest.raises(ValidationError, match=r"\(41,\)"):
         InputSchema(**_channel_inputs(inflow_profile=np.ones(40, dtype=np.float32)))
+
+
+@needs_runtime
+def test_ns_grid_channel_check_accepts_the_two_benchmark_setups():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic_shared.problems.navier_stokes_grid.channel import (
+        check_periodic,
+        check_periodic_or_channel,
+    )
+
+    periodic = InputSchema(v0=np.zeros((16, 16, 1, 2), dtype=np.float32))
+    check_periodic(periodic, "solver")
+    check_periodic_or_channel(periodic, "solver")
+    check_periodic_or_channel(InputSchema(**_channel_inputs()), "solver")
+
+
+@needs_runtime
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"inflow_profile": None},
+        {"obstacle": {"shape": "box", "center": [0.2, 0.2], "half_widths": [0.05] * 2}},
+        {"boundary_conditions": {**_CHANNEL, "y_hi": {"type": "neumann"}}},
+    ],
+)
+def test_ns_grid_channel_check_rejects_other_channels(overrides):
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic_shared.problems.navier_stokes_grid.channel import (
+        check_periodic_or_channel,
+    )
+
+    inputs = InputSchema(**_channel_inputs(**overrides))
+    with pytest.raises(ValueError, match="solver supports a fully periodic box"):
+        check_periodic_or_channel(inputs, "solver")
+
+
+@needs_runtime
+def test_ns_grid_periodic_checks_reject_an_obstacle_in_a_periodic_box():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic_shared.problems.navier_stokes_grid.channel import (
+        check_periodic,
+        check_periodic_or_channel,
+    )
+
+    inputs = InputSchema(
+        v0=np.zeros((16, 16, 1, 2), dtype=np.float32),
+        domain_extent=1.0,
+        obstacle={"shape": "cylinder", "center": [0.5, 0.5], "radius": 0.1},
+    )
+    for check in (check_periodic, check_periodic_or_channel):
+        with pytest.raises(ValueError, match="without an obstacle"):
+            check(inputs, "solver")
+    with pytest.raises(ValueError, match="only fully periodic"):
+        check_periodic(InputSchema(**_channel_inputs()), "solver")
+
+
+@needs_runtime
+def test_ns_grid_solid_cells_are_the_cells_centered_inside_the_cylinder():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid.channel import solid_cells
+
+    # Cell centers at 0.5, 1.5, 2.5, 3.5; the four around (2, 2) lie at
+    # distance sqrt(0.5) < 1, the next ring at sqrt(2.5) > 1.
+    solid = solid_cells(4, 5, 1.0, [2.0, 2.0], 1.0)
+    expected = np.zeros((4, 5), dtype=bool)
+    expected[1:3, 1:3] = True
+    np.testing.assert_array_equal(solid, expected)

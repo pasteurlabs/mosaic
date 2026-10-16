@@ -44,16 +44,12 @@ from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.schema_types import ObstacleShape, make_differentiable  # noqa: E402
+from mosaic_shared.problems.navier_stokes_grid.channel import (  # noqa: E402
+    check_periodic_or_channel,
+    solid_cells,
+)
+from mosaic_shared.schema_types import make_differentiable  # noqa: E402
 from pydantic import model_validator  # noqa: E402
-
-# The one non-periodic configuration XLB runs: the 2-D DFG channel.
-_CHANNEL_BCS = {
-    "x_lo": "dirichlet",
-    "x_hi": "neumann",
-    "y_lo": "no_slip",
-    "y_hi": "no_slip",
-}
 
 
 class InputSchema(
@@ -65,23 +61,7 @@ class InputSchema(
 
     @model_validator(mode="after")
     def _check_supported_bcs(self) -> "InputSchema":
-        """Accept a fully periodic box, or the 2-D channel with a cylinder."""
-        bc = self.boundary_conditions
-        if bc.is_fully_periodic and self.obstacle is None:
-            return self
-        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
-        if (
-            faces != _CHANNEL_BCS
-            or self.v0.shape[-1] != 2
-            or self.inflow_profile is None
-            or self.obstacle is None
-            or self.obstacle.shape != ObstacleShape.CYLINDER
-        ):
-            raise ValueError(
-                "xlb supports a fully periodic box without an obstacle, or the "
-                f"2-D channel {_CHANNEL_BCS} with an inflow_profile and a "
-                f"cylinder; got {faces}, obstacle {self.obstacle}"
-            )
+        check_periodic_or_channel(self, "xlb")
         return self
 
 
@@ -441,10 +421,7 @@ def _channel_links(
         (q, nx, ny), all bool.
     """
     nx, ny = shape
-    x = (np.arange(nx) + 0.5) * dx
-    y = (np.arange(ny) + 0.5) * dx
-    (x0, y0), r = obstacle["center"], obstacle["radius"]
-    solid = (x[:, None] - x0) ** 2 + (y[None, :] - y0) ** 2 < r**2
+    solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
     i, j = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")
     masks = np.zeros((4, len(_D2Q9_C), nx, ny), dtype=bool)
     for q, (cx, cy) in enumerate(_D2Q9_C):

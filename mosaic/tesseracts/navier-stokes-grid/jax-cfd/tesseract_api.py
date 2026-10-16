@@ -13,6 +13,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.problems.navier_stokes_grid.channel import check_periodic
 from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
@@ -34,11 +35,7 @@ class InputSchema(
 
     @model_validator(mode="after")
     def _check_periodic(self) -> "InputSchema":
-        if self.obstacle is not None or not self.boundary_conditions.is_fully_periodic:
-            raise ValueError(
-                "this jax-cfd tesseract supports only fully periodic boundary "
-                "conditions without an obstacle"
-            )
+        check_periodic(self, "jax-cfd")
         return self
 
 

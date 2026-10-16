@@ -9,6 +9,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from mosaic_shared.problems.navier_stokes_grid import InputSchema
+from mosaic_shared.problems.navier_stokes_grid.channel import solid_cells
 
 from mosaic.benchmarks.core.status import ANOMALY, OK, Cell, _refine_for_suite
 from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
@@ -51,6 +52,15 @@ def test_channel_inputs_satisfy_the_solver_schema():
     assert schema.dx == pytest.approx(0.01)
     v0 = np.asarray(inputs["v0"])
     assert np.all(v0[cylinder.solid_mask(10)] == 0)
+
+
+@pytest.mark.parametrize("res", [10, 20, 40])
+def test_solid_mask_is_the_solvers_staircase(res):
+    """The harness's mask matches the solvers' ``solid_cells`` cell for cell."""
+    nx, ny, dx = cylinder.grid(res)
+    radius = cylinder.DIAMETER / 2
+    expected = solid_cells(nx, ny, dx, cylinder.CENTER, radius)
+    np.testing.assert_array_equal(cylinder.solid_mask(res), expected)
 
 
 # ── Metrics ──────────────────────────────────────────────────────────────────
