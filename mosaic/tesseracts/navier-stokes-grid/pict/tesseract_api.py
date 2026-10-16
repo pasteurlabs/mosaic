@@ -17,18 +17,13 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.schema_types import ObstacleShape, make_differentiable
+from mosaic_shared.problems.navier_stokes_grid.channel import (
+    check_periodic_or_channel,
+    solid_cells,
+)
+from mosaic_shared.schema_types import make_differentiable
 from pydantic import model_validator
 from scipy.spatial import Delaunay
-
-# PICT solves one non-periodic configuration, the DFG channel around a
-# cylinder (profile inlet at x_lo, outflow at x_hi, no-slip walls in y).
-_CHANNEL_BCS = {
-    "x_lo": "dirichlet",
-    "x_hi": "neumann",
-    "y_lo": "no_slip",
-    "y_hi": "no_slip",
-}
 
 
 class InputSchema(
@@ -38,28 +33,15 @@ class InputSchema(
 
     @model_validator(mode="after")
     def _check_supported_bcs(self) -> "InputSchema":
-        bc = self.boundary_conditions
         shape = tuple(self.v0.shape)
-        if bc.is_fully_periodic and self.obstacle is None:
+        if self.boundary_conditions.is_fully_periodic and self.obstacle is None:
             if len(set(shape[: shape[-1]])) != 1:
                 raise ValueError(
                     "pict supports periodic domains with the same number of "
                     f"cells along every axis; got v0 of shape {shape}"
                 )
             return self
-        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
-        if (
-            faces != _CHANNEL_BCS
-            or shape[-1] != 2
-            or self.inflow_profile is None
-            or self.obstacle is None
-            or self.obstacle.shape != ObstacleShape.CYLINDER
-        ):
-            raise ValueError(
-                "pict supports fully periodic BCs without an obstacle, or a 2-D "
-                f"channel {_CHANNEL_BCS} around a cylinder with an inflow_profile; "
-                f"got {faces}, {shape[-1]}-D, obstacle={self.obstacle}"
-            )
+        check_periodic_or_channel(self, "pict")
         return self
 
 
@@ -459,8 +441,7 @@ class _Channel:
         X, Y = np.meshgrid(
             (np.arange(nx) + 0.5) * dx, (np.arange(ny) + 0.5) * dx, indexing="ij"
         )
-        cx, cy = self.center
-        solid = (X - cx) ** 2 + (Y - cy) ** 2 < self.radius**2
+        solid = solid_cells(nx, ny, dx, self.center, self.radius)
         in_box = np.zeros((nx, ny), dtype=bool)
         in_box[i0:i1, j0:j1] = True
         targets = in_box & ~solid

@@ -5,7 +5,7 @@
 
 Covers behaviour reachable without a real Tesseract container:
 - the ``MOSAIC_TESSERACT_TIMEOUT`` env-var contract,
-- ``safe_apply`` / ``safe_apply_with_extras`` error handling (missing output
+- ``safe_apply`` / ``safe_apply_with_state`` error handling (missing output
   key, non-finite arrays, exception propagation, TimeoutError messaging,
   per-thread error storage cleared on success), and
 - the pure helper ``image_tags_no_build``.
@@ -58,11 +58,11 @@ def test_timeout_tuple_matches_components():
     )
 
 
-# ── safe_apply_with_extras: success paths ─────────────────────────────────────
+# ── safe_apply_with_state: success paths ─────────────────────────────────────
 
 
-def test_safe_apply_with_extras_success_returns_array_only(monkeypatch):
-    """Happy path with no extras returns the primary array and empty dicts."""
+def test_safe_apply_with_state_success_returns_array_only(monkeypatch):
+    """Happy path with no state keys returns the primary array and an empty dict."""
     arr = jnp.array([1.0, 2.0, 3.0])
 
     def fake_apply(t, inputs):
@@ -70,62 +70,15 @@ def test_safe_apply_with_extras_success_returns_array_only(monkeypatch):
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
 
-    out_arr, extras, state = runner.safe_apply_with_extras(
-        t=None, inputs={}, output_key="result", extra_scalar_keys=[], state_keys=[]
+    out_arr, state = runner.safe_apply_with_state(
+        t=None, inputs={}, output_key="result", state_keys=[]
     )
     assert out_arr is not None
     assert jnp.array_equal(out_arr, arr)
-    assert extras == {}
     assert state == {}
 
 
-def test_safe_apply_with_extras_extracts_scalar_extras(monkeypatch):
-    """extra_scalar_keys are flattened and returned as Python floats."""
-
-    def fake_apply(t, inputs):
-        return {
-            "result": jnp.zeros(3),
-            "potential_energy": jnp.array([2.5]),  # shape-(1,) array
-            "kinetic_energy": 1.25,  # bare scalar
-            "drag": jnp.asarray(0.75),
-        }
-
-    monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
-
-    _, extras, _ = runner.safe_apply_with_extras(
-        None,
-        {},
-        "result",
-        extra_scalar_keys=["potential_energy", "kinetic_energy", "drag"],
-        state_keys=[],
-    )
-    assert extras == pytest.approx(
-        {"potential_energy": 2.5, "kinetic_energy": 1.25, "drag": 0.75}
-    )
-
-
-def test_safe_apply_with_extras_drops_non_finite_scalar_extras(monkeypatch):
-    """A NaN/inf scalar extra is silently dropped rather than poisoning the dict."""
-
-    def fake_apply(t, inputs):
-        return {
-            "result": jnp.zeros(3),
-            "good": jnp.array(1.0),
-            "bad_nan": jnp.array(float("nan")),
-            "bad_inf": jnp.array(float("inf")),
-        }
-
-    monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
-
-    _, extras, _ = runner.safe_apply_with_extras(
-        None, {}, "result", ["good", "bad_nan", "bad_inf"], []
-    )
-    assert "good" in extras
-    assert "bad_nan" not in extras
-    assert "bad_inf" not in extras
-
-
-def test_safe_apply_with_extras_returns_state_arrays(monkeypatch):
+def test_safe_apply_with_state_returns_state_arrays(monkeypatch):
     """state_keys come back as jax arrays for downstream threading."""
 
     def fake_apply(t, inputs):
@@ -137,18 +90,18 @@ def test_safe_apply_with_extras_returns_state_arrays(monkeypatch):
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
 
-    _, _, state = runner.safe_apply_with_extras(
-        None, {}, "result", [], state_keys=["velocity", "pressure"]
+    _, state = runner.safe_apply_with_state(
+        None, {}, "result", state_keys=["velocity", "pressure"]
     )
     assert set(state.keys()) == {"velocity", "pressure"}
     assert jnp.array_equal(state["velocity"], jnp.array([1.0, 2.0]))
 
 
-# ── safe_apply_with_extras: failure paths ─────────────────────────────────────
+# ── safe_apply_with_state: failure paths ─────────────────────────────────────
 
 
-def test_safe_apply_with_extras_missing_output_key(monkeypatch):
-    """When output_key isn't in the response, returns (None, {}, {}) and
+def test_safe_apply_with_state_missing_output_key(monkeypatch):
+    """When output_key isn't in the response, returns (None, {}) and
     records the error message in thread-local state.
     """
 
@@ -157,9 +110,8 @@ def test_safe_apply_with_extras_missing_output_key(monkeypatch):
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
 
-    arr, extras, state = runner.safe_apply_with_extras(None, {}, "result", [], [])
+    arr, state = runner.safe_apply_with_state(None, {}, "result")
     assert arr is None
-    assert extras == {}
     assert state == {}
     err = runner.get_last_apply_error()
     assert err is not None
@@ -167,8 +119,8 @@ def test_safe_apply_with_extras_missing_output_key(monkeypatch):
     assert "other_key" in err  # surfaces the available keys for debugging
 
 
-def test_safe_apply_with_extras_non_finite_array(monkeypatch):
-    """A NaN/inf in the primary array means failure — returns (None, {}, {})
+def test_safe_apply_with_state_non_finite_array(monkeypatch):
+    """A NaN/inf in the primary array means failure — returns (None, {})
     and records the non-finite counts as the error, classified as ``nan``.
     """
 
@@ -177,16 +129,15 @@ def test_safe_apply_with_extras_non_finite_array(monkeypatch):
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
 
-    arr, extras, state = runner.safe_apply_with_extras(None, {}, "result", [], [])
+    arr, state = runner.safe_apply_with_state(None, {}, "result")
     assert arr is None
-    assert extras == {}
     assert state == {}
     err = runner.get_last_apply_error()
     assert err == "solver output 'result' is not finite (2 NaN, 1 Inf of 4 values)"
     assert classify_failure("", err) == "nan"
 
 
-def test_safe_apply_with_extras_success_clears_previous_error(monkeypatch):
+def test_safe_apply_with_state_success_clears_previous_error(monkeypatch):
     """A successful call clears the slot, so a later failure is never blamed
     on an earlier call's error.
     """
@@ -206,7 +157,7 @@ def test_safe_apply_with_extras_success_clears_previous_error(monkeypatch):
     assert runner.get_last_apply_error() is None
 
 
-def test_safe_apply_with_extras_exception_wraps_error(monkeypatch):
+def test_safe_apply_with_state_exception_wraps_error(monkeypatch):
     """Generic exception is caught, msg stored in thread-local, None returned."""
 
     def fake_apply(t, inputs):
@@ -218,7 +169,7 @@ def test_safe_apply_with_extras_exception_wraps_error(monkeypatch):
     if hasattr(runner._tl, "last_apply_error"):
         del runner._tl.last_apply_error
 
-    arr, _, _ = runner.safe_apply_with_extras(None, {}, "result", [], [])
+    arr, _ = runner.safe_apply_with_state(None, {}, "result")
     assert arr is None
     err = runner.get_last_apply_error()
     assert err is not None
@@ -226,7 +177,7 @@ def test_safe_apply_with_extras_exception_wraps_error(monkeypatch):
     assert "solver crashed mid-step" in err
 
 
-def test_safe_apply_with_extras_timeout_error_includes_duration(monkeypatch):
+def test_safe_apply_with_state_timeout_error_includes_duration(monkeypatch):
     """TimeoutError gets a specialised message mentioning the timeout budget."""
 
     def fake_apply(t, inputs):
@@ -234,7 +185,7 @@ def test_safe_apply_with_extras_timeout_error_includes_duration(monkeypatch):
 
     monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", fake_apply)
 
-    arr, _, _ = runner.safe_apply_with_extras(None, {}, "result", [], [])
+    arr, _ = runner.safe_apply_with_state(None, {}, "result")
     assert arr is None
     err = runner.get_last_apply_error()
     assert err is not None
@@ -277,7 +228,7 @@ def test_get_last_apply_error_is_thread_local(monkeypatch):
 
 
 def test_safe_apply_returns_only_primary_array(monkeypatch):
-    """safe_apply is the array-only wrapper around safe_apply_with_extras.
+    """safe_apply is the array-only wrapper around safe_apply_with_state.
 
     The thin wrapper exists so callers that only need the primary array don't
     have to destructure a 3-tuple. Pinning the return type (jax.Array, not

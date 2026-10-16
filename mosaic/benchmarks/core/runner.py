@@ -899,16 +899,16 @@ def safe_apply(t: Tesseract, inputs: dict, output_key: str) -> jax.Array | None:
     Each call overwrites the previous thread's last error; callers that
     interleave multiple ``safe_apply`` invocations should read the error
     immediately after each failure. The same convention applies to
-    :func:`safe_apply_with_extras`.
+    :func:`safe_apply_with_state`.
     """
-    arr, _, _ = safe_apply_with_extras(t, inputs, output_key, [], [])
+    arr, _ = safe_apply_with_state(t, inputs, output_key)
     return arr
 
 
 def get_last_apply_error() -> str | None:
     """Return the last :func:`safe_apply` failure message for this thread.
 
-    Returns ``None`` if no :func:`safe_apply` / :func:`safe_apply_with_extras`
+    Returns ``None`` if no :func:`safe_apply` / :func:`safe_apply_with_state`
     call has failed on this thread, or if a successful call has overwritten
     the slot.
     """
@@ -924,20 +924,18 @@ def _apply_tesseract_with_deadline(t: Tesseract, inputs: dict):
     return apply_tesseract(t, inputs)
 
 
-def safe_apply_with_extras(
+def safe_apply_with_state(
     t: Tesseract,
     inputs: dict,
     output_key: str,
-    extra_scalar_keys: list[str],
     state_keys: list[str] | None = None,
-) -> tuple[jax.Array | None, dict[str, float], dict[str, jax.Array]]:
-    """Forward pass returning (primary array, scalar extras, array state).
+) -> tuple[jax.Array | None, dict[str, jax.Array]]:
+    """Forward pass returning (primary array, further output arrays).
 
-    extra_scalar_keys: output keys to extract as floats (e.g. potential_energy).
-    state_keys:        output keys to return as arrays for state threading
-                       (e.g. velocities for chunked MD stability runs).
+    state_keys: output keys to return as arrays alongside the primary one
+                (e.g. the pressure and body force of an obstacle run).
 
-    Returns (None, {}, {}) on failure.
+    Returns (None, {}) on failure.
     """
     if state_keys is None:
         state_keys = []
@@ -952,7 +950,7 @@ def safe_apply_with_extras(
             )
             print_warn(f"apply failed: {error_msg}")
             _tl.last_apply_error = error_msg
-            return None, {}, {}
+            return None, {}
         arr = out[output_key]
         if not jnp.all(jnp.isfinite(arr)):
             error_msg = (
@@ -960,20 +958,11 @@ def safe_apply_with_extras(
             )
             print_warn(f"apply failed: {error_msg}")
             _tl.last_apply_error = error_msg
-            return None, {}, {}
-        extras = {}
-        for k in extra_scalar_keys:
-            if k in out and out[k] is not None:
-                # Tesseracts return scalar outputs as either a Python scalar or a
-                # shape-(1,) array (e.g. drag); flatten so float() never sees a
-                # multi-element array.
-                v = float(jnp.asarray(out[k]).flatten()[0])
-                if jnp.isfinite(v):
-                    extras[k] = v
+            return None, {}
         state = {
             k: jnp.array(out[k]) for k in state_keys if k in out and out[k] is not None
         }
-        return arr, extras, state
+        return arr, state
     except Exception as exc:
         _exc_name = type(exc).__name__
         if isinstance(exc, TimeoutError):
@@ -985,4 +974,4 @@ def safe_apply_with_extras(
             error_msg = f"{_exc_name}: {exc}"
         print_warn(f"apply failed: {error_msg}")
         _tl.last_apply_error = error_msg
-        return None, {}, {}
+        return None, {}

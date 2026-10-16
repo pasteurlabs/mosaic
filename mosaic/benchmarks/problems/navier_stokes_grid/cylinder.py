@@ -39,7 +39,7 @@ from mosaic.benchmarks.core.experiment import (
     kernel,
 )
 from mosaic.benchmarks.core.io import save_field_snapshots_npz
-from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply_with_extras
+from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply_with_state
 from mosaic.benchmarks.core.status_checks import CheckOutcome, ForwardSummary
 from mosaic.benchmarks.core.utils import active_solvers
 from mosaic.benchmarks.problems.navier_stokes_grid.forces import control_volume_force
@@ -103,7 +103,11 @@ def cell_centers(resolution: int) -> tuple[np.ndarray, np.ndarray]:
 
 
 def solid_mask(resolution: int) -> np.ndarray:
-    """``(nx, ny)`` bool, True for cells whose center lies inside the cylinder."""
+    """``(nx, ny)`` bool, True for cells whose center lies inside the cylinder.
+
+    The same staircase as the solvers' ``mosaic_shared`` ``solid_cells``, which
+    the harness can't import.
+    """
     x, y = cell_centers(resolution)
     r2 = (x[:, None] - CENTER[0]) ** 2 + (y[None, :] - CENTER[1]) ** 2
     return r2 < (DIAMETER / 2) ** 2
@@ -383,8 +387,8 @@ def cylinder(t: Any, ctx: KernelContext) -> dict:
     """
     resolution = int(ctx.sweep_value)
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
-    velocity, _, state = safe_apply_with_extras(
-        t, inputs, ctx.output_key, [], state_keys=["pressure", "body_force"]
+    velocity, state = safe_apply_with_state(
+        t, inputs, ctx.output_key, state_keys=["pressure", "body_force"]
     )
     if velocity is None:
         return {"metrics": {"apply_error": get_last_apply_error(), "valid": False}}

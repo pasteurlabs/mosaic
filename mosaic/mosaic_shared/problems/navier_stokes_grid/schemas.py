@@ -207,10 +207,3 @@ class OutputSchema(BaseModel):
             "Positive along +x and +y, so a flow in +x gives F_x > 0."
         ),
     )
-    drag: Array[(1,), Float32] | None = Field(
-        default=None,
-        description=(
-            "Not read by the harness, which takes the drag from body_force. "
-            "Accepted so that solvers reporting a scalar drag stay valid."
-        ),
-    )
