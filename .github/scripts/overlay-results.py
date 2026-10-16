@@ -45,6 +45,8 @@ _spec.loader.exec_module(_mod)
 _merge_result_pair = _mod._merge_result_pair
 _merge_npz = _mod._merge_npz
 
+from mosaic.benchmarks.core.io import _physics_params  # noqa: E402
+
 
 def _load_json(path: Path) -> dict:
     with open(path) as f:
@@ -94,6 +96,16 @@ def main() -> None:
 
     all_relpaths = sorted(set(baseline_files) | set(pr_files))
 
+    # An experiment whose params changed has nothing valid left in the
+    # baseline, so its directory comes from the PR alone, as in local runs.
+    redefined = {
+        Path(relpath).parent
+        for relpath in baseline_files.keys() & pr_files.keys()
+        if Path(relpath).name == "result.json"
+        and _physics_params(_load_json(baseline_files[relpath]).get("params"))
+        != _physics_params(_load_json(pr_files[relpath]).get("params"))
+    }
+
     n_merged = 0
     n_npz_merged = 0
     n_copied = 0
@@ -111,7 +123,12 @@ def main() -> None:
         in_pr = relpath in pr_files
         out_path = output / relpath
 
-        if in_baseline and in_pr and relpath.endswith("result.json"):
+        if Path(relpath).parent in redefined:
+            if in_pr:
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(pr_files[relpath], out_path)
+                n_copied += 1
+        elif in_baseline and in_pr and relpath.endswith("result.json"):
             # Solver-level merge: baseline + PR overlay.
             try:
                 base_data = _load_json(baseline_files[relpath])
@@ -150,7 +167,8 @@ def main() -> None:
             n_baseline_only += 1
 
     print(
-        f"Overlay complete: {n_merged} result.json merged, "
+        f"Overlay complete: {len(redefined)} redefined experiment(s) taken from "
+        f"the PR, {n_merged} result.json merged, "
         f"{n_npz_merged} npz merged, "
         f"{n_copied} PR-only copied, {n_baseline_only} baseline-only carried forward."
     )
